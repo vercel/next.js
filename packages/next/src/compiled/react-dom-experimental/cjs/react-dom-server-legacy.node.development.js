@@ -4751,11 +4751,13 @@
         void 0 === progressiveChunkSize ? 12800 : progressiveChunkSize;
       this.status = 10;
       this.fatalError = null;
+      this.aborted = !1;
       this.pendingRootTasks = this.allPendingTasks = this.nextSegmentId = 0;
       this.completedPreambleSegments = this.completedRootSegment = null;
       this.byteSize = 0;
       this.abortableTasks = abortSet;
       this.pingedTasks = [];
+      this.currentTask = null;
       this.clientRenderedBoundaries = [];
       this.completedBoundaries = [];
       this.partialBoundaries = [];
@@ -5061,8 +5063,10 @@
         task.thenableState
       );
       try {
-        var prevStatus = request.status;
-        request.status = 15;
+        var prevStatus = request.status,
+          prevAborted = request.aborted;
+        request.status = 14;
+        request.aborted = !1;
         var prevContext = currentActiveSnapshot,
           prevDispatcher = ReactSharedInternals.H;
         ReactSharedInternals.H = HooksDispatcher;
@@ -5089,7 +5093,8 @@
             (ReactSharedInternals.getCurrentStack = prevGetCurrentStackImpl),
             prevDispatcher === HooksDispatcher && switchContext(prevContext),
             (currentRequest = prevRequest),
-            (request.status = prevStatus);
+            (request.status = prevStatus),
+            (request.aborted = prevAborted);
         }
       } finally {
         restoreThenableState(), (shouldCaptureSuspendedCallSite = !1);
@@ -5231,7 +5236,7 @@
         : (errorInfo(error), onFatalError(error));
       null !== request.destination
         ? ((request.status = CLOSED), request.destination.destroy(error))
-        : ((request.status = 13), (request.fatalError = error));
+        : ((request.status = 12), (request.fatalError = error));
     }
     function finishSuspenseListRow(request, row) {
       unblockSuspenseListRow(request, row.next, row.hoistables);
@@ -5411,7 +5416,7 @@
                 finishSuspenseListRow(request, previousSuspenseListRow);
           } catch (thrownValue) {
             throw (
-              ((newSegment.status = 12 === request.status ? ABORTED : ERRORED),
+              ((newSegment.status = request.aborted ? ABORTED : ERRORED),
               thrownValue)
             );
           }
@@ -5860,7 +5865,7 @@
             } else internalInstance.queue = null;
           }
           var nextChildren = callRenderInDEV(instance);
-          if (12 === request.status) throw null;
+          if (request.aborted) throw null;
           instance.props !== resolvedProps &&
             (didWarnAboutReassigningProps ||
               console.error(
@@ -5892,7 +5897,7 @@
             props,
             void 0
           );
-          if (12 === request.status) throw null;
+          if (request.aborted) throw null;
           var hasId = 0 !== localIdCounter,
             actionStateCount = actionStateCounter,
             actionStateMatchingIndex$jscomp$0 = actionStateMatchingIndex;
@@ -5994,8 +5999,7 @@
             segment.preambleChildren.push(preambleSegment);
             task.blockedSegment = preambleSegment;
             try {
-              (preambleSegment.status = 6),
-                renderNode(request, task, _children, -1),
+              renderNode(request, task, _children, -1),
                 pushSegmentFinale(
                   preambleSegment.chunks,
                   request.renderState,
@@ -6316,7 +6320,6 @@
                   replaceSuspenseComponentStackWithSuspenseFallbackStack(
                     suspenseComponentStack
                   );
-                boundarySegment.status = 6;
                 try {
                   renderNode(request, task, fallback, -1),
                     pushSegmentFinale(
@@ -6328,8 +6331,9 @@
                     (boundarySegment.status = COMPLETED);
                 } catch (thrownValue) {
                   throw (
-                    ((boundarySegment.status =
-                      12 === request.status ? ABORTED : ERRORED),
+                    ((boundarySegment.status = request.aborted
+                      ? ABORTED
+                      : ERRORED),
                     thrownValue)
                   );
                 } finally {
@@ -6378,7 +6382,6 @@
                   prevContext$jscomp$1
                 );
                 task.row = null;
-                contentRootSegment.status = 6;
                 try {
                   if (
                     (renderNode(request, task, content, -1),
@@ -6411,7 +6414,7 @@
                       tryToResolveTogetherRow(request, prevRow$jscomp$0);
                 } catch (thrownValue$2) {
                   newBoundary.status = CLIENT_RENDERED;
-                  if (12 === request.status) {
+                  if (request.aborted) {
                     contentRootSegment.status = ABORTED;
                     var error = request.fatalError;
                   } else
@@ -6570,7 +6573,7 @@
               return;
             case REACT_LAZY_TYPE:
               var Component = callLazyInitInDEV(type);
-              if (12 === request.status && 15 !== request.status) throw null;
+              if (request.aborted) throw null;
               renderElement(request, task, keyPath, Component, props, ref);
               return;
           }
@@ -6642,8 +6645,8 @@
                   ">. The tree doesn't match so React will fallback to client rendering."
               );
             var childNodes = node[2],
-              childSlots = node[3];
-            name = task.node;
+              childSlots = node[3],
+              currentNode = task.node;
             task.replay = {
               nodes: childNodes,
               slots: childSlots,
@@ -6666,25 +6669,30 @@
                 (x === SuspenseException || "function" === typeof x.then)
               )
                 throw (
-                  (task.node === name
+                  (task.node === currentNode
                     ? (task.replay = replay)
                     : childIndex.splice(i, 1),
                   x)
                 );
               task.replay.pendingTasks--;
-              type = getThrownInfo(task.componentStack);
+              keyPath = getThrownInfo(task.componentStack);
               props = request;
-              keyPath = task.blockedBoundary;
-              request = x;
-              ref = logRecoverableError(props, request, type, task.debugTask);
+              currentNode = task.blockedBoundary;
+              request = request.aborted ? request.fatalError : x;
+              type = logRecoverableError(
+                props,
+                request,
+                keyPath,
+                task.debugTask
+              );
               abortRemainingReplayNodes(
                 props,
-                keyPath,
+                currentNode,
                 childNodes,
                 childSlots,
                 request,
-                ref,
                 type,
+                keyPath,
                 !1
               );
             }
@@ -6698,7 +6706,8 @@
               );
             a: {
               replay = request;
-              request = node[5];
+              request = keyPath;
+              keyPath = node[5];
               type = node[2];
               ref = node[3];
               name = null === node[4] ? [] : node[4][2];
@@ -6721,10 +6730,10 @@
                 defer
               );
               defer.parentFlushed = !0;
-              defer.rootSegmentID = request;
+              defer.rootSegmentID = keyPath;
               task.blockedBoundary = defer;
               task.hoistableState = defer.contentState;
-              task.keyPath = keyPath;
+              task.keyPath = request;
               task.formatContext = getSuspenseContentFormatContext(
                 replay.resumableState,
                 prevContext
@@ -6746,20 +6755,23 @@
                   replay.completedBoundaries.push(defer);
                   break a;
                 }
-              } catch (error) {
+              } catch (thrownValue) {
                 (defer.status = CLIENT_RENDERED),
-                  (childNodes = getThrownInfo(task.componentStack)),
-                  (childSlots = logRecoverableError(
+                  (childNodes = replay.aborted
+                    ? replay.fatalError
+                    : thrownValue),
+                  (childSlots = getThrownInfo(task.componentStack)),
+                  (currentNode = logRecoverableError(
                     replay,
-                    error,
                     childNodes,
+                    childSlots,
                     task.debugTask
                   )),
                   encodeErrorForBoundary(
                     defer,
-                    childSlots,
-                    error,
+                    currentNode,
                     childNodes,
+                    childSlots,
                     !1
                   ),
                   task.replay.pendingTasks--,
@@ -6781,7 +6793,7 @@
                 parentBoundary,
                 defer.fallbackState,
                 props,
-                [keyPath[0], "Suspense Fallback", keyPath[2]],
+                [request[0], "Suspense Fallback", request[2]],
                 getSuspenseFallbackFormatContext(
                   replay.resumableState,
                   task.formatContext
@@ -6930,7 +6942,7 @@
               );
             case REACT_LAZY_TYPE:
               node = callLazyInitInDEV(node);
-              if (12 === request.status) throw null;
+              if (request.aborted) throw null;
               renderNodeDestructive(request, task, node, childIndex);
               return;
           }
@@ -7115,8 +7127,12 @@
           var node = replayNodes[j];
           if (node[1] === childIndex) {
             childIndex = node[2];
-            node = node[3];
-            task.replay = { nodes: childIndex, slots: node, pendingTasks: 1 };
+            var childSlots = node[3];
+            task.replay = {
+              nodes: childIndex,
+              slots: childSlots,
+              pendingTasks: 1
+            };
             try {
               renderChildrenArray(request, task, children, -1);
               if (
@@ -7136,20 +7152,21 @@
                 throw x;
               task.replay.pendingTasks--;
               var thrownInfo = getThrownInfo(task.componentStack);
-              children = task.blockedBoundary;
-              var error = x,
-                errorDigest = logRecoverableError(
-                  request,
-                  error,
-                  thrownInfo,
-                  task.debugTask
-                );
-              abortRemainingReplayNodes(
-                request,
+              children = request;
+              node = task.blockedBoundary;
+              request = request.aborted ? request.fatalError : x;
+              var errorDigest = logRecoverableError(
                 children,
-                childIndex,
+                request,
+                thrownInfo,
+                task.debugTask
+              );
+              abortRemainingReplayNodes(
+                children,
                 node,
-                error,
+                childIndex,
+                childSlots,
+                request,
                 errorDigest,
                 thrownInfo,
                 !1
@@ -7171,18 +7188,14 @@
         null !== task.replay &&
         ((j = task.replay.slots), null !== j && "object" === typeof j)
       ) {
-        for (childIndex = 0; childIndex < replayNodes; childIndex++)
-          (node = children[childIndex]),
-            (task.treeContext = pushTreeContext(
-              replay,
-              replayNodes,
-              childIndex
-            )),
-            (error = j[childIndex]),
-            "number" === typeof error
-              ? (resumeNode(request, task, error, node, childIndex),
-                delete j[childIndex])
-              : renderNode(request, task, node, childIndex);
+        for (node = 0; node < replayNodes; node++)
+          (childIndex = children[node]),
+            (task.treeContext = pushTreeContext(replay, replayNodes, node)),
+            (childSlots = j[node]),
+            "number" === typeof childSlots
+              ? (resumeNode(request, task, childSlots, childIndex, node),
+                delete j[node])
+              : renderNode(request, task, childIndex, node);
         task.treeContext = replay;
         task.keyPath = prevKeyPath;
         task.componentStack = previousComponentStack;
@@ -7190,10 +7203,10 @@
         return;
       }
       for (j = 0; j < replayNodes; j++)
-        (childIndex = children[j]),
-          warnForMissingKey(request, task, childIndex),
+        (node = children[j]),
+          warnForMissingKey(request, task, node),
           (task.treeContext = pushTreeContext(replay, replayNodes, j)),
-          renderNode(request, task, childIndex, j);
+          renderNode(request, task, node, j);
       task.treeContext = replay;
       task.keyPath = prevKeyPath;
       task.componentStack = previousComponentStack;
@@ -7386,7 +7399,7 @@
               thrownValue === SuspenseException
                 ? getSuspendedThenable()
                 : thrownValue),
-            12 !== request.status && "object" === typeof node && null !== node)
+            !request.aborted && "object" === typeof node && null !== node)
           ) {
             if ("function" === typeof node.then) {
               childIndex =
@@ -7442,7 +7455,7 @@
               thrownValue$3 === SuspenseException
                 ? getSuspendedThenable()
                 : thrownValue$3),
-            12 !== request.status && "object" === typeof node && null !== node)
+            !request.aborted && "object" === typeof node && null !== node)
           ) {
             if ("function" === typeof node.then) {
               segment = node;
@@ -7566,111 +7579,170 @@
           for (var index in slots) delete slots[index];
       }
     }
-    function abortTask(task, request, error) {
-      var boundary = task.blockedBoundary,
-        segment = task.blockedSegment;
-      if (null !== segment) {
-        if (6 === segment.status) return;
-        segment.status = ABORTED;
-      }
-      var errorInfo = getThrownInfo(task.componentStack),
-        node = task.node;
-      if (null !== node && "object" === typeof node) {
-        for (
-          var debugInfo = node._debugInfo;
-          "object" === typeof node &&
-          null !== node &&
-          node.$$typeof === REACT_LAZY_TYPE;
+    function abortTask(task, request) {
+      if (task !== request.currentTask) {
+        var boundary = task.blockedBoundary,
+          segment = task.blockedSegment;
+        null !== segment && (segment.status = ABORTED);
+        segment = task.node;
+        if (null !== segment && "object" === typeof segment) {
+          for (
+            var debugInfo = segment._debugInfo;
+            "object" === typeof segment &&
+            null !== segment &&
+            segment.$$typeof === REACT_LAZY_TYPE;
 
-        ) {
-          var payload = node._payload;
-          if ("fulfilled" === payload.status) node = payload.value;
-          else break;
-        }
-        "object" === typeof node &&
-          null !== node &&
-          (isArrayImpl(node) ||
-            "function" === typeof node[ASYNC_ITERATOR] ||
-            node.$$typeof === REACT_ELEMENT_TYPE ||
-            node.$$typeof === REACT_LAZY_TYPE) &&
-          isArrayImpl(node._debugInfo) &&
-          (debugInfo = node._debugInfo);
-        pushHaltedAwaitOnComponentStack(task, debugInfo);
-        null !== task.thenableState &&
-          pushSuspendedCallSiteOnComponentStack(request, task);
-      }
-      if (null === boundary) {
-        if (13 !== request.status && request.status !== CLOSED) {
-          boundary = task.replay;
-          if (null === boundary) {
-            null !== request.trackedPostpones && null !== segment
-              ? ((boundary = request.trackedPostpones),
-                logRecoverableError(request, error, errorInfo, task.debugTask),
-                trackPostpone(request, boundary, task, segment),
-                finishedTask(request, null, task.row, segment))
-              : (logRecoverableError(request, error, errorInfo, task.debugTask),
-                fatalError(request, error, errorInfo, task.debugTask));
-            return;
+          ) {
+            var payload = segment._payload;
+            if ("fulfilled" === payload.status) segment = payload.value;
+            else break;
           }
-          boundary.pendingTasks--;
-          0 === boundary.pendingTasks &&
-            0 < boundary.nodes.length &&
-            ((segment = logRecoverableError(request, error, errorInfo, null)),
-            abortRemainingReplayNodes(
-              request,
-              null,
-              boundary.nodes,
-              boundary.slots,
-              error,
-              segment,
-              errorInfo,
-              !0
-            ));
-          request.pendingRootTasks--;
-          0 === request.pendingRootTasks && completeShell(request);
+          "object" === typeof segment &&
+            null !== segment &&
+            (isArrayImpl(segment) ||
+              "function" === typeof segment[ASYNC_ITERATOR] ||
+              segment.$$typeof === REACT_ELEMENT_TYPE ||
+              segment.$$typeof === REACT_LAZY_TYPE) &&
+            isArrayImpl(segment._debugInfo) &&
+            (debugInfo = segment._debugInfo);
+          pushHaltedAwaitOnComponentStack(task, debugInfo);
+          null !== task.thenableState &&
+            pushSuspendedCallSiteOnComponentStack(request, task);
         }
-      } else {
-        node = request.trackedPostpones;
-        if (boundary.status !== CLIENT_RENDERED) {
-          if (null !== node && null !== segment)
-            return (
-              logRecoverableError(request, error, errorInfo, task.debugTask),
-              trackPostpone(request, node, task, segment),
-              boundary.fallbackAbortableTasks.forEach(function (fallbackTask) {
-                return abortTask(fallbackTask, request, error);
-              }),
-              boundary.fallbackAbortableTasks.clear(),
-              finishedTask(request, boundary, task.row, segment)
-            );
-          boundary.status = CLIENT_RENDERED;
-          segment = logRecoverableError(
-            request,
-            error,
-            errorInfo,
-            task.debugTask
-          );
-          boundary.status = CLIENT_RENDERED;
-          encodeErrorForBoundary(boundary, segment, error, errorInfo, !0);
-          untrackBoundary(request, boundary);
-          boundary.parentFlushed &&
-            request.clientRenderedBoundaries.push(boundary);
-        }
-        boundary.pendingTasks--;
-        errorInfo = boundary.row;
-        null !== errorInfo &&
-          0 === --errorInfo.pendingTasks &&
-          finishSuspenseListRow(request, errorInfo);
-        boundary.fallbackAbortableTasks.forEach(function (fallbackTask) {
-          return abortTask(fallbackTask, request, error);
-        });
-        boundary.fallbackAbortableTasks.clear();
+        null !== boundary &&
+          boundary.fallbackAbortableTasks.forEach(function (fallbackTask) {
+            return abortTask(fallbackTask, request);
+          });
       }
-      task = task.row;
-      null !== task &&
-        0 === --task.pendingTasks &&
-        finishSuspenseListRow(request, task);
-      request.allPendingTasks--;
-      0 === request.allPendingTasks && completeAll(request);
+    }
+    function finishAbortedTask(task, request, error) {
+      if (task !== request.currentTask) {
+        var boundary = task.blockedBoundary,
+          segment = task.blockedSegment;
+        if (null === segment || segment.status === ABORTED) {
+          var errorInfo = getThrownInfo(task.componentStack);
+          if (null === boundary) {
+            boundary = task.replay;
+            if (null === boundary) {
+              null !== request.trackedPostpones && null !== segment
+                ? ((boundary = request.trackedPostpones),
+                  logRecoverableError(
+                    request,
+                    error,
+                    errorInfo,
+                    task.debugTask
+                  ),
+                  trackPostpone(request, boundary, task, segment),
+                  finishedTask(request, null, task.row, segment))
+                : (logRecoverableError(
+                    request,
+                    error,
+                    errorInfo,
+                    task.debugTask
+                  ),
+                  12 !== request.status &&
+                    request.status !== CLOSED &&
+                    fatalError(request, error, errorInfo, task.debugTask));
+              return;
+            }
+            12 !== request.status &&
+              request.status !== CLOSED &&
+              (boundary.pendingTasks--,
+              0 === boundary.pendingTasks &&
+                0 < boundary.nodes.length &&
+                ((segment = logRecoverableError(
+                  request,
+                  error,
+                  errorInfo,
+                  null
+                )),
+                abortRemainingReplayNodes(
+                  request,
+                  null,
+                  boundary.nodes,
+                  boundary.slots,
+                  error,
+                  segment,
+                  errorInfo,
+                  !0
+                )),
+              request.pendingRootTasks--,
+              0 === request.pendingRootTasks && completeShell(request));
+          } else {
+            var _trackedPostpones = request.trackedPostpones;
+            if (boundary.status !== CLIENT_RENDERED) {
+              if (null !== _trackedPostpones && null !== segment)
+                return (
+                  logRecoverableError(
+                    request,
+                    error,
+                    errorInfo,
+                    task.debugTask
+                  ),
+                  trackPostpone(request, _trackedPostpones, task, segment),
+                  boundary.fallbackAbortableTasks.forEach(
+                    function (fallbackTask) {
+                      return finishAbortedTask(fallbackTask, request, error);
+                    }
+                  ),
+                  boundary.fallbackAbortableTasks.clear(),
+                  finishedTask(request, boundary, task.row, segment)
+                );
+              boundary.status = CLIENT_RENDERED;
+              segment = logRecoverableError(
+                request,
+                error,
+                errorInfo,
+                task.debugTask
+              );
+              boundary.status = CLIENT_RENDERED;
+              encodeErrorForBoundary(boundary, segment, error, errorInfo, !0);
+              untrackBoundary(request, boundary);
+              boundary.parentFlushed &&
+                request.clientRenderedBoundaries.push(boundary);
+            }
+            boundary.pendingTasks--;
+            errorInfo = boundary.row;
+            null !== errorInfo &&
+              0 === --errorInfo.pendingTasks &&
+              finishSuspenseListRow(request, errorInfo);
+            boundary.fallbackAbortableTasks.forEach(function (fallbackTask) {
+              return finishAbortedTask(fallbackTask, request, error);
+            });
+            boundary.fallbackAbortableTasks.clear();
+          }
+          task = task.row;
+          null !== task &&
+            0 === --task.pendingTasks &&
+            finishSuspenseListRow(request, task);
+          request.allPendingTasks--;
+          0 === request.allPendingTasks && completeAll(request);
+        }
+      }
+    }
+    function finishAbortedTaskDEV(task, request, error) {
+      var prevTaskInDEV = currentTaskInDEV,
+        prevGetCurrentStackImpl = ReactSharedInternals.getCurrentStack;
+      currentTaskInDEV = task;
+      ReactSharedInternals.getCurrentStack = getCurrentStackInDEV;
+      try {
+        finishAbortedTask(task, request, error);
+      } finally {
+        (currentTaskInDEV = prevTaskInDEV),
+          (ReactSharedInternals.getCurrentStack = prevGetCurrentStackImpl);
+      }
+    }
+    function abortTaskDEV(task, request) {
+      var prevTaskInDEV = currentTaskInDEV,
+        prevGetCurrentStackImpl = ReactSharedInternals.getCurrentStack;
+      currentTaskInDEV = task;
+      ReactSharedInternals.getCurrentStack = getCurrentStackInDEV;
+      try {
+        abortTask(task, request);
+      } finally {
+        (currentTaskInDEV = prevTaskInDEV),
+          (ReactSharedInternals.getCurrentStack = prevGetCurrentStackImpl);
+      }
     }
     function safelyEmitEarlyPreloads(request, shellComplete) {
       try {
@@ -7858,10 +7930,7 @@
       0 === request.allPendingTasks && completeAll(request);
     }
     function performWork(request$jscomp$1) {
-      if (
-        request$jscomp$1.status !== CLOSED &&
-        13 !== request$jscomp$1.status
-      ) {
+      if (!(request$jscomp$1.aborted || 11 < request$jscomp$1.status)) {
         var prevContext = currentActiveSnapshot,
           prevDispatcher = ReactSharedInternals.H;
         ReactSharedInternals.H = HooksDispatcher;
@@ -7884,6 +7953,8 @@
               var prevTaskInDEV = void 0,
                 task$jscomp$0 = task;
               if (0 !== task$jscomp$0.replay.pendingTasks) {
+                var prevTask = request.currentTask;
+                request.currentTask = task$jscomp$0;
                 switchContext(task$jscomp$0.context);
                 prevTaskInDEV = currentTaskInDEV;
                 currentTaskInDEV = task$jscomp$0;
@@ -7918,7 +7989,20 @@
                     thrownValue === SuspenseException
                       ? getSuspendedThenable()
                       : thrownValue;
-                  if (
+                  if (request.aborted) {
+                    thrownValue === SuspenseException &&
+                      (task$jscomp$0.thenableState =
+                        getThenableStateAfterSuspending());
+                    request.currentTask = prevTask;
+                    var request$jscomp$0 = request;
+                    abortTaskDEV(task$jscomp$0, request$jscomp$0);
+                    task$jscomp$0.abortSet.delete(task$jscomp$0);
+                    finishAbortedTaskDEV(
+                      task$jscomp$0,
+                      request$jscomp$0,
+                      request$jscomp$0.fatalError
+                    );
+                  } else if (
                     "object" === typeof x &&
                     null !== x &&
                     "function" === typeof x.then
@@ -7932,11 +8016,10 @@
                   } else {
                     task$jscomp$0.replay.pendingTasks--;
                     task$jscomp$0.abortSet.delete(task$jscomp$0);
-                    var errorInfo = getThrownInfo(task$jscomp$0.componentStack),
-                      request$jscomp$0 = request,
-                      boundary = task$jscomp$0.blockedBoundary,
-                      error$jscomp$0 =
-                        12 === request.status ? request.fatalError : x,
+                    var errorInfo = getThrownInfo(task$jscomp$0.componentStack);
+                    request$jscomp$0 = request;
+                    var boundary = task$jscomp$0.blockedBoundary,
+                      error$jscomp$0 = request.aborted ? request.fatalError : x,
                       errorInfo$jscomp$0 = errorInfo,
                       replayNodes = task$jscomp$0.replay.nodes,
                       resumeSlots = task$jscomp$0.replay.slots,
@@ -7962,7 +8045,8 @@
                     0 === request.allPendingTasks && completeAll(request);
                   }
                 } finally {
-                  currentTaskInDEV = prevTaskInDEV;
+                  (request.currentTask = prevTask),
+                    (currentTaskInDEV = prevTaskInDEV);
                 }
               }
             } else if (
@@ -7971,7 +8055,8 @@
               (request$jscomp$0 = segment),
               request$jscomp$0.status === PENDING)
             ) {
-              request$jscomp$0.status = 6;
+              var prevTask$jscomp$0 = request.currentTask;
+              request.currentTask = task$jscomp$0;
               switchContext(task$jscomp$0.context);
               prevTaskInDEV = currentTaskInDEV;
               currentTaskInDEV = task$jscomp$0;
@@ -8000,35 +8085,21 @@
                 var x$jscomp$0 =
                   thrownValue === SuspenseException
                     ? getSuspendedThenable()
-                    : 12 === request.status
-                      ? request.fatalError
-                      : thrownValue;
-                if (
-                  12 === request.status &&
-                  null !== request.trackedPostpones
-                ) {
-                  var trackedPostpones = request.trackedPostpones,
-                    thrownInfo = getThrownInfo(task$jscomp$0.componentStack);
-                  task$jscomp$0.abortSet.delete(task$jscomp$0);
-                  logRecoverableError(
-                    request,
-                    x$jscomp$0,
-                    thrownInfo,
-                    task$jscomp$0.debugTask
-                  );
-                  trackPostpone(
-                    request,
-                    trackedPostpones,
-                    task$jscomp$0,
-                    request$jscomp$0
-                  );
-                  finishedTask(
-                    request,
-                    task$jscomp$0.blockedBoundary,
-                    task$jscomp$0.row,
-                    request$jscomp$0
-                  );
-                } else if (
+                    : thrownValue;
+                if (request.aborted)
+                  thrownValue === SuspenseException &&
+                    (task$jscomp$0.thenableState =
+                      getThenableStateAfterSuspending()),
+                    (request.currentTask = prevTask$jscomp$0),
+                    (request$jscomp$0 = request),
+                    abortTaskDEV(task$jscomp$0, request$jscomp$0),
+                    task$jscomp$0.abortSet.delete(task$jscomp$0),
+                    finishAbortedTaskDEV(
+                      task$jscomp$0,
+                      request$jscomp$0,
+                      request$jscomp$0.fatalError
+                    );
+                else if (
                   "object" === typeof x$jscomp$0 &&
                   null !== x$jscomp$0 &&
                   "function" === typeof x$jscomp$0.then
@@ -8095,7 +8166,8 @@
                   0 === request.allPendingTasks && completeAll(request);
                 }
               } finally {
-                currentTaskInDEV = prevTaskInDEV;
+                (request.currentTask = prevTask$jscomp$0),
+                  (currentTaskInDEV = prevTaskInDEV);
               }
             }
           }
@@ -8946,7 +9018,7 @@
       }
     }
     function startFlowing(request, destination) {
-      if (13 === request.status)
+      if (12 === request.status)
         (request.status = CLOSED), destination.destroy(request.fatalError);
       else if (request.status !== CLOSED && null === request.destination) {
         request.destination = destination;
@@ -8959,42 +9031,40 @@
         }
       }
     }
-    function abort(request, reason) {
-      if (11 === request.status || 10 === request.status) request.status = 12;
+    function finishAbort(request, abortableTasks) {
       try {
-        var abortableTasks = request.abortableTasks;
         if (0 < abortableTasks.size) {
-          var error =
-            void 0 === reason
-              ? Error("The render was aborted by the server without a reason.")
-              : "object" === typeof reason &&
-                  null !== reason &&
-                  "function" === typeof reason.then
-                ? Error("The render was aborted by the server with a promise.")
-                : reason;
-          request.fatalError = error;
+          var error = request.fatalError;
           abortableTasks.forEach(function (task) {
-            var prevTaskInDEV = currentTaskInDEV,
-              prevGetCurrentStackImpl = ReactSharedInternals.getCurrentStack;
-            currentTaskInDEV = task;
-            ReactSharedInternals.getCurrentStack = getCurrentStackInDEV;
-            try {
-              abortTask(task, request, error);
-            } finally {
-              (currentTaskInDEV = prevTaskInDEV),
-                (ReactSharedInternals.getCurrentStack =
-                  prevGetCurrentStackImpl);
-            }
+            return finishAbortedTaskDEV(task, request, error);
           });
           abortableTasks.clear();
         }
         null !== request.destination &&
           flushCompletedQueues(request, request.destination);
       } catch (error$4) {
-        (reason = {}),
-          logRecoverableError(request, error$4, reason, null),
-          fatalError(request, error$4, reason, null);
+        (abortableTasks = {}),
+          logRecoverableError(request, error$4, abortableTasks, null),
+          fatalError(request, error$4, abortableTasks, null);
       }
+    }
+    function abort(request, reason) {
+      request.aborted ||
+        (11 !== request.status && 10 !== request.status) ||
+        ((request.aborted = !0),
+        (request.fatalError =
+          void 0 === reason
+            ? Error("The render was aborted by the server without a reason.")
+            : "object" === typeof reason &&
+                null !== reason &&
+                "function" === typeof reason.then
+              ? Error("The render was aborted by the server with a promise.")
+              : reason),
+        (reason = request.abortableTasks),
+        reason.forEach(function (task) {
+          return abortTaskDEV(task, request);
+        }),
+        finishAbort(request, reason));
     }
     function addToReplayParent(node, parentKeyPath, trackedPostpones) {
       if (null === parentKeyPath) trackedPostpones.rootNodes.push(node);
@@ -10529,7 +10599,7 @@
       ABORTED = 3,
       ERRORED = 4,
       POSTPONED = 5,
-      CLOSED = 14,
+      CLOSED = 13,
       currentRequest = null,
       didWarnAboutBadClass = {},
       didWarnAboutContextTypes = {},
@@ -10556,5 +10626,5 @@
         'The server used "renderToString" which does not support Suspense. If you intended for this Suspense boundary to render the fallback content on the server consider throwing an Error somewhere within the Suspense boundary. If you intended to have the server wait for the suspended component please switch to "renderToPipeableStream" which supports Suspense on the server'
       );
     };
-    exports.version = "19.3.0-experimental-c0cd4d5d-20260527";
+    exports.version = "19.3.0-experimental-557e28fa-20260601";
   })();
