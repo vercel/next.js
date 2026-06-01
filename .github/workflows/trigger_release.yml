@@ -84,7 +84,6 @@ jobs:
 
       - name: Get commit of the latest tag
         run: |
-          # Prefer increasing shallow clone depth over deepening since deepening is expensive.
           latest_tag="$(git describe --tags --abbrev=0)"
           echo "LATEST_TAG_COMMIT=$(git rev-list -n 1 "$latest_tag")" >> $GITHUB_ENV
 
