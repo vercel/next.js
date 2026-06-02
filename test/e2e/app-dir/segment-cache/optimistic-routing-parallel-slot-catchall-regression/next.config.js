@@ -3,9 +3,6 @@
  */
 const nextConfig = {
   cacheComponents: true,
-  experimental: {
-    optimisticRouting: true,
-  },
   // The bug being regressed requires the response for /[teamSlug] to
   // exercise its `@actions/[...catchAll]` parallel slot even though the
   // canonical URL has no parts left to feed the catch-all. The simplest

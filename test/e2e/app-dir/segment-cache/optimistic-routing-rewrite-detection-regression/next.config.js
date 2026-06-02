@@ -3,9 +3,6 @@
  */
 const nextConfig = {
   cacheComponents: true,
-  experimental: {
-    optimisticRouting: true,
-  },
   // Each rewrite below crafts one of the rewrite-affected response shapes
   // we want to verify. They live in `beforeFiles` so they take precedence
   // over the filesystem dynamic route — otherwise a 1-part URL like
