@@ -72,7 +72,8 @@ jobs:
           GH_TOKEN: ${{ steps.release-app-token.outputs.token }}
 
       - name: Clone Next.js repository
-        run: git clone https://github.com/vercel/next.js.git --depth=25 --single-branch --branch ${GITHUB_REF_NAME:-canary} .
+        # We expect to find the latest tag on this branch in the last 1000 commits.
+        run: git clone https://github.com/vercel/next.js.git --depth=1000 --single-branch --branch ${GITHUB_REF_NAME:-canary} .
 
       - name: Check token
         run: gh auth status
@@ -84,7 +85,6 @@ jobs:
 
       - name: Get commit of the latest tag
         run: |
-          git fetch --tags --force --deepen=1000 origin
           latest_tag="$(git describe --tags --abbrev=0)"
           echo "LATEST_TAG_COMMIT=$(git rev-list -n 1 "$latest_tag")" >> $GITHUB_ENV
 
