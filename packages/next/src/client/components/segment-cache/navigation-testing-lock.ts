@@ -262,14 +262,23 @@ export function isNavigationLocked(): boolean {
   return false
 }
 
+export function getCurrentNavigationLock(): Promise<void> | null {
+  if (process.env.__NEXT_EXPOSE_TESTING_API) {
+    return lockState !== null ? lockState.promise : null
+  }
+  return null
+}
+
 /**
  * Waits for the navigation lock to be released, if it's currently held.
  * No-op if the lock is not acquired.
  */
-export async function waitForNavigationLockIfActive(): Promise<void> {
+export async function waitForNavigationLockIfActive(
+  lock: Promise<void> | null = getCurrentNavigationLock()
+): Promise<void> {
   if (process.env.__NEXT_EXPOSE_TESTING_API) {
-    if (lockState !== null) {
-      await lockState.promise
+    if (lock !== null) {
+      await lock
     }
   }
 }

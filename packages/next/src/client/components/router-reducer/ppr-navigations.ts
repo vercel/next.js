@@ -1703,6 +1703,8 @@ async function fetchMissingDynamicData(
   url: URL
   seed: NavigationSeed | null
 }> {
+  const lockAtRequestStart = getCurrentNavigationLock()
+
   try {
     const result = await fetchServerResponse(url, {
       flightRouterState: dynamicRequestTree,
@@ -1734,7 +1736,7 @@ async function fetchMissingDynamicData(
     // writing the dynamic data. This allows tests to assert on the prefetched
     // UI state.
     if (process.env.__NEXT_EXPOSE_TESTING_API) {
-      await waitForNavigationLock()
+      await waitForNavigationLock(lockAtRequestStart)
     }
 
     if (routeCacheEntry !== null && result.staticStageData !== null) {
@@ -2154,10 +2156,21 @@ function createDeferredRsc<
  *
  * Not exposed in production builds by default.
  */
-async function waitForNavigationLock(): Promise<void> {
+function getCurrentNavigationLock(): Promise<void> | null {
+  if (process.env.__NEXT_EXPOSE_TESTING_API) {
+    const { getCurrentNavigationLock: getCurrentLock } =
+      require('../segment-cache/navigation-testing-lock') as typeof import('../segment-cache/navigation-testing-lock')
+    return getCurrentLock()
+  }
+  return null
+}
+
+async function waitForNavigationLock(
+  lock: Promise<void> | null = getCurrentNavigationLock()
+): Promise<void> {
   if (process.env.__NEXT_EXPOSE_TESTING_API) {
     const { waitForNavigationLockIfActive } =
       require('../segment-cache/navigation-testing-lock') as typeof import('../segment-cache/navigation-testing-lock')
-    await waitForNavigationLockIfActive()
+    await waitForNavigationLockIfActive(lock)
   }
 }
