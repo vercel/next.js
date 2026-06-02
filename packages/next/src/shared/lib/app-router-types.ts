@@ -378,6 +378,11 @@ export type NavigationFlightResponse = {
   s?: AsyncIterable<number>
   /** staticStageByteLength - Resolves when the static stage ends. */
   l?: Promise<number>
+  /**
+   * shellByteLength - Resolves when the shell stage ends.
+   * If it resolves to null, then the shell is the same as the main response.
+   * */
+  a?: Promise<number | null>
   /** headVaryParams */
   h: VaryParamsThenable | null
   /** runtimePrefetchStream — Embedded runtime prefetch Flight stream. */
