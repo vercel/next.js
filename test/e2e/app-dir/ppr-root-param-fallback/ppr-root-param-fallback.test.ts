@@ -14,29 +14,17 @@ describe('ppr-root-param-fallback', () => {
     // filled in for all pregenerated locales.
 
     for (const locale of ['en', 'fr']) {
+      // next.render$ doesn't stream, so we get just the shell content
       const $ = await next.render$(`/${locale}/blog/new-post`)
-      const html = $.html()
 
       // The shell should have the locale-header with cached content,
-      // even if Node streams flush the Suspense fallback before the resolved
-      // content that replaces it.
+      // NOT the locale-loading Suspense fallback
       expect($('#locale-header').length).toBe(1)
       expect($('#locale-header').text()).toContain(`Locale: ${locale}`)
       expect($('#translations').text()).toContain(`Home (${locale})`)
 
-      const localeLoading = $('#locale-loading')
-      if (localeLoading.length > 0) {
-        const fallbackTemplateId = localeLoading.prev('template').attr('id')
-        const resolvedContentId = $('#locale-header')
-          .parent('div[hidden]')
-          .attr('id')
-
-        expect(fallbackTemplateId).toBeTruthy()
-        expect(resolvedContentId).toBeTruthy()
-        expect(html).toContain(
-          `$RC("${fallbackTemplateId}","${resolvedContentId}")`
-        )
-      }
+      // The Suspense fallback should NOT be in the shell
+      expect($('#locale-loading').length).toBe(0)
     }
   })
 })
