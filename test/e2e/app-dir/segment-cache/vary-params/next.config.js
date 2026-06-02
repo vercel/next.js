@@ -6,7 +6,6 @@ const nextConfig = {
   experimental: {
     optimisticRouting: true,
     prefetchInlining: false,
-    varyParams: true,
   },
 }
 

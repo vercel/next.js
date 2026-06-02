@@ -5,7 +5,6 @@ const nextConfig = {
   cacheComponents: true,
   experimental: {
     optimisticRouting: true,
-    varyParams: true,
   },
   // Each rewrite below crafts one of the rewrite-affected response shapes
   // we want to verify. They live in `beforeFiles` so they take precedence
