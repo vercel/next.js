@@ -1284,5 +1284,6 @@
   "1283": "Cache Components error recovery expected an original Flight prerender result",
   "1284": "Cache Components error recovery expected an original prerender store",
   "1285": "Cache Components error recovery expected an original resume data cache",
-  "1286": "Route \"%s\": Could not validate that a segment in your UI has instant navigation."
+  "1286": "Route \"%s\": Could not validate that a segment in your UI has instant navigation.",
+  "1287": "A render that hasn't started yet cannot be abandoned"
 }

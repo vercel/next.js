@@ -252,7 +252,11 @@ import {
 import type { Params } from '../request/params'
 import { ImageConfigContext } from '../../shared/lib/image-config-context.shared-runtime'
 import { imageConfigDefault } from '../../shared/lib/image-config'
-import { RenderStage, StagedRenderingController } from './staged-rendering'
+import {
+  getNextStage,
+  RenderStage,
+  StagedRenderingController,
+} from './staged-rendering'
 import {
   anySegmentHasRuntimePrefetchEnabled,
   isPageAllowedToBlock,
@@ -5321,7 +5325,8 @@ async function countStaticStageBytes(
   let byteLength = 0
   const reader = stream.getReader()
 
-  stageController.onStage(RenderStage.EarlyRuntime, () => {
+  const endStage = getNextStage(RenderStage.Static)
+  stageController.onStage(endStage, () => {
     reader.cancel()
   })
 
@@ -5348,7 +5353,8 @@ async function countStaticStageBytesNode(
   let byteLength = 0
   let cancelled = false
 
-  stageController.onStage(RenderStage.EarlyRuntime, () => {
+  const endStage = getNextStage(RenderStage.Static)
+  stageController.onStage(endStage, () => {
     cancelled = true
     stream.destroy()
   })
