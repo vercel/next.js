@@ -1285,20 +1285,7 @@ async function stagedRenderWithoutCachesInDevWeb(
 
   const environmentName = () => {
     const currentStage = stageController.currentStage
-    switch (currentStage) {
-      case RenderStage.Before:
-      case RenderStage.EarlyStatic:
-      case RenderStage.Static:
-        return 'Prerender'
-      case RenderStage.EarlyRuntime:
-      case RenderStage.Runtime:
-      case RenderStage.Dynamic:
-      case RenderStage.Abandoned:
-        return 'Server'
-      default:
-        currentStage satisfies never
-        throw new InvariantError(`Invalid render stage: ${currentStage}`)
-    }
+    return getEnvironmentNameForStageWithoutCaches(currentStage)
   }
 
   requestStore.stagedRendering = stageController
@@ -1356,20 +1343,7 @@ async function stagedRenderWithoutCachesInDevNode(
 
   const environmentName = () => {
     const currentStage = stageController.currentStage
-    switch (currentStage) {
-      case RenderStage.Before:
-      case RenderStage.EarlyStatic:
-      case RenderStage.Static:
-        return 'Prerender'
-      case RenderStage.EarlyRuntime:
-      case RenderStage.Runtime:
-      case RenderStage.Dynamic:
-      case RenderStage.Abandoned:
-        return 'Server'
-      default:
-        currentStage satisfies never
-        throw new InvariantError(`Invalid render stage: ${currentStage}`)
-    }
+    return getEnvironmentNameForStageWithoutCaches(currentStage)
   }
 
   requestStore.stagedRendering = stageController
@@ -1402,6 +1376,23 @@ async function stagedRenderWithoutCachesInDevNode(
       stageController.advanceStage(RenderStage.Dynamic)
     }
   )
+}
+
+function getEnvironmentNameForStageWithoutCaches(stage: RenderStage) {
+  switch (stage) {
+    case RenderStage.Before:
+    case RenderStage.EarlyStatic:
+    case RenderStage.Static:
+      return 'Prerender'
+    case RenderStage.EarlyRuntime:
+    case RenderStage.Runtime:
+    case RenderStage.Dynamic:
+    case RenderStage.Abandoned:
+      return 'Server'
+    default:
+      stage satisfies never
+      throw new InvariantError(`Invalid render stage: ${stage}`)
+  }
 }
 
 /**
@@ -4620,22 +4611,7 @@ async function renderWithRestartOnCacheMissInDevWeb(
 
   const environmentName = () => {
     const currentStage = requestStore.stagedRendering!.currentStage
-    switch (currentStage) {
-      case RenderStage.Before:
-      case RenderStage.EarlyStatic:
-      case RenderStage.Static:
-        return 'Prerender'
-      case RenderStage.EarlyRuntime:
-        return 'Prefetch'
-      case RenderStage.Runtime:
-        return 'Prefetchable'
-      case RenderStage.Dynamic:
-      case RenderStage.Abandoned:
-        return 'Server'
-      default:
-        currentStage satisfies never
-        throw new InvariantError(`Invalid render stage: ${currentStage}`)
-    }
+    return getEnvironmentNameForStage(currentStage)
   }
 
   //===============================================
@@ -4916,6 +4892,25 @@ async function renderWithRestartOnCacheMissInDevWeb(
   }
 }
 
+function getEnvironmentNameForStage(stage: RenderStage) {
+  switch (stage) {
+    case RenderStage.Before:
+    case RenderStage.EarlyStatic:
+    case RenderStage.Static:
+      return 'Prerender'
+    case RenderStage.EarlyRuntime:
+      return 'Prefetch'
+    case RenderStage.Runtime:
+      return 'Prefetchable'
+    case RenderStage.Dynamic:
+    case RenderStage.Abandoned:
+      return 'Server'
+    default:
+      stage satisfies never
+      throw new InvariantError(`Invalid render stage: ${stage}`)
+  }
+}
+
 async function renderWithRestartOnCacheMissInDevNode(
   ctx: AppRenderContext,
   initialRequestStore: RequestStore,
@@ -4934,22 +4929,7 @@ async function renderWithRestartOnCacheMissInDevNode(
 
   const environmentName = () => {
     const currentStage = requestStore.stagedRendering!.currentStage
-    switch (currentStage) {
-      case RenderStage.Before:
-      case RenderStage.EarlyStatic:
-      case RenderStage.Static:
-        return 'Prerender'
-      case RenderStage.EarlyRuntime:
-        return 'Prefetch'
-      case RenderStage.Runtime:
-        return 'Prefetchable'
-      case RenderStage.Dynamic:
-      case RenderStage.Abandoned:
-        return 'Server'
-      default:
-        currentStage satisfies never
-        throw new InvariantError(`Invalid render stage: ${currentStage}`)
-    }
+    return getEnvironmentNameForStage(currentStage)
   }
 
   //===============================================
