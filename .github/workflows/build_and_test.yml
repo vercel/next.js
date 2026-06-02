@@ -1100,7 +1100,7 @@ jobs:
     with:
       afterBuild: |
         export __NEXT_USE_NODE_STREAMS=true
-        export NEXT_EXTERNAL_TESTS_FILTERS="test/cache-components-tests-manifest.json,test/use-node-streams-tests-manifest.json"
+        export NEXT_EXTERNAL_TESTS_FILTERS="test/use-node-streams-tests-manifest.json"
         export NEXT_TEST_MODE=dev
         export IS_TURBOPACK_TEST=1
         export TURBOPACK_DEV=1
@@ -1127,7 +1127,7 @@ jobs:
     with:
       afterBuild: |
         export __NEXT_USE_NODE_STREAMS=true
-        export NEXT_EXTERNAL_TESTS_FILTERS="test/cache-components-tests-manifest.json,test/use-node-streams-tests-manifest.json"
+        export NEXT_EXTERNAL_TESTS_FILTERS="test/use-node-streams-tests-manifest.json"
         export NEXT_TEST_MODE=start
         export IS_TURBOPACK_TEST=1
         export TURBOPACK_BUILD=1
