@@ -239,7 +239,7 @@ const metadataRuntimeCards: FixCard[] = [
       { text: 'await connection()', highlight: true },
     ],
     prompt:
-      'Add "await connection()" from "next/server" inside a component rendered by the page, wrapped in <Suspense>. This tells Next.js the page has genuine dynamic content, so the dynamic metadata is allowed. The component can render null. Confirm with the user that a fully dynamic route is the intent before applying this change.',
+      'Add "await connection()" from "next/server" inside a component rendered by the page, wrapped in <Suspense>. The component can render null. This creates a dynamic hole inside Suspense so the rest of the page can still prerender, while signalling to Next.js that the dynamic metadata is intentional. Use this fix when the page would otherwise have no dynamic content other than the metadata.',
   },
 ]
 
@@ -255,7 +255,7 @@ const metadataDynamicCards: FixCard[] = [
       { text: '  return await cms.getMeta(…)' },
     ],
     prompt:
-      'Add "use cache" as the first statement inside generateMetadata(). This caches the metadata so it can be included in the prerender. If the metadata depends on input that changes between routes, accept it as a parameter so it becomes part of the cache key. Optionally call cacheTag(tag) to allow invalidation via revalidateTag(tag), and cacheLife(profile) to set automatic expiration. Do not introduce new imports beyond "next/cache".',
+      'Add "use cache" as the first statement inside generateMetadata(). This caches the metadata so it can be included in the prerender. Optionally call cacheTag(tag) so the entry can be invalidated on-demand from a Server Action via updateTag(tag), or from a Route Handler via revalidateTag(tag, "max") for stale-while-revalidate semantics. Optionally call cacheLife(profile) to control how long the cache lives before background revalidation or full expiration. Do not introduce new imports beyond "next/cache".',
   },
   {
     id: 'render-page-at-request-time',
@@ -267,7 +267,7 @@ const metadataDynamicCards: FixCard[] = [
       { text: 'await connection()', highlight: true },
     ],
     prompt:
-      'Add "await connection()" from "next/server" inside a component rendered by the page, wrapped in <Suspense>. This tells Next.js the page has genuine dynamic content, so the dynamic metadata is allowed. The component can render null. Confirm with the user that a fully dynamic route is the intent before applying this change.',
+      'Add "await connection()" from "next/server" inside a component rendered by the page, wrapped in <Suspense>. The component can render null. This creates a dynamic hole inside Suspense so the rest of the page can still prerender, while signalling to Next.js that the dynamic metadata is intentional. Use this fix when the page would otherwise have no dynamic content other than the metadata.',
   },
 ]
 
