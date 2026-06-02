@@ -277,6 +277,29 @@
   color: var(--color-gray-900);
 }
 
+.instant-nav-state-title-row {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* Status dot accents mirror the global devtools status indicator:
+   amber while compiling on-demand, teal while navigation is in flight. */
+.instant-nav-state-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.instant-nav-state-card--compiling .instant-nav-state-dot {
+  background: #f5a623;
+}
+
+.instant-nav-state-card--navigating .instant-nav-state-dot {
+  background: #50e3c2;
+}
+
 .instant-nav-state-source-url {
   margin: auto 0 0;
   font-size: var(--size-14);

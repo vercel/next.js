@@ -14,6 +14,11 @@ import type { InstantNavCookieData } from '../../../../shared/lib/instant-nav-co
 
 const COOKIE_NAME = 'next-instant-navigation-testing'
 type InstantNavContentStatus = 'idle' | 'pending' | 'mpa' | 'spa'
+// Sub-phases of the pending card. While the page "seems stuck" after a
+// captured navigation, these disambiguate why: the dev server is compiling
+// the target route on-demand (a dev-only artifact) vs. the navigation work
+// is genuinely in flight.
+type InstantNavPendingPhase = 'awaiting' | 'compiling' | 'navigating'
 type InstantNavStatus =
   | InstantNavContentStatus
   // Waiting for the refresh action to start (renderingIndicator -> true).
@@ -195,6 +200,38 @@ function InstantNavTransitionLayer({
   )
 }
 
+function PendingStateCard({ phase }: { phase: InstantNavPendingPhase }) {
+  const titles: Record<InstantNavPendingPhase, string> = {
+    awaiting: 'Awaiting navigation...',
+    compiling: 'Compiling...',
+    navigating: 'Navigating...',
+  }
+  const descriptions: Record<InstantNavPendingPhase, string> = {
+    awaiting: 'Click any link or refresh the page.',
+    compiling: 'The dev server is building this route on-demand.',
+    navigating: 'Resolving the prefetched shell for this navigation.',
+  }
+  return (
+    <div
+      className={
+        'instant-nav-state-card instant-nav-state-card--awaiting' +
+        (phase === 'compiling' ? ' instant-nav-state-card--compiling' : '') +
+        (phase === 'navigating' ? ' instant-nav-state-card--navigating' : '')
+      }
+      role="status"
+      aria-live="polite"
+    >
+      <div className="instant-nav-state-title-row">
+        {phase !== 'awaiting' ? (
+          <span className="instant-nav-state-dot" aria-hidden="true" />
+        ) : null}
+        <h3 className="instant-nav-state-title">{titles[phase]}</h3>
+      </div>
+      <p className="instant-nav-state-description">{descriptions[phase]}</p>
+    </div>
+  )
+}
+
 function clearInstantNavCaptureCookie(): void {
   setInstantNavTransientStatus('idle')
   if (typeof cookieStore !== 'undefined') {
@@ -278,6 +315,20 @@ export function InstantNavsPanel() {
   const isLocked = status !== 'idle'
   const isPending = contentStatus === 'pending'
 
+  // Disambiguate the pending card while the page "seems stuck". Priority
+  // mirrors the global status indicator (compiling > rendering). Gate on the
+  // full `status` (not `contentStatus`) so we don't mislabel the "Continue
+  // Rendering" re-arm refresh — `renderingIndicator` is true during that
+  // refresh, which would otherwise flash "Navigating...".
+  const pendingPhase: InstantNavPendingPhase =
+    isPending && !isRearmingStatus(status)
+      ? state.buildingIndicator
+        ? 'compiling'
+        : state.renderingIndicator
+          ? 'navigating'
+          : 'awaiting'
+      : 'awaiting'
+
   const isClosing = panel !== 'instant-navs'
   const [displayStatus, setDisplayStatus] = useState(contentStatus)
 
@@ -309,14 +360,7 @@ export function InstantNavsPanel() {
         page.
       </p>
     ),
-    pending: (
-      <div className="instant-nav-state-card instant-nav-state-card--awaiting">
-        <h3 className="instant-nav-state-title">Awaiting navigation...</h3>
-        <p className="instant-nav-state-description">
-          Click any link or refresh the page.
-        </p>
-      </div>
-    ),
+    pending: <PendingStateCard phase={pendingPhase} />,
     mpa: (
       <div className="instant-nav-state-card">
         <h3 className="instant-nav-state-title">Page load</h3>
