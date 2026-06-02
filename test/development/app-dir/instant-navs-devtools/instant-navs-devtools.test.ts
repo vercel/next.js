@@ -1,8 +1,7 @@
 import { nextTestSetup, type Playwright } from 'e2e-utils'
 import { retry, toggleDevToolsIndicatorPopover } from 'next-test-utils'
 
-// FIXME: Skipped due to flakiness. Reenable when fixed
-describe.skip('instant-nav-panel', () => {
+describe('instant-nav-panel', () => {
   const { isNextDev, isTurbopack, next } = nextTestSetup({
     files: __dirname,
   })
@@ -309,7 +308,8 @@ describe.skip('instant-nav-panel', () => {
     return browser
   }
 
-  describe('idle state', () => {
+  // FIXME: Skipped due to flakiness. Reenable when fixed (#94196).
+  describe.skip('idle state', () => {
     it('should open panel in the idle state', async () => {
       const browser = await next.browser('/')
       await clearInstantModeCookie(browser)
@@ -355,7 +355,8 @@ describe.skip('instant-nav-panel', () => {
     })
   })
 
-  describe('awaiting navigation state', () => {
+  // FIXME: Skipped due to flakiness. Reenable when fixed (#94196).
+  describe.skip('awaiting navigation state', () => {
     it('should reset the panel and app when pressing the close button from awaiting navigation', async () => {
       const browser = await next.browser('/')
       await clearInstantModeCookie(browser)
@@ -376,7 +377,8 @@ describe.skip('instant-nav-panel', () => {
     })
   })
 
-  describe('MPA captures', () => {
+  // FIXME: Skipped due to flakiness. Reenable when fixed (#94196).
+  describe.skip('MPA captures', () => {
     it('should show page load state after clicking Start and refreshing', async () => {
       const browser = await next.browser(targetPage)
       await clearInstantModeCookie(browser)
@@ -492,7 +494,8 @@ describe.skip('instant-nav-panel', () => {
     })
   })
 
-  describe('SPA captures', () => {
+  // FIXME: Skipped due to flakiness. Reenable when fixed (#94196).
+  describe.skip('SPA captures', () => {
     it('should show client nav state after clicking Start and navigating', async () => {
       const browser = await openHomeWithTargetPageWarmup()
 
@@ -590,7 +593,8 @@ describe.skip('instant-nav-panel', () => {
     })
   })
 
-  describe('transitions between capture types', () => {
+  // FIXME: Skipped due to flakiness. Reenable when fixed (#94196).
+  describe.skip('transitions between capture types', () => {
     it('should keep the panel in MPA state after capture -> reload and then update to SPA state after client navigation', async () => {
       const browser = await openHomeWithTargetPageWarmup()
 
@@ -627,8 +631,8 @@ describe.skip('instant-nav-panel', () => {
     })
   })
 
-  describe('keeps capture across navigation', () => {
-    it('keeps the capture when opening the menu via the logo', async () => {
+  describe('capture lifecycle', () => {
+    it('ends the capture when opening the menu via the logo', async () => {
       const browser = await next.browser('/')
       await clearInstantModeCookie(browser)
       await browser.waitForElementByCss('[data-testid="home-title"]')
@@ -638,18 +642,13 @@ describe.skip('instant-nav-panel', () => {
       await clickStartCapturing(browser)
       await expectPendingPanel(browser)
 
-      // Click the logo: this opens the menu and hides the instant panel.
+      // Click the logo: opening the menu switches away from the instant panel,
+      // which ends the capture.
       await toggleDevToolsIndicatorPopover(browser)
       await waitForPanelRouterTransition()
 
-      // The capture cookie must survive the panel switch.
-      await waitForInstantModeCookie(browser)
-
-      // Reopen from the menu and confirm we are still capturing.
-      await reopenInstantNavPanelFromMenu(browser)
-      await expectPendingPanel(browser)
-
-      await clearInstantModeCookie(browser)
+      // Leaving the panel for the menu releases the capture cookie.
+      await waitForInstantModeCookieAbsent(browser)
     })
 
     it('ends the capture when pressing Escape (no error overlay open)', async () => {
