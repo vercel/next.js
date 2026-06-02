@@ -18,6 +18,10 @@ export type AdvanceableRenderStage =
   | RenderStage.Dynamic
 
 export class StagedRenderingController {
+  private abortSignal: AbortSignal | null
+  private abandonController: AbortController | null
+  private shouldTrackSyncIO: boolean
+
   currentStage: RenderStage = RenderStage.Before
 
   syncInterruptReason: Error | null = null
@@ -34,11 +38,19 @@ export class StagedRenderingController {
   private runtimeStagePromise = createPromiseWithResolvers<void>()
   private dynamicStagePromise = createPromiseWithResolvers<void>()
 
-  constructor(
-    private abortSignal: AbortSignal | null,
-    private abandonController: AbortController | null,
-    private shouldTrackSyncIO: boolean
-  ) {
+  constructor({
+    abortSignal,
+    abandonController,
+    shouldTrackSyncIO,
+  }: {
+    abortSignal: AbortSignal | null
+    abandonController: AbortController | null
+    shouldTrackSyncIO: boolean
+  }) {
+    this.abortSignal = abortSignal
+    this.abandonController = abandonController
+    this.shouldTrackSyncIO = shouldTrackSyncIO
+
     if (abortSignal) {
       abortSignal.addEventListener(
         'abort',
