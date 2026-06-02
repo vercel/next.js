@@ -63,8 +63,8 @@ importers:
         specifier: ^14.14.37
         version: 14.18.29
       '@vercel/nft':
-        specifier: 1.5.0
-        version: 1.5.0(encoding@0.1.13)
+        specifier: 1.10.2
+        version: 1.10.2(encoding@0.1.13)
       '@zeit/cosmosdb-query':
         specifier: ^0.7.2
         version: 0.7.2
@@ -3111,8 +3111,8 @@ packages:
     resolution: {integrity: sha512-CI0NhTrz4EBaa0U+HaaUZrJhPoso8sG7ZFya8uQoBA57fjzrjRSv87ekCjLZOFExN+gXE/z0xuN2QfH4H2HrLQ==}
     engines: {node: '>=20.0.0'}
 
-  '@vercel/nft@1.5.0':
-    resolution: {integrity: sha512-IWTDeIoWhQ7ZtRO/JRKH+jhmeQvZYhtGPmzw/QGDY+wDCQqfm25P9yIdoAFagu4fWsK4IwZXDFIjrmp5rRm/sA==}
+  '@vercel/nft@1.10.2':
+    resolution: {integrity: sha512-w+WyX5Ulmj4dtTZrxaulqrjaLZHSbnPzx75SJsTNYmotKsqn1JlLnDJa+lz5hn90HJofhl/2MAtw0mCrgM3qYw==}
     engines: {node: '>=20'}
     hasBin: true
 
@@ -14428,7 +14428,7 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  '@vercel/nft@1.5.0(encoding@0.1.13)':
+  '@vercel/nft@1.10.2(encoding@0.1.13)':
     dependencies:
       '@mapbox/node-pre-gyp': 2.0.3(encoding@0.1.13)
       '@rollup/pluginutils': 5.3.0
