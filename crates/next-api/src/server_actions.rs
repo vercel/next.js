@@ -3,6 +3,7 @@ use std::{borrow::Cow, collections::BTreeMap, io::Write};
 use anyhow::{Context, Result, bail};
 use bincode::{Decode, Encode};
 use next_core::{
+    next_client_reference::{CssClientReferenceModule, EcmascriptClientReferenceModule},
     next_manifests::{
         ActionLayer, ActionManifestModuleId, ActionManifestWorkerEntry, ServerReferenceManifest,
     },
@@ -19,10 +20,11 @@ use swc_core::{
         utils::find_pat_ids,
     },
 };
+use tracing::Instrument;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
     FxIndexMap, FxIndexSet, NonLocalValue, OperationVc, ReadRef, ResolvedVc, TryFlatJoinIterExt,
-    TryJoinIterExt, ValueToString, Vc, trace::TraceRawVcs,
+    TryJoinIterExt, ValueToString, Vc, trace::TraceRawVcs, turbofmt,
 };
 use turbo_tasks_fs::{self, File, FileContent, FileSystemPath, rope::RopeBuilder};
 use turbo_tasks_hash::{HashAlgorithm, deterministic_hash, hash_xxh3_hash128};
@@ -37,7 +39,6 @@ use turbopack_core::{
     module::Module,
     module_graph::{GraphTraversalAction, ModuleGraph, ModuleGraphLayer},
     output::{OutputAsset, OutputAssetsReference},
-    raw_module::RawModule,
     reference_type::{EcmaScriptModulesReferenceSubType, ReferenceType},
     resolve::ModulePart,
     virtual_source::VirtualSource,
@@ -357,67 +358,102 @@ async fn compute_subtree_content_hash(
     entry: ResolvedVc<Box<dyn Module>>,
     chunking_context: Vc<Box<dyn ChunkingContext>>,
 ) -> Result<Vc<RcStr>> {
-    let module_graph_value = module_graph.await?;
-    let async_module_info = module_graph.async_module_info();
+    let span = tracing::info_span!(
+        "compute use-cache code hash",
+        entry = display(entry.ident_string().await?)
+    );
+    match async {
+        let module_graph_value = module_graph.await?;
+        let async_module_info = module_graph.async_module_info();
 
-    let mut modules = FxIndexSet::default();
-    module_graph_value.traverse_edges_dfs(
-        std::iter::once(entry),
-        &mut (),
-        |_, target, _| {
-            modules.insert(target);
-            Ok(GraphTraversalAction::Continue)
-        },
-        |_, _, _| Ok(()),
-        true,
-    )?;
-
-    let hashes = modules
-        .into_iter()
-        .map(async |m| {
-            let ident = m.ident().to_string().await?;
-            Ok(
-                if let Some(m) = ResolvedVc::try_downcast_type::<RawModule>(m) {
-                    let content_hash = m
-                        .source()
-                        .await?
-                        .with_context(|| format!("failed to get source for traced module {ident}"))?
-                        .content()
-                        .hash(HashAlgorithm::Xxh3Hash128Hex)
-                        .await?;
-                    // Traced module
-                    hash_xxh3_hash128((ident, content_hash))
-                } else if let Some(placeable_module) =
-                    ResolvedVc::try_downcast::<Box<dyn EcmascriptChunkPlaceable>>(m)
+        let mut modules = FxIndexSet::default();
+        module_graph_value.traverse_edges_dfs(
+            std::iter::once(entry),
+            &mut (),
+            |_, target, _| {
+                if ResolvedVc::try_downcast_type::<CssClientReferenceModule>(target).is_some() {
+                    // Don't include the module at all. There is nothing that executes on the server
+                    Ok(GraphTraversalAction::Exclude)
+                } else if ResolvedVc::try_downcast_type::<EcmascriptClientReferenceModule>(target)
+                    .is_some()
                 {
-                    let chunk_item = placeable_module
-                        .as_chunk_item(*module_graph, chunking_context)
-                        .to_resolved()
-                        .await?;
-                    let chunk_item =
-                        ResolvedVc::try_downcast::<Box<dyn EcmascriptChunkItem>>(chunk_item)
-                            .unwrap();
-                    let async_info = if async_module_info.is_async(m).await? {
-                        Some(module_graph.referenced_async_modules(*m))
-                    } else {
-                        None
-                    };
-                    let code = chunk_item.code(async_info).await?;
-                    hash_xxh3_hash128((ident, code.source_code()))
+                    // Include the client reference proxy module, but not the referenced client
+                    // modules themselves.
+                    modules.insert(target);
+                    Ok(GraphTraversalAction::Exclude)
                 } else {
-                    bail!(
-                        "Failed to compute hash for module {ident}: not a RawModule or \
-                         ChunkableModule"
-                    );
-                },
-            )
-        })
-        .try_join()
-        .await?;
+                    modules.insert(target);
+                    Ok(GraphTraversalAction::Continue)
+                }
+            },
+            |_, _, _| Ok(()),
+            true,
+        )?;
 
-    Ok(Vc::cell(
-        deterministic_hash("", hashes, HashAlgorithm::Xxh3Hash128Hex).into(),
-    ))
+        let hashes = modules
+            .into_iter()
+            .map(async |m| {
+                let ident = m.ident();
+                let ident_value = ident.await?;
+                let ident_str = ident.to_string().await?;
+                Ok(
+                    if let Some(placeable_module) =
+                        ResolvedVc::try_downcast::<Box<dyn EcmascriptChunkPlaceable>>(m)
+                        && !ident_value
+                            .layer
+                            .as_ref()
+                            .is_some_and(|l| l.name() == "externals-tracing")
+                    {
+                        // A bundled JS module
+                        let chunk_item = placeable_module
+                            .as_chunk_item(*module_graph, chunking_context)
+                            .to_resolved()
+                            .await?;
+                        let chunk_item =
+                            ResolvedVc::try_downcast::<Box<dyn EcmascriptChunkItem>>(chunk_item)
+                                .unwrap();
+                        let async_info = if async_module_info.is_async(m).await? {
+                            Some(module_graph.referenced_async_modules(*m))
+                        } else {
+                            None
+                        };
+                        let code = chunk_item.code(async_info).await?;
+                        hash_xxh3_hash128((ident_str, code.source_code()))
+                    } else {
+                        // A non-JS static file or an external module
+                        let content_hash = m
+                            .source()
+                            .await?
+                            .with_context(|| {
+                                format!("failed to get source forwd  module {ident_str}")
+                            })?
+                            .content()
+                            .hash(HashAlgorithm::Xxh3Hash128Hex)
+                            .await?;
+                        hash_xxh3_hash128((ident_str, content_hash))
+                    },
+                )
+            })
+            .try_join()
+            .await?;
+
+        anyhow::Ok(Vc::cell(
+            deterministic_hash("", hashes, HashAlgorithm::Xxh3Hash128Hex).into(),
+        ))
+    }
+    .instrument(span)
+    .await
+    {
+        Ok(hash) => Ok(hash),
+        // ast-grep-ignore: no-context-turbofmt
+        Err(e) => Err(e.context(
+            turbofmt!(
+                "Failed to compute use-cache code hash {}",
+                entry.ident_string().await?
+            )
+            .await?,
+        )),
+    }
 }
 
 /// Server action info for JSON parsing
