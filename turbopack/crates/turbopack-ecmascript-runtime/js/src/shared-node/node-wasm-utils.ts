@@ -1,6 +1,6 @@
-/* eslint-disable @typescript-eslint/no-unused-vars */
-
+/// <reference path="../shared/runtime/runtime-types.d.ts" />
 /// <reference path="../shared/runtime/runtime-utils.ts" />
+/// <reference path="./node-externals-utils.ts" />
 
 function readWebAssemblyAsResponse(path: string) {
   const { createReadStream } = require('fs') as typeof import('fs')
@@ -37,3 +37,24 @@ async function instantiateWebAssemblyFromPath(
 
   return instance.exports
 }
+
+function loadWebAssembly(
+  chunkPath: ChunkPath,
+  _edgeModule: () => WebAssembly.Module,
+  imports: WebAssembly.Imports
+) {
+  const resolved = path.resolve(RUNTIME_ROOT, chunkPath)
+
+  return instantiateWebAssemblyFromPath(resolved, imports)
+}
+contextPrototype.w = loadWebAssembly
+
+function loadWebAssemblyModule(
+  chunkPath: ChunkPath,
+  _edgeModule: () => WebAssembly.Module
+) {
+  const resolved = path.resolve(RUNTIME_ROOT, chunkPath)
+
+  return compileWebAssemblyFromPath(resolved)
+}
+contextPrototype.u = loadWebAssemblyModule

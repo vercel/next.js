@@ -16,7 +16,7 @@ use turbopack_core::{
     code_builder::{Code, CodeBuilder},
     ident::AssetIdent,
     module::Module,
-    module_graph::ModuleGraph,
+    module_graph::{ModuleGraph, runtime_features::RuntimeFeatures},
     output::{OutputAsset, OutputAssets, OutputAssetsReference, OutputAssetsWithReferenced},
     source_map::{GenerateSourceMap, SourceMapAsset},
 };
@@ -176,6 +176,11 @@ impl EcmascriptBrowserEvaluateChunk {
         let runtime_type = *this.chunking_context.runtime_type().await?;
         match runtime_type {
             RuntimeType::Production | RuntimeType::Development => {
+                let features = if matches!(runtime_type, RuntimeType::Production) {
+                    turbopack::runtime_features::compute_runtime_features(*this.module_graph)
+                } else {
+                    RuntimeFeatures::all()
+                };
                 let runtime_code = turbopack_ecmascript_runtime::get_browser_runtime_code(
                     asset_context,
                     this.chunking_context.chunk_base_path(),
@@ -187,6 +192,7 @@ impl EcmascriptBrowserEvaluateChunk {
                     source_maps,
                     this.chunking_context.chunk_loading_global(),
                     this.chunking_context.cross_origin(),
+                    features,
                 );
                 code.push_code(&*runtime_code.await?);
             }

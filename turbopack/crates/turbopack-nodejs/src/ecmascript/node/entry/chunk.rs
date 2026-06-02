@@ -8,7 +8,7 @@ use turbopack_core::{
     asset::{Asset, AssetContent},
     chunk::{ChunkingContext, EvaluatableAssets, ModuleChunkItemIdExt},
     code_builder::{Code, CodeBuilder},
-    module_graph::ModuleGraph,
+    module_graph::{ModuleGraph, runtime_features::RuntimeFeatures},
     output::{
         OutputAsset, OutputAssets, OutputAssetsReference, OutputAssetsReferences,
         OutputAssetsWithReferenced,
@@ -16,6 +16,7 @@ use turbopack_core::{
     source_map::{GenerateSourceMap, SourceMapAsset},
 };
 use turbopack_ecmascript::{chunk::EcmascriptChunkPlaceable, utils::StringifyJs};
+use turbopack_ecmascript_runtime::RuntimeType;
 
 use super::runtime::EcmascriptBuildNodeRuntimeChunk;
 use crate::NodeJsChunkingContext;
@@ -149,8 +150,22 @@ impl EcmascriptBuildNodeEntryChunk {
     }
 
     #[turbo_tasks::function]
-    fn runtime_chunk(&self) -> Vc<EcmascriptBuildNodeRuntimeChunk> {
-        EcmascriptBuildNodeRuntimeChunk::new(*self.chunking_context)
+    async fn runtime_chunk(&self) -> Result<Vc<EcmascriptBuildNodeRuntimeChunk>> {
+        // Only scan the (whole-app) module graph for feature usage in production. In
+        // development the graph is per-page, so include the full runtime to keep the shared
+        // `runtime.js` stable across pages.
+        let features = if matches!(
+            *self.chunking_context.runtime_type().await?,
+            RuntimeType::Production
+        ) {
+            turbopack::runtime_features::compute_runtime_features(*self.module_graph)
+        } else {
+            RuntimeFeatures::all()
+        };
+        Ok(EcmascriptBuildNodeRuntimeChunk::new(
+            *self.chunking_context,
+            features,
+        ))
     }
 
     #[turbo_tasks::function]

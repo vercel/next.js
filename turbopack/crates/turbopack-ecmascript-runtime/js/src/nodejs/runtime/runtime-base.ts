@@ -143,27 +143,6 @@ function loadChunkAsyncByUrl<TModule extends Module>(
 }
 contextPrototype.L = loadChunkAsyncByUrl
 
-function loadWebAssembly(
-  chunkPath: ChunkPath,
-  _edgeModule: () => WebAssembly.Module,
-  imports: WebAssembly.Imports
-) {
-  const resolved = path.resolve(RUNTIME_ROOT, chunkPath)
-
-  return instantiateWebAssemblyFromPath(resolved, imports)
-}
-contextPrototype.w = loadWebAssembly
-
-function loadWebAssemblyModule(
-  chunkPath: ChunkPath,
-  _edgeModule: () => WebAssembly.Module
-) {
-  const resolved = path.resolve(RUNTIME_ROOT, chunkPath)
-
-  return compileWebAssemblyFromPath(resolved)
-}
-contextPrototype.u = loadWebAssemblyModule
-
 /**
  * Creates a Node.js worker thread by instantiating the given WorkerConstructor
  * with the appropriate path and options, including forwarded globals.

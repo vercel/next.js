@@ -9,6 +9,7 @@ use turbopack_core::{
     code_builder::{Code, CodeBuilder},
     context::AssetContext,
     environment::ChunkLoading,
+    module_graph::runtime_features::RuntimeFeatures,
 };
 use turbopack_ecmascript::utils::StringifyJs;
 
@@ -27,9 +28,11 @@ pub async fn get_browser_runtime_code(
     generate_source_map: bool,
     chunk_loading_global: Vc<RcStr>,
     cross_origin: Vc<CrossOrigin>,
+    features: Vc<RuntimeFeatures>,
 ) -> Result<Vc<Code>> {
     let asset_context = *asset_context;
     let environment = asset_context.compile_time_info().environment();
+    let features = features.await?;
 
     let shared_runtime_utils_code = embed_static_code(
         asset_context,
@@ -215,7 +218,7 @@ pub async fn get_browser_runtime_code(
             .await?,
         );
     }
-    if *environment.supports_wasm().await? {
+    if *environment.supports_wasm().await? && features.has_wasm {
         code.push_code(
             &*embed_static_code(
                 asset_context,

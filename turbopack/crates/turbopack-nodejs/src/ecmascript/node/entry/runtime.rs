@@ -10,6 +10,7 @@ use turbopack_core::{
     chunk::ChunkingContext,
     code_builder::{Code, CodeBuilder},
     ident::AssetIdent,
+    module_graph::runtime_features::RuntimeFeatures,
     output::{OutputAsset, OutputAssetsReference, OutputAssetsWithReferenced},
     source_map::{GenerateSourceMap, SourceMapAsset},
 };
@@ -24,14 +25,22 @@ use crate::NodeJsChunkingContext;
 #[value_to_string("Ecmascript Build Node Runtime Chunk")]
 pub(crate) struct EcmascriptBuildNodeRuntimeChunk {
     chunking_context: ResolvedVc<NodeJsChunkingContext>,
+    features: ResolvedVc<RuntimeFeatures>,
 }
 
 #[turbo_tasks::value_impl]
 impl EcmascriptBuildNodeRuntimeChunk {
     /// Creates a new [`Vc<EcmascriptBuildNodeRuntimeChunk>`].
     #[turbo_tasks::function]
-    pub fn new(chunking_context: ResolvedVc<NodeJsChunkingContext>) -> Vc<Self> {
-        EcmascriptBuildNodeRuntimeChunk { chunking_context }.cell()
+    pub fn new(
+        chunking_context: ResolvedVc<NodeJsChunkingContext>,
+        features: ResolvedVc<RuntimeFeatures>,
+    ) -> Vc<Self> {
+        EcmascriptBuildNodeRuntimeChunk {
+            chunking_context,
+            features,
+        }
+        .cell()
     }
 
     #[turbo_tasks::function]
@@ -105,6 +114,7 @@ impl EcmascriptBuildNodeRuntimeChunk {
                 let runtime_code = turbopack_ecmascript_runtime::get_nodejs_runtime_code(
                     asset_context,
                     RuntimeType::Development,
+                    *this.features,
                     generate_source_map,
                 );
                 code.push_code(&*runtime_code.await?);
@@ -113,6 +123,7 @@ impl EcmascriptBuildNodeRuntimeChunk {
                 let runtime_code = turbopack_ecmascript_runtime::get_nodejs_runtime_code(
                     asset_context,
                     RuntimeType::Production,
+                    *this.features,
                     generate_source_map,
                 );
                 code.push_code(&*runtime_code.await?);
