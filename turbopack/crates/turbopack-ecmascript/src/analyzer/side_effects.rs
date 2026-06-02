@@ -2664,7 +2664,8 @@ mod tests {
         //   class C { static { foo = bar; } }
         side_effects!(
             test_cjs_export_setter_in_static_block,
-            "class C { static { module.exports = { set foo(v) { sideEffect() } }; module.exports.foo = 1; } }"
+            "class C { static { module.exports = { set foo(v) { sideEffect() } }; \
+             module.exports.foo = 1; } }"
         );
         // …but a constructor body only runs when the class is instantiated, not at
         // module evaluation, so the same attachment there is *not* a top-level
@@ -2673,7 +2674,8 @@ mod tests {
         //   class C { constructor() { baz = quux; } }
         no_side_effects!(
             test_cjs_export_setter_in_constructor_is_pure,
-            "class C { constructor() { module.exports = { set foo(v) { sideEffect() } }; } } module.exports.foo = 1;"
+            "class C { constructor() { module.exports = { set foo(v) { sideEffect() } }; } } \
+             module.exports.foo = 1;"
         );
 
         // A `static` property initializer also runs at module evaluation (when the
@@ -2681,7 +2683,8 @@ mod tests {
         // object inside one is detected.
         side_effects!(
             test_cjs_export_setter_in_static_property,
-            "class C { static x = (module.exports = { set foo(v) { sideEffect() } }); } module.exports.foo = 1;"
+            "class C { static x = (module.exports = { set foo(v) { sideEffect() } }); } \
+             module.exports.foo = 1;"
         );
     }
 }
