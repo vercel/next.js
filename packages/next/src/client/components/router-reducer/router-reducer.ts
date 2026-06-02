@@ -15,7 +15,6 @@ import { navigateReducer } from './reducers/navigate-reducer'
 import { serverPatchReducer } from './reducers/server-patch-reducer'
 import { restoreReducer } from './reducers/restore-reducer'
 import { refreshReducer } from './reducers/refresh-reducer'
-import { hmrRefreshReducer } from './reducers/hmr-refresh-reducer'
 import { serverActionReducer } from './reducers/server-action-reducer'
 
 /**
@@ -39,7 +38,15 @@ function clientReducer(
       return refreshReducer(state, action)
     }
     case ACTION_HMR_REFRESH: {
-      return hmrRefreshReducer(state)
+      if (process.env.NODE_ENV === 'development') {
+        const { hmrRefreshReducer } =
+          require('./reducers/hmr-refresh-reducer') as typeof import('./reducers/hmr-refresh-reducer')
+        return hmrRefreshReducer(state)
+      } else {
+        throw new Error(
+          'hmrRefresh can only be used in development mode. Please use refresh instead.'
+        )
+      }
     }
     case ACTION_SERVER_ACTION: {
       return serverActionReducer(state, action)
