@@ -152,15 +152,8 @@ describe('bfcache-regression', () => {
     })
   }
 
-  if (
+  if (isNextDev) {
     // Persistence only exists in dev.
-    isNextDev &&
-    // TODO: Re-enable for node streams once the React debug channel integration
-    // is fixed there. With `__NEXT_USE_NODE_STREAMS` the debug channel readable
-    // doesn't close as expected, so the client never persists the buffered
-    // entry and this test's wait-for-persisted step times out.
-    !process.env.__NEXT_USE_NODE_STREAMS
-  ) {
     it('should reload to recover when a debug channel entry was pruned by newer page loads', async () => {
       // The debug channel for the initial document is buffered and persisted to
       // IndexedDB so it can be restored when the browser serves the page from

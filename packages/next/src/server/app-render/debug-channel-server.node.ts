@@ -14,24 +14,34 @@ export { createWebDebugChannel } from './debug-channel-server.web'
  * which expects debugChannel to be a Node.js stream with a .write() method.
  */
 export function createNodeDebugChannel(): DebugChannelPair {
-  const readable = new PassThrough()
+  // The readable side is a PassThrough that the client reads from. The
+  // server-side write target is a separate, write-only Writable that forwards
+  // into it rather than the PassThrough itself: React's renderToPipeableStream
+  // detects `.read()` on the debug channel and would enter bidirectional mode,
+  // reading its own output back as commands.
+  //
+  // The forwarding must use `passthrough.write()` / `passthrough.end()`, not
+  // `passthrough.push()` / `passthrough.push(null)`. A PassThrough is a Duplex;
+  // pushing `null` ends only its readable half and leaves the writable half
+  // open (`writableEnded` stays false). The readable is later consumed via
+  // `Readable.toWeb()` (in `connectReactDebugChannel`, and inside `teeStream`),
+  // and `Readable.toWeb()` never closes the resulting web stream while the
+  // PassThrough's writable half is still open — so the debug channel never
+  // closes on the client. Ending it via `passthrough.end()` closes both halves
+  // and the close propagates.
+  const passthrough = new PassThrough()
 
-  // Use a plain Writable instead of exposing the PassThrough directly.
-  // React's renderToPipeableStream detects .read() on the debugChannel and
-  // enters bidirectional mode, reading its own output back as commands.
   const writable = new Writable({
-    write(chunk, _encoding, callback) {
-      readable.push(chunk)
-      callback()
+    write(chunk, encoding, callback) {
+      passthrough.write(chunk, encoding, callback)
     },
     final(callback) {
-      readable.push(null)
-      callback()
+      passthrough.end(callback)
     },
   })
 
   return {
     serverSide: writable,
-    clientSide: { readable },
+    clientSide: { readable: passthrough },
   }
 }
