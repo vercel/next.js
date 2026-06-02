@@ -291,21 +291,21 @@ fn is_object_or_array_literal(expr: &Expr) -> bool {
 /// exports object and then mutated as if it were plain data. Function/method
 /// bodies are not descended into: an accessor declared inside a nested function
 /// isn't part of this value's own shape.
-fn contains_getter_or_setter(expr: &Expr) -> bool {
+fn contains_getters_or_setters(expr: &Expr) -> bool {
     match unparen(expr) {
         Expr::Object(obj) => obj.props.iter().any(|prop| match prop {
             PropOrSpread::Prop(prop) => match &**prop {
                 Prop::Getter(_) | Prop::Setter(_) => true,
-                Prop::KeyValue(kv) => contains_getter_or_setter(&kv.value),
+                Prop::KeyValue(kv) => contains_getters_or_setters(&kv.value),
                 Prop::Method(_) | Prop::Shorthand(_) | Prop::Assign(_) => false,
             },
-            PropOrSpread::Spread(spread) => contains_getter_or_setter(&spread.expr),
+            PropOrSpread::Spread(spread) => contains_getters_or_setters(&spread.expr),
         }),
         Expr::Array(arr) => arr
             .elems
             .iter()
             .flatten()
-            .any(|elem| contains_getter_or_setter(&elem.expr)),
+            .any(|elem| contains_getters_or_setters(&elem.expr)),
         _ => false,
     }
 }
@@ -884,7 +884,7 @@ impl<'a> Visit for SideEffectVisitor<'a> {
                 // could invoke the accessor. Running the accessor could have side effects.
                 if assign.op == AssignOp::Assign
                     && self.is_cjs_export_target(&assign.left)
-                    && !contains_getter_or_setter(&assign.right)
+                    && !contains_getters_or_setters(&assign.right)
                 {
                     // Still check the assigned value, and the target's computed
                     // property keys (e.g. `exports[sideEffect()] = …`).
