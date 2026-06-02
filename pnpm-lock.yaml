@@ -1352,8 +1352,8 @@ importers:
         specifier: 0.38.4
         version: 0.38.4
       '@vercel/nft':
-        specifier: 1.5.0
-        version: 1.5.0(encoding@0.1.13)(rollup@2.35.1)
+        specifier: 1.10.2
+        version: 1.10.2(encoding@0.1.13)(rollup@2.35.1)
       '@vercel/routing-utils':
         specifier: 5.2.0
         version: 5.2.0
@@ -6909,8 +6909,8 @@ packages:
     resolution: {integrity: sha512-8LwjnlP39s08C08J5NstzriPvW1SP8Zfpp1BvC2sI35kPeZnHfxVkCwu4/+Wodgnd60UtT1n8K8zw+Mp7J9JmQ==}
     hasBin: true
 
-  '@vercel/nft@1.5.0':
-    resolution: {integrity: sha512-IWTDeIoWhQ7ZtRO/JRKH+jhmeQvZYhtGPmzw/QGDY+wDCQqfm25P9yIdoAFagu4fWsK4IwZXDFIjrmp5rRm/sA==}
+  '@vercel/nft@1.10.2':
+    resolution: {integrity: sha512-w+WyX5Ulmj4dtTZrxaulqrjaLZHSbnPzx75SJsTNYmotKsqn1JlLnDJa+lz5hn90HJofhl/2MAtw0mCrgM3qYw==}
     engines: {node: '>=20'}
     hasBin: true
 
@@ -23947,7 +23947,7 @@ snapshots:
 
   '@vercel/ncc@0.38.4': {}
 
-  '@vercel/nft@1.5.0(encoding@0.1.13)(rollup@2.35.1)':
+  '@vercel/nft@1.10.2(encoding@0.1.13)(rollup@2.35.1)':
     dependencies:
       '@mapbox/node-pre-gyp': 2.0.3(encoding@0.1.13)
       '@rollup/pluginutils': 5.3.0(rollup@2.35.1)
