@@ -6,13 +6,15 @@
 //! nothing but an arena-allocated buffer and a length, with no `unsafe impl`.
 
 use std::{
+    alloc::Layout,
     fmt,
     hash::{Hash, Hasher},
     mem::{ManuallyDrop, MaybeUninit},
     ops::{Deref, DerefMut},
-    ptr,
+    ptr::{self, NonNull},
 };
 
+use allocator_api2::alloc::Allocator;
 use bumpalo::Bump;
 
 /// A minimal growable vector for the list children of a `JsValue` that grow or are rebuilt after
@@ -58,20 +60,33 @@ impl<'a, T> BumpVec<'a, T> {
     }
 
     /// Reallocate the buffer to `new_cap` elements (`new_cap >= len`), moving the live prefix into
-    /// the fresh arena allocation. The old buffer is abandoned (the arena frees it in bulk).
-    fn realloc_to(&mut self, bump: &'a Bump, new_cap: usize) {
+    /// the new arena allocation. The old buffer is abandoned (the arena frees it in bulk); when it
+    /// is the arena's most recent allocation, [`Allocator::grow`] extends it in place.
+    unsafe fn realloc_to(&mut self, bump: &'a Bump, new_cap: usize) {
         debug_assert!(new_cap >= self.len);
-        let new_buf = bump.alloc_slice_fill_with(new_cap, |_| MaybeUninit::uninit());
-        for (dst, src) in new_buf.iter_mut().zip(self.buf.iter()).take(self.len) {
-            // SAFETY: the first `len` slots are initialized; move each element into the new buffer.
-            unsafe { dst.write(ptr::read(src.as_ptr())) };
+        let new_layout = Layout::array::<MaybeUninit<T>>(new_cap).expect("capacity overflow");
+        let new_data = if self.buf.is_empty() {
+            // Nothing allocated yet, so there is no prior block to grow from.
+            bump.allocate(new_layout)
+        } else {
+            // The only caller (`push`) reallocates when full, so `buf.len() == self.len`: every
+            // slot in the old buffer is initialized and `grow` moves them all into the new block.
+            let old_layout =
+                Layout::array::<MaybeUninit<T>>(self.buf.len()).expect("capacity overflow");
+            let old_data = NonNull::from(&mut *self.buf).cast::<u8>();
+            // SAFETY: `old_data`/`old_layout` describe the current arena buffer and `new_layout` is
+            // strictly larger, so growing it (and moving the bytes) is sound.
+            unsafe { bump.grow(old_data, old_layout, new_layout) }
         }
-        self.buf = new_buf;
+        .expect("bump allocation failed")
+        .cast::<MaybeUninit<T>>();
+        // SAFETY: `new_data` points to `new_cap` allocated `MaybeUninit<T>` slots.
+        self.buf = unsafe { std::slice::from_raw_parts_mut(new_data.as_ptr(), new_cap) };
     }
 
     pub fn push(&mut self, bump: &'a Bump, value: T) {
         if self.len == self.buf.len() {
-            self.realloc_to(bump, if self.len == 0 { 4 } else { self.len * 2 });
+            unsafe { self.realloc_to(bump, if self.len == 0 { 4 } else { self.len * 2 }) };
         }
         self.buf[self.len].write(value);
         self.len += 1;
@@ -98,9 +113,14 @@ impl<'a, T> BumpVec<'a, T> {
         assert!(at <= self.len, "split_off index out of bounds");
         let tail_len = self.len - at;
         let mut tail = Self::with_capacity_in(bump, tail_len);
-        for (dst, src) in tail.buf.iter_mut().zip(self.buf[at..self.len].iter()) {
-            // SAFETY: indices `[at, len)` are initialized; move each element into `tail`.
-            dst.write(unsafe { ptr::read(src.as_ptr()) });
+        // SAFETY: indices `[at, len)` are initialized and `tail` is a fresh, non-overlapping
+        // allocation; move the suffix into it bytewise.
+        unsafe {
+            ptr::copy_nonoverlapping(
+                self.buf[at..self.len].as_ptr(),
+                tail.buf.as_mut_ptr(),
+                tail_len,
+            );
         }
         tail.len = tail_len;
         self.len = at;

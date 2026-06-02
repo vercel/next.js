@@ -10370,6 +10370,7 @@ dependencies = [
 name = "turbopack-ecmascript"
 version = "0.1.0"
 dependencies = [
+ "allocator-api2",
  "anyhow",
  "async-trait",
  "auto-hash-map",
