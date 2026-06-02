@@ -437,7 +437,7 @@ To validate every navigation is instant, the framework provides:
 
 - The [`unstable_instant`](/docs/app/api-reference/file-conventions/route-segment-config/instant) route segment config opts a layout or page into validation. Next.js then verifies navigation into the route, including client transitions, in development.
 - The [`instant()`](/docs/app/api-reference/file-conventions/route-segment-config/instant#testing-instant-navigation) helper in `@next/playwright` asserts on the static shell during navigation, so regressions surface in CI.
-- DevTools to visualize loading states: the **Instant Navs** panel in the Next.js DevTools (enabled with `experimental.instantNavigationDevToolsToggle`), complemented by the [React DevTools Suspense panel](https://react.dev/learn/react-developer-tools).
+- DevTools to visualize loading states: the **Navigation Inspector** in the Next.js DevTools (available when Cache Components is enabled), complemented by the [React DevTools Suspense panel](https://react.dev/learn/react-developer-tools).
 - `unstable_instant = false` opts a layout or page out when you can't make it instant right now.
 
 See the [Instant navigation guide](/docs/app/guides/instant-navigation) for the full pattern, including AI agent workflows and the app-level escape hatch.

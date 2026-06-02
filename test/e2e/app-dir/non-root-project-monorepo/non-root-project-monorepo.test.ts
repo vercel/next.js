@@ -48,20 +48,17 @@ describe('non-root-project-monorepo', () => {
     })
   })
 
-  // TODO: These file URIs are wrong on turbopack+windows:
-  // https://en.wikipedia.org/wiki/File_URI_scheme
-  // The URIs should always use forward slashes, but use backslashes on windows.
   describe('import.meta.url', () => {
     it('should work during RSC', async () => {
       const $ = await next.render$('/import-meta-url-rsc')
-      expect($('p').text().replaceAll('\\', '/')).toMatch(
+      expect($('p').text()).toMatch(
         /^file:\/\/.*\/next-install-[^/]+\/apps\/web\/app\/import-meta-url-rsc\/page.tsx$/
       )
     })
 
     it('should work during SSR', async () => {
       const $ = await next.render$('/import-meta-url-ssr')
-      expect($('p').text().replaceAll('\\', '/')).toMatch(
+      expect($('p').text()).toMatch(
         /^file:\/\/.*\/next-install-[^/]+\/apps\/web\/app\/import-meta-url-ssr\/page.tsx$/
       )
     })
@@ -71,17 +68,49 @@ describe('non-root-project-monorepo', () => {
       await waitForNoRedbox(browser)
       if (isTurbopack) {
         // Turbopack intentionally doesn't expose the full path to the browser bundles
-        expect(
-          (await browser.elementByCss('p').text()).replaceAll('\\', '/')
-        ).toBe('file:///ROOT/apps/web/app/import-meta-url-ssr/page.tsx')
+        expect(await browser.elementByCss('p').text()).toBe(
+          'file:///ROOT/apps/web/app/import-meta-url-ssr/page.tsx'
+        )
       } else {
-        expect(
-          (await browser.elementByCss('p').text()).replaceAll('\\', '/')
-        ).toMatch(
+        expect(await browser.elementByCss('p').text()).toMatch(
           /^file:\/\/.*\/next-install-[^/]+\/apps\/web\/app\/import-meta-url-ssr\/page.tsx$/
         )
       }
       await browser.close()
+    })
+
+    // Verifies that non-URL-safe characters in file paths (here: a literal
+    // space) are correctly percent-encoded in the resulting `file://` URI.
+    describe('non-url-safe characters', () => {
+      it('should encode special chars during RSC', async () => {
+        const $ = await next.render$('/import-meta-url-encoded-rsc')
+        expect($('p').text()).toMatch(
+          /^file:\/\/.*\/next-install-[^/]+\/apps\/web\/app\/import-meta-url-encoded-rsc\/with%20space.ts$/
+        )
+      })
+
+      it('should encode special chars during SSR', async () => {
+        const $ = await next.render$('/import-meta-url-encoded-ssr')
+        expect($('p').text()).toMatch(
+          /^file:\/\/.*\/next-install-[^/]+\/apps\/web\/app\/import-meta-url-encoded-ssr\/with%20space.ts$/
+        )
+      })
+
+      it('should encode special chars on client-side', async () => {
+        const browser = await next.browser('/import-meta-url-encoded-ssr')
+        await waitForNoRedbox(browser)
+        if (isTurbopack) {
+          // Turbopack intentionally doesn't expose the full path to the browser bundles
+          expect(await browser.elementByCss('p').text()).toBe(
+            'file:///ROOT/apps/web/app/import-meta-url-encoded-ssr/with%20space.ts'
+          )
+        } else {
+          expect(await browser.elementByCss('p').text()).toMatch(
+            /^file:\/\/.*\/next-install-[^/]+\/apps\/web\/app\/import-meta-url-encoded-ssr\/with%20space.ts$/
+          )
+        }
+        await browser.close()
+      })
     })
   })
 

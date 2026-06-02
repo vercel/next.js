@@ -1471,21 +1471,17 @@ export function getNavigationDisallowedDynamicReasons(
         }
       }
       missingFiles.sort()
-      let message = `Could not validate instant UI because an expected segment was not rendered.`
+      let message = `Route "${workStore.route}": Could not validate that a segment in your UI has instant navigation.`
       if (missingFiles.length > 0) {
         const label =
-          missingFiles.length === 1
-            ? 'Unrendered segment'
-            : 'Unrendered segments'
+          missingFiles.length === 1 ? 'Dropped segment' : 'Dropped segments'
         message +=
+          `\n\nThis segment was dropped from rendering. Issues that would prevent instant navigation will go undetected.` +
           `\n\n${label}:\n${missingFiles.map((p) => `  ${p}`).join('\n')}` +
-          `\n\nRoute: ${workStore.route}` +
-          `\n\nThis can happen when you conditionally render a parallel route, for instance a login page when a user is logged out.` +
-          `\nThis can happen when a client component opts out of rendering during SSR.` +
-          `\n\nYou can mark this layout as not requiring instant UI with \`export const unstable_instant = false\` if you want to silence this warning.` +
+          `\n\nWays to fix this:` +
+          `\n  - Render the dropped segment` +
+          `\n  - Set \`export const instant = false\` on the dropped segment to skip validation` +
           `\n\nLearn more: https://nextjs.org/docs/messages/unrendered-instant-segment`
-      } else {
-        message += `\n\nRoute: ${workStore.route}`
       }
       const error = new Error(message)
       return error

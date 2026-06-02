@@ -89,7 +89,7 @@ describe('Cache Components Errors', () => {
              "code": "E1231",
              "description": "Next.js encountered uncached data in generateMetadata().",
              "environmentLabel": "Server",
-             "label": "Instant",
+             "label": "Blocking Route",
              "source": "app/dynamic-metadata-static-route/page.tsx (2:9) @ Module.generateMetadata
            > 2 |   await new Promise((r) => setTimeout(r, 0))
                |         ^",
@@ -161,7 +161,7 @@ describe('Cache Components Errors', () => {
              "code": "E1265",
              "description": "Next.js encountered uncached data during prerendering.",
              "environmentLabel": "Server",
-             "label": "Instant",
+             "label": "Blocking Route",
              "source": "app/dynamic-metadata-error-route/page.tsx (21:9) @ Dynamic
            > 21 |   await new Promise((r) => setTimeout(r))
                 |         ^",
@@ -328,7 +328,7 @@ describe('Cache Components Errors', () => {
              "code": "E1231",
              "description": "Next.js encountered uncached data in generateMetadata().",
              "environmentLabel": "Server",
-             "label": "Instant",
+             "label": "Blocking Route",
              "source": "app/dynamic-metadata-static-with-suspense/page.tsx (2:9) @ Module.generateMetadata
            > 2 |   await new Promise((r) => setTimeout(r, 0))
                |         ^",
@@ -400,7 +400,7 @@ describe('Cache Components Errors', () => {
              "code": "E1231",
              "description": "Next.js encountered uncached data in generateMetadata().",
              "environmentLabel": "Server",
-             "label": "Instant",
+             "label": "Blocking Route",
              "source": "app/dynamic-metadata-static-with-suspense-above-body/page.tsx (2:9) @ Module.generateMetadata
            > 2 |   await new Promise((r) => setTimeout(r, 0))
                |         ^",
@@ -472,7 +472,7 @@ describe('Cache Components Errors', () => {
              "code": "E1231",
              "description": "Next.js encountered uncached data in generateMetadata().",
              "environmentLabel": "Server",
-             "label": "Instant",
+             "label": "Blocking Route",
              "source": "app/dynamic-metadata-static-with-instant-false/page.tsx (4:9) @ Module.generateMetadata
            > 4 |   await new Promise((r) => setTimeout(r, 0))
                |         ^",
@@ -569,7 +569,7 @@ describe('Cache Components Errors', () => {
              "code": "E1255",
              "description": "Next.js encountered uncached data in generateViewport().",
              "environmentLabel": "Server",
-             "label": "Instant",
+             "label": "Blocking Route",
              "source": "app/dynamic-viewport-static-route/page.tsx (2:9) @ Module.generateViewport
            > 2 |   await new Promise((r) => setTimeout(r, 0))
                |         ^",
@@ -679,7 +679,7 @@ describe('Cache Components Errors', () => {
              "code": "E1255",
              "description": "Next.js encountered uncached data in generateViewport().",
              "environmentLabel": "Server",
-             "label": "Instant",
+             "label": "Blocking Route",
              "source": "app/dynamic-viewport-dynamic-route/page.tsx (4:9) @ Module.generateViewport
            > 4 |   await new Promise((r) => setTimeout(r, 0))
                |         ^",
@@ -771,7 +771,7 @@ describe('Cache Components Errors', () => {
                "code": "E1265",
                "description": "Next.js encountered uncached data during prerendering.",
                "environmentLabel": "Server",
-               "label": "Instant",
+               "label": "Blocking Route",
                "source": "app/dynamic-root/page.tsx (63:26) @ fetchRandom
            > 63 |   const response = await fetch(
                 |                          ^",
@@ -785,7 +785,7 @@ describe('Cache Components Errors', () => {
                "code": "E1265",
                "description": "Next.js encountered uncached data during prerendering.",
                "environmentLabel": "Server",
-               "label": "Instant",
+               "label": "Blocking Route",
                "source": "app/dynamic-root/page.tsx (63:26) @ fetchRandom
            > 63 |   const response = await fetch(
                 |                          ^",
@@ -1092,7 +1092,7 @@ describe('Cache Components Errors', () => {
                "code": "E1261",
                "description": "Next.js encountered the unstable value Math.random() while prerendering.",
                "environmentLabel": "Server",
-               "label": "Instant",
+               "label": "Blocking Route",
                "source": "app/sync-random-with-fallback/page.tsx (37:23) @ RandomReadingComponent
              > 37 |   const random = Math.random()
                   |                       ^",
@@ -1240,7 +1240,7 @@ describe('Cache Components Errors', () => {
                "code": "E1261",
                "description": "Next.js encountered the unstable value Math.random() while prerendering.",
                "environmentLabel": "Server",
-               "label": "Instant",
+               "label": "Blocking Route",
                "source": "app/sync-random-without-fallback/page.tsx (32:15) @ getRandomNumber
              > 32 |   return Math.random()
                   |               ^",
@@ -2180,7 +2180,7 @@ describe('Cache Components Errors', () => {
                "code": "E1266",
                "description": "Next.js encountered the unstable value new Date() in a Client Component.",
                "environmentLabel": "Server",
-               "label": "Instant",
+               "label": "Blocking Route",
                "source": "app/sync-attribution/guarded-async-unguarded-clientsync/client.tsx (5:16) @ SyncIO
              > 5 |   const data = new Date().toISOString()
                  |                ^",
@@ -2328,7 +2328,7 @@ describe('Cache Components Errors', () => {
                "code": "E1272",
                "description": "Next.js encountered runtime data during prerendering.",
                "environmentLabel": "Server",
-               "label": "Instant",
+               "label": "Blocking Route",
                "source": "app/sync-attribution/unguarded-async-guarded-clientsync/page.tsx (34:18) @ RequestData
              > 34 |   ;(await cookies()).get('foo')
                   |                  ^",
@@ -2466,7 +2466,7 @@ describe('Cache Components Errors', () => {
                "code": "E1266",
                "description": "Next.js encountered the unstable value new Date() in a Client Component.",
                "environmentLabel": "Server",
-               "label": "Instant",
+               "label": "Blocking Route",
                "source": "app/sync-attribution/unguarded-async-unguarded-clientsync/client.tsx (5:16) @ SyncIO
              > 5 |   const data = new Date().toISOString()
                  |                ^",
@@ -3044,7 +3044,7 @@ describe('Cache Components Errors', () => {
                  "code": "E1272",
                  "description": "Next.js encountered runtime data during prerendering.",
                  "environmentLabel": "Server",
-                 "label": "Instant",
+                 "label": "Blocking Route",
                  "source": "app/use-cache-low-expire/fast/page.tsx (3:16) @ Page
                > 3 | export default async function Page() {
                    |                ^",
@@ -3166,7 +3166,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                  "code": "E1272",
                  "description": "Next.js encountered runtime data during prerendering.",
                  "environmentLabel": "Server",
-                 "label": "Instant",
+                 "label": "Blocking Route",
                  "source": "app/use-cache-low-expire/slow/page.tsx (3:16) @ Page
                > 3 | export default async function Page() {
                    |                ^",
@@ -3447,7 +3447,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                  "code": "E1272",
                  "description": "Next.js encountered runtime data during prerendering.",
                  "environmentLabel": "Server",
-                 "label": "Instant",
+                 "label": "Blocking Route",
                  "source": "app/use-cache-revalidate-0/fast/page.tsx (3:16) @ Page
                > 3 | export default async function Page() {
                    |                ^",
@@ -3569,7 +3569,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                  "code": "E1272",
                  "description": "Next.js encountered runtime data during prerendering.",
                  "environmentLabel": "Server",
-                 "label": "Instant",
+                 "label": "Blocking Route",
                  "source": "app/use-cache-revalidate-0/slow/page.tsx (3:16) @ Page
                > 3 | export default async function Page() {
                    |                ^",
@@ -3851,7 +3851,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                "code": "E1272",
                "description": "Next.js encountered runtime data during prerendering.",
                "environmentLabel": "Server",
-               "label": "Instant",
+               "label": "Blocking Route",
                "source": null,
                "stack": [
                  "Page [Prerender] <anonymous>",
@@ -4752,7 +4752,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                "code": "E1272",
                "description": "Next.js encountered runtime data during prerendering.",
                "environmentLabel": "Server",
-               "label": "Instant",
+               "label": "Blocking Route",
                "source": "app/use-cache-private-without-suspense/page.tsx (15:1) @ Private
              > 15 | async function Private() {
                   | ^",
@@ -4955,7 +4955,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
              "code": "E1261",
              "description": "Next.js encountered the unstable value Date() while prerendering.",
              "environmentLabel": "Server",
-             "label": "Instant",
+             "label": "Blocking Route",
              "source": "app/sync-io-current-time/date/page.tsx (19:16) @ DateReadingComponent
            > 19 |   return <div>{Date()}</div>
                 |                ^",
@@ -5100,7 +5100,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
              "code": "E1261",
              "description": "Next.js encountered the unstable value Date.now() while prerendering.",
              "environmentLabel": "Server",
-             "label": "Instant",
+             "label": "Blocking Route",
              "source": "app/sync-io-current-time/date-now/page.tsx (19:21) @ DateReadingComponent
            > 19 |   return <div>{Date.now()}</div>
                 |                     ^",
@@ -5245,7 +5245,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
              "code": "E1261",
              "description": "Next.js encountered the unstable value new Date() while prerendering.",
              "environmentLabel": "Server",
-             "label": "Instant",
+             "label": "Blocking Route",
              "source": "app/sync-io-current-time/new-date/page.tsx (19:16) @ DateReadingComponent
            > 19 |   return <div>{new Date().toString()}</div>
                 |                ^",
@@ -5390,7 +5390,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
              "code": "E1261",
              "description": "Next.js encountered the unstable value Math.random() while prerendering.",
              "environmentLabel": "Server",
-             "label": "Instant",
+             "label": "Blocking Route",
              "source": "app/sync-io-random/math-random/page.tsx (19:21) @ SyncIOComponent
            > 19 |   return <div>{Math.random()}</div>
                 |                     ^",
@@ -5531,7 +5531,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
              "code": "E1261",
              "description": "Next.js encountered the unstable value crypto.getRandomValues() while prerendering.",
              "environmentLabel": "Server",
-             "label": "Instant",
+             "label": "Blocking Route",
              "source": "app/sync-io-web-crypto/get-random-value/page.tsx (20:10) @ SyncIOComponent
            > 20 |   crypto.getRandomValues(buffer)
                 |          ^",
@@ -5675,7 +5675,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
              "code": "E1261",
              "description": "Next.js encountered the unstable value crypto.randomUUID() while prerendering.",
              "environmentLabel": "Server",
-             "label": "Instant",
+             "label": "Blocking Route",
              "source": "app/sync-io-web-crypto/random-uuid/page.tsx (19:23) @ SyncIOComponent
            > 19 |   return <div>{crypto.randomUUID()}</div>
                 |                       ^",
@@ -5817,7 +5817,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                "code": "E1261",
                "description": "Next.js encountered the unstable value require('node:crypto').generateKeyPairSync(...) while prerendering.",
                "environmentLabel": "Server",
-               "label": "Instant",
+               "label": "Blocking Route",
                "source": "app/sync-io-node-crypto/generate-key-pair-sync/page.tsx (20:24) @ SyncIOComponent
              > 20 |   const first = crypto.generateKeyPairSync('rsa', keyGenOptions)
                   |                        ^",
@@ -5833,7 +5833,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                "code": "E1261",
                "description": "Next.js encountered the unstable value require('node:crypto').generateKeyPairSync(...) while prerendering.",
                "environmentLabel": "Server",
-               "label": "Instant",
+               "label": "Blocking Route",
                "source": "app/sync-io-node-crypto/generate-key-pair-sync/page.tsx (20:17) @ SyncIOComponent
              > 20 |   const first = crypto.generateKeyPairSync('rsa', keyGenOptions)
                   |                 ^",
@@ -5979,7 +5979,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                "code": "E1261",
                "description": "Next.js encountered the unstable value require('node:crypto').generateKeySync(...) while prerendering.",
                "environmentLabel": "Server",
-               "label": "Instant",
+               "label": "Blocking Route",
                "source": "app/sync-io-node-crypto/generate-key-sync/page.tsx (21:6) @ SyncIOComponent
              > 21 |     .generateKeySync('hmac', {
                   |      ^",
@@ -5995,7 +5995,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                "code": "E1261",
                "description": "Next.js encountered the unstable value require('node:crypto').generateKeySync(...) while prerendering.",
                "environmentLabel": "Server",
-               "label": "Instant",
+               "label": "Blocking Route",
                "source": "app/sync-io-node-crypto/generate-key-sync/page.tsx (20:17) @ SyncIOComponent
              > 20 |   const first = crypto
                   |                 ^",
@@ -6141,7 +6141,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                "code": "E1261",
                "description": "Next.js encountered the unstable value require('node:crypto').generatePrimeSync(...) while prerendering.",
                "environmentLabel": "Server",
-               "label": "Instant",
+               "label": "Blocking Route",
                "source": "app/sync-io-node-crypto/generate-prime-sync/page.tsx (20:39) @ SyncIOComponent
              > 20 |   const first = new Uint8Array(crypto.generatePrimeSync(128))
                   |                                       ^",
@@ -6157,7 +6157,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                "code": "E1261",
                "description": "Next.js encountered the unstable value require('node:crypto').generatePrimeSync(...) while prerendering.",
                "environmentLabel": "Server",
-               "label": "Instant",
+               "label": "Blocking Route",
                "source": "app/sync-io-node-crypto/generate-prime-sync/page.tsx (20:32) @ SyncIOComponent
              > 20 |   const first = new Uint8Array(crypto.generatePrimeSync(128))
                   |                                ^",
@@ -6303,7 +6303,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                "code": "E1261",
                "description": "Next.js encountered the unstable value crypto.getRandomValues() while prerendering.",
                "environmentLabel": "Server",
-               "label": "Instant",
+               "label": "Blocking Route",
                "source": "app/sync-io-node-crypto/get-random-values/page.tsx (21:10) @ SyncIOComponent
              > 21 |   crypto.getRandomValues(first)
                   |          ^",
@@ -6319,7 +6319,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                "code": "E1261",
                "description": "Next.js encountered the unstable value crypto.getRandomValues() while prerendering.",
                "environmentLabel": "Server",
-               "label": "Instant",
+               "label": "Blocking Route",
                "source": "app/sync-io-node-crypto/get-random-values/page.tsx (21:3) @ SyncIOComponent
              > 21 |   crypto.getRandomValues(first)
                   |   ^",
@@ -6465,7 +6465,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                "code": "E1261",
                "description": "Next.js encountered the unstable value require('node:crypto').randomBytes(size) while prerendering.",
                "environmentLabel": "Server",
-               "label": "Instant",
+               "label": "Blocking Route",
                "source": "app/sync-io-node-crypto/random-bytes/page.tsx (20:24) @ SyncIOComponent
              > 20 |   const first = crypto.randomBytes(8)
                   |                        ^",
@@ -6481,7 +6481,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                "code": "E1261",
                "description": "Next.js encountered the unstable value require('node:crypto').randomBytes(size) while prerendering.",
                "environmentLabel": "Server",
-               "label": "Instant",
+               "label": "Blocking Route",
                "source": "app/sync-io-node-crypto/random-bytes/page.tsx (20:17) @ SyncIOComponent
              > 20 |   const first = crypto.randomBytes(8)
                   |                 ^",
@@ -6627,7 +6627,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                "code": "E1261",
                "description": "Next.js encountered the unstable value require('node:crypto').randomFillSync(...) while prerendering.",
                "environmentLabel": "Server",
-               "label": "Instant",
+               "label": "Blocking Route",
                "source": "app/sync-io-node-crypto/random-fill-sync/page.tsx (21:10) @ SyncIOComponent
              > 21 |   crypto.randomFillSync(first, 4, 8)
                   |          ^",
@@ -6643,7 +6643,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                "code": "E1261",
                "description": "Next.js encountered the unstable value require('node:crypto').randomFillSync(...) while prerendering.",
                "environmentLabel": "Server",
-               "label": "Instant",
+               "label": "Blocking Route",
                "source": "app/sync-io-node-crypto/random-fill-sync/page.tsx (21:3) @ SyncIOComponent
              > 21 |   crypto.randomFillSync(first, 4, 8)
                   |   ^",
@@ -6789,7 +6789,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                "code": "E1261",
                "description": "Next.js encountered the unstable value require('node:crypto').randomInt(min, max) while prerendering.",
                "environmentLabel": "Server",
-               "label": "Instant",
+               "label": "Blocking Route",
                "source": "app/sync-io-node-crypto/random-int-between/page.tsx (20:24) @ SyncIOComponent
              > 20 |   const first = crypto.randomInt(128, 256)
                   |                        ^",
@@ -6805,7 +6805,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                "code": "E1261",
                "description": "Next.js encountered the unstable value require('node:crypto').randomInt(min, max) while prerendering.",
                "environmentLabel": "Server",
-               "label": "Instant",
+               "label": "Blocking Route",
                "source": "app/sync-io-node-crypto/random-int-between/page.tsx (20:17) @ SyncIOComponent
              > 20 |   const first = crypto.randomInt(128, 256)
                   |                 ^",
@@ -6951,7 +6951,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                "code": "E1261",
                "description": "Next.js encountered the unstable value require('node:crypto').randomInt(min, max) while prerendering.",
                "environmentLabel": "Server",
-               "label": "Instant",
+               "label": "Blocking Route",
                "source": "app/sync-io-node-crypto/random-int-up-to/page.tsx (20:24) @ SyncIOComponent
              > 20 |   const first = crypto.randomInt(128)
                   |                        ^",
@@ -6967,7 +6967,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                "code": "E1261",
                "description": "Next.js encountered the unstable value require('node:crypto').randomInt(min, max) while prerendering.",
                "environmentLabel": "Server",
-               "label": "Instant",
+               "label": "Blocking Route",
                "source": "app/sync-io-node-crypto/random-int-up-to/page.tsx (20:17) @ SyncIOComponent
              > 20 |   const first = crypto.randomInt(128)
                   |                 ^",
@@ -7113,7 +7113,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                "code": "E1261",
                "description": "Next.js encountered the unstable value require('node:crypto').randomUUID() while prerendering.",
                "environmentLabel": "Server",
-               "label": "Instant",
+               "label": "Blocking Route",
                "source": "app/sync-io-node-crypto/random-uuid/page.tsx (20:24) @ SyncIOComponent
              > 20 |   const first = crypto.randomUUID()
                   |                        ^",
@@ -7129,7 +7129,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                "code": "E1261",
                "description": "Next.js encountered the unstable value require('node:crypto').randomUUID() while prerendering.",
                "environmentLabel": "Server",
-               "label": "Instant",
+               "label": "Blocking Route",
                "source": "app/sync-io-node-crypto/random-uuid/page.tsx (20:17) @ SyncIOComponent
              > 20 |   const first = crypto.randomUUID()
                   |                 ^",
@@ -7274,7 +7274,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
              "code": "E1265",
              "description": "Next.js encountered uncached data during prerendering.",
              "environmentLabel": "Server",
-             "label": "Instant",
+             "label": "Blocking Route",
              "source": "app/client-awaited-io/client.tsx (6:19) @ Client
            > 6 |   const data = use(io)
                |                   ^",
