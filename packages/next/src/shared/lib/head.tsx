@@ -73,7 +73,6 @@ function unique() {
       }
     }
 
-    // eslint-disable-next-line default-case
     switch (h.type) {
       case 'title':
       case 'base':
@@ -105,6 +104,8 @@ function unique() {
             }
           }
         }
+        break
+      default:
         break
     }
 
