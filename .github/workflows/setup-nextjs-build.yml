@@ -21,7 +21,7 @@ jobs:
       output1: ${{ steps.build-next-swc-turbopack-patch.outputs.success }}
     steps:
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
         with:
           node-version: ${{ inputs.nodeVersion || env.NODE_LTS_VERSION }}
           check-latest: true
@@ -50,13 +50,13 @@ jobs:
         run: echo "Checking out Next.js ${{ env.NEXTJS_VERSION }}"
 
       - name: Checkout Next.js
-        uses: actions/checkout@v4
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           repository: vercel/next.js
           ref: ${{ env.NEXTJS_VERSION }}
 
       - name: Checkout failed test lists
-        uses: actions/checkout@v4
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           repository: vercel/turbo
           ref: nextjs-integration-test-data
@@ -67,7 +67,7 @@ jobs:
         with:
           path: artifacts
 
-      - uses: actions/cache/restore@v3
+      - uses: actions/cache/restore@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
         id: restore-build
         with:
           path: |
@@ -113,7 +113,7 @@ jobs:
       # it is too heavyweight for the purpose since we do not need to persist
       # the cache across multiple runs.
       - name: Store next.js build cache with next-swc
-        uses: actions/cache/save@v3
+        uses: actions/cache/save@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
         id: cache-build
         with:
           path: |
