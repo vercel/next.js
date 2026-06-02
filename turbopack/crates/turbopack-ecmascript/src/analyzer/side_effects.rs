@@ -342,51 +342,29 @@ fn is_cjs_export_member(member: &MemberExpr, unresolved_mark: Mark) -> bool {
     }
 }
 
-/// Calls `f` for every assignment reachable from a top-level expression
-/// statement.
+/// Calls `f` for every assignment that executes during module evaluation.
 ///
-/// Only top-level assignments matter: one inside a function body does not run
-/// during module evaluation. Comma-sequence expressions and assignment chains
-/// are traversed so an assignment hidden in `(a = …, b = …)` or `a = b = …` is
-/// still seen.
-fn for_each_top_level_assign(program: &Program, mut f: impl FnMut(&AssignExpr)) {
-    fn in_expr(expr: &Expr, f: &mut impl FnMut(&AssignExpr)) {
-        match expr {
-            Expr::Paren(paren) => in_expr(&paren.expr, f),
-            Expr::Seq(seq) => {
-                for e in &seq.exprs {
-                    in_expr(e, f);
-                }
-            }
-            Expr::Assign(assign) => {
-                f(assign);
-                // Also descend the RHS to catch chains like `a = b = …`.
-                in_expr(&assign.right, f);
-            }
-            _ => {}
-        }
+/// This descends through all expressions — conditionals, logical/binary
+/// operators, sequences, assignment chains, call arguments, etc. — so an
+/// assignment hidden in `cond && (module.exports = …)` or `a ? (b = …) : c` is
+/// still seen. It does *not* descend into function/method bodies: those don't
+/// run at module-evaluation time (calling such a function would itself be a side
+/// effect), so assignments inside them are irrelevant here.
+fn for_each_top_level_assign(program: &Program, f: impl FnMut(&AssignExpr)) {
+    struct Collector<F> {
+        f: F,
     }
-
-    fn in_stmt(stmt: &Stmt, f: &mut impl FnMut(&AssignExpr)) {
-        if let Stmt::Expr(expr_stmt) = stmt {
-            in_expr(&expr_stmt.expr, f);
+    impl<F: FnMut(&AssignExpr)> Visit for Collector<F> {
+        noop_visit_type!();
+        fn visit_assign_expr(&mut self, n: &AssignExpr) {
+            (self.f)(n);
+            n.visit_children_with(self);
         }
+        // Function/method bodies do not execute during module evaluation.
+        fn visit_function(&mut self, _: &Function) {}
+        fn visit_arrow_expr(&mut self, _: &ArrowExpr) {}
     }
-
-    match program {
-        Program::Module(module) => {
-            for item in &module.body {
-                if let ModuleItem::Stmt(stmt) = item {
-                    in_stmt(stmt, &mut f);
-                }
-            }
-        }
-        Program::Script(script) => {
-            for stmt in &script.body {
-                in_stmt(stmt, &mut f);
-            }
-        }
-    }
+    program.visit_with(&mut Collector { f });
 }
 
 /// Whether `module.exports` is ever reassigned to a value that isn't safe.
@@ -2660,6 +2638,23 @@ mod tests {
         side_effects!(
             test_cjs_export_reexport_then_write_sequence,
             "module.exports = require('./other'), module.exports.extra = 1;"
+        );
+        // …and when nested in a conditional/logical expression that still runs at
+        // module evaluation (the scan descends every evaluated expression, just
+        // not function bodies).
+        side_effects!(
+            test_cjs_export_reexport_in_logical_then_write,
+            "x && (module.exports = require('./other')); module.exports.extra = 1;"
+        );
+        side_effects!(
+            test_cjs_export_setter_attached_in_conditional,
+            "x ? (module.exports = { set foo(v) { sideEffect() } }) : 0;"
+        );
+        // A reassignment inside a function body does not run during module
+        // evaluation, so it is not a taint on its own.
+        no_side_effects!(
+            test_cjs_export_reassign_in_function_body_is_pure,
+            "function f() { module.exports = require('./other'); } module.exports.foo = 1;"
         );
     }
 }
