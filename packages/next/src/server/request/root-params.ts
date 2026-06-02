@@ -15,6 +15,7 @@ import {
 } from '../app-render/work-unit-async-storage.external'
 import {
   getRuntimeLinkDataStage,
+  getStaticLinkDataStage,
   makeHangingPromise,
 } from '../dynamic-rendering-utils'
 import type { ParamValue } from './params'
@@ -115,6 +116,22 @@ export function getRootParam(paramName: string): Promise<ParamValue> {
         } catch (err) {
           return Promise.reject(err)
         }
+        break
+      }
+
+      const { stagedRendering } = workUnitStore
+      if (stagedRendering && process.env.__NEXT_APP_SHELLS) {
+        return createRootParamPromiseForShellRender(
+          stagedRendering,
+          // Assuming we're rendering for cached navs, we only need
+          // to recover a static shell and a static stage, so we can
+          // resolve root params here. it means we can't get a session shell,
+          // but that's okay because we get that from a separate render anyway.
+          getStaticLinkDataStage(stagedRendering),
+          apiName,
+          paramName,
+          workUnitStore.rootParams[paramName]
+        )
       }
       break
     }
