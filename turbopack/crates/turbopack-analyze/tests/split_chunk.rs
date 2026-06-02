@@ -102,7 +102,10 @@ async fn split_chunk() {
             index: usize,
         ) -> Result<Vc<u32>> {
             Ok(Vc::cell(
-                parts.connect().await?[index].get_compressed_size().await?,
+                parts.connect().await?[index]
+                    .get_compressed_size()
+                    .await?
+                    .unwrap(),
             ))
         }
 
