@@ -333,29 +333,37 @@ fn is_module_exports_chain(expr: &Expr, unresolved_mark: Mark) -> bool {
 /// require('./x')`, `module.exports = other`) would make changes to
 /// properties on `module.exports` have side effects.
 fn module_exports_is_tainted(program: &Program, unresolved_mark: Mark) -> bool {
-    struct Finder {
-        unresolved_mark: Mark,
-        tainted: bool,
-    }
-    impl Visit for Finder {
-        noop_visit_type!();
-        fn visit_assign_expr(&mut self, n: &AssignExpr) {
-            if n.op == AssignOp::Assign
-                && let AssignTarget::Simple(SimpleAssignTarget::Member(m)) = &n.left
-                && is_module_dot_exports(m, self.unresolved_mark)
-                && !is_object_or_array_literal(&n.right)
-            {
-                self.tainted = true;
-            }
-            n.visit_children_with(self);
+    // Only top-level reassignments matter: a `module.exports = …` inside a
+    // function body does not run during module evaluation.
+    fn is_stmt_tainted(stmt: &Stmt, unresolved_mark: Mark) -> bool {
+        let Stmt::Expr(expr_stmt) = stmt else {
+            return false;
+        };
+        let Expr::Assign(assign) = unparen(&expr_stmt.expr) else {
+            return false;
+        };
+        if assign.op != AssignOp::Assign {
+            return false;
         }
+        let AssignTarget::Simple(SimpleAssignTarget::Member(member)) = &assign.left else {
+            return false;
+        };
+        is_module_dot_exports(member, unresolved_mark) && !is_object_or_array_literal(&assign.right)
     }
-    let mut finder = Finder {
-        unresolved_mark,
-        tainted: false,
-    };
-    program.visit_with(&mut finder);
-    finder.tainted
+
+    match program {
+        Program::Module(module) => module.body.iter().any(|item| {
+            if let ModuleItem::Stmt(stmt) = item {
+                is_stmt_tainted(stmt, unresolved_mark)
+            } else {
+                false
+            }
+        }),
+        Program::Script(script) => script
+            .body
+            .iter()
+            .any(|stmt| is_stmt_tainted(stmt, unresolved_mark)),
+    }
 }
 
 /// Analyzes a program to determine if it contains side effects at the top level.
