@@ -82,6 +82,7 @@ struct ServerReferenceExport {
 #[derive(Clone, Debug, serde::Serialize)]
 struct ServerReferenceExportInfo {
     name: Atom,
+    is_use_cache: bool,
 }
 
 #[derive(Clone, Debug)]
@@ -204,6 +205,15 @@ pub fn server_actions<C: Comments>(
 
 /// Serializes the Server References into a magic comment prefixed by
 /// `__next_internal_action_entry_do_not_use__`.
+/// Extracts the "use cache" type bit (bit 7 of the leading special byte) from a
+/// hex-encoded server reference id. See `generate_server_reference_id` for the encoding.
+fn reference_id_is_use_cache(reference_id: &str) -> bool {
+    reference_id
+        .get(0..2)
+        .and_then(|b| u8::from_str_radix(b, 16).ok())
+        .is_some_and(|byte| byte & 0b1000_0000 != 0)
+}
+
 fn generate_server_references_comment(
     export_infos_ordered_by_reference_id: &BTreeMap<&Atom, ServerReferenceExportInfo>,
     entry_path_query: Option<(&str, &str)>,
@@ -2688,7 +2698,13 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                 .iter()
                 .map(|(export_name, reference_id)| {
                     let name_atom = export_name.atom().into_owned();
-                    (reference_id, ServerReferenceExportInfo { name: name_atom })
+                    (
+                        reference_id,
+                        ServerReferenceExportInfo {
+                            name: name_atom,
+                            is_use_cache: reference_id_is_use_cache(reference_id),
+                        },
+                    )
                 })
                 .collect::<BTreeMap<_, _>>();
 
@@ -2760,7 +2776,10 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                             let stripped_export_name = strip_export_name_span(&export_name);
 
                             let name_atom = export_name.atom().into_owned();
-                            let export_info = ServerReferenceExportInfo { name: name_atom };
+                            let export_info = ServerReferenceExportInfo {
+                                name: name_atom,
+                                is_use_cache: reference_id_is_use_cache(&ref_id),
+                            };
 
                             new.push(ModuleItem::ModuleDecl(ModuleDecl::ExportNamed(
                                 NamedExport {
