@@ -614,9 +614,6 @@ export async function renderToNodeFizzStream(
       onHeaders: streamOptions?.onHeaders,
       onShellReady() {
         streamOptions?.onShellReady?.()
-        if (!deferPipe) {
-          pipeable.pipe(pt)
-        }
         shellReady.resolve()
       },
       onShellError(error: unknown) {
@@ -635,6 +632,11 @@ export async function renderToNodeFizzStream(
   )
 
   await shellReady.promise
+
+  if (!deferPipe) {
+    await waitAtLeastOneReactRenderTask()
+    pipeable.pipe(pt)
+  }
 
   return {
     stream: pt,
