@@ -6,7 +6,9 @@ import type { RoutesManifest } from '../../../build'
 import type { MiddlewareRouteMatch } from '../../../shared/lib/router/utils/middleware-route-matcher'
 import type { PropagateToWorkersField } from './types'
 import type { NextJsHotReloaderInterface } from '../../dev/hot-reloader-types'
-import type { RouteDefinition } from '../../route-definitions/route-definition'
+import type { AppPageRouteDefinition } from '../../route-definitions/app-page-route-definition'
+import type { AppRouteRouteDefinition } from '../../route-definitions/app-route-route-definition'
+import type { LocaleRouteDefinition } from '../../route-definitions/locale-route-definition'
 
 import { createDefineEnv } from '../../../build/swc'
 import { installBindings } from '../../../build/swc/install-bindings'
@@ -1060,23 +1062,31 @@ async function startWatcher(
       )
 
       const pageRouteDefinitions = [
-        ...pageRoutes.map(({ route, filePath }) => ({
-          kind: RouteKind.PAGES,
-          pathname: route,
-          page: route,
-          bundlePath: path.posix.join('pages', normalizePagePath(route)),
-          filename: filePath,
-          ...(opts.nextConfig.i18n ? { i18n: {} } : undefined),
-        })),
-        ...pageApiRoutes.map(({ route, filePath }) => ({
-          kind: RouteKind.PAGES_API,
-          pathname: route,
-          page: route,
-          bundlePath: path.posix.join('pages', normalizePagePath(route)),
-          filename: filePath,
-          ...(opts.nextConfig.i18n ? { i18n: {} } : undefined),
-        })),
-      ] as RouteDefinition[]
+        ...pageRoutes.map(
+          ({ route, filePath }) =>
+            ({
+              kind: RouteKind.PAGES,
+              pathname: route,
+              page: route,
+              bundlePath: path.posix.join('pages', normalizePagePath(route)),
+              filename: filePath,
+              ...(opts.nextConfig.i18n ? { i18n: {} } : undefined),
+            }) satisfies LocaleRouteDefinition<RouteKind.PAGES>
+        ),
+        ...pageApiRoutes.map(
+          ({ route, filePath }) =>
+            ({
+              kind: RouteKind.PAGES_API,
+              pathname: route,
+              page: route,
+              bundlePath: path.posix.join('pages', normalizePagePath(route)),
+              filename: filePath,
+              ...(opts.nextConfig.i18n ? { i18n: {} } : undefined),
+            }) satisfies LocaleRouteDefinition<RouteKind.PAGES_API>
+        ),
+      ] satisfies Array<
+        LocaleRouteDefinition<RouteKind.PAGES | RouteKind.PAGES_API>
+      >
 
       const appRouteDefinitions = [
         ...Object.entries(appPaths).map(([route, routeAppPaths]) => {
@@ -1089,7 +1099,7 @@ async function startWatcher(
             bundlePath: path.posix.join('app', normalizePagePath(page)),
             filename: filePath,
             appPaths: routeAppPaths,
-          }
+          } satisfies AppPageRouteDefinition
         }),
         ...appRouteHandlers.map(({ route, filePath }) => {
           const page = appPaths[route]?.[0] ?? route
@@ -1099,9 +1109,9 @@ async function startWatcher(
             page,
             bundlePath: path.posix.join('app', normalizePagePath(page)),
             filename: filePath,
-          }
+          } satisfies AppRouteRouteDefinition
         }),
-      ] as RouteDefinition[]
+      ] satisfies Array<AppPageRouteDefinition | AppRouteRouteDefinition>
 
       opts.fsChecker.setRouteDefinitions('pageFile', pageRouteDefinitions)
       opts.fsChecker.setRouteDefinitions('appFile', appRouteDefinitions)
