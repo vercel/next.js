@@ -37,6 +37,27 @@ export function getNextStage(
   ]
 }
 
+export function isEarlyRenderStage(
+  stage: Exclude<RenderStage, RenderStage.Before>
+): boolean {
+  switch (stage) {
+    case RenderStage.EarlyStatic:
+    case RenderStage.EarlyRuntime: {
+      return true
+    }
+    case RenderStage.Static:
+    case RenderStage.Runtime:
+    case RenderStage.Dynamic:
+    case RenderStage.Abandoned: {
+      return false
+    }
+    default: {
+      stage satisfies never
+      throw new InvariantError(`Invalid render stage: ${stage}`)
+    }
+  }
+}
+
 export class StagedRenderingController {
   private abortSignal: AbortSignal | null
   private abandonController: AbortController | null

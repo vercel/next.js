@@ -1,7 +1,9 @@
+import { InvariantError } from '../shared/lib/invariant-error'
 import {
   RenderStage,
   type AdvanceableRenderStage,
   type StagedRenderingController,
+  isEarlyRenderStage,
 } from './app-render/staged-rendering'
 import type {
   PrerenderStoreModernRuntime,
@@ -117,13 +119,15 @@ export function makeDevtoolsIOAwarePromise<T>(
 export function getRuntimeStage(
   stagedRendering: StagedRenderingController
 ): RenderStage.EarlyRuntime | RenderStage.Runtime {
-  if (
-    stagedRendering.currentStage === RenderStage.EarlyStatic ||
-    stagedRendering.currentStage === RenderStage.EarlyRuntime
-  ) {
-    return RenderStage.EarlyRuntime
+  const { currentStage } = stagedRendering
+  if (currentStage === RenderStage.Before) {
+    throw new InvariantError(
+      'Cannot determine late/early stage before starting the render'
+    )
   }
-  return RenderStage.Runtime
+  return isEarlyRenderStage(currentStage)
+    ? RenderStage.EarlyRuntime
+    : RenderStage.Runtime
 }
 
 /**
