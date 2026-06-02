@@ -10,6 +10,10 @@ description: A glossary of common terms used in Next.js.
 
 The Next.js router introduced in version 13, built on top of React Server Components. It uses file-system based routing and supports layouts, nested routing, loading states, error handling, and more. Learn more in the [App Router documentation](/docs/app).
 
+## App Shell
+
+A per-route prerender that contains only the generic, reusable parts of a page: what Next.js can produce without any URL-specific data. Used on first visits to URLs that weren't prerendered at build, and as the loading state of last resort during client navigations. The App Shell upgrades to a more complete render in the background as concrete params or per-link prefetches resolve. Used by [ISR with Cache Components](/docs/app/guides/incremental-static-regeneration-cache-components) and runtime prefetching with `experimental.appShells`.
+
 # B
 
 ## Build time
