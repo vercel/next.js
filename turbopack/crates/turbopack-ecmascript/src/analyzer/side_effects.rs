@@ -276,7 +276,7 @@ fn prop_is(prop: &MemberProp, name: &str) -> bool {
 /// binding — e.g. the real CommonJS `module`/`exports`/`require`, not a local
 /// shadow. Prevents `let exports = {}; exports.foo = 'a'` from being treated as
 /// a write to the global `exports`.
-fn is_unresolved(identifier: &Ident, name: &str, unresolved_mark: Mark) -> bool {
+fn is_global(identifier: &Ident, name: &str, unresolved_mark: Mark) -> bool {
     identifier.ctxt.outer() == unresolved_mark && identifier.sym.as_ref() == name
 }
 
@@ -312,7 +312,7 @@ fn contains_getters_or_setters(expr: &Expr) -> bool {
 
 /// `module.exports` (the real, unshadowed `module` binding).
 fn is_module_dot_exports(member: &MemberExpr, unresolved_mark: Mark) -> bool {
-    matches!(unparen(&member.obj), Expr::Ident(o) if is_unresolved(o, "module", unresolved_mark))
+    matches!(unparen(&member.obj), Expr::Ident(o) if is_global(o, "module", unresolved_mark))
         && prop_is(&member.prop, "exports")
 }
 
@@ -333,7 +333,7 @@ fn is_cjs_export_member(member: &MemberExpr, unresolved_mark: Mark) -> bool {
     match unparen(&member.obj) {
         // `exports.<anything>`, or `module.exports`
         Expr::Ident(obj) => {
-            is_unresolved(obj, "exports", unresolved_mark)
+            is_global(obj, "exports", unresolved_mark)
                 || is_module_dot_exports(member, unresolved_mark)
         }
         // `module.exports.<anything>`
@@ -363,6 +363,7 @@ fn for_each_top_level_assign(program: &Program, f: impl FnMut(&AssignExpr)) {
         // Function/method bodies do not execute during module evaluation.
         fn visit_function(&mut self, _: &Function) {}
         fn visit_arrow_expr(&mut self, _: &ArrowExpr) {}
+        fn visit_constructor(&mut self, _: &Constructor) {}
     }
     program.visit_with(&mut Collector { f });
 }
@@ -505,7 +506,7 @@ impl<'a> SideEffectVisitor<'a> {
             Callee::Expr(expr) => {
                 let expr = unparen(expr);
                 if let Expr::Ident(ident) = expr {
-                    is_unresolved(ident, "require", self.unresolved_mark)
+                    is_global(ident, "require", self.unresolved_mark)
                 } else {
                     false
                 }
@@ -2655,6 +2656,32 @@ mod tests {
         no_side_effects!(
             test_cjs_export_reassign_in_function_body_is_pure,
             "function f() { module.exports = require('./other'); } module.exports.foo = 1;"
+        );
+
+        // A class `static` block executes at module evaluation (when the class
+        // definition is evaluated), so an accessor attached to the exports object
+        // inside one is detected — mirroring the "top level" assignment in:
+        //   class C { static { foo = bar; } }
+        side_effects!(
+            test_cjs_export_setter_in_static_block,
+            "class C { static { module.exports = { set foo(v) { sideEffect() } }; module.exports.foo = 1; } }"
+        );
+        // …but a constructor body only runs when the class is instantiated, not at
+        // module evaluation, so the same attachment there is *not* a top-level
+        // assignment and is not detected — mirroring the "not top level"
+        // assignment in:
+        //   class C { constructor() { baz = quux; } }
+        no_side_effects!(
+            test_cjs_export_setter_in_constructor_is_pure,
+            "class C { constructor() { module.exports = { set foo(v) { sideEffect() } }; } } module.exports.foo = 1;"
+        );
+
+        // A `static` property initializer also runs at module evaluation (when the
+        // class definition is evaluated), so an accessor attached to the exports
+        // object inside one is detected.
+        side_effects!(
+            test_cjs_export_setter_in_static_property,
+            "class C { static x = (module.exports = { set foo(v) { sideEffect() } }); } module.exports.foo = 1;"
         );
     }
 }
