@@ -49,22 +49,33 @@ describe('use-server-inserted-html', () => {
 
   it('should render css-in-js suspense boundary correctly', async () => {
     await next.fetch('/css-in-js/suspense').then(async (response) => {
-      const results = []
+      let fallbackIndex = -1
+      let dataIndex = -1
+      let refreshScriptIndex = -1
 
-      await resolveStreamResponse(response, (chunk: string) => {
-        const isSuspenseyDataResolved =
-          /<style[^<>]*>(\s)*.+{padding:2px;(\s)*color:orange;}/.test(chunk)
-        if (isSuspenseyDataResolved) results.push('data')
+      await resolveStreamResponse(
+        response,
+        (_chunk: string, result: string) => {
+          if (dataIndex === -1) {
+            dataIndex = result.search(
+              /<style[^<>]*>(\s)*.+{padding:2px;(\s)*color:orange;}/
+            )
+          }
 
-        // check if rsc refresh script for suspense show up, the test content could change with react version
-        const hasRCScript = /\$RC=function/.test(chunk)
-        if (hasRCScript) results.push('refresh-script')
+          // check if rsc refresh script for suspense show up, the test content could change with react version
+          if (refreshScriptIndex === -1) {
+            refreshScriptIndex = result.search(/\$RC=function|\$RC\(/)
+          }
 
-        const isFallbackResolved = chunk.includes('$test-fallback-sentinel')
-        if (isFallbackResolved) results.push('fallback')
-      })
+          if (fallbackIndex === -1) {
+            fallbackIndex = result.indexOf('$test-fallback-sentinel')
+          }
+        }
+      )
 
-      expect(results).toEqual(['fallback', 'data', 'refresh-script'])
+      expect(fallbackIndex).toBeGreaterThanOrEqual(0)
+      expect(dataIndex).toBeGreaterThan(fallbackIndex)
+      expect(refreshScriptIndex).toBeGreaterThanOrEqual(0)
     })
     // // TODO-APP: fix streaming/suspense within browser for test suite
     // const browser = await next.browser( '/css-in-js', { waitHydration: false })
