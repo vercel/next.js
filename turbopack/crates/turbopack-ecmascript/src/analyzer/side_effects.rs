@@ -335,34 +335,41 @@ fn is_module_exports_chain(expr: &Expr, unresolved_mark: Mark) -> bool {
 fn module_exports_is_tainted(program: &Program, unresolved_mark: Mark) -> bool {
     // Only top-level reassignments matter: a `module.exports = …` inside a
     // function body does not run during module evaluation.
-    fn is_stmt_tainted(stmt: &Stmt, unresolved_mark: Mark) -> bool {
-        let Stmt::Expr(expr_stmt) = stmt else {
-            return false;
-        };
-        let Expr::Assign(assign) = unparen(&expr_stmt.expr) else {
-            return false;
-        };
-        if assign.op != AssignOp::Assign {
-            return false;
+    fn is_expr_tainted(expr: &Expr, unresolved_mark: Mark) -> bool {
+        match expr {
+            Expr::Paren(paren) => is_expr_tainted(&paren.expr, unresolved_mark),
+            Expr::Seq(seq) => seq
+                .exprs
+                .iter()
+                .any(|e| is_expr_tainted(e, unresolved_mark)),
+            Expr::Assign(assign) => {
+                if assign.op == AssignOp::Assign
+                    && let AssignTarget::Simple(SimpleAssignTarget::Member(member)) = &assign.left
+                    && is_module_dot_exports(member, unresolved_mark)
+                    && !is_object_or_array_literal(&assign.right)
+                {
+                    return true;
+                }
+                // The reassignment may sit further down an assignment chain.
+                is_expr_tainted(&assign.right, unresolved_mark)
+            }
+            _ => false,
         }
-        let AssignTarget::Simple(SimpleAssignTarget::Member(member)) = &assign.left else {
-            return false;
-        };
-        is_module_dot_exports(member, unresolved_mark) && !is_object_or_array_literal(&assign.right)
     }
 
     match program {
         Program::Module(module) => module.body.iter().any(|item| {
-            if let ModuleItem::Stmt(stmt) = item {
-                is_stmt_tainted(stmt, unresolved_mark)
-            } else {
-                false
-            }
+            let ModuleItem::Stmt(Stmt::Expr(expr_stmt)) = item else {
+                return false;
+            };
+            is_expr_tainted(&expr_stmt.expr, unresolved_mark)
         }),
-        Program::Script(script) => script
-            .body
-            .iter()
-            .any(|stmt| is_stmt_tainted(stmt, unresolved_mark)),
+        Program::Script(script) => script.body.iter().any(|stmt| {
+            let Stmt::Expr(expr_stmt) = stmt else {
+                return false;
+            };
+            is_expr_tainted(&expr_stmt.expr, unresolved_mark)
+        }),
     }
 }
 
@@ -2586,6 +2593,12 @@ mod tests {
         side_effects!(
             test_cjs_export_alias_then_write,
             "module.exports = other; module.exports.foo = 1;"
+        );
+        // The reassignment is also detected when hidden inside a top-level
+        // comma-sequence expression rather than a standalone statement.
+        side_effects!(
+            test_cjs_export_reexport_then_write_sequence,
+            "module.exports = require('./other'), module.exports.extra = 1;"
         );
     }
 }
