@@ -27,9 +27,9 @@ use tracing::{Instrument, Span, instrument};
 use turbo_tasks_hash::{DeterministicHash, hash_xxh3_hash128};
 
 use crate::{
-    Completion, InvalidationReason, InvalidationReasonSet, OutputContent, ReadCellOptions,
-    ReadOutputOptions, ResolvedVc, SharedReference, TaskId, TraitMethod, ValueTypeId, Vc, VcRead,
-    VcValueTrait, VcValueType,
+    CellId, Completion, InvalidationReason, InvalidationReasonSet, OutputContent, RawVc,
+    ReadCellOptions, ReadOutputOptions, ResolvedVc, SharedReference, TaskId, TraitMethod,
+    ValueTypeId, Vc, VcRead, VcValueTrait, VcValueType,
     backend::{
         Backend, CellContent, CellHash, TaskCollectiblesMap, TaskExecutionSpec, TransientTaskType,
         TurboTasksExecutionError, TypedCellContent, VerificationMode,
@@ -43,7 +43,6 @@ use crate::{
     macro_helpers::NativeFunction,
     message_queue::{CompilationEvent, CompilationEventQueue},
     priority_runner::{Executor, PriorityRunner},
-    raw_vc::{CellId, RawVc},
     registry,
     serialization_invalidation::SerializationInvalidator,
     task::local_task::{LocalTask, LocalTaskSpec, LocalTaskType},

@@ -29,14 +29,13 @@ use turbo_rcstr::RcStr;
 use turbo_tasks_hash::DeterministicHasher;
 
 use crate::{
-    RawVc, ReadCellOptions, ReadOutputOptions, ReadRef, SharedReference, TaskId, TaskIdSet,
+    CellId, RawVc, ReadCellOptions, ReadOutputOptions, ReadRef, SharedReference, TaskId, TaskIdSet,
     TaskPriority, TraitRef, TraitTypeId, TurboTasksCallApi, TurboTasksPanic, ValueTypeId,
     ValueTypePersistence, VcValueTrait, VcValueType,
     dyn_task_inputs::{DynTaskInputs, StackDynTaskInputs},
     event::EventListener,
     macro_helpers::NativeFunction,
     manager::{TaskPersistence, TurboTasks},
-    raw_vc::CellId,
     registry,
     task::shared_reference::TypedSharedReference,
     task_statistics::TaskStatisticsApi,
