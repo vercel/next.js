@@ -389,6 +389,21 @@ export class Playwright<TCurrent = undefined> {
       await page.reload()
     })
   }
+  /**
+   * Evict the browser HTTP cache via CDP (`Network.clearBrowserCache`). This is
+   * only supported in Chromium; gate the calling test on `global.browserName
+   * === 'chrome'` (Playwright's Firefox and WebKit don't expose CDP).
+   */
+  clearBrowserCache() {
+    return this.startChain(async () => {
+      const session = await context!.newCDPSession(page)
+      try {
+        await session.send('Network.clearBrowserCache')
+      } finally {
+        await session.detach()
+      }
+    })
+  }
   setDimensions({ width, height }: { height: number; width: number }) {
     return this.startOrPreserveChain(() =>
       page.setViewportSize({ width, height })
