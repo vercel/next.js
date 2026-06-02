@@ -1618,7 +1618,7 @@ function assignDefaultsAndValidate(
 function finalizeConfig(config: NextConfigComplete): NextConfigComplete {
   config.experimental.instantInsights = {
     validationLevel:
-      config.experimental.instantInsights?.validationLevel ?? 'manual-warning',
+      config.experimental.instantInsights?.validationLevel ?? 'warning',
   }
   syncUseNodeStreamsEnv(config)
   return config

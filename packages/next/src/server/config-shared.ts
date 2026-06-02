@@ -36,7 +36,7 @@ export type NextConfigComplete = Required<Omit<NextConfig, 'configFile'>> & {
     prefetchInlining?: PrefetchInliningConfig
     // Normalized by config.ts: defaulted to 90% of staticPageGenerationTimeout
     useCacheTimeout: number
-    // Normalized by config.ts `finalizeConfig`: defaulted to `'manual-warning'`
+    // Normalized by config.ts `finalizeConfig`: defaulted to `'warning'`
     instantInsights: { validationLevel: ValidationLevel }
   }
   // The root directory of the distDir. In development mode, this is the parent directory of `distDir`
@@ -1080,10 +1080,10 @@ export interface ExperimentalConfig {
     /**
      * Controls the validation behavior of Instant Insights
      *
-     * - `'warning'`: Validates all navigations for Instant UI in development
-     * - `'manual-warning'`: Validates navigations for Instant UI in development when configured with `unstable_instant` in Pages and Layouts
+     * - `'warning'` (default): Validates all navigations for Instant UI in development
+     * - `'manual-warning'`: Validates navigations for Instant UI in development only when configured with `unstable_instant` in Pages and Layouts
      * - `'experimental-error'`: Validates all navigations for Instant in development and build. Use with caution.
-     * - `'experimental-manual-error'`: Validates navigations for Instant UI in developement and build when configured with `unstable_instant` in Pages and Layouts. Use with caution.
+     * - `'experimental-manual-error'`: Validates navigations for Instant UI in development and build when configured with `unstable_instant` in Pages and Layouts. Use with caution.
      */
     validationLevel?: ValidationLevel
   }
