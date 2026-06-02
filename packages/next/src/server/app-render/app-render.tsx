@@ -165,6 +165,7 @@ import {
   trackThrownErrorInNavigation,
   createInstantValidationState,
   type NavigationValidationResult,
+  throwIfSyncIOUsed,
 } from './dynamic-rendering'
 import { logBuildDebugHint } from './blocking-route-messages'
 import {
@@ -7813,6 +7814,14 @@ async function prerenderToStream(
           finalServerReactController.abort()
         }
       )
+
+      // If a sync IO error occurred, there's no point continuing.
+      // NOTE: this early exit is load-bearing. The way we simulate a halt
+      // in a render (ignoring all chunks emitted after an abort)
+      // can lead to a blocked root chunk (if it didn't flush before the abort).
+      // This means that deserializing the RSC payload can hang in unexpected places --
+      // normally, we can at least get the outer object with hanging promises inside.
+      throwIfSyncIOUsed(workStore, serverDynamicTracking)
 
       const reactServerResult = (reactServerPrerenderResult =
         new ReactServerPrerenderResult(collectedChunks.prerenderChunks))
