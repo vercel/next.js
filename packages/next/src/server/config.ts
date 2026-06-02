@@ -1620,7 +1620,26 @@ function finalizeConfig(config: NextConfigComplete): NextConfigComplete {
     validationLevel:
       config.experimental.instantInsights?.validationLevel ?? 'manual-warning',
   }
+  syncUseNodeStreamsEnv(config)
   return config
+}
+
+function syncUseNodeStreamsEnv(config: NextConfig): void {
+  // This must use resolved config: user configs are inspected before defaults
+  // are merged, while runtime bundles must select the default implementation.
+  const useNodeStreams = config.experimental?.useNodeStreams
+    ? 'true'
+    : undefined
+
+  if (useNodeStreams) {
+    process.env.__NEXT_USE_NODE_STREAMS = useNodeStreams
+  } else {
+    delete process.env.__NEXT_USE_NODE_STREAMS
+  }
+
+  // Dev env reloads restore process.env from this snapshot. Preserve the
+  // resolved runtime selection so a reload cannot mix stream implementations.
+  updateInitialEnv({ __NEXT_USE_NODE_STREAMS: useNodeStreams })
 }
 
 async function applyModifyConfig(
@@ -1750,6 +1769,7 @@ export default async function loadConfig(
       return cachedResult.rawConfig
     }
 
+    syncUseNodeStreamsEnv(cachedResult.config)
     return cachedResult.config
   } else {
     // Reset next.config errors before loading config
@@ -1776,6 +1796,8 @@ export default async function loadConfig(
     const standaloneConfig = JSON.parse(
       process.env.__NEXT_PRIVATE_STANDALONE_CONFIG
     )
+
+    syncUseNodeStreamsEnv(standaloneConfig)
 
     // Cache the standalone config
     configCache.set(cacheKey, {
@@ -2227,16 +2249,6 @@ function enforceExperimentalFeatures(
       (isDefaultConfig && !config.experimental.useNodeStreams))
   ) {
     config.experimental.useNodeStreams = true
-  }
-
-  // Keep runtime bundle selection env in sync with the resolved config.
-  // Explicit user config (e.g. useNodeStreams: false) should win over an
-  // inherited shell env var to avoid selecting nodestream runtime bundles
-  // while define-env compiled user bundles with node streams disabled.
-  if (config.experimental.useNodeStreams) {
-    process.env.__NEXT_USE_NODE_STREAMS = 'true'
-  } else {
-    delete process.env.__NEXT_USE_NODE_STREAMS
   }
 
   // TODO: Remove this once strictRouteTypes is the default.
