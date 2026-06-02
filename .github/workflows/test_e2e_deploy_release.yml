@@ -298,7 +298,7 @@ jobs:
             console.info(`Target workflow enabled: ${isEnabled}`);
 
             return isEnabled ? 'true' : 'false';
-      - uses: actions/github-script@v7
+      - uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b # v7.1.0
         name: Create draft PR for vercel/${{ matrix.repo }}
         id: create-draft-pr
         if: steps.check-workflow-enabled.outputs.result == 'true'
@@ -349,7 +349,7 @@ jobs:
         continue-on-error: true
         env:
           GITHUB_TOKEN: ${{ secrets.GH_UPDATE_NEXT_WORKFLOW_TRIGGER }}
-      - uses: actions/github-script@v7
+      - uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b # v7.1.0
         name: Check if target workflow is enabled
         id: check-workflow-enabled
         with:
@@ -377,7 +377,7 @@ jobs:
               console.error('Error checking workflow status:', error);
               return 'false';
             }
-      - uses: actions/github-script@v7
+      - uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b # v7.1.0
         name: Mark PR ready for review in vercel/${{ matrix.repo }}
         id: mark-pr-ready
         if: steps.check-workflow-enabled.outputs.result == 'true'
