@@ -75,7 +75,7 @@ impl ModuleReference for TsReferencePathAssetReference {
         Ok(
             if let Some(path) = origin.origin_path().parent().try_join(&self.path) {
                 let module = origin
-                    .asset_context()?
+                    .asset_context()
                     .process(
                         Vc::upcast(FileSource::new(path.clone())),
                         ReferenceType::TypeScript(TypeScriptReferenceSubType::Undefined),

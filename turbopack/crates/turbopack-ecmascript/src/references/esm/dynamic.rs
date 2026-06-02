@@ -37,7 +37,6 @@ use crate::{
 #[derive(Hash, Debug, ValueToString)]
 #[value_to_string("dynamic import {request}")]
 pub struct EsmAsyncAssetReference {
-    /// The resolve origin, with any annotation-driven transition already applied at construction.
     pub origin: ResolvedVc<Box<dyn ResolveOrigin>>,
     pub request: ResolvedVc<Request>,
     pub issue_source: IssueSource,

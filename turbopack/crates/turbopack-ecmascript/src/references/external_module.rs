@@ -307,7 +307,7 @@ impl Module for CachedExternalModule {
                         .await?
                     }
                     CachedExternalType::Global | CachedExternalType::Script => {
-                        let resolve_options = origin.into_trait_ref().await?.resolve_options()?;
+                        let resolve_options = origin.into_trait_ref().await?.resolve_options();
                         origin
                             .resolve_asset(
                                 Request::parse_string(self.request.clone()),

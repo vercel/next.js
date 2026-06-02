@@ -194,7 +194,7 @@ impl ModuleReference for WebpackRuntimeAssetReference {
     #[turbo_tasks::function]
     async fn resolve_reference(&self) -> Result<Vc<ModuleResolveResult>> {
         let origin = self.origin.into_trait_ref().await?;
-        let options = origin.resolve_options()?;
+        let options = origin.resolve_options();
 
         let options = apply_cjs_specific_options(options);
 

@@ -476,7 +476,7 @@ impl ModuleReference for EsmAssetReference {
                 origin_path.parent(),
                 ReferenceType::Loader,
                 loader_request,
-                origin_ref.resolve_options()?,
+                origin_ref.resolve_options(),
             );
             let loader_fs_path = if let Some(source) = resolved.await?.first_source() {
                 source.ident().await?.path.clone()

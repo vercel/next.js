@@ -396,7 +396,7 @@ pub async fn type_resolve(
     let ty = ReferenceType::TypeScript(TypeScriptReferenceSubType::Undefined);
     let origin_ref = origin.into_trait_ref().await?;
     let context_path = origin_ref.origin_path().parent();
-    let options = origin_ref.resolve_options()?;
+    let options = origin_ref.resolve_options();
     let options = apply_typescript_types_options(options);
     let types_request = if let Request::Module {
         module: m,
@@ -448,13 +448,13 @@ pub async fn type_resolve(
     };
     let result = as_typings_result(
         origin_ref
-            .asset_context()?
+            .asset_context()
             .process_resolve_result(result, ty.clone()),
     );
     handle_resolve_error(
         result,
         ty,
-        origin,
+        origin_ref.origin_path(),
         request,
         options,
         ResolveErrorMode::Error,
