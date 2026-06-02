@@ -37,10 +37,8 @@ import {
 } from 'react'
 import { createRoot } from 'react-dom/client'
 import type { CacheIndicatorState } from './dev-overlay/cache-indicator'
-import { FontStyles } from './dev-overlay/font/font-styles'
 import type { HydrationErrorState } from './shared/hydration-error'
 import type { DebugInfo } from './shared/types'
-import { DevOverlay } from './dev-overlay/dev-overlay'
 import type { DevIndicatorServerState } from '../server/dev/dev-indicator-server-state'
 import type { VersionInfo } from '../server/dev/parse-version-info'
 import {
@@ -84,6 +82,12 @@ export interface Dispatcher {
 type Dispatch = ReturnType<typeof useErrorOverlayReducer>[1]
 let maybeDispatch: Dispatch | null = null
 const queue: Array<(dispatch: Dispatch) => void> = []
+
+function loadDevOverlayUX() {
+  const { DevOverlay, FontStyles } =
+    require('./dev-overlay-ux') as typeof import('./dev-overlay-ux')
+  return { DevOverlay, FontStyles }
+}
 
 // Global state store for accessing current overlay state from outside React context
 type OverlayStateWithRouter = OverlayState & { routerType: 'pages' | 'app' }
@@ -302,6 +306,12 @@ function DevOverlayRoot({
     }
   }, [])
 
+  if (process.env.__NEXT_DISABLE_DEV_OVERLAY_UX) {
+    return null
+  }
+
+  const { DevOverlay, FontStyles } = loadDevOverlayUX()
+
   return (
     <>
       {/* Fonts can only be loaded outside the Shadow DOM. */}
@@ -351,22 +361,25 @@ export function renderAppDevOverlay(
   }
 
   if (!isAppMounted) {
-    // React 19 will not throw away `<script>` elements in a container it owns.
-    // This ensures the actual user-space React does not unmount the Dev Overlay.
-    const script = document.createElement('script')
-    script.style.display = 'block'
-    // Although the style applied to the shadow host is isolated,
-    // the element that attached the shadow host (i.e. "script")
-    // is still affected by the parent's style (e.g. "body"). This may
-    // occur style conflicts like "display: flex", with other children
-    // elements therefore give the shadow host an absolute position.
-    script.style.position = 'absolute'
-    script.setAttribute('data-nextjs-dev-overlay', 'true')
-
+    const shouldRenderOverlay = !process.env.__NEXT_DISABLE_DEV_OVERLAY_UX
     const container = document.createElement('nextjs-portal')
 
-    script.appendChild(container)
-    document.body.appendChild(script)
+    if (shouldRenderOverlay) {
+      // React 19 will not throw away `<script>` elements in a container it owns.
+      // This ensures the actual user-space React does not unmount the Dev Overlay.
+      const script = document.createElement('script')
+      script.style.display = 'block'
+      // Although the style applied to the shadow host is isolated,
+      // the element that attached the shadow host (i.e. "script")
+      // is still affected by the parent's style (e.g. "body"). This may
+      // occur style conflicts like "display: flex", with other children
+      // elements therefore give the shadow host an absolute position.
+      script.style.position = 'absolute'
+      script.setAttribute('data-nextjs-dev-overlay', 'true')
+
+      script.appendChild(container)
+      document.body.appendChild(script)
+    }
 
     const root = createRoot(container, {
       identifierPrefix: 'ndt-',
@@ -412,6 +425,7 @@ export function renderPagesDevOverlay(
   }
 
   if (!isPagesMounted) {
+    const shouldRenderOverlay = !process.env.__NEXT_DISABLE_DEV_OVERLAY_UX
     const container = document.createElement('nextjs-portal')
     // Although the style applied to the shadow host is isolated,
     // the element that attached the shadow host (i.e. "script")
@@ -423,21 +437,23 @@ export function renderPagesDevOverlay(
     // Pages Router runs with React 18 or 19 so we can't use the same trick as with
     // App Router. We just reconnect the container if React wipes it e.g. when
     // we recover from a shell error via createRoot()
-    new MutationObserver((records) => {
-      for (const record of records) {
-        if (record.type === 'childList') {
-          for (const node of record.removedNodes) {
-            if (node === container) {
-              // Reconnect the container to the body
-              document.body.appendChild(container)
+    if (shouldRenderOverlay) {
+      new MutationObserver((records) => {
+        for (const record of records) {
+          if (record.type === 'childList') {
+            for (const node of record.removedNodes) {
+              if (node === container) {
+                // Reconnect the container to the body
+                document.body.appendChild(container)
+              }
             }
           }
         }
-      }
-    }).observe(document.body, {
-      childList: true,
-    })
-    document.body.appendChild(container)
+      }).observe(document.body, {
+        childList: true,
+      })
+      document.body.appendChild(container)
+    }
 
     const root = createRoot(container, { identifierPrefix: 'ndt-' })
 
