@@ -96,6 +96,8 @@ async function Component({ userId }: { userId: string }) {
 
 In the snippet above, `userId` is captured from the outer scope and `filter` is passed as an argument, so both become part of the `getData` function's cache key. This means different user and filter combinations will have separate cache entries.
 
+> **Good to know:** When a cached function reads [root parameters](/docs/app/api-reference/functions/next-root-params), only the ones it actually reads become part of its cache key.
+
 ## Serialization
 
 Arguments to cached functions and their return values must be serializable.
@@ -440,6 +442,8 @@ export async function getData() {
   return data
 }
 ```
+
+> **Good to know:** When a cached directive (`use cache`, [`use cache: private`](/docs/app/api-reference/directives/use-cache-private), or [`use cache: remote`](/docs/app/api-reference/directives/use-cache-remote)) is at the top of a file, you can import its exported functions into a Client Component and call them directly; they run on the server and return the result, similar to a [Server Function](/docs/app/glossary#server-function). Prefer calling cached functions on the server and passing results down as props.
 
 ### Interleaving
 

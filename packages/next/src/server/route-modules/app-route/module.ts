@@ -104,6 +104,7 @@ export type AppRouteModule = typeof import('../../../build/templates/app-route')
 
 export type AppRouteSharedContext = {
   buildId: string
+  deploymentId: string
 }
 
 /**
@@ -495,10 +496,6 @@ export class AppRouteRouteModule extends RouteModule<
           // can be retrieved during the final prerender within microtasks. This
           // is crucial when doing revalidations of a deployed route handler,
           // where the default cache handler does not do any in-memory caching.
-          // We should replace the `prerenderResumeDataCache` and
-          // `renderResumeDataCache` with a single `dataCache` property that is
-          // conceptually not tied to resuming, and also avoids the unnecessary
-          // complexity of using a mutable and an immutable resume data cache.
           const prerenderResumeDataCache = createPrerenderResumeDataCache()
 
           const prospectiveRoutePrerenderStore: PrerenderStore =
@@ -516,13 +513,11 @@ export class AppRouteRouteModule extends RouteModule<
               // During prospective render we don't use a controller
               // because we need to let all caches fill.
               dynamicTracking,
-              allowEmptyStaticShell: false,
               revalidate: defaultRevalidate,
               expire: INFINITE_CACHE,
               stale: INFINITE_CACHE,
               tags: [...implicitTags.tags],
-              prerenderResumeDataCache,
-              renderResumeDataCache: null,
+              resumeDataCache: prerenderResumeDataCache,
               hmrRefreshHash: undefined,
               varyParamsAccumulator: null,
             })
@@ -613,13 +608,11 @@ export class AppRouteRouteModule extends RouteModule<
             controller: finalController,
             cacheSignal: null,
             dynamicTracking,
-            allowEmptyStaticShell: false,
             revalidate: defaultRevalidate,
             expire: INFINITE_CACHE,
             stale: INFINITE_CACHE,
             tags: [...implicitTags.tags],
-            prerenderResumeDataCache,
-            renderResumeDataCache: null,
+            resumeDataCache: prerenderResumeDataCache,
             hmrRefreshHash: undefined,
             varyParamsAccumulator: null,
           })
@@ -824,6 +817,7 @@ export class AppRouteRouteModule extends RouteModule<
       page: this.definition.page,
       renderOpts: context.renderOpts,
       buildId: context.sharedContext.buildId,
+      deploymentId: context.sharedContext.deploymentId,
       previouslyRevalidatedTags: [],
     }
 

@@ -19,6 +19,7 @@ pub mod debug;
 #[doc = include_str!("../FORMATTING.md")]
 pub mod display;
 pub mod duration_span;
+mod dyn_task_inputs;
 mod effect;
 mod error;
 pub mod event;
@@ -28,9 +29,9 @@ mod id_factory;
 mod invalidation;
 mod join_iter_ext;
 pub mod keyed;
+mod local_task_tracker;
 #[doc(hidden)]
 pub mod macro_helpers;
-mod magic_any;
 mod manager;
 pub mod mapped_read_ref;
 mod marker_trait;
@@ -52,8 +53,11 @@ pub mod small_duration;
 mod spawn;
 mod state;
 pub mod task;
+#[cfg(feature = "task_dirty_cause")]
+mod task_dirty_cause;
 mod task_execution_reason;
 pub mod task_statistics;
+mod tiny_vec;
 pub mod trace;
 mod trait_ref;
 mod triomphe_utils;
@@ -70,26 +74,32 @@ use rustc_hash::FxHasher;
 pub use shrink_to_fit::ShrinkToFit;
 pub use turbo_tasks_macros::{DeterministicHash, turbobail, turbofmt};
 
+#[cfg(feature = "task_dirty_cause")]
+pub use crate::task_dirty_cause::TaskDirtyCause;
 pub use crate::{
     capture_future::TurboTasksPanic,
     collectibles::CollectiblesSource,
     completion::{Completion, Completions},
     display::{ValueToString, ValueToStringRef},
+    dyn_task_inputs::{
+        DynTaskInputs, OwnedStackDynTaskInputs, StackDynTaskInputs, StackDynTaskInputsSlot,
+    },
     effect::{Effect, EffectError, EffectStateStorage, Effects, emit_effect, take_effects},
     error::PrettyPrintError,
-    id::{ExecutionId, LocalTaskId, TRANSIENT_TASK_BIT, TaskId, TraitTypeId, ValueTypeId},
+    id::{
+        ExecutionId, FunctionId, LocalTaskId, TRANSIENT_TASK_BIT, TaskId, TraitTypeId, ValueTypeId,
+    },
     invalidation::{
         InvalidationReason, InvalidationReasonKind, InvalidationReasonSet, Invalidator,
         get_invalidator,
     },
     join_iter_ext::{JoinIterExt, TryFlatJoinIterExt, TryJoinIterExt},
-    magic_any::MagicAny,
     manager::{
         CurrentCellRef, ReadCellTracking, ReadConsistency, ReadTracking, TaskPersistence,
         TaskPriority, TurboTasks, TurboTasksApi, TurboTasksBackendApi, TurboTasksCallApi, Unused,
         UpdateInfo, dynamic_call, emit, get_serialization_invalidator, mark_finished,
-        mark_session_dependent, mark_stateful, mark_top_level_task, prevent_gc, run, run_once,
-        run_once_with_reason, trait_call, turbo_tasks, turbo_tasks_scope, turbo_tasks_weak,
+        mark_stateful, mark_top_level_task, prevent_gc, run, run_once, run_once_with_reason,
+        trait_call, turbo_tasks, turbo_tasks_scope, turbo_tasks_weak,
         unmark_top_level_task_may_leak_eventually_consistent_state, with_turbo_tasks,
     },
     mapped_read_ref::MappedReadRef,
@@ -99,15 +109,16 @@ pub use crate::{
     read_ref::ReadRef,
     serialization_invalidation::SerializationInvalidator,
     spawn::{JoinHandle, block_for_future, block_in_place, spawn, spawn_blocking, spawn_thread},
-    state::{State, TransientState},
+    state::{State, parking_lot_mutex_bincode},
     task::{
         SharedReference, TypedSharedReference,
         task_input::{EitherTaskInput, TaskInput},
     },
     task_execution_reason::TaskExecutionReason,
+    tiny_vec::TinyVec,
     trait_ref::TraitRef,
     value::{TransientInstance, TransientValue},
-    value_type::{TraitMethod, TraitType, ValueType},
+    value_type::{Evictability, TraitMethod, TraitType, ValueType, ValueTypePersistence},
     vc::{
         Dynamic, NonLocalValue, OperationValue, OperationVc, OptionVcExt, ReadVcFuture,
         ResolveOperationVcFuture, ResolveVcFuture, ResolvedVc, ToResolvedVcFuture, Upcast,
@@ -391,7 +402,3 @@ pub use turbo_tasks_macros::task_storage;
 pub use turbo_tasks_macros::TaskInput;
 
 pub type TaskIdSet = AutoSet<TaskId, BuildHasherDefault<FxHasher>, 2>;
-
-pub mod test_helpers {
-    pub use super::manager::{current_task_for_testing, with_turbo_tasks_for_testing};
-}

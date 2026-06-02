@@ -13,7 +13,6 @@ import type { SizeLimit } from '../types'
 import type { SupportedTestRunners } from '../cli/next-test'
 import type { ExperimentalPPRConfig } from './lib/experimental/ppr'
 import { INFINITE_CACHE } from '../lib/constants'
-import { isStableBuild } from '../shared/lib/errors/canary-only-config-error'
 import type { FallbackRouteParam } from '../build/static-paths/types'
 
 /**
@@ -35,14 +34,15 @@ export type NextConfigComplete = Required<Omit<NextConfig, 'configFile'>> & {
   experimental: ExperimentalConfig & {
     // Normalized by config.ts: true and partial objects become resolved objects
     prefetchInlining?: PrefetchInliningConfig
+    // Normalized by config.ts: defaulted to 90% of staticPageGenerationTimeout
+    useCacheTimeout: number
+    // Normalized by config.ts `finalizeConfig`: defaulted to `'manual-warning'`
+    instantInsights: { validationLevel: ValidationLevel }
   }
   // The root directory of the distDir. In development mode, this is the parent directory of `distDir`
   // since development builds use `{distDir}/dev`. This is used to ensure that the bundler doesn't
   // traverse into the output directory.
   distDirRoot: string
-  // Pre-computed effective hash salt: experimental.outputHashSalt (from config)
-  // concatenated with NEXT_HASH_SALT (from env). Used by both Webpack and Turbopack.
-  hashSalt: string
 }
 
 export type I18NDomains = readonly DomainLocale[]
@@ -242,6 +242,16 @@ export interface TurbopackOptions {
     title?: string | RegExp
     description?: string | RegExp
   }>
+
+  /**
+   * Override the global variable name used for
+   * chunk loading. Useful when multiple Turbopack-built apps run on the same
+   * page (e.g. horizontal micro-frontends) to avoid `globalThis.TURBOPACK`
+   * conflicts.
+   *
+   * @see https://webpack.js.org/configuration/output/#outputchunkloadingglobal
+   */
+  chunkLoadingGlobal?: string
 }
 
 export interface WebpackConfigContext {
@@ -395,6 +405,40 @@ export interface LightningCssFeatures {
   exclude?: LightningCssFeature[]
 }
 
+/**
+ * Accepted shapes for `experimental.cssChunking`. See [`ExperimentalConfig.cssChunking`] for the
+ * accepted values; use [`resolveCssChunkingMode`] to normalize the value at runtime.
+ */
+export type CssChunkingConfig =
+  | boolean
+  | 'strict'
+  | 'loose'
+  | 'graph'
+  | { type: 'strict' }
+  | { type: 'loose' }
+  | { type: 'graph'; requestCost?: number; moduleFactorCost?: number }
+
+/**
+ * Normalize any [`CssChunkingConfig`] value to one of the four modes the build pipeline cares
+ * about:
+ *   - `'off'`  — `false`/`undefined`: do not run a CSS chunking plugin.
+ *   - `'loose'` — `true` / `'loose'` / `{ type: 'loose' }`: heuristic-based chunking
+ *     (the default).
+ *   - `'strict'` — `'strict'` / `{ type: 'strict' }`: webpack-only ordered-chunking plugin.
+ *   - `'graph'` — `'graph'` / `{ type: 'graph', … }`: Turbopack-only graph algorithm.
+ */
+export function resolveCssChunkingMode(
+  value: CssChunkingConfig | undefined
+): 'off' | 'loose' | 'strict' | 'graph' {
+  if (value === undefined || value === false) return 'off'
+  if (value === true || value === 'loose') return 'loose'
+  if (value === 'strict' || value === 'graph') return value
+  // Object form. `requestCost` and `moduleFactorCost` are validated by the schema.
+  if (value.type === 'strict') return 'strict'
+  if (value.type === 'graph') return 'graph'
+  return 'loose'
+}
+
 export interface ExperimentalConfig {
   /**
    * A string that is incorporated into content-addressed output filenames
@@ -423,15 +467,17 @@ export interface ExperimentalConfig {
    */
   clientParamParsingOrigins?: string[]
   cachedNavigations?: boolean
-  /**
-   * Enables partial fallback shells for cache-components routes while the
-   * feature stabilizes.
-   */
-  partialFallbacks?: boolean
   dynamicOnHover?: boolean
   useOffline?: boolean
-  unstableIO?: boolean
   optimisticRouting?: boolean
+  /**
+   * Enables App Shell prefetching: a route's reusable, param-free loading
+   * state is prefetched once per session and served instantly for any
+   * concrete navigation. Routes marked as fully static (no per-request
+   * server work) are unaffected; the App Shell phase only runs for
+   * runtime-prefetchable routes.
+   */
+  appShells?: boolean
   varyParams?: boolean
   prefetchInlining?:
     | boolean
@@ -478,16 +524,11 @@ export interface ExperimentalConfig {
    * Do not enable in user-facing production deployments.
    */
   exposeTestingApiInProductionBuild?: boolean
-  /**
-   * Show the Instant Navigation Mode toggle in the dev tools indicator.
-   * When enabled, a menu item lets you lock navigations to only show
-   * the cached/prefetched state.
-   */
-  instantNavigationDevToolsToggle?: boolean
   extensionAlias?: Record<string, any>
   allowedRevalidateHeaderKeys?: string[]
   fetchCacheKeyPrefix?: string
   imgOptConcurrency?: number | null
+  imgOptOperationCache?: boolean | null
   imgOptTimeoutInSeconds?: number
   imgOptMaxInputPixels?: number
   imgOptSequentialRead?: boolean | null
@@ -504,12 +545,27 @@ export interface ExperimentalConfig {
   proxyPrefetch?: 'strict' | 'flexible'
   manualClientBasePath?: boolean
   /**
-   * CSS Chunking strategy. Defaults to `true` ("loose" mode), which guesses dependencies
-   * between CSS files to keep ordering of them.
-   * An alternative is 'strict', which will try to keep correct ordering as
-   * much as possible, even when this leads to many requests.
+   * CSS Chunking strategy. Defaults to `true` (loose mode), which guesses dependencies between
+   * CSS files to keep ordering of them.
+   *
+   * - `true` / `'loose'` / `{ type: 'loose' }` — default heuristic-based chunking.
+   * - `'strict'` / `{ type: 'strict' }` — preserve correct ordering as much as possible, even
+   *   when this leads to many requests. Webpack only.
+   * - `false` — disable chunking; emit one chunk per CSS module. Webpack only.
+   * - `'graph'` / `{ type: 'graph', requestCost?, moduleFactorCost? }` — Turbopack only.
+   *   Selects a CSS chunking strategy that analyzes the most common style orderings across the
+   *   application and produces shared chunks accordingly. Compared to the default mode it
+   *   intentionally overships some styles in order to reduce the number of CSS requests per
+   *   page. Cost overrides:
+   *     - `requestCost` (bytes, default `20000`) — additional cost charged for every CSS
+   *       request a chunk group makes. Larger values bias the algorithm toward fewer, larger
+   *       shared chunks; smaller values toward more, smaller chunks.
+   *     - `moduleFactorCost` (default `1`) — controls how much the algorithm cares about
+   *       small chunk groups. `0` distributes overshipped bytes evenly across chunk groups.
+   *       Higher values penalize overshipping in small chunk groups proportionally more, so
+   *       small pages ship fewer unrelated styles at the expense of more requests overall.
    */
-  cssChunking?: boolean | 'strict'
+  cssChunking?: CssChunkingConfig
   disablePostcssPresetEnv?: boolean
   cpus?: number
   memoryBasedWorkersCount?: boolean
@@ -675,6 +731,37 @@ export interface ExperimentalConfig {
    * Enable scope hoisting. Defaults to true in build mode. Always disabled in development mode.
    */
   turbopackScopeHoisting?: boolean
+
+  /**
+   * (`next --turbopack` only) A custom URL prefix for Web Worker URLs
+   * produced by `new Worker(new URL(..., import.meta.url))` — both the
+   * entrypoint URL and the module chunks loaded inside the worker —
+   * overriding `assetPrefix` for those URLs.
+   *
+   * Use this when `assetPrefix` points to a cross-origin CDN: browsers
+   * reject cross-origin Worker construction, so the entrypoint must stay
+   * same-origin. Module chunks loaded inside the worker are also routed
+   * through this prefix because the worker bootstrap requires them to be
+   * same-origin with the entrypoint. Mirrors webpack's
+   * `output.workerPublicPath`.
+   *
+   * Like `assetPrefix`, the value is a prefix without a trailing slash and
+   * without `/_next` — `/_next/` is appended automatically. An empty
+   * string is treated as a literal empty prefix (resulting in same-origin
+   * `/_next/...` URLs); only `undefined` falls back to `assetPrefix`.
+   *
+   * @example
+   * ```js
+   * // next.config.js
+   * module.exports = {
+   *   assetPrefix: 'https://cdn.example.com',
+   *   experimental: {
+   *     turbopackWorkerAssetPrefix: '',
+   *   },
+   * }
+   * ```
+   */
+  turbopackWorkerAssetPrefix?: string
 
   /**
    * Enable nested async chunking for client side assets. Defaults to true in build mode and false in dev mode.
@@ -987,6 +1074,21 @@ export interface ExperimentalConfig {
   cacheComponents?: boolean
 
   /**
+   * Configuration for instant navigation validation.
+   */
+  instantInsights?: {
+    /**
+     * Controls the validation behavior of Instant Insights
+     *
+     * - `'warning'`: Validates all navigations for Instant UI in development
+     * - `'manual-warning'`: Validates navigations for Instant UI in development when configured with `unstable_instant` in Pages and Layouts
+     * - `'experimental-error'`: Validates all navigations for Instant in development and build. Use with caution.
+     * - `'experimental-manual-error'`: Validates navigations for Instant UI in developement and build when configured with `unstable_instant` in Pages and Layouts. Use with caution.
+     */
+    validationLevel?: ValidationLevel
+  }
+
+  /**
    * The number of times to retry static generation (per page) before giving up.
    */
   staticGenerationRetryCount?: number
@@ -1017,6 +1119,13 @@ export interface ExperimentalConfig {
    * This config allows you to enable the experimental navigation API `forbidden` and `unauthorized`.
    */
   authInterrupts?: boolean
+
+  /**
+   * Seconds before a `'use cache'` fill is considered stalled. Defaults to
+   * 90% of `staticPageGenerationTimeout`. In prerender it's clamped to that
+   * ceiling so errors surface before the build worker kills the page.
+   */
+  useCacheTimeout?: number
 
   /**
    * Enables the use of the `"use cache"` directive.
@@ -1089,11 +1198,6 @@ export interface ExperimentalConfig {
          */
         showSourceLocation?: boolean
       }
-
-  /**
-   * Enable accessing root params via the `next/root-params` module.
-   */
-  rootParams?: boolean
 
   /**
    * Body size limit for request bodies with middleware configured.
@@ -1237,7 +1341,7 @@ export type ExportPathMap = {
     /**
      * When true, run build-time instant validation for this export path.
      * Only set on the first export entry per page, since validation uses
-     * unstable_instant.samples (not actual params from generateStaticParams),
+     * unstable_instant.unstable_samples (not actual params from generateStaticParams),
      * so the result is the same for all param combinations.
      *
      * @internal
@@ -1253,6 +1357,13 @@ export type ExportPathMap = {
  *
  * Read more: [Next.js Docs: `next.config.js`](https://nextjs.org/docs/app/api-reference/config/next-config-js)
  */
+
+export type ValidationLevel =
+  | 'warning'
+  | 'manual-warning'
+  | 'experimental-error'
+  | 'experimental-manual-error'
+
 export interface NextConfig {
   allowedDevOrigins?: string[]
 
@@ -1413,6 +1524,13 @@ export interface NextConfig {
 
   /** @see [Including non-page files in the pages directory](https://nextjs.org/docs/app/api-reference/config/next-config-js/pageExtensions) */
   pageExtensions?: string[]
+
+  /**
+   * Module specifiers that are required for side effects on the client before
+   * hydration, in array order, ahead of the user's `instrumentation-client.{ts,js}`.
+   * Each entry may be a bare npm package name or a path relative to the project root.
+   */
+  instrumentationClientInject?: string[]
 
   /** @see [Compression documentation](https://nextjs.org/docs/app/api-reference/config/next-config-js/compress) */
   compress?: boolean
@@ -1630,6 +1748,7 @@ export interface NextConfig {
   /**
    * Enables source maps while generating static pages.
    * Helps with errors during the prerender phase in `next build`.
+   * Defaults to `true`. Set to `false` to disable.
    */
   enablePrerenderSourceMaps?: boolean
 
@@ -1660,6 +1779,17 @@ export interface NextConfig {
    * period (in seconds) where the server allow to serve stale cache
    */
   expireTime?: number
+
+  /**
+   * When `next dev` detects an AI coding agent and no managed
+   * agent-rules block is present, Next.js auto-generates `AGENTS.md`
+   * and `CLAUDE.md` at the project root so the agent reads
+   * version-matched docs from `node_modules/next/dist/docs/` instead
+   * of stale training data. Set to `false` to disable this behavior.
+   *
+   * @default true
+   */
+  agentRules?: boolean
 
   /**
    * Enable experimental features. Note that all experimental features are subject to breaking changes in the future.
@@ -1749,6 +1879,7 @@ export const defaultConfig = Object.freeze({
   generateBuildId: () => null,
   generateEtags: true,
   pageExtensions: ['tsx', 'ts', 'jsx', 'js'],
+  instrumentationClientInject: [],
   poweredByHeader: true,
   compress: true,
   images: imageConfigDefault,
@@ -1783,8 +1914,7 @@ export const defaultConfig = Object.freeze({
   modularizeImports: undefined,
   outputFileTracingRoot: process.env.NEXT_PRIVATE_OUTPUT_TRACE_ROOT || '',
   allowedDevOrigins: undefined,
-  // Will default to cacheComponents value.
-  enablePrerenderSourceMaps: undefined,
+  enablePrerenderSourceMaps: true,
   cacheComponents: false,
   cacheLife: {
     default: {
@@ -1841,12 +1971,11 @@ export const defaultConfig = Object.freeze({
     caseSensitiveRoutes: false,
     clientParamParsingOrigins: undefined,
     cachedNavigations: false,
-    partialFallbacks: true,
     dynamicOnHover: false,
     useOffline: false,
-    unstableIO: false,
-    varyParams: false,
-    prefetchInlining: false,
+    varyParams: true,
+    optimisticRouting: true,
+    prefetchInlining: true,
     preloadEntriesOnStart: true,
     clientRouterFilter: true,
     clientRouterFilterRedirects: false,
@@ -1861,6 +1990,7 @@ export const defaultConfig = Object.freeze({
     ),
     memoryBasedWorkersCount: false,
     imgOptConcurrency: null,
+    imgOptOperationCache: null,
     imgOptTimeoutInSeconds: 7,
     imgOptMaxInputPixels: 268_402_689, // https://sharp.pixelplumbing.com/api-constructor#:~:text=%5Boptions.limitInputPixels%5D
     imgOptSequentialRead: null,
@@ -1895,9 +2025,7 @@ export const defaultConfig = Object.freeze({
     strictRouteTypes: false,
     viewTransition: false,
     removeUncaughtErrorAndRejectionListeners: false,
-    validateRSCRequestHeaders: !!(
-      process.env.__NEXT_TEST_MODE || !isStableBuild()
-    ),
+    validateRSCRequestHeaders: true,
     staleTimes: {
       dynamic: 0,
       static: 300,
@@ -1959,6 +2087,7 @@ export interface NextConfigRuntime {
 
   distDir: NextConfigComplete['distDir']
   cacheComponents: NextConfigComplete['cacheComponents']
+  agentRules: NextConfigComplete['agentRules']
   htmlLimitedBots: NextConfigComplete['htmlLimitedBots']
   assetPrefix: NextConfigComplete['assetPrefix']
   output: NextConfigComplete['output']
@@ -1982,6 +2111,7 @@ export interface NextConfigRuntime {
   useFileSystemPublicRoutes: NextConfigComplete['useFileSystemPublicRoutes']
   logging?: NextConfigComplete['logging']
   adapterPath?: NextConfigComplete['adapterPath']
+  staticPageGenerationTimeout: NextConfigComplete['staticPageGenerationTimeout']
 
   experimental: Pick<
     NextConfigComplete['experimental'],
@@ -1991,11 +2121,12 @@ export interface NextConfigRuntime {
     | 'staleTimes'
     | 'dynamicOnHover'
     | 'useOffline'
-    | 'unstableIO'
     | 'optimisticRouting'
+    | 'appShells'
     | 'inlineCss'
     | 'prefetchInlining'
     | 'authInterrupts'
+    | 'useCacheTimeout'
     | 'clientTraceMetadata'
     | 'clientParamParsingOrigins'
     | 'allowedRevalidateHeaderKeys'
@@ -2014,6 +2145,7 @@ export interface NextConfigRuntime {
     | 'hideLogsAfterAbort'
     | 'removeUncaughtErrorAndRejectionListeners'
     | 'imgOptConcurrency'
+    | 'imgOptOperationCache'
     | 'imgOptMaxInputPixels'
     | 'imgOptSequentialRead'
     | 'imgOptSkipMetadata'
@@ -2024,10 +2156,10 @@ export interface NextConfigRuntime {
     | 'runtimeServerDeploymentId'
     | 'maxPostponedStateSize'
     | 'cachedNavigations'
-    | 'partialFallbacks'
     | 'exposeTestingApiInProductionBuild'
     | 'supportsImmutableAssets'
     | 'useNodeStreams'
+    | 'instantInsights'
   > & {
     // Pick on @internal fields generates invalid .d.ts files
     /** @internal */
@@ -2045,65 +2177,65 @@ export function getNextConfigRuntime(
     return config
   }
 
-  let ex = config.experimental
+  const ex = config.experimental
 
   type Requiredish<T> = {
     [K in keyof Required<T>]: T[K]
   }
 
-  let experimental = ex
-    ? ({
-        ppr: ex.ppr,
-        taint: ex.taint,
-        serverActions: ex.serverActions,
-        staleTimes: ex.staleTimes,
-        dynamicOnHover: ex.dynamicOnHover,
-        useOffline: ex.useOffline,
-        unstableIO: ex.unstableIO,
-        optimisticRouting: ex.optimisticRouting,
-        inlineCss: ex.inlineCss,
-        prefetchInlining: ex.prefetchInlining,
-        authInterrupts: ex.authInterrupts,
-        clientTraceMetadata: ex.clientTraceMetadata,
-        clientParamParsingOrigins: ex.clientParamParsingOrigins,
-        allowedRevalidateHeaderKeys: ex.allowedRevalidateHeaderKeys,
-        fetchCacheKeyPrefix: ex.fetchCacheKeyPrefix,
-        isrFlushToDisk: ex.isrFlushToDisk,
-        optimizeCss: ex.optimizeCss,
-        nextScriptWorkers: ex.nextScriptWorkers,
-        disableOptimizedLoading: ex.disableOptimizedLoading,
-        largePageDataBytes: ex.largePageDataBytes,
-        serverComponentsHmrCache: ex.serverComponentsHmrCache,
-        caseSensitiveRoutes: ex.caseSensitiveRoutes,
-        validateRSCRequestHeaders: ex.validateRSCRequestHeaders,
-        sri: ex.sri,
-        useSkewCookie: ex.useSkewCookie,
-        preloadEntriesOnStart: ex.preloadEntriesOnStart,
-        hideLogsAfterAbort: ex.hideLogsAfterAbort,
-        removeUncaughtErrorAndRejectionListeners:
-          ex.removeUncaughtErrorAndRejectionListeners,
-        imgOptConcurrency: ex.imgOptConcurrency,
-        imgOptMaxInputPixels: ex.imgOptMaxInputPixels,
-        imgOptSequentialRead: ex.imgOptSequentialRead,
-        imgOptSkipMetadata: ex.imgOptSkipMetadata,
-        imgOptTimeoutInSeconds: ex.imgOptTimeoutInSeconds,
-        proxyClientMaxBodySize: ex.proxyClientMaxBodySize,
-        proxyTimeout: ex.proxyTimeout,
-        testProxy: ex.testProxy,
-        runtimeServerDeploymentId: ex.runtimeServerDeploymentId,
-        maxPostponedStateSize: ex.maxPostponedStateSize,
-        cachedNavigations: ex.cachedNavigations,
-        partialFallbacks: ex.partialFallbacks,
-        exposeTestingApiInProductionBuild: ex.exposeTestingApiInProductionBuild,
-        supportsImmutableAssets: ex.supportsImmutableAssets,
-        useNodeStreams: ex.useNodeStreams,
+  const experimental = {
+    ppr: ex.ppr,
+    taint: ex.taint,
+    serverActions: ex.serverActions,
+    staleTimes: ex.staleTimes,
+    dynamicOnHover: ex.dynamicOnHover,
+    useOffline: ex.useOffline,
+    optimisticRouting: ex.optimisticRouting,
+    appShells: ex.appShells,
+    inlineCss: ex.inlineCss,
+    prefetchInlining: ex.prefetchInlining,
+    authInterrupts: ex.authInterrupts,
+    useCacheTimeout: ex.useCacheTimeout,
+    clientTraceMetadata: ex.clientTraceMetadata,
+    clientParamParsingOrigins: ex.clientParamParsingOrigins,
+    allowedRevalidateHeaderKeys: ex.allowedRevalidateHeaderKeys,
+    fetchCacheKeyPrefix: ex.fetchCacheKeyPrefix,
+    isrFlushToDisk: ex.isrFlushToDisk,
+    optimizeCss: ex.optimizeCss,
+    nextScriptWorkers: ex.nextScriptWorkers,
+    disableOptimizedLoading: ex.disableOptimizedLoading,
+    largePageDataBytes: ex.largePageDataBytes,
+    serverComponentsHmrCache: ex.serverComponentsHmrCache,
+    caseSensitiveRoutes: ex.caseSensitiveRoutes,
+    validateRSCRequestHeaders: ex.validateRSCRequestHeaders,
+    sri: ex.sri,
+    useSkewCookie: ex.useSkewCookie,
+    preloadEntriesOnStart: ex.preloadEntriesOnStart,
+    hideLogsAfterAbort: ex.hideLogsAfterAbort,
+    removeUncaughtErrorAndRejectionListeners:
+      ex.removeUncaughtErrorAndRejectionListeners,
+    imgOptConcurrency: ex.imgOptConcurrency,
+    imgOptOperationCache: ex.imgOptOperationCache,
+    imgOptMaxInputPixels: ex.imgOptMaxInputPixels,
+    imgOptSequentialRead: ex.imgOptSequentialRead,
+    imgOptSkipMetadata: ex.imgOptSkipMetadata,
+    imgOptTimeoutInSeconds: ex.imgOptTimeoutInSeconds,
+    proxyClientMaxBodySize: ex.proxyClientMaxBodySize,
+    proxyTimeout: ex.proxyTimeout,
+    testProxy: ex.testProxy,
+    runtimeServerDeploymentId: ex.runtimeServerDeploymentId,
+    maxPostponedStateSize: ex.maxPostponedStateSize,
+    cachedNavigations: ex.cachedNavigations,
+    exposeTestingApiInProductionBuild: ex.exposeTestingApiInProductionBuild,
+    supportsImmutableAssets: ex.supportsImmutableAssets,
+    useNodeStreams: ex.useNodeStreams,
+    instantInsights: ex.instantInsights,
 
-        trustHostHeader: ex.trustHostHeader,
-        isExperimentalCompile: ex.isExperimentalCompile,
-      } satisfies Requiredish<NextConfigRuntime['experimental']>)
-    : {}
+    trustHostHeader: ex.trustHostHeader,
+    isExperimentalCompile: ex.isExperimentalCompile,
+  } satisfies Requiredish<NextConfigRuntime['experimental']>
 
-  let runtimeConfig: Requiredish<NextConfigRuntime> = {
+  const runtimeConfig: Requiredish<NextConfigRuntime> = {
     deploymentId: config.experimental.runtimeServerDeploymentId
       ? ''
       : config.deploymentId,
@@ -2113,6 +2245,7 @@ export function getNextConfigRuntime(
 
     distDir: config.distDir,
     cacheComponents: config.cacheComponents,
+    agentRules: config.agentRules,
     htmlLimitedBots: config.htmlLimitedBots,
     assetPrefix: config.assetPrefix,
     output: config.output,
@@ -2138,6 +2271,7 @@ export function getNextConfigRuntime(
     pageExtensions: config.pageExtensions,
     useFileSystemPublicRoutes: config.useFileSystemPublicRoutes,
     logging: config.logging,
+    staticPageGenerationTimeout: config.staticPageGenerationTimeout,
 
     experimental,
   }

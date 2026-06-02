@@ -1,9 +1,7 @@
-import { NextInstance, createNext } from 'e2e-utils'
-import { trace } from 'next/dist/trace'
+import { nextTestSetup } from 'e2e-utils'
 import { PHASE_DEVELOPMENT_SERVER } from 'next/constants'
 import { createDefineEnv, loadBindings, HmrTarget } from 'next/dist/build/swc'
 import type {
-  Diagnostics,
   Issue,
   Project,
   RawEntrypoints,
@@ -53,33 +51,6 @@ function normalizeIssues(issues: Issue[]) {
         source: normalizePath(issue.source.source.ident),
       },
     }))
-    .sort((a, b) => {
-      const a_ = JSON.stringify(a)
-      const b_ = JSON.stringify(b)
-      if (a_ < b_) return -1
-      if (a_ > b_) return 1
-      return 0
-    })
-}
-
-function normalizeDiagnostics(diagnostics: Diagnostics[]) {
-  return diagnostics
-    .map((diagnostic) => {
-      if (diagnostic.name === 'EVENT_BUILD_FEATURE_USAGE') {
-        diagnostic.payload = Object.fromEntries(
-          Object.entries(diagnostic.payload).map(([key, value]) => {
-            return [
-              key.replace(
-                /^(x86_64|i686|aarch64)-(apple-darwin|unknown-linux-(gnu|musl)|pc-windows-msvc)$/g,
-                'platform-triplet'
-              ),
-              value,
-            ]
-          })
-        )
-      }
-      return diagnostic
-    })
     .sort((a, b) => {
       const a_ = JSON.stringify(a)
       const b_ = JSON.stringify(b)
@@ -149,37 +120,33 @@ export default () => <div>${text}<Client /></div>;`
 }
 
 describe('next.rs api writeToDisk multiple times', () => {
-  it('should allow to write to disk multiple times', async () => {
-    let next: NextInstance
-
-    next = await createNext({
-      skipStart: true,
-      files: {
-        'pages/index.js': pagesIndexCode('hello world'),
-        'lib/props.js': 'export default {}',
-        'pages/page-nodejs.js': 'export default () => <div>hello world</div>',
-        'pages/page-edge.js':
-          'export default () => <div>hello world</div>\nexport const config = { runtime: "experimental-edge" }',
-        'pages/api/nodejs.js':
-          'export default () => Response.json({ hello: "world" })',
-        'pages/api/edge.js':
-          'export default () => Response.json({ hello: "world" })\nexport const config = { runtime: "edge" }',
-        'app/layout.tsx':
-          'export default function RootLayout({ children }: { children: any }) { return (<html><body>{children}</body></html>)}',
-        'app/loading.tsx':
-          'export default function Loading() { return <>Loading</> }',
-        'app/app/page.tsx': appPageCode('hello world'),
-        'app/app/client.tsx':
-          '"use client";\nexport default () => <div>hello world</div>',
-        'app/app-edge/page.tsx':
-          'export default () => <div>hello world</div>\nexport const runtime = "edge"',
-        'app/app-nodejs/page.tsx':
-          'export default () => <div>hello world</div>',
-        'app/route-nodejs/route.ts':
-          'export function GET() { return Response.json({ hello: "world" }) }',
-        'app/route-edge/route.ts':
-          'export function GET() { return Response.json({ hello: "world" }) }\nexport const runtime = "edge"',
-        'server.js': `
+  const { next } = nextTestSetup({
+    skipStart: true,
+    files: {
+      'pages/index.js': pagesIndexCode('hello world'),
+      'lib/props.js': 'export default {}',
+      'pages/page-nodejs.js': 'export default () => <div>hello world</div>',
+      'pages/page-edge.js':
+        'export default () => <div>hello world</div>\nexport const config = { runtime: "experimental-edge" }',
+      'pages/api/nodejs.js':
+        'export default () => Response.json({ hello: "world" })',
+      'pages/api/edge.js':
+        'export default () => Response.json({ hello: "world" })\nexport const config = { runtime: "edge" }',
+      'app/layout.tsx':
+        'export default function RootLayout({ children }: { children: any }) { return (<html><body>{children}</body></html>)}',
+      'app/loading.tsx':
+        'export default function Loading() { return <>Loading</> }',
+      'app/app/page.tsx': appPageCode('hello world'),
+      'app/app/client.tsx':
+        '"use client";\nexport default () => <div>hello world</div>',
+      'app/app-edge/page.tsx':
+        'export default () => <div>hello world</div>\nexport const runtime = "edge"',
+      'app/app-nodejs/page.tsx': 'export default () => <div>hello world</div>',
+      'app/route-nodejs/route.ts':
+        'export function GET() { return Response.json({ hello: "world" }) }',
+      'app/route-edge/route.ts':
+        'export function GET() { return Response.json({ hello: "world" }) }\nexport const runtime = "edge"',
+      'server.js': `
 process.title = 'next.rs api run test';
 const path = require('path');
 const { PHASE_DEVELOPMENT_SERVER } = require('next/constants');
@@ -233,7 +200,6 @@ async function main() {
     currentNodeJsVersion: '18.0.0',
     isPersistentCachingEnabled: false,
     nextVersion: '0.0.0',
-    hashSalt: '',
   });
 
   const entrypointsSubscription = project.entrypointsSubscribe();
@@ -290,9 +256,10 @@ main()
   });
 
         `,
-      },
-    })
+    },
+  })
 
+  it('should allow to write to disk multiple times', async () => {
     const result = spawnSync(
       'node',
       ['--expose-gc', join(next.testDir, 'server.js')],
@@ -304,47 +271,38 @@ main()
       }
     )
     expect(result.status).toBe(0)
-
-    await next.destroy()
   })
 })
 
 describe('next.rs api', () => {
-  let next: NextInstance
-  beforeAll(async () => {
-    await trace('setup next instance').traceAsyncFn(async (rootSpan) => {
-      next = await createNext({
-        skipStart: true,
-        files: {
-          'pages/index.js': pagesIndexCode('hello world'),
-          'lib/props.js': 'export default {}',
-          'pages/page-nodejs.js': 'export default () => <div>hello world</div>',
-          'pages/page-edge.js':
-            'export default () => <div>hello world</div>\nexport const config = { runtime: "experimental-edge" }',
-          'pages/api/nodejs.js':
-            'export default () => Response.json({ hello: "world" })',
-          'pages/api/edge.js':
-            'export default () => Response.json({ hello: "world" })\nexport const config = { runtime: "edge" }',
-          'app/layout.tsx':
-            'export default function RootLayout({ children }: { children: any }) { return (<html><body>{children}</body></html>)}',
-          'app/loading.tsx':
-            'export default function Loading() { return <>Loading</> }',
-          'app/app/page.tsx': appPageCode('hello world'),
-          'app/app/client.tsx':
-            '"use client";\nexport default () => <div>hello world</div>',
-          'app/app-edge/page.tsx':
-            'export default () => <div>hello world</div>\nexport const runtime = "edge"',
-          'app/app-nodejs/page.tsx':
-            'export default () => <div>hello world</div>',
-          'app/route-nodejs/route.ts':
-            'export function GET() { return Response.json({ hello: "world" }) }',
-          'app/route-edge/route.ts':
-            'export function GET() { return Response.json({ hello: "world" }) }\nexport const runtime = "edge"',
-        },
-      })
-    })
+  const { next } = nextTestSetup({
+    skipStart: true,
+    files: {
+      'pages/index.js': pagesIndexCode('hello world'),
+      'lib/props.js': 'export default {}',
+      'pages/page-nodejs.js': 'export default () => <div>hello world</div>',
+      'pages/page-edge.js':
+        'export default () => <div>hello world</div>\nexport const config = { runtime: "experimental-edge" }',
+      'pages/api/nodejs.js':
+        'export default () => Response.json({ hello: "world" })',
+      'pages/api/edge.js':
+        'export default () => Response.json({ hello: "world" })\nexport const config = { runtime: "edge" }',
+      'app/layout.tsx':
+        'export default function RootLayout({ children }: { children: any }) { return (<html><body>{children}</body></html>)}',
+      'app/loading.tsx':
+        'export default function Loading() { return <>Loading</> }',
+      'app/app/page.tsx': appPageCode('hello world'),
+      'app/app/client.tsx':
+        '"use client";\nexport default () => <div>hello world</div>',
+      'app/app-edge/page.tsx':
+        'export default () => <div>hello world</div>\nexport const runtime = "edge"',
+      'app/app-nodejs/page.tsx': 'export default () => <div>hello world</div>',
+      'app/route-nodejs/route.ts':
+        'export function GET() { return Response.json({ hello: "world" }) }',
+      'app/route-edge/route.ts':
+        'export function GET() { return Response.json({ hello: "world" }) }\nexport const runtime = "edge"',
+    },
   })
-  afterAll(() => next.destroy())
 
   let project: Project
   let projectUpdateSubscription: AsyncIterableIterator<UpdateInfo>
@@ -394,7 +352,6 @@ describe('next.rs api', () => {
       currentNodeJsVersion: '18.0.0',
       isPersistentCachingEnabled: false,
       nextVersion: '0.0.0',
-      hashSalt: '',
     })
     projectUpdateSubscription = filterMapAsyncIterator(
       project.updateInfoSubscribe(1000),
@@ -424,9 +381,6 @@ describe('next.rs api', () => {
       '/route-nodejs',
     ])
     expect(normalizeIssues(entrypoints.value.issues)).toMatchSnapshot('issues')
-    expect(normalizeDiagnostics(entrypoints.value.diagnostics)).toMatchSnapshot(
-      'diagnostics'
-    )
     await entrypointsSubscription.return()
   })
 
@@ -518,9 +472,6 @@ describe('next.rs api', () => {
           expect(result.type).toBe(runtime)
           expect(result.config).toEqual(config)
           expect(normalizeIssues(result.issues)).toMatchSnapshot('issues')
-          expect(normalizeDiagnostics(result.diagnostics)).toMatchSnapshot(
-            'diagnostics'
-          )
           break
         }
         case 'page': {
@@ -528,17 +479,11 @@ describe('next.rs api', () => {
           expect(result.type).toBe(runtime)
           expect(result.config).toEqual(config)
           expect(normalizeIssues(result.issues)).toMatchSnapshot('issues')
-          expect(normalizeDiagnostics(result.diagnostics)).toMatchSnapshot(
-            'diagnostics'
-          )
 
           const result2 = await route.dataEndpoint.writeToDisk()
           expect(result2.type).toBe(runtime)
           expect(result2.config).toEqual(config)
           expect(normalizeIssues(result2.issues)).toMatchSnapshot('data issues')
-          expect(normalizeDiagnostics(result2.diagnostics)).toMatchSnapshot(
-            'data diagnostics'
-          )
           break
         }
         case 'app-page': {
@@ -546,17 +491,11 @@ describe('next.rs api', () => {
           expect(result.type).toBe(runtime)
           expect(result.config).toEqual(config)
           expect(normalizeIssues(result.issues)).toMatchSnapshot('issues')
-          expect(normalizeDiagnostics(result.diagnostics)).toMatchSnapshot(
-            'diagnostics'
-          )
 
           const result2 = await route.pages[0].rscEndpoint.writeToDisk()
           expect(result2.type).toBe(runtime)
           expect(result2.config).toEqual(config)
           expect(normalizeIssues(result2.issues)).toMatchSnapshot('rsc issues')
-          expect(normalizeDiagnostics(result2.diagnostics)).toMatchSnapshot(
-            'rsc diagnostics'
-          )
 
           break
         }
@@ -688,10 +627,6 @@ describe('next.rs api', () => {
             expect(result.value).toHaveProperty('resource', expect.toBeObject())
             expect(result.value).toHaveProperty('type', 'issues')
             expect(normalizeIssues(result.value.issues)).toEqual([])
-            expect(result.value).toHaveProperty(
-              'diagnostics',
-              expect.toBeEmpty()
-            )
           })
         )
         console.log('waiting for events')
@@ -735,13 +670,9 @@ describe('next.rs api', () => {
               })(),
               serverSideSubscription &&
                 (async () => {
-                  for await (const {
-                    issues,
-                    diagnostics,
-                  } of serverSideSubscription) {
+                  for await (const { issues } of serverSideSubscription) {
                     if (done) return
                     expect(issues).toBeArray()
-                    expect(diagnostics).toBeArray()
                     foundServerSideChange = true
                   }
                 })(),
@@ -814,7 +745,6 @@ describe('next.rs api', () => {
         expect(result.done).toBe(false)
         expect(result.value).toHaveProperty('resource', expect.toBeObject())
         expect(result.value).toHaveProperty('type', 'issues')
-        expect(result.value).toHaveProperty('diagnostics', expect.toBeEmpty())
       })
     )
     const merged = raceIterators(subscriptions)

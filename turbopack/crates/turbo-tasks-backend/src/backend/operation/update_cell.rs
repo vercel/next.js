@@ -1,16 +1,16 @@
-use std::mem::take;
+use std::{cell::LazyCell, mem::take};
 
 use bincode::{Decode, Encode};
-use once_cell::unsync::Lazy;
 use rustc_hash::FxHashSet;
 use smallvec::SmallVec;
+#[cfg(feature = "task_dirty_cause")]
+use turbo_tasks::TaskDirtyCause;
 use turbo_tasks::{
-    CellId, FxIndexMap, TaskId, TypedSharedReference,
+    CellId, FxIndexMap, TaskId, TypedSharedReference, ValueTypePersistence,
     backend::{CellContent, CellHash, VerificationMode},
+    registry,
 };
 
-#[cfg(feature = "trace_task_dirty")]
-use crate::backend::operation::invalidate::TaskDirtyCause;
 use crate::{
     backend::{
         TaskDataCategory,
@@ -20,24 +20,22 @@ use crate::{
         },
         storage_schema::TaskStorageAccessors,
     },
-    data::CellRef,
+    data::{CellDependency, CellRef},
 };
 
 #[derive(Encode, Decode, Clone, Default)]
 #[allow(clippy::large_enum_variant)]
 pub enum UpdateCellOperation {
     InvalidateWhenCellDependency {
-        is_serializable_cell_content: bool,
         cell_ref: CellRef,
         #[bincode(with = "turbo_bincode::indexmap")]
         dependent_tasks: FxIndexMap<TaskId, SmallVec<[Option<u64>; 2]>>,
-        #[cfg(feature = "trace_task_dirty")]
+        #[cfg(feature = "task_dirty_cause")]
         has_updated_key_hashes: bool,
         content: Option<TypedSharedReference>,
         queue: AggregationUpdateQueue,
     },
     FinalCellChange {
-        is_serializable_cell_content: bool,
         cell_ref: CellRef,
         content: Option<TypedSharedReference>,
         queue: AggregationUpdateQueue,
@@ -54,24 +52,24 @@ impl UpdateCellOperation {
         task_id: TaskId,
         cell: CellId,
         content: CellContent,
-        is_serializable_cell_content: bool,
         updated_key_hashes: Option<SmallVec<[u64; 2]>>,
         content_hash: Option<CellHash>,
         #[cfg(feature = "verify_determinism")] verification_mode: VerificationMode,
         #[cfg(not(feature = "verify_determinism"))] _verification_mode: VerificationMode,
         mut ctx: impl ExecuteContext<'_>,
     ) {
-        // content_hash is only meaningful for transient (non-serializable) cells
+        let value_type = registry::get_value_type(cell.type_id);
+        // `content_hash` is only ever supplied for `HashOnly` cells — only the
+        // `"hash"`-mode write path emits a hash, and no other mode consumes
+        // it. (It can still be `None` for `HashOnly` when the cell is being
+        // cleared.)
         debug_assert!(
-            !is_serializable_cell_content || content_hash.is_none(),
-            "content_hash must be None for serializable cell content"
+            content_hash.is_none()
+                || matches!(value_type.persistence, ValueTypePersistence::HashOnly),
+            "content_hash must only be supplied for HashOnly cells"
         );
 
-        let content = if let CellContent(Some(new_content)) = content {
-            Some(new_content.into_typed(cell.type_id))
-        } else {
-            None
-        };
+        let content = content.0;
 
         let mut task = ctx.task(task_id, TaskDataCategory::All);
 
@@ -81,7 +79,7 @@ impl UpdateCellOperation {
         let assume_unchanged = !ctx.should_track_dependencies() || !task.has_dirty();
 
         if assume_unchanged {
-            let has_old_content = task.has_cell_data(is_serializable_cell_content, cell);
+            let has_old_content = task.cell_data_contains(&cell);
             if has_old_content {
                 // Never update cells when recomputing if they already have a value.
                 // It's not expected that content changes during recomputation.
@@ -93,12 +91,10 @@ impl UpdateCellOperation {
                         verification_mode,
                         turbo_tasks::backend::VerificationMode::EqualityCheck
                     )
-                    && content != task.get_cell_data(is_serializable_cell_content, cell)
+                    && content.as_ref() != task.get_cell_data(&cell)
                 {
                     let task_description = task.get_task_description();
-                    let cell_type = turbo_tasks::registry::get_value_type(cell.type_id)
-                        .ty
-                        .global_name;
+                    let cell_type = value_type.ty.global_name;
                     eprintln!(
                         "Task {} updated cell #{} (type: {}) while recomputing",
                         task_description, cell.index, cell_type
@@ -114,24 +110,25 @@ impl UpdateCellOperation {
             // When not recomputing, we need to notify dependent tasks if the content actually
             // changes.
 
-            // For transient cells without available content, use hash-based comparison to
+            // For HashOnly cells without available content, use hash-based comparison to
             // detect whether the value actually changed—avoiding unnecessary invalidation.
-            let skip_invalidation = !is_serializable_cell_content && {
-                let has_old_content = task.has_cell_data(false, cell);
-                if !has_old_content {
-                    match (content_hash, task.get_cell_data_hash(&cell)) {
-                        (Some(new_hash), Some(old_hash)) => new_hash == *old_hash,
-                        _ => false,
+            let skip_invalidation =
+                matches!(value_type.persistence, ValueTypePersistence::HashOnly) && {
+                    let has_old_content = task.cell_data_contains(&cell);
+                    if !has_old_content {
+                        match (content_hash, task.get_cell_data_hash(&cell)) {
+                            (Some(new_hash), Some(old_hash)) => new_hash == *old_hash,
+                            _ => false,
+                        }
+                    } else {
+                        false
                     }
-                } else {
-                    false
-                }
-            };
+                };
 
-            #[cfg(feature = "trace_task_dirty")]
+            #[cfg(feature = "task_dirty_cause")]
             let has_updated_key_hashes = updated_key_hashes.is_some();
             let updated_key_hashes_set = updated_key_hashes.map(|updated_key_hashes| {
-                Lazy::new(|| updated_key_hashes.into_iter().collect::<FxHashSet<u64>>())
+                LazyCell::new(|| updated_key_hashes.into_iter().collect::<FxHashSet<u64>>())
             });
 
             // Collect dependent tasks only when not skipping invalidation.
@@ -140,17 +137,22 @@ impl UpdateCellOperation {
             let mut dependent_tasks: FxIndexMap<TaskId, SmallVec<[Option<u64>; 2]>> =
                 FxIndexMap::default();
             if !skip_invalidation {
-                let tasks_with_keys =
-                    task.iter_cell_dependents()
-                        .filter_map(|(dependent_cell, key, task)| {
-                            (dependent_cell == cell
-                                && key.is_none_or(|key_hash| {
-                                    updated_key_hashes_set
-                                        .as_ref()
-                                        .is_none_or(|set| set.contains(&key_hash))
-                                }))
-                            .then_some((task, key))
-                        });
+                let tasks_with_keys = task.iter_cell_dependents().filter_map(|dep| {
+                    let (
+                        CellRef {
+                            task: dependent_task,
+                            cell: dependent_cell,
+                        },
+                        key,
+                    ) = dep.into_parts();
+                    (dependent_cell == cell
+                        && key.is_none_or(|key_hash| {
+                            updated_key_hashes_set
+                                .as_ref()
+                                .is_none_or(|set| set.contains(&key_hash))
+                        }))
+                    .then_some((dependent_task, key))
+                });
                 for (task, key) in tasks_with_keys {
                     dependent_tasks.entry(task).or_default().push(key);
                 }
@@ -170,10 +172,12 @@ impl UpdateCellOperation {
                 // tasks and after that set the new cell content. When the cell content is unset,
                 // readers will wait for it to be set via InProgressCell.
 
-                let old_content = task.remove_cell_data(is_serializable_cell_content, cell);
+                let old_content = task.remove_cell_data(&cell);
 
                 // Update cell_data_hash before dropping the task lock
-                update_cell_data_hash(&mut task, &cell, is_serializable_cell_content, content_hash);
+                if matches!(value_type.persistence, ValueTypePersistence::HashOnly) {
+                    update_cell_data_hash(&mut task, &cell, content_hash);
+                }
 
                 drop(task);
                 drop(old_content);
@@ -186,15 +190,14 @@ impl UpdateCellOperation {
                 );
 
                 UpdateCellOperation::InvalidateWhenCellDependency {
-                    is_serializable_cell_content,
                     cell_ref: CellRef {
                         task: task_id,
                         cell,
                     },
                     dependent_tasks,
-                    #[cfg(feature = "trace_task_dirty")]
+                    #[cfg(feature = "task_dirty_cause")]
                     has_updated_key_hashes,
-                    content,
+                    content: content.map(|r| r.into_typed(cell.type_id)),
                     queue: AggregationUpdateQueue::new(),
                 }
                 .execute(&mut ctx);
@@ -206,13 +209,15 @@ impl UpdateCellOperation {
         // So we can just update the cell content.
 
         let old_content = if let Some(new_content) = content {
-            task.set_cell_data(is_serializable_cell_content, cell, new_content)
+            task.insert_cell_data(cell, new_content)
         } else {
-            task.remove_cell_data(is_serializable_cell_content, cell)
+            task.remove_cell_data(&cell)
         };
 
-        // Update cell_data_hash for non-serializable cells.
-        update_cell_data_hash(&mut task, &cell, is_serializable_cell_content, content_hash);
+        // Update cell_data_hash for hash-only cells.
+        if matches!(value_type.persistence, ValueTypePersistence::HashOnly) {
+            update_cell_data_hash(&mut task, &cell, content_hash);
+        }
 
         let in_progress_cell = task.remove_in_progress_cells(&cell);
 
@@ -224,38 +229,35 @@ impl UpdateCellOperation {
         }
     }
 
+    /// Whether this operation's mid-flight state can safely be persisted to
+    /// the operation suspend log. True iff the cell's value type has bincode —
+    /// non-persistable values cannot be recovered across restart, so we don't
+    /// write a suspend point for them.
     fn is_serializable(&self) -> bool {
         match self {
-            UpdateCellOperation::InvalidateWhenCellDependency {
-                is_serializable_cell_content,
-                ..
-            } => *is_serializable_cell_content,
-            UpdateCellOperation::FinalCellChange {
-                is_serializable_cell_content,
-                ..
-            } => *is_serializable_cell_content,
+            UpdateCellOperation::InvalidateWhenCellDependency { cell_ref, .. }
+            | UpdateCellOperation::FinalCellChange { cell_ref, .. } => {
+                matches!(
+                    registry::get_value_type(cell_ref.cell.type_id).persistence,
+                    ValueTypePersistence::Persistable(_, _),
+                )
+            }
             UpdateCellOperation::AggregationUpdate { .. } => true,
             UpdateCellOperation::Done => true,
         }
     }
 }
 
-/// Updates the stored cell_data_hash for a non-serializable cell.
-/// Skips the update if the hash hasn't changed to avoid unnecessary writes.
-fn update_cell_data_hash(
-    task: &mut impl TaskGuard,
-    cell: &CellId,
-    is_serializable_cell_content: bool,
-    content_hash: Option<CellHash>,
-) {
-    if !is_serializable_cell_content {
-        let old_hash = task.get_cell_data_hash(cell).copied();
-        if old_hash != content_hash {
-            if let Some(hash) = content_hash {
-                task.insert_cell_data_hash(*cell, hash);
-            } else {
-                task.remove_cell_data_hash(cell);
-            }
+/// Updates the stored cell_data_hash, which only `serialization = "hash"`
+/// cells consult (on eviction + recompute). Skips the update for all other
+/// persistence modes and when the hash hasn't changed.
+fn update_cell_data_hash(task: &mut impl TaskGuard, cell: &CellId, content_hash: Option<CellHash>) {
+    let old_hash = task.get_cell_data_hash(cell).copied();
+    if old_hash != content_hash {
+        if let Some(hash) = content_hash {
+            task.insert_cell_data_hash(*cell, hash);
+        } else {
+            task.remove_cell_data_hash(cell);
         }
     }
 }
@@ -268,10 +270,9 @@ impl Operation for UpdateCellOperation {
             }
             match self {
                 UpdateCellOperation::InvalidateWhenCellDependency {
-                    is_serializable_cell_content,
                     cell_ref,
                     ref mut dependent_tasks,
-                    #[cfg(feature = "trace_task_dirty")]
+                    #[cfg(feature = "task_dirty_cause")]
                     has_updated_key_hashes,
                     ref mut content,
                     ref mut queue,
@@ -280,14 +281,15 @@ impl Operation for UpdateCellOperation {
                         let mut make_stale = false;
                         let dependent = ctx.task(dependent_task_id, TaskDataCategory::All);
                         for key in keys.iter().copied() {
-                            if dependent.outdated_cell_dependencies_contains(&(cell_ref, key)) {
+                            let dep = CellDependency::new(cell_ref, key);
+                            if dependent.outdated_cell_dependencies_contains(&dep) {
                                 // cell dependency is outdated, so it hasn't read the cell yet
                                 // and doesn't need to be invalidated.
                                 // We do not need to make the task stale in this case.
                                 // But importantly we still need to make the task dirty as it should
                                 // no longer be considered as
                                 // "recomputation".
-                            } else if !dependent.cell_dependencies_contains(&(cell_ref, key)) {
+                            } else if !dependent.cell_dependencies_contains(&dep) {
                                 // cell dependency has been removed, so the task doesn't depend on
                                 // the cell anymore and doesn't need
                                 // to be invalidated
@@ -300,7 +302,7 @@ impl Operation for UpdateCellOperation {
                             dependent,
                             dependent_task_id,
                             make_stale,
-                            #[cfg(feature = "trace_task_dirty")]
+                            #[cfg(feature = "task_dirty_cause")]
                             TaskDirtyCause::CellChange {
                                 value_type: cell_ref.cell.type_id,
                                 keys: has_updated_key_hashes.then_some(keys).unwrap_or_default(),
@@ -311,7 +313,6 @@ impl Operation for UpdateCellOperation {
                     }
                     if dependent_tasks.is_empty() {
                         self = UpdateCellOperation::FinalCellChange {
-                            is_serializable_cell_content,
                             cell_ref,
                             content: take(content),
                             queue: take(queue),
@@ -319,7 +320,6 @@ impl Operation for UpdateCellOperation {
                     }
                 }
                 UpdateCellOperation::FinalCellChange {
-                    is_serializable_cell_content,
                     cell_ref: CellRef { task, cell },
                     content,
                     ref mut queue,
@@ -327,7 +327,7 @@ impl Operation for UpdateCellOperation {
                     let mut task = ctx.task(task, TaskDataCategory::Data);
 
                     if let Some(content) = content {
-                        task.add_cell_data(is_serializable_cell_content, cell, content);
+                        task.add_cell_data(cell, content.into_untyped());
                     }
 
                     let in_progress_cell = task.remove_in_progress_cells(&cell);

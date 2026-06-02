@@ -2,23 +2,17 @@
 
 import { join } from 'path'
 import { fetchViaHTTP } from 'next-test-utils'
-import { NextInstance } from 'e2e-utils'
-import { createNext, FileRef } from 'e2e-utils'
+import { FileRef, nextTestSetup } from 'e2e-utils'
 
 describe('Requests not effected when middleware used', () => {
-  let next: NextInstance
-
-  afterAll(() => next.destroy())
-  beforeAll(async () => {
-    next = await createNext({
-      files: {
-        pages: new FileRef(join(__dirname, '../app/pages')),
-        'middleware.js': new FileRef(join(__dirname, '../app/middleware.js')),
-      },
-      dependencies: {
-        request: '^2.88.2',
-      },
-    })
+  const { next } = nextTestSetup({
+    files: {
+      pages: new FileRef(join(__dirname, '../app/pages')),
+      'middleware.js': new FileRef(join(__dirname, '../app/middleware.js')),
+    },
+    dependencies: {
+      request: '^2.88.2',
+    },
   })
 
   function sendRequest(method) {

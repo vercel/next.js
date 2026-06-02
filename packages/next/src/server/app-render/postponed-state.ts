@@ -208,7 +208,9 @@ export function parsePostponedState(
     console.error('Failed to parse postponed state', err)
     return {
       type: DynamicState.DATA,
-      renderResumeDataCache: createPrerenderResumeDataCache(),
+      renderResumeDataCache: createRenderResumeDataCache(
+        createPrerenderResumeDataCache()
+      ),
     }
   }
 }

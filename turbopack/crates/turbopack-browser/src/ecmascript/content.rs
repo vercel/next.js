@@ -13,18 +13,22 @@ use turbopack_core::{
     source_map::{GenerateSourceMap, SourceMapAsset},
     version::{MergeableVersionedContent, Version, VersionedContent, VersionedContentMerger},
 };
-use turbopack_ecmascript::{chunk::EcmascriptChunkContent, minify::minify, utils::StringifyJs};
+use turbopack_ecmascript::{
+    chunk::{EcmascriptChunkContent, EcmascriptChunkContentEntries},
+    minify::minify,
+    utils::StringifyJs,
+};
 
 use super::{
-    chunk::EcmascriptBrowserChunk, content_entry::EcmascriptBrowserChunkContentEntries,
-    merged::merger::EcmascriptBrowserChunkContentMerger, version::EcmascriptBrowserChunkVersion,
+    chunk::EcmascriptBrowserChunk, merged::merger::EcmascriptBrowserChunkContentMerger,
+    version::EcmascriptBrowserChunkVersion,
 };
 use crate::{
     BrowserChunkingContext,
     chunking_context::{CURRENT_CHUNK_METHOD_DOCUMENT_CURRENT_SCRIPT_EXPR, CurrentChunkMethod},
 };
 
-#[turbo_tasks::value(serialization = "none")]
+#[turbo_tasks::value(serialization = "skip")]
 pub struct EcmascriptBrowserChunkContent {
     pub(super) chunking_context: ResolvedVc<BrowserChunkingContext>,
     pub(super) chunk: ResolvedVc<EcmascriptBrowserChunk>,
@@ -51,8 +55,8 @@ impl EcmascriptBrowserChunkContent {
     }
 
     #[turbo_tasks::function]
-    pub fn entries(&self) -> Vc<EcmascriptBrowserChunkContentEntries> {
-        EcmascriptBrowserChunkContentEntries::new(*self.content)
+    pub fn entries(&self) -> Vc<EcmascriptChunkContentEntries> {
+        EcmascriptChunkContentEntries::new(*self.content)
     }
 }
 
@@ -115,9 +119,9 @@ impl EcmascriptBrowserChunkContent {
 
         let content = this.content.await?;
         let chunk_items = content.chunk_item_code_and_ids().await?;
-        for item in chunk_items {
-            for (id, item_code) in item {
-                write!(code, "\n{}, ", StringifyJs(&id))?;
+        for item in &chunk_items {
+            for (id, item_code) in &**item {
+                write!(code, "\n{}, ", StringifyJs(id))?;
                 code.push_code(item_code);
                 write!(code, ",")?;
             }

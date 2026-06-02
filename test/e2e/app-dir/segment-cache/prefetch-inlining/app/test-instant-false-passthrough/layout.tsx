@@ -1,12 +1,12 @@
-// This layout has prefetching disabled (unstable_instant = false) because it
-// performs uncached dynamic I/O (connection()). Static parents above it should
-// be able to inline through it and into the static child below, because this
-// layout acts as a transparent pass-through — its slot in the bundle is null
-// but the chain isn't broken.
+// This layout has prefetching disabled because it performs uncached dynamic
+// I/O (connection()). Static parents above it should be able to inline through
+// it and into the static child below, because this layout acts as a transparent
+// pass-through — its slot in the bundle is null but the chain isn't broken.
 import { ReactNode, Suspense } from 'react'
 import { connection } from 'next/server'
 
 export const unstable_instant = false
+export const unstable_prefetch = 'force-disabled'
 
 async function DynamicContent() {
   await connection()

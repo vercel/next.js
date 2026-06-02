@@ -35,7 +35,7 @@ use turbo_tasks::ResolvedVc;
 use turbo_tasks_fs::FileSystemPath;
 use turbopack::module_options::{ModuleRule, ModuleRuleEffect, ModuleType, RuleCondition};
 use turbopack_core::reference_type::ReferenceTypeCondition;
-use turbopack_ecmascript::{CustomTransformer, EcmascriptInputTransform};
+use turbopack_ecmascript::{EcmascriptInputTransform, TransformPlugin};
 
 use crate::next_image::{StructuredImageModuleType, module::BlurPlaceholderMode};
 
@@ -134,11 +134,11 @@ pub(crate) enum EcmascriptTransformStage {
 /// Create a new module rule for the given ecmatransform, runs against
 /// any ecmascript (with mdx if enabled) except url reference type
 pub(crate) fn get_ecma_transform_rule(
-    transformer: Box<dyn CustomTransformer + Send + Sync>,
+    transformer: ResolvedVc<TransformPlugin>,
     enable_mdx_rs: bool,
     stage: EcmascriptTransformStage,
 ) -> ModuleRule {
-    let transformer = EcmascriptInputTransform::Plugin(ResolvedVc::cell(transformer as _));
+    let transformer = EcmascriptInputTransform::Plugin(transformer);
     let (preprocess, main, postprocess) = match stage {
         EcmascriptTransformStage::Preprocess => (vec![transformer], vec![], vec![]),
         EcmascriptTransformStage::Main => (vec![], vec![transformer], vec![]),

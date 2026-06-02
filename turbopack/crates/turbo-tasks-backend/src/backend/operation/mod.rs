@@ -14,18 +14,20 @@ use std::{
 
 use anyhow::{Context, Result, bail};
 use bincode::{Decode, Encode};
+use tracing::info_span;
 #[cfg(feature = "trace_prepare_tasks")]
 use tracing::trace_span;
 use turbo_tasks::{
-    CellId, FxIndexMap, TaskExecutionReason, TaskId, TaskPriority, TurboTasksBackendApi,
-    TurboTasksCallApi, TypedSharedReference, backend::CachedTaskType,
+    CellId, DynTaskInputs, FxIndexMap, RawVc, SharedReference, TaskExecutionReason, TaskId,
+    TaskPriority, TurboTasksBackendApi, TurboTasksCallApi, backend::CachedTaskTypeArc,
+    macro_helpers::NativeFunction,
 };
 
-use self::aggregation_update::ComputeDirtyAndCleanUpdate;
+pub use self::aggregation_update::ComputeDirtyAndCleanUpdate;
 use crate::{
     backend::{
-        EventDescription, OperationGuard, TaskDataCategory, TurboTasksBackend,
-        TurboTasksBackendInner,
+        EventDescription, TaskDataCategory, TurboTasksBackend, TurboTasksBackendInner,
+        snapshot_coordinator::OperationGuard,
         storage::{SpecificTaskDataCategory, StorageWriteGuard},
         storage_schema::{TaskStorage, TaskStorageAccessors},
     },
@@ -100,8 +102,18 @@ pub trait ExecuteContext<'e>: Sized {
     ///
     /// Uses hash-based lookup which may return multiple candidates due to hash collisions,
     /// then verifies each candidate by comparing the stored `persistent_task_type`.
-    /// Returns `Some(task_id)` if a matching task is found, `None` otherwise.
-    fn task_by_type(&mut self, task_type: &CachedTaskType) -> Option<TaskId>;
+    /// Returns `Some((task_id, task_type))` if a matching task is found, where `task_type` is
+    /// the existing `CachedTaskTypeArc` from storage (avoiding a duplicate
+    /// allocation).
+    ///
+    /// Accepts exploded components so the caller does not need to box the argument before calling.
+    fn task_by_type(
+        &mut self,
+        native_fn: &'static NativeFunction,
+        this: Option<RawVc>,
+        arg: &dyn DynTaskInputs,
+    ) -> Option<(TaskId, CachedTaskTypeArc)>;
+    fn debug_get_task_description(&self, task_id: TaskId) -> String;
 }
 
 pub trait ChildExecuteContext<'e>: Send + Sized {
@@ -157,7 +169,7 @@ impl TaskLockCounter {
 pub struct ExecuteContextImpl<'e, B: BackingStorage> {
     backend: &'e TurboTasksBackendInner<B>,
     turbo_tasks: &'e dyn TurboTasksBackendApi<TurboTasksBackend<B>>,
-    _operation_guard: Option<OperationGuard<'e, B>>,
+    _operation_guard: Option<OperationGuard<'e, AnyOperation>>,
     task_lock_counter: TaskLockCounter,
 }
 
@@ -264,6 +276,7 @@ impl<'e, B: BackingStorage> ExecuteContextImpl<'e, B> {
 
             // Still restoring; drop the lock and block until notified, then loop to re-check.
             drop(task);
+            let _span = info_span!("blocking").entered();
             listener.wait();
         }
     }
@@ -550,6 +563,7 @@ impl<'e, B: BackingStorage> ExecuteContextImpl<'e, B> {
             if let Some(task_type) = entry.task_type.clone() {
                 // Insert into the task cache to avoid future lookups
                 self.backend
+                    .storage
                     .task_cache
                     .entry(task_type)
                     .or_insert(entry.task_id);
@@ -593,7 +607,7 @@ struct TaskRestoreEntry {
     /// Another thread claimed the meta restore; we must wait in Phase 3.
     wait_meta: bool,
     /// Task type discovered during Phase 1c data restore (used to update task cache in Phase 2).
-    task_type: Option<Arc<CachedTaskType>>,
+    task_type: Option<CachedTaskTypeArc>,
     /// This thread performed the restore for at least one category (set in Phase 1c).
     self_restored: bool,
 }
@@ -629,7 +643,7 @@ fn apply_restore_result(
                 task.flags.set_restoring(task_category, false);
                 return Ok(());
             }
-            task.restore_from(storage, task_category);
+            task.restore_from(storage, category);
             task.flags.set_restored(task_category);
             task.flags.set_restoring(task_category, false);
             Ok(())
@@ -967,7 +981,12 @@ impl<'e, B: BackingStorage> ExecuteContext<'e> for ExecuteContextImpl<'e, B> {
         self.turbo_tasks.pin()
     }
 
-    fn task_by_type(&mut self, task_type: &CachedTaskType) -> Option<TaskId> {
+    fn task_by_type(
+        &mut self,
+        native_fn: &'static NativeFunction,
+        this: Option<RawVc>,
+        arg: &dyn DynTaskInputs,
+    ) -> Option<(TaskId, CachedTaskTypeArc)> {
         if !self.backend.should_restore() {
             return None;
         }
@@ -976,7 +995,7 @@ impl<'e, B: BackingStorage> ExecuteContext<'e> for ExecuteContextImpl<'e, B> {
         let candidates = self
             .backend
             .backing_storage
-            .lookup_task_candidates(task_type)
+            .lookup_task_candidates(native_fn, this, arg)
             .expect("Failed to lookup task ids");
 
         // Verify each candidate by comparing the stored persistent_task_type.
@@ -984,12 +1003,16 @@ impl<'e, B: BackingStorage> ExecuteContext<'e> for ExecuteContextImpl<'e, B> {
         for candidate_id in candidates {
             let task = self.task(candidate_id, TaskDataCategory::Data);
             if let Some(stored_type) = task.get_persistent_task_type()
-                && stored_type.as_ref() == task_type
+                && stored_type.eq_components(native_fn, this, arg)
             {
-                return Some(candidate_id);
+                return Some((candidate_id, stored_type.clone()));
             }
         }
         None
+    }
+
+    fn debug_get_task_description(&self, task_id: TaskId) -> String {
+        self.backend.debug_get_task_description(task_id)
     }
 }
 
@@ -1010,14 +1033,14 @@ impl<'e, B: BackingStorage> ChildExecuteContext<'e> for ChildExecuteContextImpl<
 }
 
 pub enum TaskTypeRef<'l> {
-    Cached(&'l Arc<CachedTaskType>),
+    Cached(&'l CachedTaskTypeArc),
     Transient(&'l Arc<TransientTask>),
 }
 
 impl TaskTypeRef<'_> {
     pub fn to_owned(&self) -> TaskType {
         match self {
-            TaskTypeRef::Cached(ty) => TaskType::Cached(Arc::clone(ty)),
+            TaskTypeRef::Cached(ty) => TaskType::Cached((*ty).clone()),
             TaskTypeRef::Transient(ty) => TaskType::Transient(Arc::clone(ty)),
         }
     }
@@ -1032,8 +1055,9 @@ impl Display for TaskTypeRef<'_> {
     }
 }
 
+#[derive(Debug)]
 pub enum TaskType {
-    Cached(Arc<CachedTaskType>),
+    Cached(CachedTaskTypeArc),
     Transient(Arc<TransientTask>),
 }
 
@@ -1100,7 +1124,9 @@ pub trait TaskGuard: Debug + TaskStorageAccessors {
 
     fn is_dirty(&self) -> Option<TaskPriority> {
         self.get_dirty().and_then(|dirtyness| match dirtyness {
-            Dirtyness::Dirty(priority) => Some(*priority),
+            Dirtyness::Dirty {
+                parent_priority, ..
+            } => Some(*parent_priority),
             Dirtyness::SessionDependent => {
                 if !self.current_session_clean() {
                     Some(TaskPriority::leaf())
@@ -1111,8 +1137,9 @@ pub trait TaskGuard: Debug + TaskStorageAccessors {
         })
     }
     fn dirtyness_and_session(&self) -> Option<(Dirtyness, bool)> {
-        match self.get_dirty()? {
-            Dirtyness::Dirty(priority) => Some((Dirtyness::Dirty(*priority), false)),
+        let dirtyness = self.get_dirty()?;
+        match dirtyness {
+            Dirtyness::Dirty { .. } => Some((dirtyness.clone(), false)),
             Dirtyness::SessionDependent => {
                 Some((Dirtyness::SessionDependent, self.current_session_clean()))
             }
@@ -1122,7 +1149,7 @@ pub trait TaskGuard: Debug + TaskStorageAccessors {
     fn dirty_state(&self) -> (bool, bool) {
         match self.get_dirty() {
             None => (false, false),
-            Some(Dirtyness::Dirty(_)) => (true, false),
+            Some(Dirtyness::Dirty { .. }) => (true, false),
             Some(Dirtyness::SessionDependent) => (true, self.current_session_clean()),
         }
     }
@@ -1144,7 +1171,7 @@ pub trait TaskGuard: Debug + TaskStorageAccessors {
         let (old_self_dirty, old_current_session_self_clean) = self.dirty_state();
         let (new_self_dirty, new_current_session_self_clean) = match new_dirtyness {
             None => (false, false),
-            Some(Dirtyness::Dirty(_)) => (true, false),
+            Some(Dirtyness::Dirty { .. }) => (true, false),
             Some(Dirtyness::SessionDependent) => (true, true),
         };
         if old_dirtyness != new_dirtyness {
@@ -1234,60 +1261,9 @@ pub trait TaskGuard: Debug + TaskStorageAccessors {
             .unwrap_or_default();
         dirty_count > clean_count
     }
-    fn remove_cell_data(
-        &mut self,
-        is_serializable_cell_content: bool,
-        cell: CellId,
-    ) -> Option<TypedSharedReference> {
-        if is_serializable_cell_content {
-            self.remove_persistent_cell_data(&cell)
-        } else {
-            self.remove_transient_cell_data(&cell)
-                .map(|sr| sr.into_typed(cell.type_id))
-        }
-    }
-    fn get_cell_data(
-        &self,
-        is_serializable_cell_content: bool,
-        cell: CellId,
-    ) -> Option<TypedSharedReference> {
-        if is_serializable_cell_content {
-            self.get_persistent_cell_data(&cell).cloned()
-        } else {
-            self.get_transient_cell_data(&cell)
-                .map(|sr| sr.clone().into_typed(cell.type_id))
-        }
-    }
-    fn has_cell_data(&self, is_serializable_cell_content: bool, cell: CellId) -> bool {
-        if is_serializable_cell_content {
-            self.persistent_cell_data_contains(&cell)
-        } else {
-            self.transient_cell_data_contains(&cell)
-        }
-    }
-    /// Set cell data, returning the old value if any.
-    fn set_cell_data(
-        &mut self,
-        is_serializable_cell_content: bool,
-        cell: CellId,
-        value: TypedSharedReference,
-    ) -> Option<TypedSharedReference> {
-        if is_serializable_cell_content {
-            self.insert_persistent_cell_data(cell, value)
-        } else {
-            self.insert_transient_cell_data(cell, value.into_untyped())
-                .map(|sr| sr.into_typed(cell.type_id))
-        }
-    }
-
-    /// Add new cell data (asserts that the cell is new and didn't exist before).
-    fn add_cell_data(
-        &mut self,
-        is_serializable_cell_content: bool,
-        cell: CellId,
-        value: TypedSharedReference,
-    ) {
-        let old = self.set_cell_data(is_serializable_cell_content, cell, value);
+    /// Add new cell data. Panics if the cell already had a value.
+    fn add_cell_data(&mut self, cell: CellId, value: SharedReference) {
+        let old = self.insert_cell_data(cell, value);
         assert!(old.is_none(), "Cell data already exists for {cell:?}");
     }
 
@@ -1327,6 +1303,7 @@ pub trait TaskGuard: Debug + TaskStorageAccessors {
             panic!("Every task must have a task type {self:?}");
         }
     }
+
     fn get_task_desc_fn(&self) -> impl Fn() -> String + Send + Sync + 'static {
         let task_type = self.get_task_type().to_owned();
         let task_id = self.id();
@@ -1425,7 +1402,7 @@ impl TaskGuard for TaskGuardImpl<'_> {
             .map(|target| (target, TaskDataCategory::Meta))
             .chain(
                 self.iter_cell_dependencies()
-                    .map(|(target, _key)| (target.task, TaskDataCategory::All)),
+                    .map(|dep| (dep.cell_ref().task, TaskDataCategory::All)),
             )
             .chain(
                 self.iter_collectibles_dependencies()
@@ -1535,8 +1512,6 @@ impl_operation!(CleanupOldEdges cleanup_old_edges::CleanupOldEdgesOperation);
 impl_operation!(AggregationUpdate aggregation_update::AggregationUpdateQueue);
 impl_operation!(LeafDistanceUpdate leaf_distance_update::LeafDistanceUpdateQueue);
 
-#[cfg(feature = "trace_task_dirty")]
-pub use self::invalidate::TaskDirtyCause;
 pub use self::{
     aggregation_update::{
         AggregatedDataUpdate, AggregationUpdateJob, get_aggregation_number, get_uppers,

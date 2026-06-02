@@ -12,7 +12,7 @@ __turbopack_context__.v(function(Ctor, opts) {
 
 var __TURBOPACK__import$2e$meta__ = {
     get url () {
-        return `file://${__turbopack_context__.P("turbopack/crates/turbopack-tests/tests/snapshot/workers/basic/input/index.js")}`;
+        return __turbopack_context__.F("turbopack/crates/turbopack-tests/tests/snapshot/workers/basic/input/index.js");
     }
 };
 console.log('index.js');

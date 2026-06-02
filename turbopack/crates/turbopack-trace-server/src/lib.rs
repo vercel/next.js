@@ -17,6 +17,8 @@ use self::{
 };
 
 mod bottom_up;
+mod chunked_vec;
+mod lazy_sorted_vec;
 mod reader;
 mod self_time_tree;
 mod server;
@@ -57,6 +59,18 @@ pub fn start_turbopack_trace_server(path: PathBuf, port: Option<u16>) -> Arc<Sto
 
 const PAGE_SIZE: usize = 20;
 
+/// How spans should be sorted.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum SortMode {
+    /// No sorting — spans appear in execution/natural order.
+    #[default]
+    ExecutionOrder,
+    /// Sort by value (corrected duration descending).
+    Value,
+    /// Sort alphabetically by name, then by category.
+    Name,
+}
+
 /// Options for querying spans from the trace store.
 pub struct QueryOptions {
     /// Optional parent span ID (as produced by `SpanInfo::id`).
@@ -64,8 +78,8 @@ pub struct QueryOptions {
     pub parent: Option<String>,
     /// When true, aggregate child spans with the same name.
     pub aggregated: bool,
-    /// When true, sort results by corrected duration descending.
-    pub sort: bool,
+    /// How to sort the results.
+    pub sort: SortMode,
     /// Optional substring search query.
     pub search: Option<String>,
     /// 1-based page number.
@@ -115,6 +129,19 @@ pub struct SpanInfo {
     pub avg_corrected_duration: Option<u64>,
     /// Raw span ID for aggregated groups (the index of the first span).
     pub first_span_id: Option<String>,
+    /// TurboMalloc memory-usage samples recorded while this span (or its
+    /// example span, for aggregated groups) was live.
+    ///
+    /// Each tuple is `(ts_offset_from_span_start_in_ticks, bytes, pressure)`,
+    /// where `pressure` is the memory-pressure byte recorded with the sample
+    /// (0 = no pressure, higher = more pressure). `100 ticks = 1 µs`. The
+    /// offset is always `>= 0` and `<= span_duration`.
+    ///
+    /// The store caps the series at `MAX_MEMORY_SAMPLES`; when more samples
+    /// exist in the range, consecutive groups are merged by picking the
+    /// group's max-memory sample (timestamp, value, and pressure kept
+    /// together).
+    pub memory_samples: Vec<(i64, u64, u8)>,
 }
 
 /// Result of a `query_spans` call.
@@ -224,12 +251,22 @@ pub fn query_spans(store: &Arc<StoreContainer>, options: QueryOptions) -> QueryR
         };
 
         // Sort if requested.
-        if options.sort {
-            filtered.sort_by(|a, b| {
-                b.corrected_total_time()
-                    .cmp(&a.corrected_total_time())
-                    .then_with(|| b.total_time().cmp(&a.total_time()))
-            });
+        match options.sort {
+            SortMode::Value => {
+                filtered.sort_by(|a, b| {
+                    b.corrected_total_time()
+                        .cmp(&a.corrected_total_time())
+                        .then_with(|| b.total_time().cmp(&a.total_time()))
+                });
+            }
+            SortMode::Name => {
+                filtered.sort_by(|a, b| {
+                    let (a_cat, a_title) = a.nice_name();
+                    let (b_cat, b_title) = b.nice_name();
+                    a_title.cmp(b_title).then_with(|| a_cat.cmp(b_cat))
+                });
+            }
+            SortMode::ExecutionOrder => {}
         }
 
         let (page_items, page, total_pages, total_count) = paginate(filtered, options.page);
@@ -259,6 +296,15 @@ pub fn query_spans(store: &Arc<StoreContainer>, options: QueryOptions) -> QueryR
                 let rel_start = (span_start as i64) - (parent_start as i64);
                 let rel_end = (span_end as i64) - (parent_start as i64);
 
+                let first_start_ticks = *first.start();
+                let memory_samples: Vec<(i64, u64, u8)> = store_ref
+                    .memory_samples_for_range_with_ts(first.start(), first.end())
+                    .into_iter()
+                    .map(|(ts, mem, pressure)| {
+                        ((*ts as i64) - (first_start_ticks as i64), mem, pressure)
+                    })
+                    .collect();
+
                 SpanInfo {
                     id: graph_id,
                     name,
@@ -277,6 +323,7 @@ pub fn query_spans(store: &Arc<StoreContainer>, options: QueryOptions) -> QueryR
                     total_corrected_duration: Some(total_corrected),
                     avg_corrected_duration: Some(avg_corrected),
                     first_span_id: Some(first_index.to_string()),
+                    memory_samples,
                 }
             })
             .collect();
@@ -307,12 +354,22 @@ pub fn query_spans(store: &Arc<StoreContainer>, options: QueryOptions) -> QueryR
         };
 
         // Sort if requested.
-        if options.sort {
-            filtered.sort_by(|a, b| {
-                b.corrected_total_time()
-                    .cmp(&a.corrected_total_time())
-                    .then_with(|| b.total_time().cmp(&a.total_time()))
-            });
+        match options.sort {
+            SortMode::Value => {
+                filtered.sort_by(|a, b| {
+                    b.corrected_total_time()
+                        .cmp(&a.corrected_total_time())
+                        .then_with(|| b.total_time().cmp(&a.total_time()))
+                });
+            }
+            SortMode::Name => {
+                filtered.sort_by(|a, b| {
+                    let (a_cat, a_title) = a.nice_name();
+                    let (b_cat, b_title) = b.nice_name();
+                    a_title.cmp(b_title).then_with(|| a_cat.cmp(b_cat))
+                });
+            }
+            SortMode::ExecutionOrder => {}
         }
 
         let (page_items, page, total_pages, total_count) = paginate(filtered, options.page);
@@ -326,6 +383,15 @@ pub fn query_spans(store: &Arc<StoreContainer>, options: QueryOptions) -> QueryR
                 let span_end = *span.end();
                 let rel_start = (span_start as i64) - (parent_start as i64);
                 let rel_end = (span_end as i64) - (parent_start as i64);
+
+                let raw_span_start = span_start;
+                let memory_samples: Vec<(i64, u64, u8)> = store_ref
+                    .memory_samples_for_range_with_ts(span.start(), span.end())
+                    .into_iter()
+                    .map(|(ts, mem, pressure)| {
+                        ((*ts as i64) - (raw_span_start as i64), mem, pressure)
+                    })
+                    .collect();
 
                 SpanInfo {
                     id: build_span_id(options.parent.as_deref(), &span.index.to_string()),
@@ -345,6 +411,7 @@ pub fn query_spans(store: &Arc<StoreContainer>, options: QueryOptions) -> QueryR
                     total_corrected_duration: None,
                     avg_corrected_duration: None,
                     first_span_id: None,
+                    memory_samples,
                 }
             })
             .collect();

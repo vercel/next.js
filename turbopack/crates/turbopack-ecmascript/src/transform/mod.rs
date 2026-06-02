@@ -93,7 +93,7 @@ pub trait CustomTransformer: Debug {
 
 /// A wrapper around a TransformPlugin instance, allowing it to operate with
 /// the turbo_task caching requirements.
-#[turbo_tasks::value(transparent, serialization = "none", eq = "manual", cell = "new")]
+#[turbo_tasks::value(transparent, serialization = "skip", eq = "manual", cell = "new")]
 #[derive(Debug)]
 pub struct TransformPlugin(#[turbo_tasks(trace_ignore)] Box<dyn CustomTransformer + Send + Sync>);
 
@@ -134,6 +134,9 @@ pub struct TransformContext<'a> {
     pub query_str: RcStr,
     pub file_path: FileSystemPath,
     pub source: ResolvedVc<Box<dyn Source>>,
+    /// The value of `process.env.NODE_ENV` for this compilation
+    /// (e.g. `"development"` or `"production"`).
+    pub node_env: RcStr,
 }
 
 impl EcmascriptInputTransform {

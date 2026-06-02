@@ -156,7 +156,12 @@ impl Source for WebpackLoadersProcessedAsset {
     async fn ident(&self) -> Result<Vc<AssetIdent>> {
         Ok(
             if let Some(rename_as) = self.transform.await?.rename_as.as_deref() {
-                self.source.ident().rename_as(rename_as.into())
+                self.source
+                    .ident()
+                    .owned()
+                    .await?
+                    .rename_as(rename_as)
+                    .into_vc()
             } else {
                 self.source.ident()
             },
@@ -274,23 +279,28 @@ impl WebpackLoadersProcessedAsset {
             .to_resolved()
             .await?;
 
-            let module_graph = ModuleGraph::from_single_graph(SingleModuleGraph::new_with_entries(
-                entries.graph_entries().to_resolved().await?,
-                false,
-                false,
-            ))
+            let module_graph = ModuleGraph::from_graphs(
+                vec![SingleModuleGraph::new_with_entries(
+                    entries.graph_entries().to_resolved().await?,
+                    false,
+                    false,
+                )],
+                None,
+            )
             .connect()
             .to_resolved()
             .await?;
 
-            let resource_fs_path = self.source.ident().path().await?;
-            let Some(resource_path) = project_path.get_relative_path_to(&resource_fs_path) else {
+            let source_ident = self.source.ident().await?;
+            let resource_fs_path = &source_ident.path;
+            let Some(resource_path) = project_path.get_relative_path_to(resource_fs_path) else {
                 bail!(
                     "Resource path \"{}\" needs to be on project filesystem \"{}\"",
                     resource_fs_path,
                     project_path
                 );
             };
+            let loader_names: Vec<RcStr> = loaders.iter().map(|l| l.loader.clone()).collect();
             let config_value = evaluate_webpack_loader(WebpackLoaderContext {
                 entries,
                 cwd: project_path.clone(),
@@ -311,6 +321,7 @@ impl WebpackLoadersProcessedAsset {
                     ResolvedVc::cell(transform.source_maps.into()),
                 ],
                 additional_invalidation: Completion::immutable().to_resolved().await?,
+                loader_names,
             })
             .await?;
 
@@ -338,7 +349,7 @@ impl WebpackLoadersProcessedAsset {
                     .map(|source_map| Rope::from(source_map.into_owned()))
             };
             let source_map =
-                resolve_source_map_sources(source_map.as_ref(), &resource_fs_path).await?;
+                resolve_source_map_sources(source_map.as_ref(), resource_fs_path).await?;
 
             let file = match processed.source {
                 Either::Left(str) => File::from(str),
@@ -498,6 +509,34 @@ pub struct WebpackLoaderContext {
     pub asset_context: ResolvedVc<Box<dyn AssetContext>>,
     pub args: Vec<ResolvedVc<JsonValue>>,
     pub additional_invalidation: ResolvedVc<Completion>,
+    /// Names of the loaders being applied to the source, in pipeline order.
+    /// Used to enrich error messages and issue details so users know which
+    /// loader chain was running when an error occurred.
+    pub loader_names: Vec<RcStr>,
+}
+
+impl WebpackLoaderContext {
+    /// Format the loader chain as "loaders [a, b, c]" for inclusion in
+    /// error messages and issue detail text. Returns `None` if there are
+    /// no loaders, which should not normally happen but keeps the helper
+    /// well-defined.
+    fn loader_chain_description(&self) -> Option<RcStr> {
+        if self.loader_names.is_empty() {
+            None
+        } else {
+            Some(
+                format!(
+                    "loaders [{}]",
+                    self.loader_names
+                        .iter()
+                        .map(|n| n.as_str())
+                        .collect::<Vec<_>>()
+                        .join(", ")
+                )
+                .into(),
+            )
+        }
+    }
 }
 
 impl EvaluateContext for WebpackLoaderContext {
@@ -535,6 +574,10 @@ impl EvaluateContext for WebpackLoaderContext {
         true
     }
 
+    fn crash_context_prefix(&self) -> Option<RcStr> {
+        self.loader_chain_description()
+    }
+
     async fn emit_error(&self, error: StructuredError, pool: &EvaluatePool) -> Result<()> {
         EvaluationIssue {
             error,
@@ -542,6 +585,7 @@ impl EvaluateContext for WebpackLoaderContext {
             assets_for_source_mapping: pool.assets_for_source_mapping,
             assets_root: pool.assets_root.clone(),
             root_path: self.chunking_context.root_path().owned().await?,
+            detail: self.loader_chain_description(),
         }
         .resolved_cell()
         .emit();
@@ -652,11 +696,8 @@ impl EvaluateContext for WebpackLoaderContext {
                     options,
                 );
 
-                if let Some(source) = *resolved.first_source().await? {
-                    if let Some(path) = self
-                        .cwd
-                        .get_relative_path_to(&*source.ident().path().await?)
-                    {
+                if let Some(source) = resolved.await?.first_source() {
+                    if let Some(path) = self.cwd.get_relative_path_to(&source.ident().await?.path) {
                         Ok(ResponseMessage::Resolve { path })
                     } else {
                         bail!(
@@ -696,7 +737,7 @@ impl EvaluateContext for WebpackLoaderContext {
                 )
                 .await?;
 
-                let Some(module) = *resolved.first_module().await? else {
+                let Some(module) = resolved.await?.first_module().await? else {
                     bail!(
                         "importModule: unable to resolve {} in {}",
                         request,
@@ -715,7 +756,7 @@ impl EvaluateContext for WebpackLoaderContext {
                     false,
                     false,
                 );
-                let import_module_graph = ModuleGraph::from_single_graph(single_graph)
+                let import_module_graph = ModuleGraph::from_graphs(vec![single_graph], None)
                     .connect()
                     .to_resolved()
                     .await?;
@@ -941,7 +982,7 @@ impl Issue for BuildDependencyIssue {
     }
 
     async fn file_path(&self) -> Result<FileSystemPath> {
-        self.source.file_path().owned().await
+        self.source.file_path().await
     }
 
     async fn description(&self) -> Result<Option<StyledString>> {
@@ -976,7 +1017,7 @@ pub struct EvaluateEmittedErrorIssue {
 #[turbo_tasks::value_impl]
 impl Issue for EvaluateEmittedErrorIssue {
     async fn file_path(&self) -> Result<FileSystemPath> {
-        self.source.file_path().owned().await
+        self.source.file_path().await
     }
 
     fn stage(&self) -> IssueStage {
@@ -1025,7 +1066,7 @@ pub struct EvaluateErrorLoggingIssue {
 #[turbo_tasks::value_impl]
 impl Issue for EvaluateErrorLoggingIssue {
     async fn file_path(&self) -> Result<FileSystemPath> {
-        self.source.file_path().owned().await
+        self.source.file_path().await
     }
 
     fn stage(&self) -> IssueStage {

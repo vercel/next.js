@@ -135,16 +135,10 @@ impl RawVc {
         }
     }
 
-    pub(crate) fn into_read(self, is_serializable_cell_content: bool) -> ReadRawVcFuture {
+    pub(crate) fn into_read(self) -> ReadRawVcFuture {
         // returns a custom future to have something concrete and sized
         // this avoids boxing in IntoFuture
-        ReadRawVcFuture::new(self, Some(is_serializable_cell_content))
-    }
-
-    pub(crate) fn into_read_with_unknown_is_serializable_cell_content(self) -> ReadRawVcFuture {
-        // returns a custom future to have something concrete and sized
-        // this avoids boxing in IntoFuture
-        ReadRawVcFuture::new(self, None)
+        ReadRawVcFuture::new(self)
     }
 
     /// See [`crate::Vc::to_resolved`].
@@ -154,11 +148,33 @@ impl RawVc {
 
     /// Convert a potentially local `RawVc` into a non-local `RawVc`. This is a subset of resolution
     /// resolution, because the returned `RawVc` can be a `TaskOutput`.
-    pub(crate) async fn to_non_local(self) -> Result<RawVc> {
+    pub async fn to_non_local(self) -> Result<RawVc> {
         Ok(match self {
             RawVc::LocalOutput(execution_id, local_task_id, ..) => {
                 let tt = turbo_tasks();
                 let local_output = read_local_output(&*tt, execution_id, local_task_id).await?;
+                debug_assert!(
+                    !matches!(local_output, RawVc::LocalOutput(_, _, _)),
+                    "a LocalOutput cannot point at other LocalOutputs"
+                );
+                local_output
+            }
+            non_local => non_local,
+        })
+    }
+
+    /// Convert a potentially local `RawVc` into a non-local `RawVc`. This is a subset of resolution
+    /// resolution, because the returned `RawVc` can be a `TaskOutput`.
+    ///
+    /// 'unchecked' because the caller must have already confirmed that the local tasks were already
+    /// completed
+    pub(crate) fn to_non_local_unchecked_sync(self, tt: &dyn TurboTasksApi) -> Result<RawVc> {
+        Ok(match self {
+            RawVc::LocalOutput(execution_id, local_task_id, ..) => {
+                let local_output = match tt.try_read_local_output(execution_id, local_task_id)? {
+                    Ok(raw_vc) => raw_vc,
+                    Err(_event_listener) => unreachable!("local output is not ready yet"),
+                };
                 debug_assert!(
                     !matches!(local_output, RawVc::LocalOutput(_, _, _)),
                     "a LocalOutput cannot point at other LocalOutputs"
@@ -392,45 +408,60 @@ impl Unpin for ResolveRawVcFuture {}
 
 #[must_use]
 pub struct ReadRawVcFuture {
-    /// Phase 1: resolves the [`RawVc`] pointer chain to a [`RawVc::TaskCell`].
-    resolve: ResolveRawVcFuture,
-    /// Phase 2: options for the cell read once we have a [`RawVc::TaskCell`].
+    /// Options for the cell read once we have a [`RawVc::TaskCell`]. Persists across both phases
+    /// because it is configured by the builder before phase 1 starts.
     read_cell_options: ReadCellOptions,
-    /// If `true`, the `is_serializable_cell_content` flag in `read_cell_options` is unknown at
-    /// construction time and must be determined lazily from the type registry once we reach the
-    /// [`RawVc::TaskCell`].
-    is_serializable_cell_content_unknown: bool,
-    /// Phase 2: the resolved task and cell identity, set when phase 1 completes.
-    resolved: Option<(TaskId, CellId)>,
-    /// Phase 2: listener for the cell read wait.
-    listener: Option<EventListener>,
+    /// Whether phase 1 was a strongly-consistent read. Needed in phase 2 to re-apply
+    /// [`suppress_top_level_task_check`]. Stored here so we can drop the [`ResolveRawVcFuture`]
+    /// once phase 1 completes.
+    strongly_consistent: bool,
+    state: ReadRawVcState,
+}
+
+/// Phase 1 and phase 2 of [`ReadRawVcFuture`] use disjoint sets of fields. Storing them in an
+/// enum keeps the future smaller than holding both sets simultaneously.
+enum ReadRawVcState {
+    /// Phase 1: resolves the [`RawVc`] pointer chain to a [`RawVc::TaskCell`].
+    Resolving(ResolveRawVcFuture),
+    /// Phase 2: the resolved task/cell identity plus a listener for the cell read wait.
+    Reading {
+        task: TaskId,
+        index: CellId,
+        listener: Option<EventListener>,
+    },
 }
 
 impl ReadRawVcFuture {
-    pub(crate) fn new(vc: RawVc, is_serializable_cell_content: Option<bool>) -> Self {
+    pub(crate) fn new(vc: RawVc) -> Self {
         ReadRawVcFuture {
-            resolve: ResolveRawVcFuture::new(vc),
-            read_cell_options: ReadCellOptions {
-                is_serializable_cell_content: is_serializable_cell_content.unwrap_or(false),
-                ..Default::default()
-            },
-            is_serializable_cell_content_unknown: is_serializable_cell_content.is_none(),
-            resolved: None,
-            listener: None,
+            read_cell_options: ReadCellOptions::default(),
+            strongly_consistent: false,
+            state: ReadRawVcState::Resolving(ResolveRawVcFuture::new(vc)),
         }
+    }
+
+    fn map_resolve(mut self, f: impl FnOnce(ResolveRawVcFuture) -> ResolveRawVcFuture) -> Self {
+        match self.state {
+            ReadRawVcState::Resolving(resolve) => {
+                self.state = ReadRawVcState::Resolving(f(resolve));
+            }
+            ReadRawVcState::Reading { .. } => {
+                unreachable!("builder methods are only called before polling");
+            }
+        }
+        self
     }
 
     /// Make reads strongly consistent.
     pub fn strongly_consistent(mut self) -> Self {
-        self.resolve = self.resolve.strongly_consistent();
-        self
+        self.strongly_consistent = true;
+        self.map_resolve(|r| r.strongly_consistent())
     }
 
     /// Track the value as a dependency with an key.
     pub fn track_with_key(mut self, key: u64) -> Self {
-        self.resolve = self.resolve.track_with_key();
         self.read_cell_options.tracking = ReadCellTracking::Tracked { key: Some(key) };
-        self
+        self.map_resolve(|r| r.track_with_key())
     }
 
     /// This will not track the value as dependency, but will still track the error as dependency,
@@ -439,9 +470,8 @@ impl ReadRawVcFuture {
     /// INVALIDATION: Be careful with this, it will not track dependencies, so
     /// using it could break cache invalidation.
     pub fn untracked(mut self) -> Self {
-        self.resolve = self.resolve.untracked();
         self.read_cell_options.tracking = ReadCellTracking::TrackOnlyError;
-        self
+        self.map_resolve(|r| r.untracked())
     }
 
     /// Hint that this is the final read of the cell content.
@@ -463,38 +493,42 @@ impl Future for ReadRawVcFuture {
         //
         // `ResolveRawVcFuture` is `Unpin`, so `Pin::new` is safe.
         // It handles `with_turbo_tasks` and `suppress_top_level_task_check` internally.
-        if this.resolved.is_none() {
-            match ready!(Pin::new(&mut this.resolve).poll(cx)) {
+        if let ReadRawVcState::Resolving(resolve) = &mut this.state {
+            match ready!(Pin::new(resolve).poll(cx)) {
                 Err(err) => return Poll::Ready(Err(err)),
                 Ok(RawVc::TaskCell(task, index)) => {
-                    this.resolved = Some((task, index));
+                    this.state = ReadRawVcState::Reading {
+                        task,
+                        index,
+                        listener: None,
+                    };
                 }
                 Ok(_) => unreachable!("ResolveRawVcFuture always resolves to a TaskCell"),
             }
         }
 
         // --- Phase 2: read the cell content ---
-        //
-        // At this point `this.resolved` is `Some((task, index))`.
-        let (task, index) = this.resolved.unwrap();
-
-        // Lazily resolve `is_serializable_cell_content` from the type registry on the first
-        // entry into phase 2, then clear the flag so subsequent polls skip this lookup.
-        if this.is_serializable_cell_content_unknown {
-            this.read_cell_options.is_serializable_cell_content =
-                get_value_type(index.type_id).bincode.is_some();
-            this.is_serializable_cell_content_unknown = false;
-        }
+        let ReadRawVcState::Reading {
+            task,
+            index,
+            listener,
+        } = &mut this.state
+        else {
+            unreachable!("phase 1 transitioned to Reading above");
+        };
+        let task = *task;
+        let index = *index;
+        let read_cell_options = this.read_cell_options;
 
         let poll_fn = |tt: &Arc<dyn TurboTasksApi>| -> Poll<Self::Output> {
             loop {
-                ready!(poll_listener(&mut this.listener, cx));
-                let listener = match tt.try_read_task_cell(task, index, this.read_cell_options) {
+                ready!(poll_listener(listener, cx));
+                let new_listener = match tt.try_read_task_cell(task, index, read_cell_options) {
                     Ok(Ok(content)) => return Poll::Ready(Ok(content)),
-                    Ok(Err(listener)) => listener,
+                    Ok(Err(l)) => l,
                     Err(err) => return Poll::Ready(Err(err)),
                 };
-                this.listener = Some(listener);
+                *listener = Some(new_listener);
             }
         };
 
@@ -502,9 +536,7 @@ impl Future for ReadRawVcFuture {
         // strongly-consistent. The suppression from `ResolveRawVcFuture::poll` only lasts for
         // the duration of that individual `poll` call and does not carry over to subsequent calls
         // or to this phase.
-        suppress_top_level_task_check(this.resolve.strongly_consistent, || {
-            with_turbo_tasks(poll_fn)
-        })
+        suppress_top_level_task_check(this.strongly_consistent, || with_turbo_tasks(poll_fn))
     }
 }
 

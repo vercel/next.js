@@ -15,6 +15,7 @@ import {
   NEXT_REQUEST_ID_HEADER,
 } from '../../app-router-headers'
 import { UnrecognizedActionError } from '../../unrecognized-action-error'
+import { fetch } from '../../segment-cache/fetch'
 
 // TODO: Explicitly import from client.browser
 // eslint-disable-next-line import/no-extraneous-dependencies
@@ -484,6 +485,7 @@ export function serverActionReducer(
           discoverKnownRoute(
             now,
             redirectUrl.pathname,
+            redirectUrl.search as NormalizedSearch,
             nextUrl,
             null, // No pending entry
             redirectSeed.routeTree,

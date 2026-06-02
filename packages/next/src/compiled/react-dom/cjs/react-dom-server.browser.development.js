@@ -627,6 +627,7 @@
             case "async":
             case "autoPlay":
             case "controls":
+            case "credentialless":
             case "default":
             case "defer":
             case "disabled":
@@ -688,6 +689,7 @@
               case "async":
               case "autoPlay":
               case "controls":
+              case "credentialless":
               case "default":
               case "defer":
               case "disabled":
@@ -1559,6 +1561,7 @@
         case "async":
         case "autoPlay":
         case "controls":
+        case "credentialless":
         case "default":
         case "defer":
         case "disabled":
@@ -4014,7 +4017,12 @@
         case "fulfilled":
           return thenable.value;
         case "rejected":
-          throw thenable.reason;
+          thenableState = thenable.reason;
+          if (void 0 === thenableState && !("reason" in thenable))
+            throw Error(
+              "A rejected Promise was passed to React without a `reason` property. React threw a generic error from where the Promise was used to assist in identifying the problematic Promise. Make sure that instrumented Promises correctly set the `reason` property when setting `status` to `'rejected'`."
+            );
+          throw thenableState;
         default:
           "string" === typeof thenable.status
             ? thenable.then(noop, noop)
@@ -4090,10 +4098,13 @@
             lastThenable.status = "fulfilled";
           };
         case "rejected":
-          var previousThenableReason = lastThenable.reason;
+          var previousThenableReason = lastThenable.reason,
+            _previousThenableThen = lastThenable.then.bind(lastThenable);
           delete lastThenable.reason;
           delete lastThenable.status;
+          lastThenable.then = noop;
           return function () {
+            lastThenable.then = _previousThenableThen;
             lastThenable.reason = previousThenableReason;
             lastThenable.status = "rejected";
           };
@@ -4474,7 +4485,30 @@
                   } catch (x$0) {
                     control = x$0;
                   }
-                  fn.call(Fake.prototype);
+                  Fake = !1;
+                  try {
+                    var prevProps = Object.getOwnPropertyDescriptor(
+                      fn.prototype,
+                      "props"
+                    );
+                    Object.defineProperty(fn.prototype, "props", {
+                      configurable: !0,
+                      set: function () {
+                        throw Error();
+                      }
+                    });
+                    Fake = !0;
+                    new fn();
+                  } finally {
+                    Fake &&
+                      (void 0 !== prevProps
+                        ? Object.defineProperty(
+                            fn.prototype,
+                            "props",
+                            prevProps
+                          )
+                        : delete fn.prototype.props);
+                  }
                 }
               } else {
                 try {
@@ -7906,14 +7940,13 @@
               null !== row &&
                 hoistHoistables(row.hoistables, boundary.contentState),
               isEligibleForOutlining(request, boundary) ||
-                (boundary.fallbackAbortableTasks.forEach(
-                  abortTaskSoft,
-                  request
-                ),
+                (request.allPendingTasks++,
+                boundary.fallbackAbortableTasks.forEach(abortTaskSoft, request),
                 boundary.fallbackAbortableTasks.clear(),
                 null !== row &&
                   0 === --row.pendingTasks &&
-                  finishSuspenseListRow(request, row)),
+                  finishSuspenseListRow(request, row),
+                request.allPendingTasks--),
               0 === request.pendingRootTasks &&
                 null === request.trackedPostpones &&
                 null !== boundary.preamble &&
@@ -7940,8 +7973,10 @@
                     finishedTask(request, postponedBoundary, null, null);
                   }
               }
+              request.allPendingTasks++;
               0 === --boundary.pendingTasks &&
                 finishSuspenseListRow(request, boundary);
+              request.allPendingTasks--;
             }
           }
         else
@@ -8184,8 +8219,10 @@
                     untrackBoundary(request, boundary$jscomp$0);
                     var boundaryRow = boundary$jscomp$0.row;
                     null !== boundaryRow &&
+                      (request.allPendingTasks++,
                       0 === --boundaryRow.pendingTasks &&
-                      finishSuspenseListRow(request, boundaryRow);
+                        finishSuspenseListRow(request, boundaryRow),
+                      request.allPendingTasks--);
                     boundary$jscomp$0.parentFlushed &&
                       request.clientRenderedBoundaries.push(boundary$jscomp$0);
                     0 === request.pendingRootTasks &&
@@ -9105,11 +9142,11 @@
     }
     function ensureCorrectIsomorphicReactVersion() {
       var isomorphicReactPackageVersion = React.version;
-      if ("19.3.0-canary-fef12a01-20260413" !== isomorphicReactPackageVersion)
+      if ("19.3.0-canary-c0cd4d5d-20260527" !== isomorphicReactPackageVersion)
         throw Error(
           'Incompatible React versions: The "react" and "react-dom" packages must have the exact same version. Instead got:\n  - react:      ' +
             (isomorphicReactPackageVersion +
-              "\n  - react-dom:  19.3.0-canary-fef12a01-20260413\nLearn more: https://react.dev/warnings/version-mismatch")
+              "\n  - react-dom:  19.3.0-canary-c0cd4d5d-20260527\nLearn more: https://react.dev/warnings/version-mismatch")
         );
     }
     var React = require("next/dist/compiled/react"),
@@ -9356,6 +9393,7 @@
         controls: "controls",
         controlslist: "controlsList",
         coords: "coords",
+        credentialless: "credentialless",
         crossorigin: "crossOrigin",
         dangerouslysetinnerhtml: "dangerouslySetInnerHTML",
         data: "data",
@@ -10918,5 +10956,5 @@
         startWork(request);
       });
     };
-    exports.version = "19.3.0-canary-fef12a01-20260413";
+    exports.version = "19.3.0-canary-c0cd4d5d-20260527";
   })();

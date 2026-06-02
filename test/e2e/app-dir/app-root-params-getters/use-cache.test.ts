@@ -285,3 +285,35 @@ describe('app-root-param-getters - cache - at build', () => {
     })
   }
 })
+
+describe('app-root-param-getters - cache dedup with root params', () => {
+  const { next, skipped } = nextTestSetup({
+    files: join(__dirname, 'fixtures', 'use-cache-dedup'),
+    // In deploy mode, concurrent requests could hit different lambdas.
+    skipDeployment: true,
+  })
+
+  if (skipped) return
+
+  it('should dedupe same root params and isolate different root params', async () => {
+    // Three concurrent requests: ca/en, ca/fr, ca/fr.
+    const [$en, $fr1, $fr2] = await Promise.all([
+      next.render$('/ca/en'),
+      next.render$('/ca/fr'),
+      next.render$('/ca/fr'),
+    ])
+
+    const randomEn = $en('#random').text()
+    const randomFr1 = $fr1('#random').text()
+    const randomFr2 = $fr2('#random').text()
+
+    expect(randomEn).toBeTruthy()
+    expect(randomFr1).toBeTruthy()
+
+    // ca/en and ca/fr should have different results (isolation).
+    expect(randomEn).not.toBe(randomFr1)
+
+    // Both ca/fr requests should have the same result (deduped).
+    expect(randomFr1).toBe(randomFr2)
+  })
+})

@@ -219,7 +219,7 @@ async fn track_glob_internal(
                             types.push(path.get_type())
                         }
                     }
-                    // The most likely case of this is actually a sylink resolution error, it is
+                    // The most likely case of this is actually a symlink resolution error, it is
                     // fine to ignore since the mere act of attempting to resolve it has triggered
                     // the ncecessary dependencies.  If this file is actually a dependency we should
                     // get an error in the actual webpack loader when it reads it.
@@ -278,7 +278,7 @@ pub mod tests {
         }
     }
 
-    #[turbo_tasks::function(operation)]
+    #[turbo_tasks::function(operation, root)]
     async fn assert_read_glob_basic_operation(path: RcStr) -> anyhow::Result<()> {
         let fs = DiskFileSystem::new(rcstr!("temp"), Vc::cell(path));
         let root = fs.root().await?;
@@ -321,7 +321,7 @@ pub mod tests {
         Ok(())
     }
 
-    #[turbo_tasks::function(operation)]
+    #[turbo_tasks::function(operation, root)]
     async fn assert_read_glob_symlinks_operation(path: RcStr) -> anyhow::Result<()> {
         let fs = DiskFileSystem::new(rcstr!("temp"), Vc::cell(path));
         let root = fs.root().await?;
@@ -372,7 +372,7 @@ pub mod tests {
         Ok(())
     }
 
-    #[turbo_tasks::function(operation)]
+    #[turbo_tasks::function(operation, root)]
     async fn assert_dead_symlink_read_glob_operation(path: RcStr) -> anyhow::Result<()> {
         let fs =
             Vc::upcast::<Box<dyn FileSystem>>(DiskFileSystem::new(rcstr!("temp"), Vc::cell(path)));
@@ -475,13 +475,13 @@ pub mod tests {
         .unwrap();
     }
 
-    #[turbo_tasks::function(operation)]
+    #[turbo_tasks::function(operation, root)]
     pub async fn delete(path: FileSystemPath) -> anyhow::Result<()> {
         path.write(FileContent::NotFound.cell()).await?;
         Ok(())
     }
 
-    #[turbo_tasks::function(operation)]
+    #[turbo_tasks::function(operation, root)]
     pub async fn write(path: FileSystemPath, contents: RcStr) -> anyhow::Result<()> {
         path.write(
             FileContent::Content(crate::File::from_bytes(contents.to_string().into_bytes())).cell(),
@@ -490,25 +490,25 @@ pub mod tests {
         Ok(())
     }
 
-    #[turbo_tasks::function(operation)]
+    #[turbo_tasks::function(operation, root)]
     pub fn track_star_star_glob(path: FileSystemPath) -> Vc<Completion> {
         path.track_glob(Glob::new(rcstr!("**"), GlobOptions::default()), false)
     }
 
-    #[turbo_tasks::function(operation)]
+    #[turbo_tasks::function(operation, root)]
     fn disk_file_system_root_operation(path: RcStr) -> Vc<FileSystemPath> {
         let fs =
             Vc::upcast::<Box<dyn FileSystem>>(DiskFileSystem::new(rcstr!("temp"), Vc::cell(path)));
         fs.root()
     }
 
-    #[turbo_tasks::function(operation)]
+    #[turbo_tasks::function(operation, root)]
     async fn extract_effects_operation(op: OperationVc<()>) -> anyhow::Result<Vc<Effects>> {
         let _ = op.resolve().strongly_consistent().await?;
         Ok(take_effects(op).await?.cell())
     }
 
-    #[turbo_tasks::function(operation)]
+    #[turbo_tasks::function(operation, root)]
     async fn track_glob_operation(path: RcStr, glob: RcStr) -> anyhow::Result<()> {
         let root = disk_file_system_root_operation(path)
             .read_strongly_consistent()
@@ -518,7 +518,7 @@ pub mod tests {
         Ok(())
     }
 
-    #[turbo_tasks::function(operation)]
+    #[turbo_tasks::function(operation, root)]
     async fn read_glob_operation(path: RcStr, glob: RcStr) -> anyhow::Result<()> {
         let root = disk_file_system_root_operation(path)
             .read_strongly_consistent()

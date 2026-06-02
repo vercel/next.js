@@ -5,8 +5,8 @@ const nextConfig: NextConfig = {
   productionBrowserSourceMaps: true,
   experimental: {
     cachedNavigations: true,
+    prefetchInlining: false,
     exposeTestingApiInProductionBuild: true,
-    instantNavigationDevToolsToggle: true,
     optimisticRouting: true,
     useOffline: true,
     varyParams: true,

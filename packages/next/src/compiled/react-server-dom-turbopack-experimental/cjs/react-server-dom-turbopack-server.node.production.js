@@ -585,7 +585,12 @@ function trackUsedThenable(thenableState, thenable, index) {
     case "fulfilled":
       return thenable.value;
     case "rejected":
-      throw thenable.reason;
+      thenableState = thenable.reason;
+      if (void 0 === thenableState && !("reason" in thenable))
+        throw Error(
+          "A rejected Promise was passed to React without a `reason` property. React threw a generic error from where the Promise was used to assist in identifying the problematic Promise. Make sure that instrumented Promises correctly set the `reason` property when setting `status` to `'rejected'`."
+        );
+      throw thenableState;
     default:
       "string" === typeof thenable.status
         ? thenable.then(noop, noop)
@@ -2345,6 +2350,14 @@ function requireModule(metadata) {
   if (hasOwnProperty.call(moduleExports, metadata[2]))
     return moduleExports[metadata[2]];
 }
+function appendBackingEntry(backingStore, key, value) {
+  backingStore.data.append(key, value);
+  value = backingStore.keys;
+  null === value
+    ? ((backingStore.keys = Array.from(backingStore.data.keys())),
+      (backingStore.keyPointer = 0))
+    : value.push(key);
+}
 var RESPONSE_SYMBOL = Symbol();
 function ReactPromise(status, value, reason) {
   this.status = status;
@@ -2719,7 +2732,7 @@ function getChunk(response, id) {
   var chunks = response._chunks,
     chunk = chunks.get(id);
   chunk ||
-    ((chunk = response._formData.get(response._prefix + id)),
+    ((chunk = response._formData.data.get(response._prefix + id)),
     (chunk =
       "string" === typeof chunk
         ? createResolvedModelChunk(response, chunk, id)
@@ -2820,6 +2833,10 @@ function getOutlinedModel(
     case "fulfilled":
       id = chunk.value;
       chunk = chunk.reason;
+      if (null !== chunk && "error" in chunk)
+        throw Error(
+          "Expected an initialized chunk but got an initialized stream chunk instead. This payload may have been submitted by an older version of React."
+        );
       for (
         var localLength = 0,
           rootArrayContexts = response._rootArrayContexts,
@@ -2953,7 +2970,7 @@ function parseTypedArray(
       Error("Already initialized typed array.")
     )
   );
-  reference = response._formData.get(key).arrayBuffer();
+  reference = response._formData.data.get(key).arrayBuffer();
   if (initializingHandler) {
     var handler = initializingHandler;
     handler.deps++;
@@ -2997,7 +3014,7 @@ function resolveStream(response, id, stream, controller) {
   var chunks = response._chunks;
   stream = new ReactPromise("fulfilled", stream, controller);
   chunks.set(id, stream);
-  response = response._formData.getAll(response._prefix + id);
+  response = response._formData.data.getAll(response._prefix + id);
   for (id = 0; id < response.length; id++)
     (chunks = response[id]),
       "string" === typeof chunks &&
@@ -3212,24 +3229,31 @@ function parseModelString(response, obj, key, value, reference, arrayRoot) {
           getOutlinedModel(response, arrayRoot, obj, key, null, createSet)
         );
       case "K":
-        obj = value.slice(2);
-        obj = response._prefix + obj + "_";
-        key = new FormData();
-        response = response._formData;
-        arrayRoot = Array.from(response.keys());
-        for (value = 0; value < arrayRoot.length; value++)
-          if (((reference = arrayRoot[value]), reference.startsWith(obj))) {
+        key = value.slice(2);
+        obj = response._prefix + "_";
+        key = obj + key + "_";
+        arrayRoot = new FormData();
+        for (response = response._formData; ; ) {
+          value = response.keys;
+          null === value &&
+            ((value = response.keys = Array.from(response.data.keys())),
+            (response.keyPointer = 0));
+          value = value[response.keyPointer];
+          if (void 0 === value) break;
+          if (value.startsWith(key)) {
+            reference = response.data.getAll(value);
             for (
-              var entries = response.getAll(reference),
-                newKey = reference.slice(obj.length),
-                j = 0;
-              j < entries.length;
-              j++
+              var referencedFormDataKey = value.slice(key.length), i = 0;
+              i < reference.length;
+              i++
             )
-              key.append(newKey, entries[j]);
-            response.delete(reference);
-          }
-        return key;
+              arrayRoot.append(referencedFormDataKey, reference[i]);
+            response.data.delete(value);
+            response.keyPointer++;
+          } else if (value.startsWith(obj)) break;
+          else response.keyPointer++;
+        }
+        return arrayRoot;
       case "i":
         return (
           (arrayRoot = value.slice(2)),
@@ -3387,7 +3411,7 @@ function parseModelString(response, obj, key, value, reference, arrayRoot) {
         );
       case "B":
         obj = parseInt(value.slice(2), 16);
-        response = response._formData.get(response._prefix + obj);
+        response = response._formData.data.get(response._prefix + obj);
         if (!(response instanceof Blob))
           throw Error("Referenced Blob is not a Blob.");
         return response;
@@ -3417,7 +3441,7 @@ function createResponse(bundlerConfig, formFieldPrefix, temporaryReferences) {
   return {
     _bundlerConfig: bundlerConfig,
     _prefix: formFieldPrefix,
-    _formData: backingFormData,
+    _formData: { data: backingFormData, keyPointer: -1, keys: null },
     _chunks: chunks,
     _closed: !1,
     _closedReason: null,
@@ -3427,7 +3451,7 @@ function createResponse(bundlerConfig, formFieldPrefix, temporaryReferences) {
   };
 }
 function resolveField(response, key, value) {
-  response._formData.append(key, value);
+  appendBackingEntry(response._formData, key, value);
   var prefix = response._prefix;
   if (key.startsWith(prefix)) {
     var chunks = response._chunks;
@@ -3605,7 +3629,7 @@ exports.decodeReplyFromAsyncIterable = function (
       _entry$value = _entry$value[1];
       "string" === typeof _entry$value
         ? resolveField(response, entry, _entry$value)
-        : response._formData.append(entry, _entry$value);
+        : appendBackingEntry(response._formData, entry, _entry$value);
       iterator.next().then(progress, error);
     }
   }
@@ -3626,6 +3650,43 @@ exports.decodeReplyFromAsyncIterable = function (
   return getChunk(response, 0);
 };
 exports.decodeReplyFromBusboy = function (busboyStream, turbopackMap, options) {
+  function flush() {
+    for (; null !== head; ) {
+      var current = head;
+      if (!current.complete) return;
+      try {
+        var key = current.name,
+          handle = current.file,
+          blob = new Blob(handle.chunks, { type: handle.mime }),
+          backingStore = response._formData,
+          key$jscomp$0 = key;
+        backingStore.data.append(key$jscomp$0, blob, handle.filename);
+        var keys = backingStore.keys;
+        null === keys
+          ? ((backingStore.keys = Array.from(backingStore.data.keys())),
+            (backingStore.keyPointer = 0))
+          : keys.push(key$jscomp$0);
+        var queuedFields = current.queuedFields;
+        if (null !== queuedFields)
+          for (
+            key$jscomp$0 = 0;
+            key$jscomp$0 < queuedFields.length;
+            key$jscomp$0 += 2
+          )
+            resolveField(
+              response,
+              queuedFields[key$jscomp$0],
+              queuedFields[key$jscomp$0 + 1]
+            );
+      } catch (error) {
+        busboyStream.destroy(error);
+        return;
+      }
+      head = current.next;
+    }
+    tail = null;
+    bodyFinished && !closed && ((closed = !0), close(response));
+  }
   var response = createResponse(
       turbopackMap,
       "",
@@ -3633,10 +3694,14 @@ exports.decodeReplyFromBusboy = function (busboyStream, turbopackMap, options) {
       void 0,
       options ? options.arraySizeLimit : void 0
     ),
-    pendingFiles = 0,
-    queuedFields = [];
+    head = null,
+    tail = null,
+    bodyFinished = !1,
+    closed = !1;
   busboyStream.on("field", function (name, value) {
-    if (0 < pendingFiles) queuedFields.push(name, value);
+    if (null !== tail)
+      null === tail.queuedFields && (tail.queuedFields = []),
+        tail.queuedFields.push(name, value);
     else
       try {
         resolveField(response, name, value);
@@ -3654,35 +3719,40 @@ exports.decodeReplyFromBusboy = function (busboyStream, turbopackMap, options) {
         )
       );
     else {
-      pendingFiles++;
-      var JSCompiler_object_inline_chunks_290 = [];
+      var file = { chunks: [], filename: filename, mime: mimeType },
+        pendingFile = {
+          name: name,
+          file: file,
+          complete: !1,
+          queuedFields: null,
+          next: null
+        };
+      null === tail ? (head = pendingFile) : (tail.next = pendingFile);
+      tail = pendingFile;
       value.on("data", function (chunk) {
-        JSCompiler_object_inline_chunks_290.push(chunk);
-      });
-      value.on("end", function () {
         try {
-          var blob = new Blob(JSCompiler_object_inline_chunks_290, {
-            type: mimeType
-          });
-          response._formData.append(name, blob, filename);
-          pendingFiles--;
-          if (0 === pendingFiles) {
-            for (blob = 0; blob < queuedFields.length; blob += 2)
-              resolveField(
-                response,
-                queuedFields[blob],
-                queuedFields[blob + 1]
-              );
-            queuedFields.length = 0;
-          }
+          file.chunks.push(chunk);
         } catch (error) {
           busboyStream.destroy(error);
         }
       });
+      value.on("error", function (error) {
+        busboyStream.destroy(error);
+      });
+      value.on("end", function () {
+        pendingFile.complete = !0;
+        flush();
+      });
     }
   });
   busboyStream.on("finish", function () {
-    close(response);
+    bodyFinished = !0;
+    flush();
+    closed ||
+      reportGlobalError(
+        response,
+        Error("Reply finished with incomplete file part.")
+      );
   });
   busboyStream.on("error", function (err) {
     reportGlobalError(response, err);

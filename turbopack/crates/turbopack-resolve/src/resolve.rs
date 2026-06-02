@@ -88,6 +88,9 @@ async fn base_resolve_options(
         if opt.module {
             conditions.insert(rcstr!("module"), ConditionValue::Set);
         }
+        if opt.module_sync != ConditionValue::Unset {
+            conditions.insert(rcstr!("module-sync"), opt.module_sync);
+        }
         if let Some(environment) = emulating {
             for condition in environment.resolve_conditions().await?.iter() {
                 conditions.insert(condition.clone(), ConditionValue::Set);

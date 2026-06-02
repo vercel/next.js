@@ -24,8 +24,8 @@ indoc = { workspace = true }
 itertools = { workspace = true }
 lightningcss = { workspace = true }
 mime_guess = "2.0.4"
-once_cell = { workspace = true }
 percent-encoding = "2.3.1"
+phf = { workspace = true }
 qstring = { workspace = true }
 react_remove_properties = { workspace = true }
 regex = { workspace = true }
@@ -87,6 +87,11 @@ turbopack-resolve = { workspace = true }
 turbopack-static = { workspace = true }
 turbopack-trace-utils = { workspace = true }
 
+[dev-dependencies]
+tempfile = { workspace = true }
+tokio = { workspace = true, features = ["full"] }
+turbo-tasks-backend = { workspace = true }
+
 [features]
 default = ["process_pool"]
 process_pool = ["turbopack-node/process_pool"]
@@ -100,8 +105,3 @@ dynamic_embed_contents = [
   "turbo-tasks-fs/dynamic_embed_contents",
   "turbopack-browser/dynamic_embed_contents",
 ]
-
-[dev-dependencies]
-tempfile = { workspace = true }
-tokio = { workspace = true, features = ["full"] }
-turbo-tasks-backend = { workspace = true }

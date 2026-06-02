@@ -9,7 +9,6 @@ const { StreamableHTTPServerTransport } =
   require('next/dist/compiled/@modelcontextprotocol/sdk/server/streamableHttp') as typeof import('next/dist/compiled/@modelcontextprotocol/sdk/server/streamableHttp')
 
 const DEFAULT_WS_PORT = 5747
-const DEFAULT_MCP_PORT = 5748 // Keep in sync with query-trace.ts
 
 /** 100 internal ticks = 1 µs */
 const TICKS_PER_US = 100
@@ -33,6 +32,34 @@ function formatRelative(ticks: number): string {
   // ticks may be negative if the child starts before the parent reference point
   const prefix = ticks < 0 ? '-' : ''
   return prefix + formatDuration(Math.abs(ticks))
+}
+
+function formatBytes(bytes: number): string {
+  const KB = 1024
+  const MB = KB * 1024
+  const GB = MB * 1024
+  if (bytes >= GB) return `${(bytes / GB).toFixed(2)} GB`
+  if (bytes >= MB) return `${(bytes / MB).toFixed(2)} MB`
+  if (bytes >= KB) return `${(bytes / KB).toFixed(2)} KB`
+  return `${bytes} B`
+}
+
+function summarizeMemorySamples(samples: number[][]): string | null {
+  if (!samples || samples.length === 0) return null
+  const bytes = samples.map((s) => s[1])
+  const pressures = samples.map((s) => s[2] ?? 0)
+  const min = Math.min(...bytes)
+  const max = Math.max(...bytes)
+  const first = bytes[0]
+  const last = bytes[bytes.length - 1]
+  const delta = last - first
+  const deltaSign = delta >= 0 ? '+' : '-'
+  const maxPressure = Math.max(...pressures)
+  return (
+    `samples=${samples.length}, min=${formatBytes(min)}, max=${formatBytes(max)}, ` +
+    `start=${formatBytes(first)}, end=${formatBytes(last)}, ` +
+    `Δ=${deltaSign}${formatBytes(Math.abs(delta))}, maxPressure=${maxPressure}`
+  )
 }
 
 /**
@@ -75,6 +102,11 @@ function renderSpanMarkdown(span: TraceSpanInfo): string {
     }
   }
 
+  const memSummary = summarizeMemorySamples(span.memorySamples)
+  if (memSummary) {
+    md += `\n**Memory (TurboMalloc live bytes):** ${memSummary}\n`
+  }
+
   md += '\n---\n\n'
   return md
 }
@@ -85,7 +117,7 @@ export async function startTurboTraceServerCli(
   mcpPort: number | undefined
 ) {
   const wsPort = port ?? DEFAULT_WS_PORT
-  const httpPort = mcpPort ?? DEFAULT_MCP_PORT
+  const httpPort = mcpPort ?? wsPort + 1
 
   let bindings
   try {
@@ -122,7 +154,7 @@ export async function startTurboTraceServerCli(
     'query_spans',
     {
       description:
-        'Query spans from a turbopack trace file. Returns spans with timing, CPU usage, and attribute details. Set `outputType` to "json" for machine-readable output or "markdown" (default) for human-readable output. Use the `parent` parameter (with an ID from a previous result) to drill into children. Results are paginated to 20 spans per page.',
+        'Query spans from a turbopack trace file. Returns spans with timing, CPU usage, attribute details, and TurboMalloc live-memory samples recorded while each span was active. Set `outputType` to "json" for machine-readable output (including the raw `memorySamples` array of `[ts_offset_ticks, bytes, pressure]` triples per span — pressure is 0 = none, higher = more memory pressure) or "markdown" (default) for a human-readable summary. Use the `parent` parameter (with an ID from a previous result) to drill into children. Results are paginated to 20 spans per page.',
       inputSchema: {
         parent: z
           .string()
@@ -137,10 +169,10 @@ export async function startTurboTraceServerCli(
             'When true (default), aggregate spans with the same name into a single entry. Set to false to see individual raw spans.'
           ),
         sort: z
-          .boolean()
+          .enum(['value', 'name'])
           .optional()
           .describe(
-            'When true, sort results by corrected duration descending. Default false.'
+            'Sort mode: "value" for corrected duration descending, "name" for alphabetical. Omit for execution order.'
           ),
         search: z
           .string()
@@ -161,7 +193,7 @@ export async function startTurboTraceServerCli(
       const result = bindings.turbo.queryTraceSpans(handle, {
         parent: args.parent,
         aggregated: args.aggregated ?? true,
-        sort: args.sort ?? false,
+        sort: args.sort,
         search: args.search,
         page: args.page ?? 1,
       })
@@ -256,7 +288,7 @@ export async function startTurboTraceServerCli(
 
   server.listen(httpPort, '127.0.0.1', () => {
     console.log(
-      `Query this trace from the command line: next internal query-trace --help`
+      `Query this trace from the command line: next internal query-trace --help --port ${httpPort}`
     )
     console.log(
       `Alternatively, connect an MCP client to http://127.0.0.1:${httpPort}/mcp`

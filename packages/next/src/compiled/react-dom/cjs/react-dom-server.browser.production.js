@@ -1018,6 +1018,7 @@ function pushAttribute(target, name, value) {
     case "async":
     case "autoPlay":
     case "controls":
+    case "credentialless":
     case "default":
     case "defer":
     case "disabled":
@@ -3523,7 +3524,10 @@ function trackUsedThenable(thenableState, thenable, index) {
     case "fulfilled":
       return thenable.value;
     case "rejected":
-      throw thenable.reason;
+      thenableState = thenable.reason;
+      if (void 0 === thenableState && !("reason" in thenable))
+        throw Error(formatProdErrorMessage(600));
+      throw thenableState;
     default:
       "string" === typeof thenable.status
         ? thenable.then(noop, noop)
@@ -3917,7 +3921,26 @@ function describeNativeComponentFrame(fn, construct) {
               } catch (x$24) {
                 control = x$24;
               }
-              fn.call(Fake.prototype);
+              Fake = !1;
+              try {
+                var prevProps = Object.getOwnPropertyDescriptor(
+                  fn.prototype,
+                  "props"
+                );
+                Object.defineProperty(fn.prototype, "props", {
+                  configurable: !0,
+                  set: function () {
+                    throw Error();
+                  }
+                });
+                Fake = !0;
+                new fn();
+              } finally {
+                Fake &&
+                  (void 0 !== prevProps
+                    ? Object.defineProperty(fn.prototype, "props", prevProps)
+                    : delete fn.prototype.props);
+              }
             }
           } else {
             try {
@@ -6421,11 +6444,13 @@ function finishedTask(request, boundary, row, segment) {
           null !== row &&
             hoistHoistables(row.hoistables, boundary.contentState),
           isEligibleForOutlining(request, boundary) ||
-            (boundary.fallbackAbortableTasks.forEach(abortTaskSoft, request),
+            (request.allPendingTasks++,
+            boundary.fallbackAbortableTasks.forEach(abortTaskSoft, request),
             boundary.fallbackAbortableTasks.clear(),
             null !== row &&
               0 === --row.pendingTasks &&
-              finishSuspenseListRow(request, row)),
+              finishSuspenseListRow(request, row),
+            request.allPendingTasks--),
           0 === request.pendingRootTasks &&
             null === request.trackedPostpones &&
             null !== boundary.preamble &&
@@ -6452,8 +6477,10 @@ function finishedTask(request, boundary, row, segment) {
                 finishedTask(request, postponedBoundary, null, null);
               }
           }
+          request.allPendingTasks++;
           0 === --boundary.pendingTasks &&
             finishSuspenseListRow(request, boundary);
+          request.allPendingTasks--;
         }
       }
     else
@@ -6637,8 +6664,10 @@ function performWork(request$jscomp$1) {
                 untrackBoundary(request, boundary$jscomp$0);
                 var boundaryRow = boundary$jscomp$0.row;
                 null !== boundaryRow &&
+                  (request.allPendingTasks++,
                   0 === --boundaryRow.pendingTasks &&
-                  finishSuspenseListRow(request, boundaryRow);
+                    finishSuspenseListRow(request, boundaryRow),
+                  request.allPendingTasks--);
                 boundary$jscomp$0.parentFlushed &&
                   request.clientRenderedBoundaries.push(boundary$jscomp$0);
                 0 === request.pendingRootTasks &&
@@ -7371,12 +7400,12 @@ function getPostponedState(request) {
 }
 function ensureCorrectIsomorphicReactVersion() {
   var isomorphicReactPackageVersion = React.version;
-  if ("19.3.0-canary-fef12a01-20260413" !== isomorphicReactPackageVersion)
+  if ("19.3.0-canary-c0cd4d5d-20260527" !== isomorphicReactPackageVersion)
     throw Error(
       formatProdErrorMessage(
         527,
         isomorphicReactPackageVersion,
-        "19.3.0-canary-fef12a01-20260413"
+        "19.3.0-canary-c0cd4d5d-20260527"
       )
     );
 }
@@ -7627,4 +7656,4 @@ exports.resumeAndPrerender = function (children, postponedState, options) {
     startWork(request);
   });
 };
-exports.version = "19.3.0-canary-fef12a01-20260413";
+exports.version = "19.3.0-canary-c0cd4d5d-20260527";

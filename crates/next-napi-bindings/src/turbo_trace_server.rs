@@ -2,7 +2,8 @@ use std::{path::PathBuf, sync::Arc};
 
 use napi_derive::napi;
 use turbopack_trace_server::{
-    QueryOptions, query_spans, start_turbopack_trace_server, store_container::StoreContainer,
+    QueryOptions, SortMode, query_spans, start_turbopack_trace_server,
+    store_container::StoreContainer,
 };
 
 /// An opaque handle to a running trace server instance.
@@ -21,8 +22,9 @@ pub struct TraceQueryOptions {
     pub parent: Option<String>,
     /// When `true` (default), aggregate child spans with the same name.
     pub aggregated: Option<bool>,
-    /// When `true`, sort results by corrected duration descending. Default `false`.
-    pub sort: Option<bool>,
+    /// Sort mode: `"value"` for duration descending, `"name"` for alphabetical.
+    /// Omit for execution order (no sorting).
+    pub sort: Option<String>,
     /// Optional substring search query applied to span name/category.
     pub search: Option<String>,
     /// 1-based page number. Default `1`.
@@ -60,6 +62,14 @@ pub struct TraceSpanInfo {
     pub avg_corrected_duration: Option<i64>,
     /// Raw span ID for aggregated groups (the index of the first span).
     pub first_span_id: Option<String>,
+    /// TurboMalloc memory-usage samples recorded while this span
+    /// (or its example span, for aggregated groups) was live.
+    ///
+    /// Each entry is `[ts_offset_from_span_start_in_ticks, bytes, pressure]`,
+    /// where `pressure` is the memory-pressure byte (0 = no pressure, higher
+    /// = more pressure). `100 ticks = 1 µs`. The offset is always `>= 0` and
+    /// `<= span_duration`. Capped and downsampled by the store.
+    pub memory_samples: Vec<Vec<i64>>,
 }
 
 /// The result of a `query_trace_spans` call.
@@ -94,7 +104,11 @@ pub fn query_trace_spans(
         QueryOptions {
             parent: options.parent,
             aggregated: options.aggregated.unwrap_or(true),
-            sort: options.sort.unwrap_or(false),
+            sort: match options.sort.as_deref() {
+                Some("value") => SortMode::Value,
+                Some("name") => SortMode::Name,
+                _ => SortMode::ExecutionOrder,
+            },
             search: options.search,
             page: options.page.unwrap_or(1) as usize,
         },
@@ -119,6 +133,11 @@ pub fn query_trace_spans(
                 total_corrected_duration: s.total_corrected_duration.map(|v| v as i64),
                 avg_corrected_duration: s.avg_corrected_duration.map(|v| v as i64),
                 first_span_id: s.first_span_id,
+                memory_samples: s
+                    .memory_samples
+                    .into_iter()
+                    .map(|(ts, mem, pressure)| vec![ts, mem as i64, pressure as i64])
+                    .collect(),
             })
             .collect(),
         page: result.page as u32,

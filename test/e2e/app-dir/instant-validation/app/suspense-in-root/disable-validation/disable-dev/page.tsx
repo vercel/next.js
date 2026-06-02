@@ -1,7 +1,7 @@
 import { connection } from 'next/server'
 
 export const unstable_instant = {
-  prefetch: 'static',
+  level: 'experimental-error',
   unstable_disableDevValidation: true,
 }
 
