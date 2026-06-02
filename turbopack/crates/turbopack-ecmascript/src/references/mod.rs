@@ -2112,7 +2112,7 @@ where
                 let origin_ref = origin.into_trait_ref().await?;
                 let origin = ResolvedVc::upcast(
                     PlainResolveOrigin::new(
-                        origin_ref.asset_context()?,
+                        *origin_ref.asset_context()?,
                         origin_ref
                             .origin_path()
                             .parent()
@@ -3120,7 +3120,7 @@ async fn handle_free_var_reference(
                         if let Some(lookup_path) = lookup_path {
                             ResolvedVc::upcast(
                                 PlainResolveOrigin::new(
-                                    state.origin.into_trait_ref().await?.asset_context()?,
+                                    *state.origin.into_trait_ref().await?.asset_context()?,
                                     lookup_path.clone(),
                                 )
                                 .to_resolved()

@@ -117,7 +117,7 @@ impl ModuleReference for WorkerAssetReference {
     #[turbo_tasks::function]
     async fn resolve_reference(&self) -> Result<Vc<ModuleResolveResult>> {
         let origin = self.origin.into_trait_ref().await?;
-        let asset_context = origin.asset_context()?.to_resolved().await?;
+        let asset_context = origin.asset_context()?;
 
         let result = match (&self.worker_type, &self.request) {
             (WorkerType::WebWorker | WorkerType::SharedWebWorker, WorkerRequest::Url(request)) => {

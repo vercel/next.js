@@ -5,40 +5,22 @@ message: Returning a `ResolvedVc` in a turbo task is not recommended. Consider r
 severity: warning # error, warning, info, hint
 language: Rust
 rule:
-  any:
-    # turbo tasks function
-    - all:
-        - pattern:
-            context: 'let x: ResolvedVc<$A> = 1;'
-            selector: generic_type
-        - pattern: $TYPE
-      inside:
-        kind: function_item
-        field: return_type
-        stopBy: end
-        follows:
-          pattern: '#[turbo_tasks::function]'
-        has:
-          kind: identifier
-          pattern: $FN_NAME
-      # turbo tasks value trait
-    - all:
-        - pattern:
-            context: 'let x: ResolvedVc<$A> = 1;'
-            selector: generic_type
-        - pattern: $TYPE
-      inside:
-        kind: function_signature_item
-        field: return_type
-        stopBy: end
-        inside:
-          inside:
-            kind: trait_item
-            follows:
-              pattern: '#[turbo_tasks::value_trait]'
-        has:
-          kind: identifier
-          pattern: $FN_NAME
+  # turbo tasks function
+  - all:
+      - pattern:
+          context: 'let x: ResolvedVc<$A> = 1;'
+          selector: generic_type
+      - pattern: $TYPE
+    inside:
+      kind: function_item
+      field: return_type
+      stopBy: end
+      follows:
+        pattern: '#[turbo_tasks::function]'
+      has:
+        kind: identifier
+        pattern: $FN_NAME
+
 rewriters:
   - id: rewrite-vc
     rule:

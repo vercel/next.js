@@ -960,8 +960,8 @@ impl ResolveOrigin for EcmascriptModuleAsset {
         self.origin_path.clone()
     }
 
-    fn asset_context(&self) -> Result<Vc<Box<dyn AssetContext>>> {
-        Ok(*self.asset_context)
+    fn asset_context(&self) -> Result<ResolvedVc<Box<dyn AssetContext>>> {
+        Ok(self.asset_context)
     }
 }
 

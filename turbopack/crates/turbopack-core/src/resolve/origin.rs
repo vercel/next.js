@@ -20,7 +20,7 @@ pub trait ResolveOrigin {
 
     /// The AssetContext that carries the configuration for building that
     /// subgraph.
-    fn asset_context(&self) -> Result<Vc<Box<dyn AssetContext>>>;
+    fn asset_context(&self) -> Result<ResolvedVc<Box<dyn AssetContext>>>;
 
     /// Get the resolve options that apply for this origin.
     fn resolve_options(&self) -> Result<Vc<ResolveOptions>> {
@@ -61,7 +61,7 @@ where
         let origin = Vc::upcast_non_strict::<Box<dyn ResolveOrigin>>(self)
             .into_trait_ref()
             .await?;
-        Ok(origin.asset_context()?.to_resolved().await?.resolve_asset(
+        Ok(origin.asset_context()?.resolve_asset(
             origin.origin_path(),
             *request.to_resolved().await?,
             *options.to_resolved().await?,
@@ -118,8 +118,8 @@ impl ResolveOrigin for PlainResolveOrigin {
         self.origin_path.clone()
     }
 
-    fn asset_context(&self) -> Result<Vc<Box<dyn AssetContext>>> {
-        Ok(*self.asset_context)
+    fn asset_context(&self) -> Result<ResolvedVc<Box<dyn AssetContext>>> {
+        Ok(self.asset_context)
     }
 }
 
@@ -140,7 +140,7 @@ impl ResolveOrigin for ResolveOriginWithTransition {
         self.origin_path.clone()
     }
 
-    fn asset_context(&self) -> Result<Vc<Box<dyn AssetContext>>> {
-        Ok(*self.asset_context)
+    fn asset_context(&self) -> Result<ResolvedVc<Box<dyn AssetContext>>> {
+        Ok(self.asset_context)
     }
 }

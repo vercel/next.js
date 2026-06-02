@@ -66,7 +66,7 @@ impl ResolveOrigin for DummyResolveOrigin {
         self.origin_path.clone()
     }
 
-    fn asset_context(&self) -> Result<Vc<Box<dyn AssetContext>>> {
+    fn asset_context(&self) -> Result<ResolvedVc<Box<dyn AssetContext>>> {
         anyhow::bail!("DummyResolveOrigin has no asset context");
     }
 }
