@@ -342,36 +342,50 @@ fn is_cjs_export_member(member: &MemberExpr, unresolved_mark: Mark) -> bool {
     }
 }
 
-/// Runs `predicate` against every assignment reachable from a top-level
-/// expression statement, returning true on the first match.
+/// Calls `f` for every assignment reachable from a top-level expression
+/// statement.
 ///
 /// Only top-level assignments matter: one inside a function body does not run
-/// during module evaluation.
-fn any_top_level_assign(program: &Program, predicate: impl Fn(&AssignExpr) -> bool) -> bool {
-    fn in_expr<F: Fn(&AssignExpr) -> bool>(expr: &Expr, predicate: &F) -> bool {
+/// during module evaluation. Comma-sequence expressions and assignment chains
+/// are traversed so an assignment hidden in `(a = …, b = …)` or `a = b = …` is
+/// still seen.
+fn for_each_top_level_assign(program: &Program, mut f: impl FnMut(&AssignExpr)) {
+    fn in_expr(expr: &Expr, f: &mut impl FnMut(&AssignExpr)) {
         match expr {
-            Expr::Paren(paren) => in_expr(&paren.expr, predicate),
-            Expr::Seq(seq) => seq.exprs.iter().any(|e| in_expr(e, predicate)),
-            Expr::Assign(assign) => predicate(assign) || in_expr(&assign.right, predicate),
-            _ => false,
+            Expr::Paren(paren) => in_expr(&paren.expr, f),
+            Expr::Seq(seq) => {
+                for e in &seq.exprs {
+                    in_expr(e, f);
+                }
+            }
+            Expr::Assign(assign) => {
+                f(assign);
+                // Also descend the RHS to catch chains like `a = b = …`.
+                in_expr(&assign.right, f);
+            }
+            _ => {}
         }
     }
 
-    fn in_stmt<F: Fn(&AssignExpr) -> bool>(stmt: &Stmt, predicate: &F) -> bool {
-        let Stmt::Expr(expr_stmt) = stmt else {
-            return false;
-        };
-        in_expr(&expr_stmt.expr, predicate)
+    fn in_stmt(stmt: &Stmt, f: &mut impl FnMut(&AssignExpr)) {
+        if let Stmt::Expr(expr_stmt) = stmt {
+            in_expr(&expr_stmt.expr, f);
+        }
     }
 
     match program {
-        Program::Module(module) => module.body.iter().any(|item| {
-            let ModuleItem::Stmt(stmt) = item else {
-                return false;
-            };
-            in_stmt(stmt, &predicate)
-        }),
-        Program::Script(script) => script.body.iter().any(|stmt| in_stmt(stmt, &predicate)),
+        Program::Module(module) => {
+            for item in &module.body {
+                if let ModuleItem::Stmt(stmt) = item {
+                    in_stmt(stmt, &mut f);
+                }
+            }
+        }
+        Program::Script(script) => {
+            for stmt in &script.body {
+                in_stmt(stmt, &mut f);
+            }
+        }
     }
 }
 
@@ -381,15 +395,17 @@ fn any_top_level_assign(program: &Program, predicate: impl Fn(&AssignExpr) -> bo
 /// `module.exports = other`) would make later changes to properties on
 /// `module.exports` have side effects.
 fn module_exports_is_tainted(program: &Program, unresolved_mark: Mark) -> bool {
-    any_top_level_assign(program, |assign| {
-        if assign.op != AssignOp::Assign {
-            return false;
+    let mut tainted = false;
+    for_each_top_level_assign(program, |assign| {
+        if assign.op == AssignOp::Assign
+            && let AssignTarget::Simple(SimpleAssignTarget::Member(member)) = &assign.left
+            && is_module_dot_exports(member, unresolved_mark)
+            && !is_object_or_array_literal(&assign.right)
+        {
+            tainted = true;
         }
-        let AssignTarget::Simple(SimpleAssignTarget::Member(member)) = &assign.left else {
-            return false;
-        };
-        is_module_dot_exports(member, unresolved_mark) && !is_object_or_array_literal(&assign.right)
-    })
+    });
+    tainted
 }
 
 /// Whether any value assigned to the module's CommonJS exports carries a getter
@@ -400,15 +416,17 @@ fn module_exports_is_tainted(program: &Program, unresolved_mark: Mark) -> bool {
 /// invoke a `set foo` — so once one is present, writes to the exports can no
 /// longer be treated as plain data assignments.
 fn module_exports_has_accessor(program: &Program, unresolved_mark: Mark) -> bool {
-    any_top_level_assign(program, |assign| {
-        if assign.op != AssignOp::Assign {
-            return false;
+    let mut found = false;
+    for_each_top_level_assign(program, |assign| {
+        if assign.op == AssignOp::Assign
+            && let AssignTarget::Simple(SimpleAssignTarget::Member(member)) = &assign.left
+            && is_cjs_export_member(member, unresolved_mark)
+            && contains_getters_or_setters(&assign.right)
+        {
+            found = true;
         }
-        let AssignTarget::Simple(SimpleAssignTarget::Member(member)) = &assign.left else {
-            return false;
-        };
-        is_cjs_export_member(member, unresolved_mark) && contains_getters_or_setters(&assign.right)
-    })
+    });
+    found
 }
 
 /// Analyzes a program to determine if it contains side effects at the top level.
