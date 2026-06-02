@@ -69,7 +69,7 @@
     "check-unused-turbo-tasks": "node scripts/check-unused-turbo-tasks.mjs",
     "lint": "run-p test-types lint-typescript prettier-check \"lint-eslint .\" lint-ast-grep lint-language check-unused-turbo-tasks",
     "lint-fix": "pnpm prettier-fix && pnpm lint-eslint --fix .",
-    "lint-language": "alex .",
+    "lint-language": "alex . --quiet",
     "prettier-check": "prettier --check .",
     "check-examples": "./scripts/check-examples.sh",
     "get-test-timings": "node run-tests.js --timings --write-timings -g 1/1",

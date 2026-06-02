@@ -921,15 +921,14 @@ async function generateStagedDynamicFlightRenderResultWeb(
   const selectStaleTime = createSelectStaleTime(experimental)
   const staleTimeIterable = new StaleTimeIterable()
 
-  // TODO(cached-navs): this assumes that we checked during build that there's no sync IO.
-  // but it can happen e.g. after a revalidation or conditionally for a param that wasn't prerendered.
-  // we should change this to track sync IO, log an error and advance to dynamic.
-  const shouldTrackSyncIO = false
-  const stageController = new StagedRenderingController(
-    null, // no aborting
-    null, // no abandoning
-    shouldTrackSyncIO
-  )
+  const stageController = new StagedRenderingController({
+    abortSignal: null,
+    abandonController: null,
+    // TODO(cached-navs): this assumes that we checked during build that there's no sync IO.
+    // but it can happen e.g. after a revalidation or conditionally for a param that wasn't prerendered.
+    // we should change this to track sync IO, log an error and advance to dynamic.
+    shouldTrackSyncIO: false,
+  })
 
   // Initialize stale time tracking on the request store.
   requestStore.stale = INFINITE_CACHE
@@ -1080,15 +1079,14 @@ async function generateStagedDynamicFlightRenderResultNode(
   const selectStaleTime = createSelectStaleTime(experimental)
   const staleTimeIterable = new StaleTimeIterable()
 
-  // TODO(cached-navs): this assumes that we checked during build that there's no sync IO.
-  // but it can happen e.g. after a revalidation or conditionally for a param that wasn't prerendered.
-  // we should change this to track sync IO, log an error and advance to dynamic.
-  const shouldTrackSyncIO = false
-  const stageController = new StagedRenderingController(
-    null, // no aborting
-    null, // no abandoning
-    shouldTrackSyncIO
-  )
+  const stageController = new StagedRenderingController({
+    abortSignal: null,
+    abandonController: null,
+    // TODO(cached-navs): this assumes that we checked during build that there's no sync IO.
+    // but it can happen e.g. after a revalidation or conditionally for a param that wasn't prerendered.
+    // we should change this to track sync IO, log an error and advance to dynamic.
+    shouldTrackSyncIO: false,
+  })
 
   // Initialize stale time tracking on the request store.
   requestStore.stale = INFINITE_CACHE
@@ -1271,11 +1269,11 @@ async function stagedRenderWithoutCachesInDevWeb(
 
   // We aren't filling caches so we don't need to abort this render, it'll
   // stream in a single pass
-  const stageController = new StagedRenderingController(
-    null, // no aborting
-    null, // no abandoning
-    false // do not track sync IO (we don't have reliable stages)
-  )
+  const stageController = new StagedRenderingController({
+    abortSignal: null,
+    abandonController: null,
+    shouldTrackSyncIO: false, // do not track sync IO (we don't have reliable stages)
+  })
 
   const environmentName = () => {
     const currentStage = stageController.currentStage
@@ -1341,11 +1339,11 @@ async function stagedRenderWithoutCachesInDevNode(
 
   // We aren't filling caches so we don't need to abort this render, it'll
   // stream in a single pass
-  const stageController = new StagedRenderingController(
-    null, // no aborting
-    null, // no abandoning
-    false // do not track sync IO (we don't have reliable stages)
-  )
+  const stageController = new StagedRenderingController({
+    abortSignal: null,
+    abandonController: null,
+    shouldTrackSyncIO: false, // do not track sync IO (we don't have reliable stages)
+  })
 
   const environmentName = () => {
     const currentStage = stageController.currentStage
@@ -1874,11 +1872,11 @@ async function finalRuntimeServerPrerender(
     isDebugDynamicAccesses
   )
 
-  const finalStageController = new StagedRenderingController(
-    finalServerController.signal,
-    null, // no abandoning
-    true // track sync IO
-  )
+  const finalStageController = new StagedRenderingController({
+    abortSignal: finalServerController.signal,
+    abandonController: null,
+    shouldTrackSyncIO: true,
+  })
 
   const varyParamsAccumulator = createResponseVaryParamsAccumulator()
 
@@ -3687,15 +3685,14 @@ async function renderToStream(
           const selectStaleTime = createSelectStaleTime(experimental)
           const staleTimeIterable = new StaleTimeIterable()
 
-          // TODO(cached-navs): this assumes that we checked during build that there's no sync IO.
-          // but it can happen e.g. after a revalidation or conditionally for a param that wasn't prerendered.
-          // we should change this to track sync IO, log an error and advance to dynamic.
-          const shouldTrackSyncIO = false
-          const stageController = new StagedRenderingController(
-            null, // no aborting
-            null, // no abandoning
-            shouldTrackSyncIO
-          )
+          const stageController = new StagedRenderingController({
+            abortSignal: null,
+            abandonController: null,
+            // TODO(cached-navs): this assumes that we checked during build that there's no sync IO.
+            // but it can happen e.g. after a revalidation or conditionally for a param that wasn't prerendered.
+            // we should change this to track sync IO, log an error and advance to dynamic.
+            shouldTrackSyncIO: false,
+          })
 
           requestStore.stale = INFINITE_CACHE
           requestStore.stagedRendering = stageController
@@ -3819,15 +3816,14 @@ async function renderToStream(
           const selectStaleTime = createSelectStaleTime(experimental)
           const staleTimeIterable = new StaleTimeIterable()
 
-          // TODO(cached-navs): this assumes that we checked during build that there's no sync IO.
-          // but it can happen e.g. after a revalidation or conditionally for a param that wasn't prerendered.
-          // we should change this to track sync IO, log an error and advance to dynamic.
-          const shouldTrackSyncIO = false
-          const stageController = new StagedRenderingController(
-            null, // no aborting
-            null, // no abandoning
-            shouldTrackSyncIO
-          )
+          const stageController = new StagedRenderingController({
+            abortSignal: null,
+            abandonController: null,
+            // TODO(cached-navs): this assumes that we checked during build that there's no sync IO.
+            // but it can happen e.g. after a revalidation or conditionally for a param that wasn't prerendered.
+            // we should change this to track sync IO, log an error and advance to dynamic.
+            shouldTrackSyncIO: false,
+          })
 
           requestStore.stale = INFINITE_CACHE
           requestStore.stagedRendering = stageController
@@ -4640,11 +4636,11 @@ async function renderWithRestartOnCacheMissInDevWeb(
   const initialReactController = new AbortController()
   const initialDataController = new AbortController() // Controls hanging promises we create
   const initialAbandonController = new AbortController() // Controls whether this render is abandoned
-  const initialStageController = new StagedRenderingController(
-    initialDataController.signal,
-    initialAbandonController,
-    true // track sync IO
-  )
+  const initialStageController = new StagedRenderingController({
+    abortSignal: initialDataController.signal,
+    abandonController: initialAbandonController,
+    shouldTrackSyncIO: true,
+  })
 
   // Use a mutable resume data cache for the warmup. After the warmup we'll swap
   // it out for a read-only resume data cache.
@@ -4800,14 +4796,13 @@ async function renderWithRestartOnCacheMissInDevWeb(
   // The initial render acted as a prospective render to warm the caches.
   requestStore = createRequestStore()
 
-  // We are going to render this pass all the way through because we've already
-  // filled any caches so we won't be aborting this time.
-  const abortSignal = null
-  const finalStageController = new StagedRenderingController(
-    abortSignal,
-    null, // no abandoning
-    true // track sync IO
-  )
+  const finalStageController = new StagedRenderingController({
+    // We are going to render this pass all the way through because we've already
+    // filled any caches so we won't be aborting this time.
+    abortSignal: null,
+    abandonController: null,
+    shouldTrackSyncIO: true,
+  })
 
   // We've filled the caches, so now we can render as usual,
   // without any cache-filling mechanics.
@@ -4953,11 +4948,11 @@ async function renderWithRestartOnCacheMissInDevNode(
   const initialReactController = new AbortController()
   const initialDataController = new AbortController() // Controls hanging promises we create
   const initialAbandonController = new AbortController() // Controls whether this render is abandoned
-  const initialStageController = new StagedRenderingController(
-    initialDataController.signal,
-    initialAbandonController,
-    true // track sync IO
-  )
+  const initialStageController = new StagedRenderingController({
+    abortSignal: initialDataController.signal,
+    abandonController: initialAbandonController,
+    shouldTrackSyncIO: true,
+  })
 
   // Use a mutable resume data cache for the warmup. After the warmup we'll swap
   // it out for a read-only resume data cache.
@@ -5108,14 +5103,13 @@ async function renderWithRestartOnCacheMissInDevNode(
   // The initial render acted as a prospective render to warm the caches.
   requestStore = createRequestStore()
 
-  // We are going to render this pass all the way through because we've already
-  // filled any caches so we won't be aborting this time.
-  const abortSignal = null
-  const finalStageController = new StagedRenderingController(
-    abortSignal,
-    null, // no abandoning
-    true // track sync IO
-  )
+  const finalStageController = new StagedRenderingController({
+    // We are going to render this pass all the way through because we've already
+    // filled any caches so we won't be aborting this time.
+    abortSignal: null,
+    abandonController: null,
+    shouldTrackSyncIO: true,
+  })
 
   // We've filled the caches, so now we can render as usual,
   // without any cache-filling mechanics.
@@ -6476,11 +6470,11 @@ async function renderWithRestartOnCacheMissInValidation(
   const initialDataController = new AbortController()
 
   const initialAbandonController = new AbortController()
-  const initialStageController = new StagedRenderingController(
-    initialDataController.signal,
-    initialAbandonController,
-    true // track sync IO
-  )
+  const initialStageController = new StagedRenderingController({
+    abortSignal: initialDataController.signal,
+    abandonController: initialAbandonController,
+    shouldTrackSyncIO: true,
+  })
 
   requestStore.resumeDataCache = prerenderResumeDataCache
   requestStore.stagedRendering = initialStageController
@@ -6586,11 +6580,11 @@ async function renderWithRestartOnCacheMissInValidation(
 
   const finalReactController = new AbortController()
   const finalDataController = new AbortController()
-  const finalStageController = new StagedRenderingController(
-    finalDataController.signal, // abortable
-    null, // no abandoning
-    true // track sync IO
-  )
+  const finalStageController = new StagedRenderingController({
+    abortSignal: finalDataController.signal,
+    abandonController: null,
+    shouldTrackSyncIO: true,
+  })
 
   requestStore.resumeDataCache = createRenderResumeDataCache(
     prerenderResumeDataCache
