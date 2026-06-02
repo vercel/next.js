@@ -8,42 +8,163 @@ export interface DebugChannelReadableWriterPair {
 
 const pairs = new Map<string, DebugChannelReadableWriterPair>()
 
-const DEBUG_CHANNEL_STORAGE_KEY_PREFIX = '__next_debug_channel:'
+const DB_NAME = '__next_debug_channel'
+const STORE_NAME = 'channels'
+const CREATED_AT_INDEX = 'createdAt'
+const MAX_ENTRIES = 10
 
-// Buffer for the initial document's debug channel data. Written to
-// sessionStorage once complete so it can be restored when the browser serves
-// the page from HTTP cache (back-forward navigation, tab duplication, etc.).
-let initialDocumentDebugChunks: Uint8Array[] = []
+interface DebugChannelEntry {
+  readonly requestId: string
+  readonly createdAt: number
+  readonly chunks: Uint8Array[]
+}
 
-function persistDebugChannelToSessionStorage(requestId: string): void {
-  const key = DEBUG_CHANNEL_STORAGE_KEY_PREFIX + requestId
-  const value = JSON.stringify(
-    initialDocumentDebugChunks.map((chunk) => {
-      let binary = ''
-      for (let i = 0; i < chunk.byteLength; i++) {
-        binary += String.fromCharCode(chunk[i])
-      }
-      return btoa(binary)
-    })
-  )
+function openDebugChannelDB(): Promise<IDBDatabase> {
+  return new Promise((resolve, reject) => {
+    const openRequest = indexedDB.open(DB_NAME, 1)
+    openRequest.onupgradeneeded = () => {
+      const store = openRequest.result.createObjectStore(STORE_NAME, {
+        keyPath: 'requestId',
+      })
+      store.createIndex(CREATED_AT_INDEX, 'createdAt')
+    }
+    openRequest.onsuccess = () => resolve(openRequest.result)
+    openRequest.onerror = () => reject(openRequest.error)
+    openRequest.onblocked = () => reject(openRequest.error)
+  })
+}
+
+/**
+ * Resolves on the next idle period via `requestIdleCallback`, falling back to a
+ * `setTimeout` where `requestIdleCallback` is unavailable.
+ */
+function whenIdle(): Promise<void> {
+  return new Promise((resolve) => {
+    if (typeof requestIdleCallback === 'function') {
+      requestIdleCallback(() => resolve())
+    } else {
+      setTimeout(resolve, 0)
+    }
+  })
+}
+
+async function persistDebugChannelToIndexedDB(
+  requestId: string,
+  chunks: Uint8Array[]
+): Promise<void> {
+  let db: IDBDatabase
+  try {
+    db = await openDebugChannelDB()
+  } catch (error) {
+    console.debug('Failed to open debug channel IndexedDB for write', error)
+    return
+  }
 
   try {
-    sessionStorage.setItem(key, value)
-  } catch {
-    // Likely a quota error. Drop entries from previous documents in this tab
-    // (we only need to restore the current one's entry on cache restore) and
-    // retry once. If it still fails, skip silently — the location.reload()
-    // fallback in createDebugChannel handles this case.
-    for (let i = sessionStorage.length - 1; i >= 0; i--) {
-      const k = sessionStorage.key(i)
-      if (k?.startsWith(DEBUG_CHANNEL_STORAGE_KEY_PREFIX) && k !== key) {
-        sessionStorage.removeItem(k)
+    await new Promise<void>((resolve, reject) => {
+      const transaction = db.transaction(STORE_NAME, 'readwrite')
+      const store = transaction.objectStore(STORE_NAME)
+
+      store.put({
+        requestId,
+        createdAt: Date.now(),
+        chunks,
+      } satisfies DebugChannelEntry)
+
+      // Prune oldest entries beyond the cap to bound storage growth across tabs
+      // and/or page loads. The createdAt index gives ordered traversal without
+      // scanning, and the cursor deletes commit atomically with the put above.
+      const countReq = store.count()
+      countReq.onsuccess = () => {
+        let entriesToDelete = countReq.result - MAX_ENTRIES
+        if (entriesToDelete <= 0) {
+          return
+        }
+        const cursorReq = store.index(CREATED_AT_INDEX).openCursor()
+        cursorReq.onsuccess = () => {
+          const cursor = cursorReq.result
+          if (!cursor || entriesToDelete === 0) {
+            return
+          }
+          cursor.delete()
+          entriesToDelete--
+          cursor.continue()
+        }
       }
-    }
-    try {
-      sessionStorage.setItem(key, value)
-    } catch {}
+
+      transaction.oncomplete = () => {
+        if (process.env.__NEXT_TEST_MODE) {
+          // Test-only flag, set once this document's debug channel entry is
+          // durably committed. Persistence is deferred to an idle callback and
+          // the IndexedDB write is async, so this flag lets e2e tests await
+          // persistence deterministically — coupling only to "an entry was
+          // persisted" and not to how or where it is stored. It resets
+          // naturally on each navigation since every document gets a fresh
+          // window. The local cast keeps the augmentation out of the shipped
+          // declaration files.
+          ;(
+            self as { __NEXT_DEBUG_CHANNEL_PERSISTED?: boolean }
+          ).__NEXT_DEBUG_CHANNEL_PERSISTED = true
+        }
+        resolve()
+      }
+      transaction.onerror = () => reject(transaction.error)
+      transaction.onabort = () => reject(transaction.error)
+    })
+  } catch (error) {
+    // Best-effort: if persistence fails (quota, transaction abort, etc.), an
+    // HTTP cache restore will fall back to location.reload() since no entry
+    // will be found.
+    console.debug('Failed to write debug channel entry to IndexedDB', error)
+  } finally {
+    db.close()
   }
+}
+function restoreDebugChannelFromIndexedDB(
+  requestId: string
+): ReadableStream<Uint8Array> {
+  return new ReadableStream<Uint8Array>({
+    async start(controller) {
+      let entry: DebugChannelEntry | undefined
+
+      try {
+        const db = await openDebugChannelDB()
+        try {
+          entry = await new Promise((resolve, reject) => {
+            const tx = db.transaction(STORE_NAME, 'readonly')
+            const store = tx.objectStore(STORE_NAME)
+            const getReq: IDBRequest<DebugChannelEntry | undefined> =
+              store.get(requestId)
+            getReq.onsuccess = () => resolve(getReq.result)
+            getReq.onerror = () => reject(getReq.error)
+          })
+        } finally {
+          db.close()
+        }
+      } catch (error) {
+        // Treat any IDB failure as "no entry" and fall through to reload.
+        console.debug(
+          'Failed to read debug channel entry from IndexedDB',
+          error
+        )
+      }
+
+      if (!entry) {
+        // Debug channel can't be restored — missing debug chunks would block
+        // hydration. Force a fresh page load from the server. Leave the stream
+        // parked (no enqueue, no close) so the Flight client stays put until
+        // the reload tears the document down, instead of synchronously erroring
+        // with "Connection closed.".
+        location.reload()
+        return
+      }
+
+      for (const chunk of entry.chunks) {
+        controller.enqueue(chunk)
+      }
+      controller.close()
+    },
+  })
 }
 
 const enum ExecTimeCacheDecision {
@@ -183,54 +304,22 @@ function getNavigationEntry(): NavigationEntry | undefined {
   }
 }
 
-function restoreDebugChannelFromSessionStorage(
-  requestId: string
-): ReadableStream<Uint8Array> | undefined {
-  try {
-    const serializedData = sessionStorage.getItem(
-      DEBUG_CHANNEL_STORAGE_KEY_PREFIX + requestId
-    )
-
-    if (!serializedData) {
-      return undefined
-    }
-
-    const chunks = (JSON.parse(serializedData) as string[]).map((base64) => {
-      const binary = atob(base64)
-      const bytes = new Uint8Array(binary.length)
-      for (let i = 0; i < binary.length; i++) {
-        bytes[i] = binary.charCodeAt(i)
-      }
-      return bytes
-    })
-
-    return new ReadableStream<Uint8Array>({
-      start(controller) {
-        for (const chunk of chunks) {
-          controller.enqueue(chunk)
-        }
-        controller.close()
-      },
-    })
-  } catch {
-    return undefined
-  }
-}
-
 export function getOrCreateDebugChannelReadableWriterPair(
   requestId: string
 ): DebugChannelReadableWriterPair {
   let pair = pairs.get(requestId)
 
   if (!pair) {
-    // Only buffer chunks for the initial document's debug channel, not for
-    // client-side navigation requests.
-    const shouldBuffer = requestId === self.__next_r
+    // Buffer chunks only for the initial document's debug channel, not for
+    // client-side navigation requests. Persisted to IndexedDB once complete so
+    // it can be restored when the browser serves the page from HTTP cache
+    // (back-forward navigation, tab duplication, etc.).
+    const chunks: Uint8Array[] | null = requestId === self.__next_r ? [] : null
 
     const { readable, writable } = new TransformStream<Uint8Array, Uint8Array>({
       transform(chunk, controller) {
-        if (shouldBuffer) {
-          initialDocumentDebugChunks.push(chunk.slice())
+        if (chunks) {
+          chunks.push(chunk.slice())
         }
         controller.enqueue(chunk)
       },
@@ -240,12 +329,30 @@ export function getOrCreateDebugChannelReadableWriterPair(
     pairs.set(requestId, pair)
 
     pair.writer.closed
-      .then(() => {
-        if (shouldBuffer) {
-          persistDebugChannelToSessionStorage(requestId)
+      .then(async () => {
+        if (!chunks) {
+          return
+        }
+        // The initial document's debug stream closes while hydration is still
+        // running, so persisting here would steal main-thread time from it.
+        // Wait for genuine idle (no timeout): persistence is best-effort, so if
+        // the page never idles before navigation we skip it and a later restore
+        // falls back to a reload, rather than forcing a blocking write.
+        await whenIdle()
+        await persistDebugChannelToIndexedDB(requestId, chunks)
+      })
+      .catch((error) => {
+        // writer.closed rejected (e.g., stream aborted) — nothing to persist.
+        console.debug('Debug channel writer closed with error', error)
+      })
+      .finally(() => {
+        pairs.delete(requestId)
+        // Release the buffered chunk bytes once the channel is done, whether or
+        // not we were able to persist them.
+        if (chunks) {
+          chunks.length = 0
         }
       })
-      .finally(() => pairs.delete(requestId))
   }
 
   return pair
@@ -277,7 +384,7 @@ export function createDebugChannel(
     }
   }
 
-  // Only attempt to restore the sessionStorage debug channel entry for the
+  // Only attempt to restore the IndexedDB debug channel entry for the
   // initial document load (no request headers). Client-side navigations pass
   // request headers and should always use the WebSocket-backed debug channel.
   if (!requestHeaders) {
@@ -307,7 +414,7 @@ export function createDebugChannel(
 function restoreDebugChannelOrReload(
   requestId: string
 ): ReadableStream<Uint8Array> {
-  const readable = restoreDebugChannelFromSessionStorage(requestId)
+  const readable = restoreDebugChannelFromIndexedDB(requestId)
 
   if (readable) {
     return readable

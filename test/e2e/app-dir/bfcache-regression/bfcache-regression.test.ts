@@ -151,4 +151,124 @@ describe('bfcache-regression', () => {
       await assertNoConsoleErrors(browser)
     })
   }
+
+  if (
+    // Persistence only exists in dev.
+    isNextDev &&
+    // TODO: Re-enable for node streams once the React debug channel integration
+    // is fixed there. With `__NEXT_USE_NODE_STREAMS` the debug channel readable
+    // doesn't close as expected, so the client never persists the buffered
+    // entry and this test's wait-for-persisted step times out.
+    !process.env.__NEXT_USE_NODE_STREAMS
+  ) {
+    it('should reload to recover when a debug channel entry was pruned by newer page loads', async () => {
+      // The debug channel for the initial document is buffered and persisted to
+      // IndexedDB so it can be restored when the browser serves the page from
+      // the HTTP cache (back-forward navigation). Persistence is bounded to a
+      // maximum number of entries, pruning the oldest on each write. This
+      // verifies that an entry pushed out by newer page loads is no longer
+      // restorable, so going back to it recovers via a full reload instead.
+
+      // One past the persistence cap (MAX_ENTRIES = 10): loading the whole
+      // chain writes 11 entries, pruning exactly the first page's entry and
+      // leaving /purge/2..11 cached.
+      const PAGES = 11
+
+      // Snapshot the server output so we can count requests made during this
+      // test. Recovery is observed through server requests rather than client
+      // load events: a still-cached page is restored client-side from the HTTP
+      // cache with no server request, while the pruned page misses and recovers
+      // with a full reload, which is a fresh server request. Load-event counts
+      // would be browser-dependent here, since some browsers fire the reload
+      // before the back-navigation's own load event and some after.
+      const outputIndex = next.cliOutput.length
+      const browser = await next.browser('/purge/1')
+
+      // Wait until the just-loaded page's debug channel has been durably
+      // committed to IndexedDB before navigating away. Persistence is deferred
+      // to an idle callback and its IndexedDB write is async; navigating before
+      // it commits would abort the transaction and drop the entry. The page
+      // sets a flag once the commit completes (test mode only), which resets
+      // naturally on each navigation since every document gets a fresh window.
+      const waitForPersisted = () =>
+        retry(async () => {
+          expect(
+            await browser.eval(
+              () => (self as any).__NEXT_DEBUG_CHANNEL_PERSISTED
+            )
+          ).toBe(true)
+        })
+
+      // Hard-navigate through the chain. Each load persists its own entry, so
+      // after more than MAX_ENTRIES loads the earliest pages are pruned.
+      for (let n = 1; n <= PAGES; n++) {
+        await retry(async () => {
+          expect(await browser.elementById(`purge-${n}`).text()).toBe(
+            `Purge ${n}`
+          )
+        })
+        await waitForPersisted()
+        if (n < PAGES) {
+          await browser.elementById('next').click()
+        }
+      }
+
+      // Back-navigate the whole way to the first page. Each step restores the
+      // page's HTML from the HTTP cache and re-runs the debug channel restore.
+      for (let n = PAGES; n > 1; n--) {
+        await browser.back()
+        await retry(async () => {
+          expect(await browser.elementById(`purge-${n - 1}`).text()).toBe(
+            `Purge ${n - 1}`
+          )
+        })
+      }
+
+      // Per-page server request counts after the forward + back traversal.
+      // /purge/1 reaches 2 requests in every browser but via different paths:
+      //
+      // Chrome and Firefox restore each back-navigation from the HTTP cache
+      // (the HMR WebSocket disqualifies bfcache, so the browser falls back to
+      // HTTP cache restore with no server request). /purge/2..10 stay at one
+      // request because their IDB entries are still around and the restore
+      // replays them silently. /purge/1's IDB entry was pruned by the time we
+      // get back to it (MAX_ENTRIES=10), so its restore misses and recovers
+      // via a single location.reload() — that's the second server request.
+      //
+      // Playwright's WebKit is encoded as a separate expectation because it
+      // doesn't match real Safari behavior. Real Safari keeps recent pages in
+      // bfcache and falls back to HTTP cache restore for evicted ones, so it
+      // would behave like Chrome/Firefox here. Playwright's WebKit instead
+      // re-fetches every back-navigation target from the server, which adds
+      // one extra server request per back-step (including /purge/1 — the same
+      // re-fetch behavior already accounts for its second request, so the
+      // pruned IDB entry never triggers a reload there). The fresh re-fetch
+      // is correctly classified as a non-cache-restore by debug-channel.ts
+      // (the deferred-pageshow branch routes it to the live WebSocket-backed
+      // channel), so no spurious reload follows.
+      const isSafari = global.browserName === 'safari'
+      await retry(async () => {
+        const getCounts: Record<string, number> = {}
+        const output = next.cliOutput.slice(outputIndex)
+        for (const [, path] of output.matchAll(/GET (\/purge\/\d+) /g)) {
+          getCounts[path] = (getCounts[path] ?? 0) + 1
+        }
+        expect(getCounts).toEqual({
+          '/purge/1': 2,
+          // Chrome/Firefox: 1 forward only (HTTP cache restore on back).
+          // Safari (Playwright/WebKit): 1 forward + 1 back re-fetch = 2.
+          '/purge/2': isSafari ? 2 : 1,
+          '/purge/3': isSafari ? 2 : 1,
+          '/purge/4': isSafari ? 2 : 1,
+          '/purge/5': isSafari ? 2 : 1,
+          '/purge/6': isSafari ? 2 : 1,
+          '/purge/7': isSafari ? 2 : 1,
+          '/purge/8': isSafari ? 2 : 1,
+          '/purge/9': isSafari ? 2 : 1,
+          '/purge/10': isSafari ? 2 : 1,
+          '/purge/11': 1,
+        })
+      })
+    })
+  }
 })
