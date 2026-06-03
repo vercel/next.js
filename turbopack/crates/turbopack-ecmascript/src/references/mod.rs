@@ -67,7 +67,6 @@ use turbo_tasks::{
 };
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
-    chunk::ChunkingType,
     compile_time_info::{
         CompileTimeDefineValue, CompileTimeDefines, CompileTimeInfo, DefinableNameSegment,
         DefinableNameSegmentRef, FreeVarReference, FreeVarReferences, FreeVarReferencesMembers,
@@ -1228,20 +1227,7 @@ async fn analyze_ecmascript_module_internal(
                     };
 
                     if let Some("__turbopack_module_id__") = export.as_deref() {
-                        let chunking_type = r
-                            .await?
-                            .annotations
-                            .as_ref()
-                            .and_then(|a| a.chunking_type())
-                            .map_or_else(
-                                || {
-                                    Some(ChunkingType::Parallel {
-                                        inherit_async: true,
-                                        hoisted: true,
-                                    })
-                                },
-                                |c| c.as_chunking_type(true, true),
-                            );
+                        let chunking_type = r.await?.chunking_type();
                         analysis.add_reference_code_gen(
                             EsmModuleIdAssetReference::new(*r, chunking_type),
                             ast_path.into(),
@@ -1265,23 +1251,11 @@ async fn analyze_ecmascript_module_internal(
                                         esm_reference_index,
                                         export.clone(),
                                         || {
-                                            EsmAssetReference::new(
-                                                original_reference.module,
-                                                original_reference.origin,
-                                                original_reference.request.clone(),
-                                                original_reference.issue_source,
-                                                original_reference.annotations.clone(),
-                                                Some(ModulePart::export(export.clone())),
-                                                // TODO this is correct, but an overapproximation.
-                                                // We should have individual import_usage data for
-                                                // each export. This would be fixed by moving this
-                                                // logic earlier (see TODO above)
-                                                original_reference.import_usage.clone(),
-                                                original_reference.import_externals,
-                                                original_reference.tree_shaking_mode,
-                                                original_reference.resolve_override,
-                                            )
-                                            .resolved_cell()
+                                            original_reference
+                                                .rewrite_for_export(ModulePart::export(
+                                                    export.clone(),
+                                                ))
+                                                .resolved_cell()
                                         },
                                     );
                                 analysis.add_code_gen(EsmBinding::new_keep_this(
@@ -3142,6 +3116,7 @@ async fn handle_free_var_reference(
                         state.tree_shaking_mode,
                         None,
                     )
+                    .await?
                     .resolved_cell())
                 })
                 .await?;
