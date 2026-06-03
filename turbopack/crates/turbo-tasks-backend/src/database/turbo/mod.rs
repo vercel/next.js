@@ -50,7 +50,7 @@ pub const COMPACT_CONFIG: CompactConfig = CompactConfig {
 };
 
 pub struct TurboKeyValueDatabase {
-    db: Arc<TurboPersistence<TurboTasksParallelScheduler, FAMILIES>>,
+    db: TurboPersistence<TurboTasksParallelScheduler, FAMILIES>,
     is_ci: bool,
     is_short_session: bool,
     is_fresh: bool,
@@ -68,15 +68,13 @@ impl TurboKeyValueDatabase {
             !skip_compaction || is_short_session,
             "skip_compaction=true requires is_short_session=true"
         );
-        let db = Arc::new(TurboPersistence::open_with_config(
-            versioned_path,
-            db_config(),
-        )?);
+        let db = TurboPersistence::open_with_config(versioned_path, db_config())?;
+        let is_fresh = db.is_empty();
         Ok(Self {
-            db: db.clone(),
+            db,
             is_ci,
             is_short_session,
-            is_fresh: db.is_empty(),
+            is_fresh,
             skip_compaction,
         })
     }
@@ -86,7 +84,7 @@ impl TurboKeyValueDatabase {
     /// write — see `BackendOptions::storage_mode = None`).
     pub fn empty_in_memory() -> Self {
         Self {
-            db: Arc::new(TurboPersistence::empty_in_memory_with_config(db_config())),
+            db: TurboPersistence::empty_in_memory_with_config(db_config()),
             is_ci: false,
             is_short_session: true,
             is_fresh: true,
@@ -218,7 +216,7 @@ pub struct TurboWriteBatch<'a> {
         TurboTasksParallelScheduler,
         FAMILIES,
     >,
-    db: &'a Arc<TurboPersistence<TurboTasksParallelScheduler, FAMILIES>>,
+    db: &'a TurboPersistence<TurboTasksParallelScheduler, FAMILIES>,
 }
 
 impl<'a> ConcurrentWriteBatch<'a> for TurboWriteBatch<'a> {
