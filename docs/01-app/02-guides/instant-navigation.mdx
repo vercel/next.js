@@ -380,7 +380,7 @@ export const unstable_instant = false
 
 This tells validation: navigating to `/dashboard` from outside does not need to be instant, but sibling navigations within it still do. Navigating from `/dashboard/a` to `/dashboard/b` can still be checked by adding `unstable_instant` to the page segments under `/dashboard`.
 
-The navigation blocks on the server for this segment, so only use this when the segment really cannot produce a useful static shell. If the content depends on cookies or headers but has a known cache lifetime, [runtime prefetching](/docs/app/guides/runtime-prefetching) can prerender it into a runtime shell instead of opting out.
+The navigation blocks on the server for this segment, so only use this when the segment really cannot produce a useful static shell. If the content depends on cookies or headers but has a known cache lifetime, [runtime prefetching](/docs/app/guides/runtime-prefetching) can prerender it ahead of click instead of opting out.
 
 <details>
 <summary>Opting the entire app out</summary>
