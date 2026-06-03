@@ -16,10 +16,7 @@ use turbo_tasks::{
     turbo_tasks,
 };
 
-use crate::database::{
-    key_value_database::KeySpace,
-    write_batch::{ConcurrentWriteBatch, WriteBuffer},
-};
+use crate::database::{key_value_database::KeySpace, write_batch::WriteBuffer};
 
 mod parallel_scheduler;
 pub(crate) use parallel_scheduler::TurboTasksParallelScheduler;
@@ -214,35 +211,32 @@ pub struct TurboWriteBatch<'a> {
     db: &'a TurboPersistence<TurboTasksParallelScheduler, FAMILIES>,
 }
 
-impl<'a> ConcurrentWriteBatch<'a> for TurboWriteBatch<'a> {
-    type ValueBuffer<'l>
-        = ArcBytes
-    where
-        Self: 'l,
-        'a: 'l;
-
-    fn get<'l>(&'l self, key_space: KeySpace, key: &[u8]) -> Result<Option<Self::ValueBuffer<'l>>>
-    where
-        'a: 'l,
-    {
+impl<'a> TurboWriteBatch<'a> {
+    pub fn get(&self, key_space: KeySpace, key: &[u8]) -> Result<Option<ArcBytes>> {
         self.db.get(key_space as usize, &key)
     }
 
-    fn commit(self) -> Result<()> {
+    pub fn commit(self) -> Result<()> {
         self.db.commit_write_batch(self.batch)?;
         Ok(())
     }
 
-    fn put(&self, key_space: KeySpace, key: WriteBuffer<'_>, value: WriteBuffer<'_>) -> Result<()> {
+    pub fn put(
+        &self,
+        key_space: KeySpace,
+        key: WriteBuffer<'_>,
+        value: WriteBuffer<'_>,
+    ) -> Result<()> {
         self.batch
             .put(key_space as u32, key.into_static(), value.into())
     }
 
-    fn delete(&self, key_space: KeySpace, key: WriteBuffer<'_>) -> Result<()> {
-        self.batch.delete(key_space as u32, key.into_static())
-    }
-
-    unsafe fn flush(&self, key_space: KeySpace) -> Result<()> {
+    /// Flushes a key space of the write batch, reducing the amount of buffered memory used.
+    /// Does not commit any data persistently.
+    ///
+    /// Safety: Caller must ensure that no concurrent put operation is happening on the flushed
+    /// key space.
+    pub unsafe fn flush(&self, key_space: KeySpace) -> Result<()> {
         unsafe { self.batch.flush(key_space as u32) }
     }
 }

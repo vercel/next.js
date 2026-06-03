@@ -23,8 +23,8 @@ use crate::{
         db_invalidation::{StartupCacheState, check_db_invalidation_and_cleanup, invalidate_db},
         db_versioning::handle_db_versioning,
         key_value_database::KeySpace,
-        turbo::TurboKeyValueDatabase,
-        write_batch::{ConcurrentWriteBatch, WriteBuffer},
+        turbo::{TurboKeyValueDatabase, TurboWriteBatch},
+        write_batch::WriteBuffer,
     },
     db_invalidation::invalidation_reasons,
 };
@@ -408,7 +408,7 @@ impl TurboBackingStorage {
     }
 }
 
-fn get_next_free_task_id<'a>(batch: &impl ConcurrentWriteBatch<'a>) -> Result<u32, anyhow::Error> {
+fn get_next_free_task_id(batch: &TurboWriteBatch<'_>) -> Result<u32, anyhow::Error> {
     Ok(
         match batch.get(
             KeySpace::Infra,
@@ -420,8 +420,8 @@ fn get_next_free_task_id<'a>(batch: &impl ConcurrentWriteBatch<'a>) -> Result<u3
     )
 }
 
-fn save_infra<'a>(
-    batch: &impl ConcurrentWriteBatch<'a>,
+fn save_infra(
+    batch: &TurboWriteBatch<'_>,
     next_task_id: u32,
     operations: Vec<Arc<AnyOperation>>,
 ) -> Result<(), anyhow::Error> {
@@ -457,10 +457,7 @@ mod tests {
     use turbo_tasks::TaskId;
 
     use super::*;
-    use crate::database::{
-        turbo::TurboKeyValueDatabase,
-        write_batch::{ConcurrentWriteBatch, WriteBuffer},
-    };
+    use crate::database::{turbo::TurboKeyValueDatabase, write_batch::WriteBuffer};
 
     /// Helper to write to the database using the concurrent batch API.
     fn write_task_cache_entry(
