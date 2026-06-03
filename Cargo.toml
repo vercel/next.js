@@ -240,6 +240,7 @@ chromiumoxide = { version = "0.5.4", features = [
 # sync with chromiumoxide's tungstenite requirement.
 tungstenite = "0.20.1"
 
+allocator-api2 = "0.2.21"
 # flate2_zlib requires zlib, use flate2_rust
 allsorts = { version = "0.14.0", default-features = false, features = [
   "flate2_rust",
@@ -248,6 +249,7 @@ anyhow = "1.0.100"
 async-trait = "0.1.64"
 bincode = { version = "2.0.1", features = ["serde"] }
 bitfield = "0.19.4"
+bumpalo = { version = "3.19.0", features = ["boxed", "collections", "allocator-api2"] }
 byteorder = "1.5.0"
 bytes = "1.11.1"
 bytes-str = "0.2.7"

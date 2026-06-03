@@ -6,6 +6,7 @@ use swc_core::{
 pub(crate) use self::imports::ImportMap;
 
 pub mod builtin;
+pub mod bump_vec;
 pub mod graph;
 pub mod imports;
 pub mod linker;
