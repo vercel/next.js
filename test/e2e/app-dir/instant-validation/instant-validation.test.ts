@@ -1895,7 +1895,8 @@ describe('instant validation', () => {
         }
       })
 
-      // usePathname is misclassified as "uncached data" today. This test
+      // usePathname is misclassified as "uncached data" today and the dev
+      // overlay attributes the error to the parent's JSX line. This test
       // asserts the correct stack attribution. When the URL-hook factory
       // lands, `it.failing` will itself fail — flip to `it`.
       /* eslint-disable jest/no-standalone-expect */
@@ -1912,6 +1913,28 @@ describe('instant validation', () => {
           expect(source).toContain('PathnameLabel')
         }
       )
+
+      it('invalid - useSelectedLayoutSegment() in a layout on a route with a fallback param', async () => {
+        if (!isNextDev || isClientNav) return
+        const browser = await navigateTo(
+          '/default/invalid-use-selected-layout-segment-no-samples/123'
+        )
+        await openRedbox(browser)
+        const source = await getRedboxSource(browser)
+        expect(source).toContain('active-tab.tsx')
+        expect(source).toContain('ActiveTab')
+      })
+
+      it('invalid - useSelectedLayoutSegments() in a layout on a route with a fallback param', async () => {
+        if (!isNextDev || isClientNav) return
+        const browser = await navigateTo(
+          '/default/invalid-use-selected-layout-segments-no-samples/123'
+        )
+        await openRedbox(browser)
+        const source = await getRedboxSource(browser)
+        expect(source).toContain('breadcrumb-trail.tsx')
+        expect(source).toContain('BreadcrumbTrail')
+      })
       /* eslint-enable jest/no-standalone-expect */
     })
 

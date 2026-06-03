@@ -17,6 +17,12 @@ export default async function Page() {
         <li>
           <DebugLinks href="/default/invalid-use-pathname-no-samples/123" />
         </li>
+        <li>
+          <DebugLinks href="/default/invalid-use-selected-layout-segment-no-samples/123" />
+        </li>
+        <li>
+          <DebugLinks href="/default/invalid-use-selected-layout-segments-no-samples/123" />
+        </li>
       </ul>
     </main>
   )
