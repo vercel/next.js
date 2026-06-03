@@ -816,6 +816,82 @@ describe('instant-validation-build', () => {
       expect(result.cliOutput).not.toContain('AssertionError')
       expect(result.exitCode).toBe(1)
     })
+
+    it('error - usePathname() at the top of a Client Component body (no ensureThrows wrapper)', async () => {
+      const result = await prerender(
+        '/(default)/pathname/invalid-use-pathname-missing-params-no-wrapper/[one]/[two]'
+      )
+      // Snapshot the full validation error so any change to the stack frame
+      // attribution (good or bad) shows up clearly. Today's behavior: the file,
+      // line, and column are correct, but the function name is reported as
+      // `<unknown>` instead of `PathnameReader`. When the framework starts
+      // recovering the real function name from sourcemaps, update this snapshot.
+      expect(extractBuildValidationError(result.cliOutput))
+        .toMatchInlineSnapshot(`
+       "Error: Route "/pathname/invalid-use-pathname-missing-params-no-wrapper/[one]/[two]" called usePathname() but param "two" is not defined in the \`unstable_samples\` of \`unstable_instant\`. usePathname() requires all route params to be provided.
+           at <unknown> (app/(default)/pathname/invalid-use-pathname-missing-params-no-wrapper/[one]/[two]/pathname-reader.tsx:6:20)
+         4 |
+         5 | export function PathnameReader() {
+       > 6 |   const pathname = usePathname()
+           |                    ^
+         7 |   return <span data-testid="pathname">{pathname}</span>
+         8 | }
+         9 | {
+         digest: 'INSTANT_VALIDATION_ERROR'
+       }
+       Build-time instant validation failed for route "/pathname/invalid-use-pathname-missing-params-no-wrapper/[one]/[two]".
+       To get a more detailed stack trace and pinpoint the issue, try one of the following:
+         - Start the app in development mode by running \`next dev\`, then open "/pathname/invalid-use-pathname-missing-params-no-wrapper/[one]/[two]" in your browser to investigate the error.
+         - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
+       Stopping prerender due to instant validation errors."
+      `)
+      expect(result.cliOutput).not.toContain('AssertionError')
+      expect(result.exitCode).toBe(1)
+    })
+
+    it('error - usePathname() called from a Client Component nested three wrappers deep', async () => {
+      const result = await prerender(
+        '/(default)/pathname/invalid-use-pathname-deep-component/[one]/[two]'
+      )
+      // Even when the offending hook call is buried under multiple Client
+      // Component wrappers, the build-time validation error should identify
+      // the actual call site inside `pathname-reader.tsx` (not a wrapper file).
+      // Today's behavior: file/line/column are correct, but the function name
+      // in the stack frame is an SWC-minified single letter instead of
+      // `PathnameReader`. The minified name is not deterministic across
+      // module-graph orderings, so normalize it to `<minified>` before
+      // snapshotting.
+      const error = extractBuildValidationError(result.cliOutput).replace(
+        /at [a-z] \(app\/\(default\)/g,
+        'at <minified> (app/(default)'
+      )
+      expect(error).toMatchInlineSnapshot(`
+       "Error: Route "/pathname/invalid-use-pathname-deep-component/[one]/[two]" called usePathname() but param "two" is not defined in the \`unstable_samples\` of \`unstable_instant\`. usePathname() requires all route params to be provided.
+           at <minified> (app/(default)/pathname/invalid-use-pathname-deep-component/[one]/[two]/pathname-reader.tsx:6:20)
+         4 |
+         5 | export function PathnameReader() {
+       > 6 |   const pathname = usePathname()
+           |                    ^
+         7 |   return <span data-testid="pathname">{pathname}</span>
+         8 | }
+         9 | {
+         digest: 'INSTANT_VALIDATION_ERROR'
+       }
+       Build-time instant validation failed for route "/pathname/invalid-use-pathname-deep-component/[one]/[two]".
+       To get a more detailed stack trace and pinpoint the issue, try one of the following:
+         - Start the app in development mode by running \`next dev\`, then open "/pathname/invalid-use-pathname-deep-component/[one]/[two]" in your browser to investigate the error.
+         - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
+       Stopping prerender due to instant validation errors."
+      `)
+      // Wrapper components should not appear in the call chain — `usePathname`
+      // is called directly inside `PathnameReader`, not inside its wrappers.
+      const rawError = extractBuildValidationError(result.cliOutput)
+      expect(rawError).not.toContain('outer-wrapper.tsx')
+      expect(rawError).not.toContain('middle-wrapper.tsx')
+      expect(rawError).not.toContain('inner-wrapper.tsx')
+      expect(result.cliOutput).not.toContain('AssertionError')
+      expect(result.exitCode).toBe(1)
+    })
   })
 
   describe('root params', () => {

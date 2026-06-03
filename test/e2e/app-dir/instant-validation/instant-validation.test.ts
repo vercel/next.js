@@ -1893,6 +1893,50 @@ describe('instant validation', () => {
           expectNoBuildValidationErrors(result)
         }
       })
+
+      it('invalid - usePathname() in a client component on a route with a fallback param', async () => {
+        if (!isNextDev) {
+          // Build-mode coverage lives in
+          // test/e2e/app-dir/instant-validation-build/instant-validation-build.test.ts
+          // under the `pathname` describe block. This test asserts the dev
+          // overlay's frame attribution.
+          return
+        }
+        if (isClientNav) {
+          // The bug we're capturing only manifests on initial load, where the
+          // dev validation runs server-side and the React stack is what gets
+          // surfaced. Skip the client-nav case so the inline snapshot below
+          // doesn't have to capture two different shapes.
+          return
+        }
+        // The fixture lives under `default/` (no root Suspense above body) so
+        // the validation hole isn't swallowed before the Insight can fire.
+        // `[slug]` is a fallback route param with no `unstable_samples`, so
+        // `usePathname()` suspends during dev validation — mirroring the
+        // test-app's repro at `88-client-use-pathname/[slug]`.
+        const browser = await navigateTo(
+          '/default/invalid-use-pathname-no-samples/123'
+        )
+        // Snapshot the dev redbox shape so the bug surface is visible:
+        // today the overlay reports the parent page.tsx's render JSX as the
+        // source, not the `usePathname()` call inside pathname-label.tsx,
+        // and routes the user toward Cache / Stream / Block cards even
+        // though `usePathname` is URL data, not cacheable data.
+        await expect(browser).toDisplayCollapsedRedbox(`
+         {
+           "code": "E1265",
+           "description": "Next.js encountered uncached data during prerendering.",
+           "environmentLabel": "Server",
+           "label": "Blocking Route",
+           "source": "app/default/invalid-use-pathname-no-samples/[slug]/page.tsx (11:7) @ Page
+         > 11 |       <PathnameLabel />
+              |       ^",
+           "stack": [
+             "Page app/default/invalid-use-pathname-no-samples/[slug]/page.tsx (11:7)",
+           ],
+         }
+        `)
+      })
     })
 
     describe('client errors', () => {
