@@ -37,7 +37,7 @@ pub fn parse_module_turbopack_directives(program: &Program) -> TurbopackDirectiv
             && let Expr::Lit(Lit::Str(Str { value, .. })) = &*expr.expr
         {
             match &*value.to_string_lossy() {
-                "use turbopack no side effects" => result.no_side_effects = true,
+                "use turbopack: no side effects" => result.no_side_effects = true,
                 "use turbopack: constants" => result.constants_module = true,
                 v if v.starts_with("use turbopack ") => {
                     // TODO error for unknown directive
