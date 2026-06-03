@@ -23,6 +23,7 @@ use next_core::{
         ServerChunkingContextOptions, ServerContextType, get_server_chunking_context,
         get_server_chunking_context_with_client_assets, get_server_compile_time_info,
         get_server_module_options_context, get_server_resolve_options_context,
+        get_tracing_compile_time_info,
     },
     next_telemetry::ProjectFeatureUsageSummary,
     parse_segment_config_from_source,
@@ -44,7 +45,7 @@ use turbo_tasks_fs::{
 };
 use turbo_unix_path::{join_path, unix_to_sys};
 use turbopack::{
-    ModuleAssetContext, evaluate_context::node_build_environment,
+    ModuleAssetContext, evaluate_context::node_build_environment, externals_tracing_module_context,
     global_module_ids::get_global_module_id_strategy, transition::TransitionOptions,
 };
 use turbopack_core::{
@@ -62,7 +63,7 @@ use turbopack_core::{
     issue::{
         CollectibleIssuesExt, Issue, IssueExt, IssueFilter, IssueSeverity, IssueStage, StyledString,
     },
-    module::Module,
+    module::{Module, Modules},
     module_graph::{
         GraphEntries, ModuleGraph, SingleModuleGraph, VisitedModules,
         binding_usage_info::{
@@ -75,6 +76,7 @@ use turbopack_core::{
         expand_output_assets,
     },
     reference::all_assets_from_entries,
+    reference_type::{CommonJsReferenceSubType, ReferenceType},
     resolve::{FindContextFileResult, find_context_file},
     version::{
         NotFoundVersion, OptionVersionedContent, Update, Version, VersionState, VersionedContent,
@@ -1443,6 +1445,13 @@ impl Project {
             .try_flat_join()
             .await?;
         modules.extend(self.client_main_modules().await?.iter().cloned());
+        modules.extend(
+            self.additional_traced_modules()
+                .await?
+                .iter()
+                .cloned()
+                .map(|m| ChunkGroupEntry::Entry(vec![m])),
+        );
         Ok(Vc::cell(modules))
     }
 
@@ -2590,6 +2599,40 @@ impl Project {
             ..(*self).clone()
         }
         .cell())
+    }
+
+    /// Returns any modules specified as `nextConfig.cacheHandler` and/or `nextConfig.cacheHandlers`
+    #[turbo_tasks::function]
+    pub async fn additional_traced_modules(self: Vc<Self>) -> Result<Vc<Modules>> {
+        let project_path = self.project_path().owned().await?;
+        let cache_handler = self
+            .next_config()
+            .cache_handler(project_path.clone())
+            .await?;
+        let cache_handlers = self
+            .next_config()
+            .cache_handlers(project_path.clone())
+            .await?;
+
+        let asset_context =
+            externals_tracing_module_context(get_tracing_compile_time_info(), false);
+
+        Ok(Vc::cell(
+            cache_handler
+                .iter()
+                .chain(cache_handlers.iter())
+                .map(|f| {
+                    asset_context
+                        .process(
+                            Vc::upcast(FileSource::new(f.clone())),
+                            ReferenceType::CommonJs(CommonJsReferenceSubType::Undefined),
+                        )
+                        .module()
+                })
+                .map(|m| m.to_resolved())
+                .try_join()
+                .await?,
+        ))
     }
 }
 
