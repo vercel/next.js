@@ -1135,15 +1135,6 @@ pub trait TaskGuard: Debug + TaskStorageAccessors {
             }
         })
     }
-    fn dirtyness_and_session(&self) -> Option<(Dirtyness, bool)> {
-        let dirtyness = self.get_dirty()?;
-        match dirtyness {
-            Dirtyness::Dirty { .. } => Some((dirtyness.clone(), false)),
-            Dirtyness::SessionDependent => {
-                Some((Dirtyness::SessionDependent, self.current_session_clean()))
-            }
-        }
-    }
     /// Returns (is_dirty, is_clean_in_current_session)
     fn dirty_state(&self) -> (bool, bool) {
         match self.get_dirty() {
