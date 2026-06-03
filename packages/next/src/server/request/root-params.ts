@@ -13,11 +13,18 @@ import {
   type PrerenderStoreModernServer,
   type PrerenderStorePPR,
 } from '../app-render/work-unit-async-storage.external'
-import { makeHangingPromise } from '../dynamic-rendering-utils'
+import {
+  getRuntimeLinkDataStage,
+  makeHangingPromise,
+} from '../dynamic-rendering-utils'
 import type { ParamValue } from './params'
 import { describeStringPropertyAccess } from '../../shared/lib/utils/reflect-utils'
 import { actionAsyncStorage } from '../app-render/action-async-storage.external'
 import { accumulateRootVaryParam } from '../app-render/vary-params'
+import type {
+  RenderStage,
+  StagedRenderingController,
+} from '../app-render/staged-rendering'
 
 /**
  * Used for the compiler-generated `next/root-params` module.
@@ -64,6 +71,9 @@ export function getRootParam(paramName: string): Promise<ParamValue> {
       )
     }
     case 'cache': {
+      // NOTE: In shell prerenders, we delay caches that used root params
+      // in use-cache-wrapper, during the final prerender, so we don't
+      // need to do anything here
       if (!workUnitStore.rootParams) {
         throw new Error(
           `Route ${workStore.route} used ${apiName} inside \`"use cache"\` nested within \`unstable_cache\`. Root params are not available in this context.`
@@ -108,8 +118,28 @@ export function getRootParam(paramName: string): Promise<ParamValue> {
       }
       break
     }
-    case 'private-cache':
+    case 'private-cache': {
+      // NOTE: In shell prerenders, we delay caches that used root params
+      // in use-cache-wrapper, during the final prerender, so we don't
+      // need to do anything here
+      break
+    }
     case 'prerender-runtime': {
+      const { stagedRendering } = workUnitStore
+      if (stagedRendering && process.env.__NEXT_APP_SHELLS) {
+        return createRootParamPromiseForShellRender(
+          stagedRendering,
+          // A runtime prerender with shells means that we want to recover a session shell.
+          // Root params are link data, so we have to omit them from the shell.
+          // Tihs means we must delay them until the runtime stage even though
+          // semantically they're considered static.
+          getRuntimeLinkDataStage(stagedRendering),
+          apiName,
+          paramName,
+          workUnitStore.rootParams[paramName]
+        )
+      }
+
       break
     }
     case 'generate-static-params': {
@@ -127,6 +157,23 @@ export function getRootParam(paramName: string): Promise<ParamValue> {
 
   accumulateRootVaryParam(paramName)
   return Promise.resolve(workUnitStore.rootParams[paramName])
+}
+
+type LinkDataStage =
+  | RenderStage.EarlyStatic
+  | RenderStage.Static
+  | RenderStage.EarlyRuntime
+  | RenderStage.Runtime
+
+function createRootParamPromiseForShellRender(
+  stagedRendering: StagedRenderingController,
+  stage: LinkDataStage,
+  apiName: string,
+  paramName: string,
+  paramValue: ParamValue
+): Promise<ParamValue> {
+  accumulateRootVaryParam(paramName)
+  return stagedRendering.delayUntilStage(stage, apiName, paramValue)
 }
 
 function createPrerenderRootParamPromise(

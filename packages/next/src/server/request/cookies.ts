@@ -24,7 +24,7 @@ import { StaticGenBailoutError } from '../../client/components/static-generation
 import {
   makeDevtoolsIOAwarePromise,
   makeHangingPromise,
-  getRuntimeStage,
+  getSessionDataStage,
 } from '../dynamic-rendering-utils'
 import { createDedupedByCallsiteServerErrorLoggerDev } from '../create-deduped-by-callsite-server-error-logger'
 import { isRequestAPICallableInsideAfter } from './utils'
@@ -108,7 +108,7 @@ export function cookies(): Promise<ReadonlyRequestCookies> {
           const { stagedRendering } = workUnitStore
           if (stagedRendering) {
             return stagedRendering.delayUntilStage(
-              getRuntimeStage(stagedRendering),
+              getSessionDataStage(stagedRendering),
               'cookies',
               workUnitStore.cookies
             )
@@ -242,7 +242,7 @@ function makeUntrackedCookiesWithDevWarnings(
   const promise = makeDevtoolsIOAwarePromise(
     underlyingCookies,
     requestStore,
-    RenderStage.Runtime
+    RenderStage.ShellRuntime
   )
 
   const proxiedPromise = instrumentCookiesPromiseWithDevWarnings(promise, route)
