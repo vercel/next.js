@@ -16,9 +16,9 @@ use serde::{Deserialize, Serialize};
 use turbo_esregex::EsRegex;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
-    CollectiblesSource, NonLocalValue, OperationVc, RawVc, ReadRef, ResolvedVc, TaskInput,
-    TransientValue, TryFlatJoinIterExt, TryJoinIterExt, Upcast, ValueDefault, ValueToString,
-    ValueToStringRef, Vc, emit, trace::TraceRawVcs,
+    CollectiblesSource, NonLocalValue, OperationVc, RawVc, ReadRef, ResolvedVc, TransientValue,
+    TryFlatJoinIterExt, TryJoinIterExt, Upcast, ValueDefault, ValueToString, ValueToStringRef, Vc,
+    emit, trace::TraceRawVcs,
 };
 use turbo_tasks_fs::{
     FileContent, FileLine, FileLinesContent, FileSystem, FileSystemPath, glob::Glob,
@@ -36,10 +36,8 @@ use crate::{
     source_pos::SourcePos,
 };
 
-#[turbo_tasks::value(shared)]
-#[derive(
-    PartialOrd, Ord, Copy, Clone, Hash, Debug, DeterministicHash, TaskInput, Serialize, Deserialize,
-)]
+#[turbo_tasks::value(shared, task_input)]
+#[derive(PartialOrd, Ord, Copy, Clone, Hash, Debug, DeterministicHash, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub enum IssueSeverity {
     Bug,
@@ -438,18 +436,16 @@ impl CapturedIssues {
     }
 }
 
-#[derive(
-    Clone, Copy, Debug, PartialEq, Eq, Hash, TaskInput, TraceRawVcs, NonLocalValue, Encode, Decode,
-)]
+#[turbo_tasks::task_input]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, TraceRawVcs, Encode, Decode)]
 pub struct IssueSource {
     source: ResolvedVc<Box<dyn Source>>,
     range: Option<SourceRange>,
 }
 
 /// The end position is the first character after the range
-#[derive(
-    Clone, Copy, Debug, PartialEq, Eq, Hash, TaskInput, TraceRawVcs, NonLocalValue, Encode, Decode,
-)]
+#[turbo_tasks::task_input]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, TraceRawVcs, Encode, Decode)]
 enum SourceRange {
     LineColumn(SourcePos, SourcePos),
     ByteOffset(u32, u32),

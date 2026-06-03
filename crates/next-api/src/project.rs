@@ -36,7 +36,7 @@ use tracing::{Instrument, field::Empty};
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
     Completion, Completions, FxIndexMap, NonLocalValue, OperationValue, OperationVc, ReadRef,
-    ResolvedVc, State, TaskInput, TransientInstance, TryFlatJoinIterExt, TryJoinIterExt, Vc,
+    ResolvedVc, State, TransientInstance, TryFlatJoinIterExt, TryJoinIterExt, Vc,
     debug::ValueDebugFormat, fxindexmap, trace::TraceRawVcs,
 };
 use turbo_tasks_env::{EnvMap, ProcessEnv};
@@ -103,17 +103,16 @@ use crate::{
     versioned_content_map::VersionedContentMap,
 };
 
+#[turbo_tasks::task_input]
 #[derive(
     Debug,
     Serialize,
     Deserialize,
     Clone,
-    TaskInput,
     PartialEq,
     Eq,
     Hash,
     TraceRawVcs,
-    NonLocalValue,
     OperationValue,
     Encode,
     Decode,
@@ -125,6 +124,7 @@ pub struct DraftModeOptions {
     pub preview_mode_signing_key: RcStr,
 }
 
+#[turbo_tasks::task_input]
 #[derive(
     Debug,
     Default,
@@ -132,12 +132,10 @@ pub struct DraftModeOptions {
     Deserialize,
     Copy,
     Clone,
-    TaskInput,
     PartialEq,
     Eq,
     Hash,
     TraceRawVcs,
-    NonLocalValue,
     OperationValue,
     Encode,
     Decode,
@@ -152,18 +150,17 @@ pub struct WatchOptions {
     pub poll_interval: Option<Duration>,
 }
 
+#[turbo_tasks::task_input]
 #[derive(
     Debug,
     Default,
     Serialize,
     Deserialize,
     Clone,
-    TaskInput,
     PartialEq,
     Eq,
     Hash,
     TraceRawVcs,
-    NonLocalValue,
     OperationValue,
     Encode,
     Decode,
@@ -175,20 +172,8 @@ pub struct DebugBuildPaths {
 }
 
 /// Target for HMR operations - client-side (browser) or server-side (Node.js).
-#[derive(
-    Debug,
-    Default,
-    Copy,
-    Clone,
-    TaskInput,
-    PartialEq,
-    Eq,
-    Hash,
-    TraceRawVcs,
-    NonLocalValue,
-    Encode,
-    Decode,
-)]
+#[turbo_tasks::task_input]
+#[derive(Debug, Default, Copy, Clone, PartialEq, Eq, Hash, TraceRawVcs, Encode, Decode)]
 pub enum HmrTarget {
     #[default]
     Client,
@@ -439,17 +424,16 @@ pub struct PartialProjectOptions {
     pub debug_build_paths: Option<DebugBuildPaths>,
 }
 
+#[turbo_tasks::task_input]
 #[derive(
     Debug,
     Serialize,
     Deserialize,
     Clone,
-    TaskInput,
     PartialEq,
     Eq,
     Hash,
     TraceRawVcs,
-    NonLocalValue,
     OperationValue,
     Encode,
     Decode,

@@ -8,7 +8,7 @@ use rustc_hash::FxHashMap;
 use tracing::Instrument;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
-    FxIndexMap, FxIndexSet, NonLocalValue, ResolvedVc, TaskInput, TryJoinIterExt, ValueDefault,
+    FxIndexMap, FxIndexSet, NonLocalValue, ResolvedVc, TryJoinIterExt, ValueDefault,
     ValueToStringRef, Vc, debug::ValueDebugFormat, fxindexmap, trace::TraceRawVcs, turbobail,
 };
 use turbo_tasks_fs::{DirectoryContent, DirectoryEntry, FileSystemEntryType, FileSystemPath};
@@ -84,9 +84,8 @@ pub enum MetadataWithAltItem {
 }
 
 /// A single metadata file.
-#[derive(
-    Clone, Debug, Hash, PartialEq, Eq, TaskInput, TraceRawVcs, NonLocalValue, Encode, Decode,
-)]
+#[turbo_tasks::task_input]
+#[derive(Clone, Debug, Hash, PartialEq, Eq, TraceRawVcs, Encode, Decode)]
 pub enum MetadataItem {
     Static { path: FileSystemPath },
     Dynamic { path: FileSystemPath },
@@ -561,19 +560,8 @@ impl ValueDefault for FileSystemPathVec {
     }
 }
 
-#[derive(
-    Clone,
-    PartialEq,
-    Eq,
-    Hash,
-    TraceRawVcs,
-    ValueDebugFormat,
-    Debug,
-    TaskInput,
-    NonLocalValue,
-    Encode,
-    Decode,
-)]
+#[turbo_tasks::task_input]
+#[derive(Clone, PartialEq, Eq, Hash, TraceRawVcs, ValueDebugFormat, Debug, Encode, Decode)]
 pub enum Entrypoint {
     AppPage {
         pages: Vec<AppPage>,

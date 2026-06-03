@@ -8,8 +8,7 @@ use bincode::{Decode, Encode};
 use serde::{Deserialize, Serialize};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    FxIndexMap, NonLocalValue, ReadRef, ResolvedVc, TaskInput, TryFlatJoinIterExt, TryJoinIterExt,
-    Vc, trace::TraceRawVcs,
+    FxIndexMap, ReadRef, ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt, Vc, trace::TraceRawVcs,
 };
 use turbo_tasks_fs::{File, FileContent, FileSystemPath};
 use turbopack_core::{
@@ -279,6 +278,7 @@ impl Default for MiddlewaresManifest {
     }
 }
 
+#[turbo_tasks::task_input]
 #[derive(
     Debug,
     Clone,
@@ -287,11 +287,9 @@ impl Default for MiddlewaresManifest {
     PartialEq,
     Ord,
     PartialOrd,
-    TaskInput,
     TraceRawVcs,
     Serialize,
     Deserialize,
-    NonLocalValue,
     Encode,
     Decode,
 )]
@@ -462,6 +460,7 @@ pub enum ActionManifestModuleId<'a> {
     Number(u64),
 }
 
+#[turbo_tasks::task_input]
 #[derive(
     Debug,
     Copy,
@@ -471,11 +470,9 @@ pub enum ActionManifestModuleId<'a> {
     PartialEq,
     Ord,
     PartialOrd,
-    TaskInput,
     TraceRawVcs,
     Serialize,
     Deserialize,
-    NonLocalValue,
     Encode,
     Decode,
 )]

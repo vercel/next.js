@@ -5,9 +5,7 @@
 //! produce. Living here means neither algorithm has to import from the other.
 
 use bincode::{Decode, Encode};
-use turbo_tasks::{
-    FxIndexMap, NonLocalValue, OperationValue, ResolvedVc, TaskInput, Vc, trace::TraceRawVcs,
-};
+use turbo_tasks::{FxIndexMap, OperationValue, ResolvedVc, Vc, trace::TraceRawVcs};
 
 use crate::chunk::{ChunkItemBatchWithAsyncModuleInfo, ChunkItemWithAsyncModuleInfo};
 
@@ -15,20 +13,8 @@ use crate::chunk::{ChunkItemBatchWithAsyncModuleInfo, ChunkItemWithAsyncModuleIn
 /// [`StyleGroupsAlgorithm`] enum needs) by going through the IEEE-754 bit pattern. Use
 /// [`F32TaskInput::get`] / [`F32TaskInput::from`] at the boundary; do not match on the inner
 /// `u32` directly.
-#[derive(
-    TaskInput,
-    Debug,
-    Clone,
-    Copy,
-    PartialEq,
-    Eq,
-    Hash,
-    NonLocalValue,
-    OperationValue,
-    TraceRawVcs,
-    Encode,
-    Decode,
-)]
+#[turbo_tasks::task_input]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, OperationValue, TraceRawVcs, Encode, Decode)]
 pub struct F32TaskInput(u32);
 
 impl F32TaskInput {
@@ -41,8 +27,8 @@ impl F32TaskInput {
 }
 
 /// Selects the algorithm used to compute [`StyleGroups`].
-#[turbo_tasks::value(shared, operation)]
-#[derive(Clone, Debug, Default, Hash, TaskInput)]
+#[turbo_tasks::value(shared, operation, task_input)]
+#[derive(Clone, Debug, Default, Hash)]
 pub enum StyleGroupsAlgorithm {
     /// Default ("loose") algorithm, see
     /// [`crate::module_graph::style_groups_loose::compute_style_groups`].
@@ -68,18 +54,16 @@ impl StyleGroupsAlgorithm {
     }
 }
 
-#[derive(
-    TaskInput, Debug, Clone, PartialEq, Eq, Hash, NonLocalValue, TraceRawVcs, Encode, Decode,
-)]
+#[turbo_tasks::task_input]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, TraceRawVcs, Encode, Decode)]
 pub struct StyleGroupsConfig {
     pub max_chunk_size: usize,
     pub algorithm: StyleGroupsAlgorithm,
 }
 
 /// Per-item metadata produced by the style chunking algorithms.
-#[derive(
-    Debug, Clone, PartialEq, Eq, Hash, NonLocalValue, TraceRawVcs, Encode, Decode, TaskInput,
-)]
+#[turbo_tasks::task_input]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, TraceRawVcs, Encode, Decode)]
 pub struct StyleItemInfo {
     /// Stable sort key applied by the production-chunking pass when ordering chunks within a chunk
     /// group. The loose algorithm produces all `None` orders and relies on input order; the graph

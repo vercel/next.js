@@ -4,7 +4,7 @@
 
 use anyhow::{Result, bail};
 use turbo_rcstr::{RcStr, rcstr};
-use turbo_tasks::{ResolvedVc, TaskInput, ValueToString, Vc};
+use turbo_tasks::{ResolvedVc, ValueToString, Vc};
 use turbo_tasks_testing::{Registration, register, run_once};
 
 static REGISTRATION: Registration = register!();
@@ -80,8 +80,8 @@ async fn test_all_in_one_operation(nonce: u32) -> Result<Vc<()>> {
 #[derive(Debug, Clone, Hash)]
 struct MyTransparentValue(u32);
 
-#[turbo_tasks::value(shared)]
-#[derive(Debug, Clone, Hash, TaskInput)]
+#[turbo_tasks::value(shared, task_input)]
+#[derive(Debug, Clone, Hash)]
 enum MyEnumValue {
     Yeah(u32),
     Nah,

@@ -12,7 +12,11 @@ use syn::{
     spanned::Spanned,
 };
 
-use crate::{global_name::global_name_for_type, ident::get_value_type_ident};
+use crate::{
+    expand::{item_data, task_input_is_transient_body},
+    global_name::global_name_for_type,
+    ident::get_value_type_ident,
+};
 
 enum CellMode {
     KeyedCompare,
@@ -133,6 +137,8 @@ struct ValueArguments {
     transparent: bool,
     /// Should we `#[derive(turbo_tasks::OperationValue)]`?
     operation: Option<Span>,
+    /// Set by `task_input` arg: emit an `impl TaskInput` with a field-walking `is_transient`.
+    task_input: bool,
 }
 
 impl Parse for ValueArguments {
@@ -146,6 +152,7 @@ impl Parse for ValueArguments {
             manual_hash: false,
             transparent: false,
             operation: None,
+            task_input: false,
         };
         let punctuated = input.parse_terminated(Meta::parse, Token![,])?;
         for meta in punctuated {
@@ -234,13 +241,16 @@ impl Parse for ValueArguments {
                 ("operation", Meta::Path(path)) => {
                     result.operation = Some(path.span());
                 }
+                ("task_input", Meta::Path(_)) => {
+                    result.task_input = true;
+                }
                 (_, meta) => {
                     return Err(Error::new_spanned(
                         &meta,
                         format!(
                             "unexpected {meta:?}, expected \"shared\", \"into\", \
                              \"serialization\", \"evict\", \"cell\", \"eq\", \"hash\", \
-                             \"transparent\", or \"operation\""
+                             \"transparent\", \"operation\", or \"task_input\""
                         ),
                     ));
                 }
@@ -262,6 +272,7 @@ pub fn value(args: TokenStream, input: TokenStream) -> TokenStream {
         manual_hash,
         transparent,
         operation,
+        task_input,
     } = parse_macro_input!(args as ValueArguments);
 
     // `serialization = "hash"` only makes sense with `cell = "compare"` (the default).
@@ -309,7 +320,7 @@ pub fn value(args: TokenStream, input: TokenStream) -> TokenStream {
         #[derive(
             turbo_tasks::ShrinkToFit,
             turbo_tasks::trace::TraceRawVcs,
-            turbo_tasks::NonLocalValue,
+            turbo_tasks::NonLocalValue
         )]
         #[shrink_to_fit(crate = "turbo_tasks::macro_helpers::shrink_to_fit")]
     }];
@@ -550,6 +561,27 @@ pub fn value(args: TokenStream, input: TokenStream) -> TokenStream {
         has_serialization,
     );
 
+    // Emit an `impl TaskInput for X` only when opted in with
+    // `#[turbo_tasks::value(task_input)]`. Because values are `NonLocalValue` the `is_resolved` and
+    // `resolve_input` use the trivial trait defaults `is_transient` walks fields, because
+    // contained `ResolvedVc`/`OperationVc` can still point to transient cells.
+    let task_input_impl = if task_input {
+        let data = item_data(&item).expect("value macro only accepts struct/enum");
+        let is_transient_impl = task_input_is_transient_body(ident, &data);
+        quote! {
+            #[automatically_derived]
+            impl turbo_tasks::TaskInput for #ident {
+                #[allow(non_snake_case)]
+                #[allow(unreachable_code)]
+                fn is_transient(&self) -> bool {
+                    #is_transient_impl
+                }
+            }
+        }
+    } else {
+        quote! {}
+    };
+
     let expanded = quote! {
         #(#struct_attributes)*
         #item
@@ -557,6 +589,8 @@ pub fn value(args: TokenStream, input: TokenStream) -> TokenStream {
         impl #ident {
             #cell_struct
         }
+
+        #task_input_impl
 
         #value_type_and_register_code
 

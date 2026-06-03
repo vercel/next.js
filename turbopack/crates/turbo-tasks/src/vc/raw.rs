@@ -408,13 +408,7 @@ impl Unpin for ResolveRawVcFuture {}
 
 #[must_use]
 pub struct ReadRawVcFuture {
-    /// Options for the cell read once we have a [`RawVc::TaskCell`]. Persists across both phases
-    /// because it is configured by the builder before phase 1 starts.
     read_cell_options: ReadCellOptions,
-    /// Whether phase 1 was a strongly-consistent read. Needed in phase 2 to re-apply
-    /// [`suppress_top_level_task_check`]. Stored here so we can drop the [`ResolveRawVcFuture`]
-    /// once phase 1 completes.
-    strongly_consistent: bool,
     state: ReadRawVcState,
 }
 
@@ -427,6 +421,11 @@ enum ReadRawVcState {
     Reading {
         task: TaskId,
         index: CellId,
+        /// Whether phase 1 was a strongly-consistent read. Needed here to re-apply
+        /// [`suppress_top_level_task_check`] in phase 2. Lives in this variant (rather than the
+        /// outer struct) so it can share padding with the other `Reading` fields — keeping
+        /// `Reading` no larger than `Resolving`, and the whole future 8 bytes smaller.
+        strongly_consistent: bool,
         listener: Option<EventListener>,
     },
 }
@@ -435,7 +434,6 @@ impl ReadRawVcFuture {
     pub(crate) fn new(vc: RawVc) -> Self {
         ReadRawVcFuture {
             read_cell_options: ReadCellOptions::default(),
-            strongly_consistent: false,
             state: ReadRawVcState::Resolving(ResolveRawVcFuture::new(vc)),
         }
     }
@@ -453,8 +451,7 @@ impl ReadRawVcFuture {
     }
 
     /// Make reads strongly consistent.
-    pub fn strongly_consistent(mut self) -> Self {
-        self.strongly_consistent = true;
+    pub fn strongly_consistent(self) -> Self {
         self.map_resolve(|r| r.strongly_consistent())
     }
 
@@ -494,12 +491,14 @@ impl Future for ReadRawVcFuture {
         // `ResolveRawVcFuture` is `Unpin`, so `Pin::new` is safe.
         // It handles `with_turbo_tasks` and `suppress_top_level_task_check` internally.
         if let ReadRawVcState::Resolving(resolve) = &mut this.state {
+            let strongly_consistent = resolve.strongly_consistent;
             match ready!(Pin::new(resolve).poll(cx)) {
                 Err(err) => return Poll::Ready(Err(err)),
                 Ok(RawVc::TaskCell(task, index)) => {
                     this.state = ReadRawVcState::Reading {
                         task,
                         index,
+                        strongly_consistent,
                         listener: None,
                     };
                 }
@@ -511,6 +510,7 @@ impl Future for ReadRawVcFuture {
         let ReadRawVcState::Reading {
             task,
             index,
+            strongly_consistent,
             listener,
         } = &mut this.state
         else {
@@ -536,7 +536,7 @@ impl Future for ReadRawVcFuture {
         // strongly-consistent. The suppression from `ResolveRawVcFuture::poll` only lasts for
         // the duration of that individual `poll` call and does not carry over to subsequent calls
         // or to this phase.
-        suppress_top_level_task_check(this.strongly_consistent, || with_turbo_tasks(poll_fn))
+        suppress_top_level_task_check(*strongly_consistent, || with_turbo_tasks(poll_fn))
     }
 }
 

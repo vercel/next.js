@@ -6,8 +6,7 @@ use rustc_hash::FxHashMap;
 use tracing::Instrument;
 use turbo_rcstr::rcstr;
 use turbo_tasks::{
-    FxIndexSet, NonLocalValue, OperationVc, ResolvedVc, TaskInput, TryFlatJoinIterExt,
-    TryJoinIterExt, Vc, trace::TraceRawVcs,
+    FxIndexSet, OperationVc, ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt, Vc, trace::TraceRawVcs,
 };
 
 use super::{
@@ -170,9 +169,8 @@ pub async fn make_chunk_group(
     })
 }
 
-#[derive(
-    Debug, Clone, Hash, TaskInput, PartialEq, Eq, TraceRawVcs, NonLocalValue, Encode, Decode,
-)]
+#[turbo_tasks::task_input]
+#[derive(Debug, Clone, Hash, PartialEq, Eq, TraceRawVcs, Encode, Decode)]
 pub struct ChunkGroupContentOptions {
     /// The availability info of the chunk group
     pub availability_info: AvailabilityInfo,

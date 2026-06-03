@@ -29,8 +29,8 @@ use tokio::time::{Duration, Instant};
 use tracing::{Span, trace_span};
 use turbo_bincode::{TurboBincodeBuffer, new_turbo_bincode_decoder, new_turbo_bincode_encoder};
 use turbo_tasks::{
-    CellId, RawVc, ReadCellOptions, ReadCellTracking, ReadConsistency, ReadOutputOptions,
-    ReadTracking, SharedReference, StackDynTaskInputs, TRANSIENT_TASK_BIT, TaskExecutionReason,
+    CellId, DynTaskInputsStorage, RawVc, ReadCellOptions, ReadCellTracking, ReadConsistency,
+    ReadOutputOptions, ReadTracking, SharedReference, TRANSIENT_TASK_BIT, TaskExecutionReason,
     TaskId, TaskPersistence, TaskPriority, TraitTypeId, TurboTasks, TurboTasksCallApi,
     TurboTasksPanic, ValueTypeId,
     backend::{
@@ -1463,7 +1463,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         &self,
         native_fn: &'static NativeFunction,
         this: Option<RawVc>,
-        arg: &mut dyn StackDynTaskInputs,
+        arg: &mut dyn DynTaskInputsStorage,
         parent_task: Option<TaskId>,
         persistence: TaskPersistence,
         turbo_tasks: &TurboTasks<TurboTasksBackend<B>>,
@@ -3463,7 +3463,7 @@ impl<B: BackingStorage> Backend for TurboTasksBackend<B> {
         &self,
         native_fn: &'static NativeFunction,
         this: Option<RawVc>,
-        arg: &mut dyn StackDynTaskInputs,
+        arg: &mut dyn DynTaskInputsStorage,
         parent_task: Option<TaskId>,
         persistence: TaskPersistence,
         turbo_tasks: &TurboTasks<Self>,
