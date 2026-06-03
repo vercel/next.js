@@ -27,7 +27,7 @@ use turbo_tasks::{
     TryJoinIterExt, ValueToString, Vc, trace::TraceRawVcs, turbofmt,
 };
 use turbo_tasks_fs::{self, File, FileContent, FileSystemPath, rope::RopeBuilder};
-use turbo_tasks_hash::{HashAlgorithm, deterministic_hash, hash_xxh3_hash128};
+use turbo_tasks_hash::{HashAlgorithm, deterministic_hash};
 use turbopack_core::{
     asset::{Asset, AssetContent},
     chunk::{
@@ -37,7 +37,9 @@ use turbopack_core::{
     file_source::FileSource,
     ident::AssetIdent,
     module::Module,
-    module_graph::{GraphTraversalAction, ModuleGraph, ModuleGraphLayer},
+    module_graph::{
+        GraphTraversalAction, ModuleGraph, ModuleGraphLayer, async_module_info::AsyncModulesInfo,
+    },
     output::{OutputAsset, OutputAssetsReference},
     reference_type::{EcmaScriptModulesReferenceSubType, ReferenceType},
     resolve::ModulePart,
@@ -414,48 +416,7 @@ async fn compute_subtree_content_hash(
 
         let hashes = modules
             .into_iter()
-            .map(async |m| {
-                let ident = m.ident();
-                let ident_value = ident.await?;
-                let ident_str = ident.to_string().await?;
-                Ok(
-                    if let Some(placeable_module) =
-                        ResolvedVc::try_downcast::<Box<dyn EcmascriptChunkPlaceable>>(m)
-                        && !ident_value
-                            .layer
-                            .as_ref()
-                            .is_some_and(|l| l.name() == "externals-tracing")
-                    {
-                        // A bundled JS module
-                        let chunk_item = placeable_module
-                            .as_chunk_item(*module_graph, chunking_context)
-                            .to_resolved()
-                            .await?;
-                        let chunk_item =
-                            ResolvedVc::try_downcast::<Box<dyn EcmascriptChunkItem>>(chunk_item)
-                                .unwrap();
-                        let async_info = if async_module_info.is_async(m).await? {
-                            Some(module_graph.referenced_async_modules(*m))
-                        } else {
-                            None
-                        };
-                        let code = chunk_item.code(async_info).await?;
-                        hash_xxh3_hash128((ident_str, code.source_code()))
-                    } else {
-                        // A non-JS static file or an external module
-                        let content_hash = m
-                            .source()
-                            .await?
-                            .with_context(|| {
-                                format!("failed to get source forwd  module {ident_str}")
-                            })?
-                            .content()
-                            .hash(HashAlgorithm::Xxh3Hash128Hex)
-                            .await?;
-                        hash_xxh3_hash128((ident_str, content_hash))
-                    },
-                )
-            })
+            .map(|m| module_hash(*module_graph, chunking_context, async_module_info, *m))
             .try_join()
             .await?;
 
@@ -476,6 +437,60 @@ async fn compute_subtree_content_hash(
             .await?,
         )),
     }
+}
+
+#[turbo_tasks::function]
+async fn module_hash(
+    module_graph: ResolvedVc<ModuleGraph>,
+    chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
+    async_module_info: ResolvedVc<AsyncModulesInfo>,
+    m: ResolvedVc<Box<dyn Module>>,
+) -> Result<Vc<RcStr>> {
+    let ident = m.ident();
+    let ident_value = ident.await?;
+    let ident_str = ident.to_string().await?;
+    Ok(Vc::cell(
+        if let Some(placeable_module) =
+            ResolvedVc::try_downcast::<Box<dyn EcmascriptChunkPlaceable>>(m)
+            && !ident_value
+                .layer
+                .as_ref()
+                .is_some_and(|l| l.name() == "externals-tracing")
+        {
+            // A bundled JS module
+            let chunk_item = placeable_module
+                .as_chunk_item(*module_graph, *chunking_context)
+                .to_resolved()
+                .await?;
+            let chunk_item =
+                ResolvedVc::try_downcast::<Box<dyn EcmascriptChunkItem>>(chunk_item).unwrap();
+            let async_info = if async_module_info.is_async(m).await? {
+                Some(module_graph.referenced_async_modules(*m))
+            } else {
+                None
+            };
+            let code = chunk_item.code(async_info).await?;
+            RcStr::from(deterministic_hash(
+                "",
+                (ident_str, code.source_code()),
+                HashAlgorithm::Xxh3Hash128Hex,
+            ))
+        } else {
+            // A non-JS static file or an external module
+            let content_hash = m
+                .source()
+                .await?
+                .with_context(|| format!("failed to get source for module {ident_str}"))?
+                .content()
+                .hash(HashAlgorithm::Xxh3Hash128Hex)
+                .await?;
+            RcStr::from(deterministic_hash(
+                "",
+                (ident_str, content_hash),
+                HashAlgorithm::Xxh3Hash128Hex,
+            ))
+        },
+    ))
 }
 
 /// Server action info for JSON parsing
