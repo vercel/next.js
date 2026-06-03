@@ -15,14 +15,13 @@ import {
   type PrerenderStoreModernServer,
   type PrerenderStorePPR,
 } from '../app-render/work-unit-async-storage.external'
-import {
-  delayUntilRuntimeStage,
-  makeHangingPromise,
-} from '../dynamic-rendering-utils'
+import { makeHangingPromise } from '../dynamic-rendering-utils'
 import { InvariantError } from '../../shared/lib/invariant-error'
+import { RenderStage } from '../app-render/staged-rendering'
 
 export function createServerPathnameForMetadata(
-  underlyingPathname: string
+  underlyingPathname: string,
+  isRuntimePrefetchable: boolean
 ): Promise<string> {
   const workStore = workAsyncStorage.getStore()
   if (!workStore) {
@@ -55,11 +54,21 @@ export function createServerPathnameForMetadata(
         throw new InvariantError(
           'createServerPathnameForMetadata should not be called inside generateStaticParams.'
         )
-      case 'prerender-runtime':
-        return delayUntilRuntimeStage(
-          workUnitStore,
-          createRenderPathname(underlyingPathname)
-        )
+      case 'prerender-runtime': {
+        const { stagedRendering } = workUnitStore
+        if (stagedRendering) {
+          const stage = isRuntimePrefetchable
+            ? RenderStage.EarlyRuntime
+            : RenderStage.Runtime
+          return stagedRendering.delayUntilStage(
+            stage,
+            undefined,
+            underlyingPathname
+          )
+        } else {
+          return createRenderPathname(underlyingPathname)
+        }
+      }
       case 'request':
         return createRenderPathname(underlyingPathname)
       default:

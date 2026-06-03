@@ -21,7 +21,7 @@ import type { WorkStore } from './work-async-storage.external'
 import { NEXT_HMR_REFRESH_HASH_COOKIE } from '../../client/components/app-router-headers'
 import { InvariantError } from '../../shared/lib/invariant-error'
 import type { StagedRenderingController } from './staged-rendering'
-import { RenderStage } from './staged-rendering'
+import { isEarlyRenderStage, RenderStage } from './staged-rendering'
 import type { ValidationBoundaryTracking } from './instant-validation/boundary-tracking'
 import type { InstantValidationSampleTracking } from './instant-validation/instant-samples'
 
@@ -131,10 +131,13 @@ export type AsyncApiPromises = {
 export function isInEarlyRenderStage(requestStore: RequestStore): boolean {
   const stagedRendering = requestStore.stagedRendering
   if (stagedRendering) {
-    return (
-      stagedRendering.currentStage === RenderStage.EarlyStatic ||
-      stagedRendering.currentStage === RenderStage.EarlyRuntime
-    )
+    const { currentStage } = stagedRendering
+    if (currentStage === RenderStage.Before) {
+      throw new InvariantError(
+        'Cannot determine late/early stage before starting the render'
+      )
+    }
+    return isEarlyRenderStage(currentStage)
   }
   return false
 }

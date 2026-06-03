@@ -65,7 +65,10 @@ export function createMetadataComponents({
     parsedQuery,
     isRuntimePrefetchable
   )
-  const pathnameForMetadata = createServerPathnameForMetadata(pathname)
+  const pathnameForMetadata = createServerPathnameForMetadata(
+    pathname,
+    isRuntimePrefetchable
+  )
 
   async function Viewport() {
     // Gate metadata to the correct render stage. If the page is not
