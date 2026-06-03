@@ -320,14 +320,17 @@ export class StagedRenderingController {
     stage: AdvanceableRenderStage,
     displayName: string | undefined,
     resolvedValue: T
-  ) {
-    const ioTriggerPromise = this.getStagePromise(stage)
+  ): Promise<T> {
+    const stagePromise = this.getStagePromise(stage)
 
-    const promise = makeDevtoolsIOPromiseFromIOTrigger(
-      ioTriggerPromise,
-      displayName,
-      resolvedValue
-    )
+    const promise =
+      process.env.NODE_ENV === 'development'
+        ? makeDevtoolsIOPromiseFromIOTrigger(
+            stagePromise,
+            displayName,
+            resolvedValue
+          )
+        : stagePromise.then(() => resolvedValue)
 
     // Analogously to `makeHangingPromise`, we might reject this promise if the signal is invoked.
     // (e.g. in the case where we don't want want the render to proceed to the dynamic stage and abort it).

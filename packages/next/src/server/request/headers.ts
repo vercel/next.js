@@ -20,9 +20,9 @@ import {
 } from '../app-render/dynamic-rendering'
 import { StaticGenBailoutError } from '../../client/components/static-generation-bailout'
 import {
-  delayUntilRuntimeStage,
   makeDevtoolsIOAwarePromise,
   makeHangingPromise,
+  getRuntimeStage,
 } from '../dynamic-rendering-utils'
 import { createDedupedByCallsiteServerErrorLoggerDev } from '../create-deduped-by-callsite-server-error-logger'
 import { isRequestAPICallableInsideAfter } from './utils'
@@ -131,11 +131,19 @@ export function headers(): Promise<ReadonlyHeaders> {
             workStore,
             workUnitStore
           )
-        case 'prerender-runtime':
-          return delayUntilRuntimeStage(
-            workUnitStore,
-            makeUntrackedHeaders(workUnitStore.headers)
-          )
+        case 'prerender-runtime': {
+          const { stagedRendering } = workUnitStore
+          if (stagedRendering) {
+            // TODO(app-shells): headers should be dynamic instead.
+            return stagedRendering.delayUntilStage(
+              getRuntimeStage(stagedRendering),
+              'headers',
+              workUnitStore.headers
+            )
+          } else {
+            return makeUntrackedHeaders(workUnitStore.headers)
+          }
+        }
         case 'private-cache':
           // Private caches are delayed until the runtime stage in use-cache-wrapper,
           // so we don't need an additional delay here.
@@ -226,7 +234,7 @@ function makeUntrackedHeadersWithDevWarnings(
   const promise = makeDevtoolsIOAwarePromise(
     underlyingHeaders,
     requestStore,
-    RenderStage.Runtime
+    RenderStage.Runtime // TODO(app-shells): headers should be dynamic instead.
   )
 
   const proxiedPromise = instrumentHeadersPromiseWithDevWarnings(promise, route)

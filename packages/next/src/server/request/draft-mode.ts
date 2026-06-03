@@ -19,9 +19,8 @@ import { createDedupedByCallsiteServerErrorLoggerDev } from '../create-deduped-b
 import { StaticGenBailoutError } from '../../client/components/static-generation-bailout'
 import { DynamicServerError } from '../../client/components/hooks-server-context'
 import { InvariantError } from '../../shared/lib/invariant-error'
-import { delayUntilRuntimeStage } from '../dynamic-rendering-utils'
 import { ReflectAdapter } from '../web/spec-extension/adapters/reflect'
-import { applyOwnerStack } from '../dynamic-rendering-utils'
+import { applyOwnerStack, getRuntimeStage } from '../dynamic-rendering-utils'
 
 export function draftMode(): Promise<DraftMode> {
   const callingExpression = 'draftMode'
@@ -33,12 +32,19 @@ export function draftMode(): Promise<DraftMode> {
   }
 
   switch (workUnitStore.type) {
-    case 'prerender-runtime':
+    case 'prerender-runtime': {
       // TODO(runtime-ppr): does it make sense to delay this? normally it's always microtasky
-      return delayUntilRuntimeStage(
-        workUnitStore,
-        createOrGetCachedDraftMode(workUnitStore.draftMode, workStore)
-      )
+      const { stagedRendering } = workUnitStore
+      if (stagedRendering) {
+        return stagedRendering.delayUntilStage(
+          getRuntimeStage(stagedRendering),
+          'draftMode',
+          new DraftMode(workUnitStore.draftMode)
+        )
+      } else {
+        return createOrGetCachedDraftMode(workUnitStore.draftMode, workStore)
+      }
+    }
     case 'request':
       return createOrGetCachedDraftMode(workUnitStore.draftMode, workStore)
 
