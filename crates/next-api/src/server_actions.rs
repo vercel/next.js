@@ -270,8 +270,10 @@ impl Asset for ServerActionManifestAsset {
                     ActionMetadata {
                         exported_name: &meta.name,
                         filename,
-                        // TODO only do this for "use cache" functions, not all server actions
-                        code_hash: if durable_use_cache_entries {
+                        code_hash: if durable_use_cache_entries
+                            && extract_type_from_server_reference_id(hash_id)
+                                == ServerReferenceType::UseCache
+                        {
                             Some(
                                 compute_subtree_content_hash(
                                     *self.module_graph,
@@ -782,4 +784,68 @@ pub async fn map_server_actions(
         .try_flat_join()
         .await?;
     Ok(Vc::cell(actions.into_iter().collect()))
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+enum ServerReferenceType {
+    ServerAction,
+    UseCache,
+}
+
+fn extract_type_from_server_reference_id(id: &str) -> ServerReferenceType {
+    // Mirrors extractInfoFromServerReferenceId in
+    // packages/next/src/shared/lib/server-reference-info.ts
+    let info_byte = u8::from_str_radix(&id[0..2], 16).unwrap_or(0);
+    let type_bit = (info_byte >> 7) & 0x1;
+
+    if type_bit == 1 {
+        ServerReferenceType::UseCache
+    } else {
+        ServerReferenceType::ServerAction
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::server_actions::{ServerReferenceType, extract_type_from_server_reference_id};
+
+    #[test]
+    fn test_should_parse_id_with_type_bit_0_no_args() {
+        let id = "00xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"; // 0b00000000
+
+        assert_eq!(
+            extract_type_from_server_reference_id(id),
+            ServerReferenceType::ServerAction
+        );
+    }
+
+    #[test]
+    fn test_should_parse_id_with_type_bit_1_all_args_used_rest_args_true() {
+        let id = "ffxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"; // 0b11111111
+
+        assert_eq!(
+            extract_type_from_server_reference_id(id),
+            ServerReferenceType::UseCache
+        );
+    }
+
+    #[test]
+    fn test_should_parse_id_with_type_bit_0_arg_mask_0b101010_rest_args_false() {
+        let id = "54xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"; // 0b01010100
+
+        assert_eq!(
+            extract_type_from_server_reference_id(id),
+            ServerReferenceType::ServerAction
+        );
+    }
+
+    #[test]
+    fn test_should_parse_id_with_type_bit_1_arg_mask_0b000101_rest_args_true() {
+        let id = "8bxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"; // 0b10001011
+
+        assert_eq!(
+            extract_type_from_server_reference_id(id),
+            ServerReferenceType::UseCache
+        );
+    }
 }
