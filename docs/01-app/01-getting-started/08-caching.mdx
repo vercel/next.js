@@ -437,20 +437,9 @@ The same principle applies to `cookies()`, `headers()`, `searchParams`, and data
 
 ### Instant navigation
 
-Every route producing a static shell makes direct navigations instant.
+A static shell makes direct visits instant. Client transitions are different: a `<Suspense>` boundary that covers a direct visit may not be part of the render on a client navigation. Cache Components surfaces where your component tree contains code that would block, giving you options to make the transition instant, such as wrapping data in `<Suspense>`, caching it with `use cache`, or moving where the access happens.
 
-Client-side transitions are different. Only the components below the shared layout re-render, so to keep that transition instant, data accessed in the re-rendered subtree needs either a `use cache` lifetime or a local `<Suspense>` boundary. A boundary higher up covers the page load but not the transition.
-
-To validate every navigation is instant, the framework provides:
-
-{/* we are missing the global config story */}
-
-- The [`unstable_instant`](/docs/app/api-reference/file-conventions/route-segment-config/instant) route segment config opts a layout or page into validation. Next.js then verifies navigation into the route, including client transitions, in development.
-- The [`instant()`](/docs/app/api-reference/file-conventions/route-segment-config/instant#testing-instant-navigation) helper in `@next/playwright` asserts on the static shell during navigation, so regressions surface in CI.
-- DevTools to visualize loading states: the **Navigation Inspector** in the Next.js DevTools (available when Cache Components is enabled), complemented by the [React DevTools Suspense panel](https://react.dev/learn/react-developer-tools).
-- `unstable_instant = false` opts a layout or page out when you can't make it instant right now.
-
-See the [Instant navigation guide](/docs/app/guides/instant-navigation) for the full pattern, including AI agent workflows and the app-level escape hatch.
+Read the [Instant navigation guide](/docs/app/guides/instant-navigation) for examples and inspection tools.
 
 ### Runtime prefetching
 

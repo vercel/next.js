@@ -13,22 +13,32 @@ related:
     - app/guides/prefetching
 ---
 
-{/* AI agent hint: Always export `unstable_instant` from routes that should navigate instantly. It validates the caching structure during development. */}
+{/* AI agent hint: Cache Components apps validate Page and Default segments for instant navigation by default in development. See docs/01-app/02-guides/instant-navigation.mdx for patterns and overrides. */}
 
-{/* is this correct now, that we have a global control? Also it ends on a weird statement, sufaces what would hold each one back? what? */}
-Cache Components requires every route to produce a static shell, so direct visits never block. With [`unstable_instant`](/docs/app/api-reference/file-conventions/route-segment-config/instant), the framework checks every navigation into the route, including client transitions, and surfaces what would hold each one back, before any of it ships.
-
-This guide walks through writing a route that navigates instantly, visualizing what's in the shell, and locking the behavior in with end-to-end tests.
+This guide walks through understanding instant navigations, writing a route that navigates instantly, visualizing what's in the initial UI, and locking the behavior in with end-to-end tests.
 
 ## What "instant" means
 
-A navigation **blocks** when the browser has to wait on the server before it can render anything.
+A navigation **blocks** when the browser has to wait on the server before it can start rendering. A navigation is **instant** when the browser can start rendering the new page the moment the user clicks, with static, cached, and fallback content showing up right away, while the server streams the remaining content into its fallbacks.
 
-Cache Components already prevents this for direct visits: the static shell generation forces you to wrap uncached or runtime data in `<Suspense>`, unless you explicitly opt out. In the same app, however, a client transition between sibling routes can still block, because a `<Suspense>` boundary that covers a direct visit may not cover the transition.
+> **Good to know:** This definition assumes caches are warm. Cold caches still require the server to compute the cached result once, so the first navigation to a route may still wait.
 
-A navigation is **instant** when the browser can start rendering the new page the moment the user clicks. Static, cached, and fallback content show up right away, while the server streams the remaining content into its fallbacks.
+Cache Components ensures direct visits show UI immediately by serving the [**static shell**](/docs/app/glossary#static-shell) as HTML, typically from a CDN. For client navigations, the router prefetches the static shell's RSC payload, which the client uses to render the UI. See [Caching](/docs/app/getting-started/caching#prerendering) for how prerendering produces the static shell.
 
-This definition assumes caches are warm. Cold caches still require the server to compute the cached result once, so the first navigation to a route may still wait.
+<details>
+<summary>Why page loads and client navigations produce different initial UI</summary>
+
+On a page load, the entire page renders from the document root, including all layouts. Anything that suspends is caught by the nearest `<Suspense>` boundary in the entire document tree.
+
+On a client navigation (clicking `next/link`), Next.js only re-renders below the layout that the source and destination routes share. Components above that shared layout are not re-rendered. A `<Suspense>` boundary in the root layout covers everything on a page load. For a client navigation between `/store/shoes` and `/store/hats`, only the components below the `/store` layout re-render. The root `<Suspense>` is above that re-render scope and does not trigger.
+
+This is also why client-side hooks behave differently. `useSearchParams()` suspends during server rendering because search params are not available at build time. But on a client navigation, the router already has the params from the URL and the hook resolves synchronously. The same component can render immediately on a client navigation but sit behind a fallback on a page load.
+
+</details>
+
+Runtime prefetching extends the static shell with request-specific content like the user's name from a cookie, by invoking the route at prefetch time. See [Runtime prefetching](/docs/app/guides/runtime-prefetching) for the patterns.
+
+An [**App Shell**](/docs/app/glossary#app-shell) provides a per-route fallback that renders instantly even when prefetches haven't completed.
 
 ## The tools
 
@@ -40,28 +50,23 @@ With Cache Components, **caching directives** (`"use cache"` and its variants) a
 
 **`<Suspense>`** declares fallback UI for parts of the tree that read uncached data or runtime APIs like `cookies()` and `headers()`; the content streams into the fallback when it resolves.
 
-Partial Prerendering composes the cached output with the streaming fallbacks. See [Caching](/docs/app/getting-started/caching) for the full picture.
-
 On a direct visit, this structure is already validated: data must be cached, or wrapped in a `<Suspense>` fallback.
 
 ### Validate instant navigation
 
-A `<Suspense>` boundary that provides fallback UI on a direct visit may not be part of the render on a client navigation. To close that gap, Next.js exposes [`unstable_instant`](/docs/app/api-reference/file-conventions/route-segment-config/instant). Add it to a layout or page to tell the framework you want navigations to this route to be instant. From there, the framework gives you insight into what would keep navigation from being instant: which navigations would block, where a `<Suspense>` boundary is missing, and which data is reaching the user uncached. The checks run in development.
+Cache Components apps validate every navigation in development, giving you insight into what would keep it from being instant: which navigations would block, where a `<Suspense>` boundary is missing, and which data is reaching the user uncached.
 
-<details>
-<summary>Why page loads and client navigations produce different shells</summary>
+To refine validation:
 
-On a page load, the entire page renders from the document root, including all layouts. Anything that suspends is caught by the nearest `<Suspense>` boundary in the entire document tree.
+- [`unstable_instant = false`](/docs/app/api-reference/file-conventions/route-segment-config/instant) on a page or layout opts that segment out
+- `unstable_instant = { unstable_disableValidation: true }` on a layout opts-out the layout and every segment below it
+- Set [`experimental.instantInsights.validationLevel`](/docs/app/api-reference/file-conventions/route-segment-config/instant#configuring-validation-defaults) to `'manual-warning'` in `next.config` to limit validation to segments that explicitly export `unstable_instant`
 
-On a client navigation (clicking `next/link`), Next.js only re-renders below the layout that the source and destination routes share. Components above that shared layout are not re-rendered. This means that a `<Suspense>` boundary in the root layout covers everything on a page load, but for a client navigation between `/store/shoes` and `/store/hats`, the shared layout is `/store` and Next.js renders the part of the document below that point. The root `<Suspense>` sits above it and does not trigger for this navigation.
-
-This is also why client-side hooks behave differently. `useSearchParams()` suspends during server rendering because search params are not available at build time. But on a client navigation, the router already has the params from the URL and the hook resolves synchronously. The same component can render immediately on a client navigation but sit behind a fallback on a page load.
-
-</details>
+> **Good to know:** With `'manual-warning'`, opt segments in by adding `unstable_instant = true` to specific pages or layouts.
 
 ### Test it in CI
 
-To guard against regressions, run end-to-end assertions against the UI that's immediately available on navigation. The `@next/playwright` package provides an [`instant()`](/docs/app/api-reference/file-conventions/route-segment-config/instant#testing-instant-navigation) helper that sets up that scope so your assertions run before any dynamic data streams in.
+The `@next/playwright` package provides an [`instant()`](/docs/app/api-reference/file-conventions/route-segment-config/instant#testing-instant-navigation) helper that scopes your assertions to the UI that's immediately available on navigation, so regressions surface in CI. See [Prevent regressions with e2e tests](#prevent-regressions-with-e2e-tests) for the pattern.
 
 ### Inspect loading states
 
@@ -80,13 +85,9 @@ The product page fetches two pieces of data: product details (name, price) and l
 - **Product info** rarely changes and is queried from the db using a cached function
 - **Inventory** must be fresh on each request. The db query is inside a `<Suspense>` boundary
 
-{/* we need to decide how to teach this given the global level config - and the per route opt in... */}
-
-```tsx filename="app/store/[slug]/page.tsx" highlight={4,9-14,32-34}
+```tsx filename="app/store/[slug]/page.tsx" highlight={7-12,30-32}
 import { Suspense } from 'react'
 import { db } from '@/lib/db'
-
-export const unstable_instant = true
 
 export default function ProductPage(props: PageProps<'/store/[slug]'>) {
   return (
@@ -126,10 +127,9 @@ async function Inventory({ params }: { params: Params }) {
 }
 ```
 
-{/* whether or not the errors surface as warnings, or at all, also these are insights... */}
-The [`unstable_instant`](/docs/app/api-reference/file-conventions/route-segment-config/instant) export triggers validation for this route. During development, errors appear in the Next.js error overlay. Each error identifies the component that would block the navigation and suggests a fix.
+Cache Components validates this route automatically in development. If something would block a navigation, an insight appears in the Next.js dev overlay, identifying the component and suggesting a fix.
 
-Validation runs automatically on every page load using the real request from your browser, so dynamic params like `[slug]` are checked against actual values as you navigate.
+Validation runs on every page load using the real request from your browser, so dynamic params like `[slug]` are checked against actual values as you navigate.
 
 ## Visualize loading states with the Next.js DevTools
 
@@ -237,32 +237,9 @@ Everything appears to work. But on a client navigation from `/shop/shoes` to `/s
 {/* not sure we need to call out prefetch here... we have not even mentioned thus far no? it is part of what makes isntant navs, we can prefetch the initial UI */}
 You can see this with the DevTools. Try a **page load**: the root `<Suspense>` catches everything and **"Loading..."** appears. Now try a **client navigation** between two `/shop/` pages: no prefetched UI shows up because there is no `<Suspense>` boundary below the shared layout. Navigations from other routes to `/shop/` appear blocked too.
 
-{/* align step 1 with the global config consideration */}
+### Step 1: See what validation catches
 
-### Step 1: Add `unstable_instant`
-
-Add an `unstable_instant` export to the page to surface the problem:
-
-```tsx filename="app/shop/[slug]/page.tsx" highlight={3}
-import { db } from '@/lib/db'
-
-export const unstable_instant = true
-
-export default async function ProductPage(props: PageProps<'/shop/[slug]'>) {
-  const { slug } = await props.params
-  const product = await db.products.findBySlug(slug)
-  const item = await db.inventory.findBySlug(slug)
-  return (
-    <div>
-      <h1>{product.name}</h1>
-      <p>${product.price}</p>
-      <p>{item.count} in stock</p>
-    </div>
-  )
-}
-```
-
-Next.js now simulates navigations at every shared layout boundary in the route. The page awaits `params` and accesses uncached data at the top level, with no `<Suspense>` boundary around any of it. The first thing validation catches is the `await params` at the top level.
+Cache Components simulates navigations at every shared layout boundary in this route. The page awaits `params` and accesses uncached data at the top level, with no `<Suspense>` boundary around any of it. The first thing validation catches is the `await params` at the top level.
 
 ### Step 2: Fix the validation error
 
@@ -304,11 +281,9 @@ async function Inventory({ params }: { params: Promise<{ slug: string }> }) {
 
 The page passes `params` to each component and wraps them with `<Suspense>`:
 
-```tsx filename="app/shop/[slug]/page.tsx" highlight={4,9-14}
+```tsx filename="app/shop/[slug]/page.tsx" highlight={7-12}
 import { Suspense } from 'react'
 import { db } from '@/lib/db'
-
-export const unstable_instant = true
 
 export default function ProductPage(props: PageProps<'/shop/[slug]'>) {
   return (
@@ -329,7 +304,7 @@ Validation passes. Open the DevTools and try a client navigation. The product na
 <details>
 <summary>How validation simulates different navigations</summary>
 
-When you add `unstable_instant` to a route, Next.js checks both the initial page load and client navigations at different points in the route hierarchy.
+For each validated route, Next.js checks both the initial page load and client navigations at different points in the route hierarchy.
 
 For a route like `/shop/[slug]`, validation checks:
 
@@ -348,19 +323,36 @@ Come back later and push the boundary down. The best loading states keep as much
 
 Use the [DevTools](#visualize-loading-states-with-the-nextjs-devtools) to see what your users see, then move `<Suspense>` boundaries closer to the data that actually suspends.
 
-## Validating every page by default
+## Opting out
 
-{/* we should rather start with what'll ship, as the default, and give options, I like the angle on being comfortable though */}
-Once you're comfortable with the loop on a few routes, you can opt every Page and Default segment in at once with [`experimental.instantInsights.validationLevel`](/docs/app/api-reference/file-conventions/route-segment-config/instant#configuring-validation-defaults):
+Not every layout or page can or should be instant. When the structural fix isn't worth the work, or when a route isn't a priority for instant navigation, refine validation at one of three scopes:
 
-```ts filename="next.config.ts" highlight={5-9}
+**One segment.** Set `unstable_instant = false` on the page or layout file. The segment is allowed to block when navigated to; child segments are still validated.
+
+```tsx filename="app/dashboard/layout.tsx"
+export const unstable_instant = false
+```
+
+This tells validation: navigating to `/dashboard` from outside does not need to be instant, but sibling navigations within it still do.
+
+**Layout and its children.** Set `unstable_instant = { unstable_disableValidation: true }` on a layout. This disables validation for the layout and every segment below it.
+
+```tsx filename="app/admin/layout.tsx"
+export const unstable_instant = { unstable_disableValidation: true }
+```
+
+Useful when an entire section of the app shouldn't be validated.
+
+**Entire app.** Set `experimental.instantInsights.validationLevel` to `'manual-warning'` in `next.config`. Validation runs only on segments that explicitly export `unstable_instant`.
+
+```ts filename="next.config.ts" highlight={4-8}
 import type { NextConfig } from 'next'
 
 const nextConfig: NextConfig = {
   cacheComponents: true,
   experimental: {
     instantInsights: {
-      validationLevel: 'warning',
+      validationLevel: 'manual-warning',
     },
   },
 }
@@ -368,59 +360,15 @@ const nextConfig: NextConfig = {
 export default nextConfig
 ```
 
-With this set, `unstable_instant = true` is implied for every Page and Default segment. Use `unstable_instant = false` to exempt the segments that can't be instant.
+> **Good to know:** With `'manual-warning'`, opt segments in by adding `unstable_instant = true` to specific pages or layouts.
 
-## Opting out with `unstable_instant = false`
-
-Not every layout or page can or should be instant. When the structural fix isn't worth the work, or when a route isn't a priority for instant navigation, opt the segment out with `unstable_instant = false`:
-
-```tsx filename="app/dashboard/layout.tsx"
-export const unstable_instant = false
-```
-
-This tells validation: navigating to `/dashboard` from outside does not need to be instant, but sibling navigations within it still do. Navigating from `/dashboard/a` to `/dashboard/b` can still be checked by adding `unstable_instant` to the page segments under `/dashboard`.
-
-The navigation blocks on the server for this segment, so only use this when the segment really cannot produce a useful static shell. If the content depends on cookies or headers but has a known cache lifetime, [runtime prefetching](/docs/app/guides/runtime-prefetching) can prerender it ahead of click instead of opting out.
-
-<details>
-<summary>Opting the entire app out</summary>
-
-{/* TODO: revisit whether the Suspense-over-body escape hatch is still useful now that `unstable_instant = false` at the root layout exists. */}
-To opt out at the app level (for example, during migration), set `unstable_instant = false` at the root layout. Validation skips every route below.
-
-```tsx filename="app/layout.tsx"
-export const unstable_instant = false
-```
-
-If you need to skip the static shell itself, wrap `<body>` in `<Suspense>` with an empty fallback in the root layout. This means every request blocks until the page is fully rendered.
-
-```tsx filename="app/layout.tsx" highlight={1,10-12}
-import { Suspense } from 'react'
-
-export default function RootLayout({
-  children,
-}: {
-  children: React.ReactNode
-}) {
-  return (
-    <html>
-      <Suspense fallback={null}>
-        <body>{children}</body>
-      </Suspense>
-    </html>
-  )
-}
-```
-
-Use [multiple root layouts](/docs/app/api-reference/file-conventions/layout#root-layout) to limit either approach to specific routes.
-
-</details>
+For opted-out segments, the navigation blocks on the server. If the content depends on cookies or headers but has a known cache lifetime, [runtime prefetching](/docs/app/guides/runtime-prefetching) can prerender it ahead of click instead of opting out.
 
 ## AI workflow
 
-The declare-fix-iterate loop is well suited to AI coding agents:
+The observe-fix-iterate loop is well suited to AI coding agents:
 
-- **Declare**: add `unstable_instant` to a route.
+- **Observe**: read validation insights in the dev overlay.
 - **Fix**: validation errors name a specific component and suggest a fix (`use cache` or `<Suspense>`). The agent applies the fix and re-runs validation, whether that's in dev or a build.
 - **Iterate**: run an `instant()` test to check what appears in the shell. Because the output is deterministic, the agent can assert on it without flaky retries.
 
