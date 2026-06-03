@@ -49,7 +49,7 @@ jobs:
     environment: release-${{ github.event.inputs.releaseType }}
     steps:
       - name: Setup node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
         with:
           node-version: ${{ env.NODE_LTS_VERSION }}
           check-latest: true
@@ -93,7 +93,7 @@ jobs:
       - id: get-store-path
         run: echo STORE_PATH=$(pnpm store path) >> $GITHUB_OUTPUT
 
-      - uses: actions/cache@v4
+      - uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
         timeout-minutes: 5
         id: cache-pnpm-store
         with:
