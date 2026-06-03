@@ -62,6 +62,7 @@ export class StagedRenderingController {
   private abortSignal: AbortSignal | null
   private abandonController: AbortController | null
   private shouldTrackSyncIO: boolean
+  public readonly finalStage: AdvanceableRenderStage | null
 
   currentStage: RenderStage = RenderStage.Before
 
@@ -81,14 +82,17 @@ export class StagedRenderingController {
     abortSignal,
     abandonController,
     shouldTrackSyncIO,
+    finalStage,
   }: {
     abortSignal: AbortSignal | null
     abandonController: AbortController | null
     shouldTrackSyncIO: boolean
+    finalStage: AdvanceableRenderStage | null
   }) {
     this.abortSignal = abortSignal
     this.abandonController = abandonController
     this.shouldTrackSyncIO = shouldTrackSyncIO
+    this.finalStage = finalStage
 
     if (abortSignal) {
       abortSignal.addEventListener(
@@ -268,6 +272,11 @@ export class StagedRenderingController {
   }
 
   advanceStage(targetStage: AdvanceableRenderStage) {
+    if (this.finalStage !== null && targetStage > this.finalStage) {
+      throw new InvariantError(
+        `Attempted to advance to stage ${RenderStage[targetStage]} but the render is limited to ${RenderStage[this.finalStage]}`
+      )
+    }
     // If we're already at the target stage or beyond, do nothing.
     // (this can happen e.g. if sync IO advanced us to the dynamic stage)
     if (targetStage <= this.currentStage) {

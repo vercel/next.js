@@ -933,6 +933,7 @@ async function generateStagedDynamicFlightRenderResultWeb(
     // but it can happen e.g. after a revalidation or conditionally for a param that wasn't prerendered.
     // we should change this to track sync IO, log an error and advance to dynamic.
     shouldTrackSyncIO: false,
+    finalStage: null,
   })
 
   // Initialize stale time tracking on the request store.
@@ -1091,6 +1092,7 @@ async function generateStagedDynamicFlightRenderResultNode(
     // but it can happen e.g. after a revalidation or conditionally for a param that wasn't prerendered.
     // we should change this to track sync IO, log an error and advance to dynamic.
     shouldTrackSyncIO: false,
+    finalStage: null,
   })
 
   // Initialize stale time tracking on the request store.
@@ -1278,6 +1280,7 @@ async function stagedRenderWithoutCachesInDevWeb(
     abortSignal: null,
     abandonController: null,
     shouldTrackSyncIO: false, // do not track sync IO (we don't have reliable stages)
+    finalStage: null,
   })
 
   const environmentName = () => {
@@ -1348,6 +1351,7 @@ async function stagedRenderWithoutCachesInDevNode(
     abortSignal: null,
     abandonController: null,
     shouldTrackSyncIO: false, // do not track sync IO (we don't have reliable stages)
+    finalStage: null,
   })
 
   const environmentName = () => {
@@ -1881,6 +1885,7 @@ async function finalRuntimeServerPrerender(
     abortSignal: finalServerController.signal,
     abandonController: null,
     shouldTrackSyncIO: true,
+    finalStage: RenderStage.Runtime,
   })
 
   const varyParamsAccumulator = createResponseVaryParamsAccumulator()
@@ -3708,6 +3713,7 @@ async function renderToStream(
             // but it can happen e.g. after a revalidation or conditionally for a param that wasn't prerendered.
             // we should change this to track sync IO, log an error and advance to dynamic.
             shouldTrackSyncIO: false,
+            finalStage: null,
           })
 
           requestStore.stale = INFINITE_CACHE
@@ -3839,6 +3845,7 @@ async function renderToStream(
             // but it can happen e.g. after a revalidation or conditionally for a param that wasn't prerendered.
             // we should change this to track sync IO, log an error and advance to dynamic.
             shouldTrackSyncIO: false,
+            finalStage: null,
           })
 
           requestStore.stale = INFINITE_CACHE
@@ -4656,6 +4663,7 @@ async function renderWithRestartOnCacheMissInDevWeb(
     abortSignal: initialDataController.signal,
     abandonController: initialAbandonController,
     shouldTrackSyncIO: true,
+    finalStage: null,
   })
 
   // Use a mutable resume data cache for the warmup. After the warmup we'll swap
@@ -4818,6 +4826,7 @@ async function renderWithRestartOnCacheMissInDevWeb(
     abortSignal: null,
     abandonController: null,
     shouldTrackSyncIO: true,
+    finalStage: null,
   })
 
   // We've filled the caches, so now we can render as usual,
@@ -4968,6 +4977,7 @@ async function renderWithRestartOnCacheMissInDevNode(
     abortSignal: initialDataController.signal,
     abandonController: initialAbandonController,
     shouldTrackSyncIO: true,
+    finalStage: null,
   })
 
   // Use a mutable resume data cache for the warmup. After the warmup we'll swap
@@ -5125,6 +5135,7 @@ async function renderWithRestartOnCacheMissInDevNode(
     abortSignal: null,
     abandonController: null,
     shouldTrackSyncIO: true,
+    finalStage: null,
   })
 
   // We've filled the caches, so now we can render as usual,
@@ -6492,6 +6503,7 @@ async function renderWithRestartOnCacheMissInValidation(
     abortSignal: initialDataController.signal,
     abandonController: initialAbandonController,
     shouldTrackSyncIO: true,
+    finalStage: null,
   })
 
   requestStore.resumeDataCache = prerenderResumeDataCache
@@ -6602,6 +6614,7 @@ async function renderWithRestartOnCacheMissInValidation(
     abortSignal: finalDataController.signal,
     abandonController: null,
     shouldTrackSyncIO: true,
+    finalStage: null,
   })
 
   requestStore.resumeDataCache = createRenderResumeDataCache(
