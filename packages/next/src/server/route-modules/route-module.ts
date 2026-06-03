@@ -670,8 +670,11 @@ export abstract class RouteModule<
         '../lib/router-utils/instrumentation-globals.external.js'
       )
       // ensure instrumentation is registered and pass
-      // onRequestError below
-      ensureInstrumentationRegistered(absoluteProjectDir, this.distDir)
+      // onRequestError below. Awaited so any caller of `RouteModule.prepare`
+      // that bypasses `BaseServer.handleRequest` (where this is also awaited
+      // via `prepareImpl`) still observes the instrumentation hook completing
+      // before the userland route handler runs.
+      await ensureInstrumentationRegistered(absoluteProjectDir, this.distDir)
     }
     const manifests = this.loadManifests(srcPage, absoluteProjectDir)
     const { routesManifest, prerenderManifest, serverFilesManifest } = manifests

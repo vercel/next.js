@@ -112,11 +112,9 @@ impl ModuleReference for WebpackChunkAssetReference {
     async fn resolve_reference(&self) -> Result<Vc<ModuleResolveResult>> {
         let runtime = self.runtime.await?;
         Ok(match &*runtime {
-            WebpackRuntime::Webpack5 {
-                chunk_request_expr: _,
-                context_path,
-            } => {
-                // TODO determine filename from chunk_request_expr
+            WebpackRuntime::Webpack5 { context_path } => {
+                // TODO: Determine the filename from the chunk filename in `webpack_runtime()`,
+                // refer to `is_webpack_runtime()` in https://github.com/vercel/next.js/commit/f6d8529af54b78e913f0f743ab6cace851b32e4f for a partial implentation
                 let chunk_id = match &self.chunk_id {
                     Lit::Str(str) => str.value.to_string_lossy().into_owned(),
                     Lit::Num(num) => format!("{num}"),

@@ -122,22 +122,20 @@ Setting `unstable_instant = false` on a segment opts it out of validation entire
 
 ## Inspecting loading states
 
-Enable the DevTools toggle with the experimental flag:
+The Navigation Inspector is available when Cache Components is enabled:
 
 ```js filename="next.config.js"
 module.exports = {
-  experimental: {
-    instantNavigationDevToolsToggle: true,
-  },
+  cacheComponents: true,
 }
 ```
 
-Open the Next.js DevTools and select **Instant Navs**. Two options are available:
+Open the Next.js DevTools and select **Navigation Inspector**, then click **Start Capturing**. While capturing is active:
 
-- **Page load**: click **Reload** to refresh the page and freeze it at the initial static UI that was generated for this route, before any dynamic data streams in.
-- **Client navigation**: once enabled, clicking any link in your app shows the prefetched UI for that page instead of the full result.
+- Refresh the page to freeze the initial static UI generated for the route, before any dynamic data streams in.
+- Click a link to freeze the prefetched UI for the destination route.
 
-Use both to check that your loading states look right on first visit and on navigation.
+When the UI is frozen, click **Continue Rendering** to let the current navigation finish while keeping the Navigation Inspector in capturing mode. Click **Stop Capturing** when you are done. Use both page refreshes and link clicks to check that your loading states look right on first visit and on navigation.
 
 ## Testing instant navigation
 
@@ -151,7 +149,7 @@ import { instant } from '@next/playwright'
 
 ## Known issue: shared cookie across projects
 
-The DevTools use a `next-instant-navigation-testing` cookie to hold back dynamic content and freeze the page at the instant UI. Because cookies are scoped to the domain and not the port, running multiple projects on the same domain (typically `localhost`) means the cookie is shared across them and can cause unexpected behavior. Clear the cookie or close the Instant Navs panel when switching between projects to avoid issues.
+The DevTools use a `next-instant-navigation-testing` cookie to hold back dynamic content and freeze the page at the instant UI. Because cookies are scoped to the domain and not the port, running multiple projects on the same domain (typically `localhost`) means the cookie is shared across them and can cause unexpected behavior. Clear the cookie or close the Navigation Inspector panel when switching between projects to avoid issues.
 
 > **Good to know:** This will be fixed as part of stabilizing the feature.
 

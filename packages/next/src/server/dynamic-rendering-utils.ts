@@ -1,12 +1,11 @@
+import { InvariantError } from '../shared/lib/invariant-error'
 import {
   RenderStage,
   type AdvanceableRenderStage,
   type StagedRenderingController,
+  isEarlyRenderStage,
 } from './app-render/staged-rendering'
-import type {
-  PrerenderStoreModernRuntime,
-  RequestStore,
-} from './app-render/work-unit-async-storage.external'
+import type { RequestStore } from './app-render/work-unit-async-storage.external'
 import { workUnitAsyncStorage } from './app-render/work-unit-async-storage.external'
 import { getServerReact, getClientReact } from './runtime-reacts.external'
 
@@ -117,38 +116,15 @@ export function makeDevtoolsIOAwarePromise<T>(
 export function getRuntimeStage(
   stagedRendering: StagedRenderingController
 ): RenderStage.EarlyRuntime | RenderStage.Runtime {
-  if (
-    stagedRendering.currentStage === RenderStage.EarlyStatic ||
-    stagedRendering.currentStage === RenderStage.EarlyRuntime
-  ) {
-    return RenderStage.EarlyRuntime
+  const { currentStage } = stagedRendering
+  if (currentStage === RenderStage.Before) {
+    throw new InvariantError(
+      'Cannot determine late/early stage before starting the render'
+    )
   }
-  return RenderStage.Runtime
-}
-
-/**
- * Delays until the appropriate runtime stage based on the current stage of
- * the rendering pipeline:
- *
- * - Early stages → wait for EarlyRuntime
- *   (for runtime-prefetchable segments)
- * - Later stages → wait for Runtime
- *   (for segments not using runtime prefetch)
- *
- * This ensures that cookies()/headers()/etc. resolve at the right time for
- * each segment type.
- */
-export function delayUntilRuntimeStage<T>(
-  prerenderStore: PrerenderStoreModernRuntime,
-  result: Promise<T>
-): Promise<T> {
-  const { stagedRendering } = prerenderStore
-  if (!stagedRendering) {
-    return result
-  }
-  return stagedRendering
-    .waitForStage(getRuntimeStage(stagedRendering))
-    .then(() => result)
+  return isEarlyRenderStage(currentStage)
+    ? RenderStage.EarlyRuntime
+    : RenderStage.Runtime
 }
 
 export function applyOwnerStack(error: Error): Error {

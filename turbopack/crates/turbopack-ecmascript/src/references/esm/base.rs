@@ -587,6 +587,10 @@ impl ModuleReference for EsmAssetReference {
             },
         }
     }
+
+    fn source(&self) -> Option<IssueSource> {
+        Some(self.issue_source)
+    }
 }
 
 impl EsmAssetReference {
