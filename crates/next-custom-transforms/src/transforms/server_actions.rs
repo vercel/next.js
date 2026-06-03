@@ -82,6 +82,7 @@ struct ServerReferenceExport {
 #[derive(Clone, Debug, serde::Serialize)]
 struct ServerReferenceExportInfo {
     name: Atom,
+    #[serde(skip_serializing_if = "std::ops::Not::not")]
     is_use_cache: bool,
 }
 

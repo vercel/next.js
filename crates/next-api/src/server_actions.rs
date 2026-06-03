@@ -269,7 +269,11 @@ enum ServerActionInfoRaw {
     /// Old format: just the export name as a string
     Name(String),
     /// New format: object with name
-    WithName { name: String, is_use_cache: bool },
+    WithName {
+        name: String,
+        #[serde(default)]
+        is_use_cache: bool,
+    },
 }
 
 impl ServerActionInfoRaw {
