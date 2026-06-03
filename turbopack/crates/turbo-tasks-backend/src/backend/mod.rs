@@ -437,7 +437,7 @@ struct TaskExecutionCompletePrepareResult {
 // Operations
 impl TurboTasksBackendInner {
     fn try_read_task_output(
-        self: &Arc<Self>,
+        &self,
         task_id: TaskId,
         reader: Option<TaskId>,
         options: ReadOutputOptions,
@@ -557,10 +557,11 @@ impl TurboTasksBackendInner {
                     activeness
                 };
                 let listener = activeness.all_clean_event.listen_with_note(move || {
-                    let this = self.clone();
+                    // Reach the backend through the pinned `turbo_tasks` handle rather than
+                    // cloning `self`: pinning keeps the backend alive for the closure's lifetime.
                     let tt = turbo_tasks.pin();
                     move || {
-                        let mut ctx = this.execute_context(&tt);
+                        let mut ctx = tt.backend().0.execute_context(&tt);
                         let mut visited = FxHashSet::default();
                         fn indent(s: &str) -> String {
                             s.split_inclusive('\n')
@@ -1428,7 +1429,7 @@ impl TurboTasksBackendInner {
     }
 
     #[allow(unused_variables)]
-    fn idle_start(self: &Arc<Self>, turbo_tasks: &TurboTasks<TurboTasksBackend>) {
+    fn idle_start(&self, turbo_tasks: &TurboTasks<TurboTasksBackend>) {
         self.idle_start_event.notify(usize::MAX);
 
         #[cfg(feature = "verify_aggregation_graph")]
@@ -1436,21 +1437,24 @@ impl TurboTasksBackendInner {
             use tokio::select;
 
             self.is_idle.store(true, Ordering::Release);
-            let this = self.clone();
+            // The spawned task reaches the backend through the pinned `turbo_tasks` handle
+            // rather than cloning `self`: pinning keeps the `TurboTasks` (and therefore the
+            // backend it owns) alive for the task's lifetime.
             let turbo_tasks = turbo_tasks.pin();
             tokio::task::spawn(async move {
+                let backend = &turbo_tasks.backend().0;
                 select! {
                     _ = tokio::time::sleep(Duration::from_secs(5)) => {
                         // do nothing
                     }
-                    _ = this.idle_end_event.listen() => {
+                    _ = backend.idle_end_event.listen() => {
                         return;
                     }
                 }
-                if !this.is_idle.load(Ordering::Relaxed) {
+                if !backend.is_idle.load(Ordering::Relaxed) {
                     return;
                 }
-                this.verify_aggregation_graph(&*turbo_tasks, true);
+                backend.verify_aggregation_graph(&turbo_tasks, true);
             });
         }
     }
