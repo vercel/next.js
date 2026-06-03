@@ -51,6 +51,8 @@ The [`use cache`](/docs/app/api-reference/directives/use-cache) directive caches
 
 > Arguments and any closed-over values from parent scopes automatically become part of the [cache key](/docs/app/api-reference/directives/use-cache#cache-keys), which means different inputs will produce separate cache entries. This enables personalized or parameterized cached content. See [serialization requirements and constraints](/docs/app/api-reference/directives/use-cache#constraints) for details on what can be cached and how arguments work.
 
+{/* consider a callout for remote or private directives, short, x-refs to the API reference for those */}
+
 ### Data-level caching
 
 To cache an asynchronous function that fetches data, add the `use cache` directive at the top of the function body:
@@ -96,7 +98,7 @@ export default async function Page() {
 
 For components that fetch data from an asynchronous source such as an API, a database, or any other async operation, and require fresh data on every request, do not use `"use cache"`.
 
-Instead, wrap the component in [`<Suspense>`](https://react.dev/reference/react/Suspense) and provide a fallback UI. At request time, React renders the fallback first, then streams in the resolved content once the async work completes.
+Instead, wrap the component in [`<Suspense>`](https://react.dev/reference/react/Suspense) and provide a fallback UI. The fallback ships with the prerendered shell while the async work runs at request time.
 
 ```tsx filename="page.tsx"
 import { Suspense } from 'react'
@@ -125,8 +127,9 @@ export default function Page() {
 }
 ```
 
-The fallback (`<p>Loading posts...</p>`) is included in the static shell, while the component's content streams in at request time.
+For example, `<p>Loading posts...</p>` is included in the static shell, and the posts stream in at request time.
 
+{/* xref to the sync io section - that section should also emphaize that these are not random or timestamp sync invokations, in the referenced section */}
 `<Suspense>` provides a fallback UI while async work completes, but it does not itself opt a component into dynamic rendering. If a component only performs synchronous work, it will complete during prerendering regardless of whether it is wrapped in `<Suspense>`.
 
 ## Working with runtime APIs
@@ -137,8 +140,6 @@ Runtime APIs require information that is only available when a user makes a requ
 - [`headers`](/docs/app/api-reference/functions/headers) - Request headers
 - [`searchParams`](/docs/app/api-reference/file-conventions/page#searchparams-optional) - URL query parameters
 - [`params`](/docs/app/api-reference/file-conventions/page#params-optional) - Dynamic route parameters. Use [`generateStaticParams`](/docs/app/api-reference/functions/generate-static-params) to prerender specific values at build time, or [ISR with Cache Components](/docs/app/guides/incremental-static-regeneration-cache-components) to serve an App Shell while unknown params resolve in the background.
-
-> **Good to know:** `generateMetadata` and `generateViewport` track runtime data access separately from the page. See [Metadata with Cache Components](/docs/app/api-reference/functions/generate-metadata#with-cache-components) and [Viewport with Cache Components](/docs/app/api-reference/functions/generate-viewport#with-cache-components) for how to handle this.
 
 Components that access runtime APIs should be wrapped in `<Suspense>`:
 
@@ -277,6 +278,10 @@ async function UserPreferences() {
 
 During prerendering, the header (static) and blog posts (cached with `use cache`) become part of the static shell, along with the fallback UI for user preferences. The UI preferences stored in cookies stream in at request time.
 
+{/* Perhaps here we need a takeway, something to notice, the cookies presence doesn't opt the route into a fully dynamic space, as the previous model, rather this is contained by the Suspense fallback, allowing everything else, static and cached content to be part of the initial HTML */}
+
+As you build, consider that inside [`generateMetadata`](/docs/app/api-reference/functions/generate-metadata#with-cache-components) and [`generateViewport`](/docs/app/api-reference/functions/generate-viewport#with-cache-components), uncached fetches or runtime data access surface the same insights and errors as in your page, guiding you to the rendering you intend. For incremental static regeneration with both known and unknown param values, see [ISR with Cache Components](/docs/app/guides/incremental-static-regeneration-cache-components).
+
 ## Random values and timestamps
 
 Operations like `Math.random()`, `Date.now()`, or `crypto.randomUUID()` produce different values each time they execute. Cache Components requires you to explicitly handle these.
@@ -312,8 +317,11 @@ export default async function Page() {
 }
 ```
 
+{/* End with, you don't need to memorize which APIs do this, the framework provides feedback and insights when these type of APIs are used -how to properly use them rather, depending your intention */}
+
 ## Synchronous I/O and pure computations
 
+{/* As said before, we need to make the contrast, these are predictable - the pure computation is a good hint already, but maybe we need more info? */}
 Operations like synchronous I/O, module imports, and pure computations can complete during prerendering. Components using only these operations are prerendered automatically. At build time, their output becomes part of the static HTML.
 
 ```tsx filename="page.tsx"
@@ -343,6 +351,8 @@ export default async function Page() {
 
 At build time, Next.js renders your route's component tree. How each component is handled depends on the APIs it uses:
 
+{/* bullet point for unstable/unpredicatable APIs random timestamps */}
+
 - [`use cache`](#usage): the result is cached and included in the static shell
 - [`<Suspense>`](#streaming-uncached-data): fallback UI is included in the static shell while the content streams at request time
 - [Synchronous I/O and pure computations](#synchronous-io-and-pure-computations): module imports, `fs.readFileSync`, and pure computations complete during prerender and are included in the static shell automatically
@@ -357,8 +367,10 @@ This generates a static shell consisting of HTML for initial page loads and a se
   height="632"
 />
 
+{/* The build generates... for every route... mmm idk or is it missing a second punch line this method eliminates paint time dependency on server side round trips etc? */}
 Every produced static shell can be served directly from a CDN, which makes direct navigations [instant](#instant-navigation).
 
+{/* offending is a heavy word */}
 Next.js requires you to explicitly handle components that can't complete during prerendering. If a component isn't wrapped in `<Suspense>` or marked with `use cache`, you'll see a [blocking-route](https://nextjs.org/docs/messages/blocking-route) error during development. The error names the offending route and points at fixes (cache the access, move it into a `<Suspense>` boundary, or opt the route out). This validation keeps every route producing a static shell, so direct navigations stay instant.
 
 <Image
@@ -429,11 +441,15 @@ The same principle applies to `cookies()`, `headers()`, `searchParams`, and data
 
 ### Instant navigation
 
+{/* same, does this need a tiny bit more info? */}
 Every route producing a static shell makes direct navigations instant.
 
+{/* we need a connector like, However... */}
 In a client-side transition, only the components below the shared layout re-render. To keep that transition instant, data accessed in the re-rendered subtree needs either a `use cache` lifetime or a local `<Suspense>` boundary. A boundary higher up covers the page load but not the transition.
 
 To validate every navigation is instant, the framework provides:
+
+{/* we are missing the global config story */}
 
 - The [`unstable_instant`](/docs/app/api-reference/file-conventions/route-segment-config/instant) route segment config opts a layout or page into validation. Next.js then verifies navigation into the route, including client transitions, in development.
 - The [`instant()`](/docs/app/api-reference/file-conventions/route-segment-config/instant#testing-instant-navigation) helper in `@next/playwright` asserts on the static shell during navigation, so regressions surface in CI.
@@ -446,9 +462,12 @@ See the [Instant navigation guide](/docs/app/guides/instant-navigation) for the 
 
 With [`unstable_prefetch = 'force-runtime'`](/docs/app/api-reference/file-conventions/route-segment-config/prefetch) on a route, Next.js renders that route's component tree again at prefetch time, this time with the user's cookies, headers, and full URL available. The same rules apply, but more of the tree resolves now that runtime data is in scope:
 
+{/* prob need to be explicity that private cache executes server side, no code leaking to the client, subtle and succint */}
+
 - [`use cache`](#usage) called with values extracted from runtime APIs (passed as arguments) joins the runtime shell
 - [`use cache: private`](/docs/app/api-reference/directives/use-cache-private) reads runtime data directly and caches the result in the browser, joining the runtime shell
 - [`<Suspense>`](#streaming-uncached-data) fallbacks stay in the runtime shell while uncached content streams at request time
+  {/* For this last bulletpoint, once agian, as long as uncached data or random/timestamps via connection... mmm maybe too much nuance */}
 
 This generates a **runtime shell**: a prerender that extends past the static shell with content the user's request unlocks. Because it happens during the prefetch, the navigation has nothing to wait on. The cost is a server invocation per prefetchable link.
 
@@ -485,3 +504,5 @@ async function getStats(session: string) {
 On a direct visit, `<Stats>` streams in behind the fallback. When a user navigates to `/dashboard` from another route, the framework prefetches with their session cookie. `getStats` is cached, so its result joins the runtime shell before the click.
 
 See the [Runtime prefetching guide](/docs/app/guides/runtime-prefetching) for full patterns and the [`unstable_prefetch` reference](/docs/app/api-reference/file-conventions/route-segment-config/prefetch) for all modes.
+
+{/* I wonder if we need a small section that develops ISR briefly and links to the ISR w/ CC guide */}

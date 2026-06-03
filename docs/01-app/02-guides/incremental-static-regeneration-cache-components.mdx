@@ -2,7 +2,6 @@
 title: Incremental Static Regeneration with Cache Components
 description: Learn how to prerender a subset of dynamic routes, serve App Shells for the rest, and upgrade them after the first visit.
 nav_title: ISR with Cache Components
-version: experimental
 related:
   links:
     - app/api-reference/config/next-config-js/cacheComponents
@@ -183,9 +182,9 @@ These are combined into:
 
 A visitor navigates to `/tops/tee`. Both params were prerendered. They get a fully static page.
 
-The first visit to `/tops/overshirt`. The product is unknown, but the category `tops` was prerendered. Next.js serves the App Shell with the category header already rendered. The product streams in.
+The first visit to `/tops/overshirt`. The product `overshirt` is unknown, but the category `tops` was prerendered. Next.js serves the App Shell for `/tops/[product]` with the category header already rendered. The product streams in.
 
-The first visit to `/shoes/basketball-shoes`. Neither param was prerendered. Next.js serves the generic App Shell. Both the category and the product stream in.
+The first visit to `/shoes/basketball-shoes`. Neither param was prerendered. Next.js serves the generic App Shell for `/[category]/[product]`. Both the category and the product stream in.
 
 After the first visit, Next.js renders these routes in the background with the now-known params. The next visitor to the same URLs gets the upgraded result.
 
@@ -194,8 +193,8 @@ After the first visit, Next.js renders these routes in the background with the n
 After the first visit, Next.js renders the page in the background with the known params and tries to push the static boundary as far down the component tree as possible:
 
 - If every data access is cached and all params are resolved, the upgrade produces a **fully static page**.
-- If some data is uncached or runtime APIs (`cookies`, `headers`) are accessed behind `<Suspense>` fallbacks, the upgrade produces a **cached result** with the params resolved but the dynamic parts still streaming.
-- Params are resolved in route order. A param without `generateStaticParams` blocks all subsequent params from upgrading.
+- If all params are resolved but the render still hits uncached data or runtime APIs (`cookies`, `headers`) wrapped in `<Suspense>` boundaries, the upgrade produces a **cached page with those fallbacks**. The uncached or runtime parts stream in at request time.
+- Params are resolved in route order. A param value not returned by `generateStaticParams` stays unresolved and prevents any deeper params from upgrading.
 
 > **Good to know**: Prefetching also triggers upgrades. When a [`<Link>`](/docs/app/api-reference/components/link) enters the viewport or [`router.prefetch`](/docs/app/api-reference/functions/use-router) is called, Next.js can upgrade the App Shell in the background, so the next visitor gets the more specific version even before anyone actually navigates to the page.
 

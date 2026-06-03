@@ -16,13 +16,13 @@ related:
 
 Runtime prefetching extends the static shell with content that depends on the user's request data (cookies, headers, the full URL). Without it, anything that reads runtime data has to sit behind a `<Suspense>` fallback. With it, parts of the page that depend on the user's session can be prerendered before the click.
 
-This guide assumes you've structured your route for instant navigation. If you haven't, start with the [Instant navigation guide](/docs/app/guides/instant-navigation) to validate the route's caching structure first. Runtime prefetching adds cost; you only want to pay it on routes that already produce a useful static shell.
+This guide assumes you've structured your route for instant navigation. If you haven't, start with the [Instant navigation guide](/docs/app/guides/instant-navigation) to validate the route's caching structure first. Runtime prefetching costs a per-link server invocation. That cost only pays off if your route's caching structure lets the prerender resolve past the static shell.
 
 ## What runtime prefetching does
 
 When a [`<Link>`](/docs/app/api-reference/components/link) becomes visible, Next.js fetches the static shell for the destination. The static shell was generated at build time without any request-specific data, so anything that reads cookies, headers, or other runtime APIs sits behind a `<Suspense>` fallback.
 
-With [`unstable_prefetch = 'force-runtime'`](/docs/app/api-reference/file-conventions/route-segment-config/prefetch) on the route, Next.js **prerenders with the user's data, past the static shell**. If everything beyond the cookie or header access is either static or cached, the prerender can complete. If it hits uncached data (for example, a database query that must be fresh on every request), it stops there and that part streams in after navigation.
+With [`unstable_prefetch = 'force-runtime'`](/docs/app/api-reference/file-conventions/route-segment-config/prefetch) on the route, Next.js **prerenders with the user's data, past the static shell**. If everything beyond the cookie or header access is either static or cached, the prerender can complete. If it hits uncached data (for example, a database query that must be fresh on every request), the surrounding `<Suspense>` fallback is used in its place, and the query streams in after navigation. That boundary is already there from your **instant-nav validation**.
 
 The result is a **runtime shell**: more of the page is already rendered before the user clicks, with fewer loading spinners.
 
@@ -87,6 +87,7 @@ Anything without a caching directive still streams in after navigation. The runt
 
 ### `"use cache: private"`
 
+{/* it let's you assign one, or uses a default cacheLife */}
 When you can't extract and pass, use [`"use cache: private"`](/docs/app/api-reference/directives/use-cache-private). It assigns a cache lifetime to a function that reads cookies, headers, or other runtime data directly. Results are cached in the browser only, not on the server.
 
 This is common with third-party libraries: an auth helper that checks `Date.now()` against a token's expiry, or a session helper that reads cookies deep inside its own code. You can't wrap the access, but `"use cache: private"` lets the function resolve during the runtime prerender.
