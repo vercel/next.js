@@ -1,4 +1,11 @@
-import React, { useMemo, useRef, Suspense, useCallback } from 'react'
+import React, {
+  startTransition,
+  Suspense,
+  useCallback,
+  useMemo,
+  useRef,
+  useState,
+} from 'react'
 import type { DebugInfo } from '../../shared/types'
 import { Overlay, OverlayBackdrop } from '../components/overlay'
 import { RuntimeError } from './runtime-error'
@@ -29,10 +36,12 @@ import {
   type GuidanceVariant,
 } from '../components/instant/instant-guidance'
 import { BLOCKING_ROUTE_NAVIGATION_EXPLANATION } from '../components/instant/instant-guidance-data'
+import { UnrenderedSegmentInfo } from '../components/instant/unrendered-segment-info'
 import { CodeFrame } from '../components/code-frame/code-frame'
 import { ErrorOverlayCallStack } from '../components/errors/error-overlay-call-stack/error-overlay-call-stack'
 import { ErrorCause } from './runtime-error/error-cause'
 import { useFrames } from '../utils/get-error-by-type'
+import type { ErrorOverlayPaginationControls } from '../components/errors/error-overlay-pagination/error-overlay-pagination'
 
 interface ErrorsProps extends ErrorBaseProps {
   getSquashedHydrationErrorDetails: (error: Error) => HydrationErrorState | null
@@ -85,18 +94,21 @@ export function getErrorTypeLabel(
   errorDetails: ErrorDetails
 ): ErrorOverlayLayoutProps['errorType'] {
   if (errorDetails.type === 'blocking-route') {
-    return `Instant`
+    return errorDetails.inNavigation ? `Instant` : `Blocking Route`
   }
   if (errorDetails.type === 'dynamic-metadata') {
-    return `Instant`
+    return `Blocking Route`
   }
   if (errorDetails.type === 'dynamic-viewport') {
-    return `Instant`
+    return `Blocking Route`
   }
   if (errorDetails.type === 'sync-io') {
-    return `Instant`
+    return `Blocking Route`
   }
   if (errorDetails.type === 'sync-io-client') {
+    return `Blocking Route`
+  }
+  if (errorDetails.type === 'unrendered-segment') {
     return `Instant`
   }
   if (type === 'recoverable') {
@@ -116,6 +128,7 @@ type ErrorDetails =
   | DynamicViewportErrorDetails
   | SyncIOErrorDetails
   | SyncIOClientErrorDetails
+  | UnrenderedSegmentErrorDetails
 
 type NoErrorDetails = {
   type: 'empty'
@@ -154,6 +167,12 @@ type SyncIOClientErrorDetails = {
   cause: string
 }
 
+type UnrenderedSegmentErrorDetails = {
+  type: 'unrendered-segment'
+  route: string
+  files: string[]
+}
+
 const noErrorDetails: ErrorDetails = {
   type: 'empty',
 }
@@ -178,6 +197,11 @@ export function useErrorDetails(
     const blockingRouteErrorDetails = getBlockingRouteErrorDetails(error)
     if (blockingRouteErrorDetails) {
       return blockingRouteErrorDetails
+    }
+
+    const unrenderedSegmentDetails = getUnrenderedSegmentErrorDetails(error)
+    if (unrenderedSegmentDetails) {
+      return unrenderedSegmentDetails
     }
 
     return noErrorDetails
@@ -331,7 +355,9 @@ export function isBlockingRouteInNavError(message: string): boolean {
   return (
     message.includes('or a navigation') ||
     message.includes('Could not validate `unstable_instant`') ||
-    message.includes('Could not validate instant UI')
+    message.includes(
+      'Could not validate that a segment in your UI has instant navigation'
+    )
   )
 }
 
@@ -385,6 +411,114 @@ export function getBlockingRouteErrorDetails(
   return null
 }
 
+export function getUnrenderedSegmentErrorDetails(
+  error: Error
+): UnrenderedSegmentErrorDetails | null {
+  const message = error.message
+  if (typeof message !== 'string') return null
+  if (
+    !message.includes(
+      'Could not validate that a segment in your UI has instant navigation'
+    )
+  ) {
+    return null
+  }
+  const routeMatch = /^Route "([^"]+)":/.exec(message)
+  if (!routeMatch) return null
+  const route = routeMatch[1]
+
+  // The body lists `Dropped segment:` or `Dropped segments:` followed
+  // by indented file paths on subsequent lines until the next blank line.
+  const files: string[] = []
+  const filesBlockMatch = /\nDropped segments?:\n([^]*?)(?:\n\n|$)/.exec(
+    message
+  )
+  if (filesBlockMatch) {
+    for (const rawLine of filesBlockMatch[1].split('\n')) {
+      const trimmed = rawLine.replace(/^\s+/, '')
+      if (trimmed) files.push(trimmed)
+    }
+  }
+
+  return {
+    type: 'unrendered-segment',
+    route,
+    files,
+  }
+}
+
+export function isInstantNavigationError(error: Error): boolean {
+  // Unrendered-segment errors are always instant-only
+  if (getUnrenderedSegmentErrorDetails(error)) return true
+  const details = getBlockingRouteErrorDetails(error)
+  return details?.type === 'blocking-route' && details.inNavigation
+}
+
+export type ErrorTab = 'errors' | 'instant'
+
+export function ErrorTabBar({
+  activeTab,
+  onTabChange,
+  errorCount,
+  instantCount,
+  errorActiveIdx,
+  instantActiveIdx,
+  previousButton,
+  nextButton,
+  createCount,
+}: {
+  activeTab: ErrorTab
+  onTabChange: (tab: ErrorTab) => void
+  errorCount: number
+  instantCount: number
+  errorActiveIdx: number
+  instantActiveIdx: number
+  previousButton: React.ReactNode
+  nextButton: React.ReactNode
+  createCount: (
+    activeIdx: number,
+    total: number,
+    isActive?: boolean
+  ) => React.ReactNode
+}) {
+  return (
+    <div className="error-overlay-tab-bar" data-nextjs-error-overlay-tab-bar>
+      {previousButton}
+      <button
+        type="button"
+        className="error-overlay-tab"
+        data-active={activeTab === 'errors'}
+        disabled={errorCount === 0}
+        onClick={() => onTabChange('errors')}
+      >
+        Issues
+        <span
+          className="error-overlay-tab-count"
+          data-active={activeTab === 'errors'}
+        >
+          {createCount(errorActiveIdx, errorCount, activeTab === 'errors')}
+        </span>
+      </button>
+      <button
+        type="button"
+        className="error-overlay-tab"
+        data-active={activeTab === 'instant'}
+        disabled={instantCount === 0}
+        onClick={() => onTabChange('instant')}
+      >
+        Insights
+        <span
+          className="error-overlay-tab-count"
+          data-active={activeTab === 'instant'}
+        >
+          {createCount(instantActiveIdx, instantCount, activeTab === 'instant')}
+        </span>
+      </button>
+      {nextButton}
+    </div>
+  )
+}
+
 export function Errors({
   getSquashedHydrationErrorDetails,
   runtimeErrors,
@@ -394,6 +528,47 @@ export function Errors({
 }: ErrorsProps) {
   const dialogResizerRef = useRef<HTMLDivElement | null>(null)
 
+  const { normalErrors, instantErrors } = useMemo(() => {
+    const normal: ReadyRuntimeError[] = []
+    const instant: ReadyRuntimeError[] = []
+    for (const err of runtimeErrors) {
+      if (isInstantNavigationError(err.error)) {
+        instant.push(err)
+      } else {
+        normal.push(err)
+      }
+    }
+    return { normalErrors: normal, instantErrors: instant }
+  }, [runtimeErrors])
+
+  const [activeTab, setActiveTab] = useState<ErrorTab>(() =>
+    normalErrors.length > 0 ? 'errors' : 'instant'
+  )
+  const [activeIndices, setActiveIndices] = useState<Record<ErrorTab, number>>({
+    errors: 0,
+    instant: 0,
+  })
+  const effectiveActiveTab =
+    activeTab === 'errors'
+      ? normalErrors.length > 0
+        ? 'errors'
+        : 'instant'
+      : instantErrors.length > 0
+        ? 'instant'
+        : 'errors'
+  const activeErrors =
+    effectiveActiveTab === 'instant' ? instantErrors : normalErrors
+  const errorActiveIdx = Math.max(
+    0,
+    Math.min(activeIndices.errors, Math.max(0, normalErrors.length - 1))
+  )
+  const instantActiveIdx = Math.max(
+    0,
+    Math.min(activeIndices.instant, Math.max(0, instantErrors.length - 1))
+  )
+  const activeIdxForTab =
+    effectiveActiveTab === 'instant' ? instantActiveIdx : errorActiveIdx
+
   const {
     isLoading,
     errorCode,
@@ -402,7 +577,17 @@ export function Errors({
     errorDetails,
     activeError,
     setActiveIndex,
-  } = useActiveRuntimeError({ runtimeErrors, getSquashedHydrationErrorDetails })
+  } = useActiveRuntimeError({
+    runtimeErrors: activeErrors,
+    getSquashedHydrationErrorDetails,
+    activeIdx: activeIdxForTab,
+    setActiveIndex: (index) => {
+      setActiveIndices((previous) => ({
+        ...previous,
+        [effectiveActiveTab]: index,
+      }))
+    },
+  })
 
   const generateErrorInfo = useCallback(async () => {
     if (!activeError) return ''
@@ -506,6 +691,96 @@ Next.js version: ${props.versionInfo.installed} (${process.env.__NEXT_BUNDLER})\
     getErrorSource(error) || ''
   )
 
+  // Show the tab bar whenever there are instant errors so the user
+  // knows they're looking at an insight, even if the other tab is empty.
+  const showTabBar = instantErrors.length > 0
+  const renderTabBar = showTabBar
+    ? ({
+        previousButton,
+        createCount,
+        nextButton,
+      }: ErrorOverlayPaginationControls) => (
+        <ErrorTabBar
+          activeTab={effectiveActiveTab}
+          onTabChange={(tab) => {
+            startTransition(() => {
+              setActiveTab(tab)
+            })
+          }}
+          errorCount={normalErrors.length}
+          instantCount={instantErrors.length}
+          errorActiveIdx={errorActiveIdx}
+          instantActiveIdx={instantActiveIdx}
+          previousButton={previousButton}
+          nextButton={nextButton}
+          createCount={createCount}
+        />
+      )
+    : undefined
+
+  const canGoPrevious = showTabBar
+    ? effectiveActiveTab === 'errors'
+      ? errorActiveIdx > 0
+      : instantActiveIdx > 0 || normalErrors.length > 0
+    : activeIdx > 0
+  const canGoNext = showTabBar
+    ? effectiveActiveTab === 'errors'
+      ? errorActiveIdx < normalErrors.length - 1 || instantErrors.length > 0
+      : instantActiveIdx < instantErrors.length - 1
+    : activeIdx < activeErrors.length - 1
+
+  const handlePrevious = showTabBar
+    ? () => {
+        startTransition(() => {
+          if (effectiveActiveTab === 'errors') {
+            if (errorActiveIdx > 0) {
+              setActiveIndex(errorActiveIdx - 1)
+            }
+            return
+          }
+
+          if (instantActiveIdx > 0) {
+            setActiveIndex(instantActiveIdx - 1)
+            return
+          }
+
+          if (normalErrors.length > 0) {
+            setActiveTab('errors')
+            setActiveIndices((previous) => ({
+              ...previous,
+              errors: Math.max(0, normalErrors.length - 1),
+            }))
+          }
+        })
+      }
+    : undefined
+
+  const handleNext = showTabBar
+    ? () => {
+        startTransition(() => {
+          if (effectiveActiveTab === 'errors') {
+            if (errorActiveIdx < normalErrors.length - 1) {
+              setActiveIndex(errorActiveIdx + 1)
+              return
+            }
+
+            if (instantErrors.length > 0) {
+              setActiveTab('instant')
+              setActiveIndices((previous) => ({
+                ...previous,
+                instant: 0,
+              }))
+            }
+            return
+          }
+
+          if (instantActiveIdx < instantErrors.length - 1) {
+            setActiveIndex(instantActiveIdx + 1)
+          }
+        })
+      }
+    : undefined
+
   let errorMessage: React.ReactNode
   let maybeNotes: React.ReactNode = null
   let maybeDiff: React.ReactNode = null
@@ -574,10 +849,15 @@ Next.js version: ${props.versionInfo.installed} (${process.env.__NEXT_BUNDLER})\
               }
             />
           }
+          renderTabBar={renderTabBar}
+          canGoPrevious={canGoPrevious}
+          canGoNext={canGoNext}
+          onPrevious={handlePrevious}
+          onNext={handleNext}
           onClose={isServerError ? undefined : onClose}
           debugInfo={debugInfo}
           error={error}
-          runtimeErrors={runtimeErrors}
+          runtimeErrors={activeErrors}
           activeIdx={activeIdx}
           setActiveIndex={setActiveIndex}
           dialogResizerRef={dialogResizerRef}
@@ -614,10 +894,15 @@ Next.js version: ${props.versionInfo.installed} (${process.env.__NEXT_BUNDLER})\
             )
           }
           headerChildren={<InstantHeaderExplanation kind="metadata" />}
+          renderTabBar={renderTabBar}
+          canGoPrevious={canGoPrevious}
+          canGoNext={canGoNext}
+          onPrevious={handlePrevious}
+          onNext={handleNext}
           onClose={isServerError ? undefined : onClose}
           debugInfo={debugInfo}
           error={error}
-          runtimeErrors={runtimeErrors}
+          runtimeErrors={activeErrors}
           activeIdx={activeIdx}
           setActiveIndex={setActiveIndex}
           dialogResizerRef={dialogResizerRef}
@@ -655,10 +940,15 @@ Next.js version: ${props.versionInfo.installed} (${process.env.__NEXT_BUNDLER})\
             )
           }
           headerChildren={<InstantHeaderExplanation kind="viewport" />}
+          renderTabBar={renderTabBar}
+          canGoPrevious={canGoPrevious}
+          canGoNext={canGoNext}
+          onPrevious={handlePrevious}
+          onNext={handleNext}
           onClose={isServerError ? undefined : onClose}
           debugInfo={debugInfo}
           error={error}
-          runtimeErrors={runtimeErrors}
+          runtimeErrors={activeErrors}
           activeIdx={activeIdx}
           setActiveIndex={setActiveIndex}
           dialogResizerRef={dialogResizerRef}
@@ -694,10 +984,15 @@ Next.js version: ${props.versionInfo.installed} (${process.env.__NEXT_BUNDLER})\
               docsUrl={SYNC_IO_DOCS[errorDetails.cause]}
             />
           }
+          renderTabBar={renderTabBar}
+          canGoPrevious={canGoPrevious}
+          canGoNext={canGoNext}
+          onPrevious={handlePrevious}
+          onNext={handleNext}
           onClose={isServerError ? undefined : onClose}
           debugInfo={debugInfo}
           error={error}
-          runtimeErrors={runtimeErrors}
+          runtimeErrors={activeErrors}
           activeIdx={activeIdx}
           setActiveIndex={setActiveIndex}
           dialogResizerRef={dialogResizerRef}
@@ -734,10 +1029,15 @@ Next.js version: ${props.versionInfo.installed} (${process.env.__NEXT_BUNDLER})\
               docsUrl={SYNC_IO_CLIENT_DOCS[errorDetails.cause]}
             />
           }
+          renderTabBar={renderTabBar}
+          canGoPrevious={canGoPrevious}
+          canGoNext={canGoNext}
+          onPrevious={handlePrevious}
+          onNext={handleNext}
           onClose={isServerError ? undefined : onClose}
           debugInfo={debugInfo}
           error={error}
-          runtimeErrors={runtimeErrors}
+          runtimeErrors={activeErrors}
           activeIdx={activeIdx}
           setActiveIndex={setActiveIndex}
           dialogResizerRef={dialogResizerRef}
@@ -757,6 +1057,37 @@ Next.js version: ${props.versionInfo.installed} (${process.env.__NEXT_BUNDLER})\
           </Suspense>
         </ErrorOverlayLayout>
       )
+    case 'unrendered-segment':
+      return (
+        <ErrorOverlayLayout
+          errorCode={errorCode}
+          errorType={errorType}
+          errorMessage="Next.js could not validate that a segment in your UI has instant navigation."
+          headerChildren={
+            <InstantHeaderExplanation kind="unrendered-segment" />
+          }
+          onClose={isServerError ? undefined : onClose}
+          debugInfo={debugInfo}
+          error={error}
+          runtimeErrors={runtimeErrors}
+          activeIdx={activeIdx}
+          setActiveIndex={setActiveIndex}
+          dialogResizerRef={dialogResizerRef}
+          generateErrorInfo={generateErrorInfo}
+          renderTabBar={renderTabBar}
+          {...props}
+        >
+          <UnrenderedSegmentInfo
+            route={errorDetails.route}
+            files={errorDetails.files}
+          />
+          <InstantGuidance
+            kind="unrendered-segment"
+            variant="dynamic"
+            showExplanation={false}
+          />
+        </ErrorOverlayLayout>
+      )
     case 'empty':
       errorMessage = <GenericErrorDescription error={error} />
       break
@@ -769,10 +1100,15 @@ Next.js version: ${props.versionInfo.installed} (${process.env.__NEXT_BUNDLER})\
       errorCode={errorCode}
       errorType={errorType}
       errorMessage={errorMessage}
+      renderTabBar={renderTabBar}
+      canGoPrevious={canGoPrevious}
+      canGoNext={canGoNext}
+      onPrevious={handlePrevious}
+      onNext={handleNext}
       onClose={isServerError ? undefined : onClose}
       debugInfo={debugInfo}
       error={error}
-      runtimeErrors={runtimeErrors}
+      runtimeErrors={activeErrors}
       activeIdx={activeIdx}
       setActiveIndex={setActiveIndex}
       dialogResizerRef={dialogResizerRef}
@@ -860,4 +1196,62 @@ export const styles = `
   .external-link, .external-link:hover {
     color:inherit;
   }
+
+  .error-overlay-tab-bar {
+    display: flex;
+    gap: 6px;
+    translate: var(--next-dialog-border-width) 0;
+    max-width: var(--next-dialog-max-width);
+    width: 100%;
+    position: relative;
+    z-index: 1;
+  }
+
+  .error-overlay-tab {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    padding: 0 4px;
+    border: none;
+    background: none;
+    color: var(--color-gray-800);
+    font-size: var(--size-13);
+    font-family: var(--font-stack-sans);
+    cursor: pointer;
+    position: relative;
+    transition: color 0.15s ease;
+    border-radius: var(--rounded-md);
+
+    &:hover {
+      color: var(--color-gray-1000);
+    }
+
+    &[data-active='true'] {
+      color: var(--color-gray-1000);
+      font-weight: 500;
+    }
+
+    &:disabled {
+      opacity: 0.4;
+      cursor: default;
+    }
+
+    &:focus-visible {
+      outline: var(--focus-ring);
+      outline-offset: 2px;
+    }
+  }
+
+  .error-overlay-tab-count {
+    display: flex;
+    align-items: center;
+    color: inherit;
+
+    &[data-active='true'] {
+      .error-overlay-pagination-count {
+        font-weight: 500;
+      }
+    }
+  }
+
 `

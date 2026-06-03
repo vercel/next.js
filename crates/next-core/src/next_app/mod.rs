@@ -17,7 +17,10 @@ use turbo_rcstr::RcStr;
 use turbo_tasks::{NonLocalValue, TaskInput, trace::TraceRawVcs};
 
 pub use crate::next_app::{
-    app_client_references_chunks::{ClientReferencesChunks, get_app_client_references_chunks},
+    app_client_references_chunks::{
+        ClientReferencesChunks, get_app_client_references_chunks,
+        get_client_references_chunks_for_hmr,
+    },
     app_client_shared_chunks::get_app_client_shared_chunk_group,
     app_entry::AppEntry,
     app_page_entry::get_app_page_entry,

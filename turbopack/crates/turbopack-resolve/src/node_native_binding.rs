@@ -11,6 +11,7 @@ use turbo_tasks_fs::{
 };
 use turbopack_core::{
     asset::{Asset, AssetContent},
+    chunk::{ChunkingType, TracedMode},
     file_source::FileSource,
     raw_module::RawModule,
     reference::ModuleReference,
@@ -70,6 +71,12 @@ impl ModuleReference for NodePreGypConfigReference {
             self.collect_affecting_sources,
         )
         .await
+    }
+
+    fn chunking_type(&self) -> Option<ChunkingType> {
+        Some(ChunkingType::Traced {
+            mode: TracedMode::Transitive,
+        })
     }
 }
 
@@ -253,6 +260,12 @@ impl ModuleReference for NodeGypBuildReference {
         )
         .await
     }
+
+    fn chunking_type(&self) -> Option<ChunkingType> {
+        Some(ChunkingType::Traced {
+            mode: TracedMode::Transitive,
+        })
+    }
 }
 
 async fn resolve_node_gyp_build_files(
@@ -375,6 +388,12 @@ impl ModuleReference for NodeBindingsReference {
             self.collect_affecting_sources,
         )
         .await
+    }
+
+    fn chunking_type(&self) -> Option<ChunkingType> {
+        Some(ChunkingType::Traced {
+            mode: TracedMode::Transitive,
+        })
     }
 }
 

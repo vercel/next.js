@@ -36,7 +36,7 @@ export type NextConfigComplete = Required<Omit<NextConfig, 'configFile'>> & {
     prefetchInlining?: PrefetchInliningConfig
     // Normalized by config.ts: defaulted to 90% of staticPageGenerationTimeout
     useCacheTimeout: number
-    // Normalized by config.ts `finalizeConfig`: defaulted to `'manual-warning'`
+    // Normalized by config.ts `finalizeConfig`: defaulted to `'warning'`
     instantInsights: { validationLevel: ValidationLevel }
   }
   // The root directory of the distDir. In development mode, this is the parent directory of `distDir`
@@ -524,16 +524,11 @@ export interface ExperimentalConfig {
    * Do not enable in user-facing production deployments.
    */
   exposeTestingApiInProductionBuild?: boolean
-  /**
-   * Show the Instant Navigation Mode toggle in the dev tools indicator.
-   * When enabled, a menu item lets you lock navigations to only show
-   * the cached/prefetched state.
-   */
-  instantNavigationDevToolsToggle?: boolean
   extensionAlias?: Record<string, any>
   allowedRevalidateHeaderKeys?: string[]
   fetchCacheKeyPrefix?: string
   imgOptConcurrency?: number | null
+  imgOptOperationCache?: boolean | null
   imgOptTimeoutInSeconds?: number
   imgOptMaxInputPixels?: number
   imgOptSequentialRead?: boolean | null
@@ -1085,10 +1080,10 @@ export interface ExperimentalConfig {
     /**
      * Controls the validation behavior of Instant Insights
      *
-     * - `'warning'`: Validates all navigations for Instant UI in development
-     * - `'manual-warning'`: Validates navigations for Instant UI in development when configured with `unstable_instant` in Pages and Layouts
+     * - `'warning'` (default): Validates all navigations for Instant UI in development
+     * - `'manual-warning'`: Validates navigations for Instant UI in development only when configured with `unstable_instant` in Pages and Layouts
      * - `'experimental-error'`: Validates all navigations for Instant in development and build. Use with caution.
-     * - `'experimental-manual-error'`: Validates navigations for Instant UI in developement and build when configured with `unstable_instant` in Pages and Layouts. Use with caution.
+     * - `'experimental-manual-error'`: Validates navigations for Instant UI in development and build when configured with `unstable_instant` in Pages and Layouts. Use with caution.
      */
     validationLevel?: ValidationLevel
   }
@@ -1995,6 +1990,7 @@ export const defaultConfig = Object.freeze({
     ),
     memoryBasedWorkersCount: false,
     imgOptConcurrency: null,
+    imgOptOperationCache: null,
     imgOptTimeoutInSeconds: 7,
     imgOptMaxInputPixels: 268_402_689, // https://sharp.pixelplumbing.com/api-constructor#:~:text=%5Boptions.limitInputPixels%5D
     imgOptSequentialRead: null,
@@ -2044,6 +2040,7 @@ export const defaultConfig = Object.freeze({
     gestureTransition: false,
     inlineCss: false,
     useCache: undefined,
+    useNodeStreams: true,
     slowModuleDetection: undefined,
     globalNotFound: false,
     browserDebugInfoInTerminal: 'warn',
@@ -2149,6 +2146,7 @@ export interface NextConfigRuntime {
     | 'hideLogsAfterAbort'
     | 'removeUncaughtErrorAndRejectionListeners'
     | 'imgOptConcurrency'
+    | 'imgOptOperationCache'
     | 'imgOptMaxInputPixels'
     | 'imgOptSequentialRead'
     | 'imgOptSkipMetadata'
@@ -2218,6 +2216,7 @@ export function getNextConfigRuntime(
     removeUncaughtErrorAndRejectionListeners:
       ex.removeUncaughtErrorAndRejectionListeners,
     imgOptConcurrency: ex.imgOptConcurrency,
+    imgOptOperationCache: ex.imgOptOperationCache,
     imgOptMaxInputPixels: ex.imgOptMaxInputPixels,
     imgOptSequentialRead: ex.imgOptSequentialRead,
     imgOptSkipMetadata: ex.imgOptSkipMetadata,

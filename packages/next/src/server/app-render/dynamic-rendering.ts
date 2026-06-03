@@ -34,11 +34,12 @@ import React from 'react'
 import { DynamicServerError } from '../../client/components/hooks-server-context'
 import { StaticGenBailoutError } from '../../client/components/static-generation-bailout'
 import {
+  getStagedRenderingController,
   throwForMissingRequestStore,
   workUnitAsyncStorage,
 } from './work-unit-async-storage.external'
 import { workAsyncStorage } from '../app-render/work-async-storage.external'
-import { makeHangingPromise, getRuntimeStage } from '../dynamic-rendering-utils'
+import { makeHangingPromise } from '../dynamic-rendering-utils'
 import {
   METADATA_BOUNDARY_NAME,
   VIEWPORT_BOUNDARY_NAME,
@@ -556,25 +557,20 @@ export function createHangingInputAbortSignal(
       } else {
         // Otherwise we're in the final render and we should already have all
         // our caches filled.
-        // If the prerender uses stages, we have wait until the runtime stage,
-        // at which point all runtime inputs will be resolved.
-        // (otherwise, a runtime prerender might consider `cookies()` hanging
-        //  even though they'd resolve in the next task.)
+        // If the prerender uses stages, we have wait until the final stage.
+        // if an input didn't resolve at that point, then we can assume it never will.
         //
         // We might still be waiting on some microtasks so we
         // wait one tick before giving up. When we give up, we still want to
         // render the content of this cache as deeply as we can so that we can
         // suspend as deeply as possible in the tree or not at all if we don't
         // end up waiting for the input.
-        if (
-          // eslint-disable-next-line no-restricted-syntax -- We are discriminating between two different refined types and don't need an addition exhaustive switch here
-          workUnitStore.type === 'prerender-runtime' &&
-          workUnitStore.stagedRendering
-        ) {
-          const { stagedRendering } = workUnitStore
+
+        const stagedRendering = getStagedRenderingController(workUnitStore)
+        if (stagedRendering && stagedRendering.finalStage !== null) {
           stagedRendering
-            .waitForStage(getRuntimeStage(stagedRendering))
-            .then(() => scheduleOnNextTick(() => controller.abort()))
+            .waitForStage(stagedRendering.finalStage)
+            .then(() => scheduleOnNextTick(() => controller.abort()), noop)
         } else {
           scheduleOnNextTick(() => controller.abort())
         }
@@ -595,6 +591,8 @@ export function createHangingInputAbortSignal(
       workUnitStore satisfies never
   }
 }
+
+function noop() {}
 
 export function annotateDynamicAccess(
   expression: string,
@@ -1244,13 +1242,10 @@ export function logDisallowedDynamicError(
   logBuildDebugHint(workStore.route)
 }
 
-export function throwIfDisallowedDynamic(
+export function throwIfSyncIOUsed(
   workStore: WorkStore,
-  prelude: PreludeState,
-  dynamicValidation: DynamicValidationState,
-  serverDynamic: DynamicTrackingState,
-  allowEmptyStaticShell: boolean
-): void {
+  serverDynamic: DynamicTrackingState
+) {
   if (serverDynamic.syncDynamicErrorWithStack) {
     logDisallowedDynamicError(
       workStore,
@@ -1258,6 +1253,16 @@ export function throwIfDisallowedDynamic(
     )
     throw new StaticGenBailoutError()
   }
+}
+
+export function throwIfDisallowedDynamic(
+  workStore: WorkStore,
+  prelude: PreludeState,
+  dynamicValidation: DynamicValidationState,
+  serverDynamic: DynamicTrackingState,
+  allowEmptyStaticShell: boolean
+): void {
+  throwIfSyncIOUsed(workStore, serverDynamic)
 
   // The dynamic metadata error is a mistake-detection signal. It fires when the
   // rest of the shell is otherwise fully static apart from metadata, suggesting
@@ -1471,21 +1476,17 @@ export function getNavigationDisallowedDynamicReasons(
         }
       }
       missingFiles.sort()
-      let message = `Could not validate instant UI because an expected segment was not rendered.`
+      let message = `Route "${workStore.route}": Could not validate that a segment in your UI has instant navigation.`
       if (missingFiles.length > 0) {
         const label =
-          missingFiles.length === 1
-            ? 'Unrendered segment'
-            : 'Unrendered segments'
+          missingFiles.length === 1 ? 'Dropped segment' : 'Dropped segments'
         message +=
+          `\n\nThis segment was dropped from rendering. Issues that would prevent instant navigation will go undetected.` +
           `\n\n${label}:\n${missingFiles.map((p) => `  ${p}`).join('\n')}` +
-          `\n\nRoute: ${workStore.route}` +
-          `\n\nThis can happen when you conditionally render a parallel route, for instance a login page when a user is logged out.` +
-          `\nThis can happen when a client component opts out of rendering during SSR.` +
-          `\n\nYou can mark this layout as not requiring instant UI with \`export const unstable_instant = false\` if you want to silence this warning.` +
+          `\n\nWays to fix this:` +
+          `\n  - Render the dropped segment` +
+          `\n  - Set \`export const instant = false\` on the dropped segment to skip validation` +
           `\n\nLearn more: https://nextjs.org/docs/messages/unrendered-instant-segment`
-      } else {
-        message += `\n\nRoute: ${workStore.route}`
       }
       const error = new Error(message)
       return error

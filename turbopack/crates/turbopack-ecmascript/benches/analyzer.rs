@@ -1,4 +1,9 @@
-use std::{fs, path::PathBuf, sync::Arc, time::Duration};
+use std::{
+    fs,
+    path::PathBuf,
+    sync::Arc,
+    time::{Duration, Instant},
+};
 
 use criterion::{Bencher, BenchmarkId, Criterion, criterion_group, criterion_main};
 use swc_core::{
@@ -10,8 +15,8 @@ use swc_core::{
         visit::VisitMutWith,
     },
 };
-use turbo_tasks::ResolvedVc;
-use turbo_tasks_testing::VcStorage;
+use turbo_tasks::{ResolvedVc, TurboTasks};
+use turbo_tasks_backend::{BackendOptions, TurboTasksBackend, noop_backing_storage};
 use turbopack_core::{
     compile_time_info::CompileTimeInfo,
     environment::{Environment, ExecutionEnvironment, NodeJsEnvironment, NodeJsVersion},
@@ -67,12 +72,12 @@ pub fn benchmark(c: &mut Criterion) {
                     Default::default(),
                     None,
                 );
-                let var_graph = create_graph(
+                let var_graph = Arc::new(create_graph(
                     &program,
                     &eval_context,
                     AnalyzeMode::CodeGenerationAndTracing,
                     true,
-                );
+                ));
 
                 let input = BenchInput {
                     program,
@@ -94,7 +99,7 @@ pub fn benchmark(c: &mut Criterion) {
 struct BenchInput {
     program: Program,
     eval_context: EvalContext,
-    var_graph: VarGraph,
+    var_graph: Arc<VarGraph>,
 }
 
 fn bench_create_graph(b: &mut Bencher, input: &BenchInput) {
@@ -112,11 +117,20 @@ fn bench_link(b: &mut Bencher, input: &BenchInput) {
     let rt = tokio::runtime::Builder::new_current_thread()
         .build()
         .unwrap();
+    let var_graph = input.var_graph.clone();
 
-    b.to_async(rt).iter(|| async {
-        let var_cache = Default::default();
-        for value in input.var_graph.values.values() {
-            VcStorage::with(async {
+    b.to_async(rt).iter_custom(move |iters| {
+        let tt = TurboTasks::new(TurboTasksBackend::new(
+            BackendOptions {
+                storage_mode: None,
+                dependency_tracking: false,
+                ..Default::default()
+            },
+            noop_backing_storage(),
+        ));
+        let var_graph = var_graph.clone();
+        async move {
+            tt.run_once(async move {
                 let compile_time_info = CompileTimeInfo::builder(
                     Environment::new(ExecutionEnvironment::NodeJsLambda(
                         NodeJsEnvironment {
@@ -131,18 +145,25 @@ fn bench_link(b: &mut Bencher, input: &BenchInput) {
                 )
                 .cell()
                 .await?;
-                link(
-                    &input.var_graph,
-                    value.clone(),
-                    &early_visitor,
-                    &(|val| visitor(val, compile_time_info, ImportAttributes::empty_ref())),
-                    &Default::default(),
-                    &var_cache,
-                )
-                .await
+                let start = Instant::now();
+                for _ in 0..iters {
+                    let var_cache = Default::default();
+                    for value in var_graph.values.values() {
+                        link(
+                            &var_graph,
+                            value.clone(),
+                            &early_visitor,
+                            &(|val| visitor(val, compile_time_info, ImportAttributes::empty_ref())),
+                            &Default::default(),
+                            &var_cache,
+                        )
+                        .await?;
+                    }
+                }
+                anyhow::Ok(start.elapsed())
             })
             .await
-            .unwrap();
+            .unwrap()
         }
     });
 }

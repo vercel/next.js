@@ -43,7 +43,6 @@ pub mod panic_hooks;
 pub mod parallel;
 pub mod primitives;
 mod priority_runner;
-mod raw_vc;
 mod read_options;
 mod read_ref;
 pub mod registry;
@@ -53,6 +52,8 @@ pub mod small_duration;
 mod spawn;
 mod state;
 pub mod task;
+#[cfg(feature = "task_dirty_cause")]
+mod task_dirty_cause;
 mod task_execution_reason;
 pub mod task_statistics;
 mod tiny_vec;
@@ -72,6 +73,8 @@ use rustc_hash::FxHasher;
 pub use shrink_to_fit::ShrinkToFit;
 pub use turbo_tasks_macros::{DeterministicHash, turbobail, turbofmt};
 
+#[cfg(feature = "task_dirty_cause")]
+pub use crate::task_dirty_cause::TaskDirtyCause;
 pub use crate::{
     capture_future::TurboTasksPanic,
     collectibles::CollectiblesSource,
@@ -82,7 +85,9 @@ pub use crate::{
     },
     effect::{Effect, EffectError, EffectStateStorage, Effects, emit_effect, take_effects},
     error::PrettyPrintError,
-    id::{ExecutionId, LocalTaskId, TRANSIENT_TASK_BIT, TaskId, TraitTypeId, ValueTypeId},
+    id::{
+        ExecutionId, FunctionId, LocalTaskId, TRANSIENT_TASK_BIT, TaskId, TraitTypeId, ValueTypeId,
+    },
     invalidation::{
         InvalidationReason, InvalidationReasonKind, InvalidationReasonSet, Invalidator,
         get_invalidator,
@@ -90,15 +95,14 @@ pub use crate::{
     join_iter_ext::{JoinIterExt, TryFlatJoinIterExt, TryJoinIterExt},
     manager::{
         CurrentCellRef, ReadCellTracking, ReadConsistency, ReadTracking, TaskPersistence,
-        TaskPriority, TurboTasks, TurboTasksApi, TurboTasksBackendApi, TurboTasksCallApi, Unused,
-        UpdateInfo, dynamic_call, emit, get_serialization_invalidator, mark_finished,
-        mark_stateful, mark_top_level_task, prevent_gc, run, run_once, run_once_with_reason,
-        trait_call, turbo_tasks, turbo_tasks_scope, turbo_tasks_weak,
+        TaskPriority, TurboTasks, TurboTasksApi, TurboTasksCallApi, Unused, UpdateInfo,
+        dynamic_call, emit, get_serialization_invalidator, mark_finished, mark_stateful,
+        mark_top_level_task, prevent_gc, run, run_once, run_once_with_reason, trait_call,
+        turbo_tasks, turbo_tasks_scope, turbo_tasks_weak,
         unmark_top_level_task_may_leak_eventually_consistent_state, with_turbo_tasks,
     },
     mapped_read_ref::MappedReadRef,
     output::OutputContent,
-    raw_vc::{CellId, RawVc, ReadRawVcFuture, ResolveRawVcFuture},
     read_options::{ReadCellOptions, ReadOutputOptions},
     read_ref::ReadRef,
     serialization_invalidation::SerializationInvalidator,
@@ -114,11 +118,12 @@ pub use crate::{
     value::{TransientInstance, TransientValue},
     value_type::{Evictability, TraitMethod, TraitType, ValueType, ValueTypePersistence},
     vc::{
-        Dynamic, NonLocalValue, OperationValue, OperationVc, OptionVcExt, ReadVcFuture,
-        ResolveOperationVcFuture, ResolveVcFuture, ResolvedVc, ToResolvedVcFuture, Upcast,
-        UpcastStrict, ValueDefault, Vc, VcCast, VcCellCompareMode, VcCellHashedCompareMode,
-        VcCellKeyedCompareMode, VcCellNewMode, VcDefaultRead, VcRead, VcTransparentRead,
-        VcValueTrait, VcValueTraitCast, VcValueType, VcValueTypeCast,
+        CellId, Dynamic, NonLocalValue, OperationValue, OperationVc, OptionVcExt, RawVc,
+        ReadRawVcFuture, ReadVcFuture, ResolveOperationVcFuture, ResolveRawVcFuture,
+        ResolveVcFuture, ResolvedVc, ToResolvedVcFuture, Upcast, UpcastStrict, ValueDefault, Vc,
+        VcCast, VcCellCompareMode, VcCellHashedCompareMode, VcCellKeyedCompareMode, VcCellNewMode,
+        VcDefaultRead, VcRead, VcTransparentRead, VcValueTrait, VcValueTraitCast, VcValueType,
+        VcValueTypeCast,
     },
 };
 
@@ -396,7 +401,3 @@ pub use turbo_tasks_macros::task_storage;
 pub use turbo_tasks_macros::TaskInput;
 
 pub type TaskIdSet = AutoSet<TaskId, BuildHasherDefault<FxHasher>, 2>;
-
-pub mod test_helpers {
-    pub use super::manager::{current_task_for_testing, with_turbo_tasks_for_testing};
-}

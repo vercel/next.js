@@ -18,6 +18,54 @@ import { StatusIndicator, Status, getCurrentStatus } from './status-indicator'
 
 const SHORT_DURATION_MS = 150
 
+function Plural({ count, animate }: { count: number; animate: boolean }) {
+  if (count <= 1) return null
+  return (
+    <span aria-hidden data-issues-count-plural data-animate={animate}>
+      s
+    </span>
+  )
+}
+
+function PillLabel({
+  normalCount,
+  instantCount,
+  normalCountAnimating,
+  instantCountAnimating,
+}: {
+  normalCount: number
+  instantCount: number
+  normalCountAnimating: boolean
+  instantCountAnimating: boolean
+}) {
+  const hasNormal = normalCount > 0
+  const hasInstant = instantCount > 0
+  return (
+    <>
+      {hasNormal && (
+        <>
+          Issue
+          <Plural
+            count={normalCount}
+            animate={normalCountAnimating && normalCount === 2}
+          />
+        </>
+      )}
+      {hasNormal && hasInstant && ' · '}
+      {hasInstant && (
+        <>
+          {hasNormal && <>{instantCount} </>}
+          Insight
+          <Plural
+            count={instantCount}
+            animate={instantCountAnimating && instantCount === 2}
+          />
+        </>
+      )}
+    </>
+  )
+}
+
 // Smooth out rapid status transitions driven by bursty HMR events (e.g.
 // Compiling→None→Compiling when consecutive compile episodes are <300ms apart,
 // or Compiling→Rendering→Compiling oscillation). The debounce bridges burst
@@ -29,12 +77,16 @@ export function NextLogo({
   ...buttonProps
 }: { onTriggerClick: () => void } & React.ComponentProps<'button'>) {
   const { state, dispatch } = useDevOverlayContext()
-  const { totalErrorCount } = useRenderErrorContext()
+  const { totalErrorCount, normalErrorCount, instantErrorCount } =
+    useRenderErrorContext()
   const SIZE = BASE_LOGO_SIZE / state.scale
   const { panel, triggerRef, setPanel } = usePanelRouterContext()
   const isMenuOpen = panel === 'panel-selector'
 
   const hasError = totalErrorCount > 0
+  // Only insights remain: use amber styling instead of red.
+  const insightsOnly =
+    hasError && normalErrorCount === 0 && instantErrorCount > 0
   const [isErrorExpanded, setIsErrorExpanded] = useState(hasError)
   const [previousHasError, setPreviousHasError] = useState(hasError)
   if (previousHasError !== hasError) {
@@ -43,10 +95,19 @@ export function NextLogo({
     setIsErrorExpanded(hasError)
   }
   const [dismissed, setDismissed] = useState(false)
-  const newErrorDetected = useUpdateAnimation(
-    totalErrorCount,
+  const normalErrorAnimating = useUpdateAnimation(
+    normalErrorCount,
     SHORT_DURATION_MS
   )
+  const instantErrorAnimating = useUpdateAnimation(
+    instantErrorCount,
+    SHORT_DURATION_MS
+  )
+  const newErrorDetected = normalErrorAnimating || instantErrorAnimating
+  const leadingCount =
+    normalErrorCount > 0 ? normalErrorCount : instantErrorCount
+  const leadingCountAnimating =
+    normalErrorCount > 0 ? normalErrorAnimating : instantErrorAnimating
 
   // Cache indicator state management
   const isCacheBypassing = state.cacheIndicator === 'bypass'
@@ -194,6 +255,15 @@ export function NextLogo({
             }
 
             &[data-cache-bypassing='true']:not([data-error='true']) {
+              background: rgba(217, 119, 6, 0.95);
+              --color-inner-border: rgba(245, 158, 11, 0.9);
+
+              [data-issues-open] {
+                color: white;
+              }
+            }
+
+            &[data-insights-only='true']:not([data-error='true']) {
               background: rgba(217, 119, 6, 0.95);
               --color-inner-border: rgba(245, 158, 11, 0.9);
 
@@ -393,7 +463,8 @@ export function NextLogo({
       </style>
       <div
         data-next-badge
-        data-error={hasError}
+        data-error={hasError && !insightsOnly}
+        data-insights-only={insightsOnly}
         data-error-expanded={isExpanded}
         data-status={hasError || isCacheBypassing ? Status.None : currentStatus}
         data-cache-bypassing={isCacheBypassing}
@@ -451,27 +522,19 @@ export function NextLogo({
                     )}
                     <AnimateCount
                       // Used the key to force a re-render when the count changes.
-                      key={totalErrorCount}
-                      animate={newErrorDetected}
+                      key={leadingCount}
+                      animate={leadingCountAnimating}
                       data-issues-count-animation
                     >
-                      {totalErrorCount}
+                      {leadingCount}
                     </AnimateCount>{' '}
                     <div>
-                      Issue
-                      {totalErrorCount > 1 && (
-                        <span
-                          aria-hidden
-                          data-issues-count-plural
-                          // This only needs to animate once the count changes from 1 -> 2,
-                          // otherwise it should stay static between re-renders.
-                          data-animate={
-                            newErrorDetected && totalErrorCount === 2
-                          }
-                        >
-                          s
-                        </span>
-                      )}
+                      <PillLabel
+                        normalCount={normalErrorCount}
+                        instantCount={instantErrorCount}
+                        normalCountAnimating={normalErrorAnimating}
+                        instantCountAnimating={instantErrorAnimating}
+                      />
                     </div>
                   </button>
                   {!state.buildError && (

@@ -2,6 +2,7 @@ use std::future::IntoFuture;
 
 use anyhow::{Context, Result};
 use next_core::{
+    app_structure::FileSystemPathVec,
     middleware::get_middleware_module,
     next_edge::entry::wrap_edge_entry,
     next_manifests::{EdgeFunctionDefinition, MiddlewaresManifestV2, ProxyMatcher, Regions},
@@ -28,6 +29,7 @@ use turbopack_core::{
 };
 
 use crate::{
+    nft::{EndpointTraceResult, trace_endpoint},
     nft_json::NftJsonAsset,
     paths::{
         all_asset_paths, all_paths_in_root, get_asset_paths_from_root, get_js_paths_from_root,
@@ -116,6 +118,7 @@ impl MiddlewareEndpoint {
             module.ident(),
             ChunkGroup::Entry(vec![module]),
             module_graph,
+            OutputAssets::empty(),
             AvailabilityInfo::root(),
         );
         Ok(edge_chunk_grou)
@@ -227,7 +230,7 @@ impl MiddlewareEndpoint {
             let mut output_assets = vec![chunk];
             if this.project.next_mode().await?.is_production() {
                 output_assets.push(ResolvedVc::upcast(
-                    NftJsonAsset::new(*this.project, None, *chunk, vec![])
+                    NftJsonAsset::new(*this.project, None, *chunk, vec![], self.trace_result())
                         .to_resolved()
                         .await?,
                 ));
@@ -263,7 +266,7 @@ impl MiddlewareEndpoint {
             let edge_assets = edge_chunk_group_ref.assets.await?;
 
             let file_paths_from_root =
-                get_js_paths_from_root(&node_root_value, &edge_assets).await?;
+                get_js_paths_from_root(&node_root_value, edge_assets.iter().copied()).await?;
             let entrypoint_asset = *edge_assets
                 .last()
                 .context("expected assets for edge middleware endpoint")?;
@@ -278,7 +281,7 @@ impl MiddlewareEndpoint {
                 get_wasm_paths_from_root(&node_root_value, edge_all_assets.await?).await?;
 
             let all_assets =
-                get_asset_paths_from_root(&node_root_value, &edge_all_assets.await?).await?;
+                get_asset_paths_from_root(&node_root_value, edge_all_assets.await?).await?;
 
             let regions = if let Some(regions) = config.preferred_region.as_ref() {
                 if regions.len() == 1 {
@@ -334,6 +337,18 @@ impl MiddlewareEndpoint {
                 ReferenceType::Entry(EntryReferenceSubType::Middleware),
             )
             .module()
+    }
+
+    #[turbo_tasks::function]
+    async fn trace_result(self: Vc<Self>) -> Result<Vc<EndpointTraceResult>> {
+        let this = self.await?;
+        let userland_module = self.entry_module();
+        Ok(trace_endpoint(
+            *this.project,
+            None,
+            this.project.module_graph(userland_module),
+            userland_module,
+        ))
     }
 }
 
@@ -410,5 +425,10 @@ impl Endpoint for MiddlewareEndpoint {
     #[turbo_tasks::function]
     fn project(&self) -> Vc<Project> {
         *self.project
+    }
+
+    #[turbo_tasks::function]
+    fn traced_files(self: Vc<Self>) -> Vc<FileSystemPathVec> {
+        self.trace_result().all_files()
     }
 }
