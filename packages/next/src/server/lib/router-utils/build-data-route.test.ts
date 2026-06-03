@@ -60,4 +60,12 @@ describe('addLocalePrefixToDataRouteRegex', () => {
       )?.[1]
     ).toBe('another')
   })
+
+  it('should locate regex-escaped build ids', () => {
+    const route = buildDataRoute('/[...slug]', 'build.id')
+
+    expect(
+      addLocalePrefixToDataRouteRegex(route.dataRouteRegex, 'build.id')
+    ).toBe('^/_next/data/build\\.id/(?:[^/]+?)/(.+?)\\.json$')
+  })
 })
