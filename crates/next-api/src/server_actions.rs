@@ -21,7 +21,8 @@ use swc_core::{
 };
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
-    FxIndexMap, NonLocalValue, OperationVc, ResolvedVc, TryFlatJoinIterExt, Vc, trace::TraceRawVcs,
+    FxIndexMap, NonLocalValue, OperationVc, ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt, Vc,
+    trace::TraceRawVcs,
 };
 use turbo_tasks_fs::{self, File, FileContent, FileSystemPath, rope::RopeBuilder};
 use turbopack_core::{
@@ -226,26 +227,28 @@ impl Asset for ServerActionManifestAsset {
             filename: String,
         }
 
-        // Collect all the action metadata including filenames and location
-        let mut action_metadata: Vec<(String, ActionMetadata)> = Vec::new();
-        for (hash_id, (_layer, meta, module)) in actions_value.iter() {
-            // Use source_path from the action comment if available (contains original .ts/.tsx
-            // path), otherwise fall back to module.ident().path() (may be compiled .js
-            // path)
-            let filename = if !meta.source_path.is_empty() {
-                meta.source_path.clone()
-            } else {
-                module.ident().await?.path.to_string()
-            };
+        let action_metadata: Vec<(String, ActionMetadata)> = actions_value
+            .iter()
+            .map(async |(hash_id, (_layer, meta, module))| {
+                // Use source_path from the action comment if available (contains original .ts/.tsx
+                // path), otherwise fall back to module.ident().path() (may be compiled .js
+                // path)
+                let filename = if !meta.source_path.is_empty() {
+                    meta.source_path.clone()
+                } else {
+                    module.ident().await?.path.to_string()
+                };
 
-            action_metadata.push((
-                hash_id.clone(),
-                ActionMetadata {
-                    exported_name: meta.name.clone(),
-                    filename,
-                },
-            ));
-        }
+                Ok((
+                    hash_id.clone(),
+                    ActionMetadata {
+                        exported_name: meta.name.clone(),
+                        filename,
+                    },
+                ))
+            })
+            .try_join()
+            .await?;
 
         // Now create the manifest entries
         for (
