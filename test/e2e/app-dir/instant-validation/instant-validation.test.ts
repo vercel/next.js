@@ -1894,33 +1894,36 @@ describe('instant validation', () => {
         }
       })
 
-      it('invalid - usePathname() in a client component on a route with a fallback param', async () => {
-        if (isNextDev) {
-          if (isClientNav) {
-            // Client-nav fires a different redbox shape; only assert initial load.
+      // Today the dev overlay misattributes usePathname() errors to the
+      // parent's JSX line instead of the actual hook call site. When the
+      // URL-hook factory lands, this test will start passing and
+      // `it.failing` will itself fail — flip it back to `it`.
+      /* eslint-disable jest/no-standalone-expect */
+      ;(isNextDev && !isClientNav ? it.failing : it)(
+        'invalid - usePathname() in a client component on a route with a fallback param',
+        async () => {
+          if (!isNextDev || isClientNav) {
             return
           }
           const browser = await navigateTo(
             '/default/invalid-use-pathname-no-samples/123'
           )
-          // TODO(url-hook-factory): once the URL-hook factory lands, the
-          // source should point at pathname-label.tsx, not page.tsx.
           await expect(browser).toDisplayCollapsedRedbox(`
            {
-             "code": "E1265",
              "description": "Next.js encountered uncached data during prerendering.",
              "environmentLabel": "Server",
              "label": "Blocking Route",
-             "source": "app/default/invalid-use-pathname-no-samples/[slug]/page.tsx (6:7) @ Page
-           > 6 |       <PathnameLabel />
-               |       ^",
+             "source": "app/default/invalid-use-pathname-no-samples/[slug]/pathname-label.tsx (6:20) @ PathnameLabel
+           > 6 |   const pathname = usePathname()
+               |                    ^",
              "stack": [
-               "Page app/default/invalid-use-pathname-no-samples/[slug]/page.tsx (6:7)",
+               "PathnameLabel app/default/invalid-use-pathname-no-samples/[slug]/pathname-label.tsx (6:20)",
              ],
            }
           `)
         }
-      })
+      )
+      /* eslint-enable jest/no-standalone-expect */
     })
 
     describe('client errors', () => {
