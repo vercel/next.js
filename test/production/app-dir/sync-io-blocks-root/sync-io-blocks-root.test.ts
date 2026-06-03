@@ -15,7 +15,7 @@ describe('sync IO that blocks the root', () => {
   // without `scheduleWork`), which means that partially finished chunks may get omitted from the output.
   // Essentially, when Sync IO happens, we might lose more content that we would've if we did a halt.
   // With the pages in this test suite, the root chunk (row 0) ends up being blocked.
-  // Before the fix introduced in this PR, this bad RSC payload would then flow into `collec-segment-data.ts`
+  // Before the fix introduced in this PR, this bad RSC payload would then flow into `collect-segment-data.ts`
   // which attempts to deserialize it and hangs in an unexpected way (because with a halt, the
   // root chunk was always there).
 

@@ -1969,6 +1969,17 @@ async function finalRuntimeServerPrerender(
         // something that required aborting the prerender synchronously such
         // as with new Date()
         serverIsDynamic = true
+
+        // FIXME(NAR-810): If we're already aborted due to Sync IO, there should be no need to
+        // finish the accumulators. However, it seems like in `--debug-prerender`
+        // the stream will stay open if we don't close the iterable here.
+        if (
+          process.env.NODE_ENV === 'development' &&
+          staleTimeIterable !== undefined
+        ) {
+          staleTimeIterable.close()
+        }
+
         return
       }
 
@@ -7788,6 +7799,16 @@ async function prerenderToStream(
             // If the server controller is already aborted we must have called something
             // that required aborting the prerender synchronously such as with new Date()
             serverIsDynamic = true
+
+            // FIXME(NAR-810): If we're already aborted due to Sync IO, there should be no need to
+            // finish the accumulators. However, it seems like in `--debug-prerender`
+            // the stream will stay open if we don't close the iterable here.
+            if (
+              process.env.NODE_ENV === 'development' &&
+              staleTimeIterable !== undefined
+            ) {
+              staleTimeIterable.close()
+            }
             return
           }
 
