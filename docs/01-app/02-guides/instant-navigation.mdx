@@ -84,29 +84,28 @@ Validation runs automatically on every page load using the real request from you
 
 The Next.js DevTools let you see what users see on page loads and client navigations before dynamic data streams in. Use it to verify your loading states look right, check that the right content appears immediately, and iterate on where to place `<Suspense>` boundaries.
 
-Enable the toggle in your Next.js config:
+The Navigation Inspector is available when Cache Components is enabled:
 
-```ts filename="next.config.ts" highlight={5-7}
+```ts filename="next.config.ts" highlight={4}
 import type { NextConfig } from 'next'
 
 const nextConfig: NextConfig = {
   cacheComponents: true,
-  experimental: {
-    instantNavigationDevToolsToggle: true,
-  },
 }
 
 export default nextConfig
 ```
 
-Open the Next.js DevTools and select **Instant Navs**. Two options are available:
+Open the Next.js DevTools and select **Navigation Inspector**, then click **Start Capturing**. While capturing is active:
 
-- **Page load**: click **Reload** to refresh the page and freeze it at the initial static UI generated for this route, before any dynamic data streams in.
-- **Client navigation**: once enabled, clicking any link in your app shows the prefetched UI for that page instead of the full result.
+- Refresh the page to freeze the initial static UI generated for the route, before any dynamic data streams in.
+- Click a link to freeze the prefetched UI for the destination route.
 
-Try a **page load** on the product page. Two separate fallbacks appear: "Loading product..." and "Checking availability...". On the first visit the cache is cold and both fallbacks are visible. Navigate to the page again and the product name appears immediately from cache.
+When the UI is frozen, click **Continue Rendering** to let the current navigation finish while keeping the Navigation Inspector in capturing mode. Click **Stop Capturing** when you are done inspecting loading states.
 
-Now try a **client navigation** (click a link from `/store/shoes` to `/store/hats`). The product name and price appear immediately (cached). "Checking availability..." shows where inventory will stream in.
+Try refreshing the product page. Two separate fallbacks appear: "Loading product..." and "Checking availability...". On the first visit the cache is cold and both fallbacks are visible. Navigate to the page again and the product name appears immediately from cache.
+
+Now click a link from `/store/shoes` to `/store/hats`. The product name and price appear immediately (cached). "Checking availability..." shows where inventory will stream in.
 
 > **Good to know:** Page loads and client navigations can produce different shells. Client-side hooks like `useSearchParams` suspend on page loads (search params are not known at build time) but resolve synchronously on client navigations (the router already has the params).
 
