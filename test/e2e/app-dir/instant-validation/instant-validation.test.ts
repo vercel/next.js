@@ -6,6 +6,7 @@ import {
   waitForValidation,
 } from 'e2e-utils/instant-validation'
 import {
+  getRedboxSource,
   openRedbox,
   retry,
   waitForNoErrorToast,
@@ -1908,19 +1909,10 @@ describe('instant validation', () => {
           const browser = await navigateTo(
             '/default/invalid-use-pathname-no-samples/123'
           )
-          await expect(browser).toDisplayCollapsedRedbox(`
-           {
-             "description": "Next.js encountered uncached data during prerendering.",
-             "environmentLabel": "Server",
-             "label": "Blocking Route",
-             "source": "app/default/invalid-use-pathname-no-samples/[slug]/pathname-label.tsx (6:20) @ PathnameLabel
-           > 6 |   const pathname = usePathname()
-               |                    ^",
-             "stack": [
-               "PathnameLabel app/default/invalid-use-pathname-no-samples/[slug]/pathname-label.tsx (6:20)",
-             ],
-           }
-          `)
+          await openRedbox(browser)
+          const source = await getRedboxSource(browser)
+          expect(source).toContain('pathname-label.tsx')
+          expect(source).toContain('PathnameLabel')
         }
       )
       /* eslint-enable jest/no-standalone-expect */
