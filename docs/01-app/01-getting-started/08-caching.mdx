@@ -49,9 +49,9 @@ The [`use cache`](/docs/app/api-reference/directives/use-cache) directive caches
 - **Data-level**: Cache a function that fetches or computes data (e.g., `getProducts()`, `getUser(id)`)
 - **UI-level**: Cache an entire component or page (e.g., `async function BlogPosts()`)
 
-> Arguments and any closed-over values from parent scopes automatically become part of the [cache key](/docs/app/api-reference/directives/use-cache#cache-keys), which means different inputs will produce separate cache entries. This enables personalized or parameterized cached content. See [serialization requirements and constraints](/docs/app/api-reference/directives/use-cache#constraints) for details on what can be cached and how arguments work.
+Two variants cover specific scenarios: [`"use cache: remote"`](/docs/app/api-reference/directives/use-cache-remote) for durable, shared remote storage, and [`"use cache: private"`](/docs/app/api-reference/directives/use-cache-private) for caching functions that read runtime data.
 
-{/* consider a callout for remote or private directives, short, x-refs to the API reference for those */}
+> Arguments and any closed-over values from parent scopes automatically become part of the [cache key](/docs/app/api-reference/directives/use-cache#cache-keys), which means different inputs will produce separate cache entries. This enables personalized or parameterized cached content. See [serialization requirements and constraints](/docs/app/api-reference/directives/use-cache#constraints) for details on what can be cached and how arguments work.
 
 ### Data-level caching
 
@@ -367,7 +367,7 @@ This generates a static shell consisting of HTML for initial page loads and a se
 
 Every produced static shell can be served directly from a CDN, without going through to the upstream server. This makes direct navigations [instant](#instant-navigation).
 
-Next.js requires you to explicitly handle components that can't complete during prerendering. If a component isn't wrapped in `<Suspense>` or marked with `use cache`, you'll see a [blocking-route](https://nextjs.org/docs/messages/blocking-route) error during development. The error names the route and points at fixes (cache the access, move it into a `<Suspense>` boundary, or opt the route out). This validation keeps every route producing a static shell, so direct navigations stay instant.
+Next.js requires you to explicitly handle components that can't complete during prerendering. It surfaces a validation insight in the dev overlay that names the route and points at fixes (cache the access, move it into a `<Suspense>` boundary, or opt the route out). This validation keeps every route producing a static shell, so direct navigations stay instant.
 
 <Image
   alt="Diagram showing partially rendered page on the client, with loading UI for chunks that are being streamed."
