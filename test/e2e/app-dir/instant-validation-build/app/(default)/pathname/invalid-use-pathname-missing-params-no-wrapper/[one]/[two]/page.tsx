@@ -17,10 +17,8 @@ export default function Page() {
   return (
     <main>
       <p>
-        usePathname() called directly at the top of a Client Component body (no{' '}
-        <code>ensureThrows()</code> wrapper) on a route with dynamic params
-        where not all params are provided in the sample. The build-time
-        validation error should point at the call site in the user's source.
+        usePathname() without an ensureThrows wrapper should point at the call
+        site in the user&apos;s source.
       </p>
       <PathnameReader />
     </main>
