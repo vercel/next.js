@@ -15,6 +15,9 @@ export default async function Page() {
           <DebugLinks href="/default/static/valid-blocking-inside-static" />
         </li>
         <li>
+          <DebugLinks href="/default/invalid-use-pathname-no-samples/123" />
+        </li>
+        <li>
           <DebugLinks href="/default/invalid-use-selected-layout-segment-no-samples/123" />
         </li>
         <li>

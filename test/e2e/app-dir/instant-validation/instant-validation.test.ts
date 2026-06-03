@@ -1894,11 +1894,33 @@ describe('instant validation', () => {
         }
       })
 
-      // useSelectedLayoutSegment and useSelectedLayoutSegments are
-      // misclassified as "uncached data" today. These tests assert the
+      // usePathname, useSelectedLayoutSegment, and useSelectedLayoutSegments
+      // are misclassified as "uncached data" today. These tests assert the
       // correct stack attribution. When the URL-hook factory lands, each
       // `it.failing` will itself fail — flip to `it`.
       /* eslint-disable jest/no-standalone-expect */
+      ;(isNextDev && !isClientNav ? it.failing : it)(
+        'invalid - usePathname() in a client component on a route with a fallback param',
+        async () => {
+          if (!isNextDev || isClientNav) return
+          const browser = await navigateTo(
+            '/default/invalid-use-pathname-no-samples/123'
+          )
+          await expect(browser).toDisplayCollapsedRedbox(`
+           {
+             "description": "Next.js encountered uncached data during prerendering.",
+             "environmentLabel": "Server",
+             "label": "Blocking Route",
+             "source": "app/default/invalid-use-pathname-no-samples/[slug]/pathname-label.tsx (6:20) @ PathnameLabel
+           > 6 |   const pathname = usePathname()
+               |                    ^",
+             "stack": [
+               "PathnameLabel app/default/invalid-use-pathname-no-samples/[slug]/pathname-label.tsx (6:20)",
+             ],
+           }
+          `)
+        }
+      )
       ;(isNextDev && !isClientNav ? it.failing : it)(
         'invalid - useSelectedLayoutSegment() in a client component on a route with a fallback param',
         async () => {
