@@ -756,8 +756,7 @@ pub async fn project_invalidate_file_system_cache(
             .turbopack_ctx
             .turbo_tasks()
             .backend()
-            .backing_storage()
-            .invalidate(invalidation_reasons::USER_REQUEST)
+            .invalidate_storage(invalidation_reasons::USER_REQUEST)
     })
     .await
     .context("panicked while invalidating filesystem cache")??;

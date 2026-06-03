@@ -198,7 +198,7 @@ impl TurboBackingStorage {
     /// during [`TurboTasksBackend::stop`].
     ///
     /// [`TurboTasksBackend::stop`]: turbo_tasks::backend::Backend::stop
-    pub fn invalidate(&self, reason_code: &str) -> Result<()> {
+    pub(crate) fn invalidate(&self, reason_code: &str) -> Result<()> {
         self.inner.invalidate(reason_code)
     }
 

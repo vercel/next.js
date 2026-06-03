@@ -214,8 +214,13 @@ impl TurboTasksBackend {
         )))
     }
 
-    pub fn backing_storage(&self) -> &TurboBackingStorage {
-        &self.0.backing_storage
+    /// Invalidates the persistent storage so that it will be deleted the next time a turbopack
+    /// instance is created with the filesystem cache enabled.
+    ///
+    /// `reason_code` should be one of the codes in
+    /// [`crate::db_invalidation::invalidation_reasons`].
+    pub fn invalidate_storage(&self, reason_code: &str) -> Result<()> {
+        self.0.backing_storage.invalidate(reason_code)
     }
 
     /// Perform a snapshot and then evict all evictable tasks from memory.
