@@ -160,6 +160,8 @@ export function getDefineEnv({
         ? 'development'
         : 'production',
     'process.env.__NEXT_DEV_SERVER': dev ? '1' : '',
+    'process.env.__NEXT_DISABLE_DEV_OVERLAY_UX':
+      process.env.NEXT_PRIVATE_DISABLE_DEV_OVERLAY_UX === '1',
     'process.env.NEXT_RUNTIME': isEdgeServer
       ? 'edge'
       : isNodeServer

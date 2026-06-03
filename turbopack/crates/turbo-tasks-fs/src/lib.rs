@@ -938,7 +938,7 @@ impl FileSystem for DiskFileSystem {
 
         #[derive(TraceRawVcs, NonLocalValue, Clone)]
         struct WriteEffect {
-            full_path: Arc<PathBuf>,
+            full_path: Arc<Path>,
             inner: Arc<DiskFileSystemInner>,
             content: ReadRef<PersistedFileContent>,
             content_hash: u128,
@@ -1088,7 +1088,7 @@ impl FileSystem for DiskFileSystem {
 
         let content_hash = u128::from_le_bytes(hash_xxh3_hash128(&*content));
         emit_effect(WriteEffect {
-            full_path: Arc::new(full_path),
+            full_path: Arc::from(full_path),
             inner,
             content,
             content_hash,
@@ -1115,7 +1115,7 @@ impl FileSystem for DiskFileSystem {
 
         #[derive(TraceRawVcs, NonLocalValue, Clone)]
         struct WriteLinkEffect {
-            full_path: Arc<PathBuf>,
+            full_path: Arc<Path>,
             inner: Arc<DiskFileSystemInner>,
             content: ReadRef<LinkContent>,
             content_hash: u128,
@@ -1371,7 +1371,7 @@ impl FileSystem for DiskFileSystem {
 
         let content_hash = u128::from_le_bytes(hash_xxh3_hash128(&*content));
         emit_effect(WriteLinkEffect {
-            full_path: Arc::new(full_path),
+            full_path: Arc::from(full_path),
             inner,
             content,
             content_hash,

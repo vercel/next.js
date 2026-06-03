@@ -165,6 +165,7 @@ import {
   trackThrownErrorInNavigation,
   createInstantValidationState,
   type NavigationValidationResult,
+  throwIfSyncIOUsed,
 } from './dynamic-rendering'
 import { logBuildDebugHint } from './blocking-route-messages'
 import {
@@ -252,7 +253,11 @@ import {
 import type { Params } from '../request/params'
 import { ImageConfigContext } from '../../shared/lib/image-config-context.shared-runtime'
 import { imageConfigDefault } from '../../shared/lib/image-config'
-import { RenderStage, StagedRenderingController } from './staged-rendering'
+import {
+  getNextStage,
+  RenderStage,
+  StagedRenderingController,
+} from './staged-rendering'
 import {
   anySegmentHasRuntimePrefetchEnabled,
   isPageAllowedToBlock,
@@ -928,6 +933,7 @@ async function generateStagedDynamicFlightRenderResultWeb(
     // but it can happen e.g. after a revalidation or conditionally for a param that wasn't prerendered.
     // we should change this to track sync IO, log an error and advance to dynamic.
     shouldTrackSyncIO: false,
+    finalStage: null,
   })
 
   // Initialize stale time tracking on the request store.
@@ -1086,6 +1092,7 @@ async function generateStagedDynamicFlightRenderResultNode(
     // but it can happen e.g. after a revalidation or conditionally for a param that wasn't prerendered.
     // we should change this to track sync IO, log an error and advance to dynamic.
     shouldTrackSyncIO: false,
+    finalStage: null,
   })
 
   // Initialize stale time tracking on the request store.
@@ -1273,6 +1280,7 @@ async function stagedRenderWithoutCachesInDevWeb(
     abortSignal: null,
     abandonController: null,
     shouldTrackSyncIO: false, // do not track sync IO (we don't have reliable stages)
+    finalStage: null,
   })
 
   const environmentName = () => {
@@ -1343,6 +1351,7 @@ async function stagedRenderWithoutCachesInDevNode(
     abortSignal: null,
     abandonController: null,
     shouldTrackSyncIO: false, // do not track sync IO (we don't have reliable stages)
+    finalStage: null,
   })
 
   const environmentName = () => {
@@ -1876,6 +1885,7 @@ async function finalRuntimeServerPrerender(
     abortSignal: finalServerController.signal,
     abandonController: null,
     shouldTrackSyncIO: true,
+    finalStage: RenderStage.Runtime,
   })
 
   const varyParamsAccumulator = createResponseVaryParamsAccumulator()
@@ -1968,6 +1978,17 @@ async function finalRuntimeServerPrerender(
         // something that required aborting the prerender synchronously such
         // as with new Date()
         serverIsDynamic = true
+
+        // FIXME(NAR-810): If we're already aborted due to Sync IO, there should be no need to
+        // finish the accumulators. However, it seems like in `--debug-prerender`
+        // the stream will stay open if we don't close the iterable here.
+        if (
+          process.env.NODE_ENV === 'development' &&
+          staleTimeIterable !== undefined
+        ) {
+          staleTimeIterable.close()
+        }
+
         return
       }
 
@@ -3692,6 +3713,7 @@ async function renderToStream(
             // but it can happen e.g. after a revalidation or conditionally for a param that wasn't prerendered.
             // we should change this to track sync IO, log an error and advance to dynamic.
             shouldTrackSyncIO: false,
+            finalStage: null,
           })
 
           requestStore.stale = INFINITE_CACHE
@@ -3823,6 +3845,7 @@ async function renderToStream(
             // but it can happen e.g. after a revalidation or conditionally for a param that wasn't prerendered.
             // we should change this to track sync IO, log an error and advance to dynamic.
             shouldTrackSyncIO: false,
+            finalStage: null,
           })
 
           requestStore.stale = INFINITE_CACHE
@@ -4640,6 +4663,7 @@ async function renderWithRestartOnCacheMissInDevWeb(
     abortSignal: initialDataController.signal,
     abandonController: initialAbandonController,
     shouldTrackSyncIO: true,
+    finalStage: null,
   })
 
   // Use a mutable resume data cache for the warmup. After the warmup we'll swap
@@ -4802,6 +4826,7 @@ async function renderWithRestartOnCacheMissInDevWeb(
     abortSignal: null,
     abandonController: null,
     shouldTrackSyncIO: true,
+    finalStage: null,
   })
 
   // We've filled the caches, so now we can render as usual,
@@ -4952,6 +4977,7 @@ async function renderWithRestartOnCacheMissInDevNode(
     abortSignal: initialDataController.signal,
     abandonController: initialAbandonController,
     shouldTrackSyncIO: true,
+    finalStage: null,
   })
 
   // Use a mutable resume data cache for the warmup. After the warmup we'll swap
@@ -5109,6 +5135,7 @@ async function renderWithRestartOnCacheMissInDevNode(
     abortSignal: null,
     abandonController: null,
     shouldTrackSyncIO: true,
+    finalStage: null,
   })
 
   // We've filled the caches, so now we can render as usual,
@@ -5321,7 +5348,8 @@ async function countStaticStageBytes(
   let byteLength = 0
   const reader = stream.getReader()
 
-  stageController.onStage(RenderStage.EarlyRuntime, () => {
+  const endStage = getNextStage(RenderStage.Static)
+  stageController.onStage(endStage, () => {
     reader.cancel()
   })
 
@@ -5348,7 +5376,8 @@ async function countStaticStageBytesNode(
   let byteLength = 0
   let cancelled = false
 
-  stageController.onStage(RenderStage.EarlyRuntime, () => {
+  const endStage = getNextStage(RenderStage.Static)
+  stageController.onStage(endStage, () => {
     cancelled = true
     stream.destroy()
   })
@@ -6474,6 +6503,7 @@ async function renderWithRestartOnCacheMissInValidation(
     abortSignal: initialDataController.signal,
     abandonController: initialAbandonController,
     shouldTrackSyncIO: true,
+    finalStage: null,
   })
 
   requestStore.resumeDataCache = prerenderResumeDataCache
@@ -6584,6 +6614,7 @@ async function renderWithRestartOnCacheMissInValidation(
     abortSignal: finalDataController.signal,
     abandonController: null,
     shouldTrackSyncIO: true,
+    finalStage: null,
   })
 
   requestStore.resumeDataCache = createRenderResumeDataCache(
@@ -7787,6 +7818,16 @@ async function prerenderToStream(
             // If the server controller is already aborted we must have called something
             // that required aborting the prerender synchronously such as with new Date()
             serverIsDynamic = true
+
+            // FIXME(NAR-810): If we're already aborted due to Sync IO, there should be no need to
+            // finish the accumulators. However, it seems like in `--debug-prerender`
+            // the stream will stay open if we don't close the iterable here.
+            if (
+              process.env.NODE_ENV === 'development' &&
+              staleTimeIterable !== undefined
+            ) {
+              staleTimeIterable.close()
+            }
             return
           }
 
@@ -7813,6 +7854,14 @@ async function prerenderToStream(
           finalServerReactController.abort()
         }
       )
+
+      // If a sync IO error occurred, there's no point continuing.
+      // NOTE: this early exit is load-bearing. The way we simulate a halt
+      // in a render (ignoring all chunks emitted after an abort)
+      // can lead to a blocked root chunk (if it didn't flush before the abort).
+      // This means that deserializing the RSC payload can hang in unexpected places --
+      // normally, we can at least get the outer object with hanging promises inside.
+      throwIfSyncIOUsed(workStore, serverDynamicTracking)
 
       const reactServerResult = (reactServerPrerenderResult =
         new ReactServerPrerenderResult(collectedChunks.prerenderChunks))

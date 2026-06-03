@@ -3,10 +3,13 @@ use std::mem::replace;
 use anyhow::Result;
 use bincode::{Decode, Encode};
 use turbo_rcstr::RcStr;
-use turbo_tasks::{FxIndexMap, NonLocalValue, ResolvedVc, ValueToString, Vc, trace::TraceRawVcs};
-use turbo_tasks_fs::{FileContent, FileLine, FileLinesContent, rope::Rope};
+use turbo_tasks::{
+    FxIndexMap, NonLocalValue, ResolvedVc, ValueToString, ValueToStringRef, Vc, trace::TraceRawVcs,
+};
+use turbo_tasks_fs::{FileContent, FileLine, FileLinesContent, FileSystemPath, rope::Rope};
 use turbopack_core::{
     asset::{Asset, AssetContent},
+    file_source::FileSource,
     output::OutputAsset,
     source_map::{GenerateSourceMap, OriginalToken, SourceMap, Token},
 };
@@ -30,30 +33,54 @@ pub struct ChunkPart {
 }
 
 impl ChunkPart {
-    pub async fn get_compressed_size(&self) -> Result<u32> {
+    pub async fn get_compressed_size(&self) -> Result<Option<u32>> {
         let lines = &*self.lines.await?;
         let FileLinesContent::Lines(lines) = lines else {
-            return Ok(0);
+            return Ok(None);
         };
 
-        let mut all_range_content = String::new();
-        for range in &self.ranges {
-            append_content_between(
-                range.line,
-                range.start_column,
-                range.line,
-                range.end_column,
-                lines,
-                &mut all_range_content,
-            );
+        if self.ranges.is_empty() {
+            let mut all_content = String::new();
+            for line in lines {
+                all_content.push_str(&line.content);
+            }
+            Ok(Some(compressed_size_bytes(all_content)?))
+        } else {
+            let mut all_range_content = String::new();
+            for range in &self.ranges {
+                append_content_between(
+                    range.line,
+                    range.start_column,
+                    range.line,
+                    range.end_column,
+                    lines,
+                    &mut all_range_content,
+                );
+            }
+            Ok(Some(compressed_size_bytes(all_range_content)?))
         }
-        compressed_size_bytes(all_range_content.into())
     }
 }
 
 #[turbo_tasks::value(transparent)]
 #[derive(Debug)]
 pub struct ChunkParts(Vec<ChunkPart>);
+
+#[turbo_tasks::function]
+pub async fn split_traced_file_into_parts(path: FileSystemPath) -> Result<Vc<ChunkParts>> {
+    let source = FileSource::new(path.clone());
+    let content = source.content().await?;
+    let AssetContent::File(file_content) = &*content else {
+        return Ok(Vc::cell(vec![]));
+    };
+    let FileContent::Content(content) = &*file_content.await? else {
+        return Ok(Vc::cell(vec![]));
+    };
+    let content = content.content();
+    let lines_vc = file_content.lines().to_resolved().await?;
+
+    self_mapped(path.to_string_ref().await?, content, lines_vc).await
+}
 
 #[turbo_tasks::function]
 pub async fn split_output_asset_into_parts(
@@ -72,11 +99,11 @@ pub async fn split_output_asset_into_parts(
     let Some(generate_source_map) =
         ResolvedVc::try_sidecast::<Box<dyn GenerateSourceMap>>(asset.to_resolved().await?)
     else {
-        return self_mapped(asset, content, lines_vc).await;
+        return self_mapped(asset.path().to_string().owned().await?, content, lines_vc).await;
     };
     let source_map = generate_source_map.generate_source_map().await?;
     let Some(source_map) = source_map.as_content() else {
-        return self_mapped(asset, content, lines_vc).await;
+        return self_mapped(asset.path().to_string().owned().await?, content, lines_vc).await;
     };
     let Some(source_map) = SourceMap::new_from_rope(source_map.content())? else {
         return unaccounted(asset, content, lines_vc).await;
@@ -375,14 +402,14 @@ pub async fn split_output_asset_into_parts(
     Ok(Vc::cell(chunk_parts.into_values().collect()))
 }
 
-async fn self_mapped(
-    asset: Vc<Box<dyn OutputAsset>>,
+pub async fn self_mapped(
+    path: RcStr,
     content: &Rope,
     lines: ResolvedVc<FileLinesContent>,
 ) -> Result<Vc<ChunkParts>> {
     let len = content.len().try_into().unwrap_or(u32::MAX);
     Ok(Vc::cell(vec![ChunkPart {
-        source: asset.path().to_string().owned().await?,
+        source: path,
         real_size: len,
         unaccounted_size: 0,
         ranges: vec![],
