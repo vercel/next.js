@@ -1,6 +1,7 @@
 import { StaticGenBailoutError } from '../../client/components/static-generation-bailout'
 import { afterTaskAsyncStorage } from '../app-render/after-task-async-storage.external'
 import type { WorkStore } from '../app-render/work-async-storage.external'
+import { createSearchParamsInUseCacheError } from '../use-cache/use-cache-messages'
 
 export function throwWithStaticGenerationBailoutErrorWithDynamicError(
   route: string,
@@ -15,9 +16,7 @@ export function throwForSearchParamsAccessInUseCache(
   workStore: WorkStore,
   constructorOpt: Function
 ): never {
-  const error = new Error(
-    `Route ${workStore.route} used \`searchParams\` inside "use cache". Accessing dynamic request data inside a cache scope is not supported. If you need some search params inside a cached function await \`searchParams\` outside of the cached function and pass only the required search params as arguments to the cached function. See more info here: https://nextjs.org/docs/messages/next-request-in-use-cache`
-  )
+  const error = createSearchParamsInUseCacheError(workStore.route)
 
   Error.captureStackTrace(error, constructorOpt)
   workStore.invalidDynamicUsageError ??= error

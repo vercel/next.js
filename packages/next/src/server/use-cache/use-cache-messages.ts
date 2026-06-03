@@ -1,0 +1,206 @@
+/**
+ * Centralised error factories for `"use cache"` / `"use cache: private"`
+ * misuse. Wording goal: name the constraint and the fix in one sentence,
+ * then link to the docs page that explains why.
+ *
+ * Importers: `request/cookies.ts`, `request/headers.ts`,
+ * `request/connection.ts`, `request/draft-mode.ts`, `request/utils.ts`,
+ * `route-modules/app-route/module.ts`, `use-cache/cache-tag.ts`,
+ * `use-cache/cache-life.ts`, `use-cache/use-cache-wrapper.ts`,
+ * `web/spec-extension/revalidate.ts`.
+ */
+
+const NEXT_REQUEST_IN_USE_CACHE =
+  'https://nextjs.org/docs/messages/next-request-in-use-cache'
+
+const UNSTABLE_CACHE_API_DOCS =
+  'https://nextjs.org/docs/app/api-reference/functions/unstable_cache'
+
+const REVALIDATING_GUIDE_DOCS =
+  'https://nextjs.org/docs/app/getting-started/revalidating'
+
+const CACHE_TAG_API_DOCS =
+  'https://nextjs.org/docs/app/api-reference/functions/cacheTag'
+
+const CACHE_LIFE_API_DOCS =
+  'https://nextjs.org/docs/app/api-reference/functions/cacheLife'
+
+const USE_CACHE_PRIVATE_DIRECTIVE_DOCS =
+  'https://nextjs.org/docs/app/api-reference/directives/use-cache-private'
+
+// ── Request APIs inside `"use cache"` ─────────────────────────────
+
+export function createCookiesInUseCacheError(route: string): Error {
+  return new Error(
+    `Route "${route}": \`cookies()\` can't be read inside \`"use cache"\`. Read it outside the cached function and pass what you need as an argument.\nLearn more: ${NEXT_REQUEST_IN_USE_CACHE}`
+  )
+}
+
+export function createCookiesInUnstableCacheError(route: string): Error {
+  return new Error(
+    `Route "${route}": \`cookies()\` can't be read inside \`unstable_cache()\`. Read it outside the cached function and pass what you need as an argument.\nLearn more: ${UNSTABLE_CACHE_API_DOCS}`
+  )
+}
+
+export function createHeadersInUseCacheError(route: string): Error {
+  return new Error(
+    `Route "${route}": \`headers()\` can't be read inside \`"use cache"\`. Read it outside the cached function and pass what you need as an argument.\nLearn more: ${NEXT_REQUEST_IN_USE_CACHE}`
+  )
+}
+
+export function createHeadersInUnstableCacheError(route: string): Error {
+  return new Error(
+    `Route "${route}": \`headers()\` can't be read inside \`unstable_cache()\`. Read it outside the cached function and pass what you need as an argument.\nLearn more: ${UNSTABLE_CACHE_API_DOCS}`
+  )
+}
+
+export function createSearchParamsInUseCacheError(route: string): Error {
+  return new Error(
+    `Route "${route}": \`searchParams\` can't be read inside \`"use cache"\`. Await it outside the cached function and pass what you need as an argument.\nLearn more: ${NEXT_REQUEST_IN_USE_CACHE}`
+  )
+}
+
+export function createConnectionInPublicUseCacheError(route: string): Error {
+  return new Error(
+    `Route "${route}": \`connection()\` can't be used inside \`"use cache"\`. A cache entry can be built before any request exists, so it can't depend on one.\nLearn more: ${NEXT_REQUEST_IN_USE_CACHE}`
+  )
+}
+
+export function createConnectionInPrivateUseCacheError(route: string): Error {
+  return new Error(
+    `Route "${route}": \`connection()\` can't be used inside \`"use cache: private"\`. A private cache entry can be built before a navigation request, so it can't depend on one.\nLearn more: ${NEXT_REQUEST_IN_USE_CACHE}`
+  )
+}
+
+export function createConnectionInUnstableCacheError(route: string): Error {
+  return new Error(
+    `Route "${route}": \`connection()\` can't be used inside \`unstable_cache()\`. A cache entry can be built before any request exists, so it can't depend on one.\nLearn more: ${UNSTABLE_CACHE_API_DOCS}`
+  )
+}
+
+/**
+ * Used when `draftMode().enable()` or `.disable()` is called inside
+ * `"use cache"` or `"use cache: private"`. Reading `draftMode()` is fine
+ * inside a cache — toggling it is not.
+ */
+export function createDraftModeMutationInUseCacheError(
+  route: string,
+  expression: string
+): Error {
+  return new Error(
+    `Route "${route}": \`${expression}\` can't be called inside \`"use cache"\`. Draft mode can be read from a cached function, but enabling or disabling it must happen outside.\nLearn more: ${NEXT_REQUEST_IN_USE_CACHE}`
+  )
+}
+
+export function createDraftModeMutationInUnstableCacheError(
+  route: string,
+  expression: string
+): Error {
+  return new Error(
+    `Route "${route}": \`${expression}\` can't be called inside \`unstable_cache()\`. Draft mode can be read from a cached function, but enabling or disabling it must happen outside.\nLearn more: ${UNSTABLE_CACHE_API_DOCS}`
+  )
+}
+
+// ── App Route handler — request data inside `"use cache"` ─────────
+
+export function createRouteHandlerRequestInUseCacheError(
+  route: string,
+  expression: string
+): Error {
+  return new Error(
+    `Route "${route}": \`${expression}\` can't be read inside \`"use cache"\`. Read it outside the cached function and pass what you need as an argument.\nLearn more: ${NEXT_REQUEST_IN_USE_CACHE}`
+  )
+}
+
+export function createRouteHandlerRequestInUnstableCacheError(
+  route: string,
+  expression: string
+): Error {
+  return new Error(
+    `Route "${route}": \`${expression}\` can't be read inside \`unstable_cache()\`. Read it outside the cached function and pass what you need as an argument.\nLearn more: ${UNSTABLE_CACHE_API_DOCS}`
+  )
+}
+
+// ── Revalidation inside `"use cache"` ─────────────────────────────
+
+/**
+ * Only reachable via Server Action → `"use cache"` → revalidate.
+ * Render-phase revalidate calls are caught earlier with a different message.
+ */
+export function createRevalidateInUseCacheError(
+  route: string,
+  expression: string
+): Error {
+  return new Error(
+    `Route "${route}": \`${expression}\` can't be called inside \`"use cache"\`. Revalidation must run outside renders and cached functions so caches stay consistent.\nLearn more: ${REVALIDATING_GUIDE_DOCS}`
+  )
+}
+
+export function createRevalidateInUnstableCacheError(
+  route: string,
+  expression: string
+): Error {
+  return new Error(
+    `Route "${route}": \`${expression}\` can't be called inside \`unstable_cache()\`. Revalidation must run outside renders and cached functions so caches stay consistent.\nLearn more: ${REVALIDATING_GUIDE_DOCS}`
+  )
+}
+
+// ── Cache helpers called outside `"use cache"` ────────────────────
+
+export function createCacheTagOutsideUseCacheError(): Error {
+  return new Error(
+    `\`cacheTag()\` can only be called inside a \`"use cache"\` function.\nLearn more: ${CACHE_TAG_API_DOCS}`
+  )
+}
+
+export function createCacheLifeOutsideUseCacheError(): Error {
+  return new Error(
+    `\`cacheLife()\` can only be called inside a \`"use cache"\` function.\nLearn more: ${CACHE_LIFE_API_DOCS}`
+  )
+}
+
+// ── Nested `"use cache"` without outer `cacheLife()` ──────────────
+
+/**
+ * Factories (not exported strings) so the error-code tool can statically
+ * match the message at the `new Error("…")` call site and keep the stable
+ * E1244 / E1245 entries in `errors.json`. The chained `NestedDynamicUseCacheError`
+ * captured at the inner `"use cache"` is passed as `cause`.
+ */
+export function createNestedCacheZeroRevalidateError(
+  cause: Error | undefined
+): Error {
+  return new Error(
+    `A nested \`"use cache"\` with \`revalidate: 0\` is inside an outer \`"use cache"\` that has no \`cacheLife()\`. Add \`cacheLife()\` to the outer one to choose: a non-zero \`revalidate\` to prerender it, or \`revalidate: 0\` to keep it dynamic.\nLearn more: https://nextjs.org/docs/messages/nested-use-cache-no-explicit-cachelife`,
+    { cause }
+  )
+}
+
+export function createNestedCacheShortExpireError(
+  cause: Error | undefined
+): Error {
+  return new Error(
+    `A nested \`"use cache"\` with a short \`expire\` (under 5 minutes) is inside an outer \`"use cache"\` that has no \`cacheLife()\`. Add \`cacheLife()\` to the outer one to choose: a longer \`expire\` to prerender it, or a short \`expire\` to keep it dynamic.\nLearn more: https://nextjs.org/docs/messages/nested-use-cache-no-explicit-cachelife`,
+    { cause }
+  )
+}
+
+// ── `"use cache: private"` placement errors ───────────────────────
+
+export function createUseCachePrivateInsidePublicUseCacheError(): Error {
+  return new Error(
+    `\`"use cache: private"\` can't be nested inside \`"use cache"\`. It can only be nested inside another \`"use cache: private"\`.\nLearn more: ${USE_CACHE_PRIVATE_DIRECTIVE_DOCS}`
+  )
+}
+
+export function createUseCachePrivateInsideUnstableCacheError(): Error {
+  return new Error(
+    `\`"use cache: private"\` can't be used inside \`unstable_cache()\`.\nLearn more: ${USE_CACHE_PRIVATE_DIRECTIVE_DOCS}`
+  )
+}
+
+export function createUseCachePrivateOutsideRequestContextError(): Error {
+  return new Error(
+    `\`"use cache: private"\` needs an active request. It can't be used during \`generateStaticParams\` or other build-time contexts.\nLearn more: ${USE_CACHE_PRIVATE_DIRECTIVE_DOCS}`
+  )
+}

@@ -82,6 +82,13 @@ import {
   UseCacheTimeoutError,
 } from './use-cache-errors'
 import {
+  createNestedCacheShortExpireError,
+  createNestedCacheZeroRevalidateError,
+  createUseCachePrivateInsidePublicUseCacheError,
+  createUseCachePrivateInsideUnstableCacheError,
+  createUseCachePrivateOutsideRequestContextError,
+} from './use-cache-messages'
+import {
   createHangingInputAbortSignal,
   postponeWithTracking,
   throwToInterruptStaticGeneration,
@@ -295,22 +302,6 @@ const findSourceMapURL =
     ? (require('../lib/source-maps') as typeof import('../lib/source-maps'))
         .findSourceMapURLDEV
     : undefined
-
-const nestedCacheZeroRevalidateErrorMessage =
-  `A "use cache" with zero \`revalidate\` is nested inside another "use cache" ` +
-  `that has no explicit \`cacheLife\`, which is not allowed during ` +
-  `prerendering. Add \`cacheLife()\` to the outer "use cache" to choose ` +
-  `whether it should be prerendered (with non-zero \`revalidate\`) or remain ` +
-  `dynamic (with zero \`revalidate\`). Read more: ` +
-  `https://nextjs.org/docs/messages/nested-use-cache-no-explicit-cachelife`
-
-const nestedCacheShortExpireErrorMessage =
-  `A "use cache" with short \`expire\` (under 5 minutes) is nested inside ` +
-  `another "use cache" that has no explicit \`cacheLife\`, which is not ` +
-  `allowed during prerendering. Add \`cacheLife()\` to the outer "use cache" ` +
-  `to choose whether it should be prerendered (with longer \`expire\`) or remain ` +
-  `dynamic (with short \`expire\`). Read more: ` +
-  `https://nextjs.org/docs/messages/nested-use-cache-no-explicit-cachelife`
 
 // Tracks which root params each cache function has historically read. Used to
 // compute the specific cache key upfront on subsequent invocations. In-memory
@@ -1744,18 +1735,12 @@ export async function cache(
         )
       case 'unstable-cache': {
         throw wrapAsInvalidDynamicUsageError(
-          new Error(
-            // TODO: Add a link to an error documentation page when we have one.
-            `${expression} must not be used within \`unstable_cache()\`.`
-          )
+          createUseCachePrivateInsideUnstableCacheError()
         )
       }
       case 'cache': {
         throw wrapAsInvalidDynamicUsageError(
-          new Error(
-            // TODO: Add a link to an error documentation page when we have one.
-            `${expression} must not be used within "use cache". It can only be nested inside of another ${expression}.`
-          )
+          createUseCachePrivateInsidePublicUseCacheError()
         )
       }
       case 'request':
@@ -1772,10 +1757,7 @@ export async function cache(
         break
       case 'generate-static-params':
         throw wrapAsInvalidDynamicUsageError(
-          new Error(
-            // TODO: Add a link to an error documentation page when we have one.
-            `${expression} cannot be used outside of a request context.`
-          )
+          createUseCachePrivateOutsideRequestContextError()
         )
       default:
         workUnitStore satisfies never
@@ -2269,9 +2251,9 @@ export async function cache(
               if (rdcResult.entry.revalidate === 0) {
                 if (rdcResult.hasExplicitRevalidate === false) {
                   throw wrapAsInvalidDynamicUsageError(
-                    new Error(nestedCacheZeroRevalidateErrorMessage, {
-                      cause: rdcResult.dynamicNestedCacheError,
-                    })
+                    createNestedCacheZeroRevalidateError(
+                      rdcResult.dynamicNestedCacheError
+                    )
                   )
                 }
                 debug?.(
@@ -2282,9 +2264,9 @@ export async function cache(
               } else {
                 if (rdcResult.hasExplicitExpire === false) {
                   throw wrapAsInvalidDynamicUsageError(
-                    new Error(nestedCacheShortExpireErrorMessage, {
-                      cause: rdcResult.dynamicNestedCacheError,
-                    })
+                    createNestedCacheShortExpireError(
+                      rdcResult.dynamicNestedCacheError
+                    )
                   )
                 }
                 debug?.(
@@ -2330,9 +2312,9 @@ export async function cache(
                   rdcResult.hasExplicitRevalidate === false
                 ) {
                   throw wrapAsInvalidDynamicUsageError(
-                    new Error(nestedCacheZeroRevalidateErrorMessage, {
-                      cause: rdcResult.dynamicNestedCacheError,
-                    })
+                    createNestedCacheZeroRevalidateError(
+                      rdcResult.dynamicNestedCacheError
+                    )
                   )
                 }
                 if (
@@ -2340,9 +2322,9 @@ export async function cache(
                   rdcResult.hasExplicitExpire === false
                 ) {
                   throw wrapAsInvalidDynamicUsageError(
-                    new Error(nestedCacheShortExpireErrorMessage, {
-                      cause: rdcResult.dynamicNestedCacheError,
-                    })
+                    createNestedCacheShortExpireError(
+                      rdcResult.dynamicNestedCacheError
+                    )
                   )
                 }
                 // A short-lived entry is a dynamic hole, excluded from the
