@@ -20,12 +20,14 @@ pub use prepared_app::PreparedApp;
 use regex::Regex;
 use tungstenite::{Error::Protocol, error::ProtocolError::ResetWithoutClosingHandshake};
 use turbo_tasks::util::FormatDuration;
-use turbo_tasks_testing::retry::{retry, retry_async};
 use turbopack_create_test_app::test_app_builder::{
     EffectMode, PackageJsonConfig, TestApp, TestAppBuilder,
 };
 
-use self::env::read_env_bool;
+use self::{
+    env::read_env_bool,
+    retry::{retry, retry_async},
+};
 use crate::bundlers::{Bundler, RenderType};
 
 pub mod env;
@@ -33,6 +35,7 @@ pub mod module_picker;
 pub mod npm;
 mod page_guard;
 mod prepared_app;
+mod retry;
 
 pub const BINDING_NAME: &str = "__turbopackBenchBinding";
 

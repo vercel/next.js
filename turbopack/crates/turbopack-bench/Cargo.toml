@@ -34,9 +34,14 @@ tempfile = { workspace = true }
 tokio = { workspace = true, features = ["full"] }
 tungstenite = { workspace = true }
 turbo-tasks = { workspace = true }
-turbo-tasks-testing = { workspace = true }
 turbopack-create-test-app = { workspace = true }
 url = { workspace = true }
+
+# Dev-only link of `turbo-tasks-backend` so the `__tt_static_*` extern
+# symbols resolve in this crate's test/bench binaries. See the matching
+# `extern crate` references in `src/lib.rs` and `benches/mod.rs`.
+[dev-dependencies]
+turbo-tasks-backend = { workspace = true }
 
 [target.'cfg(unix)'.dependencies]
 nix = { version="0.30.1", features=["signal"] }

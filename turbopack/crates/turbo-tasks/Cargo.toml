@@ -4,6 +4,9 @@ version = "0.1.0"
 description = "TBD"
 license = "MIT"
 edition = "2024"
+# Disable auto-discovery of bench targets so `benches/scope.rs` is
+# treated as a module of `benches/mod.rs` rather than a separate bench.
+autobenches = false
 
 [lib]
 bench = false
@@ -62,6 +65,10 @@ unsize = { workspace = true }
 
 [dev-dependencies]
 criterion = { workspace = true, features = ["async_tokio"] }
+# Circular dev-dep — Cargo allows it. Pulls in the `__tt_static_*`
+# providers so this crate's test/bench binaries can link. See the
+# matching `extern crate` in `src/lib.rs` and `benches/mod.rs`.
+turbo-tasks-backend = { workspace = true }
 
 [[bench]]
 name = "mod"

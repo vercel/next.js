@@ -264,7 +264,8 @@ impl FetchClientConfig {
         //
         // Skip when dependency tracking is disabled (e.g. one-shot `next build`) since
         // invalidation panics without dependency tracking and the timer would be wasted work.
-        if turbo_tasks::turbo_tasks().is_tracking_dependencies()
+        let tt = turbo_tasks::turbo_tasks();
+        if tt.is_tracking_dependencies()
             && let (Some(deadline_secs), Some(invalidator)) = (deadline_secs, invalidator)
         {
             // transform absolute deadline back to a relative duration for the sleep call
@@ -285,8 +286,7 @@ impl FetchClientConfig {
                 // FetchClientConfig to track outstanding timers and cancel them.
                 turbo_tasks::spawn(async move {
                     tokio::time::sleep(remaining).await;
-                    invalidator
-                        .invalidate_with_reason(&*turbo_tasks::turbo_tasks(), HttpTimeout {});
+                    invalidator.invalidate_with_reason(&tt, HttpTimeout {});
                 });
             }
         }

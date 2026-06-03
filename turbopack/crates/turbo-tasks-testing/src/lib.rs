@@ -1,6 +1,5 @@
 //! Testing utilities and macros for turbo-tasks and applications based on it.
 
-pub mod retry;
 mod run;
 
 pub use crate::run::{

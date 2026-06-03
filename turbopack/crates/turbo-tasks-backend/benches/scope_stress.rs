@@ -38,6 +38,7 @@ pub fn scope_stress(c: &mut Criterion) {
                             storage_mode: None,
                             ..Default::default()
                         },
+                        // Wrap to match `ProdBackingStorage`.
                         noop_backing_storage(),
                     ));
                     async move {

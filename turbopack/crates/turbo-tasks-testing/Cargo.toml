@@ -20,4 +20,7 @@ rustc-hash = { workspace = true }
 smallvec = { workspace = true }
 tokio = { workspace = true }
 turbo-tasks = { workspace = true, features = ["non_operation_vc_strongly_consistent"] }
+# The `test_instance` factory goes through `make_handle`, so binaries
+# that depend on this crate transitively pull in the
+# `turbo-tasks-backend` rlib for the `__tt_static_*` providers.
 turbo-tasks-backend = { workspace = true }

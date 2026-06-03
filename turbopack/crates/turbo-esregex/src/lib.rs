@@ -1,5 +1,11 @@
 #![feature(arbitrary_self_types_pointers)]
 
+// Force the linker to pull in `turbo-tasks-backend`'s `__tt_static_*`
+// providers for this crate's test binary. See the matching dev-dep in
+// `Cargo.toml`.
+#[cfg(test)]
+extern crate turbo_tasks_backend;
+
 use std::vec;
 
 use anyhow::{Result, bail};

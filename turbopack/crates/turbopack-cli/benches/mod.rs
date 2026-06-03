@@ -1,3 +1,7 @@
+// Force linking the static-dispatch providers — see the matching
+// dep declaration on `turbo-tasks-backend` in `Cargo.toml`.
+extern crate turbo_tasks_backend;
+
 use criterion::{Criterion, criterion_group, criterion_main};
 use turbopack_bench::bundlers::Bundler;
 

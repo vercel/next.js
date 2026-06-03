@@ -78,7 +78,7 @@ impl Counter {
             lock.0 += 1;
             let invalidators = take(&mut lock.1);
             for i in invalidators {
-                i.invalidate(&**tt);
+                i.invalidate(tt);
             }
         });
     }

@@ -19,8 +19,7 @@ use tracing::info_span;
 use tracing::trace_span;
 use turbo_tasks::{
     CellId, DynTaskInputs, FxIndexMap, RawVc, SharedReference, TaskExecutionReason, TaskId,
-    TaskPriority, TurboTasks, TurboTasksCallApi, backend::CachedTaskTypeArc,
-    macro_helpers::NativeFunction,
+    TaskPriority, TurboTasks, backend::CachedTaskTypeArc, macro_helpers::NativeFunction,
 };
 
 pub use self::aggregation_update::ComputeDirtyAndCleanUpdate;
@@ -94,7 +93,7 @@ pub trait ExecuteContext<'e>: Sized {
         T: Clone + Into<AnyOperation>;
     fn should_track_dependencies(&self) -> bool;
     fn should_track_activeness(&self) -> bool;
-    fn turbo_tasks(&self) -> Arc<dyn TurboTasksCallApi>;
+    fn turbo_tasks(&self) -> turbo_tasks::TurboTasksHandle;
     /// Look up a TaskId from the backing storage for a given task type.
     ///
     /// Uses hash-based lookup which may return multiple candidates due to hash collisions,
@@ -965,8 +964,8 @@ impl<'e> ExecuteContext<'e> for ExecuteContextImpl<'e> {
         self.backend.should_track_activeness()
     }
 
-    fn turbo_tasks(&self) -> Arc<dyn TurboTasksCallApi> {
-        self.turbo_tasks.pin()
+    fn turbo_tasks(&self) -> turbo_tasks::TurboTasksHandle {
+        turbo_tasks::turbo_tasks()
     }
 
     fn task_by_type(

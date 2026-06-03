@@ -73,36 +73,37 @@ async fn eviction_recompute() {
     let (tt, _persistence_dir) = create_tt("eviction_recompute");
     let tt2 = tt.clone();
 
-    let result = turbo_tasks::run_once(tt.clone(), async move {
-        unmark_top_level_task_may_leak_eventually_consistent_state();
+    let result = tt
+        .run_once(async move {
+            unmark_top_level_task_may_leak_eventually_consistent_state();
 
-        // Create state via operation (persistent task)
-        let state_op = create_state(1);
-        let state_vc = state_op.resolve().strongly_consistent().await?;
-        let state = state_op.read_strongly_consistent().await?;
+            // Create state via operation (persistent task)
+            let state_op = create_state(1);
+            let state_vc = state_op.resolve().strongly_consistent().await?;
+            let state = state_op.read_strongly_consistent().await?;
 
-        // Create compute task (persistent, depends on state)
-        let output = compute(state_vc);
-        let read = output.read_strongly_consistent().await?;
-        assert_eq!(read.value, 1);
-        let initial_random = read.random;
+            // Create compute task (persistent, depends on state)
+            let output = compute(state_vc);
+            let read = output.read_strongly_consistent().await?;
+            assert_eq!(read.value, 1);
+            let initial_random = read.random;
 
-        // Trigger snapshot + eviction
-        let (had_data, counts) = tt2.backend().snapshot_and_evict_for_testing(&tt2);
-        println!("snapshot had_data={had_data}, evicted: {counts:?}");
-        assert!(had_data, "snapshot should have persisted data");
+            // Trigger snapshot + eviction
+            let (had_data, counts) = tt2.backend().snapshot_and_evict_for_testing(&tt2);
+            println!("snapshot had_data={had_data}, evicted: {counts:?}");
+            assert!(had_data, "snapshot should have persisted data");
 
-        // Invalidate via state change — this requires restoring evicted tasks
-        state.set(2);
+            // Invalidate via state change — this requires restoring evicted tasks
+            state.set(2);
 
-        // Read again — tasks must be restored from disk before re-executing
-        let read = output.read_strongly_consistent().await?;
-        assert_eq!(read.value, 2);
-        assert_ne!(read.random, initial_random);
+            // Read again — tasks must be restored from disk before re-executing
+            let read = output.read_strongly_consistent().await?;
+            assert_eq!(read.value, 2);
+            assert_ne!(read.random, initial_random);
 
-        anyhow::Ok(())
-    })
-    .await;
+            anyhow::Ok(())
+        })
+        .await;
     tt.stop_and_wait().await;
     result.unwrap();
 }
@@ -115,51 +116,52 @@ async fn eviction_deep_chain() {
     let (tt, _persistence_dir) = create_tt("eviction_deep_chain");
     let tt2 = tt.clone();
 
-    let result = turbo_tasks::run_once(tt.clone(), async move {
-        unmark_top_level_task_may_leak_eventually_consistent_state();
+    let result = tt
+        .run_once(async move {
+            unmark_top_level_task_may_leak_eventually_consistent_state();
 
-        let state_op = create_state(10);
-        let state_vc = state_op.resolve().strongly_consistent().await?;
-        let state = state_op.read_strongly_consistent().await?;
+            let state_op = create_state(10);
+            let state_vc = state_op.resolve().strongly_consistent().await?;
+            let state = state_op.read_strongly_consistent().await?;
 
-        let output = deep_chain(state_vc);
-        let read = output.read_strongly_consistent().await?;
-        // (10+1)*3+10 = 43
-        assert_eq!(read.value, 43);
-        let initial_random = read.random;
+            let output = deep_chain(state_vc);
+            let read = output.read_strongly_consistent().await?;
+            // (10+1)*3+10 = 43
+            assert_eq!(read.value, 43);
+            let initial_random = read.random;
 
-        // Snapshot + evict — expect multiple intermediate tasks evicted
-        let (had_data, counts) = tt2.backend().snapshot_and_evict_for_testing(&tt2);
-        println!("deep_chain: snapshot had_data={had_data}, evicted: {counts:?}");
-        assert!(had_data, "snapshot should have persisted data");
-        assert!(
-            counts.full + counts.data_and_meta + counts.data_only + counts.meta_only > 0,
-            "expected some tasks to be evicted"
-        );
+            // Snapshot + evict — expect multiple intermediate tasks evicted
+            let (had_data, counts) = tt2.backend().snapshot_and_evict_for_testing(&tt2);
+            println!("deep_chain: snapshot had_data={had_data}, evicted: {counts:?}");
+            assert!(had_data, "snapshot should have persisted data");
+            assert!(
+                counts.full + counts.data_and_meta + counts.data_only + counts.meta_only > 0,
+                "expected some tasks to be evicted"
+            );
 
-        // Change the deepest input — must propagate through all restored tasks
-        state.set(20);
+            // Change the deepest input — must propagate through all restored tasks
+            state.set(20);
 
-        let read = output.read_strongly_consistent().await?;
-        // (20+1)*3+10 = 73
-        assert_eq!(read.value, 73);
-        assert_ne!(read.random, initial_random);
-        let random_after_first = read.random;
+            let read = output.read_strongly_consistent().await?;
+            // (20+1)*3+10 = 73
+            assert_eq!(read.value, 73);
+            assert_ne!(read.random, initial_random);
+            let random_after_first = read.random;
 
-        // Evict again and change again
-        let (had_data2, counts2) = tt2.backend().snapshot_and_evict_for_testing(&tt2);
-        println!("deep_chain (2nd): snapshot had_data={had_data2}, evicted: {counts2:?}");
+            // Evict again and change again
+            let (had_data2, counts2) = tt2.backend().snapshot_and_evict_for_testing(&tt2);
+            println!("deep_chain (2nd): snapshot had_data={had_data2}, evicted: {counts2:?}");
 
-        state.set(0);
+            state.set(0);
 
-        let read = output.read_strongly_consistent().await?;
-        // (0+1)*3+10 = 13
-        assert_eq!(read.value, 13);
-        assert_ne!(read.random, random_after_first);
+            let read = output.read_strongly_consistent().await?;
+            // (0+1)*3+10 = 13
+            assert_eq!(read.value, 13);
+            assert_ne!(read.random, random_after_first);
 
-        anyhow::Ok(())
-    })
-    .await;
+            anyhow::Ok(())
+        })
+        .await;
     tt.stop_and_wait().await;
     result.unwrap();
 }
@@ -172,49 +174,50 @@ async fn eviction_dependency_chain() {
     let (tt, _persistence_dir) = create_tt("eviction_dependency_chain");
     let tt2 = tt.clone();
 
-    let result = turbo_tasks::run_once(tt.clone(), async move {
-        unmark_top_level_task_may_leak_eventually_consistent_state();
+    let result = tt
+        .run_once(async move {
+            unmark_top_level_task_may_leak_eventually_consistent_state();
 
-        let state_op = create_state(10);
-        let state_vc = state_op.resolve().strongly_consistent().await?;
-        let state = state_op.read_strongly_consistent().await?;
+            let state_op = create_state(10);
+            let state_vc = state_op.resolve().strongly_consistent().await?;
+            let state = state_op.read_strongly_consistent().await?;
 
-        let output = compute_chain(state_vc);
-        let read = output.read_strongly_consistent().await?;
-        assert_eq!(read.value, 20); // 10 * 2
-        let initial_random = read.random;
+            let output = compute_chain(state_vc);
+            let read = output.read_strongly_consistent().await?;
+            assert_eq!(read.value, 20); // 10 * 2
+            let initial_random = read.random;
 
-        // Snapshot + evict
-        let (had_data, counts) = tt2.backend().snapshot_and_evict_for_testing(&tt2);
-        println!("snapshot had_data={had_data}, evicted: {counts:?}");
-        assert!(had_data, "snapshot should have persisted data");
-        assert!(
-            counts.full + counts.data_and_meta + counts.data_only + counts.meta_only > 0,
-            "expected some tasks to be evicted"
-        );
+            // Snapshot + evict
+            let (had_data, counts) = tt2.backend().snapshot_and_evict_for_testing(&tt2);
+            println!("snapshot had_data={had_data}, evicted: {counts:?}");
+            assert!(had_data, "snapshot should have persisted data");
+            assert!(
+                counts.full + counts.data_and_meta + counts.data_only + counts.meta_only > 0,
+                "expected some tasks to be evicted"
+            );
 
-        // Change the deepest input
-        state.set(5);
+            // Change the deepest input
+            state.set(5);
 
-        let read = output.read_strongly_consistent().await?;
-        assert_eq!(read.value, 10); // 5 * 2
-        assert_ne!(read.random, initial_random);
-        let random_after_first = read.random;
+            let read = output.read_strongly_consistent().await?;
+            assert_eq!(read.value, 10); // 5 * 2
+            assert_ne!(read.random, initial_random);
+            let random_after_first = read.random;
 
-        // Evict again
-        let (had_data2, counts2) = tt2.backend().snapshot_and_evict_for_testing(&tt2);
-        println!("snapshot (2nd) had_data={had_data2}, evicted: {counts2:?}");
+            // Evict again
+            let (had_data2, counts2) = tt2.backend().snapshot_and_evict_for_testing(&tt2);
+            println!("snapshot (2nd) had_data={had_data2}, evicted: {counts2:?}");
 
-        // Change again
-        state.set(100);
+            // Change again
+            state.set(100);
 
-        let read = output.read_strongly_consistent().await?;
-        assert_eq!(read.value, 200); // 100 * 2
-        assert_ne!(read.random, random_after_first);
+            let read = output.read_strongly_consistent().await?;
+            assert_eq!(read.value, 200); // 100 * 2
+            assert_ne!(read.random, random_after_first);
 
-        anyhow::Ok(())
-    })
-    .await;
+            anyhow::Ok(())
+        })
+        .await;
     tt.stop_and_wait().await;
     result.unwrap();
 }
@@ -350,44 +353,45 @@ async fn eviction_session_stateful_survives() {
     let (tt, _persistence_dir) = create_tt("eviction_session_stateful_survives");
     let tt2 = tt.clone();
 
-    let result = turbo_tasks::run_once(tt.clone(), async move {
-        unmark_top_level_task_may_leak_eventually_consistent_state();
+    let result = tt
+        .run_once(async move {
+            unmark_top_level_task_may_leak_eventually_consistent_state();
 
-        // read_session_counter internally creates+resolves create_session_counter(42).
-        // The transient run_once only reads read_session_counter, so
-        // create_session_counter has no transient dependents and is eligible for
-        // eviction consideration — but should be blocked by SessionStateful.
-        let reader = read_session_counter(42);
-        let read = reader.read_strongly_consistent().await?;
-        assert_eq!(read.value, 42);
+            // read_session_counter internally creates+resolves create_session_counter(42).
+            // The transient run_once only reads read_session_counter, so
+            // create_session_counter has no transient dependents and is eligible for
+            // eviction consideration — but should be blocked by SessionStateful.
+            let reader = read_session_counter(42);
+            let read = reader.read_strongly_consistent().await?;
+            assert_eq!(read.value, 42);
 
-        // Also build a normal (evictable) chain for comparison
-        let state_op = create_state(10);
-        let state_vc = state_op.resolve().strongly_consistent().await?;
-        let normal = deep_chain(state_vc);
-        let normal_read = normal.read_strongly_consistent().await?;
-        // (10+1)*3+10 = 43
-        assert_eq!(normal_read.value, 43);
+            // Also build a normal (evictable) chain for comparison
+            let state_op = create_state(10);
+            let state_vc = state_op.resolve().strongly_consistent().await?;
+            let normal = deep_chain(state_vc);
+            let normal_read = normal.read_strongly_consistent().await?;
+            // (10+1)*3+10 = 43
+            assert_eq!(normal_read.value, 43);
 
-        // Snapshot + evict
-        let (had_data, counts) = tt2.backend().snapshot_and_evict_for_testing(&tt2);
-        println!("session_stateful: snapshot had_data={had_data}, evicted: {counts:?}");
-        assert!(had_data, "snapshot should have persisted data");
-        // The normal intermediate tasks (add_one, times_three, plus_ten) should be
-        // evicted. The session-stateful create_session_counter should NOT be fully
-        // evicted (its data is blocked by has_session_stateful_cells).
-        assert!(
-            counts.full + counts.data_and_meta + counts.data_only + counts.meta_only > 0,
-            "normal intermediate tasks should be evicted"
-        );
+            // Snapshot + evict
+            let (had_data, counts) = tt2.backend().snapshot_and_evict_for_testing(&tt2);
+            println!("session_stateful: snapshot had_data={had_data}, evicted: {counts:?}");
+            assert!(had_data, "snapshot should have persisted data");
+            // The normal intermediate tasks (add_one, times_three, plus_ten) should be
+            // evicted. The session-stateful create_session_counter should NOT be fully
+            // evicted (its data is blocked by has_session_stateful_cells).
+            assert!(
+                counts.full + counts.data_and_meta + counts.data_only + counts.meta_only > 0,
+                "normal intermediate tasks should be evicted"
+            );
 
-        // After eviction, reading through the session-stateful chain should still work
-        let read2 = reader.read_strongly_consistent().await?;
-        assert_eq!(read2.value, 42);
+            // After eviction, reading through the session-stateful chain should still work
+            let read2 = reader.read_strongly_consistent().await?;
+            assert_eq!(read2.value, 42);
 
-        anyhow::Ok(())
-    })
-    .await;
+            anyhow::Ok(())
+        })
+        .await;
     tt.stop_and_wait().await;
     result.unwrap();
 }
@@ -403,50 +407,51 @@ async fn eviction_transient_reader_invalidated() {
     let (tt, _persistence_dir) = create_tt("eviction_transient_reader_invalidated");
     let tt2 = tt.clone();
 
-    let result = turbo_tasks::run_once(tt.clone(), async move {
-        unmark_top_level_task_may_leak_eventually_consistent_state();
+    let result = tt
+        .run_once(async move {
+            unmark_top_level_task_may_leak_eventually_consistent_state();
 
-        // Create persistent state + compute tasks
-        let state_op = create_state(50);
-        let state_vc = state_op.resolve().strongly_consistent().await?;
-        let state = state_op.read_strongly_consistent().await?;
+            // Create persistent state + compute tasks
+            let state_op = create_state(50);
+            let state_vc = state_op.resolve().strongly_consistent().await?;
+            let state = state_op.read_strongly_consistent().await?;
 
-        let output = compute(state_vc);
-        let read = output.read_strongly_consistent().await?;
-        assert_eq!(read.value, 50);
-        let initial_random = read.random;
+            let output = compute(state_vc);
+            let read = output.read_strongly_consistent().await?;
+            assert_eq!(read.value, 50);
+            let initial_random = read.random;
 
-        // Snapshot + evict. The persistent `compute` task has a transient dependent
-        // (this run_once closure), so it may be blocked from full eviction. But we
-        // still exercise the evict path — some tasks (like create_state) may be
-        // data-only evicted.
-        let (had_data, counts) = tt2.backend().snapshot_and_evict_for_testing(&tt2);
-        println!("transient_reader: snapshot had_data={had_data}, evicted: {counts:?}");
-        assert!(had_data, "snapshot should have persisted data");
+            // Snapshot + evict. The persistent `compute` task has a transient dependent
+            // (this run_once closure), so it may be blocked from full eviction. But we
+            // still exercise the evict path — some tasks (like create_state) may be
+            // data-only evicted.
+            let (had_data, counts) = tt2.backend().snapshot_and_evict_for_testing(&tt2);
+            println!("transient_reader: snapshot had_data={had_data}, evicted: {counts:?}");
+            assert!(had_data, "snapshot should have persisted data");
 
-        // Mutate state — this invalidates the persistent task, which must propagate
-        // to the transient reader (this closure) even after eviction.
-        state.set(99);
+            // Mutate state — this invalidates the persistent task, which must propagate
+            // to the transient reader (this closure) even after eviction.
+            state.set(99);
 
-        let read = output.read_strongly_consistent().await?;
-        assert_eq!(read.value, 99);
-        assert_ne!(
-            read.random, initial_random,
-            "task should have been re-executed after invalidation"
-        );
+            let read = output.read_strongly_consistent().await?;
+            assert_eq!(read.value, 99);
+            assert_ne!(
+                read.random, initial_random,
+                "task should have been re-executed after invalidation"
+            );
 
-        // Second eviction cycle
-        let (_, counts2) = tt2.backend().snapshot_and_evict_for_testing(&tt2);
-        println!("transient_reader (2nd): evicted: {counts2:?}");
+            // Second eviction cycle
+            let (_, counts2) = tt2.backend().snapshot_and_evict_for_testing(&tt2);
+            println!("transient_reader (2nd): evicted: {counts2:?}");
 
-        state.set(0);
+            state.set(0);
 
-        let read = output.read_strongly_consistent().await?;
-        assert_eq!(read.value, 0);
+            let read = output.read_strongly_consistent().await?;
+            assert_eq!(read.value, 0);
 
-        anyhow::Ok(())
-    })
-    .await;
+            anyhow::Ok(())
+        })
+        .await;
     tt.stop_and_wait().await;
     result.unwrap();
 }
@@ -515,61 +520,62 @@ async fn eviction_stress_concurrent() {
         }
     });
 
-    let result = turbo_tasks::run_once(tt.clone(), async move {
-        unmark_top_level_task_may_leak_eventually_consistent_state();
+    let result = tt
+        .run_once(async move {
+            unmark_top_level_task_may_leak_eventually_consistent_state();
 
-        let state_op = create_state(1);
-        let state_vc = state_op.resolve().strongly_consistent().await?;
-        let state = state_op.read_strongly_consistent().await?;
+            let state_op = create_state(1);
+            let state_vc = state_op.resolve().strongly_consistent().await?;
+            let state = state_op.read_strongly_consistent().await?;
 
-        // fan_out creates width * 2 intermediate tasks per call
-        let width = 20u32;
-        let output = fan_out(state_vc, width);
+            // fan_out creates width * 2 intermediate tasks per call
+            let width = 20u32;
+            let output = fan_out(state_vc, width);
 
-        // Helper: compute the expected fan_out result for a given state value.
-        // fan_out sums (state + i) * (i + 2) for i in 0..width.
-        let expected_for = |state_val: u32| -> u32 {
-            (0..width)
-                .map(|i| state_val.wrapping_add(i).wrapping_mul(i.wrapping_add(2)))
-                .fold(0u32, |acc, x| acc.wrapping_add(x))
-        };
+            // Helper: compute the expected fan_out result for a given state value.
+            // fan_out sums (state + i) * (i + 2) for i in 0..width.
+            let expected_for = |state_val: u32| -> u32 {
+                (0..width)
+                    .map(|i| state_val.wrapping_add(i).wrapping_mul(i.wrapping_add(2)))
+                    .fold(0u32, |acc, x| acc.wrapping_add(x))
+            };
 
-        // Initial read to populate all tasks in memory, then wait for the
-        // background eviction thread to snapshot + evict at least once so data
-        // is on disk and eligible for eviction on subsequent cycles.
-        let read = *output.read_strongly_consistent().await?;
-        assert_eq!(read, expected_for(1));
-        // Give the background eviction thread time to run a snapshot+evict cycle.
-        tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+            // Initial read to populate all tasks in memory, then wait for the
+            // background eviction thread to snapshot + evict at least once so data
+            // is on disk and eligible for eviction on subsequent cycles.
+            let read = *output.read_strongly_consistent().await?;
+            assert_eq!(read, expected_for(1));
+            // Give the background eviction thread time to run a snapshot+evict cycle.
+            tokio::time::sleep(std::time::Duration::from_millis(50)).await;
 
-        // Run invalidation cycles while the background eviction thread is active.
-        // The sleep between eviction cycles gives worker threads time to start
-        // restoring, then eviction runs and races with in-flight restores.
-        for i in 1u32..=50 {
-            state.set(i);
-            let read = tokio::time::timeout(
-                std::time::Duration::from_secs(5),
-                output.read_strongly_consistent(),
-            )
-            .await
-            .unwrap_or_else(|_| {
-                panic!(
-                    "cycle {i}: timed out waiting for read — likely a restore/eviction race \
-                     corrupted the task graph"
+            // Run invalidation cycles while the background eviction thread is active.
+            // The sleep between eviction cycles gives worker threads time to start
+            // restoring, then eviction runs and races with in-flight restores.
+            for i in 1u32..=50 {
+                state.set(i);
+                let read = tokio::time::timeout(
+                    std::time::Duration::from_secs(5),
+                    output.read_strongly_consistent(),
                 )
-            })?;
-            let read = *read;
-            assert_eq!(
-                read,
-                expected_for(i),
-                "cycle {i}: expected {}, got {read}",
-                expected_for(i)
-            );
-        }
+                .await
+                .unwrap_or_else(|_| {
+                    panic!(
+                        "cycle {i}: timed out waiting for read — likely a restore/eviction race \
+                         corrupted the task graph"
+                    )
+                })?;
+                let read = *read;
+                assert_eq!(
+                    read,
+                    expected_for(i),
+                    "cycle {i}: expected {}, got {read}",
+                    expected_for(i)
+                );
+            }
 
-        anyhow::Ok(())
-    })
-    .await;
+            anyhow::Ok(())
+        })
+        .await;
 
     stop.store(true, Ordering::Relaxed);
     eviction_handle.await.unwrap();
@@ -657,60 +663,61 @@ async fn eviction_persistable_never_preserves_live_cell() {
     let (tt, _persistence_dir) = create_tt("eviction_persistable_never_preserves_live_cell");
     let tt2 = tt.clone();
 
-    let result = turbo_tasks::run_once(tt.clone(), async move {
-        unmark_top_level_task_may_leak_eventually_consistent_state();
+    let result = tt
+        .run_once(async move {
+            unmark_top_level_task_may_leak_eventually_consistent_state();
 
-        let state_op = create_state(0);
-        let state_vc = state_op.resolve().strongly_consistent().await?;
-        let state = state_op.read_strongly_consistent().await?;
+            let state_op = create_state(0);
+            let state_vc = state_op.resolve().strongly_consistent().await?;
+            let state = state_op.read_strongly_consistent().await?;
 
-        // First read goes through `read_session_alive_id` so the writer
-        // (`create_session_alive`) has a persistent parent and is eligible
-        // for the eviction sweep without being held alive by run_once.
-        let pre = read_session_alive_id(state_vc)
-            .read_strongly_consistent()
-            .await?;
-        assert!(pre.alive, "freshly constructed cell should be alive");
-        let live_ptr = pre.ptr;
-        drop(pre);
+            // First read goes through `read_session_alive_id` so the writer
+            // (`create_session_alive`) has a persistent parent and is eligible
+            // for the eviction sweep without being held alive by run_once.
+            let pre = read_session_alive_id(state_vc)
+                .read_strongly_consistent()
+                .await?;
+            assert!(pre.alive, "freshly constructed cell should be alive");
+            let live_ptr = pre.ptr;
+            drop(pre);
 
-        // Snapshot + evict. `create_session_alive`'s `cell_data` should retain
-        // the SessionAlive cell as residue (Evictability::Never), while
-        // clearing `data_restored` and persisted data flag bits.
-        let (had_data, counts) = tt2.backend().snapshot_and_evict_for_testing(&tt2);
-        println!("persistable_never: snapshot had_data={had_data}, evicted: {counts:?}");
-        assert!(had_data, "snapshot should have persisted data");
+            // Snapshot + evict. `create_session_alive`'s `cell_data` should retain
+            // the SessionAlive cell as residue (Evictability::Never), while
+            // clearing `data_restored` and persisted data flag bits.
+            let (had_data, counts) = tt2.backend().snapshot_and_evict_for_testing(&tt2);
+            println!("persistable_never: snapshot had_data={had_data}, evicted: {counts:?}");
+            assert!(had_data, "snapshot should have persisted data");
 
-        // Invalidate the reader so the next read re-runs `read_session_alive_id`.
-        // That re-execution reads `create_session_alive`'s cell, which goes
-        // through `task(.., Data)` and triggers `restore_data_from` — the buggy
-        // path here runs `extend(incoming)` over `cell_data` and replaces the
-        // live Arc with a freshly decoded one whose `alive` is default.
-        state.set(1);
+            // Invalidate the reader so the next read re-runs `read_session_alive_id`.
+            // That re-execution reads `create_session_alive`'s cell, which goes
+            // through `task(.., Data)` and triggers `restore_data_from` — the buggy
+            // path here runs `extend(incoming)` over `cell_data` and replaces the
+            // live Arc with a freshly decoded one whose `alive` is default.
+            state.set(1);
 
-        let post = read_session_alive_id(state_vc)
-            .read_strongly_consistent()
-            .await?;
-        println!(
-            "post-restore: alive={}, ptr_match={}",
-            post.alive,
-            post.ptr == live_ptr
-        );
+            let post = read_session_alive_id(state_vc)
+                .read_strongly_consistent()
+                .await?;
+            println!(
+                "post-restore: alive={}, ptr_match={}",
+                post.alive,
+                post.ptr == live_ptr
+            );
 
-        assert_eq!(
-            post.ptr, live_ptr,
-            "post-restore cell must still hold the live `alive` Arc; a different pointer means \
-             restore_data_from overwrote the residue with a freshly decoded copy"
-        );
-        assert!(
-            post.alive,
-            "post-restore cell must still report alive=true; alive=false means the live cell \
-             value was replaced by a decoded copy with default fields"
-        );
+            assert_eq!(
+                post.ptr, live_ptr,
+                "post-restore cell must still hold the live `alive` Arc; a different pointer \
+                 means restore_data_from overwrote the residue with a freshly decoded copy"
+            );
+            assert!(
+                post.alive,
+                "post-restore cell must still report alive=true; alive=false means the live cell \
+                 value was replaced by a decoded copy with default fields"
+            );
 
-        anyhow::Ok(())
-    })
-    .await;
+            anyhow::Ok(())
+        })
+        .await;
     tt.stop_and_wait().await;
     result.unwrap();
 }

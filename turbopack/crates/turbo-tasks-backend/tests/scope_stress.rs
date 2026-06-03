@@ -2,7 +2,7 @@
 #![allow(clippy::needless_return)] // tokio macro-generated code doesn't respect this
 
 use anyhow::Result;
-use turbo_tasks::{Completion, TryJoinIterExt, Vc, run_once};
+use turbo_tasks::{Completion, TryJoinIterExt, Vc};
 use turbo_tasks_testing::{Registration, register, run_with_tt};
 
 static REGISTRATION: Registration = register!();
@@ -19,7 +19,7 @@ async fn rectangle_stress() -> Result<()> {
             .map(|(a, b)| {
                 let tt = tt.clone();
                 async move {
-                    run_once(tt, async move {
+                    tt.run_once(async move {
                         rectangle(a, b).strongly_consistent().await?;
                         Ok(Vc::<()>::default())
                     })
