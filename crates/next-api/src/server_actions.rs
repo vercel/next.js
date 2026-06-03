@@ -44,9 +44,6 @@ use turbopack_ecmascript::{
     tree_shake::part::module::EcmascriptModulePartAsset,
 };
 
-/// Metadata for a server action: (layer, exported_name, filename)
-type ActionMetadata = (ActionLayer, String, String);
-
 #[turbo_tasks::value]
 pub(crate) struct ServerActionsManifest {
     pub loader: ResolvedVc<Box<dyn EvaluatableAsset>>,
@@ -224,9 +221,14 @@ impl Asset for ServerActionManifestAsset {
             NextRuntime::NodeJs => &mut manifest.node,
         };
 
+        struct ActionMetadata {
+            exported_name: String,
+            filename: String,
+        }
+
         // Collect all the action metadata including filenames and location
         let mut action_metadata: Vec<(String, ActionMetadata)> = Vec::new();
-        for (hash_id, (layer, meta, module)) in actions_value.iter() {
+        for (hash_id, (_layer, meta, module)) in actions_value.iter() {
             // Use source_path from the action comment if available (contains original .ts/.tsx
             // path), otherwise fall back to module.ident().path() (may be compiled .js
             // path)
@@ -236,11 +238,24 @@ impl Asset for ServerActionManifestAsset {
                 module.ident().await?.path.to_string()
             };
 
-            action_metadata.push((hash_id.clone(), (*layer, meta.name.clone(), filename)));
+            action_metadata.push((
+                hash_id.clone(),
+                ActionMetadata {
+                    exported_name: meta.name.clone(),
+                    filename,
+                },
+            ));
         }
 
         // Now create the manifest entries
-        for (hash_id, (_layer, name, filename)) in &action_metadata {
+        for (
+            hash_id,
+            ActionMetadata {
+                exported_name,
+                filename,
+            },
+        ) in &action_metadata
+        {
             let entry = mapping.entry(hash_id.as_str()).or_default();
             entry.workers.insert(
                 &key,
@@ -250,13 +265,13 @@ impl Asset for ServerActionManifestAsset {
                         .async_module_info
                         .is_async(self.chunk_item.module().to_resolved().await?)
                         .await?,
-                    exported_name: name.as_str(),
+                    exported_name: exported_name.as_str(),
                     filename: filename.as_str(),
                 },
             );
 
             // Hoist the filename and exported_name to the entry level
-            entry.exported_name = name.as_str();
+            entry.exported_name = exported_name.as_str();
             entry.filename = filename.as_str();
         }
 
