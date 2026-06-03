@@ -1244,13 +1244,10 @@ export function logDisallowedDynamicError(
   logBuildDebugHint(workStore.route)
 }
 
-export function throwIfDisallowedDynamic(
+export function throwIfSyncIOUsed(
   workStore: WorkStore,
-  prelude: PreludeState,
-  dynamicValidation: DynamicValidationState,
-  serverDynamic: DynamicTrackingState,
-  allowEmptyStaticShell: boolean
-): void {
+  serverDynamic: DynamicTrackingState
+) {
   if (serverDynamic.syncDynamicErrorWithStack) {
     logDisallowedDynamicError(
       workStore,
@@ -1258,6 +1255,16 @@ export function throwIfDisallowedDynamic(
     )
     throw new StaticGenBailoutError()
   }
+}
+
+export function throwIfDisallowedDynamic(
+  workStore: WorkStore,
+  prelude: PreludeState,
+  dynamicValidation: DynamicValidationState,
+  serverDynamic: DynamicTrackingState,
+  allowEmptyStaticShell: boolean
+): void {
+  throwIfSyncIOUsed(workStore, serverDynamic)
 
   // The dynamic metadata error is a mistake-detection signal. It fires when the
   // rest of the shell is otherwise fully static apart from metadata, suggesting
