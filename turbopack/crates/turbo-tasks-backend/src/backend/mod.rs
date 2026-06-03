@@ -276,10 +276,6 @@ impl TurboTasksBackendInner {
         ExecuteContextImpl::new(self, turbo_tasks)
     }
 
-    fn suspending_requested(&self) -> bool {
-        self.should_persist() && self.snapshot_coord.snapshot_pending()
-    }
-
     fn operation_suspend_point(&self, suspend: impl FnOnce() -> AnyOperation) {
         if self.should_persist() {
             self.snapshot_coord.suspend_point(suspend);

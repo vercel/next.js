@@ -791,6 +791,7 @@ impl TaskStorage {
 
     /// Returns counts for aggregation tree and collectibles fields.
     /// Used for cache size statistics.
+    #[cfg(feature = "print_cache_item_size")]
     pub fn meta_counts(&self) -> MetaCounts {
         MetaCounts {
             upper: self.upper().len(),
@@ -805,6 +806,7 @@ impl TaskStorage {
 }
 
 /// Counts for aggregation tree and collectibles fields.
+#[cfg(feature = "print_cache_item_size")]
 #[derive(Default)]
 pub struct MetaCounts {
     pub upper: usize,

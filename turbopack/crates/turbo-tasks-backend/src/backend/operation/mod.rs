@@ -87,13 +87,11 @@ pub trait ExecuteContext<'e>: Sized {
         task_id2: TaskId,
         category: TaskDataCategory,
     ) -> (Self::TaskGuardImpl, Self::TaskGuardImpl);
-    fn schedule(&mut self, task_id: TaskId, parent_priority: TaskPriority);
     fn schedule_task(&self, task: Self::TaskGuardImpl, parent_priority: TaskPriority);
     fn get_current_task_priority(&self) -> TaskPriority;
     fn operation_suspend_point<T>(&mut self, op: &T)
     where
         T: Clone + Into<AnyOperation>;
-    fn suspending_requested(&self) -> bool;
     fn should_track_dependencies(&self) -> bool;
     fn should_track_activeness(&self) -> bool;
     fn turbo_tasks(&self) -> Arc<dyn TurboTasksCallApi>;
@@ -936,11 +934,6 @@ impl<'e> ExecuteContext<'e> for ExecuteContextImpl<'e> {
         )
     }
 
-    fn schedule(&mut self, task_id: TaskId, parent_priority: TaskPriority) {
-        let task = self.task(task_id, TaskDataCategory::All);
-        self.schedule_task(task, parent_priority);
-    }
-
     fn schedule_task(&self, task: Self::TaskGuardImpl, parent_priority: TaskPriority) {
         let priority = if task.has_output() {
             TaskPriority::invalidation(
@@ -962,10 +955,6 @@ impl<'e> ExecuteContext<'e> for ExecuteContextImpl<'e> {
 
     fn operation_suspend_point<T: Clone + Into<AnyOperation>>(&mut self, op: &T) {
         self.backend.operation_suspend_point(|| op.clone().into());
-    }
-
-    fn suspending_requested(&self) -> bool {
-        self.backend.suspending_requested()
     }
 
     fn should_track_dependencies(&self) -> bool {
@@ -1304,6 +1293,7 @@ pub trait TaskGuard: Debug + TaskStorageAccessors {
         let task_id = self.id();
         format!("{task_id:?} {task_type}")
     }
+    #[cfg(feature = "trace_task_dirty")]
     fn get_task_name(&self) -> String {
         let task_type = self.get_task_type().to_owned();
         format!("{task_type}")
