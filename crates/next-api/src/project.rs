@@ -246,31 +246,47 @@ impl DebugBuildPathsRouteKeys {
             .into())
     }
 
+    fn pages_route_key_from_debug_path(path: &RcStr) -> Result<RcStr> {
+        // Strip extension: "/foo.tsx" -> "/foo"
+        // Catch-all routes like "/foo/[...slug]" contain dots in the segment name;
+        // only treat the suffix as an extension when it is a plain alphanumeric token.
+        let file_name = path.rsplit('/').next().unwrap_or(path);
+        let result = if let Some(dot_idx) = file_name.rfind('.') {
+            let ext = &file_name[dot_idx + 1..];
+            if !ext.is_empty() && ext.chars().all(|c| c.is_ascii_alphanumeric()) {
+                let trimmed_len = path.len() - (file_name.len() - dot_idx);
+                path[..trimmed_len].into()
+            } else {
+                path.clone()
+            }
+        } else {
+            path.clone()
+        };
+
+        // Strip index suffix: "/foo/index.tsx" -> "/foo"
+        Ok(if let Some(stripped) = result.strip_suffix("/index") {
+            if stripped.is_empty() {
+                "/".into()
+            } else {
+                stripped.into()
+            }
+        } else {
+            result
+        })
+    }
+
     fn from_debug_build_paths(paths: &DebugBuildPaths) -> Result<Self> {
         Ok(Self {
             app: paths
                 .app
                 .iter()
                 .map(|path| Self::app_route_key_from_debug_path(path))
-                .collect::<Result<FxHashSet<_>>>()?,
+                .collect::<Result<_>>()?,
             pages: paths
                 .pages
                 .iter()
-                .map(|path| {
-                    // Pages router: "/foo.tsx" -> "/foo"
-                    // Catch-all routes like "/foo/[...slug]" contain dots in the segment name;
-                    // only treat the suffix as an extension when it is a plain alphanumeric token.
-                    let file_name = path.rsplit('/').next().unwrap_or(path);
-                    if let Some(dot_idx) = file_name.rfind('.') {
-                        let ext = &file_name[dot_idx + 1..];
-                        if !ext.is_empty() && ext.chars().all(|c| c.is_ascii_alphanumeric()) {
-                            let trimmed_len = path.len() - (file_name.len() - dot_idx);
-                            return path[..trimmed_len].into();
-                        }
-                    }
-                    path.clone()
-                })
-                .collect(),
+                .map(Self::pages_route_key_from_debug_path)
+                .collect::<Result<_>>()?,
         })
     }
 

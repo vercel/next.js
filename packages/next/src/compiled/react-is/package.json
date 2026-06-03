@@ -1,6 +1,6 @@
 {
   "name": "react-is",
-  "version": "19.3.0-canary-c0cd4d5d-20260527",
+  "version": "19.3.0-canary-f0dfee38-20260529",
   "description": "Brand checking of React Elements.",
   "main": "index.js",
   "sideEffects": false,

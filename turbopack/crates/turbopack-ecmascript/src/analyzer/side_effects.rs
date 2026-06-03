@@ -267,13 +267,161 @@ static KNOWN_PURE_REGEXP_PROTOTYPE_METHODS: phf::Set<&'static str> = phf_set! {
     "test", "exec",
 };
 
+/// True if `prop` is the non-computed member property `.<name>`.
+fn prop_is(prop: &MemberProp, name: &str) -> bool {
+    matches!(prop, MemberProp::Ident(i) if i.sym.as_ref() == name)
+}
+
+/// True if `identifier` is the named, unshadowed module-scope (unresolved)
+/// binding — e.g. the real CommonJS `module`/`exports`/`require`, not a local
+/// shadow. Prevents `let exports = {}; exports.foo = 'a'` from being treated as
+/// a write to the global `exports`.
+fn is_global(identifier: &Ident, name: &str, unresolved_mark: Mark) -> bool {
+    identifier.ctxt.outer() == unresolved_mark && identifier.sym.as_ref() == name
+}
+
+/// A freshly-allocated object/array literal (evaluates to a brand-new value).
+fn is_object_or_array_literal(expr: &Expr) -> bool {
+    matches!(unparen(expr), Expr::Object(_) | Expr::Array(_))
+}
+
+/// Whether `expr`'s object graph contains a getter or setter. An accessor makes
+/// member access (read *or* write) potentially effectful — e.g. `o.foo = 1`
+/// invokes a `set foo` — so a value carrying one can't be attached to the
+/// exports object and then mutated as if it were plain data. Function/method
+/// bodies are not descended into: an accessor declared inside a nested function
+/// isn't part of this value's own shape.
+fn contains_getters_or_setters(expr: &Expr) -> bool {
+    match unparen(expr) {
+        Expr::Object(obj) => obj.props.iter().any(|prop| match prop {
+            PropOrSpread::Prop(prop) => match &**prop {
+                Prop::Getter(_) | Prop::Setter(_) => true,
+                Prop::KeyValue(kv) => contains_getters_or_setters(&kv.value),
+                Prop::Method(_) | Prop::Shorthand(_) | Prop::Assign(_) => false,
+            },
+            PropOrSpread::Spread(spread) => contains_getters_or_setters(&spread.expr),
+        }),
+        Expr::Array(arr) => arr
+            .elems
+            .iter()
+            .flatten()
+            .any(|elem| contains_getters_or_setters(&elem.expr)),
+        _ => false,
+    }
+}
+
+/// `module.exports` (the real, unshadowed `module` binding).
+fn is_module_dot_exports(member: &MemberExpr, unresolved_mark: Mark) -> bool {
+    matches!(unparen(&member.obj), Expr::Ident(o) if is_global(o, "module", unresolved_mark))
+        && prop_is(&member.prop, "exports")
+}
+
+/// `module.exports` or a property chain rooted at it (`module.exports.a.b`).
+fn is_module_exports_chain(expr: &Expr, unresolved_mark: Mark) -> bool {
+    match unparen(expr) {
+        Expr::Member(m) => {
+            is_module_dot_exports(m, unresolved_mark)
+                || is_module_exports_chain(&m.obj, unresolved_mark)
+        }
+        _ => false,
+    }
+}
+
+/// Whether `member` writes the module's own CommonJS exports: `exports.<x>`,
+/// `module.exports`, or `module.exports.<x>`.
+fn is_cjs_export_member(member: &MemberExpr, unresolved_mark: Mark) -> bool {
+    match unparen(&member.obj) {
+        // `exports.<anything>`, or `module.exports`
+        Expr::Ident(obj) => {
+            is_global(obj, "exports", unresolved_mark)
+                || is_module_dot_exports(member, unresolved_mark)
+        }
+        // `module.exports.<anything>`
+        Expr::Member(inner) => is_cjs_export_member(inner, unresolved_mark),
+        _ => false,
+    }
+}
+
+/// Calls `f` for every assignment that executes during module evaluation.
+///
+/// This descends through all expressions — conditionals, logical/binary
+/// operators, sequences, assignment chains, call arguments, etc. — so an
+/// assignment hidden in `cond && (module.exports = …)` or `a ? (b = …) : c` is
+/// still seen. It does *not* descend into function/method bodies: those don't
+/// run at module-evaluation time (calling such a function would itself be a side
+/// effect), so assignments inside them are irrelevant here.
+fn for_each_top_level_assign(program: &Program, f: impl FnMut(&AssignExpr)) {
+    struct Collector<F> {
+        f: F,
+    }
+    impl<F: FnMut(&AssignExpr)> Visit for Collector<F> {
+        noop_visit_type!();
+        fn visit_assign_expr(&mut self, n: &AssignExpr) {
+            (self.f)(n);
+            n.visit_children_with(self);
+        }
+        // Function/method bodies do not execute during module evaluation.
+        fn visit_function(&mut self, _: &Function) {}
+        fn visit_arrow_expr(&mut self, _: &ArrowExpr) {}
+        fn visit_constructor(&mut self, _: &Constructor) {}
+    }
+    program.visit_with(&mut Collector { f });
+}
+
+/// Whether `module.exports` is ever reassigned to a value that isn't safe.
+///
+/// A reassignment to an alias (`module.exports = require('./x')`,
+/// `module.exports = other`) would make later changes to properties on
+/// `module.exports` have side effects.
+fn module_exports_is_tainted(program: &Program, unresolved_mark: Mark) -> bool {
+    let mut tainted = false;
+    for_each_top_level_assign(program, |assign| {
+        if assign.op == AssignOp::Assign
+            && let AssignTarget::Simple(SimpleAssignTarget::Member(member)) = &assign.left
+            && is_module_dot_exports(member, unresolved_mark)
+            && !is_object_or_array_literal(&assign.right)
+        {
+            tainted = true;
+        }
+    });
+    tainted
+}
+
+/// Whether any value assigned to the module's CommonJS exports carries a getter
+/// or setter.
+///
+/// Attaching an accessor to the exports object makes later member access (read or
+/// write) potentially effectful — a subsequent `module.exports.foo = 1` could
+/// invoke a `set foo` — so once one is present, writes to the exports can no
+/// longer be treated as plain data assignments.
+fn module_exports_has_accessor(program: &Program, unresolved_mark: Mark) -> bool {
+    let mut found = false;
+    for_each_top_level_assign(program, |assign| {
+        if assign.op == AssignOp::Assign
+            && let AssignTarget::Simple(SimpleAssignTarget::Member(member)) = &assign.left
+            && is_cjs_export_member(member, unresolved_mark)
+            && contains_getters_or_setters(&assign.right)
+        {
+            found = true;
+        }
+    });
+    found
+}
+
 /// Analyzes a program to determine if it contains side effects at the top level.
 pub fn compute_module_evaluation_side_effects(
     program: &Program,
     comments: &dyn Comments,
     unresolved_mark: Mark,
 ) -> ModuleSideEffects {
-    let mut visitor = SideEffectVisitor::new(comments, unresolved_mark);
+    let module_exports_tainted = module_exports_is_tainted(program, unresolved_mark);
+    let module_exports_has_accessor = module_exports_has_accessor(program, unresolved_mark);
+    let mut visitor = SideEffectVisitor::new(
+        comments,
+        unresolved_mark,
+        module_exports_tainted,
+        module_exports_has_accessor,
+    );
     program.visit_with(&mut visitor);
     if visitor.has_side_effects {
         ModuleSideEffects::SideEffectful
@@ -287,16 +435,29 @@ pub fn compute_module_evaluation_side_effects(
 struct SideEffectVisitor<'a> {
     comments: &'a dyn Comments,
     unresolved_mark: Mark,
+    /// Whether `module.exports` was reassigned to a non-safe value, making member
+    /// writes to `module.exports.*` potentially observable.
+    module_exports_tainted: bool,
+    /// Whether a getter or setter is attached to the exports object, making any
+    /// write to the CommonJS exports potentially observable.
+    module_exports_has_accessor: bool,
     has_side_effects: bool,
     will_invoke_fn_exprs: bool,
     has_imports: bool,
 }
 
 impl<'a> SideEffectVisitor<'a> {
-    fn new(comments: &'a dyn Comments, unresolved_mark: Mark) -> Self {
+    fn new(
+        comments: &'a dyn Comments,
+        unresolved_mark: Mark,
+        module_exports_tainted: bool,
+        module_exports_has_accessor: bool,
+    ) -> Self {
         Self {
             comments,
             unresolved_mark,
+            module_exports_tainted,
+            module_exports_has_accessor,
             has_side_effects: false,
             will_invoke_fn_exprs: false,
             has_imports: false,
@@ -345,7 +506,7 @@ impl<'a> SideEffectVisitor<'a> {
             Callee::Expr(expr) => {
                 let expr = unparen(expr);
                 if let Expr::Ident(ident) = expr {
-                    ident.ctxt.outer() == self.unresolved_mark && ident.sym.as_ref() == "require"
+                    is_global(ident, "require", self.unresolved_mark)
                 } else {
                     false
                 }
@@ -355,6 +516,32 @@ impl<'a> SideEffectVisitor<'a> {
             _ => false,
         }
     }
+
+    /// Returns true if `target` writes to the module's own CommonJS exports
+    /// (`exports.x`, `module.exports`, or `module.exports.x`) in a way that is
+    /// the CJS equivalent of an ESM `export`, rather than a side effect.
+    fn is_safe_cjs_export_target(&self, target: &AssignTarget) -> bool {
+        let AssignTarget::Simple(SimpleAssignTarget::Member(member)) = target else {
+            return false;
+        };
+        if !is_cjs_export_member(member, self.unresolved_mark) {
+            return false;
+        }
+        // If a getter/setter is attached to the exports object, any write to its
+        // members could invoke an accessor, so conservatively none are safe.
+        if self.module_exports_has_accessor {
+            return false;
+        }
+        // If `module.exports` was reassigned to a non-safe value, writing its
+        // members may invoke a setter or mutate another module's object, so it
+        // is not safe even though it targets the CJS exports.
+        if self.module_exports_tainted && is_module_exports_chain(&member.obj, self.unresolved_mark)
+        {
+            return false;
+        }
+        true
+    }
+
     /// Check if an expression is a known pure built-in function.
     ///
     /// This checks for:
@@ -735,10 +922,23 @@ impl<'a> Visit for SideEffectVisitor<'a> {
                     self.mark_side_effect();
                 }
             }
-            Expr::Assign(_) => {
-                // Assignments have side effects
-                // TODO: allow assignments to module level variables
-                self.mark_side_effect();
+            Expr::Assign(assign) => {
+                // Assigning to the module's own CommonJS exports (`exports.x`,
+                // `module.exports`, `module.exports.x`) is the CJS equivalent of an
+                // ESM `export` declaration.
+                //
+                // If a getter/setter is attached to the exports object (detected
+                // by the `module_exports_has_accessor` pass), `is_safe_cjs_export_target`
+                // conservatively rejects every write to the exports, since a
+                // member write could invoke the accessor.
+                if assign.op == AssignOp::Assign && self.is_safe_cjs_export_target(&assign.left) {
+                    // Still check the assigned value, and the target's computed
+                    // property keys (e.g. `exports[sideEffect()] = …`).
+                    assign.left.visit_with(self);
+                    assign.right.visit_with(self);
+                } else {
+                    self.mark_side_effect();
+                }
             }
             Expr::Update(_) => {
                 // Updates (++, --) have side effects
@@ -2372,8 +2572,119 @@ mod tests {
     mod common_js_modules_tests {
         use super::*;
 
-        side_effects!(test_common_js_exports, "exports.foo = 'a'");
-        side_effects!(test_common_js_exports_module, "module.exports.foo = 'a'");
-        side_effects!(test_common_js_exports_assignment, "module.exports = {}");
+        // Writing the module's own CommonJS exports with a pure value is the CJS
+        // equivalent of an ESM `export` and is not a module-evaluation side effect.
+        no_side_effects!(test_common_js_exports, "exports.foo = 'a'");
+        no_side_effects!(test_common_js_exports_module, "module.exports.foo = 'a'");
+        no_side_effects!(test_common_js_exports_assignment, "module.exports = {}");
+        no_side_effects!(
+            test_common_js_function_exports,
+            "exports.foo = function () { return 1; }; exports.bar = 2;"
+        );
+
+        module_evaluation_is_side_effect_free!(
+            test_common_js_reexport,
+            "module.exports = require('./other');"
+        );
+        module_evaluation_is_side_effect_free!(
+            test_common_js_named_reexports,
+            "exports.a = require('./a'); exports.b = require('./b');"
+        );
+
+        // a side effect in a computed value
+        side_effects!(
+            test_common_js_export_impure_value,
+            "exports.foo = sideEffect();"
+        );
+        // a side effect in a computed export key,
+        side_effects!(
+            test_common_js_export_computed_side_effect,
+            "exports[sideEffect()] = 'a';"
+        );
+        // writing a non-`exports` property of `module`,
+        side_effects!(test_module_non_export_assignment, "module.foo = 'a';");
+        // and a locally-shadowed `exports`.
+        side_effects!(
+            test_shadowed_exports_assignment,
+            "let exports = {}; exports.foo = 'a';"
+        );
+
+        // A getter/setter attached to the exports object makes member writes
+        // potentially invoke an accessor, so it is conservatively flagged as a
+        // side effect as soon as the accessor is attached.
+        side_effects!(
+            test_cjs_export_setter_invoked,
+            "module.exports = { set foo(v) { sideEffect() } }; module.exports.foo = 1;"
+        );
+
+        // Reassigning `module.exports` to a fresh literal keeps later member
+        // writes pure (the common incremental-exports pattern).
+        no_side_effects!(
+            test_cjs_export_fresh_then_write,
+            "module.exports = {}; module.exports.foo = 1;"
+        );
+        // But reassigning it to an alias (a re-export, or any non-literal) taints
+        // it: a later `module.exports.*` write may mutate that other object, so
+        // it is a side effect.
+        side_effects!(
+            test_cjs_export_reexport_then_write,
+            "module.exports = require('./other'); module.exports.extra = 1;"
+        );
+        side_effects!(
+            test_cjs_export_alias_then_write,
+            "module.exports = other; module.exports.foo = 1;"
+        );
+        // The reassignment is also detected when hidden inside a top-level
+        // comma-sequence expression rather than a standalone statement.
+        side_effects!(
+            test_cjs_export_reexport_then_write_sequence,
+            "module.exports = require('./other'), module.exports.extra = 1;"
+        );
+        // …and when nested in a conditional/logical expression that still runs at
+        // module evaluation (the scan descends every evaluated expression, just
+        // not function bodies).
+        side_effects!(
+            test_cjs_export_reexport_in_logical_then_write,
+            "x && (module.exports = require('./other')); module.exports.extra = 1;"
+        );
+        side_effects!(
+            test_cjs_export_setter_attached_in_conditional,
+            "x ? (module.exports = { set foo(v) { sideEffect() } }) : 0;"
+        );
+        // A reassignment inside a function body does not run during module
+        // evaluation, so it is not a taint on its own.
+        no_side_effects!(
+            test_cjs_export_reassign_in_function_body_is_pure,
+            "function f() { module.exports = require('./other'); } module.exports.foo = 1;"
+        );
+
+        // A class `static` block executes at module evaluation (when the class
+        // definition is evaluated), so an accessor attached to the exports object
+        // inside one is detected — mirroring the "top level" assignment in:
+        //   class C { static { foo = bar; } }
+        side_effects!(
+            test_cjs_export_setter_in_static_block,
+            "class C { static { module.exports = { set foo(v) { sideEffect() } }; \
+             module.exports.foo = 1; } }"
+        );
+        // …but a constructor body only runs when the class is instantiated, not at
+        // module evaluation, so the same attachment there is *not* a top-level
+        // assignment and is not detected — mirroring the "not top level"
+        // assignment in:
+        //   class C { constructor() { baz = quux; } }
+        no_side_effects!(
+            test_cjs_export_setter_in_constructor_is_pure,
+            "class C { constructor() { module.exports = { set foo(v) { sideEffect() } }; } } \
+             module.exports.foo = 1;"
+        );
+
+        // A `static` property initializer also runs at module evaluation (when the
+        // class definition is evaluated), so an accessor attached to the exports
+        // object inside one is detected.
+        side_effects!(
+            test_cjs_export_setter_in_static_property,
+            "class C { static x = (module.exports = { set foo(v) { sideEffect() } }); } \
+             module.exports.foo = 1;"
+        );
     }
 }
