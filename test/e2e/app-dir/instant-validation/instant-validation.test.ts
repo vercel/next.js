@@ -1893,6 +1893,57 @@ describe('instant validation', () => {
           expectNoBuildValidationErrors(result)
         }
       })
+
+      // useSelectedLayoutSegment and useSelectedLayoutSegments are
+      // misclassified as "uncached data" today. These tests assert the
+      // correct stack attribution. When the URL-hook factory lands, each
+      // `it.failing` will itself fail — flip to `it`.
+      /* eslint-disable jest/no-standalone-expect */
+      ;(isNextDev && !isClientNav ? it.failing : it)(
+        'invalid - useSelectedLayoutSegment() in a client component on a route with a fallback param',
+        async () => {
+          if (!isNextDev || isClientNav) return
+          const browser = await navigateTo(
+            '/default/invalid-use-selected-layout-segment-no-samples/123'
+          )
+          await expect(browser).toDisplayCollapsedRedbox(`
+           {
+             "description": "Next.js encountered uncached data during prerendering.",
+             "environmentLabel": "Server",
+             "label": "Blocking Route",
+             "source": "app/default/invalid-use-selected-layout-segment-no-samples/[slug]/active-tab.tsx (6:20) @ ActiveTab
+           > 6 |   const segment = useSelectedLayoutSegment()
+               |                    ^",
+             "stack": [
+               "ActiveTab app/default/invalid-use-selected-layout-segment-no-samples/[slug]/active-tab.tsx (6:20)",
+             ],
+           }
+          `)
+        }
+      )
+      ;(isNextDev && !isClientNav ? it.failing : it)(
+        'invalid - useSelectedLayoutSegments() in a client component on a route with a fallback param',
+        async () => {
+          if (!isNextDev || isClientNav) return
+          const browser = await navigateTo(
+            '/default/invalid-use-selected-layout-segments-no-samples/123'
+          )
+          await expect(browser).toDisplayCollapsedRedbox(`
+           {
+             "description": "Next.js encountered uncached data during prerendering.",
+             "environmentLabel": "Server",
+             "label": "Blocking Route",
+             "source": "app/default/invalid-use-selected-layout-segments-no-samples/[slug]/breadcrumb-trail.tsx (6:22) @ BreadcrumbTrail
+           > 6 |   const segments = useSelectedLayoutSegments()
+               |                      ^",
+             "stack": [
+               "BreadcrumbTrail app/default/invalid-use-selected-layout-segments-no-samples/[slug]/breadcrumb-trail.tsx (6:22)",
+             ],
+           }
+          `)
+        }
+      )
+      /* eslint-enable jest/no-standalone-expect */
     })
 
     describe('client errors', () => {
