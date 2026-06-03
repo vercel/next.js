@@ -2784,7 +2784,7 @@ impl TurboTasksBackendInner {
     }
 
     fn run_backend_job<'a>(
-        self: &'a Arc<Self>,
+        &'a self,
         job: TurboTasksBackendJob,
         turbo_tasks: &'a TurboTasks<TurboTasksBackend>,
     ) -> Pin<Box<dyn Future<Output = ()> + Send + 'a>> {
@@ -2848,13 +2848,12 @@ impl TurboTasksBackendInner {
                             }
                         }
 
-                        let this = self.clone();
                         // Create a root span shared by both the snapshot/persist
                         // work and the subsequent compaction so they appear
                         // grouped together in trace viewers.
                         let background_span =
                             tracing::info_span!(parent: None, "background snapshot");
-                        match this.snapshot_and_persist(background_span.id(), reason, turbo_tasks) {
+                        match self.snapshot_and_persist(background_span.id(), reason, turbo_tasks) {
                             Err(err) => {
                                 // save_snapshot consumed persisted_task_cache_log entries;
                                 // further snapshots would corrupt the task graph.
@@ -2901,7 +2900,7 @@ impl TurboTasksBackendInner {
                                 // new_data may be false but in-memory state can still
                                 // be evicted).
                                 let mut ran_eviction = false;
-                                if this.should_evict() && (new_data || !evicted) {
+                                if self.should_evict() && (new_data || !evicted) {
                                     if check_idle_ended!() {
                                         // need to start all the way over so we catch the next
                                         // signal
@@ -2909,7 +2908,7 @@ impl TurboTasksBackendInner {
                                     }
                                     evicted = true;
                                     ran_eviction = true;
-                                    this.storage.evict_after_snapshot(background_span.id());
+                                    self.storage.evict_after_snapshot(background_span.id());
                                 }
 
                                 // Compact while idle (up to limit), regardless of
