@@ -14,8 +14,8 @@ use turbo_tasks::{
     take_effects,
 };
 use turbo_tasks_backend::{
-    BackendOptions, GitVersionInfo, StartupCacheState, StorageMode, TurboBackingStorage,
-    TurboTasksBackend, noop_backing_storage, turbo_backing_storage,
+    BackendOptions, GitVersionInfo, StartupCacheState, StorageMode, TurboTasksBackend,
+    noop_backing_storage, turbo_backing_storage,
 };
 use turbo_tasks_fs::FileSystem;
 use turbo_unix_path::join_path;
@@ -59,7 +59,7 @@ use crate::{
     },
 };
 
-type Backend = TurboTasksBackend<TurboBackingStorage>;
+type Backend = TurboTasksBackend;
 
 pub struct TurbopackBuildBuilder {
     turbo_tasks: Arc<TurboTasks<Backend>>,

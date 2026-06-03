@@ -31,7 +31,6 @@ use crate::{
         storage::{SpecificTaskDataCategory, StorageWriteGuard},
         storage_schema::{TaskStorage, TaskStorageAccessors},
     },
-    backing_storage::BackingStorage,
     data::{ActivenessState, CollectibleRef, Dirtyness, InProgressState, TransientTask},
 };
 
@@ -166,17 +165,17 @@ impl TaskLockCounter {
     }
 }
 
-pub struct ExecuteContextImpl<'e, B: BackingStorage> {
-    backend: &'e TurboTasksBackendInner<B>,
-    turbo_tasks: &'e TurboTasks<TurboTasksBackend<B>>,
+pub struct ExecuteContextImpl<'e> {
+    backend: &'e TurboTasksBackendInner,
+    turbo_tasks: &'e TurboTasks<TurboTasksBackend>,
     _operation_guard: Option<OperationGuard<'e, AnyOperation>>,
     task_lock_counter: TaskLockCounter,
 }
 
-impl<'e, B: BackingStorage> ExecuteContextImpl<'e, B> {
+impl<'e> ExecuteContextImpl<'e> {
     pub(super) fn new(
-        backend: &'e TurboTasksBackendInner<B>,
-        turbo_tasks: &'e TurboTasks<TurboTasksBackend<B>>,
+        backend: &'e TurboTasksBackendInner,
+        turbo_tasks: &'e TurboTasks<TurboTasksBackend>,
     ) -> Self {
         Self {
             backend,
@@ -655,10 +654,10 @@ fn apply_restore_result(
     }
 }
 
-impl<'e, B: BackingStorage> ExecuteContext<'e> for ExecuteContextImpl<'e, B> {
+impl<'e> ExecuteContext<'e> for ExecuteContextImpl<'e> {
     type TaskGuardImpl = TaskGuardImpl<'e>;
 
-    fn child_context<'l, 'r>(&'r self) -> impl ChildExecuteContext<'l> + use<'e, 'l, B>
+    fn child_context<'l, 'r>(&'r self) -> impl ChildExecuteContext<'l> + use<'e, 'l>
     where
         'e: 'l,
     {
@@ -1016,12 +1015,12 @@ impl<'e, B: BackingStorage> ExecuteContext<'e> for ExecuteContextImpl<'e, B> {
     }
 }
 
-struct ChildExecuteContextImpl<'e, B: BackingStorage> {
-    backend: &'e TurboTasksBackendInner<B>,
-    turbo_tasks: &'e TurboTasks<TurboTasksBackend<B>>,
+struct ChildExecuteContextImpl<'e> {
+    backend: &'e TurboTasksBackendInner,
+    turbo_tasks: &'e TurboTasks<TurboTasksBackend>,
 }
 
-impl<'e, B: BackingStorage> ChildExecuteContext<'e> for ChildExecuteContextImpl<'e, B> {
+impl<'e> ChildExecuteContext<'e> for ChildExecuteContextImpl<'e> {
     fn create(self) -> impl ExecuteContext<'e> {
         ExecuteContextImpl {
             backend: self.backend,

@@ -11,7 +11,7 @@ use anyhow::Result;
 use turbo_tasks::{
     ResolvedVc, State, TurboTasks, Vc, unmark_top_level_task_may_leak_eventually_consistent_state,
 };
-use turbo_tasks_backend::{BackendOptions, GitVersionInfo, TurboBackingStorage, TurboTasksBackend};
+use turbo_tasks_backend::{BackendOptions, GitVersionInfo, TurboTasksBackend};
 
 /// Creates a fresh per-call persistence directory rooted under
 /// `CARGO_TARGET_TMPDIR/.cache/`, with the test `name` as a prefix so failed
@@ -34,10 +34,7 @@ fn create_test_persistence_dir(name: &str) -> tempfile::TempDir {
 fn create_tt_with_workers(
     name: &str,
     num_workers: usize,
-) -> (
-    Arc<TurboTasks<TurboTasksBackend<TurboBackingStorage>>>,
-    tempfile::TempDir,
-) {
+) -> (Arc<TurboTasks<TurboTasksBackend>>, tempfile::TempDir) {
     let dir = create_test_persistence_dir(name);
     let tt = TurboTasks::new(TurboTasksBackend::new(
         BackendOptions {
@@ -65,12 +62,7 @@ fn create_tt_with_workers(
     (tt, dir)
 }
 
-fn create_tt(
-    name: &str,
-) -> (
-    Arc<TurboTasks<TurboTasksBackend<TurboBackingStorage>>>,
-    tempfile::TempDir,
-) {
+fn create_tt(name: &str) -> (Arc<TurboTasks<TurboTasksBackend>>, tempfile::TempDir) {
     create_tt_with_workers(name, 2)
 }
 

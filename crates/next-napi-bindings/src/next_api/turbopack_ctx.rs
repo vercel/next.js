@@ -21,11 +21,11 @@ use turbo_tasks::{
     message_queue::{CompilationEvent, Severity},
 };
 use turbo_tasks_backend::{
-    BackendOptions, GitVersionInfo, StartupCacheState, TurboBackingStorage, TurboTasksBackend,
+    BackendOptions, GitVersionInfo, StartupCacheState, TurboTasksBackend,
     db_invalidation::invalidation_reasons, noop_backing_storage, turbo_backing_storage,
 };
 
-pub type NextTurboTasks = Arc<TurboTasks<TurboTasksBackend<TurboBackingStorage>>>;
+pub type NextTurboTasks = Arc<TurboTasks<TurboTasksBackend>>;
 
 /// A value often wrapped in [`napi::bindgen_prelude::External`] that retains the [TurboTasks]
 /// instance used by Next.js, and [various napi helpers that are passed to us from

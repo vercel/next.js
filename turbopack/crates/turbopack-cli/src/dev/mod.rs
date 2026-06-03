@@ -18,8 +18,8 @@ use turbo_tasks::{
     util::{FormatBytes, FormatDuration},
 };
 use turbo_tasks_backend::{
-    BackendOptions, GitVersionInfo, StartupCacheState, StorageMode, TurboBackingStorage,
-    TurboTasksBackend, noop_backing_storage, turbo_backing_storage,
+    BackendOptions, GitVersionInfo, StartupCacheState, StorageMode, TurboTasksBackend,
+    noop_backing_storage, turbo_backing_storage,
 };
 use turbo_tasks_fs::FileSystem;
 use turbo_tasks_malloc::TurboMalloc;
@@ -55,10 +55,8 @@ use crate::{
 
 pub(crate) mod web_entry_source;
 
-type Backend = TurboTasksBackend<TurboBackingStorage>;
-
 pub struct TurbopackDevServerBuilder {
-    turbo_tasks: Arc<TurboTasks<Backend>>,
+    turbo_tasks: Arc<TurboTasks<TurboTasksBackend>>,
     project_dir: RcStr,
     root_dir: RcStr,
     entry_requests: Vec<EntryRequest>,
@@ -75,7 +73,7 @@ pub struct TurbopackDevServerBuilder {
 
 impl TurbopackDevServerBuilder {
     pub fn new(
-        turbo_tasks: Arc<TurboTasks<Backend>>,
+        turbo_tasks: Arc<TurboTasks<TurboTasksBackend>>,
         project_dir: RcStr,
         root_dir: RcStr,
     ) -> TurbopackDevServerBuilder {
@@ -567,7 +565,10 @@ pub async fn start_server(args: &DevArguments) -> Result<()> {
 #[cfg(feature = "profile")]
 // When profiling, exits the process when no new updates have been received for
 // a given timeout and there are no more tasks in progress.
-async fn profile_timeout<T>(tt: &TurboTasks<Backend>, future: impl Future<Output = T>) -> T {
+async fn profile_timeout<T>(
+    tt: &TurboTasks<TurboTasksBackend>,
+    future: impl Future<Output = T>,
+) -> T {
     /// How long to wait in between updates before force-exiting the process
     /// during profiling.
     const PROFILE_EXIT_TIMEOUT: Duration = Duration::from_secs(5);
@@ -587,7 +588,7 @@ async fn profile_timeout<T>(tt: &TurboTasks<Backend>, future: impl Future<Output
 
 #[cfg(not(feature = "profile"))]
 fn profile_timeout<T>(
-    _tt: &TurboTasks<Backend>,
+    _tt: &TurboTasks<TurboTasksBackend>,
     future: impl Future<Output = T>,
 ) -> impl Future<Output = T> {
     future

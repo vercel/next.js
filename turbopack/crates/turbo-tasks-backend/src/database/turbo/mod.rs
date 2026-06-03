@@ -17,7 +17,7 @@ use turbo_tasks::{
 };
 
 use crate::database::{
-    key_value_database::{KeySpace, KeyValueDatabase},
+    key_value_database::KeySpace,
     write_batch::{ConcurrentWriteBatch, WriteBuffer},
 };
 
@@ -91,53 +91,46 @@ impl TurboKeyValueDatabase {
             skip_compaction: true,
         }
     }
-}
 
-impl KeyValueDatabase for TurboKeyValueDatabase {
-    fn is_empty(&self) -> bool {
+    pub fn is_empty(&self) -> bool {
         self.db.is_empty()
     }
 
-    type ValueBuffer<'l>
-        = ArcBytes
-    where
-        Self: 'l;
-
-    fn get(&self, key_space: KeySpace, key: &[u8]) -> Result<Option<Self::ValueBuffer<'_>>> {
+    pub fn get(&self, key_space: KeySpace, key: &[u8]) -> Result<Option<ArcBytes>> {
         self.db.get(key_space as usize, &key)
     }
 
-    fn batch_get(
-        &self,
-        key_space: KeySpace,
-        keys: &[&[u8]],
-    ) -> Result<Vec<Option<Self::ValueBuffer<'_>>>> {
+    pub fn batch_get(&self, key_space: KeySpace, keys: &[&[u8]]) -> Result<Vec<Option<ArcBytes>>> {
         self.db.batch_get(key_space as usize, keys)
     }
 
-    fn get_multiple(
-        &self,
-        key_space: KeySpace,
-        key: &[u8],
-    ) -> Result<SmallVec<[Self::ValueBuffer<'_>; 1]>> {
+    /// Looks up a key and returns all matching values.
+    ///
+    /// Useful for keyspaces where keys are hashes and collisions are possible (e.g., TaskCache).
+    pub fn get_multiple(&self, key_space: KeySpace, key: &[u8]) -> Result<SmallVec<[ArcBytes; 1]>> {
         self.db.get_multiple(key_space as usize, &key)
     }
 
-    type ConcurrentWriteBatch<'l>
-        = TurboWriteBatch<'l>
-    where
-        Self: 'l;
-
-    fn write_batch(&self) -> Result<Self::ConcurrentWriteBatch<'_>> {
+    pub fn write_batch(&self) -> Result<TurboWriteBatch<'_>> {
         Ok(TurboWriteBatch {
             batch: self.db.write_batch()?,
             db: &self.db,
         })
     }
 
-    fn prevent_writes(&self) {}
+    /// Called when the database has been invalidated via
+    /// [`crate::kv_backing_storage::TurboBackingStorage::invalidate`].
+    ///
+    /// This typically means that we'll restart the process or `turbo-tasks` soon with a fresh
+    /// database. If this happens, there's no point in writing anything else to disk, or flushing
+    /// during [`TurboKeyValueDatabase::shutdown`].
+    pub fn prevent_writes(&self) {}
 
-    fn compact(&self) -> Result<bool> {
+    /// Triggers compaction of the database.
+    ///
+    /// Returns `Ok(true)` if compaction actually merged files, `Ok(false)` if there was nothing
+    /// to compact.
+    pub fn compact(&self) -> Result<bool> {
         if self.is_short_session || self.db.is_empty() {
             return Ok(false);
         }
@@ -148,11 +141,13 @@ impl KeyValueDatabase for TurboKeyValueDatabase {
         )
     }
 
-    fn has_unrecoverable_write_error(&self) -> bool {
+    /// Returns true if the database is in an unrecoverable error state where a previous write or
+    /// compaction failed and the rollback also failed, permanently disabling further writes.
+    pub fn has_unrecoverable_write_error(&self) -> bool {
         self.db.has_unrecoverable_write_error()
     }
 
-    fn shutdown(&self) -> Result<()> {
+    pub fn shutdown(&self) -> Result<()> {
         // Compact the database on shutdown
         // (Avoid compacting a fresh database since we don't have any usage info yet)
         if !self.is_fresh && !self.skip_compaction {
