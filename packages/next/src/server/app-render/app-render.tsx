@@ -2032,7 +2032,10 @@ async function finalRuntimeServerPrerender(
         // If the prerender is still pending then it must depend on dynamic data.
         serverIsDynamic = true
       }
-      finalServerController.abort()
+      workUnitAsyncStorage.run(
+        finalServerPrerenderStore,
+        finalServerController.abort.bind(finalServerController)
+      )
     }
   )
 
@@ -4834,7 +4837,10 @@ async function renderWithRestartOnCacheMissInDevWeb(
   // This will be optimized in the future by not allowing runtime/dynamic APIs to resolve.
 
   await cacheSignal.cacheReady()
-  initialReactController.abort()
+  workUnitAsyncStorage.run(
+    requestStore,
+    initialReactController.abort.bind(initialReactController)
+  )
 
   //===============================================
   // Final render (restarted)
@@ -5159,7 +5165,10 @@ async function renderWithRestartOnCacheMissInDevNode(
   // This will be optimized in the future by not allowing runtime/dynamic APIs to resolve.
 
   await cacheSignal.cacheReady()
-  initialReactController.abort()
+  workUnitAsyncStorage.run(
+    requestStore,
+    initialReactController.abort.bind(initialReactController)
+  )
 
   //===============================================
   // Final render (restarted)
@@ -5961,7 +5970,10 @@ async function warmupClientModulesForStagedValidation(
   const cacheSignal = new CacheSignal()
   trackPendingModules(cacheSignal)
   await cacheSignal.cacheReady()
-  initialClientReactController.abort()
+  workUnitAsyncStorage.run(
+    initialClientPrerenderStore,
+    initialClientReactController.abort.bind(initialClientReactController)
+  )
 }
 
 async function validateStagedShell(
@@ -6089,7 +6101,10 @@ async function validateStagedShell(
         return pendingFinalClientResult
       },
       () => {
-        clientReactController.abort()
+        workUnitAsyncStorage.run(
+          finalClientPrerenderStore,
+          clientReactController.abort.bind(clientReactController)
+        )
       }
     )
 
@@ -6373,7 +6388,10 @@ async function validateInstantConfigs(
           return pendingResult
         },
         () => {
-          reactController.abort()
+          workUnitAsyncStorage.run(
+            prerenderStore,
+            reactController.abort.bind(reactController)
+          )
         }
       )
 
@@ -6658,7 +6676,10 @@ async function renderWithRestartOnCacheMissInValidation(
 
   // Cache miss. Wait for caches to fill, then re-render with warm caches.
   await cacheSignal.cacheReady()
-  initialReactController.abort()
+  workUnitAsyncStorage.run(
+    requestStore,
+    initialReactController.abort.bind(initialReactController)
+  )
 
   //===============================================
   // Final render (restarted, with warm caches)
@@ -7753,7 +7774,10 @@ async function prerenderToStream(
         // Promises passed to client were already awaited above (assuming that they came from cached functions)
         trackPendingModules(cacheSignal)
         await cacheSignal.cacheReady()
-        initialClientReactController.abort()
+        workUnitAsyncStorage.run(
+          initialClientPrerenderStore,
+          initialClientReactController.abort.bind(initialClientReactController)
+        )
       }
 
       const finalServerReactController = new AbortController()
@@ -7924,7 +7948,10 @@ async function prerenderToStream(
             serverIsDynamic = true
           }
 
-          finalServerReactController.abort()
+          workUnitAsyncStorage.run(
+            finalServerPrerenderStore,
+            finalServerReactController.abort.bind(finalServerReactController)
+          )
         }
       )
 
@@ -8067,7 +8094,10 @@ async function prerenderToStream(
             return pendingFinalClientResult
           },
           () => {
-            finalClientReactController.abort()
+            workUnitAsyncStorage.run(
+              finalClientPrerenderStore,
+              finalClientReactController.abort.bind(finalClientReactController)
+            )
           }
         )
 
@@ -8721,7 +8751,12 @@ async function prerenderToStream(
           },
           () => {
             if (!errorServerReactController.signal.aborted) {
-              errorServerReactController.abort()
+              workUnitAsyncStorage.run(
+                errorPrerenderStore,
+                errorServerReactController.abort.bind(
+                  errorServerReactController
+                )
+              )
             }
           }
         )
@@ -8812,7 +8847,10 @@ async function prerenderToStream(
             return pendingErrorHtmlResult
           },
           () => {
-            errorClientReactController.abort()
+            workUnitAsyncStorage.run(
+              errorClientPrerenderStore,
+              errorClientReactController.abort.bind(errorClientReactController)
+            )
           }
         )
 
