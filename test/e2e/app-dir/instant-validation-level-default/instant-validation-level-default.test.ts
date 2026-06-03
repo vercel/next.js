@@ -57,7 +57,7 @@ describe('instant validation - default level', () => {
         const browser = await next.browser('/bare')
         await expect(browser).toDisplayCollapsedRedbox(`
          {
-           "code": "E1264",
+           "code": "E1298",
            "description": "Next.js encountered uncached data during a navigation.",
            "environmentLabel": "Server",
            "label": "Instant",

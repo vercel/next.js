@@ -332,7 +332,7 @@ const SYNC_IO_APIS = [
 ]
 
 const SYNC_IO_DOCS_PATTERN =
-  /https:\/\/nextjs\.org\/docs\/messages\/next-prerender-(?:runtime-)?(random|current-time|crypto)(-client)?/
+  /https:\/\/nextjs\.org\/docs\/messages\/blocking-prerender-(random|current-time|crypto)(-client)?/
 
 // Discriminate sync IO errors via the docs URL embedded in the user-facing
 // message by `createSyncIOError`, `createSyncIORuntimeError`, and
@@ -367,7 +367,9 @@ export function getBlockingRouteErrorDetails(
   const message = error.message
   const inNavigation = isBlockingRouteInNavError(message)
 
-  const isBlockingPageLoadError = message.includes('/blocking-route')
+  const isBlockingPageLoadError =
+    message.includes('/blocking-prerender-runtime#') ||
+    message.includes('/blocking-prerender-dynamic#')
   if (isBlockingPageLoadError) {
     return {
       type: 'blocking-route',
@@ -376,9 +378,9 @@ export function getBlockingRouteErrorDetails(
     }
   }
 
-  const isDynamicMetadataError = message.includes(
-    '/next-prerender-dynamic-metadata'
-  )
+  const isDynamicMetadataError =
+    message.includes('/blocking-prerender-metadata-dynamic') ||
+    message.includes('/blocking-prerender-metadata-runtime')
   if (isDynamicMetadataError) {
     return {
       type: 'dynamic-metadata',
@@ -386,9 +388,9 @@ export function getBlockingRouteErrorDetails(
     }
   }
 
-  const isBlockingViewportError = message.includes(
-    '/next-prerender-dynamic-viewport'
-  )
+  const isBlockingViewportError =
+    message.includes('/blocking-prerender-viewport-dynamic') ||
+    message.includes('/blocking-prerender-viewport-runtime')
   if (isBlockingViewportError) {
     return {
       type: 'dynamic-viewport',
@@ -842,6 +844,7 @@ Next.js version: ${props.versionInfo.installed} (${process.env.__NEXT_BUNDLER})\
           headerChildren={
             <InstantHeaderExplanation
               kind="blocking-route"
+              variant={errorDetails.variant}
               explanation={
                 errorDetails.inNavigation
                   ? BLOCKING_ROUTE_NAVIGATION_EXPLANATION
@@ -893,7 +896,12 @@ Next.js version: ${props.versionInfo.installed} (${process.env.__NEXT_BUNDLER})\
               </>
             )
           }
-          headerChildren={<InstantHeaderExplanation kind="metadata" />}
+          headerChildren={
+            <InstantHeaderExplanation
+              kind="metadata"
+              variant={errorDetails.variant}
+            />
+          }
           renderTabBar={renderTabBar}
           canGoPrevious={canGoPrevious}
           canGoNext={canGoNext}
@@ -939,7 +947,12 @@ Next.js version: ${props.versionInfo.installed} (${process.env.__NEXT_BUNDLER})\
               </>
             )
           }
-          headerChildren={<InstantHeaderExplanation kind="viewport" />}
+          headerChildren={
+            <InstantHeaderExplanation
+              kind="viewport"
+              variant={errorDetails.variant}
+            />
+          }
           renderTabBar={renderTabBar}
           canGoPrevious={canGoPrevious}
           canGoNext={canGoNext}
@@ -1066,15 +1079,19 @@ Next.js version: ${props.versionInfo.installed} (${process.env.__NEXT_BUNDLER})\
           headerChildren={
             <InstantHeaderExplanation kind="unrendered-segment" />
           }
+          renderTabBar={renderTabBar}
+          canGoPrevious={canGoPrevious}
+          canGoNext={canGoNext}
+          onPrevious={handlePrevious}
+          onNext={handleNext}
           onClose={isServerError ? undefined : onClose}
           debugInfo={debugInfo}
           error={error}
-          runtimeErrors={runtimeErrors}
+          runtimeErrors={activeErrors}
           activeIdx={activeIdx}
           setActiveIndex={setActiveIndex}
           dialogResizerRef={dialogResizerRef}
           generateErrorInfo={generateErrorInfo}
-          renderTabBar={renderTabBar}
           {...props}
         >
           <UnrenderedSegmentInfo

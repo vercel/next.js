@@ -10,6 +10,7 @@ import {
   FixCardTimerIcon,
   FixCardZapIcon,
 } from '../../icons/fix-card-icons'
+import { CopyButton } from '../copy-button'
 import { ExternalIcon } from '../../icons/external'
 import { css } from '../../utils/css'
 import {
@@ -56,6 +57,17 @@ function getCardIcon(icon: FixCardIcon) {
   }
 }
 
+function CopyPromptButton({ prompt }: { prompt: string }) {
+  return (
+    <CopyButton
+      content={prompt}
+      actionLabel="Copy prompt"
+      successLabel="Prompt copied"
+      data-nextjs-fix-card-copy-button
+    />
+  )
+}
+
 function CardGrid({ cards }: { cards: FixCard[] }) {
   return (
     <div data-nextjs-card-grid>
@@ -63,7 +75,7 @@ function CardGrid({ cards }: { cards: FixCard[] }) {
         const groupMeta = FIX_CARD_GROUPS[card.group]
         const inner = (
           <>
-            {card.link ? (
+            {card.link && !card.prompt ? (
               <span data-nextjs-fix-card-link-icon aria-hidden="true">
                 <ExternalIcon width={16} height={16} />
               </span>
@@ -73,6 +85,14 @@ function CardGrid({ cards }: { cards: FixCard[] }) {
               <div data-nextjs-fix-card-header-text>
                 <div data-nextjs-fix-card-title-row>
                   <span data-nextjs-fix-card-title>{groupMeta.label}</span>
+                  {card.prompt && card.link ? (
+                    <span
+                      data-nextjs-fix-card-title-link-icon
+                      aria-hidden="true"
+                    >
+                      <ExternalIcon width={12} height={12} />
+                    </span>
+                  ) : null}
                 </div>
                 <span data-nextjs-fix-card-description>{card.title}</span>
               </div>
@@ -106,20 +126,31 @@ function CardGrid({ cards }: { cards: FixCard[] }) {
           'data-card-color': groupMeta.color,
         }
 
-        return card.link ? (
+        const cardElement = card.link ? (
           <a
             {...sharedProps}
             href={card.link}
             target="_blank"
             rel="noopener noreferrer"
-            key={card.id}
             aria-label={`Open docs for ${card.title}`}
           >
             {inner}
           </a>
         ) : (
-          <div {...sharedProps} key={card.id}>
-            {inner}
+          <div {...sharedProps}>{inner}</div>
+        )
+
+        // Render the copy button as a sibling of the card so the <button>
+        // isn't nested inside the card's <a>, which would be invalid HTML
+        // and break keyboard / focus behavior.
+        return card.prompt ? (
+          <div data-nextjs-fix-card-wrapper key={card.id}>
+            {cardElement}
+            <CopyPromptButton prompt={card.prompt} />
+          </div>
+        ) : (
+          <div data-nextjs-fix-card-wrapper key={card.id}>
+            {cardElement}
           </div>
         )
       })}
@@ -146,6 +177,21 @@ export function InstantGuidance({
     docsUrl = SYNC_IO_DOCS[cause] || DOCS_URLS[kind]
   } else if (kind === 'sync-io-client' && cause) {
     docsUrl = SYNC_IO_CLIENT_DOCS[cause] || DOCS_URLS[kind]
+  } else if (kind === 'blocking-route') {
+    docsUrl =
+      variant === 'runtime'
+        ? 'https://nextjs.org/docs/messages/blocking-prerender-runtime'
+        : 'https://nextjs.org/docs/messages/blocking-prerender-dynamic'
+  } else if (kind === 'metadata') {
+    docsUrl =
+      variant === 'runtime'
+        ? 'https://nextjs.org/docs/messages/blocking-prerender-metadata-runtime'
+        : 'https://nextjs.org/docs/messages/blocking-prerender-metadata-dynamic'
+  } else if (kind === 'viewport') {
+    docsUrl =
+      variant === 'runtime'
+        ? 'https://nextjs.org/docs/messages/blocking-prerender-viewport-runtime'
+        : 'https://nextjs.org/docs/messages/blocking-prerender-viewport-dynamic'
   } else {
     docsUrl = DOCS_URLS[kind]
   }
@@ -178,15 +224,35 @@ export function InstantGuidance({
 
 export function InstantHeaderExplanation({
   kind,
+  variant,
   explanation,
   docsUrl,
 }: {
   kind?: GuidanceKind
+  variant?: GuidanceVariant
   explanation?: string
   docsUrl?: string
 }) {
   const resolvedExplanation = explanation || (kind ? EXPLANATIONS[kind] : '')
-  const resolvedDocsUrl = docsUrl || (kind ? DOCS_URLS[kind] : '')
+  let resolvedDocsUrl = docsUrl
+  if (!resolvedDocsUrl && kind === 'blocking-route') {
+    resolvedDocsUrl =
+      variant === 'runtime'
+        ? 'https://nextjs.org/docs/messages/blocking-prerender-runtime'
+        : 'https://nextjs.org/docs/messages/blocking-prerender-dynamic'
+  } else if (!resolvedDocsUrl && kind === 'metadata') {
+    resolvedDocsUrl =
+      variant === 'runtime'
+        ? 'https://nextjs.org/docs/messages/blocking-prerender-metadata-runtime'
+        : 'https://nextjs.org/docs/messages/blocking-prerender-metadata-dynamic'
+  } else if (!resolvedDocsUrl && kind === 'viewport') {
+    resolvedDocsUrl =
+      variant === 'runtime'
+        ? 'https://nextjs.org/docs/messages/blocking-prerender-viewport-runtime'
+        : 'https://nextjs.org/docs/messages/blocking-prerender-viewport-dynamic'
+  } else if (!resolvedDocsUrl && kind) {
+    resolvedDocsUrl = DOCS_URLS[kind]
+  }
 
   return (
     <p data-nextjs-instant-explanation>
@@ -413,5 +479,61 @@ export const INSTANT_GUIDANCE_STYLES = css`
   [data-card-color='amber'] [data-nextjs-fix-card-icon] {
     background: var(--color-amber-100);
     color: var(--color-amber-900);
+  }
+
+  [data-nextjs-fix-card-title-link-icon] {
+    align-items: center;
+    color: var(--color-gray-800);
+    display: inline-flex;
+    flex-shrink: 0;
+  }
+
+  [data-nextjs-fix-card]:hover [data-nextjs-fix-card-title-link-icon] {
+    color: var(--color-gray-1000);
+  }
+
+  [data-nextjs-fix-card-wrapper] {
+    display: flex;
+    position: relative;
+  }
+
+  [data-nextjs-fix-card-wrapper] > [data-nextjs-fix-card] {
+    flex: 1;
+  }
+
+  [data-nextjs-fix-card-copy-button] {
+    align-items: center;
+    background: transparent;
+    border: none;
+    border-radius: var(--rounded-md);
+    color: var(--color-gray-800);
+    cursor: pointer;
+    display: inline-flex;
+    height: 24px;
+    justify-content: center;
+    padding: 0;
+    position: absolute;
+    right: 10px;
+    top: 10px;
+    transition:
+      background 120ms ease,
+      color 120ms ease;
+    width: 24px;
+    z-index: 1;
+  }
+
+  [data-nextjs-fix-card-copy-button] svg {
+    width: var(--size-12);
+    height: var(--size-12);
+  }
+
+  [data-nextjs-fix-card-copy-button]:hover {
+    background: var(--color-background-200);
+    color: var(--color-gray-1000);
+  }
+
+  [data-nextjs-fix-card-copy-button]:focus-visible {
+    outline: var(--focus-ring);
+    outline-offset: 2px;
   }
 `
