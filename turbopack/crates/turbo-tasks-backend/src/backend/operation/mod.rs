@@ -26,7 +26,7 @@ use turbo_tasks::{
 pub use self::aggregation_update::ComputeDirtyAndCleanUpdate;
 use crate::{
     backend::{
-        EventDescription, TaskDataCategory, TurboTasksBackend, TurboTasksBackendInner,
+        EventDescription, TaskDataCategory, TurboTasksBackend,
         snapshot_coordinator::OperationGuard,
         storage::{SpecificTaskDataCategory, StorageWriteGuard},
         storage_schema::{TaskStorage, TaskStorageAccessors},
@@ -164,7 +164,7 @@ impl TaskLockCounter {
 }
 
 pub struct ExecuteContextImpl<'e> {
-    backend: &'e TurboTasksBackendInner,
+    backend: &'e TurboTasksBackend,
     turbo_tasks: &'e TurboTasks<TurboTasksBackend>,
     _operation_guard: Option<OperationGuard<'e, AnyOperation>>,
     task_lock_counter: TaskLockCounter,
@@ -172,7 +172,7 @@ pub struct ExecuteContextImpl<'e> {
 
 impl<'e> ExecuteContextImpl<'e> {
     pub(super) fn new(
-        backend: &'e TurboTasksBackendInner,
+        backend: &'e TurboTasksBackend,
         turbo_tasks: &'e TurboTasks<TurboTasksBackend>,
     ) -> Self {
         Self {
@@ -1005,7 +1005,7 @@ impl<'e> ExecuteContext<'e> for ExecuteContextImpl<'e> {
 }
 
 struct ChildExecuteContextImpl<'e> {
-    backend: &'e TurboTasksBackendInner,
+    backend: &'e TurboTasksBackend,
     turbo_tasks: &'e TurboTasks<TurboTasksBackend>,
 }
 

@@ -170,9 +170,7 @@ pub enum TurboTasksBackendJob {
     Snapshot,
 }
 
-pub struct TurboTasksBackend(Arc<TurboTasksBackendInner>);
-
-struct TurboTasksBackendInner {
+pub struct TurboTasksBackend {
     options: BackendOptions,
 
     start_time: Instant,
@@ -207,37 +205,15 @@ struct TurboTasksBackendInner {
 }
 
 impl TurboTasksBackend {
-    pub fn new(options: BackendOptions, backing_storage: TurboBackingStorage) -> Self {
-        Self(Arc::new(TurboTasksBackendInner::new(
-            options,
-            backing_storage,
-        )))
-    }
-
     /// Invalidates the persistent storage so that it will be deleted the next time a turbopack
     /// instance is created with the filesystem cache enabled.
     ///
     /// `reason_code` should be one of the codes in
     /// [`crate::db_invalidation::invalidation_reasons`].
     pub fn invalidate_storage(&self, reason_code: &str) -> Result<()> {
-        self.0.backing_storage.invalidate(reason_code)
+        self.backing_storage.invalidate(reason_code)
     }
 
-    /// Perform a snapshot and then evict all evictable tasks from memory.
-    ///
-    /// This is exposed for integration tests that need to verify the
-    /// snapshot → evict → restore cycle works correctly.
-    ///
-    /// Returns `(snapshot_had_new_data, eviction_counts)`.
-    pub fn snapshot_and_evict_for_testing(
-        &self,
-        turbo_tasks: &TurboTasks<TurboTasksBackend>,
-    ) -> (bool, EvictionCounts) {
-        self.0.snapshot_and_evict_for_testing(turbo_tasks)
-    }
-}
-
-impl TurboTasksBackendInner {
     pub fn new(mut options: BackendOptions, backing_storage: TurboBackingStorage) -> Self {
         let shard_amount = compute_shard_amount(options.num_workers, options.small_preallocation);
         if !options.dependency_tracking {
@@ -435,7 +411,7 @@ struct TaskExecutionCompletePrepareResult {
 }
 
 // Operations
-impl TurboTasksBackendInner {
+impl TurboTasksBackend {
     fn try_read_task_output(
         &self,
         task_id: TaskId,
@@ -561,7 +537,7 @@ impl TurboTasksBackendInner {
                     // cloning `self`: pinning keeps the backend alive for the closure's lifetime.
                     let tt = turbo_tasks.pin();
                     move || {
-                        let mut ctx = tt.backend().0.execute_context(&tt);
+                        let mut ctx = tt.backend().execute_context(&tt);
                         let mut visited = FxHashSet::default();
                         fn indent(s: &str) -> String {
                             s.split_inclusive('\n')
@@ -1442,7 +1418,7 @@ impl TurboTasksBackendInner {
             // backend it owns) alive for the task's lifetime.
             let turbo_tasks = turbo_tasks.pin();
             tokio::task::spawn(async move {
-                let backend = &turbo_tasks.backend().0;
+                let backend = &turbo_tasks.backend();
                 select! {
                     _ = tokio::time::sleep(Duration::from_secs(5)) => {
                         // do nothing
@@ -1616,7 +1592,7 @@ impl TurboTasksBackendInner {
         // it shouldn't be possible to have cycles in tasks, but we could have an exponential blowup
         // from tracing the same task many times, so use a visited_set
         fn inner_id(
-            backend: &TurboTasksBackendInner,
+            backend: &TurboTasksBackend,
             task_id: TaskId,
             cell_type_id: Option<ValueTypeId>,
             visited_set: &mut FxHashSet<TaskId>,
@@ -1636,7 +1612,7 @@ impl TurboTasksBackendInner {
             }
         }
         fn inner_cached(
-            backend: &TurboTasksBackendInner,
+            backend: &TurboTasksBackend,
             task_type: &CachedTaskType,
             cell_type_id: Option<ValueTypeId>,
             visited_set: &mut FxHashSet<TaskId>,
@@ -3441,23 +3417,23 @@ impl TurboTasksBackendInner {
 
 impl Backend for TurboTasksBackend {
     fn startup(&self, turbo_tasks: &TurboTasks<Self>) {
-        self.0.startup(turbo_tasks);
+        self.startup(turbo_tasks);
     }
 
     fn stopping(&self, _turbo_tasks: &TurboTasks<Self>) {
-        self.0.stopping();
+        self.stopping();
     }
 
     fn stop(&self, turbo_tasks: &TurboTasks<Self>) {
-        self.0.stop(turbo_tasks);
+        self.stop(turbo_tasks);
     }
 
     fn idle_start(&self, turbo_tasks: &TurboTasks<Self>) {
-        self.0.idle_start(turbo_tasks);
+        self.idle_start(turbo_tasks);
     }
 
     fn idle_end(&self, _turbo_tasks: &TurboTasks<Self>) {
-        self.0.idle_end();
+        self.idle_end();
     }
 
     fn get_or_create_task(
@@ -3469,16 +3445,15 @@ impl Backend for TurboTasksBackend {
         persistence: TaskPersistence,
         turbo_tasks: &TurboTasks<Self>,
     ) -> TaskId {
-        self.0
-            .get_or_create_task(native_fn, this, arg, parent_task, persistence, turbo_tasks)
+        self.get_or_create_task(native_fn, this, arg, parent_task, persistence, turbo_tasks)
     }
 
     fn invalidate_task(&self, task_id: TaskId, turbo_tasks: &TurboTasks<Self>) {
-        self.0.invalidate_task(task_id, turbo_tasks);
+        self.invalidate_task(task_id, turbo_tasks);
     }
 
     fn invalidate_tasks(&self, tasks: &[TaskId], turbo_tasks: &TurboTasks<Self>) {
-        self.0.invalidate_tasks(tasks, turbo_tasks);
+        self.invalidate_tasks(tasks, turbo_tasks);
     }
 
     fn invalidate_tasks_set(
@@ -3486,15 +3461,15 @@ impl Backend for TurboTasksBackend {
         tasks: &AutoSet<TaskId, BuildHasherDefault<FxHasher>, 2>,
         turbo_tasks: &TurboTasks<Self>,
     ) {
-        self.0.invalidate_tasks_set(tasks, turbo_tasks);
+        self.invalidate_tasks_set(tasks, turbo_tasks);
     }
 
     fn invalidate_serialization(&self, task_id: TaskId, turbo_tasks: &TurboTasks<Self>) {
-        self.0.invalidate_serialization(task_id, turbo_tasks);
+        self.invalidate_serialization(task_id, turbo_tasks);
     }
 
     fn task_execution_canceled(&self, task: TaskId, turbo_tasks: &TurboTasks<Self>) {
-        self.0.task_execution_canceled(task, turbo_tasks)
+        self.task_execution_canceled(task, turbo_tasks)
     }
 
     fn try_start_task_execution(
@@ -3503,8 +3478,7 @@ impl Backend for TurboTasksBackend {
         priority: TaskPriority,
         turbo_tasks: &TurboTasks<Self>,
     ) -> Option<TaskExecutionSpec<'_>> {
-        self.0
-            .try_start_task_execution(task_id, priority, turbo_tasks)
+        self.try_start_task_execution(task_id, priority, turbo_tasks)
     }
 
     fn task_execution_completed(
@@ -3516,7 +3490,7 @@ impl Backend for TurboTasksBackend {
         has_invalidator: bool,
         turbo_tasks: &TurboTasks<Self>,
     ) -> Option<TaskPriority> {
-        self.0.task_execution_completed(
+        self.task_execution_completed(
             task_id,
             result,
             cell_counters,
@@ -3534,7 +3508,7 @@ impl Backend for TurboTasksBackend {
         job: Self::BackendJob,
         turbo_tasks: &'a TurboTasks<Self>,
     ) -> Pin<Box<dyn Future<Output = ()> + Send + 'a>> {
-        self.0.run_backend_job(job, turbo_tasks)
+        self.run_backend_job(job, turbo_tasks)
     }
 
     fn try_read_task_output(
@@ -3544,8 +3518,7 @@ impl Backend for TurboTasksBackend {
         options: ReadOutputOptions,
         turbo_tasks: &TurboTasks<Self>,
     ) -> Result<Result<RawVc, EventListener>> {
-        self.0
-            .try_read_task_output(task_id, reader, options, turbo_tasks)
+        self.try_read_task_output(task_id, reader, options, turbo_tasks)
     }
 
     fn try_read_task_cell(
@@ -3556,8 +3529,7 @@ impl Backend for TurboTasksBackend {
         options: ReadCellOptions,
         turbo_tasks: &TurboTasks<Self>,
     ) -> Result<Result<TypedCellContent, EventListener>> {
-        self.0
-            .try_read_task_cell(task_id, reader, cell, options, turbo_tasks)
+        self.try_read_task_cell(task_id, reader, cell, options, turbo_tasks)
     }
 
     fn try_read_own_task_cell(
@@ -3566,7 +3538,7 @@ impl Backend for TurboTasksBackend {
         cell: CellId,
         turbo_tasks: &TurboTasks<Self>,
     ) -> Result<TypedCellContent> {
-        self.0.try_read_own_task_cell(task_id, cell, turbo_tasks)
+        self.try_read_own_task_cell(task_id, cell, turbo_tasks)
     }
 
     fn read_task_collectibles(
@@ -3576,8 +3548,7 @@ impl Backend for TurboTasksBackend {
         reader: Option<TaskId>,
         turbo_tasks: &TurboTasks<Self>,
     ) -> AutoMap<RawVc, i32, BuildHasherDefault<FxHasher>, 1> {
-        self.0
-            .read_task_collectibles(task_id, collectible_type, reader, turbo_tasks)
+        self.read_task_collectibles(task_id, collectible_type, reader, turbo_tasks)
     }
 
     fn emit_collectible(
@@ -3587,8 +3558,7 @@ impl Backend for TurboTasksBackend {
         task_id: TaskId,
         turbo_tasks: &TurboTasks<Self>,
     ) {
-        self.0
-            .emit_collectible(collectible_type, collectible, task_id, turbo_tasks)
+        self.emit_collectible(collectible_type, collectible, task_id, turbo_tasks)
     }
 
     fn unemit_collectible(
@@ -3599,8 +3569,7 @@ impl Backend for TurboTasksBackend {
         task_id: TaskId,
         turbo_tasks: &TurboTasks<Self>,
     ) {
-        self.0
-            .unemit_collectible(collectible_type, collectible, count, task_id, turbo_tasks)
+        self.unemit_collectible(collectible_type, collectible, count, task_id, turbo_tasks)
     }
 
     fn update_task_cell(
@@ -3613,7 +3582,7 @@ impl Backend for TurboTasksBackend {
         verification_mode: VerificationMode,
         turbo_tasks: &TurboTasks<Self>,
     ) {
-        self.0.update_task_cell(
+        self.update_task_cell(
             task_id,
             cell,
             content,
@@ -3625,7 +3594,7 @@ impl Backend for TurboTasksBackend {
     }
 
     fn mark_own_task_as_finished(&self, task_id: TaskId, turbo_tasks: &TurboTasks<Self>) {
-        self.0.mark_own_task_as_finished(task_id, turbo_tasks);
+        self.mark_own_task_as_finished(task_id, turbo_tasks);
     }
 
     fn connect_task(
@@ -3634,7 +3603,7 @@ impl Backend for TurboTasksBackend {
         parent_task: Option<TaskId>,
         turbo_tasks: &TurboTasks<Self>,
     ) {
-        self.0.connect_task(task, parent_task, turbo_tasks);
+        self.connect_task(task, parent_task, turbo_tasks);
     }
 
     fn create_transient_task(
@@ -3642,23 +3611,23 @@ impl Backend for TurboTasksBackend {
         task_type: TransientTaskType,
         _turbo_tasks: &TurboTasks<Self>,
     ) -> TaskId {
-        self.0.create_transient_task(task_type)
+        self.create_transient_task(task_type)
     }
 
     fn dispose_root_task(&self, task_id: TaskId, turbo_tasks: &TurboTasks<Self>) {
-        self.0.dispose_root_task(task_id, turbo_tasks);
+        self.dispose_root_task(task_id, turbo_tasks);
     }
 
     fn task_statistics(&self) -> &TaskStatisticsApi {
-        &self.0.task_statistics
+        &self.task_statistics
     }
 
     fn is_tracking_dependencies(&self) -> bool {
-        self.0.options.dependency_tracking
+        self.options.dependency_tracking
     }
 
     fn get_task_name(&self, task: TaskId, turbo_tasks: &TurboTasks<Self>) -> String {
-        self.0.get_task_name(task, turbo_tasks)
+        self.get_task_name(task, turbo_tasks)
     }
 }
 
