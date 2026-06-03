@@ -1014,7 +1014,8 @@ async function generateStagedDynamicFlightRenderResultWeb(
 
   const flightReadableStream = await runInSequentialTasks(
     () => {
-      stageController.advanceStage(RenderStage.Static)
+      // NOTE: no early/late separation in this render
+      stageController.advanceStage(RenderStage.ShellStatic)
 
       const stream = workUnitAsyncStorage.run(
         requestStore,
@@ -1031,6 +1032,9 @@ async function generateStagedDynamicFlightRenderResultWeb(
       )
 
       return dynamicStream
+    },
+    () => {
+      stageController.advanceStage(RenderStage.Static)
     },
     () => {
       // This is a separate task that doesn't advance a stage. It forces
@@ -1173,7 +1177,8 @@ async function generateStagedDynamicFlightRenderResultNode(
 
   const flightStream = await runInSequentialTasks(
     () => {
-      stageController.advanceStage(RenderStage.Static)
+      // NOTE: no early/late separation in this render
+      stageController.advanceStage(RenderStage.ShellStatic)
 
       const sourceStream = workUnitAsyncStorage.run(
         requestStore,
@@ -1193,6 +1198,9 @@ async function generateStagedDynamicFlightRenderResultNode(
       )
 
       return dynamicStream
+    },
+    () => {
+      stageController.advanceStage(RenderStage.Static)
     },
     () => {
       // This is a separate task that doesn't advance a stage. It forces
@@ -1301,7 +1309,9 @@ async function stagedRenderWithoutCachesInDevWeb(
 
   return await runInSequentialTasks(
     () => {
-      stageController.advanceStage(RenderStage.Static)
+      // NOTE: no early/late separation in this render
+      stageController.advanceStage(RenderStage.ShellStatic)
+
       return workUnitAsyncStorage.run(
         requestStore,
         renderToWebFlightStream,
@@ -1313,6 +1323,9 @@ async function stagedRenderWithoutCachesInDevWeb(
           environmentName,
         }
       )
+    },
+    () => {
+      stageController.advanceStage(RenderStage.Static)
     },
     () => {
       stageController.advanceStage(RenderStage.Dynamic)
@@ -1359,7 +1372,9 @@ async function stagedRenderWithoutCachesInDevNode(
 
   return await runInSequentialTasks(
     () => {
-      stageController.advanceStage(RenderStage.Static)
+      // NOTE: no early/late separation in this render
+      stageController.advanceStage(RenderStage.ShellStatic)
+
       return workUnitAsyncStorage.run(
         requestStore,
         renderToNodeFlightStream,
@@ -1373,6 +1388,9 @@ async function stagedRenderWithoutCachesInDevNode(
       )
     },
     () => {
+      stageController.advanceStage(RenderStage.Static)
+    },
+    () => {
       stageController.advanceStage(RenderStage.Dynamic)
     }
   )
@@ -1381,9 +1399,13 @@ async function stagedRenderWithoutCachesInDevNode(
 function getEnvironmentNameForStageWithoutCaches(stage: RenderStage) {
   switch (stage) {
     case RenderStage.Before:
+    case RenderStage.ShellEarlyStatic:
+    case RenderStage.ShellStatic:
     case RenderStage.EarlyStatic:
     case RenderStage.Static:
       return 'Prerender'
+    case RenderStage.ShellEarlyRuntime:
+    case RenderStage.ShellRuntime:
     case RenderStage.EarlyRuntime:
     case RenderStage.Runtime:
     case RenderStage.Dynamic:
@@ -1923,10 +1945,10 @@ async function finalRuntimeServerPrerender(
 
   await runInSequentialTasks(
     async () => {
-      // EarlyStatic stage: render begins.
-      // Runtime-prefetchable segments render immediately.
-      // Non-prefetchable segments are gated until the Static stage.
-      finalStageController.advanceStage(RenderStage.EarlyStatic)
+      // Runtime-prefetchable segments render immediately in the early stage.
+      // Non-prefetchable segments are gated until the first late stage.
+      finalStageController.advanceStage(RenderStage.ShellEarlyStatic)
+
       const stream = workUnitAsyncStorage.run(
         finalServerPrerenderStore,
         ComponentMod.renderToReadableStream,
@@ -1949,18 +1971,35 @@ async function finalRuntimeServerPrerender(
       )
     },
     () => {
-      // Advance to Static stage: resolve promise holding back
-      // non-prefetchable segments so they can begin rendering.
+      // Resolve the promise holding back non-prefetchable segments so they can begin rendering.
+      finalStageController.advanceStage(RenderStage.ShellStatic)
+    },
+    () => {
+      finalStageController.advanceStage(RenderStage.EarlyStatic)
+    },
+    () => {
       finalStageController.advanceStage(RenderStage.Static)
     },
     () => {
-      // Advance to EarlyRuntime stage: resolve cookies/headers for
-      // runtime-prefetchable segments. Sync IO is checked here.
+      // TODO(app-shells): resolve session data for runtime-prefetchable segments here
+      // Sync IO is NOT allowed here.
+      finalStageController.advanceStage(RenderStage.ShellEarlyRuntime)
+    },
+    () => {
+      // TODO(app-shells): resolve session data here for non-prefetchable segments here
+      // Sync IO is allowed here.
+      finalStageController.advanceStage(RenderStage.ShellRuntime)
+    },
+    () => {
+      // TODO(app-shells): resolve link data for runtime-prefetchable segments here
+      // Resolve runtime data for runtime-prefetchable segments.
+      // Sync IO is NOT allowed here.
       finalStageController.advanceStage(RenderStage.EarlyRuntime)
     },
     () => {
-      // Advance to Runtime stage: resolve cookies/headers for
-      // non-prefetchable segments. Sync IO is allowed here.
+      // TODO(app-shells): resolve link data for runtime-prefetchable segments here
+      // Resolve runtime data for non-prefetchable segments.
+      // Sync IO is allowed here.
       finalStageController.advanceStage(RenderStage.Runtime)
     },
     async () => {
@@ -3779,7 +3818,8 @@ async function renderToStream(
 
           const flightStream = await runInSequentialTasks(
             () => {
-              stageController.advanceStage(RenderStage.Static)
+              // NOTE: no early/late separation in this render
+              stageController.advanceStage(RenderStage.ShellStatic)
 
               const stream = workUnitAsyncStorage.run(
                 requestStore,
@@ -3802,6 +3842,9 @@ async function renderToStream(
               )
 
               return dynamicStream
+            },
+            () => {
+              stageController.advanceStage(RenderStage.Static)
             },
             () => {
               // This is a separate task that doesn't advance a stage. It forces
@@ -3911,7 +3954,8 @@ async function renderToStream(
 
           const flightStream = await runInSequentialTasks(
             () => {
-              stageController.advanceStage(RenderStage.Static)
+              // NOTE: no early/late separation in this render
+              stageController.advanceStage(RenderStage.ShellStatic)
 
               const stream = workUnitAsyncStorage.run(
                 requestStore,
@@ -3931,6 +3975,9 @@ async function renderToStream(
               )
 
               return dynamicStream
+            },
+            () => {
+              stageController.advanceStage(RenderStage.Static)
             },
             () => {
               // This is a separate task that doesn't advance a stage. It forces
@@ -4661,9 +4708,21 @@ async function renderWithRestartOnCacheMissInDevWeb(
   // where sync IO does not cause aborts, so it's okay if it happens before render.
   const initialRscPayload = await getPayload(requestStore)
 
+  const advanceStageIfNoCacheMiss = (
+    stage: Parameters<StagedRenderingController['advanceStage']>[0]
+  ) => {
+    if (initialAbandonController.signal.aborted === true) {
+      return
+    } else if (cacheSignal.hasPendingReads()) {
+      initialAbandonController.abort()
+    } else {
+      initialStageController.advanceStage(stage)
+    }
+  }
+
   const initialStreamResult = await runInSequentialTasks(
     () => {
-      initialStageController.advanceStage(RenderStage.EarlyStatic)
+      initialStageController.advanceStage(RenderStage.ShellEarlyStatic)
       startTime = performance.now() + performance.timeOrigin
 
       const streamPair = teeStream(
@@ -4722,40 +4781,28 @@ async function renderWithRestartOnCacheMissInDevWeb(
       }
     },
     () => {
-      if (initialAbandonController.signal.aborted === true) {
-        return
-      } else if (cacheSignal.hasPendingReads()) {
-        initialAbandonController.abort()
-      } else {
-        initialStageController.advanceStage(RenderStage.Static)
-      }
+      advanceStageIfNoCacheMiss(RenderStage.ShellStatic)
     },
     () => {
-      if (initialAbandonController.signal.aborted === true) {
-        return
-      } else if (cacheSignal.hasPendingReads()) {
-        initialAbandonController.abort()
-      } else {
-        initialStageController.advanceStage(RenderStage.EarlyRuntime)
-      }
+      advanceStageIfNoCacheMiss(RenderStage.EarlyStatic)
     },
     () => {
-      if (initialAbandonController.signal.aborted === true) {
-        return
-      } else if (cacheSignal.hasPendingReads()) {
-        initialAbandonController.abort()
-      } else {
-        initialStageController.advanceStage(RenderStage.Runtime)
-      }
+      advanceStageIfNoCacheMiss(RenderStage.Static)
     },
     () => {
-      if (initialAbandonController.signal.aborted === true) {
-        return
-      } else if (cacheSignal.hasPendingReads()) {
-        initialAbandonController.abort()
-      } else {
-        initialStageController.advanceStage(RenderStage.Dynamic)
-      }
+      advanceStageIfNoCacheMiss(RenderStage.ShellEarlyRuntime)
+    },
+    () => {
+      advanceStageIfNoCacheMiss(RenderStage.ShellRuntime)
+    },
+    () => {
+      advanceStageIfNoCacheMiss(RenderStage.EarlyRuntime)
+    },
+    () => {
+      advanceStageIfNoCacheMiss(RenderStage.Runtime)
+    },
+    () => {
+      advanceStageIfNoCacheMiss(RenderStage.Dynamic)
     }
   )
 
@@ -4829,7 +4876,7 @@ async function renderWithRestartOnCacheMissInDevWeb(
 
   const finalStreamResult = await runInSequentialTasks(
     () => {
-      finalStageController.advanceStage(RenderStage.EarlyStatic)
+      finalStageController.advanceStage(RenderStage.ShellEarlyStatic)
       startTime = performance.now() + performance.timeOrigin
 
       const streamPair = teeStream(
@@ -4859,19 +4906,27 @@ async function renderWithRestartOnCacheMissInDevWeb(
       }
     },
     () => {
-      // Static stage
+      finalStageController.advanceStage(RenderStage.ShellStatic)
+    },
+    () => {
+      finalStageController.advanceStage(RenderStage.EarlyStatic)
+    },
+    () => {
       finalStageController.advanceStage(RenderStage.Static)
     },
     () => {
-      // EarlyRuntime stage
+      finalStageController.advanceStage(RenderStage.ShellEarlyRuntime)
+    },
+    () => {
+      finalStageController.advanceStage(RenderStage.ShellRuntime)
+    },
+    () => {
       finalStageController.advanceStage(RenderStage.EarlyRuntime)
     },
     () => {
-      // Runtime stage
       finalStageController.advanceStage(RenderStage.Runtime)
     },
     () => {
-      // Dynamic stage
       finalStageController.advanceStage(RenderStage.Dynamic)
     }
   )
@@ -4895,11 +4950,15 @@ async function renderWithRestartOnCacheMissInDevWeb(
 function getEnvironmentNameForStage(stage: RenderStage) {
   switch (stage) {
     case RenderStage.Before:
+    case RenderStage.ShellEarlyStatic:
+    case RenderStage.ShellStatic:
     case RenderStage.EarlyStatic:
     case RenderStage.Static:
       return 'Prerender'
+    case RenderStage.ShellEarlyRuntime:
     case RenderStage.EarlyRuntime:
       return 'Prefetch'
+    case RenderStage.ShellRuntime:
     case RenderStage.Runtime:
       return 'Prefetchable'
     case RenderStage.Dynamic:
@@ -4979,9 +5038,21 @@ async function renderWithRestartOnCacheMissInDevNode(
   // where sync IO does not cause aborts, so it's okay if it happens before render.
   const initialRscPayload = await getPayload(requestStore)
 
+  const advanceStageIfNoCacheMiss = (
+    stage: Parameters<StagedRenderingController['advanceStage']>[0]
+  ) => {
+    if (initialAbandonController.signal.aborted === true) {
+      return
+    } else if (cacheSignal.hasPendingReads()) {
+      initialAbandonController.abort()
+    } else {
+      initialStageController.advanceStage(stage)
+    }
+  }
+
   const initialStreamResult = await runInSequentialTasks(
     () => {
-      initialStageController.advanceStage(RenderStage.EarlyStatic)
+      initialStageController.advanceStage(RenderStage.ShellEarlyStatic)
       startTime = performance.now() + performance.timeOrigin
 
       const sourceStream = workUnitAsyncStorage.run(
@@ -5035,40 +5106,28 @@ async function renderWithRestartOnCacheMissInDevNode(
       }
     },
     () => {
-      if (initialAbandonController.signal.aborted === true) {
-        return
-      } else if (cacheSignal.hasPendingReads()) {
-        initialAbandonController.abort()
-      } else {
-        initialStageController.advanceStage(RenderStage.Static)
-      }
+      advanceStageIfNoCacheMiss(RenderStage.ShellStatic)
     },
     () => {
-      if (initialAbandonController.signal.aborted === true) {
-        return
-      } else if (cacheSignal.hasPendingReads()) {
-        initialAbandonController.abort()
-      } else {
-        initialStageController.advanceStage(RenderStage.EarlyRuntime)
-      }
+      advanceStageIfNoCacheMiss(RenderStage.EarlyStatic)
     },
     () => {
-      if (initialAbandonController.signal.aborted === true) {
-        return
-      } else if (cacheSignal.hasPendingReads()) {
-        initialAbandonController.abort()
-      } else {
-        initialStageController.advanceStage(RenderStage.Runtime)
-      }
+      advanceStageIfNoCacheMiss(RenderStage.Static)
     },
     () => {
-      if (initialAbandonController.signal.aborted === true) {
-        return
-      } else if (cacheSignal.hasPendingReads()) {
-        initialAbandonController.abort()
-      } else {
-        initialStageController.advanceStage(RenderStage.Dynamic)
-      }
+      advanceStageIfNoCacheMiss(RenderStage.ShellEarlyRuntime)
+    },
+    () => {
+      advanceStageIfNoCacheMiss(RenderStage.ShellRuntime)
+    },
+    () => {
+      advanceStageIfNoCacheMiss(RenderStage.EarlyRuntime)
+    },
+    () => {
+      advanceStageIfNoCacheMiss(RenderStage.Runtime)
+    },
+    () => {
+      advanceStageIfNoCacheMiss(RenderStage.Dynamic)
     }
   )
 
@@ -5142,7 +5201,7 @@ async function renderWithRestartOnCacheMissInDevNode(
 
   const finalStreamResult = await runInSequentialTasks(
     () => {
-      finalStageController.advanceStage(RenderStage.EarlyStatic)
+      finalStageController.advanceStage(RenderStage.ShellEarlyStatic)
       startTime = performance.now() + performance.timeOrigin
 
       const finalSourceStream = workUnitAsyncStorage.run(
@@ -5171,19 +5230,27 @@ async function renderWithRestartOnCacheMissInDevNode(
       }
     },
     () => {
-      // Static stage
+      finalStageController.advanceStage(RenderStage.ShellStatic)
+    },
+    () => {
+      finalStageController.advanceStage(RenderStage.EarlyStatic)
+    },
+    () => {
       finalStageController.advanceStage(RenderStage.Static)
     },
     () => {
-      // EarlyRuntime stage
+      finalStageController.advanceStage(RenderStage.ShellEarlyRuntime)
+    },
+    () => {
+      finalStageController.advanceStage(RenderStage.ShellRuntime)
+    },
+    () => {
       finalStageController.advanceStage(RenderStage.EarlyRuntime)
     },
     () => {
-      // Runtime stage
       finalStageController.advanceStage(RenderStage.Runtime)
     },
     () => {
-      // Dynamic stage
       finalStageController.advanceStage(RenderStage.Dynamic)
     }
   )
@@ -5205,9 +5272,21 @@ async function renderWithRestartOnCacheMissInDevNode(
 }
 
 interface AccumulatedStreamChunks {
+  readonly shellStaticChunks: Array<Uint8Array>
   readonly staticChunks: Array<Uint8Array>
+  readonly shellRuntimeChunks: Array<Uint8Array>
   readonly runtimeChunks: Array<Uint8Array>
   readonly dynamicChunks: Array<Uint8Array>
+}
+
+function createStageChunksAccumulator(): AccumulatedStreamChunks {
+  return {
+    shellStaticChunks: [],
+    staticChunks: [],
+    shellRuntimeChunks: [],
+    runtimeChunks: [],
+    dynamicChunks: [],
+  }
 }
 
 async function accumulateStreamChunks(
@@ -5215,10 +5294,7 @@ async function accumulateStreamChunks(
   stageController: StagedRenderingController,
   signal: AbortSignal | null
 ): Promise<AccumulatedStreamChunks> {
-  const staticChunks: Array<Uint8Array> = []
-  const runtimeChunks: Array<Uint8Array> = []
-  const dynamicChunks: Array<Uint8Array> = []
-
+  const accumulator = createStageChunksAccumulator()
   if (stream instanceof ReadableStream) {
     const reader = stream.getReader()
 
@@ -5241,13 +5317,7 @@ async function accumulateStreamChunks(
           cancel()
           break
         }
-        accumulateChunk(
-          stageController,
-          staticChunks,
-          runtimeChunks,
-          dynamicChunks,
-          value
-        )
+        accumulateChunk(stageController.currentStage, accumulator, value)
       }
     } catch (err) {
       // When we cancel the reader we may reject the read.
@@ -5274,13 +5344,7 @@ async function accumulateStreamChunks(
     try {
       for await (const value of nodeStream) {
         if (cancelled) break
-        accumulateChunk(
-          stageController,
-          staticChunks,
-          runtimeChunks,
-          dynamicChunks,
-          value
-        )
+        accumulateChunk(stageController.currentStage, accumulator, value)
       }
     } catch (err) {
       if (!cancelled) {
@@ -5288,35 +5352,40 @@ async function accumulateStreamChunks(
       }
     }
   }
-
-  return { staticChunks, runtimeChunks, dynamicChunks }
+  return accumulator
 }
 
 function accumulateChunk(
-  stageController: StagedRenderingController,
-  staticChunks: Array<Uint8Array>,
-  runtimeChunks: Array<Uint8Array>,
-  dynamicChunks: Array<Uint8Array>,
+  stage: RenderStage,
+  accumulator: AccumulatedStreamChunks,
   value: Uint8Array
 ): void {
-  switch (stageController.currentStage) {
+  switch (stage) {
     case RenderStage.Before:
       throw new InvariantError('Unexpected stream chunk while in Before stage')
+    case RenderStage.ShellEarlyStatic:
+    case RenderStage.ShellStatic:
+      accumulator.shellStaticChunks.push(value)
+    // fall through
     case RenderStage.EarlyStatic:
     case RenderStage.Static:
-      staticChunks.push(value)
+      accumulator.staticChunks.push(value)
+    // fall through
+    case RenderStage.ShellEarlyRuntime:
+    case RenderStage.ShellRuntime:
+      accumulator.shellRuntimeChunks.push(value)
     // fall through
     case RenderStage.EarlyRuntime:
     case RenderStage.Runtime:
-      runtimeChunks.push(value)
+      accumulator.runtimeChunks.push(value)
     // fall through
     case RenderStage.Dynamic:
-      dynamicChunks.push(value)
+      accumulator.dynamicChunks.push(value)
       break
     case RenderStage.Abandoned:
       break
     default:
-      stageController.currentStage satisfies never
+      stage satisfies never
       break
   }
 }
@@ -6517,7 +6586,7 @@ async function renderWithRestartOnCacheMissInValidation(
 
   const initialResult = await runInSequentialTasks(
     () => {
-      initialStageController.advanceStage(RenderStage.EarlyStatic)
+      initialStageController.advanceStage(RenderStage.ShellEarlyStatic)
       startTime = performance.now() + performance.timeOrigin
 
       const stream = workUnitAsyncStorage.run(
@@ -6552,7 +6621,19 @@ async function renderWithRestartOnCacheMissInValidation(
       return { accumulatedChunksPromise }
     },
     () => {
+      advanceStageIfNoCacheMiss(RenderStage.ShellStatic)
+    },
+    () => {
+      advanceStageIfNoCacheMiss(RenderStage.EarlyStatic)
+    },
+    () => {
       advanceStageIfNoCacheMiss(RenderStage.Static)
+    },
+    () => {
+      advanceStageIfNoCacheMiss(RenderStage.ShellEarlyRuntime)
+    },
+    () => {
+      advanceStageIfNoCacheMiss(RenderStage.ShellRuntime)
     },
     () => {
       advanceStageIfNoCacheMiss(RenderStage.EarlyRuntime)
@@ -6618,7 +6699,7 @@ async function renderWithRestartOnCacheMissInValidation(
 
   const finalResult = await runInSequentialTasks(
     () => {
-      finalStageController.advanceStage(RenderStage.EarlyStatic)
+      finalStageController.advanceStage(RenderStage.ShellEarlyStatic)
       startTime = performance.now() + performance.timeOrigin
 
       const stream = workUnitAsyncStorage.run(
@@ -6655,7 +6736,19 @@ async function renderWithRestartOnCacheMissInValidation(
       }
     },
     () => {
+      finalStageController.advanceStage(RenderStage.ShellStatic)
+    },
+    () => {
+      finalStageController.advanceStage(RenderStage.EarlyStatic)
+    },
+    () => {
       finalStageController.advanceStage(RenderStage.Static)
+    },
+    () => {
+      finalStageController.advanceStage(RenderStage.ShellEarlyRuntime)
+    },
+    () => {
+      finalStageController.advanceStage(RenderStage.ShellRuntime)
     },
     () => {
       finalStageController.advanceStage(RenderStage.EarlyRuntime)
