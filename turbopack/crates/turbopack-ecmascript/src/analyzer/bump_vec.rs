@@ -2,14 +2,15 @@
 //!
 //! `JsValue` analysis allocates all of its nodes into a per-thread [`Bump`](bumpalo::Bump) that is
 //! freed in one shot when analysis finishes. For the list children that grow or are rebuilt after
-//! construction, this module provides [`BumpVec`]: a `Send`/`Sync` growable vector that stores
-//! nothing but an arena-allocated buffer and a length, with no `unsafe impl`.
+//! construction, this module provides [`BumpVec`]: a `Send`/`Sync` growable vector that stores a
+//! raw pointer into the arena, a capacity, and a length.
 
 use std::{
     alloc::Layout,
     fmt,
     hash::{Hash, Hasher},
-    mem::{ManuallyDrop, MaybeUninit},
+    marker::PhantomData,
+    mem::ManuallyDrop,
     ops::{Deref, DerefMut},
     ptr::{self, NonNull},
 };
@@ -21,14 +22,23 @@ use bumpalo::Bump;
 /// construction (e.g. `Array.items`, `Object.parts`, `Alternatives.values`, `Add` operands, and the
 /// `Call`/`MemberCall` lists).
 ///
-/// It holds nothing but an arena-allocated buffer and a length, so it is `Send`/`Sync` (a
-/// `&'a mut [T]` is, when `T` is) with no `unsafe impl`. The growth methods take the `&'a Bump` to
-/// allocate from. The only `unsafe` here is the localized `MaybeUninit` bookkeeping every growable
-/// buffer needs.
+/// It owns its `T` elements like `Vec<T>` but stores them through a raw pointer into the arena,
+/// alongside a capacity and a length. The raw pointer makes it neither `Send` nor `Sync` on its
+/// own, so those are declared via `unsafe impl` (sound because it owns the `T`s exactly like a
+/// `Vec<T>`). The growth methods take the `&'a Bump` to allocate from.
 pub struct BumpVec<'a, T> {
-    buf: &'a mut [MaybeUninit<T>],
+    /// Points at `cap` allocated (possibly uninitialized) `T` slots; dangling when `cap == 0`.
+    ptr: NonNull<T>,
+    cap: usize,
     len: usize,
+    /// Binds the arena lifetime and signals ownership/variance over `T` to the compiler.
+    _marker: PhantomData<&'a mut [T]>,
 }
+
+// SAFETY: `BumpVec` owns its `T` elements just like `Vec<T>`; the raw pointer is merely an owning
+// handle into the arena, so it is `Send`/`Sync` exactly when `T` is.
+unsafe impl<T: Send> Send for BumpVec<'_, T> {}
+unsafe impl<T: Sync> Sync for BumpVec<'_, T> {}
 
 impl<T> Default for BumpVec<'_, T> {
     fn default() -> Self {
@@ -39,15 +49,31 @@ impl<T> Default for BumpVec<'_, T> {
 impl<'a, T> BumpVec<'a, T> {
     pub fn new() -> Self {
         Self {
-            buf: &mut [],
+            ptr: NonNull::dangling(),
+            cap: 0,
             len: 0,
+            _marker: PhantomData,
         }
+    }
+
+    /// Allocate room for `cap` uninitialized `T` slots from the arena, or a dangling pointer when
+    /// `cap == 0` (no allocation needed).
+    fn alloc_uninitialized(bump: &'a Bump, cap: usize) -> NonNull<T> {
+        if cap == 0 {
+            return NonNull::dangling();
+        }
+        let layout = Layout::array::<T>(cap).expect("capacity overflow");
+        bump.allocate(layout)
+            .expect("bump allocation failed")
+            .cast::<T>()
     }
 
     pub fn with_capacity_in(bump: &'a Bump, capacity: usize) -> Self {
         Self {
-            buf: bump.alloc_slice_fill_with(capacity, |_| MaybeUninit::uninit()),
+            ptr: Self::alloc_uninitialized(bump, capacity),
+            cap: capacity,
             len: 0,
+            _marker: PhantomData,
         }
     }
 
@@ -64,37 +90,71 @@ impl<'a, T> BumpVec<'a, T> {
     /// is the arena's most recent allocation, [`Allocator::grow`] extends it in place.
     unsafe fn realloc_to(&mut self, bump: &'a Bump, new_cap: usize) {
         debug_assert!(new_cap >= self.len);
-        let new_layout = Layout::array::<MaybeUninit<T>>(new_cap).expect("capacity overflow");
-        let new_data = if self.buf.is_empty() {
+        let new_layout = Layout::array::<T>(new_cap).expect("capacity overflow");
+        let new_ptr = if self.cap == 0 {
             // Nothing allocated yet, so there is no prior block to grow from.
             bump.allocate(new_layout)
         } else {
-            // The only caller (`push`) reallocates when full, so `buf.len() == self.len`: every
-            // slot in the old buffer is initialized and `grow` moves them all into the new block.
-            let old_layout =
-                Layout::array::<MaybeUninit<T>>(self.buf.len()).expect("capacity overflow");
-            let old_data = NonNull::from(&mut *self.buf).cast::<u8>();
-            // SAFETY: `old_data`/`old_layout` describe the current arena buffer and `new_layout` is
+            let old_layout = Layout::array::<T>(self.cap).expect("capacity overflow");
+            // SAFETY: `ptr`/`old_layout` describe the current arena buffer and `new_layout` is
             // strictly larger, so growing it (and moving the bytes) is sound.
-            unsafe { bump.grow(old_data, old_layout, new_layout) }
+
+            // re: ptr must denote a block of memory currently allocated via this allocator.
+            // While, this is not true, Bumpalo's implementation of `grow()` does not rely on
+            // this. Instead, a new pointer in the `bump` that `grow()` was called on is
+            // returned even if that was not the `bump` this vector was originally allocated
+            // in. This is relevant to us as we wrap Bump in ThreadLocal<>, therefore, different
+            // threads have different bumps.
+
+            // See the `grow_across_separate_bumps()` test.
+
+            unsafe { bump.grow(self.ptr.cast::<u8>(), old_layout, new_layout) }
         }
         .expect("bump allocation failed")
-        .cast::<MaybeUninit<T>>();
-        // SAFETY: `new_data` points to `new_cap` allocated `MaybeUninit<T>` slots.
-        self.buf = unsafe { std::slice::from_raw_parts_mut(new_data.as_ptr(), new_cap) };
+        .cast::<T>();
+        self.ptr = new_ptr;
+        self.cap = new_cap;
     }
 
     pub fn push(&mut self, bump: &'a Bump, value: T) {
-        if self.len == self.buf.len() {
-            unsafe { self.realloc_to(bump, if self.len == 0 { 4 } else { self.len * 2 }) };
+        if self.len == self.cap {
+            unsafe { self.realloc_to(bump, if self.cap == 0 { 4 } else { self.cap * 2 }) };
         }
-        self.buf[self.len].write(value);
+        // SAFETY: slot `len < cap` is allocated and uninitialized; write the value into it.
+        unsafe { self.ptr.as_ptr().add(self.len).write(value) };
         self.len += 1;
     }
 
+    /// Ensure there is room for at least `additional` more elements, growing the arena buffer
+    /// (in one allocation) if necessary.
+    pub fn reserve(&mut self, bump: &'a Bump, additional: usize) {
+        let required = self.len + additional;
+        if required > self.cap {
+            unsafe { self.realloc_to(bump, required.max(self.cap * 2)) };
+        }
+    }
+
     pub fn extend(&mut self, bump: &'a Bump, iter: impl IntoIterator<Item = T>) {
+        let iter = iter.into_iter();
+        // Reserve the lower bound returned by `size_hint()`;
+        // `push` still grows further if the hint is an underestimate.
+        self.reserve(bump, iter.size_hint().0);
         for value in iter {
             self.push(bump, value);
+        }
+    }
+
+    /// Append a clone of every element in `other`, reserving the needed capacity up front.
+    pub fn extend_from_slice(&mut self, bump: &'a Bump, other: &[T])
+    where
+        T: Clone,
+    {
+        self.reserve(bump, other.len());
+        for value in other {
+            // SAFETY: the reservation above guarantees slot `len < cap` is allocated; incrementing
+            // `len` per write keeps the vec consistent if `T::clone` panics mid-loop.
+            unsafe { self.ptr.as_ptr().add(self.len).write(value.clone()) };
+            self.len += 1;
         }
     }
 
@@ -104,7 +164,7 @@ impl<'a, T> BumpVec<'a, T> {
         }
         self.len -= 1;
         // SAFETY: index `len` was initialized; move it out and logically shrink.
-        Some(unsafe { ptr::read(self.buf[self.len].as_ptr()) })
+        Some(unsafe { self.ptr.as_ptr().add(self.len).read() })
     }
 
     /// Split the vec in two at `at`: `self` retains the prefix `[0, at)` and the returned vec owns
@@ -116,11 +176,7 @@ impl<'a, T> BumpVec<'a, T> {
         // SAFETY: indices `[at, len)` are initialized and `tail` is a fresh, non-overlapping
         // allocation; move the suffix into it bytewise.
         unsafe {
-            ptr::copy_nonoverlapping(
-                self.buf[at..self.len].as_ptr(),
-                tail.buf.as_mut_ptr(),
-                tail_len,
-            );
+            ptr::copy_nonoverlapping(self.ptr.as_ptr().add(at), tail.ptr.as_ptr(), tail_len);
         }
         tail.len = tail_len;
         self.len = at;
@@ -131,15 +187,16 @@ impl<'a, T> BumpVec<'a, T> {
 impl<T> Deref for BumpVec<'_, T> {
     type Target = [T];
     fn deref(&self) -> &[T] {
-        // SAFETY: `MaybeUninit<T>` is layout-compatible with `T`, and `0..len` is initialized.
-        unsafe { std::slice::from_raw_parts(self.buf.as_ptr() as *const T, self.len) }
+        // SAFETY: `0..len` is initialized and `ptr` is valid for that range (dangling-but-aligned
+        // when `len == 0`, which `from_raw_parts` accepts).
+        unsafe { std::slice::from_raw_parts(self.ptr.as_ptr(), self.len) }
     }
 }
 
 impl<T> DerefMut for BumpVec<'_, T> {
     fn deref_mut(&mut self) -> &mut [T] {
         // SAFETY: see `deref`.
-        unsafe { std::slice::from_raw_parts_mut(self.buf.as_mut_ptr() as *mut T, self.len) }
+        unsafe { std::slice::from_raw_parts_mut(self.ptr.as_ptr(), self.len) }
     }
 }
 
@@ -154,13 +211,13 @@ impl<'a, T> IntoIterator for BumpVec<'a, T> {
     type Item = T;
     type IntoIter = IntoIter<'a, T>;
     fn into_iter(self) -> IntoIter<'a, T> {
-        // Disable `Drop` (it would also drop the elements) and move the buffer out.
+        // Disable `Drop` (it would also drop the elements) and take over the buffer.
         let me = ManuallyDrop::new(self);
-        // SAFETY: we move the `&mut` buffer out of the (forgotten) `BumpVec`; it is not aliased.
         IntoIter {
-            buf: unsafe { ptr::read(&me.buf) },
+            ptr: me.ptr,
             len: me.len,
             idx: 0,
+            _marker: PhantomData,
         }
     }
 }
@@ -198,39 +255,41 @@ impl<T: fmt::Debug> fmt::Debug for BumpVec<'_, T> {
     }
 }
 
-/// Yields the not-yet-consumed elements of `slice` by value, dropping any that remain on `Drop`.
-fn next_owned<T>(slice: &[MaybeUninit<T>], idx: &mut usize) -> Option<T> {
-    let value = slice.get(*idx)?;
-    *idx += 1;
-    // SAFETY: every index `< slice.len()` is initialized and yielded at most once.
-    Some(unsafe { ptr::read(value.as_ptr()) })
-}
-
-fn drop_owned<T>(slice: &mut [MaybeUninit<T>], idx: usize) {
-    for slot in &mut slice[idx..] {
-        // SAFETY: elements not yet yielded are still initialized.
-        unsafe { ptr::drop_in_place(slot.as_mut_ptr()) }
-    }
-}
-
-/// By-value iterator returned from [`BumpVec::into_iter`].
+/// By-value iterator returned from [`BumpVec::into_iter`]. Owns the arena buffer's elements and
+/// drops any unconsumed remainder on `Drop`.
 pub struct IntoIter<'a, T> {
-    buf: &'a mut [MaybeUninit<T>],
+    ptr: NonNull<T>,
     len: usize,
     idx: usize,
+    _marker: PhantomData<&'a mut [T]>,
 }
+
+// SAFETY: like `BumpVec`, `IntoIter` owns its `T` elements behind a raw pointer.
+unsafe impl<T: Send> Send for IntoIter<'_, T> {}
+unsafe impl<T: Sync> Sync for IntoIter<'_, T> {}
 
 impl<T> Iterator for IntoIter<'_, T> {
     type Item = T;
     fn next(&mut self) -> Option<T> {
-        next_owned(&self.buf[..self.len], &mut self.idx)
+        if self.idx == self.len {
+            return None;
+        }
+        // SAFETY: index `idx < len` is initialized and yielded at most once.
+        let value = unsafe { self.ptr.as_ptr().add(self.idx).read() };
+        self.idx += 1;
+        Some(value)
     }
 }
 
 impl<T> Drop for IntoIter<'_, T> {
     fn drop(&mut self) {
-        let len = self.len;
-        drop_owned(&mut self.buf[..len], self.idx)
+        // SAFETY: indices `[idx, len)` are still initialized; drop them in place exactly once.
+        unsafe {
+            ptr::drop_in_place(std::slice::from_raw_parts_mut(
+                self.ptr.as_ptr().add(self.idx),
+                self.len - self.idx,
+            ));
+        }
     }
 }
 
@@ -271,6 +330,67 @@ mod tests {
 
         let v2 = BumpVec::from_iter_in(&bump, [10, 20, 30, 40]);
         assert_eq!(&*v2, &[10, 20, 30, 40][..]);
+    }
+
+    #[test]
+    fn extend_from_slice() {
+        let bump = Bump::new();
+        let mut v = BumpVec::from_iter_in(&bump, [1, 2]);
+        // Appends onto existing contents, growing past the current capacity.
+        v.extend_from_slice(&bump, &[3, 4, 5]);
+        assert_eq!(&*v, &[1, 2, 3, 4, 5][..]);
+        // Extending by an empty slice is a no-op.
+        v.extend_from_slice(&bump, &[]);
+        assert_eq!(&*v, &[1, 2, 3, 4, 5][..]);
+        // Works on a freshly-constructed empty vec too.
+        let mut empty = BumpVec::new();
+        empty.extend_from_slice(&bump, &[7, 8, 9]);
+        assert_eq!(&*empty, &[7, 8, 9][..]);
+    }
+
+    /// Confirms the cross-arena `grow()` behavior documented in `realloc_to`: a buffer allocated in
+    /// one `Bump` can be grown by calling `grow()` on a *different* `Bump`. Bumpalo never treats
+    /// the foreign pointer as its most-recent allocation, so it falls back to allocating fresh
+    /// in the target arena and copying the bytes over — the contents survive intact.
+    #[test]
+    fn grow_across_separate_bumps() {
+        let bump1 = Bump::new();
+        let bump2 = Bump::new();
+
+        // Allocate and fill to capacity entirely within `bump1`.
+        let mut v = BumpVec::with_capacity_in(&bump1, 2);
+        v.push(&bump1, 1);
+        v.push(&bump1, 2);
+
+        // The vec is now full, so this push reallocates via `bump2.grow(ptr, ..)` where `ptr` lives
+        // in `bump1`. The prior elements must be moved across to `bump2` unharmed.
+        v.push(&bump2, 3);
+        v.push(&bump2, 4);
+        v.push(&bump2, 5);
+        assert_eq!(&*v, &[1, 2, 3, 4, 5][..]);
+
+        // The buffer now lives in `bump2`; further growth on `bump2` keeps everything consistent.
+        v.extend(&bump2, 6..=10);
+        assert_eq!(&*v, &(1..=10).collect::<Vec<_>>()[..]);
+    }
+
+    /// Same cross-arena grow, but with a drop-tracked element type to prove nothing is dropped or
+    /// duplicated when the buffer is copied from one arena to another.
+    #[test]
+    fn grow_across_separate_bumps_does_not_drop_during_move() {
+        let bump1 = Bump::new();
+        let bump2 = Bump::new();
+        let counter = Rc::new(Cell::new(0));
+
+        let mut v = BumpVec::with_capacity_in(&bump1, 2);
+        v.push(&bump1, DropCounter(counter.clone()));
+        v.push(&bump1, DropCounter(counter.clone()));
+        // Cross-arena reallocation moves (does not drop) the existing elements.
+        v.push(&bump2, DropCounter(counter.clone()));
+        assert_eq!(counter.get(), 0);
+
+        drop(v);
+        assert_eq!(counter.get(), 3);
     }
 
     #[test]
