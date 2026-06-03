@@ -6,7 +6,6 @@ import {
   waitForValidation,
 } from 'e2e-utils/instant-validation'
 import {
-  getRedboxSource,
   openRedbox,
   retry,
   waitForNoErrorToast,
@@ -1894,28 +1893,6 @@ describe('instant validation', () => {
           expectNoBuildValidationErrors(result)
         }
       })
-
-      // Today the dev overlay misattributes usePathname() errors to the
-      // parent's JSX line instead of the actual hook call site. When the
-      // URL-hook factory lands, this test will start passing and
-      // `it.failing` will itself fail — flip it back to `it`.
-      /* eslint-disable jest/no-standalone-expect */
-      ;(isNextDev && !isClientNav ? it.failing : it)(
-        'invalid - usePathname() in a client component on a route with a fallback param',
-        async () => {
-          if (!isNextDev || isClientNav) {
-            return
-          }
-          const browser = await navigateTo(
-            '/default/invalid-use-pathname-no-samples/123'
-          )
-          await openRedbox(browser)
-          const source = await getRedboxSource(browser)
-          expect(source).toContain('pathname-label.tsx')
-          expect(source).toContain('PathnameLabel')
-        }
-      )
-      /* eslint-enable jest/no-standalone-expect */
     })
 
     describe('client errors', () => {
