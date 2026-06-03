@@ -24,14 +24,22 @@ use crate::NodeJsChunkingContext;
 #[value_to_string("Ecmascript Build Node Runtime Chunk")]
 pub(crate) struct EcmascriptBuildNodeRuntimeChunk {
     chunking_context: ResolvedVc<NodeJsChunkingContext>,
+    has_async_modules: bool,
 }
 
 #[turbo_tasks::value_impl]
 impl EcmascriptBuildNodeRuntimeChunk {
     /// Creates a new [`Vc<EcmascriptBuildNodeRuntimeChunk>`].
     #[turbo_tasks::function]
-    pub fn new(chunking_context: ResolvedVc<NodeJsChunkingContext>) -> Vc<Self> {
-        EcmascriptBuildNodeRuntimeChunk { chunking_context }.cell()
+    pub fn new(
+        chunking_context: ResolvedVc<NodeJsChunkingContext>,
+        has_async_modules: bool,
+    ) -> Vc<Self> {
+        EcmascriptBuildNodeRuntimeChunk {
+            chunking_context,
+            has_async_modules,
+        }
+        .cell()
     }
 
     #[turbo_tasks::function]
@@ -105,6 +113,7 @@ impl EcmascriptBuildNodeRuntimeChunk {
                 let runtime_code = turbopack_ecmascript_runtime::get_nodejs_runtime_code(
                     asset_context,
                     RuntimeType::Development,
+                    this.has_async_modules,
                     generate_source_map,
                 );
                 code.push_code(&*runtime_code.await?);
@@ -113,6 +122,7 @@ impl EcmascriptBuildNodeRuntimeChunk {
                 let runtime_code = turbopack_ecmascript_runtime::get_nodejs_runtime_code(
                     asset_context,
                     RuntimeType::Production,
+                    this.has_async_modules,
                     generate_source_map,
                 );
                 code.push_code(&*runtime_code.await?);
