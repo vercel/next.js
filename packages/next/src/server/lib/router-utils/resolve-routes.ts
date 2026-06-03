@@ -342,6 +342,8 @@ export function getResolveRoutes(
             return pageOutput
               ? {
                   ...pageOutput,
+                  // The dynamic-route scan matched the concrete request path;
+                  // keep those params with the fsChecker route definition.
                   params,
                 }
               : null

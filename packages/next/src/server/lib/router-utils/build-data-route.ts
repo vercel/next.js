@@ -47,6 +47,8 @@ export function addLocalePrefixToDataRouteRegex(
   dataRouteRegex: string,
   buildId: string
 ) {
+  // The manifest regex may contain escaped build ID characters, so insert the
+  // locale segment relative to the escaped form instead of the raw build ID.
   const buildIdSegment = `/${escapeStringRegexp(buildId)}`
   const buildIdIndex = dataRouteRegex.indexOf(buildIdSegment)
 

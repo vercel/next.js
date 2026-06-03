@@ -1755,6 +1755,9 @@ export default abstract class Server<
   }
 
   private getRouteDefinitions(): RouteDefinition[] {
+    // Route definitions are rebuilt from the manifests instead of being held
+    // by route matcher providers. This keeps direct BaseServer entrypoints
+    // working when requests do not pass through router-server's fsChecker.
     const definitions: RouteDefinition[] = []
 
     if (this.enabledDirectories.pages) {
@@ -1892,6 +1895,8 @@ export default abstract class Server<
     const definitions = this.getRouteDefinitions()
     const dynamicDefinitions: RouteDefinition[] = []
 
+    // Check exact routes first, then sort dynamic routes by specificity. The
+    // old matcher manager provided the same precedence before it was removed.
     if (!isDynamicRoute(pathname)) {
       for (const definition of definitions) {
         if (isDynamicRoute(definition.pathname)) {

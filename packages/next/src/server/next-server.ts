@@ -589,6 +589,8 @@ export default class NextNodeServer extends BaseServer<
     req.url = `${parsedInitUrl.pathname}${parsedInitUrl.search || ''}`
 
     const loader = new NodeModuleLoader()
+    // Dev definitions retain source filenames for watcher bookkeeping. API
+    // execution still needs to load the compiled server bundle.
     const modulePath = this.isDev
       ? join(this.distDir, 'server', `${match.definition.bundlePath}.js`)
       : match.definition.filename

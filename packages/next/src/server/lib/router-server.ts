@@ -77,6 +77,8 @@ const debug = setupDebug('next:router-server:main')
 const isNextFont = (pathname: string | null) =>
   pathname && /\/media\/[^/]+\.(woff|woff2|eot|ttf|otf)$/.test(pathname)
 
+// ModuleBuildError can cross compiled module boundaries, so constructor
+// identity is not reliable. Check its stable fields and string prefix instead.
 function isModuleBuildError(error: unknown): boolean {
   if (!error || typeof error !== 'object') {
     return false
@@ -723,6 +725,9 @@ export async function initialize(opts: {
       if (matchedOutput) {
         invokedOutputs.add(matchedOutput.itemPath)
 
+        // fsChecker preserves compilation errors from its dev ensure step so
+        // the route remains matched. Log the compiler diagnostic, then render
+        // the matched route as a 500 instead of falling through to a 404.
         if (matchedOutput.error && development) {
           development.bundler.logErrorWithOriginalStack(
             matchedOutput.error,
@@ -742,6 +747,8 @@ export async function initialize(opts: {
                   invokeError: matchedOutput.error,
                 }
               : undefined),
+            // fsChecker owns the route match for filesystem requests. Forward
+            // it so BaseServer does not need the removed matcher manager.
             ...(matchedOutput.route
               ? {
                   match: {
@@ -848,6 +855,8 @@ export async function initialize(opts: {
           invokePath = '/400'
           invokeStatus = '400'
         } else if (isModuleBuildError(err)) {
+          // Webpack compilation failures may bubble out of invokeRender. Log
+          // the readable diagnostic without printing the wrapper stack again.
           Log.error(getErrorMessage(err))
         } else {
           console.error(err)

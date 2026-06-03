@@ -169,6 +169,8 @@ function getAppPathDefinitionPage(
   pathname: string,
   appPaths: readonly string[]
 ): string {
+  // Prefer the app path that normalizes to the pathname. Keep the final app
+  // path as the fallback because sorted parallel routes place the root last.
   for (let i = appPaths.length - 1; i >= 0; i--) {
     const appPath = appPaths[i]
     if (normalizeAppPath(appPath) === pathname) {
@@ -368,6 +370,8 @@ async function startWatcher(
   opts.fsChecker.ensureCallback(async function ensure(item) {
     if (item.type === 'appFile' || item.type === 'pageFile') {
       const definition = item.route
+      // App paths can normalize away groups and parallel slots. Ensure the
+      // concrete route definition rather than the normalized request pathname.
       await getTracer().trace(
         DevRoutePreparationSpan.ensureRoute,
         {
@@ -1061,6 +1065,9 @@ async function startWatcher(
         serverFields.appPathRoutes
       )
 
+      // fsChecker replaces the removed dev matcher providers. Refresh its
+      // definitions on every watcher pass so newly added routes can be ensured
+      // and rendered without waiting for a separate matcher reload.
       const pageRouteDefinitions = [
         ...pageRoutes.map(
           ({ route, filePath }) =>
