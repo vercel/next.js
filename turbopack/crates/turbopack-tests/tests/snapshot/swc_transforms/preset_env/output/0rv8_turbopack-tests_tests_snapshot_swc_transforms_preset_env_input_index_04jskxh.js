@@ -20,6 +20,7 @@ var WORKER_FORWARDED_GLOBALS = [];
  *
  * It will be prepended to the runtime code of each runtime.
  */ /* eslint-disable @typescript-eslint/no-unused-vars */ /// <reference path="./runtime-types.d.ts" />
+/// <reference path="./async-module.ts" />
 function asyncGeneratorStep(gen, resolve, reject, _next, _throw, key, arg) {
     try {
         var info = gen[key](arg);
@@ -48,19 +49,6 @@ function _async_to_generator(fn) {
             _next(undefined);
         });
     };
-}
-function _define_property(obj, key, value) {
-    if (key in obj) {
-        Object.defineProperty(obj, key, {
-            value: value,
-            enumerable: true,
-            configurable: true,
-            writable: true
-        });
-    } else {
-        obj[key] = value;
-    }
-    return obj;
 }
 function _type_of(obj) {
     "@swc/helpers - typeof";
@@ -592,25 +580,6 @@ contextPrototype.f = moduleContext;
  */ function getChunkPath(chunkData) {
     return typeof chunkData === 'string' ? chunkData : chunkData.path;
 }
-function isPromise(maybePromise) {
-    return maybePromise != null && (typeof maybePromise === "undefined" ? "undefined" : _type_of(maybePromise)) === 'object' && 'then' in maybePromise && typeof maybePromise.then === 'function';
-}
-function isAsyncModuleExt(obj) {
-    return turbopackQueues in obj;
-}
-function createPromise() {
-    var resolve;
-    var reject;
-    var promise = new Promise(function(res, rej) {
-        reject = rej;
-        resolve = res;
-    });
-    return {
-        promise: promise,
-        resolve: resolve,
-        reject: reject
-    };
-}
 // Load the CompressedmoduleFactories of a chunk into the `moduleFactories` Map.
 // The CompressedModuleFactories format is
 // - 1 or more module ids
@@ -660,116 +629,6 @@ function installCompressedModuleFactories(chunkModules, offset, moduleFactories,
         i = end + 1; // end is pointing at the last factory advance to the next id or the end of the array.
     }
 }
-// everything below is adapted from webpack
-// https://github.com/webpack/webpack/blob/6be4065ade1e252c1d8dcba4af0f43e32af1bdc1/lib/runtime/AsyncModuleRuntimeModule.js#L13
-var turbopackQueues = Symbol('turbopack queues');
-var turbopackExports = Symbol('turbopack exports');
-var turbopackError = Symbol('turbopack error');
-function resolveQueue(queue) {
-    if (queue && queue.status !== 1) {
-        queue.status = 1;
-        queue.forEach(function(fn) {
-            return fn.queueCount--;
-        });
-        queue.forEach(function(fn) {
-            return fn.queueCount-- ? fn.queueCount++ : fn();
-        });
-    }
-}
-function wrapDeps(deps) {
-    return deps.map(function(dep) {
-        if (dep !== null && (typeof dep === "undefined" ? "undefined" : _type_of(dep)) === 'object') {
-            if (isAsyncModuleExt(dep)) return dep;
-            if (isPromise(dep)) {
-                var queue = Object.assign([], {
-                    status: 0
-                });
-                var _obj;
-                var obj = (_obj = {}, _define_property(_obj, turbopackExports, {}), _define_property(_obj, turbopackQueues, function(fn) {
-                    return fn(queue);
-                }), _obj);
-                dep.then(function(res) {
-                    obj[turbopackExports] = res;
-                    resolveQueue(queue);
-                }, function(err) {
-                    obj[turbopackError] = err;
-                    resolveQueue(queue);
-                });
-                return obj;
-            }
-        }
-        var _obj1;
-        return _obj1 = {}, _define_property(_obj1, turbopackExports, dep), _define_property(_obj1, turbopackQueues, function() {}), _obj1;
-    });
-}
-function asyncModule(body, hasAwait) {
-    var module = this.m;
-    var queue = hasAwait ? Object.assign([], {
-        status: -1
-    }) : undefined;
-    var depQueues = new Set();
-    var _createPromise = createPromise(), resolve = _createPromise.resolve, reject = _createPromise.reject, rawPromise = _createPromise.promise;
-    var _obj;
-    var promise = Object.assign(rawPromise, (_obj = {}, _define_property(_obj, turbopackExports, module.exports), _define_property(_obj, turbopackQueues, function(fn) {
-        queue && fn(queue);
-        depQueues.forEach(fn);
-        promise['catch'](function() {});
-    }), _obj));
-    var attributes = {
-        get: function get() {
-            return promise;
-        },
-        set: function set(v) {
-            // Calling `esmExport` leads to this.
-            if (v !== promise) {
-                promise[turbopackExports] = v;
-            }
-        }
-    };
-    Object.defineProperty(module, 'exports', attributes);
-    Object.defineProperty(module, 'namespaceObject', attributes);
-    function handleAsyncDependencies(deps) {
-        var currentDeps = wrapDeps(deps);
-        var getResult = function getResult() {
-            return currentDeps.map(function(d) {
-                if (d[turbopackError]) throw d[turbopackError];
-                return d[turbopackExports];
-            });
-        };
-        var _createPromise = createPromise(), promise = _createPromise.promise, resolve = _createPromise.resolve;
-        var fn = Object.assign(function() {
-            return resolve(getResult);
-        }, {
-            queueCount: 0
-        });
-        function fnQueue(q) {
-            if (q !== queue && !depQueues.has(q)) {
-                depQueues.add(q);
-                if (q && q.status === 0) {
-                    fn.queueCount++;
-                    q.push(fn);
-                }
-            }
-        }
-        currentDeps.map(function(dep) {
-            return dep[turbopackQueues](fnQueue);
-        });
-        return fn.queueCount ? promise : getResult();
-    }
-    function asyncResult(err) {
-        if (err) {
-            reject(promise[turbopackError] = err);
-        } else {
-            resolve(promise[turbopackExports]);
-        }
-        resolveQueue(queue);
-    }
-    body(handleAsyncDependencies, asyncResult);
-    if (queue && queue.status === -1) {
-        queue.status = 0;
-    }
-}
-contextPrototype.a = asyncModule;
 /**
  * A pseudo "fake" URL object to resolve to its relative path.
  *
