@@ -1142,7 +1142,7 @@ function assignDefaultsAndValidate(
     const { rootDir: foundRootDir, lockFiles } = findRootDirAndLockFiles(dir)
     rootDir = foundRootDir
     if (!silent) {
-      warnDuplicatedLockFiles(lockFiles)
+      warnDuplicatedLockFiles(lockFiles, rootDir)
     }
   }
 

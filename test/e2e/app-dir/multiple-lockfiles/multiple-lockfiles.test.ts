@@ -25,8 +25,13 @@ describe('multiple-lockfiles', () => {
 
   it('should have multiple lockfiles warnings', async () => {
     await retry(async () => {
+      const selectedLockFile = join(next.testDir, 'pnpm-lock.yaml')
+
       expect(next.cliOutput).toMatch(
         /We detected multiple lockfiles and selected the directory of .+ as the root directory\./
+      )
+      expect(next.cliOutput).toContain(
+        `We detected multiple lockfiles and selected the directory of ${selectedLockFile} as the root directory.`
       )
 
       if (isTurbopack) {
