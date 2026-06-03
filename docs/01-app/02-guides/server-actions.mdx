@@ -17,14 +17,11 @@ related:
     - app/api-reference/config/next-config-js/serverActions
 ---
 
-A **Server Action** is a [React Server Function](https://react.dev/reference/rsc/server-functions) dispatched inside a [transition](https://react.dev/reference/react/startTransition). React wraps the call automatically when the function is passed to a `<form action>` or a `<button formAction>`.
+A **Server Action** is a [React Server Function](https://react.dev/reference/rsc/server-functions) invoked through React's action mechanisms, such as `<form action>`, `<button formAction>`, or a client-side transition.
 
 You create one by adding the [`'use server'`](/docs/app/api-reference/directives/use-server) directive, then invoke it from a form, or from an event handler or `useEffect` wrapped in `startTransition`. For the basics of creating and invoking Server Functions, see [Mutating data](/docs/app/getting-started/mutating-data) and the [Forms guide](/docs/app/guides/forms).
 
-{/* i think we can somehow merge these two paragraphs */}
-This page covers the parts of Server Actions that are specific to Next.js: how the response carries both data and re-rendered UI, how the client dispatches them, the security boundary the framework enforces, and the configuration available.
-
-In Next.js, it typically maps to a data mutation: writing to a database, updating cookies, or invalidating cached data.
+This page covers the parts of Server Actions that are specific to Next.js: how they commonly map to mutations, how the response carries both returned data and re-rendered UI, how the client dispatches them, the security boundary the framework enforces, and the configuration available.
 
 ## Sequential dispatch on the client
 
@@ -36,11 +33,16 @@ A consequence: do not rely on `Promise.all` to parallelize Server Actions from t
 
 ## A single response carries data and UI
 
-When a Server Action runs, the response Next.js sends back contains two things: the action's return value, and an updated [RSC Payload](/docs/app/glossary#rsc-payload) for the current route. The client commits both in one render pass, with no follow-up fetch.
+When a Server Action triggers an immediate revalidation, Next.js does the work inside one HTTP request: it runs the action, then re-renders the current route server-side. The response that comes back contains both pieces in the same Flight stream:
+
+- The action's return value, consumed by `useActionState` or the awaited promise on the client.
+- A newly rendered [RSC Payload](/docs/app/glossary#rsc-payload) for the current route, which the client commits as a seeded navigation.
+
+Your application code does not need a follow-up fetch to see the updated UI for the current page.
 
 A re-render is included in the same response when the action does any of these:
 
-- Calls [`revalidatePath`](/docs/app/api-reference/functions/revalidatePath), [`revalidateTag`](/docs/app/api-reference/functions/revalidateTag), or [`updateTag`](/docs/app/api-reference/functions/updateTag) to invalidate cached data.
+- Calls [`updateTag`](/docs/app/api-reference/functions/updateTag) or [`revalidatePath`](/docs/app/api-reference/functions/revalidatePath) to immediately invalidate cached data.
 - Calls [`refresh`](/docs/app/api-reference/functions/refresh) to refetch the current route's RSC Payload.
 - Mutates cookies through [`cookies()`](/docs/app/api-reference/functions/cookies#understanding-cookie-behavior-in-server-functions). Setting or deleting a cookie automatically re-renders the current page so the UI reflects the new value.
 - Calls [`redirect`](/docs/app/api-reference/functions/redirect). The response navigates the router and streams the destination's RSC Payload.
@@ -68,6 +70,8 @@ export async function createPost(formData: FormData) {
 ```
 
 The mutation, the cache invalidation, and the page re-render all complete in a single roundtrip. Because [`redirect`](/docs/app/api-reference/functions/redirect#behavior) throws a control-flow exception, any code after it does not run. Place revalidation calls before `redirect` if the destination needs the fresh data.
+
+[`revalidateTag`](/docs/app/api-reference/functions/revalidateTag) with a stale-while-revalidate profile is the exception: it marks the tag for background refresh and does **not** include a re-render in the action response. The page reflects the change on a later read. An action that does none of the above carries only its return value, and the current route is not re-rendered.
 
 ## Returning UI from an action
 
@@ -112,7 +116,7 @@ export function LoginForm({ initial }: { initial: ReactNode }) {
 Caveats:
 
 - **Sequential dispatch still applies.** The returned UI lands in the same one-at-a-time queue described in [Sequential dispatch](#sequential-dispatch-on-the-client), so back-to-back submissions render in order, not in parallel.
-- **Client Components in the returned tree must already be reachable from the route's module graph.** A Client Component imported _only_ inside a Server Action is not traced into the React Client Manifest, and returning it fails with `Could not find the module in the React Client Manifest`. Make sure the same Client Component is rendered or imported elsewhere in the route, or wrap it in a Server Component that the action returns.
+- **Client Components in the returned tree must already be reachable from the route's [module graph](/docs/app/glossary#module-graph).** A Client Component imported _only_ inside a Server Action is not traced into the React Client Manifest, and returning it fails with `Could not find the module in the React Client Manifest`. Make sure the same Client Component is rendered or imported elsewhere in the route, or wrap it in a Server Component that the action returns.
 - **Initial state must be serializable.** `useActionState`'s initial state is bound into the form for no-JS submissions, so a React element can't go there. Pass `null` and render the initial view yourself, as above. JSX returned by the action only renders once JS has loaded.
 
 ## Security
@@ -182,15 +186,16 @@ export async function completeItem(itemId: string) {
 
 ## Choosing a cache update
 
-Server Actions are where you tell the cache that data has changed. Pick based on the scope of the change:
+After mutating data, on-demand revalidation updates the server cache, the client router, or both. Choose based on what needs to change:
 
-- [`revalidateTag`](/docs/app/api-reference/functions/revalidateTag) and [`updateTag`](/docs/app/api-reference/functions/updateTag): invalidate by tag. Use when several pages share data that you tagged when fetching it.
-- [`revalidatePath`](/docs/app/api-reference/functions/revalidatePath): invalidate by URL path. Use when only one route is affected.
-- [`refresh`](/docs/app/api-reference/functions/refresh): refetch the current route's RSC Payload without invalidating tagged data. Use when the action mutated state the current view derives from but no shared cache entry needs to expire.
+- [`updateTag`](/docs/app/api-reference/functions/updateTag): immediate expiration of a tag. The next read (including the route re-render that ships with the action's response) waits for fresh data. Use when the action needs **read-your-own-writes** so the user immediately sees their change. Server Actions only.
+- [`revalidateTag`](/docs/app/api-reference/functions/revalidateTag): stale-while-revalidate refresh of a tag with a cache-life profile. Subsequent reads get the stale value while a fresh fetch happens in the background, so the action's own re-render does **not** wait for the new data.
+- [`revalidatePath`](/docs/app/api-reference/functions/revalidatePath): invalidate by URL path. Use when one route is affected and tagging is overkill.
+- [`refresh`](/docs/app/api-reference/functions/refresh): refetch the current route's RSC Payload without invalidating cached data. Use when the view depends on state outside the cache that the action just changed.
 
-Each of these calls also marks the request as having revalidated, which is what tells Next.js to include a fresh [RSC Payload](/docs/app/glossary#rsc-payload) in the action response. If an action mutates data without calling one of them, the response carries the return value but no UI update.
+When `updateTag`, `revalidatePath`, or `refresh` runs, Next.js re-renders the current route server-side and includes a newly rendered [RSC Payload](/docs/app/glossary#rsc-payload) in the action's response, so the page reflects the change in the same roundtrip. `revalidateTag` with a stale-while-revalidate profile intentionally skips that immediate re-render.
 
-If your project uses [Cache Components](/docs/app/guides/migrating-to-cache-components), prefer `updateTag` over `revalidateTag` for atomic invalidate-and-revalidate semantics. See [How revalidation works](/docs/app/guides/how-revalidation-works) for the underlying model.
+Unlike [`redirect`](/docs/app/api-reference/functions/redirect), none of these throw, so an action can call them and still return a value to the caller. See [How revalidation works](/docs/app/guides/how-revalidation-works) for the underlying model.
 
 ## Configuration
 
