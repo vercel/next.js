@@ -83,7 +83,7 @@ describe('debug-build-paths', () => {
     describe('glob pattern matching', () => {
       it('should match app and pages routes with glob patterns', async () => {
         const buildResult = await next.build({
-          args: ['--debug-build-paths', 'pages/*.tsx,app/page.tsx'],
+          args: ['--debug-build-paths', 'pages/**/*.tsx,app/page.tsx'],
         })
         expect(buildResult.exitCode).toBe(0)
         expect(buildResult.cliOutput).toBeDefined()
@@ -94,7 +94,8 @@ describe('debug-build-paths', () => {
          └ ○ /_not-found
          Route (pages)
          ┌ ○ /bar
-         └ ○ /foo"
+         ├ ○ /foo
+         └ ○ /with-index"
         `)
       })
 

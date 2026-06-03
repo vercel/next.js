@@ -23,6 +23,7 @@ use next_core::{
         ServerChunkingContextOptions, ServerContextType, get_server_chunking_context,
         get_server_chunking_context_with_client_assets, get_server_compile_time_info,
         get_server_module_options_context, get_server_resolve_options_context,
+        get_tracing_compile_time_info,
     },
     next_telemetry::ProjectFeatureUsageSummary,
     parse_segment_config_from_source,
@@ -44,7 +45,7 @@ use turbo_tasks_fs::{
 };
 use turbo_unix_path::{join_path, unix_to_sys};
 use turbopack::{
-    ModuleAssetContext, evaluate_context::node_build_environment,
+    ModuleAssetContext, evaluate_context::node_build_environment, externals_tracing_module_context,
     global_module_ids::get_global_module_id_strategy, transition::TransitionOptions,
 };
 use turbopack_core::{
@@ -62,7 +63,7 @@ use turbopack_core::{
     issue::{
         CollectibleIssuesExt, Issue, IssueExt, IssueFilter, IssueSeverity, IssueStage, StyledString,
     },
-    module::Module,
+    module::{Module, Modules},
     module_graph::{
         GraphEntries, ModuleGraph, SingleModuleGraph, VisitedModules,
         binding_usage_info::{
@@ -75,6 +76,7 @@ use turbopack_core::{
         expand_output_assets,
     },
     reference::all_assets_from_entries,
+    reference_type::{CommonJsReferenceSubType, ReferenceType},
     resolve::{FindContextFileResult, find_context_file},
     version::{
         NotFoundVersion, OptionVersionedContent, Update, Version, VersionState, VersionedContent,
@@ -246,31 +248,47 @@ impl DebugBuildPathsRouteKeys {
             .into())
     }
 
+    fn pages_route_key_from_debug_path(path: &RcStr) -> Result<RcStr> {
+        // Strip extension: "/foo.tsx" -> "/foo"
+        // Catch-all routes like "/foo/[...slug]" contain dots in the segment name;
+        // only treat the suffix as an extension when it is a plain alphanumeric token.
+        let file_name = path.rsplit('/').next().unwrap_or(path);
+        let result = if let Some(dot_idx) = file_name.rfind('.') {
+            let ext = &file_name[dot_idx + 1..];
+            if !ext.is_empty() && ext.chars().all(|c| c.is_ascii_alphanumeric()) {
+                let trimmed_len = path.len() - (file_name.len() - dot_idx);
+                path[..trimmed_len].into()
+            } else {
+                path.clone()
+            }
+        } else {
+            path.clone()
+        };
+
+        // Strip index suffix: "/foo/index.tsx" -> "/foo"
+        Ok(if let Some(stripped) = result.strip_suffix("/index") {
+            if stripped.is_empty() {
+                "/".into()
+            } else {
+                stripped.into()
+            }
+        } else {
+            result
+        })
+    }
+
     fn from_debug_build_paths(paths: &DebugBuildPaths) -> Result<Self> {
         Ok(Self {
             app: paths
                 .app
                 .iter()
                 .map(|path| Self::app_route_key_from_debug_path(path))
-                .collect::<Result<FxHashSet<_>>>()?,
+                .collect::<Result<_>>()?,
             pages: paths
                 .pages
                 .iter()
-                .map(|path| {
-                    // Pages router: "/foo.tsx" -> "/foo"
-                    // Catch-all routes like "/foo/[...slug]" contain dots in the segment name;
-                    // only treat the suffix as an extension when it is a plain alphanumeric token.
-                    let file_name = path.rsplit('/').next().unwrap_or(path);
-                    if let Some(dot_idx) = file_name.rfind('.') {
-                        let ext = &file_name[dot_idx + 1..];
-                        if !ext.is_empty() && ext.chars().all(|c| c.is_ascii_alphanumeric()) {
-                            let trimmed_len = path.len() - (file_name.len() - dot_idx);
-                            return path[..trimmed_len].into();
-                        }
-                    }
-                    path.clone()
-                })
-                .collect(),
+                .map(Self::pages_route_key_from_debug_path)
+                .collect::<Result<_>>()?,
         })
     }
 
@@ -1427,6 +1445,13 @@ impl Project {
             .try_flat_join()
             .await?;
         modules.extend(self.client_main_modules().await?.iter().cloned());
+        modules.extend(
+            self.additional_traced_modules()
+                .await?
+                .iter()
+                .cloned()
+                .map(|m| ChunkGroupEntry::Entry(vec![m])),
+        );
         Ok(Vc::cell(modules))
     }
 
@@ -2574,6 +2599,40 @@ impl Project {
             ..(*self).clone()
         }
         .cell())
+    }
+
+    /// Returns any modules specified as `nextConfig.cacheHandler` and/or `nextConfig.cacheHandlers`
+    #[turbo_tasks::function]
+    pub async fn additional_traced_modules(self: Vc<Self>) -> Result<Vc<Modules>> {
+        let project_path = self.project_path().owned().await?;
+        let cache_handler = self
+            .next_config()
+            .cache_handler(project_path.clone())
+            .await?;
+        let cache_handlers = self
+            .next_config()
+            .cache_handlers(project_path.clone())
+            .await?;
+
+        let asset_context =
+            externals_tracing_module_context(get_tracing_compile_time_info(), false);
+
+        Ok(Vc::cell(
+            cache_handler
+                .iter()
+                .chain(cache_handlers.iter())
+                .map(|f| {
+                    asset_context
+                        .process(
+                            Vc::upcast(FileSource::new(f.clone())),
+                            ReferenceType::CommonJs(CommonJsReferenceSubType::Undefined),
+                        )
+                        .module()
+                })
+                .map(|m| m.to_resolved())
+                .try_join()
+                .await?,
+        ))
     }
 }
 

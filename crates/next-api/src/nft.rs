@@ -60,7 +60,7 @@ pub async fn trace_endpoint(
     project: ResolvedVc<Project>,
     page_name: Option<RcStr>,
     module_graph: ResolvedVc<ModuleGraph>,
-    entry_modules: Vec<ResolvedVc<Box<dyn Module>>>,
+    entry_module: ResolvedVc<Box<dyn Module>>,
 ) -> Result<Vc<EndpointTraceResult>> {
     let span = tracing::info_span!("trace endpoint", path = debug(&page_name));
     async {
@@ -71,19 +71,21 @@ pub async fn trace_endpoint(
             .output_file_tracing_includes(project_path.clone())
             .await?;
 
+        let traced_entries = project.additional_traced_modules();
+
         // Collect referenced assets and externals from module graph
         let all_modules = traced_modules_for_entries(
             *module_graph,
-            Vc::cell(entry_modules.clone()),
+            Vc::cell(vec![entry_module]),
+            traced_entries,
             tracing_exclude_glob(page_name.clone(), project_path.clone(), next_config)
                 .await?
                 .map(|v| *v),
-            false,
             Some(next_config.config_file_path(project_path.clone())),
         )
         .await?;
 
-        let module_data = traced_module_data_for_graph(*module_graph, false)
+        let module_data = traced_module_data_for_graph(*module_graph, traced_entries)
             .to_resolved()
             .await?;
         let module_paths = module_data.await?.idents;
@@ -265,13 +267,13 @@ pub async fn tracing_exclude_glob(
 pub async fn traced_modules_for_entries(
     module_graph: Vc<ModuleGraph>,
     entry_modules: Vc<Modules>,
+    traced_entries: Vc<Modules>,
     exclude_glob: Option<Vc<Glob>>,
-    entries_are_traced: bool,
     forbidden_path: Option<Vc<FileSystemPath>>,
 ) -> Result<Vc<Modules>> {
     let exclude_glob_and_module_idents = if let Some(exclude_glob) = exclude_glob {
         let exclude_glob = exclude_glob.await?;
-        let data = traced_module_data_for_graph(module_graph, entries_are_traced).await?;
+        let data = traced_module_data_for_graph(module_graph, traced_entries).await?;
         Some((exclude_glob, data.idents.await?))
     } else {
         None
@@ -288,14 +290,20 @@ pub async fn traced_modules_for_entries(
     };
 
     let mut forbidden_issues = vec![];
+    let traced_entries = traced_entries.await?;
+    let traced_entries_set = traced_entries.iter().copied().collect::<FxHashSet<_>>();
 
     let mut traced_modules = FxIndexSet::default();
     module_graph.await?.traverse_edges_dfs(
-        entry_modules.await?.iter().copied(),
+        entry_modules
+            .await?
+            .iter()
+            .chain(traced_entries.iter())
+            .copied(),
         &mut (),
         |parent, target, _| {
             let Some((parent, ref_data)) = parent else {
-                if entries_are_traced {
+                if traced_entries_set.contains(&target) {
                     traced_modules.insert(target);
                 }
                 return Ok(GraphTraversalAction::Continue);
@@ -368,12 +376,14 @@ pub struct TracedModuleData {
 #[turbo_tasks::function]
 pub async fn traced_module_data_for_graph(
     module_graph: Vc<ModuleGraph>,
-    entries_are_traced: bool,
+    traced_entries: Vc<Modules>,
 ) -> Result<Vc<TracedModuleData>> {
     // This function is very similar to traced_modules_for_entries, but doesn't apply the glob and
     // is executed only once for the whole graph.
     let module_graph = module_graph.await?;
     let entries = module_graph.graphs.iter().flat_map(|g| g.entry_modules());
+
+    let traced_entries = traced_entries.await?.into_iter().collect::<FxHashSet<_>>();
 
     let mut traced_modules = FxHashSet::default();
     module_graph.traverse_edges_dfs(
@@ -381,7 +391,7 @@ pub async fn traced_module_data_for_graph(
         &mut (),
         |parent, target, _| {
             let Some((parent, ref_data)) = parent else {
-                if entries_are_traced {
+                if traced_entries.contains(&target) {
                     traced_modules.insert(target);
                 }
                 return Ok(GraphTraversalAction::Continue);
