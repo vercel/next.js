@@ -32,7 +32,7 @@ pub struct BumpVec<'a, T> {
     cap: usize,
     len: usize,
     /// Binds the arena lifetime and signals ownership/variance over `T` to the compiler.
-    _marker: PhantomData<&'a mut [T]>,
+    _marker: PhantomData<&'a ()>,
 }
 
 // SAFETY: `BumpVec` owns its `T` elements just like `Vec<T>`; the raw pointer is merely an owning
@@ -80,7 +80,8 @@ impl<'a, T> BumpVec<'a, T> {
     /// Collect `iter` into a growable [`BumpVec`].
     pub fn from_iter_in(bump: &'a Bump, iter: impl IntoIterator<Item = T>) -> Self {
         let iter = iter.into_iter();
-        let mut vec = Self::with_capacity_in(bump, iter.size_hint().0);
+        let mut vec =
+            Self::with_capacity_in(bump, iter.size_hint().1.unwrap_or(iter.size_hint().0));
         vec.extend(bump, iter);
         vec
     }
@@ -138,7 +139,7 @@ impl<'a, T> BumpVec<'a, T> {
         let iter = iter.into_iter();
         // Reserve the lower bound returned by `size_hint()`;
         // `push` still grows further if the hint is an underestimate.
-        self.reserve(bump, iter.size_hint().0);
+        self.reserve(bump, iter.size_hint().1.unwrap_or(iter.size_hint().0));
         for value in iter {
             self.push(bump, value);
         }
@@ -261,7 +262,7 @@ pub struct IntoIter<'a, T> {
     ptr: NonNull<T>,
     len: usize,
     idx: usize,
-    _marker: PhantomData<&'a mut [T]>,
+    _marker: PhantomData<&'a ()>,
 }
 
 // SAFETY: like `BumpVec`, `IntoIter` owns its `T` elements behind a raw pointer.
@@ -285,7 +286,7 @@ impl<T> Drop for IntoIter<'_, T> {
     fn drop(&mut self) {
         // SAFETY: indices `[idx, len)` are still initialized; drop them in place exactly once.
         unsafe {
-            ptr::drop_in_place(std::slice::from_raw_parts_mut(
+            ptr::drop_in_place(std::ptr::slice_from_raw_parts_mut(
                 self.ptr.as_ptr().add(self.idx),
                 self.len - self.idx,
             ));
