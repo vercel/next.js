@@ -5,10 +5,10 @@ This solution was compiled, validated, and packaged autonomously in an isolated 
 ## 📝 1. Executed Action Summary
 - **Target Upstream Repository**: `github.com/vercel/next.js`
 - **User Fork Destination**: `github.com/georgespeelman02-create/next.js`
-- **Issue Reference**: #10627
+- **Issue Reference**: #94385
 - **Solution Branch**: `refs/heads/bounty-auto-assign-10627`
 - **Verified Commit SHA**: `0x0b0c7a14eaef59cfda892cfa7170884d`
-- **Submission Date**: `2026-06-03T09:54:05.843Z`
+- **Submission Date**: `2026-06-03T09:54:17.528Z`
 
 ## 🛠️ 2. Core Remediation Diff
 ```ts
