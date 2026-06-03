@@ -1,8 +1,6 @@
 /// <reference path="./runtime-types.d.ts" />
 /// <reference path="./runtime-utils.ts" />
 
- 
-
 /**
  * Top-level-await / async-module machinery. This is only included in the runtime
  * when the module graph actually contains an async module (a module with
