@@ -40,11 +40,7 @@ var ASYNC_ITERATOR = Symbol.asyncIterator,
   currentView = null,
   writtenBytes = 0,
   destinationHasCapacity = !0;
-function writeToDestination(destination, view) {
-  destination = destination.write(view);
-  destinationHasCapacity = destinationHasCapacity && destination;
-}
-function writeChunkAndReturn(destination, chunk) {
+function writeChunk(destination, chunk) {
   if ("string" === typeof chunk) {
     if (0 !== chunk.length)
       if (4096 < 3 * chunk.length)
@@ -104,6 +100,13 @@ function writeChunkAndReturn(destination, chunk) {
             (writeToDestination(destination, currentView),
             (currentView = new Uint8Array(4096)),
             (writtenBytes = 0))));
+}
+function writeToDestination(destination, view) {
+  destination = destination.write(view);
+  destinationHasCapacity = destinationHasCapacity && destination;
+}
+function writeChunkAndReturn(destination, chunk) {
+  writeChunk(destination, chunk);
   return destinationHasCapacity;
 }
 var textEncoder = new util.TextEncoder();
@@ -847,6 +850,7 @@ function describeObjectForErrorMessage(objectOrArray, expandedName) {
 var hasOwnProperty = Object.prototype.hasOwnProperty,
   ObjectPrototype$1 = Object.prototype,
   stringify = JSON.stringify,
+  NEXT_TWO_CHUNKS_ARE_ATOMIC = Symbol(),
   TaintRegistryObjects = ReactSharedInternalsServer.TaintRegistryObjects,
   TaintRegistryValues = ReactSharedInternalsServer.TaintRegistryValues,
   TaintRegistryByteLengths =
@@ -1936,7 +1940,11 @@ function emitTypedArrayChunk(request, id, tag, typedArray, debug) {
   );
   debug = typedArray.byteLength;
   id = id.toString(16) + ":" + tag + debug.toString(16) + ",";
-  request.completedRegularChunks.push(id, typedArray);
+  request.completedRegularChunks.push(
+    NEXT_TWO_CHUNKS_ARE_ATOMIC,
+    id,
+    typedArray
+  );
 }
 function emitTextChunk(request, id, text, debug) {
   if (null === byteLengthOfChunk)
@@ -1946,7 +1954,7 @@ function emitTextChunk(request, id, text, debug) {
   debug ? request.pendingDebugChunks++ : request.pendingChunks++;
   debug = byteLengthOfChunk(text);
   id = id.toString(16) + ":T" + debug.toString(16) + ",";
-  request.completedRegularChunks.push(id, text);
+  request.completedRegularChunks.push(NEXT_TWO_CHUNKS_ARE_ATOMIC, id, text);
 }
 function emitChunk(request, task, value) {
   var id = task.id;
@@ -2126,15 +2134,28 @@ function flushCompletedChunks(request) {
         }
       hintChunks.splice(0, i);
       var regularChunks = request.completedRegularChunks;
-      for (i = 0; i < regularChunks.length; i++)
-        if (
-          (request.pendingChunks--,
-          !writeChunkAndReturn(destination, regularChunks[i]))
-        ) {
+      for (i = 0; i < regularChunks.length; i++) {
+        var item = regularChunks[i];
+        importsChunks = void 0;
+        if (item === NEXT_TWO_CHUNKS_ARE_ATOMIC) {
+          if (i + 2 >= regularChunks.length)
+            throw Error("A chunk pair is incomplete. This is a bug in React.");
+          request.pendingChunks -= 2;
+          writeChunk(destination, regularChunks[i + 1]);
+          importsChunks = writeChunkAndReturn(
+            destination,
+            regularChunks[i + 2]
+          );
+          i += 2;
+        } else
+          request.pendingChunks--,
+            (importsChunks = writeChunkAndReturn(destination, item));
+        if (!importsChunks) {
           request.destination = null;
           i++;
           break;
         }
+      }
       regularChunks.splice(0, i);
       var errorChunks = request.completedErrorChunks;
       for (i = 0; i < errorChunks.length; i++)
@@ -2274,9 +2295,9 @@ function abort(request, reason) {
         onAllReady();
         flushCompletedChunks(request);
       }
-    } catch (error$29) {
-      logRecoverableError(request, error$29, null),
-        fatalError(request, error$29);
+    } catch (error$28) {
+      logRecoverableError(request, error$28, null),
+        fatalError(request, error$28);
     }
 }
 function resolveServerReference(bundlerConfig, id) {
@@ -3051,12 +3072,12 @@ function parseReadableStream(response, reference, type) {
               (previousBlockedChunk = chunk));
         } else {
           chunk = previousBlockedChunk;
-          var chunk$34 = new ReactPromise("pending", null, null);
-          chunk$34.then(enqueue, flightController.error);
-          previousBlockedChunk = chunk$34;
+          var chunk$33 = new ReactPromise("pending", null, null);
+          chunk$33.then(enqueue, flightController.error);
+          previousBlockedChunk = chunk$33;
           chunk.then(function () {
-            previousBlockedChunk === chunk$34 && (previousBlockedChunk = null);
-            resolveModelChunk(response, chunk$34, json, -1);
+            previousBlockedChunk === chunk$33 && (previousBlockedChunk = null);
+            resolveModelChunk(response, chunk$33, json, -1);
           });
         }
       },

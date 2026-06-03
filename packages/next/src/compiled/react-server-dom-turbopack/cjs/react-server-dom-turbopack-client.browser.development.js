@@ -1164,7 +1164,9 @@
             "This object has been omitted by React in the console log to avoid sending too much data from the server. Try logging smaller or more specific objects." ===
             value
               ? "\u2026"
-              : JSON.stringify(value);
+              : JSON.stringify(
+                  1024 <= value.length ? value.slice(0, 1023) + "\u2026" : value
+                );
           break;
         case "undefined":
           value = "undefined";
@@ -5159,10 +5161,10 @@
       return hook.checkDCE ? !0 : !1;
     })({
       bundleType: 1,
-      version: "19.3.0-canary-c0cd4d5d-20260527",
+      version: "19.3.0-canary-f0dfee38-20260529",
       rendererPackageName: "react-server-dom-turbopack",
       currentDispatcherRef: ReactSharedInternals,
-      reconcilerVersion: "19.3.0-canary-c0cd4d5d-20260527",
+      reconcilerVersion: "19.3.0-canary-f0dfee38-20260529",
       getCurrentComponentInfo: function () {
         return currentOwnerInDEV;
       }

@@ -48,7 +48,7 @@ var LocalPromise = Promise,
         },
   currentView = null,
   writtenBytes = 0;
-function writeChunkAndReturn(destination, chunk) {
+function writeChunk(destination, chunk) {
   if (0 !== chunk.byteLength)
     if (4096 < chunk.byteLength)
       0 < writtenBytes &&
@@ -71,6 +71,9 @@ function writeChunkAndReturn(destination, chunk) {
       currentView.set(chunk, writtenBytes);
       writtenBytes += chunk.byteLength;
     }
+}
+function writeChunkAndReturn(destination, chunk) {
+  writeChunk(destination, chunk);
   return !0;
 }
 var textEncoder = new TextEncoder();
@@ -820,7 +823,8 @@ function describeObjectForErrorMessage(objectOrArray, expandedName) {
 }
 var hasOwnProperty = Object.prototype.hasOwnProperty,
   ObjectPrototype$1 = Object.prototype,
-  stringify = JSON.stringify;
+  stringify = JSON.stringify,
+  NEXT_TWO_CHUNKS_ARE_ATOMIC = Symbol();
 function defaultErrorHandler(error) {
   console.error(error);
 }
@@ -1880,7 +1884,11 @@ function emitTypedArrayChunk(request, id, tag, typedArray, debug) {
   debug = typedArray.byteLength;
   id = id.toString(16) + ":" + tag + debug.toString(16) + ",";
   id = stringToChunk(id);
-  request.completedRegularChunks.push(id, typedArray);
+  request.completedRegularChunks.push(
+    NEXT_TWO_CHUNKS_ARE_ATOMIC,
+    id,
+    typedArray
+  );
 }
 function emitTextChunk(request, id, text, debug) {
   if (null === byteLengthOfChunk)
@@ -1892,7 +1900,7 @@ function emitTextChunk(request, id, text, debug) {
   debug = text.byteLength;
   id = id.toString(16) + ":T" + debug.toString(16) + ",";
   id = stringToChunk(id);
-  request.completedRegularChunks.push(id, text);
+  request.completedRegularChunks.push(NEXT_TWO_CHUNKS_ARE_ATOMIC, id, text);
 }
 function emitChunk(request, task, value) {
   var id = task.id;
@@ -2056,9 +2064,28 @@ function flushCompletedChunks(request) {
         writeChunkAndReturn(destination, hintChunks[i]);
       hintChunks.splice(0, i);
       var regularChunks = request.completedRegularChunks;
-      for (i = 0; i < regularChunks.length; i++)
-        request.pendingChunks--,
-          writeChunkAndReturn(destination, regularChunks[i]);
+      for (i = 0; i < regularChunks.length; i++) {
+        var item = regularChunks[i];
+        importsChunks = void 0;
+        if (item === NEXT_TWO_CHUNKS_ARE_ATOMIC) {
+          if (i + 2 >= regularChunks.length)
+            throw Error("A chunk pair is incomplete. This is a bug in React.");
+          request.pendingChunks -= 2;
+          writeChunk(destination, regularChunks[i + 1]);
+          importsChunks = writeChunkAndReturn(
+            destination,
+            regularChunks[i + 2]
+          );
+          i += 2;
+        } else
+          request.pendingChunks--,
+            (importsChunks = writeChunkAndReturn(destination, item));
+        if (!importsChunks) {
+          request.destination = null;
+          i++;
+          break;
+        }
+      }
       regularChunks.splice(0, i);
       var errorChunks = request.completedErrorChunks;
       for (i = 0; i < errorChunks.length; i++)
@@ -2195,9 +2222,9 @@ function abort(request, reason) {
         onAllReady();
         flushCompletedChunks(request);
       }
-    } catch (error$26) {
-      logRecoverableError(request, error$26, null),
-        fatalError(request, error$26);
+    } catch (error$25) {
+      logRecoverableError(request, error$25, null),
+        fatalError(request, error$25);
     }
 }
 function resolveServerReference(bundlerConfig, id) {
@@ -2974,12 +3001,12 @@ function parseReadableStream(response, reference, type) {
               (previousBlockedChunk = chunk));
         } else {
           chunk = previousBlockedChunk;
-          var chunk$31 = new ReactPromise("pending", null, null);
-          chunk$31.then(enqueue, flightController.error);
-          previousBlockedChunk = chunk$31;
+          var chunk$30 = new ReactPromise("pending", null, null);
+          chunk$30.then(enqueue, flightController.error);
+          previousBlockedChunk = chunk$30;
           chunk.then(function () {
-            previousBlockedChunk === chunk$31 && (previousBlockedChunk = null);
-            resolveModelChunk(response, chunk$31, json, -1);
+            previousBlockedChunk === chunk$30 && (previousBlockedChunk = null);
+            resolveModelChunk(response, chunk$30, json, -1);
           });
         }
       },
