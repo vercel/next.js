@@ -43,7 +43,7 @@ pub fn test_instance(tt: Arc<TurboTasks<TurboTasksBackend>>) -> TestInstance {
     let snapshot_and_evict = Box::new(move || {
         let _ = tt_for_evict
             .backend()
-            .snapshot_and_evict_for_testing(&*tt_for_evict);
+            .snapshot_and_evict_for_testing(&tt_for_evict);
     });
     TestInstance {
         tt: tt as Arc<dyn TurboTasksApi>,
