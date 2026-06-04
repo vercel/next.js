@@ -44,7 +44,6 @@ Runtime prefetching extends the static shell with request-specific content like 
 
 ### Build the static shell
 
-{/* we can ITG here, a sufficiently long lifetime, is guarantee for the framework, that the data can be reused, even used in the static shell */}
 With Cache Components, **caching directives** (`"use cache"` and its variants) assign a lifetime to an async function's result, which is what lets Next.js include it in the static shell.
 
 > **Good to know:** [`"use cache: private"`](/docs/app/api-reference/directives/use-cache-private) is a variant for caching functions that read runtime APIs like `cookies()` and `headers()`. The result is cached in the browser only, not on the server. **It can't be part of the static shell.** See [`"use cache: private"`](/docs/app/guides/runtime-prefetching#use-cache-private) in the runtime prefetching guide for how it pairs with prefetching.
