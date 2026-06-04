@@ -1,8 +1,8 @@
 use anyhow::Result;
 use bincode::{Decode, Encode};
 use swc_core::{
-    common::util::take::Take,
-    ecma::ast::{CallExpr, Callee, Expr, ExprOrSpread, Lit},
+    common::{DUMMY_SP, util::take::Take},
+    ecma::ast::{ArrayLit, CallExpr, Callee, Expr, ExprOrSpread, Lit, Null},
     quote_expr,
 };
 use turbo_rcstr::{RcStr, rcstr};
@@ -30,10 +30,8 @@ use crate::{
     create_visitor,
     references::{
         AstPath,
-        constant_value::parse_single_expr_lit,
         pattern_mapping::{PatternMapping, ResolveType},
     },
-    utils::StringifyJs,
     worker_chunk::{WorkerType, module::WorkerLoaderModule},
 };
 
@@ -432,17 +430,24 @@ impl WorkerGlobalsReplacementCodeGen {
         chunking_context: Vc<Box<dyn ChunkingContext>>,
     ) -> Result<CodeGeneration> {
         let options = chunking_context.worker_configuration_options().await?;
-        let value: RcStr = match self.placeholder {
-            WorkerGlobalPlaceholder::ForwardedGlobals => {
-                StringifyJs(&options.forwarded_globals).to_string()
-            }
-            WorkerGlobalPlaceholder::BasePath => StringifyJs(&options.asset_prefix).to_string(),
+        let value: Expr = match self.placeholder {
+            WorkerGlobalPlaceholder::ForwardedGlobals => Expr::Array(ArrayLit {
+                span: DUMMY_SP,
+                elems: options
+                    .forwarded_globals
+                    .iter()
+                    .map(|global| Some(Expr::Lit(Lit::Str(global.as_str().into())).into()))
+                    .collect(),
+            }),
+            WorkerGlobalPlaceholder::BasePath => match &options.asset_prefix {
+                Some(asset_prefix) => Expr::Lit(Lit::Str(asset_prefix.as_str().into())),
+                None => Expr::Lit(Lit::Null(Null { span: DUMMY_SP })),
+            },
         }
         .into();
-        let replacement = parse_single_expr_lit(&value);
 
         let visitor = create_visitor!(self.path, visit_mut_expr, |expr: &mut Expr| {
-            *expr = replacement.clone();
+            *expr = value.clone();
         });
 
         Ok(CodeGeneration::visitors(vec![visitor]))

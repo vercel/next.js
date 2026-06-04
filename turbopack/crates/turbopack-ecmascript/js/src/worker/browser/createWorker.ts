@@ -19,6 +19,8 @@ declare const __turbopack_chunk_asset_suffix__: string
 declare const _TURBOPACK_WORKER_FORWARDED_GLOBALS_: string[]
 declare const _TURBOPACK_WORKER_BASE_PATH_: string | null
 
+type WorkerConstructor = new (url: URL, options?: object) => Worker
+
 /**
  * Creates a web worker by instantiating the given WorkerConstructor with the
  * appropriate URL and options.
@@ -35,7 +37,7 @@ declare const _TURBOPACK_WORKER_BASE_PATH_: string | null
  * @param workerOptions options to pass to the Worker constructor (optional)
  */
 function createWorker(
-  WorkerConstructor: { new (url: URL, options?: object): Worker },
+  WorkerConstructor: WorkerConstructor,
   entrypoint: string,
   moduleChunks: string[],
   workerOptions?: object
@@ -53,8 +55,9 @@ function createWorker(
     .map((chunk) => __turbopack_chunk_relative_url__(chunk, workerBasePath))
     .reverse()
   const params: unknown[] = [chunkUrls, __turbopack_chunk_asset_suffix__]
-  for (const globalName of _TURBOPACK_WORKER_FORWARDED_GLOBALS_) {
-    params.push((globalThis as Record<string, unknown>)[globalName])
+  const globals = _TURBOPACK_WORKER_FORWARDED_GLOBALS_
+  for (let i = 0; i < globals.length; i++) {
+    params.push((globalThis as Record<string, unknown>)[globals[i]])
   }
 
   const url = new URL(

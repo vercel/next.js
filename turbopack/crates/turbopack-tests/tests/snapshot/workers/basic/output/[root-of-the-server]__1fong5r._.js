@@ -1,8 +1,8 @@
-(globalThis["TURBOPACK"] || (globalThis["TURBOPACK"] = [])).push(["output/[root-of-the-server]__0kx1kaj._.js",
-"[project]/turbopack/crates/turbopack-tests/tests/snapshot/workers/shared/input/worker.js (static in ecmascript)", ((__turbopack_context__) => {
+(globalThis["TURBOPACK"] || (globalThis["TURBOPACK"] = [])).push(["output/[root-of-the-server]__1fong5r._.js",
+"[project]/turbopack/crates/turbopack-tests/tests/snapshot/workers/basic/input/worker.js (static in ecmascript)", ((__turbopack_context__) => {
 
-__turbopack_context__.q("/static/worker.1n36e5vaxakik.js");}),
-"[turbopack-ecmascript]/worker/browser/createWorker.ts [test] (ecmascript)", ((__turbopack_context__) => {
+__turbopack_context__.q("/static/worker.2-qnq-strt8dn.js");}),
+"[turbopack-cli]/worker/browser/createWorker.ts [test] (ecmascript)", ((__turbopack_context__) => {
 "use strict";
 
 // Embedded worker-runtime helper. This file is bundled as a regular module and
@@ -39,14 +39,15 @@ __turbopack_context__.s([
     // module chunks loaded inside the worker, keeping them same-origin to each
     // other when `CHUNK_BASE_PATH` (= `assetPrefix`) is a cross-origin CDN.
     // `null` falls back; an empty string is treated as a literal empty prefix.
-    const workerBasePath = ("TURBOPACK compile-time value", null) ?? /*TURBOPACK member replacement*/ __turbopack_context__.b;
+    const workerBasePath = null ?? /*TURBOPACK member replacement*/ __turbopack_context__.b;
     const chunkUrls = moduleChunks.map((chunk)=>/*TURBOPACK member replacement*/ __turbopack_context__.h(chunk, workerBasePath)).reverse();
     const params = [
         chunkUrls,
         /*TURBOPACK member replacement*/ __turbopack_context__.X
     ];
-    for (const globalName of ("TURBOPACK compile-time value", [])){
-        params.push(globalThis[globalName]);
+    const globals = [];
+    for(let i = 0; i < globals.length; i++){
+        params.push(globalThis[globals[i]]);
     }
     const url = new URL(/*TURBOPACK member replacement*/ __turbopack_context__.h(entrypoint, workerBasePath), location.origin);
     const paramsJson = JSON.stringify(params);
@@ -66,20 +67,21 @@ function generateCreateWorker(entrypoint, moduleChunks) {
     return (WorkerConstructor, workerOptions)=>createWorker(WorkerConstructor, entrypoint, moduleChunks, workerOptions);
 }
 }),
-"[project]/turbopack/crates/turbopack-tests/tests/snapshot/workers/shared/input/worker.js [test] (ecmascript, worker loader)", ((__turbopack_context__) => {
+"[project]/turbopack/crates/turbopack-tests/tests/snapshot/workers/basic/input/worker.js [test] (ecmascript, worker loader)", ((__turbopack_context__) => {
 
-__turbopack_context__.v(__turbopack_context__.r("[turbopack-ecmascript]/worker/browser/createWorker.ts [test] (ecmascript)")["default"]("output/0uxq_crates_turbopack-tests_tests_snapshot_workers_shared_output_0uy0mni._.js", ["output/1do3_crates_turbopack-tests_tests_snapshot_workers_shared_input_worker_1u1i0a1.js","output/1i9t_crates_turbopack-tests_tests_snapshot_workers_shared_input_worker_1xw116u.js"]));
+__turbopack_context__.v(__turbopack_context__.r("[turbopack-cli]/worker/browser/createWorker.ts [test] (ecmascript)")["default"]("output/0uxq_crates_turbopack-tests_tests_snapshot_workers_basic_output_0uy0mni._.js", ["output/1do3_crates_turbopack-tests_tests_snapshot_workers_basic_input_worker_11ygioo.js","output/1i9t_crates_turbopack-tests_tests_snapshot_workers_basic_input_worker_0yr5fg0.js"]));
 }),
-"[project]/turbopack/crates/turbopack-tests/tests/snapshot/workers/shared/input/index.js [test] (ecmascript)", ((__turbopack_context__, module, exports) => {
+"[project]/turbopack/crates/turbopack-tests/tests/snapshot/workers/basic/input/index.js [test] (ecmascript)", ((__turbopack_context__, module, exports) => {
 
 var __TURBOPACK__import$2e$meta__ = {
     get url () {
-        return __turbopack_context__.F("turbopack/crates/turbopack-tests/tests/snapshot/workers/shared/input/index.js");
+        return __turbopack_context__.F("turbopack/crates/turbopack-tests/tests/snapshot/workers/basic/input/index.js");
     }
 };
-const url = new __turbopack_context__.U(__turbopack_context__.r("[project]/turbopack/crates/turbopack-tests/tests/snapshot/workers/shared/input/worker.js (static in ecmascript)"));
-__turbopack_context__.r("[project]/turbopack/crates/turbopack-tests/tests/snapshot/workers/shared/input/worker.js [test] (ecmascript, worker loader)")(SharedWorker);
+console.log('index.js');
+const url = new __turbopack_context__.U(__turbopack_context__.r("[project]/turbopack/crates/turbopack-tests/tests/snapshot/workers/basic/input/worker.js (static in ecmascript)"));
+__turbopack_context__.r("[project]/turbopack/crates/turbopack-tests/tests/snapshot/workers/basic/input/worker.js [test] (ecmascript, worker loader)")(Worker);
 }),
 ]);
 
-//# sourceMappingURL=%5Broot-of-the-server%5D__0kx1kaj._.js.map
+//# sourceMappingURL=%5Broot-of-the-server%5D__1fong5r._.js.map

@@ -21,8 +21,11 @@ function createWorker(
 ): unknown {
   // Build the forwarded globals object
   const forwardedGlobals: Record<string, unknown> = {}
-  for (const name of _TURBOPACK_WORKER_FORWARDED_GLOBALS_) {
-    forwardedGlobals[name] = (globalThis as Record<string, unknown>)[name]
+  const globals = _TURBOPACK_WORKER_FORWARDED_GLOBALS_
+  for (let i = 0; i < globals.length; i++) {
+    forwardedGlobals[globals[i]] = (globalThis as Record<string, unknown>)[
+      globals[i]
+    ]
   }
 
   // Merge workerData with forwarded globals

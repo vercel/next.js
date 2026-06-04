@@ -2,7 +2,7 @@ use anyhow::{Result, bail};
 use indoc::formatdoc;
 use turbo_rcstr::rcstr;
 use turbo_tasks::{ResolvedVc, TryJoinIterExt, ValueToString, Vc};
-use turbo_tasks_fs::{FileSystem, embed_directory};
+use turbo_tasks_fs::FileSystem;
 use turbopack_core::{
     chunk::{
         AsyncModuleInfo, ChunkData, ChunkGroupType, ChunkableModule, ChunkingContext,
@@ -26,14 +26,10 @@ use crate::{
         EcmascriptChunkItemContent, EcmascriptChunkItemOptions, EcmascriptChunkPlaceable,
         EcmascriptExports, data::EcmascriptChunkData, ecmascript_chunk_item,
     },
+    embed_js::embed_fs,
     runtime_functions::{TURBOPACK_EXPORT_VALUE, TURBOPACK_REQUIRE},
     utils::{StringifyJs, StringifyModuleId},
 };
-
-#[turbo_tasks::function]
-fn embed_fs() -> Vc<Box<dyn FileSystem>> {
-    embed_directory!("turbopack-ecmascript", "$CARGO_MANIFEST_DIR/js/src")
-}
 
 /// The WorkerLoaderModule is a module that creates a separate root chunk group for the given module
 /// and exports a URL (for web workers) or file path (for Node.js workers) to pass to the worker
