@@ -30,6 +30,7 @@ import {
 } from '../stream-utils/node-web-streams-helper'
 import { indexOfUint8Array } from '../stream-utils/uint8array-helpers'
 import { ENCODED_TAGS } from '../stream-utils/encoded-tags'
+import { createNodeBufferedTransformStream } from '../stream-utils/node-buffered-transform-stream'
 import { MISSING_ROOT_TAGS_ERROR } from '../../shared/lib/errors/constants'
 import {
   htmlEscapeAttributeString,
@@ -117,58 +118,6 @@ function webToReadable(
     return stream
   }
   return Readable.fromWeb(stream as WebReadableStream)
-}
-
-// ---------------------------------------------------------------------------
-// Buffered transform – Node.js Transform that coalesces chunks written in the
-// same microtask into a single Uint8Array before pushing downstream, flushing
-// synchronously once the buffer reaches `maxBufferByteLength` (default: never,
-// i.e. microtask-only).
-// ---------------------------------------------------------------------------
-
-export function createNodeBufferedTransformStream(
-  maxBufferByteLength: number = Infinity
-): Transform {
-  let bufferedChunks: Array<Uint8Array> = []
-  let bufferByteLength = 0
-  let flushScheduled = false
-
-  function flushBuffered(stream: Transform): void {
-    if (bufferedChunks.length === 0) return
-
-    const merged = new Uint8Array(bufferByteLength)
-    let copiedBytes = 0
-    for (let i = 0; i < bufferedChunks.length; i++) {
-      const bufferedChunk = bufferedChunks[i]
-      merged.set(bufferedChunk, copiedBytes)
-      copiedBytes += bufferedChunk.byteLength
-    }
-    bufferedChunks.length = 0
-    bufferByteLength = 0
-    stream.push(merged)
-  }
-
-  return new Transform({
-    transform(chunk, _encoding, callback) {
-      bufferedChunks.push(chunk)
-      bufferByteLength += chunk.byteLength
-
-      if (bufferByteLength >= maxBufferByteLength) {
-        flushBuffered(this)
-      } else if (!flushScheduled) {
-        flushScheduled = true
-        queueMicrotask(() => {
-          flushScheduled = false
-          flushBuffered(this)
-        })
-      }
-      callback()
-    },
-    flush(callback) {
-      flushBuffered(this)
-      callback()
-    },
-  })
 }
 
 // ---------------------------------------------------------------------------

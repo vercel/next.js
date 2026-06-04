@@ -1,5 +1,6 @@
 import type { Readable } from 'node:stream'
 import { createBufferedTransformStream } from '../stream-utils/node-web-streams-helper'
+import { createNodeBufferedTransformStream } from '../stream-utils/node-buffered-transform-stream'
 import {
   HMR_MESSAGE_SENT_TO_BROWSER,
   type HmrMessageSentToBrowser,
@@ -82,9 +83,6 @@ export function connectReactDebugChannel(
 
     reader.read().then(progress, onError)
   } else {
-    const { createNodeBufferedTransformStream } =
-      require('../app-render/stream-ops.node') as typeof import('../app-render/stream-ops.node')
-
     const source = readable as Readable
     // `pipe` does not forward source errors to the destination, so handle them
     // on the source directly.
