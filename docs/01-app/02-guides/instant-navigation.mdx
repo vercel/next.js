@@ -44,6 +44,7 @@ Runtime prefetching extends the static shell with request-specific content like 
 
 ### Build the static shell
 
+{/* we can ITG here, a sufficiently long lifetime, is guarantee for the framework, that the data can be reused, even used in the static shell */}
 With Cache Components, **caching directives** (`"use cache"` and its variants) assign a lifetime to an async function's result, which is what lets Next.js include it in the static shell.
 
 > **Good to know:** [`"use cache: private"`](/docs/app/api-reference/directives/use-cache-private) is a variant for caching functions that read runtime APIs like `cookies()` and `headers()`. The result is cached in the browser only, not on the server. **It can't be part of the static shell.** See [`"use cache: private"`](/docs/app/guides/runtime-prefetching#use-cache-private) in the runtime prefetching guide for how it pairs with prefetching.
@@ -164,6 +165,8 @@ As you develop a route, the Next.js DevTools let you see what your users see on 
 
 The [React DevTools Suspense panel](https://react.dev/learn/react-developer-tools) complements this: it lists the `<Suspense>` boundaries in the tree and lets you toggle each one between its fallback and resolved state, so you can see exactly which boundary covers which part of the page.
 
+{/* TODO: screenshot — React DevTools Suspense panel listing boundaries with toggle controls */}
+
 The Navigation Inspector is available when Cache Components is enabled:
 
 ```ts filename="next.config.ts" highlight={4}
@@ -185,7 +188,11 @@ When the UI is frozen, click **Continue Rendering** to let the current navigatio
 
 Try refreshing the product page. Two separate fallbacks appear: "Loading product..." and "Checking availability...". On the first visit the cache is cold and both fallbacks are visible. Navigate to the page again and the product name appears immediately from cache.
 
+{/* TODO: screenshot — Navigation Inspector frozen at the static shell on a page refresh, showing both "Loading product..." and "Checking availability..." fallbacks */}
+
 Now click a link from `/store/shoes` to `/store/hats`. The product name and price appear immediately (cached). "Checking availability..." shows where inventory will stream in.
+
+{/* TODO: screenshot — Navigation Inspector frozen at the prefetched destination on a client navigation, showing cached product name + price with "Checking availability..." fallback */}
 
 > **Good to know:** Page loads and client navigations can produce different shells. Client-side hooks like `useSearchParams` suspend on page loads (search params are not known at build time) but resolve synchronously on client navigations (the router already has the params).
 
@@ -283,6 +290,8 @@ You can see this with the DevTools. Try a **page load**: the root `<Suspense>` c
 
 Cache Components simulates navigations at every shared layout boundary in this route. The page awaits `params` and accesses uncached data at the top level, with no `<Suspense>` boundary around any of it. The first thing validation catches is the `await params` at the top level.
 
+{/* TODO: screenshot — Next.js dev overlay surfacing the blocking-route insight on the broken /shop/[slug] route, with the await params at the top level highlighted */}
+
 ### Step 2: Fix the validation error
 
 There is no `generateStaticParams` here, `slug` is only known at request time. Because awaiting `params` suspends, the page component can't do it at the top level. Instead, move the `await params` into separate components, pass `params` to each, and wrap them with `<Suspense>`.
@@ -344,6 +353,8 @@ export default function ProductPage(props: PageProps<'/shop/[slug]'>) {
 Validation passes. Open the DevTools and try a client navigation. The product name and price appear immediately, and **"Checking availability..."** shows where inventory will stream in.
 
 ### Iterate on loading states
+
+{/* TODO: diagram — before/after illustration showing a single high-up Suspense boundary being refined down to smaller boundaries closer to the data */}
 
 Validation passing means the navigation is instant. It does not mean the loading states are good. A `<Suspense>` boundary placed high in the tree (say, wrapping the whole page) might satisfy validation, but it replaces most of the page with a single fallback on every navigation.
 

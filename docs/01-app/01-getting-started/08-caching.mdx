@@ -278,9 +278,9 @@ async function UserPreferences() {
 
 During prerendering, the header (static) and blog posts (cached with `use cache`) become part of the static shell, along with the fallback UI for user preferences. The UI preferences stored in cookies stream in at request time.
 
-Reading `cookies()` here doesn't push the whole route into dynamic rendering, the way the previous rendering model did. The Suspense boundary contains the runtime access, so static and cached content still ship in the initial HTML.
+Reading `cookies()` here doesn't opt-in the whole route into dynamic rendering, the way the previous rendering model did. The Suspense boundary provides fallback UI where the runtime access streams, while static and cached content still ship in the initial HTML.
 
-Just as `<Suspense>` contains async access, an **error boundary** contains failures: scope it to the subtree that might fail, and the rest of the page stays intact. Use [`unstable_catchError`](/docs/app/api-reference/functions/catchError) for component-level boundaries, or the [`error.js`](/docs/app/api-reference/file-conventions/error) file convention for route-level boundaries.
+Just as `<Suspense>` contains async access, an **error boundary** contains failures: wrap them around a subtree that might error during rendering. Use [`unstable_catchError`](/docs/app/api-reference/functions/catchError) for component-level boundaries, or the [`error.js`](/docs/app/api-reference/file-conventions/error) file convention for route-level boundaries.
 
 As you build, consider that inside [`generateMetadata`](/docs/app/api-reference/functions/generate-metadata#with-cache-components) and [`generateViewport`](/docs/app/api-reference/functions/generate-viewport#with-cache-components), uncached fetches or runtime data access surface the same insights and errors as in your page, guiding you to the rendering you intend. For incremental static regeneration with both known and unknown param values, see [ISR with Cache Components](/docs/app/guides/incremental-static-regeneration-cache-components).
 
@@ -439,7 +439,7 @@ The same principle applies to `cookies()`, `headers()`, `searchParams`, and data
 
 ### Instant navigation
 
-A static shell makes direct visits instant. Client transitions are different: a `<Suspense>` boundary that covers a direct visit may not be part of the render on a client navigation. Cache Components surfaces where your component tree contains code that would block, giving you options to make the transition instant, such as wrapping data in `<Suspense>`, caching it with `use cache`, or moving where the access happens.
+Cache Components shipped in 16.0.0 with verification that direct visits to a route produce a static shell. Client navigations are different: a `<Suspense>` boundary that covers a direct visit may not be part of the render during a transition. Getting that structure right is easier when the framework steps in. Cache Components now validates these navigations too, giving you insights and errors that guide you to make navigations to your route instant. For example, wrap data in `<Suspense>`, cache it with `use cache`, or move where the access happens.
 
 Read the [Instant navigation guide](/docs/app/guides/instant-navigation) for examples and inspection tools.
 
