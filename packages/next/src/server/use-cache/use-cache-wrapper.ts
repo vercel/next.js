@@ -56,7 +56,12 @@ import type { CacheEntry } from '../lib/cache-handlers/types'
 import type { CacheSignal } from '../app-render/cache-signal'
 import { decryptActionBoundArgs } from '../app-render/encryption'
 import { InvariantError } from '../../shared/lib/invariant-error'
-import { createReactServerErrorHandler } from '../app-render/create-error-handler'
+import {
+  createReactServerErrorHandler,
+  type DigestedError,
+} from '../app-render/create-error-handler'
+import { createDigestWithErrorCode } from '../../lib/error-telemetry-utils'
+import stringHash from 'next/dist/compiled/string-hash'
 import { DYNAMIC_EXPIRE, RUNTIME_PREFETCH_DYNAMIC_STALE } from './constants'
 import { NEXT_CACHE_ROOT_PARAM_TAG_ID } from '../../lib/constants'
 import type { CacheHandler } from '../lib/cache-handlers/types'
@@ -1269,9 +1274,32 @@ async function generateCacheEntryImpl(
               onError(error) {
                 if (
                   devRenderAbortController.signal.aborted &&
-                  devRenderAbortController.signal.reason === error
+                  devRenderAbortController.signal.reason === error &&
+                  error instanceof Error
                 ) {
-                  return undefined
+                  // The abort reason is the same error stored as
+                  // `workStore.invalidDynamicUsageError` (a fill timeout or
+                  // deadlock). Register it under a digest and return that
+                  // digest, so the error that surfaces on the consumer side of
+                  // this Flight boundary carries it and the outer render's
+                  // handler can recover *this* object via
+                  // `reactServerErrorsByDigest`.
+                  //
+                  // We deliberately do not set `error.digest` here: whether the
+                  // error actually surfaces (vs. being caught in userland) is
+                  // the consumer's decision, so the "surfaced" mark is left to
+                  // the outer handler.
+                  const digest = createDigestWithErrorCode(
+                    error,
+                    stringHash(error.message + (error.stack || '')).toString()
+                  )
+
+                  workStore.reactServerErrorsByDigest.set(
+                    digest,
+                    error as DigestedError
+                  )
+
+                  return digest
                 }
 
                 return handleError(error)
