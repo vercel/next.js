@@ -53,6 +53,6 @@ export function createWebDebugChannel(): DebugChannelPair {
  * Use with renderToNodeFlightStream (React's renderToPipeableStream),
  * which expects debugChannel to be a Node.js stream with a .write() method.
  */
-export function createNodeDebugChannel(): never {
+export function createNodeDebugChannel(): DebugChannelPair {
   throw new Error('not implemented')
 }
