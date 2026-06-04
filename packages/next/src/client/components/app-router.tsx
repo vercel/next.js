@@ -496,7 +496,13 @@ function Router({
   )
 
   if (process.env.__NEXT_DEV_SERVER) {
-    // In development, we apply few error boundaries and hot-reloader:
+    // In development, we apply a few error boundaries and the hot-reloader.
+    // These are browser-only: they render nothing during server-side rendering
+    // and only run browser-side effects. Requiring them exclusively in the
+    // browser keeps their code out of the SSR bundle, and avoids the
+    // hot-reloader's module-scope sync IO (e.g. `Math.random()` for the dev
+    // client id) from running during render, which would otherwise be reported
+    // as a false-positive sync IO access when Cache Components is enabled.
     // - DevRootHTTPAccessFallbackBoundary: avoid using navigation API like notFound() in root layout
     // - HotReloader:
     //  - hot-reload the app when the code changes
@@ -505,26 +511,23 @@ function Router({
     if (typeof window !== 'undefined') {
       const { DevRootHTTPAccessFallbackBoundary } =
         require('./dev-root-http-access-fallback-boundary') as typeof import('./dev-root-http-access-fallback-boundary')
+      const HotReloader: typeof import('../dev/hot-reloader/app/hot-reloader-app').default =
+        (
+          require('../dev/hot-reloader/app/hot-reloader-app') as typeof import('../dev/hot-reloader/app/hot-reloader-app')
+        ).default
+
       content = (
-        <DevRootHTTPAccessFallbackBoundary>
-          {content}
-        </DevRootHTTPAccessFallbackBoundary>
+        <HotReloader
+          globalError={globalError}
+          webSocket={webSocket}
+          staticIndicatorState={staticIndicatorState}
+        >
+          <DevRootHTTPAccessFallbackBoundary>
+            {content}
+          </DevRootHTTPAccessFallbackBoundary>
+        </HotReloader>
       )
     }
-    const HotReloader: typeof import('../dev/hot-reloader/app/hot-reloader-app').default =
-      (
-        require('../dev/hot-reloader/app/hot-reloader-app') as typeof import('../dev/hot-reloader/app/hot-reloader-app')
-      ).default
-
-    content = (
-      <HotReloader
-        globalError={globalError}
-        webSocket={webSocket}
-        staticIndicatorState={staticIndicatorState}
-      >
-        {content}
-      </HotReloader>
-    )
   } else {
     content = (
       <RootErrorBoundary
