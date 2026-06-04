@@ -39,7 +39,7 @@ use crate::{
         member::MemberReplacement,
         require_context::RequireContextAssetReferenceCodeGen,
         unreachable::Unreachable,
-        worker::WorkerAssetReferenceCodeGen,
+        worker::{WorkerAssetReferenceCodeGen, WorkerGlobalsReplacementCodeGen},
     },
 };
 
@@ -203,6 +203,7 @@ pub enum CodeGen {
     UrlAssetReferenceCodeGen(UrlAssetReferenceCodeGen),
     WorkerAssetReferenceCodeGen(WorkerAssetReferenceCodeGen),
     ModuleHotReferenceCodeGen(ModuleHotReferenceCodeGen),
+    WorkerGlobalsReplacementCodeGen(WorkerGlobalsReplacementCodeGen),
 }
 
 impl CodeGen {
@@ -239,6 +240,7 @@ impl CodeGen {
             Self::ModuleHotReferenceCodeGen(v) => {
                 v.code_generation(ctx, scope_hoisting_context).await
             }
+            Self::WorkerGlobalsReplacementCodeGen(v) => v.code_generation(ctx).await,
         }
     }
 }

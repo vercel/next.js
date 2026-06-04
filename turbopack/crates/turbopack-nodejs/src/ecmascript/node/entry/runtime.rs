@@ -64,10 +64,9 @@ impl EcmascriptBuildNodeRuntimeChunk {
         let asset_prefix = asset_prefix.as_deref().unwrap_or("/");
 
         // Get the list of global variable names to forward to workers
-        let worker_forwarded_globals =
-            Vc::upcast::<Box<dyn ChunkingContext>>(*this.chunking_context)
-                .worker_forwarded_globals()
-                .await?;
+        let worker_config = Vc::upcast::<Box<dyn ChunkingContext>>(*this.chunking_context)
+            .worker_configuration_options()
+            .await?;
 
         writedoc!(
             code,
@@ -75,16 +74,14 @@ impl EcmascriptBuildNodeRuntimeChunk {
                 var RUNTIME_PUBLIC_PATH = {};
                 var RELATIVE_ROOT_PATH = {};
                 var ASSET_PREFIX = {};
-                var WORKER_FORWARDED_GLOBALS = {};
             "#,
             StringifyJs(runtime_public_path),
             StringifyJs(output_root_to_root_path.as_str()),
             StringifyJs(asset_prefix),
-            StringifyJs(&*worker_forwarded_globals),
         )?;
 
         // Add preamble to read forwarded globals from workerData (for worker_threads)
-        if !worker_forwarded_globals.is_empty() {
+        if !worker_config.forwarded_globals.is_empty() {
             writedoc!(
                 code,
                 r#"

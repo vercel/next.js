@@ -30,8 +30,10 @@ use crate::{
     create_visitor,
     references::{
         AstPath,
+        constant_value::parse_single_expr_lit,
         pattern_mapping::{PatternMapping, ResolveType},
     },
+    utils::StringifyJs,
     worker_chunk::{WorkerType, module::WorkerLoaderModule},
 };
 
@@ -398,5 +400,57 @@ impl WorkerAssetReferenceCodeGen {
         });
 
         Ok(CodeGeneration::visitors(vec![visitor]))
+    }
+}
+
+#[derive(
+    PartialEq, Eq, TraceRawVcs, ValueDebugFormat, NonLocalValue, Debug, Hash, Encode, Decode,
+)]
+pub enum WorkerGlobalPlaceholder {
+    /// `const _TURBOPACK_WORKER_FORWARDED_GLOBALS_ = []`
+    ForwardedGlobals,
+    /// `const _TURBOPACK_WORKER_BASE_PATH_ = '_TURBOPACK_WORKER_BASE_PATH_REPLACE_'`
+    BasePath,
+}
+
+#[derive(
+    PartialEq, Eq, TraceRawVcs, ValueDebugFormat, NonLocalValue, Debug, Hash, Encode, Decode,
+)]
+pub struct WorkerGlobalsReplacementCodeGen {
+    /// Which placeholder this codegen replaces (determines the injected value).
+    placeholder: WorkerGlobalPlaceholder,
+    path: AstPath,
+}
+
+impl WorkerGlobalsReplacementCodeGen {
+    pub fn new(placeholder: WorkerGlobalPlaceholder, path: AstPath) -> Self {
+        WorkerGlobalsReplacementCodeGen { placeholder, path }
+    }
+
+    pub async fn code_generation(
+        &self,
+        chunking_context: Vc<Box<dyn ChunkingContext>>,
+    ) -> Result<CodeGeneration> {
+        let options = chunking_context.worker_configuration_options().await?;
+        let value: RcStr = match self.placeholder {
+            WorkerGlobalPlaceholder::ForwardedGlobals => {
+                StringifyJs(&options.forwarded_globals).to_string()
+            }
+            WorkerGlobalPlaceholder::BasePath => StringifyJs(&options.asset_prefix).to_string(),
+        }
+        .into();
+        let replacement = parse_single_expr_lit(&value);
+
+        let visitor = create_visitor!(self.path, visit_mut_expr, |expr: &mut Expr| {
+            *expr = replacement.clone();
+        });
+
+        Ok(CodeGeneration::visitors(vec![visitor]))
+    }
+}
+
+impl From<WorkerGlobalsReplacementCodeGen> for CodeGen {
+    fn from(val: WorkerGlobalsReplacementCodeGen) -> Self {
+        CodeGen::WorkerGlobalsReplacementCodeGen(val)
     }
 }
