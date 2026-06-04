@@ -1,4 +1,4 @@
-(globalThis["TURBOPACK"] || (globalThis["TURBOPACK"] = [])).push(["output/[root-of-the-server]__08ofy-h._.js",
+(globalThis["TURBOPACK"] || (globalThis["TURBOPACK"] = [])).push(["output/[root-of-the-server]__0yakmbh._.js",
 "[project]/turbopack/crates/turbopack-tests/tests/snapshot/imports/ignore-comments/input/vercel.cjs [test] (ecmascript)", ((__turbopack_context__, module, exports) => {
 
 module.exports = 'turbopack';
@@ -6,7 +6,7 @@ module.exports = 'turbopack';
 "[project]/turbopack/crates/turbopack-tests/tests/snapshot/imports/ignore-comments/input/vercel.cjs (static in ecmascript)", ((__turbopack_context__) => {
 
 __turbopack_context__.q("/static/vercel.0kkt412gy5vj6.cjs");}),
-"[turbopack-ecmascript]/worker/browser/createWorker.ts [test] (ecmascript)", ((__turbopack_context__) => {
+"[turbopack-cli]/worker/browser/createWorker.ts [test] (ecmascript)", ((__turbopack_context__) => {
 "use strict";
 
 // Embedded worker-runtime helper. This file is bundled as a regular module and
@@ -43,14 +43,15 @@ __turbopack_context__.s([
     // module chunks loaded inside the worker, keeping them same-origin to each
     // other when `CHUNK_BASE_PATH` (= `assetPrefix`) is a cross-origin CDN.
     // `null` falls back; an empty string is treated as a literal empty prefix.
-    const workerBasePath = ("TURBOPACK compile-time value", null) ?? /*TURBOPACK member replacement*/ __turbopack_context__.b;
+    const workerBasePath = null ?? /*TURBOPACK member replacement*/ __turbopack_context__.b;
     const chunkUrls = moduleChunks.map((chunk)=>/*TURBOPACK member replacement*/ __turbopack_context__.h(chunk, workerBasePath)).reverse();
     const params = [
         chunkUrls,
         /*TURBOPACK member replacement*/ __turbopack_context__.X
     ];
-    for (const globalName of ("TURBOPACK compile-time value", [])){
-        params.push(globalThis[globalName]);
+    const globals = [];
+    for(let i = 0; i < globals.length; i++){
+        params.push(globalThis[globals[i]]);
     }
     const url = new URL(/*TURBOPACK member replacement*/ __turbopack_context__.h(entrypoint, workerBasePath), location.origin);
     const paramsJson = JSON.stringify(params);
@@ -72,7 +73,7 @@ function generateCreateWorker(entrypoint, moduleChunks) {
 }),
 "[project]/turbopack/crates/turbopack-tests/tests/snapshot/imports/ignore-comments/input/vercel.cjs [test] (ecmascript, worker loader)", ((__turbopack_context__) => {
 
-__turbopack_context__.v(__turbopack_context__.r("[turbopack-ecmascript]/worker/browser/createWorker.ts [test] (ecmascript)")["default"]("output/0uxq_crates_turbopack-tests_tests_snapshot_imports_ignore-comments_output_0uy0mni._.js", ["output/0_9x_turbopack-tests_tests_snapshot_imports_ignore-comments_input_vercel_cjs_0j-fab5._.js","output/0rv8_turbopack-tests_tests_snapshot_imports_ignore-comments_input_vercel_cjs_02p77ng._.js"]));
+__turbopack_context__.v(__turbopack_context__.r("[turbopack-cli]/worker/browser/createWorker.ts [test] (ecmascript)")["default"]("output/0uxq_crates_turbopack-tests_tests_snapshot_imports_ignore-comments_output_0uy0mni._.js", ["output/0_9x_turbopack-tests_tests_snapshot_imports_ignore-comments_input_vercel_cjs_0j-fab5._.js","output/0rv8_turbopack-tests_tests_snapshot_imports_ignore-comments_input_vercel_cjs_02p77ng._.js"]));
 }),
 "[project]/turbopack/crates/turbopack-tests/tests/snapshot/imports/ignore-comments/input/ignore-worker.cjs (static in ecmascript)", ((__turbopack_context__) => {
 
@@ -107,4 +108,4 @@ function foo(plugin) {
 }),
 ]);
 
-//# sourceMappingURL=%5Broot-of-the-server%5D__08ofy-h._.js.map
+//# sourceMappingURL=%5Broot-of-the-server%5D__0yakmbh._.js.map

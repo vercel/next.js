@@ -443,8 +443,7 @@ impl WorkerGlobalsReplacementCodeGen {
                 Some(asset_prefix) => Expr::Lit(Lit::Str(asset_prefix.as_str().into())),
                 None => Expr::Lit(Lit::Null(Null { span: DUMMY_SP })),
             },
-        }
-        .into();
+        };
 
         let visitor = create_visitor!(self.path, visit_mut_expr, |expr: &mut Expr| {
             *expr = value.clone();
