@@ -89,6 +89,7 @@ export default function Home() {
     size: number
     server?: boolean
     client?: boolean
+    traced?: boolean
   } | null>(null)
   const [searchQuery, setSearchQuery] = useState('')
 
@@ -264,6 +265,9 @@ export default function Home() {
                     )}
                     {hoveredNodeInfo.server && (
                       <Badge variant="server">server</Badge>
+                    )}
+                    {hoveredNodeInfo.traced && (
+                      <Badge variant="traced">traced</Badge>
                     )}
                   </span>
                 )}

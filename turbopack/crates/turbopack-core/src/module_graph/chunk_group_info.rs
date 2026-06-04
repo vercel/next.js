@@ -127,9 +127,8 @@ impl ChunkGroupInfo {
 }
 
 /// See [ChunkGroup] for documentation
-#[derive(
-    Debug, Clone, Hash, TaskInput, PartialEq, Eq, TraceRawVcs, NonLocalValue, Encode, Decode,
-)]
+#[turbo_tasks::task_input]
+#[derive(Debug, Clone, Hash, PartialEq, Eq, TraceRawVcs, Encode, Decode)]
 pub enum ChunkGroupEntry {
     Entry(Vec<ResolvedVc<Box<dyn Module>>>),
     Async(ResolvedVc<Box<dyn Module>>),
@@ -161,9 +160,8 @@ impl ChunkGroupEntry {
     }
 }
 
-#[derive(
-    Debug, Clone, Hash, TaskInput, PartialEq, Eq, TraceRawVcs, Encode, Decode, NonLocalValue,
-)]
+#[turbo_tasks::task_input]
+#[derive(Debug, Clone, Hash, PartialEq, Eq, TraceRawVcs, Encode, Decode)]
 pub enum ChunkGroup {
     /// The entry chunk group of the compilation, e.g. src/index.js for a SPA, or app/foo/page.js
     /// for Next.js.

@@ -3541,7 +3541,10 @@ async fn value_visitor_inner(
         JsValue::WellKnownFunction(
             WellKnownFunctionKind::PathJoin
             | WellKnownFunctionKind::PathResolve(_)
-            | WellKnownFunctionKind::FsReadMethod(_),
+            | WellKnownFunctionKind::FsReadMethod(_)
+            | WellKnownFunctionKind::FsReadDir
+            | WellKnownFunctionKind::ChildProcessSpawnMethod(_)
+            | WellKnownFunctionKind::ChildProcessFork,
         ) => {
             if ignore {
                 return Ok((

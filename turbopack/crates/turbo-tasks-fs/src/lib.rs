@@ -63,8 +63,8 @@ use tracing::Instrument;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
     Completion, Effect, EffectStateStorage, InvalidationReason, NonLocalValue, ReadRef, ResolvedVc,
-    TaskInput, TurboTasksApi, ValueToString, ValueToStringRef, Vc, debug::ValueDebugFormat,
-    emit_effect, parallel, spawn, trace::TraceRawVcs, turbo_tasks_weak, turbobail, turbofmt,
+    TurboTasksApi, ValueToString, ValueToStringRef, Vc, debug::ValueDebugFormat, emit_effect,
+    parallel, spawn, trace::TraceRawVcs, turbo_tasks_weak, turbobail, turbofmt,
 };
 use turbo_tasks_hash::{
     DeterministicHash, DeterministicHasher, HashAlgorithm, deterministic_hash, hash_xxh3_hash64,
@@ -938,7 +938,7 @@ impl FileSystem for DiskFileSystem {
 
         #[derive(TraceRawVcs, NonLocalValue, Clone)]
         struct WriteEffect {
-            full_path: Arc<PathBuf>,
+            full_path: Arc<Path>,
             inner: Arc<DiskFileSystemInner>,
             content: ReadRef<PersistedFileContent>,
             content_hash: u128,
@@ -1088,7 +1088,7 @@ impl FileSystem for DiskFileSystem {
 
         let content_hash = u128::from_le_bytes(hash_xxh3_hash128(&*content));
         emit_effect(WriteEffect {
-            full_path: Arc::new(full_path),
+            full_path: Arc::from(full_path),
             inner,
             content,
             content_hash,
@@ -1115,7 +1115,7 @@ impl FileSystem for DiskFileSystem {
 
         #[derive(TraceRawVcs, NonLocalValue, Clone)]
         struct WriteLinkEffect {
-            full_path: Arc<PathBuf>,
+            full_path: Arc<Path>,
             inner: Arc<DiskFileSystemInner>,
             content: ReadRef<LinkContent>,
             content_hash: u128,
@@ -1371,7 +1371,7 @@ impl FileSystem for DiskFileSystem {
 
         let content_hash = u128::from_le_bytes(hash_xxh3_hash128(&*content));
         emit_effect(WriteLinkEffect {
-            full_path: Arc::new(full_path),
+            full_path: Arc::from(full_path),
             inner,
             content,
             content_hash,
@@ -1432,8 +1432,8 @@ fn remove_symbolic_link_dir_helper(path: &Path) -> io::Result<()> {
     }
 }
 
-#[derive(Debug, Clone, Hash, TaskInput)]
-#[turbo_tasks::value(shared)]
+#[derive(Debug, Clone, Hash)]
+#[turbo_tasks::value(shared, task_input)]
 pub struct FileSystemPath {
     pub fs: ResolvedVc<Box<dyn FileSystem>>,
     pub path: RcStr,
