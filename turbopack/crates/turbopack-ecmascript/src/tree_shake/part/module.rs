@@ -12,8 +12,8 @@ use turbopack_core::{
 
 use crate::{
     AnalyzeEcmascriptModuleResult, EcmascriptAnalyzable, EcmascriptAnalyzableExt,
-    EcmascriptModuleAsset, EcmascriptModuleAssetType, EcmascriptModuleContent,
-    EcmascriptModuleContentOptions, EcmascriptParsable,
+    EcmascriptModuleAsset, EcmascriptModuleContent, EcmascriptModuleContentOptions,
+    EcmascriptParsable,
     chunk::{
         EcmascriptChunkItemContent, EcmascriptChunkPlaceable, EcmascriptExports,
         ecmascript_chunk_item,
@@ -46,15 +46,6 @@ impl EcmascriptParsable for EcmascriptModulePartAsset {
         let split_data = split_module(*self.full_module);
         assert_ne!(self.part, ModulePart::Facade);
         Ok(part_of_module(split_data, self.part.clone()))
-    }
-    #[turbo_tasks::function]
-    fn parse_original(&self) -> Vc<ParseResult> {
-        self.full_module.parse_original()
-    }
-
-    #[turbo_tasks::function]
-    fn ty(&self) -> Vc<EcmascriptModuleAssetType> {
-        self.full_module.ty()
     }
 }
 
