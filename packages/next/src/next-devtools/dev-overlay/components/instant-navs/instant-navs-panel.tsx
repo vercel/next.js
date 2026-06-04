@@ -6,7 +6,7 @@ import { ACTION_INSTANT_NAVS_RESET } from '../../shared'
 import {
   useInstantNavCookieState,
   formatRoutePattern,
-} from './instant-nav-cookie'
+} from '../../../shared/instant-navs-cookie'
 import './instant-navs-panel.css'
 import type { CSSProperties, ReactNode } from 'react'
 import type { InstantCookie } from '../../../../shared/lib/app-router-types'

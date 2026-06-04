@@ -1,5 +1,6 @@
 /**
- * Cookie reading and subscription for the instant navigation devtools panel.
+ * Cookie reading, subscription and mutation for the instant navigation devtools
+ * (both the dev overlay panel and the production Instant DevTools widget).
  *
  * The cookie value is a JSON array:
  *   [0, id]        — pending (waiting to capture)
@@ -7,18 +8,24 @@
  *   [1, id, { from, to }] — captured SPA navigation (from/to route trees)
  *
  * The "to" tree may be null initially and updated after the prefetch resolves.
+ *
+ * This module is shared client-only code: it is bundled into both the dev
+ * overlay (`next-devtools.webpack-config.js`) and the production widget
+ * (`next-instant-devtools.webpack-config.js`), where `react` resolves to the
+ * vendored React build. It must not be imported from server/edge code.
  */
 
 import { useMemo } from 'react'
 import { useSyncExternalStore } from 'react'
 import type {
   FlightRouterState,
+  InstantCookie,
   Segment,
-} from '../../../../shared/lib/app-router-types'
+} from '../../shared/lib/app-router-types'
 import {
   parseInstantNavCookieValue,
   type InstantNavCookieData,
-} from '../../../../shared/lib/instant-nav-cookie'
+} from '../../shared/lib/instant-nav-cookie'
 
 const COOKIE_NAME = 'next-instant-navigation-testing'
 
@@ -158,4 +165,27 @@ export function useInstantNavCookieState(): InstantNavCookieData | null {
     }
     return parseInstantNavCookieValue(rawValue)
   }, [rawValue])
+}
+
+/**
+ * Set the instant cookie to [0, <random>] (pending) — acquires the lock on the
+ * next navigation or reload. The random suffix ensures repeated calls always
+ * trigger a CookieStore change event.
+ */
+export function lock(): void {
+  if (typeof cookieStore !== 'undefined') {
+    const cookie: InstantCookie = [0, `p${Math.random()}`]
+    cookieStore.set({
+      name: COOKIE_NAME,
+      value: JSON.stringify(cookie),
+      path: '/',
+    })
+  }
+}
+
+/** Delete the instant cookie — releases the lock, triggers dynamic data streaming. */
+export function unlock(): void {
+  if (typeof cookieStore !== 'undefined') {
+    cookieStore.delete(COOKIE_NAME)
+  }
 }
