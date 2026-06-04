@@ -75,15 +75,15 @@ impl<'a> JsValue<'a> {
                     if set.len() == 1 {
                         *self = set.into_iter().next().unwrap().0;
                     } else {
-                        values.extend(arena, set.into_iter().map(|v| v.0));
+                        *values = BumpVec::from_iter_in(arena, set.into_iter().map(|v| v.0));
                         self.update_total_nodes();
                     }
                 }
             }
             JsValue::Concat(_, v) => {
                 // TODO(kdy1): Remove duplicate
-                let mut new: Vec<JsValue> = vec![];
                 let taken = take(v);
+                let mut new: BumpVec<JsValue> = BumpVec::with_capacity_in(arena, taken.len());
                 for v in taken {
                     // Remove empty strings
                     if v.as_str() == Some("") {
@@ -94,55 +94,56 @@ impl<'a> JsValue<'a> {
                             if let Some(last_str) = last.as_str() {
                                 *last = [last_str, str].concat().into();
                             } else {
-                                new.push(v);
+                                new.push(arena, v);
                             }
                         } else {
-                            new.push(v);
+                            new.push(arena, v);
                         }
                     } else if let JsValue::Concat(_, v) = v {
-                        new.extend(v);
+                        new.extend(arena, v);
                     } else {
-                        new.push(v);
+                        new.push(arena, v);
                     }
                 }
                 if new.len() == 1 {
                     *self = new.into_iter().next().unwrap();
                 } else {
-                    v.extend(arena, new);
+                    *v = new;
                     self.update_total_nodes();
                 }
             }
             JsValue::Add(_, v) => {
-                let mut added: Vec<JsValue> = Vec::new();
                 let taken = take(v);
+                let mut added: BumpVec<JsValue> = BumpVec::with_capacity_in(arena, taken.len());
                 let mut iter = taken.into_iter();
                 while let Some(item) = iter.next() {
                     if item.is_string() == Some(true) {
-                        let mut concat: Vec<JsValue> = match added.len() {
-                            0 => Vec::new(),
-                            1 => vec![added.into_iter().next().unwrap()],
-                            _ => vec![JsValue::Add(
-                                1 + added.iter().map(|v| v.total_nodes()).sum::<u32>(),
-                                BumpVec::from_iter_in(arena, added),
-                            )],
+                        let mut concat: BumpVec<JsValue> = match added.len() {
+                            0 => BumpVec::new(),
+                            1 => BumpVec::from_iter_in(arena, [added.into_iter().next().unwrap()]),
+                            _ => BumpVec::from_iter_in(
+                                arena,
+                                [JsValue::Add(
+                                    1 + added.iter().map(|v| v.total_nodes()).sum::<u32>(),
+                                    added,
+                                )],
+                            ),
                         };
-                        concat.push(item);
-                        for item in iter.by_ref() {
-                            concat.push(item);
-                        }
+                        concat.push(arena, item);
+                        concat.extend(arena, iter);
                         *self = JsValue::Concat(
                             1 + concat.iter().map(|v| v.total_nodes()).sum::<u32>(),
-                            BumpVec::from_iter_in(arena, concat),
+                            concat,
                         );
                         return;
                     } else {
-                        added.push(item);
+                        added.push(arena, item);
                     }
                 }
                 if added.len() == 1 {
                     *self = added.into_iter().next().unwrap();
                 } else {
-                    v.extend(arena, added);
+                    *v = added;
                     self.update_total_nodes();
                 }
             }
