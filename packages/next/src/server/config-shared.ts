@@ -1774,6 +1774,18 @@ export interface NextConfig {
    */
   cacheComponents?: boolean
 
+  /**
+   * Opts the whole app into Partial Prefetching: `<Link prefetch={true}>`
+   * prefetches only the static parts of a route, never its dynamic data.
+   * When `true`, the default segment-level `unstable_prefetch` becomes
+   * `'partial'`; per-segment `unstable_prefetch` exports still win. Requires
+   * `cacheComponents: true`.
+   *
+   * When `false` or omitted, this does nothing (the legacy behavior, where
+   * dynamic data is included in the prefetch).
+   */
+  partialPrefetching?: boolean
+
   cacheLife?: {
     [profile: string]: {
       // How long the client can cache a value without checking with the server.
@@ -2101,6 +2113,7 @@ export interface NextConfigRuntime {
 
   distDir: NextConfigComplete['distDir']
   cacheComponents: NextConfigComplete['cacheComponents']
+  partialPrefetching: NextConfigComplete['partialPrefetching']
   agentRules: NextConfigComplete['agentRules']
   htmlLimitedBots: NextConfigComplete['htmlLimitedBots']
   assetPrefix: NextConfigComplete['assetPrefix']
@@ -2259,6 +2272,7 @@ export function getNextConfigRuntime(
 
     distDir: config.distDir,
     cacheComponents: config.cacheComponents,
+    partialPrefetching: config.partialPrefetching,
     agentRules: config.agentRules,
     htmlLimitedBots: config.htmlLimitedBots,
     assetPrefix: config.assetPrefix,
