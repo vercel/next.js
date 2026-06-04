@@ -10,7 +10,7 @@ use turbo_tasks_hash::DeterministicHasher;
 #[cfg(feature = "task_dirty_cause")]
 use crate::TaskDirtyCause;
 use crate::{
-    RawVc, TaskExecutionReason, TaskInput, TaskPersistence, TaskPriority,
+    InputResolution, RawVc, TaskExecutionReason, TaskInput, TaskPersistence, TaskPriority,
     dyn_task_inputs::{
         DynTaskInputs, DynTaskInputsStorage, HeapDynTaskInputsStorage, StackDynTaskInputsStorage,
         any_as_encode,
@@ -23,18 +23,18 @@ use crate::{
 type ResolveFuture<'a> = Pin<Box<dyn Future<Output = Result<Box<dyn DynTaskInputs>>> + Send + 'a>>;
 type ResolveFunctor = for<'a> fn(&'a dyn DynTaskInputs) -> ResolveFuture<'a>;
 
-type IsResolvedFunctor = fn(&dyn DynTaskInputs) -> bool;
-
-#[doc(hidden)]
-pub type FilterOwnedArgsFunctor =
-    for<'a> fn(&'a mut dyn DynTaskInputsStorage) -> HeapDynTaskInputsStorage;
-#[doc(hidden)]
-pub type FilterAndResolveFunctor = ResolveFunctor;
+/// Filters out arguments that aren't used by the function body, returning the post-filter args
+/// together with the precomputed [`InputResolution`] for those filtered args. Fusing the two
+/// operations into one functor lets LLVM monomorphize and constant-fold them together, avoiding a
+/// second indirect call.
+type FilterOwnedArgsFunctor =
+    for<'a> fn(&'a mut dyn DynTaskInputsStorage) -> (InputResolution, HeapDynTaskInputsStorage);
+type FilterAndResolveFunctor = ResolveFunctor;
 
 /// Function pointer that encodes a task argument directly to a hasher.
 ///
 /// This allows computing hashes of task arguments without intermediate buffer allocation.
-pub type AnyHashEncodeFn = fn(&dyn Any, &mut dyn DeterministicHasher);
+type AnyHashEncodeFn = fn(&dyn Any, &mut dyn DeterministicHasher);
 
 pub struct ArgMeta {
     // TODO: This should be an `Option` with `None` for transient tasks. We can skip some codegen.
@@ -42,7 +42,6 @@ pub struct ArgMeta {
     /// Encodes the argument directly to a hasher, avoiding buffer allocation.
     /// Uses the same encoding logic as bincode but writes to a [`DeterministicHasher`].
     pub hash_encode: AnyHashEncodeFn,
-    is_resolved: IsResolvedFunctor,
     resolve: ResolveFunctor,
     /// Used for trait methods to filter out unused arguments. `None` when all arguments are used
     /// (no filtering needed).
@@ -112,15 +111,10 @@ impl ArgMeta {
                 T::encode(any_as_encode::<T>(this), &mut encoder)
                     .expect("encoding to hasher should not fail");
             },
-            is_resolved: |value| downcast_args_ref::<T>(value).is_resolved(),
             resolve: resolve_functor_impl::<T>,
             filter_owned,
             filter_and_resolve,
         }
-    }
-
-    pub fn is_resolved(&self, value: &dyn DynTaskInputs) -> bool {
-        (self.is_resolved)(value)
     }
 
     pub async fn resolve(&self, value: &dyn DynTaskInputs) -> Result<Box<dyn DynTaskInputs>> {
