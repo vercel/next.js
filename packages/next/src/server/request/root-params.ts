@@ -15,6 +15,7 @@ import {
 } from '../app-render/work-unit-async-storage.external'
 import {
   getRuntimeLinkDataStage,
+  getStaticLinkDataStage,
   makeHangingPromise,
 } from '../dynamic-rendering-utils'
 import type { ParamValue } from './params'
@@ -82,7 +83,35 @@ export function getRootParam(paramName: string): Promise<ParamValue> {
       workUnitStore.readRootParamNames.add(paramName)
       return Promise.resolve(workUnitStore.rootParams[paramName])
     }
-    case 'prerender':
+    case 'prerender': {
+      const { stagedRendering, fallbackRouteParams } = workUnitStore
+      if (stagedRendering && process.env.__NEXT_APP_SHELLS) {
+        // If the root param is a fallback param, we don't have a value to return
+        if (fallbackRouteParams && fallbackRouteParams.has(paramName)) {
+          return makeHangingPromise<ParamValue>(
+            workUnitStore.renderSignal,
+            workStore.route,
+            apiName
+          )
+        }
+        // Otherwise, it's link data, so we delay it to exclude it from the shell
+        // and only resolve in the param-ful static stage
+        return createRootParamPromiseForShellRender(
+          stagedRendering,
+          getStaticLinkDataStage(stagedRendering),
+          apiName,
+          paramName,
+          workUnitStore.rootParams[paramName]
+        )
+      }
+
+      return createPrerenderRootParamPromise(
+        paramName,
+        workStore,
+        workUnitStore,
+        apiName
+      )
+    }
     case 'prerender-ppr':
     case 'prerender-legacy': {
       return createPrerenderRootParamPromise(
@@ -115,6 +144,22 @@ export function getRootParam(paramName: string): Promise<ParamValue> {
         } catch (err) {
           return Promise.reject(err)
         }
+        break
+      }
+
+      const { stagedRendering } = workUnitStore
+      if (stagedRendering && process.env.__NEXT_APP_SHELLS) {
+        return createRootParamPromiseForShellRender(
+          stagedRendering,
+          // Assuming we're rendering for cached navs, we only need
+          // to recover a static shell and a static stage, so we can
+          // resolve root params here. it means we can't get a session shell,
+          // but that's okay because we get that from a separate render anyway.
+          getStaticLinkDataStage(stagedRendering),
+          apiName,
+          paramName,
+          workUnitStore.rootParams[paramName]
+        )
       }
       break
     }

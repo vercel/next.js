@@ -79,6 +79,7 @@ export function createServerPathnameForMetadata(
         }
       }
       case 'request':
+        // TODO(app-shells): this should be delayed if there's non-static params
         return createRenderPathname(underlyingPathname)
       default:
         workUnitStore satisfies never

@@ -56,11 +56,16 @@ use crate::{
 pub trait TurboTasksCallApi: Sync + Send {
     /// Calls a native function with arguments. Resolves arguments when needed
     /// with a wrapper task.
+    ///
+    /// `inputs_resolved` is `TaskInput::is_resolved(&args)` computed at the macro callsite on
+    /// the concrete tuple type — when [`InputResolution::Resolved`], the fast path skips wrapper
+    /// task creation.
     fn dynamic_call(
         &self,
         native_fn: &'static NativeFunction,
         this: Option<RawVc>,
         arg: &mut dyn DynTaskInputsStorage,
+        inputs_resolved: InputResolution,
         persistence: TaskPersistence,
     ) -> RawVc;
     /// Call a native function with arguments.
@@ -73,12 +78,17 @@ pub trait TurboTasksCallApi: Sync + Send {
         persistence: TaskPersistence,
     ) -> RawVc;
     /// Calls a trait method with arguments. First input is the `self` object.
-    /// Uses a wrapper task to resolve
+    /// Uses a wrapper task to resolve.
+    ///
+    /// `inputs_resolved` is the macro-site `InputResolution` of the *exposed* tuple; when filtering
+    /// is involved, the post-filter value is computed inside the filter functor and supersedes
+    /// this argument.
     fn trait_call(
         &self,
         trait_method: &'static TraitMethod,
         this: RawVc,
         arg: &mut dyn DynTaskInputsStorage,
+        inputs_resolved: InputResolution,
         persistence: TaskPersistence,
     ) -> RawVc;
 
@@ -254,6 +264,33 @@ impl Display for TaskPersistence {
             TaskPersistence::Persistent => write!(f, "persistent"),
             TaskPersistence::Transient => write!(f, "transient"),
         }
+    }
+}
+
+/// Whether a task call's inputs are already resolved, decided on the concrete input tuple at the
+/// call site. Travels alongside [`TaskPersistence`] through [`dynamic_call`] / [`trait_call`].
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Hash)]
+pub enum InputResolution {
+    /// All inputs (and `this`, where applicable) are resolved — eligible for the synchronous fast
+    /// path with no async resolution task.
+    Resolved,
+    /// At least one input is unresolved and must be resolved in a local task first.
+    Unresolved,
+}
+
+impl InputResolution {
+    #[inline]
+    pub fn from_is_resolved(is_resolved: bool) -> Self {
+        if is_resolved {
+            Self::Resolved
+        } else {
+            Self::Unresolved
+        }
+    }
+
+    #[inline]
+    pub fn is_resolved(self) -> bool {
+        matches!(self, Self::Resolved)
     }
 }
 
@@ -725,11 +762,10 @@ impl<B: Backend + 'static> TurboTasks<B> {
         native_fn: &'static NativeFunction,
         this: Option<RawVc>,
         arg: &mut dyn DynTaskInputsStorage,
+        inputs_resolved: InputResolution,
         persistence: TaskPersistence,
     ) -> RawVc {
-        if this.is_none_or(|this| this.is_resolved())
-            && native_fn.arg_meta.is_resolved(arg.as_ref())
-        {
+        if inputs_resolved.is_resolved() && this.is_none_or(|this| this.is_resolved()) {
             return self.native_call(native_fn, this, arg, persistence);
         }
         // Need async resolution — must move the arg to the heap now
@@ -747,6 +783,7 @@ impl<B: Backend + 'static> TurboTasks<B> {
         trait_method: &'static TraitMethod,
         this: RawVc,
         arg: &mut dyn DynTaskInputsStorage,
+        inputs_resolved: InputResolution,
         persistence: TaskPersistence,
     ) -> RawVc {
         // avoid creating a wrapper task if self is already resolved
@@ -756,10 +793,22 @@ impl<B: Backend + 'static> TurboTasks<B> {
             match registry::get_value_type(type_id).get_trait_method(trait_method) {
                 Some(native_fn) => {
                     if let Some(filter) = native_fn.arg_meta.filter_owned {
-                        let mut arg = (filter)(arg);
-                        return self.dynamic_call(native_fn, Some(this), &mut arg, persistence);
+                        let (resolved, mut arg) = (filter)(arg);
+                        return self.dynamic_call(
+                            native_fn,
+                            Some(this),
+                            &mut arg,
+                            resolved,
+                            persistence,
+                        );
                     } else {
-                        return self.dynamic_call(native_fn, Some(this), arg, persistence);
+                        return self.dynamic_call(
+                            native_fn,
+                            Some(this),
+                            arg,
+                            inputs_resolved,
+                            persistence,
+                        );
                     }
                 }
                 None => {
@@ -1288,9 +1337,10 @@ impl<B: Backend + 'static> TurboTasksCallApi for TurboTasks<B> {
         native_fn: &'static NativeFunction,
         this: Option<RawVc>,
         arg: &mut dyn DynTaskInputsStorage,
+        inputs_resolved: InputResolution,
         persistence: TaskPersistence,
     ) -> RawVc {
-        self.dynamic_call(native_fn, this, arg, persistence)
+        self.dynamic_call(native_fn, this, arg, inputs_resolved, persistence)
     }
     fn native_call(
         &self,
@@ -1306,9 +1356,10 @@ impl<B: Backend + 'static> TurboTasksCallApi for TurboTasks<B> {
         trait_method: &'static TraitMethod,
         this: RawVc,
         arg: &mut dyn DynTaskInputsStorage,
+        inputs_resolved: InputResolution,
         persistence: TaskPersistence,
     ) -> RawVc {
-        self.trait_call(trait_method, this, arg, persistence)
+        self.trait_call(trait_method, this, arg, inputs_resolved, persistence)
     }
 
     #[track_caller]
@@ -1699,9 +1750,10 @@ pub fn dynamic_call(
     func: &'static NativeFunction,
     this: Option<RawVc>,
     arg: &mut dyn DynTaskInputsStorage,
+    inputs_resolved: InputResolution,
     persistence: TaskPersistence,
 ) -> RawVc {
-    with_turbo_tasks(|tt| tt.dynamic_call(func, this, arg, persistence))
+    with_turbo_tasks(|tt| tt.dynamic_call(func, this, arg, inputs_resolved, persistence))
 }
 
 /// Calls [`TurboTasks::trait_call`] for the current turbo tasks instance.
@@ -1709,9 +1761,10 @@ pub fn trait_call(
     trait_method: &'static TraitMethod,
     this: RawVc,
     arg: &mut dyn DynTaskInputsStorage,
+    inputs_resolved: InputResolution,
     persistence: TaskPersistence,
 ) -> RawVc {
-    with_turbo_tasks(|tt| tt.trait_call(trait_method, this, arg, persistence))
+    with_turbo_tasks(|tt| tt.trait_call(trait_method, this, arg, inputs_resolved, persistence))
 }
 
 pub fn turbo_tasks() -> Arc<dyn TurboTasksApi> {
