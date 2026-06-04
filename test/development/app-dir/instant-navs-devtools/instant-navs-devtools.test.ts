@@ -1,13 +1,24 @@
 import { nextTestSetup, type Playwright } from 'e2e-utils'
 import { retry, toggleDevToolsIndicatorPopover } from 'next-test-utils'
 
-// FIXME: Skipped due to flakiness. Reenable when fixed
-describe.skip('instant-nav-panel', () => {
+describe('instant-nav-panel', () => {
   const { isNextDev, isTurbopack, next } = nextTestSetup({
     files: __dirname,
   })
 
   const targetPage = '/target-page/my-post?search=foo'
+  let cleanupBrowser: Playwright | undefined
+
+  async function openBrowser(pathname: string) {
+    const browser = await next.browser(pathname)
+    cleanupBrowser = browser
+    return browser
+  }
+
+  afterEach(async () => {
+    await cleanupBrowser?.deleteCookies()
+    cleanupBrowser = undefined
+  })
 
   async function waitForPanelRouterTransition() {
     // Run all the necessary CSS transitions
@@ -69,26 +80,16 @@ describe.skip('instant-nav-panel', () => {
     }, href)
   }
 
+  function getInstantNavPanel(browser: Playwright) {
+    return browser.elementByCss('.instant-nav-panel')
+  }
+
   async function getInstantNavPanelText(browser: Playwright): Promise<string> {
-    return browser.elementByCssInstant('.instant-nav-panel').text()
+    return getInstantNavPanel(browser).text()
   }
 
   async function closePanelViaHeader(browser: Playwright) {
     return browser.elementByCss('#_next-devtools-panel-close').click()
-  }
-
-  async function hasInstantNavPanelOpen(browser: Playwright): Promise<void> {
-    await browser.elementByCssInstant('.instant-nav-panel')
-  }
-
-  async function waitForInstantNavPanelOpen(browser: Playwright) {
-    await retry(
-      async () => {
-        await hasInstantNavPanelOpen(browser)
-      },
-      5_000,
-      500
-    )
   }
 
   async function waitForAppHydration(browser: Playwright) {
@@ -102,7 +103,7 @@ describe.skip('instant-nav-panel', () => {
     await waitForPanelRouterTransition()
     await clickInstantNavMenuItem(browser)
 
-    await waitForInstantNavPanelOpen(browser)
+    await getInstantNavPanel(browser)
     await waitForPanelRouterTransition()
   }
 
@@ -149,7 +150,7 @@ describe.skip('instant-nav-panel', () => {
       5_000,
       250
     )
-    await waitForInstantNavPanelOpen(browser)
+    await getInstantNavPanel(browser)
     await waitForPanelRouterTransition()
   }
 
@@ -251,7 +252,7 @@ describe.skip('instant-nav-panel', () => {
 
   async function openHomeWithTargetPageWarmup() {
     const [browser] = await Promise.all([
-      next.browser('/'),
+      openBrowser('/'),
       isNextDev && !isTurbopack
         ? // warmup target page compilation before clicking Start, to avoid extra flakiness.
           next.render(targetPage).catch(() => {})
@@ -265,7 +266,7 @@ describe.skip('instant-nav-panel', () => {
 
   describe('idle state', () => {
     it('should open panel in the idle state', async () => {
-      const browser = await next.browser('/')
+      const browser = await openBrowser('/')
       await clearInstantModeCookie(browser)
       await browser.waitForElementByCss('[data-testid="home-title"]')
 
@@ -288,7 +289,7 @@ describe.skip('instant-nav-panel', () => {
     })
 
     it('should not set cookie when closing panel from idle state', async () => {
-      const browser = await next.browser('/')
+      const browser = await openBrowser('/')
       await clearInstantModeCookie(browser)
       await browser.waitForElementByCss('[data-testid="home-title"]')
 
@@ -311,7 +312,7 @@ describe.skip('instant-nav-panel', () => {
 
   describe('awaiting navigation state', () => {
     it('should reset the panel and app when pressing the close button from awaiting navigation', async () => {
-      const browser = await next.browser('/')
+      const browser = await openBrowser('/')
       await clearInstantModeCookie(browser)
       await browser.waitForElementByCss('[data-testid="home-title"]')
 
@@ -332,20 +333,20 @@ describe.skip('instant-nav-panel', () => {
 
   describe('MPA captures', () => {
     it('should show page load state after clicking Start and refreshing', async () => {
-      const browser = await next.browser(targetPage)
+      const browser = await openBrowser(targetPage)
       await clearInstantModeCookie(browser)
 
       await openInstantNavPanel(browser)
 
       await clickStartCapturing(browser)
       await browser.refresh()
-      await waitForInstantNavPanelOpen(browser)
+      await getInstantNavPanel(browser)
 
       await expectMpaPanel(browser)
     })
 
     it('should auto-open panel on page load when cookie is already set', async () => {
-      const browser = await next.browser('/')
+      const browser = await openBrowser('/')
       await clearInstantModeCookie(browser)
       await browser.waitForElementByCss('[data-testid="home-title"]')
 
@@ -358,7 +359,6 @@ describe.skip('instant-nav-panel', () => {
       await browser.waitForElementByCss('[data-testid="home-title"]')
 
       await retry(async () => {
-        await hasInstantNavPanelOpen(browser)
         const text = await getInstantNavPanelText(browser)
         expect(text).toContain('Page load')
         expect(text).toContain('prerendered UI')
@@ -369,13 +369,13 @@ describe.skip('instant-nav-panel', () => {
     })
 
     it('should reset the panel and app when pressing the close button from captured MPA state', async () => {
-      const browser = await next.browser(targetPage)
+      const browser = await openBrowser(targetPage)
       await clearInstantModeCookie(browser)
 
       await openInstantNavPanel(browser)
       await clickStartCapturing(browser)
       await browser.refresh()
-      await waitForInstantNavPanelOpen(browser)
+      await getInstantNavPanel(browser)
       await expectMpaPanel(browser)
       await expectTargetPageMpaShell(browser)
 
@@ -389,20 +389,20 @@ describe.skip('instant-nav-panel', () => {
     })
 
     it('should keep params and searchParams RSC content suspended for a captured MPA page load', async () => {
-      const browser = await next.browser(targetPage)
+      const browser = await openBrowser(targetPage)
       await clearInstantModeCookie(browser)
 
       await openInstantNavPanel(browser)
       await clickStartCapturing(browser)
       await browser.refresh()
-      await waitForInstantNavPanelOpen(browser)
+      await getInstantNavPanel(browser)
       await expectMpaPanel(browser)
 
       await expectTargetPageMpaShell(browser)
     })
 
     it('should show MPA state after clicking a link that crosses root layouts', async () => {
-      const browser = await next.browser('/')
+      const browser = await openBrowser('/')
       await clearInstantModeCookie(browser)
       await browser.waitForElementByCss('[data-testid="home-title"]')
       await waitForAppHydration(browser)
@@ -416,7 +416,7 @@ describe.skip('instant-nav-panel', () => {
           .click()
       })
       await browser.waitForElementByCss('[data-testid="mpa-target-title"]')
-      await waitForInstantNavPanelOpen(browser)
+      await getInstantNavPanel(browser)
 
       await expectMpaPanel(browser)
       await browser
@@ -428,13 +428,13 @@ describe.skip('instant-nav-panel', () => {
     })
 
     it('should re-arm capture and return to awaiting navigation after Continue Rendering from MPA state', async () => {
-      const browser = await next.browser(targetPage)
+      const browser = await openBrowser(targetPage)
       await clearInstantModeCookie(browser)
 
       await openInstantNavPanel(browser)
       await clickStartCapturing(browser)
       await browser.refresh()
-      await waitForInstantNavPanelOpen(browser)
+      await getInstantNavPanel(browser)
       await expectMpaPanel(browser)
       await expectTargetPageMpaShell(browser)
       await waitForAppHydration(browser)
@@ -553,7 +553,7 @@ describe.skip('instant-nav-panel', () => {
       await browser.refresh()
       await browser.waitForElementByCss('[data-testid="home-title"]')
       await waitForAppHydration(browser)
-      await waitForInstantNavPanelOpen(browser)
+      await getInstantNavPanel(browser)
       await expectMpaPanel(browser)
 
       await clickLink(browser, targetPage)
@@ -570,7 +570,7 @@ describe.skip('instant-nav-panel', () => {
       await expectSpaPanel(browser)
 
       await browser.refresh()
-      await waitForInstantNavPanelOpen(browser)
+      await getInstantNavPanel(browser)
 
       const initialPanelText = await getInstantNavPanelText(browser)
       expect(initialPanelText).toContain('Page load')
