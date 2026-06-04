@@ -114,7 +114,7 @@ const { next } = nextTestSetup({
 })
 ```
 
-Consider also sett `NEXT_E2E_TEST_TIMEOUT=0`
+Consider also setting `NEXT_E2E_TEST_TIMEOUT=0`
 
 To debug the test process itself you need to pass the `inspect` flag to the node process running jest. e.g. `IS_TURBOPACK_TEST=1 TURBOPACK_DEV=1 NEXT_TEST_MODE=dev node --inspect node_modules/jest/bin/jest.js ...`
 
@@ -130,7 +130,7 @@ To run the test suite using Turbopack, you can use the `-turbo` version of the n
 pnpm test-dev-turbo test/e2e/app-dir/app/
 ```
 
-If you want to run a test again both Turbopack and Webpack, use Jest's `--projects` flag:
+If you want to run a test against both Turbopack and Webpack, use Jest's `--projects` flag:
 
 ```sh
 pnpm test-dev test/e2e/app-dir/app/ --projects jest.config.*
