@@ -2223,6 +2223,12 @@ export async function cache(
           rdcResult.readRootParamNames.size > 0
         ) {
           switch (workUnitStore.type) {
+            case 'prerender': {
+              await stagedRendering.waitForStage(
+                getStaticLinkDataStage(stagedRendering)
+              )
+              break
+            }
             case 'prerender-runtime': {
               // If we're rendering with shells, this is when params should resolve
               await stagedRendering.waitForStage(
@@ -2238,7 +2244,6 @@ export async function cache(
               )
               break
             }
-            case 'prerender':
             case 'cache':
             case 'private-cache':
             case 'prerender-legacy':

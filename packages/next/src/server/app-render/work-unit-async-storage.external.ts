@@ -182,6 +182,8 @@ export interface PrerenderStoreModernServer
   extends PrerenderStoreModernCommon,
     StaticPrerenderStoreCommon {
   readonly type: 'prerender'
+
+  readonly stagedRendering: StagedRenderingController | null
 }
 
 export interface PrerenderStoreModernRuntime
@@ -568,8 +570,8 @@ export function getStagedRenderingController(
   switch (workUnitStore.type) {
     case 'request':
     case 'prerender-runtime':
-      return workUnitStore.stagedRendering ?? null
     case 'prerender':
+      return workUnitStore.stagedRendering ?? null
     case 'prerender-client':
     case 'validation-client':
     case 'prerender-ppr':
