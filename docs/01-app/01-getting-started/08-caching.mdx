@@ -280,6 +280,8 @@ During prerendering, the header (static) and blog posts (cached with `use cache`
 
 Reading `cookies()` here doesn't push the whole route into dynamic rendering, the way the previous rendering model did. The Suspense boundary contains the runtime access, so static and cached content still ship in the initial HTML.
 
+Just as `<Suspense>` contains async access, an **error boundary** contains failures: scope it to the subtree that might fail, and the rest of the page stays intact. Use [`unstable_catchError`](/docs/app/api-reference/functions/catchError) for component-level boundaries, or the [`error.js`](/docs/app/api-reference/file-conventions/error) file convention for route-level boundaries.
+
 As you build, consider that inside [`generateMetadata`](/docs/app/api-reference/functions/generate-metadata#with-cache-components) and [`generateViewport`](/docs/app/api-reference/functions/generate-viewport#with-cache-components), uncached fetches or runtime data access surface the same insights and errors as in your page, guiding you to the rendering you intend. For incremental static regeneration with both known and unknown param values, see [ISR with Cache Components](/docs/app/guides/incremental-static-regeneration-cache-components).
 
 ## Random values and timestamps

@@ -109,13 +109,14 @@ module.exports = {
 
 The supported levels are:
 
-- **`'manual-warning'`** _(framework default)_: Only segments with an explicit `unstable_instant` are validated, at warning level (dev only).
-- **`'warning'`**: Every Page and Default segment is implicitly validated at warning level (dev only).
+- **`'warning'`** _(framework default)_: Every Page and Default segment is implicitly validated at warning level (dev only).
+- **`'manual-warning'`**: Only segments with an explicit `unstable_instant` are validated, at warning level (dev only).
 
 Setting `unstable_instant = false` on a segment opts it out of validation entirely.
 
 > **Good to know**:
 >
+> - Two additional levels are available behind the experimental prefix: `'experimental-error'` (validates all navigations in development and at build time) and `'experimental-manual-error'` (the same, but only for segments with an explicit `unstable_instant`). These turn warnings into build failures and are subject to change. Use with caution.
 > - The framework default may change in future versions to opt users into higher levels of validation. Because this feature is experimental, that change is not considered a breaking change. To pin a specific behavior, set `validationLevel` explicitly.
 > - Framework-synthesized error routes (`/_global-error`, `/_not-found`) are excluded from implicit validation. To validate them, opt in explicitly with `unstable_instant`.
 

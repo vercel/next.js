@@ -112,7 +112,7 @@ Skip it when:
 
 A per-link runtime prefetch only helps the navigations where it fires before the click and completes before the click. On a slow connection, on a feed of many links, or on a direct visit, the per-link prefetch may not yet exist when the user navigates. Without something to fall back on, the navigation blocks until the server responds.
 
-The **App Shell** closes that gap. It's a per-route prerender, reusable across every navigation into the route, generated and prefetched once per route rather than once per visible link. While a per-link runtime prefetch resolves the specific request, the App Shell is the route's reusable floor: it renders instantly whenever a more complete prerender isn't ready in time.
+The [**App Shell**](/docs/app/glossary#app-shell) closes that gap. It's a per-route prerender, reusable across every navigation into the route, generated and prefetched once per route rather than once per visible link. While a per-link runtime prefetch resolves the specific request, the App Shell is the route's reusable floor: it renders instantly whenever a more complete prerender isn't ready in time.
 
 Enable App Shells in your config:
 
