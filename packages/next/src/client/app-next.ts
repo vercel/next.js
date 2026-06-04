@@ -14,5 +14,17 @@ appBootstrap((assetPrefix) => {
   require('next/dist/client/components/app-router')
   // eslint-disable-next-line @next/internal/typechecked-require -- Why not relative imports?
   require('next/dist/client/components/layout-router')
-  hydrate(instrumentationHooks, assetPrefix)
+
+  try {
+    hydrate(instrumentationHooks, assetPrefix)
+  } finally {
+    if (
+      process.env.NODE_ENV === 'production' &&
+      process.env.__NEXT_EXPOSE_INSTANT_DEVTOOLS
+    ) {
+      const { renderInstantDevTools } =
+        require('next/dist/compiled/next-instant-devtools') as typeof import('next/dist/compiled/next-instant-devtools')
+      renderInstantDevTools()
+    }
+  }
 })
