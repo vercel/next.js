@@ -30,13 +30,17 @@ import {
 } from '../stream-utils/node-web-streams-helper'
 import { indexOfUint8Array } from '../stream-utils/uint8array-helpers'
 import { ENCODED_TAGS } from '../stream-utils/encoded-tags'
+import { createNodeBufferedTransformStream } from '../stream-utils/node-buffered-transform-stream'
 import { MISSING_ROOT_TAGS_ERROR } from '../../shared/lib/errors/constants'
 import {
   htmlEscapeAttributeString,
   htmlEscapeJsonString,
 } from '../../shared/lib/htmlescape'
 import { createInlinedDataReadableStream } from './use-flight-response'
-import type { AnyStream as AnyStreamType } from './app-render-prerender-utils'
+import {
+  ReplayableNodeStream,
+  type AnyStream as AnyStreamType,
+} from './app-render-prerender-utils'
 import { DetachedPromise } from '../../lib/detached-promise'
 import { getTracer } from '../lib/trace/tracer'
 import { AppRenderSpan } from '../lib/trace/constants'
@@ -114,52 +118,6 @@ function webToReadable(
     return stream
   }
   return Readable.fromWeb(stream as WebReadableStream)
-}
-
-// ---------------------------------------------------------------------------
-// Buffered transform – Node.js Transform that coalesces chunks written in the
-// same microtask into a single Uint8Array before pushing downstream.
-// ---------------------------------------------------------------------------
-
-function createBufferedTransformStream(): Transform {
-  let bufferedChunks: Array<Uint8Array> = []
-  let bufferByteLength = 0
-  let flushScheduled = false
-
-  function flushBuffered(stream: Transform): void {
-    if (bufferedChunks.length === 0) return
-
-    const merged = new Uint8Array(bufferByteLength)
-    let copiedBytes = 0
-    for (let i = 0; i < bufferedChunks.length; i++) {
-      const bufferedChunk = bufferedChunks[i]
-      merged.set(bufferedChunk, copiedBytes)
-      copiedBytes += bufferedChunk.byteLength
-    }
-    bufferedChunks.length = 0
-    bufferByteLength = 0
-    stream.push(merged)
-  }
-
-  return new Transform({
-    transform(chunk, _encoding, callback) {
-      bufferedChunks.push(chunk)
-      bufferByteLength += chunk.byteLength
-
-      if (!flushScheduled) {
-        flushScheduled = true
-        queueMicrotask(() => {
-          flushScheduled = false
-          flushBuffered(this)
-        })
-      }
-      callback()
-    },
-    flush(callback) {
-      flushBuffered(this)
-      callback()
-    },
-  })
 }
 
 // ---------------------------------------------------------------------------
@@ -725,7 +683,7 @@ export async function continueFizzStream(
   // 1. Buffer – coalesces chunks written in the same microtask into one Uint8Array
   // 2. Flight data injection – interleaves RSC data chunks with the HTML stream
   // 3. Head insertion – inserts server-generated HTML before </head>
-  const buffered = createBufferedTransformStream()
+  const buffered = createNodeBufferedTransformStream()
   webToReadable(renderStream).pipe(buffered)
 
   let source: Readable = buffered
@@ -836,7 +794,7 @@ export async function continueDynamicHTMLResumeNode(
 ): Promise<AnyStream> {
   await waitAtLeastOneReactRenderTask()
 
-  const buffered = createBufferedTransformStream()
+  const buffered = createNodeBufferedTransformStream()
   webToReadable(renderStream).pipe(buffered)
 
   let source: Readable = buffered
@@ -1098,7 +1056,12 @@ export function getServerPrerender(ComponentMod: {
 export const getClientPrerender: typeof import('react-dom/static').prerender =
   prerender
 
+// Node counterpart of the web `teeStream`. Like the web version it assumes the
+// stream type matching its build — here a Node `Readable` — and fans out
+// through `ReplayableNodeStream`. Need three or more consumers from one source?
+// Use `ReplayableNodeStream` directly (N `createReplayStream()` calls) to avoid
+// nesting tees.
 export function teeStream(stream: AnyStream): [AnyStream, AnyStream] {
-  const [s1, s2] = nodeReadableToWebReadableStream(stream).tee()
-  return [webToReadable(s1), webToReadable(s2)]
+  const replayable = new ReplayableNodeStream(stream as Readable)
+  return [replayable.createReplayStream(), replayable.createReplayStream()]
 }

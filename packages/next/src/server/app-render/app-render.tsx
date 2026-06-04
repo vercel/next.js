@@ -3593,7 +3593,7 @@ async function renderToStream(
       ) {
         if (process.env.__NEXT_USE_NODE_STREAMS) {
           // MARK: nodeStreams dev CacheComponents RSC
-          let debugChannel: DebugChannelPair | undefined
+          let debugChannelClientStream: ReplayableNodeStream | undefined
 
           // eslint-disable-next-line @typescript-eslint/no-shadow
           const getPayload = async (requestStore: RequestStore) => {
@@ -3652,11 +3652,11 @@ async function renderToStream(
 
             let validationDebugChannelClient: AnyStream | undefined = undefined
             if (returnedDebugChannel) {
-              const [t1, t2] = teeStream(
+              debugChannelClientStream = new ReplayableNodeStream(
                 returnedDebugChannel.clientSide.readable
               )
-              returnedDebugChannel.clientSide.readable = t1
-              validationDebugChannelClient = t2
+              validationDebugChannelClient =
+                debugChannelClientStream.createReplayStream()
             }
 
             consoleAsyncStorage.run(
@@ -3676,14 +3676,14 @@ async function renderToStream(
 
             reactServerResult = new ReactServerResult(serverStream)
             requestStore = finalRequestStore
-            debugChannel = returnedDebugChannel
           } else {
             logValidationSkipped(ctx)
 
             // We're either bypassing caches or we can't restart the render.
             // Do a dynamic render, but with (basic) environment labels.
 
-            debugChannel = setReactDebugChannel && createNodeDebugChannel()
+            const debugChannel =
+              setReactDebugChannel && createNodeDebugChannel()
 
             const serverStream = await stagedRenderWithoutCachesInDevNode(
               ctx,
@@ -3696,17 +3696,19 @@ async function renderToStream(
               }
             )
             reactServerResult = new ReactServerResult(serverStream)
+
+            if (debugChannel) {
+              debugChannelClientStream = new ReplayableNodeStream(
+                debugChannel.clientSide.readable
+              )
+            }
           }
 
-          if (debugChannel && setReactDebugChannel) {
-            const [readableSsr, readableBrowser] = teeStream(
-              debugChannel.clientSide.readable
-            )
-
-            reactDebugStream = readableSsr
+          if (debugChannelClientStream && setReactDebugChannel) {
+            reactDebugStream = debugChannelClientStream.createReplayStream()
 
             setReactDebugChannel(
-              { readable: readableBrowser },
+              { readable: debugChannelClientStream.createReplayStream() },
               htmlRequestId,
               requestId
             )
