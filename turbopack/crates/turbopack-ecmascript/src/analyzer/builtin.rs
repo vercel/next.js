@@ -1,5 +1,6 @@
 use std::mem::take;
 
+use smallvec::SmallVec;
 use turbo_rcstr::rcstr;
 
 use super::{ConstantNumber, ConstantValue, JsValue, LogicalOperator, LogicalProperty, ObjectPart};
@@ -154,14 +155,7 @@ pub fn replace_builtin<'a>(arena: &'a Bump, value: &mut JsValue<'a>) -> bool {
                     JsValue::Constant(ConstantValue::Num(num @ ConstantNumber(_))) => {
                         if let Some(index) = num.as_u32_index() {
                             if index < items.len() {
-                                // Equivalent to `swap_remove(index)`: move the last item into
-                                // the slot and return the displaced one.
-                                let last = items.pop().unwrap();
-                                *value = if index < items.len() {
-                                    std::mem::replace(&mut items[index], last)
-                                } else {
-                                    last
-                                };
+                                *value = items.swap_remove(index);
                                 if mutable {
                                     value.add_unknown_mutations(arena, true);
                                 }
@@ -216,21 +210,25 @@ pub fn replace_builtin<'a>(arena: &'a Bump, value: &mut JsValue<'a>) -> bool {
             } => {
                 fn parts_to_alternatives<'a>(
                     arena: &'a Bump,
-                    parts: &mut [ObjectPart<'a>],
+                    parts: impl IntoIterator<Item = ObjectPart<'a>>,
                     prop: &mut JsValue<'a>,
                     include_unknown: bool,
                 ) -> JsValue<'a> {
-                    let mut values = Vec::new();
+                    let parts = parts.into_iter();
+                    let (lower, upper) = parts.size_hint();
+                    let mut values = BumpVec::with_capacity_in(
+                        arena, upper.unwrap_or(lower) + if include_unknown { 1 } else { 0 }
+                    );
                     for part in parts {
                         match part {
                             ObjectPart::KeyValue(_, value) => {
-                                values.push(take(value));
+                                values.push(arena, value);
                             }
                             ObjectPart::Spread(_) => {
-                                values.push(JsValue::unknown(
+                                values.push(arena, JsValue::unknown(
                                     JsValue::member(
                                         arena,
-                                        JsValue::object(BumpVec::from_iter_in(arena, [take(part)])),
+                                        JsValue::object(BumpVec::from_iter_in(arena, [part])),
                                         prop.clone_in(arena),
                                     ),
                                     true,
@@ -240,7 +238,7 @@ pub fn replace_builtin<'a>(arena: &'a Bump, value: &mut JsValue<'a>) -> bool {
                         }
                     }
                     if include_unknown {
-                        values.push(JsValue::unknown(
+                        values.push(arena, JsValue::unknown(
                             JsValue::member(
                                 arena,
                                 JsValue::object(BumpVec::new()),
@@ -250,7 +248,7 @@ pub fn replace_builtin<'a>(arena: &'a Bump, value: &mut JsValue<'a>) -> bool {
                             rcstr!("unknown object prototype methods or values"),
                         ));
                     }
-                    JsValue::alternatives(BumpVec::from_iter_in(arena, values))
+                    JsValue::alternatives(values)
                 }
 
                 /// Convert a list of potential values into
@@ -259,13 +257,13 @@ pub fn replace_builtin<'a>(arena: &'a Bump, value: &mut JsValue<'a>) -> bool {
                 /// methods
                 fn potential_values_to_alternatives<'a>(
                     arena: &'a Bump,
-                    mut potential_values: Vec<usize>,
+                    mut potential_values: SmallVec<[usize; 8]>,
                     parts: &mut BumpVec<'a, ObjectPart<'a>>,
                     prop: &mut JsValue<'a>,
                     include_unknown: bool,
                 ) -> JsValue<'a> {
                     // Note: potential_values are already in reverse order
-                    let mut potential_values: Vec<ObjectPart<'a>> = take(parts)
+                    let mut potential_values = take(parts)
                         .into_iter()
                         .enumerate()
                         .filter(|(i, _)| {
@@ -276,8 +274,7 @@ pub fn replace_builtin<'a>(arena: &'a Bump, value: &mut JsValue<'a>) -> bool {
                                 false
                             }
                         })
-                        .map(|(_, part)| part)
-                        .collect();
+                        .map(|(_, part)| part);
                     parts_to_alternatives(arena, &mut potential_values, prop, include_unknown)
                 }
 
@@ -286,7 +283,7 @@ pub fn replace_builtin<'a>(arena: &'a Bump, value: &mut JsValue<'a>) -> bool {
                     // 2}["a"]`
                     JsValue::Constant(ConstantValue::Str(_)) => {
                         let prop_str = prop.as_str().unwrap();
-                        let mut potential_values = Vec::new();
+                        let mut potential_values: SmallVec<[usize; 8]> = SmallVec::new();
                         for (i, part) in parts.iter_mut().enumerate().rev() {
                             match part {
                                 ObjectPart::KeyValue(key, val) => {
@@ -351,7 +348,7 @@ pub fn replace_builtin<'a>(arena: &'a Bump, value: &mut JsValue<'a>) -> bool {
                         true
                     }
                     _ => {
-                        *value = parts_to_alternatives(arena, parts, prop, true);
+                        *value = parts_to_alternatives(arena, take(parts), prop, true);
                         true
                     }
                 }
