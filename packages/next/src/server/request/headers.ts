@@ -233,7 +233,7 @@ function makeUntrackedHeadersWithDevWarnings(
   const promise = makeDevtoolsIOAwarePromise(
     underlyingHeaders,
     requestStore,
-    RenderStage.Runtime // TODO(app-shells): headers should be dynamic instead.
+    RenderStage.Runtime
   )
 
   const proxiedPromise = instrumentHeadersPromiseWithDevWarnings(promise, route)

@@ -792,27 +792,6 @@ describe('instant validation', () => {
             9 |   return (
            10 |     <main>
            11 |       <p>This page uses sync IO after awaiting cookies(): {now}</p>
-         Error: Route "/suspense-in-root/runtime/invalid-sync-io": Next.js encountered the unstable value \`Date.now()\` while prerendering.
-
-         This value can change between renders, so it must be either prerendered or computed later.
-
-         Ways to fix this:
-           - [dynamic] Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
-             https://nextjs.org/docs/messages/blocking-prerender-current-time#generate-on-every-request
-           - [cache] Prerender and cache the value with \`"use cache"\`
-             https://nextjs.org/docs/messages/blocking-prerender-current-time#cache-the-timestamp
-           - [client] Render the value on the client with \`"use client"\`
-             https://nextjs.org/docs/messages/blocking-prerender-current-time#render-on-the-client
-           - [measure] If the value is for telemetry, use a timing API such as \`performance.now()\`
-             https://nextjs.org/docs/messages/blocking-prerender-current-time#for-telemetry-use-a-timing-api
-             at b (app/suspense-in-root/runtime/invalid-sync-io/page.tsx:8:20)
-            6 | export default async function Page() {
-            7 |   await cookies()
-         >  8 |   const now = Date.now()
-              |                    ^
-            9 |   return (
-           10 |     <main>
-           11 |       <p>This page uses sync IO after awaiting cookies(): {now}</p>
          Build-time instant validation failed for route "/suspense-in-root/runtime/invalid-sync-io".
          To get a more detailed stack trace and pinpoint the issue, try one of the following:
            - Start the app in development mode by running \`next dev\`, then open "/suspense-in-root/runtime/invalid-sync-io" in your browser to investigate the error.
@@ -867,48 +846,6 @@ describe('instant validation', () => {
            - [measure] If the value is for telemetry, use a timing API such as \`performance.now()\`
              https://nextjs.org/docs/messages/blocking-prerender-current-time#for-telemetry-use-a-timing-api
              at a (app/suspense-in-root/runtime/invalid-sync-io-in-runtime-with-valid-static-parent/page.tsx:12:20)
-           10 | export default async function Page() {
-           11 |   await cookies()
-         > 12 |   const now = Date.now()
-              |                    ^
-           13 |   return (
-           14 |     <main>
-           15 |       <p>Runtime page with sync IO after cookies: {now}</p>
-         Error: Route "/suspense-in-root/runtime/invalid-sync-io-in-runtime-with-valid-static-parent": Next.js encountered the unstable value \`Date.now()\` while prerendering.
-
-         This value can change between renders, so it must be either prerendered or computed later.
-
-         Ways to fix this:
-           - [dynamic] Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
-             https://nextjs.org/docs/messages/blocking-prerender-current-time#generate-on-every-request
-           - [cache] Prerender and cache the value with \`"use cache"\`
-             https://nextjs.org/docs/messages/blocking-prerender-current-time#cache-the-timestamp
-           - [client] Render the value on the client with \`"use client"\`
-             https://nextjs.org/docs/messages/blocking-prerender-current-time#render-on-the-client
-           - [measure] If the value is for telemetry, use a timing API such as \`performance.now()\`
-             https://nextjs.org/docs/messages/blocking-prerender-current-time#for-telemetry-use-a-timing-api
-             at b (app/suspense-in-root/runtime/invalid-sync-io-in-runtime-with-valid-static-parent/page.tsx:12:20)
-           10 | export default async function Page() {
-           11 |   await cookies()
-         > 12 |   const now = Date.now()
-              |                    ^
-           13 |   return (
-           14 |     <main>
-           15 |       <p>Runtime page with sync IO after cookies: {now}</p>
-         Error: Route "/suspense-in-root/runtime/invalid-sync-io-in-runtime-with-valid-static-parent": Next.js encountered the unstable value \`Date.now()\` while prerendering.
-
-         This value can change between renders, so it must be either prerendered or computed later.
-
-         Ways to fix this:
-           - [dynamic] Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
-             https://nextjs.org/docs/messages/blocking-prerender-current-time#generate-on-every-request
-           - [cache] Prerender and cache the value with \`"use cache"\`
-             https://nextjs.org/docs/messages/blocking-prerender-current-time#cache-the-timestamp
-           - [client] Render the value on the client with \`"use client"\`
-             https://nextjs.org/docs/messages/blocking-prerender-current-time#render-on-the-client
-           - [measure] If the value is for telemetry, use a timing API such as \`performance.now()\`
-             https://nextjs.org/docs/messages/blocking-prerender-current-time#for-telemetry-use-a-timing-api
-             at c (app/suspense-in-root/runtime/invalid-sync-io-in-runtime-with-valid-static-parent/page.tsx:12:20)
            10 | export default async function Page() {
            11 |   await cookies()
          > 12 |   const now = Date.now()
@@ -1074,27 +1011,6 @@ describe('instant validation', () => {
            10 |   return {
            11 |     title: \`Sync IO in metadata: \${now}\`,
            12 |   }
-         Error: Route "/suspense-in-root/runtime/invalid-sync-io-in-generate-metadata": Next.js encountered the unstable value \`Date.now()\` while prerendering.
-
-         This value can change between renders, so it must be either prerendered or computed later.
-
-         Ways to fix this:
-           - [dynamic] Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
-             https://nextjs.org/docs/messages/blocking-prerender-current-time#generate-on-every-request
-           - [cache] Prerender and cache the value with \`"use cache"\`
-             https://nextjs.org/docs/messages/blocking-prerender-current-time#cache-the-timestamp
-           - [client] Render the value on the client with \`"use client"\`
-             https://nextjs.org/docs/messages/blocking-prerender-current-time#render-on-the-client
-           - [measure] If the value is for telemetry, use a timing API such as \`performance.now()\`
-             https://nextjs.org/docs/messages/blocking-prerender-current-time#for-telemetry-use-a-timing-api
-             at Module.e [as generateMetadata] (app/suspense-in-root/runtime/invalid-sync-io-in-generate-metadata/page.tsx:9:20)
-            7 | export async function generateMetadata() {
-            8 |   await cookies()
-         >  9 |   const now = Date.now()
-              |                    ^
-           10 |   return {
-           11 |     title: \`Sync IO in metadata: \${now}\`,
-           12 |   }
          Build-time instant validation failed for route "/suspense-in-root/runtime/invalid-sync-io-in-generate-metadata".
          To get a more detailed stack trace and pinpoint the issue, try one of the following:
            - Start the app in development mode by running \`next dev\`, then open "/suspense-in-root/runtime/invalid-sync-io-in-generate-metadata" in your browser to investigate the error.
@@ -1154,48 +1070,6 @@ describe('instant validation', () => {
         expect(extractBuildValidationError(result.cliOutput))
           .toMatchInlineSnapshot(`
          "Error: Route "/suspense-in-root/runtime/invalid-sync-io-in-layout-generate-metadata": Next.js encountered the unstable value \`Date.now()\` while prerendering.
-
-         This value can change between renders, so it must be either prerendered or computed later.
-
-         Ways to fix this:
-           - [dynamic] Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
-             https://nextjs.org/docs/messages/blocking-prerender-current-time#generate-on-every-request
-           - [cache] Prerender and cache the value with \`"use cache"\`
-             https://nextjs.org/docs/messages/blocking-prerender-current-time#cache-the-timestamp
-           - [client] Render the value on the client with \`"use client"\`
-             https://nextjs.org/docs/messages/blocking-prerender-current-time#render-on-the-client
-           - [measure] If the value is for telemetry, use a timing API such as \`performance.now()\`
-             https://nextjs.org/docs/messages/blocking-prerender-current-time#for-telemetry-use-a-timing-api
-             at Module.d [as generateMetadata] (app/suspense-in-root/runtime/invalid-sync-io-in-layout-generate-metadata/layout.tsx:11:20)
-            9 | export async function generateMetadata() {
-           10 |   await cookies()
-         > 11 |   const now = Date.now()
-              |                    ^
-           12 |   return {
-           13 |     title: \`Layout metadata with sync IO: \${now}\`,
-           14 |   }
-         Error: Route "/suspense-in-root/runtime/invalid-sync-io-in-layout-generate-metadata": Next.js encountered the unstable value \`Date.now()\` while prerendering.
-
-         This value can change between renders, so it must be either prerendered or computed later.
-
-         Ways to fix this:
-           - [dynamic] Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
-             https://nextjs.org/docs/messages/blocking-prerender-current-time#generate-on-every-request
-           - [cache] Prerender and cache the value with \`"use cache"\`
-             https://nextjs.org/docs/messages/blocking-prerender-current-time#cache-the-timestamp
-           - [client] Render the value on the client with \`"use client"\`
-             https://nextjs.org/docs/messages/blocking-prerender-current-time#render-on-the-client
-           - [measure] If the value is for telemetry, use a timing API such as \`performance.now()\`
-             https://nextjs.org/docs/messages/blocking-prerender-current-time#for-telemetry-use-a-timing-api
-             at Module.d [as generateMetadata] (app/suspense-in-root/runtime/invalid-sync-io-in-layout-generate-metadata/layout.tsx:11:20)
-            9 | export async function generateMetadata() {
-           10 |   await cookies()
-         > 11 |   const now = Date.now()
-              |                    ^
-           12 |   return {
-           13 |     title: \`Layout metadata with sync IO: \${now}\`,
-           14 |   }
-         Error: Route "/suspense-in-root/runtime/invalid-sync-io-in-layout-generate-metadata": Next.js encountered the unstable value \`Date.now()\` while prerendering.
 
          This value can change between renders, so it must be either prerendered or computed later.
 

@@ -43,6 +43,7 @@ import {
   makeHangingPromise,
   getSessionDataStage,
   getRuntimeLinkDataStage,
+  getStaticLinkDataStage,
 } from '../dynamic-rendering-utils'
 
 import type { ClientReferenceManifest } from '../../build/webpack/plugins/flight-manifest-plugin'
@@ -1702,7 +1703,8 @@ export async function cache(
           // whether we're in the early or late stages.
           const stagedRendering = outerWorkUnitStore.stagedRendering
           const stage = stagedRendering
-            ? getSessionDataStage(stagedRendering)
+            ? // TODO(app-shells): exclude private caches with a short staletime
+              getSessionDataStage(stagedRendering)
             : RenderStage.Runtime
           await makeDevtoolsIOAwarePromise(undefined, outerWorkUnitStore, stage)
         }
@@ -2137,7 +2139,8 @@ export async function cache(
 
                 const stagedRendering = workUnitStore.stagedRendering
                 const stage = stagedRendering
-                  ? getSessionDataStage(stagedRendering)
+                  ? // TODO(app-shells): exclude caches with a short staletime
+                    getSessionDataStage(stagedRendering)
                   : RenderStage.Runtime
                 await makeDevtoolsIOAwarePromise(
                   undefined,
@@ -2227,7 +2230,14 @@ export async function cache(
               )
               break
             }
-            case 'request':
+            case 'request': {
+              // For a staged dynamic request, assume we're recovering a static shell --
+              // If a session shell is needed, we do it in a separate render
+              await stagedRendering.waitForStage(
+                getStaticLinkDataStage(stagedRendering)
+              )
+              break
+            }
             case 'prerender':
             case 'cache':
             case 'private-cache':
@@ -2676,9 +2686,11 @@ export async function cache(
                 // unnecessary restarts. We don't end the cache read here, so
                 // this will always appear as a cache miss in the static stage,
                 // and thus will cause a restart even if all caches are filled.
+
                 const stagedRendering = workUnitStore.stagedRendering
                 const stage = stagedRendering
-                  ? getSessionDataStage(stagedRendering)
+                  ? // TODO(app-shells): exclude caches with a short staletime
+                    getSessionDataStage(stagedRendering)
                   : RenderStage.Runtime
                 await makeDevtoolsIOAwarePromise(
                   undefined,

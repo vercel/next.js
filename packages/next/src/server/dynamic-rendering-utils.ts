@@ -84,6 +84,21 @@ export function makeHangingPromise<T>(
 
 function ignoreReject() {}
 
+/**
+ * Creates a promise that will be triggered when another promise resolves.
+ * It will not emit unhandled rejections, which is important if the trigger
+ * is a promise that might itself get rejected (e.g. when a prerender/render
+ * are aborted due to sync IO)
+ */
+export function makePromiseFromTrigger<T>(
+  trigger: Promise<any>,
+  value: T
+): Promise<T> {
+  const promise = trigger.then(() => value)
+  promise.catch(ignoreReject)
+  return promise
+}
+
 export function makeDevtoolsIOAwarePromise<T>(
   underlying: T,
   requestStore: RequestStore,

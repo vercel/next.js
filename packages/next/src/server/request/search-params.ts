@@ -30,6 +30,7 @@ import { InvariantError } from '../../shared/lib/invariant-error'
 import {
   makeDevtoolsIOAwarePromise,
   makeHangingPromise,
+  makePromiseFromTrigger,
   RENDER_STAGES_BY_DATA_KIND,
 } from '../dynamic-rendering-utils'
 import { createDedupedByCallsiteServerErrorLoggerDev } from '../create-deduped-by-callsite-server-error-logger'
@@ -298,11 +299,12 @@ function createRenderSearchParams(
         )
       }
 
-      return (
+      return makePromiseFromTrigger(
         isRuntimePrefetchable
           ? requestStore.asyncApiPromises.earlySharedSearchParamsParent
-          : requestStore.asyncApiPromises.sharedSearchParamsParent
-      ).then(() => underlyingSearchParams)
+          : requestStore.asyncApiPromises.sharedSearchParamsParent,
+        underlyingSearchParams
+      )
     } else {
       return makeUntrackedSearchParams(underlyingSearchParams)
     }
