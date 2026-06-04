@@ -159,12 +159,13 @@ const API_DOCS: Record<
   unstable_prefetch: {
     description: `Controls prefetching behavior for this segment. This configuration is currently under development and will change.`,
     link: '(docs coming soon)',
-    type: `"auto" | "force-disabled" | "force-static" | "force-runtime"`,
+    type: `"auto" | "partial" | "force-disabled" | "force-runtime"`,
     options: {
       auto: 'Default. Framework decides based on instant validation and segment configuration. You do not need to set this explicitly.',
+      partial: 'Enables Partial Prefetching for this segment.',
       'force-disabled': 'Never prefetch this segment.',
-      'force-static': 'Always prefetch this segment statically.',
-      'force-runtime': 'Always prefetch this segment at runtime.',
+      'force-runtime':
+        'Prefetch this segment with a runtime server request so it can access session data, such as cookies.',
     },
     insertText: `unstable_prefetch = 'force-runtime';`,
   },
