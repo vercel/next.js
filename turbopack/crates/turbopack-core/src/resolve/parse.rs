@@ -3,7 +3,7 @@ use std::sync::LazyLock;
 use anyhow::{Ok, Result};
 use regex::Regex;
 use turbo_rcstr::{RcStr, rcstr};
-use turbo_tasks::{ResolvedVc, TryJoinIterExt, ValueToString, Vc, turbofmt};
+use turbo_tasks::{ResolvedVc, TryJoinIterExt, ValueToString, Vc};
 
 use super::pattern::Pattern;
 
@@ -51,7 +51,7 @@ pub enum Request {
     DataUri {
         media_type: RcStr,
         encoding: RcStr,
-        data: ResolvedVc<RcStr>,
+        data: RcStr,
     },
     Unknown {
         path: Pattern,
@@ -220,7 +220,7 @@ impl Request {
                 return Request::DataUri {
                     media_type,
                     encoding,
-                    data: ResolvedVc::cell(data),
+                    data,
                 };
             }
 
@@ -578,7 +578,7 @@ impl Request {
                     .iter()
                     .copied()
                     .map(|req| req.with_fragment(fragment.clone()))
-                    .map(|v| async move { v.to_resolved().await })
+                    .map(|v| v.to_resolved())
                     .try_join()
                     .await?;
                 Request::Alternatives { requests }.cell()
@@ -658,7 +658,7 @@ impl Request {
                 encoding,
                 data,
             } => {
-                let data = ResolvedVc::cell(turbofmt!("{}{suffix}", *data).await?);
+                let data = RcStr::from(format!("{data}{suffix}"));
                 Self::DataUri {
                     media_type: media_type.clone(),
                     encoding: encoding.clone(),
@@ -690,7 +690,7 @@ impl Request {
             Request::Alternatives { requests } => {
                 let requests = requests
                     .iter()
-                    .map(|req| async { req.append_path(suffix.clone()).to_resolved().await })
+                    .map(|req| req.append_path(suffix.clone()).to_resolved())
                     .try_join()
                     .await?;
                 Request::Alternatives { requests }.cell()
@@ -738,11 +738,7 @@ impl Request {
                 media_type,
                 encoding,
                 data,
-            } => Pattern::Constant(
-                stringify_data_uri(media_type, encoding, *data)
-                    .await?
-                    .into(),
-            ),
+            } => Pattern::Constant(stringify_data_uri(media_type, encoding, data)),
             Request::Uri {
                 protocol,
                 remainder,
@@ -816,11 +812,7 @@ impl ValueToString for Request {
                 media_type,
                 encoding,
                 data,
-            } => format!(
-                "data uri \"{media_type}\" \"{encoding}\" \"{}\"",
-                data.await?
-            )
-            .into(),
+            } => format!("data uri \"{media_type}\" \"{encoding}\" \"{data}\"",).into(),
             Request::Uri {
                 protocol,
                 remainder,
@@ -840,15 +832,10 @@ impl ValueToString for Request {
     }
 }
 
-pub async fn stringify_data_uri(
-    media_type: &RcStr,
-    encoding: &RcStr,
-    data: ResolvedVc<RcStr>,
-) -> Result<String> {
-    Ok(format!(
-        "data:{media_type}{}{encoding},{}",
+pub fn stringify_data_uri(media_type: &RcStr, encoding: &RcStr, data: &RcStr) -> RcStr {
+    RcStr::from(format!(
+        "data:{media_type}{}{encoding},{data}",
         if encoding.is_empty() { "" } else { ";" },
-        data.await?
     ))
 }
 

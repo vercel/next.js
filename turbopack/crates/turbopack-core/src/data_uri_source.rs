@@ -1,6 +1,6 @@
 use anyhow::{Result, bail};
 use turbo_rcstr::RcStr;
-use turbo_tasks::{ResolvedVc, Vc};
+use turbo_tasks::Vc;
 use turbo_tasks_fs::{File, FileContent, FileSystemPath, rope::Rope};
 use turbo_tasks_hash::{encode_hex, hash_xxh3_hash64};
 
@@ -16,7 +16,7 @@ use crate::{
 pub struct DataUriSource {
     media_type: RcStr,
     encoding: RcStr,
-    data: ResolvedVc<RcStr>,
+    data: RcStr,
     lookup_path: FileSystemPath,
 }
 
@@ -26,7 +26,7 @@ impl DataUriSource {
     pub fn new(
         media_type: RcStr,
         encoding: RcStr,
-        data: ResolvedVc<RcStr>,
+        data: RcStr,
         lookup_path: FileSystemPath,
     ) -> Vc<Self> {
         Self::cell(DataUriSource {
@@ -41,19 +41,17 @@ impl DataUriSource {
 #[turbo_tasks::value_impl]
 impl Source for DataUriSource {
     #[turbo_tasks::function]
-    async fn description(&self) -> Result<Vc<RcStr>> {
+    fn description(&self) -> Vc<RcStr> {
         let media_type = &self.media_type;
         let encoding = &self.encoding;
-        let data = self.data.await?;
+        let data = &self.data;
         // Build the data URI prefix for identification; data URIs can be very
         // long so we cap the total display at 50 characters.
         let sep = if encoding.is_empty() { "" } else { ";" };
         let full_with_data = format!("data:{media_type}{sep}{encoding},{data}");
         let prefix: String = full_with_data.chars().take(50).collect();
         let ellipsis = if full_with_data.len() > 50 { "..." } else { "" };
-        Ok(Vc::cell(
-            format!("data URI content ({prefix}{ellipsis})").into(),
-        ))
+        Vc::cell(format!("data URI content ({prefix}{ellipsis})").into())
     }
 
     #[turbo_tasks::function]
@@ -62,7 +60,7 @@ impl Source for DataUriSource {
         let filename = format!(
             "data:{}",
             &encode_hex(hash_xxh3_hash64((
-                &*self.data.await?,
+                &self.data,
                 &self.media_type,
                 &self.encoding
             )))[0..6]
@@ -76,8 +74,8 @@ impl Source for DataUriSource {
 #[turbo_tasks::value_impl]
 impl Asset for DataUriSource {
     #[turbo_tasks::function]
-    async fn content(&self) -> Result<Vc<AssetContent>> {
-        let data = self.data.await?;
+    fn content(&self) -> Result<Vc<AssetContent>> {
+        let data = &self.data;
         let rope = if self.encoding == "base64" {
             let decoded = data_encoding::BASE64.decode(data.as_bytes())?;
             // TODO this should read self.media_type and potentially use a different encoding

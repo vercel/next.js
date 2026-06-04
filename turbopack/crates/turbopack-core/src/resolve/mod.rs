@@ -2105,9 +2105,7 @@ async fn resolve_internal_inline(
                 data,
             } => {
                 // Behave like Request::Uri
-                let uri: RcStr = stringify_data_uri(media_type, encoding, *data)
-                    .await?
-                    .into();
+                let uri = stringify_data_uri(media_type, encoding, data);
                 if options_value.parse_data_uris {
                     ResolveResult::primary_with_key(
                         RequestKey::new(uri.clone()),
@@ -2115,7 +2113,7 @@ async fn resolve_internal_inline(
                             DataUriSource::new(
                                 media_type.clone(),
                                 encoding.clone(),
-                                **data,
+                                data.clone(),
                                 lookup_path.clone(),
                             )
                             .to_resolved()
