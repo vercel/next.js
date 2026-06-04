@@ -496,6 +496,26 @@ function assignDefaultsAndValidate(
     }
   }
 
+  // Rendering the Instant DevTools widget in production builds depends on the
+  // instant-navigation capture mechanism, which is gated by the testing API.
+  // Enabling the widget implicitly enables the testing API in production.
+  if (result.experimental.exposeInstantDevToolsInProductionBuild) {
+    result.experimental.exposeTestingApiInProductionBuild = true
+  }
+
+  // The Instant DevTools widget relies on the Cache Components rendering stack
+  // (static shell + cached navigations) to capture instant navigations; without
+  // it the widget cannot capture anything. Fail with a clear, actionable error
+  // rather than rendering a non-functional widget.
+  if (
+    result.experimental.exposeInstantDevToolsInProductionBuild &&
+    !result.cacheComponents
+  ) {
+    throw new Error(
+      `\`experimental.exposeInstantDevToolsInProductionBuild\` requires \`cacheComponents\` to be enabled. Please update your ${configFileName} accordingly.`
+    )
+  }
+
   if (result.experimental.cachedNavigations && !result.cacheComponents) {
     throw new Error(
       `\`experimental.cachedNavigations\` requires \`cacheComponents\` to be enabled. Please update your ${configFileName} accordingly.`

@@ -524,6 +524,15 @@ export interface ExperimentalConfig {
    * Do not enable in user-facing production deployments.
    */
   exposeTestingApiInProductionBuild?: boolean
+  /**
+   * When enabled, renders the Instant DevTools navigation insights widget in
+   * production builds. Implicitly enables `exposeTestingApiInProductionBuild`,
+   * which powers the underlying instant-navigation capture mechanism.
+   *
+   * WARNING: This flag is intended for profiling and testing purposes only.
+   * Do not enable in user-facing production deployments.
+   */
+  exposeInstantDevToolsInProductionBuild?: boolean
   extensionAlias?: Record<string, any>
   allowedRevalidateHeaderKeys?: string[]
   fetchCacheKeyPrefix?: string
