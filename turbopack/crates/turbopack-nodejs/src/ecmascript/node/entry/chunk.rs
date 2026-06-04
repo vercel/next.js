@@ -16,6 +16,7 @@ use turbopack_core::{
     source_map::{GenerateSourceMap, SourceMapAsset},
 };
 use turbopack_ecmascript::{chunk::EcmascriptChunkPlaceable, utils::StringifyJs};
+use turbopack_ecmascript_runtime::RuntimeType;
 
 use super::runtime::EcmascriptBuildNodeRuntimeChunk;
 use crate::NodeJsChunkingContext;
@@ -149,8 +150,21 @@ impl EcmascriptBuildNodeEntryChunk {
     }
 
     #[turbo_tasks::function]
-    fn runtime_chunk(&self) -> Vc<EcmascriptBuildNodeRuntimeChunk> {
-        EcmascriptBuildNodeRuntimeChunk::new(*self.chunking_context)
+    async fn runtime_chunk(&self) -> Result<Vc<EcmascriptBuildNodeRuntimeChunk>> {
+        // Detect async modules from the whole-app graph in production. In development, the graph
+        // is per-page. To keep the shared `runtime.js` stable, always include the machinery.
+        let has_async_modules = if matches!(
+            *self.chunking_context.runtime_type().await?,
+            RuntimeType::Production
+        ) {
+            !self.module_graph.async_module_info().await?.is_empty()
+        } else {
+            true
+        };
+        Ok(EcmascriptBuildNodeRuntimeChunk::new(
+            *self.chunking_context,
+            has_async_modules,
+        ))
     }
 
     #[turbo_tasks::function]
