@@ -16,7 +16,8 @@ use turbo_tasks::{FxDashMap, TaskId, backend::CachedTaskTypeArc, event::Event, p
 
 use crate::{
     backend::storage_schema::{
-        DropPartialOutcome, KeyEvictability, TaskStorage, UnevictableReason, ValueEvictability,
+        DropPartialOutcome, EvictionMode, KeyEvictability, TaskStorage, UnevictableReason,
+        ValueEvictability,
     },
     backing_storage::SnapshotItem,
     database::key_value_database::KeySpace,
@@ -85,6 +86,35 @@ impl Display for EvictionCounts {
             )?;
         }
         Ok(())
+    }
+}
+
+/// Counts from a single `evict_under_pressure` sweep.
+#[derive(Debug, Default)]
+pub struct PressureEvictionCounts {
+    /// Tasks from which at least one curated cell was dropped.
+    pub tasks_swept: usize,
+    /// Tasks skipped because they were in use (executing/active/restoring/new).
+    pub skipped_in_use: usize,
+    /// Tasks visited that had no curated cells to drop.
+    pub no_op: usize,
+}
+
+impl std::ops::AddAssign for PressureEvictionCounts {
+    fn add_assign(&mut self, rhs: Self) {
+        self.tasks_swept += rhs.tasks_swept;
+        self.skipped_in_use += rhs.skipped_in_use;
+        self.no_op += rhs.no_op;
+    }
+}
+
+impl Display for PressureEvictionCounts {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "tasks_swept={},skipped_in_use={},no_op={}",
+            self.tasks_swept, self.skipped_in_use, self.no_op,
+        )
     }
 }
 
@@ -546,7 +576,10 @@ impl Storage {
                 }
                 match value_evictability {
                     ValueEvictability::Evictable { meta, data } => {
-                        match task.get_mut().drop_partial(data, meta) {
+                        match task
+                            .get_mut()
+                            .drop_partial(data, meta, EvictionMode::Normal)
+                        {
                             DropPartialOutcome::Empty => {
                                 unsafe {
                                     shard.erase(bucket);
@@ -607,6 +640,71 @@ impl Storage {
         }
         span.record("counts", tracing::field::display(&totals));
 
+        totals
+    }
+
+    /// Snapshot-free emergency eviction under memory pressure.
+    ///
+    /// Unlike [`Self::evict_after_snapshot`], this does **not** require a
+    /// preceding snapshot and does not need an fs cache: it drops only the
+    /// hand-curated emergency set (`Evictability::Always` +
+    /// `Evictability::PressureEvictable`) from each task's `cell_data`, which
+    /// reconstructs via recompute on the next read. It is a single full sweep —
+    /// there is no tier loop and no memory-target re-checking; the caller
+    /// decides when to invoke it (see the backend's `maybe_shrink`).
+    ///
+    /// Tasks that are in use (executing, scheduled, active, or mid-restore) are
+    /// skipped. All flags and every other field are left untouched, so it is
+    /// safe to call on tasks whose data is dirty/unpersisted.
+    ///
+    /// Must be called when NOT in snapshot mode.
+    pub fn evict_under_pressure(&self, parent_span: Option<Id>) -> PressureEvictionCounts {
+        let span = tracing::trace_span!(
+            parent: parent_span,
+            "evict_under_pressure",
+            total_map_keys = self.map.len(),
+            counts = tracing::field::Empty,
+        )
+        .entered();
+        debug_assert!(
+            !self.snapshot_mode(),
+            "evict_under_pressure must not be called during snapshot mode"
+        );
+
+        let counts: Vec<PressureEvictionCounts> =
+            parallel::map_collect(self.map.shards(), |shard| {
+                let shard = shard.write();
+                let mut counts = PressureEvictionCounts::default();
+                // SAFETY: We hold the write lock for the duration of iteration.
+                for bucket in unsafe { shard.iter() } {
+                    // SAFETY: The write lock guard outlives the bucket reference.
+                    let (task_id, task) = unsafe { bucket.as_mut() };
+                    // Transient tasks are never persisted and hold session state;
+                    // leave them alone (mirrors evict_after_snapshot).
+                    if task_id.is_transient() {
+                        continue;
+                    }
+                    if !task.get().pressure_data_evictable() {
+                        counts.skipped_in_use += 1;
+                        continue;
+                    }
+                    if task.get_mut().drop_pressure_evictable_cells() {
+                        counts.tasks_swept += 1;
+                    } else {
+                        counts.no_op += 1;
+                    }
+                }
+                // We never remove a task entry here (cell residue and the rest of
+                // the task's state remain), so there is no slack to reclaim beyond
+                // what `drop_partial`'s `shrink_to_fit` already did on the inner map.
+                counts
+            });
+
+        let mut totals = PressureEvictionCounts::default();
+        for c in counts {
+            totals += c;
+        }
+        span.record("counts", tracing::field::display(&totals));
         totals
     }
 }

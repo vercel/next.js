@@ -683,17 +683,21 @@ export interface ExperimentalConfig {
   gestureTransition?: boolean
 
   /**
-   * Controls Turbopack's memory eviction strategy for development sessions
+   * Controls Turbopack's memory eviction strategy.
    *
-   * Only effective in dev sessions where
-   * `experimental.turbopackFileSystemCacheForDev` is enabled (which it is by default).
+   * `'off'` and `'full'` are only effective in sessions where the Turbopack
+   * persistent cache is enabled (which it is by default in dev).
    *
    * - `false`: disable eviction.
    * - `'full'`: after every snapshot, drop as much memory as possible.
+   * - `'pressure'`: don't evict on snapshots, but when the process is under
+   *   memory pressure (checked at lifecycle boundaries such as after the module
+   *   graph is built), drop a curated set of recomputable cells. Reconstructs via
+   *   recompute, so it works in both dev and build and needs no persistent cache.
    *
    * Defaults to `'full'`
    */
-  turbopackMemoryEviction?: false | 'full'
+  turbopackMemoryEviction?: false | 'full' | 'pressure'
 
   /**
    * Selects the backend used by Turbopack for Node.js evaluation, e.g. webpack

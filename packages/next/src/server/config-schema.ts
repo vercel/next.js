@@ -365,7 +365,7 @@ export const experimentalSchema = {
   webpackBuildWorker: z.boolean().optional(),
   webpackMemoryOptimizations: z.boolean().optional(),
   turbopackMemoryEviction: z
-    .union([z.literal(false), z.literal('full')])
+    .union([z.literal(false), z.literal('full'), z.literal('pressure')])
     .optional(),
   turbopackPluginRuntimeStrategy: z
     .enum(['workerThreads', 'childProcesses', 'forceWorkerThreads'])

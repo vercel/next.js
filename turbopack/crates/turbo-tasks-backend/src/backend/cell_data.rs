@@ -23,7 +23,7 @@ use turbo_tasks::{
     CellId, Evictability, SharedReference, ShrinkToFit, ValueTypePersistence, registry,
 };
 
-use crate::backend::storage_schema::{DropPartial, DropPartialOutcome, MergeRestore};
+use crate::backend::storage_schema::{DropPartial, DropPartialOutcome, EvictionMode, MergeRestore};
 
 /// The value is stored as [`SharedReference`] rather than
 /// [`TypedSharedReference`] because the `CellId` key already carries the
@@ -71,22 +71,31 @@ impl MergeRestore for CellData {
 }
 
 impl DropPartial for CellData {
-    /// Drop cells whose value type is freely evictable, retain those that
-    /// are not. Called by the macro-generated `TaskStorage::drop_partial`
-    /// on the data-eviction path.
+    /// Drop cells whose value type is evictable in the given [`EvictionMode`],
+    /// retain those that are not. Called by the macro-generated
+    /// `TaskStorage::drop_partial` on the data-eviction path.
     ///
-    /// Dropped (`Evictability::Always`): persistable cells (restored from
-    /// disk on next access), skip cells (re-derived by re-running the task),
-    /// and hash-only cells (re-derived; hash gates spurious invalidation).
+    /// Always dropped (`Evictability::Always`): persistable cells (restored
+    /// from disk on next access), skip cells (re-derived by re-running the
+    /// task), and hash-only cells (re-derived; hash gates spurious
+    /// invalidation).
     ///
-    /// Retained:
+    /// Dropped only under [`EvictionMode::EmergencyPressure`]
+    /// (`Evictability::PressureEvictable`): the hand-curated emergency set,
+    /// re-derived via recompute on the next read.
+    ///
+    /// Always retained:
     /// - `Evictability::Expensive` — re-derivation is non-trivial, prefer keeping in memory.
     /// - `Evictability::Never` — value type holds session-scoped state that must not leave memory
     ///   (`State<>` cells, file watchers, worker pools).
-    fn drop_partial(&mut self) -> DropPartialOutcome {
+    fn drop_partial(&mut self, mode: EvictionMode) -> DropPartialOutcome {
         self.0.retain(
             |cell_id, _| match registry::get_value_type(cell_id.type_id).evictability {
                 Evictability::Always => false,
+                Evictability::PressureEvictable => {
+                    // Retained on the normal sweep; dropped under pressure.
+                    !matches!(mode, EvictionMode::EmergencyPressure)
+                }
                 Evictability::Expensive | Evictability::Never => true,
             },
         );
@@ -220,6 +229,13 @@ mod tests {
         u32,
     );
 
+    #[turbo_tasks::value(serialization = "skip", evict = "pressure")]
+    struct SkipPressureV(
+        #[turbo_tasks(trace_ignore)]
+        #[allow(dead_code)]
+        u32,
+    );
+
     #[turbo_tasks::value(serialization = "skip", evict = "never", cell = "new", eq = "manual")]
     struct SessionStatefulV;
 
@@ -246,17 +262,47 @@ mod tests {
         data.insert(cell_of::<PersistableNeverV>(0), dummy_ref());
         data.insert(cell_of::<SkipCheapV>(0), dummy_ref());
         data.insert(cell_of::<SkipExpensiveV>(0), dummy_ref());
+        data.insert(cell_of::<SkipPressureV>(0), dummy_ref());
         data.insert(cell_of::<SessionStatefulV>(0), dummy_ref());
         data.insert(cell_of::<HashOnlyV>(0), dummy_ref());
 
-        assert_eq!(data.drop_partial(), DropPartialOutcome::HasResidue);
+        // Normal mode: drop `Always` cells only. PressureEvictable is retained
+        // alongside Expensive/Never.
+        assert_eq!(
+            data.drop_partial(EvictionMode::Normal),
+            DropPartialOutcome::HasResidue
+        );
+        assert_eq!(data.len(), 4);
+        assert!(data.contains_key(&cell_of::<PersistableNeverV>(0)));
+        assert!(data.contains_key(&cell_of::<SkipExpensiveV>(0)));
+        assert!(data.contains_key(&cell_of::<SkipPressureV>(0)));
+        assert!(data.contains_key(&cell_of::<SessionStatefulV>(0)));
+        assert!(!data.contains_key(&cell_of::<PersistableV>(0)));
+        assert!(!data.contains_key(&cell_of::<SkipCheapV>(0)));
+        assert!(!data.contains_key(&cell_of::<HashOnlyV>(0)));
+    }
+
+    #[test]
+    fn drop_partial_emergency_pressure_also_drops_pressure_evictable() {
+        let mut data = CellData::new();
+        data.insert(cell_of::<PersistableV>(0), dummy_ref());
+        data.insert(cell_of::<PersistableNeverV>(0), dummy_ref());
+        data.insert(cell_of::<SkipExpensiveV>(0), dummy_ref());
+        data.insert(cell_of::<SkipPressureV>(0), dummy_ref());
+        data.insert(cell_of::<SessionStatefulV>(0), dummy_ref());
+
+        // EmergencyPressure mode: additionally drop the curated
+        // PressureEvictable cells. Expensive and Never are still retained.
+        assert_eq!(
+            data.drop_partial(EvictionMode::EmergencyPressure),
+            DropPartialOutcome::HasResidue
+        );
         assert_eq!(data.len(), 3);
         assert!(data.contains_key(&cell_of::<PersistableNeverV>(0)));
         assert!(data.contains_key(&cell_of::<SkipExpensiveV>(0)));
         assert!(data.contains_key(&cell_of::<SessionStatefulV>(0)));
         assert!(!data.contains_key(&cell_of::<PersistableV>(0)));
-        assert!(!data.contains_key(&cell_of::<SkipCheapV>(0)));
-        assert!(!data.contains_key(&cell_of::<HashOnlyV>(0)));
+        assert!(!data.contains_key(&cell_of::<SkipPressureV>(0)));
     }
 
     #[test]
@@ -266,7 +312,10 @@ mod tests {
         data.insert(cell_of::<SkipCheapV>(0), dummy_ref());
         data.insert(cell_of::<HashOnlyV>(0), dummy_ref());
 
-        assert_eq!(data.drop_partial(), DropPartialOutcome::Empty);
+        assert_eq!(
+            data.drop_partial(EvictionMode::Normal),
+            DropPartialOutcome::Empty
+        );
         assert!(data.is_empty());
     }
 
@@ -277,13 +326,20 @@ mod tests {
         data.insert(cell_of::<SkipExpensiveV>(0), dummy_ref());
         data.insert(cell_of::<SessionStatefulV>(0), dummy_ref());
 
-        assert_eq!(data.drop_partial(), DropPartialOutcome::HasResidue);
+        // Even under emergency pressure, Expensive/Never are retained.
+        assert_eq!(
+            data.drop_partial(EvictionMode::EmergencyPressure),
+            DropPartialOutcome::HasResidue
+        );
         assert_eq!(data.len(), 3);
     }
 
     #[test]
     fn drop_partial_on_empty_returns_empty() {
         let mut data = CellData::new();
-        assert_eq!(data.drop_partial(), DropPartialOutcome::Empty);
+        assert_eq!(
+            data.drop_partial(EvictionMode::Normal),
+            DropPartialOutcome::Empty
+        );
     }
 }

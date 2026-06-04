@@ -98,6 +98,11 @@ enum EvictMode {
     /// spawning a Node process pool). Eviction policy should prefer
     /// evicting cheaper cells first.
     Last,
+    /// Not evictable on the normal (snapshot) eviction sweep, but opts in to
+    /// the hand-curated "emergency" set that is dropped under memory pressure
+    /// (see `maybe_shrink`). Re-derivation happens via recompute on the next
+    /// read, so it does not require a snapshot first.
+    Pressure,
     /// Not evictable: the value holds interior-mutable state that
     /// accumulates across the session (`State<>` cells, `Arc<Mutex<_>>`
     /// dedup histories) and must stay in memory.
@@ -118,10 +123,11 @@ impl TryFrom<LitStr> for EvictMode {
         match lit.value().as_str() {
             "always" => Ok(EvictMode::Always),
             "last" => Ok(EvictMode::Last),
+            "pressure" => Ok(EvictMode::Pressure),
             "never" => Ok(EvictMode::Never),
             _ => Err(Error::new_spanned(
                 &lit,
-                "expected \"always\", \"last\", or \"never\"",
+                "expected \"always\", \"last\", \"pressure\", or \"never\"",
             )),
         }
     }
@@ -297,20 +303,28 @@ pub fn value(args: TokenStream, input: TokenStream) -> TokenStream {
         .into();
     }
 
-    // `evict = "last"` only makes sense for `serialization = "skip"`: it
-    // says "re-deriving this cell is expensive", and re-derivation is the
-    // recovery path only for skip mode. Persistable cells restore from disk
-    // (predictable cost), HashOnly cells short-circuit on unchanged hash.
+    // `evict = "last"` and `evict = "pressure"` only make sense for
+    // `serialization = "skip"`: they say "re-deriving this cell is the recovery
+    // path", and re-derivation is the recovery path only for skip mode.
+    // Persistable cells restore from disk (predictable cost), HashOnly cells
+    // short-circuit on unchanged hash. A persistable cell that should be dropped
+    // under pressure is already covered: it is `Always`-evictable and the
+    // pressure sweep drops it even when dirty (recomputing instead of restoring).
     //
     // `evict = "never"` is allowed with any serialization mode — a value
     // type can be persistable AND hold session-scoped state that must not
     // leave memory (e.g. `DiskFileSystem` carrying file watchers).
-    if matches!(evict_mode, EvictMode::Last)
+    if matches!(evict_mode, EvictMode::Last | EvictMode::Pressure)
         && !matches!(serialization_mode, SerializationMode::Skip)
     {
+        let mode = if matches!(evict_mode, EvictMode::Last) {
+            "last"
+        } else {
+            "pressure"
+        };
         return syn::Error::new(
             proc_macro2::Span::call_site(),
-            "evict = \"last\" is only valid with serialization = \"skip\"",
+            format!("evict = \"{mode}\" is only valid with serialization = \"skip\""),
         )
         .to_compile_error()
         .into();
@@ -493,6 +507,7 @@ pub fn value(args: TokenStream, input: TokenStream) -> TokenStream {
     let evictability = match evict_mode {
         EvictMode::Always => quote! { turbo_tasks::Evictability::Always },
         EvictMode::Last => quote! { turbo_tasks::Evictability::Expensive },
+        EvictMode::Pressure => quote! { turbo_tasks::Evictability::PressureEvictable },
         EvictMode::Never => quote! { turbo_tasks::Evictability::Never },
     };
     let new_value_type = match &serialization_mode {

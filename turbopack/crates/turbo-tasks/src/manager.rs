@@ -203,6 +203,11 @@ pub trait TurboTasksApi: TurboTasksCallApi + Sync + Send {
 
     // Returns true if TurboTasks is configured to track dependencies.
     fn is_tracking_dependencies(&self) -> bool;
+
+    /// Hint that now is a good moment to release memory under pressure. Forwards
+    /// to [`Backend::maybe_shrink`]. Intended to be called by orchestration code
+    /// at lifecycle boundaries; cheap when there is no pressure.
+    fn maybe_shrink(&self);
 }
 
 /// A wrapper around a value that is unused.
@@ -1616,6 +1621,10 @@ impl<B: Backend + 'static> TurboTasksApi for TurboTasks<B> {
 
     fn is_tracking_dependencies(&self) -> bool {
         self.backend.is_tracking_dependencies()
+    }
+
+    fn maybe_shrink(&self) {
+        self.backend.maybe_shrink(self);
     }
 }
 

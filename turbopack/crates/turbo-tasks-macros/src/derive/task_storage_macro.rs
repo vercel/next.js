@@ -2966,6 +2966,7 @@ fn generate_drop_method(grouped_fields: &GroupedFields) -> TokenStream {
                 &mut self,
                 data: bool,
                 meta: bool,
+                __mode: EvictionMode,
             ) -> DropPartialOutcome {
                 debug_assert!(data || meta, "at least one of data and meta must be true");
                 // OR'd to true by `gen_drop_inline_field` and
@@ -3054,7 +3055,7 @@ fn gen_drop_inline_field(field: &FieldInfo) -> TokenStream {
         // short-circuit the post-drop `is_empty()` query when residue is
         // present.
         quote! {
-            __has_residue |= (#target).drop_partial() == DropPartialOutcome::HasResidue;
+            __has_residue |= (#target).drop_partial(__mode) == DropPartialOutcome::HasResidue;
         }
     } else {
         // When empty, we reset to `Default::default()` to release any over-allocated
@@ -3062,7 +3063,7 @@ fn gen_drop_inline_field(field: &FieldInfo) -> TokenStream {
         // so transient entries (e.g. transient `upper` references to root tasks)
         // survive eviction. Restoration merges the persistent portion back in.
         quote! {
-            match (#target).drop_partial() {
+            match (#target).drop_partial(__mode) {
                 DropPartialOutcome::Empty => {
                     #target = Default::default();
                 }
@@ -3085,7 +3086,7 @@ fn gen_drop_lazy_match_arm(field: &FieldInfo) -> TokenStream {
 
     quote! {
         LazyField::#variant_name(v) => {
-            let has_residue = v.drop_partial() == DropPartialOutcome::HasResidue;
+            let has_residue = v.drop_partial(__mode) == DropPartialOutcome::HasResidue;
             __has_residue |= has_residue;
             has_residue
         }

@@ -2634,6 +2634,11 @@ async fn scale_down_node_pool(project: ResolvedVc<Project>) -> Result<()> {
     } else {
         node_backend.scale_zero()?;
     }
+    // The module graph is built and the worker pool just shrank — a natural
+    // point where a lot of memory was churned. Hint the backend to drop
+    // recomputable cells if the process is under memory pressure. This is a
+    // no-op unless pressure-driven eviction is enabled and pressure is high.
+    turbo_tasks::turbo_tasks().maybe_shrink();
     Ok(())
 }
 

@@ -53,7 +53,7 @@ use turbo_tasks::{FunctionId, TaskDirtyCause};
 
 pub use self::{
     operation::AnyOperation,
-    storage::{EvictionCounts, SpecificTaskDataCategory, TaskDataCategory},
+    storage::{EvictionCounts, PressureEvictionCounts, SpecificTaskDataCategory, TaskDataCategory},
 };
 use crate::{
     backend::{
@@ -151,6 +151,15 @@ pub struct BackendOptions {
     /// This reclaims memory by clearing persisted data that can be re-loaded from disk on demand.
     /// This is an EXPERIMENTAL FEATURE under development
     pub evict_after_snapshot: bool,
+
+    /// When enabled, `maybe_shrink` (called by orchestration code at lifecycle
+    /// boundaries) checks the current memory pressure and, if it is high, drops
+    /// a hand-curated set of recomputable cells (`evict = "always"` and
+    /// `evict = "pressure"` value types) from in-memory storage. Unlike
+    /// `evict_after_snapshot`, this does not require a snapshot first and works
+    /// without an fs cache (dropped cells reconstruct via recompute).
+    /// This is an EXPERIMENTAL FEATURE under development.
+    pub evict_under_pressure: bool,
 }
 
 impl Default for BackendOptions {
@@ -162,6 +171,7 @@ impl Default for BackendOptions {
             num_workers: None,
             small_preallocation: false,
             evict_after_snapshot: false,
+            evict_under_pressure: false,
         }
     }
 }
@@ -193,6 +203,9 @@ pub struct TurboTasksBackend {
     stopping_event: Event,
     idle_start_event: Event,
     idle_end_event: Event,
+    /// Set while a pressure-driven eviction sweep (`maybe_shrink`) is running so
+    /// concurrent calls from overlapping lifecycle boundaries collapse to one.
+    pressure_eviction_in_progress: AtomicBool,
     #[cfg(feature = "verify_aggregation_graph")]
     is_idle: AtomicBool,
 
@@ -212,6 +225,16 @@ impl TurboTasksBackend {
     /// [`crate::db_invalidation::invalidation_reasons`].
     pub fn invalidate_storage(&self, reason_code: &str) -> Result<()> {
         self.backing_storage.invalidate(reason_code)
+    }
+
+    /// Run a snapshot-free pressure eviction sweep, dropping the curated
+    /// emergency set (`evict = "always"` + `evict = "pressure"` cells).
+    ///
+    /// Exposed for integration tests since the production `maybe_shrink` path is
+    /// gated on a live `memory_pressure()` reading that tests can't control.
+    #[doc(hidden)]
+    pub fn evict_under_pressure_for_testing(&self) -> PressureEvictionCounts {
+        self.0.storage.evict_under_pressure(None)
     }
 
     pub fn new(mut options: BackendOptions, backing_storage: TurboBackingStorage) -> Self {
@@ -241,6 +264,7 @@ impl TurboTasksBackend {
             stopping_event: Event::new(|| || "TurboTasksBackend::stopping_event".to_string()),
             idle_start_event: Event::new(|| || "TurboTasksBackend::idle_start_event".to_string()),
             idle_end_event: Event::new(|| || "TurboTasksBackend::idle_end_event".to_string()),
+            pressure_eviction_in_progress: AtomicBool::new(false),
             #[cfg(feature = "verify_aggregation_graph")]
             is_idle: AtomicBool::new(false),
             task_statistics: TaskStatisticsApi::default(),
@@ -279,6 +303,47 @@ impl TurboTasksBackend {
 
     fn should_evict(&self) -> bool {
         self.options.evict_after_snapshot && self.should_persist()
+    }
+
+    /// Memory pressure (0..=100) at or above which `maybe_shrink` runs an
+    /// emergency eviction sweep. Hardcoded for now; the trade-off is between
+    /// reacting early enough to avoid an OOM and not paying recompute cost for
+    /// transient spikes.
+    const PRESSURE_EVICTION_THRESHOLD: u8 = 80;
+
+    /// See [`Backend::maybe_shrink`]. Called at lifecycle boundaries; cheap when
+    /// the feature is off or there is no pressure.
+    fn maybe_shrink(&self) {
+        if !self.options.evict_under_pressure {
+            return;
+        }
+        // Don't drop cell data while a snapshot is in flight: the snapshot path
+        // reads/clears storage state and asserts we are not mid-sweep. The dev
+        // background job serializes snapshot and eviction; the build/lifecycle
+        // caller must not race it.
+        if self.snapshot_coord.snapshot_pending() {
+            return;
+        }
+        let Some(pressure) = turbo_tasks_malloc::TurboMalloc::memory_pressure() else {
+            return;
+        };
+        if pressure < Self::PRESSURE_EVICTION_THRESHOLD {
+            return;
+        }
+        // Collapse overlapping triggers to a single sweep.
+        if self
+            .pressure_eviction_in_progress
+            .swap(true, Ordering::AcqRel)
+        {
+            return;
+        }
+        let _span = tracing::info_span!("maybe_shrink", pressure).entered();
+        self.storage.evict_under_pressure(None);
+        // Return the freed memory to the OS so a later `maybe_shrink` observes
+        // the lowered pressure instead of re-sweeping.
+        turbo_tasks_malloc::TurboMalloc::collect(true);
+        self.pressure_eviction_in_progress
+            .store(false, Ordering::Release);
     }
 
     /// Perform a snapshot and then evict all evictable tasks from memory.
@@ -3434,6 +3499,10 @@ impl Backend for TurboTasksBackend {
 
     fn idle_end(&self, _turbo_tasks: &TurboTasks<Self>) {
         self.idle_end();
+    }
+
+    fn maybe_shrink(&self, _turbo_tasks: &TurboTasks<Self>) {
+        self.0.maybe_shrink();
     }
 
     fn get_or_create_task(

@@ -9,7 +9,8 @@ use std::sync::{
 
 use anyhow::Result;
 use turbo_tasks::{
-    ResolvedVc, State, TurboTasks, Vc, unmark_top_level_task_may_leak_eventually_consistent_state,
+    ResolvedVc, State, TurboTasks, TurboTasksApi, Vc,
+    unmark_top_level_task_may_leak_eventually_consistent_state,
 };
 use turbo_tasks_backend::{BackendOptions, GitVersionInfo, TurboTasksBackend};
 
@@ -706,6 +707,134 @@ async fn eviction_persistable_never_preserves_live_cell() {
             post.alive,
             "post-restore cell must still report alive=true; alive=false means the live cell \
              value was replaced by a decoded copy with default fields"
+        );
+
+        anyhow::Ok(())
+    })
+    .await;
+    tt.stop_and_wait().await;
+    result.unwrap();
+}
+
+// =========================================================================
+// Pressure eviction — `evict = "pressure"` cells are retained on the normal
+// snapshot sweep but dropped on the snapshot-free emergency sweep, then
+// reconstructed via recompute on the next read.
+// =========================================================================
+
+/// `serialization = "skip", evict = "pressure"`: never persisted (so a dropped
+/// cell is recovered by re-running the producing task), and opted in to the
+/// hand-curated emergency set.
+#[turbo_tasks::value(serialization = "skip", evict = "pressure")]
+struct PressureValue {
+    value: u32,
+    #[turbo_tasks(trace_ignore)]
+    random: u32,
+}
+
+/// Inner (non-root) producer of a `PressureValue` cell. Non-root means it has no
+/// `activeness` of its own, so after a snapshot it is eligible for the eviction
+/// sweep (mirrors `double` in the chain tests). `random` lets us observe
+/// re-execution.
+#[turbo_tasks::function(operation)]
+async fn compute_pressure(input: ResolvedVc<Step>) -> Result<Vc<PressureValue>> {
+    let value = *input.await?.get();
+    Ok(PressureValue {
+        value,
+        random: rand::random(),
+    }
+    .cell())
+}
+
+/// Root reader that surfaces the inner pressure cell's `value`/`random`, so the
+/// outer `Output` reflects whether the inner producer re-executed.
+#[turbo_tasks::function(operation, root)]
+async fn read_pressure(input: ResolvedVc<Step>) -> Result<Vc<Output>> {
+    let inner = compute_pressure(input).connect().await?;
+    Ok(Output {
+        value: inner.value,
+        random: inner.random,
+    }
+    .cell())
+}
+
+/// The emergency pressure sweep drops `evict = "pressure"` cells (which the
+/// normal snapshot sweep retains), and the next read recomputes them.
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn pressure_eviction_drops_and_recomputes() {
+    let (tt, _persistence_dir) = create_tt("pressure_eviction_drops_and_recomputes");
+    let tt2 = tt.clone();
+
+    let result = turbo_tasks::run_once(tt.clone(), async move {
+        unmark_top_level_task_may_leak_eventually_consistent_state();
+
+        let state_op = create_state(1);
+        let state_vc = state_op.resolve().strongly_consistent().await?;
+        let state = state_op.read_strongly_consistent().await?;
+
+        let output = read_pressure(state_vc);
+        let read = output.read_strongly_consistent().await?;
+        assert_eq!(read.value, 1);
+        let initial_random = read.random;
+        drop(read);
+
+        // The emergency pressure sweep drops the curated cell from the inner
+        // (non-root) producer. The root reader/state tasks have `activeness` and
+        // are skipped.
+        let pressure_counts = tt2.backend().evict_under_pressure_for_testing();
+        println!("pressure: emergency sweep: {pressure_counts:?}");
+        assert!(
+            pressure_counts.tasks_swept > 0,
+            "emergency sweep should drop at least the inner pressure cell"
+        );
+
+        // Change the input so the next read re-runs the chain. The inner cell was
+        // dropped, so reading it recomputes `compute_pressure`; `value` becomes 2
+        // and `random` differs because the producing task re-executed.
+        state.set(2);
+        let recomputed = output.read_strongly_consistent().await?;
+        assert_eq!(recomputed.value, 2);
+        assert_ne!(
+            recomputed.random, initial_random,
+            "dropped pressure cell must be recomputed by re-running the producing task"
+        );
+
+        anyhow::Ok(())
+    })
+    .await;
+    tt.stop_and_wait().await;
+    result.unwrap();
+}
+
+/// With the feature disabled (`evict_under_pressure: false`, the default for
+/// these tests), `maybe_shrink` is a no-op regardless of OS memory pressure: the
+/// `evict = "pressure"` cell survives and is still served from memory.
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn maybe_shrink_is_noop_when_disabled() {
+    let (tt, _persistence_dir) = create_tt("maybe_shrink_is_noop_when_disabled");
+    let tt2 = tt.clone();
+
+    let result = turbo_tasks::run_once(tt.clone(), async move {
+        unmark_top_level_task_may_leak_eventually_consistent_state();
+
+        let state_op = create_state(1);
+        let state_vc = state_op.resolve().strongly_consistent().await?;
+        let _state = state_op.read_strongly_consistent().await?;
+
+        let output = read_pressure(state_vc);
+        let read = output.read_strongly_consistent().await?;
+        let initial_random = read.random;
+        drop(read);
+
+        // Feature is off → no-op even if the machine is under real pressure.
+        tt2.maybe_shrink();
+
+        // The pressure cell was not dropped, so the cached value is returned
+        // unchanged (no recompute).
+        let again = output.read_strongly_consistent().await?;
+        assert_eq!(
+            again.random, initial_random,
+            "maybe_shrink must not drop cells when evict_under_pressure is disabled"
         );
 
         anyhow::Ok(())

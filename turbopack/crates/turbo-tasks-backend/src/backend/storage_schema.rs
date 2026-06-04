@@ -512,6 +512,86 @@ pub enum KeyEvictability {
 }
 
 impl TaskStorage {
+    /// Whether this task is being used right now (executing, scheduled, active,
+    /// or mid-restore) and therefore must not have any of its storage dropped,
+    /// regardless of eviction mode.
+    ///
+    /// This is the subset of [`Self::evictability`]'s "absolute blockers" that
+    /// is independent of the data/meta clean-on-disk state, so the pressure
+    /// sweep can query it without also requiring the data to be persisted.
+    ///
+    /// Note: unlike [`Self::evictability`], a `new_task` (one whose type hasn't
+    /// been persisted to the task cache yet) is **not** treated as in-use. The
+    /// pressure sweep only drops recomputable cell values and never touches
+    /// flags, so an unpersisted task's `cell_data` is safe to drop — it
+    /// reconstructs via recompute, and the `new_task` bit (which governs only
+    /// task-type persistence) is left intact for the next snapshot.
+    fn is_in_use(&self) -> bool {
+        let flags = &self.flags;
+        // Executing or about to.
+        self.get_in_progress().is_some()
+            || self.get_activeness().is_some()
+            // Clearing restored flags while a restore is in flight would corrupt
+            // racing reads (see `evictability`).
+            || flags.meta_restoring()
+            || flags.data_restoring()
+    }
+
+    /// Whether the curated emergency set in this task's `data` category may be
+    /// dropped under memory pressure.
+    ///
+    /// Unlike [`Self::evictability`], this does **not** require the data to be
+    /// clean on disk (`!data_modified`): the curated cells reconstruct via
+    /// recompute on the next read, so an unpersisted ("dirty") value is fine —
+    /// the producing task simply re-runs. The only hard requirement is that the
+    /// task is not [in use](Self::is_in_use) and that there is restored data to
+    /// act on.
+    pub fn pressure_data_evictable(&self) -> bool {
+        !self.is_in_use() && self.flags.data_restored()
+    }
+
+    /// Drop the curated emergency-evictable cells (`Evictability::Always` and
+    /// `Evictability::PressureEvictable`) from this task's `cell_data`, leaving
+    /// everything else — including all flags and the rest of the `data`
+    /// category — untouched.
+    ///
+    /// This is deliberately narrower than [`Self::drop_partial`]: it does **not**
+    /// clear `data_restored` / persisted-data bits, so it is safe to call on a
+    /// task whose data is dirty/unpersisted. The dropped cells reconstruct via
+    /// recompute on the next read (see `try_read_task_cell`); the surviving
+    /// bookkeeping keeps any pending persistence intact.
+    ///
+    /// Returns `true` if any cells were dropped.
+    ///
+    /// The caller must have already confirmed [`Self::pressure_data_evictable`].
+    pub fn drop_pressure_evictable_cells(&mut self) -> bool {
+        // Non-allocating peek: if the lazy `cell_data` field isn't present
+        // there is nothing to do.
+        let len_before = match self.cell_data() {
+            Some(cells) if !cells.is_empty() => cells.len(),
+            _ => return false,
+        };
+        // The field is present, so `cell_data_mut()` returns the existing
+        // value without allocating.
+        let outcome = self
+            .cell_data_mut()
+            .drop_partial(EvictionMode::EmergencyPressure);
+        match outcome {
+            DropPartialOutcome::Empty => {
+                // All cells were evictable; drop the lazy variant entirely to
+                // release its slot.
+                let _ = self.take_cell_data();
+                true
+            }
+            DropPartialOutcome::HasResidue => {
+                // Some non-recoverable cells remain. `len` shrank iff we dropped
+                // anything.
+                self.cell_data()
+                    .is_some_and(|cells| cells.len() < len_before)
+            }
+        }
+    }
+
     /// Determine the evictability level of this task based on its flags.
     ///
     /// This checks only the flags on the TaskStorage itself. The caller
@@ -895,18 +975,40 @@ pub(crate) enum DropPartialOutcome {
     HasResidue,
 }
 
+/// How aggressively a `drop_partial` sweep should drop cell values.
+///
+/// Only [`CellData`] consults this; the transient-filtering container impls
+/// below ignore it (they only ever drop persistent, non-transient entries).
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
+pub(crate) enum EvictionMode {
+    /// The normal snapshot-driven sweep: drop only [`Evictability::Always`]
+    /// cells. This is the behavior `evict_after_snapshot` uses.
+    ///
+    /// [`Evictability::Always`]: turbo_tasks::Evictability::Always
+    Normal,
+    /// The pressure-driven emergency sweep (see the backend's `maybe_shrink`):
+    /// additionally drop the hand-curated [`Evictability::PressureEvictable`]
+    /// cells. These reconstruct via recompute, so dropping them needs no
+    /// snapshot.
+    ///
+    /// [`Evictability::PressureEvictable`]: turbo_tasks::Evictability::PressureEvictable
+    EmergencyPressure,
+}
+
 /// Helper trait for drop_partial implementation. `CellData` and the
 /// macro-generated `LazyField` arms also implement this trait so all
 /// `filter_transient` / `custom_drop_partial` fields share one signature.
 pub(crate) trait DropPartial {
     /// Drop persistent entries; preserve transient residue. Returns
     /// [`DropPartialOutcome`] so callers must explicitly distinguish the
-    /// empty and residue cases.
-    fn drop_partial(&mut self) -> DropPartialOutcome;
+    /// empty and residue cases. `mode` controls how aggressively cell values
+    /// are dropped (see [`EvictionMode`]); container impls that only filter
+    /// transient residue ignore it.
+    fn drop_partial(&mut self, mode: EvictionMode) -> DropPartialOutcome;
 }
 
 impl<T: IsTransient> DropPartial for Option<T> {
-    fn drop_partial(&mut self) -> DropPartialOutcome {
+    fn drop_partial(&mut self, _mode: EvictionMode) -> DropPartialOutcome {
         self.take_if(|v| !v.is_transient());
         if self.is_none() {
             DropPartialOutcome::Empty
@@ -917,7 +1019,7 @@ impl<T: IsTransient> DropPartial for Option<T> {
 }
 
 impl<T: IsTransient + Hash + Eq, const I: usize> DropPartial for AutoSet<T, I> {
-    fn drop_partial(&mut self) -> DropPartialOutcome {
+    fn drop_partial(&mut self, _mode: EvictionMode) -> DropPartialOutcome {
         self.retain(|t| t.is_transient());
         if self.is_empty() {
             DropPartialOutcome::Empty
@@ -929,7 +1031,7 @@ impl<T: IsTransient + Hash + Eq, const I: usize> DropPartial for AutoSet<T, I> {
 }
 
 impl<K: IsTransient + Hash + Eq, V: Eq, const I: usize> DropPartial for CounterMap<K, V, I> {
-    fn drop_partial(&mut self) -> DropPartialOutcome {
+    fn drop_partial(&mut self, _mode: EvictionMode) -> DropPartialOutcome {
         self.retain(|k, _v| k.is_transient());
         if self.is_empty() {
             DropPartialOutcome::Empty
@@ -940,7 +1042,7 @@ impl<K: IsTransient + Hash + Eq, V: Eq, const I: usize> DropPartial for CounterM
     }
 }
 impl<K: IsTransient + Hash + Eq, V: IsTransient, const I: usize> DropPartial for AutoMap<K, V, I> {
-    fn drop_partial(&mut self) -> DropPartialOutcome {
+    fn drop_partial(&mut self, _mode: EvictionMode) -> DropPartialOutcome {
         self.retain(|k, v| k.is_transient() || v.is_transient());
         if self.is_empty() {
             DropPartialOutcome::Empty
@@ -1406,7 +1508,7 @@ mod tests {
 
         assert_eq!(
             DropPartialOutcome::HasResidue,
-            storage.drop_partial(true, false)
+            storage.drop_partial(true, false, EvictionMode::Normal)
         );
 
         // Persistent entries gone; transient residue preserved.
@@ -1455,7 +1557,7 @@ mod tests {
 
         assert_eq!(
             DropPartialOutcome::HasResidue,
-            storage.drop_partial(false, true)
+            storage.drop_partial(false, true, EvictionMode::Normal)
         );
 
         // Inline upper: transient residue remains.
@@ -1499,7 +1601,7 @@ mod tests {
         // data category), so the authoritative outcome is `HasResidue`.
         assert_eq!(
             DropPartialOutcome::HasResidue,
-            storage.drop_partial(true, false)
+            storage.drop_partial(true, false, EvictionMode::Normal)
         );
 
         assert!(storage.output_dependent().is_empty());
@@ -1521,7 +1623,10 @@ mod tests {
         // Drop both categories → both `*_restored` transient flags are
         // cleared, persisted flag bits are cleared, no residue. Outcome is
         // `Empty` and the caller can erase the entry.
-        assert_eq!(DropPartialOutcome::Empty, storage.drop_partial(true, true));
+        assert_eq!(
+            DropPartialOutcome::Empty,
+            storage.drop_partial(true, true, EvictionMode::Normal)
+        );
 
         assert!(!storage.flags.invalidator());
         assert!(!storage.flags.immutable());
@@ -1547,7 +1652,7 @@ mod tests {
         // Filter-transient `output` keeps its transient value → residue.
         assert_eq!(
             DropPartialOutcome::HasResidue,
-            storage.drop_partial(false, true)
+            storage.drop_partial(false, true, EvictionMode::Normal)
         );
 
         // Transient output retained.
@@ -1614,7 +1719,7 @@ mod tests {
             // residue.
             assert_eq!(
                 DropPartialOutcome::HasResidue,
-                storage.drop_partial(true, false)
+                storage.drop_partial(true, false, EvictionMode::Normal)
             );
 
             let cells = storage.cell_data().expect("residue keeps the variant");
@@ -1634,7 +1739,7 @@ mod tests {
 
             assert_eq!(
                 DropPartialOutcome::HasResidue,
-                storage.drop_partial(true, false)
+                storage.drop_partial(true, false, EvictionMode::Normal)
             );
 
             assert!(
@@ -1655,7 +1760,7 @@ mod tests {
 
             assert_eq!(
                 DropPartialOutcome::HasResidue,
-                storage.drop_partial(true, false)
+                storage.drop_partial(true, false, EvictionMode::Normal)
             );
             // Only KeepMe entry survives.
             assert_eq!(storage.cell_data().unwrap().len(), 1);
@@ -1687,7 +1792,7 @@ mod tests {
             // the data category stays non-empty → `HasResidue`.
             assert_eq!(
                 DropPartialOutcome::HasResidue,
-                storage.drop_partial(false, true)
+                storage.drop_partial(false, true, EvictionMode::Normal)
             );
 
             // cell_data is category=data; meta-only drop leaves it alone.

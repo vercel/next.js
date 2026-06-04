@@ -545,6 +545,13 @@ export const enum MemoryEvictionMode {
    * them from disk on demand.
    */
   Full = 'full',
+  /**
+   * Don't evict on snapshots, but when the process is under memory pressure
+   * (checked at lifecycle boundaries, e.g. after the module graph is built),
+   * drop a curated set of recomputable cells. Reconstructs via recompute, so
+   * it needs neither a snapshot nor an fs cache.
+   */
+  Pressure = 'pressure',
 }
 export declare function rootTaskDispose(rootTask: {
   __napiType: 'RootTask'
