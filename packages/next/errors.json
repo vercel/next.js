@@ -1300,5 +1300,6 @@
   "1299": "Route \"%s\": Next.js encountered uncached or runtime data during prerendering.\\n\\n\\`fetch(...)\\`, \\`cookies()\\`, \\`headers()\\`, \\`params\\`, \\`searchParams\\`, or \\`connection()\\` accessed outside of \\`<Suspense>\\` prevents the route from being prerendered, blocking the page load and leading to a slower user experience.\\n\\nWays to fix this:\\n  - [cache] Cache the data access with \\`\"use cache\"\\`\\n    https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data\\n  - [stream] Provide a placeholder with \\`<Suspense fallback={...}>\\` around the data access\\n    https://nextjs.org/docs/messages/blocking-prerender-dynamic#wrap-in-or-move-into-suspense\\n  - [cache] If the runtime data is \\`params\\` and they're known, prerender them with \\`generateStaticParams\\`\\n    https://nextjs.org/docs/messages/blocking-prerender-runtime#for-known-params-prerender\\n  - [block] Set \\`export const unstable_instant = false\\` to silence this warning and allow a blocking route\\n    https://nextjs.org/docs/messages/blocking-prerender-dynamic#allow-blocking-route",
   "1300": "A render that hasn't started yet cannot be abandoned",
   "1301": "Cannot determine late/early stage before starting the render",
-  "1302": "Attempted to advance to stage %s but the render is limited to %s"
+  "1302": "Attempted to advance to stage %s but the render is limited to %s",
+  "1303": "Expected live route to include a compiled regex"
 }
