@@ -34,6 +34,7 @@ import {
 import {
   makeDevtoolsIOAwarePromise,
   makeHangingPromise,
+  makePromiseFromTrigger,
   RENDER_STAGES_BY_DATA_KIND,
 } from '../dynamic-rendering-utils'
 import { createDedupedByCallsiteServerErrorLoggerDev } from '../create-deduped-by-callsite-server-error-logger'
@@ -310,11 +311,12 @@ export function createServerParamsForServerSegment(
 
           // Otherwise, only delay if we have fallbacks params
           if (hasFallbackParams) {
-            return (
+            return makePromiseFromTrigger(
               isRuntimePrefetchable
                 ? workUnitStore.asyncApiPromises.earlySharedParamsParent
-                : workUnitStore.asyncApiPromises.sharedParamsParent
-            ).then(() => underlyingParams)
+                : workUnitStore.asyncApiPromises.sharedParamsParent,
+              underlyingParams
+            )
           }
         }
 
@@ -523,11 +525,12 @@ function createServerParamsInInstantValidation(
     declaredParams,
     workStore.route
   )
-  return (
+  return makePromiseFromTrigger(
     isRuntimePrefetchable
       ? asyncApiPromises.earlySharedParamsParent
-      : asyncApiPromises.sharedParamsParent
-  ).then(() => proxiedUnderlying)
+      : asyncApiPromises.sharedParamsParent,
+    proxiedUnderlying
+  )
 }
 
 function createClientParamsInInstantValidation(
