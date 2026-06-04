@@ -21,7 +21,6 @@ import {
   workUnitAsyncStorage,
   getStagedRenderingController,
 } from '../../server/app-render/work-unit-async-storage.external'
-import { RenderStage } from '../../server/app-render/staged-rendering'
 
 import {
   MetadataBoundary,
@@ -31,6 +30,7 @@ import {
 
 import { getOrigin } from './generate/utils'
 import { IconMark } from './generate/icon-mark'
+import { FIRST_LATE_RENDER_STAGE } from '../../server/app-render/staged-rendering'
 
 // Use a promise to share the status of the metadata resolving,
 // returning two components `MetadataTree` and `MetadataOutlet`
@@ -72,14 +72,14 @@ export function createMetadataComponents({
 
   async function Viewport() {
     // Gate metadata to the correct render stage. If the page is not
-    // runtime-prefetchable, defer until the Static stage so that
+    // runtime-prefetchable, defer until the ShellStatic stage so that
     // prefetchable segments get a head start.
     if (!isRuntimePrefetchable) {
       const workUnitStore = workUnitAsyncStorage.getStore()
       if (workUnitStore) {
         const stagedRendering = getStagedRenderingController(workUnitStore)
         if (stagedRendering) {
-          await stagedRendering.waitForStage(RenderStage.Static)
+          await stagedRendering.waitForStage(FIRST_LATE_RENDER_STAGE)
         }
       }
     }
@@ -123,14 +123,14 @@ export function createMetadataComponents({
 
   async function Metadata() {
     // Gate metadata to the correct render stage. If the page is not
-    // runtime-prefetchable, defer until the Static stage so that
+    // runtime-prefetchable, defer until the ShellStatic stage so that
     // prefetchable segments get a head start.
     if (!isRuntimePrefetchable) {
       const workUnitStore = workUnitAsyncStorage.getStore()
       if (workUnitStore) {
         const stagedRendering = getStagedRenderingController(workUnitStore)
         if (stagedRendering) {
-          await stagedRendering.waitForStage(RenderStage.Static)
+          await stagedRendering.waitForStage(FIRST_LATE_RENDER_STAGE)
         }
       }
     }

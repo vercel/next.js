@@ -3,7 +3,7 @@ use std::{fmt, sync::Arc};
 use anyhow::{Result, bail};
 
 use crate::{
-    CellId, DynTaskInputs, OutputContent, OwnedStackDynTaskInputs, RawVc, TaskPersistence,
+    CellId, DynTaskInputs, HeapDynTaskInputsStorage, OutputContent, RawVc, TaskPersistence,
     TraitMethod, TurboTasks, ValueTypeId, backend::Backend, event::Event,
     macro_helpers::NativeFunction, registry,
 };
@@ -61,7 +61,7 @@ impl LocalTaskType {
             *this = this.resolve().await?;
         }
         let arg = native_fn.arg_meta.resolve(arg).await?;
-        let mut arg = OwnedStackDynTaskInputs::new(arg);
+        let mut arg = HeapDynTaskInputsStorage::new(arg);
         Ok(turbo_tasks.native_call(native_fn, this, &mut arg, persistence))
     }
     /// Implementation of the LocalTaskType::ResolveTrait task.
@@ -79,7 +79,7 @@ impl LocalTaskType {
 
         let native_fn = Self::resolve_trait_method_from_value(trait_method, type_id)?;
         let arg = native_fn.arg_meta.filter_and_resolve(arg).await?;
-        let mut arg = OwnedStackDynTaskInputs::new(arg);
+        let mut arg = HeapDynTaskInputsStorage::new(arg);
         Ok(turbo_tasks.native_call(native_fn, Some(this), &mut arg, persistence))
     }
 

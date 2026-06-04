@@ -3,9 +3,7 @@ use bincode::{Decode, Encode};
 use rustc_hash::{FxHashMap, FxHashSet};
 use serde::{Deserialize, Serialize};
 use turbo_rcstr::RcStr;
-use turbo_tasks::{
-    NonLocalValue, ResolvedVc, TaskInput, Upcast, Vc, trace::TraceRawVcs, turbobail,
-};
+use turbo_tasks::{ResolvedVc, Upcast, Vc, trace::TraceRawVcs, turbobail};
 use turbo_tasks_fs::FileSystemPath;
 use turbo_tasks_hash::DeterministicHash;
 
@@ -29,9 +27,9 @@ use crate::{
     reference::ModuleReference,
 };
 
+#[turbo_tasks::task_input]
 #[derive(
     Debug,
-    TaskInput,
     Clone,
     Copy,
     PartialEq,
@@ -40,7 +38,6 @@ use crate::{
     Deserialize,
     TraceRawVcs,
     DeterministicHash,
-    NonLocalValue,
     Encode,
     Decode,
 )]
@@ -50,8 +47,8 @@ pub enum MangleType {
     Deterministic,
 }
 
-#[turbo_tasks::value(shared)]
-#[derive(Debug, TaskInput, Clone, Copy, Hash, DeterministicHash, Deserialize)]
+#[turbo_tasks::value(shared, task_input)]
+#[derive(Debug, Clone, Copy, Hash, DeterministicHash, Deserialize)]
 pub enum MinifyType {
     // TODO instead of adding a new property here,
     // refactor that to Minify(MinifyOptions) to allow defaults on MinifyOptions
@@ -67,8 +64,8 @@ impl Default for MinifyType {
     }
 }
 
-#[turbo_tasks::value(shared)]
-#[derive(Debug, Default, TaskInput, Clone, Copy, Hash, DeterministicHash)]
+#[turbo_tasks::value(shared, task_input)]
+#[derive(Debug, Default, Clone, Copy, Hash, DeterministicHash)]
 pub enum SourceMapsType {
     /// Extracts source maps from input files and writes source maps for output files.
     #[default]
@@ -105,9 +102,9 @@ pub struct UrlBehavior {
     pub static_suffix: ResolvedVc<Option<RcStr>>,
 }
 
+#[turbo_tasks::task_input]
 #[derive(
     Debug,
-    TaskInput,
     Clone,
     Copy,
     PartialEq,
@@ -117,7 +114,6 @@ pub struct UrlBehavior {
     Deserialize,
     TraceRawVcs,
     DeterministicHash,
-    NonLocalValue,
     Encode,
     Decode,
 )]
@@ -244,19 +240,8 @@ pub struct EntryChunkGroupResult {
     pub availability_info: AvailabilityInfo,
 }
 
-#[derive(
-    Default,
-    Debug,
-    Clone,
-    PartialEq,
-    Eq,
-    Hash,
-    TraceRawVcs,
-    NonLocalValue,
-    TaskInput,
-    Encode,
-    Decode,
-)]
+#[turbo_tasks::task_input]
+#[derive(Default, Debug, Clone, PartialEq, Eq, Hash, TraceRawVcs, Encode, Decode)]
 pub struct ChunkingConfig {
     /// Try to avoid creating more than 1 chunk smaller than this size.
     /// It merges multiple small chunks into bigger ones to avoid that.
@@ -283,7 +268,7 @@ pub struct ChunkingConfig {
 pub struct ChunkingConfigs(FxHashMap<ResolvedVc<Box<dyn ChunkType>>, ChunkingConfig>);
 
 #[turbo_tasks::value(shared)]
-#[derive(Debug, Clone, Copy, Hash, TaskInput, Default, Deserialize)]
+#[derive(Debug, Clone, Copy, Hash, Default, Deserialize)]
 pub enum SourceMapSourceType {
     AbsoluteFileUri,
     RelativeUri,

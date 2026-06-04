@@ -66,10 +66,7 @@ impl WellKnownObjectKind {
                 "Generator",
                 "A Generator or AsyncGenerator object: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Generator",
             ),
-            Self::GlobalObject => (
-                "Object",
-                "The global Object variable",
-            ),
+            Self::GlobalObject => ("Object", "The global Object variable"),
             Self::PathModule | Self::PathModuleDefault => (
                 "path",
                 "The Node.js path module: https://nodejs.org/api/path.html",
@@ -138,14 +135,8 @@ impl WellKnownObjectKind {
                 "require.cache",
                 "The CommonJS require.cache object: https://nodejs.org/api/modules.html#requirecache",
             ),
-            Self::ImportMeta => (
-                "import.meta",
-                "The import.meta object",
-            ),
-            Self::ModuleHot => (
-                "module.hot",
-                "The module.hot HMR API",
-            ),
+            Self::ImportMeta => ("import.meta", "The import.meta object"),
+            Self::ModuleHot => ("module.hot", "The module.hot HMR API"),
         }
     }
 }
@@ -258,11 +249,26 @@ impl WellKnownFunctionKind {
                 format!("createRequire('{rel}')"),
                 "The return value of Node.js module.createRequire: https://nodejs.org/api/module.html#modulecreaterequirefilename",
             ),
-            Self::RequireResolve => ("require.resolve".to_string(), "The require.resolve method from CommonJS"),
-            Self::RequireContext => ("require.context".to_string(), "The require.context method from webpack"),
-            Self::RequireContextRequire(..) => ("require.context(...)".to_string(), "The require.context(...) method from webpack: https://webpack.js.org/api/module-methods/#requirecontext"),
-            Self::RequireContextRequireKeys(..) => ("require.context(...).keys".to_string(), "The require.context(...).keys method from webpack: https://webpack.js.org/guides/dependency-management/#requirecontext"),
-            Self::RequireContextRequireResolve(..) => ("require.context(...).resolve".to_string(), "The require.context(...).resolve method from webpack: https://webpack.js.org/guides/dependency-management/#requirecontext"),
+            Self::RequireResolve => (
+                "require.resolve".to_string(),
+                "The require.resolve method from CommonJS",
+            ),
+            Self::RequireContext => (
+                "require.context".to_string(),
+                "The require.context method from webpack",
+            ),
+            Self::RequireContextRequire(..) => (
+                "require.context(...)".to_string(),
+                "The require.context(...) method from webpack: https://webpack.js.org/api/module-methods/#requirecontext",
+            ),
+            Self::RequireContextRequireKeys(..) => (
+                "require.context(...).keys".to_string(),
+                "The require.context(...).keys method from webpack: https://webpack.js.org/guides/dependency-management/#requirecontext",
+            ),
+            Self::RequireContextRequireResolve(..) => (
+                "require.context(...).resolve".to_string(),
+                "The require.context(...).resolve method from webpack: https://webpack.js.org/guides/dependency-management/#requirecontext",
+            ),
             Self::Define => ("define".to_string(), "The define method from AMD"),
             Self::FsReadMethod(name) => (
                 format!("fs.{name}"),

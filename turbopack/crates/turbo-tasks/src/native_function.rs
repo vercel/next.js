@@ -12,7 +12,7 @@ use crate::TaskDirtyCause;
 use crate::{
     RawVc, TaskExecutionReason, TaskInput, TaskPersistence, TaskPriority,
     dyn_task_inputs::{
-        DynTaskInputs, OwnedStackDynTaskInputs, StackDynTaskInputs, StackDynTaskInputsSlot,
+        DynTaskInputs, DynTaskInputsStorage, HeapDynTaskInputsStorage, StackDynTaskInputsStorage,
         any_as_encode,
     },
     macro_helpers::into_task_fn,
@@ -27,7 +27,7 @@ type IsResolvedFunctor = fn(&dyn DynTaskInputs) -> bool;
 
 #[doc(hidden)]
 pub type FilterOwnedArgsFunctor =
-    for<'a> fn(&'a mut dyn StackDynTaskInputs) -> OwnedStackDynTaskInputs;
+    for<'a> fn(&'a mut dyn DynTaskInputsStorage) -> HeapDynTaskInputsStorage;
 #[doc(hidden)]
 pub type FilterAndResolveFunctor = ResolveFunctor;
 
@@ -188,15 +188,16 @@ pub fn downcast_args_ref<T: DynTaskInputs>(args: &dyn DynTaskInputs) -> &T {
         .unwrap()
 }
 
-/// Downcast a `&mut dyn StackDynTaskInputs` to a concrete [`StackDynTaskInputsSlot<T>`] and
+/// Downcast a `&mut dyn DynTaskInputsStorage` to a concrete [`StackDynTaskInputsStorage<T>`] and
 /// take the value out, avoiding the intermediate heap allocation that `take_box` +
 /// `downcast_args_owned` would require.
-pub fn downcast_stack_args_owned<T: DynTaskInputs>(args: &mut dyn StackDynTaskInputs) -> T {
+pub fn downcast_stack_args_owned<T: DynTaskInputs>(args: &mut dyn DynTaskInputsStorage) -> T {
     args.as_any_mut()
-        .downcast_mut::<StackDynTaskInputsSlot<T>>()
+        .downcast_mut::<StackDynTaskInputsStorage<T>>()
         .unwrap_or_else(|| {
             panic!(
-                "downcast_stack_args_owned::<{}> called with incorrect StackDynTaskInputs type",
+                "downcast_stack_args_owned::<{}> called with incorrect StackDynTaskInputsStorage \
+                 type",
                 std::any::type_name::<T>(),
             )
         })

@@ -35,7 +35,7 @@ use crate::{
         TurboTasksExecutionError, TypedCellContent, VerificationMode,
     },
     capture_future::CaptureFuture,
-    dyn_task_inputs::StackDynTaskInputs,
+    dyn_task_inputs::DynTaskInputsStorage,
     event::{Event, EventListener},
     id::{ExecutionId, LocalTaskId, TraitTypeId},
     keyed::KeyedEq,
@@ -60,7 +60,7 @@ pub trait TurboTasksCallApi: Sync + Send {
         &self,
         native_fn: &'static NativeFunction,
         this: Option<RawVc>,
-        arg: &mut dyn StackDynTaskInputs,
+        arg: &mut dyn DynTaskInputsStorage,
         persistence: TaskPersistence,
     ) -> RawVc;
     /// Call a native function with arguments.
@@ -69,7 +69,7 @@ pub trait TurboTasksCallApi: Sync + Send {
         &self,
         native_fn: &'static NativeFunction,
         this: Option<RawVc>,
-        arg: &mut dyn StackDynTaskInputs,
+        arg: &mut dyn DynTaskInputsStorage,
         persistence: TaskPersistence,
     ) -> RawVc;
     /// Calls a trait method with arguments. First input is the `self` object.
@@ -78,7 +78,7 @@ pub trait TurboTasksCallApi: Sync + Send {
         &self,
         trait_method: &'static TraitMethod,
         this: RawVc,
-        arg: &mut dyn StackDynTaskInputs,
+        arg: &mut dyn DynTaskInputsStorage,
         persistence: TaskPersistence,
     ) -> RawVc;
 
@@ -707,7 +707,7 @@ impl<B: Backend + 'static> TurboTasks<B> {
         &self,
         native_fn: &'static NativeFunction,
         this: Option<RawVc>,
-        arg: &mut dyn StackDynTaskInputs,
+        arg: &mut dyn DynTaskInputsStorage,
         persistence: TaskPersistence,
     ) -> RawVc {
         RawVc::TaskOutput(self.backend.get_or_create_task(
@@ -724,7 +724,7 @@ impl<B: Backend + 'static> TurboTasks<B> {
         &self,
         native_fn: &'static NativeFunction,
         this: Option<RawVc>,
-        arg: &mut dyn StackDynTaskInputs,
+        arg: &mut dyn DynTaskInputsStorage,
         persistence: TaskPersistence,
     ) -> RawVc {
         if this.is_none_or(|this| this.is_resolved())
@@ -746,7 +746,7 @@ impl<B: Backend + 'static> TurboTasks<B> {
         &self,
         trait_method: &'static TraitMethod,
         this: RawVc,
-        arg: &mut dyn StackDynTaskInputs,
+        arg: &mut dyn DynTaskInputsStorage,
         persistence: TaskPersistence,
     ) -> RawVc {
         // avoid creating a wrapper task if self is already resolved
@@ -1287,7 +1287,7 @@ impl<B: Backend + 'static> TurboTasksCallApi for TurboTasks<B> {
         &self,
         native_fn: &'static NativeFunction,
         this: Option<RawVc>,
-        arg: &mut dyn StackDynTaskInputs,
+        arg: &mut dyn DynTaskInputsStorage,
         persistence: TaskPersistence,
     ) -> RawVc {
         self.dynamic_call(native_fn, this, arg, persistence)
@@ -1296,7 +1296,7 @@ impl<B: Backend + 'static> TurboTasksCallApi for TurboTasks<B> {
         &self,
         native_fn: &'static NativeFunction,
         this: Option<RawVc>,
-        arg: &mut dyn StackDynTaskInputs,
+        arg: &mut dyn DynTaskInputsStorage,
         persistence: TaskPersistence,
     ) -> RawVc {
         self.native_call(native_fn, this, arg, persistence)
@@ -1305,7 +1305,7 @@ impl<B: Backend + 'static> TurboTasksCallApi for TurboTasks<B> {
         &self,
         trait_method: &'static TraitMethod,
         this: RawVc,
-        arg: &mut dyn StackDynTaskInputs,
+        arg: &mut dyn DynTaskInputsStorage,
         persistence: TaskPersistence,
     ) -> RawVc {
         self.trait_call(trait_method, this, arg, persistence)
@@ -1698,7 +1698,7 @@ pub async fn run_once_with_reason<T: Send + 'static>(
 pub fn dynamic_call(
     func: &'static NativeFunction,
     this: Option<RawVc>,
-    arg: &mut dyn StackDynTaskInputs,
+    arg: &mut dyn DynTaskInputsStorage,
     persistence: TaskPersistence,
 ) -> RawVc {
     with_turbo_tasks(|tt| tt.dynamic_call(func, this, arg, persistence))
@@ -1708,7 +1708,7 @@ pub fn dynamic_call(
 pub fn trait_call(
     trait_method: &'static TraitMethod,
     this: RawVc,
-    arg: &mut dyn StackDynTaskInputs,
+    arg: &mut dyn DynTaskInputsStorage,
     persistence: TaskPersistence,
 ) -> RawVc {
     with_turbo_tasks(|tt| tt.trait_call(trait_method, this, arg, persistence))

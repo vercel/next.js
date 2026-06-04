@@ -15,9 +15,11 @@ import {
   type PrerenderStoreModernServer,
   type PrerenderStorePPR,
 } from '../app-render/work-unit-async-storage.external'
-import { makeHangingPromise } from '../dynamic-rendering-utils'
+import {
+  makeHangingPromise,
+  RENDER_STAGES_BY_DATA_KIND,
+} from '../dynamic-rendering-utils'
 import { InvariantError } from '../../shared/lib/invariant-error'
-import { RenderStage } from '../app-render/staged-rendering'
 
 export function createServerPathnameForMetadata(
   underlyingPathname: string,
@@ -55,11 +57,18 @@ export function createServerPathnameForMetadata(
           'createServerPathnameForMetadata should not be called inside generateStaticParams.'
         )
       case 'prerender-runtime': {
+        // TODO(app-shells): whether or not this is included in the shell
+        // should depend on whether this route has params.
+        // if there's no params, it can be included.
+        // for now, we defensively exclude it to match the earlier pessimistic
+        // behavior of always resolving in the runtime stage
+        // (i.e. assuming that we have non-static params in the pathname)
         const { stagedRendering } = workUnitStore
         if (stagedRendering) {
+          const pathnameStages = RENDER_STAGES_BY_DATA_KIND.runtimeLinkData
           const stage = isRuntimePrefetchable
-            ? RenderStage.EarlyRuntime
-            : RenderStage.Runtime
+            ? pathnameStages.early
+            : pathnameStages.late
           return stagedRendering.delayUntilStage(
             stage,
             undefined,
