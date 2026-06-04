@@ -1415,7 +1415,9 @@ export default class NextNodeServer extends BaseServer<
       await mockedRes.hasStreamed
     }
 
-    for (const [key, value] of Object.entries(mockedRes.getHeaders())) {
+    const mockedHeaders = mockedRes.getHeaders()
+    for (const key in mockedHeaders) {
+      const value = mockedHeaders[key]
       if (value !== undefined) {
         normalizedRes.setHeader(
           key,
