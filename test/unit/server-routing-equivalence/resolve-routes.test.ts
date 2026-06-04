@@ -41,6 +41,9 @@ type FsCheckerOverrides = {
   rewrites?: Record<string, any[]>
   outputs?: Record<string, FsOutput>
   dynamicRoutes?: FilesystemDynamicRoute[]
+  appFiles?: string[]
+  pageFiles?: string[]
+  nextDataRoutes?: string[]
   onMatchHeaders?: any[]
   exportPathMapRoutes?: any
   middlewareMatcher?: any
@@ -97,6 +100,9 @@ function createFsChecker({
   rewrites = {},
   outputs = {},
   dynamicRoutes = [],
+  appFiles = [],
+  pageFiles = [],
+  nextDataRoutes = [],
   onMatchHeaders = [],
   exportPathMapRoutes,
   middlewareMatcher,
@@ -120,11 +126,11 @@ function createFsChecker({
     onMatchHeaders,
     buildId,
     handleLocale,
-    appFiles: new Set<string>(),
-    pageFiles: new Set<string>(),
+    appFiles: new Set(appFiles),
+    pageFiles: new Set(pageFiles),
     staticMetadataFiles: new Map<string, string>(),
     dynamicRoutes,
-    nextDataRoutes: new Set<string>(),
+    nextDataRoutes: new Set(nextDataRoutes),
     exportPathMapRoutes,
     devVirtualFsItems: new Set<string>(),
     previewProps: {
@@ -240,6 +246,21 @@ async function resolveLiveRoute({
     renderServer,
     requestHandler,
     ensureMiddleware,
+  }
+}
+
+async function withNextRoutingResolver<T>(callback: () => Promise<T>) {
+  const previous = process.env.__NEXT_EXPERIMENTAL_USE_NEXT_ROUTING_RESOLVER
+
+  try {
+    process.env.__NEXT_EXPERIMENTAL_USE_NEXT_ROUTING_RESOLVER = '1'
+    return await callback()
+  } finally {
+    if (previous === undefined) {
+      delete process.env.__NEXT_EXPERIMENTAL_USE_NEXT_ROUTING_RESOLVER
+    } else {
+      process.env.__NEXT_EXPERIMENTAL_USE_NEXT_ROUTING_RESOLVER = previous
+    }
   }
 }
 
@@ -971,5 +992,143 @@ describe('live server route resolver contract', () => {
     expect(req.headers['x-remove']).toBeUndefined()
     expect(req.headers['x-middleware-set-cookie']).toBe('middleware=1')
     expect(result.resHeaders?.['x-middleware-set-cookie']).toBeUndefined()
+  })
+
+  it('can delegate compatible beforeFiles rewrites to @next/routing', async () => {
+    const matchedOutput = createOutput('/page/intro')
+    const legacyMatch = jest.fn(() => {
+      throw new Error('legacy route matcher should not run')
+    })
+    const rewriteRoute = {
+      ...buildCustomRoute('before_files_rewrite', {
+        source: '/docs/:slug',
+        destination: '/page/:slug',
+      }),
+      match: legacyMatch,
+    }
+    const { fsChecker } = createFsChecker({
+      rewrites: {
+        beforeFiles: [rewriteRoute],
+      },
+      pageFiles: ['/page/intro'],
+      outputs: {
+        '/page/intro': matchedOutput,
+      },
+    })
+
+    const { result } = await withNextRoutingResolver(() =>
+      resolveLiveRoute({
+        url: '/docs/intro?draft=1',
+        fsChecker,
+      })
+    )
+
+    expect(legacyMatch).not.toHaveBeenCalled()
+    expect(result.finished).toBe(true)
+    expect(result.matchedOutput).toBe(matchedOutput)
+    expect(result.parsedUrl.pathname).toBe('/page/intro')
+    expect(result.parsedUrl.query).toEqual({
+      draft: '1',
+    })
+  })
+
+  it('can delegate compatible redirects in dynamic route apps to @next/routing', async () => {
+    const legacyMatch = jest.fn(() => {
+      throw new Error('legacy route matcher should not run')
+    })
+    const dynamicRoute = createDynamicRoute('/blog/[slug]')
+    const redirectRoute = {
+      ...buildCustomRoute('redirect', {
+        source: '/old/:slug',
+        destination: '/new/:slug',
+        permanent: true,
+      }),
+      match: legacyMatch,
+    }
+    const { fsChecker } = createFsChecker({
+      redirects: [redirectRoute],
+      dynamicRoutes: [dynamicRoute],
+    })
+
+    const { result } = await withNextRoutingResolver(() =>
+      resolveLiveRoute({
+        url: '/old/post?from=1',
+        fsChecker,
+      })
+    )
+
+    expect(legacyMatch).not.toHaveBeenCalled()
+    expect(result.finished).toBe(true)
+    expect(result.statusCode).toBe(308)
+    expect(result.resHeaders).toBeNull()
+    expect(result.parsedUrl.pathname).toBe('/new/post')
+    expect(result.parsedUrl.search).toBe('from=1')
+  })
+
+  it('keeps custom routes with unsupported query params on the legacy resolver under the opt-in', async () => {
+    const matchedOutput = createOutput('/with-params')
+    const legacyMatch = jest.fn(() => ({
+      section: 'hello',
+      name: 'world',
+    }))
+    const rewriteRoute = {
+      ...buildCustomRoute('rewrite', {
+        source: '/query-rewrite/:section/:name',
+        destination: '/with-params?first=:section&second=:name',
+      }),
+      match: legacyMatch,
+    }
+    const { fsChecker } = createFsChecker({
+      rewrites: {
+        afterFiles: [rewriteRoute],
+      },
+      outputs: {
+        '/with-params': matchedOutput,
+      },
+    })
+
+    const { result } = await withNextRoutingResolver(() =>
+      resolveLiveRoute({
+        url: '/query-rewrite/hello/world?a=b',
+        fsChecker,
+      })
+    )
+
+    expect(legacyMatch).toHaveBeenCalled()
+    expect(result.finished).toBe(true)
+    expect(result.matchedOutput).toBe(matchedOutput)
+    expect(result.parsedUrl.pathname).toBe('/with-params')
+    expect(result.parsedUrl.query).toEqual({
+      a: 'b',
+      first: 'hello',
+      second: 'world',
+      section: 'hello',
+      name: 'world',
+    })
+  })
+
+  it('keeps dynamic route apps on the legacy resolver under the opt-in', async () => {
+    const matchedOutput = createOutput('/blog/[slug]')
+    const dynamicRoute = createDynamicRoute('/blog/[slug]')
+    const legacyMatch = jest.fn(dynamicRoute.match)
+    dynamicRoute.match = legacyMatch
+    const { fsChecker } = createFsChecker({
+      dynamicRoutes: [dynamicRoute],
+      outputs: {
+        '/blog/[slug]': matchedOutput,
+      },
+    })
+
+    const { result } = await withNextRoutingResolver(() =>
+      resolveLiveRoute({
+        url: '/blog/hello',
+        fsChecker,
+      })
+    )
+
+    expect(legacyMatch).toHaveBeenCalled()
+    expect(result.finished).toBe(true)
+    expect(result.matchedOutput).toBe(matchedOutput)
+    expect(result.parsedUrl.pathname).toBe('/blog/hello')
   })
 })

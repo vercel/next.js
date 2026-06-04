@@ -16,6 +16,7 @@ import {
   allowedStatusCodes,
   getRedirectStatus,
 } from '../../../lib/redirect-status'
+import { isDynamicRoute } from '../../../shared/lib/router/utils/is-dynamic'
 import { parseUrl } from '../../../shared/lib/router/utils/parse-url'
 
 type FsChecker = Awaited<ReturnType<typeof setupFsCheck>>
@@ -93,6 +94,7 @@ export type NextRoutingMappedResult = {
 type LiveHeaderRoute = Header & { regex?: string; internal?: boolean }
 type LiveRedirectRoute = Redirect & { regex?: string; internal?: boolean }
 type LiveRewriteRoute = Rewrite & { regex?: string; internal?: boolean }
+type LiveCustomRoute = LiveHeaderRoute | LiveRedirectRoute | LiveRewriteRoute
 
 export function normalizeNextRoutingSourceRegex(regex: string): string {
   // Some live manifest routes can carry a RegExp string from `.toString()`,
@@ -142,6 +144,72 @@ function createNextRoutingI18nConfig(
     localeDetection: i18n.localeDetection,
     locales: [...i18n.locales],
   }
+}
+
+function hasCatchAllParam(value: string | undefined): boolean {
+  return value
+    ? /:[A-Za-z0-9_]+\*/.test(value) || /\(\.\*\)/.test(value)
+    : false
+}
+
+function hasParamInterpolation(value: string | undefined): boolean {
+  return value ? /(^|[/?&#=])(?::[A-Za-z0-9_]+[?*+]?)/.test(value) : false
+}
+
+function hasFirstSegmentParam(value: string | undefined): boolean {
+  return value ? /^\/:[A-Za-z0-9_]+/.test(value) : false
+}
+
+function destinationHasQueryParamInterpolation(
+  destination: string | undefined
+): boolean {
+  const queryIndex = destination?.indexOf('?') ?? -1
+
+  return (
+    queryIndex !== -1 &&
+    hasParamInterpolation(destination?.slice(queryIndex + 1))
+  )
+}
+
+function destinationHasExternalUrlQuery(
+  destination: string | undefined
+): boolean {
+  if (!destination?.startsWith('http')) {
+    return false
+  }
+
+  return destination.includes('?')
+}
+
+function hasUnsupportedLiveCustomRouteFeatures(
+  route: LiveCustomRoute
+): boolean {
+  return (
+    !!route.has?.length ||
+    !!route.missing?.length ||
+    hasCatchAllParam(route.source) ||
+    hasFirstSegmentParam(route.source) ||
+    destinationHasQueryParamInterpolation(
+      'destination' in route ? route.destination : undefined
+    ) ||
+    destinationHasExternalUrlQuery(
+      'destination' in route ? route.destination : undefined
+    )
+  )
+}
+
+export function hasUnsupportedNextRoutingCustomRouteFeatures(
+  fsChecker: Pick<FsChecker, 'headers' | 'redirects' | 'rewrites'>
+): boolean {
+  return (
+    fsChecker.headers.some(hasUnsupportedLiveCustomRouteFeatures) ||
+    fsChecker.redirects.some(hasUnsupportedLiveCustomRouteFeatures) ||
+    fsChecker.rewrites.beforeFiles.some(
+      hasUnsupportedLiveCustomRouteFeatures
+    ) ||
+    fsChecker.rewrites.afterFiles.some(hasUnsupportedLiveCustomRouteFeatures) ||
+    fsChecker.rewrites.fallback.some(hasUnsupportedLiveCustomRouteFeatures)
+  )
 }
 
 export function createNextRoutingHeaderRoute(
@@ -215,9 +283,11 @@ export function createNextRoutingPathnames(
   >,
   {
     additionalPathnames = [],
+    includeDynamicRoutes = true,
     invokedOutputs,
   }: {
     additionalPathnames?: Iterable<string>
+    includeDynamicRoutes?: boolean
     invokedOutputs?: Set<string>
   } = {}
 ): string[] {
@@ -227,9 +297,15 @@ export function createNextRoutingPathnames(
     ...fsChecker.appFiles,
     ...fsChecker.pageFiles,
     ...fsChecker.nextDataRoutes,
-    ...fsChecker.getDynamicRoutes().map((route) => route.page),
+    ...(includeDynamicRoutes
+      ? fsChecker.getDynamicRoutes().map((route) => route.page)
+      : []),
     ...additionalPathnames,
   ]) {
+    if (!includeDynamicRoutes && isDynamicRoute(pathname, false)) {
+      continue
+    }
+
     if (!invokedOutputs?.has(pathname)) {
       pathnames.add(pathname)
     }
@@ -243,12 +319,14 @@ export function createNextRoutingServerState(
   config: NextConfigRuntime,
   {
     additionalPathnames,
+    includeDynamicRoutes = true,
     invokedOutputs,
     minimalMode = false,
     middlewareMatchers = [],
     shouldNormalizeNextData = middlewareMatchers.length > 0,
   }: {
     additionalPathnames?: Iterable<string>
+    includeDynamicRoutes?: boolean
     invokedOutputs?: Set<string>
     minimalMode?: boolean
     middlewareMatchers?: NextRoutingRoute[]
@@ -261,6 +339,7 @@ export function createNextRoutingServerState(
     i18n: createNextRoutingI18nConfig(config.i18n),
     pathnames: createNextRoutingPathnames(fsChecker, {
       additionalPathnames,
+      includeDynamicRoutes,
       invokedOutputs,
     }),
     routes: {
@@ -278,9 +357,9 @@ export function createNextRoutingServerState(
       afterFiles: minimalMode
         ? []
         : fsChecker.rewrites.afterFiles.map(createNextRoutingRewriteRoute),
-      dynamicRoutes: fsChecker
-        .getDynamicRoutes()
-        .map(createNextRoutingDynamicRoute),
+      dynamicRoutes: includeDynamicRoutes
+        ? fsChecker.getDynamicRoutes().map(createNextRoutingDynamicRoute)
+        : [],
       onMatch: fsChecker.onMatchHeaders.map(createNextRoutingHeaderRoute),
       fallback: minimalMode
         ? []

@@ -102,6 +102,7 @@
   },
   "dependencies": {
     "@next/env": "16.3.0-canary.40",
+    "@next/routing": "16.3.0-canary.40",
     "@swc/helpers": "0.5.15",
     "baseline-browser-mapping": "^2.9.19",
     "caniuse-lite": "^1.0.30001579",

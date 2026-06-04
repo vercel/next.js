@@ -9,6 +9,7 @@ const {
 } = require('../../../packages/next/src/server/lib/router-utils/filesystem')
 const {
   createNextRoutingServerState,
+  hasUnsupportedNextRoutingCustomRouteFeatures,
   mapNextRoutingResultToResolveRoutesResult,
 } = require('../../../packages/next/src/server/lib/router-utils/next-routing-adapter')
 const {
@@ -257,6 +258,56 @@ describe('next routing server adapter', () => {
       '/blog/[slug]',
       '/public.txt',
     ])
+  })
+
+  it('can omit dynamic route inputs for live server opt-in delegation', () => {
+    const fsChecker = createFsChecker({
+      appFiles: ['/app', '/app/[slug]'],
+      pageFiles: ['/page', '/blog/[slug]'],
+      nextDataRoutes: [
+        '/_next/data/BUILD_ID/page.json',
+        '/_next/data/BUILD_ID/blog/[slug].json',
+      ],
+      dynamicRoutes: [createDynamicRoute('/blog/[slug]')],
+    })
+
+    const state = createNextRoutingServerState(fsChecker, createConfig(), {
+      includeDynamicRoutes: false,
+    })
+
+    expect(state.pathnames).toEqual([
+      '/app',
+      '/page',
+      '/_next/data/BUILD_ID/page.json',
+    ])
+    expect(state.routes.dynamicRoutes).toEqual([])
+  })
+
+  it('detects unsupported custom route features for live opt-in delegation', () => {
+    const compatible = createFsChecker({
+      redirects: [
+        buildCustomRoute('redirect', {
+          source: '/old/:slug',
+          destination: '/new/:slug',
+          permanent: false,
+        }),
+      ],
+    })
+
+    expect(hasUnsupportedNextRoutingCustomRouteFeatures(compatible)).toBe(false)
+
+    const unsupported = createFsChecker({
+      rewrites: {
+        afterFiles: [
+          buildCustomRoute('rewrite', {
+            source: '/query-rewrite/:section/:name',
+            destination: '/with-params?first=:section&second=:name',
+          }),
+        ],
+      },
+    })
+
+    expect(hasUnsupportedNextRoutingCustomRouteFeatures(unsupported)).toBe(true)
   })
 
   it('keeps custom routes out of minimal mode routing input', () => {

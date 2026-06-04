@@ -59,8 +59,13 @@ export function applyDestination(currentUrl: URL, destination: string): URL {
   if (search) {
     // Merge query parameters
     const newParams = new URLSearchParams(search)
+    const destinationKeys = new Set<string>()
     for (const [key, value] of newParams.entries()) {
-      newUrl.searchParams.set(key, value)
+      if (!destinationKeys.has(key)) {
+        newUrl.searchParams.delete(key)
+        destinationKeys.add(key)
+      }
+      newUrl.searchParams.append(key, value)
     }
   }
 

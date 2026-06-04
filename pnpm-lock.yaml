@@ -1065,6 +1065,9 @@ importers:
       '@next/env':
         specifier: 16.3.0-canary.40
         version: link:../next-env
+      '@next/routing':
+        specifier: 16.3.0-canary.40
+        version: link:../next-routing
       '@swc/helpers':
         specifier: 0.5.15
         version: 0.5.15
