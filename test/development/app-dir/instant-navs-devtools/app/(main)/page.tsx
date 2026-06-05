@@ -1,11 +1,13 @@
 import Link from 'next/link'
 import { HydrationMarker } from './hydration-marker'
+import { ErrorTrigger } from './error-trigger'
 
 export default function Page() {
   return (
     <div>
       <HydrationMarker />
       <h1 data-testid="home-title">Instant Navigation Mode Demo</h1>
+      <ErrorTrigger />
       <p>
         This fixture tests the <strong>Instant Navigation Mode</strong> toggle
         in Next.js Dev Tools. When enabled, navigations show only the cached or
