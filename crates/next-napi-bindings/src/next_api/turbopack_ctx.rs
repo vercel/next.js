@@ -248,7 +248,6 @@ pub fn create_turbo_tasks(
     output_path: PathBuf,
     next_version: &str,
     persistent_caching: bool,
-    _memory_limit: usize,
     dependency_tracking: bool,
     is_ci: bool,
     is_short_session: bool,

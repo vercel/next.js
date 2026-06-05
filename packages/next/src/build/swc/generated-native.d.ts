@@ -309,8 +309,6 @@ export interface NapiDefineEnv {
   nodejs: Array<NapiOptionEnvVar>
 }
 export interface NapiTurboEngineOptions {
-  /** An upper bound of memory that turbopack will attempt to stay under. */
-  memoryLimit?: number
   /** Track dependencies between tasks. If false, any change during build will error. */
   dependencyTracking?: boolean
   /** Whether the project is running in a CI environment. */

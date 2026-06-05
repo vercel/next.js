@@ -3,8 +3,12 @@
  * the new top-level `turbopack` configuration.
  *
  * It moves most properties from experimental.turbo to the top-level turbopack
- * property, with special handling for certain properties like memoryLimit, minify,
+ * property, with special handling for certain properties like minify,
  * treeShaking, and sourceMaps which become experimental.turbopack* properties instead.
+ *
+ * The `memoryLimit` option is no longer supported, so it is removed entirely in
+ * both its old location (`experimental.turbo.memoryLimit`) and the location the
+ * previous version of this codemod produced (`experimental.turbopackMemoryLimit`).
  */
 
 import type {
@@ -23,11 +27,16 @@ import { isNextConfigFile } from './lib/utils'
 
 // Properties that need to be moved to experimental.turbopack*
 const RENAMED_EXPERIMENTAL_PROPERTIES = {
-  memoryLimit: 'turbopackMemoryLimit',
   minify: 'turbopackMinify',
   treeShaking: 'turbopackTreeShaking',
   sourceMaps: 'turbopackSourceMaps',
 }
+
+// `memoryLimit` is no longer supported and is removed entirely. We drop it under
+// both its old `experimental.turbo.*` name and the `experimental.*` name produced
+// by the previous version of this codemod.
+const REMOVED_TURBO_PROPERTY = 'memoryLimit'
+const REMOVED_EXPERIMENTAL_PROPERTY = 'turbopackMemoryLimit'
 
 export default function transformer(
   file: FileInfo,
@@ -91,6 +100,16 @@ export default function transformer(
         isStaticProperty(prop) &&
         prop.key &&
         prop.key.type === 'Identifier' &&
+        prop.key.name === REMOVED_TURBO_PROPERTY
+      ) {
+        // Drop: `memoryLimit` is no longer supported.
+        return
+      }
+
+      if (
+        isStaticProperty(prop) &&
+        prop.key &&
+        prop.key.type === 'Identifier' &&
         RENAMED_EXPERIMENTAL_PROPERTIES[prop.key.name]
       ) {
         // Create a new property with the renamed key
@@ -112,7 +131,10 @@ export default function transformer(
           isStaticProperty(prop) &&
           prop.key &&
           prop.key.type === 'Identifier' &&
-          prop.key.name === 'turbo'
+          // Drop the `turbo` object (moved above) and a pre-existing
+          // `turbopackMemoryLimit` (no longer supported).
+          (prop.key.name === 'turbo' ||
+            prop.key.name === REMOVED_EXPERIMENTAL_PROPERTY)
         )
     )
 
@@ -193,7 +215,14 @@ export default function transformer(
         return
       }
 
-      // For special properties like memoryLimit, minify, etc.
+      // `memoryLimit` is no longer supported: remove the assignment entirely.
+      if (propName === REMOVED_TURBO_PROPERTY) {
+        j(path).remove()
+        hasChanges = true
+        return
+      }
+
+      // For special properties like minify, treeShaking, etc.
       if (propName && RENAMED_EXPERIMENTAL_PROPERTIES[propName]) {
         const newAssignment = j.assignmentExpression(
           '=',
@@ -297,6 +326,27 @@ export default function transformer(
       hasChanges = true
     }
   })
+
+  // Remove `config.experimental.turbopackMemoryLimit = value` assignments left
+  // behind by the previous version of this codemod (no longer supported).
+  root
+    .find(j.AssignmentExpression, {
+      left: {
+        type: 'MemberExpression',
+        object: {
+          type: 'MemberExpression',
+          property: { type: 'Identifier', name: 'experimental' },
+        },
+        property: {
+          type: 'Identifier',
+          name: REMOVED_EXPERIMENTAL_PROPERTY,
+        },
+      },
+    })
+    .forEach((path) => {
+      j(path).remove()
+      hasChanges = true
+    })
 
   // Only return a string if we changed the AST, otherwise return the original source
   return hasChanges ? root.toSource(options) : file.source
