@@ -279,6 +279,19 @@ pub enum SourceMapSourceType {
 #[turbo_tasks::value(transparent, cell = "keyed")]
 pub struct UnusedReferences(FxHashSet<ResolvedVc<Box<dyn ModuleReference>>>);
 
+#[turbo_tasks::value(shared)]
+#[derive(Debug, Clone, Default)]
+pub struct WorkerConfigurationOptions {
+    /// The worker base-path override. When `Some`, takes precedence over
+    /// `chunk_base_path` for the worker entrypoint URL and the module chunks
+    /// loaded inside the worker.
+    pub asset_prefix: Option<RcStr>,
+    /// The list of global variable names to forward to workers. These globals
+    /// are read from `globalThis` at worker creation time and passed to the
+    /// worker via URL params.
+    pub forwarded_globals: Vec<RcStr>,
+}
+
 /// A context for the chunking that influences the way chunks are created
 #[turbo_tasks::value_trait]
 pub trait ChunkingContext {
@@ -481,12 +494,11 @@ pub trait ChunkingContext {
     #[turbo_tasks::function]
     fn debug_ids_enabled(self: Vc<Self>) -> Vc<bool>;
 
-    /// Returns the list of global variable names to forward to workers.
-    /// These globals are read from globalThis at worker creation time and passed
-    /// to the worker via URL params.
+    /// Returns the worker-related configuration: the base-path override and the
+    /// list of globals to forward to workers.
     #[turbo_tasks::function]
-    fn worker_forwarded_globals(self: Vc<Self>) -> Vc<Vec<RcStr>> {
-        Vc::cell(vec![])
+    fn worker_configuration_options(self: Vc<Self>) -> Vc<WorkerConfigurationOptions> {
+        WorkerConfigurationOptions::default().cell()
     }
 
     /// Returns the worker entrypoint for this chunking context.
