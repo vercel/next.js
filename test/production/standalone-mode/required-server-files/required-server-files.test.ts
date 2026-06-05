@@ -72,6 +72,9 @@ describe('required server files', () => {
         }
       },
     },
+    dependencies: {
+      lodash: 'latest',
+    },
     skipStart: true,
   })
 

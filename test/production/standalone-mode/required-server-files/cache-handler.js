@@ -1,8 +1,9 @@
 const cache = new Map()
+const { add } = require('lodash')
 
 module.exports = class CacheHandler {
   constructor() {
-    console.log('initialized custom cache-handler')
+    console.log('initialized custom cache-handler: ', add(1, 2))
   }
 
   async get(key, ctx) {
