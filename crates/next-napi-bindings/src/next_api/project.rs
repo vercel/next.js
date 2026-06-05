@@ -62,7 +62,7 @@ use turbo_tasks_fs::{
 use turbo_unix_path::{get_relative_path_to, sys_to_unix, unix_to_sys};
 use turbopack_core::{
     PROJECT_FILESYSTEM_NAME, SOURCE_URL_PROTOCOL,
-    issue::{IssueFilter, PlainIssue},
+    issue::PlainIssue,
     output::{OutputAsset, OutputAssets},
     source_map::{SourceMap, Token},
     version::{PartialUpdate, TotalUpdate, Update, VersionState},
@@ -98,11 +98,6 @@ const SLOW_FILESYSTEM_THRESHOLD: Duration = Duration::from_millis(200);
 static SOURCE_MAP_PREFIX: LazyLock<String> = LazyLock::new(|| format!("{SOURCE_URL_PROTOCOL}///"));
 static SOURCE_MAP_PREFIX_PROJECT: LazyLock<String> =
     LazyLock::new(|| format!("{SOURCE_URL_PROTOCOL}///[{PROJECT_FILESYSTEM_NAME}]/"));
-
-/// Get the `Vc<IssueFilter>` for a `ProjectContainer`.
-fn issue_filter_from_container(container: ResolvedVc<ProjectContainer>) -> Vc<IssueFilter> {
-    container.project().issue_filter()
-}
 
 #[napi(object)]
 #[derive(Clone, Debug)]
@@ -1001,9 +996,9 @@ async fn get_entrypoints_with_issues_operation(
 ) -> Result<Vc<EntrypointsWithIssues>> {
     let entrypoints_operation =
         EntrypointsOperation::new(project_container_entrypoints_operation(container));
-    let filter = issue_filter_from_container(container);
+    let filter = container.project().issue_filter().await?;
     let (entrypoints, issues, effects) =
-        strongly_consistent_catch_collectables(entrypoints_operation, filter).await?;
+        strongly_consistent_catch_collectables(entrypoints_operation, &filter).await?;
     Ok(EntrypointsWithIssues {
         entrypoints,
         issues,
@@ -1545,9 +1540,9 @@ async fn get_all_written_entrypoints_with_issues_operation(
         app_dir_only,
         write_phase,
     ));
-    let filter = issue_filter_from_container(container);
+    let filter = container.project().issue_filter().await?;
     let (entrypoints, issues, effects) =
-        strongly_consistent_catch_collectables(entrypoints_operation, filter).await?;
+        strongly_consistent_catch_collectables(entrypoints_operation, &filter).await?;
     Ok(AllWrittenEntrypointsWithIssues {
         entrypoints,
         issues,
@@ -1628,9 +1623,9 @@ async fn emit_all_output_assets_once_with_issues_operation(
         app_dir_only,
         has_deferred_entrypoints,
     ));
-    let filter = issue_filter_from_container(container);
+    let filter = container.project().issue_filter().await?;
     let (_, issues, effects) =
-        strongly_consistent_catch_collectables(entrypoints_operation, filter).await?;
+        strongly_consistent_catch_collectables(entrypoints_operation, &filter).await?;
 
     Ok(OperationResult { issues, effects }.cell())
 }
@@ -1822,8 +1817,8 @@ async fn hmr_update_with_issues_operation(
     // `subscribeToClientHmrEvents`) rely on this read *throwing* on build-graph
     // failures to trigger their recovery paths
     let update = update_op.read_strongly_consistent().await?;
-    let filter = project.issue_filter();
-    let issues = get_issues(update_op, filter).await?;
+    let filter = project.issue_filter().await?;
+    let issues = get_issues(update_op, &filter).await?;
     let effects = Arc::new(take_effects(update_op).await?);
     Ok(HmrUpdateWithIssues {
         update,
@@ -1964,8 +1959,8 @@ async fn get_hmr_chunk_names_with_issues_operation(
     // list keeps the loop running but with stale state, and obscures the real
     // failure from the dev server log.
     let hmr_chunk_names = hmr_chunk_names_op.read_strongly_consistent().await?;
-    let filter = issue_filter_from_container(container);
-    let issues = get_issues(hmr_chunk_names_op, filter).await?;
+    let filter = container.project().issue_filter().await?;
+    let issues = get_issues(hmr_chunk_names_op, &filter).await?;
     let effects = Arc::new(take_effects(hmr_chunk_names_op).await?);
     Ok(HmrChunkNamesWithIssues {
         chunk_names: hmr_chunk_names,
@@ -2497,8 +2492,8 @@ async fn get_all_compilation_issues_operation(
     container: ResolvedVc<ProjectContainer>,
 ) -> Result<Vc<OperationResult>> {
     let inner_op = get_all_compilation_issues_inner_operation(container);
-    let filter = issue_filter_from_container(container);
-    let (_, issues, effects) = strongly_consistent_catch_collectables(inner_op, filter).await?;
+    let filter = container.project().issue_filter().await?;
+    let (_, issues, effects) = strongly_consistent_catch_collectables(inner_op, &filter).await?;
     Ok(OperationResult { issues, effects }.cell())
 }
 

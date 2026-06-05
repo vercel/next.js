@@ -280,43 +280,60 @@ pub struct IssueFilter {
     /// The minimum severity for issues in node_modules
     foreign_severity: IssueSeverity,
     /// Issues matching any of these rules are ignored (dropped from results).
-    ignore_rules: Vec<IgnoreIssue>,
+    ignore_rules: Box<[IgnoreIssue]>,
 }
 
-#[turbo_tasks::value_impl]
 impl IssueFilter {
     /// A filter that lets everything through.
-    #[turbo_tasks::function]
-    pub fn everything() -> Vc<Self> {
+    pub fn everything() -> Self {
         IssueFilter {
             severity: IssueSeverity::Info,
             foreign_severity: IssueSeverity::Info,
-            ignore_rules: Vec::new(),
+            ignore_rules: Box::from([]),
         }
-        .cell()
+    }
+
+    /// Construct a filter with the standard warning/foreign-error severities.
+    pub fn warnings_and_foreign_errors() -> Self {
+        IssueFilter {
+            severity: IssueSeverity::Warning,
+            foreign_severity: IssueSeverity::Error,
+            ignore_rules: Box::from([]),
+        }
+    }
+
+    /// Set the ignore rules for this filter.
+    pub fn with_ignore_rules(mut self, rules: Box<[IgnoreIssue]>) -> Self {
+        self.ignore_rules = rules;
+        self
     }
 
     /// Returns true if the issue is allowed by this filter.
-    #[turbo_tasks::function]
-    pub async fn matches(&self, issue: ResolvedVc<Box<dyn Issue>>) -> Result<Vc<bool>> {
-        let has_no_ignore_rules = self.ignore_rules.is_empty();
-        let is_everything = self.severity == IssueSeverity::Info
+    pub async fn matches(&self, issue: ResolvedVc<Box<dyn Issue>>) -> Result<bool> {
+        Ok(self.matches_all_fast_path()
+            || self
+                .matches_ref_slow_path(&*issue.into_trait_ref().await?)
+                .await?)
+    }
+
+    pub async fn matches_ref(&self, issue: &dyn Issue) -> Result<bool> {
+        Ok(self.matches_all_fast_path() || self.matches_ref_slow_path(issue).await?)
+    }
+
+    fn matches_all_fast_path(&self) -> bool {
+        self.severity == IssueSeverity::Info
             && self.foreign_severity == IssueSeverity::Info
-            && has_no_ignore_rules;
+            && self.ignore_rules.is_empty()
+    }
 
-        if is_everything {
-            return Ok(Vc::cell(true));
-        }
-
-        let trait_ref = issue.into_trait_ref().await?;
-
+    async fn matches_ref_slow_path(&self, issue: &dyn Issue) -> Result<bool> {
         // Fetch the file path once — it's used by both severity and ignore-rule
         // checks.
-        let file_path = trait_ref.file_path().await?;
+        let file_path = issue.file_path().await?;
 
         // Check severity first — this is cheap and avoids fetching
         // title/description for issues that would be filtered out anyway.
-        let severity = trait_ref.severity();
+        let severity = issue.severity();
         // NOTE: Lower severities are _more_ severe
         let severity_allowed = if severity <= self.severity || severity <= self.foreign_severity {
             // we need to check the path to see if it is foreign or not.  Only await the
@@ -335,13 +352,13 @@ impl IssueFilter {
         };
 
         if !severity_allowed {
-            return Ok(Vc::cell(false));
+            return Ok(false);
         }
 
         // Check ignore rules — if any rule matches, the issue is dropped.
         // Title and description are fetched lazily: only when a rule's path
         // matches and the rule also specifies a title/description pattern.
-        if !has_no_ignore_rules {
+        if !self.ignore_rules.is_empty() {
             let file_path_str = file_path.to_string();
             let mut title_str: Option<String> = None;
             let mut description_text: Option<Option<String>> = None;
@@ -352,7 +369,7 @@ impl IssueFilter {
                 }
                 if let Some(ref title_pat) = rule.title {
                     if title_str.is_none() {
-                        title_str = Some(trait_ref.title().await?.to_unstyled_string());
+                        title_str = Some(issue.title().await?.to_unstyled_string());
                     }
                     if !title_pat.matches(title_str.as_deref().unwrap()) {
                         continue;
@@ -360,12 +377,8 @@ impl IssueFilter {
                 }
                 if let Some(ref desc_pat) = rule.description {
                     if description_text.is_none() {
-                        description_text = Some(
-                            trait_ref
-                                .description()
-                                .await?
-                                .map(|s| s.to_unstyled_string()),
-                        );
+                        description_text =
+                            Some(issue.description().await?.map(|s| s.to_unstyled_string()));
                     }
                     match description_text.as_ref().unwrap().as_deref() {
                         Some(desc) if desc_pat.matches(desc) => {}
@@ -373,28 +386,11 @@ impl IssueFilter {
                     }
                 }
                 // All specified fields matched — ignore this issue.
-                return Ok(Vc::cell(false));
+                return Ok(false);
             }
         }
 
-        Ok(Vc::cell(true))
-    }
-}
-
-impl IssueFilter {
-    /// Construct a filter with the standard warning/foreign-error severities.
-    pub fn warnings_and_foreign_errors() -> Self {
-        IssueFilter {
-            severity: IssueSeverity::Warning,
-            foreign_severity: IssueSeverity::Error,
-            ignore_rules: Vec::new(),
-        }
-    }
-
-    /// Set the ignore rules for this filter.
-    pub fn with_ignore_rules(mut self, rules: Vec<IgnoreIssue>) -> Self {
-        self.ignore_rules = rules;
-        self
+        Ok(true)
     }
 }
 
@@ -413,15 +409,12 @@ impl CapturedIssues {
     }
 
     // Returns all the issues as formatted `PlainIssues`.
-    pub async fn get_plain_issues(
-        &self,
-        filter: Vc<IssueFilter>,
-    ) -> Result<Vec<ReadRef<PlainIssue>>> {
+    pub async fn get_plain_issues(&self, filter: &IssueFilter) -> Result<Vec<ReadRef<PlainIssue>>> {
         let mut list = self
             .issues
             .iter()
             .map(async |issue| {
-                if *filter.matches(**issue).await? {
+                if filter.matches(*issue).await? {
                     Ok(Some(
                         PlainIssue::from_issue(**issue, Some(*self.tracer)).await?,
                     ))
@@ -971,12 +964,24 @@ impl PlainIssue {
         issue: ResolvedVc<Box<dyn Issue>>,
         import_tracer: Option<ResolvedVc<DelegatingImportTracer>>,
     ) -> Result<Vc<Self>> {
-        let trait_ref = issue.into_trait_ref().await?;
+        Ok(
+            Self::from_issue_ref(&*issue.into_trait_ref().await?, import_tracer)
+                .await?
+                .cell(),
+        )
+    }
+}
+
+impl PlainIssue {
+    pub async fn from_issue_ref(
+        trait_ref: &dyn Issue,
+        import_tracer: Option<ResolvedVc<DelegatingImportTracer>>,
+    ) -> Result<Self> {
         let severity = trait_ref.severity();
         let file_path = trait_ref.file_path().await?;
         let file_path_str = file_path.to_string_ref().await?;
 
-        Ok(Self::cell(Self {
+        Ok(Self {
             severity,
             file_path: file_path_str,
             stage: trait_ref.stage(),
@@ -1011,7 +1016,7 @@ impl PlainIssue {
                 }
                 None => vec![],
             },
-        }))
+        })
     }
 }
 

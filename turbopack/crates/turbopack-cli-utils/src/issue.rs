@@ -395,7 +395,7 @@ impl IssueReporter for ConsoleUi {
         } = self.options;
         let mut grouped_issues: GroupedIssues = FxHashMap::default();
 
-        let plain_issues = issues.get_plain_issues(IssueFilter::everything()).await?;
+        let plain_issues = issues.get_plain_issues(&IssueFilter::everything()).await?;
         let issues = plain_issues
             .iter()
             .map(|plain_issue| {
