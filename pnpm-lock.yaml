@@ -442,8 +442,8 @@ importers:
         specifier: 15.2.2
         version: 15.2.2
       lodash:
-        specifier: 4.17.23
-        version: 4.17.23
+        specifier: 4.18.1
+        version: 4.18.1
       lost:
         specifier: 8.3.1
         version: 8.3.1
@@ -12784,8 +12784,8 @@ packages:
   lodash@3.10.1:
     resolution: {integrity: sha512-9mDDwqVIma6OZX79ZlDACZl8sBm0TEnkf99zV3iMA4GzkIT/9hiqP5mY0HoT1iNLCrKc/R1HByV+yJfRWVJryQ==}
 
-  lodash@4.17.23:
-    resolution: {integrity: sha512-LgVTMpQtIopCi79SJeDiP0TfWi5CNEc/L/aRdTh3yIvmZXTnheWpKjSZhnvMl8iXbC1tFg9gdHHDMLoV7CnG+w==}
+  lodash@4.18.1:
+    resolution: {integrity: sha512-dMInicTPVE8d1e5otfwmmjlxkZoUpiVLwyeTdUsi/Caj/gfzzblBcCE5sRHV/AsjuCmxWrte2TNGSYuCeCq+0Q==}
 
   log-driver@1.2.7:
     resolution: {integrity: sha512-U7KCmLdqsGHBLeWqYlFA0V0Sl6P08EE1ZrmA9cxjUE0WVqT9qnyVDPz1kzpFEP0jdJuFnasWIfSd7fsaNXkpbg==}
@@ -21765,7 +21765,7 @@ snapshots:
       debug: 3.2.7
       http-proxy-agent: 2.1.0
       https-proxy-agent: 2.2.4
-      lodash: 4.17.23
+      lodash: 4.18.1
       node-fetch: 2.6.7(encoding@0.1.13)
       url-template: 2.0.8
     transitivePeerDependencies:
@@ -23211,7 +23211,7 @@ snapshots:
       chalk: 3.0.0
       css.escape: 1.5.1
       dom-accessibility-api: 0.5.16
-      lodash: 4.17.23
+      lodash: 4.18.1
       redent: 3.0.0
     optionalDependencies:
       '@jest/globals': 29.7.0
@@ -23225,7 +23225,7 @@ snapshots:
       chalk: 3.0.0
       css.escape: 1.5.1
       dom-accessibility-api: 0.6.3
-      lodash: 4.17.23
+      lodash: 4.18.1
       redent: 3.0.0
 
   '@testing-library/react@15.0.7(@types/react@19.2.10)(react-dom@19.3.0-canary-f0dfee38-20260529(react@19.3.0-canary-f0dfee38-20260529))(react@19.3.0-canary-f0dfee38-20260529)':
@@ -24799,7 +24799,7 @@ snapshots:
 
   babel-plugin-transform-define@2.0.0:
     dependencies:
-      lodash: 4.17.23
+      lodash: 4.18.1
       traverse: 0.6.6
 
   babel-plugin-transform-react-remove-prop-types@0.4.24: {}
@@ -29262,7 +29262,7 @@ snapshots:
     dependencies:
       '@types/html-minifier-terser': 6.1.0
       html-minifier-terser: 6.1.0
-      lodash: 4.17.23
+      lodash: 4.18.1
       pretty-error: 4.0.0
       tapable: 2.2.1
     optionalDependencies:
@@ -29583,7 +29583,7 @@ snapshots:
       cli-width: 2.2.0
       external-editor: 2.2.0
       figures: 2.0.0
-      lodash: 4.17.23
+      lodash: 4.18.1
       mute-stream: 0.0.7
       run-async: 2.4.1
       rxjs: 5.5.12
@@ -29599,7 +29599,7 @@ snapshots:
       cli-width: 3.0.0
       external-editor: 3.1.0
       figures: 3.1.0
-      lodash: 4.17.23
+      lodash: 4.18.1
       mute-stream: 0.0.8
       run-async: 2.4.1
       rxjs: 6.6.2
@@ -29615,7 +29615,7 @@ snapshots:
       cli-width: 3.0.0
       external-editor: 3.1.0
       figures: 3.1.0
-      lodash: 4.17.23
+      lodash: 4.18.1
       mute-stream: 0.0.8
       ora: 5.4.1
       run-async: 2.4.1
@@ -29634,7 +29634,7 @@ snapshots:
       cli-cursor: 3.1.0
       cli-width: 4.1.0
       external-editor: 3.1.0
-      lodash: 4.17.23
+      lodash: 4.18.1
       mute-stream: 1.0.0
       ora: 5.4.1
       run-async: 3.0.0
@@ -30852,7 +30852,7 @@ snapshots:
   jsonwebtoken@9.0.0:
     dependencies:
       jws: 3.2.2
-      lodash: 4.17.23
+      lodash: 4.18.1
       ms: 2.1.3
       semver: 7.6.3
 
@@ -30874,7 +30874,7 @@ snapshots:
 
   junit-report-builder@5.1.1:
     dependencies:
-      lodash: 4.17.23
+      lodash: 4.18.1
       make-dir: 3.1.0
       xmlbuilder: 15.1.1
 
@@ -31355,7 +31355,7 @@ snapshots:
 
   lodash@3.10.1: {}
 
-  lodash@4.17.23: {}
+  lodash@4.18.1: {}
 
   log-driver@1.2.7: {}
 
@@ -34467,7 +34467,7 @@ snapshots:
 
   pretty-error@4.0.0:
     dependencies:
-      lodash: 4.17.23
+      lodash: 4.18.1
       renderkid: 3.0.0
 
   pretty-format@27.5.1:
@@ -35309,7 +35309,7 @@ snapshots:
       css-select: 4.3.0
       dom-converter: 0.2.0
       htmlparser2: 6.1.0
-      lodash: 4.17.23
+      lodash: 4.18.1
       strip-ansi: 6.0.1
 
   repeat-string@1.6.1: {}
@@ -35320,7 +35320,7 @@ snapshots:
 
   request-promise-core@1.1.2(request@2.88.2):
     dependencies:
-      lodash: 4.17.23
+      lodash: 4.18.1
       request: 2.88.2
 
   request@2.88.2:
@@ -37855,7 +37855,7 @@ snapshots:
     dependencies:
       axios: 1.7.9(debug@4.1.1)
       joi: 17.13.3
-      lodash: 4.17.23
+      lodash: 4.18.1
       minimist: 1.2.8
       rxjs: 7.8.1
     transitivePeerDependencies:
@@ -37947,7 +37947,7 @@ snapshots:
       chalk: 4.1.2
       commander: 7.2.0
       gzip-size: 6.0.0
-      lodash: 4.17.23
+      lodash: 4.18.1
       opener: 1.5.2
       sirv: 1.0.10
       ws: 7.5.3
@@ -37962,7 +37962,7 @@ snapshots:
       chalk: 4.1.2
       commander: 7.2.0
       gzip-size: 6.0.0
-      lodash: 4.17.23
+      lodash: 4.18.1
       opener: 1.5.2
       sirv: 1.0.10
       ws: 7.5.3
