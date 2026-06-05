@@ -1570,7 +1570,7 @@ async function generateDynamicFlightRenderResultWithStagesInDev(
         onError,
         shouldValidate,
         fallbackParams,
-        didErrorObservably
+        () => didErrorObservably
       )
       stream = result.stream
       debugChannel = result.debugChannel
@@ -1583,7 +1583,7 @@ async function generateDynamicFlightRenderResultWithStagesInDev(
         onError,
         shouldValidate,
         fallbackParams,
-        didErrorObservably
+        () => didErrorObservably
       )
       stream = result.stream
       debugChannel = result.debugChannel
@@ -3596,7 +3596,7 @@ async function renderToStream(
                 serverComponentsErrorHandler,
                 true,
                 fallbackParams,
-                didErrorObservably
+                () => didErrorObservably
               )
 
             reactServerResult = new ReactServerResult(serverStream)
@@ -3694,7 +3694,7 @@ async function renderToStream(
                 serverComponentsErrorHandler,
                 true,
                 fallbackParams,
-                didErrorObservably
+                () => didErrorObservably
               )
 
             reactServerResult = new ReactServerResult(serverStream)
@@ -4837,13 +4837,17 @@ function runDevValidationInBackground(
   cacheSignal: CacheSignal,
   ctx: AppRenderContext,
   fallbackRouteParams: OpaqueFallbackRouteParams | null,
-  devRenderDidError: boolean,
+  getDevRenderDidError: () => boolean,
   // TODO: This can be inlined once the Web streams forks are gone.
   renderWarmCachesForValidation: () => Promise<DevValidationInputs>
 ): void {
   void consoleAsyncStorage
     .run({ dim: true }, async () => {
       const result = await resultPromise
+
+      // Read whether the streamed render errored only now that it has fully
+      // settled.
+      const devRenderDidError = getDevRenderDidError()
 
       const plan = await planDevValidation(
         result,
@@ -5167,7 +5171,7 @@ async function stagedRenderWithCachesInDevWeb(
   onError: (error: unknown) => void,
   shouldValidate: boolean,
   fallbackRouteParams: OpaqueFallbackRouteParams | null,
-  devRenderDidError: boolean
+  getDevRenderDidError: () => boolean
 ): Promise<{ stream: AnyStream; debugChannel: DebugChannelPair | undefined }> {
   const { setReactDebugChannel } = ctx.renderOpts
 
@@ -5209,7 +5213,7 @@ async function stagedRenderWithCachesInDevWeb(
       cacheSignal,
       ctx,
       fallbackRouteParams,
-      devRenderDidError,
+      getDevRenderDidError,
       () =>
         renderWithWarmCachesForValidationInDevWeb(
           ctx,
@@ -5513,7 +5517,7 @@ async function stagedRenderWithCachesInDevNode(
   onError: (error: unknown) => void,
   shouldValidate: boolean,
   fallbackRouteParams: OpaqueFallbackRouteParams | null,
-  devRenderDidError: boolean
+  getDevRenderDidError: () => boolean
 ): Promise<{
   stream: Readable
   debugChannel: NodeDebugChannelPair | undefined
@@ -5560,7 +5564,7 @@ async function stagedRenderWithCachesInDevNode(
       cacheSignal,
       ctx,
       fallbackRouteParams,
-      devRenderDidError,
+      getDevRenderDidError,
       () =>
         renderWithWarmCachesForValidationInDevNode(
           ctx,
