@@ -525,9 +525,6 @@ jobs:
     with:
       skipNativeBuild: 'yes'
       skipNativeInstall: 'yes'
-      # `afterBuild` invokes `rustup target add`, which is not preinstalled
-      # in the Playwright Docker image; run this job on the bare runner.
-      usePlaywrightContainer: 'no'
       afterBuild: |
         rustup target add wasm32-unknown-unknown
         node ./scripts/normalize-version-bump.js
@@ -591,7 +588,10 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        node: [22, 24]
+        # Playwright hangs on Node 24.16+, we can remove this exact node version
+        # pin once we update to playwright 1.60.0 or newer.
+        # https://github.com/microsoft/playwright/issues/40724
+        node: [22, '24.15.0']
 
     uses: ./.github/workflows/build_reusable.yml
     with:
@@ -613,7 +613,9 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        node: [22, 24]
+        # Playwright hangs on Node 24.16+, we can remove this exact node version
+        # pin once we update to playwright 1.60.0 or newer.
+        node: [22, '24.15.0']
 
     uses: ./.github/workflows/build_reusable.yml
     with:

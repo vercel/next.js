@@ -101,29 +101,6 @@ on:
         required: false
         type: string
         default: 'yes'
-      playwrightDockerImage:
-        description: >
-          Docker image to use on Linux runners that need Playwright. Pinned to
-          the same version as the `playwright` dependency in `package.json`;
-          the image ships Chromium/Firefox/WebKit and all system deps
-          preinstalled, so the per-job install step is skipped on Linux.
-          Use the `-noble` (Ubuntu 24.04) variant so its glibc (>=2.39)
-          matches the `ubuntu-latest` host runners that build the
-          `next-swc.linux-x64-gnu.node` native binary; an older base (e.g.
-          `-jammy`) fails to dlopen the native binary at runtime with
-          `GLIBC_2.39 not found`.
-        required: false
-        type: string
-        default: 'mcr.microsoft.com/playwright:v1.58.2-noble'
-      usePlaywrightContainer:
-        description: >
-          When 'no', run the job directly on the Linux runner and install
-          Playwright at runtime instead of wrapping the job in
-          `playwrightDockerImage`. Use this for jobs that need tooling not
-          shipped in the container image (e.g. `rustup` for the wasm tests).
-        required: false
-        type: string
-        default: 'yes'
 env:
   NAPI_CLI_VERSION: 2.18.4
   TURBO_VERSION: 2.9.4
@@ -179,36 +156,6 @@ jobs:
     timeout-minutes: ${{ inputs.timeout_minutes }}
     runs-on: ${{ fromJson(inputs.runs_on_labels) }}
 
-    # Run inside Microsoft's prebuilt Playwright image on Linux when the job
-    # actually needs browsers, so the per-job "Install Playwright browsers"
-    # step (download + apt-based `--with-deps`) disappears entirely. When the
-    # expression evaluates to '', GitHub Actions runs the job directly on the
-    # runner (Windows jobs, build-only jobs, and any job that opts out via
-    # `needsPlaywright: 'no'` or `skipInstallBuild: 'yes'`).
-    container:
-      image: ${{ (inputs.needsPlaywright != 'no' && inputs.skipInstallBuild != 'yes' && inputs.usePlaywrightContainer != 'no' && !contains(inputs.runs_on_labels, 'windows')) && inputs.playwrightDockerImage || '' }}
-      # --ipc=host avoids Chromium running out of memory in /dev/shm.
-      # --init reaps zombie browser processes properly.
-      options: --ipc=host --init
-      env:
-        # The Next.js standalone server template binds to
-        # `process.env.HOSTNAME || '0.0.0.0'` (see
-        # `packages/next/src/build/utils.ts`). Docker auto-sets `HOSTNAME`
-        # to the container ID, which `bash -l` then preserves, so the
-        # standalone server ends up listening on the container hostname
-        # (e.g. `3363ea41c9fa`) instead of `0.0.0.0`. That breaks tests
-        # like `test/production/standalone-mode/**` that fetch
-        # `http://localhost:<port>` and now get `ECONNREFUSED`. Force the
-        # standalone default here so the bound address matches what tests
-        # expect.
-        HOSTNAME: 0.0.0.0
-        # Opt out of Next.js's Docker auto-detection so build artifacts use
-        # the persistent on-disk cache. Without this, `cache-dir.ts`
-        # short-circuits to ephemeral storage on every build and breaks
-        # tests asserting determinism between consecutive builds in the
-        # same workspace (e.g. `test/production/deterministic-build`).
-        NEXT_IGNORE_IS_DOCKER: '1'
-
     defaults:
       run:
         shell: bash -leo pipefail {0}
@@ -234,32 +181,6 @@ jobs:
           else
             echo "fnm not found."
             echo "found=false" >> $GITHUB_OUTPUT
-          fi
-
-      # The Microsoft Playwright image is browser-focused and does not ship
-      # `jq`/`unzip` (required by the fnm install + `fnm env --json` parse
-      # below) or `build-essential` (required by `node-gyp` when test
-      # fixtures install native modules like `node-pty`). Install them
-      # unconditionally inside the container.
-      - name: Install container build dependencies (Linux container)
-        if: ${{ runner.os == 'Linux' && inputs.needsPlaywright != 'no' && inputs.skipInstallBuild != 'yes' && inputs.usePlaywrightContainer != 'no' && !contains(inputs.runs_on_labels, 'windows') }}
-        run: |
-          apt-get update
-          apt-get install -y --no-install-recommends jq unzip build-essential
-
-      # GitHub Actions sets `HOME=/github/home` for every step in a
-      # container job and overrides anything set via `container.env`.
-      # Playwright's GitHub Actions example runs the container as a
-      # non-root user, but this reusable workflow needs root so it can
-      # install jq/unzip/build-essential from the upstream image before
-      # bootstrapping. Firefox still requires $HOME to be owned by the
-      # current user, so re-own GitHub's mounted home directory in the
-      # Playwright container before tests run.
-      - name: Take ownership of /github/home (Linux container)
-        if: ${{ runner.os == 'Linux' && inputs.needsPlaywright != 'no' && inputs.skipInstallBuild != 'yes' && inputs.usePlaywrightContainer != 'no' && !contains(inputs.runs_on_labels, 'windows') }}
-        run: |
-          if [ "$(id -u)" = "0" ] && [ -d /github/home ]; then
-            chown -R root:root /github/home
           fi
 
       - name: Install fnm
@@ -318,19 +239,9 @@ jobs:
         with:
           fetch-depth: 25
 
-      - name: Mark workspace as safe for Git (Linux container)
-        if: ${{ runner.os == 'Linux' }}
-        run: |
-          if [ "$(id -u)" = "0" ]; then
-            git config --global --add safe.directory "$GITHUB_WORKSPACE"
-          fi
-
-      # Cache pnpm store on GitHub-hosted runners (self-hosted runners have
-      # their own persistent storage). Also fire inside the Playwright
-      # container since the container filesystem is always ephemeral, even
-      # when the host runner is persistent.
+      # Cache pnpm store on GitHub-hosted runners (self-hosted runners have their own persistent storage)
       - name: Get pnpm store directory
-        if: ${{ runner.environment == 'github-hosted' || (inputs.needsPlaywright != 'no' && inputs.skipInstallBuild != 'yes' && inputs.usePlaywrightContainer != 'no' && !contains(inputs.runs_on_labels, 'windows')) }}
+        if: ${{ runner.environment == 'github-hosted' }}
         id: get-store-path
         run: echo STORE_PATH=$(pnpm store path) >> $GITHUB_OUTPUT
 
@@ -403,7 +314,7 @@ jobs:
         # risk caching an incomplete store
         # If keep conditions in sync breaks, we can split into restore and save
         # steps where saving runs based on the outcome of the install step
-        if: ${{ (runner.environment == 'github-hosted' || (inputs.needsPlaywright != 'no' && inputs.skipInstallBuild != 'yes' && inputs.usePlaywrightContainer != 'no' && !contains(inputs.runs_on_labels, 'windows'))) && (inputs.skipInstallBuild != 'yes' || inputs.needsNextest == 'yes') }}
+        if: ${{ runner.environment == 'github-hosted' && (inputs.skipInstallBuild != 'yes' || inputs.needsNextest == 'yes') }}
         uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
         timeout-minutes: 5
         id: cache-pnpm-store
@@ -424,8 +335,28 @@ jobs:
         if: ${{ inputs.skipInstallBuild != 'yes' }}
 
       - name: Install Playwright browsers
-        if: ${{ inputs.skipInstallBuild != 'yes' && inputs.needsPlaywright != 'no' && (runner.os == 'Windows' || inputs.usePlaywrightContainer == 'no') }}
-        run: pnpm playwright install --with-deps ${{ inputs.browser }}
+        if: ${{ inputs.skipInstallBuild != 'yes' && inputs.needsPlaywright != 'no' }}
+        run: |
+          PW_VERSION=$(pnpm playwright --version 2>/dev/null || echo "unknown")
+          CACHE_DIR="$HOME/.cache"
+          VERSION_FILE="$CACHE_DIR/playwright-version"
+          STAMP="$CACHE_DIR/playwright-deps-$(echo "${{ inputs.browser }}" | tr ' ' '-')"
+
+          # Clear stamp files when Playwright version changes
+          if [ -f "$VERSION_FILE" ] && [ "$(cat "$VERSION_FILE")" != "$PW_VERSION" ]; then
+            echo "Playwright version changed ($(cat "$VERSION_FILE") -> $PW_VERSION), clearing stamps"
+            rm -f "$CACHE_DIR"/playwright-deps-*
+          fi
+
+          mkdir -p "$CACHE_DIR"
+          echo "$PW_VERSION" > "$VERSION_FILE"
+
+          if [ -f "$STAMP" ]; then
+            pnpm playwright install ${{ inputs.browser }}
+          else
+            pnpm playwright install --with-deps ${{ inputs.browser }}
+            touch "$STAMP"
+          fi
 
       - name: Download pre-built test timings
         if: ${{ inputs.testTimingsArtifact != '' }}
