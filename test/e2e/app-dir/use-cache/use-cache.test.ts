@@ -1186,6 +1186,13 @@ describe('use-cache', () => {
 
   if (withCacheComponents) {
     it('can resume a cached generateMetadata function', async () => {
+      // In dev the initial request fills the caches while streaming the
+      // response. The second request will have filled caches and server a
+      // prod-like shell.
+      if (isNextDev) {
+        await next.fetch('/generate-metadata-resume/nested')
+      }
+
       // First load the page with JavaScript disabled, to ensure that the
       // generateMetadata result was included in the prerendered shell.
       let browser = await next.browser('/generate-metadata-resume/nested', {
