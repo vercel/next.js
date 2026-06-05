@@ -21,7 +21,7 @@ const nextConfig = {
   experimental: {
     turbopackFileSystemCacheForBuild: enableCaching,
     turbopackFileSystemCacheForDev: enableCaching,
-    turbopackMemoryEviction: enableEviction ? 'full' : 'off',
+    turbopackMemoryEviction: enableEviction ? false : 'off',
   },
   env: {
     NEXT_PUBLIC_CONFIG_ENV: 'hello world',
