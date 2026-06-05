@@ -1,17 +1,19 @@
 use anyhow::{Result, bail};
 use turbo_rcstr::rcstr;
 use turbo_tasks::{ResolvedVc, Vc, fxindexmap};
-use turbo_tasks_fs::FileSystemPath;
+use turbo_tasks_fs::{FileSystem, FileSystemPath};
 use turbopack_core::{
     chunk::{AsyncModuleInfo, ChunkableModule, ChunkingContext},
     context::AssetContext,
+    environment::ChunkLoading,
+    file_source::FileSource,
     ident::AssetIdent,
     module::{Module, ModuleSideEffects},
     module_graph::ModuleGraph,
     output::OutputAssetsWithReferenced,
     reference::{ModuleReferences, SingleChunkableModuleReference},
-    reference_type::ReferenceType,
-    resolve::{ExportUsage, origin::ResolveOrigin},
+    reference_type::{EcmaScriptModulesReferenceSubType, ReferenceType},
+    resolve::{ExportUsage, ModulePart, origin::ResolveOrigin},
     source::{OptionSource, Source},
 };
 use turbopack_ecmascript::{
@@ -23,6 +25,7 @@ use turbopack_ecmascript::{
 };
 
 use crate::{
+    embed,
     loader::{compiling_loader_source, instantiating_loader_source},
     output_asset::WebAssemblyAsset,
     raw::RawWebAssemblyModuleAsset,
@@ -63,16 +66,50 @@ impl WebAssemblyModuleAsset {
     async fn loader_as_module(&self) -> Result<Vc<Box<dyn Module>>> {
         let query = &self.source.ident().await?.query;
 
-        let loader_source = if query == "?module" {
-            compiling_loader_source(*self.source)
+        let chunk_loading = self
+            .asset_context
+            .compile_time_info()
+            .environment()
+            .chunk_loading()
+            .await?;
+        let is_edge = matches!(*chunk_loading, ChunkLoading::Edge);
+
+        let (import, loader_source) = if query == "?module" {
+            (
+                rcstr!("compileModule"),
+                compiling_loader_source(*self.source, is_edge),
+            )
         } else {
-            instantiating_loader_source(*self.source)
+            (
+                rcstr!("instantiate"),
+                instantiating_loader_source(*self.source, is_edge),
+            )
         };
+
+        let helper_path = match *chunk_loading {
+            ChunkLoading::Edge => rcstr!("edge/loadWasm.ts"),
+            ChunkLoading::NodeJs => rcstr!("node/loadWasm.ts"),
+            ChunkLoading::Dom => rcstr!("browser/loadWasm.ts"),
+        };
+        let helper = self
+            .asset_context
+            .process(
+                Vc::upcast(FileSource::new(
+                    embed::embed_fs().root().await?.join(&helper_path)?,
+                )),
+                ReferenceType::EcmaScriptModules(EcmaScriptModulesReferenceSubType::ImportPart(
+                    ModulePart::Export(import),
+                )),
+            )
+            .module()
+            .to_resolved()
+            .await?;
 
         let module = self.asset_context.process(
             loader_source,
             ReferenceType::Internal(ResolvedVc::cell(fxindexmap! {
                 rcstr!("WASM_PATH") => ResolvedVc::upcast(RawWebAssemblyModuleAsset::new(*self.source, *self.asset_context).to_resolved().await?),
+                rcstr!("WASM_HELPER") => helper,
             })),
         ).module();
 
