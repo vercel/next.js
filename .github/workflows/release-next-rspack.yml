@@ -38,7 +38,7 @@ jobs:
 
   release:
     runs-on: ubuntu-latest
-    environment: npm
+    environment: npm-release-next-rspack
     name: Release
     permissions:
       contents: write
