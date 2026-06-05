@@ -101,6 +101,8 @@ pub fn value_impl(args: TokenStream, input: TokenStream) -> TokenStream {
                 }
             };
             let is_self_used = func_args.operation.is_some() || is_self_used(block);
+            let is_root = func_args.root.is_some();
+            let is_session_dependent = func_args.session_dependent.is_some();
 
             let Some(turbo_fn) = TurboFn::new(
                 sig,
@@ -112,7 +114,6 @@ pub fn value_impl(args: TokenStream, input: TokenStream) -> TokenStream {
                     // An error occurred while parsing the function signature.
                 };
             };
-
             let inline_function_ident = turbo_fn.inline_ident();
             let (inline_signature, inline_block) = turbo_fn.inline_signature_and_block(block);
             let inline_attrs = filter_inline_attributes(attrs.iter().copied());
@@ -123,7 +124,8 @@ pub fn value_impl(args: TokenStream, input: TokenStream) -> TokenStream {
                 is_method: turbo_fn.is_method(),
                 is_self_used,
                 filter_trait_call_args: None, // not a trait method
-                is_root: false,
+                is_root,
+                is_session_dependent,
             };
 
             let native_function_ident = get_inherent_impl_function_ident(ty_ident, ident);
@@ -206,6 +208,8 @@ pub fn value_impl(args: TokenStream, input: TokenStream) -> TokenStream {
                 };
                 // operations are not currently compatible with methods
                 let is_self_used = func_args.operation.is_some() || is_self_used(block);
+                let is_root = func_args.root.is_some();
+                let is_session_dependent = func_args.session_dependent.is_some();
 
                 let Some(turbo_fn) = TurboFn::new(
                     sig,
@@ -238,7 +242,8 @@ pub fn value_impl(args: TokenStream, input: TokenStream) -> TokenStream {
                     is_method: turbo_fn.is_method(),
                     is_self_used,
                     filter_trait_call_args: turbo_fn.filter_trait_call_args(),
-                    is_root: false,
+                    is_root,
+                    is_session_dependent,
                 };
 
                 let native_function_ident =
@@ -310,21 +315,23 @@ pub fn value_impl(args: TokenStream, input: TokenStream) -> TokenStream {
             // `LazyLock` initializer (via `CollectableTraitMethods::finalize_vtable_registry`).
             // The vtable pointer is materialized at compile time via the null-fat-ptr trick, so
             // there's no runtime `transmute` or indirect fn call.
-            #[turbo_tasks::macro_helpers::ctor::ctor(
-                crate_path = turbo_tasks::macro_helpers::ctor,
-            )]
-            #[allow(non_snake_case)]
-            fn #vtable_register_ident() {
-                <::std::boxed::Box<dyn #trait_path> as turbo_tasks::VcValueTrait>::IMPL_VTABLES
-                    .register(
-                        <#ty as turbo_tasks::macro_helpers::RegistryDef::<turbo_tasks::ValueType>>::DEF,
-                        {
-                            let p: *const #ty = ::std::ptr::null();
-                            // This attaches a fat pointer to the null pointer.
-                            let fat: *const dyn #trait_path = p;
-                            fat
-                        },
-                    );
+
+            #[cfg(not(rust_analyzer))]
+            turbo_tasks::macro_helpers::ctor::declarative::ctor! {
+                #[ctor(unsafe)]
+                #[allow(non_snake_case)]
+                fn #vtable_register_ident() {
+                    <::std::boxed::Box<dyn #trait_path> as turbo_tasks::VcValueTrait>::IMPL_VTABLES
+                        .register(
+                            <#ty as turbo_tasks::macro_helpers::RegistryDef::<turbo_tasks::ValueType>>::DEF,
+                            {
+                                let p: *const #ty = ::std::ptr::null();
+                                // This attaches a fat pointer to the null pointer.
+                                let fat: *const dyn #trait_path = p;
+                                fat
+                            },
+                        );
+                }
             }
 
             // NOTE(alexkirsz) We can't have a general `turbo_tasks::Upcast<Box<dyn Trait>> for T where T: Trait` because

@@ -52,24 +52,27 @@ struct NextFontLocalFontFileOptions {
 #[turbo_tasks::value]
 pub(crate) struct NextFontLocalResolvePlugin {
     root: FileSystemPath,
+    condition: ResolvedVc<BeforeResolvePluginCondition>,
 }
 
 #[turbo_tasks::value_impl]
 impl NextFontLocalResolvePlugin {
     #[turbo_tasks::function]
-    pub fn new(root: FileSystemPath) -> Vc<Self> {
-        NextFontLocalResolvePlugin { root }.cell()
+    pub async fn new(root: FileSystemPath) -> Result<Vc<Self>> {
+        let condition = BeforeResolvePluginCondition::from_request_glob(Glob::new(
+            rcstr!("{next,@vercel/turbopack-next/internal}/font/local/*"),
+            GlobOptions::default(),
+        ))
+        .to_resolved()
+        .await?;
+        Ok(NextFontLocalResolvePlugin { root, condition }.cell())
     }
 }
 
 #[turbo_tasks::value_impl]
 impl BeforeResolvePlugin for NextFontLocalResolvePlugin {
-    #[turbo_tasks::function]
     fn before_resolve_condition(&self) -> Vc<BeforeResolvePluginCondition> {
-        BeforeResolvePluginCondition::from_request_glob(Glob::new(
-            rcstr!("{next,@vercel/turbopack-next/internal}/font/local/*"),
-            GlobOptions::default(),
-        ))
+        *self.condition
     }
 
     #[turbo_tasks::function]
@@ -219,7 +222,7 @@ impl BeforeResolvePlugin for NextFontLocalResolvePlugin {
                 } = font_file_options_from_query_map(query)?;
 
                 let (filename, ext) = split_extension(&path);
-                let ext = ext.with_context(|| format!("font {} needs an extension", &path))?;
+                let ext = ext.with_context(|| format!("font {} needs an extension", path))?;
 
                 // remove dashes and dots as they might be used for the markers below.
                 let mut name = filename.replace(['-', '.'], "_");

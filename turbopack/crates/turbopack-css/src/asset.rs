@@ -226,7 +226,7 @@ impl OutputAssetsReference for CssModuleChunkItem {
     async fn references(&self) -> Result<Vc<OutputAssetsWithReferenced>> {
         let mut references = Vec::new();
         if let ParseCssResult::Ok { url_references, .. } = &*self.module.parse_css().await? {
-            for (_, reference) in url_references.await? {
+            for (_, reference) in &*url_references.await? {
                 if let ReferencedAsset::Some(asset) = *reference
                     .get_referenced_asset(*self.chunking_context)
                     .await?
@@ -248,12 +248,10 @@ impl ChunkItem for CssModuleChunkItem {
         self.module.ident()
     }
 
-    #[turbo_tasks::function]
     fn chunking_context(&self) -> Vc<Box<dyn ChunkingContext>> {
         *self.chunking_context
     }
 
-    #[turbo_tasks::function]
     fn ty(&self) -> Vc<Box<dyn ChunkType>> {
         Vc::upcast(Vc::<CssChunkType>::default())
     }
@@ -278,7 +276,6 @@ impl CssChunkItem for CssModuleChunkItem {
             {
                 for &module in import_ref
                     .resolve_reference()
-                    .to_resolved()
                     .await?
                     .primary_modules()
                     .await?
@@ -300,7 +297,6 @@ impl CssChunkItem for CssModuleChunkItem {
             {
                 for &module in compose_ref
                     .resolve_reference()
-                    .to_resolved()
                     .await?
                     .primary_modules()
                     .await?

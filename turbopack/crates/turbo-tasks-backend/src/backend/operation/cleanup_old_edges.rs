@@ -17,7 +17,7 @@ use crate::{
         },
         storage_schema::TaskStorageAccessors,
     },
-    data::{CellRef, CollectibleRef, CollectiblesRef},
+    data::{CellDependency, CellRef, CollectibleRef, CollectiblesRef},
 };
 
 #[derive(Encode, Decode, Clone)]
@@ -48,7 +48,7 @@ impl Default for CleanupOldEdgesOperation {
 pub enum OutdatedEdge {
     Child(TaskId),
     Collectible(CollectibleRef, i32),
-    CellDependency(CellRef, Option<u64>),
+    CellDependency(CellDependency),
     OutputDependency(TaskId),
     CollectiblesDependency(CollectiblesRef),
 }
@@ -156,7 +156,7 @@ impl CleanupOldEdgesOperation {
                                     queue.push(
                                         AggregationUpdateJob::InvalidateDueToCollectiblesChange {
                                             task_ids,
-                                            #[cfg(feature = "trace_task_dirty")]
+                                            #[cfg(feature = "task_dirty_cause")]
                                             collectible_type: ty,
                                         },
                                     );
@@ -166,26 +166,27 @@ impl CleanupOldEdgesOperation {
                                     AggregatedDataUpdate::new().collectibles_update(collectibles),
                                 ));
                             }
-                            OutdatedEdge::CellDependency(
-                                CellRef {
-                                    task: cell_task_id,
-                                    cell,
-                                },
-                                key,
-                            ) => {
+                            OutdatedEdge::CellDependency(dep) => {
+                                let (
+                                    CellRef {
+                                        task: cell_task_id,
+                                        cell,
+                                    },
+                                    key,
+                                ) = dep.into_parts();
                                 {
                                     let mut task = ctx.task(cell_task_id, TaskDataCategory::Data);
-                                    task.remove_cell_dependents(&(cell, key, task_id));
-                                }
-                                {
-                                    let mut task = ctx.task(task_id, TaskDataCategory::Data);
-                                    task.remove_cell_dependencies(&(
+                                    task.remove_cell_dependents(&CellDependency::new(
                                         CellRef {
-                                            task: cell_task_id,
+                                            task: task_id,
                                             cell,
                                         },
                                         key,
                                     ));
+                                }
+                                {
+                                    let mut task = ctx.task(task_id, TaskDataCategory::Data);
+                                    task.remove_cell_dependencies(&dep);
                                 }
                             }
                             OutdatedEdge::OutputDependency(output_task_id) => {

@@ -40,11 +40,7 @@ var ASYNC_ITERATOR = Symbol.asyncIterator,
   currentView = null,
   writtenBytes = 0,
   destinationHasCapacity = !0;
-function writeToDestination(destination, view) {
-  destination = destination.write(view);
-  destinationHasCapacity = destinationHasCapacity && destination;
-}
-function writeChunkAndReturn(destination, chunk) {
+function writeChunk(destination, chunk) {
   if ("string" === typeof chunk) {
     if (0 !== chunk.length)
       if (4096 < 3 * chunk.length)
@@ -104,6 +100,13 @@ function writeChunkAndReturn(destination, chunk) {
             (writeToDestination(destination, currentView),
             (currentView = new Uint8Array(4096)),
             (writtenBytes = 0))));
+}
+function writeToDestination(destination, view) {
+  destination = destination.write(view);
+  destinationHasCapacity = destinationHasCapacity && destination;
+}
+function writeChunkAndReturn(destination, chunk) {
+  writeChunk(destination, chunk);
   return destinationHasCapacity;
 }
 var textEncoder = new util.TextEncoder();
@@ -585,7 +588,12 @@ function trackUsedThenable(thenableState, thenable, index) {
     case "fulfilled":
       return thenable.value;
     case "rejected":
-      throw thenable.reason;
+      thenableState = thenable.reason;
+      if (void 0 === thenableState && !("reason" in thenable))
+        throw Error(
+          "A rejected Promise was passed to React without a `reason` property. React threw a generic error from where the Promise was used to assist in identifying the problematic Promise. Make sure that instrumented Promises correctly set the `reason` property when setting `status` to `'rejected'`."
+        );
+      throw thenableState;
     default:
       "string" === typeof thenable.status
         ? thenable.then(noop, noop)
@@ -841,7 +849,8 @@ function describeObjectForErrorMessage(objectOrArray, expandedName) {
 }
 var hasOwnProperty = Object.prototype.hasOwnProperty,
   ObjectPrototype$1 = Object.prototype,
-  stringify = JSON.stringify;
+  stringify = JSON.stringify,
+  NEXT_TWO_CHUNKS_ARE_ATOMIC = Symbol();
 function defaultErrorHandler(error) {
   console.error(error);
 }
@@ -1885,7 +1894,11 @@ function emitTypedArrayChunk(request, id, tag, typedArray, debug) {
   );
   debug = typedArray.byteLength;
   id = id.toString(16) + ":" + tag + debug.toString(16) + ",";
-  request.completedRegularChunks.push(id, typedArray);
+  request.completedRegularChunks.push(
+    NEXT_TWO_CHUNKS_ARE_ATOMIC,
+    id,
+    typedArray
+  );
 }
 function emitTextChunk(request, id, text, debug) {
   if (null === byteLengthOfChunk)
@@ -1895,7 +1908,7 @@ function emitTextChunk(request, id, text, debug) {
   debug ? request.pendingDebugChunks++ : request.pendingChunks++;
   debug = byteLengthOfChunk(text);
   id = id.toString(16) + ":T" + debug.toString(16) + ",";
-  request.completedRegularChunks.push(id, text);
+  request.completedRegularChunks.push(NEXT_TWO_CHUNKS_ARE_ATOMIC, id, text);
 }
 function emitChunk(request, task, value) {
   var id = task.id;
@@ -2073,15 +2086,28 @@ function flushCompletedChunks(request) {
         }
       hintChunks.splice(0, i);
       var regularChunks = request.completedRegularChunks;
-      for (i = 0; i < regularChunks.length; i++)
-        if (
-          (request.pendingChunks--,
-          !writeChunkAndReturn(destination, regularChunks[i]))
-        ) {
+      for (i = 0; i < regularChunks.length; i++) {
+        var item = regularChunks[i];
+        importsChunks = void 0;
+        if (item === NEXT_TWO_CHUNKS_ARE_ATOMIC) {
+          if (i + 2 >= regularChunks.length)
+            throw Error("A chunk pair is incomplete. This is a bug in React.");
+          request.pendingChunks -= 2;
+          writeChunk(destination, regularChunks[i + 1]);
+          importsChunks = writeChunkAndReturn(
+            destination,
+            regularChunks[i + 2]
+          );
+          i += 2;
+        } else
+          request.pendingChunks--,
+            (importsChunks = writeChunkAndReturn(destination, item));
+        if (!importsChunks) {
           request.destination = null;
           i++;
           break;
         }
+      }
       regularChunks.splice(0, i);
       var errorChunks = request.completedErrorChunks;
       for (i = 0; i < errorChunks.length; i++)
@@ -2220,9 +2246,9 @@ function abort(request, reason) {
         onAllReady();
         flushCompletedChunks(request);
       }
-    } catch (error$26) {
-      logRecoverableError(request, error$26, null),
-        fatalError(request, error$26);
+    } catch (error$25) {
+      logRecoverableError(request, error$25, null),
+        fatalError(request, error$25);
     }
 }
 function resolveServerReference(bundlerConfig, id) {
@@ -2997,12 +3023,12 @@ function parseReadableStream(response, reference, type) {
               (previousBlockedChunk = chunk));
         } else {
           chunk = previousBlockedChunk;
-          var chunk$31 = new ReactPromise("pending", null, null);
-          chunk$31.then(enqueue, flightController.error);
-          previousBlockedChunk = chunk$31;
+          var chunk$30 = new ReactPromise("pending", null, null);
+          chunk$30.then(enqueue, flightController.error);
+          previousBlockedChunk = chunk$30;
           chunk.then(function () {
-            previousBlockedChunk === chunk$31 && (previousBlockedChunk = null);
-            resolveModelChunk(response, chunk$31, json, -1);
+            previousBlockedChunk === chunk$30 && (previousBlockedChunk = null);
+            resolveModelChunk(response, chunk$30, json, -1);
           });
         }
       },
@@ -3596,6 +3622,43 @@ exports.decodeReplyFromAsyncIterable = function (
   return getChunk(response, 0);
 };
 exports.decodeReplyFromBusboy = function (busboyStream, turbopackMap, options) {
+  function flush() {
+    for (; null !== head; ) {
+      var current = head;
+      if (!current.complete) return;
+      try {
+        var key = current.name,
+          handle = current.file,
+          blob = new Blob(handle.chunks, { type: handle.mime }),
+          backingStore = response._formData,
+          key$jscomp$0 = key;
+        backingStore.data.append(key$jscomp$0, blob, handle.filename);
+        var keys = backingStore.keys;
+        null === keys
+          ? ((backingStore.keys = Array.from(backingStore.data.keys())),
+            (backingStore.keyPointer = 0))
+          : keys.push(key$jscomp$0);
+        var queuedFields = current.queuedFields;
+        if (null !== queuedFields)
+          for (
+            key$jscomp$0 = 0;
+            key$jscomp$0 < queuedFields.length;
+            key$jscomp$0 += 2
+          )
+            resolveField(
+              response,
+              queuedFields[key$jscomp$0],
+              queuedFields[key$jscomp$0 + 1]
+            );
+      } catch (error) {
+        busboyStream.destroy(error);
+        return;
+      }
+      head = current.next;
+    }
+    tail = null;
+    bodyFinished && !closed && ((closed = !0), close(response));
+  }
   var response = createResponse(
       turbopackMap,
       "",
@@ -3603,10 +3666,14 @@ exports.decodeReplyFromBusboy = function (busboyStream, turbopackMap, options) {
       void 0,
       options ? options.arraySizeLimit : void 0
     ),
-    pendingFiles = 0,
-    queuedFields = [];
+    head = null,
+    tail = null,
+    bodyFinished = !1,
+    closed = !1;
   busboyStream.on("field", function (name, value) {
-    if (0 < pendingFiles) queuedFields.push(name, value);
+    if (null !== tail)
+      null === tail.queuedFields && (tail.queuedFields = []),
+        tail.queuedFields.push(name, value);
     else
       try {
         resolveField(response, name, value);
@@ -3624,41 +3691,40 @@ exports.decodeReplyFromBusboy = function (busboyStream, turbopackMap, options) {
         )
       );
     else {
-      pendingFiles++;
-      var JSCompiler_object_inline_chunks_296 = [];
+      var file = { chunks: [], filename: filename, mime: mimeType },
+        pendingFile = {
+          name: name,
+          file: file,
+          complete: !1,
+          queuedFields: null,
+          next: null
+        };
+      null === tail ? (head = pendingFile) : (tail.next = pendingFile);
+      tail = pendingFile;
       value.on("data", function (chunk) {
-        JSCompiler_object_inline_chunks_296.push(chunk);
-      });
-      value.on("end", function () {
         try {
-          var blob = new Blob(JSCompiler_object_inline_chunks_296, {
-              type: mimeType
-            }),
-            backingStore = response._formData;
-          backingStore.data.append(name, blob, filename);
-          var keys = backingStore.keys;
-          null === keys
-            ? ((backingStore.keys = Array.from(backingStore.data.keys())),
-              (backingStore.keyPointer = 0))
-            : keys.push(name);
-          pendingFiles--;
-          if (0 === pendingFiles) {
-            for (blob = 0; blob < queuedFields.length; blob += 2)
-              resolveField(
-                response,
-                queuedFields[blob],
-                queuedFields[blob + 1]
-              );
-            queuedFields.length = 0;
-          }
+          file.chunks.push(chunk);
         } catch (error) {
           busboyStream.destroy(error);
         }
       });
+      value.on("error", function (error) {
+        busboyStream.destroy(error);
+      });
+      value.on("end", function () {
+        pendingFile.complete = !0;
+        flush();
+      });
     }
   });
   busboyStream.on("finish", function () {
-    close(response);
+    bodyFinished = !0;
+    flush();
+    closed ||
+      reportGlobalError(
+        response,
+        Error("Reply finished with incomplete file part.")
+      );
   });
   busboyStream.on("error", function (err) {
     reportGlobalError(response, err);

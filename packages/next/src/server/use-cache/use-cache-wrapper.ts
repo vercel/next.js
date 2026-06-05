@@ -28,20 +28,22 @@ import type {
 } from '../app-render/work-unit-async-storage.external'
 import {
   getHmrRefreshHash,
-  getRenderResumeDataCache,
-  getPrerenderResumeDataCache,
+  getResumeDataCache,
   workUnitAsyncStorage,
   getDraftModeProviderForCacheScope,
   getCacheSignal,
   isHmrRefresh,
   getServerComponentsHmrCache,
+  getStagedRenderingController,
 } from '../app-render/work-unit-async-storage.external'
 
 import {
   applyOwnerStack,
-  getRuntimeStage,
   makeDevtoolsIOAwarePromise,
   makeHangingPromise,
+  getSessionDataStage,
+  getRuntimeLinkDataStage,
+  getStaticLinkDataStage,
 } from '../dynamic-rendering-utils'
 
 import type { ClientReferenceManifest } from '../../build/webpack/plugins/flight-manifest-plugin'
@@ -59,7 +61,11 @@ import { DYNAMIC_EXPIRE, RUNTIME_PREFETCH_DYNAMIC_STALE } from './constants'
 import { NEXT_CACHE_ROOT_PARAM_TAG_ID } from '../../lib/constants'
 import type { CacheHandler } from '../lib/cache-handlers/types'
 import { getCacheHandler } from './handlers'
-import { UseCacheDeadlockError, UseCacheTimeoutError } from './use-cache-errors'
+import {
+  NestedDynamicUseCacheError,
+  UseCacheDeadlockError,
+  UseCacheTimeoutError,
+} from './use-cache-errors'
 import {
   createHangingInputAbortSignal,
   postponeWithTracking,
@@ -70,7 +76,7 @@ import {
   type SearchParams,
 } from '../request/search-params'
 import type { Params } from '../request/params'
-import type { PrerenderResumeDataCache } from '../resume-data-cache/resume-data-cache'
+import type { ResumeDataCache } from '../resume-data-cache/resume-data-cache'
 import { createLazyResult, isResolvedLazyResult } from '../lib/lazy-result'
 import { dynamicAccessAsyncStorage } from '../app-render/dynamic-access-async-storage.external'
 import type { CacheLife } from './cache-life'
@@ -106,6 +112,15 @@ interface PublicCacheContext {
   readonly functionId: string
   /** The cache handler kind (first arg of `cache()`, e.g. 'default'). */
   readonly handlerKind: string
+  /**
+   * Eagerly captured at `cache()` entry, pointing at this invocation's call
+   * site. Only set when the outer is itself a public `'use cache'` (i.e. when
+   * this entry could become the propagated origin of a nested-dynamic cache
+   * error in the parent). When this cache resolves dynamic, this is copied into
+   * `outerWorkUnitStore.dynamicNestedCacheError` so the parent's error can use
+   * it as `cause`.
+   */
+  readonly dynamicNestedCacheError: Error | undefined
 }
 
 type CacheContext = PrivateCacheContext | PublicCacheContext
@@ -148,6 +163,7 @@ interface CacheResultMetadata {
   readonly readRootParamNames: ReadonlySet<string> | undefined
   readonly hasExplicitRevalidate: boolean | undefined
   readonly hasExplicitExpire: boolean | undefined
+  readonly dynamicNestedCacheError: Error | undefined
 }
 
 /**
@@ -268,7 +284,7 @@ const findSourceMapURL =
 const nestedCacheZeroRevalidateErrorMessage =
   `A "use cache" with zero \`revalidate\` is nested inside another "use cache" ` +
   `that has no explicit \`cacheLife\`, which is not allowed during ` +
-  `prerendering. Add \`cacheLife()\` to the outer \`"use cache"\` to choose ` +
+  `prerendering. Add \`cacheLife()\` to the outer "use cache" to choose ` +
   `whether it should be prerendered (with non-zero \`revalidate\`) or remain ` +
   `dynamic (with zero \`revalidate\`). Read more: ` +
   `https://nextjs.org/docs/messages/nested-use-cache-no-explicit-cachelife`
@@ -276,7 +292,7 @@ const nestedCacheZeroRevalidateErrorMessage =
 const nestedCacheShortExpireErrorMessage =
   `A "use cache" with short \`expire\` (under 5 minutes) is nested inside ` +
   `another "use cache" that has no explicit \`cacheLife\`, which is not ` +
-  `allowed during prerendering. Add \`cacheLife()\` to the outer \`"use cache"\` ` +
+  `allowed during prerendering. Add \`cacheLife()\` to the outer "use cache" ` +
   `to choose whether it should be prerendered (with longer \`expire\`) or remain ` +
   `dynamic (with short \`expire\`). Read more: ` +
   `https://nextjs.org/docs/messages/nested-use-cache-no-explicit-cachelife`
@@ -319,11 +335,11 @@ function computeRootParamsCacheKeySuffix(
 }
 
 function saveToResumeDataCache(
-  prerenderResumeDataCache: PrerenderResumeDataCache | null,
+  resumeDataCache: ResumeDataCache | null,
   serializedCacheKey: string,
   pendingCacheResult: Promise<CollectedCacheResult>
 ): Promise<CollectedCacheResult> {
-  if (!prerenderResumeDataCache) {
+  if (!resumeDataCache?.mutable) {
     return pendingCacheResult
   }
 
@@ -334,7 +350,7 @@ function saveToResumeDataCache(
   // The RDC is per-page and root params are fixed within a page, so we always
   // use the coarse key (without root param suffix). Unlike the cache handler,
   // the RDC doesn't need root-param-specific keys for isolation.
-  prerenderResumeDataCache.cache.set(serializedCacheKey, rdcResult)
+  resumeDataCache.cache.set(serializedCacheKey, rdcResult)
   debug?.('Resume Data Cache entry saved', serializedCacheKey)
 
   return savedCacheResult
@@ -359,11 +375,11 @@ function saveToResumeDataCache(
 function saveSharedCacheEntryToResumeDataCache(
   serializedCacheKey: string,
   sharedCacheEntry: SharedCacheEntry,
-  prerenderResumeDataCache: PrerenderResumeDataCache | null
+  resumeDataCache: ResumeDataCache | null
 ): void {
   if (
-    !prerenderResumeDataCache ||
-    prerenderResumeDataCache.cache.has(serializedCacheKey)
+    !resumeDataCache?.mutable ||
+    resumeDataCache.cache.has(serializedCacheKey)
   ) {
     return
   }
@@ -381,9 +397,10 @@ function saveSharedCacheEntryToResumeDataCache(
       readRootParamNames: metadata.readRootParamNames,
       hasExplicitRevalidate: metadata.hasExplicitRevalidate,
       hasExplicitExpire: metadata.hasExplicitExpire,
+      dynamicNestedCacheError: metadata.dynamicNestedCacheError,
     }))
 
-  prerenderResumeDataCache.cache.set(serializedCacheKey, rdcResult)
+  resumeDataCache.cache.set(serializedCacheKey, rdcResult)
   debug?.('Resume Data Cache entry saved by joiner', serializedCacheKey)
 }
 
@@ -585,6 +602,7 @@ function createUseCacheStore(
       rootParams: outerWorkUnitStore.rootParams,
       readRootParamNames: new Set<string>(),
       outerOwnerStack: cacheContext.outerOwnerStack,
+      dynamicNestedCacheError: undefined,
     }
   }
 }
@@ -767,6 +785,17 @@ function propagateCacheEntryMetadata(
             cacheContext.outerWorkUnitStore.readRootParamNames.add(paramName)
           }
         }
+        // If this entry's cache life is dynamic, record this invocation as the
+        // origin to use as `cause` when the outer cache surfaces the
+        // nested-dynamic cache error. `??=` keeps the first occurrence so the
+        // cause points at the immediate dynamic child.
+        if (
+          cacheContext.dynamicNestedCacheError !== undefined &&
+          (metadata.revalidate === 0 || metadata.expire < DYNAMIC_EXPIRE)
+        ) {
+          cacheContext.outerWorkUnitStore.dynamicNestedCacheError ??=
+            cacheContext.dynamicNestedCacheError
+        }
       // fallthrough
       case 'private-cache':
       case 'prerender':
@@ -874,6 +903,15 @@ export interface CollectedCacheResult {
    * don't have this information.
    */
   readRootParamNames: ReadonlySet<string> | undefined
+  /**
+   * The `Error` carried up from the first nested public `'use cache'`
+   * invocation that propagated a dynamic cache life into this entry, captured
+   * eagerly at that inner invocation's `cache()` entry. Used as `cause` for the
+   * nested-dynamic cache error so the redbox can point at the inner invocation
+   * site, not just the outer one. Lives in-memory only — intentionally dropped
+   * from the serialized RDC because dynamic entries aren't serialized either.
+   */
+  dynamicNestedCacheError: Error | undefined
 }
 
 async function collectResult(
@@ -958,6 +996,12 @@ async function collectResult(
       innerCacheStore.type === 'cache'
         ? innerCacheStore.readRootParamNames
         : undefined,
+    // The store accumulates this from nested public caches that propagated a
+    // dynamic life into us.
+    dynamicNestedCacheError:
+      innerCacheStore.type === 'cache'
+        ? innerCacheStore.dynamicNestedCacheError
+        : undefined,
   }
 
   if (!cacheContext.skipPropagation) {
@@ -970,6 +1014,7 @@ async function collectResult(
       hasExplicitRevalidate: collected.hasExplicitRevalidate,
       hasExplicitExpire: collected.hasExplicitExpire,
       readRootParamNames: collected.readRootParamNames,
+      dynamicNestedCacheError: collected.dynamicNestedCacheError,
     })
 
     const cacheSignal = getCacheSignal(cacheContext.outerWorkUnitStore)
@@ -1221,7 +1266,16 @@ async function generateCacheEntryImpl(
               filterStackFrame,
               signal: devRenderAbortController.signal,
               temporaryReferences,
-              onError: handleError,
+              onError(error) {
+                if (
+                  devRenderAbortController.signal.aborted &&
+                  devRenderAbortController.signal.reason === error
+                ) {
+                  return undefined
+                }
+
+                return handleError(error)
+              },
             }
           )
 
@@ -1329,12 +1383,14 @@ function cloneCacheResult(
       hasExplicitRevalidate: result.hasExplicitRevalidate,
       hasExplicitExpire: result.hasExplicitExpire,
       readRootParamNames: result.readRootParamNames,
+      dynamicNestedCacheError: result.dynamicNestedCacheError,
     },
     {
       entry: entryB,
       hasExplicitRevalidate: result.hasExplicitRevalidate,
       hasExplicitExpire: result.hasExplicitExpire,
       readRootParamNames: result.readRootParamNames,
+      dynamicNestedCacheError: result.dynamicNestedCacheError,
     },
   ]
 }
@@ -1551,12 +1607,36 @@ export async function cache(
         throw new InvariantError(
           `${expression} must not be used within a client component. Next.js should be preventing ${expression} from being allowed in client components statically, but did not in this case.`
         )
+      case 'cache': {
+        // Eagerly capture this invocation's call site while still synchronous
+        // in `cache()`. Used as `cause` of the nested-dynamic cache error
+        // when the outer cache (whose body never re-runs during the final
+        // prerender) throws. Only constructed when the parent is itself a
+        // public `'use cache'` — otherwise this entry can never propagate
+        // dynamism into that error and the allocation would be wasted. Private
+        // parents are intentionally excluded: `'use cache: private'` is
+        // dynamic-by-definition in prerendering and deferred to the runtime
+        // stage in dev requests, so a public cache nested inside one never
+        // triggers the throw upstream.
+        const dynamicNestedCacheError = new NestedDynamicUseCacheError()
+        Error.captureStackTrace(dynamicNestedCacheError, cache)
+        applyOwnerStack(dynamicNestedCacheError)
+        cacheContext = {
+          kind: 'public',
+          outerWorkUnitStore: workUnitStore,
+          skipPropagation: false,
+          outerOwnerStack,
+          functionId: id,
+          handlerKind: kind,
+          dynamicNestedCacheError,
+        }
+        break
+      }
       case 'prerender':
       case 'prerender-runtime':
       case 'prerender-ppr':
       case 'prerender-legacy':
       case 'request':
-      case 'cache':
       case 'private-cache':
       // TODO: We should probably forbid nesting "use cache" inside
       // unstable_cache. (fallthrough)
@@ -1569,6 +1649,7 @@ export async function cache(
           outerOwnerStack,
           functionId: id,
           handlerKind: kind,
+          dynamicNestedCacheError: undefined,
         }
         break
       default:
@@ -1608,7 +1689,10 @@ export async function cache(
         // while runtime-prefetchable segments resolve at Runtime.
         const stagedRendering = outerWorkUnitStore.stagedRendering
         if (stagedRendering) {
-          await stagedRendering.waitForStage(getRuntimeStage(stagedRendering))
+          await stagedRendering.waitForStage(
+            // TODO(app-shells): exclude private caches with a short staletime from shells
+            getSessionDataStage(stagedRendering)
+          )
         }
         break
       }
@@ -1619,7 +1703,8 @@ export async function cache(
           // whether we're in the early or late stages.
           const stagedRendering = outerWorkUnitStore.stagedRendering
           const stage = stagedRendering
-            ? getRuntimeStage(stagedRendering)
+            ? // TODO(app-shells): exclude private caches with a short staletime
+              getSessionDataStage(stagedRendering)
             : RenderStage.Runtime
           await makeDevtoolsIOAwarePromise(undefined, outerWorkUnitStore, stage)
         }
@@ -1903,18 +1988,16 @@ export async function cache(
 
   let stream: undefined | ReadableStream = undefined
 
-  // Get an immutable and mutable versions of the resume data cache.
-  const prerenderResumeDataCache = getPrerenderResumeDataCache(workUnitStore)
-  const renderResumeDataCache = getRenderResumeDataCache(workUnitStore)
+  const resumeDataCache = getResumeDataCache(workUnitStore)
 
   const implicitTags = workUnitStore.implicitTags?.tags ?? []
 
-  if (renderResumeDataCache) {
+  if (resumeDataCache) {
     // If this cache key was already determined to be dynamic during the
     // prospective prerender (e.g. because it accessed fallback params), we
     // return a hanging promise early to avoid trying to regenerate the entry,
     // which would be aborted anyway.
-    if (renderResumeDataCache.dynamicCacheKeys?.has(serializedCacheKey)) {
+    if (resumeDataCache.dynamicCacheKeys?.has(serializedCacheKey)) {
       switch (workUnitStore.type) {
         case 'prerender':
         case 'prerender-runtime':
@@ -1941,7 +2024,7 @@ export async function cache(
     if (cacheSignal) {
       cacheSignal.beginRead()
     }
-    const rdcEntry = renderResumeDataCache.cache.get(serializedCacheKey)
+    const rdcEntry = resumeDataCache.cache.get(serializedCacheKey)
     if (rdcEntry !== undefined) {
       let rdcResult: CollectedCacheResult | undefined = await rdcEntry
 
@@ -1979,7 +2062,9 @@ export async function cache(
               if (rdcResult.entry.revalidate === 0) {
                 if (rdcResult.hasExplicitRevalidate === false) {
                   throw wrapAsInvalidDynamicUsageError(
-                    new Error(nestedCacheZeroRevalidateErrorMessage)
+                    new Error(nestedCacheZeroRevalidateErrorMessage, {
+                      cause: rdcResult.dynamicNestedCacheError,
+                    })
                   )
                 }
                 debug?.(
@@ -1990,7 +2075,9 @@ export async function cache(
               } else {
                 if (rdcResult.hasExplicitExpire === false) {
                   throw wrapAsInvalidDynamicUsageError(
-                    new Error(nestedCacheShortExpireErrorMessage)
+                    new Error(nestedCacheShortExpireErrorMessage, {
+                      cause: rdcResult.dynamicNestedCacheError,
+                    })
                   )
                 }
                 debug?.(
@@ -2015,7 +2102,8 @@ export async function cache(
               const stagedRendering = workUnitStore.stagedRendering
               if (stagedRendering) {
                 await stagedRendering.waitForStage(
-                  getRuntimeStage(stagedRendering)
+                  // TODO(app-shells): exclude caches with a short staletime
+                  getSessionDataStage(stagedRendering)
                 )
               }
               break
@@ -2027,7 +2115,9 @@ export async function cache(
                   rdcResult.hasExplicitRevalidate === false
                 ) {
                   throw wrapAsInvalidDynamicUsageError(
-                    new Error(nestedCacheZeroRevalidateErrorMessage)
+                    new Error(nestedCacheZeroRevalidateErrorMessage, {
+                      cause: rdcResult.dynamicNestedCacheError,
+                    })
                   )
                 }
                 if (
@@ -2035,7 +2125,9 @@ export async function cache(
                   rdcResult.hasExplicitExpire === false
                 ) {
                   throw wrapAsInvalidDynamicUsageError(
-                    new Error(nestedCacheShortExpireErrorMessage)
+                    new Error(nestedCacheShortExpireErrorMessage, {
+                      cause: rdcResult.dynamicNestedCacheError,
+                    })
                   )
                 }
                 // We delay the cache here so that it doesn't resolve in the static task --
@@ -2044,9 +2136,11 @@ export async function cache(
                 // TODO(restart-on-cache-miss): Optimize this to avoid unnecessary restarts.
                 // We don't end the cache read here, so this will always appear as a cache miss in the static stage,
                 // and thus will cause a restart even if all caches are filled.
+
                 const stagedRendering = workUnitStore.stagedRendering
                 const stage = stagedRendering
-                  ? getRuntimeStage(stagedRendering)
+                  ? // TODO(app-shells): exclude caches with a short staletime
+                    getSessionDataStage(stagedRendering)
                   : RenderStage.Runtime
                 await makeDevtoolsIOAwarePromise(
                   undefined,
@@ -2117,14 +2211,55 @@ export async function cache(
               workUnitStore satisfies never
           }
         }
+
+        // If we're doing staged rendering with shells and the cache accessed root params,
+        // we should exclude it from the shell, because root params are also excluded.
+        const stagedRendering = getStagedRenderingController(workUnitStore)
+        if (
+          process.env.__NEXT_APP_SHELLS &&
+          stagedRendering &&
+          rootParams &&
+          rdcResult.readRootParamNames &&
+          rdcResult.readRootParamNames.size > 0
+        ) {
+          switch (workUnitStore.type) {
+            case 'prerender': {
+              await stagedRendering.waitForStage(
+                getStaticLinkDataStage(stagedRendering)
+              )
+              break
+            }
+            case 'prerender-runtime': {
+              // If we're rendering with shells, this is when params should resolve
+              await stagedRendering.waitForStage(
+                getRuntimeLinkDataStage(stagedRendering)
+              )
+              break
+            }
+            case 'request': {
+              // For a staged dynamic request, assume we're recovering a static shell --
+              // If a session shell is needed, we do it in a separate render
+              await stagedRendering.waitForStage(
+                getStaticLinkDataStage(stagedRendering)
+              )
+              break
+            }
+            case 'cache':
+            case 'private-cache':
+            case 'prerender-legacy':
+            case 'prerender-ppr':
+            case 'generate-static-params': {
+              break
+            }
+            default: {
+              workUnitStore satisfies never
+            }
+          }
+        }
       }
 
       if (rdcResult !== undefined) {
         debug?.('Resume Data Cache entry found', serializedCacheKey)
-
-        if (prerenderResumeDataCache) {
-          prerenderResumeDataCache.cache.set(serializedCacheKey, rdcEntry)
-        }
 
         if (
           rdcResult.readRootParamNames &&
@@ -2145,6 +2280,7 @@ export async function cache(
           hasExplicitRevalidate: rdcResult.hasExplicitRevalidate,
           hasExplicitExpire: rdcResult.hasExplicitExpire,
           readRootParamNames: rdcResult.readRootParamNames,
+          dynamicNestedCacheError: rdcResult.dynamicNestedCacheError,
         })
 
         const [streamA, streamB] = rdcResult.entry.value.tee()
@@ -2174,24 +2310,18 @@ export async function cache(
 
       switch (workUnitStore.type) {
         case 'prerender':
-          // If `allowEmptyStaticShell` is true, and thus a prefilled resume
-          // data cache was provided, then a cache miss means that params were
-          // part of the cache key. In this case, we can make this cache
-          // function a dynamic hole in the shell (or produce an empty shell if
-          // there's no parent suspense boundary). Currently, this also includes
-          // layouts and pages that don't read params, which will be improved
-          // when we implement NAR-136. Otherwise, we assume that if params are
-          // passed explicitly into a "use cache" function, that the params are
-          // also accessed. This allows us to abort early, and treat the
-          // function as dynamic, instead of waiting for the timeout to be
-          // reached. Compared to the instrumentation-based params bailout we do
-          // here, this also covers the case where params are transformed with
-          // an async function, before being passed into the "use cache"
-          // function, which escapes the instrumentation.
-          if (workUnitStore.allowEmptyStaticShell) {
-            if (prerenderResumeDataCache) {
-              prerenderResumeDataCache.dynamicCacheKeys.add(serializedCacheKey)
-            }
+          if (resumeDataCache?.mutable === false) {
+            // We're prerendering a fallback shell whose Resume Data Cache is
+            // the prefilled, read-only seed from a phase-1 prerender of a more-
+            // specific sibling route. A miss here means the cache key depends
+            // on a fallback param. We short-circuit to a dynamic hole (which
+            // may produce an empty shell if there's no parent Suspense
+            // boundary). Currently this also catches layouts and pages that
+            // don't read params, which will be improved when we implement
+            // NAR-136. Compared to the instrumentation-based params bailout we
+            // also do here, this covers the case where params are transformed
+            // with an async function before being passed into the "use cache"
+            // function, which escapes the instrumentation.
             return makeHangingPromise(
               workUnitStore.renderSignal,
               workStore.route,
@@ -2272,7 +2402,7 @@ export async function cache(
       saveSharedCacheEntryToResumeDataCache(
         serializedCacheKey,
         sharedCacheResult.entry,
-        prerenderResumeDataCache
+        resumeDataCache
       )
 
       // End the cache signal read when the result is fully collected, not when
@@ -2377,7 +2507,7 @@ export async function cache(
             saveSharedCacheEntryToResumeDataCache(
               serializedCacheKey,
               sharedCacheResult.entry,
-              prerenderResumeDataCache
+              resumeDataCache
             )
 
             // Resolve for intra-request joiners in this request. They get
@@ -2412,8 +2542,8 @@ export async function cache(
               'cross-request invocation is prerender-dynamic',
               cacheHandlerKey
             )
-            if (prerenderResumeDataCache) {
-              prerenderResumeDataCache.dynamicCacheKeys.add(serializedCacheKey)
+            if (resumeDataCache?.mutable) {
+              resumeDataCache.dynamicCacheKeys.add(serializedCacheKey)
             }
             cacheSignal?.endRead()
             resolvableSharedCacheResult.resolve(sharedCacheResult)
@@ -2561,9 +2691,11 @@ export async function cache(
                 // unnecessary restarts. We don't end the cache read here, so
                 // this will always appear as a cache miss in the static stage,
                 // and thus will cause a restart even if all caches are filled.
+
                 const stagedRendering = workUnitStore.stagedRendering
                 const stage = stagedRendering
-                  ? getRuntimeStage(stagedRendering)
+                  ? // TODO(app-shells): exclude caches with a short staletime
+                    getSessionDataStage(stagedRendering)
                   : RenderStage.Runtime
                 await makeDevtoolsIOAwarePromise(
                   undefined,
@@ -2635,8 +2767,8 @@ export async function cache(
               'leader resolved as prerender-dynamic (generation)',
               cacheHandlerKey
             )
-            if (prerenderResumeDataCache) {
-              prerenderResumeDataCache.dynamicCacheKeys.add(serializedCacheKey)
+            if (resumeDataCache?.mutable) {
+              resumeDataCache.dynamicCacheKeys.add(serializedCacheKey)
             }
             resolvableSharedCacheResult.resolve(result)
             return result.hangingPromise
@@ -2647,7 +2779,7 @@ export async function cache(
           // When draft mode is enabled, we must not save the cache entry.
           if (!workStore.isDraftMode) {
             const savedCacheResult = saveToResumeDataCache(
-              prerenderResumeDataCache,
+              resumeDataCache,
               serializedCacheKey,
               pendingCacheResult
             )
@@ -2676,6 +2808,7 @@ export async function cache(
               hasExplicitRevalidate: collected.hasExplicitRevalidate,
               hasExplicitExpire: collected.hasExplicitExpire,
               readRootParamNames: collected.readRootParamNames,
+              dynamicNestedCacheError: collected.dynamicNestedCacheError,
             }))
 
           const sharedCacheEntry = new SharedCacheEntry(
@@ -2711,6 +2844,8 @@ export async function cache(
             // set this to undefined here.
             hasExplicitRevalidate: undefined,
             hasExplicitExpire: undefined,
+            // The same applies to the dynamic nested cache error.
+            dynamicNestedCacheError: undefined,
           }
 
           maybePropagateCacheEntryMetadata(cacheContext, entryMetadata)
@@ -2718,9 +2853,9 @@ export async function cache(
           // We want to return this stream, even if it's stale.
           stream = entry.value
 
-          // If we have a resume data cache, we need to clone the entry and add
-          // it to the resume data cache.
-          if (prerenderResumeDataCache) {
+          // If we have a mutable resume data cache, we need to clone the entry
+          // and add it to the resume data cache.
+          if (resumeDataCache?.mutable) {
             const [entryLeft, entryRight] = cloneCacheEntry(entry)
             if (cacheSignal) {
               stream = createTrackedReadableStream(entryLeft.value, cacheSignal)
@@ -2730,13 +2865,14 @@ export async function cache(
 
             // The RDC is per-page and root params are fixed within a page, so
             // we always use the coarse key (without root param suffix).
-            prerenderResumeDataCache.cache.set(
+            resumeDataCache.cache.set(
               serializedCacheKey,
               Promise.resolve({
                 entry: entryRight,
                 hasExplicitRevalidate: entryMetadata.hasExplicitRevalidate,
                 hasExplicitExpire: entryMetadata.hasExplicitExpire,
                 readRootParamNames: entryMetadata.readRootParamNames,
+                dynamicNestedCacheError: entryMetadata.dynamicNestedCacheError,
               })
             )
           } else {
@@ -2783,7 +2919,7 @@ export async function cache(
                   const { stream: ignoredStream, pendingCacheResult } = result
 
                   const savedCacheResult = saveToResumeDataCache(
-                    prerenderResumeDataCache,
+                    resumeDataCache,
                     serializedCacheKey,
                     pendingCacheResult
                   )

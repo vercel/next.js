@@ -21,9 +21,9 @@ If you cannot create a clean reproduction, another way you can help the maintain
 
 ### What happens if I don't provide a sufficient minimal reproduction?
 
-Issues with the `please simplify reproduction` label that receive no meaningful activity (e.g. new comments with a simplified reproduction link) are automatically closed and locked after **14** days.
+Issues with the `please simplify reproduction` label that receive no meaningful activity (e.g. new comments with a simplified reproduction link) are automatically closed after **14** days.
 
-If your issue has _not_ been resolved in that time and it has been closed/locked, please open a new issue with the required reproduction.
+If your issue has _not_ been resolved in that time and it has been closed, please open a new issue with the required reproduction.
 
 ### I did not open this issue, but it is relevant to me, what can I do to help?
 

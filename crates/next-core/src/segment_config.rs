@@ -18,7 +18,7 @@ use swc_core::{
 };
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
-    NonLocalValue, ResolvedVc, TaskInput, TryJoinIterExt, ValueDefault, Vc, trace::TraceRawVcs,
+    NonLocalValue, ResolvedVc, TryJoinIterExt, ValueDefault, Vc, trace::TraceRawVcs,
     util::WrapFuture,
 };
 use turbo_tasks_fs::FileSystemPath;
@@ -288,9 +288,8 @@ impl Issue for NextSegmentConfigParsingIssue {
     }
 }
 
-#[derive(
-    Debug, Clone, Copy, PartialEq, Eq, Hash, TaskInput, NonLocalValue, TraceRawVcs, Encode, Decode,
-)]
+#[turbo_tasks::task_input]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, TraceRawVcs, Encode, Decode)]
 pub enum ParseSegmentMode {
     Base,
     // Disallows "use client + generateStatic" and ignores/warns about `export const config`
@@ -847,9 +846,9 @@ async fn parse_config_value(
             };
 
             match value {
-                JsValue::Constant(ConstantValue::Num(ConstantNumber(val))) if *val >= 0.0 => {
+                JsValue::Constant(ConstantValue::Num(ConstantNumber(val))) if val >= 0.0 => {
                     config.revalidate = Some(NextRevalidate::Frequency {
-                        seconds: *val as u32,
+                        seconds: val as u32,
                     });
                 }
                 JsValue::Constant(ConstantValue::False) => {

@@ -301,20 +301,30 @@ export function createVaryingSearchParams(
   accumulator: VaryParamsAccumulator,
   originalSearchParamsObject: SearchParams
 ): SearchParams {
-  const underlyingSearchParamsWithVarying: SearchParams = {}
-  for (const searchParamName in originalSearchParamsObject) {
-    Object.defineProperty(underlyingSearchParamsWithVarying, searchParamName, {
-      get() {
-        // TODO: Unlike path params, we don't vary track each search param
-        // individually. The entire search string is treated as a single param.
-        // This may change in the future.
+  // Search params have no fixed schema, so any access — missing-key reads, `in`
+  // checks, or enumeration — must register as varying. A Proxy is required
+  // (rather than per-property getters) so that enumeration of an empty
+  // searchParams object still triggers a vary. All accesses bucket into the
+  // single sentinel '?'; the segment is keyed by the whole query string.
+  // TODO: Split into per-param tracking if the cache key evolves.
+  return new Proxy(originalSearchParamsObject, {
+    get(target, prop, receiver) {
+      if (typeof prop === 'string') {
         accumulateVaryParam(accumulator, '?')
-        return originalSearchParamsObject[searchParamName]
-      },
-      enumerable: true,
-    })
-  }
-  return underlyingSearchParamsWithVarying
+      }
+      return Reflect.get(target, prop, receiver)
+    },
+    has(target, prop) {
+      if (typeof prop === 'string') {
+        accumulateVaryParam(accumulator, '?')
+      }
+      return Reflect.has(target, prop)
+    },
+    ownKeys(target) {
+      accumulateVaryParam(accumulator, '?')
+      return Reflect.ownKeys(target)
+    },
+  })
 }
 
 /**
@@ -325,10 +335,13 @@ export function createVaryingSearchParams(
  * root params. If we can't track vary params (e.g., legacy prerender), simply
  * don't call this function - the client treats unresolved thenables as
  * "unknown" vary params.
+ *
+ * NOTE: This function does not wait for the resulting flight chunks to flush.
+ * The appropriate wait time depends on whether we're using a prerender or a render.
  */
-export async function finishAccumulatingVaryParams(
+export function finishAccumulatingVaryParams(
   responseAccumulator: ResponseVaryParamsAccumulator
-): Promise<void> {
+): void {
   const rootVaryParams = responseAccumulator.rootParams.varyParams
 
   // Resolve head
@@ -338,27 +351,6 @@ export async function finishAccumulatingVaryParams(
   for (const segmentAccumulator of responseAccumulator.segments) {
     finishSegmentAccumulator(segmentAccumulator, rootVaryParams)
   }
-
-  // Now that the thenables are resolved, Flight should be able to flush the
-  // vary params into the response stream. This work gets scheduled internally
-  // by Flight using a microtask as soon as we notify the thenable listeners.
-  //
-  // We need to ensure that Flight's pending queues are emptied before this
-  // function returns; the caller will abort the prerender immediately after.
-  // We can't use a macrotask, because that would allow dynamic IO to sneak
-  // into the response. So we use microtasks instead.
-  //
-  // The exact number of awaits here isn't important (indeed, one seems to be
-  // sufficient, at the time of writing), as long as we wait enough ticks for
-  // Flight to finish writing the response.
-  //
-  // Anything that remains in Flight's internal queue after these awaits must
-  // be actual dynamic IO, not caused by pending vary params tasks. In other
-  // words, failing to do this would cause us to treat a fully static prerender
-  // as if it were partially dynamic.
-  await Promise.resolve()
-  await Promise.resolve()
-  await Promise.resolve()
 }
 
 function finishSegmentAccumulator(

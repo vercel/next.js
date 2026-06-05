@@ -13,6 +13,7 @@ pub mod async_chunk;
 pub mod bytes_source_transform;
 pub mod chunk;
 pub mod code_gen;
+pub mod embed_js;
 mod errors;
 pub mod json_source_transform;
 pub mod magic_identifier;
@@ -77,9 +78,9 @@ use swc_core::{
 use tracing::{Instrument, Level, instrument};
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
-    FxDashMap, FxIndexMap, NonLocalValue, ReadRef, ResolvedVc, SerializationInvalidator, TaskInput,
-    TryJoinIterExt, Upcast, ValueToString, Vc, get_serialization_invalidator,
-    parking_lot_mutex_bincode, trace::TraceRawVcs, turbofmt,
+    FxDashMap, FxIndexMap, ReadRef, ResolvedVc, SerializationInvalidator, TryJoinIterExt, Upcast,
+    ValueToString, Vc, get_serialization_invalidator, parking_lot_mutex_bincode,
+    trace::TraceRawVcs, turbofmt,
 };
 use turbo_tasks_fs::{FileJsonContent, FileSystemPath, glob::Glob, rope::Rope};
 use turbopack_core::{
@@ -130,20 +131,9 @@ pub use crate::{
     },
 };
 
+#[turbo_tasks::task_input]
 #[derive(
-    Eq,
-    PartialEq,
-    Hash,
-    Debug,
-    Clone,
-    Copy,
-    Default,
-    TaskInput,
-    TraceRawVcs,
-    NonLocalValue,
-    Deserialize,
-    Encode,
-    Decode,
+    Eq, PartialEq, Hash, Debug, Clone, Copy, Default, TraceRawVcs, Deserialize, Encode, Decode,
 )]
 pub enum SpecifiedModuleType {
     #[default]
@@ -152,6 +142,7 @@ pub enum SpecifiedModuleType {
     EcmaScript,
 }
 
+#[turbo_tasks::task_input]
 #[derive(
     PartialOrd,
     Ord,
@@ -163,9 +154,7 @@ pub enum SpecifiedModuleType {
     Copy,
     Default,
     Deserialize,
-    TaskInput,
     TraceRawVcs,
-    NonLocalValue,
     Encode,
     Decode,
 )]
@@ -176,6 +165,7 @@ pub enum TreeShakingMode {
     ReexportsOnly,
 }
 
+#[turbo_tasks::task_input]
 #[derive(
     PartialOrd,
     Ord,
@@ -187,9 +177,7 @@ pub enum TreeShakingMode {
     Copy,
     Default,
     Deserialize,
-    TaskInput,
     TraceRawVcs,
-    NonLocalValue,
     Encode,
     Decode,
 )]
@@ -224,9 +212,8 @@ impl AnalyzeMode {
 pub struct OptionTreeShaking(pub Option<TreeShakingMode>);
 
 /// The constant to replace `typeof window` with.
-#[derive(
-    Copy, Clone, PartialEq, Eq, Debug, Hash, TraceRawVcs, NonLocalValue, TaskInput, Encode, Decode,
-)]
+#[turbo_tasks::task_input]
+#[derive(Copy, Clone, PartialEq, Eq, Debug, Hash, TraceRawVcs, Encode, Decode)]
 pub enum TypeofWindow {
     Object,
     Undefined,
@@ -273,8 +260,8 @@ pub struct EcmascriptOptions {
     pub infer_module_side_effects: bool,
 }
 
-#[turbo_tasks::value]
-#[derive(Hash, Debug, Copy, Clone, TaskInput)]
+#[turbo_tasks::value(task_input)]
+#[derive(Hash, Debug, Copy, Clone)]
 pub enum EcmascriptModuleAssetType {
     /// Module with EcmaScript code
     Ecmascript,
@@ -779,17 +766,16 @@ impl EcmascriptModuleAsset {
     }
 
     #[turbo_tasks::function]
-    pub fn analyze(self: Vc<Self>) -> Vc<AnalyzeEcmascriptModuleResult> {
-        analyze_ecmascript_module(self, None)
-    }
-
-    #[turbo_tasks::function]
     pub fn options(&self) -> Vc<EcmascriptOptions> {
         *self.options
     }
 }
 
 impl EcmascriptModuleAsset {
+    pub fn analyze(self: Vc<Self>) -> Vc<AnalyzeEcmascriptModuleResult> {
+        analyze_ecmascript_module(self, None)
+    }
+
     pub async fn parse(&self) -> Result<Vc<ParseResult>> {
         let options = self.options.await?;
         let node_env = self
@@ -989,7 +975,7 @@ pub struct EcmascriptModuleContent {
 }
 
 #[turbo_tasks::value(shared)]
-#[derive(Clone, Debug, Hash, TaskInput)]
+#[derive(Clone, Debug, Hash)]
 pub struct EcmascriptModuleContentOptions {
     module: ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>,
     parsed: Option<ResolvedVc<ParseResult>>,

@@ -96,7 +96,7 @@ jobs:
         bundler: [webpack, turbopack]
     runs-on: ubuntu-latest-16-core-oss
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           fetch-depth: 25
 
@@ -137,7 +137,7 @@ jobs:
     if: always() && needs.stats.result != 'cancelled'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           fetch-depth: 25
 
@@ -155,9 +155,10 @@ jobs:
 
       - name: Setup Node.js
         if: ${{ steps.docs-change.outputs.DOCS_CHANGE == 'nope' }}
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
         with:
           node-version: ${{ env.NODE_LTS_VERSION }}
+          package-manager-cache: false
 
       - name: Install dependencies
         if: ${{ steps.docs-change.outputs.DOCS_CHANGE == 'nope' }}

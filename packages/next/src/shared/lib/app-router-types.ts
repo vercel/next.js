@@ -60,6 +60,18 @@ export type CacheNode = {
    * layout segment).
    */
   scrollRef: ScrollRef | null
+
+  /**
+   * Globally-unique identifier minted from a monotonic counter when the
+   * CacheNode is freshly created. Surfaced to user code as a string via
+   * `useRouter().bfcacheId` and intended to be used as a React `key` to
+   * opt out of Activity-based state preservation on fresh navigations.
+   *
+   * Preserved when the CacheNode is reused (shared layouts, refresh,
+   * search/hash-only navigations) or restored from the BFCache during a
+   * back/forward navigation.
+   */
+  bfcacheId: number
 }
 
 /**
@@ -338,6 +350,11 @@ export type InitialRSCPayload = {
   s?: AsyncIterable<number>
   /** staticStageByteLength - Resolves when the static stage ends. */
   l?: Promise<number>
+  /**
+   * shellByteLength - Resolves when the shell stage ends.
+   * If it resolves to null, then the shell is the same as the main response.
+   * */
+  a?: Promise<number | null>
   /** runtimePrefetchStream — Embedded runtime prefetch Flight stream. */
   p?: ReadableStream<Uint8Array>
   /**
@@ -366,6 +383,11 @@ export type NavigationFlightResponse = {
   s?: AsyncIterable<number>
   /** staticStageByteLength - Resolves when the static stage ends. */
   l?: Promise<number>
+  /**
+   * shellByteLength - Resolves when the shell stage ends.
+   * If it resolves to null, then the shell is the same as the main response.
+   * */
+  a?: Promise<number | null>
   /** headVaryParams */
   h: VaryParamsThenable | null
   /** runtimePrefetchStream — Embedded runtime prefetch Flight stream. */
@@ -398,3 +420,15 @@ export type RSCPayload =
   | InitialRSCPayload
   | NavigationFlightResponse
   | ActionFlightResponse
+
+export type InstantCookie =
+  // pending (waiting to capture)
+  | [captured: 0, id: string]
+  // captured MPA page load
+  | [captured: 1, id: string, state: null]
+  // captured SPA navigation (from/to route trees)
+  | [
+      captured: 1,
+      id: string,
+      state: { from: FlightRouterState; to: FlightRouterState | null },
+    ]

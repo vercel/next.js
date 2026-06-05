@@ -26,7 +26,7 @@ impl std::hash::Hash for JsonValue {
 }
 
 // Manual impl because `serde_json::Value` doesn't implement `TaskInput`, but `JsonValue` can
-// never contain any `Vc` types, so `is_transient` is always `false`.
+// never contain any `Vc` types.
 impl turbo_tasks::TaskInput for JsonValue {
     fn is_transient(&self) -> bool {
         false
@@ -135,8 +135,10 @@ pub async fn get_swc_ecma_transform_rule_impl(
                 )
                 .await?;
 
-                let Some(plugin_module) =
-                    &*plugin_wasm_module_resolve_result.first_module().await?
+                let Some(plugin_module) = plugin_wasm_module_resolve_result
+                    .await?
+                    .first_module()
+                    .await?
                 else {
                     // Ignore unresolvable plugin modules, handle_resolve_error has already emitted
                     // an issue.
