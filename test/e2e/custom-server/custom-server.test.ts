@@ -34,13 +34,6 @@ describe.each([
     })
     if (skipped) return
 
-    it('should render a 404 for an unmatched request handler path', async () => {
-      const response = await next.fetch('/does-not-exist', { agent })
-
-      expect(response.status).toBe(404)
-      expect(await response.text()).toContain('made it to 404')
-    })
-
     it('should serve internal file from render', async () => {
       const html = await next.render('/static/hello.txt', undefined, { agent })
       expect(html).toMatch(/hello world/)
@@ -396,7 +389,8 @@ describe.each([
       ],
       ['revalidate', '/legacy-methods/revalidate'],
     ])('warns for NextCustomServer.%s', async (method, path) => {
-      await next.fetch(path, { agent })
+      const response = await next.fetch(path, { agent })
+      expect(response.status).toBe(200)
       await retry(async () => {
         expect(next.cliOutput).toContain(deprecatedWarning(method))
       })

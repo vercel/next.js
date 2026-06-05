@@ -1132,8 +1132,9 @@ export default class NextNodeServer extends BaseServer<
 
       let match = getRequestMeta(req, 'match')
 
-      // router-server attaches the fsChecker match, but standalone custom
-      // servers and other direct BaseServer entrypoints bypass that handoff.
+      // router-server normally attaches the fsChecker match. Direct internal
+      // requests, such as on-demand revalidation, bypass router-server and need
+      // to resolve the route from the manifests here.
       if (!match) {
         const localeAnalysisResult = this.i18nProvider?.analyze(pathname, {
           defaultLocale: getRequestMeta(req, 'defaultLocale'),
@@ -1145,8 +1146,9 @@ export default class NextNodeServer extends BaseServer<
         }
       }
 
-      // Direct request handlers can receive arbitrary paths that have no route
-      // definition. Let the renderer produce the appropriate 404 response.
+      // The matcher manager previously fell through to render for unknown
+      // paths. Preserve that behavior for direct render-server requests that do
+      // not pass through fsChecker.
       if (!match) {
         await this.render(req, res, pathname, query, parsedUrl, true)
 
