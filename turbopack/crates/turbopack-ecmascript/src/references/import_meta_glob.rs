@@ -413,7 +413,7 @@ impl ImportMetaGlobMap {
         issue_source: Option<IssueSource>,
         error_mode: ResolveErrorMode,
     ) -> Result<Vc<Self>> {
-        let origin_path = origin.origin_path().await?.parent();
+        let origin_path = origin.into_trait_ref().await?.origin_path().parent();
 
         // Use read_glob for efficient directory-pruning file discovery.
         let glob_result = base_dir.read_glob(positive_glob).await?;
@@ -594,7 +594,7 @@ impl ImportMetaGlobAsset {
     #[turbo_tasks::function]
     pub async fn map(&self) -> Result<Vc<ImportMetaGlobMap>> {
         let origin = *self.origin;
-        let origin_dir = origin.origin_path().await?.parent();
+        let origin_dir = origin.into_trait_ref().await?.origin_path().parent();
 
         // Compute the base directory for glob scanning.
         // With `base`, patterns are resolved relative to origin + base.
@@ -662,7 +662,7 @@ impl ImportMetaGlobAsset {
 impl Module for ImportMetaGlobAsset {
     #[turbo_tasks::function]
     async fn ident(&self) -> Result<Vc<AssetIdent>> {
-        let origin_path = self.origin.origin_path().owned().await?;
+        let origin_path = self.origin.into_trait_ref().await?.origin_path();
         Ok(AssetIdent::from_path(origin_path)
             .with_modifier(modifier(
                 &self.patterns,

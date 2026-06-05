@@ -36,19 +36,22 @@ use crate::{
 pub struct WebAssemblyModuleAsset {
     source: ResolvedVc<WebAssemblySource>,
     asset_context: ResolvedVc<Box<dyn AssetContext>>,
+    /// The path of `source`, precomputed so that `ResolveOrigin::origin_path` is synchronous.
+    origin_path: FileSystemPath,
 }
 
 #[turbo_tasks::value_impl]
 impl WebAssemblyModuleAsset {
     #[turbo_tasks::function]
-    pub fn new(
+    pub async fn new(
         source: ResolvedVc<WebAssemblySource>,
         asset_context: ResolvedVc<Box<dyn AssetContext>>,
-    ) -> Vc<Self> {
-        Self::cell(WebAssemblyModuleAsset {
+    ) -> Result<Vc<Self>> {
+        Ok(Self::cell(WebAssemblyModuleAsset {
+            origin_path: source.ident().await?.path.clone(),
             source,
             asset_context,
-        })
+        }))
     }
 
     #[turbo_tasks::function]
@@ -209,13 +212,11 @@ impl EcmascriptChunkPlaceable for WebAssemblyModuleAsset {
 
 #[turbo_tasks::value_impl]
 impl ResolveOrigin for WebAssemblyModuleAsset {
-    #[turbo_tasks::function]
-    async fn origin_path(&self) -> Result<Vc<FileSystemPath>> {
-        Ok(self.source.ident().await?.path.clone().cell())
+    fn origin_path(&self) -> FileSystemPath {
+        self.origin_path.clone()
     }
 
-    #[turbo_tasks::function]
-    fn asset_context(&self) -> Vc<Box<dyn AssetContext>> {
-        *self.asset_context
+    fn asset_context(&self) -> ResolvedVc<Box<dyn AssetContext>> {
+        self.asset_context
     }
 }

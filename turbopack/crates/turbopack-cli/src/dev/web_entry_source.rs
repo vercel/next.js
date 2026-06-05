@@ -9,6 +9,7 @@ use turbopack_core::{
     chunk::{
         ChunkableModule, ChunkingContext, EvaluatableAsset, SourceMapSourceType, SourceMapsType,
     },
+    context::AssetContext,
     environment::Environment,
     file_source::FileSource,
     module::Module,
@@ -17,7 +18,7 @@ use turbopack_core::{
     },
     reference_type::{EntryReferenceSubType, ReferenceType},
     resolve::{
-        origin::{PlainResolveOrigin, ResolveOrigin, ResolveOriginExt},
+        origin::{PlainResolveOrigin, ResolveOrigin},
         parse::Request,
     },
 };
@@ -135,17 +136,22 @@ pub async fn create_web_entry_source(
 
     let runtime_entries = entries.resolve_entries(asset_context);
 
-    let origin = PlainResolveOrigin::new(asset_context, root_path.join("_")?);
+    let origin = PlainResolveOrigin::new(asset_context, root_path.join("_")?).await?;
+    let resolve_options = origin.resolve_options();
+    let asset_context = origin.asset_context();
+    let origin_path = origin.origin_path();
     let entries = entry_requests
         .into_iter()
-        .map(|request| async move {
-            let ty = ReferenceType::Entry(EntryReferenceSubType::Web);
-            origin
-                .resolve_asset(request, origin.resolve_options(), ty)
-                .await?
-                .await?
-                .first_module()
-                .await
+        .map(|request| {
+            let origin_path = origin_path.clone();
+            async move {
+                let ty = ReferenceType::Entry(EntryReferenceSubType::Web);
+                asset_context
+                    .resolve_asset(origin_path, request, resolve_options, ty)
+                    .await?
+                    .first_module()
+                    .await
+            }
         })
         .try_flat_join()
         .await?;

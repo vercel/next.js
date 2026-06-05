@@ -28,6 +28,7 @@ use turbopack_core::{
         ChunkingConfig, ChunkingContext, ChunkingContextExt, ContentHashing, EvaluatableAsset,
         MangleType, MinifyType, SourceMapsType, availability_info::AvailabilityInfo,
     },
+    context::AssetContext,
     environment::{BrowserEnvironment, Environment, ExecutionEnvironment, NodeJsEnvironment},
     ident::AssetIdent,
     issue::{IssueReporter, IssueSeverity, handle_issues},
@@ -40,7 +41,7 @@ use turbopack_core::{
     output::{OutputAsset, OutputAssets, OutputAssetsWithReferenced},
     reference_type::{EntryReferenceSubType, ReferenceType},
     resolve::{
-        origin::{PlainResolveOrigin, ResolveOrigin, ResolveOriginExt},
+        origin::{PlainResolveOrigin, ResolveOrigin},
         parse::Request,
     },
 };
@@ -283,27 +284,33 @@ async fn build_internal(
         .await?)
         .to_vec();
 
-    let origin = PlainResolveOrigin::new(asset_context, project_fs.root().await?.join("_")?);
+    let origin =
+        PlainResolveOrigin::new(asset_context, project_fs.root().await?.join("_")?).await?;
+    let resolve_options = origin.resolve_options();
+    let asset_context = origin.asset_context();
+    let origin_path = origin.origin_path();
     let project_dir = &project_dir;
     let entries = async move {
         entry_requests
             .into_iter()
-            .map(|request_vc| async move {
-                let ty = ReferenceType::Entry(EntryReferenceSubType::Undefined);
-                let request = request_vc.await?;
-                origin
-                    .resolve_asset(request_vc, origin.resolve_options(), ty)
-                    .await?
-                    .await?
-                    .first_module()
-                    .await?
-                    .with_context(|| {
-                        format!(
-                            "Unable to resolve entry {} from directory {}.",
-                            request.request().unwrap(),
-                            project_dir
-                        )
-                    })
+            .map(|request_vc| {
+                let origin_path = origin_path.clone();
+                async move {
+                    let ty = ReferenceType::Entry(EntryReferenceSubType::Undefined);
+                    let request = request_vc.await?;
+                    asset_context
+                        .resolve_asset(origin_path, request_vc, resolve_options, ty)
+                        .await?
+                        .first_module()
+                        .await?
+                        .with_context(|| {
+                            format!(
+                                "Unable to resolve entry {} from directory {}.",
+                                request.request().unwrap(),
+                                project_dir
+                            )
+                        })
+                }
             })
             .try_join()
             .await

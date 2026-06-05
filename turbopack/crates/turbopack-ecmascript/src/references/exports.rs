@@ -142,6 +142,7 @@ pub async fn compute_ecmascript_module_exports(
                 options.tree_shaking_mode,
                 resolve_override,
             )
+            .await?
             .resolved_cell();
 
             import_references.push(reference);

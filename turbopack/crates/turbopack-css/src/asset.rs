@@ -43,28 +43,31 @@ pub struct CssModule {
     ty: CssModuleType,
     environment: Option<ResolvedVc<Environment>>,
     lightningcss_features: LightningCssFeatureFlags,
+    /// The path of `source`, precomputed so that `ResolveOrigin::origin_path` is synchronous.
+    origin_path: FileSystemPath,
 }
 
 #[turbo_tasks::value_impl]
 impl CssModule {
     /// Creates a new CSS asset.
     #[turbo_tasks::function]
-    pub fn new(
+    pub async fn new(
         source: ResolvedVc<Box<dyn Source>>,
         asset_context: ResolvedVc<Box<dyn AssetContext>>,
         ty: CssModuleType,
         import_context: Option<ResolvedVc<ImportContext>>,
         environment: Option<ResolvedVc<Environment>>,
         lightningcss_features: LightningCssFeatureFlags,
-    ) -> Vc<Self> {
-        Self::cell(CssModule {
+    ) -> Result<Vc<Self>> {
+        Ok(Self::cell(CssModule {
+            origin_path: source.ident().await?.path.clone(),
             source,
             asset_context,
             import_context,
             ty,
             environment,
             lightningcss_features,
-        })
+        }))
     }
 
     /// Returns the asset ident of the source without the "css" modifier
@@ -202,14 +205,12 @@ impl CssChunkPlaceable for CssModule {}
 
 #[turbo_tasks::value_impl]
 impl ResolveOrigin for CssModule {
-    #[turbo_tasks::function]
-    async fn origin_path(&self) -> Result<Vc<FileSystemPath>> {
-        Ok(self.source.ident().await?.path.clone().cell())
+    fn origin_path(&self) -> FileSystemPath {
+        self.origin_path.clone()
     }
 
-    #[turbo_tasks::function]
-    fn asset_context(&self) -> Vc<Box<dyn AssetContext>> {
-        *self.asset_context
+    fn asset_context(&self) -> ResolvedVc<Box<dyn AssetContext>> {
+        self.asset_context
     }
 }
 

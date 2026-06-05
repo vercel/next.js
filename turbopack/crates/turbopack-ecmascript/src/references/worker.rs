@@ -116,7 +116,8 @@ impl WorkerAssetReference {
 impl ModuleReference for WorkerAssetReference {
     #[turbo_tasks::function]
     async fn resolve_reference(&self) -> Result<Vc<ModuleResolveResult>> {
-        let asset_context = self.origin.asset_context().to_resolved().await?;
+        let origin = self.origin.into_trait_ref().await?;
+        let asset_context = origin.asset_context();
 
         let result = match (&self.worker_type, &self.request) {
             (WorkerType::WebWorker | WorkerType::SharedWebWorker, WorkerRequest::Url(request)) => {
@@ -151,9 +152,9 @@ impl ModuleReference for WorkerAssetReference {
                 handle_resolve_error(
                     result,
                     reference_type.clone(),
-                    *self.origin,
+                    origin.origin_path(),
                     Request::parse(path.owned().await?),
-                    self.origin.resolve_options(),
+                    origin.resolve_options(),
                     self.error_mode,
                     Some(self.issue_source),
                 )
@@ -195,7 +196,7 @@ impl ModuleReference for WorkerAssetReference {
                                 .await?,
                             )
                             .resolved_cell(),
-                            path: self.origin.origin_path().owned().await?,
+                            path: origin.origin_path(),
                             source: Some(self.issue_source),
                         }
                         .resolved_cell()
@@ -224,7 +225,7 @@ impl ModuleReference for WorkerAssetReference {
                                 .await?,
                             )
                             .resolved_cell(),
-                            path: self.origin.origin_path().owned().await?,
+                            path: origin.origin_path(),
                             source: Some(self.issue_source),
                         }
                         .resolved_cell()
@@ -273,7 +274,13 @@ impl WorkerAssetReference {
     async fn get_module_type_issue_severity(&self) -> Result<IssueSeverity> {
         Ok(
             if self.error_mode != ResolveErrorMode::Error
-                || self.origin.resolve_options().await?.loose_errors
+                || self
+                    .origin
+                    .into_trait_ref()
+                    .await?
+                    .resolve_options()
+                    .await?
+                    .loose_errors
             {
                 IssueSeverity::Warning
             } else {

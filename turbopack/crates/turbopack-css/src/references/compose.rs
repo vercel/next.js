@@ -47,7 +47,7 @@ impl ModuleReference for CssModuleComposeReference {
         );
 
         let resolved = result.await?.first_module().await?;
-        let file_path = self.origin.origin_path().to_resolved().await?;
+        let file_path = self.origin.into_trait_ref().await?.origin_path();
         if let Some(module) = resolved {
             if ResolvedVc::try_downcast_type::<EcmascriptCssModule>(module).is_none() {
                 CssModuleComposesIssue {
@@ -92,7 +92,7 @@ impl ModuleReference for CssModuleComposeReference {
 #[turbo_tasks::value(shared)]
 struct CssModuleComposesIssue {
     severity: IssueSeverity,
-    file_path: ResolvedVc<FileSystemPath>,
+    file_path: FileSystemPath,
     message: RcStr,
 }
 
@@ -114,7 +114,7 @@ impl Issue for CssModuleComposesIssue {
     }
 
     async fn file_path(&self) -> Result<FileSystemPath> {
-        self.file_path.owned().await
+        Ok(self.file_path.clone())
     }
 
     async fn description(&self) -> Result<Option<StyledString>> {
