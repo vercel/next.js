@@ -64,6 +64,7 @@ import {
   type PartialSegmentVaryPath,
   type PageVaryPath,
 } from './vary-path'
+import type { ShellKind } from './types'
 
 /**
  * The known route tree is analogous to a route table. A different routing
@@ -205,7 +206,8 @@ export function discoverKnownRoute(
   couldBeIntercepted: boolean,
   canonicalUrl: string,
   supportsPerSegmentPrefetching: boolean,
-  hasDynamicRewrite: boolean
+  hasDynamicRewrite: boolean,
+  shellKind: ShellKind | null
 ): FulfilledRouteCacheEntry {
   const tree = routeTree
 
@@ -220,7 +222,8 @@ export function discoverKnownRoute(
       metadataVaryPath,
       couldBeIntercepted,
       canonicalUrl,
-      supportsPerSegmentPrefetching
+      supportsPerSegmentPrefetching,
+      shellKind
     )
     if (hasDynamicRewrite) {
       fulfilledEntry.hasDynamicRewrite = true
@@ -243,7 +246,8 @@ export function discoverKnownRoute(
       couldBeIntercepted,
       canonicalUrl,
       supportsPerSegmentPrefetching,
-      hasDynamicRewrite
+      hasDynamicRewrite,
+      shellKind
     )
     return fulfilledEntry
   }
@@ -265,7 +269,8 @@ export function discoverKnownRoute(
     couldBeIntercepted,
     canonicalUrl,
     supportsPerSegmentPrefetching,
-    hasDynamicRewrite
+    hasDynamicRewrite,
+    shellKind
   )
 }
 
@@ -285,7 +290,8 @@ function handleMismatchDueToRewrite(
   metadataVaryPath: PageVaryPath,
   couldBeIntercepted: boolean,
   canonicalUrl: string,
-  supportsPerSegmentPrefetching: boolean
+  supportsPerSegmentPrefetching: boolean,
+  shellKind: ShellKind | null
 ): FulfilledRouteCacheEntry {
   if (existingEntry !== null) {
     return existingEntry
@@ -299,7 +305,8 @@ function handleMismatchDueToRewrite(
     metadataVaryPath,
     couldBeIntercepted,
     canonicalUrl,
-    supportsPerSegmentPrefetching
+    supportsPerSegmentPrefetching,
+    shellKind
   )
 }
 
@@ -356,7 +363,8 @@ function discoverKnownRoutePart(
   couldBeIntercepted: boolean,
   canonicalUrl: string,
   supportsPerSegmentPrefetching: boolean,
-  hasDynamicRewrite: boolean
+  hasDynamicRewrite: boolean,
+  shellKind: ShellKind | null
 ): FulfilledRouteCacheEntry {
   const segment = routeTree.segment
   const urlPart =
@@ -382,7 +390,8 @@ function discoverKnownRoutePart(
           metadataVaryPath,
           couldBeIntercepted,
           canonicalUrl,
-          supportsPerSegmentPrefetching
+          supportsPerSegmentPrefetching,
+          shellKind
         )
       }
 
@@ -422,7 +431,8 @@ function discoverKnownRoutePart(
         metadataVaryPath,
         couldBeIntercepted,
         canonicalUrl,
-        supportsPerSegmentPrefetching
+        supportsPerSegmentPrefetching,
+        shellKind
       )
     }
 
@@ -443,7 +453,8 @@ function discoverKnownRoutePart(
         metadataVaryPath,
         couldBeIntercepted,
         canonicalUrl,
-        supportsPerSegmentPrefetching
+        supportsPerSegmentPrefetching,
+        shellKind
       )
     }
 
@@ -512,7 +523,8 @@ function discoverKnownRoutePart(
         couldBeIntercepted,
         canonicalUrl,
         supportsPerSegmentPrefetching,
-        hasDynamicRewrite
+        hasDynamicRewrite,
+        shellKind
       )
       // All parallel route branches share the same URL, so they should all
       // reach compatible leaf nodes. We capture any result.
@@ -533,7 +545,8 @@ function discoverKnownRoutePart(
       metadataVaryPath,
       couldBeIntercepted,
       canonicalUrl,
-      supportsPerSegmentPrefetching
+      supportsPerSegmentPrefetching,
+      shellKind
     )
   }
 
@@ -551,7 +564,8 @@ function discoverKnownRoutePart(
       metadataVaryPath,
       couldBeIntercepted,
       canonicalUrl,
-      supportsPerSegmentPrefetching
+      supportsPerSegmentPrefetching,
+      shellKind
     )
   }
 
@@ -583,7 +597,8 @@ function discoverKnownRoutePart(
       metadataVaryPath,
       couldBeIntercepted,
       canonicalUrl,
-      supportsPerSegmentPrefetching
+      supportsPerSegmentPrefetching,
+      shellKind
     )
   }
 
@@ -678,6 +693,7 @@ export function matchKnownRoute(
     couldBeIntercepted: pattern.couldBeIntercepted,
     supportsPerSegmentPrefetching: pattern.supportsPerSegmentPrefetching,
     hasDynamicRewrite: false,
+    shellKind: pattern.shellKind,
     renderedSearch: search,
     ref: null,
     size: pattern.size,

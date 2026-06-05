@@ -482,6 +482,9 @@ export function serverActionReducer(
         // Learn the route pattern so we can predict it for future navigations.
         const metadataVaryPath = redirectSeed.metadataVaryPath
         if (metadataVaryPath !== null) {
+          // TODO(app-shells): track shell kind for dynamic responses
+          const shellKind = null
+
           discoverKnownRoute(
             now,
             redirectUrl.pathname,
@@ -493,7 +496,8 @@ export function serverActionReducer(
             couldBeIntercepted,
             redirectCanonicalUrl,
             isPrerender,
-            false // hasDynamicRewrite
+            false, // hasDynamicRewrite,
+            shellKind
           )
         }
 

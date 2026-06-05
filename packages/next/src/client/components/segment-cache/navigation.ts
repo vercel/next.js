@@ -434,6 +434,9 @@ async function navigateToUnknownRoute(
   // retrying after a tree mismatch (see dispatchRetryDueToTreeMismatch).
   const metadataVaryPath = navigationSeed.metadataVaryPath
   if (metadataVaryPath !== null) {
+    // TODO(app-shells): track shell kind for dynamic responses
+    const shellKind = null
+
     discoverKnownRoute(
       now,
       url.pathname,
@@ -445,7 +448,8 @@ async function navigateToUnknownRoute(
       couldBeIntercepted,
       createHrefFromUrl(canonicalUrl),
       supportsPerSegmentPrefetching,
-      false // hasDynamicRewrite - not a retry, rewrite detection happens during traversal
+      false, // hasDynamicRewrite - not a retry, rewrite detection happens during traversal
+      shellKind
     )
 
     if (staticStageData !== null) {
