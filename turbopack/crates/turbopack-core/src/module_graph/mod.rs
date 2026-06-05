@@ -287,11 +287,6 @@ impl GraphEntries {
     pub fn chunk_group_modules(&self) -> impl Iterator<Item = ResolvedVc<Box<dyn Module>>> + '_ {
         self.chunk_groups.iter().flat_map(|e| e.entries())
     }
-
-    /// Returns only the traced modules, not the bundled modules.
-    pub fn traced_modules(&self) -> impl Iterator<Item = ResolvedVc<Box<dyn Module>>> + '_ {
-        self.traced_modules.iter().cloned()
-    }
 }
 
 #[turbo_tasks::value(cell = "new", eq = "manual")]
@@ -980,14 +975,16 @@ pub struct ModuleGraphLayers(Vec<OperationVc<ModuleGraphLayer>>);
 /// - traverse_edges_dfs is the only function with include_traced
 #[derive(TraceRawVcs, ValueDebugFormat, NonLocalValue)]
 pub struct ModuleGraphSnapshot {
+    // TODO make this non-public
     pub graphs: Vec<ReadRef<SingleModuleGraph>>,
-    // Whether to simply ignore SingleModuleGraphNode::VisitedModule during traversals. For single
-    // module graph usecases, this is what you want. For the whole graph, there should be an error.
+    /// Whether to simply ignore SingleModuleGraphNode::VisitedModule during traversals. For single
+    /// module graph usecases, this is what you want. For the whole graph, there should be an
+    /// error.
     skip_visited_module_children: bool,
 
-    pub graph_idx_override: Option<u32>,
+    graph_idx_override: Option<u32>,
 
-    pub binding_usage: Option<ReadRef<BindingUsageInfo>>,
+    binding_usage: Option<ReadRef<BindingUsageInfo>>,
 }
 
 impl ModuleGraphSnapshot {
