@@ -39,7 +39,12 @@ import {
   workUnitAsyncStorage,
 } from './work-unit-async-storage.external'
 import { workAsyncStorage } from '../app-render/work-async-storage.external'
-import { makeHangingPromise } from '../dynamic-rendering-utils'
+import {
+  ClientHookDynamicError,
+  isClientHookDynamicError,
+  makeClientHookHangingPromise,
+  ParamClientHookDynamicError,
+} from '../dynamic-rendering-utils'
 import {
   METADATA_BOUNDARY_NAME,
   VIEWPORT_BOUNDARY_NAME,
@@ -624,8 +629,7 @@ export function useDynamicRouteParams(expression: string) {
   const workUnitStore = workUnitAsyncStorage.getStore()
   if (workStore && workUnitStore) {
     switch (workUnitStore.type) {
-      case 'prerender-client':
-      case 'prerender': {
+      case 'prerender-client': {
         const fallbackParams = workUnitStore.fallbackRouteParams
 
         if (fallbackParams && fallbackParams.size > 0) {
@@ -633,15 +637,18 @@ export function useDynamicRouteParams(expression: string) {
           // hang here and never resolve. This will cause the currently
           // rendering component to effectively be a dynamic hole.
           React.use(
-            makeHangingPromise(
+            makeClientHookHangingPromise(
               workUnitStore.renderSignal,
-              workStore.route,
-              expression
+              new ParamClientHookDynamicError(workStore.route, expression)
             )
           )
         }
         break
       }
+      case 'prerender':
+        throw new InvariantError(
+          `\`${expression}\` was called from a Server Component. Next.js should be preventing ${expression} from being included in server components statically, but did not in this case.`
+        )
       case 'prerender-ppr': {
         const fallbackParams = workUnitStore.fallbackRouteParams
         if (fallbackParams && fallbackParams.size > 0) {
@@ -701,10 +708,9 @@ export function useDynamicSearchParams(expression: string) {
       return
     case 'prerender-client': {
       React.use(
-        makeHangingPromise(
+        makeClientHookHangingPromise(
           workUnitStore.renderSignal,
-          workStore.route,
-          expression
+          new ClientHookDynamicError(workStore.route, expression)
         )
       )
       break
@@ -837,6 +843,7 @@ function trackOutletSuspenseAboveBody(
 }
 
 export function trackAllowedDynamicAccess(
+  dynamicReason: unknown,
   workStore: WorkStore,
   componentStack: string,
   dynamicValidation: DynamicValidationState,
@@ -872,15 +879,22 @@ export function trackAllowedDynamicAccess(
   } else if (syncDynamicError) {
     dynamicValidation.dynamicErrors.push(syncDynamicError)
     return
-  } else {
-    const error = addErrorContext(
-      createDynamicOrRuntimeBodyError(workStore.route),
-      componentStack,
-      null
+  }
+
+  if (isClientHookDynamicError(dynamicReason)) {
+    dynamicValidation.dynamicErrors.push(
+      addErrorContext(dynamicReason, componentStack, null)
     )
-    dynamicValidation.dynamicErrors.push(error)
     return
   }
+
+  const error = addErrorContext(
+    createDynamicOrRuntimeBodyError(workStore.route),
+    componentStack,
+    null
+  )
+  dynamicValidation.dynamicErrors.push(error)
+  return
 }
 
 export enum DynamicHoleKind {
@@ -922,6 +936,7 @@ export function createInstantValidationState(
 }
 
 export function trackDynamicHoleInNavigation(
+  dynamicReason: unknown,
   workStore: WorkStore,
   componentStack: string,
   dynamicValidation: InstantValidationState,
@@ -1038,6 +1053,17 @@ export function trackDynamicHoleInNavigation(
     return
   }
 
+  if (isClientHookDynamicError(dynamicReason)) {
+    dynamicValidation.dynamicErrors.push(
+      addErrorContext(
+        dynamicReason,
+        componentStack,
+        effectiveCreateInstantStack
+      )
+    )
+    return
+  }
+
   const error = addErrorContext(
     kind === DynamicHoleKind.Runtime
       ? createRuntimeBodyErrorInNavigation(workStore.route)
@@ -1102,6 +1128,7 @@ export function trackThrownErrorInNavigation(
 }
 
 export function trackDynamicHoleInRuntimeShell(
+  dynamicReason: unknown,
   workStore: WorkStore,
   componentStack: string,
   dynamicValidation: DynamicValidationState,
@@ -1149,6 +1176,13 @@ export function trackDynamicHoleInRuntimeShell(
     return
   }
 
+  if (isClientHookDynamicError(dynamicReason)) {
+    dynamicValidation.dynamicErrors.push(
+      addErrorContext(dynamicReason, componentStack, null)
+    )
+    return
+  }
+
   const error = addErrorContext(
     createDynamicBodyError(workStore.route),
     componentStack,
@@ -1159,6 +1193,7 @@ export function trackDynamicHoleInRuntimeShell(
 }
 
 export function trackDynamicHoleInStaticShell(
+  dynamicReason: unknown,
   workStore: WorkStore,
   componentStack: string,
   dynamicValidation: DynamicValidationState,
@@ -1204,15 +1239,22 @@ export function trackDynamicHoleInStaticShell(
   } else if (syncDynamicError) {
     dynamicValidation.dynamicErrors.push(syncDynamicError)
     return
-  } else {
-    const error = addErrorContext(
-      createRuntimeBodyError(workStore.route),
-      componentStack,
-      null
+  }
+
+  if (isClientHookDynamicError(dynamicReason)) {
+    dynamicValidation.dynamicErrors.push(
+      addErrorContext(dynamicReason, componentStack, null)
     )
-    dynamicValidation.dynamicErrors.push(error)
     return
   }
+
+  const error = addErrorContext(
+    createRuntimeBodyError(workStore.route),
+    componentStack,
+    null
+  )
+  dynamicValidation.dynamicErrors.push(error)
+  return
 }
 
 /**
