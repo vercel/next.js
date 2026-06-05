@@ -5048,7 +5048,16 @@ async function streamStagedRenderInDevWeb(
     },
     () => {
       checkForCacheMiss()
-      stageController.advanceStage(RenderStage.Dynamic)
+      // Hold the Dynamic stage until every cache that started in an earlier
+      // stage has filled. A cache whose fill depends on Dynamic-stage IO (e.g.
+      // joining an uncached fetch that's parked on Dynamic) then deadlocks and
+      // hits the fill timeout, instead of being unparked by reaching Dynamic
+      // and silently filling. `cacheReady()` only resolves, and `resultPromise`
+      // waits on the stream, which finishes only after Dynamic advances, so the
+      // result still settles after this.
+      void cacheSignal
+        .cacheReady()
+        .then(() => stageController.advanceStage(RenderStage.Dynamic))
     }
   )
 
@@ -5378,7 +5387,16 @@ async function streamStagedRenderInDevNode(
     },
     () => {
       checkForCacheMiss()
-      stageController.advanceStage(RenderStage.Dynamic)
+      // Hold the Dynamic stage until every cache that started in an earlier
+      // stage has filled. A cache whose fill depends on Dynamic-stage IO (e.g.
+      // joining an uncached fetch that's parked on Dynamic) then deadlocks and
+      // hits the fill timeout, instead of being unparked by reaching Dynamic
+      // and silently filling. `cacheReady()` only resolves, and `resultPromise`
+      // waits on the stream, which finishes only after Dynamic advances, so the
+      // result still settles after this.
+      void cacheSignal
+        .cacheReady()
+        .then(() => stageController.advanceStage(RenderStage.Dynamic))
     }
   )
 
