@@ -222,6 +222,28 @@ pub fn git_version_info(describe: &str) -> GitVersionInfo<'_> {
     }
 }
 
+/// Turbopack's memory eviction strategy for the persistent cache, mirroring the
+/// `experimental.turbopackMemoryEviction` config option.
+#[napi(string_enum = "lowercase")]
+#[derive(Debug, PartialEq, Eq)]
+pub enum MemoryEvictionMode {
+    /// Never evict.
+    Off,
+    /// After every snapshot, evict all evictable tasks from memory, reloading
+    /// them from disk on demand.
+    Full,
+}
+
+impl MemoryEvictionMode {
+    /// Whether this mode evicts evictable tasks after each snapshot.
+    fn evicts_after_snapshot(self) -> bool {
+        match self {
+            Self::Off => false,
+            Self::Full => true,
+        }
+    }
+}
+
 pub fn create_turbo_tasks(
     output_path: PathBuf,
     next_version: &str,
@@ -231,7 +253,9 @@ pub fn create_turbo_tasks(
     is_ci: bool,
     is_short_session: bool,
     skip_compaction: bool,
+    turbopack_memory_eviction: MemoryEvictionMode,
 ) -> Result<NextTurboTasks> {
+    let evict_after_snapshot = turbopack_memory_eviction.evicts_after_snapshot();
     Ok(if persistent_caching {
         let describe = cache_describe(next_version);
         let version_info = git_version_info(&describe);
@@ -253,8 +277,7 @@ pub fn create_turbo_tasks(
                 }),
                 dependency_tracking,
                 num_workers: Some(tokio::runtime::Handle::current().metrics().num_workers()),
-                evict_after_snapshot: std::env::var("TURBO_ENGINE_EVICT_AFTER_SNAPSHOT")
-                    .is_ok_and(|v| v == "1" || v == "true"),
+                evict_after_snapshot,
                 ..Default::default()
             },
             backing_storage,

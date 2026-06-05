@@ -319,6 +319,8 @@ export interface NapiTurboEngineOptions {
   isShortSession?: boolean
   /** Whether to skip database compaction during shutdown. */
   skipCompaction?: boolean
+  /** Turbopack memory eviction mode for the persistent cache. */
+  turbopackMemoryEviction: MemoryEvictionMode
 }
 export declare function projectNew(
   options: NapiProjectOptions,
@@ -532,6 +534,19 @@ export interface NapiNextTurbopackCallbacksJsObject {
 export interface TurbopackInternalErrorOpts {
   message: string
   anonymizedLocation?: string
+}
+/**
+ * Turbopack's memory eviction strategy for the persistent cache, mirroring the
+ * `experimental.turbopackMemoryEviction` config option.
+ */
+export const enum MemoryEvictionMode {
+  /** Never evict. */
+  Off = 'off',
+  /**
+   * After every snapshot, evict all evictable tasks from memory, reloading
+   * them from disk on demand.
+   */
+  Full = 'full',
 }
 export declare function rootTaskDispose(rootTask: {
   __napiType: 'RootTask'
