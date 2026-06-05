@@ -6,6 +6,10 @@ import type {
 } from '../../../shared/lib/app-router-types'
 import type { CacheNode } from '../../../shared/lib/app-router-types'
 import type { HeadData } from '../../../shared/lib/app-router-types'
+import {
+  SubtreePrefetchHints,
+  propagateSubtreeBits,
+} from '../../../shared/lib/app-router-types'
 import type { NormalizedFlightData } from '../../flight-data-helpers'
 import { fetchServerResponse } from '../router-reducer/fetch-server-response'
 import {
@@ -914,8 +918,18 @@ function convertServerPatchToFullTreeImpl(
   if (3 in baseRouterState) {
     clonedTree[3] = baseRouterState[3]
   }
-  if (4 in baseRouterState) {
-    clonedTree[4] = baseRouterState[4]
+  // Recompute the propagated "subtree" prefetch hints for this segment. Mirrors
+  // the propagation done on the server in
+  // createFlightRouterStateFromLoaderTree.
+  let prefetchHints = (baseRouterState[4] ?? 0) & ~SubtreePrefetchHints
+  for (const parallelRouteKey in newTreeChildren) {
+    const childHints = newTreeChildren[parallelRouteKey][4]
+    if (childHints !== undefined) {
+      prefetchHints = propagateSubtreeBits(prefetchHints, childHints)
+    }
+  }
+  if (prefetchHints !== 0) {
+    clonedTree[4] = prefetchHints
   }
 
   // Clone the CacheNodeSeedData tree.
