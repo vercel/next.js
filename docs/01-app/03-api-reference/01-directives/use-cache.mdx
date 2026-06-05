@@ -80,8 +80,6 @@ A cache entry's key is generated using a serialized version of its inputs, which
 3. **Serializable arguments** - Props (for components) or function arguments
 4. **HMR refresh hash** (development only) - Invalidates cache on hot module replacement
 
-> **Good to know**: `'use cache'` is stored in-memory by default, so entries don't persist across process restarts or deploys. For data that needs to survive a redeploy, use [`unstable_cache`](/docs/app/api-reference/functions/unstable_cache) for non-`fetch` functions or the [`fetch`](/docs/app/api-reference/functions/fetch) cache.
-
 When a cached function references variables from outer scopes, those variables are automatically captured and bound as arguments, making them part of the cache key.
 
 ```tsx filename="lib/data.ts"
@@ -211,6 +209,11 @@ With the default in-memory handler, runtime cache behavior depends on your hosti
 For example, in a serverless environment, a cached function shared by two pages executes on each static shell revalidation, whereas in self-hosted or environments with persistent memory, the cached output is reused if it's still fresh.
 
 If the default in-memory cache isn't enough, consider **[`use cache: remote`](/docs/app/api-reference/directives/use-cache-remote)** which allows platforms to provide a dedicated cache handler (like Redis or KV database). This helps reduce hits against data sources not scaled to your total traffic, though it comes with costs (storage, network latency, platform fees).
+
+> [!NOTE]
+> With the default in-memory handler, serverless instances are ephemeral, so entries may not be reused between requests, unlike with `use cache: remote`. Neither caching directive carries over to a new deploy, because the [cache key](#cache-keys) includes the build (or `deploymentId`) ID.
+>
+> For data that needs to persist across deploys, use [`unstable_cache`](/docs/app/api-reference/functions/unstable_cache) for non-`fetch` functions or the [`fetch`](/docs/app/api-reference/functions/fetch) cache.
 
 Very rarely, for compliance requirements or when you can't refactor your code to pass runtime data as arguments to a `use cache` scope, you might need [`use cache: private`](/docs/app/api-reference/directives/use-cache-private).
 
