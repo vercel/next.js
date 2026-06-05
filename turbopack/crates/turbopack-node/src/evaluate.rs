@@ -421,14 +421,15 @@ pub struct EvaluateEntries {
 impl EvaluateEntries {
     #[turbo_tasks::function]
     pub async fn graph_entries(self: Vc<Self>) -> Result<Vc<GraphEntries>> {
-        Ok(Vc::cell(vec![ChunkGroupEntry::Entry(
+        Ok(GraphEntries::from_chunk_groups(vec![ChunkGroupEntry::Entry(
             self.await?
                 .entries
                 .iter()
                 .cloned()
                 .map(ResolvedVc::upcast)
                 .collect(),
-        )]))
+        )])
+        .cell())
     }
 }
 

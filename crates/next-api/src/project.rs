@@ -1421,22 +1421,25 @@ impl Project {
 
     #[turbo_tasks::function]
     pub async fn get_all_entries(self: Vc<Self>) -> Result<Vc<GraphEntries>> {
-        let mut modules = self
+        let endpoint_entries = self
             .get_all_endpoints(false)
             .await?
             .iter()
-            .map(async |endpoint| Ok(endpoint.entries().owned().await?))
-            .try_flat_join()
+            .map(|endpoint| endpoint.entries().owned())
+            .try_join()
             .await?;
-        modules.extend(self.client_main_modules().await?.iter().cloned());
-        modules.extend(
-            self.additional_traced_modules()
-                .await?
-                .iter()
-                .cloned()
-                .map(|m| ChunkGroupEntry::Entry(vec![m])),
+
+        let result = GraphEntries::concatenate(
+            endpoint_entries
+                .into_iter()
+                .chain(std::iter::once(self.client_main_modules().owned().await?))
+                .chain(std::iter::once(GraphEntries::new(
+                    vec![],
+                    self.additional_traced_modules().owned().await?,
+                ))),
         );
-        Ok(Vc::cell(modules))
+
+        Ok(result.cell())
     }
 
     #[turbo_tasks::function]
@@ -1444,14 +1447,15 @@ impl Project {
         self: Vc<Self>,
         graphs: Vc<ModuleGraph>,
     ) -> Result<Vc<GraphEntries>> {
-        let modules = self
-            .get_all_endpoints(false)
-            .await?
-            .iter()
-            .map(async |endpoint| Ok(endpoint.additional_entries(graphs).owned().await?))
-            .try_flat_join()
-            .await?;
-        Ok(Vc::cell(modules))
+        let result = GraphEntries::concatenate(
+            self.get_all_endpoints(false)
+                .await?
+                .iter()
+                .map(|endpoint| endpoint.additional_entries(graphs).owned())
+                .try_join()
+                .await?,
+        );
+        Ok(result.cell())
     }
 
     #[turbo_tasks::function]
@@ -1490,7 +1494,8 @@ impl Project {
                 .collect();
             ModuleGraph::from_graphs(
                 vec![SingleModuleGraph::new_with_entries(
-                    ResolvedVc::cell(vec![ChunkGroupEntry::Entry(entries)]),
+                    GraphEntries::from_chunk_groups(vec![ChunkGroupEntry::Entry(entries)])
+                        .resolved_cell(),
                     is_production,
                     is_production,
                 )],
@@ -2506,17 +2511,17 @@ impl Project {
     #[turbo_tasks::function]
     pub async fn client_main_modules(self: Vc<Self>) -> Result<Vc<GraphEntries>> {
         let pages_project = self.pages_project();
-        let mut modules = vec![ChunkGroupEntry::Entry(vec![
+        let mut chunk_groups = vec![ChunkGroupEntry::Entry(vec![
             pages_project.client_main_module().to_resolved().await?,
         ])];
 
         if let Some(app_project) = *self.app_project().await? {
-            modules.push(ChunkGroupEntry::Entry(vec![
+            chunk_groups.push(ChunkGroupEntry::Entry(vec![
                 app_project.client_main_module().to_resolved().await?,
             ]));
         }
 
-        Ok(Vc::cell(modules))
+        Ok(GraphEntries::from_chunk_groups(chunk_groups).cell())
     }
 
     /// Gets the module id strategy for the project.

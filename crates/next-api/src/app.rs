@@ -910,7 +910,7 @@ impl AppProject {
                     // SEGMENT: client_shared_entries and server utils shared by the layout segments
                     // and the page
                     let graph = SingleModuleGraph::new_with_entries_visited_intern(
-                        vec![
+                        GraphEntries::from_chunk_groups(vec![
                             ChunkGroupEntry::Entry(client_shared_entries),
                             ChunkGroupEntry::SharedMultiple(
                                 server_utils
@@ -919,7 +919,7 @@ impl AppProject {
                                     .try_join()
                                     .await?,
                             ),
-                        ],
+                        ]),
                         visited_modules,
                         should_trace,
                         should_read_binding_usage,
@@ -936,7 +936,9 @@ impl AppProject {
                     {
                         // SEGMENT: layout segment
                         let graph = SingleModuleGraph::new_with_entries_visited_intern(
-                            vec![ChunkGroupEntry::Shared(ResolvedVc::upcast(*module))],
+                            GraphEntries::from_chunk_groups(vec![ChunkGroupEntry::Shared(
+                                ResolvedVc::upcast(*module),
+                            )]),
                             visited_modules,
                             should_trace,
                             should_read_binding_usage,
@@ -959,7 +961,7 @@ impl AppProject {
 
                 // SEGMENT: rsc entry chunk group
                 let graph = SingleModuleGraph::new_with_entries_visited_intern(
-                    vec![rsc_entry_chunk_group],
+                    GraphEntries::from_chunk_groups(vec![rsc_entry_chunk_group]),
                     visited_modules,
                     should_trace,
                     should_read_binding_usage,
@@ -2151,7 +2153,7 @@ impl Endpoint for AppEndpoint {
     #[turbo_tasks::function]
     async fn entries(self: Vc<Self>) -> Result<Vc<GraphEntries>> {
         let this = self.await?;
-        Ok(Vc::cell(vec![
+        Ok(GraphEntries::from_chunk_groups(vec![
             ChunkGroupEntry::Entry(vec![self.app_endpoint_entry().await?.rsc_entry]),
             ChunkGroupEntry::Entry(
                 this.app_project
@@ -2162,7 +2164,8 @@ impl Endpoint for AppEndpoint {
                     .map(ResolvedVc::upcast)
                     .collect(),
             ),
-        ]))
+        ])
+        .cell())
     }
 
     #[turbo_tasks::function]
@@ -2201,9 +2204,10 @@ impl Endpoint for AppEndpoint {
             .await?,
         );
 
-        Ok(Vc::cell(vec![ChunkGroupEntry::Shared(
-            server_actions_loader,
-        )]))
+        Ok(
+            GraphEntries::from_chunk_groups(vec![ChunkGroupEntry::Shared(server_actions_loader)])
+                .cell(),
+        )
     }
 
     #[turbo_tasks::function]

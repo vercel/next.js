@@ -219,16 +219,78 @@ impl VisitedModules {
     }
 }
 
-pub type GraphEntriesT = Vec<ChunkGroupEntry>;
-
-#[turbo_tasks::value(transparent)]
-pub struct GraphEntries(GraphEntriesT);
+#[turbo_tasks::value(shared, task_input)]
+#[derive(Debug, Clone, Hash, Default)]
+pub struct GraphEntries {
+    /// The bundled chunk groups (listing their entry modules)
+    chunk_groups: Vec<ChunkGroupEntry>,
+    /// Traced top-level modules, which are not referenced by chunk_groups but should still be
+    /// considered as part of the graph.
+    traced_modules: Vec<ResolvedVc<Box<dyn Module>>>,
+}
 
 #[turbo_tasks::value_impl]
 impl GraphEntries {
     #[turbo_tasks::function]
     pub fn empty() -> Vc<Self> {
-        Vc::cell(Vec::new())
+        Self::default().cell()
+    }
+}
+
+impl GraphEntries {
+    pub fn new(
+        chunk_groups: Vec<ChunkGroupEntry>,
+        traced_modules: Vec<ResolvedVc<Box<dyn Module>>>,
+    ) -> Self {
+        Self {
+            chunk_groups,
+            traced_modules,
+        }
+    }
+    pub fn from_chunk_groups(chunk_groups: Vec<ChunkGroupEntry>) -> Self {
+        Self {
+            chunk_groups,
+            traced_modules: vec![],
+        }
+    }
+
+    pub fn concatenate(entries: impl IntoIterator<Item = GraphEntries>) -> Self {
+        let (chunk_groups, traced_modules): (Vec<_>, Vec<_>) = entries
+            .into_iter()
+            .map(|e| (e.chunk_groups, e.traced_modules))
+            .unzip();
+        Self {
+            chunk_groups: chunk_groups.into_iter().flatten().collect(),
+            traced_modules: traced_modules.into_iter().flatten().collect(),
+        }
+    }
+
+    /// Returns both chunk group modules and traced modules.
+    pub fn all_modules(&self) -> impl Iterator<Item = ResolvedVc<Box<dyn Module>>> + '_ {
+        self.chunk_groups
+            .iter()
+            .flat_map(|e| e.entries())
+            .chain(self.traced_modules.iter().cloned())
+    }
+
+    /// Like all_modules, but with a boolean whether the module came from `traced_modules`
+    pub fn all_modules_with_is_traced(
+        &self,
+    ) -> impl Iterator<Item = (ResolvedVc<Box<dyn Module>>, bool)> + '_ {
+        self.chunk_groups
+            .iter()
+            .flat_map(|e| e.entries().map(|m| (m, false)))
+            .chain(self.traced_modules.iter().cloned().map(|m| (m, true)))
+    }
+
+    /// Returns only the bundled modules, not the traced modules.
+    pub fn chunk_group_modules(&self) -> impl Iterator<Item = ResolvedVc<Box<dyn Module>>> + '_ {
+        self.chunk_groups.iter().flat_map(|e| e.entries())
+    }
+
+    /// Returns only the traced modules, not the bundled modules.
+    pub fn traced_modules(&self) -> impl Iterator<Item = ResolvedVc<Box<dyn Module>>> + '_ {
+        self.traced_modules.iter().cloned()
     }
 }
 
@@ -251,7 +313,7 @@ pub struct SingleModuleGraph {
     modules: FxHashMap<ResolvedVc<Box<dyn Module>>, NodeIndex>,
 
     #[turbo_tasks(trace_ignore)]
-    pub entries: GraphEntriesT,
+    pub entries: GraphEntries,
 }
 
 #[derive(
@@ -277,17 +339,17 @@ impl SingleModuleGraph {
     /// nodes listed in `visited_modules`
     /// The resulting graph's outgoing edges are in reverse order.
     async fn new_inner(
-        entries: Vec<ChunkGroupEntry>,
+        entries: &GraphEntries,
         visited_modules: &FxIndexMap<ResolvedVc<Box<dyn Module>>, GraphNodeIndex>,
         include_traced: bool,
         include_binding_usage: bool,
-        entries_are_traced: bool,
     ) -> Result<Vc<Self>> {
         let emit_spans = tracing::enabled!(Level::INFO);
         let root_nodes = entries
-            .iter()
-            .flat_map(|e| e.entries())
-            .map(|e| SingleModuleGraphBuilderNode::new_module(emit_spans, e, entries_are_traced))
+            .all_modules_with_is_traced()
+            .map(|(e, is_traced)| {
+                SingleModuleGraphBuilderNode::new_module(emit_spans, e, is_traced)
+            })
             .try_join()
             .await?;
 
@@ -472,8 +534,8 @@ impl SingleModuleGraph {
     }
 
     /// Iterate over graph entry points
-    pub fn entry_modules(&self) -> impl Iterator<Item = ResolvedVc<Box<dyn Module>>> + '_ {
-        self.entries.iter().flat_map(|e| e.entries())
+    pub fn chunk_group_modules(&self) -> impl Iterator<Item = ResolvedVc<Box<dyn Module>>> + '_ {
+        self.entries.chunk_group_modules()
     }
 
     /// WARNING: using this is discouraged, as it doesn't filter out unused or traced references.
@@ -950,8 +1012,25 @@ impl ModuleGraphSnapshot {
         Ok(idx)
     }
 
-    pub fn entries(&self) -> impl Iterator<Item = ChunkGroupEntry> + '_ {
-        self.graphs.iter().flat_map(|g| g.entries.iter().cloned())
+    /// The entry modules of all chunk groups of all graphs.
+    pub fn all_chunk_group_entries(&self) -> impl Iterator<Item = &ChunkGroupEntry> + '_ {
+        self.graphs
+            .iter()
+            .flat_map(|g| g.entries.chunk_groups.iter())
+    }
+
+    /// The entry modules of all chunk groups of all graphs.
+    pub fn all_chunk_group_entry_modules(
+        &self,
+    ) -> impl Iterator<Item = ResolvedVc<Box<dyn Module>>> + '_ {
+        self.graphs
+            .iter()
+            .flat_map(|g| g.entries.chunk_group_modules())
+    }
+
+    /// The entry modules of all chunk groups of all graphs. Includes traced entry modules
+    pub fn all_entry_modules(&self) -> impl Iterator<Item = ResolvedVc<Box<dyn Module>>> + '_ {
+        self.graphs.iter().flat_map(|g| g.entries.all_modules())
     }
 
     fn get_graph(&self, graph_idx: u32) -> &ReadRef<SingleModuleGraph> {
@@ -1177,12 +1256,10 @@ impl ModuleGraphSnapshot {
             ResolvedVc<Box<dyn Module>>,
         ) -> Result<()>,
     ) -> Result<()> {
-        let entries = self.graphs.iter().flat_map(|g| g.entry_modules());
-
         // Despite the name we need to do a DFS to respect 'reachability' if an edge was trimmed we
         // should not follow it, and this is a reasonable way to do that.
         self.traverse_edges_dfs(
-            entries,
+            self.all_chunk_group_entry_modules(),
             &mut (),
             |parent, target, _| {
                 visitor(parent, target)?;
@@ -1521,7 +1598,7 @@ impl<'a> ModuleGraphSnapshotNodeIterator<'a> {
         let entries = graph
             .graphs
             .iter()
-            .flat_map(|g| g.entry_modules())
+            .flat_map(|g| g.chunk_group_modules())
             .map(|e| graph.get_entry(e))
             .collect::<Result<VecDeque<_>>>()?;
 
@@ -1570,11 +1647,10 @@ impl SingleModuleGraph {
         include_binding_usage: bool,
     ) -> Result<Vc<Self>> {
         SingleModuleGraph::new_inner(
-            vec![entry],
+            &GraphEntries::from_chunk_groups(vec![entry]),
             &Default::default(),
             include_traced,
             include_binding_usage,
-            false,
         )
         .await
     }
@@ -1586,11 +1662,10 @@ impl SingleModuleGraph {
         include_binding_usage: bool,
     ) -> Result<Vc<Self>> {
         SingleModuleGraph::new_inner(
-            entries.owned().await?,
+            &*entries.await?,
             &Default::default(),
             include_traced,
             include_binding_usage,
-            false,
         )
         .await
     }
@@ -1603,11 +1678,10 @@ impl SingleModuleGraph {
         include_binding_usage: bool,
     ) -> Result<Vc<Self>> {
         SingleModuleGraph::new_inner(
-            entries.owned().await?,
+            &*entries.await?,
             &visited_modules.connect().await?.modules,
             include_traced,
             include_binding_usage,
-            false,
         )
         .await
     }
@@ -1615,33 +1689,16 @@ impl SingleModuleGraph {
     #[turbo_tasks::function(operation)]
     pub async fn new_with_entries_visited_intern(
         // This must not be a Vc<Vec<_>> to ensure layout segment optimization hits the cache
-        entries: GraphEntriesT,
+        entries: GraphEntries,
         visited_modules: OperationVc<VisitedModules>,
         include_traced: bool,
         include_binding_usage: bool,
     ) -> Result<Vc<Self>> {
         SingleModuleGraph::new_inner(
-            entries,
+            &entries,
             &visited_modules.connect().await?.modules,
             include_traced,
             include_binding_usage,
-            false,
-        )
-        .await
-    }
-
-    #[turbo_tasks::function(operation)]
-    pub async fn new_with_traced_entries(
-        entries: ResolvedVc<GraphEntries>,
-        include_traced: bool,
-        include_binding_usage: bool,
-    ) -> Result<Vc<Self>> {
-        SingleModuleGraph::new_inner(
-            entries.owned().await?,
-            &Default::default(),
-            include_traced,
-            include_binding_usage,
-            true,
         )
         .await
     }
@@ -2234,7 +2291,8 @@ pub mod tests {
                 let b_module = make_module("b.js").await?;
 
                 let parent_graph = SingleModuleGraph::new_with_entries(
-                    ResolvedVc::cell(vec![ChunkGroupEntry::Entry(vec![b_module])]),
+                    GraphEntries::from_chunk_groups(vec![ChunkGroupEntry::Entry(vec![b_module])])
+                        .resolved_cell(),
                     false,
                     false,
                 );
@@ -2243,7 +2301,10 @@ pub mod tests {
                     vec![
                         parent_graph,
                         SingleModuleGraph::new_with_entries_visited(
-                            ResolvedVc::cell(vec![ChunkGroupEntry::Entry(vec![a_module])]),
+                            GraphEntries::from_chunk_groups(vec![ChunkGroupEntry::Entry(vec![
+                                a_module,
+                            ])])
+                            .resolved_cell(),
                             VisitedModules::from_graph(parent_graph),
                             false,
                             false,
@@ -2407,7 +2468,8 @@ pub mod tests {
                 let a_module = make_module("a.js").await?;
 
                 let parent_graph = SingleModuleGraph::new_with_entries(
-                    ResolvedVc::cell(vec![ChunkGroupEntry::Entry(vec![x_module])]),
+                    GraphEntries::from_chunk_groups(vec![ChunkGroupEntry::Entry(vec![x_module])])
+                        .resolved_cell(),
                     true,
                     false,
                 );
@@ -2416,7 +2478,10 @@ pub mod tests {
                     vec![
                         parent_graph,
                         SingleModuleGraph::new_with_entries_visited(
-                            ResolvedVc::cell(vec![ChunkGroupEntry::Entry(vec![a_module])]),
+                            GraphEntries::from_chunk_groups(vec![ChunkGroupEntry::Entry(vec![
+                                a_module,
+                            ])])
+                            .resolved_cell(),
                             VisitedModules::from_graph(parent_graph),
                             true,
                             false,
@@ -2764,9 +2829,10 @@ pub mod tests {
                 .try_join()
                 .await?;
             let graph = SingleModuleGraph::new_with_entries(
-                GraphEntries::resolved_cell(GraphEntries(vec![ChunkGroupEntry::Entry(
-                    entry_modules.clone(),
-                )])),
+                GraphEntries::resolved_cell(GraphEntries::new(
+                    vec![ChunkGroupEntry::Entry(entry_modules.clone())],
+                    vec![],
+                )),
                 false,
                 false,
             );
