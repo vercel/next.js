@@ -21,6 +21,14 @@ type ChunkScript = CurrentScript & { readonly brand: unique symbol }
  * CHUNK_SUFFIX), e.g. `/_next/static/chunks/21a106126841c540.js?dpl=1123123`
  */
 type ChunkUrl = string & { readonly brand: unique symbol }
+/**
+ * Stores CHUNK_BASE_PATH.
+ */
+type ChunkBasePath = string & { readonly brand: unique symbol }
+/**
+ * Stores ASSET_SUFFIX.
+ */
+type AssetSuffix = string & { readonly brand: unique symbol }
 /** The dependency specifier when importing externals */
 type DependencySpecifier = string
 /** This is a string in development and a number in production (both arbitrary, implementation defined) */
@@ -40,6 +48,11 @@ type ChunkData =
       excluded: ModuleId[]
       moduleChunks: ChunkPath[]
     }
+
+type GetChunkRelativeURL = (
+  chunkPath: ChunkPath | ChunkListPath,
+  basePath?: string
+) => ChunkUrl
 
 type CommonJsRequire = (moduleId: ModuleId) => Exports
 type RuntimeRequire = (request: string) => Exports
@@ -98,11 +111,6 @@ type AsyncModule = (
 
 type ResolveAbsolutePath = (modulePath?: string) => string
 type ResolveFileUrl = (modulePath?: string) => string
-type GetWorkerURL = (
-  entrypoint: ChunkPath,
-  moduleChunks: ChunkPath[],
-  shared: boolean
-) => URL
 
 type ExternalRequire = (
   id: DependencySpecifier,
@@ -146,12 +154,14 @@ interface TurbopackBaseContext<M> {
   M: ModuleFactories
   l: LoadChunk
   L: LoadChunkByUrl
+  h: GetChunkRelativeURL
   w: LoadWebAssembly
   u: LoadWebAssemblyModule
   P: ResolveAbsolutePath
   F: ResolveFileUrl
   U: RelativeURL
-  b: GetWorkerURL
+  b: ChunkBasePath
+  X: AssetSuffix
   x: ExternalRequire
   y: ExternalImport
   z: CommonJsRequire

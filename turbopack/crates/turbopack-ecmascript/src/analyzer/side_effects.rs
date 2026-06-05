@@ -19,11 +19,10 @@
 //! has side effects. This is safe for tree-shaking purposes as it prevents
 //! incorrectly removing code that might be needed, and can simply be improved over time.
 //!
-//! ## Future Enhancement: Local Variable Mutation Tracking
+//! ## Local Variable Mutation Tracking
 //!
-//! Currently, all assignments, updates, and property mutations are treated as side effects.
-//! However, mutations to locally-scoped variables that never escape the module evaluation scope
-//! could be considered side-effect free. This would handle common patterns like:
+//! Currently, assignments to local unaliased constants and `module.exports` are considered
+//! side-effect free. This handles the common pattern:
 //!
 //! ```javascript
 //! // Currently marked as having side effects, but could be pure:
@@ -33,9 +32,11 @@
 //! export default config;
 //! ```
 //!
-//! A special case to consider would be CJS exports `module.exports ={}` and `export.foo = ` could
-//! be considered non-effecful just like `ESM` exports.  If we do that we should also consider
-//! changing how `require` is handled, currently it is considered to be effectful
+//! All other assignments, updates, and property mutations are currently treated as side effects.
+//! In the future, it would be good to explore non-constant variables. However, this is more
+//! challenging as they can be aliased after being initialised.
+
+use std::collections::HashSet;
 
 use phf::{phf_map, phf_set};
 use swc_core::{
@@ -285,6 +286,74 @@ fn is_object_or_array_literal(expr: &Expr) -> bool {
     matches!(unparen(expr), Expr::Object(_) | Expr::Array(_))
 }
 
+/// Returns the root identifier of an `a.b.c`-style assignment target, e.g.
+/// `a.b.c` -> `a`, or `None` if the base isn't a plain identifier.
+fn root_identifier(expr: &Expr) -> Option<&Ident> {
+    match unparen(expr) {
+        Expr::Ident(ident) => Some(ident),
+        Expr::Member(member) => root_identifier(&member.obj),
+        _ => None,
+    }
+}
+
+/// Collects `const` bindings initialized with an object/array literal that have
+/// no accessor. `const c = importedObj` would be filtered out — its initializer
+/// is an  identifier, not a literal. This is to prevent us from marking
+/// assignments to aliased variables as side-effect free. For example:
+///
+/// ```javascript
+/// const c = globalThis;
+/// c.fetch = sideEffects();
+/// ```
+///
+/// Has side-effects.
+fn collect_safe_assignment_constant_ids(program: &Program) -> HashSet<Id> {
+    // Collect `const` bindings initialized to a fresh, accessor-free literal.
+    // Function/method bodies are skipped: a binding declared there can't be the
+    // root of an assignment that runs during module evaluation.
+    struct Collector {
+        ids: HashSet<Id>,
+    }
+    impl Visit for Collector {
+        noop_visit_type!();
+        fn visit_var_decl(&mut self, decl: &VarDecl) {
+            if decl.kind == VarDeclKind::Const {
+                for d in &decl.decls {
+                    if let (Pat::Ident(binding), Some(init)) = (&d.name, d.init.as_deref())
+                        && is_object_or_array_literal(init)
+                        && !contains_getters_or_setters(init)
+                    {
+                        self.ids.insert(binding.id.to_id());
+                    }
+                }
+            }
+            decl.visit_children_with(self);
+        }
+        fn visit_function(&mut self, _: &Function) {}
+        fn visit_arrow_expr(&mut self, _: &ArrowExpr) {}
+    }
+    let mut collector = Collector {
+        ids: HashSet::new(),
+    };
+    program.visit_with(&mut collector);
+    let mut ids = collector.ids;
+
+    // Drop any binding that later has an accessor attached to its object graph
+    // (e.g. `o.x = { set y(v) {} }`): a subsequent write through that property
+    // could invoke the accessor, so the binding is no longer safe to mutate.
+    for_each_top_level_assign(program, |assign| {
+        if assign.op == AssignOp::Assign
+            && let AssignTarget::Simple(SimpleAssignTarget::Member(member)) = &assign.left
+            && contains_getters_or_setters(&assign.right)
+            && let Some(root) = root_identifier(&member.obj)
+        {
+            ids.remove(&root.to_id());
+        }
+    });
+
+    ids
+}
+
 /// Whether `expr`'s object graph contains a getter or setter. An accessor makes
 /// member access (read *or* write) potentially effectful — e.g. `o.foo = 1`
 /// invokes a `set foo` — so a value carrying one can't be attached to the
@@ -416,11 +485,13 @@ pub fn compute_module_evaluation_side_effects(
 ) -> ModuleSideEffects {
     let module_exports_tainted = module_exports_is_tainted(program, unresolved_mark);
     let module_exports_has_accessor = module_exports_has_accessor(program, unresolved_mark);
+    let safe_assignment_constant_ids = collect_safe_assignment_constant_ids(program);
     let mut visitor = SideEffectVisitor::new(
         comments,
         unresolved_mark,
         module_exports_tainted,
         module_exports_has_accessor,
+        safe_assignment_constant_ids,
     );
     program.visit_with(&mut visitor);
     if visitor.has_side_effects {
@@ -441,6 +512,9 @@ struct SideEffectVisitor<'a> {
     /// Whether a getter or setter is attached to the exports object, making any
     /// write to the CommonJS exports potentially observable.
     module_exports_has_accessor: bool,
+    /// local `const` bindings initialized with a fresh object/array literal.
+    /// Member mutations rooted at these are not module-evaluation side effects.
+    safe_assignment_constant_ids: HashSet<Id>,
     has_side_effects: bool,
     will_invoke_fn_exprs: bool,
     has_imports: bool,
@@ -452,12 +526,14 @@ impl<'a> SideEffectVisitor<'a> {
         unresolved_mark: Mark,
         module_exports_tainted: bool,
         module_exports_has_accessor: bool,
+        safe_assignment_constant_ids: HashSet<Id>,
     ) -> Self {
         Self {
             comments,
             unresolved_mark,
             module_exports_tainted,
             module_exports_has_accessor,
+            safe_assignment_constant_ids,
             has_side_effects: false,
             will_invoke_fn_exprs: false,
             has_imports: false,
@@ -517,21 +593,24 @@ impl<'a> SideEffectVisitor<'a> {
         }
     }
 
-    /// Returns true if `target` writes to the module's own CommonJS exports
-    /// (`exports.x`, `module.exports`, or `module.exports.x`) in a way that is
-    /// the CJS equivalent of an ESM `export`, rather than a side effect.
-    fn is_safe_cjs_export_target(&self, target: &AssignTarget) -> bool {
-        let AssignTarget::Simple(SimpleAssignTarget::Member(member)) = target else {
-            return false;
-        };
-        if !is_cjs_export_member(member, self.unresolved_mark) {
-            return false;
+    /// Whether writing this assignment target is unobservable during module
+    /// evaluation, so the write itself is not a side effect (the assigned value
+    /// and any computed key are still checked separately). Two pure cases:
+    /// - the module's own CommonJS exports (`exports.x`, `module.exports`, `module.exports.x`) —
+    ///   the CJS equivalent of an ESM `export`;
+    /// - a member mutation rooted at a `const` bound to an unaliased literal.
+    fn assign_target_is_pure(&self, target: &AssignTarget) -> bool {
+        match target {
+            AssignTarget::Simple(SimpleAssignTarget::Member(member)) => {
+                self.member_target_is_pure(member)
+            }
+            _ => false,
         }
-        // If a getter/setter is attached to the exports object, any write to its
-        // members could invoke an accessor, so conservatively none are safe.
-        if self.module_exports_has_accessor {
-            return false;
-        }
+    }
+
+    /// `a.b.c`-style target: pure if it writes the module's own CJS exports, or
+    /// is rooted at a `const` holding an unaliased object/array literal.
+    fn member_target_is_pure(&self, member: &MemberExpr) -> bool {
         // If `module.exports` was reassigned to a non-safe value, writing its
         // members may invoke a setter or mutate another module's object, so it
         // is not safe even though it targets the CJS exports.
@@ -539,7 +618,18 @@ impl<'a> SideEffectVisitor<'a> {
         {
             return false;
         }
-        true
+        // A write to the module's own CommonJS exports is the CJS form of an
+        // `export` — unless a getter/setter is attached to the exports object, in
+        // which case the write could invoke an accessor.
+        if is_cjs_export_member(member, self.unresolved_mark) {
+            return !self.module_exports_has_accessor;
+        }
+        // A member mutation rooted at a `const` bound to an unaliased object/array
+        // literal is also unobservable during evaluation.
+        let Some(root) = root_identifier(&member.obj) else {
+            return false;
+        };
+        self.safe_assignment_constant_ids.contains(&root.to_id())
     }
 
     /// Check if an expression is a known pure built-in function.
@@ -927,11 +1017,11 @@ impl<'a> Visit for SideEffectVisitor<'a> {
                 // `module.exports`, `module.exports.x`) is the CJS equivalent of an
                 // ESM `export` declaration.
                 //
-                // If a getter/setter is attached to the exports object (detected
-                // by the `module_exports_has_accessor` pass), `is_safe_cjs_export_target`
-                // conservatively rejects every write to the exports, since a
-                // member write could invoke the accessor.
-                if assign.op == AssignOp::Assign && self.is_safe_cjs_export_target(&assign.left) {
+                // Accessor handling lives in the collection passes: a binding (or
+                // the exports object) that ever has a getter/setter attached to it
+                // is excluded up front, so `assign_target_is_pure` already returns
+                // false for member writes that could invoke one.
+                if assign.op == AssignOp::Assign && self.assign_target_is_pure(&assign.left) {
                     // Still check the assigned value, and the target's computed
                     // property keys (e.g. `exports[sideEffect()] = …`).
                     assign.left.visit_with(self);
@@ -2685,6 +2775,87 @@ mod tests {
             test_cjs_export_setter_in_static_property,
             "class C { static x = (module.exports = { set foo(v) { sideEffect() } }); } \
              module.exports.foo = 1;"
+        );
+    }
+
+    mod local_variable_mutation_tests {
+        use super::*;
+
+        // The motivating case: building up a `const` object/array bound to a
+        // fresh literal before exporting it. The mutations are unobservable
+        // during evaluation.
+        no_side_effects!(
+            test_const_object_build,
+            "const config = {}; config['a'] = 'a'; config['b'] = 'b'; export default config;"
+        );
+        no_side_effects!(test_const_member_assignment, "const o = {}; o.a = 1;");
+        no_side_effects!(test_const_array_index, "const a = []; a[0] = 1;");
+        no_side_effects!(test_const_nested_member, "const o = { a: {} }; o.a.b = 1;");
+
+        // Boundaries that must remain side-effectful:
+        // a `const` aliasing an imported object (the mutation hits the import),
+        side_effects!(
+            test_aliased_import_mutation,
+            "import config from './config'; const c = config; c.enabled = true;"
+        );
+        // a `const` aliasing the global object,
+        side_effects!(
+            test_aliased_global_mutation,
+            "const g = globalThis; g.shared = 1;"
+        );
+        // mutating an imported binding directly,
+        side_effects!(
+            test_imported_binding_mutation,
+            "import obj from 'x'; obj.foo = 1;"
+        );
+        // a non-fresh `const` initializer (may be a shared reference),
+        side_effects!(
+            test_non_safe_assignment_constant_init,
+            "const o = makeObj(); o.a = 1;"
+        );
+        // a `let` binding (could be reassigned to an alias; handled later),
+        side_effects!(test_let_object_mutation, "let o = {}; o.a = 1;");
+        // assigning a global or an undeclared variable,
+        side_effects!(test_global_assignment, "globalThis.shared = 1;");
+        side_effects!(test_undeclared_assignment, "leaked = 1;");
+        // an impure assigned value,
+        side_effects!(
+            test_safe_assignment_constant_impure_value,
+            "const o = {}; o.a = sideEffect();"
+        );
+        // a side effect in a computed key,
+        side_effects!(
+            test_safe_assignment_constant_computed_key_side_effect,
+            "const o = {}; o[sideEffect()] = 1;"
+        );
+        // and writing a property that has a setter, which runs the setter body
+        // (directly, or via a nested accessor object).
+        side_effects!(
+            test_local_setter_invoked,
+            "const o = { set x(v) { sideEffect() } }; o.x = 1;"
+        );
+        side_effects!(
+            test_local_nested_setter_invoked,
+            "const o = {}; o.a = { set y(v) { sideEffect() } }; o.a.y = 1;"
+        );
+        // Attaching an accessor to a safe `const` after its (accessor-free) init
+        // is conservatively a side effect, even without a write that invokes it.
+        side_effects!(
+            test_local_setter_attached_after_init,
+            "const o = {}; o.x = { set y(v) { sideEffect() } };"
+        );
+        // A setter installed via `Object.defineProperty` is caught because the
+        // call itself is a side effect (not a known-pure builtin).
+        side_effects!(
+            test_local_setter_via_define_property,
+            "const o = {}; Object.defineProperty(o, 'b', { set(x) { this.a = x / 2 } }); o.b = 4;"
+        );
+        // An accessor attached inside a conditional/logical expression still
+        // removes the binding from the safe set (the scan descends evaluated
+        // expressions, not just standalone statements).
+        side_effects!(
+            test_local_setter_attached_in_conditional,
+            "const o = {}; x && (o.a = { set y(v) { sideEffect() } }); o.a.y = 1;"
         );
     }
 }

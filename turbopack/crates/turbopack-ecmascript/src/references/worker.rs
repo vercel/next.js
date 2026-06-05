@@ -1,8 +1,8 @@
 use anyhow::Result;
 use bincode::{Decode, Encode};
 use swc_core::{
-    common::util::take::Take,
-    ecma::ast::{CallExpr, Callee, Expr, ExprOrSpread, Lit},
+    common::{DUMMY_SP, util::take::Take},
+    ecma::ast::{ArrayLit, CallExpr, Callee, Expr, ExprOrSpread, Lit, Null},
     quote_expr,
 };
 use turbo_rcstr::{RcStr, rcstr};
@@ -398,5 +398,63 @@ impl WorkerAssetReferenceCodeGen {
         });
 
         Ok(CodeGeneration::visitors(vec![visitor]))
+    }
+}
+
+#[derive(
+    PartialEq, Eq, TraceRawVcs, ValueDebugFormat, NonLocalValue, Debug, Hash, Encode, Decode,
+)]
+pub enum WorkerGlobalPlaceholder {
+    /// `const _TURBOPACK_WORKER_FORWARDED_GLOBALS_ = []`
+    ForwardedGlobals,
+    /// `const _TURBOPACK_WORKER_BASE_PATH_ = '_TURBOPACK_WORKER_BASE_PATH_REPLACE_'`
+    BasePath,
+}
+
+#[derive(
+    PartialEq, Eq, TraceRawVcs, ValueDebugFormat, NonLocalValue, Debug, Hash, Encode, Decode,
+)]
+pub struct WorkerGlobalsReplacementCodeGen {
+    /// Which placeholder this codegen replaces (determines the injected value).
+    placeholder: WorkerGlobalPlaceholder,
+    path: AstPath,
+}
+
+impl WorkerGlobalsReplacementCodeGen {
+    pub fn new(placeholder: WorkerGlobalPlaceholder, path: AstPath) -> Self {
+        WorkerGlobalsReplacementCodeGen { placeholder, path }
+    }
+
+    pub async fn code_generation(
+        &self,
+        chunking_context: Vc<Box<dyn ChunkingContext>>,
+    ) -> Result<CodeGeneration> {
+        let options = chunking_context.worker_configuration_options().await?;
+        let value: Expr = match self.placeholder {
+            WorkerGlobalPlaceholder::ForwardedGlobals => Expr::Array(ArrayLit {
+                span: DUMMY_SP,
+                elems: options
+                    .forwarded_globals
+                    .iter()
+                    .map(|global| Some(Expr::Lit(Lit::Str(global.as_str().into())).into()))
+                    .collect(),
+            }),
+            WorkerGlobalPlaceholder::BasePath => match &options.asset_prefix {
+                Some(asset_prefix) => Expr::Lit(Lit::Str(asset_prefix.as_str().into())),
+                None => Expr::Lit(Lit::Null(Null { span: DUMMY_SP })),
+            },
+        };
+
+        let visitor = create_visitor!(self.path, visit_mut_expr, |expr: &mut Expr| {
+            *expr = value.clone();
+        });
+
+        Ok(CodeGeneration::visitors(vec![visitor]))
+    }
+}
+
+impl From<WorkerGlobalsReplacementCodeGen> for CodeGen {
+    fn from(val: WorkerGlobalsReplacementCodeGen) -> Self {
+        CodeGen::WorkerGlobalsReplacementCodeGen(val)
     }
 }

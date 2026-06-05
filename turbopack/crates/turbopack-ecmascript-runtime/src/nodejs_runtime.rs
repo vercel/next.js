@@ -13,6 +13,7 @@ use crate::{RuntimeType, embed_js::embed_static_code};
 pub async fn get_nodejs_runtime_code(
     asset_context: ResolvedVc<Box<dyn AssetContext>>,
     runtime_type: RuntimeType,
+    has_async_modules: bool,
     generate_source_map: bool,
 ) -> Result<Vc<Code>> {
     let asset_context = *asset_context;
@@ -47,6 +48,17 @@ pub async fn get_nodejs_runtime_code(
 
     let mut code = CodeBuilder::default();
     code.push_code(&*shared_runtime_utils_code.await?);
+    // Only include the async-module (top-level await) machinery when the app uses it.
+    if has_async_modules {
+        code.push_code(
+            &*embed_static_code(
+                asset_context,
+                rcstr!("shared/runtime/async-module.ts"),
+                generate_source_map,
+            )
+            .await?,
+        );
+    }
     code.push_code(&*shared_base_external_utils_code.await?);
     code.push_code(&*shared_node_external_utils_code.await?);
     code.push_code(&*shared_node_wasm_utils_code.await?);
