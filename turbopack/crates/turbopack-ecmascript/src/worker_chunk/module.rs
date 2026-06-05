@@ -2,19 +2,22 @@ use anyhow::{Result, bail};
 use indoc::formatdoc;
 use turbo_rcstr::rcstr;
 use turbo_tasks::{ResolvedVc, TryJoinIterExt, ValueToString, Vc};
+use turbo_tasks_fs::FileSystem;
 use turbopack_core::{
     chunk::{
         AsyncModuleInfo, ChunkData, ChunkGroupType, ChunkableModule, ChunkingContext,
-        ChunkingContextExt, ChunkingType, ChunksData, EvaluatableAsset,
-        availability_info::AvailabilityInfo,
+        ChunkingContextExt, ChunkingType, ChunksData, EvaluatableAsset, ModuleChunkItemIdExt,
+        ModuleId, availability_info::AvailabilityInfo,
     },
     context::AssetContext,
+    file_source::FileSource,
     ident::AssetIdent,
     module::{Module, ModuleSideEffects},
     module_graph::{ModuleGraph, chunk_group_info::ChunkGroup},
     output::{OutputAsset, OutputAssets, OutputAssetsWithReferenced},
-    reference::{ModuleReference, ModuleReferences},
-    resolve::ModuleResolveResult,
+    reference::{ModuleReference, ModuleReferences, SingleChunkableModuleReference},
+    reference_type::{EcmaScriptModulesReferenceSubType, ReferenceType},
+    resolve::{ExportUsage, ModulePart, ModuleResolveResult},
 };
 
 use super::worker_type::WorkerType;
@@ -23,8 +26,9 @@ use crate::{
         EcmascriptChunkItemContent, EcmascriptChunkItemOptions, EcmascriptChunkPlaceable,
         EcmascriptExports, data::EcmascriptChunkData, ecmascript_chunk_item,
     },
-    runtime_functions::{TURBOPACK_CREATE_WORKER, TURBOPACK_EXPORT_VALUE},
-    utils::StringifyJs,
+    embed_js::embed_fs,
+    runtime_functions::{TURBOPACK_EXPORT_VALUE, TURBOPACK_REQUIRE},
+    utils::{StringifyJs, StringifyModuleId},
 };
 
 /// The WorkerLoaderModule is a module that creates a separate root chunk group for the given module
@@ -130,6 +134,28 @@ impl WorkerLoaderModule {
         ))
     }
 
+    /// `createWorker` is stored in a module; for each worker we need to
+    /// load, we require this module and then use it.
+    #[turbo_tasks::function]
+    async fn create_worker_module(self: Vc<Self>) -> Result<Vc<Box<dyn Module>>> {
+        let this = self.await?;
+        let helper = match this.worker_type {
+            WorkerType::WebWorker | WorkerType::SharedWebWorker => {
+                rcstr!("worker/browser/createWorker.ts")
+            }
+            WorkerType::NodeWorkerThread => rcstr!("worker/node/createWorker.ts"),
+        };
+        Ok(this
+            .asset_context
+            .process(
+                Vc::upcast(FileSource::new(embed_fs().root().await?.join(&helper)?)),
+                ReferenceType::EcmaScriptModules(EcmaScriptModulesReferenceSubType::ImportPart(
+                    ModulePart::Export(rcstr!("default")),
+                )),
+            )
+            .module())
+    }
+
     /// Returns output assets including the worker entrypoint for web workers.
     #[turbo_tasks::function]
     async fn chunk_group_with_type(
@@ -171,11 +197,22 @@ impl Module for WorkerLoaderModule {
     #[turbo_tasks::function]
     async fn references(self: Vc<Self>) -> Result<Vc<ModuleReferences>> {
         let this = self.await?;
-        Ok(Vc::cell(vec![ResolvedVc::upcast(
-            WorkerModuleReference::new(*ResolvedVc::upcast(this.inner), this.worker_type)
+        Ok(Vc::cell(vec![
+            ResolvedVc::upcast(
+                WorkerModuleReference::new(*ResolvedVc::upcast(this.inner), this.worker_type)
+                    .to_resolved()
+                    .await?,
+            ),
+            ResolvedVc::upcast(
+                SingleChunkableModuleReference::new(
+                    self.create_worker_module(),
+                    rcstr!("createWorker"),
+                    ExportUsage::named(rcstr!("default")),
+                )
                 .to_resolved()
                 .await?,
-        )]))
+            ),
+        ]))
     }
 
     #[turbo_tasks::function]
@@ -226,14 +263,14 @@ impl EcmascriptChunkPlaceable for WorkerLoaderModule {
             // otherwise we will induce a turbo tasks cycle. But we only need an
             // approximate solution. We'll use the same estimate for both web
             // and Node.js workers.
+            let fake_id = ModuleId::String(rcstr!("a_fake_module"));
             return Ok(EcmascriptChunkItemContent {
                 inner_code: formatdoc! {
                     r#"
-                        {TURBOPACK_EXPORT_VALUE}(function(Ctor, opts) {{
-                            return {TURBOPACK_CREATE_WORKER}(Ctor, __dirname + "/" + {worker_path:#}, opts);
-                        }});
+                        {TURBOPACK_EXPORT_VALUE}({TURBOPACK_REQUIRE}({workers_module})["default"](__dirname + "/" + {worker_path:#}));
                     "#,
                     worker_path = StringifyJs(&"a_fake_path_for_size_estimation"),
+                    workers_module = StringifyModuleId(&fake_id),
                 }
                 .into(),
                 options,
@@ -241,6 +278,11 @@ impl EcmascriptChunkPlaceable for WorkerLoaderModule {
             }
             .cell());
         }
+
+        let create_worker_id = self
+            .create_worker_module()
+            .chunk_item_id(chunking_context)
+            .await?;
 
         let code = match this.worker_type {
             WorkerType::WebWorker | WorkerType::SharedWebWorker => {
@@ -266,12 +308,11 @@ impl EcmascriptChunkPlaceable for WorkerLoaderModule {
 
                 formatdoc! {
                     r#"
-                        {TURBOPACK_EXPORT_VALUE}(function(Ctor, opts) {{
-                            return {TURBOPACK_CREATE_WORKER}(Ctor, {entrypoint}, {chunks}, opts);
-                        }});
+                        {TURBOPACK_EXPORT_VALUE}({TURBOPACK_REQUIRE}({workers_module})["default"]({entrypoint}, {chunks}));
                     "#,
                     entrypoint = StringifyJs(&entrypoint_path),
                     chunks = StringifyJs(&chunks_data),
+                    workers_module = StringifyModuleId(&create_worker_id),
                 }
             }
             WorkerType::NodeWorkerThread => {
@@ -299,11 +340,10 @@ impl EcmascriptChunkPlaceable for WorkerLoaderModule {
                 // directory
                 formatdoc! {
                     r#"
-                        {TURBOPACK_EXPORT_VALUE}(function(Ctor, opts) {{
-                            return {TURBOPACK_CREATE_WORKER}(Ctor, __dirname + "/" + {worker_path:#}, opts);
-                        }});
+                        {TURBOPACK_EXPORT_VALUE}({TURBOPACK_REQUIRE}({workers_module})["default"](__dirname + "/" + {worker_path:#}));
                     "#,
                     worker_path = StringifyJs(entry_path.file_name()),
+                    workers_module = StringifyModuleId(&create_worker_id),
                 }
             }
         };
