@@ -127,6 +127,23 @@ export default function Page() {
 
 For example, `<p>Loading posts...</p>` is included in the static shell, and the posts stream in at request time.
 
+Without a `<Suspense>` boundary around the uncached read, the dev overlay surfaces the **blocking-route** insight with this fix:
+
+<FixCardGrid>
+  <FixCard
+    group="stream"
+    title="Wrap in or move into Suspense"
+    href="/docs/messages/blocking-route#wrap-in-or-move-into-suspense"
+    snippets={[
+      { text: '<Suspense fallback={…}>', highlight: true },
+      { text: '  <DataChild />' },
+      { text: '</Suspense>', highlight: true },
+    ]}
+  />
+</FixCardGrid>
+
+> **Good to know:** Each fix card links to a detailed walkthrough with patterns, code samples, and trade-offs. Click a card to dive in.
+
 {/* xref to the sync io section - that section should also emphaize that these are not random or timestamp sync invokations, in the referenced section */}
 `<Suspense>` provides a fallback UI while async work completes, but it does not itself opt a component into dynamic rendering. If a component only performs synchronous work, it will complete during prerendering regardless of whether it is wrapped in `<Suspense>`.
 
@@ -162,6 +179,21 @@ export default function Page() {
   )
 }
 ```
+
+A runtime API access without `<Suspense>` surfaces the same **blocking-route** insight in the dev overlay, with the same fix:
+
+<FixCardGrid>
+  <FixCard
+    group="stream"
+    title="Wrap in or move into Suspense"
+    href="/docs/messages/blocking-route#wrap-in-or-move-into-suspense"
+    snippets={[
+      { text: '<Suspense fallback={…}>', highlight: true },
+      { text: '  <DataChild />' },
+      { text: '</Suspense>', highlight: true },
+    ]}
+  />
+</FixCardGrid>
 
 ### Passing runtime values to cached functions
 
@@ -319,7 +351,30 @@ export default async function Page() {
 }
 ```
 
-You don't need to memorize which operations behave this way. The framework surfaces insights when prerendering hits one, guiding you to the pattern that matches your intent.
+You don't need to memorize which operations behave this way. The dev overlay surfaces a **next-prerender-random**, **next-prerender-current-time**, or **next-prerender-crypto** insight (depending on the call) with these fixes:
+
+<FixCardGrid>
+  <FixCard
+    group="dynamic"
+    title="Generate on every request"
+    href="/docs/messages/next-prerender-random#render-at-request-time"
+    snippets={[
+      { text: 'await connection()', highlight: true },
+      { text: 'const id = Math.random()' },
+      { text: 'return <Item id={id} />' },
+    ]}
+  />
+  <FixCard
+    group="cache"
+    title="Cache the value"
+    href="/docs/messages/next-prerender-random#cache-the-random-value"
+    snippets={[
+      { text: 'function RandomId() {' },
+      { text: '  "use cache"', highlight: true },
+      { text: '  return String(Math.random())' },
+    ]}
+  />
+</FixCardGrid>
 
 ## Synchronous I/O and pure computations
 
