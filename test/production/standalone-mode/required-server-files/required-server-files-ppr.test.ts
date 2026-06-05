@@ -57,6 +57,9 @@ describe.skip('required server files app router', () => {
       cacheComponents: true,
       output: 'standalone',
     },
+    dependencies: {
+      lodash: '4.18.1',
+    },
   })
 
   beforeAll(async () => {

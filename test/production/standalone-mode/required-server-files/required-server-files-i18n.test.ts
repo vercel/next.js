@@ -32,6 +32,9 @@ describe('required server files i18n', () => {
         build: 'next build',
       },
     },
+    dependencies: {
+      lodash: '4.18.1',
+    },
     installCommand: 'pnpm i',
     buildCommand: 'pnpm build',
     nextConfig: {
