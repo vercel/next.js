@@ -17,7 +17,9 @@ describe('cache-indicator', () => {
   })
 
   if (enableCacheComponents) {
-    it('renders the cache warming indicator when navigating to a page that needs to warm the cache', async () => {
+    // TODO: Replace this with tests that assert a cache miss indicator is shown
+    // instead when this is implemented.
+    it.skip('renders the cache warming indicator when navigating to a page that needs to warm the cache', async () => {
       const browser = await next.browser('/')
 
       // navigate to the navigation page
