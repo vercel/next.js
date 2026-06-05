@@ -288,6 +288,8 @@ As you build, consider that inside [`generateMetadata`](/docs/app/api-reference/
 
 Operations like `Math.random()`, `Date.now()`, or `crypto.randomUUID()` produce different values each time they execute. Cache Components requires you to explicitly handle these.
 
+> **Good to know:** `performance.now()` is meant for telemetry. Pass the value to your logger or metrics rather than rendering it.
+
 **To generate unique values per request**, defer to request time by calling [`connection()`](/docs/app/api-reference/functions/connection) before these operations, and wrap the component in `<Suspense>`:
 
 ```tsx filename="page.tsx"

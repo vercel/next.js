@@ -373,7 +373,18 @@ The agent doesn't need to understand the full caching model. It follows the insi
 
 For [iterating on loading states](#iterate-on-loading-states), a prompt like "maximize my content, and reduce the amount that needs to be behind a spinner" works well for pushing boundaries down. You can hint at what data needs to be fresh on load and what can be cached, and the agent will move the `<Suspense>` and `use cache` placement accordingly.
 
+Agents working on a Cache Components route typically reach for three levers:
+
+- **Push down**: extract I/O into a Suspense-wrapped child so the parent stays static and static siblings lift into the shell.
+- **Cache**: pair `'use cache'` with [`cacheLife`](/docs/app/api-reference/functions/cacheLife) to assign a freshness profile.
+- **Runtime prefetching** (nav-only): when I/O depends on `cookies()`, `headers()`, or `searchParams`, opt the route into [runtime prefetching](/docs/app/guides/runtime-prefetching) so the framework prerenders it at link-prefetch time.
+
+Each refactor should pair with a before/after capture to verify the change actually landed. Identical-looking captures mean the refactor didn't take effect.
+
 For agents to see what their changes actually render, pair this with [agent-browser](https://github.com/vercel-labs/agent-browser). It exposes the Next.js DevTools (including PPR shells) as shell commands agents can read and drive, so the loop becomes: make a change, snapshot the shell, check what's in it, adjust.
+
+{/* TODO: distribution of the skill/plugin */}
+The [`next-cache-components-optimizer`](https://github.com/vercel/next.js/tree/canary/skills/next-cache-components-optimizer) skill packages this loop: shared preflight, the three levers, plan-mode gating, before/after capture verify, and a no-shell bailout when the route is fully blocking. It picks between two sub-loops based on the request: page-render (grow the static shell of a single page) or in-app navigation (capture the destination's suspended boundaries after a click).
 
 ## Opting out
 
