@@ -1,7 +1,6 @@
 var RUNTIME_PUBLIC_PATH = "output/[turbopack]_runtime.js";
 var RELATIVE_ROOT_PATH = "../../../../../../..";
 var ASSET_PREFIX = "/";
-var WORKER_FORWARDED_GLOBALS = [];
 /**
  * This file contains runtime types and functions that are shared between all
  * TurboPack ECMAScript runtimes.
@@ -798,30 +797,6 @@ function loadWebAssemblyModule(chunkPath, _edgeModule) {
     return compileWebAssemblyFromPath(resolved);
 }
 contextPrototype.u = loadWebAssemblyModule;
-/**
- * Creates a Node.js worker thread by instantiating the given WorkerConstructor
- * with the appropriate path and options, including forwarded globals.
- *
- * @param WorkerConstructor The Worker constructor from worker_threads
- * @param workerPath Path to the worker entry chunk
- * @param workerOptions options to pass to the Worker constructor (optional)
- */ function createWorker(WorkerConstructor, workerPath, workerOptions) {
-    // Build the forwarded globals object
-    const forwardedGlobals = {};
-    for (const name of WORKER_FORWARDED_GLOBALS){
-        forwardedGlobals[name] = globalThis[name];
-    }
-    // Merge workerData with forwarded globals
-    const existingWorkerData = workerOptions?.workerData || {};
-    const options = {
-        ...workerOptions,
-        workerData: {
-            ...typeof existingWorkerData === 'object' ? existingWorkerData : {},
-            __turbopack_globals__: forwardedGlobals
-        }
-    };
-    return new WorkerConstructor(workerPath, options);
-}
 const regexJsUrl = /\.js(?:\?[^#]*)?(?:#.*)?$/;
 /**
  * Checks if a given path/URL ends with .js, optionally followed by ?query or #fragment.
@@ -1543,7 +1518,6 @@ nodeDevContextPrototype.q = exportUrl;
 nodeDevContextPrototype.M = moduleFactories;
 nodeDevContextPrototype.c = devModuleCache;
 nodeDevContextPrototype.R = resolvePathFromModule;
-nodeDevContextPrototype.b = createWorker;
 nodeDevContextPrototype.C = clearChunkCache;
 /**
  * Instantiates a module in development mode using shared HMR logic.

@@ -1,4 +1,4 @@
-;!function(){try { var e="undefined"!=typeof globalThis?globalThis:"undefined"!=typeof global?global:"undefined"!=typeof window?window:"undefined"!=typeof self?self:{},n=(new e.Error).stack;n&&((e._debugIds|| (e._debugIds={}))[n]="85ec7745-dee3-171d-a84e-b72344bb90d4")}catch(e){}}();
+;!function(){try { var e="undefined"!=typeof globalThis?globalThis:"undefined"!=typeof global?global:"undefined"!=typeof window?window:"undefined"!=typeof self?self:{},n=(new e.Error).stack;n&&((e._debugIds|| (e._debugIds={}))[n]="10b725f6-0979-dcb8-6d04-f7f42400db60")}catch(e){}}();
 (globalThis["TURBOPACK"] || (globalThis["TURBOPACK"] = [])).push([
     "output/1i9t_crates_turbopack-tests_tests_snapshot_debug-ids_browser_input_index_19boa0e.js",
     {"otherChunks":["output/1do3_crates_turbopack-tests_tests_snapshot_debug-ids_browser_input_index_03ibyvs.js"],"runtimeModuleIds":["[project]/turbopack/crates/turbopack-tests/tests/snapshot/debug-ids/browser/input/index.js [test] (ecmascript)"]}
@@ -9,12 +9,10 @@ if (!Array.isArray(globalThis["TURBOPACK"])) {
 }
 
 var CHUNK_BASE_PATH = "";
-var WORKER_BASE_PATH = null;
 var RELATIVE_ROOT_PATH = "../../../../../../..";
 var RUNTIME_PUBLIC_PATH = "";
 var ASSET_SUFFIX = "";
 var CROSS_ORIGIN = null;
-var WORKER_FORWARDED_GLOBALS = [];
 /**
  * This file contains runtime types and functions that are shared between all
  * TurboPack ECMAScript runtimes.
@@ -753,50 +751,6 @@ browserContextPrototype.F = resolveFileUrl;
 }
 browserContextPrototype.q = exportUrl;
 /**
- * Creates a worker by instantiating the given WorkerConstructor with the
- * appropriate URL and options.
- *
- * The entrypoint is a pre-compiled worker runtime file. The params configure
- * which module chunks to load and which module to run as the entry point.
- *
- * The params are a JSON array of the following structure:
- * `[TURBOPACK_NEXT_CHUNK_URLS, ASSET_SUFFIX, ...WORKER_FORWARDED_GLOBALS values]`
- *
- * @param WorkerConstructor The Worker or SharedWorker constructor
- * @param entrypoint URL path to the worker entrypoint chunk
- * @param moduleChunks list of module chunk paths to load
- * @param workerOptions options to pass to the Worker constructor (optional)
- */ function createWorker(WorkerConstructor, entrypoint, moduleChunks, workerOptions) {
-    const isSharedWorker = WorkerConstructor.name === 'SharedWorker';
-    // `WORKER_BASE_PATH` overrides `CHUNK_BASE_PATH` for the entrypoint and the
-    // module chunks loaded inside the worker, keeping them same-origin to each
-    // other when `CHUNK_BASE_PATH` (= `assetPrefix`) is a cross-origin CDN.
-    // `null` falls back; an empty string is treated as a literal empty prefix.
-    const workerBasePath = WORKER_BASE_PATH ?? CHUNK_BASE_PATH;
-    const chunkUrls = moduleChunks.map((chunk)=>getChunkRelativeUrl(chunk, workerBasePath)).reverse();
-    const params = [
-        chunkUrls,
-        ASSET_SUFFIX
-    ];
-    for (const globalName of WORKER_FORWARDED_GLOBALS){
-        params.push(globalThis[globalName]);
-    }
-    const url = new URL(getChunkRelativeUrl(entrypoint, workerBasePath), location.origin);
-    const paramsJson = JSON.stringify(params);
-    if (isSharedWorker) {
-        url.searchParams.set('params', paramsJson);
-    } else {
-        url.hash = '#params=' + encodeURIComponent(paramsJson);
-    }
-    // Remove type: "module" from options since our worker entrypoint is not a module
-    const options = workerOptions ? {
-        ...workerOptions,
-        type: undefined
-    } : undefined;
-    return new WorkerConstructor(url, options);
-}
-browserContextPrototype.b = createWorker;
-/**
  * Instantiates a runtime module.
  */ function instantiateRuntimeModule(moduleId, chunkPath) {
     return instantiateModule(moduleId, SourceType.Runtime, chunkPath);
@@ -806,6 +760,13 @@ browserContextPrototype.b = createWorker;
  */ function getChunkRelativeUrl(chunkPath, basePath = CHUNK_BASE_PATH) {
     return `${basePath}${chunkPath.split('/').map((p)=>encodeURIComponent(p)).join('/')}${ASSET_SUFFIX}`;
 }
+// Shared runtime primitives consumed by the bundled `createWorker` helper,
+// exposed as `__turbopack_chunk_base_path__` and `__turbopack_chunk_asset_suffix__`.
+browserContextPrototype.b = CHUNK_BASE_PATH;
+browserContextPrototype.X = ASSET_SUFFIX;
+// Shared runtime primitive: build a chunk's URL. Used by the bundled worker
+// helper and the WASM helper, exposed as `__turbopack_chunk_relative_url__`.
+browserContextPrototype.h = getChunkRelativeUrl;
 function getPathFromScript(chunkScript) {
     if (typeof chunkScript === 'string') {
         return chunkScript;
@@ -2272,5 +2233,5 @@ chunkListsToRegister.forEach(registerChunkList);
 })();
 
 
-//# debugId=85ec7745-dee3-171d-a84e-b72344bb90d4
+//# debugId=10b725f6-0979-dcb8-6d04-f7f42400db60
 //# sourceMappingURL=1do3_crates_turbopack-tests_tests_snapshot_debug-ids_browser_input_index_19boa0e.js.map

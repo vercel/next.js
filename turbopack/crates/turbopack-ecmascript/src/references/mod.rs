@@ -91,7 +91,7 @@ use turbopack_core::{
 use turbopack_resolve::{ecmascript::cjs_resolve_source, typescript::tsconfig};
 use turbopack_swc_utils::emitter::IssueEmitter;
 use unreachable::Unreachable;
-use worker::WorkerAssetReference;
+use worker::{WorkerAssetReference, WorkerGlobalPlaceholder, WorkerGlobalsReplacementCodeGen};
 
 pub use crate::references::esm::export::{FollowExportsResult, follow_reexports};
 use crate::{
@@ -1164,6 +1164,23 @@ async fn analyze_ecmascript_module_internal(
                         analyze_mode.is_code_gen(),
                         "unexpected Effect::FreeVar in tracing mode"
                     );
+
+                    // Worker runtime helpers reference these as free vars; replace each
+                    // with the value baked from the chunking context's worker config.
+                    let worker_placeholder = match &*var {
+                        "_TURBOPACK_WORKER_FORWARDED_GLOBALS_" => {
+                            Some(WorkerGlobalPlaceholder::ForwardedGlobals)
+                        }
+                        "_TURBOPACK_WORKER_BASE_PATH_" => Some(WorkerGlobalPlaceholder::BasePath),
+                        _ => None,
+                    };
+                    if let Some(placeholder) = worker_placeholder {
+                        analysis.add_code_gen(WorkerGlobalsReplacementCodeGen::new(
+                            placeholder,
+                            ast_path.into(),
+                        ));
+                        continue;
+                    }
 
                     if options.enable_exports_info_inlining && var == "__webpack_exports_info__" {
                         if analysis_state.first_webpack_exports_info {

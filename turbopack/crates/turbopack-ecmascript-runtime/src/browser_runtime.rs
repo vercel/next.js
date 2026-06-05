@@ -19,9 +19,7 @@ use crate::{RuntimeType, embed_js::embed_static_code};
 pub async fn get_browser_runtime_code(
     asset_context: ResolvedVc<Box<dyn AssetContext>>,
     chunk_base_path: Vc<Option<RcStr>>,
-    worker_asset_prefix: Vc<Option<RcStr>>,
     asset_suffix: Vc<AssetSuffix>,
-    worker_forwarded_globals: Vc<Vec<RcStr>>,
     runtime_type: RuntimeType,
     output_root_to_root_path: RcStr,
     generate_source_map: bool,
@@ -88,14 +86,6 @@ pub async fn get_browser_runtime_code(
     let relative_root_path = output_root_to_root_path;
     let chunk_base_path = chunk_base_path.await?;
     let chunk_base_path = chunk_base_path.as_ref().map_or_else(|| "", |f| f.as_str());
-    // `null` (no override) and `Some("")` (empty-string prefix) are distinct
-    // states, so inject as a JS literal — `null` for None and a quoted string
-    // for Some — instead of collapsing both to "".
-    let worker_asset_prefix = worker_asset_prefix.await?;
-    let worker_asset_prefix_js: String = worker_asset_prefix.as_ref().map_or_else(
-        || "null".to_string(),
-        |f| format!("{}", StringifyJs(f.as_str())),
-    );
     let asset_suffix = asset_suffix.await?;
     let chunk_loading_global = chunk_loading_global.await?;
     let cross_origin = *cross_origin.await?;
@@ -119,13 +109,11 @@ pub async fn get_browser_runtime_code(
             }}
 
             var CHUNK_BASE_PATH = {};
-            var WORKER_BASE_PATH = {};
             var RELATIVE_ROOT_PATH = {};
             var RUNTIME_PUBLIC_PATH = {};
         "#,
         StringifyJs(&chunk_loading_global),
         StringifyJs(chunk_base_path),
-        worker_asset_prefix_js,
         StringifyJs(relative_root_path.as_str()),
         StringifyJs(chunk_base_path),
     )?;
@@ -177,16 +165,6 @@ pub async fn get_browser_runtime_code(
             var CROSS_ORIGIN = {};
         "#,
         StringifyJs(&cross_origin)
-    )?;
-
-    // Output the list of global variable names to forward to workers
-    let worker_forwarded_globals = worker_forwarded_globals.await?;
-    writedoc!(
-        code,
-        r#"
-            var WORKER_FORWARDED_GLOBALS = {};
-        "#,
-        StringifyJs(&*worker_forwarded_globals)
     )?;
 
     code.push_code(&*shared_runtime_utils_code.await?);
