@@ -35,7 +35,6 @@ Generating the runtime prerender costs **a server invocation per prefetchable li
 Take a dashboard layout that reads the user's session. Without runtime prefetching, `<UserNav>` always streams in behind a `<Suspense>` fallback after navigation, even though the cookie that determines its content is already known when the prefetch fires. With runtime prefetching, Next.js prerenders the layout with the user's actual session before the click, and the user's name becomes part of the runtime prerender:
 
 ```tsx filename="app/dashboard/layout.tsx"
-export const unstable_instant = true
 export const unstable_prefetch = 'force-runtime'
 ```
 

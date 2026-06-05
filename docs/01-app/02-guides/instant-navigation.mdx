@@ -365,7 +365,7 @@ Use the [DevTools](#visualize-loading-states-with-the-nextjs-devtools) to see wh
 
 The observe-fix-iterate loop is well suited to AI coding agents:
 
-- **Observe**: read validation insights in the dev overlay and terminal.
+- **Observe**: read validation insights in the dev overlay and dev server console.
 - **Fix**: validation errors name a specific component and suggest a fix (`use cache` or `<Suspense>`). The agent applies the fix and re-runs validation, whether that's in dev or a build.
 - **Iterate**: run an `instant()` test to check what appears in the shell. Because the output is deterministic, the agent can assert on it without flaky retries.
 
