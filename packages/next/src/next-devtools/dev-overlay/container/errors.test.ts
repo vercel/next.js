@@ -290,11 +290,14 @@ describe('client hook guidance', () => {
       'move-the-access-to-the-server',
       'allow-blocking-route',
     ]
-    expect(
-      getCards('client-hook', 'runtime', 'useSearchParams()').map(
-        (card) => card.id
-      )
-    ).toEqual(expected)
+    const expectedGroups = ['stream', 'server', 'block']
+    const searchParamsCards = getCards(
+      'client-hook',
+      'runtime',
+      'useSearchParams()'
+    )
+    expect(searchParamsCards.map((card) => card.id)).toEqual(expected)
+    expect(searchParamsCards.map((card) => card.group)).toEqual(expectedGroups)
     expect(
       getCards('client-hook', 'runtime', 'useParams()').map((card) => card.id)
     ).toEqual(expected)
