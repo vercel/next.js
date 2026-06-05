@@ -1764,6 +1764,11 @@ async function fetchMissingDynamicData(
         })
     }
 
+    // TODO(app-shells): use shell data
+    if (routeCacheEntry !== null && result.staticShellData !== null) {
+      console.log('shell data (static):', result.staticShellData)
+    }
+
     if (routeCacheEntry !== null && result.runtimePrefetchStream !== null) {
       processRuntimePrefetchStream(
         now,

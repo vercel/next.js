@@ -18,7 +18,7 @@ import {
   UnknownDynamicStaleTime,
   computeDynamicStaleAt,
 } from '../segment-cache/bfcache'
-import { decodeStaticStage } from './fetch-server-response'
+import { decodeStageUntilBoundary } from './fetch-server-response'
 import { discoverKnownRoute } from '../segment-cache/optimistic-routes'
 import type { NormalizedSearch } from '../segment-cache/cache-key'
 
@@ -42,7 +42,8 @@ export function createInitialRouterState({
     i: initialCouldBeIntercepted,
     S: initialSupportsPerSegmentPrefetching,
     s: initialStaleTime,
-    l: initialStaticStageByteLength,
+    l: initialStaticStageByteLengthPromise,
+    a: initialStaticShellByteLengthPromise,
     h: initialHeadVaryParams,
     p: initialRuntimePrefetchStream,
     d: initialDynamicStaleTimeSeconds,
@@ -120,18 +121,31 @@ export function createInitialRouterState({
     // Write the initial seed data into the segment cache so subsequent
     // navigations to the initial page can serve cached segments instantly.
     if (initialSeedData !== null && initialStaleTime !== undefined) {
+      if (initialStaticShellByteLengthPromise !== undefined) {
+        void (async () => {
+          console.log(
+            'shell data (static) length:',
+            await initialStaticShellByteLengthPromise
+          )
+        })()
+      }
+
       if (
-        initialStaticStageByteLength !== undefined &&
+        initialStaticStageByteLengthPromise !== undefined &&
         initialFlightStreamForCache != null
       ) {
         // Partially static page — truncate the cloned Flight stream at the
         // static stage byte boundary, decode, and cache the static subset.
-        decodeStaticStage<InitialRSCPayload>(
-          initialFlightStreamForCache,
-          initialStaticStageByteLength,
-          undefined
-        )
-          .then(async (staticStageResponse) => {
+        void (async () => {
+          try {
+            const initialStaticStageByteLength =
+              await initialStaticStageByteLengthPromise
+            const staticStageResponse =
+              await decodeStageUntilBoundary<InitialRSCPayload>(
+                initialFlightStreamForCache,
+                initialStaticStageByteLength,
+                undefined
+              )
             const now = Date.now()
             const staleAt = await getStaleAt(now, staticStageResponse.s)
 
@@ -145,11 +159,11 @@ export function createInitialRouterState({
               initialRenderedSearch,
               true // isResponsePartial
             )
-          })
-          .catch(() => {
+          } catch {
             // The static stage processing failed. Not fatal — the page
             // rendered normally, we just won't write into the cache.
-          })
+          }
+        })()
       } else {
         // Fully static page — cache the entire decoded seed data as-is. We're
         // not using the initial response here (which would allow us to combine
@@ -197,6 +211,8 @@ export function createInitialRouterState({
       )
         .then((processed) => {
           if (processed !== null) {
+            // TODO(app-shells): use recovered fallback data if available
+
             writeDynamicRenderResponseIntoCache(
               Date.now(),
               FetchStrategy.PPRRuntime,
