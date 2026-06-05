@@ -1,4 +1,4 @@
-use std::{collections::BTreeMap, io::Write};
+use std::{borrow::Cow, collections::BTreeMap, io::Write};
 
 use anyhow::{Context, Result, bail};
 use bincode::{Decode, Encode};
@@ -191,7 +191,7 @@ impl ServerActionManifestAsset {
 #[turbo_tasks::value_impl]
 impl OutputAsset for ServerActionManifestAsset {
     #[turbo_tasks::function]
-    async fn path(&self) -> Result<Vc<FileSystemPath>> {
+    fn path(&self) -> Result<Vc<FileSystemPath>> {
         let manifest_path_prefix = &self.page_name;
         let manifest_path = self.node_root.join(&format!(
             "server/app{manifest_path_prefix}/server-reference-manifest.json",
@@ -222,27 +222,27 @@ impl Asset for ServerActionManifestAsset {
             NextRuntime::NodeJs => &mut manifest.node,
         };
 
-        struct ActionMetadata {
-            exported_name: String,
-            filename: String,
+        struct ActionMetadata<'a> {
+            exported_name: &'a str,
+            filename: Cow<'a, str>,
         }
 
-        let action_metadata: Vec<(String, ActionMetadata)> = actions_value
+        let action_metadata: Vec<(&str, ActionMetadata<'_>)> = actions_value
             .iter()
             .map(async |(hash_id, (_layer, meta, module))| {
                 // Use source_path from the action comment if available (contains original .ts/.tsx
                 // path), otherwise fall back to module.ident().path() (may be compiled .js
                 // path)
                 let filename = if !meta.source_path.is_empty() {
-                    meta.source_path.clone()
+                    Cow::Borrowed(&*meta.source_path)
                 } else {
-                    module.ident().await?.path.to_string()
+                    Cow::Owned(module.ident().await?.path.to_string())
                 };
 
                 Ok((
-                    hash_id.clone(),
+                    &**hash_id,
                     ActionMetadata {
-                        exported_name: meta.name.clone(),
+                        exported_name: &meta.name,
                         filename,
                     },
                 ))
@@ -259,7 +259,7 @@ impl Asset for ServerActionManifestAsset {
             },
         ) in &action_metadata
         {
-            let entry = mapping.entry(hash_id.as_str()).or_default();
+            let entry = mapping.entry(hash_id).or_default();
             entry.workers.insert(
                 &key,
                 ActionManifestWorkerEntry {
@@ -268,14 +268,14 @@ impl Asset for ServerActionManifestAsset {
                         .async_module_info
                         .is_async(self.chunk_item.module().to_resolved().await?)
                         .await?,
-                    exported_name: exported_name.as_str(),
-                    filename: filename.as_str(),
+                    exported_name,
+                    filename: filename.as_ref(),
                 },
             );
 
             // Hoist the filename and exported_name to the entry level
-            entry.exported_name = exported_name.as_str();
-            entry.filename = filename.as_str();
+            entry.exported_name = exported_name;
+            entry.filename = filename.as_ref();
         }
 
         Ok(AssetContent::file(
