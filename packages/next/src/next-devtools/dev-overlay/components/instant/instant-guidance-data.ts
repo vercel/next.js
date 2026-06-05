@@ -127,6 +127,39 @@ const runtimeCards: FixCard[] = [
   },
 ]
 
+const clientHookCards: FixCard[] = [
+  {
+    id: 'wrap-in-or-move-into-suspense',
+    title: 'Wrap in or move into Suspense',
+    group: 'stream',
+    link: 'https://nextjs.org/docs/messages/next-prerender-client-hook#wrap-the-client-component-in-suspense',
+    snippets: [
+      { text: '<Suspense fallback={…}>', highlight: true },
+      { text: '  <ClientComponent />' },
+      { text: '</Suspense>', highlight: true },
+    ],
+    prompt:
+      'Wrap the Client Component that calls the navigation hook in <Suspense>. The fallback prop must render synchronous, deterministic JSX that approximates the final layout. Import Suspense from "react" and place the boundary as close to the Client Component as possible.',
+  },
+]
+
+const paramClientHookCards: FixCard[] = [
+  ...clientHookCards,
+  {
+    id: 'prerender-known-dynamic-params',
+    title: 'Prerender known params',
+    group: 'prerender',
+    link: 'https://nextjs.org/docs/messages/next-prerender-client-hook#prerender-known-dynamic-params',
+    snippets: [
+      { text: 'export function generateStaticParams() {' },
+      { text: '  return [{ slug: "…" }]', highlight: true },
+      { text: '}' },
+    ],
+    prompt:
+      'Add generateStaticParams() to the dynamic route segment and return the param values that should be prerendered. Each object key must match a dynamic segment name. Keep a Suspense boundary for paths that are not returned by generateStaticParams.',
+  },
+]
+
 const dynamicCards: FixCard[] = [
   {
     id: 'cache-the-component-or-data',
@@ -576,6 +609,7 @@ const syncClientCryptoCards: FixCard[] = [
 
 export type GuidanceKind =
   | 'blocking-route'
+  | 'client-hook'
   | 'metadata'
   | 'viewport'
   | 'sync-io'
@@ -586,6 +620,7 @@ export type GuidanceVariant = 'runtime' | 'dynamic'
 
 export const DOCS_URLS: Record<GuidanceKind, string> = {
   'blocking-route': 'https://nextjs.org/docs/messages/blocking-route',
+  'client-hook': 'https://nextjs.org/docs/messages/next-prerender-client-hook',
   metadata:
     'https://nextjs.org/docs/messages/blocking-prerender-metadata-dynamic',
   viewport:
@@ -655,6 +690,8 @@ export const SYNC_IO_CLIENT_DOCS: Record<string, string> = {
 export const EXPLANATIONS: Record<GuidanceKind, string> = {
   'blocking-route':
     'This prevents the route from being prerendered, blocking navigation and leading to a slower user experience.',
+  'client-hook':
+    'This prevents the route from being prerendered because the value is only available at runtime.',
   metadata:
     "This route's metadata is blocked, but the rest of its content can be prerendered.",
   viewport:
@@ -709,6 +746,10 @@ export function getCards(
   switch (kind) {
     case 'blocking-route':
       return variant === 'dynamic' ? dynamicCards : runtimeCards
+    case 'client-hook':
+      return cause === 'useSearchParams()'
+        ? clientHookCards
+        : paramClientHookCards
     case 'metadata':
       return variant === 'runtime' ? metadataRuntimeCards : metadataDynamicCards
     case 'viewport':
