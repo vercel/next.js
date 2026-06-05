@@ -32,7 +32,10 @@ use swc_core::{
 };
 use tracing::{Instrument, instrument};
 use turbo_rcstr::{RcStr, rcstr};
-use turbo_tasks::{PrettyPrintError, ResolvedVc, ValueToString, Vc, turbofmt, util::WrapFuture};
+use turbo_tasks::{
+    PrettyPrintError, ResolvedVc, TryJoinIterExt, ValueToString, Vc, debug::ValueDebug, turbofmt,
+    util::WrapFuture,
+};
 use turbo_tasks_fs::{FileContent, FileSystemPath, rope::Rope};
 use turbo_tasks_hash::hash_xxh3_hash64;
 use turbopack_core::{
@@ -276,6 +279,18 @@ pub async fn parse(
     is_external_tracing: bool,
     inline_helpers: bool,
 ) -> Result<Vc<ParseResult>> {
+    if source.ident().to_string().await?.contains("foobar.js") {
+        println!(
+            "parsing foobar {:?} {:?} {:?}\n{:?} {:?} {:?} {:?}",
+            source,
+            ty,
+            transforms,
+            transforms.await?.iter().map(|t| t.dbg()).try_join().await?,
+            node_env,
+            is_external_tracing,
+            inline_helpers
+        );
+    }
     let span = tracing::info_span!(
         "parse ecmascript",
         name = display(source.ident().to_string().await?),
