@@ -735,7 +735,7 @@ impl PageEndpoint {
             .flatten()
             {
                 let graph = SingleModuleGraph::new_with_entries_visited_intern(
-                    vec![ChunkGroupEntry::Shared(module)],
+                    GraphEntries::from_chunk_groups(vec![ChunkGroupEntry::Shared(module)]),
                     visited_modules,
                     should_trace,
                     should_read_binding_usage,
@@ -745,7 +745,9 @@ impl PageEndpoint {
             }
 
             let graph = SingleModuleGraph::new_with_entries_visited_intern(
-                vec![ChunkGroupEntry::Entry(vec![ssr_chunk_module.ssr_module])],
+                GraphEntries::from_chunk_groups(vec![ChunkGroupEntry::Entry(vec![
+                    ssr_chunk_module.ssr_module,
+                ])]),
                 visited_modules,
                 should_trace,
                 should_read_binding_usage,
@@ -1732,7 +1734,7 @@ impl Endpoint for PageEndpoint {
             })
             .collect::<Vec<_>>();
 
-        Ok(Vc::cell(modules))
+        Ok(GraphEntries::from_chunk_groups(modules).cell())
     }
 
     #[turbo_tasks::function]

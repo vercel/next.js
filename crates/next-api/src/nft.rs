@@ -381,7 +381,7 @@ pub async fn traced_module_data_for_graph(
     // This function is very similar to traced_modules_for_entries, but doesn't apply the glob and
     // is executed only once for the whole graph.
     let module_graph = module_graph.await?;
-    let entries = module_graph.graphs.iter().flat_map(|g| g.entry_modules());
+    let entries = module_graph.all_entry_modules();
 
     let traced_entries = traced_entries.await?.into_iter().collect::<FxHashSet<_>>();
 

@@ -406,9 +406,12 @@ impl Endpoint for MiddlewareEndpoint {
 
     #[turbo_tasks::function]
     async fn entries(self: Vc<Self>) -> Result<Vc<GraphEntries>> {
-        Ok(Vc::cell(vec![ChunkGroupEntry::Entry(vec![
-            self.entry_module().to_resolved().await?,
-        ])]))
+        Ok(
+            GraphEntries::from_chunk_groups(vec![ChunkGroupEntry::Entry(vec![
+                self.entry_module().to_resolved().await?,
+            ])])
+            .cell(),
+        )
     }
 
     #[turbo_tasks::function]

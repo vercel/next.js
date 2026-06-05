@@ -428,11 +428,7 @@ pub async fn compute_chunk_group_info(graph: &ModuleGraph) -> Result<Vc<ChunkGro
         span.record("module_count", module_count);
 
         // use all entries from all graphs
-        let entries = graph
-            .graphs
-            .iter()
-            .flat_map(|g| g.entries.iter())
-            .collect::<Vec<_>>();
+        let entries = graph.all_chunk_group_entries().collect::<Vec<_>>();
 
         // First, compute the depth for each module in the graph
         let module_depth: FxHashMap<ResolvedVc<Box<dyn Module>>, usize> = {
@@ -511,11 +507,9 @@ pub async fn compute_chunk_group_info(graph: &ModuleGraph) -> Result<Vc<ChunkGro
             }
         }
 
-        let entry_chunk_group_keys = graph
-            .graphs
+        let entry_chunk_group_keys = entries
             .iter()
-            .flat_map(|g| g.entries.iter())
-            .flat_map(|chunk_group| {
+            .flat_map(|&chunk_group| {
                 let chunk_group_key =
                     entry_to_chunk_group_id(chunk_group.clone(), &mut chunk_groups_map);
                 chunk_group
