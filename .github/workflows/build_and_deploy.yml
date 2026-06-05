@@ -299,9 +299,8 @@ jobs:
             const names = [
               'ACTIONS_RUNTIME_TOKEN',
               'ACTIONS_RESULTS_URL',
-              ...Object.keys(process.env).filter((name) =>
-                name.startsWith('ACTIONS_CACHE_')
-              ),
+              'ACTIONS_CACHE_URL',
+              'ACTIONS_CACHE_SERVICE_V2',
             ]
             for (const name of names) {
               core.exportVariable(name, process.env[name] || '')
