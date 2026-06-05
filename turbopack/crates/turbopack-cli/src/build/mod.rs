@@ -6,7 +6,6 @@ use std::{
 };
 
 use anyhow::{Context, Result, bail};
-use either::Either;
 use rustc_hash::FxHashSet;
 use tracing::Instrument;
 use turbo_rcstr::RcStr;
@@ -15,8 +14,8 @@ use turbo_tasks::{
     take_effects,
 };
 use turbo_tasks_backend::{
-    BackendOptions, GitVersionInfo, NoopBackingStorage, StartupCacheState, StorageMode,
-    TurboBackingStorage, TurboTasksBackend, noop_backing_storage, turbo_backing_storage,
+    BackendOptions, GitVersionInfo, StartupCacheState, StorageMode, TurboTasksBackend,
+    noop_backing_storage, turbo_backing_storage,
 };
 use turbo_tasks_fs::FileSystem;
 use turbo_unix_path::join_path;
@@ -60,7 +59,7 @@ use crate::{
     },
 };
 
-type Backend = TurboTasksBackend<Either<TurboBackingStorage, NoopBackingStorage>>;
+type Backend = TurboTasksBackend;
 
 pub struct TurbopackBuildBuilder {
     turbo_tasks: Arc<TurboTasks<Backend>>,
@@ -556,7 +555,7 @@ pub async fn build(args: &BuildArguments) -> Result<()> {
                 storage_mode: Some(storage_mode),
                 ..Default::default()
             },
-            Either::Left(backing_storage),
+            backing_storage,
         ));
         if let StartupCacheState::Invalidated { reason_code } = cache_state {
             eprintln!(
@@ -575,7 +574,7 @@ pub async fn build(args: &BuildArguments) -> Result<()> {
                 storage_mode: None,
                 ..Default::default()
             },
-            Either::Right(noop_backing_storage()),
+            noop_backing_storage(),
         ))
     };
 

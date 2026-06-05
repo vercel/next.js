@@ -39,6 +39,7 @@ type InnerMap = AutoMap<CellId, SharedReference, BuildHasherDefault<FxHasher>, 1
 pub struct CellData(InnerMap);
 
 impl CellData {
+    #[cfg(test)]
     pub fn new() -> Self {
         Self::default()
     }

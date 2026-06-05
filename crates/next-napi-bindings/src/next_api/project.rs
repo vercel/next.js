@@ -55,7 +55,7 @@ use turbo_tasks::{
     trace::TraceRawVcs,
     unmark_top_level_task_may_leak_eventually_consistent_state,
 };
-use turbo_tasks_backend::{BackingStorage, db_invalidation::invalidation_reasons};
+use turbo_tasks_backend::db_invalidation::invalidation_reasons;
 use turbo_tasks_fs::{
     DiskFileSystem, FileContent, FileSystem, FileSystemPath, invalidation, util::uri_from_file,
 };
@@ -751,8 +751,7 @@ pub async fn project_invalidate_file_system_cache(
             .turbopack_ctx
             .turbo_tasks()
             .backend()
-            .backing_storage()
-            .invalidate(invalidation_reasons::USER_REQUEST)
+            .invalidate_storage(invalidation_reasons::USER_REQUEST)
     })
     .await
     .context("panicked while invalidating filesystem cache")??;

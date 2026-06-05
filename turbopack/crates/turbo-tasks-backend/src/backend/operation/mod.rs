@@ -26,12 +26,11 @@ use turbo_tasks::{
 pub use self::aggregation_update::ComputeDirtyAndCleanUpdate;
 use crate::{
     backend::{
-        EventDescription, TaskDataCategory, TurboTasksBackend, TurboTasksBackendInner,
+        EventDescription, TaskDataCategory, TurboTasksBackend,
         snapshot_coordinator::OperationGuard,
         storage::{SpecificTaskDataCategory, StorageWriteGuard},
         storage_schema::{TaskStorage, TaskStorageAccessors},
     },
-    backing_storage::BackingStorage,
     data::{ActivenessState, CollectibleRef, Dirtyness, InProgressState, TransientTask},
 };
 
@@ -88,13 +87,11 @@ pub trait ExecuteContext<'e>: Sized {
         task_id2: TaskId,
         category: TaskDataCategory,
     ) -> (Self::TaskGuardImpl, Self::TaskGuardImpl);
-    fn schedule(&mut self, task_id: TaskId, parent_priority: TaskPriority);
     fn schedule_task(&self, task: Self::TaskGuardImpl, parent_priority: TaskPriority);
     fn get_current_task_priority(&self) -> TaskPriority;
     fn operation_suspend_point<T>(&mut self, op: &T)
     where
         T: Clone + Into<AnyOperation>;
-    fn suspending_requested(&self) -> bool;
     fn should_track_dependencies(&self) -> bool;
     fn should_track_activeness(&self) -> bool;
     fn turbo_tasks(&self) -> Arc<dyn TurboTasksCallApi>;
@@ -166,17 +163,17 @@ impl TaskLockCounter {
     }
 }
 
-pub struct ExecuteContextImpl<'e, B: BackingStorage> {
-    backend: &'e TurboTasksBackendInner<B>,
-    turbo_tasks: &'e TurboTasks<TurboTasksBackend<B>>,
+pub struct ExecuteContextImpl<'e> {
+    backend: &'e TurboTasksBackend,
+    turbo_tasks: &'e TurboTasks<TurboTasksBackend>,
     _operation_guard: Option<OperationGuard<'e, AnyOperation>>,
     task_lock_counter: TaskLockCounter,
 }
 
-impl<'e, B: BackingStorage> ExecuteContextImpl<'e, B> {
+impl<'e> ExecuteContextImpl<'e> {
     pub(super) fn new(
-        backend: &'e TurboTasksBackendInner<B>,
-        turbo_tasks: &'e TurboTasks<TurboTasksBackend<B>>,
+        backend: &'e TurboTasksBackend,
+        turbo_tasks: &'e TurboTasks<TurboTasksBackend>,
     ) -> Self {
         Self {
             backend,
@@ -655,10 +652,10 @@ fn apply_restore_result(
     }
 }
 
-impl<'e, B: BackingStorage> ExecuteContext<'e> for ExecuteContextImpl<'e, B> {
+impl<'e> ExecuteContext<'e> for ExecuteContextImpl<'e> {
     type TaskGuardImpl = TaskGuardImpl<'e>;
 
-    fn child_context<'l, 'r>(&'r self) -> impl ChildExecuteContext<'l> + use<'e, 'l, B>
+    fn child_context<'l, 'r>(&'r self) -> impl ChildExecuteContext<'l> + use<'e, 'l>
     where
         'e: 'l,
     {
@@ -937,11 +934,6 @@ impl<'e, B: BackingStorage> ExecuteContext<'e> for ExecuteContextImpl<'e, B> {
         )
     }
 
-    fn schedule(&mut self, task_id: TaskId, parent_priority: TaskPriority) {
-        let task = self.task(task_id, TaskDataCategory::All);
-        self.schedule_task(task, parent_priority);
-    }
-
     fn schedule_task(&self, task: Self::TaskGuardImpl, parent_priority: TaskPriority) {
         let priority = if task.has_output() {
             TaskPriority::invalidation(
@@ -963,10 +955,6 @@ impl<'e, B: BackingStorage> ExecuteContext<'e> for ExecuteContextImpl<'e, B> {
 
     fn operation_suspend_point<T: Clone + Into<AnyOperation>>(&mut self, op: &T) {
         self.backend.operation_suspend_point(|| op.clone().into());
-    }
-
-    fn suspending_requested(&self) -> bool {
-        self.backend.suspending_requested()
     }
 
     fn should_track_dependencies(&self) -> bool {
@@ -1016,12 +1004,12 @@ impl<'e, B: BackingStorage> ExecuteContext<'e> for ExecuteContextImpl<'e, B> {
     }
 }
 
-struct ChildExecuteContextImpl<'e, B: BackingStorage> {
-    backend: &'e TurboTasksBackendInner<B>,
-    turbo_tasks: &'e TurboTasks<TurboTasksBackend<B>>,
+struct ChildExecuteContextImpl<'e> {
+    backend: &'e TurboTasksBackend,
+    turbo_tasks: &'e TurboTasks<TurboTasksBackend>,
 }
 
-impl<'e, B: BackingStorage> ChildExecuteContext<'e> for ChildExecuteContextImpl<'e, B> {
+impl<'e> ChildExecuteContext<'e> for ChildExecuteContextImpl<'e> {
     fn create(self) -> impl ExecuteContext<'e> {
         ExecuteContextImpl {
             backend: self.backend,
@@ -1135,15 +1123,6 @@ pub trait TaskGuard: Debug + TaskStorageAccessors {
                 }
             }
         })
-    }
-    fn dirtyness_and_session(&self) -> Option<(Dirtyness, bool)> {
-        let dirtyness = self.get_dirty()?;
-        match dirtyness {
-            Dirtyness::Dirty { .. } => Some((dirtyness.clone(), false)),
-            Dirtyness::SessionDependent => {
-                Some((Dirtyness::SessionDependent, self.current_session_clean()))
-            }
-        }
     }
     /// Returns (is_dirty, is_clean_in_current_session)
     fn dirty_state(&self) -> (bool, bool) {
@@ -1314,6 +1293,7 @@ pub trait TaskGuard: Debug + TaskStorageAccessors {
         let task_id = self.id();
         format!("{task_id:?} {task_type}")
     }
+    #[cfg(feature = "trace_task_dirty")]
     fn get_task_name(&self) -> String {
         let task_type = self.get_task_type().to_owned();
         format!("{task_type}")

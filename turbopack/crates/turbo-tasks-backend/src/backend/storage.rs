@@ -89,14 +89,6 @@ impl Display for EvictionCounts {
 }
 
 impl TaskDataCategory {
-    pub fn into_specific(self) -> SpecificTaskDataCategory {
-        match self {
-            TaskDataCategory::Meta => SpecificTaskDataCategory::Meta,
-            TaskDataCategory::Data => SpecificTaskDataCategory::Data,
-            TaskDataCategory::All => unreachable!(),
-        }
-    }
-
     pub fn includes_data(self) -> bool {
         matches!(self, TaskDataCategory::Data | TaskDataCategory::All)
     }

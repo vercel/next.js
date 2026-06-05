@@ -10,7 +10,6 @@ use std::{
 };
 
 use anyhow::Result;
-use either::Either;
 use napi::{Env, JsFunction, bindgen_prelude::Promise, threadsafe_function::ThreadsafeFunction};
 use napi_derive::napi;
 use owo_colors::OwoColorize;
@@ -22,13 +21,11 @@ use turbo_tasks::{
     message_queue::{CompilationEvent, Severity},
 };
 use turbo_tasks_backend::{
-    BackendOptions, GitVersionInfo, NoopBackingStorage, StartupCacheState, TurboBackingStorage,
-    TurboTasksBackend, db_invalidation::invalidation_reasons, noop_backing_storage,
-    turbo_backing_storage,
+    BackendOptions, GitVersionInfo, StartupCacheState, TurboTasksBackend,
+    db_invalidation::invalidation_reasons, noop_backing_storage, turbo_backing_storage,
 };
 
-pub type NextTurboTasks =
-    Arc<TurboTasks<TurboTasksBackend<Either<TurboBackingStorage, NoopBackingStorage>>>>;
+pub type NextTurboTasks = Arc<TurboTasks<TurboTasksBackend>>;
 
 /// A value often wrapped in [`napi::bindgen_prelude::External`] that retains the [TurboTasks]
 /// instance used by Next.js, and [various napi helpers that are passed to us from
@@ -260,7 +257,7 @@ pub fn create_turbo_tasks(
                     .is_ok_and(|v| v == "1" || v == "true"),
                 ..Default::default()
             },
-            Either::Left(backing_storage),
+            backing_storage,
         ));
         if let StartupCacheState::Invalidated { reason_code } = cache_state {
             tt.send_compilation_event(Arc::new(StartupCacheInvalidationEvent { reason_code }));
@@ -273,7 +270,7 @@ pub fn create_turbo_tasks(
                 dependency_tracking,
                 ..Default::default()
             },
-            Either::Right(noop_backing_storage()),
+            noop_backing_storage(),
         ))
     })
 }
