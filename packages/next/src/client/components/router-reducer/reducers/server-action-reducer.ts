@@ -67,7 +67,7 @@ import {
   type ActionRevalidationKind,
 } from '../../../../shared/lib/action-revalidation-kind'
 import { isExternalURL } from '../../app-router-utils'
-import { FreshnessPolicy } from '../ppr-navigations'
+import { FreshnessPolicy, getCurrentNavigationLock } from '../ppr-navigations'
 import { processFetch } from '../fetch-server-response'
 import {
   invalidateBfCache,
@@ -496,6 +496,7 @@ export function serverActionReducer(
             false // hasDynamicRewrite
           )
         }
+        const navigationLock = getCurrentNavigationLock()
 
         return navigateToKnownRoute(
           now,
@@ -511,6 +512,7 @@ export function serverActionReducer(
           nextUrl,
           scrollBehavior,
           navigateType,
+          navigationLock,
           null,
           // Server action redirects don't use route prediction - we already
           // have the route tree from the server response. If a mismatch occurs

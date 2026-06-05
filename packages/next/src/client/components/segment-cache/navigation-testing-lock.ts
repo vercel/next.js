@@ -20,18 +20,29 @@ import { refreshOnInstantNavigationUnlock } from '../use-action-queue'
 
 type InstantNavCookieState = 'empty' | 'pending' | 'mpa' | 'spa'
 
-function parseCookieValue(raw: string): InstantNavCookieState {
+type ParsedInstantNavCookie = {
+  state: InstantNavCookieState
+  id: string | null
+}
+
+function parseCookie(raw: string): ParsedInstantNavCookie {
   if (raw === '') {
-    return 'empty'
+    return { state: 'empty', id: null }
   }
   try {
     const parsed = JSON.parse(raw)
-    if (Array.isArray(parsed) && parsed.length >= 3) {
-      const rawState = parsed[2]
-      return rawState === null ? 'mpa' : 'spa'
+    if (Array.isArray(parsed)) {
+      const id = typeof parsed[1] === 'string' ? parsed[1] : null
+      if (parsed[0] === 0) {
+        return { state: 'pending', id }
+      }
+      if (parsed.length >= 3) {
+        const rawState = parsed[2]
+        return { state: rawState === null ? 'mpa' : 'spa', id }
+      }
     }
   } catch {}
-  return 'pending'
+  return { state: 'pending', id: null }
 }
 
 function writeCookieValue(value: InstantCookie): void {
@@ -69,6 +80,7 @@ function writeCookieValue(value: InstantCookie): void {
 type NavigationLockState = {
   promise: Promise<void>
   resolve: () => void
+  pendingId: string | null
   // The pre-lock `window.fetch`, captured at `acquireLock` time and
   // restored at `releaseLock`. Internal Next.js code reads this via
   // `getPreLockFetch` to bypass the override we install on `window.fetch`
@@ -82,7 +94,7 @@ export function getPreLockFetch(): typeof fetch | null {
   return lockState !== null ? lockState.fetch : null
 }
 
-function acquireLock(): void {
+function acquireLock(pendingId: string | null = null): void {
   if (lockState !== null) {
     return
   }
@@ -90,7 +102,7 @@ function acquireLock(): void {
   const promise = new Promise<void>((r) => {
     resolve = r
   })
-  lockState = { promise, resolve: resolve!, fetch: window.fetch }
+  lockState = { promise, resolve: resolve!, pendingId, fetch: window.fetch }
 
   // Install the fetch blocker. We only intercept `window.fetch` for the
   // duration of the lock so that — outside of a testing scope — user-
@@ -184,14 +196,17 @@ export function startListeningForInstantNavigationCookie(): void {
     cookieStore.addEventListener('change', (event: CookieChangeEvent) => {
       for (const cookie of event.changed) {
         if (cookie.name === NEXT_INSTANT_TEST_COOKIE) {
-          const state = parseCookieValue(cookie.value ?? '')
+          const { state, id } = parseCookie(cookie.value ?? '')
 
           if (state === 'pending') {
             // External actor starting a new lock scope.
             if (lockState !== null) {
+              if (lockState.pendingId === id && id !== null) {
+                return
+              }
               releaseLock()
             }
-            acquireLock()
+            acquireLock(id)
           }
           // Captured value (our own transition) or empty. Ignore.
           return
@@ -248,13 +263,14 @@ export function isNavigationLocked(): boolean {
     const target = NEXT_INSTANT_TEST_COOKIE + '='
     for (const segment of allCookies.split(';')) {
       const trimmed = segment.trim()
-      if (
-        trimmed.startsWith(target) &&
-        parseCookieValue(trimmed.slice(target.length)) === 'pending'
-      ) {
+      if (trimmed.startsWith(target)) {
+        const { state, id } = parseCookie(trimmed.slice(target.length))
+        if (state !== 'pending') {
+          continue
+        }
         // The cookie was set by an external actor but the change event was not
         // yet dispatched. Acquire the lock synchronously.
-        acquireLock()
+        acquireLock(id)
         return true
       }
     }
