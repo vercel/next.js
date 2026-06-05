@@ -1,9 +1,9 @@
 const cache = new Map()
-const { add } = require('lodash')
+const isEven = require('is-even')
 
 module.exports = class CacheHandler {
   constructor() {
-    console.log('initialized custom cache-handler: ', add(1, 2))
+    console.log('initialized custom cache-handler: ', isEven(3))
   }
 
   async get(key, ctx) {

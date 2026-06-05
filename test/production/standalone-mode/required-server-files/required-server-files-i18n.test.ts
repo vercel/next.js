@@ -33,7 +33,7 @@ describe('required server files i18n', () => {
       },
     },
     dependencies: {
-      lodash: '4.18.1',
+      'is-even': '1.0.0',
     },
     installCommand: 'pnpm i',
     buildCommand: 'pnpm build',

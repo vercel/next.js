@@ -58,7 +58,7 @@ describe.skip('required server files app router', () => {
       output: 'standalone',
     },
     dependencies: {
-      lodash: '4.18.1',
+      'is-even': '1.0.0',
     },
   })
 

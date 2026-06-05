@@ -73,7 +73,7 @@ describe('required server files', () => {
       },
     },
     dependencies: {
-      lodash: '4.18.1',
+      'is-even': '1.0.0',
     },
     skipStart: true,
   })
