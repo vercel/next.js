@@ -1484,9 +1484,10 @@ export function getNavigationDisallowedDynamicReasons(
           `\n\nThis segment was dropped from rendering. Issues that would prevent instant navigation will go undetected.` +
           `\n\n${label}:\n${missingFiles.map((p) => `  ${p}`).join('\n')}` +
           `\n\nWays to fix this:` +
-          `\n  - Render the dropped segment` +
-          `\n  - Set \`export const instant = false\` on the dropped segment to skip validation` +
-          `\n\nLearn more: https://nextjs.org/docs/messages/unrendered-instant-segment`
+          `\n  - [render] Render the dropped segment` +
+          `\n    https://nextjs.org/docs/messages/instant-unrendered-segment#render-the-dropped-segment` +
+          `\n  - [ignore] Set \`export const unstable_instant = false\` on the dropped segment to skip validation` +
+          `\n    https://nextjs.org/docs/messages/instant-unrendered-segment#skip-validation-on-the-segment`
       }
       const error = new Error(message)
       return error

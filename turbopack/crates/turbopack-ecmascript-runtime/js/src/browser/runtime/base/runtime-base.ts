@@ -20,21 +20,8 @@ declare var TURBOPACK_NEXT_CHUNK_URLS: ChunkUrl[] | undefined
 
 // Injected by rust code
 declare var CHUNK_BASE_PATH: string
-/**
- * Custom base path for Web Worker URLs (the entrypoint and the module
- * chunks loaded inside the worker). Mirrors webpack's
- * `output.workerPublicPath`. `null` means "use CHUNK_BASE_PATH"; an empty
- * string is a literal empty prefix (not a fallback).
- *
- * The worker's bootstrap rejects module chunks whose origin differs from
- * the worker's own origin, so the override has to apply to both — using
- * `WORKER_BASE_PATH` only for the entrypoint would leave the worker unable
- * to load any chunks when `CHUNK_BASE_PATH` is on a different origin.
- */
-declare var WORKER_BASE_PATH: string | null
 declare var ASSET_SUFFIX: string
 declare var CROSS_ORIGIN: 'anonymous' | 'use-credentials' | null
-declare var WORKER_FORWARDED_GLOBALS: string[]
 
 interface TurbopackBrowserBaseContext<M> extends TurbopackBaseContext<M> {
   R: ResolvePathFromModule
@@ -316,62 +303,6 @@ function exportUrl(
 browserContextPrototype.q = exportUrl
 
 /**
- * Creates a worker by instantiating the given WorkerConstructor with the
- * appropriate URL and options.
- *
- * The entrypoint is a pre-compiled worker runtime file. The params configure
- * which module chunks to load and which module to run as the entry point.
- *
- * The params are a JSON array of the following structure:
- * `[TURBOPACK_NEXT_CHUNK_URLS, ASSET_SUFFIX, ...WORKER_FORWARDED_GLOBALS values]`
- *
- * @param WorkerConstructor The Worker or SharedWorker constructor
- * @param entrypoint URL path to the worker entrypoint chunk
- * @param moduleChunks list of module chunk paths to load
- * @param workerOptions options to pass to the Worker constructor (optional)
- */
-function createWorker(
-  WorkerConstructor: { new (url: URL, options?: object): Worker },
-  entrypoint: ChunkPath,
-  moduleChunks: ChunkPath[],
-  workerOptions?: object
-): Worker {
-  const isSharedWorker = WorkerConstructor.name === 'SharedWorker'
-
-  // `WORKER_BASE_PATH` overrides `CHUNK_BASE_PATH` for the entrypoint and the
-  // module chunks loaded inside the worker, keeping them same-origin to each
-  // other when `CHUNK_BASE_PATH` (= `assetPrefix`) is a cross-origin CDN.
-  // `null` falls back; an empty string is treated as a literal empty prefix.
-  const workerBasePath = WORKER_BASE_PATH ?? CHUNK_BASE_PATH
-
-  const chunkUrls = moduleChunks
-    .map((chunk) => getChunkRelativeUrl(chunk, workerBasePath))
-    .reverse()
-  const params: unknown[] = [chunkUrls, ASSET_SUFFIX]
-  for (const globalName of WORKER_FORWARDED_GLOBALS) {
-    params.push((globalThis as Record<string, unknown>)[globalName])
-  }
-
-  const url = new URL(
-    getChunkRelativeUrl(entrypoint, workerBasePath),
-    location.origin
-  )
-  const paramsJson = JSON.stringify(params)
-  if (isSharedWorker) {
-    url.searchParams.set('params', paramsJson)
-  } else {
-    url.hash = '#params=' + encodeURIComponent(paramsJson)
-  }
-
-  // Remove type: "module" from options since our worker entrypoint is not a module
-  const options = workerOptions
-    ? { ...workerOptions, type: undefined }
-    : undefined
-  return new WorkerConstructor(url, options)
-}
-browserContextPrototype.b = createWorker
-
-/**
  * Instantiates a runtime module.
  */
 function instantiateRuntimeModule(
@@ -392,6 +323,15 @@ function getChunkRelativeUrl(
     .map((p) => encodeURIComponent(p))
     .join('/')}${ASSET_SUFFIX}` as ChunkUrl
 }
+
+// Shared runtime primitives consumed by the bundled `createWorker` helper,
+// exposed as `__turbopack_chunk_base_path__` and `__turbopack_chunk_asset_suffix__`.
+browserContextPrototype.b = CHUNK_BASE_PATH as ChunkBasePath
+browserContextPrototype.X = ASSET_SUFFIX as AssetSuffix
+
+// Shared runtime primitive: build a chunk's URL. Used by the bundled worker
+// helper and the WASM helper, exposed as `__turbopack_chunk_relative_url__`.
+browserContextPrototype.h = getChunkRelativeUrl
 
 /**
  * Return the ChunkPath from a ChunkScript.

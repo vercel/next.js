@@ -790,8 +790,24 @@ function pingRootRouteTree(
             return PrefetchTaskExitStatus.InProgress
           }
 
-          if (tree.prefetchHints & PrefetchHint.SubtreeHasRuntimePrefetch) {
-            // The route has segments that require a runtime prefetch.
+          // We may need to do a runtime prefetch for one or more segments.
+          // Before checking, we can do some fast checks to bail out of this
+          // branch early.
+          if (
+            // Do any segments have runtime prefetching configured? This is
+            // sent by the server as part of the prefetch hints.
+            tree.prefetchHints & PrefetchHint.SubtreeHasRuntimePrefetch ||
+            // Are we in the Shell prefetching phase? The Shell phase is allowed
+            // to perform runtime prefetches even without an explicit opt-in
+            // because the Shell for a given route is reusable across all given
+            // params, by definition. So it does not lead to an explosion in
+            // prefetching costs.
+            // TODO: In the future, the server could emit a hint to tell us
+            // *not* to prefetch via a runtime request, via build-time
+            // heuristics, like if no `cookies()` call was detected. We'll leave
+            // this optimization for later.
+            task.phase === PrefetchPhase.Shell
+          ) {
             const runtimeStrategy =
               task.phase === PrefetchPhase.Shell
                 ? FetchStrategy.RuntimeShell
@@ -1073,7 +1089,22 @@ function pingNewPartOfCacheComponentsTree(
   // shared layouts.) Segments in here default to being prefetched statically.
   // However, if the server instructs us to, we may switch to a runtime
   // prefetch instead. Traverse the tree and check at each segment.
-  if (tree.prefetchHints & PrefetchHint.HasRuntimePrefetch) {
+  //
+  // In the Shell phase, every new segment is treated as a runtime-prefetch
+  // boundary regardless of `HasRuntimePrefetch`, because the Shell is
+  // reusable across all params by definition (see the matching comment in
+  // the main scheduler loop).
+  //
+  // TODO: If we're reasonably confident that the shell does not depend on
+  // session data (cookies), we should attempt to prefetch the shell
+  // statically, instead of via a runtime prefetch. This is an optimization to skip a
+  // runtime shell request. For fully static pages, it doesn't matter since
+  // server will respond to even a runtime request with a static response. For
+  // a partially static page, we can send down a hint from the server.
+  if (
+    tree.prefetchHints & PrefetchHint.HasRuntimePrefetch ||
+    task.phase === PrefetchPhase.Shell
+  ) {
     if (task.spawnedRuntimePrefetches === null) {
       task.spawnedRuntimePrefetches = new Set([tree.requestKey])
     } else {

@@ -7,7 +7,7 @@ use anyhow::{Context, Result, anyhow, bail};
 use browserslist::Distrib;
 use swc_core::ecma::preset_env::{Version, Versions};
 use turbo_rcstr::{RcStr, rcstr};
-use turbo_tasks::{ResolvedVc, TaskInput, Vc};
+use turbo_tasks::{ResolvedVc, Vc};
 use turbo_tasks_env::ProcessEnv;
 use turbo_tasks_fs::FileSystemPathOption;
 
@@ -16,7 +16,7 @@ use crate::target::CompileTarget;
 static DEFAULT_NODEJS_VERSION: &str = "18.0.0";
 
 #[turbo_tasks::value]
-#[derive(Clone, Copy, Default, Hash, TaskInput, Debug)]
+#[derive(Clone, Copy, Default, Hash, Debug)]
 pub enum Rendering {
     #[default]
     None,
@@ -53,8 +53,8 @@ impl Environment {
     }
 }
 
-#[turbo_tasks::value]
-#[derive(Debug, Hash, Clone, Copy, TaskInput)]
+#[turbo_tasks::value(task_input)]
+#[derive(Debug, Hash, Clone, Copy)]
 pub enum ExecutionEnvironment {
     NodeJsBuildTime(ResolvedVc<NodeJsEnvironment>),
     NodeJsLambda(ResolvedVc<NodeJsEnvironment>),

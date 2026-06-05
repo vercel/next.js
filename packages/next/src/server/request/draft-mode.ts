@@ -20,7 +20,10 @@ import { StaticGenBailoutError } from '../../client/components/static-generation
 import { DynamicServerError } from '../../client/components/hooks-server-context'
 import { InvariantError } from '../../shared/lib/invariant-error'
 import { ReflectAdapter } from '../web/spec-extension/adapters/reflect'
-import { applyOwnerStack, getRuntimeStage } from '../dynamic-rendering-utils'
+import {
+  applyOwnerStack,
+  getSessionDataStage,
+} from '../dynamic-rendering-utils'
 
 export function draftMode(): Promise<DraftMode> {
   const callingExpression = 'draftMode'
@@ -37,7 +40,7 @@ export function draftMode(): Promise<DraftMode> {
       const { stagedRendering } = workUnitStore
       if (stagedRendering) {
         return stagedRendering.delayUntilStage(
-          getRuntimeStage(stagedRendering),
+          getSessionDataStage(stagedRendering),
           'draftMode',
           new DraftMode(workUnitStore.draftMode)
         )
