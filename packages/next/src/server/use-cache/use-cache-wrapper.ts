@@ -70,6 +70,7 @@ import {
   createHangingInputAbortSignal,
   postponeWithTracking,
   throwToInterruptStaticGeneration,
+  trackSessionDataAccessWhenChained,
 } from '../app-render/dynamic-rendering'
 import {
   makeErroringSearchParamsForUseCache,
@@ -1535,12 +1536,25 @@ export async function cache(
 
     switch (workUnitStore.type) {
       // "use cache: private" is dynamic in prerendering contexts.
-      case 'prerender':
+      case 'prerender': {
+        const { sessionDataTracking } = workUnitStore
+        if (sessionDataTracking) {
+          return trackSessionDataAccessWhenChained(
+            sessionDataTracking,
+            makeHangingPromise(
+              workUnitStore.renderSignal,
+              workStore.route,
+              expression
+            )
+          )
+        }
+
         return makeHangingPromise(
           workUnitStore.renderSignal,
           workStore.route,
           expression
         )
+      }
       case 'prerender-ppr':
         return postponeWithTracking(
           workStore.route,

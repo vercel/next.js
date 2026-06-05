@@ -17,6 +17,7 @@ import {
   postponeWithTracking,
   throwToInterruptStaticGeneration,
   trackDynamicDataInDynamicRender,
+  trackSessionDataAccessWhenChained,
 } from '../app-render/dynamic-rendering'
 import { StaticGenBailoutError } from '../../client/components/static-generation-bailout'
 import {
@@ -103,8 +104,16 @@ export function headers(): Promise<ReadonlyHeaders> {
 
     if (workUnitStore) {
       switch (workUnitStore.type) {
-        case 'prerender':
+        case 'prerender': {
+          const { sessionDataTracking } = workUnitStore
+          if (sessionDataTracking) {
+            return trackSessionDataAccessWhenChained(
+              sessionDataTracking,
+              makeHangingHeaders(workStore, workUnitStore)
+            )
+          }
           return makeHangingHeaders(workStore, workUnitStore)
+        }
         case 'prerender-client':
         case 'validation-client':
           const exportName = '`headers`'
@@ -146,6 +155,8 @@ export function headers(): Promise<ReadonlyHeaders> {
         case 'private-cache':
           // Private caches are delayed until the runtime stage in use-cache-wrapper,
           // so we don't need an additional delay here.
+          // We consider accessing a private cache itself to be a session data access,
+          // so we don't need to further track headers() here.
           return makeUntrackedHeaders(workUnitStore.headers)
         case 'request':
           trackDynamicDataInDynamicRender(workUnitStore)

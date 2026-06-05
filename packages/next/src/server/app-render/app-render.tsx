@@ -166,6 +166,7 @@ import {
   createInstantValidationState,
   type NavigationValidationResult,
   throwIfSyncIOUsed,
+  createSessionDataTrackingState,
 } from './dynamic-rendering'
 import { logBuildDebugHint } from './blocking-route-messages'
 import {
@@ -7732,6 +7733,7 @@ async function prerenderToStream(
         hmrRefreshHash: undefined,
         // We don't track vary params during initial prerender, only the final one
         varyParamsAccumulator: null,
+        sessionDataTracking: null,
       }
 
       // We're not going to use the result of this render because the only time it could be used
@@ -7766,6 +7768,7 @@ async function prerenderToStream(
         hmrRefreshHash: undefined,
         // We don't track vary params during initial prerender, only the final one
         varyParamsAccumulator: null,
+        sessionDataTracking: null,
       })
 
       const initialPrerenderOptions = {
@@ -7981,6 +7984,9 @@ async function prerenderToStream(
       const finalServerRenderController = new AbortController()
 
       const varyParamsAccumulator = createResponseVaryParamsAccumulator()
+      const sessionDataTracking = appShells
+        ? createSessionDataTrackingState()
+        : null
 
       const finalStageController = new StagedRenderingController({
         abortSignal: finalServerRenderController.signal,
@@ -8015,6 +8021,7 @@ async function prerenderToStream(
         resumeDataCache,
         hmrRefreshHash: undefined,
         varyParamsAccumulator,
+        sessionDataTracking,
       }
 
       const shellByteLengthDeferred = appShells
@@ -8062,6 +8069,7 @@ async function prerenderToStream(
         resumeDataCache,
         hmrRefreshHash: undefined,
         varyParamsAccumulator,
+        sessionDataTracking,
       })
 
       if (staleTimeIterable !== undefined) {
@@ -8077,6 +8085,7 @@ async function prerenderToStream(
       const collectedChunksByStage = createStageChunksAccumulator()
       let debugEndTime: number | undefined = undefined
       let didLinkDataUnblockNewContent = false
+      let shellUsedSessionData: boolean | null = null
 
       await runInSequentialTasks(
         async () => {
@@ -8142,6 +8151,12 @@ async function prerenderToStream(
           )
         },
         () => {
+          // We've finished rendering the shell. Check if session data was accessed.
+          if (sessionDataTracking) {
+            shellUsedSessionData = sessionDataTracking.didAccessSessionData
+            sessionDataTracking.isEnabled = false // Stop instrumenting promises after this point
+          }
+
           finalStageController.advanceStage(RenderStage.Static)
         },
         async () => {
@@ -8243,7 +8258,8 @@ async function prerenderToStream(
           ComponentMod,
           renderOpts,
           ctx.pagePath,
-          metadata
+          metadata,
+          shellUsedSessionData
         )
         if (appShells) {
           // If link data (static params) unblocked new content, then the shell has to be partial.
@@ -8592,7 +8608,8 @@ async function prerenderToStream(
           ComponentMod,
           renderOpts,
           ctx.pagePath,
-          metadata
+          metadata,
+          null
         )
       }
 
@@ -8804,7 +8821,8 @@ async function prerenderToStream(
           ComponentMod,
           renderOpts,
           ctx.pagePath,
-          metadata
+          metadata,
+          null
         )
       }
 
@@ -8977,6 +8995,7 @@ async function prerenderToStream(
         resumeDataCache: originalResumeDataCache,
         hmrRefreshHash: undefined,
         varyParamsAccumulator: null,
+        sessionDataTracking: null,
       }
 
       const errorRSCPayload = await workUnitAsyncStorage.run(
@@ -9334,7 +9353,8 @@ async function prerenderToStream(
           ComponentMod,
           renderOpts,
           ctx.pagePath,
-          metadata
+          metadata,
+          null
         )
       }
 
@@ -9523,7 +9543,8 @@ async function collectSegmentData(
   ComponentMod: AppPageModule,
   renderOpts: RenderOpts,
   pagePath: string,
-  metadata: AppPageRenderResultMetadata
+  metadata: AppPageRenderResultMetadata,
+  shellUsedSessionData: boolean | null
 ): Promise<void> {
   // Per-segment prefetch data
   //
@@ -9615,6 +9636,7 @@ async function collectSegmentData(
     renderOpts.cacheComponents,
     fullPageDataBuffer,
     staleTime,
+    shellUsedSessionData,
     clientModules,
     serverConsumerManifest,
     Boolean(renderOpts.experimental.prefetchInlining),

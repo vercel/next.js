@@ -45,6 +45,7 @@ export type RootTreePrefetch = {
   buildId?: string
   tree: TreePrefetch
   staleTime: number
+  sessionShell?: boolean
 }
 
 export type TreePrefetchParam = {
@@ -181,6 +182,7 @@ export async function collectSegmentData(
   isCacheComponentsEnabled: boolean,
   fullPageDataBuffer: Buffer,
   staleTime: number,
+  shellUsedSessionData: boolean | null,
   clientModules: ManifestNode,
   serverConsumerManifest: any,
   prefetchInlining: boolean,
@@ -219,17 +221,24 @@ export async function collectSegmentData(
   // The promises for these tasks are pushed to a mutable array that we will
   // await once the route tree is fully rendered.
   const segmentTasks: Array<Promise<[SegmentRequestKey, Buffer]>> = []
+
+  // RootTreePrefetch is not a valid return type for a React component, but
+  // we need to use a component so that when we decode the original stream
+  // inside of it, the side effects are transferred to the new stream.
+  // (note: we're using a cast instead of a `ts-expect-error` directive,
+  // because a directive also hides errors from incorrect/missing props)
+  const PrefetchTreeDataAsValidComponent = PrefetchTreeData as (
+    props: Parameters<typeof PrefetchTreeData>[0]
+  ) => Promise<any>
+
   const { prelude: treeStream } = await prerender(
-    // RootTreePrefetch is not a valid return type for a React component, but
-    // we need to use a component so that when we decode the original stream
-    // inside of it, the side effects are transferred to the new stream.
-    // @ts-expect-error
-    <PrefetchTreeData
+    <PrefetchTreeDataAsValidComponent
       isClientParamParsingEnabled={isCacheComponentsEnabled}
       fullPageDataBuffer={fullPageDataBuffer}
       serverConsumerManifest={serverConsumerManifest}
       clientModules={clientModules}
       staleTime={staleTime}
+      shellUsedSessionData={shellUsedSessionData}
       segmentTasks={segmentTasks}
       onCompletedProcessingRouteTree={onCompletedProcessingRouteTree}
       prefetchInlining={prefetchInlining}
@@ -661,6 +670,7 @@ async function PrefetchTreeData({
   serverConsumerManifest,
   clientModules,
   staleTime,
+  shellUsedSessionData,
   segmentTasks,
   onCompletedProcessingRouteTree,
   prefetchInlining,
@@ -671,6 +681,7 @@ async function PrefetchTreeData({
   serverConsumerManifest: any
   clientModules: ManifestNode
   staleTime: number
+  shellUsedSessionData: boolean | null
   segmentTasks: Array<Promise<[SegmentRequestKey, Buffer]>>
   onCompletedProcessingRouteTree: () => void
   prefetchInlining: boolean
@@ -764,6 +775,12 @@ async function PrefetchTreeData({
   if (buildId) {
     treePrefetch.buildId = buildId
   }
+  // We currently can't track whether a given segment needs session data,
+  // so we only set this bit for the whole route.
+  if (shellUsedSessionData === true) {
+    treePrefetch.sessionShell = true
+  }
+
   return treePrefetch
 }
 
