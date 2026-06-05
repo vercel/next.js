@@ -132,4 +132,57 @@ describe('App Shell prefetching', () => {
         .click()
     }, [{ includes: 'Post 2' }])
   })
+
+  it('extracts the App Shell from a fully-static prerender response', async () => {
+    // The /static-posts/[id] route is fully static: all params are known via
+    // `generateStaticParams` and the page accesses no other dynamic data, so
+    // each URL is prerendered at build time. When the client prefetches one
+    // URL, it receives the full prerender; the client extracts the shell
+    // prefix (using the byte offset in the response) and caches it at the
+    // Fallback vary path, so that navigations to OTHER URLs in the same
+    // route still get an instant shell before the per-URL content arrives.
+    let page: Playwright.Page
+    const browser = await next.browser('/', {
+      beforePageLoad(p: Playwright.Page) {
+        page = p
+      },
+    })
+    const act = createRouterAct(page)
+
+    // Reveal the LinkAccordion for /static-posts/1. Two prefetch responses
+    // fire: one for the per-segment static prefetch of /static-posts/1
+    // (which contains the resolved page content + the shell above the
+    // params boundary), and one for the runtime shell prefetch (which the
+    // server may return either as a truncated shell or as the full
+    // prerender that the client extracts a shell prefix from). Both
+    // responses contain the "App shell for static posts" substring.
+    await act(async () => {
+      await browser
+        .elementByCss('input[data-link-accordion="/static-posts/1"]')
+        .click()
+    }, [
+      { includes: 'App shell for static posts' },
+      { includes: 'App shell for static posts' },
+    ])
+
+    // Click the link to /static-posts/124 — a different param than what
+    // was prefetched, rendered with prefetch={false}. The cached App
+    // Shell should render immediately, before the per-URL navigation
+    // response arrives.
+    await act(async () => {
+      await browser.elementByCss('a[href="/static-posts/124"]').click()
+
+      // While the navigation response is blocked (we're still in the
+      // `act` block), the cached App Shell should already be visible.
+      expect(await browser.elementById('static-shell').text()).toEqual(
+        'App shell for static posts'
+      )
+    })
+
+    // After the outer act unblocks the navigation, the per-URL content
+    // streams in.
+    expect(await browser.elementById('static-content').text()).toEqual(
+      'Static post 124'
+    )
+  })
 })

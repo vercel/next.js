@@ -35,7 +35,7 @@ import {
   markRouteEntryAsDynamicRewrite,
   invalidateRouteCacheEntries,
   getStaleAt,
-  writeStaticStageResponseIntoCache,
+  writePrerenderResponseIntoCache,
   processRuntimePrefetchStream,
   writeDynamicRenderResponseIntoCache,
   EntryStatus,
@@ -1737,6 +1737,9 @@ async function fetchMissingDynamicData(
       await waitForNavigationLock()
     }
 
+    // TODO: Implement Shell extraction as part of Cached Navigations.
+    // Intentionally holding off on doing this until we decide how the Cached
+    // Navigations behavior should work in combination with App Shells.
     if (routeCacheEntry !== null && result.staticStageData !== null) {
       const { response: staticStageResponse, isResponsePartial } =
         result.staticStageData
@@ -1747,8 +1750,9 @@ async function fetchMissingDynamicData(
             result.responseHeaders.get(NEXT_NAV_DEPLOYMENT_ID_HEADER) ??
             staticStageResponse.b
 
-          writeStaticStageResponseIntoCache(
+          writePrerenderResponseIntoCache(
             now,
+            FetchStrategy.PPR,
             staticStageResponse.f,
             buildId,
             staticStageResponse.h,

@@ -22,7 +22,7 @@ import {
   deprecated_requestOptimisticRouteCacheEntry,
   convertRootFlightRouterStateToRouteTree,
   getStaleAt,
-  writeStaticStageResponseIntoCache,
+  writePrerenderResponseIntoCache,
   processRuntimePrefetchStream,
   writeDynamicRenderResponseIntoCache,
   type RouteTree,
@@ -460,8 +460,13 @@ async function navigateToUnknownRoute(
             responseHeaders.get(NEXT_NAV_DEPLOYMENT_ID_HEADER) ??
             staticStageResponse.b
 
-          writeStaticStageResponseIntoCache(
+          // TODO: Implement Shell extraction as part of Cached Navigations.
+          // Intentionally holding off on doing this until we decide how the
+          // Cached Navigations behavior should work in combination with App
+          // Shells.
+          writePrerenderResponseIntoCache(
             now,
+            FetchStrategy.PPR,
             staticStageResponse.f,
             buildId,
             staticStageResponse.h,

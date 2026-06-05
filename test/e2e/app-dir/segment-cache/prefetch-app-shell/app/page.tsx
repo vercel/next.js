@@ -33,6 +33,26 @@ export default function Page() {
           </Link>
         </li>
       </ul>
+
+      <h2>Static posts</h2>
+      <p>
+        These posts are fully prerendered at build time. The same shell concept
+        applies: navigating to a post whose URL was never prefetched should
+        still render an instant shell while the per-URL content loads.
+      </p>
+      <ul>
+        <li>
+          <LinkAccordion href="/static-posts/1">Static post 1</LinkAccordion>
+        </li>
+        <li>
+          <LinkAccordion href="/static-posts/2">Static post 2</LinkAccordion>
+        </li>
+        <li>
+          <Link href="/static-posts/124" prefetch={false}>
+            Unprefetched static post
+          </Link>
+        </li>
+      </ul>
     </main>
   )
 }
