@@ -101,10 +101,12 @@ pub enum ServerContextType {
     },
     Middleware {
         app_dir: Option<FileSystemPath>,
+        /// None if there is no app/ folder
         ecmascript_client_reference_transition_name: Option<RcStr>,
     },
     Instrumentation {
         app_dir: Option<FileSystemPath>,
+        /// None if there is no app/ folder
         ecmascript_client_reference_transition_name: Option<RcStr>,
     },
 }
