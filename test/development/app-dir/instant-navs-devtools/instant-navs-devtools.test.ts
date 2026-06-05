@@ -1,7 +1,14 @@
 import { nextTestSetup, type Playwright } from 'e2e-utils'
 import { retry, toggleDevToolsIndicatorPopover } from 'next-test-utils'
 
-describe('instant-nav-panel', () => {
+/*
+  FIXME: This entire module is flaky on CI. When making changes, remove the
+  .skip and run locally, but add it back before pushing.
+
+  We can re-enable the module on CI when the root cause of the flakiness is
+  determined (#94196).
+*/
+describe.skip('instant-nav-panel', () => {
   const { isNextDev, isTurbopack, next } = nextTestSetup({
     files: __dirname,
   })
@@ -308,8 +315,7 @@ describe('instant-nav-panel', () => {
     return browser
   }
 
-  // FIXME: Skipped due to flakiness. Reenable when fixed (#94196).
-  describe.skip('idle state', () => {
+  describe('idle state', () => {
     it('should open panel in the idle state', async () => {
       const browser = await next.browser('/')
       await clearInstantModeCookie(browser)
@@ -355,8 +361,7 @@ describe('instant-nav-panel', () => {
     })
   })
 
-  // FIXME: Skipped due to flakiness. Reenable when fixed (#94196).
-  describe.skip('awaiting navigation state', () => {
+  describe('awaiting navigation state', () => {
     it('should reset the panel and app when pressing the close button from awaiting navigation', async () => {
       const browser = await next.browser('/')
       await clearInstantModeCookie(browser)
@@ -377,8 +382,7 @@ describe('instant-nav-panel', () => {
     })
   })
 
-  // FIXME: Skipped due to flakiness. Reenable when fixed (#94196).
-  describe.skip('MPA captures', () => {
+  describe('MPA captures', () => {
     it('should show page load state after clicking Start and refreshing', async () => {
       const browser = await next.browser(targetPage)
       await clearInstantModeCookie(browser)
@@ -494,8 +498,7 @@ describe('instant-nav-panel', () => {
     })
   })
 
-  // FIXME: Skipped due to flakiness. Reenable when fixed (#94196).
-  describe.skip('SPA captures', () => {
+  describe('SPA captures', () => {
     it('should show client nav state after clicking Start and navigating', async () => {
       const browser = await openHomeWithTargetPageWarmup()
 
@@ -593,8 +596,7 @@ describe('instant-nav-panel', () => {
     })
   })
 
-  // FIXME: Skipped due to flakiness. Reenable when fixed (#94196).
-  describe.skip('transitions between capture types', () => {
+  describe('transitions between capture types', () => {
     it('should keep the panel in MPA state after capture -> reload and then update to SPA state after client navigation', async () => {
       const browser = await openHomeWithTargetPageWarmup()
 
