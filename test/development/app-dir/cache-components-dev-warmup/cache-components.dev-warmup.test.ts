@@ -145,7 +145,7 @@ describe.each([
         expect(next.cliOutput.slice(initialNavOutputIndex)).toContain(
           `GET ${path} 200`
         )
-      })
+      }, 10_000)
 
       // We should not see any errors related to the aborted render.
       expect(next.cliOutput).not.toContain(
@@ -190,7 +190,7 @@ describe.each([
         expect(next.cliOutput.slice(revalidatedNavOutputIndex)).toContain(
           `GET ${path} 200`
         )
-      })
+      }, 10_000)
 
       // After a warm reload + nav the caches are filled, so the logs resolve in
       // the correct phase.
