@@ -1,0 +1,22 @@
+{
+  "name": "dynamic-io-messy-fixture",
+  "private": true,
+  "version": "0.0.0",
+  "description": "Deliberately-broken Cache Components app — the 'before' for the next-dynamic-io-refactor self-eval. Not a workspace package.",
+  "scripts": {
+    "build": "next build",
+    "dev": "next dev",
+    "start": "next start"
+  },
+  "dependencies": {
+    "next": "canary",
+    "react": "canary",
+    "react-dom": "canary"
+  },
+  "devDependencies": {
+    "@types/node": "latest",
+    "@types/react": "latest",
+    "@types/react-dom": "latest",
+    "typescript": "latest"
+  }
+}

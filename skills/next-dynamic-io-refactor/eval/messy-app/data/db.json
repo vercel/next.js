@@ -1,0 +1,25 @@
+{
+  "products": [
+    { "id": "widget", "name": "Widget", "price": 9 },
+    { "id": "gadget", "name": "Gadget", "price": 19 },
+    { "id": "gizmo", "name": "Gizmo", "price": 29 }
+  ],
+  "posts": [
+    { "slug": "hello-world", "title": "Hello World", "body": "First post." },
+    {
+      "slug": "cache-components",
+      "title": "Cache Components",
+      "body": "Static shells."
+    },
+    {
+      "slug": "dynamic-io",
+      "title": "Solving Dynamic IO",
+      "body": "Push it down."
+    }
+  ],
+  "comments": {
+    "hello-world": [{ "id": 1, "text": "Nice!" }],
+    "cache-components": [{ "id": 2, "text": "Helpful." }],
+    "dynamic-io": [{ "id": 3, "text": "Clear." }]
+  }
+}
