@@ -12,6 +12,7 @@ export type FixCardGroup =
   | 'measure'
   | 'ignore'
   | 'render'
+  | 'server'
 
 export type FixCardIcon =
   | 'align-left'
@@ -40,6 +41,7 @@ export const FIX_CARD_GROUPS: Record<
   measure: { label: 'Measure', color: 'gray', icon: 'timer' },
   ignore: { label: 'Ignore', color: 'red', icon: 'minus-circle' },
   render: { label: 'Render', color: 'gray', icon: 'layout' },
+  server: { label: 'Server', color: 'blue', icon: 'server-stack' },
 }
 
 export type FixCard = {
@@ -144,7 +146,7 @@ const clientHookCards: FixCard[] = [
   {
     id: 'move-the-access-to-the-server',
     title: 'Move the access to the server',
-    group: 'dynamic',
+    group: 'server',
     link: 'https://nextjs.org/docs/messages/blocking-prerender-client-hook#move-the-access-to-the-server',
     snippets: [
       { text: 'async function Page({ searchParams }) {' },

@@ -46,7 +46,7 @@ export class ClientHookDynamicError extends Error {
         `Ways to fix this:\n` +
         `  - [stream] Wrap the Client Component in \`<Suspense fallback={...}>\`\n` +
         `    https://nextjs.org/docs/messages/blocking-prerender-client-hook#wrap-in-or-move-into-suspense\n` +
-        `  - [dynamic] Move the access to the server\n` +
+        `  - [server] Move the access to the server\n` +
         `    https://nextjs.org/docs/messages/blocking-prerender-client-hook#move-the-access-to-the-server\n` +
         `  - [block] Set \`export const unstable_instant = false\` to silence this warning and allow a blocking route\n` +
         `    https://nextjs.org/docs/messages/blocking-prerender-client-hook#allow-blocking-route`
@@ -64,7 +64,7 @@ export class ParamClientHookDynamicError extends Error {
         `Ways to fix this:\n` +
         `  - [stream] Wrap the Client Component in \`<Suspense fallback={...}>\`\n` +
         `    https://nextjs.org/docs/messages/blocking-prerender-client-hook#wrap-in-or-move-into-suspense\n` +
-        `  - [dynamic] Move the access to the server\n` +
+        `  - [server] Move the access to the server\n` +
         `    https://nextjs.org/docs/messages/blocking-prerender-client-hook#move-the-access-to-the-server\n` +
         `  - [block] Set \`export const unstable_instant = false\` to silence this warning and allow a blocking route\n` +
         `    https://nextjs.org/docs/messages/blocking-prerender-client-hook#allow-blocking-route`
