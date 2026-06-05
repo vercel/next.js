@@ -1401,13 +1401,15 @@ export function spawnDynamicRequests(
   // block the navigation, and collect the promises. The next function,
   // `finishNavigationTask`, can await the promises in any order without
   // accidentally introducing a network waterfall.
+  const lockAtRequestStart = getCurrentNavigationLock()
   const primaryRequestPromise = fetchMissingDynamicData(
     task,
     dynamicRequestTree,
     primaryUrl,
     nextUrl,
     freshnessPolicy,
-    routeCacheEntry
+    routeCacheEntry,
+    lockAtRequestStart
   )
 
   const separateRefreshUrls = accumulation.separateRefreshUrls
@@ -1459,7 +1461,8 @@ export function spawnDynamicRequests(
             // hard refresh.
             nextUrl,
             freshnessPolicy,
-            routeCacheEntry
+            routeCacheEntry,
+            lockAtRequestStart
           )
         )
       }
@@ -1697,14 +1700,13 @@ async function fetchMissingDynamicData(
   url: URL,
   nextUrl: string | null,
   freshnessPolicy: FreshnessPolicy,
-  routeCacheEntry: FulfilledRouteCacheEntry | null
+  routeCacheEntry: FulfilledRouteCacheEntry | null,
+  lockAtRequestStart: Promise<void> | null
 ): Promise<{
   exitStatus: NavigationTaskExitStatus
   url: URL
   seed: NavigationSeed | null
 }> {
-  const lockAtRequestStart = getCurrentNavigationLock()
-
   try {
     const result = await fetchServerResponse(url, {
       flightRouterState: dynamicRequestTree,
