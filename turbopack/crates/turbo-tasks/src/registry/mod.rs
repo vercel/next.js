@@ -1,6 +1,7 @@
 use std::{cell::SyncUnsafeCell, num::NonZeroU16, sync::LazyLock};
 
 use anyhow::Error;
+use scattered_collect::slice::ScatteredSlice;
 
 use crate::{
     TraitType, ValueType,
@@ -14,12 +15,13 @@ pub use registry_type::RegistryType;
 
 /// Declare a type as a compile-time-collected registry item.
 ///
-/// Generates pointer-based `Eq`, `PartialEq`, `Hash`, `Ord`, `PartialOrd` impls
-/// and an `inventory::collect!` call for `&'static $ty`.
+/// Generates pointer-based `Eq`, `PartialEq`, `Hash`, `Ord`, `PartialOrd` impls.
+///
+/// The actual link-time gather slice for each registry is declared separately (see
+/// [`FUNCTIONS_SLICE`], [`VALUES_SLICE`], [`TRAITS_SLICE`]) because each needs a distinct
+/// module-level static and a wrapping [`LazyLock`].
 macro_rules! turbo_registry {
     ($name:literal, $ty:ty) => {
-        inventory::collect!(&'static $ty);
-
         impl ::core::cmp::Eq for $ty {}
         impl ::core::cmp::PartialEq for $ty {
             fn eq(&self, other: &$ty) -> bool {
@@ -46,19 +48,72 @@ macro_rules! turbo_registry {
 
 pub(crate) use turbo_registry;
 
+// Link-time gather slices, one per registry. Each item is a `&'static T` reference scattered by
+// the `register_*!` macros below. Unlike `inventory`, these are populated by the linker into a
+// contiguous section in the binary image: the full set is available at process start with no
+// constructors and no ordering. This is what makes forcing the `VALUES` `LazyLock` during the
+// load-time constructor phase safe — the slice is always complete, so we can never observe a
+// partial registry (the bug that the old `inventory::iter` live-linked-list approach had).
+//
+// These are `pub` (not `pub(crate)`): `#[gather]` re-exports each collection's scatter macro with
+// the static's visibility, and the `register_*!` macros — which expand in arbitrary downstream
+// crates — reference the collection as `$crate::<SLICE>` (see those macros below). The data is
+// `#[doc(hidden)]`; only the macro re-export needs to be reachable.
+#[doc(hidden)]
+#[scattered_collect::gather]
+pub static FUNCTIONS_SLICE: ScatteredSlice<&'static NativeFunction>;
+#[doc(hidden)]
+#[scattered_collect::gather]
+pub static VALUES_SLICE: ScatteredSlice<&'static ValueType>;
+#[doc(hidden)]
+#[scattered_collect::gather]
+pub static TRAITS_SLICE: ScatteredSlice<&'static TraitType>;
+
+/// Register a [`NativeFunction`] definition into the link-time [`FUNCTIONS_SLICE`].
 #[macro_export]
 #[doc(hidden)]
-macro_rules! turbo_register {
-    ($name:ident : $ty:ty = $value:expr) => {
-        static $name: $ty = $value;
-        $crate::macro_helpers::inventory_submit! { &$name }
+macro_rules! register_function {
+    ($name:ident = $value:expr) => {
+        static $name: $crate::macro_helpers::NativeFunction = $value;
+        $crate::macro_helpers::scattered_collect::declarative::scatter! {
+            #[scatter($crate::registry::FUNCTIONS_SLICE)]
+            const _: &'static $crate::macro_helpers::NativeFunction = &$name;
+        }
     };
-    ($reg:ty => $name:ident : $ty:ty = $value:expr) => {
-        static $name: $ty = $value;
-        $crate::macro_helpers::inventory_submit! { &$name }
+}
 
-        impl $crate::macro_helpers::RegistryDef<$ty> for $reg {
-            const DEF: &'static $ty = &$name;
+/// Register a [`ValueType`] definition into the link-time [`VALUES_SLICE`], and provide its
+/// `RegistryDef` so the impl macros can recover the `&'static ValueType` for a Vc type.
+#[macro_export]
+#[doc(hidden)]
+macro_rules! register_value {
+    ($reg:ty => $name:ident = $value:expr) => {
+        static $name: $crate::ValueType = $value;
+        $crate::macro_helpers::scattered_collect::declarative::scatter! {
+            #[scatter($crate::registry::VALUES_SLICE)]
+            const _: &'static $crate::ValueType = &$name;
+        }
+
+        impl $crate::macro_helpers::RegistryDef<$crate::ValueType> for $reg {
+            const DEF: &'static $crate::ValueType = &$name;
+        }
+    };
+}
+
+/// Register a [`TraitType`] definition into the link-time [`TRAITS_SLICE`], and provide its
+/// `RegistryDef` so the impl macros can recover the `&'static TraitType` for a `Box<dyn Trait>`.
+#[macro_export]
+#[doc(hidden)]
+macro_rules! register_trait {
+    ($reg:ty => $name:ident = $value:expr) => {
+        static $name: $crate::TraitType = $value;
+        $crate::macro_helpers::scattered_collect::declarative::scatter! {
+            #[scatter($crate::registry::TRAITS_SLICE)]
+            const _: &'static $crate::TraitType = &$name;
+        }
+
+        impl $crate::macro_helpers::RegistryDef<$crate::TraitType> for $reg {
+            const DEF: &'static $crate::TraitType = &$name;
         }
     };
 }
@@ -182,14 +237,8 @@ fn validate_id<T: Registerable>(
     }
 }
 
-static FUNCTIONS: LazyLock<Box<[&'static NativeFunction]>> = LazyLock::new(|| {
-    init_registry(
-        inventory::iter::<&'static NativeFunction>
-            .into_iter()
-            .copied()
-            .collect(),
-    )
-});
+static FUNCTIONS: LazyLock<Box<[&'static NativeFunction]>> =
+    LazyLock::new(|| init_registry(FUNCTIONS_SLICE.iter().copied().collect()));
 
 #[inline]
 pub fn get_native_function(id: FunctionId) -> &'static NativeFunction {
@@ -205,13 +254,8 @@ pub fn validate_function_id(id: FunctionId) -> Option<Error> {
     validate_id(&FUNCTIONS, id)
 }
 
-pub(crate) static VALUES: LazyLock<Box<[&'static ValueType]>> = LazyLock::new(|| {
-    let items = init_registry(
-        inventory::iter::<&'static ValueType>
-            .into_iter()
-            .copied()
-            .collect(),
-    );
+static VALUES: LazyLock<Box<[&'static ValueType]>> = LazyLock::new(|| {
+    let items = init_registry(VALUES_SLICE.iter().copied().collect());
     crate::value_type::register_all_trait_methods(&items);
     items
 });
@@ -224,14 +268,17 @@ pub fn get_value_type_id(value: &'static ValueType) -> ValueTypeId {
 /// Read a `ValueType`'s assigned id directly, without touching `LazyLock`. See
 /// [`get_id_unchecked`] for the safety contract.
 ///
+/// Public because the `value_impl` macro emits calls to it from the `install_vtable` thunk of each
+/// `TraitImplRecord` (which is defined in the downstream crate).
+///
 /// # Safety
 ///
-/// The only legitimate caller is `VTableRegistry::finalize`, which runs inside the `VALUES`
-/// `LazyLock` initializer (via `register_all_trait_methods`), after `init_registry` has
-/// assigned ids. Calling `get_value_type_id` from there would re-enter `LazyLock::force` and
-/// deadlock.
+/// The only legitimate caller is a [`crate::macro_helpers::TraitImplRecord::install_vtable`] thunk,
+/// which runs inside the `VALUES` `LazyLock` initializer (via `register_all_trait_methods`), after
+/// `init_registry` has assigned ids. Calling `get_value_type_id` from there would re-enter
+/// `LazyLock::force` and deadlock.
 #[inline]
-pub(crate) unsafe fn get_value_type_id_unchecked(value: &'static ValueType) -> ValueTypeId {
+pub unsafe fn get_value_type_id_unchecked(value: &'static ValueType) -> ValueTypeId {
     unsafe { get_id_unchecked(value) }
 }
 
@@ -250,14 +297,8 @@ pub(crate) fn trait_type_count() -> usize {
     TRAITS.len()
 }
 
-static TRAITS: LazyLock<Box<[&'static TraitType]>> = LazyLock::new(|| {
-    init_registry(
-        inventory::iter::<&'static TraitType>
-            .into_iter()
-            .copied()
-            .collect(),
-    )
-});
+static TRAITS: LazyLock<Box<[&'static TraitType]>> =
+    LazyLock::new(|| init_registry(TRAITS_SLICE.iter().copied().collect()));
 
 #[inline]
 pub fn get_trait_type_id(trait_type: &'static TraitType) -> TraitTypeId {

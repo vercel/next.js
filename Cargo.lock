@@ -3732,15 +3732,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "inventory"
-version = "0.3.21"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "bc61209c082fbeb19919bee74b176221b27223e27b65d781eb91af24eb1fb46e"
-dependencies = [
- "rustversion",
-]
-
-[[package]]
 name = "io-extras"
 version = "0.18.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -9853,19 +9844,18 @@ dependencies = [
  "bincode 2.0.1",
  "codspeed-criterion-compat",
  "concurrent-queue",
- "ctor 1.0.7",
  "dashmap 6.1.0",
  "either",
  "erased-serde",
  "event-listener",
  "futures",
  "indexmap 2.13.0",
- "inventory",
  "parking_lot",
  "pin-project-lite",
  "rayon",
  "regex",
  "rustc-hash 2.1.1",
+ "scattered-collect",
  "serde",
  "serde_json",
  "shrink-to-fit",

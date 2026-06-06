@@ -15,17 +15,28 @@ pub fn get_trait_type_ident(ident: &Ident) -> Ident {
     )
 }
 
-/// Name of the per-trait `VTableRegistry` static, populated by `#[ctor::ctor]` functions emitted
-/// by each `value_impl` expansion.
+/// Name of the per-trait `VTableRegistry` static, populated during `register_all_trait_methods`
+/// from the link-time `TRAIT_IMPLS_SLICE`.
 pub fn get_trait_vtable_registry_ident(ident: &Ident) -> Ident {
     Ident::new(&format!("__TurboTasksVTableRegistry_{ident}"), ident.span())
 }
 
-/// Name of the `#[ctor::ctor]` function that registers a per-impl vtable into its trait's
-/// registry. Unique per (concrete-type, trait) pair.
-pub fn get_vtable_register_fn_ident(struct_ident: &Ident, trait_ident: &Ident) -> Ident {
+/// Name of the `static` holding the link-time `TraitImplRecord` for one `impl Trait for Concrete`.
+/// Unique per (concrete-type, trait) pair — a named static (rather than an anonymous `const _`) so
+/// that multiple impls emitted in a single proc-macro expansion get distinct symbols.
+///
+/// The type/trait idents are upper-cased so the emitted static satisfies `non_upper_case_globals`
+/// without needing an `#[allow(..)]` attribute on it: the declarative `scatter!` macro mis-parses
+/// items that carry a second attribute after `#[scatter(..)]`, so the scattered static must have
+/// exactly one attribute. Type and trait names are `CamelCase` by convention, so upper-casing the
+/// concatenation keeps it unique in practice.
+pub fn get_trait_impl_record_ident(struct_ident: &Ident, trait_ident: &Ident) -> Ident {
     Ident::new(
-        &format!("__turbo_tasks_vtable_register_{struct_ident}_{trait_ident}"),
+        &format!(
+            "__TURBO_TASKS_TRAIT_IMPL_{}_{}",
+            struct_ident.to_string().to_uppercase(),
+            trait_ident.to_string().to_uppercase(),
+        ),
         trait_ident.span(),
     )
 }

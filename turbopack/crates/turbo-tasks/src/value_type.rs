@@ -13,7 +13,7 @@ use crate::{
     RawVc, SharedReference, TaskPriority, VcValueType,
     dyn_task_inputs::any_as_encode,
     id::TraitTypeId,
-    macro_helpers::{CollectableTraitMethods, NativeFunction},
+    macro_helpers::{NativeFunction, TRAIT_IMPLS_SLICE},
     registry::{RegistryType, get_trait_type_id, trait_type_count, turbo_registry},
     task::shared_reference::TypedSharedReference,
     vc::VcCellMode,
@@ -269,8 +269,12 @@ turbo_registry!("Value", ValueType);
 
 // Called during ValueType registry post_init to register all trait methods.
 // Single-threaded during Lazy init.
+//
+// Iterates the link-time `TRAIT_IMPLS_SLICE` exactly once. The slice is complete at process start
+// (it is gathered by the linker, not built incrementally by constructors), so this can never
+// observe a partial set of trait impls regardless of when the `VALUES` `LazyLock` is first forced.
 pub(crate) fn register_all_trait_methods(_: &[&'static ValueType]) {
-    for entry in inventory::iter::<CollectableTraitMethods> {
+    for entry in TRAIT_IMPLS_SLICE.iter() {
         for (i, impl_method) in entry.methods.iter().enumerate() {
             let trait_method = &entry.trait_type.methods[i];
             if trait_method.is_root != impl_method.is_root {
@@ -292,8 +296,10 @@ pub(crate) fn register_all_trait_methods(_: &[&'static ValueType]) {
         entry
             .value_type
             .register_trait(entry.trait_type, entry.methods);
-        // Reigster all the rust vtables to support into_trait_ref calling stryles
-        (entry.finalize_vtable_registry)();
+        // Install the Rust vtable so `into_trait_ref`-style calls can downcast. The thunk resolves
+        // the value type's id (already assigned by `init_registry` above) and inserts the
+        // compile-time `DynMetadata` into the trait's `VTableRegistry`.
+        (entry.install_vtable)(entry.value_type);
     }
 }
 
