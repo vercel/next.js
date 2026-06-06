@@ -535,16 +535,7 @@ pub struct StaticRcStr(pub &'static StaticPrehashedString);
 #[scattered_collect::gather]
 pub static STATIC_RCSTRS: ScatteredSlice<StaticRcStr>;
 
-/// Submits a `StaticRcStr` into [`STATIC_RCSTRS`] at link time. This lets the `rcstr!` proc macro
-/// emit a single path it can rely on: macros emitted from a proc macro lose access to the proc
-/// macro crate's deps, so the submission bounces through this declarative macro defined where
-/// `scattered_collect` is in scope. `$name` is a unique static ident generated per call site so
-/// each emitted item gets a distinct symbol.
-///
-/// We use the declarative `scattered_collect::declarative::scatter!` form rather than the
-/// `#[scatter(..)]` attribute: the attribute expands to an absolute `::scattered_collect::..` path
-/// that downstream crates (which don't depend on `scattered_collect` directly) can't resolve,
-/// whereas the declarative macro routes through its own `$crate`.
+/// Submits a `StaticRcStr` into [`STATIC_RCSTRS`] at link time.
 #[doc(hidden)]
 #[macro_export]
 macro_rules! __rcstr_static_submit {
