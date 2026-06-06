@@ -11,7 +11,7 @@ export type RequestErrorContext = {
 }
 
 export type InstrumentationOnRequestError = (
-  error: unknown,
+  error: Error & { digest?: string },
   errorRequest: Readonly<{
     path: string
     method: string
