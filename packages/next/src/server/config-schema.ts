@@ -766,7 +766,9 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
       .optional(),
     pageExtensions: z.array(z.string()).min(1).optional(),
     instrumentationClientInject: z.array(z.string()).optional(),
-    partialPrefetching: z.boolean().optional(),
+    partialPrefetching: z
+      .union([z.boolean(), z.literal('unstable_eager')])
+      .optional(),
     poweredByHeader: z.boolean().optional(),
     productionBrowserSourceMaps: z.boolean().optional(),
     reactCompiler: z.union([

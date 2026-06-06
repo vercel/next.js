@@ -1783,8 +1783,12 @@ export interface NextConfig {
    *
    * When `false` or omitted, this does nothing (the legacy behavior, where
    * dynamic data is included in the prefetch).
+   *
+   * `'unstable_eager'` is like `true`, except the default becomes
+   * `'unstable_eager'` instead of `'partial'`: every Link has an implied
+   * prefetch={true}. Internal migration aid; not part of the public API.
    */
-  partialPrefetching?: boolean
+  partialPrefetching?: boolean | 'unstable_eager'
 
   cacheLife?: {
     [profile: string]: {
