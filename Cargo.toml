@@ -368,6 +368,22 @@ webbrowser = "1.0.6"
 [patch.crates-io]
 bincode = { git = "https://github.com/bgw/bincode.git", branch = "bgw/patches" }
 virtue = { git = "https://github.com/bgw/virtue.git", branch = "bgw/fix-generic-default-parsing" }
+# Temporary: fork with a fix for an ELF linker error on empty typed sections (a `#[gather]`
+# `ScatteredSlice` that no binary scatters into would otherwise fail with
+# `undefined symbol: __start__data_link_section_…` under `--gc-sections`). The fix declares the
+# section start/stop encapsulation symbols as weak. Upstream PR pending; drop once released.
+# See https://github.com/lukesandberg/linktime/tree/empty_collections
+#
+# The whole linktime family is patched together so the graph keeps a single copy of each crate
+# (`link-section`/`ctor` rely on sharing one section-collection mechanism; two copies would not
+# interoperate). `ctor` here is the 1.0.x line used by `scattered-collect`; the unrelated `ctor`
+# 0.2.x pulled in by `napi` is a different major and is unaffected.
+ctor = { git = "https://github.com/lukesandberg/linktime.git", branch = "empty_collections" }
+dtor = { git = "https://github.com/lukesandberg/linktime.git", branch = "empty_collections" }
+linktime = { git = "https://github.com/lukesandberg/linktime.git", branch = "empty_collections" }
+linktime-proc-macro = { git = "https://github.com/lukesandberg/linktime.git", branch = "empty_collections" }
+link-section = { git = "https://github.com/lukesandberg/linktime.git", branch = "empty_collections" }
+scattered-collect = { git = "https://github.com/lukesandberg/linktime.git", branch = "empty_collections" }
 # We have to very frequently bump the swc major version of mdxjs-rs
 mdxjs = { git = "https://github.com/vercel-labs/mdxjs-rs-turbopack.git", branch = "turbopack" }
 # Doesn't compile on recent nightly versions because of https://github.com/Michael-F-Bryan/include_dir/pull/117
