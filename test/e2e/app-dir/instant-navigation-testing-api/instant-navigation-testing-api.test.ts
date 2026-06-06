@@ -24,6 +24,7 @@
 
 import { NextInstance, nextTestSetup } from 'e2e-utils'
 import { instant } from '@next/playwright'
+import { createRouterAct } from 'router-act'
 import type * as Playwright from 'playwright'
 import { join } from 'node:path'
 
@@ -38,15 +39,19 @@ import { join } from 'node:path'
 async function openPage(
   next: NextInstance,
   url: string,
-  options?: { cookies?: Array<{ name: string; value: string }> }
+  options?: {
+    cookies?: Array<{ name: string; value: string }>
+    waitForPrefetch?: string
+  }
 ): Promise<Playwright.Page> {
   let page: Playwright.Page
+  let prefetch: Promise<void> | undefined
   await next.browser(url, {
-    beforePageLoad(p) {
+    async beforePageLoad(p) {
       page = p
       if (options?.cookies) {
         const { hostname } = new URL(next.url)
-        p.context().addCookies(
+        await p.context().addCookies(
           options.cookies.map((c) => ({
             ...c,
             domain: hostname,
@@ -54,13 +59,25 @@ async function openPage(
           }))
         )
       }
+      if (options?.waitForPrefetch) {
+        const act = createRouterAct(p)
+        prefetch = act(
+          async () => {
+            await p.waitForFunction(
+              () => (window as any).__NEXT_HYDRATED === true
+            )
+          },
+          { includes: options.waitForPrefetch }
+        )
+      }
     },
   })
+  await prefetch
   return page!
 }
 
 describe('instant-navigation-testing-api', () => {
-  const { next } = nextTestSetup({
+  const { next, isNextDev } = nextTestSetup({
     files: join(__dirname, 'fixtures', 'default'),
     // Skip deployment tests because the exposeTestingApiInProductionBuild flag
     // doesn't exist in the production version of Next.js yet
@@ -94,7 +111,11 @@ describe('instant-navigation-testing-api', () => {
   })
 
   it('renders runtime-prefetched content instantly during navigation', async () => {
-    const page = await openPage(next, '/')
+    const page = await openPage(
+      next,
+      '/',
+      isNextDev ? undefined : { waitForPrefetch: 'myParam: testValue' }
+    )
 
     await instant(page, async () => {
       await page.click('#link-to-runtime-prefetch')

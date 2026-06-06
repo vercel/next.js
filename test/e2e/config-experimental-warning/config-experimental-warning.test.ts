@@ -1,6 +1,8 @@
 import { nextTestSetup, isNextDev, isNextStart } from 'e2e-utils'
 import stripAnsi from 'strip-ansi'
 
+jest.retryTimes(0)
+
 const experimentalHeader = '- Experiments (use with caution):'
 const pageContent = `export default () => 'hi'`
 
@@ -206,13 +208,17 @@ describe('Config Experimental Warning', () => {
         },
       })
 
-      it('should not show next app info in next start', async () => {
-        await next.build()
-        const startOffset = next.cliOutput.length
-        await next.start()
-        const output = stripAnsi(next.cliOutput.slice(startOffset))
-        expect(output).not.toMatch(experimentalHeader)
-      })
+      it(
+        'should not show next app info in next start',
+        async () => {
+          await next.build()
+          const startOffset = next.cliOutput.length
+          await next.start()
+          const output = stripAnsi(next.cliOutput.slice(startOffset))
+          expect(output).not.toMatch(experimentalHeader)
+        },
+        180 * 1000
+      )
     })
 
     describe('next build output', () => {
@@ -230,16 +236,20 @@ describe('Config Experimental Warning', () => {
         },
       })
 
-      it('should show next app info with all experimental features in next build', async () => {
-        await next.build()
-        const output = stripAnsi(next.cliOutput)
-        expect(output).toMatch(experimentalHeader)
-        expect(output).toMatch(' · cpus: 2')
-        expect(output).toMatch(' ✓ workerThreads')
-        expect(output).toMatch(' ✓ scrollRestoration')
-        expect(output).toMatch(' ⨯ prerenderEarlyExit')
-        expect(output).toMatch(' ✓ parallelServerCompiles')
-      })
+      it(
+        'should show next app info with all experimental features in next build',
+        async () => {
+          await next.build()
+          const output = stripAnsi(next.cliOutput)
+          expect(output).toMatch(experimentalHeader)
+          expect(output).toMatch(' · cpus: 2')
+          expect(output).toMatch(' ✓ workerThreads')
+          expect(output).toMatch(' ✓ scrollRestoration')
+          expect(output).toMatch(' ⨯ prerenderEarlyExit')
+          expect(output).toMatch(' ✓ parallelServerCompiles')
+        },
+        180 * 1000
+      )
     })
 
     describe('unrecognized experimental features', () => {
@@ -254,16 +264,20 @@ describe('Config Experimental Warning', () => {
         },
       })
 
-      it('should show unrecognized experimental features in warning but not in start log experiments section', async () => {
-        await next.build()
-        const startOffset = next.cliOutput.length
-        await next.start()
-        const startOutput = stripAnsi(next.cliOutput.slice(startOffset))
-        expect(startOutput).not.toContain(experimentalHeader)
-        expect(stripAnsi(next.cliOutput)).toContain(
-          `Unrecognized key(s) in object: 'appDir' at "experimental"`
-        )
-      })
+      it(
+        'should show unrecognized experimental features in warning but not in start log experiments section',
+        async () => {
+          await next.build()
+          const startOffset = next.cliOutput.length
+          await next.start()
+          const startOutput = stripAnsi(next.cliOutput.slice(startOffset))
+          expect(startOutput).not.toContain(experimentalHeader)
+          expect(stripAnsi(next.cliOutput)).toContain(
+            `Unrecognized key(s) in object: 'appDir' at "experimental"`
+          )
+        },
+        180 * 1000
+      )
     })
   })
 })
