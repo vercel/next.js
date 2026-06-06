@@ -448,7 +448,7 @@ describe('Cache Components Errors - Client Components', () => {
                Ways to fix this:
                  - [stream] Wrap the component in \`<Suspense fallback={...}>\` so the hook value streams in after prerendering
                    https://nextjs.org/docs/messages/blocking-prerender-client-hook#wrap-in-or-move-into-suspense
-                 - [prerender] If the dynamic params are known, prerender them with \`generateStaticParams\`
+                 - [cache] If the dynamic params are known, prerender them with \`generateStaticParams\`
                    https://nextjs.org/docs/messages/blocking-prerender-client-hook#allow-blocking-route
                    at Client (app/client-use-pathname/[id]/client.tsx:6:14)
                    at Page (app/client-use-pathname/[id]/page.tsx:4:10)
@@ -476,7 +476,7 @@ describe('Cache Components Errors - Client Components', () => {
                Ways to fix this:
                  - [stream] Wrap the component in \`<Suspense fallback={...}>\` so the hook value streams in after prerendering
                    https://nextjs.org/docs/messages/blocking-prerender-client-hook#wrap-in-or-move-into-suspense
-                 - [prerender] If the dynamic params are known, prerender them with \`generateStaticParams\`
+                 - [cache] If the dynamic params are known, prerender them with \`generateStaticParams\`
                    https://nextjs.org/docs/messages/blocking-prerender-client-hook#allow-blocking-route
                    at <unknown> (app/client-use-pathname/[id]/client.tsx:6:3)
                    at body (<anonymous>)
@@ -510,7 +510,7 @@ describe('Cache Components Errors - Client Components', () => {
                Ways to fix this:
                  - [stream] Wrap the component in \`<Suspense fallback={...}>\` so the hook value streams in after prerendering
                    https://nextjs.org/docs/messages/blocking-prerender-client-hook#wrap-in-or-move-into-suspense
-                 - [prerender] If the dynamic params are known, prerender them with \`generateStaticParams\`
+                 - [cache] If the dynamic params are known, prerender them with \`generateStaticParams\`
                    https://nextjs.org/docs/messages/blocking-prerender-client-hook#allow-blocking-route
                    at a (<next-dist-dir>)
                    at b (<next-dist-dir>)

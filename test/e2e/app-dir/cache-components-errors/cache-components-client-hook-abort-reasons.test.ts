@@ -903,7 +903,7 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
                  Ways to fix this:
                    - [stream] Wrap the component in \`<Suspense fallback={...}>\` so the hook value streams in after prerendering
                      https://nextjs.org/docs/messages/blocking-prerender-client-hook#wrap-in-or-move-into-suspense
-                   - [prerender] If the dynamic params are known, prerender them with \`generateStaticParams\`
+                   - [cache] If the dynamic params are known, prerender them with \`generateStaticParams\`
                      https://nextjs.org/docs/messages/blocking-prerender-client-hook#prerender-known-params
                      at useDynamicRouteParams (webpack:///<next-src>)
                      at useParams (webpack:///<next-src>)
@@ -933,7 +933,7 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
                  Ways to fix this:
                    - [stream] Wrap the component in \`<Suspense fallback={...}>\` so the hook value streams in after prerendering
                      https://nextjs.org/docs/messages/blocking-prerender-client-hook#wrap-in-or-move-into-suspense
-                   - [prerender] If the dynamic params are known, prerender them with \`generateStaticParams\`
+                   - [cache] If the dynamic params are known, prerender them with \`generateStaticParams\`
                      https://nextjs.org/docs/messages/blocking-prerender-client-hook#prerender-known-params
                      at a (<next-dist-dir>)
                      at b (<next-dist-dir>)
@@ -1100,7 +1100,7 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
                Ways to fix this:
                  - [stream] Wrap the component in \`<Suspense fallback={...}>\` so the hook value streams in after prerendering
                    https://nextjs.org/docs/messages/blocking-prerender-client-hook#wrap-in-or-move-into-suspense
-                 - [prerender] If the dynamic params are known, prerender them with \`generateStaticParams\`
+                 - [cache] If the dynamic params are known, prerender them with \`generateStaticParams\`
                    https://nextjs.org/docs/messages/blocking-prerender-client-hook#prerender-known-params
                    at UseParams (app/client-hook-abort-reasons/client.tsx:17:12)
                    at Page (app/client-hook-abort-reasons/normal/use-params/[id]/page.tsx:8:7)
@@ -1128,7 +1128,7 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
                Ways to fix this:
                  - [stream] Wrap the component in \`<Suspense fallback={...}>\` so the hook value streams in after prerendering
                    https://nextjs.org/docs/messages/blocking-prerender-client-hook#wrap-in-or-move-into-suspense
-                 - [prerender] If the dynamic params are known, prerender them with \`generateStaticParams\`
+                 - [cache] If the dynamic params are known, prerender them with \`generateStaticParams\`
                    https://nextjs.org/docs/messages/blocking-prerender-client-hook#prerender-known-params
                    at <unknown> (app/client-hook-abort-reasons/client.tsx:17:3)
                    at body (<anonymous>)
@@ -2229,7 +2229,7 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
                  Ways to fix this:
                    - [stream] Wrap the component in \`<Suspense fallback={...}>\` so the hook value streams in after prerendering
                      https://nextjs.org/docs/messages/blocking-prerender-client-hook#wrap-in-or-move-into-suspense
-                   - [prerender] If the dynamic params are known, prerender them with \`generateStaticParams\`
+                   - [cache] If the dynamic params are known, prerender them with \`generateStaticParams\`
                      https://nextjs.org/docs/messages/blocking-prerender-client-hook#prerender-known-params
                      at useDynamicRouteParams (webpack:///<next-src>)
                      at useParams (webpack:///<next-src>)
@@ -2274,7 +2274,7 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
                  Ways to fix this:
                    - [stream] Wrap the component in \`<Suspense fallback={...}>\` so the hook value streams in after prerendering
                      https://nextjs.org/docs/messages/blocking-prerender-client-hook#wrap-in-or-move-into-suspense
-                   - [prerender] If the dynamic params are known, prerender them with \`generateStaticParams\`
+                   - [cache] If the dynamic params are known, prerender them with \`generateStaticParams\`
                      https://nextjs.org/docs/messages/blocking-prerender-client-hook#prerender-known-params
                      at b (<next-dist-dir>)
                      at c (<next-dist-dir>)
@@ -2372,7 +2372,7 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
                Ways to fix this:
                  - [stream] Wrap the component in \`<Suspense fallback={...}>\` so the hook value streams in after prerendering
                    https://nextjs.org/docs/messages/blocking-prerender-client-hook#wrap-in-or-move-into-suspense
-                 - [prerender] If the dynamic params are known, prerender them with \`generateStaticParams\`
+                 - [cache] If the dynamic params are known, prerender them with \`generateStaticParams\`
                    https://nextjs.org/docs/messages/blocking-prerender-client-hook#prerender-known-params
                    at UseParams (app/client-hook-abort-reasons/client.tsx:17:12)
                    at Page (app/client-hook-abort-reasons/sync-io/use-params/[id]/page.tsx:7:7)
@@ -2422,7 +2422,7 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
                Ways to fix this:
                  - [stream] Wrap the component in \`<Suspense fallback={...}>\` so the hook value streams in after prerendering
                    https://nextjs.org/docs/messages/blocking-prerender-client-hook#wrap-in-or-move-into-suspense
-                 - [prerender] If the dynamic params are known, prerender them with \`generateStaticParams\`
+                 - [cache] If the dynamic params are known, prerender them with \`generateStaticParams\`
                    https://nextjs.org/docs/messages/blocking-prerender-client-hook#prerender-known-params
                    at <unknown> (app/client-hook-abort-reasons/client.tsx:17:3)
                    at body (<anonymous>)

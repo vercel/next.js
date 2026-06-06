@@ -56,9 +56,9 @@ export class ParamClientHookDynamicError extends Error {
   public readonly digest = CLIENT_HOOK_DYNAMIC
 
   constructor(route: string, expression: string) {
-    const prerenderBullet =
+    const cacheBullet =
       expression === 'useParams()'
-        ? `  - [prerender] If the dynamic params are known, prerender them with \`generateStaticParams\`\n` +
+        ? `  - [cache] If the dynamic params are known, prerender them with \`generateStaticParams\`\n` +
           `    https://nextjs.org/docs/messages/blocking-prerender-client-hook#prerender-known-params\n`
         : ''
     super(
@@ -67,7 +67,7 @@ export class ParamClientHookDynamicError extends Error {
         `Ways to fix this:\n` +
         `  - [stream] Wrap the component in \`<Suspense fallback={...}>\` so the hook value streams in after prerendering\n` +
         `    https://nextjs.org/docs/messages/blocking-prerender-client-hook#wrap-in-or-move-into-suspense\n` +
-        prerenderBullet +
+        cacheBullet +
         `  - [block] Set \`export const unstable_instant = false\` to silence this warning and allow a blocking route\n` +
         `    https://nextjs.org/docs/messages/blocking-prerender-client-hook#allow-blocking-route`
     )
