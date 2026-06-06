@@ -42,7 +42,7 @@ export class ClientHookDynamicError extends Error {
   constructor(route: string, expression: string) {
     super(
       `Route "${route}": Next.js encountered URL data \`${expression}\` in a Client Component.\n\n` +
-        `The value cannot be resolved during prerendering.\n\n` +
+        `This blocks prerendering because the value is only available at runtime.\n\n` +
         `Ways to fix this:\n` +
         `  - [stream] Wrap the Client Component in \`<Suspense fallback={...}>\`\n` +
         `    https://nextjs.org/docs/messages/blocking-prerender-client-hook#wrap-in-or-move-into-suspense\n` +
@@ -60,7 +60,7 @@ export class ParamClientHookDynamicError extends Error {
   constructor(route: string, expression: string) {
     super(
       `Route "${route}": Next.js encountered URL data \`${expression}\` in a Client Component.\n\n` +
-        `The value cannot be resolved during prerendering.\n\n` +
+        `This blocks prerendering because the value is only available at runtime.\n\n` +
         `Ways to fix this:\n` +
         `  - [stream] Wrap the Client Component in \`<Suspense fallback={...}>\`\n` +
         `    https://nextjs.org/docs/messages/blocking-prerender-client-hook#wrap-in-or-move-into-suspense\n` +

@@ -702,7 +702,8 @@ export const SYNC_IO_CLIENT_DOCS: Record<string, string> = {
 export const EXPLANATIONS: Record<GuidanceKind, string> = {
   'blocking-route':
     'This prevents the route from being prerendered, blocking navigation and leading to a slower user experience.',
-  'client-hook': 'The value cannot be resolved during prerendering.',
+  'client-hook':
+    'This blocks prerendering because the value is only available at runtime.',
   metadata:
     "This route's metadata is blocked, but the rest of its content can be prerendered.",
   viewport:

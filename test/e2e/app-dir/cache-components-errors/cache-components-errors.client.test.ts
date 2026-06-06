@@ -263,7 +263,7 @@ describe('Cache Components Errors - Client Components', () => {
           await expect(browser).toDisplayCollapsedRedbox(`
            {
              "code": "E1303",
-             "description": "A Client Component used useSearchParams() outside of <Suspense>.",
+             "description": "Next.js encountered URL data useSearchParams() in a Client Component.",
              "environmentLabel": "Server",
              "label": "Blocking Route",
              "source": "app/client-use-search-params/client.tsx (6:18) @ Client
@@ -292,9 +292,9 @@ describe('Cache Components Errors - Client Components', () => {
           if (isTurbopack) {
             if (isDebugPrerender) {
               expect(output).toMatchInlineSnapshot(`
-               "Error: Route "/client-use-search-params": A Client Component used \`useSearchParams()\` outside of \`<Suspense>\`.
+               "Error: Route "/client-use-search-params": Next.js encountered URL data \`useSearchParams()\` in a Client Component.
 
-               This prevents the route from being prerendered because the value is only available at runtime.
+               This blocks prerendering because the value is only available at runtime.
 
                Ways to fix this:
                  - [stream] Wrap the Client Component in \`<Suspense fallback={...}>\`
@@ -318,9 +318,9 @@ describe('Cache Components Errors - Client Components', () => {
               `)
             } else {
               expect(output).toMatchInlineSnapshot(`
-               "Error: Route "/client-use-search-params": A Client Component used \`useSearchParams()\` outside of \`<Suspense>\`.
+               "Error: Route "/client-use-search-params": Next.js encountered URL data \`useSearchParams()\` in a Client Component.
 
-               This prevents the route from being prerendered because the value is only available at runtime.
+               This blocks prerendering because the value is only available at runtime.
 
                Ways to fix this:
                  - [stream] Wrap the Client Component in \`<Suspense fallback={...}>\`
@@ -350,9 +350,9 @@ describe('Cache Components Errors - Client Components', () => {
               // snapshot is too noisy and webpack is legacy.
             } else {
               expect(output).toMatchInlineSnapshot(`
-               "Error: Route "/client-use-search-params": A Client Component used \`useSearchParams()\` outside of \`<Suspense>\`.
+               "Error: Route "/client-use-search-params": Next.js encountered URL data \`useSearchParams()\` in a Client Component.
 
-               This prevents the route from being prerendered because the value is only available at runtime.
+               This blocks prerendering because the value is only available at runtime.
 
                Ways to fix this:
                  - [stream] Wrap the Client Component in \`<Suspense fallback={...}>\`
@@ -406,7 +406,7 @@ describe('Cache Components Errors - Client Components', () => {
           await expect(browser).toDisplayCollapsedRedbox(`
            {
              "code": "E1304",
-             "description": "A Client Component used usePathname() outside of <Suspense>.",
+             "description": "Next.js encountered URL data usePathname() in a Client Component.",
              "environmentLabel": "Server",
              "label": "Blocking Route",
              "source": "app/client-use-pathname/[id]/client.tsx (6:14) @ Client
@@ -435,9 +435,9 @@ describe('Cache Components Errors - Client Components', () => {
           if (isTurbopack) {
             if (isDebugPrerender) {
               expect(output).toMatchInlineSnapshot(`
-               "Error: Route "/client-use-pathname/[id]": A Client Component used \`usePathname()\` outside of \`<Suspense>\`.
+               "Error: Route "/client-use-pathname/[id]": Next.js encountered URL data \`usePathname()\` in a Client Component.
 
-               This prevents the route from being prerendered because the value is only available at runtime.
+               This blocks prerendering because the value is only available at runtime.
 
                Ways to fix this:
                  - [stream] Wrap the Client Component in \`<Suspense fallback={...}>\`
@@ -463,9 +463,9 @@ describe('Cache Components Errors - Client Components', () => {
               `)
             } else {
               expect(output).toMatchInlineSnapshot(`
-               "Error: Route "/client-use-pathname/[id]": A Client Component used \`usePathname()\` outside of \`<Suspense>\`.
+               "Error: Route "/client-use-pathname/[id]": Next.js encountered URL data \`usePathname()\` in a Client Component.
 
-               This prevents the route from being prerendered because the value is only available at runtime.
+               This blocks prerendering because the value is only available at runtime.
 
                Ways to fix this:
                  - [stream] Wrap the Client Component in \`<Suspense fallback={...}>\`
@@ -497,9 +497,9 @@ describe('Cache Components Errors - Client Components', () => {
               // snapshot is too noisy and webpack is legacy.
             } else {
               expect(output).toMatchInlineSnapshot(`
-               "Error: Route "/client-use-pathname/[id]": A Client Component used \`usePathname()\` outside of \`<Suspense>\`.
+               "Error: Route "/client-use-pathname/[id]": Next.js encountered URL data \`usePathname()\` in a Client Component.
 
-               This prevents the route from being prerendered because the value is only available at runtime.
+               This blocks prerendering because the value is only available at runtime.
 
                Ways to fix this:
                  - [stream] Wrap the Client Component in \`<Suspense fallback={...}>\`

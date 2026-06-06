@@ -98,7 +98,7 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
              [
                {
                  "code": "E1303",
-                 "description": "A Client Component used useSearchParams() outside of <Suspense>.",
+                 "description": "Next.js encountered URL data useSearchParams() in a Client Component.",
                  "environmentLabel": "Server",
                  "label": "Blocking Route",
                  "source": "app/client-hook-abort-reasons/client.tsx (27:18) @ UseSearchParams
@@ -135,7 +135,7 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
              [
                {
                  "code": "E1304",
-                 "description": "A Client Component used usePathname() outside of <Suspense>.",
+                 "description": "Next.js encountered URL data usePathname() in a Client Component.",
                  "environmentLabel": "Server",
                  "label": "Blocking Route",
                  "source": "app/client-hook-abort-reasons/client.tsx (22:14) @ UsePathname
@@ -172,7 +172,7 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
              [
                {
                  "code": "E1304",
-                 "description": "A Client Component used useParams() outside of <Suspense>.",
+                 "description": "Next.js encountered URL data useParams() in a Client Component.",
                  "environmentLabel": "Server",
                  "label": "Blocking Route",
                  "source": "app/client-hook-abort-reasons/client.tsx (17:12) @ UseParams
@@ -209,7 +209,7 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
              [
                {
                  "code": "E1304",
-                 "description": "A Client Component used useSelectedLayoutSegments() outside of <Suspense>.",
+                 "description": "Next.js encountered URL data useSelectedLayoutSegments() in a Client Component.",
                  "environmentLabel": "Server",
                  "label": "Blocking Route",
                  "source": "app/client-hook-abort-reasons/client.tsx (37:28) @ UseSelectedLayoutSegments
@@ -246,7 +246,7 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
              [
                {
                  "code": "E1304",
-                 "description": "A Client Component used useSelectedLayoutSegment() outside of <Suspense>.",
+                 "description": "Next.js encountered URL data useSelectedLayoutSegment() in a Client Component.",
                  "environmentLabel": "Server",
                  "label": "Blocking Route",
                  "source": "app/client-hook-abort-reasons/client.tsx (32:27) @ UseSelectedLayoutSegment
@@ -308,9 +308,9 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
                    3 |   return <p>data slot</p>
                    4 | }
                  To debug the issue, start the app in development mode by running \`next dev\`, then open "/client-hook-abort-reasons/normal/use-search-params/[id]" in your browser to investigate the error.
-                 Error: Route "/client-hook-abort-reasons/normal/use-search-params/[id]": A Client Component used \`useSearchParams()\` outside of \`<Suspense>\`.
+                 Error: Route "/client-hook-abort-reasons/normal/use-search-params/[id]": Next.js encountered URL data \`useSearchParams()\` in a Client Component.
 
-                 This prevents the route from being prerendered because the value is only available at runtime.
+                 This blocks prerendering because the value is only available at runtime.
 
                  Ways to fix this:
                    - [stream] Wrap the Client Component in \`<Suspense fallback={...}>\`
@@ -336,9 +336,9 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
                 `)
               } else {
                 expect(output).toMatchInlineSnapshot(`
-                 "Error: Route "/client-hook-abort-reasons/normal/use-search-params/[id]": A Client Component used \`useSearchParams()\` outside of \`<Suspense>\`.
+                 "Error: Route "/client-hook-abort-reasons/normal/use-search-params/[id]": Next.js encountered URL data \`useSearchParams()\` in a Client Component.
 
-                 This prevents the route from being prerendered because the value is only available at runtime.
+                 This blocks prerendering because the value is only available at runtime.
 
                  Ways to fix this:
                    - [stream] Wrap the Client Component in \`<Suspense fallback={...}>\`
@@ -501,9 +501,9 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
                  3 |   return <p>data slot</p>
                  4 | }
                To debug the issue, start the app in development mode by running \`next dev\`, then open "/client-hook-abort-reasons/normal/use-search-params/[id]" in your browser to investigate the error.
-               Error: Route "/client-hook-abort-reasons/normal/use-search-params/[id]": A Client Component used \`useSearchParams()\` outside of \`<Suspense>\`.
+               Error: Route "/client-hook-abort-reasons/normal/use-search-params/[id]": Next.js encountered URL data \`useSearchParams()\` in a Client Component.
 
-               This prevents the route from being prerendered because the value is only available at runtime.
+               This blocks prerendering because the value is only available at runtime.
 
                Ways to fix this:
                  - [stream] Wrap the Client Component in \`<Suspense fallback={...}>\`
@@ -527,9 +527,9 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
               `)
             } else {
               expect(output).toMatchInlineSnapshot(`
-               "Error: Route "/client-hook-abort-reasons/normal/use-search-params/[id]": A Client Component used \`useSearchParams()\` outside of \`<Suspense>\`.
+               "Error: Route "/client-hook-abort-reasons/normal/use-search-params/[id]": Next.js encountered URL data \`useSearchParams()\` in a Client Component.
 
-               This prevents the route from being prerendered because the value is only available at runtime.
+               This blocks prerendering because the value is only available at runtime.
 
                Ways to fix this:
                  - [stream] Wrap the Client Component in \`<Suspense fallback={...}>\`
@@ -602,9 +602,9 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
                    3 |   return <p>data slot</p>
                    4 | }
                  To debug the issue, start the app in development mode by running \`next dev\`, then open "/client-hook-abort-reasons/normal/use-pathname/[id]" in your browser to investigate the error.
-                 Error: Route "/client-hook-abort-reasons/normal/use-pathname/[id]": A Client Component used \`usePathname()\` outside of \`<Suspense>\`.
+                 Error: Route "/client-hook-abort-reasons/normal/use-pathname/[id]": Next.js encountered URL data \`usePathname()\` in a Client Component.
 
-                 This prevents the route from being prerendered because the value is only available at runtime.
+                 This blocks prerendering because the value is only available at runtime.
 
                  Ways to fix this:
                    - [stream] Wrap the Client Component in \`<Suspense fallback={...}>\`
@@ -632,9 +632,9 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
                 `)
               } else {
                 expect(output).toMatchInlineSnapshot(`
-                 "Error: Route "/client-hook-abort-reasons/normal/use-pathname/[id]": A Client Component used \`usePathname()\` outside of \`<Suspense>\`.
+                 "Error: Route "/client-hook-abort-reasons/normal/use-pathname/[id]": Next.js encountered URL data \`usePathname()\` in a Client Component.
 
-                 This prevents the route from being prerendered because the value is only available at runtime.
+                 This blocks prerendering because the value is only available at runtime.
 
                  Ways to fix this:
                    - [stream] Wrap the Client Component in \`<Suspense fallback={...}>\`
@@ -799,9 +799,9 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
                  3 |   return <p>data slot</p>
                  4 | }
                To debug the issue, start the app in development mode by running \`next dev\`, then open "/client-hook-abort-reasons/normal/use-pathname/[id]" in your browser to investigate the error.
-               Error: Route "/client-hook-abort-reasons/normal/use-pathname/[id]": A Client Component used \`usePathname()\` outside of \`<Suspense>\`.
+               Error: Route "/client-hook-abort-reasons/normal/use-pathname/[id]": Next.js encountered URL data \`usePathname()\` in a Client Component.
 
-               This prevents the route from being prerendered because the value is only available at runtime.
+               This blocks prerendering because the value is only available at runtime.
 
                Ways to fix this:
                  - [stream] Wrap the Client Component in \`<Suspense fallback={...}>\`
@@ -827,9 +827,9 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
               `)
             } else {
               expect(output).toMatchInlineSnapshot(`
-               "Error: Route "/client-hook-abort-reasons/normal/use-pathname/[id]": A Client Component used \`usePathname()\` outside of \`<Suspense>\`.
+               "Error: Route "/client-hook-abort-reasons/normal/use-pathname/[id]": Next.js encountered URL data \`usePathname()\` in a Client Component.
 
-               This prevents the route from being prerendered because the value is only available at runtime.
+               This blocks prerendering because the value is only available at runtime.
 
                Ways to fix this:
                  - [stream] Wrap the Client Component in \`<Suspense fallback={...}>\`
@@ -904,9 +904,9 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
                    3 |   return <p>data slot</p>
                    4 | }
                  To debug the issue, start the app in development mode by running \`next dev\`, then open "/client-hook-abort-reasons/normal/use-params/[id]" in your browser to investigate the error.
-                 Error: Route "/client-hook-abort-reasons/normal/use-params/[id]": A Client Component used \`useParams()\` outside of \`<Suspense>\`.
+                 Error: Route "/client-hook-abort-reasons/normal/use-params/[id]": Next.js encountered URL data \`useParams()\` in a Client Component.
 
-                 This prevents the route from being prerendered because the value is only available at runtime.
+                 This blocks prerendering because the value is only available at runtime.
 
                  Ways to fix this:
                    - [stream] Wrap the Client Component in \`<Suspense fallback={...}>\`
@@ -934,9 +934,9 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
                 `)
               } else {
                 expect(output).toMatchInlineSnapshot(`
-                 "Error: Route "/client-hook-abort-reasons/normal/use-params/[id]": A Client Component used \`useParams()\` outside of \`<Suspense>\`.
+                 "Error: Route "/client-hook-abort-reasons/normal/use-params/[id]": Next.js encountered URL data \`useParams()\` in a Client Component.
 
-                 This prevents the route from being prerendered because the value is only available at runtime.
+                 This blocks prerendering because the value is only available at runtime.
 
                  Ways to fix this:
                    - [stream] Wrap the Client Component in \`<Suspense fallback={...}>\`
@@ -1101,9 +1101,9 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
                  3 |   return <p>data slot</p>
                  4 | }
                To debug the issue, start the app in development mode by running \`next dev\`, then open "/client-hook-abort-reasons/normal/use-params/[id]" in your browser to investigate the error.
-               Error: Route "/client-hook-abort-reasons/normal/use-params/[id]": A Client Component used \`useParams()\` outside of \`<Suspense>\`.
+               Error: Route "/client-hook-abort-reasons/normal/use-params/[id]": Next.js encountered URL data \`useParams()\` in a Client Component.
 
-               This prevents the route from being prerendered because the value is only available at runtime.
+               This blocks prerendering because the value is only available at runtime.
 
                Ways to fix this:
                  - [stream] Wrap the Client Component in \`<Suspense fallback={...}>\`
@@ -1129,9 +1129,9 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
               `)
             } else {
               expect(output).toMatchInlineSnapshot(`
-               "Error: Route "/client-hook-abort-reasons/normal/use-params/[id]": A Client Component used \`useParams()\` outside of \`<Suspense>\`.
+               "Error: Route "/client-hook-abort-reasons/normal/use-params/[id]": Next.js encountered URL data \`useParams()\` in a Client Component.
 
-               This prevents the route from being prerendered because the value is only available at runtime.
+               This blocks prerendering because the value is only available at runtime.
 
                Ways to fix this:
                  - [stream] Wrap the Client Component in \`<Suspense fallback={...}>\`
@@ -1206,9 +1206,9 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
                    3 |   return <p>data slot</p>
                    4 | }
                  To debug the issue, start the app in development mode by running \`next dev\`, then open "/client-hook-abort-reasons/normal/use-selected-layout-segments/[id]" in your browser to investigate the error.
-                 Error: Route "/client-hook-abort-reasons/normal/use-selected-layout-segments/[id]": A Client Component used \`useSelectedLayoutSegments()\` outside of \`<Suspense>\`.
+                 Error: Route "/client-hook-abort-reasons/normal/use-selected-layout-segments/[id]": Next.js encountered URL data \`useSelectedLayoutSegments()\` in a Client Component.
 
-                 This prevents the route from being prerendered because the value is only available at runtime.
+                 This blocks prerendering because the value is only available at runtime.
 
                  Ways to fix this:
                    - [stream] Wrap the Client Component in \`<Suspense fallback={...}>\`
@@ -1236,9 +1236,9 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
                 `)
               } else {
                 expect(output).toMatchInlineSnapshot(`
-                 "Error: Route "/client-hook-abort-reasons/normal/use-selected-layout-segments/[id]": A Client Component used \`useSelectedLayoutSegments()\` outside of \`<Suspense>\`.
+                 "Error: Route "/client-hook-abort-reasons/normal/use-selected-layout-segments/[id]": Next.js encountered URL data \`useSelectedLayoutSegments()\` in a Client Component.
 
-                 This prevents the route from being prerendered because the value is only available at runtime.
+                 This blocks prerendering because the value is only available at runtime.
 
                  Ways to fix this:
                    - [stream] Wrap the Client Component in \`<Suspense fallback={...}>\`
@@ -1403,9 +1403,9 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
                  3 |   return <p>data slot</p>
                  4 | }
                To debug the issue, start the app in development mode by running \`next dev\`, then open "/client-hook-abort-reasons/normal/use-selected-layout-segments/[id]" in your browser to investigate the error.
-               Error: Route "/client-hook-abort-reasons/normal/use-selected-layout-segments/[id]": A Client Component used \`useSelectedLayoutSegments()\` outside of \`<Suspense>\`.
+               Error: Route "/client-hook-abort-reasons/normal/use-selected-layout-segments/[id]": Next.js encountered URL data \`useSelectedLayoutSegments()\` in a Client Component.
 
-               This prevents the route from being prerendered because the value is only available at runtime.
+               This blocks prerendering because the value is only available at runtime.
 
                Ways to fix this:
                  - [stream] Wrap the Client Component in \`<Suspense fallback={...}>\`
@@ -1431,9 +1431,9 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
               `)
             } else {
               expect(output).toMatchInlineSnapshot(`
-               "Error: Route "/client-hook-abort-reasons/normal/use-selected-layout-segments/[id]": A Client Component used \`useSelectedLayoutSegments()\` outside of \`<Suspense>\`.
+               "Error: Route "/client-hook-abort-reasons/normal/use-selected-layout-segments/[id]": Next.js encountered URL data \`useSelectedLayoutSegments()\` in a Client Component.
 
-               This prevents the route from being prerendered because the value is only available at runtime.
+               This blocks prerendering because the value is only available at runtime.
 
                Ways to fix this:
                  - [stream] Wrap the Client Component in \`<Suspense fallback={...}>\`
@@ -1508,9 +1508,9 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
                    3 |   return <p>data slot</p>
                    4 | }
                  To debug the issue, start the app in development mode by running \`next dev\`, then open "/client-hook-abort-reasons/normal/use-selected-layout-segment/[id]" in your browser to investigate the error.
-                 Error: Route "/client-hook-abort-reasons/normal/use-selected-layout-segment/[id]": A Client Component used \`useSelectedLayoutSegment()\` outside of \`<Suspense>\`.
+                 Error: Route "/client-hook-abort-reasons/normal/use-selected-layout-segment/[id]": Next.js encountered URL data \`useSelectedLayoutSegment()\` in a Client Component.
 
-                 This prevents the route from being prerendered because the value is only available at runtime.
+                 This blocks prerendering because the value is only available at runtime.
 
                  Ways to fix this:
                    - [stream] Wrap the Client Component in \`<Suspense fallback={...}>\`
@@ -1538,9 +1538,9 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
                 `)
               } else {
                 expect(output).toMatchInlineSnapshot(`
-                 "Error: Route "/client-hook-abort-reasons/normal/use-selected-layout-segment/[id]": A Client Component used \`useSelectedLayoutSegment()\` outside of \`<Suspense>\`.
+                 "Error: Route "/client-hook-abort-reasons/normal/use-selected-layout-segment/[id]": Next.js encountered URL data \`useSelectedLayoutSegment()\` in a Client Component.
 
-                 This prevents the route from being prerendered because the value is only available at runtime.
+                 This blocks prerendering because the value is only available at runtime.
 
                  Ways to fix this:
                    - [stream] Wrap the Client Component in \`<Suspense fallback={...}>\`
@@ -1705,9 +1705,9 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
                  3 |   return <p>data slot</p>
                  4 | }
                To debug the issue, start the app in development mode by running \`next dev\`, then open "/client-hook-abort-reasons/normal/use-selected-layout-segment/[id]" in your browser to investigate the error.
-               Error: Route "/client-hook-abort-reasons/normal/use-selected-layout-segment/[id]": A Client Component used \`useSelectedLayoutSegment()\` outside of \`<Suspense>\`.
+               Error: Route "/client-hook-abort-reasons/normal/use-selected-layout-segment/[id]": Next.js encountered URL data \`useSelectedLayoutSegment()\` in a Client Component.
 
-               This prevents the route from being prerendered because the value is only available at runtime.
+               This blocks prerendering because the value is only available at runtime.
 
                Ways to fix this:
                  - [stream] Wrap the Client Component in \`<Suspense fallback={...}>\`
@@ -1733,9 +1733,9 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
               `)
             } else {
               expect(output).toMatchInlineSnapshot(`
-               "Error: Route "/client-hook-abort-reasons/normal/use-selected-layout-segment/[id]": A Client Component used \`useSelectedLayoutSegment()\` outside of \`<Suspense>\`.
+               "Error: Route "/client-hook-abort-reasons/normal/use-selected-layout-segment/[id]": Next.js encountered URL data \`useSelectedLayoutSegment()\` in a Client Component.
 
-               This prevents the route from being prerendered because the value is only available at runtime.
+               This blocks prerendering because the value is only available at runtime.
 
                Ways to fix this:
                  - [stream] Wrap the Client Component in \`<Suspense fallback={...}>\`
@@ -1863,7 +1863,7 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
                },
                {
                  "code": "E1304",
-                 "description": "A Client Component used useParams() outside of <Suspense>.",
+                 "description": "Next.js encountered URL data useParams() in a Client Component.",
                  "environmentLabel": "Server",
                  "label": "Blocking Route",
                  "source": "app/client-hook-abort-reasons/client.tsx (17:12) @ UseParams
@@ -1941,7 +1941,7 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
                },
                {
                  "code": "E1304",
-                 "description": "A Client Component used useSelectedLayoutSegment() outside of <Suspense>.",
+                 "description": "Next.js encountered URL data useSelectedLayoutSegment() in a Client Component.",
                  "environmentLabel": "Server",
                  "label": "Blocking Route",
                  "source": "app/client-hook-abort-reasons/client.tsx (32:27) @ UseSelectedLayoutSegment
@@ -2246,9 +2246,9 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
                    14 | }
                    15 |
                  To debug the issue, start the app in development mode by running \`next dev\`, then open "/client-hook-abort-reasons/sync-io/use-params/[id]" in your browser to investigate the error.
-                 Error: Route "/client-hook-abort-reasons/sync-io/use-params/[id]": A Client Component used \`useParams()\` outside of \`<Suspense>\`.
+                 Error: Route "/client-hook-abort-reasons/sync-io/use-params/[id]": Next.js encountered URL data \`useParams()\` in a Client Component.
 
-                 This prevents the route from being prerendered because the value is only available at runtime.
+                 This blocks prerendering because the value is only available at runtime.
 
                  Ways to fix this:
                    - [stream] Wrap the Client Component in \`<Suspense fallback={...}>\`
@@ -2291,9 +2291,9 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
                  To get a more detailed stack trace and pinpoint the issue, try one of the following:
                    - Start the app in development mode by running \`next dev\`, then open "/client-hook-abort-reasons/sync-io/use-params/[id]" in your browser to investigate the error.
                    - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
-                 Error: Route "/client-hook-abort-reasons/sync-io/use-params/[id]": A Client Component used \`useParams()\` outside of \`<Suspense>\`.
+                 Error: Route "/client-hook-abort-reasons/sync-io/use-params/[id]": Next.js encountered URL data \`useParams()\` in a Client Component.
 
-                 This prevents the route from being prerendered because the value is only available at runtime.
+                 This blocks prerendering because the value is only available at runtime.
 
                  Ways to fix this:
                    - [stream] Wrap the Client Component in \`<Suspense fallback={...}>\`
@@ -2389,9 +2389,9 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
                  14 | }
                  15 |
                To debug the issue, start the app in development mode by running \`next dev\`, then open "/client-hook-abort-reasons/sync-io/use-params/[id]" in your browser to investigate the error.
-               Error: Route "/client-hook-abort-reasons/sync-io/use-params/[id]": A Client Component used \`useParams()\` outside of \`<Suspense>\`.
+               Error: Route "/client-hook-abort-reasons/sync-io/use-params/[id]": Next.js encountered URL data \`useParams()\` in a Client Component.
 
-               This prevents the route from being prerendered because the value is only available at runtime.
+               This blocks prerendering because the value is only available at runtime.
 
                Ways to fix this:
                  - [stream] Wrap the Client Component in \`<Suspense fallback={...}>\`
@@ -2439,9 +2439,9 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
                To get a more detailed stack trace and pinpoint the issue, try one of the following:
                  - Start the app in development mode by running \`next dev\`, then open "/client-hook-abort-reasons/sync-io/use-params/[id]" in your browser to investigate the error.
                  - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
-               Error: Route "/client-hook-abort-reasons/sync-io/use-params/[id]": A Client Component used \`useParams()\` outside of \`<Suspense>\`.
+               Error: Route "/client-hook-abort-reasons/sync-io/use-params/[id]": Next.js encountered URL data \`useParams()\` in a Client Component.
 
-               This prevents the route from being prerendered because the value is only available at runtime.
+               This blocks prerendering because the value is only available at runtime.
 
                Ways to fix this:
                  - [stream] Wrap the Client Component in \`<Suspense fallback={...}>\`
@@ -2768,9 +2768,9 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
                    3 |   return <p>data slot</p>
                    4 | }
                  To debug the issue, start the app in development mode by running \`next dev\`, then open "/client-hook-abort-reasons/sync-io/use-selected-layout-segment/[id]" in your browser to investigate the error.
-                 Error: Route "/client-hook-abort-reasons/sync-io/use-selected-layout-segment/[id]": A Client Component used \`useSelectedLayoutSegment()\` outside of \`<Suspense>\`.
+                 Error: Route "/client-hook-abort-reasons/sync-io/use-selected-layout-segment/[id]": Next.js encountered URL data \`useSelectedLayoutSegment()\` in a Client Component.
 
-                 This prevents the route from being prerendered because the value is only available at runtime.
+                 This blocks prerendering because the value is only available at runtime.
 
                  Ways to fix this:
                    - [stream] Wrap the Client Component in \`<Suspense fallback={...}>\`
@@ -2813,9 +2813,9 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
                  To get a more detailed stack trace and pinpoint the issue, try one of the following:
                    - Start the app in development mode by running \`next dev\`, then open "/client-hook-abort-reasons/sync-io/use-selected-layout-segment/[id]" in your browser to investigate the error.
                    - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
-                 Error: Route "/client-hook-abort-reasons/sync-io/use-selected-layout-segment/[id]": A Client Component used \`useSelectedLayoutSegment()\` outside of \`<Suspense>\`.
+                 Error: Route "/client-hook-abort-reasons/sync-io/use-selected-layout-segment/[id]": Next.js encountered URL data \`useSelectedLayoutSegment()\` in a Client Component.
 
-                 This prevents the route from being prerendered because the value is only available at runtime.
+                 This blocks prerendering because the value is only available at runtime.
 
                  Ways to fix this:
                    - [stream] Wrap the Client Component in \`<Suspense fallback={...}>\`
@@ -3001,9 +3001,9 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
                  3 |   return <p>data slot</p>
                  4 | }
                To debug the issue, start the app in development mode by running \`next dev\`, then open "/client-hook-abort-reasons/sync-io/use-selected-layout-segment/[id]" in your browser to investigate the error.
-               Error: Route "/client-hook-abort-reasons/sync-io/use-selected-layout-segment/[id]": A Client Component used \`useSelectedLayoutSegment()\` outside of \`<Suspense>\`.
+               Error: Route "/client-hook-abort-reasons/sync-io/use-selected-layout-segment/[id]": Next.js encountered URL data \`useSelectedLayoutSegment()\` in a Client Component.
 
-               This prevents the route from being prerendered because the value is only available at runtime.
+               This blocks prerendering because the value is only available at runtime.
 
                Ways to fix this:
                  - [stream] Wrap the Client Component in \`<Suspense fallback={...}>\`
@@ -3051,9 +3051,9 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
                To get a more detailed stack trace and pinpoint the issue, try one of the following:
                  - Start the app in development mode by running \`next dev\`, then open "/client-hook-abort-reasons/sync-io/use-selected-layout-segment/[id]" in your browser to investigate the error.
                  - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
-               Error: Route "/client-hook-abort-reasons/sync-io/use-selected-layout-segment/[id]": A Client Component used \`useSelectedLayoutSegment()\` outside of \`<Suspense>\`.
+               Error: Route "/client-hook-abort-reasons/sync-io/use-selected-layout-segment/[id]": Next.js encountered URL data \`useSelectedLayoutSegment()\` in a Client Component.
 
-               This prevents the route from being prerendered because the value is only available at runtime.
+               This blocks prerendering because the value is only available at runtime.
 
                Ways to fix this:
                  - [stream] Wrap the Client Component in \`<Suspense fallback={...}>\`
