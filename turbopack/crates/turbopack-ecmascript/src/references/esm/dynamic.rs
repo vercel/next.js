@@ -39,7 +39,6 @@ use crate::{
 pub struct EsmAsyncAssetReference {
     pub origin: ResolvedVc<Box<dyn ResolveOrigin>>,
     pub request: ResolvedVc<Request>,
-    pub annotations: ImportAnnotations,
     pub issue_source: IssueSource,
     pub error_mode: ResolveErrorMode,
     pub import_externals: bool,
@@ -51,17 +50,8 @@ pub struct EsmAsyncAssetReference {
 }
 
 impl EsmAsyncAssetReference {
-    fn get_origin(&self) -> Vc<Box<dyn ResolveOrigin>> {
-        if let Some(transition) = self.annotations.transition() {
-            self.origin.with_transition(transition.into())
-        } else {
-            *self.origin
-        }
-    }
-}
-
-impl EsmAsyncAssetReference {
-    pub fn new(
+    #[allow(clippy::too_many_arguments)]
+    pub async fn new(
         origin: ResolvedVc<Box<dyn ResolveOrigin>>,
         request: ResolvedVc<Request>,
         issue_source: IssueSource,
@@ -70,17 +60,27 @@ impl EsmAsyncAssetReference {
         import_externals: bool,
         export_usage: ExportUsage,
         resolve_override: Option<ResolvedVc<Box<dyn Module>>>,
-    ) -> Self {
-        EsmAsyncAssetReference {
+    ) -> Result<Self> {
+        // Apply any annotation-driven transition eagerly so the stored origin is final and the
+        // `annotations` don't need to be retained on the reference.
+        let origin = if let Some(transition) = annotations.transition() {
+            origin
+                .with_transition(transition.into())
+                .await?
+                .to_resolved()
+                .await?
+        } else {
+            origin
+        };
+        Ok(EsmAsyncAssetReference {
             origin,
             request,
             issue_source,
-            annotations,
             error_mode,
             import_externals,
             export_usage,
             resolve_override,
-        }
+        })
     }
 }
 
@@ -93,7 +93,7 @@ impl ModuleReference for EsmAsyncAssetReference {
         }
 
         esm_resolve(
-            *self.get_origin().to_resolved().await?,
+            *self.origin,
             *self.request,
             EcmaScriptModulesReferenceSubType::DynamicImport,
             self.error_mode,

@@ -426,6 +426,8 @@ pub struct EcmascriptModuleAsset {
     pub compile_time_info: ResolvedVc<CompileTimeInfo>,
     pub side_effect_free_packages: Option<ResolvedVc<Glob>>,
     pub inner_assets: Option<ResolvedVc<InnerAssets>>,
+    /// The path of `source`, precomputed so that `ResolveOrigin::origin_path` is synchronous.
+    origin_path: FileSystemPath,
 }
 
 #[turbo_tasks::value_trait]
@@ -704,7 +706,7 @@ async fn determine_module_type_for_directory(
 #[turbo_tasks::value_impl]
 impl EcmascriptModuleAsset {
     #[turbo_tasks::function]
-    fn new(
+    async fn new(
         source: ResolvedVc<Box<dyn Source>>,
         asset_context: ResolvedVc<Box<dyn AssetContext>>,
         ty: EcmascriptModuleAssetType,
@@ -712,8 +714,9 @@ impl EcmascriptModuleAsset {
         options: ResolvedVc<EcmascriptOptions>,
         compile_time_info: ResolvedVc<CompileTimeInfo>,
         side_effect_free_packages: Option<ResolvedVc<Glob>>,
-    ) -> Vc<Self> {
-        Self::cell(EcmascriptModuleAsset {
+    ) -> Result<Vc<Self>> {
+        Ok(Self::cell(EcmascriptModuleAsset {
+            origin_path: source.ident().await?.path.clone(),
             source,
             asset_context,
             ty,
@@ -722,7 +725,7 @@ impl EcmascriptModuleAsset {
             compile_time_info,
             side_effect_free_packages,
             inner_assets: None,
-        })
+        }))
     }
 
     #[turbo_tasks::function]
@@ -748,6 +751,7 @@ impl EcmascriptModuleAsset {
             ))
         } else {
             Ok(Self::cell(EcmascriptModuleAsset {
+                origin_path: source.ident().await?.path.clone(),
                 source,
                 asset_context,
                 ty,
@@ -810,7 +814,7 @@ impl EcmascriptModuleAsset {
             SpecifiedModuleType::Automatic => {}
         }
 
-        determine_module_type_for_directory(self.origin_path().await?.parent()).await
+        determine_module_type_for_directory(this.origin_path.parent()).await
     }
 }
 
@@ -953,14 +957,12 @@ impl EvaluatableAsset for EcmascriptModuleAsset {}
 
 #[turbo_tasks::value_impl]
 impl ResolveOrigin for EcmascriptModuleAsset {
-    #[turbo_tasks::function]
-    async fn origin_path(&self) -> Result<Vc<FileSystemPath>> {
-        Ok(self.source.ident().await?.path.clone().cell())
+    fn origin_path(&self) -> FileSystemPath {
+        self.origin_path.clone()
     }
 
-    #[turbo_tasks::function]
-    fn asset_context(&self) -> Vc<Box<dyn AssetContext>> {
-        *self.asset_context
+    fn asset_context(&self) -> ResolvedVc<Box<dyn AssetContext>> {
+        self.asset_context
     }
 }
 
@@ -1341,23 +1343,22 @@ async fn merge_modules(
                 // TODO looking up an Atom in a Map<RcStr, _>, would ideally work without creating a
                 // RcStr every time.
                 let sym_rc_str: RcStr = sym.as_str().into();
-                let (local, local_ctxt) = if let Some((local, local_ctxt)) =
-                    eval_context_exports.get(&sym_rc_str)
-                {
-                    (Some(local), *local_ctxt)
-                } else if sym.starts_with("__TURBOPACK__imported__module__") {
-                    // The variable corresponding to the `export * as foo from "...";` is generated
-                    // in the module generating the reexport (and it's not listed in the
-                    // eval_context). `EsmAssetReference::code_gen` uses a dummy span when
-                    // generating this variable.
-                    (None, SyntaxContext::empty())
-                } else {
-                    self.error = Err(anyhow::anyhow!(
-                        "Expected to find a local export for {sym} with ctxt {ctxt:#?} in \
+                let (local, local_ctxt) =
+                    if let Some((local, local_ctxt)) = eval_context_exports.get(&sym_rc_str) {
+                        (Some(local), *local_ctxt)
+                    } else if sym.starts_with("__TURBOPACK__imported__module__") {
+                        // The variable corresponding to the `export * as foo from "...";` is generated
+                        // in the module generating the reexport (and it's not listed in the
+                        // eval_context). `EsmAssetReference::code_gen` uses a dummy span when
+                        // generating this variable.
+                        (None, SyntaxContext::empty())
+                    } else {
+                        self.error = Err(anyhow::anyhow!(
+                            "Expected to find a local export for {sym} with ctxt {ctxt:#?} in \
                          {eval_context_exports:?}",
-                    ));
-                    return;
-                };
+                        ));
+                        return;
+                    };
 
                 let global_ctxt = self.get_context_for(module, local_ctxt);
 

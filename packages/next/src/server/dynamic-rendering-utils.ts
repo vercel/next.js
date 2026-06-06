@@ -107,15 +107,9 @@ export function makeHangingPromise<T>(
 
 export function makeClientHookHangingPromise<T>(
   signal: AbortSignal,
-  route: string,
-  expression: string
+  error: ClientHookDynamicError | ParamClientHookDynamicError
 ): Promise<T> {
-  return makeHangingPromiseWithError(
-    signal,
-    expression === 'useSearchParams()'
-      ? new ClientHookDynamicError(route, expression)
-      : new ParamClientHookDynamicError(route, expression)
-  )
+  return makeHangingPromiseWithError(signal, error)
 }
 
 function makeHangingPromiseWithError<T>(
