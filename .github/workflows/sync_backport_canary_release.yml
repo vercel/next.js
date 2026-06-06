@@ -66,6 +66,7 @@ jobs:
         with:
           ref: ${{ github.event_name == 'workflow_dispatch' && github.ref_name || 'canary' }}
           fetch-depth: 1
+          persist-credentials: false
 
       - name: Setup node
         if: steps.precheck.outputs.should_evaluate == 'true'

@@ -15,11 +15,11 @@ use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
     Effects, ReadConsistency, ReadRef, ResolvedVc, TransientInstance, TurboTasks, Vc, take_effects,
 };
-use turbo_tasks_backend::{NoopBackingStorage, TurboTasksBackend};
+use turbo_tasks_backend::TurboTasksBackend;
 use turbo_tasks_malloc::TurboMalloc;
 
 pub async fn main_inner(
-    tt: &TurboTasks<TurboTasksBackend<NoopBackingStorage>>,
+    tt: &TurboTasks<TurboTasksBackend>,
     strategy: Strategy,
     factor: usize,
     limit: usize,
@@ -161,7 +161,7 @@ pub fn shuffle<'a, T: 'a>(items: impl Iterator<Item = T>) -> impl Iterator<Item 
 }
 
 pub async fn render_routes(
-    tt: &TurboTasks<TurboTasksBackend<NoopBackingStorage>>,
+    tt: &TurboTasks<TurboTasksBackend>,
     routes: impl Iterator<Item = (RcStr, Route)>,
     strategy: Strategy,
     factor: usize,
@@ -285,7 +285,7 @@ async fn endpoint_write_to_disk_with_apply(
 }
 
 async fn hmr(
-    tt: &TurboTasks<TurboTasksBackend<NoopBackingStorage>>,
+    tt: &TurboTasks<TurboTasksBackend>,
     project: ResolvedVc<ProjectContainer>,
 ) -> Result<()> {
     tracing::info!("HMR...");

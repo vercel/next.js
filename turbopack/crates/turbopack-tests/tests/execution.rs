@@ -638,7 +638,7 @@ async fn snapshot_issues(
 
     let plain_issues = run_result_op
         .peek_issues()
-        .get_plain_issues(IssueFilter::everything())
+        .get_plain_issues(&IssueFilter::everything())
         .await?;
 
     turbopack_test_utils::snapshot::snapshot_issues(plain_issues, path.join("issues")?, &REPO_ROOT)

@@ -107,16 +107,16 @@ impl Deref for ExternalEndpoint {
 /// `node_modules` reshuffle), this falls back to a default filter rather than
 /// propagating the error.  In this scenario we believe the caller will already be observing the
 /// same error
-async fn issue_filter_from_endpoint(endpoint_op: OperationVc<OptionEndpoint>) -> Vc<IssueFilter> {
-    match endpoint_op.connect().await {
-        Ok(endpoint_option) => {
-            if let Some(ep) = &*endpoint_option {
-                ep.project().issue_filter()
-            } else {
-                IssueFilter::warnings_and_foreign_errors().cell()
-            }
-        }
-        Err(_) => IssueFilter::warnings_and_foreign_errors().cell(),
+async fn issue_filter_from_endpoint(
+    endpoint_op: OperationVc<OptionEndpoint>,
+) -> ReadRef<IssueFilter> {
+    if let Ok(ep_option) = endpoint_op.connect().await
+        && let Some(ep) = &*ep_option
+        && let Ok(filter) = ep.project().issue_filter().await
+    {
+        filter
+    } else {
+        ReadRef::new_owned(IssueFilter::warnings_and_foreign_errors())
     }
 }
 
@@ -134,7 +134,7 @@ async fn get_written_endpoint_with_issues_operation(
     let write_to_disk_op = endpoint_write_to_disk_operation(endpoint_op);
     let filter = issue_filter_from_endpoint(endpoint_op).await;
     let (written, issues, effects) =
-        strongly_consistent_catch_collectables(write_to_disk_op, filter).await?;
+        strongly_consistent_catch_collectables(write_to_disk_op, &filter).await?;
     Ok(WrittenEndpointWithIssues {
         written,
         issues,
@@ -244,7 +244,7 @@ async fn subscribe_issues_and_diags_operation(
     // payload, but we still need the catch path to avoid the FATAL.
     let filter = issue_filter_from_endpoint(endpoint_op).await;
     let (changed_value, issues, effects) =
-        strongly_consistent_catch_collectables(changed_op, filter).await?;
+        strongly_consistent_catch_collectables(changed_op, &filter).await?;
     Ok(EndpointIssuesAndDiags {
         changed: changed_value,
         issues: if should_include_issues {

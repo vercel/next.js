@@ -102,18 +102,7 @@ impl CellDependency {
         }
     }
 
-    pub fn key(&self) -> Option<u64> {
-        match *self {
-            CellDependency::All(_) => None,
-            CellDependency::Hash(_, k) => Some(k),
-        }
-    }
-
     /// Decompose into the underlying `(CellRef, Option<u64>)` in a single match.
-    ///
-    /// Prefer this over back-to-back `cell_ref()` + `key()` calls — the discriminant is
-    /// checked once instead of twice, which is meaningful in hot loops over
-    /// `iter_cell_dependents` / `iter_cell_dependencies`.
     pub fn into_parts(self) -> (CellRef, Option<u64>) {
         match self {
             CellDependency::All(c) => (c, None),
