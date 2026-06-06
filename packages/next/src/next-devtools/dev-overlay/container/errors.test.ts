@@ -284,22 +284,43 @@ describe('getBlockingRouteErrorDetails', () => {
 })
 
 describe('client hook guidance', () => {
-  it('shows Suspense, server, and block cards for all hooks', () => {
-    const expected = [
+  it('shows Stream and Block cards for useSearchParams', () => {
+    const cards = getCards('client-hook', 'runtime', 'useSearchParams()')
+    expect(cards.map((card) => card.id)).toEqual([
       'wrap-in-or-move-into-suspense',
-      'move-the-access-to-the-server',
       'allow-blocking-route',
-    ]
-    const expectedGroups = ['stream', 'server', 'block']
-    const searchParamsCards = getCards(
-      'client-hook',
-      'runtime',
-      'useSearchParams()'
-    )
-    expect(searchParamsCards.map((card) => card.id)).toEqual(expected)
-    expect(searchParamsCards.map((card) => card.group)).toEqual(expectedGroups)
+    ])
+    expect(cards.map((card) => card.group)).toEqual(['stream', 'block'])
+  })
+
+  it('shows Stream, GSP, and Block cards for useParams', () => {
+    const cards = getCards('client-hook', 'runtime', 'useParams()')
+    expect(cards.map((card) => card.id)).toEqual([
+      'wrap-in-or-move-into-suspense',
+      'prerender-known-params',
+      'allow-blocking-route',
+    ])
+    expect(cards.map((card) => card.group)).toEqual([
+      'stream',
+      'prerender',
+      'block',
+    ])
+  })
+
+  it('shows Stream and Block cards for hooks without GSP', () => {
+    const expected = ['wrap-in-or-move-into-suspense', 'allow-blocking-route']
     expect(
-      getCards('client-hook', 'runtime', 'useParams()').map((card) => card.id)
+      getCards('client-hook', 'runtime', 'usePathname()').map((c) => c.id)
+    ).toEqual(expected)
+    expect(
+      getCards('client-hook', 'runtime', 'useSelectedLayoutSegment()').map(
+        (c) => c.id
+      )
+    ).toEqual(expected)
+    expect(
+      getCards('client-hook', 'runtime', 'useSelectedLayoutSegments()').map(
+        (c) => c.id
+      )
     ).toEqual(expected)
   })
 })

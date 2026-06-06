@@ -377,7 +377,7 @@ export function getBlockingRouteErrorDetails(
   const inNavigation = isBlockingRouteInNavError(message)
 
   const clientHookMatch =
-    /Next\.js encountered URL data `([^`]+)` in a Client Component\./.exec(
+    /Next\.js encountered URL data `([^`]+)` in a Client Component outside of `<Suspense>`\./.exec(
       message
     )
   if (clientHookMatch) {
@@ -906,7 +906,8 @@ Next.js version: ${props.versionInfo.installed} (${process.env.__NEXT_BUNDLER})\
           errorMessage={
             <>
               Next.js encountered URL data{' '}
-              <code>{errorDetails.expression}</code> in a Client Component.
+              <code>{errorDetails.expression}</code> in a Client Component
+              outside of Suspense.
             </>
           }
           headerChildren={<InstantHeaderExplanation kind="client-hook" />}

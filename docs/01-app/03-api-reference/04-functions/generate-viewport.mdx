@@ -192,7 +192,30 @@ export async function generateViewport() {
 }
 ```
 
-If viewport genuinely requires runtime data, wrap the document `<body>` in a Suspense boundary to signal that the entire route should be dynamic:
+If viewport genuinely requires runtime data, opt the segment out of instant-navigation validation with [`unstable_instant = false`](/docs/app/api-reference/file-conventions/route-segment-config/instant). The route renders on every request. There is no static shell.
+
+```tsx filename="app/layout.tsx" highlight={1,3}
+import { cookies } from 'next/headers'
+
+export const unstable_instant = false
+
+export async function generateViewport() {
+  const cookieJar = await cookies()
+  return {
+    themeColor: cookieJar.get('theme-color')?.value,
+  }
+}
+
+export default function RootLayout({ children }) {
+  return (
+    <html>
+      <body>{children}</body>
+    </html>
+  )
+}
+```
+
+Alternatively, wrap the document `<body>` in a Suspense boundary to signal that the entire route should be dynamic. This approach works on all versions of Next.js with Cache Components, but there is no static shell or content to send immediately when a request arrives:
 
 ```tsx filename="app/layout.tsx" highlight={1,13,17}
 import { Suspense } from 'react'
@@ -216,7 +239,9 @@ export default function RootLayout({ children }) {
 }
 ```
 
-Caching is preferred because it allows static shell generation. Wrapping the document `body` in Suspense means there is no static shell or content to immediately send when a request arrives, making the entire route block until ready on every request.
+See [Next.js encountered runtime data in `generateViewport()`](/docs/messages/blocking-prerender-viewport-runtime) for full fix options and trade-offs.
+
+Setting `unstable_instant = false` on a layout exempts every route in the subtree from instant-navigation validation. Caching is preferred because it allows static shell generation.
 
 > **Good to know**: Use [multiple root layouts](/docs/app/api-reference/file-conventions/layout#root-layout) to isolate fully dynamic viewport to specific routes, while still letting other routes in your application generate a static shell.
 
