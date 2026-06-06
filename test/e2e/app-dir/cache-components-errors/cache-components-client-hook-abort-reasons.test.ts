@@ -34,14 +34,14 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
     if (!prerenderMode || prerenderMode === 'true') {
       testCases.push({
         isDebugPrerender: true,
-        name: 'Build With --prerender-debug',
+        name: 'Build With --debug-prerender',
       })
     }
 
     if (!prerenderMode || prerenderMode === 'false') {
       testCases.push({
         isDebugPrerender: false,
-        name: 'Build Without --prerender-debug',
+        name: 'Build Without --debug-prerender',
       })
     }
   }
