@@ -2260,7 +2260,6 @@ describe('Cache Components Errors', () => {
                  This value would be evaluated during the prerender, instead of recomputed on each visit.
 
                  Ways to fix this:
-
                    - [stream] Wrap the Client Component in \`<Suspense fallback={...}>\`
                      https://nextjs.org/docs/messages/blocking-prerender-current-time-client#wrap-in-or-move-into-suspense
                    - [defer] Move the read into a \`useEffect\` or event handler
@@ -2289,7 +2288,6 @@ describe('Cache Components Errors', () => {
                  This value would be evaluated during the prerender, instead of recomputed on each visit.
 
                  Ways to fix this:
-
                    - [stream] Wrap the Client Component in \`<Suspense fallback={...}>\`
                      https://nextjs.org/docs/messages/blocking-prerender-current-time-client#wrap-in-or-move-into-suspense
                    - [defer] Move the read into a \`useEffect\` or event handler
@@ -2320,7 +2318,6 @@ describe('Cache Components Errors', () => {
                  This value would be evaluated during the prerender, instead of recomputed on each visit.
 
                  Ways to fix this:
-
                    - [stream] Wrap the Client Component in \`<Suspense fallback={...}>\`
                      https://nextjs.org/docs/messages/blocking-prerender-current-time-client#wrap-in-or-move-into-suspense
                    - [defer] Move the read into a \`useEffect\` or event handler
@@ -2348,7 +2345,6 @@ describe('Cache Components Errors', () => {
                  This value would be evaluated during the prerender, instead of recomputed on each visit.
 
                  Ways to fix this:
-
                    - [stream] Wrap the Client Component in \`<Suspense fallback={...}>\`
                      https://nextjs.org/docs/messages/blocking-prerender-current-time-client#wrap-in-or-move-into-suspense
                    - [defer] Move the read into a \`useEffect\` or event handler
@@ -2603,7 +2599,6 @@ describe('Cache Components Errors', () => {
                  This value would be evaluated during the prerender, instead of recomputed on each visit.
 
                  Ways to fix this:
-
                    - [stream] Wrap the Client Component in \`<Suspense fallback={...}>\`
                      https://nextjs.org/docs/messages/blocking-prerender-current-time-client#wrap-in-or-move-into-suspense
                    - [defer] Move the read into a \`useEffect\` or event handler
@@ -2632,7 +2627,6 @@ describe('Cache Components Errors', () => {
                  This value would be evaluated during the prerender, instead of recomputed on each visit.
 
                  Ways to fix this:
-
                    - [stream] Wrap the Client Component in \`<Suspense fallback={...}>\`
                      https://nextjs.org/docs/messages/blocking-prerender-current-time-client#wrap-in-or-move-into-suspense
                    - [defer] Move the read into a \`useEffect\` or event handler
@@ -2663,7 +2657,6 @@ describe('Cache Components Errors', () => {
                  This value would be evaluated during the prerender, instead of recomputed on each visit.
 
                  Ways to fix this:
-
                    - [stream] Wrap the Client Component in \`<Suspense fallback={...}>\`
                      https://nextjs.org/docs/messages/blocking-prerender-current-time-client#wrap-in-or-move-into-suspense
                    - [defer] Move the read into a \`useEffect\` or event handler
@@ -2691,7 +2684,6 @@ describe('Cache Components Errors', () => {
                  This value would be evaluated during the prerender, instead of recomputed on each visit.
 
                  Ways to fix this:
-
                    - [stream] Wrap the Client Component in \`<Suspense fallback={...}>\`
                      https://nextjs.org/docs/messages/blocking-prerender-current-time-client#wrap-in-or-move-into-suspense
                    - [defer] Move the read into a \`useEffect\` or event handler
