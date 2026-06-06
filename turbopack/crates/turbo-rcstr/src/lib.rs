@@ -25,6 +25,7 @@ use bincode::{
 use bytes_str::BytesStr;
 use debug_unreachable::debug_unreachable;
 use rustc_hash::FxBuildHasher;
+#[cfg(not(target_family = "wasm"))]
 use scattered_collect::slice::ScatteredSlice;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use shrink_to_fit::ShrinkToFit;
@@ -523,6 +524,7 @@ pub const fn make_const_prehashed_string(text: &'static str) -> StaticPrehashedS
 
 // Re-export scattered-collect so the `rcstr!` macro can reference it via
 // `$crate::scattered_collect`.
+#[cfg(not(target_family = "wasm"))]
 #[doc(hidden)]
 pub use scattered_collect;
 
@@ -531,15 +533,22 @@ pub use scattered_collect;
 pub struct StaticRcStr(pub &'static StaticPrehashedString);
 
 // Link-time collection of every `rcstr!` static.
+//
+// Disabled under wasm because scattered-collect relies on a environment provided function described in https://docs.rs/link-section/latest/link_section/#wasm and installing it is tricky using wasm-bindgen.  Also this is only hear to support desrialization of rcstrs which shouldn't happen under wasm anyway.
+#[cfg(not(target_family = "wasm"))]
 #[doc(hidden)]
 #[scattered_collect::gather]
 pub static STATIC_RCSTRS: ScatteredSlice<StaticRcStr>;
+// stubbed out for wasm
+#[cfg(target_family = "wasm")]
+const STATIC_RCSTRS: [StaticRcStr; 0] = [];
 
 /// Submits a `StaticRcStr` into [`STATIC_RCSTRS`] at link time.
 #[doc(hidden)]
 #[macro_export]
 macro_rules! __rcstr_static_submit {
     ($value:expr) => {
+        #[cfg(not(target_family = "wasm"))]
         $crate::scattered_collect::declarative::scatter! {
             #[scatter($crate::STATIC_RCSTRS)]
             const _: $crate::StaticRcStr = $value;
