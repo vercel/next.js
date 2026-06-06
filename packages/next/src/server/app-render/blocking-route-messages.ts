@@ -5,7 +5,7 @@ export function createRuntimeBodyError(route: string): Error {
       `Ways to fix this:\n` +
       `  - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access\n` +
       `    https://nextjs.org/docs/messages/blocking-prerender-runtime#wrap-in-or-move-into-suspense\n` +
-      `  - [cache] If the runtime data is \`params\` and they're known, prerender them with \`generateStaticParams\`\n` +
+      `  - [cache] For \`params\`: if the params are known, prerender them with \`generateStaticParams\`\n` +
       `    https://nextjs.org/docs/messages/blocking-prerender-runtime#for-known-params-prerender\n` +
       `  - [block] Set \`export const unstable_instant = false\` to silence this warning and allow a blocking route\n` +
       `    https://nextjs.org/docs/messages/blocking-prerender-runtime#allow-blocking-route`
@@ -33,7 +33,7 @@ export function createRuntimeBodyErrorInNavigation(route: string): Error {
       `Ways to fix this:\n` +
       `  - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access\n` +
       `    https://nextjs.org/docs/messages/blocking-prerender-runtime#wrap-in-or-move-into-suspense\n` +
-      `  - [cache] If the runtime data is \`params\` and they're known, prerender them with \`generateStaticParams\`\n` +
+      `  - [cache] For \`params\`: if the params are known, prerender them with \`generateStaticParams\`\n` +
       `    https://nextjs.org/docs/messages/blocking-prerender-runtime#for-known-params-prerender\n` +
       `  - [block] Set \`export const unstable_instant = false\` to silence this warning and allow a blocking route\n` +
       `    https://nextjs.org/docs/messages/blocking-prerender-runtime#allow-blocking-route`
