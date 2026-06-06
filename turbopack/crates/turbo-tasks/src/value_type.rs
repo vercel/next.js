@@ -14,7 +14,10 @@ use crate::{
     dyn_task_inputs::any_as_encode,
     id::TraitTypeId,
     macro_helpers::{NativeFunction, TRAIT_IMPLS_SLICE},
-    registry::{RegistryType, get_trait_type_id, trait_type_count, turbo_registry},
+    registry::{
+        RegistryType, get_trait_type_id, get_value_type_id_unchecked, trait_type_count,
+        turbo_registry,
+    },
     task::shared_reference::TypedSharedReference,
     vc::VcCellMode,
 };
@@ -269,11 +272,7 @@ turbo_registry!("Value", ValueType);
 
 // Called during ValueType registry post_init to register all trait methods.
 // Single-threaded during Lazy init.
-//
-// Iterates the link-time `TRAIT_IMPLS_SLICE` exactly once. The slice is complete at process start
-// (it is gathered by the linker, not built incrementally by constructors), so this can never
-// observe a partial set of trait impls regardless of when the `VALUES` `LazyLock` is first forced.
-pub(crate) fn register_all_trait_methods(_: &[&'static ValueType]) {
+pub(crate) fn register_all_trait_methods() {
     for entry in TRAIT_IMPLS_SLICE.iter() {
         for (i, impl_method) in entry.methods.iter().enumerate() {
             let trait_method = &entry.trait_type.methods[i];
@@ -293,13 +292,16 @@ pub(crate) fn register_all_trait_methods(_: &[&'static ValueType]) {
                 );
             }
         }
-        entry
-            .value_type
-            .register_trait(entry.trait_type, entry.methods);
+        let value_type = entry.value_type;
+        value_type.register_trait(entry.trait_type, entry.methods);
+        // SAFETY: We are inside the `VALUES` `LazyLock` init after `init_registry` assigned
+        // ids. Reading the id cell directly (rather than `get_value_type_id`)
+        // avoids re-entering `LazyLock::force` and deadlocking.
+        let id = unsafe { get_value_type_id_unchecked(value_type) };
         // Install the Rust vtable so `into_trait_ref`-style calls can downcast. The thunk resolves
         // the value type's id (already assigned by `init_registry` above) and inserts the
         // compile-time `DynMetadata` into the trait's `VTableRegistry`.
-        (entry.install_vtable)(entry.value_type);
+        (entry.install_vtable)(value_type, id);
     }
 }
 

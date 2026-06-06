@@ -17,7 +17,7 @@ use crate::{
     global_name::{global_name_for_method, global_name_for_trait_method_impl},
     ident::{
         get_inherent_impl_function_ident, get_path_ident, get_trait_impl_function_ident,
-        get_trait_impl_record_ident, get_type_ident,
+        get_type_ident,
     },
     self_filter::is_self_used,
 };
@@ -174,7 +174,6 @@ pub fn value_impl(args: TokenStream, input: TokenStream) -> TokenStream {
         items: &[ImplItem],
     ) -> TokenStream2 {
         let trait_ident = get_path_ident(trait_path);
-        let trait_impl_record_ident = get_trait_impl_record_ident(ty_ident, &trait_ident);
 
         let (impl_generics, _, where_clause) = generics.split_for_impl();
 
@@ -287,22 +286,10 @@ pub fn value_impl(args: TokenStream, input: TokenStream) -> TokenStream {
         }
         quote! {
             // Register this `impl Trait for Concrete` into the link-time `TRAIT_IMPLS_SLICE`.
-            // This carries both the trait method table AND the Rust vtable metadata, so a single
-            // pass over the (always-complete) link-time slice in `register_all_trait_methods`
-            // populates everything. There is no constructor and no `inventory` live list, so the
-            // registry can never observe a partial set of impls. Resolution order at init:
-            // 1 NativeFunctions, 2 TraitTypes, 3 ValueTypes (ids), 4 VTableRegistries (need ids).
-            //
-            // A named static (`#trait_impl_record_ident`, unique per type/trait) is used rather
-            // than an anonymous `const _` so multiple impls in one expansion get distinct symbols.
-            // The declarative `scatter!` form is used (not the `#[scatter(..)]` attribute) so the
-            // emitted code routes through `scattered_collect`'s own `$crate` rather than an
-            // absolute `::scattered_collect` path the downstream crate doesn't have. The collection
-            // is named by the fully-qualified `$crate::macro_helpers::TRAIT_IMPLS_SLICE` path.
             #[cfg(not(rust_analyzer))]
             turbo_tasks::macro_helpers::scattered_collect::declarative::scatter! {
                 #[scatter(turbo_tasks::macro_helpers::TRAIT_IMPLS_SLICE)]
-                static #trait_impl_record_ident: turbo_tasks::macro_helpers::TraitImplRecord = {
+                const _: turbo_tasks::macro_helpers::TraitImplRecord = {
                     const LEN: usize = <::std::boxed::Box<dyn #trait_path> as turbo_tasks::macro_helpers::TraitVtablePrototype>::LEN;
                     static METHODS: [&turbo_tasks::macro_helpers::NativeFunction; LEN] = turbo_tasks::macro_helpers::build_trait_vtable::<::std::boxed::Box<dyn #trait_path>, LEN>(&[#(#trait_methods),*]);
 
@@ -310,14 +297,7 @@ pub fn value_impl(args: TokenStream, input: TokenStream) -> TokenStream {
                         value_type: <#ty as turbo_tasks::macro_helpers::RegistryDef::<turbo_tasks::ValueType>>::DEF,
                         trait_type: <::std::boxed::Box<dyn #trait_path> as turbo_tasks::macro_helpers::RegistryDef::<turbo_tasks::TraitType>>::DEF,
                         methods: &METHODS,
-                        install_vtable: |value_type: &'static turbo_tasks::ValueType| {
-                            // SAFETY: called from `register_all_trait_methods`, inside the
-                            // `VALUES` `LazyLock` init after `init_registry` assigned ids.
-                            // Reading the id cell directly (rather than `get_value_type_id`)
-                            // avoids re-entering `LazyLock::force` and deadlocking.
-                            let id = unsafe {
-                                turbo_tasks::registry::get_value_type_id_unchecked(value_type)
-                            };
+                        install_vtable: |value_type: &'static turbo_tasks::ValueType, id: turbo_tasks::ValueTypeId| {
                             // Materialize the vtable pointer via the null-fat-ptr trick. We
                             // pass the metadata through `macro_helpers::metadata` without ever
                             // naming `DynMetadata` here, so this crate doesn't need

@@ -21,26 +21,6 @@ pub fn get_trait_vtable_registry_ident(ident: &Ident) -> Ident {
     Ident::new(&format!("__TurboTasksVTableRegistry_{ident}"), ident.span())
 }
 
-/// Name of the `static` holding the link-time `TraitImplRecord` for one `impl Trait for Concrete`.
-/// Unique per (concrete-type, trait) pair — a named static (rather than an anonymous `const _`) so
-/// that multiple impls emitted in a single proc-macro expansion get distinct symbols.
-///
-/// The type/trait idents are upper-cased so the emitted static satisfies `non_upper_case_globals`
-/// without needing an `#[allow(..)]` attribute on it: the declarative `scatter!` macro mis-parses
-/// items that carry a second attribute after `#[scatter(..)]`, so the scattered static must have
-/// exactly one attribute. Type and trait names are `CamelCase` by convention, so upper-casing the
-/// concatenation keeps it unique in practice.
-pub fn get_trait_impl_record_ident(struct_ident: &Ident, trait_ident: &Ident) -> Ident {
-    Ident::new(
-        &format!(
-            "__TURBO_TASKS_TRAIT_IMPL_{}_{}",
-            struct_ident.to_string().to_uppercase(),
-            trait_ident.to_string().to_uppercase(),
-        ),
-        trait_ident.span(),
-    )
-}
-
 pub fn get_inherent_impl_function_ident(ty_ident: &Ident, fn_ident: &Ident) -> Ident {
     Ident::new(
         &format!(

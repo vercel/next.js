@@ -267,7 +267,7 @@ pub struct TraitImplRecord {
     /// concrete `DynMetadata` is materialized as a `const` inside this thunk. Invoked once from
     /// `register_all_trait_methods` after `VALUES` ids are assigned. The argument is
     /// [`Self::value_type`], passed so the thunk can resolve the `ValueTypeId`.
-    pub install_vtable: fn(&'static ValueType),
+    pub install_vtable: fn(&'static ValueType, ValueTypeId),
 }
 
 // Link-time collection of every `impl Trait for Concrete`. Like the definition slices in

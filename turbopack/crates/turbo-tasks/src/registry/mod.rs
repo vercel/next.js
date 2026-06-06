@@ -256,7 +256,7 @@ pub fn validate_function_id(id: FunctionId) -> Option<Error> {
 
 static VALUES: LazyLock<Box<[&'static ValueType]>> = LazyLock::new(|| {
     let items = init_registry(VALUES_SLICE.iter().copied().collect());
-    crate::value_type::register_all_trait_methods(&items);
+    crate::value_type::register_all_trait_methods();
     items
 });
 
@@ -273,12 +273,12 @@ pub fn get_value_type_id(value: &'static ValueType) -> ValueTypeId {
 ///
 /// # Safety
 ///
-/// The only legitimate caller is a [`crate::macro_helpers::TraitImplRecord::install_vtable`] thunk,
+/// The only legitimate caller is a [`crate::macro_helpers::register_all_trait_methods`] thunk,
 /// which runs inside the `VALUES` `LazyLock` initializer (via `register_all_trait_methods`), after
 /// `init_registry` has assigned ids. Calling `get_value_type_id` from there would re-enter
 /// `LazyLock::force` and deadlock.
 #[inline]
-pub unsafe fn get_value_type_id_unchecked(value: &'static ValueType) -> ValueTypeId {
+pub(crate) unsafe fn get_value_type_id_unchecked(value: &'static ValueType) -> ValueTypeId {
     unsafe { get_id_unchecked(value) }
 }
 
