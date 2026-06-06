@@ -3170,9 +3170,11 @@ describe('Cache Components Errors', () => {
                  "description": "Next.js encountered runtime data during prerendering.",
                  "environmentLabel": "Server",
                  "label": "Blocking Route",
-                 "source": null,
+                 "source": "app/use-cache-low-expire/fast/page.tsx (3:16) @ Page
+               > 3 | export default async function Page() {
+                   |                ^",
                  "stack": [
-                   "Page [Prerender] <anonymous>",
+                   "Page app/use-cache-low-expire/fast/page.tsx (3:16)",
                  ],
                }
               `)
@@ -3298,9 +3300,11 @@ Ways to fix this:
                  "description": "Next.js encountered runtime data during prerendering.",
                  "environmentLabel": "Server",
                  "label": "Blocking Route",
-                 "source": null,
+                 "source": "app/use-cache-low-expire/slow/page.tsx (3:16) @ Page
+               > 3 | export default async function Page() {
+                   |                ^",
                  "stack": [
-                   "Page [Prerender] <anonymous>",
+                   "Page app/use-cache-low-expire/slow/page.tsx (3:16)",
                  ],
                }
               `)
@@ -3590,9 +3594,11 @@ Ways to fix this:
                  "description": "Next.js encountered runtime data during prerendering.",
                  "environmentLabel": "Server",
                  "label": "Blocking Route",
-                 "source": null,
+                 "source": "app/use-cache-revalidate-0/fast/page.tsx (3:16) @ Page
+               > 3 | export default async function Page() {
+                   |                ^",
                  "stack": [
-                   "Page [Prerender] <anonymous>",
+                   "Page app/use-cache-revalidate-0/fast/page.tsx (3:16)",
                  ],
                }
               `)
@@ -3718,9 +3724,11 @@ Ways to fix this:
                  "description": "Next.js encountered runtime data during prerendering.",
                  "environmentLabel": "Server",
                  "label": "Blocking Route",
-                 "source": null,
+                 "source": "app/use-cache-revalidate-0/slow/page.tsx (3:16) @ Page
+               > 3 | export default async function Page() {
+                   |                ^",
                  "stack": [
-                   "Page [Prerender] <anonymous>",
+                   "Page app/use-cache-revalidate-0/slow/page.tsx (3:16)",
                  ],
                }
               `)
@@ -4011,18 +4019,9 @@ Ways to fix this:
                "description": "Next.js encountered runtime data during prerendering.",
                "environmentLabel": "Server",
                "label": "Blocking Route",
-               "source": "../../../packages/next/dist/compiled/react-server-dom-turbopack/cjs/react-server-dom-turbopack-client.node.development.js (545:19) @ Object.resolveToJSON
-             > 545 |             value.then(function (partValue) {
-                   |                   ^",
+               "source": null,
                "stack": [
-                 "Promise.then <anonymous>",
-                 "Object.resolveToJSON ../../../packages/next/dist/compiled/react-server-dom-turbopack/cjs/react-server-dom-turbopack-client.node.development.js (545:19)",
-                 "JSON.stringify <anonymous>",
-                 "serializeModel ../../../packages/next/dist/compiled/react-server-dom-turbopack/cjs/react-server-dom-turbopack-client.node.development.js (766:21)",
-                 "processReply ../../../packages/next/dist/compiled/react-server-dom-turbopack/cjs/react-server-dom-turbopack-client.node.development.js (774:18)",
-                 "<anonymous> ../../../packages/next/dist/compiled/react-server-dom-turbopack/cjs/react-server-dom-turbopack-client.node.development.js (5421:21)",
-                 "exports.encodeReply ../../../packages/next/dist/compiled/react-server-dom-turbopack/cjs/react-server-dom-turbopack-client.node.development.js (5420:14)",
-                 "Page app/use-cache-params/[slug]/page.tsx (1:16)",
+                 "Page [Prerender] <anonymous>",
                ],
              }
             `)
@@ -4127,11 +4126,6 @@ Ways to fix this:
                "stack": [
                  "throwAnError app/use-cache-runtime-error/page.tsx (15:9)",
                  "ThrowingComponent app/use-cache-runtime-error/page.tsx (21:3)",
-                 "resolveErrorDev ../../../packages/next/dist/compiled/react-server-dom-turbopack/cjs/react-server-dom-turbopack-client.node.development.js (3477:51)",
-                 "processFullStringRow ../../../packages/next/dist/compiled/react-server-dom-turbopack/cjs/react-server-dom-turbopack-client.node.development.js (4644:23)",
-                 "processFullBinaryRow ../../../packages/next/dist/compiled/react-server-dom-turbopack/cjs/react-server-dom-turbopack-client.node.development.js (4587:7)",
-                 "processBinaryChunk ../../../packages/next/dist/compiled/react-server-dom-turbopack/cjs/react-server-dom-turbopack-client.node.development.js (4810:19)",
-                 "progress ../../../packages/next/dist/compiled/react-server-dom-turbopack/cjs/react-server-dom-turbopack-client.node.development.js (4996:9)",
                ],
              }
             `)
@@ -4201,11 +4195,6 @@ Ways to fix this:
                   |         ^",
                "stack": [
                  "throwAnError app/use-cache-catch-error/page.tsx (19:9)",
-                 "resolveErrorDev ../../../packages/next/dist/compiled/react-server-dom-turbopack/cjs/react-server-dom-turbopack-client.node.development.js (3477:51)",
-                 "processFullStringRow ../../../packages/next/dist/compiled/react-server-dom-turbopack/cjs/react-server-dom-turbopack-client.node.development.js (4644:23)",
-                 "processFullBinaryRow ../../../packages/next/dist/compiled/react-server-dom-turbopack/cjs/react-server-dom-turbopack-client.node.development.js (4587:7)",
-                 "processBinaryChunk ../../../packages/next/dist/compiled/react-server-dom-turbopack/cjs/react-server-dom-turbopack-client.node.development.js (4810:19)",
-                 "progress ../../../packages/next/dist/compiled/react-server-dom-turbopack/cjs/react-server-dom-turbopack-client.node.development.js (4996:9)",
                  "Page app/use-cache-catch-error/page.tsx (11:7)",
                ],
              }
@@ -4708,7 +4697,7 @@ Ways to fix this:
             } else {
               await expect(browser).toDisplayRedbox(`
                {
-                 "code": "E1296",
+                 "code": "E1312",
                  "description": "\`"use cache: private"\` can't be used inside \`unstable_cache()\`.
                Learn more: https://nextjs.org/docs/app/api-reference/directives/use-cache-private",
                  "environmentLabel": "Server",
@@ -4968,10 +4957,11 @@ Ways to fix this:
                "description": "Next.js encountered runtime data during prerendering.",
                "environmentLabel": "Server",
                "label": "Blocking Route",
-               "source": "app/use-cache-private-without-suspense/page.tsx (10:7) @ Page
-             > 10 |       <Private />
-                  |       ^",
+               "source": "app/use-cache-private-without-suspense/page.tsx (15:1) @ Private
+             > 15 | async function Private() {
+                  | ^",
                "stack": [
+                 "Private app/use-cache-private-without-suspense/page.tsx (15:1)",
                  "Page app/use-cache-private-without-suspense/page.tsx (10:7)",
                ],
              }
