@@ -40,10 +40,8 @@ import {
 } from './work-unit-async-storage.external'
 import { workAsyncStorage } from '../app-render/work-async-storage.external'
 import {
-  ClientHookDynamicError,
   isClientHookDynamicError,
   makeClientHookHangingPromise,
-  ParamClientHookDynamicError,
 } from '../dynamic-rendering-utils'
 import {
   METADATA_BOUNDARY_NAME,
@@ -639,7 +637,8 @@ export function useDynamicRouteParams(expression: string) {
           React.use(
             makeClientHookHangingPromise(
               workUnitStore.renderSignal,
-              new ParamClientHookDynamicError(workStore.route, expression)
+              workStore.route,
+              expression
             )
           )
         }
@@ -710,7 +709,8 @@ export function useDynamicSearchParams(expression: string) {
       React.use(
         makeClientHookHangingPromise(
           workUnitStore.renderSignal,
-          new ClientHookDynamicError(workStore.route, expression)
+          workStore.route,
+          expression
         )
       )
       break

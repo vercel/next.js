@@ -302,7 +302,7 @@ describe('client hook guidance', () => {
     ])
     expect(cards.map((card) => card.group)).toEqual([
       'stream',
-      'prerender',
+      'cache',
       'block',
     ])
   })

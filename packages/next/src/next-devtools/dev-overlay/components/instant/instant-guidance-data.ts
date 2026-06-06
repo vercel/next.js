@@ -2,7 +2,6 @@ export type CardColor = 'blue' | 'purple' | 'red' | 'amber' | 'teal' | 'gray'
 
 export type FixCardGroup =
   | 'stream'
-  | 'prerender'
   | 'block'
   | 'cache'
   | 'static'
@@ -30,7 +29,6 @@ export const FIX_CARD_GROUPS: Record<
   { label: string; color: CardColor; icon: FixCardIcon }
 > = {
   stream: { label: 'Stream', color: 'blue', icon: 'align-left' },
-  prerender: { label: 'Prerender', color: 'purple', icon: 'history' },
   block: { label: 'Block', color: 'red', icon: 'loading' },
   cache: { label: 'Cache', color: 'purple', icon: 'database' },
   static: { label: 'Static', color: 'gray', icon: 'zap' },
@@ -157,7 +155,7 @@ const clientHookBlockCard: FixCard = {
 const clientHookGspCard: FixCard = {
   id: 'prerender-known-params',
   title: 'Prerender known params',
-  group: 'prerender',
+  group: 'cache',
   link: 'https://nextjs.org/docs/messages/blocking-prerender-client-hook#prerender-known-params',
   snippets: [
     {
