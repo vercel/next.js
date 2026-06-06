@@ -202,7 +202,7 @@ describe('Cache Components Errors', () => {
                Ways to fix this:
                  - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
                    https://nextjs.org/docs/messages/blocking-prerender-dynamic#wrap-in-or-move-into-suspense
-                 - [cache] Cache the data access with \`"use cache"\`
+                 - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\`
                    https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
                  - [cache] For \`params\`: if the params are known, prerender them with \`generateStaticParams\`
                    https://nextjs.org/docs/messages/blocking-prerender-runtime#for-known-params-prerender
@@ -232,7 +232,7 @@ describe('Cache Components Errors', () => {
                Ways to fix this:
                  - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
                    https://nextjs.org/docs/messages/blocking-prerender-dynamic#wrap-in-or-move-into-suspense
-                 - [cache] Cache the data access with \`"use cache"\`
+                 - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\`
                    https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
                  - [cache] For \`params\`: if the params are known, prerender them with \`generateStaticParams\`
                    https://nextjs.org/docs/messages/blocking-prerender-runtime#for-known-params-prerender
@@ -258,7 +258,7 @@ describe('Cache Components Errors', () => {
                Ways to fix this:
                  - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
                    https://nextjs.org/docs/messages/blocking-prerender-dynamic#wrap-in-or-move-into-suspense
-                 - [cache] Cache the data access with \`"use cache"\`
+                 - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\`
                    https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
                  - [cache] For \`params\`: if the params are known, prerender them with \`generateStaticParams\`
                    https://nextjs.org/docs/messages/blocking-prerender-runtime#for-known-params-prerender
@@ -288,7 +288,7 @@ describe('Cache Components Errors', () => {
                Ways to fix this:
                  - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
                    https://nextjs.org/docs/messages/blocking-prerender-dynamic#wrap-in-or-move-into-suspense
-                 - [cache] Cache the data access with \`"use cache"\`
+                 - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\`
                    https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
                  - [cache] For \`params\`: if the params are known, prerender them with \`generateStaticParams\`
                    https://nextjs.org/docs/messages/blocking-prerender-runtime#for-known-params-prerender
@@ -845,7 +845,7 @@ describe('Cache Components Errors', () => {
                Ways to fix this:
                  - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
                    https://nextjs.org/docs/messages/blocking-prerender-dynamic#wrap-in-or-move-into-suspense
-                 - [cache] Cache the data access with \`"use cache"\`
+                 - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\`
                    https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
                  - [cache] For \`params\`: if the params are known, prerender them with \`generateStaticParams\`
                    https://nextjs.org/docs/messages/blocking-prerender-runtime#for-known-params-prerender
@@ -869,7 +869,7 @@ describe('Cache Components Errors', () => {
                Ways to fix this:
                  - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
                    https://nextjs.org/docs/messages/blocking-prerender-dynamic#wrap-in-or-move-into-suspense
-                 - [cache] Cache the data access with \`"use cache"\`
+                 - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\`
                    https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
                  - [cache] For \`params\`: if the params are known, prerender them with \`generateStaticParams\`
                    https://nextjs.org/docs/messages/blocking-prerender-runtime#for-known-params-prerender
@@ -900,7 +900,7 @@ describe('Cache Components Errors', () => {
                Ways to fix this:
                  - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
                    https://nextjs.org/docs/messages/blocking-prerender-dynamic#wrap-in-or-move-into-suspense
-                 - [cache] Cache the data access with \`"use cache"\`
+                 - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\`
                    https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
                  - [cache] For \`params\`: if the params are known, prerender them with \`generateStaticParams\`
                    https://nextjs.org/docs/messages/blocking-prerender-runtime#for-known-params-prerender
@@ -927,7 +927,7 @@ describe('Cache Components Errors', () => {
                Ways to fix this:
                  - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
                    https://nextjs.org/docs/messages/blocking-prerender-dynamic#wrap-in-or-move-into-suspense
-                 - [cache] Cache the data access with \`"use cache"\`
+                 - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\`
                    https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
                  - [cache] For \`params\`: if the params are known, prerender them with \`generateStaticParams\`
                    https://nextjs.org/docs/messages/blocking-prerender-runtime#for-known-params-prerender
@@ -953,7 +953,7 @@ describe('Cache Components Errors', () => {
                Ways to fix this:
                  - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
                    https://nextjs.org/docs/messages/blocking-prerender-dynamic#wrap-in-or-move-into-suspense
-                 - [cache] Cache the data access with \`"use cache"\`
+                 - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\`
                    https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
                  - [cache] For \`params\`: if the params are known, prerender them with \`generateStaticParams\`
                    https://nextjs.org/docs/messages/blocking-prerender-runtime#for-known-params-prerender
@@ -977,7 +977,7 @@ describe('Cache Components Errors', () => {
                Ways to fix this:
                  - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
                    https://nextjs.org/docs/messages/blocking-prerender-dynamic#wrap-in-or-move-into-suspense
-                 - [cache] Cache the data access with \`"use cache"\`
+                 - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\`
                    https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
                  - [cache] For \`params\`: if the params are known, prerender them with \`generateStaticParams\`
                    https://nextjs.org/docs/messages/blocking-prerender-runtime#for-known-params-prerender
@@ -1008,7 +1008,7 @@ describe('Cache Components Errors', () => {
                Ways to fix this:
                  - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
                    https://nextjs.org/docs/messages/blocking-prerender-dynamic#wrap-in-or-move-into-suspense
-                 - [cache] Cache the data access with \`"use cache"\`
+                 - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\`
                    https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
                  - [cache] For \`params\`: if the params are known, prerender them with \`generateStaticParams\`
                    https://nextjs.org/docs/messages/blocking-prerender-runtime#for-known-params-prerender
@@ -1049,7 +1049,7 @@ describe('Cache Components Errors', () => {
                Ways to fix this:
                  - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
                    https://nextjs.org/docs/messages/blocking-prerender-dynamic#wrap-in-or-move-into-suspense
-                 - [cache] Cache the data access with \`"use cache"\`
+                 - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\`
                    https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
                  - [cache] For \`params\`: if the params are known, prerender them with \`generateStaticParams\`
                    https://nextjs.org/docs/messages/blocking-prerender-runtime#for-known-params-prerender
@@ -2418,7 +2418,7 @@ describe('Cache Components Errors', () => {
                  Ways to fix this:
                    - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
                      https://nextjs.org/docs/messages/blocking-prerender-dynamic#wrap-in-or-move-into-suspense
-                   - [cache] Cache the data access with \`"use cache"\`
+                   - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\`
                      https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
                    - [cache] For \`params\`: if the params are known, prerender them with \`generateStaticParams\`
                      https://nextjs.org/docs/messages/blocking-prerender-runtime#for-known-params-prerender
@@ -2448,7 +2448,7 @@ describe('Cache Components Errors', () => {
                  Ways to fix this:
                    - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
                      https://nextjs.org/docs/messages/blocking-prerender-dynamic#wrap-in-or-move-into-suspense
-                   - [cache] Cache the data access with \`"use cache"\`
+                   - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\`
                      https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
                    - [cache] For \`params\`: if the params are known, prerender them with \`generateStaticParams\`
                      https://nextjs.org/docs/messages/blocking-prerender-runtime#for-known-params-prerender
@@ -2476,7 +2476,7 @@ describe('Cache Components Errors', () => {
                  Ways to fix this:
                    - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
                      https://nextjs.org/docs/messages/blocking-prerender-dynamic#wrap-in-or-move-into-suspense
-                   - [cache] Cache the data access with \`"use cache"\`
+                   - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\`
                      https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
                    - [cache] For \`params\`: if the params are known, prerender them with \`generateStaticParams\`
                      https://nextjs.org/docs/messages/blocking-prerender-runtime#for-known-params-prerender
@@ -3190,7 +3190,7 @@ describe('Cache Components Errors', () => {
                    Ways to fix this:
                      - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
                        https://nextjs.org/docs/messages/blocking-prerender-dynamic#wrap-in-or-move-into-suspense
-                     - [cache] Cache the data access with \`"use cache"\`
+                     - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\`
                        https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
                      - [cache] For \`params\`: if the params are known, prerender them with \`generateStaticParams\`
                        https://nextjs.org/docs/messages/blocking-prerender-runtime#for-known-params-prerender
@@ -3219,7 +3219,7 @@ describe('Cache Components Errors', () => {
                    Ways to fix this:
                      - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
                        https://nextjs.org/docs/messages/blocking-prerender-dynamic#wrap-in-or-move-into-suspense
-                     - [cache] Cache the data access with \`"use cache"\`
+                     - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\`
                        https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
                      - [cache] For \`params\`: if the params are known, prerender them with \`generateStaticParams\`
                        https://nextjs.org/docs/messages/blocking-prerender-runtime#for-known-params-prerender
@@ -3248,7 +3248,7 @@ describe('Cache Components Errors', () => {
 Ways to fix this:
   - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
     https://nextjs.org/docs/messages/blocking-prerender-dynamic#wrap-in-or-move-into-suspense
-  - [cache] Cache the data access with \`"use cache"\`
+  - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\`
     https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
   - [cache] For \`params\`: if the params are known, prerender them with \`generateStaticParams\`
     https://nextjs.org/docs/messages/blocking-prerender-runtime#for-known-params-prerender
@@ -3264,7 +3264,7 @@ Ways to fix this:
 Ways to fix this:
   - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
     https://nextjs.org/docs/messages/blocking-prerender-dynamic#wrap-in-or-move-into-suspense
-  - [cache] Cache the data access with \`"use cache"\`
+  - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\`
     https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
   - [cache] For \`params\`: if the params are known, prerender them with \`generateStaticParams\`
     https://nextjs.org/docs/messages/blocking-prerender-runtime#for-known-params-prerender
@@ -3320,7 +3320,7 @@ Ways to fix this:
                    Ways to fix this:
                      - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
                        https://nextjs.org/docs/messages/blocking-prerender-dynamic#wrap-in-or-move-into-suspense
-                     - [cache] Cache the data access with \`"use cache"\`
+                     - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\`
                        https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
                      - [cache] For \`params\`: if the params are known, prerender them with \`generateStaticParams\`
                        https://nextjs.org/docs/messages/blocking-prerender-runtime#for-known-params-prerender
@@ -3349,7 +3349,7 @@ Ways to fix this:
                    Ways to fix this:
                      - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
                        https://nextjs.org/docs/messages/blocking-prerender-dynamic#wrap-in-or-move-into-suspense
-                     - [cache] Cache the data access with \`"use cache"\`
+                     - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\`
                        https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
                      - [cache] For \`params\`: if the params are known, prerender them with \`generateStaticParams\`
                        https://nextjs.org/docs/messages/blocking-prerender-runtime#for-known-params-prerender
@@ -3378,7 +3378,7 @@ Ways to fix this:
 Ways to fix this:
   - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
     https://nextjs.org/docs/messages/blocking-prerender-dynamic#wrap-in-or-move-into-suspense
-  - [cache] Cache the data access with \`"use cache"\`
+  - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\`
     https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
   - [cache] For \`params\`: if the params are known, prerender them with \`generateStaticParams\`
     https://nextjs.org/docs/messages/blocking-prerender-runtime#for-known-params-prerender
@@ -3394,7 +3394,7 @@ Ways to fix this:
 Ways to fix this:
   - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
     https://nextjs.org/docs/messages/blocking-prerender-dynamic#wrap-in-or-move-into-suspense
-  - [cache] Cache the data access with \`"use cache"\`
+  - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\`
     https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
   - [cache] For \`params\`: if the params are known, prerender them with \`generateStaticParams\`
     https://nextjs.org/docs/messages/blocking-prerender-runtime#for-known-params-prerender
@@ -3609,7 +3609,7 @@ Ways to fix this:
                    Ways to fix this:
                      - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
                        https://nextjs.org/docs/messages/blocking-prerender-dynamic#wrap-in-or-move-into-suspense
-                     - [cache] Cache the data access with \`"use cache"\`
+                     - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\`
                        https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
                      - [cache] For \`params\`: if the params are known, prerender them with \`generateStaticParams\`
                        https://nextjs.org/docs/messages/blocking-prerender-runtime#for-known-params-prerender
@@ -3638,7 +3638,7 @@ Ways to fix this:
                    Ways to fix this:
                      - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
                        https://nextjs.org/docs/messages/blocking-prerender-dynamic#wrap-in-or-move-into-suspense
-                     - [cache] Cache the data access with \`"use cache"\`
+                     - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\`
                        https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
                      - [cache] For \`params\`: if the params are known, prerender them with \`generateStaticParams\`
                        https://nextjs.org/docs/messages/blocking-prerender-runtime#for-known-params-prerender
@@ -3667,7 +3667,7 @@ Ways to fix this:
 Ways to fix this:
   - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
     https://nextjs.org/docs/messages/blocking-prerender-dynamic#wrap-in-or-move-into-suspense
-  - [cache] Cache the data access with \`"use cache"\`
+  - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\`
     https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
   - [cache] For \`params\`: if the params are known, prerender them with \`generateStaticParams\`
     https://nextjs.org/docs/messages/blocking-prerender-runtime#for-known-params-prerender
@@ -3683,7 +3683,7 @@ Ways to fix this:
 Ways to fix this:
   - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
     https://nextjs.org/docs/messages/blocking-prerender-dynamic#wrap-in-or-move-into-suspense
-  - [cache] Cache the data access with \`"use cache"\`
+  - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\`
     https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
   - [cache] For \`params\`: if the params are known, prerender them with \`generateStaticParams\`
     https://nextjs.org/docs/messages/blocking-prerender-runtime#for-known-params-prerender
@@ -3739,7 +3739,7 @@ Ways to fix this:
                    Ways to fix this:
                      - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
                        https://nextjs.org/docs/messages/blocking-prerender-dynamic#wrap-in-or-move-into-suspense
-                     - [cache] Cache the data access with \`"use cache"\`
+                     - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\`
                        https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
                      - [cache] For \`params\`: if the params are known, prerender them with \`generateStaticParams\`
                        https://nextjs.org/docs/messages/blocking-prerender-runtime#for-known-params-prerender
@@ -3768,7 +3768,7 @@ Ways to fix this:
                    Ways to fix this:
                      - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
                        https://nextjs.org/docs/messages/blocking-prerender-dynamic#wrap-in-or-move-into-suspense
-                     - [cache] Cache the data access with \`"use cache"\`
+                     - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\`
                        https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
                      - [cache] For \`params\`: if the params are known, prerender them with \`generateStaticParams\`
                        https://nextjs.org/docs/messages/blocking-prerender-runtime#for-known-params-prerender
@@ -3797,7 +3797,7 @@ Ways to fix this:
 Ways to fix this:
   - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
     https://nextjs.org/docs/messages/blocking-prerender-dynamic#wrap-in-or-move-into-suspense
-  - [cache] Cache the data access with \`"use cache"\`
+  - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\`
     https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
   - [cache] For \`params\`: if the params are known, prerender them with \`generateStaticParams\`
     https://nextjs.org/docs/messages/blocking-prerender-runtime#for-known-params-prerender
@@ -3813,7 +3813,7 @@ Ways to fix this:
 Ways to fix this:
   - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
     https://nextjs.org/docs/messages/blocking-prerender-dynamic#wrap-in-or-move-into-suspense
-  - [cache] Cache the data access with \`"use cache"\`
+  - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\`
     https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
   - [cache] For \`params\`: if the params are known, prerender them with \`generateStaticParams\`
     https://nextjs.org/docs/messages/blocking-prerender-runtime#for-known-params-prerender
@@ -4027,7 +4027,7 @@ Ways to fix this:
                  Ways to fix this:
                    - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
                      https://nextjs.org/docs/messages/blocking-prerender-dynamic#wrap-in-or-move-into-suspense
-                   - [cache] Cache the data access with \`"use cache"\`
+                   - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\`
                      https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
                    - [cache] For \`params\`: if the params are known, prerender them with \`generateStaticParams\`
                      https://nextjs.org/docs/messages/blocking-prerender-runtime#for-known-params-prerender
@@ -4054,7 +4054,7 @@ Ways to fix this:
                  Ways to fix this:
                    - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
                      https://nextjs.org/docs/messages/blocking-prerender-dynamic#wrap-in-or-move-into-suspense
-                   - [cache] Cache the data access with \`"use cache"\`
+                   - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\`
                      https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
                    - [cache] For \`params\`: if the params are known, prerender them with \`generateStaticParams\`
                      https://nextjs.org/docs/messages/blocking-prerender-runtime#for-known-params-prerender
@@ -4935,7 +4935,7 @@ Ways to fix this:
                  Ways to fix this:
                    - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
                      https://nextjs.org/docs/messages/blocking-prerender-dynamic#wrap-in-or-move-into-suspense
-                   - [cache] Cache the data access with \`"use cache"\`
+                   - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\`
                      https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
                    - [cache] For \`params\`: if the params are known, prerender them with \`generateStaticParams\`
                      https://nextjs.org/docs/messages/blocking-prerender-runtime#for-known-params-prerender
@@ -4965,7 +4965,7 @@ Ways to fix this:
                  Ways to fix this:
                    - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
                      https://nextjs.org/docs/messages/blocking-prerender-dynamic#wrap-in-or-move-into-suspense
-                   - [cache] Cache the data access with \`"use cache"\`
+                   - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\`
                      https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
                    - [cache] For \`params\`: if the params are known, prerender them with \`generateStaticParams\`
                      https://nextjs.org/docs/messages/blocking-prerender-runtime#for-known-params-prerender
@@ -4994,7 +4994,7 @@ Ways to fix this:
 Ways to fix this:
   - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
     https://nextjs.org/docs/messages/blocking-prerender-dynamic#wrap-in-or-move-into-suspense
-  - [cache] Cache the data access with \`"use cache"\`
+  - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\`
     https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
   - [cache] For \`params\`: if the params are known, prerender them with \`generateStaticParams\`
     https://nextjs.org/docs/messages/blocking-prerender-runtime#for-known-params-prerender
@@ -5010,7 +5010,7 @@ Ways to fix this:
                  Ways to fix this:
                    - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
                      https://nextjs.org/docs/messages/blocking-prerender-dynamic#wrap-in-or-move-into-suspense
-                   - [cache] Cache the data access with \`"use cache"\`
+                   - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\`
                      https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
                    - [cache] For \`params\`: if the params are known, prerender them with \`generateStaticParams\`
                      https://nextjs.org/docs/messages/blocking-prerender-runtime#for-known-params-prerender

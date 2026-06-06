@@ -124,7 +124,7 @@ describe('instant validation - parallel slot configs', () => {
                  ],
                },
              ],
-             "code": "E1297",
+             "code": "E1319",
              "description": "Next.js encountered runtime data during a navigation.",
              "environmentLabel": "Server",
              "label": "Instant",
@@ -149,7 +149,7 @@ describe('instant validation - parallel slot configs', () => {
            Ways to fix this:
              - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
                https://nextjs.org/docs/messages/blocking-prerender-runtime#wrap-in-or-move-into-suspense
-             - [cache] If the runtime data is \`params\` and they're known, prerender them with \`generateStaticParams\`
+             - [cache] For \`params\`: if the params are known, prerender them with \`generateStaticParams\`
                https://nextjs.org/docs/messages/blocking-prerender-runtime#for-known-params-prerender
              - [block] Set \`export const unstable_instant = false\` to silence this warning and allow a blocking route
                https://nextjs.org/docs/messages/blocking-prerender-runtime#allow-blocking-route
@@ -185,7 +185,7 @@ describe('instant validation - parallel slot configs', () => {
                  ],
                },
              ],
-             "code": "E1297",
+             "code": "E1319",
              "description": "Next.js encountered runtime data during a navigation.",
              "environmentLabel": "Server",
              "label": "Instant",
@@ -210,7 +210,7 @@ describe('instant validation - parallel slot configs', () => {
            Ways to fix this:
              - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
                https://nextjs.org/docs/messages/blocking-prerender-runtime#wrap-in-or-move-into-suspense
-             - [cache] If the runtime data is \`params\` and they're known, prerender them with \`generateStaticParams\`
+             - [cache] For \`params\`: if the params are known, prerender them with \`generateStaticParams\`
                https://nextjs.org/docs/messages/blocking-prerender-runtime#for-known-params-prerender
              - [block] Set \`export const unstable_instant = false\` to silence this warning and allow a blocking route
                https://nextjs.org/docs/messages/blocking-prerender-runtime#allow-blocking-route
@@ -246,7 +246,7 @@ describe('instant validation - parallel slot configs', () => {
                  ],
                },
              ],
-             "code": "E1297",
+             "code": "E1319",
              "description": "Next.js encountered runtime data during a navigation.",
              "environmentLabel": "Server",
              "label": "Instant",
@@ -271,7 +271,7 @@ describe('instant validation - parallel slot configs', () => {
            Ways to fix this:
              - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
                https://nextjs.org/docs/messages/blocking-prerender-runtime#wrap-in-or-move-into-suspense
-             - [cache] If the runtime data is \`params\` and they're known, prerender them with \`generateStaticParams\`
+             - [cache] For \`params\`: if the params are known, prerender them with \`generateStaticParams\`
                https://nextjs.org/docs/messages/blocking-prerender-runtime#for-known-params-prerender
              - [block] Set \`export const unstable_instant = false\` to silence this warning and allow a blocking route
                https://nextjs.org/docs/messages/blocking-prerender-runtime#allow-blocking-route
@@ -309,7 +309,7 @@ describe('instant validation - parallel slot configs', () => {
                  ],
                },
              ],
-             "code": "E1297",
+             "code": "E1319",
              "description": "Next.js encountered runtime data during a navigation.",
              "environmentLabel": "Server",
              "label": "Instant",
@@ -334,7 +334,7 @@ describe('instant validation - parallel slot configs', () => {
            Ways to fix this:
              - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
                https://nextjs.org/docs/messages/blocking-prerender-runtime#wrap-in-or-move-into-suspense
-             - [cache] If the runtime data is \`params\` and they're known, prerender them with \`generateStaticParams\`
+             - [cache] For \`params\`: if the params are known, prerender them with \`generateStaticParams\`
                https://nextjs.org/docs/messages/blocking-prerender-runtime#for-known-params-prerender
              - [block] Set \`export const unstable_instant = false\` to silence this warning and allow a blocking route
                https://nextjs.org/docs/messages/blocking-prerender-runtime#allow-blocking-route
@@ -372,7 +372,7 @@ describe('instant validation - parallel slot configs', () => {
                    ],
                  },
                ],
-               "code": "E1297",
+               "code": "E1319",
                "description": "Next.js encountered runtime data during a navigation.",
                "environmentLabel": "Server",
                "label": "Instant",
@@ -396,7 +396,7 @@ describe('instant validation - parallel slot configs', () => {
                    ],
                  },
                ],
-               "code": "E1297",
+               "code": "E1319",
                "description": "Next.js encountered runtime data during a navigation.",
                "environmentLabel": "Server",
                "label": "Instant",
@@ -422,7 +422,7 @@ describe('instant validation - parallel slot configs', () => {
            Ways to fix this:
              - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
                https://nextjs.org/docs/messages/blocking-prerender-runtime#wrap-in-or-move-into-suspense
-             - [cache] If the runtime data is \`params\` and they're known, prerender them with \`generateStaticParams\`
+             - [cache] For \`params\`: if the params are known, prerender them with \`generateStaticParams\`
                https://nextjs.org/docs/messages/blocking-prerender-runtime#for-known-params-prerender
              - [block] Set \`export const unstable_instant = false\` to silence this warning and allow a blocking route
                https://nextjs.org/docs/messages/blocking-prerender-runtime#allow-blocking-route
@@ -437,7 +437,7 @@ describe('instant validation - parallel slot configs', () => {
            Ways to fix this:
              - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
                https://nextjs.org/docs/messages/blocking-prerender-runtime#wrap-in-or-move-into-suspense
-             - [cache] If the runtime data is \`params\` and they're known, prerender them with \`generateStaticParams\`
+             - [cache] For \`params\`: if the params are known, prerender them with \`generateStaticParams\`
                https://nextjs.org/docs/messages/blocking-prerender-runtime#for-known-params-prerender
              - [block] Set \`export const unstable_instant = false\` to silence this warning and allow a blocking route
                https://nextjs.org/docs/messages/blocking-prerender-runtime#allow-blocking-route
@@ -541,7 +541,7 @@ describe('instant validation - parallel slot configs', () => {
                  ],
                },
              ],
-             "code": "E1297",
+             "code": "E1319",
              "description": "Next.js encountered runtime data during a navigation.",
              "environmentLabel": "Server",
              "label": "Instant",
@@ -564,7 +564,7 @@ describe('instant validation - parallel slot configs', () => {
            Ways to fix this:
              - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
                https://nextjs.org/docs/messages/blocking-prerender-runtime#wrap-in-or-move-into-suspense
-             - [cache] If the runtime data is \`params\` and they're known, prerender them with \`generateStaticParams\`
+             - [cache] For \`params\`: if the params are known, prerender them with \`generateStaticParams\`
                https://nextjs.org/docs/messages/blocking-prerender-runtime#for-known-params-prerender
              - [block] Set \`export const unstable_instant = false\` to silence this warning and allow a blocking route
                https://nextjs.org/docs/messages/blocking-prerender-runtime#allow-blocking-route
@@ -635,7 +635,7 @@ describe('instant validation - parallel slot configs', () => {
                  ],
                },
              ],
-             "code": "E1297",
+             "code": "E1319",
              "description": "Next.js encountered runtime data during a navigation.",
              "environmentLabel": "Server",
              "label": "Instant",

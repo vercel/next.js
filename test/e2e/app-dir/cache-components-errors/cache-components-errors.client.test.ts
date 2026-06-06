@@ -116,7 +116,7 @@ describe('Cache Components Errors - Client Components', () => {
                \`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking the page load and leading to a slower user experience.
 
                Ways to fix this:
-                 - [cache] Cache the data access with \`"use cache"\`
+                 - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\`
                    https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
                  - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
                    https://nextjs.org/docs/messages/blocking-prerender-dynamic#wrap-in-or-move-into-suspense
@@ -146,7 +146,7 @@ describe('Cache Components Errors - Client Components', () => {
                \`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking the page load and leading to a slower user experience.
 
                Ways to fix this:
-                 - [cache] Cache the data access with \`"use cache"\`
+                 - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\`
                    https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
                  - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
                    https://nextjs.org/docs/messages/blocking-prerender-dynamic#wrap-in-or-move-into-suspense
@@ -179,7 +179,7 @@ describe('Cache Components Errors - Client Components', () => {
                \`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking the page load and leading to a slower user experience.
 
                Ways to fix this:
-                 - [cache] Cache the data access with \`"use cache"\`
+                 - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\`
                    https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
                  - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
                    https://nextjs.org/docs/messages/blocking-prerender-dynamic#wrap-in-or-move-into-suspense
@@ -209,7 +209,7 @@ describe('Cache Components Errors - Client Components', () => {
                \`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking the page load and leading to a slower user experience.
 
                Ways to fix this:
-                 - [cache] Cache the data access with \`"use cache"\`
+                 - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\`
                    https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
                  - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
                    https://nextjs.org/docs/messages/blocking-prerender-dynamic#wrap-in-or-move-into-suspense
