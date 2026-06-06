@@ -58,8 +58,8 @@ export class ParamClientHookDynamicError extends Error {
   constructor(route: string, expression: string) {
     const cacheBullet =
       expression === 'useParams()'
-        ? `  - [cache] If the dynamic params are known, prerender them with \`generateStaticParams\`\n` +
-          `    https://nextjs.org/docs/messages/blocking-prerender-client-hook#prerender-known-params\n`
+        ? `  - [cache] For known params, prerender them with \`generateStaticParams\`\n` +
+          `    https://nextjs.org/docs/messages/blocking-prerender-client-hook#for-known-params-prerender\n`
         : ''
     super(
       `Route "${route}": Next.js encountered URL data \`${expression}\` in a Client Component outside of \`<Suspense>\`.\n\n` +

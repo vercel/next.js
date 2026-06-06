@@ -297,7 +297,7 @@ describe('client hook guidance', () => {
     const cards = getCards('client-hook', 'runtime', 'useParams()')
     expect(cards.map((card) => card.id)).toEqual([
       'wrap-in-or-move-into-suspense',
-      'prerender-known-params',
+      'for-known-params-prerender',
       'allow-blocking-route',
     ])
     expect(cards.map((card) => card.group)).toEqual([
