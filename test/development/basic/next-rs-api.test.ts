@@ -202,7 +202,7 @@ async function main() {
     isPersistentCachingEnabled: false,
     nextVersion: '0.0.0',
   }, {
-    turbopackMemoryEviction: 'off' as MemoryEvictionMode,
+    turbopackMemoryEviction: 'off',
   });
 
   const entrypointsSubscription = project.entrypointsSubscribe();
