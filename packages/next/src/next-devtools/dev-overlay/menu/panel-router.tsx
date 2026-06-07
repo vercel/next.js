@@ -13,7 +13,7 @@ import {
   MENU_DURATION_MS,
 } from '../components/errors/dev-tools-indicator/utils'
 import { useDevOverlayContext } from '../../dev-overlay.browser'
-import { createContext, useContext } from 'react'
+import { createContext, useContext, useEffect, useRef } from 'react'
 import { useRenderErrorContext } from '../dev-overlay'
 import {
   ACTION_DEV_INDICATOR_SET,
@@ -179,9 +179,37 @@ const useToggleDevtoolsVisibility = () => {
 
 export const PanelRouter = () => {
   const { state } = useDevOverlayContext()
-  const { triggerRef } = usePanelRouterContext()
+  const { triggerRef, setPanel } = usePanelRouterContext()
   const toggleDevtools = useToggleDevtoolsVisibility()
   const isAppRouter = state.routerType === 'app'
+
+  // True while the error overlay is open, cleared on a deferred tick so the single
+  // ESC that closes the overlay does not also release the capture (the instant
+  // panel's ESC handler runs later in that same keystroke). A later ESC releases.
+  const errorOverlayOpenRef = useRef(false)
+  useEffect(() => {
+    if (state.isErrorOverlayOpen) {
+      errorOverlayOpenRef.current = true
+      return
+    }
+    const timeout = setTimeout(() => {
+      errorOverlayOpenRef.current = false
+    })
+    return () => clearTimeout(timeout)
+  }, [state.isErrorOverlayOpen])
+
+  // Returns to the menu, which ends the capture via the panel-switch effect.
+  // Exceptions: clicking outside is ignored (keeps the frozen page interactive);
+  // an ESC that just closed the error overlay is ignored (errorOverlayOpenRef).
+  const closeInstantPanel = (reason?: 'escape' | 'outside') => {
+    if (reason === 'outside') {
+      return
+    }
+    if (reason === 'escape' && errorOverlayOpenRef.current) {
+      return
+    }
+    setPanel('panel-selector')
+  }
 
   useShortcuts(
     state.hideShortcut ? { [state.hideShortcut]: toggleDevtools } : {},
@@ -274,11 +302,18 @@ export const PanelRouter = () => {
             sharePanelSizeGlobally={false}
             sharePanelPositionGlobally={false}
             draggable
+            keepBehindErrorOverlay
+            onClose={closeInstantPanel}
             sizeConfig={{
               kind: 'auto',
               width: 460 / state.scale,
             }}
-            header={<DevToolsHeader title="Navigation Inspector" />}
+            header={
+              <DevToolsHeader
+                title="Navigation Inspector"
+                onClose={() => closeInstantPanel()}
+              />
+            }
           >
             <InstantNavsPanel />
           </DynamicPanel>

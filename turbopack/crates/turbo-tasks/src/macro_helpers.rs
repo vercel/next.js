@@ -15,7 +15,10 @@ pub use tracing;
 
 #[cfg(debug_assertions)]
 use crate::debug::ValueDebugFormatString;
-use crate::{NonLocalValue, RawVc, TaskInput, TaskPersistence, TraitType, ValueType, ValueTypeId};
+use crate::{
+    InputResolution, NonLocalValue, RawVc, TaskInput, TaskPersistence, TraitType, ValueType,
+    ValueTypeId,
+};
 pub use crate::{
     dyn_task_inputs::DynTaskInputs,
     global_name_for_method, global_name_for_scope, global_name_for_trait_method,
@@ -46,6 +49,15 @@ pub fn get_persistence_from_inputs(inputs: &impl TaskInput) -> TaskPersistence {
     } else {
         TaskPersistence::Persistent
     }
+}
+
+/// Computes `TaskInput::is_resolved` for the call's inputs at the macro-generated callsite, on
+/// the fully concrete tuple type, returning it as an [`InputResolution`].  Computing it here keeps
+/// `is_resolved()` inlinable/const-foldable and avoids the macro gencode needing to import the
+/// type.
+#[inline(always)]
+pub fn input_resolution(inputs: &impl TaskInput) -> InputResolution {
+    InputResolution::from_is_resolved(inputs.is_resolved())
 }
 
 pub fn get_persistence_from_inputs_and_this(

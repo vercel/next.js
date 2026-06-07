@@ -205,7 +205,7 @@ impl InstrumentationEndpoint {
             *this.project,
             None,
             this.project.module_graph(userland_module),
-            vec![userland_module],
+            userland_module,
         ))
     }
 }
@@ -256,7 +256,10 @@ impl Endpoint for InstrumentationEndpoint {
     #[turbo_tasks::function]
     async fn entries(self: Vc<Self>) -> Result<Vc<GraphEntries>> {
         let entry_module = self.entry_module().to_resolved().await?;
-        Ok(Vc::cell(vec![ChunkGroupEntry::Entry(vec![entry_module])]))
+        Ok(
+            GraphEntries::from_chunk_groups(vec![ChunkGroupEntry::Entry(vec![entry_module])])
+                .cell(),
+        )
     }
 
     #[turbo_tasks::function]

@@ -21,10 +21,12 @@ harness = false
 workspace = true
 
 [dependencies]
+allocator-api2 = { workspace = true }
 anyhow = { workspace = true }
 async-trait = { workspace = true }
 auto-hash-map = { workspace = true }
 bincode = { workspace = true }
+bumpalo = { workspace = true }
 bytes-str = { workspace = true }
 data-encoding = { workspace = true }
 either = { workspace = true }

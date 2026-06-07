@@ -1,7 +1,13 @@
 import { nextTestSetup, type Playwright } from 'e2e-utils'
 import { retry, toggleDevToolsIndicatorPopover } from 'next-test-utils'
 
-// FIXME: Skipped due to flakiness. Reenable when fixed
+/*
+  FIXME: This entire module is flaky on CI. When making changes, remove the
+  .skip and run locally, but add it back before pushing.
+
+  We can re-enable the module on CI when the root cause of the flakiness is
+  determined (#94196).
+*/
 describe.skip('instant-nav-panel', () => {
   const { isNextDev, isTurbopack, next } = nextTestSetup({
     files: __dirname,
@@ -111,6 +117,52 @@ describe.skip('instant-nav-panel', () => {
       const portal = document.querySelector('nextjs-portal')
       const root = portal?.shadowRoot ?? document
       return Boolean(root.querySelector('.instant-nav-panel'))
+    })
+  }
+
+  async function triggerAppError(browser: Playwright) {
+    await browser.eval(() => {
+      document
+        .querySelector<HTMLButtonElement>('[data-testid="trigger-error"]')!
+        .click()
+    })
+  }
+
+  async function waitForErrorToast(browser: Playwright) {
+    await retry(async () => {
+      const hasToast = await browser.eval(() => {
+        const portal = document.querySelector('nextjs-portal')
+        const root = portal?.shadowRoot ?? document
+        return Boolean(root.querySelector('[data-issues-open]'))
+      })
+      expect(hasToast).toBe(true)
+    })
+  }
+
+  async function clickErrorToast(browser: Playwright) {
+    await browser.elementByCss('[data-issues-open]').click()
+  }
+
+  async function isErrorOverlayOpen(browser: Playwright): Promise<boolean> {
+    // The overlay can linger in the DOM (hidden via React Activity) after
+    // closing, so key on data-rendered="true" rather than mere presence.
+    return browser.eval(() => {
+      const portal = document.querySelector('nextjs-portal')
+      const root = portal?.shadowRoot ?? document
+      return Boolean(
+        root.querySelector('[data-nextjs-dialog-overlay][data-rendered="true"]')
+      )
+    })
+  }
+
+  async function readInstantPanelZIndex(
+    browser: Playwright
+  ): Promise<number | null> {
+    return browser.eval(() => {
+      const portal = document.querySelector('nextjs-portal')
+      const root = portal?.shadowRoot
+      const el = root?.querySelector('.dynamic-panel-container')
+      return el ? Number(getComputedStyle(el).zIndex) : null
     })
   }
 
@@ -578,6 +630,143 @@ describe.skip('instant-nav-panel', () => {
 
       await expectMpaPanel(browser)
       await expectTargetPageMpaShell(browser)
+    })
+  })
+
+  describe('capture lifecycle', () => {
+    it('ends the capture when opening the menu via the logo', async () => {
+      const browser = await next.browser('/')
+      await clearInstantModeCookie(browser)
+      await browser.waitForElementByCss('[data-testid="home-title"]')
+      await waitForAppHydration(browser)
+
+      await openInstantNavPanel(browser)
+      await clickStartCapturing(browser)
+      await expectPendingPanel(browser)
+
+      // Click the logo: opening the menu switches away from the instant panel,
+      // which ends the capture.
+      await toggleDevToolsIndicatorPopover(browser)
+      await waitForPanelRouterTransition()
+
+      // Leaving the panel for the menu releases the capture cookie.
+      await waitForInstantModeCookieAbsent(browser)
+    })
+
+    it('ends the capture when pressing Escape (no error overlay open)', async () => {
+      const browser = await next.browser('/')
+      await clearInstantModeCookie(browser)
+      await browser.waitForElementByCss('[data-testid="home-title"]')
+      await waitForAppHydration(browser)
+
+      await openInstantNavPanel(browser)
+      await clickStartCapturing(browser)
+      await expectPendingPanel(browser)
+
+      await browser.keydown('Escape')
+      await browser.keyup('Escape')
+
+      await waitForPanelRouterTransition()
+      await waitForInstantModeCookieAbsent(browser)
+    })
+
+    it('ends the capture when pressing the X close button', async () => {
+      const browser = await next.browser('/')
+      await clearInstantModeCookie(browser)
+      await browser.waitForElementByCss('[data-testid="home-title"]')
+      await waitForAppHydration(browser)
+
+      await openInstantNavPanel(browser)
+      await clickStartCapturing(browser)
+      await expectPendingPanel(browser)
+
+      await closePanelViaHeader(browser)
+
+      await waitForPanelRouterTransition()
+      await waitForInstantModeCookieAbsent(browser)
+    })
+
+    it('keeps the capture and panel mounted when opening the error overlay', async () => {
+      const browser = await next.browser('/')
+      await clearInstantModeCookie(browser)
+      await browser.waitForElementByCss('[data-testid="home-title"]')
+      await waitForAppHydration(browser)
+
+      await openInstantNavPanel(browser)
+      await clickStartCapturing(browser)
+      await expectPendingPanel(browser)
+
+      await triggerAppError(browser)
+      await waitForErrorToast(browser)
+      await clickErrorToast(browser)
+      await retry(async () => {
+        expect(await isErrorOverlayOpen(browser)).toBe(true)
+      })
+
+      // Capture survives and the panel stays mounted behind the overlay.
+      await waitForInstantModeCookie(browser)
+      expect(await isInstantNavPanelMounted(browser)).toBe(true)
+
+      await clearInstantModeCookie(browser)
+    })
+
+    it('keeps the instant panel behind the error overlay', async () => {
+      const browser = await next.browser('/')
+      await clearInstantModeCookie(browser)
+      await browser.waitForElementByCss('[data-testid="home-title"]')
+      await waitForAppHydration(browser)
+
+      await openInstantNavPanel(browser)
+      await clickStartCapturing(browser)
+      await triggerAppError(browser)
+      await waitForErrorToast(browser)
+      await clickErrorToast(browser)
+      await retry(async () => {
+        expect(await isErrorOverlayOpen(browser)).toBe(true)
+      })
+
+      await retry(async () => {
+        const z = await readInstantPanelZIndex(browser)
+        expect(z).not.toBeNull()
+        expect(z).toBeLessThan(2147483646)
+      })
+
+      await clearInstantModeCookie(browser)
+    })
+
+    it('closes the error overlay first on Escape and keeps the capture', async () => {
+      const browser = await next.browser('/')
+      await clearInstantModeCookie(browser)
+      await browser.waitForElementByCss('[data-testid="home-title"]')
+      await waitForAppHydration(browser)
+
+      await openInstantNavPanel(browser)
+      await clickStartCapturing(browser)
+      await triggerAppError(browser)
+      await waitForErrorToast(browser)
+      await clickErrorToast(browser)
+      await retry(async () => {
+        expect(await isErrorOverlayOpen(browser)).toBe(true)
+      })
+
+      // First Escape: the overlay closes, the capture survives.
+      await browser.keydown('Escape')
+      await browser.keyup('Escape')
+      await retry(async () => {
+        expect(await isErrorOverlayOpen(browser)).toBe(false)
+      })
+      await waitForInstantModeCookie(browser)
+      expect(await isInstantNavPanelMounted(browser)).toBe(true)
+
+      // Wait for the deferred errorOverlayOpenRef clear so the next ESC releases.
+      await waitForPanelRouterTransition()
+
+      // Second Escape: now the panel close releases the capture.
+      await browser.keydown('Escape')
+      await browser.keyup('Escape')
+      await waitForInstantModeCookieAbsent(browser)
+
+      await clearInstantModeCookie(browser)
     })
   })
 })

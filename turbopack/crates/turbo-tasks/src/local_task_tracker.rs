@@ -119,7 +119,7 @@ mod tests {
     use super::*;
 
     fn dummy_output() -> OutputContent {
-        OutputContent::Link(crate::raw_vc::RawVc::TaskOutput(
+        OutputContent::Link(crate::RawVc::TaskOutput(
             crate::TaskId::try_from(1).unwrap(),
         ))
     }

@@ -6,7 +6,6 @@ use std::{
 };
 
 use anyhow::{Context, Result, bail};
-use either::Either;
 use rustc_hash::FxHashSet;
 use tracing::Instrument;
 use turbo_rcstr::RcStr;
@@ -15,8 +14,8 @@ use turbo_tasks::{
     take_effects,
 };
 use turbo_tasks_backend::{
-    BackendOptions, GitVersionInfo, NoopBackingStorage, StartupCacheState, StorageMode,
-    TurboBackingStorage, TurboTasksBackend, noop_backing_storage, turbo_backing_storage,
+    BackendOptions, GitVersionInfo, StartupCacheState, StorageMode, TurboTasksBackend,
+    noop_backing_storage, turbo_backing_storage,
 };
 use turbo_tasks_fs::FileSystem;
 use turbo_unix_path::join_path;
@@ -29,19 +28,20 @@ use turbopack_core::{
         ChunkingConfig, ChunkingContext, ChunkingContextExt, ContentHashing, EvaluatableAsset,
         MangleType, MinifyType, SourceMapsType, availability_info::AvailabilityInfo,
     },
+    context::AssetContext,
     environment::{BrowserEnvironment, Environment, ExecutionEnvironment, NodeJsEnvironment},
     ident::AssetIdent,
     issue::{IssueReporter, IssueSeverity, handle_issues},
     module::Module,
     module_graph::{
-        ModuleGraph, SingleModuleGraph,
+        GraphEntries, ModuleGraph, SingleModuleGraph,
         binding_usage_info::compute_binding_usage_info,
         chunk_group_info::{ChunkGroup, ChunkGroupEntry},
     },
     output::{OutputAsset, OutputAssets, OutputAssetsWithReferenced},
     reference_type::{EntryReferenceSubType, ReferenceType},
     resolve::{
-        origin::{PlainResolveOrigin, ResolveOrigin, ResolveOriginExt},
+        origin::{PlainResolveOrigin, ResolveOrigin},
         parse::Request,
     },
 };
@@ -60,7 +60,7 @@ use crate::{
     },
 };
 
-type Backend = TurboTasksBackend<Either<TurboBackingStorage, NoopBackingStorage>>;
+type Backend = TurboTasksBackend;
 
 pub struct TurbopackBuildBuilder {
     turbo_tasks: Arc<TurboTasks<Backend>>,
@@ -284,27 +284,33 @@ async fn build_internal(
         .await?)
         .to_vec();
 
-    let origin = PlainResolveOrigin::new(asset_context, project_fs.root().await?.join("_")?);
+    let origin =
+        PlainResolveOrigin::new(asset_context, project_fs.root().await?.join("_")?).await?;
+    let resolve_options = origin.resolve_options();
+    let asset_context = origin.asset_context();
+    let origin_path = origin.origin_path();
     let project_dir = &project_dir;
     let entries = async move {
         entry_requests
             .into_iter()
-            .map(|request_vc| async move {
-                let ty = ReferenceType::Entry(EntryReferenceSubType::Undefined);
-                let request = request_vc.await?;
-                origin
-                    .resolve_asset(request_vc, origin.resolve_options(), ty)
-                    .await?
-                    .await?
-                    .first_module()
-                    .await?
-                    .with_context(|| {
-                        format!(
-                            "Unable to resolve entry {} from directory {}.",
-                            request.request().unwrap(),
-                            project_dir
-                        )
-                    })
+            .map(|request_vc| {
+                let origin_path = origin_path.clone();
+                async move {
+                    let ty = ReferenceType::Entry(EntryReferenceSubType::Undefined);
+                    let request = request_vc.await?;
+                    asset_context
+                        .resolve_asset(origin_path, request_vc, resolve_options, ty)
+                        .await?
+                        .first_module()
+                        .await?
+                        .with_context(|| {
+                            format!(
+                                "Unable to resolve entry {} from directory {}.",
+                                request.request().unwrap(),
+                                project_dir
+                            )
+                        })
+                }
             })
             .try_join()
             .await
@@ -313,7 +319,8 @@ async fn build_internal(
     .await?;
 
     let single_graph = SingleModuleGraph::new_with_entries(
-        ResolvedVc::cell(vec![ChunkGroupEntry::Entry(entries.clone())]),
+        GraphEntries::from_chunk_groups(vec![ChunkGroupEntry::Entry(entries.clone())])
+            .resolved_cell(),
         false,
         true,
     );
@@ -556,7 +563,7 @@ pub async fn build(args: &BuildArguments) -> Result<()> {
                 storage_mode: Some(storage_mode),
                 ..Default::default()
             },
-            Either::Left(backing_storage),
+            backing_storage,
         ));
         if let StartupCacheState::Invalidated { reason_code } = cache_state {
             eprintln!(
@@ -575,7 +582,7 @@ pub async fn build(args: &BuildArguments) -> Result<()> {
                 storage_mode: None,
                 ..Default::default()
             },
-            Either::Right(noop_backing_storage()),
+            noop_backing_storage(),
         ))
     };
 

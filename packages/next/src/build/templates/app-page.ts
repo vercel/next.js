@@ -899,6 +899,7 @@ export async function handler(
             cachedNavigations: Boolean(
               nextConfig.experimental.cachedNavigations
             ),
+            appShells: nextConfig.experimental.appShells,
             clientTraceMetadata:
               nextConfig.experimental.clientTraceMetadata || ([] as any),
             clientParamParsingOrigins:
