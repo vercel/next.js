@@ -65,8 +65,7 @@ use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
     CapturedEffect, Completion, Effect, EffectExt, EffectStateStorage, InvalidationReason,
     NonLocalValue, ReadRef, ResolvedVc, TurboTasksApi, ValueToString, ValueToStringRef, Vc,
-    debug::ValueDebugFormat, parallel, spawn, trace::TraceRawVcs, turbo_tasks_weak, turbobail,
-    turbofmt,
+    debug::ValueDebugFormat, parallel, trace::TraceRawVcs, turbo_tasks_weak, turbobail, turbofmt,
 };
 use turbo_tasks_hash::{
     DeterministicHash, DeterministicHasher, HashAlgorithm, deterministic_hash, hash_xxh3_hash64,
@@ -1004,20 +1003,13 @@ impl FileSystem for DiskFileSystem {
             }
 
             async fn apply(&self) -> Result<(), turbo_tasks::ApplyError> {
-                // Run the whole apply (state-machine coordination + the actual write) on its own
-                // spawned task so that multiple pending write effects can execute in parallel
-                // rather than serially on the caller's future (see #94140).
-                let this = self.clone();
-                spawn(async move {
-                    let body = this.content.as_ref().map(|content| {
-                        || async { this.apply_inner(content).await.map_err(AnyhowWrapper::from) }
-                    });
-                    this.inner
-                        .effect_state_storage
-                        .run_apply::<AnyhowWrapper, _, _>(this.key(), this.content_hash, body)
-                        .await
-                })
-                .await
+                let body = self.content.as_ref().map(|content| {
+                    || async { self.apply_inner(content).await.map_err(AnyhowWrapper::from) }
+                });
+                self.inner
+                    .effect_state_storage
+                    .run_apply::<AnyhowWrapper, _, _>(self.key(), self.content_hash, body)
+                    .await
             }
         }
 
@@ -1229,20 +1221,13 @@ impl FileSystem for DiskFileSystem {
             }
 
             async fn apply(&self) -> Result<(), turbo_tasks::ApplyError> {
-                // Run the whole apply (state-machine coordination + the actual symlink write) on
-                // its own spawned task so multiple pending effects can execute in parallel rather
-                // than serially on the caller's future (see #94140).
-                let this = self.clone();
-                spawn(async move {
-                    let body = this.content.as_ref().map(|content| {
-                        || async { this.apply_inner(content).await.map_err(AnyhowWrapper::from) }
-                    });
-                    this.inner
-                        .effect_state_storage
-                        .run_apply::<AnyhowWrapper, _, _>(this.key(), this.content_hash, body)
-                        .await
-                })
-                .await
+                let body = self.content.as_ref().map(|content| {
+                    || async { self.apply_inner(content).await.map_err(AnyhowWrapper::from) }
+                });
+                self.inner
+                    .effect_state_storage
+                    .run_apply::<AnyhowWrapper, _, _>(self.key(), self.content_hash, body)
+                    .await
             }
         }
 

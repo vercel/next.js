@@ -22,6 +22,7 @@ use crate::{
         debug_assert_in_top_level_task, debug_assert_not_in_top_level_task, mark_top_level_task,
         unmark_top_level_task_may_leak_eventually_consistent_state, with_turbo_tasks,
     },
+    spawn,
     trace::TraceRawVcs,
 };
 
@@ -126,7 +127,7 @@ impl EffectStateStorage {
     /// Intended for use by [`Effect::capture`] to elide content materialization when the apply
     /// would dedup. Reading this from inside a turbo-tasks task is sound because
     /// [`Effects::apply`] re-checks at apply time and fires the producing task's invalidator on
-    /// mismatch (via the [`ApplyOutcome::Retry`] / [`EffectsError::Retry`] pathway).
+    /// mismatch (via the [`ApplyError::Retry`] / [`EffectsError::Retry`] pathway).
     pub fn matches_applied(&self, key: &[u8], target: u128) -> bool {
         let entry = self.effect_state.lock().get(key).cloned();
         let Some(entry) = entry else { return false };
@@ -150,14 +151,10 @@ impl EffectStateStorage {
 
     /// Coordinate an apply for `(key, value_hash)` against the per-key state machine.
     ///
-    /// On a dedup hit (`Applied { value_hash == target, result }`), short-circuits and returns the
-    /// cached result without calling `body`. Otherwise, transitions the entry to `InProgress`,
-    /// awaits any in-flight apply for the same key, calls `body` to perform the side effect, then
-    /// writes back the result as `Applied { value_hash, result }`.
-    ///
-    /// If `body` is `None` the captured effect has no materialized content (capture observed
-    /// matching storage and elided materialization). In that case, a non-matching state forces a
-    /// `Retry` — we have nothing to apply. The state entry is left in `Unapplied` for waiters.
+    /// Dedup hits (state already `Applied` with a matching hash) return the cached result without
+    /// running `body`. Otherwise `body` runs once under an `InProgress` guard and the result is
+    /// stored. A `None` `body` (capture elided content because storage matched, but it no longer
+    /// does) yields [`ApplyError::Retry`].
     pub async fn run_apply<E, F, Fut>(
         &self,
         key: Box<[u8]>,
@@ -343,14 +340,11 @@ pub enum EffectsError {
     Conflict(usize),
 
     #[error(
-        "effect state was reset for {}{}; producing task {task_name} invalidated, retry required",
+        "effect state diverged before apply for {}{}; producing task invalidated, retry required",
         keys.iter().take(MAX_KEYS_TO_DISPLAY).cloned().collect::<Vec<_>>().join(", "),
-        if keys.len() > MAX_KEYS_TO_DISPLAY { format!(", ... ({} more)", keys.len() - 100) } else { String::new() }
+        if keys.len() > MAX_KEYS_TO_DISPLAY { format!(", ... ({} more)", keys.len() - MAX_KEYS_TO_DISPLAY) } else { String::new() }
     )]
-    Retry {
-        task_name: String,
-        keys: Vec<String>,
-    },
+    Retry { keys: Vec<String> },
 }
 
 impl From<Arc<dyn EffectError>> for EffectsError {
@@ -449,10 +443,10 @@ impl Effects {
     /// `apply()` multiple times on the same `Effects` value runs each underlying side effect at
     /// most once per stored `(key, value_hash)` pair.
     ///
-    /// If any captured effect signals [`ApplyOutcome::Retry`] (its content was elided at capture
+    /// If any captured effect signals [`ApplyError::Retry`] (its content was elided at capture
     /// time and storage state diverged between capture and apply), the producing task is
     /// invalidated and [`EffectsError::Retry`] is returned after the remaining keys finish.
-    /// Side-effect failures (`ApplyOutcome::Failed`) propagate as [`EffectsError::Apply`]; the
+    /// Side-effect failures (`ApplyError::Failed`) propagate as [`EffectsError::Apply`]; the
     /// first such error wins.
     ///
     /// `apply` must only be used in a "top-level" task (e.g. [`run_once`][crate::run_once]),
@@ -463,8 +457,8 @@ impl Effects {
     ///
     /// **Do not call this directly.** External callers must go through
     /// [`read_strongly_consistent_and_apply_effects`] or
-    /// [`read_strongly_consistent_and_apply_effects_with`], which own the read+apply+retry loop
-    /// required to recover from [`EffectsError::Retry`]. Exposed publicly only as
+    /// [`resolve_strongly_consistent_and_take_and_apply_effects`], which own the read+apply+retry
+    /// loop required to recover from [`EffectsError::Retry`]. Exposed publicly only as
     /// [`Effects::apply_for_testing`] (`#[doc(hidden)]`) so integration tests can drive the apply
     /// state machine directly.
     async fn apply(&self) -> Result<(), EffectsError> {
@@ -491,9 +485,11 @@ impl Effects {
             let retry_keys = Mutex::new(Vec::<String>::new());
             let result: Result<(), EffectsError> = futures::stream::iter(unique.iter())
                 .map(Ok::<_, EffectsError>)
-                .try_for_each_concurrent(
-                    APPLY_EFFECTS_CONCURRENCY_LIMIT,
-                    async |idx| match captured[*idx].apply().await {
+                .try_for_each_concurrent(APPLY_EFFECTS_CONCURRENCY_LIMIT, async |idx| {
+                    // Run each apply on its own spawned task so that pending effects execute in
+                    // parallel rather than serially on this future (see #94140).
+                    let effect = captured[*idx].clone();
+                    match spawn(async move { effect.apply().await }).await {
                         Ok(()) => Ok(()),
                         Err(ApplyError::Failed(err)) => Err(EffectsError::Apply(err)),
                         Err(ApplyError::Retry) => {
@@ -503,8 +499,8 @@ impl Effects {
                                 .push(String::from_utf8_lossy(&key).into_owned());
                             Ok(())
                         }
-                    },
-                )
+                    }
+                })
                 .await;
 
             match result {
@@ -533,18 +529,13 @@ impl Effects {
     }
 
     /// Invalidate the producing task (if any) and return [`EffectsError::Retry`] carrying the
-    /// producing task's name and the `keys` that signaled [`ApplyOutcome::Retry`] (their capture
-    /// elided content materialization but storage state diverged before apply).
+    /// `keys` that signaled [`ApplyError::Retry`] (their capture elided content materialization but
+    /// storage state diverged before apply).
     fn signal_retry(&self, keys: Vec<String>) -> Result<(), EffectsError> {
-        let task_name = match self.invalidator {
-            Some(invalidator) => with_turbo_tasks(|tt| {
-                let name = tt.get_task_name(invalidator.task_id());
-                invalidator.invalidate(&**tt);
-                name
-            }),
-            None => "<unknown>".to_string(),
-        };
-        Err(EffectsError::Retry { task_name, keys })
+        if let Some(invalidator) = self.invalidator {
+            with_turbo_tasks(|tt| invalidator.invalidate(&**tt));
+        }
+        Err(EffectsError::Retry { keys })
     }
 }
 
@@ -626,24 +617,23 @@ where
 fn handle_apply_retry(err: EffectsError, attempts: &mut usize) -> Result<()> {
     const MAX_RETRIES: usize = 4; // chosen by a fair dice roll
     match err {
-        EffectsError::Retry { task_name, keys } if *attempts < MAX_RETRIES => {
+        EffectsError::Retry { keys } if *attempts < MAX_RETRIES => {
             *attempts += 1;
             // Warn on every retry after the first.
             if *attempts > 1 {
-                eprintln!(
-                    "BUG: {task_name} has retried {attempts} times to write an output: {keys:?}.  \
-                     This implies multiple routes are fighting to write one of these files.",
+                tracing::warn!(
                     attempts = *attempts,
+                    ?keys,
+                    "retrying effect application; this implies multiple routes are fighting to \
+                     write one of these files",
                 );
             }
             Ok(())
         }
-        // Retries exhausted: surface that we gave up after `MAX_RETRIES`, naming the task and the
-        // contended outputs.
-        EffectsError::Retry { task_name, keys } => anyhow::bail!(
-            "gave up applying effects for {task_name} after {MAX_RETRIES} retries; repeated \
-             effect-state divergence on: {keys:?}. This implies multiple routes are fighting to \
-             write one of these files."
+        EffectsError::Retry { keys } => anyhow::bail!(
+            "gave up applying effects after {MAX_RETRIES} retries; repeated effect-state \
+             divergence on: {keys:?}. This implies multiple routes are fighting to write one of \
+             these files."
         ),
         e => Err(e.into()),
     }
