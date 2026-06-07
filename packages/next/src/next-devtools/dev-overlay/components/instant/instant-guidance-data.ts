@@ -121,7 +121,7 @@ const runtimeCards: FixCard[] = [
       { text: 'export const instant = false', highlight: true },
     ],
     prompt:
-      'Add "export const instant = false" as a top-level export in the page or layout file. This silences the warning for this segment. Confirm with the user that the route is intentionally request-time before applying this change: the export exempts the segment from instant-navigation validation, and the route renders on every request, so navigations to it block until the render completes. If the user wants to keep the navigation instant, choose "Wrap in or move into Suspense" or "For known params, prerender" instead.',
+      'Add "export const instant = false" as a top-level export in the page or layout file. This silences the warning for this segment. Confirm with the user that the route is intentionally request-time before applying this change: the export exempts the segment from instant-navigation validation, and the route renders on every request, so navigations to it block until the render completes.',
   },
 ]
 
@@ -136,7 +136,7 @@ const clientHookSuspenseCard: FixCard = {
     { text: '</Suspense>', highlight: true },
   ],
   prompt:
-    'Wrap the component that calls the navigation hook in <Suspense>. The fallback prop must render synchronous, deterministic JSX (no fetch, no awaiting, no Math.random or Date.now) that approximates the final layout (skeleton, spinner, or stable placeholder text). If the hook has no visible UI, omit the fallback prop. Import Suspense from "react". Do not change the hook call itself. Place the Suspense boundary as close to the hook call as possible so the rest of the route stays in the prerendered static shell.',
+    'Wrap the component that calls the navigation hook in <Suspense>. The fallback prop must render synchronous, deterministic JSX (no fetch, no awaiting, no Math.random or Date.now) that approximates the final layout. Import Suspense from "react". Do not change the hook call itself. Place the Suspense boundary as close to the hook call as possible so the rest of the route stays in the prerendered static shell.',
 }
 
 const clientHookBlockCard: FixCard = {
@@ -149,7 +149,7 @@ const clientHookBlockCard: FixCard = {
     { text: 'export const instant = false', highlight: true },
   ],
   prompt:
-    'Add "export const instant = false" as a top-level export in the page or layout file. Confirm with the user that the route is intentionally request-time before applying this change: the export exempts the segment from instant-navigation validation, and the route renders on every request, so navigations to it block until the render completes. If the user wants to keep the navigation instant, choose "Wrap in or move into Suspense" or "For known params, prerender" instead.',
+    'Add "export const unstable_instant = false" as a top-level export in the page or layout file. This silences the warning for this segment. Confirm with the user that the route is intentionally request-time before applying this change: the export exempts the segment from instant-navigation validation, and the route renders on every request, so navigations to it block until the render completes.',
 }
 
 const clientHookGspCard: FixCard = {
@@ -176,7 +176,7 @@ const clientHookGspCard: FixCard = {
     { text: '}' },
   ],
   prompt:
-    'Add a generateStaticParams() export to the page or layout that defines the dynamic segment. Return an array of param objects whose keys match the segment\'s [param] names. Only applies to useParams: the generated paths let useParams resolve during prerendering. Does not help usePathname, useSelectedLayoutSegment(s), or useSearchParams. Do not introduce new imports beyond Next.js types. If you can\'t return at least one known param at build time, use "Wrap in or move into Suspense" instead.',
+    "Add a generateStaticParams() export to the page or layout that defines the dynamic segment. Return an array of param objects whose keys match the segment's [param] names. On the generated paths, useParams resolves to a build-time constant, and usePathname and useSelectedLayoutSegment(s) (which derive from the URL path) also resolve without needing a Suspense boundary. Does not help useSearchParams, since search params come from the request URL's query string and are not part of segment params. Do not introduce new imports beyond Next.js types. If you can't return at least one known param at build time, use \"Wrap in or move into Suspense\" instead.",
 }
 
 /** useSearchParams: Stream + Block (GSP doesn't apply — search params come from request). */
@@ -235,7 +235,7 @@ const dynamicCards: FixCard[] = [
       { text: 'export const instant = false', highlight: true },
     ],
     prompt:
-      'Add "export const instant = false" as a top-level export in the page or layout file. This silences the warning for this segment. Confirm with the user that the route is intentionally request-time before applying this change: the export exempts the segment from instant-navigation validation, and the route renders on every request, so navigations to it block until the render completes. If the user wants to keep the navigation instant, choose "Cache the component or data" or "Wrap in or move into Suspense" instead.',
+      'Add "export const instant = false" as a top-level export in the page or layout file. This silences the warning for this segment. Confirm with the user that the route is intentionally request-time before applying this change: the export exempts the segment from instant-navigation validation, and the route renders on every request, so navigations to it block until the render completes.',
   },
 ]
 
@@ -280,7 +280,7 @@ const unrenderedSegmentCards: FixCard[] = [
       { text: 'export const instant = false', highlight: true },
     ],
     prompt:
-      'Add "export const instant = false" as a top-level export in the dropped segment\'s page or layout file. This silences the warning for the dropped segment and tells Next.js the segment does not need instant-navigation validation. Confirm with the user that skipping validation is intentional before applying this change.',
+      'Add "export const unstable_instant = false" as a top-level export in the dropped segment\'s page or layout file. This silences the warning for the dropped segment and tells Next.js the segment does not need instant-navigation validation. Confirm with the user that skipping validation is intentional before applying this change.',
   },
 ]
 
@@ -368,7 +368,7 @@ const viewportRuntimeCards: FixCard[] = [
       { text: 'export const instant = false', highlight: true },
     ],
     prompt:
-      'Add "export const instant = false" as a top-level export in the page or layout file. This silences the warning for this segment. Confirm with the user that the route is intentionally fully dynamic before applying this change: the export exempts the segment from instant-navigation validation, and the route renders on every request. If the user wants to keep the navigation instant, choose "Use static viewport" instead.',
+      'Add "export const unstable_instant = false" as a top-level export in the page or layout file. This silences the warning for this segment. Confirm with the user that the route is intentionally fully dynamic before applying this change: the export exempts the segment from instant-navigation validation, and the route renders on every request.',
   },
 ]
 
@@ -396,7 +396,7 @@ const viewportDynamicCards: FixCard[] = [
       { text: 'export const instant = false', highlight: true },
     ],
     prompt:
-      'Add "export const instant = false" as a top-level export in the page or layout file. This silences the warning for this segment. Confirm with the user that the route is intentionally fully dynamic before applying this change: the export exempts the segment from instant-navigation validation, and the route renders on every request. If the user wants to keep the navigation instant, choose "Cache the viewport data" instead.',
+      'Add "export const unstable_instant = false" as a top-level export in the page or layout file. This silences the warning for this segment. Confirm with the user that the route is intentionally fully dynamic before applying this change: the export exempts the segment from instant-navigation validation, and the route renders on every request.',
   },
 ]
 
