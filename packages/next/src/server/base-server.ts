@@ -2286,7 +2286,9 @@ export default abstract class Server<
       pathname !== '/_error' &&
       req.method !== 'HEAD' &&
       req.method !== 'GET' &&
-      (typeof components.Component === 'string' || isSSG)
+      (typeof components.Component === 'string' ||
+        isSSG ||
+        (!isAppPath && !hasServerProps))
     ) {
       res.statusCode = 405
       res.setHeader('Allow', ['GET', 'HEAD'])
