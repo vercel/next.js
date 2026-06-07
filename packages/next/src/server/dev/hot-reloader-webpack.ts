@@ -54,6 +54,7 @@ import {
 } from './on-demand-entry-handler'
 import { denormalizePagePath } from '../../shared/lib/page-path/denormalize-page-path'
 import { normalizePathSep } from '../../shared/lib/page-path/normalize-path-sep'
+import { normalizeAppPath } from '../../shared/lib/router/utils/app-paths'
 import getRouteFromEntrypoint from '../get-route-from-entrypoint'
 import {
   difference,
@@ -79,7 +80,10 @@ import {
   HMR_MESSAGE_SENT_TO_BROWSER,
   type NextJsHotReloaderInterface,
 } from './hot-reloader-types'
-import type { HmrMessageSentToBrowser } from './hot-reloader-types'
+import type {
+  HmrMessageSentToBrowser,
+  ServerComponentRefreshScope,
+} from './hot-reloader-types'
 import type { WebpackError } from 'webpack'
 import { PAGE_TYPES } from '../../lib/page-types'
 import { FAST_REFRESH_RUNTIME_RELOAD } from './messages'
@@ -430,12 +434,14 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
     }
   }
 
-  protected async refreshServerComponents(hash: string): Promise<void> {
+  protected async refreshServerComponents(
+    hash: string,
+    refreshScope: ServerComponentRefreshScope
+  ): Promise<void> {
     this.send({
       type: HMR_MESSAGE_SENT_TO_BROWSER.SERVER_COMPONENT_CHANGES,
       hash,
-      // TODO: granular reloading of changes
-      // entrypoints: serverComponentChanges,
+      refreshScope,
     })
   }
 
@@ -1543,7 +1549,21 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
         reloadAfterInvalidation
       ) {
         this.resetFetch()
-        this.refreshServerComponents(stats.hash)
+        const changedRoutes =
+          reloadAfterInvalidation ||
+          !this.config.experimental.serverComponentsHmrRouteFiltering
+            ? undefined
+            : Array.from(
+                new Set(
+                  [...changedServerComponentPages, ...changedCSSImportPages]
+                    .filter((key) => key.startsWith('app/'))
+                    .map((key) => normalizeAppPath(key.slice('app'.length)))
+                )
+              )
+        const refreshScope: ServerComponentRefreshScope = changedRoutes?.length
+          ? { type: 'routes', routes: changedRoutes }
+          : { type: 'all' }
+        this.refreshServerComponents(stats.hash, refreshScope)
       }
 
       changedClientPages.clear()

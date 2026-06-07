@@ -878,6 +878,7 @@ export default class DevServer extends Server {
             this.bundlerService.sendHmrMessage({
               type: HMR_MESSAGE_SENT_TO_BROWSER.SERVER_COMPONENT_CHANGES,
               hash: `generateStaticParams-${Date.now()}`,
+              refreshScope: { type: 'all' },
             })
           }
         }

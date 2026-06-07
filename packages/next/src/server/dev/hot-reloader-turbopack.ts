@@ -1632,6 +1632,7 @@ export async function createHotReloaderTurbopack(
         this.send({
           type: HMR_MESSAGE_SENT_TO_BROWSER.SERVER_COMPONENT_CHANGES,
           hash: String(++hmrHash),
+          refreshScope: { type: 'all' },
         })
       }
     },
@@ -1795,6 +1796,9 @@ export async function createHotReloaderTurbopack(
               devRewrites: opts.fsChecker.rewrites,
               productionRewrites: undefined,
               logErrors: true,
+              serverComponentsHmrRouteFiltering: Boolean(
+                nextConfig.experimental.serverComponentsHmrRouteFiltering
+              ),
 
               hooks: {
                 // Pass a no-o subscribeToChanges to skip wiring HMR subscriptions for
@@ -1972,6 +1976,7 @@ export async function createHotReloaderTurbopack(
         hotReloader.send({
           type: HMR_MESSAGE_SENT_TO_BROWSER.SERVER_COMPONENT_CHANGES,
           hash: String(++hmrHash),
+          refreshScope: { type: 'all' },
         })
       },
     })

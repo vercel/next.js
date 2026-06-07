@@ -45,6 +45,7 @@ import {
 // eslint-disable-next-line import/no-extraneous-dependencies
 import { createFromReadableStream as createFromReadableStreamBrowser } from 'react-server-dom-webpack/client'
 import { findSourceMapURL } from '../../../app-find-source-map-url'
+import { normalizeAppPath } from '../../../../shared/lib/router/utils/app-paths'
 
 export interface StaticIndicatorState {
   pathname: string | null
@@ -412,6 +413,16 @@ export function processMessage(
       // Store the latest hash in a session cookie so that it's sent back to the
       // server with any subsequent requests.
       document.cookie = `${NEXT_HMR_REFRESH_HASH_COOKIE}=${message.hash};path=/`
+
+      const sourcePage = window.next.__internal_src_page
+      if (
+        process.env.__NEXT_SERVER_COMPONENTS_HMR_ROUTE_FILTERING &&
+        message.refreshScope.type === 'routes' &&
+        sourcePage !== undefined &&
+        !message.refreshScope.routes.includes(normalizeAppPath(sourcePage))
+      ) {
+        return
+      }
 
       if (
         RuntimeErrorHandler.hadRuntimeError ||

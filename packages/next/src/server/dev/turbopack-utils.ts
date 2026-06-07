@@ -156,6 +156,7 @@ export async function handleRouteType({
   productionRewrites,
   hooks,
   logErrors,
+  serverComponentsHmrRouteFiltering,
 }: {
   dev: boolean
   page: string
@@ -168,6 +169,7 @@ export async function handleRouteType({
   devRewrites: SetupOpts['fsChecker']['rewrites'] | undefined
   productionRewrites: CustomRoutes['rewrites'] | undefined
   logErrors: boolean
+  serverComponentsHmrRouteFiltering: boolean
 
   readyIds?: ReadyIds // dev
 
@@ -367,6 +369,9 @@ export async function handleRouteType({
             return {
               type: HMR_MESSAGE_SENT_TO_BROWSER.SERVER_COMPONENT_CHANGES,
               hash,
+              refreshScope: serverComponentsHmrRouteFiltering
+                ? { type: 'routes', routes: [pathname] }
+                : { type: 'all' },
             }
           },
           (e) => {

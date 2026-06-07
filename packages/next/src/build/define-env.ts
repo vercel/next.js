@@ -247,6 +247,9 @@ export function getDefineEnv({
     'process.env.__NEXT_SERVER_COMPONENTS_HMR_CANCELLATION': Boolean(
       config.experimental.serverComponentsHmrCancellation
     ),
+    'process.env.__NEXT_SERVER_COMPONENTS_HMR_ROUTE_FILTERING': Boolean(
+      config.experimental.serverComponentsHmrRouteFiltering
+    ),
     'process.env.__NEXT_DYNAMIC_ON_HOVER': Boolean(
       config.experimental.dynamicOnHover
     ),

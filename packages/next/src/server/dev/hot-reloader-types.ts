@@ -108,9 +108,14 @@ export interface ReloadPageMessage {
   data: string
 }
 
+export type ServerComponentRefreshScope =
+  | { type: 'all' }
+  | { type: 'routes'; routes: string[] }
+
 export interface ServerComponentChangesMessage {
   type: HMR_MESSAGE_SENT_TO_BROWSER.SERVER_COMPONENT_CHANGES
   hash: string
+  refreshScope: ServerComponentRefreshScope
 }
 
 export interface MiddlewareChangesMessage {
