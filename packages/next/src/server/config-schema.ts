@@ -364,7 +364,6 @@ export const experimentalSchema = {
   typedRoutes: z.boolean().optional(),
   webpackBuildWorker: z.boolean().optional(),
   webpackMemoryOptimizations: z.boolean().optional(),
-  turbopackMemoryLimit: z.number().optional(),
   turbopackMemoryEviction: z
     .union([z.literal(false), z.literal('full')])
     .optional(),
