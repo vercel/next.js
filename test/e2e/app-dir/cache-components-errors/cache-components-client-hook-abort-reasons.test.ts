@@ -2006,7 +2006,7 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
                  This value would be evaluated during the prerender, instead of recomputed on each visit.
 
                  Ways to fix this:
-                   - [stream] Wrap the component in \`<Suspense fallback={...}>\` so the hook value streams in after prerendering
+                   - [stream] Wrap the Client Component in \`<Suspense fallback={...}>\`
                      https://nextjs.org/docs/messages/blocking-prerender-current-time-client#wrap-in-or-move-into-suspense
                    - [defer] Move the read into a \`useEffect\` or event handler
                      https://nextjs.org/docs/messages/blocking-prerender-current-time-client#move-into-effect-or-event-handler
@@ -2034,7 +2034,7 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
                  This value would be evaluated during the prerender, instead of recomputed on each visit.
 
                  Ways to fix this:
-                   - [stream] Wrap the component in \`<Suspense fallback={...}>\` so the hook value streams in after prerendering
+                   - [stream] Wrap the Client Component in \`<Suspense fallback={...}>\`
                      https://nextjs.org/docs/messages/blocking-prerender-current-time-client#wrap-in-or-move-into-suspense
                    - [defer] Move the read into a \`useEffect\` or event handler
                      https://nextjs.org/docs/messages/blocking-prerender-current-time-client#move-into-effect-or-event-handler
@@ -2058,7 +2058,7 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
                This value would be evaluated during the prerender, instead of recomputed on each visit.
 
                Ways to fix this:
-                 - [stream] Wrap the component in \`<Suspense fallback={...}>\` so the hook value streams in after prerendering
+                 - [stream] Wrap the Client Component in \`<Suspense fallback={...}>\`
                    https://nextjs.org/docs/messages/blocking-prerender-current-time-client#wrap-in-or-move-into-suspense
                  - [defer] Move the read into a \`useEffect\` or event handler
                    https://nextjs.org/docs/messages/blocking-prerender-current-time-client#move-into-effect-or-event-handler
@@ -2086,7 +2086,7 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
                This value would be evaluated during the prerender, instead of recomputed on each visit.
 
                Ways to fix this:
-                 - [stream] Wrap the component in \`<Suspense fallback={...}>\` so the hook value streams in after prerendering
+                 - [stream] Wrap the Client Component in \`<Suspense fallback={...}>\`
                    https://nextjs.org/docs/messages/blocking-prerender-current-time-client#wrap-in-or-move-into-suspense
                  - [defer] Move the read into a \`useEffect\` or event handler
                    https://nextjs.org/docs/messages/blocking-prerender-current-time-client#move-into-effect-or-event-handler
@@ -2126,7 +2126,7 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
                  This value would be evaluated during the prerender, instead of recomputed on each visit.
 
                  Ways to fix this:
-                   - [stream] Wrap the component in \`<Suspense fallback={...}>\` so the hook value streams in after prerendering
+                   - [stream] Wrap the Client Component in \`<Suspense fallback={...}>\`
                      https://nextjs.org/docs/messages/blocking-prerender-current-time-client#wrap-in-or-move-into-suspense
                    - [defer] Move the read into a \`useEffect\` or event handler
                      https://nextjs.org/docs/messages/blocking-prerender-current-time-client#move-into-effect-or-event-handler
@@ -2154,7 +2154,7 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
                  This value would be evaluated during the prerender, instead of recomputed on each visit.
 
                  Ways to fix this:
-                   - [stream] Wrap the component in \`<Suspense fallback={...}>\` so the hook value streams in after prerendering
+                   - [stream] Wrap the Client Component in \`<Suspense fallback={...}>\`
                      https://nextjs.org/docs/messages/blocking-prerender-current-time-client#wrap-in-or-move-into-suspense
                    - [defer] Move the read into a \`useEffect\` or event handler
                      https://nextjs.org/docs/messages/blocking-prerender-current-time-client#move-into-effect-or-event-handler
@@ -2178,7 +2178,7 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
                This value would be evaluated during the prerender, instead of recomputed on each visit.
 
                Ways to fix this:
-                 - [stream] Wrap the component in \`<Suspense fallback={...}>\` so the hook value streams in after prerendering
+                 - [stream] Wrap the Client Component in \`<Suspense fallback={...}>\`
                    https://nextjs.org/docs/messages/blocking-prerender-current-time-client#wrap-in-or-move-into-suspense
                  - [defer] Move the read into a \`useEffect\` or event handler
                    https://nextjs.org/docs/messages/blocking-prerender-current-time-client#move-into-effect-or-event-handler
@@ -2206,7 +2206,7 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
                This value would be evaluated during the prerender, instead of recomputed on each visit.
 
                Ways to fix this:
-                 - [stream] Wrap the component in \`<Suspense fallback={...}>\` so the hook value streams in after prerendering
+                 - [stream] Wrap the Client Component in \`<Suspense fallback={...}>\`
                    https://nextjs.org/docs/messages/blocking-prerender-current-time-client#wrap-in-or-move-into-suspense
                  - [defer] Move the read into a \`useEffect\` or event handler
                    https://nextjs.org/docs/messages/blocking-prerender-current-time-client#move-into-effect-or-event-handler
@@ -2246,7 +2246,7 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
                  This value would be evaluated during the prerender, instead of recomputed on each visit.
 
                  Ways to fix this:
-                   - [stream] Wrap the component in \`<Suspense fallback={...}>\` so the hook value streams in after prerendering
+                   - [stream] Wrap the Client Component in \`<Suspense fallback={...}>\`
                      https://nextjs.org/docs/messages/blocking-prerender-current-time-client#wrap-in-or-move-into-suspense
                    - [defer] Move the read into a \`useEffect\` or event handler
                      https://nextjs.org/docs/messages/blocking-prerender-current-time-client#move-into-effect-or-event-handler
@@ -2267,7 +2267,7 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
                  This blocks prerendering because the value is only available at runtime.
 
                  Ways to fix this:
-                   - [stream] Wrap the component in \`<Suspense fallback={...}>\` so the hook value streams in after prerendering
+                   - [stream] Wrap the Client Component in \`<Suspense fallback={...}>\`
                      https://nextjs.org/docs/messages/blocking-prerender-client-hook#wrap-in-or-move-into-suspense
                    - [cache] For known params, prerender them with \`generateStaticParams\`
                      https://nextjs.org/docs/messages/blocking-prerender-client-hook#for-known-params-prerender
@@ -2299,7 +2299,7 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
                  This value would be evaluated during the prerender, instead of recomputed on each visit.
 
                  Ways to fix this:
-                   - [stream] Wrap the component in \`<Suspense fallback={...}>\` so the hook value streams in after prerendering
+                   - [stream] Wrap the Client Component in \`<Suspense fallback={...}>\`
                      https://nextjs.org/docs/messages/blocking-prerender-current-time-client#wrap-in-or-move-into-suspense
                    - [defer] Move the read into a \`useEffect\` or event handler
                      https://nextjs.org/docs/messages/blocking-prerender-current-time-client#move-into-effect-or-event-handler
@@ -2314,7 +2314,7 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
                  This blocks prerendering because the value is only available at runtime.
 
                  Ways to fix this:
-                   - [stream] Wrap the component in \`<Suspense fallback={...}>\` so the hook value streams in after prerendering
+                   - [stream] Wrap the Client Component in \`<Suspense fallback={...}>\`
                      https://nextjs.org/docs/messages/blocking-prerender-client-hook#wrap-in-or-move-into-suspense
                    - [cache] For known params, prerender them with \`generateStaticParams\`
                      https://nextjs.org/docs/messages/blocking-prerender-client-hook#for-known-params-prerender
@@ -2393,7 +2393,7 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
                This value would be evaluated during the prerender, instead of recomputed on each visit.
 
                Ways to fix this:
-                 - [stream] Wrap the component in \`<Suspense fallback={...}>\` so the hook value streams in after prerendering
+                 - [stream] Wrap the Client Component in \`<Suspense fallback={...}>\`
                    https://nextjs.org/docs/messages/blocking-prerender-current-time-client#wrap-in-or-move-into-suspense
                  - [defer] Move the read into a \`useEffect\` or event handler
                    https://nextjs.org/docs/messages/blocking-prerender-current-time-client#move-into-effect-or-event-handler
@@ -2414,7 +2414,7 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
                This blocks prerendering because the value is only available at runtime.
 
                Ways to fix this:
-                 - [stream] Wrap the component in \`<Suspense fallback={...}>\` so the hook value streams in after prerendering
+                 - [stream] Wrap the Client Component in \`<Suspense fallback={...}>\`
                    https://nextjs.org/docs/messages/blocking-prerender-client-hook#wrap-in-or-move-into-suspense
                  - [cache] For known params, prerender them with \`generateStaticParams\`
                    https://nextjs.org/docs/messages/blocking-prerender-client-hook#for-known-params-prerender
@@ -2444,7 +2444,7 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
                This value would be evaluated during the prerender, instead of recomputed on each visit.
 
                Ways to fix this:
-                 - [stream] Wrap the component in \`<Suspense fallback={...}>\` so the hook value streams in after prerendering
+                 - [stream] Wrap the Client Component in \`<Suspense fallback={...}>\`
                    https://nextjs.org/docs/messages/blocking-prerender-current-time-client#wrap-in-or-move-into-suspense
                  - [defer] Move the read into a \`useEffect\` or event handler
                    https://nextjs.org/docs/messages/blocking-prerender-current-time-client#move-into-effect-or-event-handler
@@ -2466,7 +2466,7 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
                This blocks prerendering because the value is only available at runtime.
 
                Ways to fix this:
-                 - [stream] Wrap the component in \`<Suspense fallback={...}>\` so the hook value streams in after prerendering
+                 - [stream] Wrap the Client Component in \`<Suspense fallback={...}>\`
                    https://nextjs.org/docs/messages/blocking-prerender-client-hook#wrap-in-or-move-into-suspense
                  - [cache] For known params, prerender them with \`generateStaticParams\`
                    https://nextjs.org/docs/messages/blocking-prerender-client-hook#for-known-params-prerender
@@ -2510,7 +2510,7 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
                  This value would be evaluated during the prerender, instead of recomputed on each visit.
 
                  Ways to fix this:
-                   - [stream] Wrap the component in \`<Suspense fallback={...}>\` so the hook value streams in after prerendering
+                   - [stream] Wrap the Client Component in \`<Suspense fallback={...}>\`
                      https://nextjs.org/docs/messages/blocking-prerender-current-time-client#wrap-in-or-move-into-suspense
                    - [defer] Move the read into a \`useEffect\` or event handler
                      https://nextjs.org/docs/messages/blocking-prerender-current-time-client#move-into-effect-or-event-handler
@@ -2559,7 +2559,7 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
                  This value would be evaluated during the prerender, instead of recomputed on each visit.
 
                  Ways to fix this:
-                   - [stream] Wrap the component in \`<Suspense fallback={...}>\` so the hook value streams in after prerendering
+                   - [stream] Wrap the Client Component in \`<Suspense fallback={...}>\`
                      https://nextjs.org/docs/messages/blocking-prerender-current-time-client#wrap-in-or-move-into-suspense
                    - [defer] Move the read into a \`useEffect\` or event handler
                      https://nextjs.org/docs/messages/blocking-prerender-current-time-client#move-into-effect-or-event-handler
@@ -2652,7 +2652,7 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
                This value would be evaluated during the prerender, instead of recomputed on each visit.
 
                Ways to fix this:
-                 - [stream] Wrap the component in \`<Suspense fallback={...}>\` so the hook value streams in after prerendering
+                 - [stream] Wrap the Client Component in \`<Suspense fallback={...}>\`
                    https://nextjs.org/docs/messages/blocking-prerender-current-time-client#wrap-in-or-move-into-suspense
                  - [defer] Move the read into a \`useEffect\` or event handler
                    https://nextjs.org/docs/messages/blocking-prerender-current-time-client#move-into-effect-or-event-handler
@@ -2701,7 +2701,7 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
                This value would be evaluated during the prerender, instead of recomputed on each visit.
 
                Ways to fix this:
-                 - [stream] Wrap the component in \`<Suspense fallback={...}>\` so the hook value streams in after prerendering
+                 - [stream] Wrap the Client Component in \`<Suspense fallback={...}>\`
                    https://nextjs.org/docs/messages/blocking-prerender-current-time-client#wrap-in-or-move-into-suspense
                  - [defer] Move the read into a \`useEffect\` or event handler
                    https://nextjs.org/docs/messages/blocking-prerender-current-time-client#move-into-effect-or-event-handler
@@ -2755,7 +2755,7 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
                  This value would be evaluated during the prerender, instead of recomputed on each visit.
 
                  Ways to fix this:
-                   - [stream] Wrap the component in \`<Suspense fallback={...}>\` so the hook value streams in after prerendering
+                   - [stream] Wrap the Client Component in \`<Suspense fallback={...}>\`
                      https://nextjs.org/docs/messages/blocking-prerender-current-time-client#wrap-in-or-move-into-suspense
                    - [defer] Move the read into a \`useEffect\` or event handler
                      https://nextjs.org/docs/messages/blocking-prerender-current-time-client#move-into-effect-or-event-handler
@@ -2797,7 +2797,7 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
                  This blocks prerendering because the value is only available at runtime.
 
                  Ways to fix this:
-                   - [stream] Wrap the component in \`<Suspense fallback={...}>\` so the hook value streams in after prerendering
+                   - [stream] Wrap the Client Component in \`<Suspense fallback={...}>\`
                      https://nextjs.org/docs/messages/blocking-prerender-client-hook#wrap-in-or-move-into-suspense
                    - [block] Set \`export const unstable_instant = false\` to silence this warning and allow a blocking route
                      https://nextjs.org/docs/messages/blocking-prerender-client-hook#allow-blocking-route
@@ -2827,7 +2827,7 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
                  This value would be evaluated during the prerender, instead of recomputed on each visit.
 
                  Ways to fix this:
-                   - [stream] Wrap the component in \`<Suspense fallback={...}>\` so the hook value streams in after prerendering
+                   - [stream] Wrap the Client Component in \`<Suspense fallback={...}>\`
                      https://nextjs.org/docs/messages/blocking-prerender-current-time-client#wrap-in-or-move-into-suspense
                    - [defer] Move the read into a \`useEffect\` or event handler
                      https://nextjs.org/docs/messages/blocking-prerender-current-time-client#move-into-effect-or-event-handler
@@ -2842,7 +2842,7 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
                  This blocks prerendering because the value is only available at runtime.
 
                  Ways to fix this:
-                   - [stream] Wrap the component in \`<Suspense fallback={...}>\` so the hook value streams in after prerendering
+                   - [stream] Wrap the Client Component in \`<Suspense fallback={...}>\`
                      https://nextjs.org/docs/messages/blocking-prerender-client-hook#wrap-in-or-move-into-suspense
                    - [block] Set \`export const unstable_instant = false\` to silence this warning and allow a blocking route
                      https://nextjs.org/docs/messages/blocking-prerender-client-hook#allow-blocking-route
@@ -2988,7 +2988,7 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
                This value would be evaluated during the prerender, instead of recomputed on each visit.
 
                Ways to fix this:
-                 - [stream] Wrap the component in \`<Suspense fallback={...}>\` so the hook value streams in after prerendering
+                 - [stream] Wrap the Client Component in \`<Suspense fallback={...}>\`
                    https://nextjs.org/docs/messages/blocking-prerender-current-time-client#wrap-in-or-move-into-suspense
                  - [defer] Move the read into a \`useEffect\` or event handler
                    https://nextjs.org/docs/messages/blocking-prerender-current-time-client#move-into-effect-or-event-handler
@@ -3030,7 +3030,7 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
                This blocks prerendering because the value is only available at runtime.
 
                Ways to fix this:
-                 - [stream] Wrap the component in \`<Suspense fallback={...}>\` so the hook value streams in after prerendering
+                 - [stream] Wrap the Client Component in \`<Suspense fallback={...}>\`
                    https://nextjs.org/docs/messages/blocking-prerender-client-hook#wrap-in-or-move-into-suspense
                  - [block] Set \`export const unstable_instant = false\` to silence this warning and allow a blocking route
                    https://nextjs.org/docs/messages/blocking-prerender-client-hook#allow-blocking-route
@@ -3058,7 +3058,7 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
                This value would be evaluated during the prerender, instead of recomputed on each visit.
 
                Ways to fix this:
-                 - [stream] Wrap the component in \`<Suspense fallback={...}>\` so the hook value streams in after prerendering
+                 - [stream] Wrap the Client Component in \`<Suspense fallback={...}>\`
                    https://nextjs.org/docs/messages/blocking-prerender-current-time-client#wrap-in-or-move-into-suspense
                  - [defer] Move the read into a \`useEffect\` or event handler
                    https://nextjs.org/docs/messages/blocking-prerender-current-time-client#move-into-effect-or-event-handler
@@ -3080,7 +3080,7 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
                This blocks prerendering because the value is only available at runtime.
 
                Ways to fix this:
-                 - [stream] Wrap the component in \`<Suspense fallback={...}>\` so the hook value streams in after prerendering
+                 - [stream] Wrap the Client Component in \`<Suspense fallback={...}>\`
                    https://nextjs.org/docs/messages/blocking-prerender-client-hook#wrap-in-or-move-into-suspense
                  - [block] Set \`export const unstable_instant = false\` to silence this warning and allow a blocking route
                    https://nextjs.org/docs/messages/blocking-prerender-client-hook#allow-blocking-route
