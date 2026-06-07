@@ -14,6 +14,7 @@ import type { SupportedTestRunners } from '../cli/next-test'
 import type { ExperimentalPPRConfig } from './lib/experimental/ppr'
 import { INFINITE_CACHE } from '../lib/constants'
 import type { FallbackRouteParam } from '../build/static-paths/types'
+import type { MemoryEvictionMode } from '../build/swc/types'
 
 /**
  * Resolved form of the prefetchInlining config after normalization in
@@ -38,6 +39,8 @@ export type NextConfigComplete = Required<Omit<NextConfig, 'configFile'>> & {
     useCacheTimeout: number
     // Normalized by config.ts `finalizeConfig`: defaulted to `'warning'`
     instantInsights: { validationLevel: ValidationLevel }
+    // Normalized by finalized config with a default and the expected type
+    turbopackMemoryEvictionMode: MemoryEvictionMode
   }
   // The root directory of the distDir. In development mode, this is the parent directory of `distDir`
   // since development builds use `{distDir}/dev`. This is used to ensure that the bundler doesn't
@@ -680,9 +683,17 @@ export interface ExperimentalConfig {
   gestureTransition?: boolean
 
   /**
-   * A target memory limit for turbo, in bytes.
+   * Controls Turbopack's memory eviction strategy for development sessions
+   *
+   * Only effective in dev sessions where
+   * `experimental.turbopackFileSystemCacheForDev` is enabled (which it is by default).
+   *
+   * - `false`: disable eviction.
+   * - `'full'`: after every snapshot, drop as much memory as possible.
+   *
+   * Defaults to `false`
    */
-  turbopackMemoryLimit?: number
+  turbopackMemoryEviction?: false | 'full'
 
   /**
    * Selects the backend used by Turbopack for Node.js evaluation, e.g. webpack

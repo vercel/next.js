@@ -108,7 +108,7 @@ env:
   NODE_LTS_VERSION: 20.9.0
   # run-tests.js reads `TEST_CONCURRENCY` if no explicit `--concurrency` or `-c`
   # argument is provided
-  TEST_CONCURRENCY: 12
+  TEST_CONCURRENCY: 8
   # overrides `turbo_tasks::parallel::available_parallelism`. Smaller values are more CPU and memory
   # efficient, but won't fully utilize all available CPU cores. A small value here makes sense since
   # we're running many tests in parallel.

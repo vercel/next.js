@@ -52,6 +52,7 @@ import type { NextAdapter } from '../build/adapter/build-complete'
 import { HardDeprecatedConfigError } from '../shared/lib/errors/hard-deprecated-config-error'
 import { NextInstanceErrorState } from './mcp/tools/next-instance-error-state'
 import { Bundler } from '../lib/bundler'
+import type { MemoryEvictionMode } from '../build/swc/types'
 
 export { normalizeConfig } from './config-shared'
 export type { DomainLocale, NextConfig } from './config-shared'
@@ -421,6 +422,27 @@ function assignDefaultsAndValidate(
   if (!result.experimental.trustHostHeader && ciEnvironment.hasNextSupport) {
     result.experimental.trustHostHeader = true
   }
+
+  // Normalize the user-facing `turbopackMemoryEviction` (`false | 'full' |
+  // undefined`) into the `turbopackMemoryEvictionMode` enum expected by napi
+  // (`'off' | 'full'`).
+  let turbopackMemoryEvictionMode: 'off' | 'full'
+  if (result.experimental.turbopackMemoryEviction === false) {
+    turbopackMemoryEvictionMode = 'off'
+  } else if (result.experimental.turbopackMemoryEviction === 'full') {
+    turbopackMemoryEvictionMode = 'full'
+  } else {
+    // Not set by the user: fall back to the env var if present, otherwise 'off'.
+    const rawEnv = process.env.TURBO_ENGINE_EVICT_AFTER_SNAPSHOT
+    turbopackMemoryEvictionMode =
+      rawEnv == null
+        ? 'off'
+        : rawEnv === '1' || rawEnv === 'true'
+          ? 'full'
+          : 'off'
+  }
+  ;(result as NextConfigComplete).experimental.turbopackMemoryEvictionMode =
+    turbopackMemoryEvictionMode as MemoryEvictionMode
 
   // Normalize experimental.browserDebugInfoInTerminal to logging.browserToTerminal
   if (
