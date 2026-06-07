@@ -6,7 +6,13 @@ export interface DebugChannelReadableWriterPair {
   readonly writer: WritableStreamDefaultWriter<Uint8Array>
 }
 
+interface CancellationSafeDebugChannel {
+  readonly readable: ReadableStream<Uint8Array>
+  write(chunk: Uint8Array | null): void
+}
+
 const pairs = new Map<string, DebugChannelReadableWriterPair>()
+const cancellationSafeChannels = new Map<string, CancellationSafeDebugChannel>()
 
 const DB_NAME = '__next_debug_channel'
 const STORE_NAME = 'channels'
@@ -347,8 +353,6 @@ export function getOrCreateDebugChannelReadableWriterPair(
       })
       .finally(() => {
         pairs.delete(requestId)
-        // Release the buffered chunk bytes once the channel is done, whether or
-        // not we were able to persist them.
         if (chunks) {
           chunks.length = 0
         }
@@ -356,6 +360,80 @@ export function getOrCreateDebugChannelReadableWriterPair(
   }
 
   return pair
+}
+
+function getOrCreateCancellationSafeDebugChannel(
+  requestId: string
+): CancellationSafeDebugChannel {
+  let channel = cancellationSafeChannels.get(requestId)
+
+  if (!channel) {
+    const pair = getOrCreateDebugChannelReadableWriterPair(requestId)
+    let acceptingChunks = true
+    let serverClosed = false
+    let pendingWrite = Promise.resolve()
+
+    pair.writer.closed.then(
+      () => {
+        acceptingChunks = false
+      },
+      () => {
+        acceptingChunks = false
+      }
+    )
+
+    channel = {
+      readable: pair.readable,
+      write(chunk) {
+        if (serverClosed || (!acceptingChunks && chunk !== null)) {
+          return
+        }
+        if (chunk === null) {
+          serverClosed = true
+        }
+
+        pendingWrite = pendingWrite
+          .then(async () => {
+            if (!acceptingChunks) {
+              return
+            }
+            await pair.writer.ready
+            if (chunk === null) {
+              acceptingChunks = false
+              await pair.writer.close()
+            } else {
+              await pair.writer.write(chunk)
+            }
+          })
+          .catch(() => {
+            acceptingChunks = false
+          })
+          .finally(() => {
+            if (chunk === null) {
+              cancellationSafeChannels.delete(requestId)
+            }
+          })
+      },
+    }
+    cancellationSafeChannels.set(requestId, channel)
+  }
+
+  return channel
+}
+
+export function writeDebugChannelChunk(
+  requestId: string,
+  chunk: Uint8Array | null
+): void {
+  getOrCreateCancellationSafeDebugChannel(requestId).write(chunk)
+}
+
+function getDebugChannelReadable(
+  requestId: string
+): ReadableStream<Uint8Array> {
+  return process.env.__NEXT_SERVER_COMPONENTS_HMR_CANCELLATION
+    ? getOrCreateCancellationSafeDebugChannel(requestId).readable
+    : getOrCreateDebugChannelReadableWriterPair(requestId).readable
 }
 
 export function createDebugChannel(
@@ -402,9 +480,7 @@ export function createDebugChannel(
     }
   }
 
-  const { readable } = getOrCreateDebugChannelReadableWriterPair(requestId)
-
-  return { readable }
+  return { readable: getDebugChannelReadable(requestId) }
 }
 
 /**
@@ -449,7 +525,7 @@ function createDeferredDebugChannelReadable(
 
       const source = wasServedFromCacheAtPageshow(getNavigationEntry())
         ? restoreDebugChannelOrReload(requestId)
-        : getOrCreateDebugChannelReadableWriterPair(requestId).readable
+        : getDebugChannelReadable(requestId)
 
       const reader = source.getReader()
       try {

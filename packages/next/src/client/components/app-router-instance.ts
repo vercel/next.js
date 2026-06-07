@@ -389,6 +389,8 @@ function gesturePush(href: string, options?: NavigateOptions): void {
  * methods. Internal Next.js code should call the lower level methods directly
  * (although there's lots of existing code that doesn't do that).
  */
+let activeHmrRefreshController: AbortController | null = null
+
 export const publicAppRouterInstance: AppRouterInstance = {
   back: () => window.history.back(),
   forward: () => window.history.forward(),
@@ -488,11 +490,21 @@ export const publicAppRouterInstance: AppRouterInstance = {
       // Reset the known routes table so that route predictions are cleared
       // when routes change during development.
       resetKnownRoutes()
+      let signal: AbortSignal | undefined
+      let previousController: AbortController | null = null
+      if (process.env.__NEXT_SERVER_COMPONENTS_HMR_CANCELLATION) {
+        const controller = new AbortController()
+        signal = controller.signal
+        previousController = activeHmrRefreshController
+        activeHmrRefreshController = controller
+      }
       startTransition(() => {
         dispatchAppRouterAction({
           type: ACTION_HMR_REFRESH,
+          signal,
         })
       })
+      previousController?.abort()
     }
   },
   // Default value. Each route segment provides its own value at runtime. Refer

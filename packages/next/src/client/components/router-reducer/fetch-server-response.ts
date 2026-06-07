@@ -66,6 +66,7 @@ export interface FetchServerResponseOptions {
   readonly flightRouterState: FlightRouterState
   readonly nextUrl: string | null
   readonly isHmrRefresh?: boolean
+  readonly signal?: AbortSignal
 }
 
 export type StaticStageData<
@@ -189,7 +190,8 @@ export async function fetchServerResponse(
       url,
       headers,
       'auto',
-      shouldImmediatelyDecode
+      shouldImmediatelyDecode,
+      options.signal
     )
 
     // If the fetch succeeds while we're in the offline state, notify the
@@ -303,6 +305,10 @@ export async function fetchServerResponse(
       debugInfo: flightResponsePromise._debugInfo ?? null,
     }
   } catch (err) {
+    if (options.signal?.aborted) {
+      throw err
+    }
+
     // If the fetch rejected due to a network error, wait for connectivity
     // to be restored and then retry. checkOfflineError returns true for
     // network errors (and starts the polling loop); returns false for

@@ -37,7 +37,10 @@ import {
   type GlobalErrorState,
 } from '../../../components/app-router-instance'
 import { InvariantError } from '../../../../shared/lib/invariant-error'
-import { getOrCreateDebugChannelReadableWriterPair } from '../../debug-channel'
+import {
+  getOrCreateDebugChannelReadableWriterPair,
+  writeDebugChannelChunk,
+} from '../../debug-channel'
 // TODO: Explicitly import from client.browser (doesn't work with Webpack).
 // eslint-disable-next-line import/no-extraneous-dependencies
 import { createFromReadableStream as createFromReadableStreamBrowser } from 'react-server-dom-webpack/client'
@@ -470,18 +473,20 @@ export function processMessage(
     }
     case HMR_MESSAGE_SENT_TO_BROWSER.REACT_DEBUG_CHUNK: {
       const { requestId, chunk } = message
-      const { writer } = getOrCreateDebugChannelReadableWriterPair(requestId)
-
-      if (chunk) {
-        writer.ready.then(() => writer.write(chunk)).catch(console.error)
-      } else {
-        // A null chunk signals that no more chunks will be sent, which allows
-        // us to close the writer.
-        // TODO: Revisit this cleanup logic when we integrate the return channel
-        // that keeps the connection open to be able to lazily retrieve debug
-        // objects.
-        writer.ready.then(() => writer.close()).catch(console.error)
+      if (!process.env.__NEXT_SERVER_COMPONENTS_HMR_CANCELLATION) {
+        const { writer } = getOrCreateDebugChannelReadableWriterPair(requestId)
+        writer.ready
+          .then(() => (chunk ? writer.write(chunk) : writer.close()))
+          .catch(console.error)
+        return
       }
+
+      // A null chunk signals that no more chunks will be sent, which allows
+      // us to close the writer.
+      // TODO: Revisit this cleanup logic when we integrate the return channel
+      // that keeps the connection open to be able to lazily retrieve debug
+      // objects.
+      writeDebugChannelChunk(requestId, chunk)
 
       return
     }

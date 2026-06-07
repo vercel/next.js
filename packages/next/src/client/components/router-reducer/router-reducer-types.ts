@@ -37,6 +37,7 @@ export interface RefreshAction {
 
 export interface HmrRefreshAction {
   type: typeof ACTION_HMR_REFRESH
+  signal?: AbortSignal
 }
 
 export type ServerActionDispatcher = (

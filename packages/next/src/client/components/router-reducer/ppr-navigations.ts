@@ -102,6 +102,10 @@ const enum NavigationTaskStatus {
  */
 const enum NavigationTaskExitStatus {
   /**
+   * The request was superseded by a newer navigation. No retry is needed.
+   */
+  Canceled = -1,
+  /**
    * No additional navigation is required.
    */
   Done = 0,
@@ -1383,7 +1387,8 @@ export function spawnDynamicRequests(
   // The original navigation's push/replace intent. Threaded through to the
   // server-patch retry logic so it can inherit the intent if the original
   // transition hasn't committed yet.
-  navigateType: 'push' | 'replace'
+  navigateType: 'push' | 'replace',
+  signal?: AbortSignal
 ): void {
   const dynamicRequestTree = task.dynamicRequestTree
   if (dynamicRequestTree === null) {
@@ -1407,7 +1412,8 @@ export function spawnDynamicRequests(
     primaryUrl,
     nextUrl,
     freshnessPolicy,
-    routeCacheEntry
+    routeCacheEntry,
+    signal
   )
 
   const separateRefreshUrls = accumulation.separateRefreshUrls
@@ -1459,7 +1465,8 @@ export function spawnDynamicRequests(
             // hard refresh.
             nextUrl,
             freshnessPolicy,
-            routeCacheEntry
+            routeCacheEntry,
+            signal
           )
         )
       }
@@ -1508,6 +1515,13 @@ async function finishNavigationTask(
   }
 
   switch (exitStatus) {
+    case NavigationTaskExitStatus.Canceled: {
+      // This navigation was superseded. Its cache nodes may already be reused
+      // by the next navigation, so leave them for the newer request to fulfill.
+      // If the tree was abandoned entirely, it can be garbage collected along
+      // with its unresolved promises.
+      return
+    }
     case NavigationTaskExitStatus.Done: {
       // The task has completely finished. There's no missing data. Exit.
       previousNavigationDidMismatch = false
@@ -1697,7 +1711,8 @@ async function fetchMissingDynamicData(
   url: URL,
   nextUrl: string | null,
   freshnessPolicy: FreshnessPolicy,
-  routeCacheEntry: FulfilledRouteCacheEntry | null
+  routeCacheEntry: FulfilledRouteCacheEntry | null,
+  signal?: AbortSignal
 ): Promise<{
   exitStatus: NavigationTaskExitStatus
   url: URL
@@ -1708,6 +1723,7 @@ async function fetchMissingDynamicData(
       flightRouterState: dynamicRequestTree,
       nextUrl,
       isHmrRefresh: freshnessPolicy === FreshnessPolicy.HMRRefresh,
+      signal,
     })
     if (typeof result === 'string') {
       // fetchServerResponse will return an href to indicate that the SPA
@@ -1817,6 +1833,14 @@ async function fetchMissingDynamicData(
       seed,
     }
   } catch {
+    if (signal?.aborted) {
+      return {
+        exitStatus: NavigationTaskExitStatus.Canceled,
+        url,
+        seed: null,
+      }
+    }
+
     // This shouldn't happen because fetchServerResponse's entire body is
     // wrapped in a try/catch. If it does, though, it implies the server failed
     // to respond with any tree at all. So we must fall back to a hard retry.
