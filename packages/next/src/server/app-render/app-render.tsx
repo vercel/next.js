@@ -5054,10 +5054,9 @@ async function streamStagedRenderInDevWeb(
     },
     () => {
       checkForCacheMiss()
-      // The static stage's chunks flushed during the macrotask gap since the
-      // previous task advanced to `Static`, so the static shell is buffered
-      // now. Hand the stream to the caller before advancing into the runtime
-      // stages, which belong after the static shell.
+      // The static stage's chunks flushed in the previous task, so the static
+      // shell is buffered now. Hand the stream to the caller before advancing
+      // into the runtime stages, which belong after the static shell.
       if (resolveStreamAfterStage === RenderStage.Static) {
         streamStageReached.resolve()
       }
@@ -5078,10 +5077,9 @@ async function streamStagedRenderInDevWeb(
     () => {
       checkForCacheMiss()
 
-      // The runtime stage's chunks flushed during the macrotask gap since the
-      // previous task advanced to `Runtime`, so the runtime shell is buffered
-      // now. Hand the stream to the caller (for the static-shell target it was
-      // already handed off earlier) before holding on the Dynamic stage.
+      // The runtime stage's chunks flushed in the previous task, so the runtime
+      // shell is buffered now. Hand the stream to the caller before advancing
+      // to the dynamic stage.
       if (resolveStreamAfterStage === RenderStage.Runtime) {
         streamStageReached.resolve()
       }
@@ -5442,10 +5440,9 @@ async function streamStagedRenderInDevNode(
     },
     () => {
       checkForCacheMiss()
-      // The static stage's chunks flushed during the macrotask gap since the
-      // previous task advanced to `Static`, so the static shell is buffered
-      // now. Hand the stream to the caller before advancing into the runtime
-      // stages, which belong after the static shell.
+      // The static stage's chunks flushed in the previous task, so the static
+      // shell is buffered now. Hand the stream to the caller before advancing
+      // into the runtime stages, which belong after the static shell.
       if (resolveStreamAfterStage === RenderStage.Static) {
         streamStageReached.resolve()
       }
@@ -5466,10 +5463,9 @@ async function streamStagedRenderInDevNode(
     () => {
       checkForCacheMiss()
 
-      // The runtime stage's chunks flushed during the macrotask gap since the
-      // previous task advanced to `Runtime`, so the runtime shell is buffered
-      // now. Hand the stream to the caller (for the static-shell target it was
-      // already handed off earlier) before holding on the Dynamic stage.
+      // The runtime stage's chunks flushed in the previous task, so the runtime
+      // shell is buffered now. Hand the stream to the caller before advancing
+      // to the the dynamic stage.
       if (resolveStreamAfterStage === RenderStage.Runtime) {
         streamStageReached.resolve()
       }
