@@ -138,6 +138,26 @@ export type PrefetchTask = {
   isCanceled: boolean
 
   /**
+   * Tracks whether the task has attempted to upgrade a fallback ISR response
+   * to one based on concrete params.
+   *
+   * When the server serves an upgradeable fallback shell (the page hadn't been
+   * prerendered with concrete params yet, but the route can be upgraded), we
+   * poll the server a few times until the upgrade is complete, or until we
+   * reach a limit and give up.
+   *
+   * - `Empty`: no loop has run yet.
+   * - `Pending`: a loop is currently running.
+   * - `Fulfilled`: a loop completed and obtained the upgraded version.
+   * - `Rejected`: a loop ran but gave up (exhausted its retries, hit an error,
+   *   or the task was canceled).
+   *
+   * To prevent against unbounded upgrade attempts, the loop is only attempted
+   * once per task, even a Link's prefetch is rescheduled many times.
+   */
+  fallbackRetryStatus: EntryStatus
+
+  /**
    * The callback passed to `router.prefetch`, if given.
    */
   onInvalidate: null | (() => void)
@@ -289,6 +309,7 @@ export function schedulePrefetchTask(
     fetchStrategy,
     sortId: sortIdCounter++,
     isCanceled: false,
+    fallbackRetryStatus: EntryStatus.Empty,
     onInvalidate,
     _heapIndex: -1,
   }
@@ -319,6 +340,8 @@ export function cancelPrefetchTask(task: PrefetchTask): void {
   // We must also explicitly mark the task as canceled so that a blocked task
   // does not get added back to the queue when it's pinged by the network.
   task.isCanceled = true
+  // A running fallback-retry loop notices `isCanceled` when it next wakes and
+  // bails (settling its status to Rejected), so there's nothing to clean up here.
   heapDelete(taskHeap, task)
   if (process.env.__NEXT_EXPOSE_TESTING_API) {
     // Call completion callback. In practice this shouldn't be reached for
@@ -350,6 +373,11 @@ export function reschedulePrefetchTask(
   // Un-cancel the task, in case it was previously canceled.
   task.isCanceled = false
   task.phase = PrefetchPhase.RouteTree
+
+  // Note: fallback-retry state is deliberately NOT reset here. A retry loop runs
+  // at most once per task, even across reschedules, so a re-hover never starts a
+  // second loop. A loop already running simply continues (it only stops on
+  // cancel); `fallbackRetryStatus` never returns to `Empty` once it leaves it.
 
   // Assign a new sort ID to move it ahead of all other tasks at the same
   // priority level. (Higher sort IDs are processed first.)
@@ -967,7 +995,7 @@ function pingStaticHead(
     ),
     parent: null,
   }
-  pingSegmentBundle(now, route, task.key, route.metadata, segments)
+  pingSegmentBundle(now, task, route, task.key, route.metadata, segments)
 }
 
 function pingRuntimeHead(
@@ -1639,6 +1667,7 @@ function pingRuntimePrefetches(
  */
 function pingSegmentBundle(
   now: number,
+  task: PrefetchTask,
   route: FulfilledRouteCacheEntry,
   routeKey: RouteCacheKey,
   tree: RouteTree,
@@ -1706,18 +1735,34 @@ function pingSegmentBundle(
           node.entry = null
         }
         break
-      case EntryStatus.Fulfilled:
+      case EntryStatus.Fulfilled: {
         // For shell entries (less specific than PPR), upgrade during the
         // Speculative phase itself — no background deferral, since the
         // whole point of the Speculative phase is to bring the cache up
         // to the per-link-concrete tier. `isPartial` ensures a complete
         // entry isn't re-fetched.
+
+        // Check if we should attempt to upgrade a fallback ISR response to
+        // a concrete version.
+        const isUpgradeableISRFallbackRetry =
+          nodeEntry.isUpgradeableISRFallback &&
+          // If the status is empty, then we haven't yet attempted to upgrade
+          // the fallback.
+          //
+          // If the status is fulfilled, then the fallback was
+          // successfully upgraded to a concrete version.
+          //
+          // Do not attempt to upgrade if the status is Pending or Rejected.
+          (task.fallbackRetryStatus === EntryStatus.Empty ||
+            task.fallbackRetryStatus === EntryStatus.Fulfilled)
+
         if (
-          nodeEntry.isPartial &&
-          canNewFetchStrategyProvideMoreContent(
-            nodeEntry.fetchStrategy,
-            FetchStrategy.PPR
-          )
+          (nodeEntry.isPartial &&
+            canNewFetchStrategyProvideMoreContent(
+              nodeEntry.fetchStrategy,
+              FetchStrategy.PPR
+            )) ||
+          isUpgradeableISRFallbackRetry
         ) {
           const revalidatingEntry = readOrCreateRevalidatingSegmentEntry(
             now,
@@ -1729,12 +1774,17 @@ function pingSegmentBundle(
             node.entry = revalidatingEntry
             needsFetch = true
           } else {
+            // A non-empty revalidating entry means a request is already in
+            // flight (or recently settled), so we dedupe and don't issue a
+            // competing one — including for ISR-fallback upgrades, which then
+            // share the same revalidation across tasks.
             node.entry = null
           }
         } else {
           node.entry = null
         }
         break
+      }
       default:
         nodeEntry satisfies never
     }
@@ -1744,7 +1794,14 @@ function pingSegmentBundle(
     return
   }
   spawnPrefetchSubtask(
-    fetchSegmentsOnCacheMiss(route, routeKey, tree, segments, segmentCount)
+    fetchSegmentsOnCacheMiss(
+      task,
+      route,
+      routeKey,
+      tree,
+      segments,
+      segmentCount
+    )
   )
 }
 
@@ -1822,7 +1879,7 @@ function accumulateSegmentBundle(
     parent: effectiveParent,
   }
 
-  pingSegmentBundle(now, route, task.key, tree, segments)
+  pingSegmentBundle(now, task, route, task.key, tree, segments)
   return null
 }
 
