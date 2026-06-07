@@ -5,11 +5,21 @@ import { Suspense } from 'react'
 const delayMs = 0
 const marker = 'initial'
 
+async function getCachedMarker() {
+  'use cache'
+
+  console.log(`[hmr-rsc-cancellation] cache fill started: ${marker}`)
+  await new Promise((resolve) => setTimeout(resolve, delayMs))
+  console.log(`[hmr-rsc-cancellation] cache fill finished: ${marker}`)
+  return marker
+}
+
 async function DynamicContent() {
   await connection()
-  await new Promise((resolve) => setTimeout(resolve, delayMs))
+  console.log(`[hmr-rsc-cancellation] render started: ${marker}`)
+  const cachedMarker = await getCachedMarker()
 
-  return <p id="marker">{marker}</p>
+  return <p id="marker">{cachedMarker}</p>
 }
 
 async function redirectToTarget() {

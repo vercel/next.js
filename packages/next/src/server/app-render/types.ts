@@ -168,6 +168,7 @@ export interface RenderOptsPartial {
     inlineCss: boolean
     prefetchInlining: PrefetchInliningConfig
     authInterrupts: boolean
+    serverComponentsHmrCancellation?: boolean
     useCacheTimeout: number
     cachedNavigations: boolean
     appShells: ExperimentalConfig['appShells']

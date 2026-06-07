@@ -2142,6 +2142,7 @@ export interface NextConfigRuntime {
     | 'disableOptimizedLoading'
     | 'largePageDataBytes'
     | 'serverComponentsHmrCache'
+    | 'serverComponentsHmrCancellation'
     | 'caseSensitiveRoutes'
     | 'validateRSCRequestHeaders'
     | 'sri'
@@ -2211,6 +2212,7 @@ export function getNextConfigRuntime(
     disableOptimizedLoading: ex.disableOptimizedLoading,
     largePageDataBytes: ex.largePageDataBytes,
     serverComponentsHmrCache: ex.serverComponentsHmrCache,
+    serverComponentsHmrCancellation: ex.serverComponentsHmrCancellation,
     caseSensitiveRoutes: ex.caseSensitiveRoutes,
     validateRSCRequestHeaders: ex.validateRSCRequestHeaders,
     sri: ex.sri,

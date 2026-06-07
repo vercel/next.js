@@ -169,6 +169,7 @@ async function requestHandler(
         inlineCss: Boolean(nextConfig.experimental.inlineCss),
         prefetchInlining: nextConfig.experimental.prefetchInlining ?? false,
         authInterrupts: Boolean(nextConfig.experimental.authInterrupts),
+        serverComponentsHmrCancellation: false,
         useCacheTimeout: nextConfig.experimental.useCacheTimeout,
         cachedNavigations: Boolean(nextConfig.experimental.cachedNavigations),
         appShells: nextConfig.experimental.appShells,

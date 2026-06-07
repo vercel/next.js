@@ -222,7 +222,8 @@ export async function collectStagedSegmentData(
   startTime: number,
   hasRuntimePrefetch: boolean,
   clientReferenceManifest: ClientReferenceManifest,
-  createDebugChannel: () => DebugChannelPair | undefined
+  createDebugChannel: () => DebugChannelPair | undefined,
+  abortSignal?: AbortSignal
 ) {
   const debugChannelAbortController = new AbortController()
   const debugStream = fullPageDebugChunks
@@ -233,6 +234,17 @@ export async function collectStagedSegmentData(
     : null
 
   const { stream, controller } = createStagedStreamFromChunks(fullPageChunks)
+  if (abortSignal) {
+    const abort = () => {
+      debugChannelAbortController.abort(abortSignal.reason)
+      stream.destroy(abortSignal.reason)
+    }
+    if (abortSignal.aborted) {
+      abort()
+    } else {
+      abortSignal.addEventListener('abort', abort, { once: true })
+    }
+  }
   stream.on('end', () => {
     // When the stream finishes, we have to close the debug stream too,
     // but delay it to avoid "Connection closed." errors.
@@ -314,6 +326,7 @@ export async function collectStagedSegmentData(
         debugChannel: segmentDebugChannel?.serverSide,
         environmentName,
         startTime,
+        signal: abortSignal,
         onError(error: unknown) {
           const digest = getDigestForWellKnownError(error)
           if (digest) {
@@ -556,6 +569,7 @@ export async function createCombinedPayloadStream(
           filterStackFrame,
           debugChannel: debugChannel?.serverSide,
           startTime,
+          signal: renderSignal,
           onError(error: unknown) {
             const digest = getDigestForWellKnownError(error)
             if (digest) {

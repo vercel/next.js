@@ -895,6 +895,9 @@ export async function handler(
             inlineCss: Boolean(nextConfig.experimental.inlineCss),
             prefetchInlining: nextConfig.experimental.prefetchInlining ?? false,
             authInterrupts: Boolean(nextConfig.experimental.authInterrupts),
+            serverComponentsHmrCancellation: Boolean(
+              nextConfig.experimental.serverComponentsHmrCancellation
+            ),
             useCacheTimeout: nextConfig.experimental.useCacheTimeout,
             cachedNavigations: Boolean(
               nextConfig.experimental.cachedNavigations

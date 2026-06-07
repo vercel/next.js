@@ -551,6 +551,20 @@ export function renderToNodeFlightStream(
     opts
   )
   pipeable.pipe(pt)
+
+  const signal = opts.signal as AbortSignal | undefined
+  if (signal) {
+    const abort = () => pipeable.abort(signal.reason)
+    if (signal.aborted) {
+      abort()
+    } else {
+      signal.addEventListener('abort', abort, { once: true })
+      pt.once('close', () => {
+        signal.removeEventListener('abort', abort)
+      })
+    }
+  }
+
   return pt
 }
 
