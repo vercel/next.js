@@ -2917,7 +2917,7 @@ async function renderToHTMLOrFlightImpl(
     ) {
       req.originalRequest.on('end', () => {
         const { pathname } = new URL(req.url || '/', 'http://n')
-        const isStatic = !requestStore.usedDynamic && !workStore.forceDynamic
+        const isStatic = !requestStore.usedDynamic && !workStore.forceDynamic && Object.keys(requestStore.searchParams || {}).length === 0
         setIsrStatus(pathname, isStatic)
       })
     }
