@@ -12,7 +12,7 @@ describe('route-aware-hmr-refresh', () => {
       expect(await browser.elementById('marker').text()).toBe('a-initial')
     })
 
-    await browser.get(`${next.url}/b`)
+    await browser.elementById('to-b').click()
     await retry(async () => {
       expect(await browser.elementById('marker').text()).toBe('b-initial')
     })
@@ -40,6 +40,19 @@ describe('route-aware-hmr-refresh', () => {
     expect(await browser.eval(() => (window as any).__hmrRscRequestCount)).toBe(
       0
     )
+
+    await browser.elementById('to-a').click()
+    await retry(async () => {
+      expect(await browser.elementById('marker').text()).toBe('a-updated')
+    })
+    expect(await browser.eval(() => (window as any).__hmrRscRequestCount)).toBe(
+      0
+    )
+
+    await browser.elementById('to-b').click()
+    await retry(async () => {
+      expect(await browser.elementById('marker').text()).toBe('b-initial')
+    })
 
     await next.patchFile('app/b/page.tsx', (source) =>
       source.replace('b-initial', 'b-updated')

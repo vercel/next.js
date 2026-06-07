@@ -481,7 +481,7 @@ export const publicAppRouterInstance: AppRouterInstance = {
       })
     })
   },
-  hmrRefresh: () => {
+  hmrRefresh: (options?: { invalidateOnly?: boolean }) => {
     if (process.env.NODE_ENV !== 'development') {
       throw new Error(
         'hmrRefresh can only be used in development mode. Please use refresh instead.'
@@ -492,7 +492,10 @@ export const publicAppRouterInstance: AppRouterInstance = {
       resetKnownRoutes()
       let signal: AbortSignal | undefined
       let previousController: AbortController | null = null
-      if (process.env.__NEXT_SERVER_COMPONENTS_HMR_CANCELLATION) {
+      if (
+        !options?.invalidateOnly &&
+        process.env.__NEXT_SERVER_COMPONENTS_HMR_CANCELLATION
+      ) {
         const controller = new AbortController()
         signal = controller.signal
         previousController = activeHmrRefreshController
@@ -502,6 +505,7 @@ export const publicAppRouterInstance: AppRouterInstance = {
         dispatchAppRouterAction({
           type: ACTION_HMR_REFRESH,
           signal,
+          invalidateOnly: options?.invalidateOnly,
         })
       })
       previousController?.abort()

@@ -421,6 +421,7 @@ export function processMessage(
         sourcePage !== undefined &&
         !message.refreshScope.routes.includes(normalizeAppPath(sourcePage))
       ) {
+        publicAppRouterInstance.hmrRefresh({ invalidateOnly: true })
         return
       }
 

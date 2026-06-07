@@ -339,11 +339,18 @@ export function invalidateEntirePrefetchCache(
   nextUrl: string | null,
   tree: FlightRouterState
 ): void {
-  currentRouteCacheVersion++
-  currentSegmentCacheVersion++
+  invalidatePrefetchCacheEntries()
 
   pingVisibleLinks(nextUrl, tree)
   pingInvalidationListeners(nextUrl, tree)
+}
+
+/**
+ * Invalidates all prefetch cache entries without scheduling new prefetches.
+ */
+export function invalidatePrefetchCacheEntries(): void {
+  currentRouteCacheVersion++
+  currentSegmentCacheVersion++
 }
 
 /**

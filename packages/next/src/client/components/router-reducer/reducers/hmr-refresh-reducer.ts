@@ -5,6 +5,8 @@ import type {
 } from '../router-reducer-types'
 import { refreshDynamicData } from './refresh-reducer'
 import { FreshnessPolicy } from '../ppr-navigations'
+import { invalidatePrefetchCacheEntries } from '../../segment-cache/cache'
+import { invalidateBfCache } from '../../segment-cache/bfcache'
 
 export function hmrRefreshReducer(
   state: ReadonlyReducerState,
@@ -14,6 +16,12 @@ export function hmrRefreshReducer(
   // newer generation superseded this one before it started, do not install a
   // refresh tree whose request is already canceled.
   if (action.signal?.aborted) {
+    return state
+  }
+
+  if (action.invalidateOnly) {
+    invalidatePrefetchCacheEntries()
+    invalidateBfCache()
     return state
   }
 
