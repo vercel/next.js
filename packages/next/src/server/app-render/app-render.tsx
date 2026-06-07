@@ -275,7 +275,6 @@ import {
   type DebugChannelPair,
   type NodeDebugChannelPair,
 } from './debug-channel-server'
-import { DetachedPromise } from '../../lib/detached-promise'
 import { createNodeStreamWithLateRelease } from './instant-validation/stream-utils'
 
 import {
@@ -4995,11 +4994,11 @@ async function streamStagedRenderInDevWeb(
   const { ComponentMod } = ctx.renderOpts
   const { clientModules } = getClientReferenceManifest()
 
-  const streamReady = new DetachedPromise<{
+  const streamReady = createPromiseWithResolvers<{
     stream: AnyStream
     accumulatedChunksPromise: Promise<AccumulatedStreamChunks>
   }>()
-  const streamStageReached = new DetachedPromise<void>()
+  const streamStageReached = createPromiseWithResolvers<void>()
 
   let startTime = -Infinity
 
@@ -5374,11 +5373,11 @@ async function streamStagedRenderInDevNode(
   // `resolveStreamAfterStage` rather than the Dynamic stage: Dynamic is gated
   // on `cacheReady()` and would block on cold cache fills, and dynamic content
   // is meant to stream in after the shell anyway.
-  const streamReady = new DetachedPromise<{
+  const streamReady = createPromiseWithResolvers<{
     stream: Readable
     accumulatedChunksPromise: Promise<AccumulatedStreamChunks>
   }>()
-  const streamStageReached = new DetachedPromise<void>()
+  const streamStageReached = createPromiseWithResolvers<void>()
 
   let startTime = -Infinity
 
