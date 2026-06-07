@@ -81,8 +81,8 @@ use crate::{
         analyze::{WriteAnalyzeResult, write_analyze_data_with_issues_operation},
         endpoint::ExternalEndpoint,
         turbopack_ctx::{
-            NapiNextTurbopackCallbacks, NapiNextTurbopackCallbacksJsObject, NextTurboTasks,
-            NextTurbopackContext, create_turbo_tasks,
+            MemoryEvictionMode, NapiNextTurbopackCallbacks, NapiNextTurbopackCallbacksJsObject,
+            NextTurboTasks, NextTurbopackContext, create_turbo_tasks,
         },
         utils::{
             DetachedVc, NapiIssue, NapiUsedFeature, RootTask, TurbopackResult, get_issues,
@@ -282,6 +282,8 @@ pub struct NapiTurboEngineOptions {
     pub is_short_session: Option<bool>,
     /// Whether to skip database compaction during shutdown.
     pub skip_compaction: Option<bool>,
+    /// Turbopack memory eviction mode for the persistent cache.
+    pub turbopack_memory_eviction: MemoryEvictionMode,
 }
 
 impl From<NapiWatchOptions> for WatchOptions {
@@ -561,6 +563,7 @@ pub fn project_new(
             let is_ci = turbo_engine_options.is_ci.unwrap_or(false);
             let is_short_session = turbo_engine_options.is_short_session.unwrap_or(false);
             let skip_compaction = turbo_engine_options.skip_compaction.unwrap_or(false);
+            let turbopack_memory_eviction = turbo_engine_options.turbopack_memory_eviction;
             let turbo_tasks = create_turbo_tasks(
                 PathBuf::from(&options.dist_dir),
                 &options.next_version,
@@ -570,6 +573,7 @@ pub fn project_new(
                 is_ci,
                 is_short_session,
                 skip_compaction,
+                turbopack_memory_eviction,
             )?;
             let turbopack_ctx = NextTurbopackContext::new(turbo_tasks.clone(), napi_callbacks);
 

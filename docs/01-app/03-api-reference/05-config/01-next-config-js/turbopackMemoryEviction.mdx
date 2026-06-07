@@ -1,0 +1,47 @@
+---
+title: Turbopack Memory Eviction
+nav_title: turbopackMemoryEviction
+description: Learn how to control Turbopack's memory eviction strategy for the persistent cache.
+---
+
+## Usage
+
+`turbopackMemoryEviction` controls how aggressively Turbopack reclaims memory while the persistent (FileSystem) cache is enabled. After Turbopack writes a snapshot of its cache to disk, it can evict the in-memory copies of that data and reload them from disk on demand, lowering peak memory usage at the cost of some extra disk reads.
+
+Currently there are two options
+
+- `false` (default): never evict. Cached data stays in memory for the lifetime of the process.
+- `'full'`: after every snapshot, evict all evictable tasks from memory. They are reloaded from disk on demand.
+
+> **Good to know:** This option only has an effect in `next dev` sessions when the [FileSystem Cache](/docs/app/api-reference/config/next-config-js/turbopackFileSystemCache) is enabled, since eviction relies on data already being persisted to disk. It is experimental and under active development.
+
+```ts filename="next.config.ts" switcher
+import type { NextConfig } from 'next'
+
+const nextConfig: NextConfig = {
+  experimental: {
+    // Evict in-memory cache data after each snapshot to reduce memory usage
+    turbopackMemoryEviction: 'full',
+  },
+}
+
+export default nextConfig
+```
+
+```js filename="next.config.js" switcher
+/** @type {import('next').NextConfig} */
+const nextConfig = {
+  experimental: {
+    // Evict in-memory cache data after each snapshot to reduce memory usage
+    turbopackMemoryEviction: 'full',
+  },
+}
+
+module.exports = nextConfig
+```
+
+## Version Changes
+
+| Version   | Changes                                             |
+| --------- | --------------------------------------------------- |
+| `v16.3.0` | `turbopackMemoryEviction` released as experimental. |
