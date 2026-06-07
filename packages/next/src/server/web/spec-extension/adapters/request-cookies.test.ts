@@ -55,6 +55,17 @@ describe('RequestCookiesAdapter', () => {
   })
 })
 
+describe('ResponseCookies', () => {
+  it('does not throw when a Set-Cookie value contains a bare % character', () => {
+    const headers = new Headers({
+      'set-cookie': 'discount=50% off; Path=/',
+    })
+    const cookies = new ResponseCookies(headers)
+    expect(() => cookies.get('discount')).not.toThrow()
+    expect(cookies.get('discount')?.value).toBe('50% off')
+  })
+})
+
 describe('MutableRequestCookiesAdapter', () => {
   it('supports chained set calls and preserves wrapping', () => {
     const headers = new Headers({})
