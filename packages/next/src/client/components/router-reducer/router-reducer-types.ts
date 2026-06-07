@@ -1,4 +1,8 @@
-import type { CacheNode, ScrollRef } from '../../../shared/lib/app-router-types'
+import type {
+  CacheNode,
+  HmrRefreshTarget,
+  ScrollRef,
+} from '../../../shared/lib/app-router-types'
 import type { FlightRouterState } from '../../../shared/lib/app-router-types'
 import type { NavigationSeed } from '../segment-cache/navigation'
 import type { FetchServerResponseResult } from './fetch-server-response'
@@ -39,6 +43,7 @@ export interface HmrRefreshAction {
   type: typeof ACTION_HMR_REFRESH
   signal?: AbortSignal
   invalidateOnly?: boolean
+  targets?: readonly HmrRefreshTarget[]
 }
 
 export type ServerActionDispatcher = (

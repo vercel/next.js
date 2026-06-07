@@ -15,6 +15,8 @@ import {
   invalidateBfCache,
   UnknownDynamicStaleTime,
 } from '../../segment-cache/bfcache'
+import type { HmrRefreshTarget } from '../../../../shared/lib/app-router-types'
+import { getHmrRefreshTargetPaths } from '../hmr-refresh'
 
 export function refreshReducer(
   state: ReadonlyReducerState,
@@ -41,7 +43,8 @@ export function refreshReducer(
 export function refreshDynamicData(
   state: ReadonlyReducerState,
   freshnessPolicy: FreshnessPolicy.RefreshAll | FreshnessPolicy.HMRRefresh,
-  signal?: AbortSignal
+  signal?: AbortSignal,
+  hmrRefreshTargets?: readonly HmrRefreshTarget[]
 ): ReducerState {
   // During a refresh, invalidate the BFCache, which may contain dynamic data.
   invalidateBfCache()
@@ -61,6 +64,11 @@ export function refreshDynamicData(
   const currentUrl = new URL(currentCanonicalUrl, location.origin)
   const currentRenderedSearch = state.renderedSearch
   const currentFlightRouterState = state.tree
+  const hmrRefreshTargetPaths =
+    process.env.__NEXT_SERVER_COMPONENTS_HMR_SEGMENT_REFRESH &&
+    freshnessPolicy === FreshnessPolicy.HMRRefresh
+      ? getHmrRefreshTargetPaths(currentFlightRouterState, hmrRefreshTargets)
+      : null
   const scrollBehavior = ScrollBehavior.NoScroll
 
   // Create a NavigationSeed from the current FlightRouterState.
@@ -99,6 +107,7 @@ export function refreshDynamicData(
     // mismatch occurs, the retry handler will traverse the known route tree
     // to find and mark the entry.
     null,
-    signal
+    signal,
+    hmrRefreshTargetPaths
   )
 }

@@ -9,6 +9,7 @@ import type {
   FlightRouterState,
   FlightSegmentPath,
   CacheNode,
+  HmrRefreshTarget,
   LoadingModuleData,
 } from './app-router-types'
 import React from 'react'
@@ -47,7 +48,10 @@ export interface AppRouterInstance {
    * Refresh the current page. Use in development only.
    * @internal
    */
-  hmrRefresh(options?: { invalidateOnly?: boolean }): void
+  hmrRefresh(
+    targets?: readonly HmrRefreshTarget[],
+    options?: { invalidateOnly?: boolean }
+  ): void
   /**
    * Navigate to the provided href.
    * Pushes a new history entry.

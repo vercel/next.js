@@ -1529,13 +1529,18 @@ async function generateDynamicFlightRenderResultWithStagesInDev(
     onFlightDataRenderError
   )
 
-  // We validate RSC requests for HMR refreshes and client navigations when
-  // instant configs exist, since we render all the layouts necessary to perform
-  // the validation in those cases.
+  // We validate full-tree HMR refreshes and client navigations when instant
+  // configs exist, since we render all the layouts necessary to perform the
+  // validation in those cases. A targeted HMR refresh only renders the changed
+  // subtree, so its chunks cannot be used to validate the route's static shell.
+  const isFullTreeHmrRefresh =
+    initialRequestStore.isHmrRefresh === true &&
+    (ctx.flightRouterState === undefined ||
+      ctx.flightRouterState[3] === 'refetch')
   const shouldValidate =
     !hmrRequestAbortSignal?.aborted &&
     !isBypassingCachesInDev(initialRequestStore, workStore) &&
-    (initialRequestStore.isHmrRefresh === true ||
+    (isFullTreeHmrRefresh ||
       (await anySegmentNeedsInstantValidationInDev(loaderTree)))
 
   const getPayload = async (requestStore: RequestStore) => {

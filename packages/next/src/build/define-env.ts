@@ -250,6 +250,9 @@ export function getDefineEnv({
     'process.env.__NEXT_SERVER_COMPONENTS_HMR_ROUTE_FILTERING': Boolean(
       config.experimental.serverComponentsHmrRouteFiltering
     ),
+    'process.env.__NEXT_SERVER_COMPONENTS_HMR_SEGMENT_REFRESH': Boolean(
+      config.experimental.serverComponentsHmrSegmentRefresh
+    ),
     'process.env.__NEXT_DYNAMIC_ON_HOVER': Boolean(
       config.experimental.dynamicOnHover
     ),

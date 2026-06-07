@@ -130,6 +130,9 @@ export type DynamicSegmentTuple = [
 
 export type Segment = string | DynamicSegmentTuple
 
+/** App-relative owner convention path, such as `/dashboard/page`. */
+export type HmrRefreshTarget = string
+
 /**
  * Router state
  */

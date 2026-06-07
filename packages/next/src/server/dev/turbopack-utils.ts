@@ -372,6 +372,7 @@ export async function handleRouteType({
               refreshScope: serverComponentsHmrRouteFiltering
                 ? { type: 'routes', routes: [pathname] }
                 : { type: 'all' },
+              renderScope: { type: 'all' },
             }
           },
           (e) => {

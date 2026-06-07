@@ -202,7 +202,8 @@ export function startPPRNavigation(
   seedHead: HeadData | null,
   seedDynamicStaleAt: number,
   isSamePageNavigation: boolean,
-  accumulation: NavigationRequestAccumulation
+  accumulation: NavigationRequestAccumulation,
+  hmrRefreshTargetPaths: Set<string> | null = null
 ): NavigationTask | null {
   const didFindRootLayout = false
   const parentNeedsDynamicRequest = false
@@ -227,7 +228,10 @@ export function startPPRNavigation(
     parentNeedsDynamicRequest,
     oldRootRefreshState,
     parentRefreshState,
-    accumulation
+    accumulation,
+    hmrRefreshTargetPaths,
+    [],
+    false
   )
 }
 
@@ -247,7 +251,10 @@ function updateCacheNodeOnNavigation(
   parentNeedsDynamicRequest: boolean,
   oldRootRefreshState: RefreshState,
   parentRefreshState: RefreshState | null,
-  accumulation: NavigationRequestAccumulation
+  accumulation: NavigationRequestAccumulation,
+  hmrRefreshTargetPaths: Set<string> | null,
+  hmrRefreshPath: string[],
+  parentIsInsideTargetedHmrRefresh: boolean
 ): NavigationTask | null {
   // Check if this segment matches the one in the previous route. A
   // search-param-only difference at a page segment falls through to the
@@ -321,6 +328,13 @@ function updateCacheNodeOnNavigation(
     didFindRootLayout ||
     (newRouteTree.prefetchHints & PrefetchHint.IsRootLayout) !== 0
 
+  const isTargetedHmrRefresh =
+    freshness === FreshnessPolicy.HMRRefresh && hmrRefreshTargetPaths !== null
+  const isInsideTargetedHmrRefresh =
+    parentIsInsideTargetedHmrRefresh ||
+    (isTargetedHmrRefresh &&
+      hmrRefreshTargetPaths.has(JSON.stringify(hmrRefreshPath)))
+
   let shouldRefreshDynamicData: boolean = false
   switch (freshness) {
     case FreshnessPolicy.Default:
@@ -330,8 +344,11 @@ function updateCacheNodeOnNavigation(
       shouldRefreshDynamicData = false
       break
     case FreshnessPolicy.RefreshAll:
-    case FreshnessPolicy.HMRRefresh:
       shouldRefreshDynamicData = true
+      break
+    case FreshnessPolicy.HMRRefresh:
+      shouldRefreshDynamicData =
+        !isTargetedHmrRefresh || isInsideTargetedHmrRefresh
       break
     default:
       freshness satisfies never
@@ -527,7 +544,10 @@ function updateCacheNodeOnNavigation(
         parentNeedsDynamicRequest || needsDynamicRequest,
         oldRootRefreshState,
         refreshState,
-        accumulation
+        accumulation,
+        hmrRefreshTargetPaths,
+        [...hmrRefreshPath, parallelRouteKey],
+        isInsideTargetedHmrRefresh
       )
 
       if (taskChild === null) {

@@ -426,6 +426,7 @@ export const experimentalSchema = {
   serverComponentsHmrCache: z.boolean().optional(),
   serverComponentsHmrCancellation: z.boolean().optional(),
   serverComponentsHmrRouteFiltering: z.boolean().optional(),
+  serverComponentsHmrSegmentRefresh: z.boolean().optional(),
   authInterrupts: z.boolean().optional(),
   useCache: z.boolean().optional(),
   useCacheTimeout: z.number().positive().optional(),

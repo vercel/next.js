@@ -82,6 +82,7 @@ import {
 } from './hot-reloader-types'
 import type {
   HmrMessageSentToBrowser,
+  ServerComponentRenderScope,
   ServerComponentRefreshScope,
 } from './hot-reloader-types'
 import type { WebpackError } from 'webpack'
@@ -98,6 +99,7 @@ import {
   devToolsConfigMiddleware,
   getDevToolsConfig,
 } from '../../next-devtools/server/devtools-config-middleware'
+import { getHmrRefreshTargets } from './hmr-refresh-targets'
 import { getAttachNodejsDebuggerMiddleware } from '../../next-devtools/server/attach-nodejs-debugger-middleware'
 import { InvariantError } from '../../shared/lib/invariant-error'
 import {
@@ -116,6 +118,7 @@ import { setStackFrameResolver } from '../mcp/tools/utils/format-errors'
 import { recordMcpTelemetry } from '../mcp/mcp-telemetry-tracker'
 import { getFileLogger } from './browser-logs/file-logger'
 import type { ServerCacheStatus } from '../../next-devtools/dev-overlay/cache-indicator'
+import { findWebpackServerComponentOwners } from './webpack-server-component-owners'
 import type { Lockfile } from '../../build/lockfile'
 import {
   sendSerializedErrorsToClient,
@@ -436,12 +439,14 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
 
   protected async refreshServerComponents(
     hash: string,
-    refreshScope: ServerComponentRefreshScope
+    refreshScope: ServerComponentRefreshScope,
+    renderScope: ServerComponentRenderScope
   ): Promise<void> {
     this.send({
       type: HMR_MESSAGE_SENT_TO_BROWSER.SERVER_COMPONENT_CHANGES,
       hash,
       refreshScope,
+      renderScope,
     })
   }
 
@@ -1286,18 +1291,30 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
     const prevServerPageHashes = new Map<string, string>()
     const prevEdgeServerPageHashes = new Map<string, string>()
     const prevCSSImportModuleHashes = new Map<string, string>()
+    const prevServerComponentModuleHashes = new Map<string, string>()
+    const prevEdgeServerComponentModuleHashes = new Map<string, string>()
+    const changedServerComponentOwnerFiles = new Set<string>()
+    let hasUnclassifiedServerComponentChange = false
 
     const pageExtensionRegex = new RegExp(
       `\\.(?:${this.config.pageExtensions.join('|')})$`
+    )
+    const ownerFileRegex = new RegExp(
+      `(?:^|[/\\\\])(?:page|layout|default)\\.(?:${this.config.pageExtensions.join('|')})$`
     )
 
     const trackPageChanges =
       (
         pageHashMap: Map<string, string>,
         changedItems: Set<string>,
-        serverComponentChangedItems?: Set<string>
+        serverComponentChangedItems?: Set<string>,
+        serverComponentModuleHashMap?: Map<string, string>
       ) =>
       (stats: webpack.Compilation) => {
+        const serverComponentOwnerResults = new Map<
+          webpack.Module,
+          ReturnType<typeof findWebpackServerComponentOwners>
+        >()
         try {
           stats.entrypoints.forEach((entry, key) => {
             if (
@@ -1316,6 +1333,7 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
                   let chunksHashServerLayer = new StringXor()
 
                   modsIterable.forEach((mod: any) => {
+                    let hash: string
                     if (
                       mod.resource &&
                       mod.resource.replace(/\\/g, '/').includes(key) &&
@@ -1326,9 +1344,7 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
                       // includes the source map in development which changes
                       // every time for both server and client so we calculate
                       // the hash without the source map for the page module
-                      const hash = (
-                        require('crypto') as typeof import('crypto')
-                      )
+                      hash = (require('crypto') as typeof import('crypto'))
                         .createHash('sha1')
                         .update(mod.originalSource().buffer())
                         .digest()
@@ -1344,10 +1360,7 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
                       chunksHash.add(hash)
                     } else {
                       // for non-pages we can use the module hash directly
-                      const hash = stats.chunkGraph.getModuleHash(
-                        mod,
-                        chunk.runtime
-                      )
+                      hash = stats.chunkGraph.getModuleHash(mod, chunk.runtime)
 
                       if (
                         mod.layer === WEBPACK_LAYERS.reactServerComponents &&
@@ -1372,6 +1385,36 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
                         }
                         prevCSSImportModuleHashes.set(resourceKey, hash)
                       }
+                    }
+
+                    if (
+                      serverComponentModuleHashMap &&
+                      mod.resource &&
+                      mod.layer === WEBPACK_LAYERS.reactServerComponents &&
+                      mod?.buildInfo?.rsc?.type !== 'client'
+                    ) {
+                      const resourceKey = `${key}:${mod.layer}:${mod.resource}`
+                      const prevHash =
+                        serverComponentModuleHashMap.get(resourceKey)
+                      if (prevHash && prevHash !== hash) {
+                        let result = serverComponentOwnerResults.get(mod)
+                        if (result === undefined) {
+                          result = findWebpackServerComponentOwners(
+                            stats.moduleGraph,
+                            mod,
+                            ownerFileRegex
+                          )
+                          serverComponentOwnerResults.set(mod, result)
+                        }
+                        if (result.type === 'all') {
+                          hasUnclassifiedServerComponentChange = true
+                        } else {
+                          for (const owner of result.owners) {
+                            changedServerComponentOwnerFiles.add(owner)
+                          }
+                        }
+                      }
+                      serverComponentModuleHashMap.set(resourceKey, hash)
                     }
                   })
 
@@ -1414,7 +1457,10 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
       trackPageChanges(
         prevServerPageHashes,
         changedServerPages,
-        changedServerComponentPages
+        changedServerComponentPages,
+        this.config.experimental.serverComponentsHmrSegmentRefresh
+          ? prevServerComponentModuleHashes
+          : undefined
       )
     )
     this.multiCompiler.compilers[2].hooks.emit.tap(
@@ -1422,7 +1468,10 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
       trackPageChanges(
         prevEdgeServerPageHashes,
         changedEdgeServerPages,
-        changedServerComponentPages
+        changedServerComponentPages,
+        this.config.experimental.serverComponentsHmrSegmentRefresh
+          ? prevEdgeServerComponentModuleHashes
+          : undefined
       )
     )
 
@@ -1563,7 +1612,18 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
         const refreshScope: ServerComponentRefreshScope = changedRoutes?.length
           ? { type: 'routes', routes: changedRoutes }
           : { type: 'all' }
-        this.refreshServerComponents(stats.hash, refreshScope)
+        const targetScope =
+          reloadAfterInvalidation ||
+          !this.config.experimental.serverComponentsHmrSegmentRefresh
+            ? { type: 'all' as const }
+            : hasUnclassifiedServerComponentChange
+              ? { type: 'all' as const }
+              : getHmrRefreshTargets(
+                  changedServerComponentOwnerFiles,
+                  this.appDir,
+                  this.config.pageExtensions
+                )
+        this.refreshServerComponents(stats.hash, refreshScope, targetScope)
       }
 
       changedClientPages.clear()
@@ -1571,6 +1631,8 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
       changedEdgeServerPages.clear()
       changedServerComponentPages.clear()
       changedCSSImportPages.clear()
+      changedServerComponentOwnerFiles.clear()
+      hasUnclassifiedServerComponentChange = false
     })
 
     this.multiCompiler.compilers[0].hooks.failed.tap(

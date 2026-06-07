@@ -103,6 +103,14 @@ declare global {
   var __turbopack_server_hmr_apply__:
     | ((update: NodeJsPartialHmrUpdate) => boolean)
     | undefined
+  var __turbopack_server_hmr_get_refresh_owners__:
+    | ((
+        update: NodeJsPartialHmrUpdate
+      ) =>
+        | { type: 'unrelated' }
+        | { type: 'all' }
+        | { type: 'owners'; owners: string[] })
+    | undefined
 }
 
 // hot-reloader modules are not bundled so we need to inject `__next__clear_chunk_cache__`

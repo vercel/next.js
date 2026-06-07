@@ -421,7 +421,7 @@ export function processMessage(
         sourcePage !== undefined &&
         !message.refreshScope.routes.includes(normalizeAppPath(sourcePage))
       ) {
-        publicAppRouterInstance.hmrRefresh({ invalidateOnly: true })
+        publicAppRouterInstance.hmrRefresh(undefined, { invalidateOnly: true })
         return
       }
 
@@ -435,7 +435,13 @@ export function processMessage(
       }
 
       startTransition(() => {
-        publicAppRouterInstance.hmrRefresh()
+        publicAppRouterInstance.hmrRefresh(
+          process.env.__NEXT_SERVER_COMPONENTS_HMR_SEGMENT_REFRESH
+            ? message.renderScope.type === 'targets'
+              ? message.renderScope.targets
+              : undefined
+            : undefined
+        )
         dispatcher.onRefresh()
       })
 

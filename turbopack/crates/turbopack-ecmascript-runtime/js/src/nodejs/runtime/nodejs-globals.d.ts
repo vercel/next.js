@@ -19,7 +19,27 @@ declare global {
   // in this .d.ts file, so the handler parameter must use any here.
 
   var __turbopack_server_hmr_handlers__:
-    | Map<string, { handler: (update: any) => boolean; chunkPrefix: string }>
+    | Map<
+        string,
+        {
+          handler: (update: any) => boolean
+          getRefreshOwners: (
+            moduleIds: string[]
+          ) =>
+            | { type: 'unrelated' }
+            | { type: 'all' }
+            | { type: 'owners'; owners: string[] }
+          chunkPrefix: string
+        }
+      >
+    | undefined
+  var __turbopack_server_hmr_get_refresh_owners__:
+    | ((
+        update: any
+      ) =>
+        | { type: 'unrelated' }
+        | { type: 'all' }
+        | { type: 'owners'; owners: string[] })
     | undefined
 }
 

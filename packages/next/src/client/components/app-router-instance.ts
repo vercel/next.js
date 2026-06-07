@@ -38,6 +38,7 @@ import { setLinkForCurrentNavigation, type LinkInstance } from './links'
 import type { ClientInstrumentationHooks } from '../app-index'
 import type { GlobalErrorComponent } from './builtin/global-error'
 import { isJavaScriptURLString } from '../lib/javascript-url'
+import type { HmrRefreshTarget } from '../../shared/lib/app-router-types'
 
 export type DispatchStatePromise = React.Dispatch<ReducerState>
 
@@ -481,7 +482,10 @@ export const publicAppRouterInstance: AppRouterInstance = {
       })
     })
   },
-  hmrRefresh: (options?: { invalidateOnly?: boolean }) => {
+  hmrRefresh: (
+    targets?: readonly HmrRefreshTarget[],
+    options?: { invalidateOnly?: boolean }
+  ) => {
     if (process.env.NODE_ENV !== 'development') {
       throw new Error(
         'hmrRefresh can only be used in development mode. Please use refresh instead.'
@@ -506,6 +510,7 @@ export const publicAppRouterInstance: AppRouterInstance = {
           type: ACTION_HMR_REFRESH,
           signal,
           invalidateOnly: options?.invalidateOnly,
+          targets,
         })
       })
       previousController?.abort()

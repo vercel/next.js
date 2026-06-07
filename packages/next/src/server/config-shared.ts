@@ -1109,6 +1109,7 @@ export interface ExperimentalConfig {
   serverComponentsHmrCache?: boolean
   serverComponentsHmrCancellation?: boolean
   serverComponentsHmrRouteFiltering?: boolean
+  serverComponentsHmrSegmentRefresh?: boolean
 
   /**
    * Render <style> tags inline in the HTML for imported CSS assets.
@@ -2040,6 +2041,7 @@ export const defaultConfig = Object.freeze({
     serverComponentsHmrCache: true,
     serverComponentsHmrCancellation: true,
     serverComponentsHmrRouteFiltering: true,
+    serverComponentsHmrSegmentRefresh: true,
     staticGenerationMaxConcurrency: 8,
     staticGenerationMinPagesPerWorker: 25,
     transitionIndicator: false,

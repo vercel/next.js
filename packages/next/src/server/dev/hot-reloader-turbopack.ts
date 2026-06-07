@@ -131,6 +131,7 @@ import { recordMcpTelemetry } from '../mcp/mcp-telemetry-tracker'
 import { getFileLogger } from './browser-logs/file-logger'
 import type { ServerCacheStatus } from '../../next-devtools/dev-overlay/cache-indicator'
 import type { Lockfile } from '../../build/lockfile'
+import { TurbopackServerComponentRefresh } from './turbopack-server-component-refresh'
 import {
   sendSerializedErrorsToClient,
   sendSerializedErrorsToClientForHtmlRequest,
@@ -161,8 +162,12 @@ function setupServerHmr(
   project: Project,
   {
     clear,
+    onApplied,
+    onUpdate,
   }: {
     clear: () => void | Promise<void>
+    onApplied?: () => void
+    onUpdate?: (update: NodeJsPartialHmrUpdate) => boolean
   }
 ) {
   const serverHmrSubscriptions: ServerHmrSubscriptions = new Map()
@@ -203,10 +208,14 @@ function setupServerHmr(
           continue
         }
 
+        const shouldNotifyApplied = onUpdate?.(update) ?? true
+
         if (typeof __turbopack_server_hmr_apply__ === 'function') {
           const applied = __turbopack_server_hmr_apply__(update)
           if (!applied) {
             await clear()
+          } else if (shouldNotifyApplied) {
+            onApplied?.()
           }
         }
       }
@@ -315,6 +324,9 @@ export async function createHotReloaderTurbopack(
   const dev = true
   const buildId = 'development'
   const { nextConfig, dir: projectPath } = opts
+  const serverComponentsHmrSegmentRefresh = Boolean(
+    nextConfig.experimental.serverComponentsHmrSegmentRefresh
+  )
 
   const bindings = getBindingsSync()
 
@@ -753,14 +765,43 @@ export async function createHotReloaderTurbopack(
   }
   const sendEnqueuedMessagesDebounce = debounce(sendEnqueuedMessages, 2)
 
-  const sendHmr: SendHmr = (id: string, message: HmrMessageSentToBrowser) => {
+  function enqueueHmr(id: string, message: HmrMessageSentToBrowser) {
     for (const client of [
       ...clientsWithoutHtmlRequestId,
       ...clientsByHtmlRequestId.values(),
     ]) {
       clientStates.get(client)?.messages.set(id, message)
     }
+  }
 
+  const serverComponentRefresh = new TurbopackServerComponentRefresh({
+    appDir: opts.appDir,
+    projectRoot: rootPath,
+    pageExtensions: nextConfig.pageExtensions,
+    nextHash: () => String(++hmrHash),
+    enqueue: enqueueHmr,
+    flush: sendEnqueuedMessages,
+    scheduleFlush: sendEnqueuedMessagesDebounce,
+    onRefreshEnqueued: () => {
+      hmrEventHappened = true
+    },
+  })
+
+  const sendServerHmrRefreshDebounce = debounce(() => {
+    serverComponentRefresh.flushAppliedUpdate()
+  }, 2)
+
+  const sendHmr: SendHmr = (id: string, message: HmrMessageSentToBrowser) => {
+    if (
+      serverComponentsHmrSegmentRefresh &&
+      message.type === HMR_MESSAGE_SENT_TO_BROWSER.SERVER_COMPONENT_CHANGES
+    ) {
+      serverComponentRefresh.handleMessage(id, message)
+      hmrEventHappened = true
+      return
+    }
+
+    enqueueHmr(id, message)
     hmrEventHappened = true
     sendEnqueuedMessagesDebounce()
   }
@@ -1633,6 +1674,7 @@ export async function createHotReloaderTurbopack(
           type: HMR_MESSAGE_SENT_TO_BROWSER.SERVER_COMPONENT_CHANGES,
           hash: String(++hmrHash),
           refreshScope: { type: 'all' },
+          renderScope: { type: 'all' },
         })
       }
     },
@@ -1857,6 +1899,9 @@ export async function createHotReloaderTurbopack(
     for await (const updateMessage of project.updateInfoSubscribe(30)) {
       switch (updateMessage.updateType) {
         case 'start': {
+          if (serverComponentsHmrSegmentRefresh) {
+            serverComponentRefresh.startBuild()
+          }
           hotReloader.send({ type: HMR_MESSAGE_SENT_TO_BROWSER.BUILDING })
           // Mark that HMR has started and we need to call the callback after it settles
           // This ensures onBeforeDeferredEntries will be called again during HMR
@@ -1868,6 +1913,9 @@ export async function createHotReloaderTurbopack(
           break
         }
         case 'end': {
+          if (serverComponentsHmrSegmentRefresh) {
+            serverComponentRefresh.finishBuild()
+          }
           sendEnqueuedMessages()
 
           function addToErrorsMap(
@@ -1950,6 +1998,19 @@ export async function createHotReloaderTurbopack(
 
   if (serverFastRefresh) {
     serverHmrSubscriptions = setupServerHmr(project, {
+      onApplied: serverComponentsHmrSegmentRefresh
+        ? () => {
+            if (serverComponentRefresh.handleUpdateApplied()) {
+              sendServerHmrRefreshDebounce()
+            }
+          }
+        : undefined,
+      onUpdate: serverComponentsHmrSegmentRefresh
+        ? (update) =>
+            serverComponentRefresh.handleUpdate(
+              globalThis.__turbopack_server_hmr_get_refresh_owners__?.(update)
+            )
+        : undefined,
       clear: async () => {
         // Clear Node's require cache of all Turbopack-built modules
         const chunkPaths = [...(serverHmrSubscriptions?.keys() ?? [])].map(
@@ -1966,6 +2027,9 @@ export async function createHotReloaderTurbopack(
         // cleared from require.cache above; when they're next required they'll
         // re-register into this Map and reinstall the routing dispatcher.
         ;(globalThis as any).__turbopack_server_hmr_handlers__ = new Map()
+        if (serverComponentsHmrSegmentRefresh) {
+          globalThis.__turbopack_server_hmr_get_refresh_owners__ = undefined
+        }
 
         // Clear all edge contexts
         await clearAllModuleContexts()
@@ -1977,6 +2041,7 @@ export async function createHotReloaderTurbopack(
           type: HMR_MESSAGE_SENT_TO_BROWSER.SERVER_COMPONENT_CHANGES,
           hash: String(++hmrHash),
           refreshScope: { type: 'all' },
+          renderScope: { type: 'all' },
         })
       },
     })

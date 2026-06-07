@@ -1690,30 +1690,105 @@ function __turbopack_server_hmr_apply__(update) {
         return false;
     }
 }
+const appRscModulePrefix = '[project]/';
+const appRscModuleSuffix = ' [app-rsc] (ecmascript)';
+const appPageEntryModuleIdRegex = /\/node_modules\/next\/dist\/esm\/build\/templates\/app-page\.js\?page=/;
+function getAppRscModulePath(moduleId) {
+    if (!moduleId.startsWith(appRscModulePrefix) || !moduleId.endsWith(appRscModuleSuffix)) {
+        return null;
+    }
+    return moduleId.slice(appRscModulePrefix.length, -appRscModuleSuffix.length);
+}
+function isHmrRefreshOwnerPath(modulePath) {
+    const filename = modulePath.slice(modulePath.lastIndexOf('/') + 1);
+    return /^(?:page|layout|default)\.[^/]+$/.test(filename);
+}
+function getHmrRefreshOwners(moduleIds) {
+    const owners = new Set();
+    let foundAppRscModule = false;
+    let complete = true;
+    for (const moduleId of moduleIds){
+        if (getAppRscModulePath(moduleId) === null || !devModuleCache[moduleId]) {
+            continue;
+        }
+        foundAppRscModule = true;
+        let foundOwner = false;
+        const visited = new Set();
+        const pending = [
+            moduleId
+        ];
+        while(pending.length > 0){
+            const currentId = pending.pop();
+            if (visited.has(currentId)) {
+                continue;
+            }
+            visited.add(currentId);
+            if (typeof currentId === 'string') {
+                const modulePath = getAppRscModulePath(currentId);
+                if (modulePath !== null && isHmrRefreshOwnerPath(modulePath)) {
+                    owners.add(modulePath);
+                    foundOwner = true;
+                    continue;
+                }
+            }
+            const module = devModuleCache[currentId];
+            if (module === undefined || module.parents.length === 0) {
+                if (typeof currentId !== 'string' || !appPageEntryModuleIdRegex.test(currentId)) {
+                    complete = false;
+                }
+                continue;
+            }
+            pending.push(...module.parents);
+        }
+        if (!foundOwner) {
+            complete = false;
+        }
+    }
+    if (!foundAppRscModule) {
+        return {
+            type: 'unrelated'
+        };
+    }
+    if (!complete || owners.size === 0) {
+        return {
+            type: 'all'
+        };
+    }
+    return {
+        type: 'owners',
+        owners: [
+            ...owners
+        ]
+    };
+}
 const handlers = globalThis.__turbopack_server_hmr_handlers__ ?? new Map();
 const chunkPrefix = path.relative(RUNTIME_ROOT, path.dirname(__filename));
+function getMatchingHandlers(update, registry) {
+    const updateChunkPaths = Object.keys(update.instruction?.chunks ?? {});
+    if (updateChunkPaths.length === 0) {
+        return [
+            ...registry.values()
+        ];
+    }
+    const result = [];
+    const seen = new Set();
+    for (const chunkPath of updateChunkPaths){
+        const dir = path.dirname(chunkPath);
+        for (const [key, entry] of registry){
+            if (dir === entry.chunkPrefix && !seen.has(key)) {
+                seen.add(key);
+                result.push(entry);
+            }
+        }
+    }
+    return result;
+}
 if (handlers.size === 0) {
     // First registration in this generation: install the routing dispatcher.
     globalThis.__turbopack_server_hmr_apply__ = (update)=>{
         const registry = globalThis.__turbopack_server_hmr_handlers__ ?? new Map();
-        const updateChunkPaths = Object.keys(update.instruction?.chunks ?? {});
-        const toCall = [];
-        if (updateChunkPaths.length === 0) {
-            for (const entry of registry.values())toCall.push(entry);
-        } else {
-            const seen = new Set();
-            for (const chunkPath of updateChunkPaths){
-                const dir = path.dirname(chunkPath);
-                for (const [key, entry] of registry){
-                    if (dir === entry.chunkPrefix && !seen.has(key)) {
-                        seen.add(key);
-                        toCall.push(entry);
-                    }
-                }
-            }
-        }
         let applied = false;
-        for (const { handler } of toCall){
+        for (const { handler } of getMatchingHandlers(update, registry)){
             try {
                 if (handler(update)) applied = true;
             } catch (err) {
@@ -1722,10 +1797,42 @@ if (handlers.size === 0) {
         }
         return applied;
     };
+    globalThis.__turbopack_server_hmr_get_refresh_owners__ = (update)=>{
+        const registry = globalThis.__turbopack_server_hmr_handlers__ ?? new Map();
+        const moduleIds = Object.keys(update.instruction?.entries ?? {});
+        const owners = new Set();
+        let foundOwners = false;
+        for (const entry of getMatchingHandlers(update, registry)){
+            const result = entry.getRefreshOwners(moduleIds);
+            switch(result.type){
+                case 'unrelated':
+                    break;
+                case 'all':
+                    return result;
+                case 'owners':
+                    foundOwners = true;
+                    for (const owner of result.owners){
+                        owners.add(owner);
+                    }
+                    break;
+                default:
+                    result;
+            }
+        }
+        return foundOwners ? {
+            type: 'owners',
+            owners: [
+                ...owners
+            ]
+        } : {
+            type: 'unrelated'
+        };
+    };
 }
 globalThis.__turbopack_server_hmr_handlers__ = handlers;
 handlers.set(__filename, {
     handler: __turbopack_server_hmr_apply__,
+    getRefreshOwners: getHmrRefreshOwners,
     chunkPrefix
 });
 

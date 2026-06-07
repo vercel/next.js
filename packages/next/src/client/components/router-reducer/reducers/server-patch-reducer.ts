@@ -33,9 +33,19 @@ export function serverPatchReducer(
   const currentUrl = new URL(state.canonicalUrl, location.origin)
   const currentRenderedSearch = state.renderedSearch
   if (action.previousTree !== state.tree) {
-    // There was another, more recent navigation since the once that
+    // There was another, more recent navigation since the one that
     // mismatched. We can abort the retry, but we still need to refresh the
     // page to evict any stale dynamic data.
+    if (process.env.__NEXT_EXPOSE_TESTING_API) {
+      const { isNavigationLocked } =
+        require('../../segment-cache/navigation-testing-lock') as typeof import('../../segment-cache/navigation-testing-lock')
+      if (isNavigationLocked()) {
+        // The unlock handler already schedules the refresh required to
+        // reconcile dynamic data. Starting one while the lock is held would
+        // replace the prefetched state that the test is currently asserting.
+        return state
+      }
+    }
     return refreshReducer(state, { type: ACTION_REFRESH })
   }
   // There have been no new navigations since the mismatched one. Refresh,

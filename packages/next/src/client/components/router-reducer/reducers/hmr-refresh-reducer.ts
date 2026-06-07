@@ -25,5 +25,12 @@ export function hmrRefreshReducer(
     return state
   }
 
-  return refreshDynamicData(state, FreshnessPolicy.HMRRefresh, action.signal)
+  return refreshDynamicData(
+    state,
+    FreshnessPolicy.HMRRefresh,
+    action.signal,
+    process.env.__NEXT_SERVER_COMPONENTS_HMR_SEGMENT_REFRESH
+      ? action.targets
+      : undefined
+  )
 }

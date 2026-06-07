@@ -879,6 +879,7 @@ export default class DevServer extends Server {
               type: HMR_MESSAGE_SENT_TO_BROWSER.SERVER_COMPONENT_CHANGES,
               hash: `generateStaticParams-${Date.now()}`,
               refreshScope: { type: 'all' },
+              renderScope: { type: 'all' },
             })
           }
         }

@@ -447,7 +447,9 @@ describe('Error recovery app', () => {
          |         ^",
        "stack": [
          "Child child.js (3:9)",
-         "Page app/server/page.js (3:10)",
+         "Page app/server/page.js (${
+           isTurbopack && process.platform === 'darwin' ? '4:1' : '3:10'
+         })",
        ],
      }
     `,
@@ -1084,7 +1086,7 @@ describe('Error recovery app', () => {
            |           ^",
          "stack": [
            "ClassDefault.render index.js (5:11)",
-           "Page index.js (10:16)",
+           "Page app/page.js (4:10)",
          ],
        }
       `)

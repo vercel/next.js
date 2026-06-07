@@ -210,19 +210,11 @@ export function navigateToKnownRoute(
   scrollBehavior: ScrollBehavior,
   navigateType: 'push' | 'replace',
   debugInfo: Array<unknown> | null,
-  // The route cache entry used for this navigation, if it came from route
-  // prediction. Passed through so it can be marked as having a dynamic rewrite
-  // if the server returns a different pathname (indicating dynamic rewrite
-  // behavior).
-  //
-  // When null, the navigation did not use route prediction - either because
-  // the route was already fully cached, or it's a navigation that doesn't
-  // involve prediction (refresh, history traversal, server action, etc.).
-  // In these cases, if a mismatch occurs, we still mark the route as having a
-  // dynamic rewrite by traversing the known route tree (see
-  // dispatchRetryDueToTreeMismatch).
+  // The route cache entry used by prediction. On mismatch it is marked as
+  // dynamic. When null, the retry finds the entry via the known route tree.
   routeCacheEntry: FulfilledRouteCacheEntry | null,
-  signal?: AbortSignal
+  signal?: AbortSignal,
+  hmrRefreshTargetPaths: Set<string> | null = null
 ): AppRouterState {
   // A version of navigate() that accepts the target route tree as an argument
   // rather than reading it from the prefetch cache.
@@ -248,7 +240,8 @@ export function navigateToKnownRoute(
   // Also note that this only refreshes the dynamic data, not static/ cached
   // data. If the page segment is fully static and prefetched, the request is
   // skipped. (This is also how refresh() works.)
-  const isSamePageNavigation = url.href === currentUrl.href
+  const isSamePageNavigation =
+    hmrRefreshTargetPaths === null && url.href === currentUrl.href
   const task = startPPRNavigation(
     now,
     currentUrl,
@@ -262,7 +255,8 @@ export function navigateToKnownRoute(
     navigationSeed.head,
     navigationSeed.dynamicStaleAt,
     isSamePageNavigation,
-    accumulation
+    accumulation,
+    hmrRefreshTargetPaths
   )
   if (task !== null) {
     if (freshnessPolicy !== FreshnessPolicy.Gesture) {

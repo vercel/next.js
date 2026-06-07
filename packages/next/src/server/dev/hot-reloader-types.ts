@@ -15,6 +15,7 @@ import type {
 import type { DevToolsConfig } from '../../next-devtools/dev-overlay/shared'
 import type { ReactDebugChannelForBrowser } from './debug-channel'
 import type { AnyStream } from '../app-render/stream-ops'
+import type { HmrRefreshTarget } from '../../shared/lib/app-router-types'
 
 export const enum HMR_MESSAGE_SENT_TO_BROWSER {
   // JSON messages:
@@ -112,10 +113,17 @@ export type ServerComponentRefreshScope =
   | { type: 'all' }
   | { type: 'routes'; routes: string[] }
 
+export type ServerComponentRenderScope =
+  | { type: 'all' }
+  | { type: 'targets'; targets: HmrRefreshTarget[] }
+
 export interface ServerComponentChangesMessage {
   type: HMR_MESSAGE_SENT_TO_BROWSER.SERVER_COMPONENT_CHANGES
   hash: string
+  // Selects which active routes should process the refresh.
   refreshScope: ServerComponentRefreshScope
+  // Selects which rendered subtrees to refetch within those routes.
+  renderScope: ServerComponentRenderScope
 }
 
 export interface MiddlewareChangesMessage {
