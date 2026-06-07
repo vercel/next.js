@@ -298,9 +298,7 @@ pub(crate) fn register_all_trait_methods() {
         // ids. Reading the id cell directly (rather than `get_value_type_id`)
         // avoids re-entering `LazyLock::force` and deadlocking.
         let id = unsafe { get_value_type_id_unchecked(value_type) };
-        // Install the Rust vtable so `into_trait_ref`-style calls can downcast. The thunk resolves
-        // the value type's id (already assigned by `init_registry` above) and inserts the
-        // compile-time `DynMetadata` into the trait's `VTableRegistry`.
+        // Register all the rust vtables to support into_trait_ref calling stryles
         (entry.install_vtable)(id);
     }
 }

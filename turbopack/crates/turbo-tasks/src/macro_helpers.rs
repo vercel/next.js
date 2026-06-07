@@ -174,17 +174,6 @@ pub const fn strip_trailing_segments(s: &str, count: usize) -> &str {
 }
 
 /// A registry of all the impl vtables for a given VcValue trait.
-///
-/// `const`-constructed as a plain `static`. The map (`inner`) is built once during
-/// [`crate::value_type::register_all_trait_methods`], which runs inside the `VALUES` `LazyLock`
-/// initializer after `ValueType` ids are assigned. Each `impl Trait for Concrete` contributes via
-/// a [`TraitImplRecord`] gathered at link time (see [`TRAIT_IMPLS_SLICE`]); its
-/// `install_vtable` thunk calls [`Self::insert`].
-///
-/// The cast path is a single hashmap `.get()` keyed by `u16` — no `LazyLock` check, no
-/// `get_value_type(id)` indirection. The vtable pointer for each `impl Trait for Concrete` is
-/// materialized at compile time (a `const DynMetadata`), so there's no runtime `transmute` or
-/// indirect fn-pointer call on the cast path either.
 pub struct VTableRegistry<T>
 where
     T: Pointee<Metadata = DynMetadata<T>> + ?Sized,

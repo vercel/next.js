@@ -49,16 +49,7 @@ macro_rules! turbo_registry {
 pub(crate) use turbo_registry;
 
 // Link-time gather slices, one per registry. Each item is a `&'static T` reference scattered by
-// the `register_*!` macros below. Unlike `inventory`, these are populated by the linker into a
-// contiguous section in the binary image: the full set is available at process start with no
-// constructors and no ordering. This is what makes forcing the `VALUES` `LazyLock` during the
-// load-time constructor phase safe — the slice is always complete, so we can never observe a
-// partial registry (the bug that the old `inventory::iter` live-linked-list approach had).
-//
-// These are `pub` (not `pub(crate)`): `#[gather]` re-exports each collection's scatter macro with
-// the static's visibility, and the `register_*!` macros — which expand in arbitrary downstream
-// crates — reference the collection as `$crate::<SLICE>` (see those macros below). The data is
-// `#[doc(hidden)]`; only the macro re-export needs to be reachable.
+// the `register_*!` macros below.
 #[doc(hidden)]
 #[scattered_collect::gather]
 pub static FUNCTIONS_SLICE: ScatteredSlice<&'static NativeFunction>;
@@ -268,15 +259,11 @@ pub fn get_value_type_id(value: &'static ValueType) -> ValueTypeId {
 /// Read a `ValueType`'s assigned id directly, without touching `LazyLock`. See
 /// [`get_id_unchecked`] for the safety contract.
 ///
-/// Public because the `value_impl` macro emits calls to it from the `install_vtable` thunk of each
-/// `TraitImplRecord` (which is defined in the downstream crate).
-///
 /// # Safety
 ///
-/// The only legitimate caller is a [`crate::value_type::register_all_trait_methods`] thunk,
-/// which runs inside the `VALUES` `LazyLock` initializer (via `register_all_trait_methods`), after
-/// `init_registry` has assigned ids. Calling `get_value_type_id` from there would re-enter
-/// `LazyLock::force` and deadlock.
+/// The only legitimate caller is [`crate::value_type::register_all_trait_methods`],
+/// which runs inside the `VALUES` `LazyLock` initializer, after `init_registry` has assigned ids.
+/// Calling `get_value_type_id` from there would re-enter `LazyLock::force` and deadlock.
 #[inline]
 pub(crate) unsafe fn get_value_type_id_unchecked(value: &'static ValueType) -> ValueTypeId {
     unsafe { get_id_unchecked(value) }
