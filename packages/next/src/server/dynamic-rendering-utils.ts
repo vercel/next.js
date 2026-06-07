@@ -34,7 +34,49 @@ class HangingPromiseRejectionError extends Error {
   }
 }
 
-type AbortListeners = Array<(err: unknown) => void>
+const CLIENT_HOOK_DYNAMIC = 'CLIENT_HOOK_DYNAMIC'
+
+export class ClientHookDynamicError extends Error {
+  public readonly digest = CLIENT_HOOK_DYNAMIC
+
+  constructor(route: string, expression: string) {
+    super(
+      `Route "${route}": A Client Component used \`${expression}\` outside of \`<Suspense>\`.\n\n` +
+        `This prevents the route from being prerendered because the value is only available at runtime.\n\n` +
+        `Ways to fix this:\n` +
+        `  - [stream] Wrap the Client Component in \`<Suspense fallback={...}>\`\n` +
+        `    https://nextjs.org/docs/messages/next-prerender-client-hook#wrap-the-client-component-in-suspense`
+    )
+  }
+}
+
+export class ParamClientHookDynamicError extends Error {
+  public readonly digest = CLIENT_HOOK_DYNAMIC
+
+  constructor(route: string, expression: string) {
+    super(
+      `Route "${route}": A Client Component used \`${expression}\` outside of \`<Suspense>\`.\n\n` +
+        `This prevents the route from being prerendered because the value is only available at runtime.\n\n` +
+        `Ways to fix this:\n` +
+        `  - [stream] Wrap the Client Component in \`<Suspense fallback={...}>\`\n` +
+        `    https://nextjs.org/docs/messages/next-prerender-client-hook#wrap-the-client-component-in-suspense\n` +
+        `  - [prerender] If the dynamic params are known, prerender them with \`generateStaticParams\`\n` +
+        `    https://nextjs.org/docs/messages/next-prerender-client-hook#prerender-known-dynamic-params`
+    )
+  }
+}
+
+export function isClientHookDynamicError(
+  err: unknown
+): err is ClientHookDynamicError | ParamClientHookDynamicError {
+  if (typeof err !== 'object' || err === null || !('digest' in err)) {
+    return false
+  }
+
+  return err.digest === CLIENT_HOOK_DYNAMIC
+}
+
+type AbortListeners = Array<() => void>
 const abortListenersBySignal = new WeakMap<AbortSignal, AbortListeners>()
 
 /**
@@ -49,14 +91,28 @@ export function makeHangingPromise<T>(
   route: string,
   expression: string
 ): Promise<T> {
+  return makeHangingPromiseWithError(
+    signal,
+    new HangingPromiseRejectionError(route, expression)
+  )
+}
+
+export function makeClientHookHangingPromise<T>(
+  signal: AbortSignal,
+  error: ClientHookDynamicError | ParamClientHookDynamicError
+): Promise<T> {
+  return makeHangingPromiseWithError(signal, error)
+}
+
+function makeHangingPromiseWithError<T>(
+  signal: AbortSignal,
+  error: Error
+): Promise<T> {
   if (signal.aborted) {
-    return Promise.reject(new HangingPromiseRejectionError(route, expression))
+    return Promise.reject(error)
   } else {
     const hangingPromise = new Promise<T>((_, reject) => {
-      const boundRejection = reject.bind(
-        null,
-        new HangingPromiseRejectionError(route, expression)
-      )
+      const boundRejection = reject.bind(null, error)
       let currentListeners = abortListenersBySignal.get(signal)
       if (currentListeners) {
         currentListeners.push(boundRejection)

@@ -18,6 +18,11 @@ import {
   type SyncIOApiType,
 } from '../../../server/app-render/sync-io-messages'
 import {
+  ClientHookDynamicError,
+  ParamClientHookDynamicError,
+} from '../../../server/dynamic-rendering-utils'
+import { getCards } from '../components/instant/instant-guidance-data'
+import {
   getBlockingRouteErrorDetails,
   getUnrenderedSegmentErrorDetails,
   isInstantNavigationError,
@@ -124,6 +129,28 @@ describe('isSyncIOClientError', () => {
 })
 
 describe('getBlockingRouteErrorDetails', () => {
+  it('classifies client hook errors separately', () => {
+    expect(
+      getBlockingRouteErrorDetails(
+        new ClientHookDynamicError(ROUTE, 'useSearchParams()')
+      )
+    ).toEqual({
+      type: 'client-hook',
+      expression: 'useSearchParams()',
+    })
+  })
+
+  it('classifies param-derived client hook errors separately', () => {
+    expect(
+      getBlockingRouteErrorDetails(
+        new ParamClientHookDynamicError(ROUTE, 'useParams()')
+      )
+    ).toEqual({
+      type: 'client-hook',
+      expression: 'useParams()',
+    })
+  })
+
   it('classifies createRuntimeBodyError as blocking-route + runtime (SSR-only)', () => {
     expect(getBlockingRouteErrorDetails(createRuntimeBodyError(ROUTE))).toEqual(
       { type: 'blocking-route', variant: 'runtime', inNavigation: false }
@@ -253,6 +280,25 @@ describe('getBlockingRouteErrorDetails', () => {
 
   it('returns null for an unrelated error', () => {
     expect(getBlockingRouteErrorDetails(new Error('regular bug'))).toBe(null)
+  })
+})
+
+describe('client hook guidance', () => {
+  it('only suggests Suspense for useSearchParams', () => {
+    expect(
+      getCards('client-hook', 'runtime', 'useSearchParams()').map(
+        (card) => card.id
+      )
+    ).toEqual(['wrap-in-or-move-into-suspense'])
+  })
+
+  it('also suggests prerendering known params for param-derived hooks', () => {
+    expect(
+      getCards('client-hook', 'runtime', 'useParams()').map((card) => card.id)
+    ).toEqual([
+      'wrap-in-or-move-into-suspense',
+      'prerender-known-dynamic-params',
+    ])
   })
 })
 

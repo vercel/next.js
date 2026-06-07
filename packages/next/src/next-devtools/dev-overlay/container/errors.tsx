@@ -96,6 +96,9 @@ export function getErrorTypeLabel(
   if (errorDetails.type === 'blocking-route') {
     return errorDetails.inNavigation ? `Instant` : `Blocking Route`
   }
+  if (errorDetails.type === 'client-hook') {
+    return `Blocking Route`
+  }
   if (errorDetails.type === 'dynamic-metadata') {
     return `Blocking Route`
   }
@@ -124,6 +127,7 @@ type ErrorDetails =
   | NoErrorDetails
   | HydrationErrorDetails
   | BlockingRouteErrorDetails
+  | ClientHookErrorDetails
   | DynamicMetadataErrorDetails
   | DynamicViewportErrorDetails
   | SyncIOErrorDetails
@@ -145,6 +149,11 @@ type BlockingRouteErrorDetails = {
   type: 'blocking-route'
   variant: 'dynamic' | 'runtime'
   inNavigation: boolean
+}
+
+type ClientHookErrorDetails = {
+  type: 'client-hook'
+  expression: string
 }
 
 type DynamicMetadataErrorDetails = {
@@ -366,6 +375,15 @@ export function getBlockingRouteErrorDetails(
 ): null | ErrorDetails {
   const message = error.message
   const inNavigation = isBlockingRouteInNavError(message)
+
+  const clientHookMatch =
+    /A Client Component used `([^`]+)` outside of `<Suspense>`\./.exec(message)
+  if (clientHookMatch) {
+    return {
+      type: 'client-hook',
+      expression: clientHookMatch[1],
+    }
+  }
 
   const isBlockingPageLoadError =
     message.includes('/blocking-prerender-runtime#') ||
@@ -872,6 +890,46 @@ Next.js version: ${props.versionInfo.installed} (${process.env.__NEXT_BUNDLER})\
               key={activeError.id.toString()}
               error={activeError}
               variant={errorDetails.variant}
+              showExplanation={false}
+              dialogResizerRef={dialogResizerRef}
+            />
+          </Suspense>
+        </ErrorOverlayLayout>
+      )
+    case 'client-hook':
+      return (
+        <ErrorOverlayLayout
+          errorCode={errorCode}
+          errorType={errorType}
+          errorMessage={
+            <>
+              A Client Component used <code>{errorDetails.expression}</code>{' '}
+              outside of <code>&lt;Suspense&gt;</code>.
+            </>
+          }
+          headerChildren={<InstantHeaderExplanation kind="client-hook" />}
+          renderTabBar={renderTabBar}
+          canGoPrevious={canGoPrevious}
+          canGoNext={canGoNext}
+          onPrevious={handlePrevious}
+          onNext={handleNext}
+          onClose={isServerError ? undefined : onClose}
+          debugInfo={debugInfo}
+          error={error}
+          runtimeErrors={activeErrors}
+          activeIdx={activeIdx}
+          setActiveIndex={setActiveIndex}
+          dialogResizerRef={dialogResizerRef}
+          generateErrorInfo={generateErrorInfo}
+          {...props}
+        >
+          <Suspense fallback={<div data-nextjs-error-suspended />}>
+            <InstantRuntimeError
+              key={activeError.id.toString()}
+              error={activeError}
+              variant="runtime"
+              kind="client-hook"
+              cause={errorDetails.expression}
               showExplanation={false}
               dialogResizerRef={dialogResizerRef}
             />
