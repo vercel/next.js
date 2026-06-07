@@ -118,10 +118,10 @@ const runtimeCards: FixCard[] = [
     link: 'https://nextjs.org/docs/messages/blocking-prerender-runtime#allow-blocking-route',
     snippets: [
       { text: '// page.tsx or layout.tsx' },
-      { text: 'export const instant = false', highlight: true },
+      { text: 'export const unstable_instant = false', highlight: true },
     ],
     prompt:
-      'Add "export const instant = false" as a top-level export in the page or layout file. This silences the warning for this segment. Confirm with the user that the route is intentionally request-time before applying this change: the export exempts the segment from instant-navigation validation, and the route renders on every request, so navigations to it block until the render completes. If the user wants to keep the navigation instant, choose "Wrap in or move into Suspense" or "For known params, prerender" instead.',
+      'Add "export const unstable_instant = false" as a top-level export in the page or layout file. This silences the warning for this segment. Confirm with the user that the route is intentionally request-time before applying this change: the export exempts the segment from instant-navigation validation, and the route renders on every request, so navigations to it block until the render completes. If the user wants to keep the navigation instant, choose "Wrap in or move into Suspense" or "For known params, prerender" instead.',
   },
 ]
 
@@ -146,7 +146,7 @@ const clientHookBlockCard: FixCard = {
   link: 'https://nextjs.org/docs/messages/blocking-prerender-client-hook#allow-blocking-route',
   snippets: [
     { text: '// page.tsx or layout.tsx' },
-    { text: 'export const instant = false', highlight: true },
+    { text: 'export const unstable_instant = false', highlight: true },
   ],
   prompt:
     'Add "export const unstable_instant = false" as a top-level export in the page or layout file. Confirm with the user that the route is intentionally request-time before applying this change: the export exempts the segment from instant-navigation validation, and the route renders on every request, so navigations to it block until the render completes. If the user wants to keep the navigation instant, choose "Wrap in or move into Suspense" or "For known params, prerender" instead.',
@@ -232,10 +232,10 @@ const dynamicCards: FixCard[] = [
     link: 'https://nextjs.org/docs/messages/blocking-prerender-dynamic#allow-blocking-route',
     snippets: [
       { text: '// page.tsx or layout.tsx' },
-      { text: 'export const instant = false', highlight: true },
+      { text: 'export const unstable_instant = false', highlight: true },
     ],
     prompt:
-      'Add "export const instant = false" as a top-level export in the page or layout file. This silences the warning for this segment. Confirm with the user that the route is intentionally request-time before applying this change: the export exempts the segment from instant-navigation validation, and the route renders on every request, so navigations to it block until the render completes. If the user wants to keep the navigation instant, choose "Cache the component or data" or "Wrap in or move into Suspense" instead.',
+      'Add "export const unstable_instant = false" as a top-level export in the page or layout file. This silences the warning for this segment. Confirm with the user that the route is intentionally request-time before applying this change: the export exempts the segment from instant-navigation validation, and the route renders on every request, so navigations to it block until the render completes. If the user wants to keep the navigation instant, choose "Cache the component or data" or "Wrap in or move into Suspense" instead.',
   },
 ]
 
@@ -277,7 +277,7 @@ const unrenderedSegmentCards: FixCard[] = [
     snippets: [
       { text: '// page.tsx or layout.tsx' },
       { text: '' },
-      { text: 'export const instant = false', highlight: true },
+      { text: 'export const unstable_instant = false', highlight: true },
     ],
     prompt:
       'Add "export const unstable_instant = false" as a top-level export in the dropped segment\'s page or layout file. This silences the warning for the dropped segment and tells Next.js the segment does not need instant-navigation validation. Confirm with the user that skipping validation is intentional before applying this change.',
@@ -365,7 +365,7 @@ const viewportRuntimeCards: FixCard[] = [
     link: 'https://nextjs.org/docs/messages/blocking-prerender-viewport-runtime#allow-blocking-route',
     snippets: [
       { text: '// page.tsx or layout.tsx' },
-      { text: 'export const instant = false', highlight: true },
+      { text: 'export const unstable_instant = false', highlight: true },
     ],
     prompt:
       'Add "export const unstable_instant = false" as a top-level export in the page or layout file. This silences the warning for this segment. Confirm with the user that the route is intentionally fully dynamic before applying this change: the export exempts the segment from instant-navigation validation, and the route renders on every request. If the user wants to keep the navigation instant, choose "Use static viewport" instead.',
@@ -393,7 +393,7 @@ const viewportDynamicCards: FixCard[] = [
     link: 'https://nextjs.org/docs/messages/blocking-prerender-viewport-dynamic#allow-blocking-route',
     snippets: [
       { text: '// page.tsx or layout.tsx' },
-      { text: 'export const instant = false', highlight: true },
+      { text: 'export const unstable_instant = false', highlight: true },
     ],
     prompt:
       'Add "export const unstable_instant = false" as a top-level export in the page or layout file. This silences the warning for this segment. Confirm with the user that the route is intentionally fully dynamic before applying this change: the export exempts the segment from instant-navigation validation, and the route renders on every request. If the user wants to keep the navigation instant, choose "Cache the viewport data" instead.',
