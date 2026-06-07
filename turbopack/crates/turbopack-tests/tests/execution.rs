@@ -15,7 +15,8 @@ use tracing_subscriber::{Registry, layer::SubscriberExt, util::SubscriberInitExt
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
     Completion, Effects, NonLocalValue, OperationVc, ReadRef, ResolvedVc, TurboTasks, Vc,
-    debug::ValueDebugFormat, fxindexmap, take_effects, trace::TraceRawVcs,
+    debug::ValueDebugFormat, fxindexmap, read_strongly_consistent_and_apply_effects, take_effects,
+    trace::TraceRawVcs,
 };
 use turbo_tasks_backend::{BackendOptions, TurboTasksBackend, noop_backing_storage};
 use turbo_tasks_env::CommandLineProcessEnv;
@@ -249,11 +250,9 @@ async fn run(resource: PathBuf, snapshot_mode: IssueSnapshotMode) -> Result<JsRe
     }
 
     tt.run_once(async move {
+        let op = run_inner_operation_with_effects(resource.to_str().unwrap().into(), snapshot_mode);
         let result_with_effects =
-            run_inner_operation_with_effects(resource.to_str().unwrap().into(), snapshot_mode)
-                .read_strongly_consistent()
-                .await?;
-        result_with_effects.effects.apply().await?;
+            read_strongly_consistent_and_apply_effects(op, |v| &v.effects).await?;
 
         Ok((*result_with_effects.result).clone())
     })

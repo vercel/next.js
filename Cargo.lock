@@ -9847,6 +9847,7 @@ name = "turbo-tasks-backend"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "async-trait",
  "auto-hash-map",
  "bincode 2.0.1",
  "bitfield",
@@ -9869,6 +9870,7 @@ dependencies = [
  "serde_path_to_error",
  "smallvec",
  "tempfile",
+ "thiserror 1.0.69",
  "thread_local",
  "tokio",
  "tracing",
@@ -9948,6 +9950,7 @@ name = "turbo-tasks-fs"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "async-trait",
  "auto-hash-map",
  "bincode 2.0.1",
  "bitflags 1.3.2",

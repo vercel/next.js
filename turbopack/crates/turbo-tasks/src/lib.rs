@@ -83,7 +83,11 @@ pub use crate::{
     dyn_task_inputs::{
         DynTaskInputs, DynTaskInputsStorage, HeapDynTaskInputsStorage, StackDynTaskInputsStorage,
     },
-    effect::{Effect, EffectError, EffectStateStorage, Effects, emit_effect, take_effects},
+    effect::{
+        ApplyError, CapturedEffect, Effect, EffectError, EffectExt, EffectStateStorage, Effects,
+        EffectsError, read_strongly_consistent_and_apply_effects,
+        resolve_strongly_consistent_and_take_and_apply_effects, take_effects,
+    },
     error::PrettyPrintError,
     id::{
         ExecutionId, FunctionId, LocalTaskId, TRANSIENT_TASK_BIT, TaskId, TraitTypeId, ValueTypeId,

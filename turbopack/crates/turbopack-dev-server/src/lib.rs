@@ -30,8 +30,9 @@ use socket2::{Domain, Protocol, Socket, Type};
 use tokio::task::JoinHandle;
 use tracing::{Instrument, Level, Span, event, info_span};
 use turbo_tasks::{
-    Effects, NonLocalValue, OperationVc, PrettyPrintError, TurboTasksApi, Vc, run_once_with_reason,
-    take_effects, trace::TraceRawVcs, util::FormatDuration,
+    Effects, NonLocalValue, OperationVc, PrettyPrintError, TurboTasksApi, Vc,
+    read_strongly_consistent_and_apply_effects, run_once_with_reason, take_effects,
+    trace::TraceRawVcs, util::FormatDuration,
 };
 use turbopack_core::issue::{IssueReporter, IssueSeverity, handle_issues};
 
@@ -223,9 +224,12 @@ impl DevServerBuilder {
                             let path = uri.path().to_string();
                             let source_with_issues_op =
                                 get_source_with_issues_operation(source_provider.get_source());
-                            let ContentSourceWithIssues { source_op, effects } =
-                                &*source_with_issues_op.read_strongly_consistent().await?;
-                            effects.apply().await?;
+                            let read = read_strongly_consistent_and_apply_effects(
+                                source_with_issues_op,
+                                |v| &v.effects,
+                            )
+                            .await?;
+                            let ContentSourceWithIssues { source_op, .. } = &*read;
                             handle_issues(
                                 source_with_issues_op,
                                 issue_reporter,
