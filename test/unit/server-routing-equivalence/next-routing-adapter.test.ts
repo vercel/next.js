@@ -9,6 +9,7 @@ const {
 } = require('../../../packages/next/src/server/lib/router-utils/filesystem')
 const {
   createNextRoutingServerState,
+  mapNextRoutingResultToResolveRoutesResult,
 } = require('../../../packages/next/src/server/lib/router-utils/next-routing-adapter')
 const {
   getRouteMatcher,
@@ -65,6 +66,7 @@ function createFsChecker({
   appFiles = [],
   pageFiles = [],
   nextDataRoutes = [],
+  outputs = {},
   buildId = 'BUILD_ID',
 }: {
   headers?: any[]
@@ -75,8 +77,11 @@ function createFsChecker({
   appFiles?: string[]
   pageFiles?: string[]
   nextDataRoutes?: string[]
+  outputs?: Record<string, { type: 'pageFile'; itemPath: string }>
   buildId?: string
 } = {}) {
+  const outputMap = new Map(Object.entries(outputs))
+
   return {
     headers,
     redirects,
@@ -93,6 +98,9 @@ function createFsChecker({
     nextDataRoutes: new Set(nextDataRoutes),
     getDynamicRoutes() {
       return dynamicRoutes
+    },
+    async getItem(pathname: string) {
+      return outputMap.get(pathname) ?? null
     },
   } as unknown as FsChecker
 }
@@ -314,5 +322,125 @@ describe('next routing server adapter', () => {
     expect(result.resolvedHeaders?.get('cache-control')).toBe(
       'public, max-age=31536000'
     )
+  })
+
+  it('maps @next/routing resolved outputs to live resolver results', async () => {
+    const matchedOutput = { type: 'pageFile' as const, itemPath: '/page' }
+    const fsChecker = createFsChecker({
+      outputs: {
+        '/page': matchedOutput,
+      },
+    })
+
+    const result = await mapNextRoutingResultToResolveRoutesResult({
+      result: {
+        resolvedPathname: '/page',
+        invocationTarget: {
+          pathname: '/page',
+          query: {
+            draft: '1',
+          },
+        },
+        resolvedHeaders: new Headers({
+          'x-route': 'matched',
+        }),
+      },
+      fsChecker,
+      initUrl: new URL('https://example.com/source?draft=1'),
+      requestUrl: '/source?draft=1',
+    })
+
+    expect(result).toMatchObject({
+      finished: true,
+      matchedOutput,
+      resHeaders: {
+        'x-route': 'matched',
+      },
+    })
+    expect(result.parsedUrl.pathname).toBe('/page')
+    expect(result.parsedUrl.query).toEqual({ draft: '1' })
+  })
+
+  it('maps @next/routing no-match results without finishing', async () => {
+    const fsChecker = createFsChecker()
+
+    const result = await mapNextRoutingResultToResolveRoutesResult({
+      result: {
+        resolvedHeaders: new Headers(),
+      },
+      fsChecker,
+      initUrl: new URL('https://example.com/missing'),
+      requestUrl: '/missing',
+    })
+
+    expect(result.finished).toBe(false)
+    expect(result.matchedOutput).toBeNull()
+    expect(result.parsedUrl.pathname).toBe('/missing')
+  })
+
+  it('maps @next/routing redirect results to live redirect results', async () => {
+    const fsChecker = createFsChecker()
+
+    const result = await mapNextRoutingResultToResolveRoutesResult({
+      result: {
+        redirect: {
+          url: new URL('https://example.com/new?from=1'),
+          status: 308,
+        },
+      },
+      fsChecker,
+      initUrl: new URL('https://example.com/old?from=1'),
+      requestUrl: '/old?from=1',
+    })
+
+    expect(result.finished).toBe(true)
+    expect(result.statusCode).toBe(308)
+    expect(result.resHeaders).toBeNull()
+    expect(result.parsedUrl.pathname).toBe('/new')
+    expect(result.parsedUrl.search).toBe('from=1')
+  })
+
+  it('maps @next/routing status plus location headers as redirects', async () => {
+    const fsChecker = createFsChecker()
+
+    const result = await mapNextRoutingResultToResolveRoutesResult({
+      result: {
+        status: 307,
+        resolvedHeaders: new Headers({
+          location: '/temporary?from=1',
+        }),
+      },
+      fsChecker,
+      initUrl: new URL('https://example.com/old?from=1'),
+      requestUrl: '/old?from=1',
+    })
+
+    expect(result.finished).toBe(true)
+    expect(result.statusCode).toBe(307)
+    expect(result.resHeaders).toBeNull()
+    expect(result.parsedUrl.pathname).toBe('/temporary')
+    expect(result.parsedUrl.search).toBe('from=1')
+  })
+
+  it('maps @next/routing external rewrites to finished live results', async () => {
+    const fsChecker = createFsChecker()
+
+    const result = await mapNextRoutingResultToResolveRoutesResult({
+      result: {
+        externalRewrite: new URL('https://backend.example.test/api'),
+        resolvedHeaders: new Headers({
+          'x-proxy': '1',
+        }),
+      },
+      fsChecker,
+      initUrl: new URL('https://example.com/proxy'),
+      requestUrl: '/proxy',
+    })
+
+    expect(result.finished).toBe(true)
+    expect(result.resHeaders).toEqual({ 'x-proxy': '1' })
+    expect(result.parsedUrl.protocol).toBe('https:')
+    expect(result.parsedUrl.hostname).toBe('backend.example.test')
+    expect(result.parsedUrl.pathname).toBe('/api')
   })
 })
