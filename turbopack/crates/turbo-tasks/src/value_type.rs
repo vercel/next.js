@@ -301,7 +301,7 @@ pub(crate) fn register_all_trait_methods() {
         // Install the Rust vtable so `into_trait_ref`-style calls can downcast. The thunk resolves
         // the value type's id (already assigned by `init_registry` above) and inserts the
         // compile-time `DynMetadata` into the trait's `VTableRegistry`.
-        (entry.install_vtable)(value_type, id);
+        (entry.install_vtable)(id);
     }
 }
 

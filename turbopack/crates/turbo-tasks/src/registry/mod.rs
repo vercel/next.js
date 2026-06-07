@@ -273,7 +273,7 @@ pub fn get_value_type_id(value: &'static ValueType) -> ValueTypeId {
 ///
 /// # Safety
 ///
-/// The only legitimate caller is a [`crate::macro_helpers::register_all_trait_methods`] thunk,
+/// The only legitimate caller is a [`crate::value_type::register_all_trait_methods`] thunk,
 /// which runs inside the `VALUES` `LazyLock` initializer (via `register_all_trait_methods`), after
 /// `init_registry` has assigned ids. Calling `get_value_type_id` from there would re-enter
 /// `LazyLock::force` and deadlock.

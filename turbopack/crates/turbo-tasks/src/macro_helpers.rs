@@ -263,11 +263,8 @@ pub struct TraitImplRecord {
     pub trait_type: &'static TraitType,
     pub methods: &'static [&'static NativeFunction],
     /// Installs this impl's Rust vtable `DynMetadata` into its trait's [`VTableRegistry`] (via
-    /// [`VTableRegistry::insert`]). Type-erased (the record is not generic over the trait); the
-    /// concrete `DynMetadata` is materialized as a `const` inside this thunk. Invoked once from
-    /// `register_all_trait_methods` after `VALUES` ids are assigned. The argument is
-    /// [`Self::value_type`], passed so the thunk can resolve the `ValueTypeId`.
-    pub install_vtable: fn(&'static ValueType, ValueTypeId),
+    /// [`VTableRegistry::insert`]).
+    pub install_vtable: fn(ValueTypeId),
 }
 
 // Link-time collection of every `impl Trait for Concrete`. Like the definition slices in

@@ -297,11 +297,8 @@ pub fn value_impl(args: TokenStream, input: TokenStream) -> TokenStream {
                         value_type: <#ty as turbo_tasks::macro_helpers::RegistryDef::<turbo_tasks::ValueType>>::DEF,
                         trait_type: <::std::boxed::Box<dyn #trait_path> as turbo_tasks::macro_helpers::RegistryDef::<turbo_tasks::TraitType>>::DEF,
                         methods: &METHODS,
-                        install_vtable: |value_type: &'static turbo_tasks::ValueType, id: turbo_tasks::ValueTypeId| {
-                            // Materialize the vtable pointer via the null-fat-ptr trick. We
-                            // pass the metadata through `macro_helpers::metadata` without ever
-                            // naming `DynMetadata` here, so this crate doesn't need
-                            // `#![feature(ptr_metadata)]`.
+                        install_vtable: |id: turbo_tasks::ValueTypeId| {
+                            // Materialize the vtable pointer via the null-fat-ptr trick.
                             let p: *const #ty = ::std::ptr::null();
                             let fat: *const dyn #trait_path = p;
                             <::std::boxed::Box<dyn #trait_path> as turbo_tasks::VcValueTrait>::IMPL_VTABLES
