@@ -6,9 +6,8 @@ use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{ResolvedVc, Vc, trace::TraceRawVcs};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack::module_options::{
-    CssOptionsContext, EcmascriptOptionsContext, JsxTransformOptions, ModuleRule,
-    TypescriptTransformOptions, module_options_context::ModuleOptionsContext,
-    side_effect_free_packages_glob,
+    CssOptionsContext, EcmascriptOptionsContext, JsxTransformOptions, TypescriptTransformOptions,
+    module_options_context::ModuleOptionsContext, side_effect_free_packages_glob,
 };
 use turbopack_browser::{
     BrowserChunkingContext, CurrentChunkMethod, react_refresh::assert_can_resolve_react_refresh,
@@ -54,14 +53,6 @@ use crate::{
     },
     next_shared::{
         resolve::NextSharedRuntimeResolvePlugin,
-        transforms::{
-            emotion::get_emotion_transform_rule,
-            react_remove_properties::get_react_remove_properties_transform_rule,
-            relay::get_relay_transform_rule, remove_console::get_remove_console_transform_rule,
-            styled_components::get_styled_components_transform_rule,
-            styled_jsx::get_styled_jsx_transform_rule,
-            swc_ecma_transform_plugins::get_swc_ecma_transform_plugin_rule,
-        },
         webpack_rules::{WebpackLoaderBuiltinCondition, webpack_loader_options},
     },
     transform_options::{
@@ -286,26 +277,26 @@ pub async fn get_client_module_options_context(
         .await?;
     let target_browsers = env.runtime_versions();
 
-    let mut next_client_rules =
-        get_next_client_transforms_rules(next_config, ty.clone(), mode, false, encryption_key)
-            .await?;
-    let foreign_next_client_rules =
-        get_next_client_transforms_rules(next_config, ty.clone(), mode, true, encryption_key)
-            .await?;
-    let additional_rules: Vec<ModuleRule> = vec![
-        get_swc_ecma_transform_plugin_rule(next_config, project_path.clone()).await?,
-        get_relay_transform_rule(next_config, project_path.clone()).await?,
-        get_emotion_transform_rule(next_config).await?,
-        get_styled_components_transform_rule(next_config).await?,
-        get_styled_jsx_transform_rule(next_config, target_browsers).await?,
-        get_react_remove_properties_transform_rule(next_config).await?,
-        get_remove_console_transform_rule(next_config).await?,
-    ]
-    .into_iter()
-    .flatten()
-    .collect();
-
-    next_client_rules.extend(additional_rules);
+    let next_client_rules = get_next_client_transforms_rules(
+        next_config,
+        &project_path,
+        ty.clone(),
+        mode,
+        false,
+        encryption_key,
+        target_browsers,
+    )
+    .await?;
+    let foreign_next_client_rules = get_next_client_transforms_rules(
+        next_config,
+        &project_path,
+        ty.clone(),
+        mode,
+        true,
+        encryption_key,
+        target_browsers,
+    )
+    .await?;
 
     let local_postcss_config = *next_config
         .experimental_turbopack_local_postcss_config()
