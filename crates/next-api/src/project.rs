@@ -1069,16 +1069,9 @@ impl Project {
 
         // CPU profiles are written to `.next-profiles/` at the project root (see `--cpu-prof`).
         // Deny access to it so the bundler doesn't traverse into the profiling output directory.
-        let denied_profiles_path = match join_path(&self.project_path, DIST_PROFILES_DIR_NAME) {
-            Some(profiles_path) => profiles_path.into(),
-            None => {
-                bail!(
-                    "Invalid projectPath: {:?}. Unable to resolve the {} directory.",
-                    self.project_path,
-                    DIST_PROFILES_DIR_NAME
-                );
-            }
-        };
+        let denied_profiles_path = join_path(&self.project_path, DIST_PROFILES_DIR_NAME)
+            .unwrap()
+            .into();
 
         Ok(DiskFileSystem::new_with_denied_paths(
             PROJECT_FILESYSTEM_NAME,
