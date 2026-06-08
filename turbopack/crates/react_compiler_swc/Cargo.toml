@@ -1,0 +1,17 @@
+# Vendored fork of react_compiler_swc, retargeted to swc_core (v23 AST) so # turbopack can call transform() directly on the AST
+# The core compiler logic (react_compiler, react_compiler_ast) stays stays as a git dependency on upstream.
+
+[package]
+name = "react_compiler_swc"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+react_compiler_ast = { git = "https://github.com/josephsavona/react.git", branch = "rust-research", package = "react_compiler_ast" }
+react_compiler = { git = "https://github.com/josephsavona/react.git", branch = "rust-research", package = "react_compiler" }
+react_compiler_diagnostics = { git = "https://github.com/josephsavona/react.git", branch = "rust-research", package = "react_compiler_diagnostics" }
+react_compiler_hir = { git = "https://github.com/josephsavona/react.git", branch = "rust-research", package = "react_compiler_hir" }
+swc_core = { workspace = true, features = ["ecma_ast", "ecma_visit", "ecma_parser", "ecma_codegen", "common"] }
+indexmap = { version = "2", features = ["serde"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
