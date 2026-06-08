@@ -233,20 +233,26 @@ export function getSortedRouteObjects<T>(
   objects: T[],
   getter: (obj: T) => string
 ): T[] {
-  // We're assuming here that all the pathnames are unique, that way we can
-  // sort the list and use the index as the key.
-  const indexes: Record<string, number> = {}
-  const pathnames: string[] = []
+  // Store an array of indexes for each pathname to handle duplicates correctly.
+  // This is needed when multiple objects have the same pathname (e.g., layouts
+  // and pages sharing the same route).
+  const indexes: Record<string, number[]> = {}
+  const pathnames: Set<string> = new Set()
   for (let i = 0; i < objects.length; i++) {
     const pathname = getter(objects[i])
-    indexes[pathname] = i
-    pathnames[i] = pathname
+    indexes[pathname]?.push(i) || (indexes[pathname] = [i])
+    pathnames.add(pathname)
   }
 
-  // Sort the pathnames.
-  const sorted = getSortedRoutes(pathnames)
+  // Sort the unique pathnames.
+  const sorted = getSortedRoutes(Array.from(pathnames))
 
-  // Map the sorted pathnames back to the original objects using the new sorted
-  // index.
-  return sorted.map((pathname) => objects[indexes[pathname]])
+  // Map the sorted pathnames back to the original objects, preserving all
+  // objects with duplicate pathnames.
+  return sorted.reduce<T[]>((result, pathname) => {
+    for (const index of indexes[pathname]) {
+      result.push(objects[index])
+    }
+    return result
+  }, [])
 }
