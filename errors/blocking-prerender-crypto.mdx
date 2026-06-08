@@ -1,0 +1,232 @@
+---
+title: Next.js encountered the unstable value crypto.randomUUID() while prerendering
+kind: insight
+---
+
+During [prerendering](/docs/app/glossary#prerendering), a Server Component called a synchronous [Web Crypto](https://developer.mozilla.org/en-US/docs/Web/API/Crypto) or Node [`crypto`](https://nodejs.org/api/crypto.html) API that produces a random value ([`crypto.randomUUID()`](https://developer.mozilla.org/en-US/docs/Web/API/Crypto/randomUUID), [`crypto.getRandomValues()`](https://developer.mozilla.org/en-US/docs/Web/API/Crypto/getRandomValues), [`crypto.randomBytes()`](https://nodejs.org/api/crypto.html#cryptorandombytessize-callback), [`crypto.generateKeyPairSync()`](https://nodejs.org/api/crypto.html#cryptogeneratekeypairsynctype-options)) outside of [`<Suspense>`](https://react.dev/reference/react/Suspense). With [Cache Components](/docs/app/api-reference/config/next-config-js/cacheComponents) enabled, Next.js can't bake an unpredictable value into the prerendered HTML. The value at build time will differ from the value at runtime, so you need to choose: cache the generated value so it's stable, defer the call behind a [`<Suspense>`](https://react.dev/reference/react/Suspense) boundary so it runs per-request, or move it to the client.
+
+Other unpredictable APIs ([`Math.random()`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Math/random), [`Date.now()`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Date/now)) have parallel error pages: see [`Math.random()`](/docs/messages/blocking-prerender-random) and [`Date.now()`](/docs/messages/blocking-prerender-current-time). The Client Component case is handled at [Crypto APIs in a Client Component](/docs/messages/blocking-prerender-crypto-client).
+
+> **Good to know**: In [`next dev`](/docs/app/api-reference/cli/next#next-dev-options), the error overlay points at the failing component. Run `next build --debug-prerender` to get the full list of blocking routes with stack traces. When iterating on specific routes, use `next build --debug-build-paths /dashboard /settings` to rebuild only those pages.
+
+## Ways to fix this
+
+<FixOption
+  group="dynamic"
+  href="#generate-on-every-request"
+  prompt={`Add "await connection()" from "next/server" immediately before the crypto call. This marks the component as request-time, so Next.js excludes it from the prerendered HTML and streams it in from the nearest <Suspense> boundary on each request. Do not change the crypto call itself. Only change the call site once you've confirmed with the user that a fresh value on every request is the intent.`}
+  title="Generate on every request"
+>
+  Mark the component as request-time so a fresh token is produced for each
+  visit.
+</FixOption>
+
+<FixOption
+  group="cache"
+  href="#cache-the-generated-value"
+  prompt={`Move the crypto call into its own function and add "use cache" as the first statement. Useful when the same generated value is reused as a key for another cached operation (talking to a database, signing a payload). Do not introduce new imports beyond "next/cache".`}
+  title="Cache the generated value"
+>
+  Generate one value at build time and reuse it. Useful when the value is a key
+  into another cached operation.
+</FixOption>
+
+<FixOption
+  group="client"
+  href="#render-on-the-client"
+  prompt={`Move the component that calls the crypto API into a Client Component by adding "use client" at the top of the file. The browser produces the value, so the server never has to. If the value needs to be hydration-stable, compute it inside useEffect instead of inline during render.`}
+  title="Render on the client"
+>
+  Move the call into a Client Component. The browser produces the random value.
+</FixOption>
+
+## Generate on every request
+
+Choose this fix when each request needs a fresh token: a session ID, an OAuth state, a single-use nonce, a CSRF token. Add [`await connection()`](/docs/app/api-reference/functions/connection) before the call to tell Next.js the surrounding component is request-bound. The component is excluded from the prerender and streamed in from the nearest [`<Suspense>`](https://react.dev/reference/react/Suspense) boundary on each request.
+
+### Patterns
+
+#### Use `await connection()` before the crypto call
+
+Call [`connection()`](/docs/app/api-reference/functions/connection) before the crypto API. Everything after the `await` is request-time. Wrap the component in [`<Suspense>`](https://react.dev/reference/react/Suspense) so the surrounding shell stays prerendered and only the dynamic part streams in.
+
+Push the [`<Suspense>`](https://react.dev/reference/react/Suspense) boundary as close to the crypto call as possible. If the parent has cached content, isolate the crypto read in its own component so only that piece falls behind the boundary.
+
+```jsx filename="app/dashboard/page.js"
+import { Suspense } from 'react'
+
+export default function Page() {
+  return (
+    <DashboardShell>
+      <Suspense fallback={null}>
+        <CsrfToken />
+      </Suspense>
+      <CachedStats />
+    </DashboardShell>
+  )
+}
+```
+
+```jsx filename="app/dashboard/csrf-token.js"
+import { connection } from 'next/server'
+
+export async function CsrfToken() {
+  await connection()
+  return <input type="hidden" name="csrf" value={crypto.randomUUID()} />
+}
+```
+
+Learn more: [`connection`](/docs/app/api-reference/functions/connection), [Streaming patterns and boundary placement](/docs/app/guides/streaming).
+
+#### Switch to an async crypto API
+
+When an async equivalent of the API exists, prefer it. Async crypto operations integrate with [`<Suspense>`](https://react.dev/reference/react/Suspense) naturally and don't need [`await connection()`](/docs/app/api-reference/functions/connection): the [`await`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/await) already tells Next.js the surrounding scope is request-time.
+
+```jsx filename="app/page.js"
+import { randomBytes } from 'node:crypto'
+import { promisify } from 'node:util'
+import { Suspense } from 'react'
+
+const randomBytesAsync = promisify(randomBytes)
+
+export default async function Page() {
+  return (
+    <Suspense fallback={<TokenSkeleton />}>
+      <TokenDisplay />
+    </Suspense>
+  )
+}
+
+async function TokenDisplay() {
+  const buf = await randomBytesAsync(32)
+  return <code>{buf.toString('hex')}</code>
+}
+```
+
+Learn more: [Node `crypto` API](https://nodejs.org/docs/latest/api/crypto.html).
+
+### Trade-off
+
+The route renders on every request. The shell still ships instantly because of the [`<Suspense>`](https://react.dev/reference/react/Suspense) boundary, but the dynamic region waits on the server render before it paints.
+
+### Gotchas
+
+- Any UI rendered as part of the prerender shell must be deterministic. That includes [`<Suspense>`](https://react.dev/reference/react/Suspense) fallbacks, [`loading.js`](/docs/app/api-reference/file-conventions/loading), [`error.js`](/docs/app/api-reference/file-conventions/error), [`not-found.js`](/docs/app/api-reference/file-conventions/not-found), and [`global-error.js`](/docs/app/api-reference/file-conventions/error#global-error). Calling a crypto API in any of them raises this same error.
+- For genuinely security-critical tokens (session IDs, CSRF), [Generate on every request](#generate-on-every-request) is the only correct choice. Caching a CSRF token across visitors defeats its purpose.
+- This error only fires for synchronous random-producing APIs. Async crypto operations ([`crypto.subtle.digest()`](https://developer.mozilla.org/en-US/docs/Web/API/SubtleCrypto/digest), [`crypto.generateKeyPair()`](https://nodejs.org/api/crypto.html#cryptogeneratekeypairtype-options-callback)) integrate with [`<Suspense>`](https://react.dev/reference/react/Suspense) naturally and don't trip the error.
+
+## Cache the generated value
+
+Choose this fix when the generated value is a _key into another cached operation_. The classic case is a service that requires a token: generate the token once, cache it, and let it serve as the cache key for downstream lookups. The user-visible value never changes across visitors, which is fine because the user never sees the token directly.
+
+### Patterns
+
+#### Cache the token alongside the query that uses it
+
+Wrap both the token generation and the call that consumes it in the same [`use cache`](/docs/app/api-reference/directives/use-cache) function.
+
+```jsx filename="app/page.js"
+async function getCachedData() {
+  'use cache'
+  const token = crypto.randomUUID()
+  return db.query(token /* … */)
+}
+
+export default async function Page() {
+  const data = await getCachedData()
+  return <View data={data} />
+}
+```
+
+Learn more: [Caching with `use cache`](/docs/app/api-reference/directives/use-cache).
+
+#### Tag the cache for explicit rotation
+
+When you want to rotate the token on a schedule or in response to an event, tag the entry with [`cacheTag`](/docs/app/api-reference/functions/cacheTag). Invalidate from a Server Action with [`updateTag`](/docs/app/api-reference/functions/updateTag) (read-your-own-writes: the next request waits for fresh data) or from a Route Handler with [`revalidateTag`](/docs/app/api-reference/functions/revalidateTag) (stale-while-revalidate).
+
+```jsx filename="app/page.js"
+import { cacheTag } from 'next/cache'
+
+async function getApiToken() {
+  'use cache'
+  cacheTag('api-token')
+  return crypto.randomBytes(32).toString('hex')
+}
+```
+
+Learn more: [How revalidation works](/docs/app/guides/how-revalidation-works).
+
+### Trade-off
+
+Every visitor in the cache window uses the same generated value. That's the right answer for upstream cache keys and signing keys you control; the wrong answer for per-user identity (sessions, CSRF, nonces).
+
+### Gotchas
+
+- Don't cache a value that's intended as a security token for visitors. If the same "random" UUID is used as a CSRF token for every user, the protection is gone.
+- [`use cache`](/docs/app/api-reference/directives/use-cache) can't combine with [`cookies()`](/docs/app/api-reference/functions/cookies) or [`headers()`](/docs/app/api-reference/functions/headers) in the same scope, so you can't key the cached value by user identity from inside the cached function.
+- If you cache a function and still see this error, the [`cacheLife`](/docs/app/api-reference/functions/cacheLife) may be too short to prerender. See [Short-lived caches](#short-lived-caches).
+
+### Short-lived caches
+
+[`use cache`](/docs/app/api-reference/directives/use-cache) accepts a [`cacheLife`](/docs/app/api-reference/functions/cacheLife) profile. A short profile (such as `"seconds"` or `"minutes"`) whose `revalidate` is shorter than the prerender's effective lifetime prevents the value from being included in the prerender; the segment becomes a dynamic hole instead. The cache entry still helps the [Client Cache](/docs/app/glossary#client-cache) and protects upstream APIs, but the page falls back to streaming.
+
+To keep the page prerendered, use a profile with a longer revalidate window such as `"default"` (15 minutes), `"hours"`, or `"days"`. If a short profile is intentional, treat the value as dynamic and use [Generate on every request](#generate-on-every-request) instead.
+
+## Render on the client
+
+Choose this fix when the generated value belongs to the client experience. A client-only correlation ID for telemetry, a draft-state key in [`localStorage`](https://developer.mozilla.org/en-US/docs/Web/API/Window/localStorage), a UI nonce for a confirmation modal. Move the component into a [Client Component](/docs/app/getting-started/server-and-client-components) so the value is produced after hydration.
+
+### Patterns
+
+#### Move the component to the client
+
+Add [`use client`](/docs/app/api-reference/directives/use-client) and call the crypto API inside the component.
+
+```jsx filename="app/draft-key.js"
+'use client'
+
+import { startTransition, useEffect, useState } from 'react'
+
+export function DraftKey() {
+  const [key, setKey] = useState(null)
+  useEffect(() => {
+    // Wrap in startTransition so that if any component below suspends
+    // during this update, React keeps the existing UI visible instead
+    // of flashing the nearest outer <Suspense> fallback.
+    startTransition(() => {
+      setKey(crypto.randomUUID())
+    })
+  }, [])
+  return <input type="hidden" value={key ?? ''} />
+}
+```
+
+Learn more: [Client Components](/docs/app/getting-started/server-and-client-components#using-client-components).
+
+### Trade-off
+
+The first paint shows the SSR fallback (often `null`), and the value appears only after the browser hydrates the component. That's fine for client-only state but wrong for tokens that have to be in the prerendered HTML. See [Preventing flash before hydration](/docs/app/guides/preventing-flash-before-hydration) for techniques that eliminate the flash.
+
+### Gotchas
+
+- A Client Component that calls a crypto API inline during render still trips this error during SSR. See the dedicated [Crypto APIs in a Client Component](/docs/messages/blocking-prerender-crypto-client) page for the [`<Suspense>`](https://react.dev/reference/react/Suspense) and effect-based recipes.
+- The browser only ships [Web Crypto](https://developer.mozilla.org/en-US/docs/Web/API/Crypto). Node-only APIs (`crypto.randomBytes`, `crypto.generateKeyPairSync`) are not available on the client.
+
+## Don't want this validation?
+
+Instant-navigation validation runs by default in [Cache Components](/docs/app/api-reference/config/next-config-js/cacheComponents) apps and is what surfaces this error.
+
+- **One segment**: add [`export const unstable_instant = false`](/docs/app/api-reference/file-conventions/route-segment-config/instant) to the page or layout file. This opts out the segment itself. Child segments are still validated during client navigations.
+- **Layout and its children**: add `export const unstable_instant = { unstable_disableValidation: true }` to a layout. This disables validation for that layout and every segment below it.
+- **Entire app**: set [`experimental.instantInsights.validationLevel`](/docs/app/api-reference/file-conventions/route-segment-config/instant#configuring-validation-defaults) to `'manual-warning'` in `next.config`. This limits validation to segments that explicitly export `unstable_instant`.
+
+See [Ensuring instant navigations](/docs/app/guides/instant-navigation) for the full model.
+
+## Useful links
+
+- [Crypto APIs in a Client Component](/docs/messages/blocking-prerender-crypto-client)
+- [`Math.random()` during prerendering](/docs/messages/blocking-prerender-random)
+- [`Date.now()` during prerendering](/docs/messages/blocking-prerender-current-time)
+- [`use cache` directive](/docs/app/api-reference/directives/use-cache)
+- [`connection` function](/docs/app/api-reference/functions/connection)
+- [Ensuring instant navigations](/docs/app/guides/instant-navigation)

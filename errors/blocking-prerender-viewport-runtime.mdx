@@ -1,0 +1,134 @@
+---
+title: Next.js encountered runtime data in generateViewport()
+kind: insight
+---
+
+During [prerendering](/docs/app/glossary#prerendering), [`generateViewport()`](/docs/app/api-reference/functions/generate-viewport) read a per-request value ([`cookies()`](/docs/app/api-reference/functions/cookies), [`headers()`](/docs/app/api-reference/functions/headers), [`params`](/docs/app/api-reference/file-conventions/page#params-optional), [`searchParams`](/docs/app/api-reference/file-conventions/page#searchparams-optional)). With [Cache Components](/docs/app/api-reference/config/next-config-js/cacheComponents) enabled, viewport metadata can't be deferred behind a [`<Suspense>`](https://react.dev/reference/react/Suspense) boundary because it affects the initial page load. The page can't be prerendered, so navigations block instead of being [instant](/docs/app/guides/instant-navigation).
+
+Uncached data accesses ([`fetch()`](https://developer.mozilla.org/en-US/docs/Web/API/Window/fetch), database calls, [`await connection()`](/docs/app/api-reference/functions/connection)) in `generateViewport()` have different fixes. See [Next.js encountered uncached data in `generateViewport()`](/docs/messages/blocking-prerender-viewport-dynamic). The metadata equivalent is handled at [Runtime data in `generateMetadata()`](/docs/messages/blocking-prerender-metadata-runtime). For errors in the page body rather than viewport, see [Next.js encountered runtime data during prerendering](/docs/messages/blocking-prerender-runtime).
+
+> **Good to know**: In [`next dev`](/docs/app/api-reference/cli/next#next-dev-options), the error overlay points at the failing component. Run `next build --debug-prerender` to get the full list of blocking routes with stack traces. When iterating on specific routes, use `next build --debug-build-paths /dashboard /settings` to rebuild only those pages.
+
+## Ways to fix this
+
+<FixOption
+  group="static"
+  href="#use-static-viewport"
+  prompt={`Replace the generateViewport() function with a static viewport export. Convert all dynamic values to static ones. Do not introduce new imports.`}
+  title="Use static viewport"
+>
+  Replace the dynamic function with a static export so the viewport is known at
+  build time.
+</FixOption>
+
+<FixOption
+  group="block"
+  href="#allow-blocking-route"
+  prompt={`Add "export const unstable_instant = false" as a top-level export in the page or layout file. This silences the warning for this segment. Confirm with the user that the route is intentionally fully dynamic before applying this change: the export exempts the segment from instant-navigation validation, and the route renders on every request.`}
+  title="Allow blocking route"
+>
+  Opt this segment out of instant navigation. The route renders on every request
+  and every navigation blocks.
+</FixOption>
+
+## Use static viewport
+
+Choose this fix when the viewport doesn't actually need the per-request data, either because the values are known at build time, or because the dependency on runtime data is accidental and can be refactored away. Replace [`generateViewport()`](/docs/app/api-reference/functions/generate-viewport) with a static [`viewport`](/docs/app/api-reference/functions/generate-viewport#the-viewport-object) export, or rewrite `generateViewport()` so it no longer reads [`cookies()`](/docs/app/api-reference/functions/cookies), [`headers()`](/docs/app/api-reference/functions/headers), or other request-bound APIs. The values are evaluated once during the build.
+
+### Patterns
+
+#### Export a static object
+
+Replace the function with a plain object export.
+
+```jsx filename="app/layout.js"
+export const viewport = {
+  themeColor: '#000000',
+  width: 'device-width',
+  initialScale: 1,
+}
+
+export default function RootLayout({ children }) {
+  return (
+    <html>
+      <body>{children}</body>
+    </html>
+  )
+}
+```
+
+Learn more: [Static viewport](/docs/app/api-reference/functions/generate-viewport#the-viewport-object).
+
+### Trade-off
+
+Static viewport can't reflect per-request values like a user's preferred theme color stored in a cookie. If the viewport must be personalized, use [Allow blocking route](#allow-blocking-route).
+
+### Gotchas
+
+- The `viewport` export is typically set in the root layout. Changing a layout's viewport affects every route in its subtree.
+- [`themeColor`](/docs/app/api-reference/functions/generate-viewport#themecolor) is the most common reason for a dynamic `generateViewport`. Consider whether a single static value covers all cases before resorting to a blocking route.
+
+## Allow blocking route
+
+Choose this fix when the viewport genuinely requires per-request data (a theme color from a cookie, a user-preferred width) and a static export isn't feasible. Setting [`unstable_instant`](/docs/app/api-reference/file-conventions/route-segment-config/instant) to `false` exempts the segment from instant-navigation validation. The page renders on every request and the navigation blocks until that render completes.
+
+Unlike page body content, viewport metadata can't be deferred behind [`<Suspense>`](https://react.dev/reference/react/Suspense) because it affects the initial HTML `<head>`. Making the viewport dynamic means the entire page navigation blocks.
+
+### Patterns
+
+#### Opt the layout out
+
+Set [`unstable_instant`](/docs/app/api-reference/file-conventions/route-segment-config/instant) to `false` on the layout that defines `generateViewport`. The layout and every route in its subtree are exempted from instant-navigation validation. Apply this to the nested layout that owns the dynamic viewport, not the root layout, so the opt-out is scoped to the affected subtree.
+
+```jsx filename="app/dashboard/layout.js"
+import { cookies } from 'next/headers'
+
+export const unstable_instant = false
+
+export async function generateViewport() {
+  const cookieJar = await cookies()
+  return {
+    themeColor: cookieJar.get('theme-color')?.value ?? '#000',
+  }
+}
+
+export default function DashboardLayout({ children }) {
+  return children
+}
+```
+
+Learn more: [Route segment `instant` config](/docs/app/api-reference/file-conventions/route-segment-config/instant).
+
+Use this pattern when:
+
+- The viewport is personalized per user and the value must be correct on the first paint (no flash).
+- You're migrating a route incrementally and want to defer the lifetime decision without changing how the page renders today.
+
+Don't use this to dismiss the error. Choose [Use static viewport](#use-static-viewport) when feasible.
+
+### Trade-off
+
+Navigations to this route are not instant. The user waits for the full server render before any HTML arrives. Use this only when that latency is necessary for the route to function.
+
+### Gotchas
+
+- Setting [`unstable_instant`](/docs/app/api-reference/file-conventions/route-segment-config/instant) to `false` on a layout exempts every route in the subtree, not only the layout itself. Audit child routes before opting a shared layout out.
+- This export does not disable [prerendering](/docs/app/glossary#prerendering). The route still prerenders if it can. It only silences the instant-navigation validation error.
+- If the dynamic viewport is the only reason the route blocks, consider whether a static default covers most users. A static `themeColor` with a client-side correction after hydration may give a better experience than blocking the entire navigation.
+- Framework-synthesized routes (`/_not-found`, `/_global-error`) inherit the root layout's `generateViewport` and must be statically prerendered. [`unstable_instant = false`](/docs/app/api-reference/file-conventions/route-segment-config/instant) silences the validation error but does not let those routes through, so the build still fails when they prerender. If your root layout's `generateViewport` depends on request data, [Use static viewport](#use-static-viewport) instead, or move to [`global-not-found.js`](/docs/app/api-reference/file-conventions/not-found#global-not-foundjs-experimental), which bypasses the root layout entirely and avoids inheriting its `generateViewport`.
+
+## Don't want this validation?
+
+Instant-navigation validation runs by default in [Cache Components](/docs/app/api-reference/config/next-config-js/cacheComponents) apps and is what surfaces this error.
+
+- **One segment**: add [`export const unstable_instant = false`](/docs/app/api-reference/file-conventions/route-segment-config/instant) to the page or layout file. This opts out the segment itself. Child segments are still validated during client navigations.
+- **Layout and its children**: add `export const unstable_instant = { unstable_disableValidation: true }` to a layout. This disables validation for that layout and every segment below it.
+- **Entire app**: set [`experimental.instantInsights.validationLevel`](/docs/app/api-reference/file-conventions/route-segment-config/instant#configuring-validation-defaults) to `'manual-warning'` in `next.config`. This limits validation to segments that explicitly export `unstable_instant`.
+
+See [Ensuring instant navigations](/docs/app/guides/instant-navigation) for the full model.
+
+## Useful links
+
+- [Ensuring instant navigations](/docs/app/guides/instant-navigation)
+- [Uncached data in `generateViewport()`](/docs/messages/blocking-prerender-viewport-dynamic)
+- [Runtime data in `generateMetadata()`](/docs/messages/blocking-prerender-metadata-runtime)

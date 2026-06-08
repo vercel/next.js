@@ -1,0 +1,210 @@
+---
+title: Next.js encountered the unstable value Math.random() while prerendering
+kind: insight
+---
+
+During [prerendering](/docs/app/glossary#prerendering), a Server Component called [`Math.random()`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Math/random) outside of [`<Suspense>`](https://react.dev/reference/react/Suspense). With [Cache Components](/docs/app/api-reference/config/next-config-js/cacheComponents) enabled, Next.js can't bake an unpredictable value into the prerendered HTML. The value at build time will differ from the value at runtime, so you need to choose: cache the value so it's stable, defer the call behind a [`<Suspense>`](https://react.dev/reference/react/Suspense) boundary so it runs per-request, or move it to the client.
+
+Other unpredictable APIs ([`Date.now()`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Date/now), [`crypto.randomUUID()`](https://developer.mozilla.org/en-US/docs/Web/API/Crypto/randomUUID)) have parallel error pages: see [`Date.now()`](/docs/messages/blocking-prerender-current-time) and [crypto APIs](/docs/messages/blocking-prerender-crypto). The Client Component case is handled at [`Math.random()` in a Client Component](/docs/messages/blocking-prerender-random-client).
+
+> **Good to know**: In [`next dev`](/docs/app/api-reference/cli/next#next-dev-options), the error overlay points at the failing component. Run `next build --debug-prerender` to get the full list of blocking routes with stack traces. When iterating on specific routes, use `next build --debug-build-paths /dashboard /settings` to rebuild only those pages.
+
+## Ways to fix this
+
+<FixOption
+  group="dynamic"
+  href="#generate-on-every-request"
+  prompt={`Add "await connection()" from "next/server" immediately before the Math.random() call. This marks the component as request-time, so Next.js excludes it from the prerendered HTML and streams it in from the nearest <Suspense> boundary on each request. Do not change the call site of Math.random() itself. Only change the call site once you've confirmed with the user that a fresh value on every request is the intent.`}
+  title="Generate on every request"
+>
+  Mark the component as request-time so the random value is generated each time
+  the user visits.
+</FixOption>
+
+<FixOption
+  group="cache"
+  href="#cache-the-random-value"
+  prompt={`Move the Math.random() call into its own function or component and add "use cache" as the first statement of the body. Optionally call cacheLife(profile) to control how long the same random value is reused before regeneration. Do not introduce new imports beyond "next/cache".`}
+  title="Cache the random value"
+>
+  Generate one random value at build time and reuse it. The route stays
+  prerendered.
+</FixOption>
+
+<FixOption
+  group="client"
+  href="#render-on-the-client"
+  prompt={`Move the component that calls Math.random() into a Client Component by adding "use client" at the top of the file. The browser produces a fresh value on each visit. If the value needs to be hydration-stable, compute it inside a useEffect or event handler instead of inline during render.`}
+  title="Render on the client"
+>
+  Move the call into a Client Component. The browser produces the random value,
+  so the server never has to.
+</FixOption>
+
+## Generate on every request
+
+Choose this fix when each request genuinely needs a different value. A [unique session ID](https://developer.mozilla.org/en-US/docs/Web/Security/Same-origin_policy), a single-use nonce, an A/B test bucket: anything that has to be fresh per visitor. Add [`await connection()`](/docs/app/api-reference/functions/connection) before the call to tell Next.js the surrounding component is request-bound. The component is excluded from the prerender and streamed in from the nearest [`<Suspense>`](https://react.dev/reference/react/Suspense) boundary on each request.
+
+### Patterns
+
+#### Use `await connection()` before the random call
+
+Call [`connection()`](/docs/app/api-reference/functions/connection) before [`Math.random()`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Math/random). Everything after the `await` is request-time. Wrap the component in [`<Suspense>`](https://react.dev/reference/react/Suspense) so the surrounding shell stays prerendered and only the dynamic part streams in.
+
+Push the [`<Suspense>`](https://react.dev/reference/react/Suspense) boundary as close to the random read as possible. If the parent has cached content (a header, stats, navigation), isolate the random read in its own component so only that piece falls behind the boundary.
+
+```jsx filename="app/dashboard/page.js"
+import { Suspense } from 'react'
+
+export default function Page() {
+  return (
+    <DashboardShell>
+      <Suspense fallback={<TraceSkeleton />}>
+        <RequestTrace />
+      </Suspense>
+      <CachedStats />
+    </DashboardShell>
+  )
+}
+```
+
+```jsx filename="app/dashboard/request-trace.js"
+import { connection } from 'next/server'
+
+export async function RequestTrace() {
+  await connection()
+  const traceId = Math.random().toString(16).slice(2)
+  return <small>trace: {traceId}</small>
+}
+```
+
+Learn more: [`connection`](/docs/app/api-reference/functions/connection), [Streaming patterns and boundary placement](/docs/app/guides/streaming).
+
+### Trade-off
+
+The route renders on every request. The shell still ships instantly because of the [`<Suspense>`](https://react.dev/reference/react/Suspense) boundary, but the dynamic region waits on the server render before it can paint. Make sure the fallback approximates the final layout so the page doesn't visibly jump when the value arrives.
+
+### Gotchas
+
+- Any UI rendered as part of the prerender shell must be deterministic. That includes [`<Suspense>`](https://react.dev/reference/react/Suspense) fallbacks, [`loading.js`](/docs/app/api-reference/file-conventions/loading), [`error.js`](/docs/app/api-reference/file-conventions/error), [`not-found.js`](/docs/app/api-reference/file-conventions/not-found), and [`global-error.js`](/docs/app/api-reference/file-conventions/error#global-error). Calling [`Math.random()`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Math/random) or [`Date.now()`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Date/now) in any of them raises this same error.
+- If [`Math.random()`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Math/random) is being used as a unique ID for logging or correlation, consider an incrementing integer or [`AsyncLocalStorage`](https://nodejs.org/api/async_context.html#class-asynclocalstorage) request scope. Those don't trigger the error at all because they aren't unpredictable from Next.js's point of view.
+- Random values produced inside third-party packages will surface this error in your project code. The same fixes apply at the call site that consumes the value.
+
+## Cache the random value
+
+Choose this fix when one stable random value per build, deployment, or `cacheLife` window is acceptable. The classic case is a daily shuffle of items where the same shuffle is fine for every visitor that day. Move the [`Math.random()`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Math/random) call into a function with [`use cache`](/docs/app/api-reference/directives/use-cache) as the first statement. Next.js evaluates the function once per cache key and reuses the result.
+
+### Patterns
+
+#### Cache the producer function
+
+Wrap the random generation in its own function with [`use cache`](/docs/app/api-reference/directives/use-cache). The returned value is part of the cache entry, so every consumer sees the same random number until the cache is invalidated.
+
+```jsx filename="app/page.js"
+async function getRandomSeed() {
+  'use cache'
+  return Math.random()
+}
+
+export default async function Page() {
+  const products = await getCachedProducts()
+  const seed = await getRandomSeed()
+  return <ProductsView products={randomize(products, seed)} />
+}
+```
+
+Learn more: [Caching with `use cache`](/docs/app/api-reference/directives/use-cache).
+
+#### Control the rotation window with `cacheLife`
+
+When you want the random value to rotate on a schedule (a daily featured item, an hourly shuffle), set a [`cacheLife`](/docs/app/api-reference/functions/cacheLife) profile.
+
+```jsx filename="app/page.js"
+import { cacheLife } from 'next/cache'
+
+async function getDailySeed() {
+  'use cache'
+  cacheLife('days')
+  return Math.random()
+}
+```
+
+Learn more: [How to configure cache lifetimes](/docs/app/api-reference/functions/cacheLife).
+
+### Trade-off
+
+Every visitor in the cache window sees the same "random" value. That's the right answer for global ordering and feature rotation, but the wrong answer for per-user uniqueness or anything security-sensitive (session IDs, CSRF tokens, nonces). For unique-per-request values use [Generate on every request](#generate-on-every-request).
+
+### Gotchas
+
+- Inside a [`use cache`](/docs/app/api-reference/directives/use-cache) scope, you can't call [`cookies()`](/docs/app/api-reference/functions/cookies) or [`headers()`](/docs/app/api-reference/functions/headers), which means you can't easily key the random value by request identity.
+- If the same random value is used in many places, hoist the cached function up so all consumers share the cache entry instead of producing a different cached value at each call site.
+- If you cache a function and still see this error, the [`cacheLife`](/docs/app/api-reference/functions/cacheLife) may be too short to prerender. See [Short-lived caches](#short-lived-caches).
+
+### Short-lived caches
+
+[`use cache`](/docs/app/api-reference/directives/use-cache) accepts a [`cacheLife`](/docs/app/api-reference/functions/cacheLife) profile. A short profile (such as `"seconds"` or `"minutes"`) whose `revalidate` is shorter than the prerender's effective lifetime prevents the value from being included in the prerender; the segment becomes a dynamic hole instead. The cache entry still helps the [Client Cache](/docs/app/glossary#client-cache) and protects upstream APIs, but the page falls back to streaming.
+
+To keep the page prerendered, use a profile with a longer revalidate window such as `"default"` (15 minutes), `"hours"`, or `"days"`. If a short profile is intentional, treat the value as dynamic and use [Generate on every request](#generate-on-every-request) instead.
+
+## Render on the client
+
+Choose this fix when the random value belongs to the client experience. A canvas seed for a confetti animation, a random color for an avatar placeholder, a UI nonce that only matters in the browser. Move the component into a [Client Component](/docs/app/getting-started/server-and-client-components) so the value is produced after hydration, not during prerender.
+
+### Patterns
+
+#### Compute the value inside `useEffect`
+
+Add the [`use client`](/docs/app/api-reference/directives/use-client) directive. Initialize state to a deterministic placeholder and assign the real value inside [`useEffect`](https://react.dev/reference/react/useEffect), which runs only in the browser after hydration.
+
+```jsx filename="app/avatar.js"
+'use client'
+
+import { startTransition, useEffect, useState } from 'react'
+
+export function Avatar() {
+  const [color, setColor] = useState('#888')
+  useEffect(() => {
+    // Wrap in startTransition so that if any component below suspends
+    // during this update, React keeps the existing UI visible instead
+    // of flashing the nearest outer <Suspense> fallback.
+    startTransition(() => {
+      setColor(`#${Math.random().toString(16).slice(2, 8)}`)
+    })
+  }, [])
+  return <div style={{ background: color }} />
+}
+```
+
+#### Inline render with a parent `<Suspense>` boundary
+
+If the random value needs to be part of the server-rendered HTML (not deferred to after hydration), the component can call [`Math.random()`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Math/random) during render as long as a [`<Suspense>`](https://react.dev/reference/react/Suspense) boundary wraps it from the parent. Next.js prerenders the fallback and fills in the real component at request time. See [`Math.random()` in a Client Component](/docs/messages/blocking-prerender-random-client) for the full recipe.
+
+Learn more: [Client Components](/docs/app/getting-started/server-and-client-components#using-client-components), [`Math.random()` in a Client Component](/docs/messages/blocking-prerender-random-client).
+
+### Trade-off
+
+The first paint shows the SSR fallback or initial state, and the random value appears only after the browser hydrates the component. That's fine for UI flourishes but wrong for content that has to be in the prerendered HTML. See [Preventing flash before hydration](/docs/app/guides/preventing-flash-before-hydration) for techniques that eliminate the flash.
+
+### Gotchas
+
+- A Client Component that produces a random value inline during render still trips this error during SSR. See the dedicated [`Math.random()` in a Client Component](/docs/messages/blocking-prerender-random-client) page for the [`<Suspense>`](https://react.dev/reference/react/Suspense) and effect-based recipes.
+
+## Don't want this validation?
+
+Instant-navigation validation runs by default in [Cache Components](/docs/app/api-reference/config/next-config-js/cacheComponents) apps and is what surfaces this error.
+
+- **One segment**: add [`export const unstable_instant = false`](/docs/app/api-reference/file-conventions/route-segment-config/instant) to the page or layout file. This opts out the segment itself. Child segments are still validated during client navigations.
+- **Layout and its children**: add `export const unstable_instant = { unstable_disableValidation: true }` to a layout. This disables validation for that layout and every segment below it.
+- **Entire app**: set [`experimental.instantInsights.validationLevel`](/docs/app/api-reference/file-conventions/route-segment-config/instant#configuring-validation-defaults) to `'manual-warning'` in `next.config`. This limits validation to segments that explicitly export `unstable_instant`.
+
+See [Ensuring instant navigations](/docs/app/guides/instant-navigation) for the full model.
+
+## Useful links
+
+- [`Math.random()` in a Client Component](/docs/messages/blocking-prerender-random-client)
+- [`Date.now()` during prerendering](/docs/messages/blocking-prerender-current-time)
+- [Crypto APIs during prerendering](/docs/messages/blocking-prerender-crypto)
+- [`use cache` directive](/docs/app/api-reference/directives/use-cache)
+- [`connection` function](/docs/app/api-reference/functions/connection)
+- [Ensuring instant navigations](/docs/app/guides/instant-navigation)
