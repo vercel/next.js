@@ -2,6 +2,7 @@ use std::{fmt::Debug, hash::Hash, sync::Arc};
 
 use anyhow::{Result, bail};
 use async_trait::async_trait;
+use preset_env_base::query::Query;
 use swc_core::{
     atoms::{Atom, atom},
     base::SwcComments,
@@ -283,9 +284,28 @@ impl EcmascriptInputTransform {
                     }
                 }
 
+                // When browserslist-rs returns an empty result (the query references
+                // versions newer than its bundled caniuse-lite, or the user wrote
+                // `chrome 99999`), every Versions field is None and SWC treats that
+                // as `is_any_target == true` — which enables every feature transform
+                // and panics on unsupported nodes like `**`. Re-route those queries
+                // through `Targets::Query` so SWC's own resolver can detect the
+                // empty result and set `unknown_version`, matching the design from
+                // swc-project/swc#11457.
+                let targets = if versions.is_any_target() {
+                    let query = env.browserslist_query().await?;
+                    if query.is_empty() {
+                        Some(Targets::Versions(*versions))
+                    } else {
+                        Some(Targets::Query(Query::Single(query.to_string())))
+                    }
+                } else {
+                    Some(Targets::Versions(*versions))
+                };
+
                 let config = swc_core::ecma::preset_env::EnvConfig::from(
                     swc_core::ecma::preset_env::Config {
-                        targets: Some(Targets::Versions(*versions)),
+                        targets,
                         mode,
                         core_js,
                         skip,
@@ -299,8 +319,8 @@ impl EcmascriptInputTransform {
                     },
                 );
 
-                // Explicit type annotation to ensure that we don't duplicate transforms in the
-                // final binary
+                // Explicit type annotation to ensure that we don't duplicate
+                // transforms in the final binary
                 apply_transform(
                     program,
                     helpers,
