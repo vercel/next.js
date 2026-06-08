@@ -14,7 +14,9 @@ use next_api::{
 };
 use tracing::Instrument;
 use turbo_rcstr::RcStr;
-use turbo_tasks::{Completion, Effects, OperationVc, ReadRef, Vc};
+use turbo_tasks::{
+    Completion, Effects, OperationVc, ReadRef, Vc, read_strongly_consistent_and_apply_effects,
+};
 use turbopack_core::issue::{IssueFilter, PlainIssue};
 
 use crate::next_api::utils::{
@@ -156,14 +158,14 @@ pub async fn endpoint_write_to_disk(
         .run(async move {
             let written_entrypoint_with_issues_op =
                 get_written_endpoint_with_issues_operation(endpoint_op);
+            let read = read_strongly_consistent_and_apply_effects(
+                written_entrypoint_with_issues_op,
+                |v| &v.effects,
+            )
+            .await?;
             let WrittenEndpointWithIssues {
-                written,
-                issues,
-                effects,
-            } = &*written_entrypoint_with_issues_op
-                .read_strongly_consistent()
-                .await?;
-            effects.apply().await?;
+                written, issues, ..
+            } = &*read;
 
             Ok((written.clone(), issues.clone()))
         })
@@ -190,8 +192,9 @@ pub fn endpoint_server_changed_subscribe(
         move || {
             async move {
                 let issues_and_diags_op = subscribe_issues_and_diags_operation(endpoint, issues);
-                let result = issues_and_diags_op.read_strongly_consistent().await?;
-                result.effects.apply().await?;
+                let result =
+                    read_strongly_consistent_and_apply_effects(issues_and_diags_op, |v| &v.effects)
+                        .await?;
                 Ok(result)
             }
             .instrument(tracing::info_span!("server changes subscription"))
