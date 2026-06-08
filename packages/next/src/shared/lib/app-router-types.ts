@@ -237,6 +237,54 @@ export const StaticPrefetchDisabled =
   PrefetchHint.HasRuntimePrefetch | PrefetchHint.PrefetchDisabled
 
 /**
+ * The subset of PrefetchHint bits that propagate upward from a child segment to
+ * its ancestors (as opposed to segment-local bits like SegmentHasLoadingBoundary
+ * or IsRootLayout). Used to clear stale propagated bits before re-deriving them
+ * from a node's children.
+ */
+export const SubtreePrefetchHints =
+  PrefetchHint.SubtreeHasPartialPrefetching |
+  PrefetchHint.SubtreeHasLoadingBoundary |
+  PrefetchHint.SubtreeHasRuntimePrefetch
+
+/**
+ * Folds a child segment's prefetch hints into its parent's, propagating the
+ * "subtree" flags. A child's segment-local flag (e.g. it has a loading boundary,
+ * or it has a runtime prefetch) becomes the corresponding "subtree" flag on the
+ * parent, so the root segment ends up reflecting the entire subtree.
+ *
+ * Used wherever a route tree is assembled bottom-up: on the server when building
+ * a prefetch tree (createFlightRouterStateFromLoaderTree) and on the client when
+ * merging a navigation patch into the existing tree (convertServerPatchToFullTree).
+ * Keep these in sync by routing both through this helper.
+ */
+export function propagateSubtreeBits(
+  parentHints: number,
+  childHints: number
+): number {
+  if (childHints & PrefetchHint.SubtreeHasPartialPrefetching) {
+    parentHints |= PrefetchHint.SubtreeHasPartialPrefetching
+  }
+  // A child with a loading boundary (directly, or anywhere in its subtree) makes
+  // this a SubtreeHasLoadingBoundary on the parent.
+  if (
+    childHints &
+    (PrefetchHint.SegmentHasLoadingBoundary |
+      PrefetchHint.SubtreeHasLoadingBoundary)
+  ) {
+    parentHints |= PrefetchHint.SubtreeHasLoadingBoundary
+  }
+  // Likewise for runtime prefetch.
+  if (
+    childHints &
+    (PrefetchHint.HasRuntimePrefetch | PrefetchHint.SubtreeHasRuntimePrefetch)
+  ) {
+    parentHints |= PrefetchHint.SubtreeHasRuntimePrefetch
+  }
+  return parentHints
+}
+
+/**
  * Individual Flight response path
  */
 export type FlightSegmentPath =

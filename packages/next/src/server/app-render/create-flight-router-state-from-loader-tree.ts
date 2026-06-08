@@ -1,6 +1,7 @@
 import type { LoaderTree } from '../lib/app-dir-module'
 import {
   PrefetchHint,
+  propagateSubtreeBits,
   type FlightRouterState,
   type PrefetchHints,
 } from '../../shared/lib/app-router-types'
@@ -132,29 +133,7 @@ async function createFlightRouterStateFromLoaderTreeImpl(
     )
     // Propagate subtree flags from children
     if (child[4] !== undefined) {
-      prefetchHints |=
-        child[4] &
-        (PrefetchHint.SubtreeHasPartialPrefetching |
-          PrefetchHint.SubtreeHasLoadingBoundary |
-          PrefetchHint.SubtreeHasRuntimePrefetch)
-      // If a child has a loading boundary (either directly or in its subtree),
-      // propagate that as SubtreeHasLoadingBoundary to this segment.
-      if (
-        child[4] &
-        (PrefetchHint.SegmentHasLoadingBoundary |
-          PrefetchHint.SubtreeHasLoadingBoundary)
-      ) {
-        prefetchHints |= PrefetchHint.SubtreeHasLoadingBoundary
-      }
-      // If a child has runtime prefetch (either directly or in its subtree),
-      // propagate that as SubtreeHasRuntimePrefetch to this segment.
-      if (
-        child[4] &
-        (PrefetchHint.HasRuntimePrefetch |
-          PrefetchHint.SubtreeHasRuntimePrefetch)
-      ) {
-        prefetchHints |= PrefetchHint.SubtreeHasRuntimePrefetch
-      }
+      prefetchHints = propagateSubtreeBits(prefetchHints, child[4])
     }
     children[parallelRouteKey] = child
   }
