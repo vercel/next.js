@@ -4,8 +4,6 @@ import fs from 'fs-extra'
 import { nextTestSetup } from 'e2e-utils'
 import { findPort, killApp, renderViaHTTP, retry } from 'next-test-utils'
 
-jest.retryTimes(0)
-
 describe('page features telemetry', () => {
   const { next, isTurbopack, isNextStart, skipped } = nextTestSetup({
     files: __dirname,
@@ -176,35 +174,33 @@ describe('page features telemetry', () => {
       ).toBe(false)
     })
     ;(isNextStart ? describe : describe.skip)('production mode', () => {
-      it(
-        'should detect app page counts',
-        async () => {
-          await fs.ensureFile(path.join(next.testDir, 'app/ssr/page.js'))
-          await fs.writeFile(
-            path.join(next.testDir, 'app/ssr/page.js'),
-            `
+      it('should detect app page counts', async () => {
+        await fs.ensureFile(path.join(next.testDir, 'app/ssr/page.js'))
+        await fs.writeFile(
+          path.join(next.testDir, 'app/ssr/page.js'),
+          `
           export const revalidate = 0
           export default function Page() {
             return <p>ssr page</p>
           }
         `
-          )
-          await fs.ensureFile(path.join(next.testDir, 'app/edge-ssr/page.js'))
-          await fs.writeFile(
-            path.join(next.testDir, 'app/edge-ssr/page.js'),
-            `
+        )
+        await fs.ensureFile(path.join(next.testDir, 'app/edge-ssr/page.js'))
+        await fs.writeFile(
+          path.join(next.testDir, 'app/edge-ssr/page.js'),
+          `
           export const runtime = 'edge'
           export default function Page() {
             return <p>edge-ssr page</p>
           }
         `
-          )
-          await fs.ensureFile(
-            path.join(next.testDir, 'app/app-ssg/[slug]/page.js')
-          )
-          await fs.writeFile(
-            path.join(next.testDir, 'app/app-ssg/[slug]/page.js'),
-            `
+        )
+        await fs.ensureFile(
+          path.join(next.testDir, 'app/app-ssg/[slug]/page.js')
+        )
+        await fs.writeFile(
+          path.join(next.testDir, 'app/app-ssg/[slug]/page.js'),
+          `
           export function generateStaticParams() {
             return [
               { slug: 'post-1' },
@@ -215,139 +211,113 @@ describe('page features telemetry', () => {
             return <p>ssg page</p>
           }
         `
-          )
-          const { cliOutput } = await next.build({
-            env: { NEXT_TELEMETRY_DEBUG: '1' },
-          })
+        )
+        const { cliOutput } = await next.build({
+          env: { NEXT_TELEMETRY_DEBUG: '1' },
+        })
 
-          try {
-            expect(cliOutput).toContain('NEXT_BUILD_OPTIMIZED')
-            const event1 = /NEXT_BUILD_OPTIMIZED[\s\S]+?{([\s\S]+?)}/
-              .exec(cliOutput)
-              .pop()
-            expect(event1).toMatch(/"staticPropsPageCount": 2/)
-            expect(event1).toMatch(/"serverPropsPageCount": 2/)
-            expect(event1).toMatch(/"ssrPageCount": 3/)
-            expect(event1).toMatch(/"staticPageCount": 5/)
-            expect(event1).toMatch(/"totalPageCount": 12/)
-            expect(event1).toMatch(/"totalAppPagesCount": 6/)
-            expect(event1).toMatch(/"serverAppPagesCount": 2/)
-            expect(event1).toMatch(/"edgeRuntimeAppCount": 1/)
-            expect(event1).toMatch(/"edgeRuntimePagesCount": 2/)
+        try {
+          expect(cliOutput).toContain('NEXT_BUILD_OPTIMIZED')
+          const event1 = /NEXT_BUILD_OPTIMIZED[\s\S]+?{([\s\S]+?)}/
+            .exec(cliOutput)
+            .pop()
+          expect(event1).toMatch(/"staticPropsPageCount": 2/)
+          expect(event1).toMatch(/"serverPropsPageCount": 2/)
+          expect(event1).toMatch(/"ssrPageCount": 3/)
+          expect(event1).toMatch(/"staticPageCount": 5/)
+          expect(event1).toMatch(/"totalPageCount": 12/)
+          expect(event1).toMatch(/"totalAppPagesCount": 6/)
+          expect(event1).toMatch(/"serverAppPagesCount": 2/)
+          expect(event1).toMatch(/"edgeRuntimeAppCount": 1/)
+          expect(event1).toMatch(/"edgeRuntimePagesCount": 2/)
 
-            expect(cliOutput).toContain('NEXT_BUILD_COMPLETED')
-            const event2 = /NEXT_BUILD_COMPLETED[\s\S]+?{([\s\S]+?)}/
-              .exec(cliOutput)
-              .pop()
+          expect(cliOutput).toContain('NEXT_BUILD_COMPLETED')
+          const event2 = /NEXT_BUILD_COMPLETED[\s\S]+?{([\s\S]+?)}/
+            .exec(cliOutput)
+            .pop()
 
-            expect(event2).toMatch(/"totalAppPagesCount": 6/)
-          } catch (err) {
-            require('console').error('failing cliOutput', cliOutput, err)
-            throw err
-          }
-        },
-        180 * 1000
-      )
+          expect(event2).toMatch(/"totalAppPagesCount": 6/)
+        } catch (err) {
+          require('console').error('failing cliOutput', cliOutput, err)
+          throw err
+        }
+      })
 
-      it(
-        'detects reportWebVitals with no _app correctly for `next build`',
-        async () => {
-          const { cliOutput } = await next.build({
-            env: { NEXT_TELEMETRY_DEBUG: '1' },
-          })
+      it('detects reportWebVitals with no _app correctly for `next build`', async () => {
+        const { cliOutput } = await next.build({
+          env: { NEXT_TELEMETRY_DEBUG: '1' },
+        })
 
+        expect(cliOutput).toContain('NEXT_BUILD_OPTIMIZED')
+        const event1 = /NEXT_BUILD_OPTIMIZED[\s\S]+?{([\s\S]+?)}/
+          .exec(cliOutput)
+          .pop()
+        expect(event1).toMatch(/hasReportWebVitals.*?false/)
+      })
+
+      it('detect with reportWebVitals correctly for `next build`', async () => {
+        await fs.utimes(
+          path.join(next.testDir, 'pages', '_app_withreportwebvitals.empty'),
+          new Date(),
+          new Date()
+        )
+        await fs.rename(
+          path.join(next.testDir, 'pages', '_app_withreportwebvitals.empty'),
+          path.join(next.testDir, 'pages', '_app.js')
+        )
+
+        const { cliOutput } = await next.build({
+          env: { NEXT_TELEMETRY_DEBUG: '1' },
+        })
+
+        await fs.rename(
+          path.join(next.testDir, 'pages', '_app.js'),
+          path.join(next.testDir, 'pages', '_app_withreportwebvitals.empty')
+        )
+
+        try {
+          expect(cliOutput).toContain('NEXT_BUILD_OPTIMIZED')
+          const event1 = /NEXT_BUILD_OPTIMIZED[\s\S]+?{([\s\S]+?)}/
+            .exec(cliOutput)
+            .pop()
+          expect(event1).toMatch(/hasReportWebVitals.*?true/)
+        } catch (err) {
+          require('console').error(cliOutput)
+          throw err
+        }
+      })
+
+      it('detect without reportWebVitals correctly for `next build`', async () => {
+        await fs.utimes(
+          path.join(next.testDir, 'pages', '_app_withoutreportwebvitals.empty'),
+          new Date(),
+          new Date()
+        )
+        await fs.rename(
+          path.join(next.testDir, 'pages', '_app_withoutreportwebvitals.empty'),
+          path.join(next.testDir, 'pages', '_app.js')
+        )
+
+        const { cliOutput } = await next.build({
+          env: { NEXT_TELEMETRY_DEBUG: '1' },
+        })
+
+        await fs.rename(
+          path.join(next.testDir, 'pages', '_app.js'),
+          path.join(next.testDir, 'pages', '_app_withoutreportwebvitals.empty')
+        )
+
+        try {
           expect(cliOutput).toContain('NEXT_BUILD_OPTIMIZED')
           const event1 = /NEXT_BUILD_OPTIMIZED[\s\S]+?{([\s\S]+?)}/
             .exec(cliOutput)
             .pop()
           expect(event1).toMatch(/hasReportWebVitals.*?false/)
-        },
-        180 * 1000
-      )
-
-      it(
-        'detect with reportWebVitals correctly for `next build`',
-        async () => {
-          await fs.utimes(
-            path.join(next.testDir, 'pages', '_app_withreportwebvitals.empty'),
-            new Date(),
-            new Date()
-          )
-          await fs.rename(
-            path.join(next.testDir, 'pages', '_app_withreportwebvitals.empty'),
-            path.join(next.testDir, 'pages', '_app.js')
-          )
-
-          const { cliOutput } = await next.build({
-            env: { NEXT_TELEMETRY_DEBUG: '1' },
-          })
-
-          await fs.rename(
-            path.join(next.testDir, 'pages', '_app.js'),
-            path.join(next.testDir, 'pages', '_app_withreportwebvitals.empty')
-          )
-
-          try {
-            expect(cliOutput).toContain('NEXT_BUILD_OPTIMIZED')
-            const event1 = /NEXT_BUILD_OPTIMIZED[\s\S]+?{([\s\S]+?)}/
-              .exec(cliOutput)
-              .pop()
-            expect(event1).toMatch(/hasReportWebVitals.*?true/)
-          } catch (err) {
-            require('console').error(cliOutput)
-            throw err
-          }
-        },
-        180 * 1000
-      )
-
-      it(
-        'detect without reportWebVitals correctly for `next build`',
-        async () => {
-          await fs.utimes(
-            path.join(
-              next.testDir,
-              'pages',
-              '_app_withoutreportwebvitals.empty'
-            ),
-            new Date(),
-            new Date()
-          )
-          await fs.rename(
-            path.join(
-              next.testDir,
-              'pages',
-              '_app_withoutreportwebvitals.empty'
-            ),
-            path.join(next.testDir, 'pages', '_app.js')
-          )
-
-          const { cliOutput } = await next.build({
-            env: { NEXT_TELEMETRY_DEBUG: '1' },
-          })
-
-          await fs.rename(
-            path.join(next.testDir, 'pages', '_app.js'),
-            path.join(
-              next.testDir,
-              'pages',
-              '_app_withoutreportwebvitals.empty'
-            )
-          )
-
-          try {
-            expect(cliOutput).toContain('NEXT_BUILD_OPTIMIZED')
-            const event1 = /NEXT_BUILD_OPTIMIZED[\s\S]+?{([\s\S]+?)}/
-              .exec(cliOutput)
-              .pop()
-            expect(event1).toMatch(/hasReportWebVitals.*?false/)
-          } catch (err) {
-            require('console').error(cliOutput)
-            throw err
-          }
-        },
-        180 * 1000
-      )
+        } catch (err) {
+          require('console').error(cliOutput)
+          throw err
+        }
+      })
     })
   }
 })

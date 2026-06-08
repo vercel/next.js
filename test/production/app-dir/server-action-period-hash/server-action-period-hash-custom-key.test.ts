@@ -1,7 +1,5 @@
 import { nextTestSetup, type NextInstance } from 'e2e-utils'
 
-jest.retryTimes(0)
-
 async function getServerActionManifestNodeKeys(next: NextInstance) {
   const manifest = await next.readJSON(
     '.next/server/server-reference-manifest.json'
@@ -15,38 +13,30 @@ describe('app-dir - server-action-period-hash-custom-key', () => {
     skipStart: true,
   })
 
-  it(
-    'should have a different manifest if the encryption key from process env is changed',
-    async () => {
-      process.env.NEXT_SERVER_ACTIONS_ENCRYPTION_KEY = 'my-secret-key1'
-      await next.build()
-      delete process.env.NEXT_SERVER_ACTIONS_ENCRYPTION_KEY
-      const firstActionIds = await getServerActionManifestNodeKeys(next)
+  it('should have a different manifest if the encryption key from process env is changed', async () => {
+    process.env.NEXT_SERVER_ACTIONS_ENCRYPTION_KEY = 'my-secret-key1'
+    await next.build()
+    delete process.env.NEXT_SERVER_ACTIONS_ENCRYPTION_KEY
+    const firstActionIds = await getServerActionManifestNodeKeys(next)
 
-      process.env.NEXT_SERVER_ACTIONS_ENCRYPTION_KEY = 'my-secret-key2'
-      await next.build()
-      delete process.env.NEXT_SERVER_ACTIONS_ENCRYPTION_KEY
-      const secondActionIds = await getServerActionManifestNodeKeys(next)
+    process.env.NEXT_SERVER_ACTIONS_ENCRYPTION_KEY = 'my-secret-key2'
+    await next.build()
+    delete process.env.NEXT_SERVER_ACTIONS_ENCRYPTION_KEY
+    const secondActionIds = await getServerActionManifestNodeKeys(next)
 
-      expect(firstActionIds).not.toEqual(secondActionIds)
-    },
-    180 * 1000
-  )
+    expect(firstActionIds).not.toEqual(secondActionIds)
+  })
 
-  it(
-    'should have the same manifest if the encryption key from process env is same',
-    async () => {
-      process.env.NEXT_SERVER_ACTIONS_ENCRYPTION_KEY = 'my-secret-key'
-      await next.build()
-      const firstActionIds = await getServerActionManifestNodeKeys(next)
+  it('should have the same manifest if the encryption key from process env is same', async () => {
+    process.env.NEXT_SERVER_ACTIONS_ENCRYPTION_KEY = 'my-secret-key'
+    await next.build()
+    const firstActionIds = await getServerActionManifestNodeKeys(next)
 
-      await next.remove('.next') // dismiss cache
-      await next.build() // build with the same secret key
-      delete process.env.NEXT_SERVER_ACTIONS_ENCRYPTION_KEY
-      const secondActionIds = await getServerActionManifestNodeKeys(next)
+    await next.remove('.next') // dismiss cache
+    await next.build() // build with the same secret key
+    delete process.env.NEXT_SERVER_ACTIONS_ENCRYPTION_KEY
+    const secondActionIds = await getServerActionManifestNodeKeys(next)
 
-      expect(firstActionIds).toEqual(secondActionIds)
-    },
-    180 * 1000
-  )
+    expect(firstActionIds).toEqual(secondActionIds)
+  })
 })
