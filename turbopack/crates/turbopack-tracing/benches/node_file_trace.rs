@@ -4,8 +4,7 @@ use criterion::{Bencher, BenchmarkId, Criterion};
 use regex::Regex;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
-    Effects, OperationVc, TurboTasks, Vc, mark_top_level_task,
-    read_strongly_consistent_and_apply_effects, take_effects,
+    Effects, OperationVc, TurboTasks, Vc, read_strongly_consistent_and_apply_effects, take_effects,
     unmark_top_level_task_may_leak_eventually_consistent_state,
 };
 use turbo_tasks_backend::{BackendOptions, TurboTasksBackend, noop_backing_storage};
