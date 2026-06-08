@@ -14,7 +14,7 @@ async function createFlightRouterStateFromLoaderTreeImpl(
   hintTree: PrefetchHints | null,
   prefetchInliningEnabled: boolean,
   cacheComponents: boolean,
-  partialPrefetching: boolean | undefined,
+  partialPrefetching: boolean | 'unstable_eager' | undefined,
   isStaticGeneration: boolean,
   isBuildTimePrerendering: boolean,
   getDynamicParamFromSegment: GetDynamicParamFromSegment,
@@ -40,7 +40,11 @@ async function createFlightRouterStateFromLoaderTreeImpl(
     : undefined
   const prefetchConfig =
     (mod ? (mod as AppSegmentConfig).unstable_prefetch : undefined) ??
-    (partialPrefetching ? 'partial' : undefined)
+    (partialPrefetching === 'unstable_eager'
+      ? 'unstable_eager'
+      : partialPrefetching
+        ? 'partial'
+        : undefined)
   let prefetchHints = 0
 
   // Union in the precomputed build-time hints (e.g. segment inlining
@@ -93,19 +97,39 @@ async function createFlightRouterStateFromLoaderTreeImpl(
     prefetchHints |= PrefetchHint.IsRootLayout
   }
 
-  if (
+  const isInstant =
     instantConfig === true ||
     (typeof instantConfig === 'object' && instantConfig !== null)
-  ) {
+  if (isInstant) {
     prefetchHints |= PrefetchHint.SubtreeHasPartialPrefetching
   }
 
   if (prefetchConfig === 'partial') {
     prefetchHints |= PrefetchHint.SubtreeHasPartialPrefetching
+  } else if (prefetchConfig === 'unstable_eager') {
+    // Like 'partial' (uses the PPR fetch strategy) but also marks the segment
+    // as eager, so App Shells keeps prefetching it instead of relying on the
+    // shared app shell.
+    prefetchHints |=
+      PrefetchHint.SubtreeHasPartialPrefetching |
+      PrefetchHint.SubtreeHasEagerPrefetch
   } else if (prefetchConfig === 'force-disabled') {
     prefetchHints |= PrefetchHint.PrefetchDisabled
   } else if (prefetchConfig === 'force-runtime') {
     prefetchHints |= PrefetchHint.HasRuntimePrefetch
+  }
+
+  // Mark the segment as "eager" unless its effective prefetch strategy is
+  // 'partial' or 'force-runtime'. A truthy unstable_instant is treated as
+  // 'partial' (not eager). 'unstable_eager' already set the bit above. Under
+  // App Shells, a subtree with no eager segment skips its Speculative prefetch
+  // and relies on the shared app shell instead.
+  if (
+    !isInstant &&
+    prefetchConfig !== 'partial' &&
+    prefetchConfig !== 'force-runtime'
+  ) {
+    prefetchHints |= PrefetchHint.SubtreeHasEagerPrefetch
   }
 
   // Check if this segment has a loading boundary
@@ -151,7 +175,7 @@ export async function createFlightRouterStateFromLoaderTree(
   hintTree: PrefetchHints | null,
   prefetchInliningEnabled: boolean,
   cacheComponents: boolean,
-  partialPrefetching: boolean | undefined,
+  partialPrefetching: boolean | 'unstable_eager' | undefined,
   isStaticGeneration: boolean,
   isBuildTimePrerendering: boolean,
   getDynamicParamFromSegment: GetDynamicParamFromSegment,
@@ -177,7 +201,7 @@ export async function createRouteTreePrefetch(
   hintTree: PrefetchHints | null,
   prefetchInliningEnabled: boolean,
   cacheComponents: boolean,
-  partialPrefetching: boolean | undefined,
+  partialPrefetching: boolean | 'unstable_eager' | undefined,
   isStaticGeneration: boolean,
   isBuildTimePrerendering: boolean,
   getDynamicParamFromSegment: GetDynamicParamFromSegment

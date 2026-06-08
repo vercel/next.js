@@ -776,6 +776,16 @@ function pingRootRouteTree(
           //
           // Then, if there are any segments that need a runtime request,
           // do another pass to perform a runtime prefetch.
+
+          if (
+            task.phase === PrefetchPhase.Speculative &&
+            !subtreeHasSpeculativePrefetch(task, tree.prefetchHints)
+          ) {
+            // Nothing in the target route needs to be speculatively prefetched.
+            // Bail out.
+            return PrefetchTaskExitStatus.Done
+          }
+
           pingStaticHead(now, task, route)
           const exitStatus = pingSharedPartOfCacheComponentsTree(
             now,
@@ -797,15 +807,15 @@ function pingRootRouteTree(
             // Do any segments have runtime prefetching configured? This is
             // sent by the server as part of the prefetch hints.
             tree.prefetchHints & PrefetchHint.SubtreeHasRuntimePrefetch ||
-            // Are we in the Shell prefetching phase? The Shell phase is allowed
-            // to perform runtime prefetches even without an explicit opt-in
-            // because the Shell for a given route is reusable across all given
-            // params, by definition. So it does not lead to an explosion in
-            // prefetching costs.
+            // Are we in the Shell prefetching phase? The Shell phase is
+            // allowed to perform runtime prefetches even without an explicit
+            // opt-in because the Shell for a given route is reusable across
+            // all given params, by definition. So it does not lead to an
+            // explosion in prefetching costs.
             // TODO: In the future, the server could emit a hint to tell us
             // *not* to prefetch via a runtime request, via build-time
-            // heuristics, like if no `cookies()` call was detected. We'll leave
-            // this optimization for later.
+            // heuristics, like if no `cookies()` call was detected. We'll
+            // leave this optimization for later.
             task.phase === PrefetchPhase.Shell
           ) {
             const runtimeStrategy =
@@ -1101,6 +1111,16 @@ function pingNewPartOfCacheComponentsTree(
   // runtime shell request. For fully static pages, it doesn't matter since
   // server will respond to even a runtime request with a static response. For
   // a partially static page, we can send down a hint from the server.
+
+  if (
+    task.phase === PrefetchPhase.Speculative &&
+    !subtreeHasSpeculativePrefetch(task, tree.prefetchHints)
+  ) {
+    // Nothing in the new part of the tree needs to be speculatively prefetched.
+    // Bail out.
+    return PrefetchTaskExitStatus.Done
+  }
+
   if (
     tree.prefetchHints & PrefetchHint.HasRuntimePrefetch ||
     task.phase === PrefetchPhase.Shell
@@ -1917,6 +1937,31 @@ function doesCurrentSegmentMatchCachedSegment(
   }
   // Non-page segments are compared using the same function as the server
   return matchSegment(cachedSegment, currentSegment)
+}
+
+/**
+ * Decides whether to skip the speculative prefetch of a subtree. Usually we
+ * only perform a speculative prefetch if the Link's prefetch prop is set to
+ * true. However, we also will do a speculative prefetch if the prefetching
+ * mode of the segment is set to "unstable_eager".
+ */
+function subtreeHasSpeculativePrefetch(
+  task: PrefetchTask,
+  prefetchHints: number
+): boolean {
+  if (!process.env.__NEXT_APP_SHELLS) {
+    // When App Shells is disabled, all prefetches implicitly include the
+    // speculative (non-shell) part of the target.
+    return true
+  }
+
+  return (
+    // Check if this is a "full" prefetch (<Link prefetch={true}>).
+    task.fetchStrategy === FetchStrategy.Full ||
+    // Check if something in this subtree is configured to be eagerly
+    // prefetched at the route level.
+    (prefetchHints & PrefetchHint.SubtreeHasEagerPrefetch) !== 0
+  )
 }
 
 // -----------------------------------------------------------------------------

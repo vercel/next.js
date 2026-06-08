@@ -6,7 +6,7 @@ export default function Page() {
     <main>
       <h1>Home</h1>
 
-      <h2>Dynamic posts</h2>
+      <h2>Dynamic posts (force-runtime)</h2>
       <p>
         These posts read request-time data (cookies). Their App Shell is the
         part of the page that doesn&apos;t depend on the URL params, so it can
@@ -51,6 +51,41 @@ export default function Page() {
           <Link href="/static-posts/124" prefetch={false}>
             Unprefetched static post
           </Link>
+        </li>
+      </ul>
+
+      <h2>Partial posts</h2>
+      <ul>
+        <li>
+          <LinkAccordion href="/partial/1">Partial 1 (default)</LinkAccordion>
+        </li>
+        <li>
+          <LinkAccordion href="/partial/2">Partial 2 (default)</LinkAccordion>
+        </li>
+        <li>
+          <LinkAccordion href="/partial/3" prefetch={true}>
+            Partial 3 (prefetch=true)
+          </LinkAccordion>
+        </li>
+      </ul>
+
+      <h2>Eager posts</h2>
+      <ul>
+        <li>
+          <LinkAccordion href="/eager/1">Eager 1 (default)</LinkAccordion>
+        </li>
+        <li>
+          <LinkAccordion href="/eager/2">Eager 2 (default)</LinkAccordion>
+        </li>
+        <li>
+          <LinkAccordion href="/eager-instant/1">
+            Eager-instant 1 (unstable_instant + unstable_eager)
+          </LinkAccordion>
+        </li>
+        <li>
+          <LinkAccordion href="/eager-instant/2">
+            Eager-instant 2 (unstable_instant + unstable_eager)
+          </LinkAccordion>
         </li>
       </ul>
     </main>
