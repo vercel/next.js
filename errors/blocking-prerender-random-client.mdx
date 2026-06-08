@@ -1,0 +1,189 @@
+---
+title: Next.js encountered the unstable value Math.random() in a Client Component
+kind: insight
+---
+
+A [Client Component](/docs/app/getting-started/server-and-client-components#using-client-components) called [`Math.random()`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Math/random) inline during render, and the surrounding tree had no [`<Suspense>`](https://react.dev/reference/react/Suspense) boundary. Client Components are server-side rendered on first load, so Next.js can't bake an unpredictable value into the prerendered HTML. The SSR value won't match the value the client computes on hydration, so you need to choose: defer the value behind a [`<Suspense>`](https://react.dev/reference/react/Suspense) boundary so SSR can stream it, or move the call into [`useEffect`](https://react.dev/reference/react/useEffect) (or an event handler) so it only runs on the client.
+
+The Server Component case is handled at [`Math.random()` during prerendering](/docs/messages/blocking-prerender-random). Other unpredictable client-side APIs ([`Date.now()`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Date/now), [`crypto.randomUUID()`](https://developer.mozilla.org/en-US/docs/Web/API/Crypto/randomUUID)) have parallel error pages: [`Date.now()` in a Client Component](/docs/messages/blocking-prerender-current-time-client) and [Crypto APIs in a Client Component](/docs/messages/blocking-prerender-crypto-client).
+
+> **Good to know**: In [`next dev`](/docs/app/api-reference/cli/next#next-dev-options), the error overlay points at the failing component. Run `next build --debug-prerender` to get the full list of blocking routes with stack traces. When iterating on specific routes, use `next build --debug-build-paths /dashboard /settings` to rebuild only those pages.
+
+## Ways to fix this
+
+<FixOption
+  group="stream"
+  href="#wrap-in-or-move-into-suspense"
+  prompt={`Wrap the Client Component that calls Math.random() in <Suspense> in its parent. The fallback prop must render synchronous, deterministic JSX (no Math.random or Date.now) that approximates the final layout (skeleton, spinner, or stable placeholder text). Import Suspense from "react". Do not change the Math.random() call.`}
+  title="Wrap in or move into Suspense"
+>
+  Wrap the component in a Suspense boundary so the shell ships instantly and the
+  random value streams in.
+</FixOption>
+
+<FixOption
+  group="defer"
+  href="#move-into-effect-or-event-handler"
+  prompt={`Move the Math.random() call out of the inline render path and into useEffect (for first-paint values) or an event handler (for interaction values). Initialize state to a deterministic value so SSR and the first hydrated render agree. Do not introduce new imports beyond "react".`}
+  title="Move into effect or event handler"
+>
+  Defer the random read until after hydration so SSR and the browser agree on
+  the initial render.
+</FixOption>
+
+## Wrap in or move into Suspense
+
+Choose this fix when the random value is part of the rendered output and a brief fallback during SSR is acceptable. Wrap the consuming Client Component in [`<Suspense>`](https://react.dev/reference/react/Suspense) from its parent. The fallback ships in the prerendered HTML, and Next.js fills in the real component when the browser hydrates.
+
+### Patterns
+
+#### Wrap from a Server Component parent
+
+Place the [`<Suspense>`](https://react.dev/reference/react/Suspense) boundary in the Server Component that renders the Client Component. The fallback prerenders, the inner Client Component runs in the browser, and you only handle the random value once.
+
+```jsx filename="app/page.js"
+import { Suspense } from 'react'
+import { Avatar } from './avatar'
+
+export default function Page() {
+  return (
+    <Profile>
+      <Suspense fallback={<div className="avatar-skeleton" />}>
+        <Avatar />
+      </Suspense>
+    </Profile>
+  )
+}
+```
+
+```jsx filename="app/avatar.js"
+'use client'
+
+export function Avatar() {
+  const color = `#${Math.random().toString(16).slice(2, 8)}`
+  return <div style={{ background: color }} />
+}
+```
+
+Learn more: [Streaming with Suspense](/docs/app/guides/streaming).
+
+### Trade-off
+
+The component shows the fallback during SSR and the first paint. For above-the-fold UI this can be visible. Use [`loading.js`](/docs/app/api-reference/file-conventions/loading) for full-segment fallback or pick a fallback that matches the final layout to minimize visual jump.
+
+### Gotchas
+
+- Any UI rendered as part of the prerender shell must be deterministic, including [`<Suspense>`](https://react.dev/reference/react/Suspense) fallbacks, [`loading.js`](/docs/app/api-reference/file-conventions/loading), [`error.js`](/docs/app/api-reference/file-conventions/error), [`not-found.js`](/docs/app/api-reference/file-conventions/not-found), and [`global-error.js`](/docs/app/api-reference/file-conventions/error#global-error). Calling [`Math.random()`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Math/random) in any of them raises this same error. Use stable placeholder content.
+- The inner Client Component still runs during SSR, behind the boundary. If you need to guarantee the random value only runs in the browser, use [Move into effect or event handler](#move-into-effect-or-event-handler) instead.
+- A [`<Suspense>`](https://react.dev/reference/react/Suspense) boundary only fixes the prerender/hydration mismatch, not client re-renders. If the component using [`Math.random()`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Math/random) re-renders on the client (a parent state change, a context update), it produces a new value each time. To stabilize the value across re-renders, call [`Math.random()`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Math/random) once in a [`useState`](https://react.dev/reference/react/useState) initializer or [`useRef`](https://react.dev/reference/react/useRef), or compute it on the server and pass it down as a prop.
+
+## Move into effect or event handler
+
+Choose this fix when the random value isn't needed for the first paint. Move the [`Math.random()`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Math/random) call into [`useEffect`](https://react.dev/reference/react/useEffect) (for first-paint-after-mount values) or an event handler (for interaction values). The initial render uses a deterministic placeholder, so SSR and hydration agree.
+
+### Patterns
+
+#### Use `useEffect` for an initial value after mount
+
+For values that should appear shortly after the page loads. Initialize state to `null` (or another deterministic stand-in) and assign the random value inside [`useEffect`](https://react.dev/reference/react/useEffect).
+
+```jsx filename="app/avatar.js"
+'use client'
+
+import { startTransition, useEffect, useState } from 'react'
+
+export function Avatar() {
+  const [color, setColor] = useState('#eaeaea')
+  useEffect(() => {
+    // Wrap in startTransition so that if any component below suspends
+    // during this update, React keeps the existing UI visible instead
+    // of flashing the nearest outer <Suspense> fallback.
+    startTransition(() => {
+      setColor(`#${Math.random().toString(16).slice(2, 8)}`)
+    })
+  }, [])
+  return <div style={{ background: color }} />
+}
+```
+
+Learn more: [`useEffect`](https://react.dev/reference/react/useEffect).
+
+#### Compute on user interaction
+
+When the random value is in response to a click ("reshuffle", "new card"), compute it in the event handler. No SSR concern at all.
+
+```jsx filename="app/shuffle.js"
+'use client'
+
+import { useState } from 'react'
+
+export function Shuffle() {
+  const [seed, setSeed] = useState(0)
+  return (
+    <button onClick={() => setSeed(Math.random())}>Shuffle ({seed})</button>
+  )
+}
+```
+
+#### Lazy-initialize a stable ID with `useRef`
+
+When a component needs a stable ID for the lifetime of its mount (a tracking ID, a correlation key), produce it lazily inside a [`useRef`](https://react.dev/reference/react/useRef) getter. The ref initializer runs after mount, so SSR sees `null` and the browser fills in the value. Subsequent renders read the same ref so the ID stays stable.
+
+```jsx filename="app/workflow.js"
+'use client'
+
+import { useRef } from 'react'
+
+function getOrCreateId(ref) {
+  if (!ref.current) {
+    ref.current = Math.random().toString(36).slice(2)
+  }
+  return ref.current
+}
+
+export function Workflow({ onNext }) {
+  const idRef = useRef(null)
+  return (
+    <button
+      onClick={() => {
+        trackEvent(getOrCreateId(idRef), 'forward')
+        onNext()
+      }}
+    >
+      Next
+    </button>
+  )
+}
+```
+
+Learn more: [`useRef`](https://react.dev/reference/react/useRef).
+
+### Trade-off
+
+The user sees the placeholder briefly before the real value. For interactions the wait is invisible, but for `useEffect`-based values there's a flash of the initial state. See [Preventing flash before hydration](/docs/app/guides/preventing-flash-before-hydration) for techniques that eliminate the flash.
+
+### Gotchas
+
+- Don't compute the random value inline during render even with `useState((/* ... */) => Math.random())`. The lazy initializer still runs during SSR and triggers the error.
+- Calling [`Math.random()`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Math/random) inline during render in a server-rendered Client Component also causes a hydration mismatch (the SSR HTML uses one value, the browser uses another). The `useEffect` and event handler patterns above avoid both the error and the mismatch.
+- If the value needs to be hydration-stable (the SSR HTML and the hydrated render must match exactly), use [Wrap in or move into Suspense](#wrap-in-or-move-into-suspense) instead.
+- When you call `setState` from inside [`useEffect`](https://react.dev/reference/react/useEffect), wrap it in [`startTransition`](https://react.dev/reference/react/startTransition). Cascading state updates during hydration can cause an outer [`<Suspense>`](https://react.dev/reference/react/Suspense) boundary's fallback to briefly flash. `startTransition` marks the update as non-blocking so React keeps the existing UI in place while the new value resolves.
+
+## Don't want this validation?
+
+Instant-navigation validation runs by default in [Cache Components](/docs/app/api-reference/config/next-config-js/cacheComponents) apps and is what surfaces this error.
+
+- **One segment**: add [`export const unstable_instant = false`](/docs/app/api-reference/file-conventions/route-segment-config/instant) to the page or layout file. This opts out the segment itself. Child segments are still validated during client navigations.
+- **Layout and its children**: add `export const unstable_instant = { unstable_disableValidation: true }` to a layout. This disables validation for that layout and every segment below it.
+- **Entire app**: set [`experimental.instantInsights.validationLevel`](/docs/app/api-reference/file-conventions/route-segment-config/instant#configuring-validation-defaults) to `'manual-warning'` in `next.config`. This limits validation to segments that explicitly export `unstable_instant`.
+
+See [Ensuring instant navigations](/docs/app/guides/instant-navigation) for the full model.
+
+## Useful links
+
+- [`Math.random()` during prerendering](/docs/messages/blocking-prerender-random)
+- [`Date.now()` in a Client Component](/docs/messages/blocking-prerender-current-time-client)
+- [Crypto APIs in a Client Component](/docs/messages/blocking-prerender-crypto-client)
+- [`useEffect`](https://react.dev/reference/react/useEffect)
+- [Streaming with Suspense](/docs/app/guides/streaming)
+- [Ensuring instant navigations](/docs/app/guides/instant-navigation)

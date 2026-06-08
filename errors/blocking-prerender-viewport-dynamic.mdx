@@ -1,0 +1,133 @@
+---
+title: Next.js encountered uncached data in generateViewport()
+kind: insight
+---
+
+During [prerendering](/docs/app/glossary#prerendering), [`generateViewport()`](/docs/app/api-reference/functions/generate-viewport) performed an uncached data access ([`fetch()`](https://developer.mozilla.org/en-US/docs/Web/API/Window/fetch), database call, [`await connection()`](/docs/app/api-reference/functions/connection)). With [Cache Components](/docs/app/api-reference/config/next-config-js/cacheComponents) enabled, viewport metadata can't be deferred behind a [`<Suspense>`](https://react.dev/reference/react/Suspense) boundary because it affects the initial page load. The page can't be prerendered, so navigations block instead of being [instant](/docs/app/guides/instant-navigation).
+
+Request-bound reads ([`cookies()`](/docs/app/api-reference/functions/cookies), [`headers()`](/docs/app/api-reference/functions/headers), [`params`](/docs/app/api-reference/file-conventions/page#params-optional), [`searchParams`](/docs/app/api-reference/file-conventions/page#searchparams-optional)) in `generateViewport()` have different fixes. See [Next.js encountered runtime data in `generateViewport()`](/docs/messages/blocking-prerender-viewport-runtime). The metadata equivalent is handled at [Uncached data in `generateMetadata()`](/docs/messages/blocking-prerender-metadata-dynamic). For errors in the page body rather than viewport, see [Next.js encountered uncached data during prerendering](/docs/messages/blocking-prerender-dynamic).
+
+> **Good to know**: In [`next dev`](/docs/app/api-reference/cli/next#next-dev-options), the error overlay points at the failing component. Run `next build --debug-prerender` to get the full list of blocking routes with stack traces. When iterating on specific routes, use `next build --debug-build-paths /dashboard /settings` to rebuild only those pages.
+
+## Ways to fix this
+
+<FixOption
+  group="cache"
+  href="#cache-the-viewport-data"
+  prompt={`Add "use cache" as the first statement inside generateViewport(). This caches the viewport so Next.js can include it in the prerender. Optionally call cacheLife(profile) to set automatic expiration. Do not introduce new imports beyond "next/cache".`}
+  title="Cache the viewport data"
+>
+  Cache the viewport function so the result is reused and the route stays
+  prerenderable.
+</FixOption>
+
+<FixOption
+  group="block"
+  href="#allow-blocking-route"
+  prompt={`Add "export const unstable_instant = false" as a top-level export in the page or layout file. This silences the warning for this segment. Confirm with the user that the route is intentionally fully dynamic before applying this change: the export exempts the segment from instant-navigation validation, and the route renders on every request.`}
+  title="Allow blocking route"
+>
+  Opt this segment out of instant navigation. The route renders on every request
+  and every navigation blocks.
+</FixOption>
+
+## Cache the viewport data
+
+Choose this fix when the viewport values come from an external source (database, CMS) but don't need to change on every request. Add the [`use cache`](/docs/app/api-reference/directives/use-cache) directive as the first statement inside [`generateViewport()`](/docs/app/api-reference/functions/generate-viewport). Next.js caches the returned viewport object and includes it in the prerender.
+
+### Patterns
+
+#### Add `use cache` to `generateViewport`
+
+Mark the function as cacheable. The viewport is evaluated once per cache window and reused.
+
+```jsx filename="app/layout.js"
+import { db } from './db'
+
+export async function generateViewport() {
+  'use cache'
+  const { width, initialScale } = await db.query('viewport-config')
+  return { width, initialScale }
+}
+
+export default function RootLayout({ children }) {
+  return (
+    <html>
+      <body>{children}</body>
+    </html>
+  )
+}
+```
+
+Learn more: [Caching with `use cache`](/docs/app/api-reference/directives/use-cache).
+
+### Trade-off
+
+Freshness depends on the cache configuration. The viewport stays the same until [`cacheLife`](/docs/app/api-reference/functions/cacheLife) expires or [`cacheTag`](/docs/app/api-reference/functions/cacheTag) is invalidated.
+
+### Gotchas
+
+- Inside a [`use cache`](/docs/app/api-reference/directives/use-cache) scope, you can't call [`cookies()`](/docs/app/api-reference/functions/cookies) or [`headers()`](/docs/app/api-reference/functions/headers). If the viewport needs a request-bound value (a theme color from a cookie), use [Allow blocking route](#allow-blocking-route) instead.
+- A short [`cacheLife`](/docs/app/api-reference/functions/cacheLife) (a profile whose `revalidate` is shorter than the prerender's effective lifetime) prevents the viewport from being included in the prerender. Use a longer profile if you want the viewport included in the static shell.
+
+## Allow blocking route
+
+Choose this fix when the viewport data is genuinely uncacheable. Setting [`unstable_instant`](/docs/app/api-reference/file-conventions/route-segment-config/instant) to `false` exempts the segment from instant-navigation validation. The page renders on every request and the navigation blocks until that render completes.
+
+Unlike page body content, viewport metadata can't be deferred behind [`<Suspense>`](https://react.dev/reference/react/Suspense) because it affects the initial HTML `<head>`. Making the viewport dynamic means the entire page navigation blocks.
+
+### Patterns
+
+#### Opt the layout out
+
+Set [`unstable_instant`](/docs/app/api-reference/file-conventions/route-segment-config/instant) to `false` on the layout that defines `generateViewport`. The layout and every route in its subtree are exempted from instant-navigation validation. Apply this to the nested layout that owns the dynamic viewport, not the root layout, so the opt-out is scoped to the affected subtree.
+
+```jsx filename="app/dashboard/layout.js"
+import { db } from './db'
+
+export const unstable_instant = false
+
+export async function generateViewport() {
+  const { width, initialScale } = await db.query('viewport-config')
+  return { width, initialScale }
+}
+
+export default function DashboardLayout({ children }) {
+  return children
+}
+```
+
+Learn more: [Route segment `instant` config](/docs/app/api-reference/file-conventions/route-segment-config/instant).
+
+Use this pattern when:
+
+- The viewport data is uncacheable and must be fetched on every request.
+- You're migrating a route incrementally and want to defer the lifetime decision without changing how the page renders today.
+
+Don't use this to dismiss the error. Choose [Cache the viewport data](#cache-the-viewport-data) when feasible.
+
+### Trade-off
+
+Navigations to this route are not instant. The user waits for the full server render before any HTML arrives. Use this only when that latency is necessary for the route to function.
+
+### Gotchas
+
+- Setting [`unstable_instant`](/docs/app/api-reference/file-conventions/route-segment-config/instant) to `false` on a layout exempts every route in the subtree, not only the layout itself. Audit child routes before opting a shared layout out.
+- This export does not disable [prerendering](/docs/app/glossary#prerendering). The route still prerenders if it can. It only silences the instant-navigation validation error.
+- Framework-synthesized routes (`/_not-found`, `/_global-error`) inherit the root layout's `generateViewport` and must be statically prerendered. [`unstable_instant = false`](/docs/app/api-reference/file-conventions/route-segment-config/instant) silences the validation error but does not let those routes through, so the build still fails when they prerender. If your root layout's `generateViewport` depends on request data, [Cache the viewport data](#cache-the-viewport-data) instead, or move to [`global-not-found.js`](/docs/app/api-reference/file-conventions/not-found#global-not-foundjs-experimental), which bypasses the root layout entirely and avoids inheriting its `generateViewport`.
+
+## Don't want this validation?
+
+Instant-navigation validation runs by default in [Cache Components](/docs/app/api-reference/config/next-config-js/cacheComponents) apps and is what surfaces this error.
+
+- **One segment**: add [`export const unstable_instant = false`](/docs/app/api-reference/file-conventions/route-segment-config/instant) to the page or layout file. This opts out the segment itself. Child segments are still validated during client navigations.
+- **Layout and its children**: add `export const unstable_instant = { unstable_disableValidation: true }` to a layout. This disables validation for that layout and every segment below it.
+- **Entire app**: set [`experimental.instantInsights.validationLevel`](/docs/app/api-reference/file-conventions/route-segment-config/instant#configuring-validation-defaults) to `'manual-warning'` in `next.config`. This limits validation to segments that explicitly export `unstable_instant`.
+
+See [Ensuring instant navigations](/docs/app/guides/instant-navigation) for the full model.
+
+## Useful links
+
+- [Ensuring instant navigations](/docs/app/guides/instant-navigation)
+- [Runtime data in `generateViewport()`](/docs/messages/blocking-prerender-viewport-runtime)
+- [Uncached data in `generateMetadata()`](/docs/messages/blocking-prerender-metadata-dynamic)

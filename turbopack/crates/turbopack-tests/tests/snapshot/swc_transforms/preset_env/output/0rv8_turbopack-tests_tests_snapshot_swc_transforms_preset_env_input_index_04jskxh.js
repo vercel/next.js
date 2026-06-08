@@ -1176,14 +1176,6 @@ function isJs(chunkUrlOrPath) {
 function isCss(chunkUrl) {
     return endsWithExtension(chunkUrl, '.css');
 }
-function loadWebAssembly(chunkPath, edgeModule, importsObj) {
-    return BACKEND.loadWebAssembly(SourceType.Parent, this.m.id, chunkPath, edgeModule, importsObj);
-}
-contextPrototype.w = loadWebAssembly;
-function loadWebAssemblyModule(chunkPath, edgeModule) {
-    return BACKEND.loadWebAssemblyModule(SourceType.Parent, this.m.id, chunkPath, edgeModule);
-}
-contextPrototype.u = loadWebAssemblyModule;
 /// <reference path="./runtime-base.ts" />
 /// <reference path="./dummy.ts" />
 var moduleCache = {};
@@ -1485,47 +1477,6 @@ var BACKEND;
      * has been loaded.
      */ loadChunkCached: function loadChunkCached(sourceType, chunkUrl) {
             return doLoadChunk(sourceType, chunkUrl);
-        },
-        loadWebAssembly: function loadWebAssembly(_sourceType, _sourceData, wasmChunkPath, _edgeModule, importsObj) {
-            return _async_to_generator(function() {
-                var req, instance;
-                return _ts_generator(this, function(_state) {
-                    switch(_state.label){
-                        case 0:
-                            req = fetchWebAssembly(wasmChunkPath);
-                            return [
-                                4,
-                                WebAssembly.instantiateStreaming(req, importsObj)
-                            ];
-                        case 1:
-                            instance = _state.sent().instance;
-                            return [
-                                2,
-                                instance.exports
-                            ];
-                    }
-                });
-            })();
-        },
-        loadWebAssemblyModule: function loadWebAssemblyModule(_sourceType, _sourceData, wasmChunkPath, _edgeModule) {
-            return _async_to_generator(function() {
-                var req;
-                return _ts_generator(this, function(_state) {
-                    switch(_state.label){
-                        case 0:
-                            req = fetchWebAssembly(wasmChunkPath);
-                            return [
-                                4,
-                                WebAssembly.compileStreaming(req)
-                            ];
-                        case 1:
-                            return [
-                                2,
-                                _state.sent()
-                            ];
-                    }
-                });
-            })();
         }
     };
     function getOrCreateResolver(chunkUrl) {
@@ -1654,9 +1605,6 @@ var BACKEND;
         }
         resolver.loadingStarted = true;
         return resolver.promise;
-    }
-    function fetchWebAssembly(wasmChunkPath) {
-        return fetch(getChunkRelativeUrl(wasmChunkPath));
     }
 })();
 var chunksToRegister = globalThis["TURBOPACK"];
