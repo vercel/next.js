@@ -13,6 +13,7 @@ import {
   ACTION_ERROR_OVERLAY_OPEN,
 } from '../../shared'
 import { usePanelRouterContext } from '../../menu/context'
+import { getIssueBucketState } from '../../menu/issue-bucket-state'
 import { BASE_LOGO_SIZE } from '../../utils/indicator-metrics'
 import { StatusIndicator, Status, getCurrentStatus } from './status-indicator'
 
@@ -84,9 +85,10 @@ export function NextLogo({
   const isMenuOpen = panel === 'panel-selector'
 
   const hasError = totalErrorCount > 0
-  // Only insights remain: use amber styling instead of red.
-  const insightsOnly =
-    hasError && normalErrorCount === 0 && instantErrorCount > 0
+  const { insightsOnly } = getIssueBucketState(
+    normalErrorCount,
+    instantErrorCount
+  )
   const [isErrorExpanded, setIsErrorExpanded] = useState(hasError)
   const [previousHasError, setPreviousHasError] = useState(hasError)
   if (previousHasError !== hasError) {
