@@ -216,12 +216,12 @@ export default function RootLayout({ children }) {
 }
 ```
 
-Alternatively, opt the segment out of instant-navigation validation with [`unstable_instant = false`](/docs/app/api-reference/file-conventions/route-segment-config/instant). The route renders on every request and the navigation blocks until the render completes:
+Alternatively, opt the segment out of instant-navigation validation with [`instant = false`](/docs/app/api-reference/file-conventions/route-segment-config/instant). The route renders on every request and the navigation blocks until the render completes:
 
 ```tsx filename="app/dashboard/layout.tsx" highlight={1,3}
 import { cookies } from 'next/headers'
 
-export const unstable_instant = false
+export const instant = false
 
 export async function generateViewport() {
   const cookieJar = await cookies()
@@ -235,7 +235,7 @@ export default function DashboardLayout({ children }) {
 }
 ```
 
-Setting `unstable_instant = false` opts only the segment that exports it out. Descendant segments are still validated by the global default. See [Next.js encountered runtime data in `generateViewport()`](/docs/messages/blocking-prerender-viewport-runtime) for the full set of fix options, trade-offs, and the subtree-wide opt-out.
+Setting `instant = false` opts only the segment that exports it out. Descendant segments are still validated by the global default. See [Next.js encountered runtime data in `generateViewport()`](/docs/messages/blocking-prerender-viewport-runtime) for the full set of fix options, trade-offs, and the subtree-wide opt-out.
 
 > **Good to know**: Use [multiple root layouts](/docs/app/api-reference/file-conventions/layout#root-layout) to isolate fully dynamic viewport to specific routes, while still letting other routes in your application generate a static shell.
 

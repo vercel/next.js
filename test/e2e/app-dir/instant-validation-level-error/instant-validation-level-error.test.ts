@@ -81,11 +81,11 @@ describe('instant validation - level error', () => {
            "cause": [
              {
                "label": "Caused by: Instant Validation",
-               "source": "app/explicit-error/page.tsx (8:33) @ unstable_instant
-         >  8 | export const unstable_instant = { level: 'experimental-error' as const }
-              |                                 ^",
+               "source": "app/explicit-error/page.tsx (8:24) @ instant
+         >  8 | export const instant = { level: 'experimental-error' as const }
+              |                        ^",
                "stack": [
-                 "unstable_instant app/explicit-error/page.tsx (8:33)",
+                 "instant app/explicit-error/page.tsx (8:24)",
                  "Set.forEach <anonymous>",
                ],
              },
@@ -111,11 +111,11 @@ describe('instant validation - level error', () => {
            "cause": [
              {
                "label": "Caused by: Instant Validation",
-               "source": "app/explicit-true/page.tsx (9:33) @ unstable_instant
-         >  9 | export const unstable_instant = true
-              |                                 ^",
+               "source": "app/explicit-true/page.tsx (9:24) @ instant
+         >  9 | export const instant = true
+              |                        ^",
                "stack": [
-                 "unstable_instant app/explicit-true/page.tsx (9:33)",
+                 "instant app/explicit-true/page.tsx (9:24)",
                  "Set.forEach <anonymous>",
                ],
              },
@@ -141,11 +141,11 @@ describe('instant validation - level error', () => {
            "cause": [
              {
                "label": "Caused by: Instant Validation",
-               "source": "app/explicit-warning/page.tsx (8:33) @ unstable_instant
-         >  8 | export const unstable_instant = { level: 'warning' as const }
-              |                                 ^",
+               "source": "app/explicit-warning/page.tsx (8:24) @ instant
+         >  8 | export const instant = { level: 'warning' as const }
+              |                        ^",
                "stack": [
-                 "unstable_instant app/explicit-warning/page.tsx (8:33)",
+                 "instant app/explicit-warning/page.tsx (8:24)",
                  "Set.forEach <anonymous>",
                ],
              },
@@ -171,7 +171,7 @@ describe('instant validation - level error', () => {
       })
 
       it('layered: bare page under layout-with-instant-false still validates', async () => {
-        // The intermediate layout exports `unstable_instant = false`, but
+        // The intermediate layout exports `instant = false`, but
         // that's per-segment — it doesn't shield descendants. The bare
         // page should still surface an instant redbox in dev.
         const browser = await next.browser('/layered')
@@ -206,7 +206,7 @@ describe('instant validation - level error', () => {
              https://nextjs.org/docs/messages/blocking-prerender-dynamic#wrap-in-or-move-into-suspense
            - [cache] Cache the data access with \`"use cache"\`
              https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
-           - [block] Set \`export const unstable_instant = false\` to silence this warning and allow a blocking route
+           - [block] Set \`export const instant = false\` to silence this warning and allow a blocking route
              https://nextjs.org/docs/messages/blocking-prerender-dynamic#allow-blocking-route
              at a (<anonymous>)
              at body (<anonymous>)
@@ -233,7 +233,7 @@ describe('instant validation - level error', () => {
              https://nextjs.org/docs/messages/blocking-prerender-dynamic#wrap-in-or-move-into-suspense
            - [cache] Cache the data access with \`"use cache"\`
              https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
-           - [block] Set \`export const unstable_instant = false\` to silence this warning and allow a blocking route
+           - [block] Set \`export const instant = false\` to silence this warning and allow a blocking route
              https://nextjs.org/docs/messages/blocking-prerender-dynamic#allow-blocking-route
              at a (<anonymous>)
              at body (<anonymous>)
@@ -260,7 +260,7 @@ describe('instant validation - level error', () => {
              https://nextjs.org/docs/messages/blocking-prerender-dynamic#wrap-in-or-move-into-suspense
            - [cache] Cache the data access with \`"use cache"\`
              https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
-           - [block] Set \`export const unstable_instant = false\` to silence this warning and allow a blocking route
+           - [block] Set \`export const instant = false\` to silence this warning and allow a blocking route
              https://nextjs.org/docs/messages/blocking-prerender-dynamic#allow-blocking-route
              at a (<anonymous>)
              at body (<anonymous>)
@@ -285,7 +285,7 @@ describe('instant validation - level error', () => {
       })
 
       it('layered: bare page under layout-with-instant-false still fails the build', async () => {
-        // The intermediate layout's `unstable_instant = false` doesn't
+        // The intermediate layout's `instant = false` doesn't
         // shield descendants. Build validation runs on the bare page and
         // fails because the 'experimental-error' level applies to build.
         const result = await prerender('/layered')
@@ -300,7 +300,7 @@ describe('instant validation - level error', () => {
              https://nextjs.org/docs/messages/blocking-prerender-dynamic#wrap-in-or-move-into-suspense
            - [cache] Cache the data access with \`"use cache"\`
              https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
-           - [block] Set \`export const unstable_instant = false\` to silence this warning and allow a blocking route
+           - [block] Set \`export const instant = false\` to silence this warning and allow a blocking route
              https://nextjs.org/docs/messages/blocking-prerender-dynamic#allow-blocking-route
              at a (<anonymous>)
              at body (<anonymous>)

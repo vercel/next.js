@@ -9,7 +9,7 @@ import { connection } from 'next/server'
  * - Layout varies on both category AND itemId → re-fetched when either changes
  * - Page varies only on category → cached when only itemId changes
  */
-export const unstable_instant: {
+export const instant: {
   unstable_samples: Array<{ params: { category: string; itemId: string } }>
 } = {
   unstable_samples: [

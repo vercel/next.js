@@ -121,7 +121,7 @@ pub struct NextSegmentConfig {
     pub generate_static_params: Option<Span>,
     #[turbo_tasks(trace_ignore)]
     #[bincode(with_serde)]
-    pub unstable_instant: Option<Span>,
+    pub instant: Option<Span>,
     #[turbo_tasks(trace_ignore)]
     #[bincode(with_serde)]
     pub prefetch: Option<Span>,
@@ -549,15 +549,15 @@ pub async fn parse_segment_config_from_source(
             .await?;
         }
 
-        if let Some(span) = config.unstable_instant {
+        if let Some(span) = config.instant {
             invalid_config(
                 source,
-                "unstable_instant",
+                "instant",
                 span,
                 rcstr!(
-                    "\"unstable_instant\" is a route segment config and can only be used when the \
-                     segment is a Server Component module. Remove the \"use client\" directive to \
-                     use this API."
+                    "\"instant\" is a route segment config and can only be used when the segment \
+                     is a Server Component module. Remove the \"use client\" directive to use \
+                     this API."
                 ),
                 None,
                 IssueSeverity::Error,
@@ -1001,8 +1001,8 @@ async fn parse_config_value(
         "generateStaticParams" => {
             config.generate_static_params = Some(span);
         }
-        "unstable_instant" => {
-            config.unstable_instant = Some(span);
+        "instant" => {
+            config.instant = Some(span);
         }
         "prefetch" => {
             config.prefetch = Some(span);

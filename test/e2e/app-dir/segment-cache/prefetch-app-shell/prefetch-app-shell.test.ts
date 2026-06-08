@@ -165,7 +165,7 @@ describe('App Shell prefetching', () => {
     )
   })
 
-  it('treats a segment with both unstable_instant and prefetch = "unstable_eager" as eager', async () => {
+  it('treats a segment with both instant and prefetch = "unstable_eager" as eager', async () => {
     let page: Playwright.Page
     const browser = await next.browser('/', {
       beforePageLoad(p: Playwright.Page) {
@@ -174,7 +174,7 @@ describe('App Shell prefetching', () => {
     })
     const act = createRouterAct(page)
 
-    // /eager-instant/[id] sets BOTH unstable_instant (which alone behaves like
+    // /eager-instant/[id] sets BOTH instant (which alone behaves like
     // 'partial' — not eager) and prefetch = 'unstable_eager'. The eager
     // opt-in wins, so the segment is treated as eager. Same two-link pattern as
     // the plain eager test: the first link primes the shared shell...

@@ -3540,7 +3540,7 @@
   },
   "test/e2e/app-dir/instant-validation-client/instant-validation-client.test.ts": {
     "passed": [
-      "app dir - instant-validation-client should error when a client component exports unstable_instant"
+      "app dir - instant-validation-client should error when a client component exports instant"
     ],
     "failed": [],
     "pending": [],

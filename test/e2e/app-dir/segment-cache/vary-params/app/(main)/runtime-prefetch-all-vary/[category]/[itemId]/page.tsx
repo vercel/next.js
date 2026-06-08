@@ -8,7 +8,7 @@ import { connection } from 'next/server'
  * are both tracked in varyParams. Every unique combination of (category, itemId)
  * requires its own prefetch — no cache sharing.
  */
-export const unstable_instant: {
+export const instant: {
   unstable_samples: Array<{ params: { category: string; itemId: string } }>
 } = {
   unstable_samples: [

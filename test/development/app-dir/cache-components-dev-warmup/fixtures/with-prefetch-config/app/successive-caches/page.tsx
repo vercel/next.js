@@ -1,4 +1,4 @@
-export const unstable_instant = true
+export const instant = true
 export const prefetch = 'allow-runtime'
 
 export default async function Page() {

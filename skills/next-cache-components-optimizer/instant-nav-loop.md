@@ -84,6 +84,6 @@ prefetch = 'allow-runtime'               route-level: permits runtime
                                          prefetching of private-cached
                                          content when <Link> is visible
 
-unstable_instant = false                 layout-level opt-out; escape
+instant = false                 layout-level opt-out; escape
                                          hatch, anti-pattern
 ```

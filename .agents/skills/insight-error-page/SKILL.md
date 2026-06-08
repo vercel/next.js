@@ -132,7 +132,7 @@ kind: insight
 - `use cache` directive (not `"use cache"` in prose)
 - Cache Components (capitalized)
 - static shell (link to `/docs/app/glossary#static-shell`)
-- `unstable_instant` (not `instant`)
+- `instant` (not `instant`)
 - `cacheLife` / `cacheTag` / `revalidateTag` / `updateTag` — use published names exactly
 - `connection()` from `next/server`
 - Client Component / Server Component (capitalized)
@@ -140,9 +140,9 @@ kind: insight
 
 ### Allow blocking route section (canonical pattern)
 
-When the framework card set includes `unstable_instant = false` (group `block`), use the canonical `## Allow blocking route` section shape. All pages with this fix must match. Cross-page consistency matters — diverging from this shape produces a page that reads like an outlier.
+When the framework card set includes `instant = false` (group `block`), use the canonical `## Allow blocking route` section shape. All pages with this fix must match. Cross-page consistency matters — diverging from this shape produces a page that reads like an outlier.
 
-**Intro**: One paragraph explaining what setting `unstable_instant` to `false` does and what the trade-off is. Optional second paragraph noting when this is _rarely_ the right answer (for example, on client-hook or cache fixes where a Suspense boundary is almost always feasible). Phrase the rarity directly. Do not write `Confirm with the user` in body prose — that phrasing belongs in `prompt={...}` agent strings, not in the page the user reads.
+**Intro**: One paragraph explaining what setting `instant` to `false` does and what the trade-off is. Optional second paragraph noting when this is _rarely_ the right answer (for example, on client-hook or cache fixes where a Suspense boundary is almost always feasible). Phrase the rarity directly. Do not write `Confirm with the user` in body prose — that phrasing belongs in `prompt={...}` agent strings, not in the page the user reads.
 
 **Patterns**: For page-body errors (runtime data, uncached data, client hooks), use both `#### Opt the page out` and `#### Opt the layout out`. For viewport errors, use only `#### Opt the layout out` (viewport always lives on a layout). Each pattern has:
 
@@ -156,7 +156,7 @@ After the pattern snippets, include a "Use either pattern when:" bulleted list (
 
 **Gotchas** (mandatory bullets, in this order):
 
-- Layout opt-out exempts every route in the subtree, not only the layout itself. Audit child routes before opting a shared layout out.
+- Setting `instant` to `false` opts out only the segment that exports it. Descendant segments remain validated by their own config or the global default.
 - This export does not disable prerendering. The route still prerenders if it can. It only silences the instant-navigation validation error.
 - Page-specific gotchas (for example, viewport pages add framework-synthesized routes gotcha) come after the two canonical bullets.
 
@@ -164,15 +164,16 @@ After the pattern snippets, include a "Use either pattern when:" bulleted list (
 
 ### Don't want this validation?
 
-Every insight page ends (just before `## Useful links`) with the canonical opt-out block. It teaches the reader how to silence validation per-segment and app-wide, since instant-navigation validation runs by default in Cache Components apps. Copy verbatim:
+Every insight page ends (just before `## Useful links`) with the canonical opt-out block. It teaches the reader how to silence validation per-segment, subtree-wide, and app-wide, since instant-navigation validation runs by default in Cache Components apps. Copy verbatim:
 
 ```mdx
 ## Don't want this validation?
 
 Instant-navigation validation runs by default in [Cache Components](/docs/app/api-reference/config/next-config-js/cacheComponents) apps and is what surfaces this error.
 
-- **One segment**: add [`export const unstable_instant = false`](/docs/app/api-reference/file-conventions/route-segment-config/instant) to the page or layout file. The segment is exempted from validation.
-- **Entire app**: set [`experimental.instantInsights.validationLevel`](/docs/app/api-reference/file-conventions/route-segment-config/instant#configuring-validation-defaults) to `'manual-warning'` in `next.config`. Validation runs only on segments that explicitly export `unstable_instant`.
+- **One segment**: add [`export const instant = false`](/docs/app/api-reference/file-conventions/route-segment-config/instant) to the page or layout file. This opts out the segment itself. Child segments are still validated during client navigations.
+- **Layout and its children**: add `export const instant = { unstable_disableValidation: true }` to a layout. This disables validation for that layout and every segment below it.
+- **Entire app**: set [`experimental.instantInsights.validationLevel`](/docs/app/api-reference/file-conventions/route-segment-config/instant#configuring-validation-defaults) to `'manual-warning'` in `next.config`. This limits validation to segments that explicitly export `instant`.
 
 See [Ensuring instant navigations](/docs/app/guides/instant-navigation) for the full model.
 ```
