@@ -12,4 +12,6 @@ module.exports = {
   },
   adapterPath:
     process.env.NEXT_ADAPTER_PATH ?? require.resolve('./my-adapter.mjs'),
+  // To generate all sourcemaps
+  productionBrowserSourceMaps: true,
 }
