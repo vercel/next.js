@@ -226,6 +226,9 @@ module.exports = ({ dev, turbo, bundleType, experimental, ...rest }) => {
         'process.env.__NEXT_EXPERIMENTAL_REACT': JSON.stringify(
           experimental ? true : false
         ),
+        ...(bundleType === 'app' || bundleType === 'app-worker'
+          ? { 'process.env.__NEXT_USE_NODE_STREAMS': JSON.stringify(true) }
+          : {}),
         'process.env.NEXT_RUNTIME': JSON.stringify('nodejs'),
         'process.turbopack': JSON.stringify(turbo),
         'process.env.TURBOPACK': JSON.stringify(turbo),

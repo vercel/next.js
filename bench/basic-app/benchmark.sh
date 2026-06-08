@@ -1,5 +1,5 @@
 #!/bin/bash
-# Benchmark script for comparing web streams vs node streams performance.
+# Benchmark script for Node streams render pipeline performance.
 # Uses the minimal server (bench/next-minimal-server) for lowest overhead.
 # Warms up with 50 requests, then runs two phases:
 #   Phase 1: 10s at concurrency=1   (single-client latency)
@@ -104,34 +104,19 @@ run_benchmark() {
   stop_server
 }
 
-echo "Benchmark: web streams vs node streams"
-echo "======================================="
+echo "Benchmark: node streams"
+echo "======================="
 echo "Duration: ${DURATION}s per phase | Warmup: ${WARMUP_REQS} reqs"
 echo "Server: minimal-server (minimalMode: true)"
 
-# --- Web Streams (default) ---
 cat > next.config.js <<'CONF'
 module.exports = {}
 CONF
 
 echo ""
-echo "Building (web streams)..."
+echo "Building..."
 node "$NEXT_BIN" build &>/dev/null
-run_benchmark "Web Streams (default)"
-
-# --- Node Streams ---
-cat > next.config.js <<'CONF'
-module.exports = {
-  experimental: {
-    useNodeStreams: true,
-  },
-}
-CONF
-
-echo ""
-echo "Building (node streams)..."
-node "$NEXT_BIN" build &>/dev/null
-run_benchmark "Node Streams (useNodeStreams: true)"
+run_benchmark "Node Streams (default)"
 
 # Restore config
 cat > next.config.js <<'CONF'

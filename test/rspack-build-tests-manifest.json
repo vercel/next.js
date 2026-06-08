@@ -22368,15 +22368,6 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/production/app-dir/use-node-streams-env-precedence/use-node-streams-env-precedence.test.ts": {
-    "passed": [
-      "use-node-streams env precedence should respect explicit useNodeStreams=false even when env flag is true"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
   "test/production/app-dir/worker-restart/worker-restart.test.ts": {
     "passed": [
       "worker-restart should fail the build if a worker process is killed",
