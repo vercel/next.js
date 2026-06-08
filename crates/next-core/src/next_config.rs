@@ -29,7 +29,10 @@ use turbopack_core::{
     module_graph::style_groups::StyleGroupsAlgorithm,
     resolve::ResolveAliasMap,
 };
-use turbopack_ecmascript::{OptionTreeShaking, TreeShakingMode};
+use turbopack_ecmascript::{
+    OptionTreeShaking, TreeShakingMode,
+    transform::{OptionReactCompilerCompilationMode, ReactCompilerCompilationMode},
+};
 use turbopack_ecmascript_plugins::transform::{
     emotion::EmotionTransformConfig, relay::RelayConfig,
     styled_components::StyledComponentsTransformConfig,
@@ -929,16 +932,6 @@ pub enum MdxRsOptions {
 
 #[turbo_tasks::value(shared, operation)]
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub enum ReactCompilerCompilationMode {
-    #[default]
-    Infer,
-    Annotation,
-    All,
-}
-
-#[turbo_tasks::value(shared, operation)]
-#[derive(Clone, Debug, Default, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum ReactCompilerPanicThreshold {
     #[default]
@@ -1327,6 +1320,8 @@ pub struct ExperimentalConfig {
     turbopack_local_postcss_config: Option<bool>,
     // Whether to enable the global-not-found convention
     global_not_found: Option<bool>,
+    /// Experimental Rust React compiler (Turbopack only); requires `reactCompiler`.
+    turbopack_rust_react_compiler: Option<bool>,
     /// Defaults to false in development mode, true in production mode.
     turbopack_remove_unused_imports: Option<bool>,
     /// Defaults to false in development mode, true in production mode.
@@ -2126,6 +2121,26 @@ impl NextConfig {
         };
 
         options.cell()
+    }
+
+    /// Returns compilation mode when both `reactCompiler` and `turbopackRustReactCompiler` are set;
+    /// `None` otherwise.
+    #[turbo_tasks::function]
+    pub fn rust_react_compiler(&self) -> Vc<OptionReactCompilerCompilationMode> {
+        let use_rust = self
+            .experimental
+            .turbopack_rust_react_compiler
+            .unwrap_or(false);
+        let mode = match (use_rust, &self.react_compiler) {
+            (true, Some(ReactCompilerOptionsOrBoolean::Boolean(true))) => {
+                Some(ReactCompilerCompilationMode::Infer)
+            }
+            (true, Some(ReactCompilerOptionsOrBoolean::Option(opts))) => {
+                Some(opts.compilation_mode)
+            }
+            _ => None,
+        };
+        Vc::cell(mode)
     }
 
     #[turbo_tasks::function]

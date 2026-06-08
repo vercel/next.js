@@ -232,6 +232,7 @@ impl ModuleOptions {
             ecmascript:
                 EcmascriptOptionsContext {
                     enable_jsx,
+                    enable_rust_react_compiler,
                     enable_types,
                     ref enable_typescript_transform,
                     ref enable_decorators,
@@ -301,6 +302,12 @@ impl ModuleOptions {
         let mut ecma_preprocess = vec![];
         let mut postprocess = vec![];
 
+        // Runs first so it sees the original source text (text-bridge re-parses after
+        // react_compiler_swc).
+        if let Some(compilation_mode) = enable_rust_react_compiler {
+            ecma_preprocess.push(EcmascriptInputTransform::ReactCompilerRust { compilation_mode });
+        }
+
         // Order of transforms is important. e.g. if the React transform occurs before
         // Styled JSX, there won't be JSX nodes for Styled JSX to transform.
         // If a custom plugin requires specific order _before_ core transform kicks in,
@@ -355,6 +362,9 @@ impl ModuleOptions {
             None
         };
 
+        // Snapshot before decorators so the TypeScript chain also includes e.g. ReactCompilerRust.
+        let extra_preprocess = ecma_preprocess.clone();
+
         if let Some(decorators_transform) = &decorators_transform {
             // Apply decorators transform for the ModuleType::Ecmascript as well after
             // constructing ts_app_transforms. Ecmascript can have decorators for
@@ -364,7 +374,9 @@ impl ModuleOptions {
             // Since typescript transform (`ts_app_transforms`) needs to apply decorators
             // _before_ stripping types, we create ts_app_transforms first in a
             // specific order with typescript, then apply decorators to app_transforms.
-            ecma_preprocess.splice(0..0, [decorators_transform.clone()]);
+            //
+            // Append so ReactCompilerRust (needs original source text) runs before decorators.
+            ecma_preprocess.push(decorators_transform.clone());
         }
 
         let ecma_preprocess = ResolvedVc::cell(ecma_preprocess);
@@ -723,10 +735,12 @@ impl ModuleOptions {
 
         if let Some(options) = enable_typescript_transform {
             let options = options.await?;
+            // Prepend extra_preprocess (e.g. ReactCompilerRust) so it runs before decorators and
+            // TypeScript.
             let ts_preprocess = ResolvedVc::cell(
-                decorators_transform
-                    .clone()
+                extra_preprocess
                     .into_iter()
+                    .chain(decorators_transform.clone())
                     .chain(std::iter::once(EcmascriptInputTransform::TypeScript {
                         use_define_for_class_fields: options.use_define_for_class_fields,
                         verbatim_module_syntax: options.verbatim_module_syntax,

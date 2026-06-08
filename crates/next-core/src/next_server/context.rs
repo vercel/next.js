@@ -555,6 +555,8 @@ pub async fn get_server_module_options_context(
     .flatten()
     .collect();
 
+    let enable_rust_react_compiler = *next_config.rust_react_compiler().await?;
+
     let source_maps = *next_config.server_source_maps().await?;
     let module_options_context = ModuleOptionsContext {
         ecmascript: EcmascriptOptionsContext {
@@ -659,6 +661,7 @@ pub async fn get_server_module_options_context(
                     enable_jsx: Some(jsx_runtime_options),
                     enable_typescript_transform: Some(tsconfig),
                     enable_decorators: Some(decorators_options.to_resolved().await?),
+                    enable_rust_react_compiler: None,
                     ..module_options_context.ecmascript
                 },
                 enable_webpack_loaders,
@@ -721,6 +724,7 @@ pub async fn get_server_module_options_context(
                     enable_jsx: Some(jsx_runtime_options),
                     enable_typescript_transform: Some(tsconfig),
                     enable_decorators: Some(decorators_options.to_resolved().await?),
+                    enable_rust_react_compiler,
                     ..module_options_context.ecmascript
                 },
                 enable_webpack_loaders,
@@ -801,6 +805,7 @@ pub async fn get_server_module_options_context(
                     enable_jsx: Some(rsc_jsx_runtime_options),
                     enable_typescript_transform: Some(tsconfig),
                     enable_decorators: Some(decorators_options.to_resolved().await?),
+                    enable_rust_react_compiler: None,
                     ..module_options_context.ecmascript
                 },
                 enable_webpack_loaders,
@@ -877,6 +882,7 @@ pub async fn get_server_module_options_context(
                     enable_jsx: Some(rsc_jsx_runtime_options),
                     enable_typescript_transform: Some(tsconfig),
                     enable_decorators: Some(decorators_options.to_resolved().await?),
+                    enable_rust_react_compiler: None,
                     ..module_options_context.ecmascript
                 },
                 enable_webpack_loaders,
@@ -964,6 +970,7 @@ pub async fn get_server_module_options_context(
                     enable_jsx: Some(jsx_runtime_options),
                     enable_typescript_transform: Some(tsconfig),
                     enable_decorators: Some(decorators_options.to_resolved().await?),
+                    enable_rust_react_compiler: None,
                     ..module_options_context.ecmascript
                 },
                 enable_webpack_loaders,
