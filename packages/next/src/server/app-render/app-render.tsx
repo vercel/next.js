@@ -4993,7 +4993,7 @@ function accumulateChunk(
 }
 
 async function countShellAndStaticStageBytes(
-  stream: AnyStream,
+  stream: Readable,
   stageController: StagedRenderingController
 ): Promise<
   Pick<StageByteLengths, RenderStage.ShellStatic | RenderStage.Static>
@@ -5005,21 +5005,12 @@ async function countShellAndStaticStageBytes(
   const endStage = getNextStage(RenderStage.Static)
   stageController.onStage(endStage, abortController.abort.bind(abortController))
 
-  if (stream instanceof ReadableStream) {
-    await countStageBytesUntilAbortWeb(
-      byteLengths,
-      stream,
-      stageController,
-      abortController.signal
-    )
-  } else {
-    await countStageBytesUntilAbortNode(
-      byteLengths,
-      stream,
-      stageController,
-      abortController.signal
-    )
-  }
+  await countStageBytesUntilAbortNode(
+    byteLengths,
+    stream,
+    stageController,
+    abortController.signal
+  )
   return byteLengths
 }
 
