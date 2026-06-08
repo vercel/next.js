@@ -83,6 +83,7 @@ export default defineRule({
     if (typeof pageExtensions === 'string') {
       pageExtensions = [pageExtensions]
     }
+    pageExtensions = pageExtensions.map((ext) => ext.trim().replace(/^\.+/, ''))
 
     const rootDirs = getRootDirs(context)
 

@@ -24,8 +24,9 @@ function parseUrlForPages(
     if (extension) {
       if (dirent.name === `index.${extension}`) {
         res.push(`${urlprefix}`)
+      } else {
+        res.push(`${urlprefix}${dirent.name.slice(0, -(extension.length + 1))}`)
       }
-      res.push(`${urlprefix}${dirent.name.slice(0, -(extension.length + 1))}`)
     } else {
       const dirPath = path.join(directory, dirent.name)
       if (dirent.isDirectory() && !dirent.isSymbolicLink()) {
