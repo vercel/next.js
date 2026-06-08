@@ -504,22 +504,28 @@ export function ErrorTabBar({
   return (
     <div className="error-overlay-tab-bar" data-nextjs-error-overlay-tab-bar>
       {previousButton}
-      {errorCount > 0 && (
-        <button
-          type="button"
-          className="error-overlay-tab"
-          data-active={activeTab === 'errors'}
-          onClick={() => onTabChange('errors')}
-        >
-          Issues
-          <span
-            className="error-overlay-tab-count"
-            data-active={activeTab === 'errors'}
-          >
-            {createCount(errorActiveIdx, errorCount, activeTab === 'errors')}
-          </span>
-        </button>
-      )}
+      <button
+        type="button"
+        className="error-overlay-tab"
+        data-active={activeTab === 'errors'}
+        disabled={errorCount === 0}
+        aria-disabled={errorCount === 0}
+        onClick={() => onTabChange('errors')}
+      >
+        {errorCount === 0 ? (
+          'No issues'
+        ) : (
+          <>
+            Issues
+            <span
+              className="error-overlay-tab-count"
+              data-active={activeTab === 'errors'}
+            >
+              {createCount(errorActiveIdx, errorCount, activeTab === 'errors')}
+            </span>
+          </>
+        )}
+      </button>
       {instantCount > 0 && (
         <button
           type="button"

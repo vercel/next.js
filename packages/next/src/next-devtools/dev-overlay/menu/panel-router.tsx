@@ -1,5 +1,10 @@
 import { usePanelRouterContext, type PanelStateKind } from './context'
-import { ChevronRight, DevtoolMenu, IssueCount } from './dev-overlay-menu'
+import {
+  ChevronRight,
+  DevtoolMenu,
+  IssueCount,
+  getIssueBucketState,
+} from './dev-overlay-menu'
 import { DynamicPanel } from '../panel/dynamic-panel'
 import {
   learnMoreLink,
@@ -38,22 +43,39 @@ const MenuPanel = () => {
   const { normalErrorCount, instantErrorCount } = useRenderErrorContext()
   const isAppRouter = state.routerType === 'app'
 
-  const hasNormal = normalErrorCount > 0
-  const hasInstant = instantErrorCount > 0
-  const insightsOnly = !hasNormal && hasInstant
-  const visibleErrorCount = hasNormal ? normalErrorCount : instantErrorCount
-  const label = insightsOnly ? 'Insights' : 'Issues'
-  const noun = insightsOnly ? 'insight' : 'issue'
+  const { hasNormal, hasInstant, hasAny, insightsOnly, variant } =
+    getIssueBucketState(normalErrorCount, instantErrorCount)
+  const label =
+    hasNormal && hasInstant
+      ? 'Issues · Insights'
+      : insightsOnly
+        ? 'Insights'
+        : 'Issues'
+  const titleParts: string[] = []
+  if (hasNormal) {
+    titleParts.push(
+      `${normalErrorCount} ${normalErrorCount === 1 ? 'issue' : 'issues'}`
+    )
+  }
+  if (hasInstant) {
+    titleParts.push(
+      `${instantErrorCount} ${instantErrorCount === 1 ? 'insight' : 'insights'}`
+    )
+  }
 
   return (
     <DevtoolMenu
       items={[
-        (hasNormal || hasInstant) && {
-          title: `${visibleErrorCount} ${visibleErrorCount === 1 ? noun : `${noun}s`} found. Click to view details in the dev overlay.`,
+        hasAny && {
+          title: `${titleParts.join(' · ')} found. Click to view details in the dev overlay.`,
           label,
           value: (
-            <IssueCount variant={insightsOnly ? 'insight' : 'issue'}>
-              {visibleErrorCount}
+            <IssueCount variant={variant} hasIssues={hasAny}>
+              {hasNormal && hasInstant
+                ? `${normalErrorCount} · ${instantErrorCount}`
+                : hasNormal
+                  ? normalErrorCount
+                  : instantErrorCount}
             </IssueCount>
           ),
           onClick: () => {

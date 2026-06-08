@@ -318,20 +318,48 @@ function getClickableItemsCount(
 export function IssueCount({
   children,
   variant = 'issue',
+  hasIssues,
 }: {
-  children: number
+  children: React.ReactNode
   variant?: 'issue' | 'insight'
+  hasIssues?: boolean
 }) {
   return (
     <span
       className="dev-tools-indicator-issue-count"
-      data-has-issues={children > 0}
+      data-has-issues={
+        hasIssues ?? (typeof children === 'number' && children > 0)
+      }
       data-variant={variant}
     >
       <span className="dev-tools-indicator-issue-count-indicator" />
       {children}
     </span>
   )
+}
+
+export type IssueBucketState = {
+  hasNormal: boolean
+  hasInstant: boolean
+  hasAny: boolean
+  insightsOnly: boolean
+  variant: 'issue' | 'insight'
+}
+
+export function getIssueBucketState(
+  normalErrorCount: number,
+  instantErrorCount: number
+): IssueBucketState {
+  const hasNormal = normalErrorCount > 0
+  const hasInstant = instantErrorCount > 0
+  const insightsOnly = !hasNormal && hasInstant
+  return {
+    hasNormal,
+    hasInstant,
+    hasAny: hasNormal || hasInstant,
+    insightsOnly,
+    variant: insightsOnly ? 'insight' : 'issue',
+  }
 }
 
 export function ChevronRight() {
