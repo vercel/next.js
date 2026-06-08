@@ -1,4 +1,4 @@
-;!function(){try { var e="undefined"!=typeof globalThis?globalThis:"undefined"!=typeof global?global:"undefined"!=typeof window?window:"undefined"!=typeof self?self:{},n=(new e.Error).stack;n&&((e._debugIds|| (e._debugIds={}))[n]="10b725f6-0979-dcb8-6d04-f7f42400db60")}catch(e){}}();
+;!function(){try { var e="undefined"!=typeof globalThis?globalThis:"undefined"!=typeof global?global:"undefined"!=typeof window?window:"undefined"!=typeof self?self:{},n=(new e.Error).stack;n&&((e._debugIds|| (e._debugIds={}))[n]="66516bcd-473e-2cdd-712a-f3f1d535fbca")}catch(e){}}();
 (globalThis["TURBOPACK"] || (globalThis["TURBOPACK"] = [])).push([
     "output/1i9t_crates_turbopack-tests_tests_snapshot_debug-ids_browser_input_index_19boa0e.js",
     {"otherChunks":["output/1do3_crates_turbopack-tests_tests_snapshot_debug-ids_browser_input_index_03ibyvs.js"],"runtimeModuleIds":["[project]/turbopack/crates/turbopack-tests/tests/snapshot/debug-ids/browser/input/index.js [test] (ecmascript)"]}
@@ -827,14 +827,6 @@ function isJs(chunkUrlOrPath) {
 function isCss(chunkUrl) {
     return endsWithExtension(chunkUrl, '.css');
 }
-function loadWebAssembly(chunkPath, edgeModule, importsObj) {
-    return BACKEND.loadWebAssembly(SourceType.Parent, this.m.id, chunkPath, edgeModule, importsObj);
-}
-contextPrototype.w = loadWebAssembly;
-function loadWebAssemblyModule(chunkPath, edgeModule) {
-    return BACKEND.loadWebAssemblyModule(SourceType.Parent, this.m.id, chunkPath, edgeModule);
-}
-contextPrototype.u = loadWebAssemblyModule;
 /// <reference path="./runtime-utils.ts" />
 /// <reference path="./runtime-types.d.ts" />
 /// <reference path="./dev-extensions.ts" />
@@ -1992,15 +1984,6 @@ let BACKEND;
      * has been loaded.
      */ loadChunkCached (sourceType, chunkUrl) {
             return doLoadChunk(sourceType, chunkUrl);
-        },
-        async loadWebAssembly (_sourceType, _sourceData, wasmChunkPath, _edgeModule, importsObj) {
-            const req = fetchWebAssembly(wasmChunkPath);
-            const { instance } = await WebAssembly.instantiateStreaming(req, importsObj);
-            return instance.exports;
-        },
-        async loadWebAssemblyModule (_sourceType, _sourceData, wasmChunkPath, _edgeModule) {
-            const req = fetchWebAssembly(wasmChunkPath);
-            return await WebAssembly.compileStreaming(req);
         }
     };
     function getOrCreateResolver(chunkUrl) {
@@ -2112,9 +2095,6 @@ let BACKEND;
         }
         resolver.loadingStarted = true;
         return resolver.promise;
-    }
-    function fetchWebAssembly(wasmChunkPath) {
-        return fetch(getChunkRelativeUrl(wasmChunkPath));
     }
 })();
 /**
@@ -2233,5 +2213,5 @@ chunkListsToRegister.forEach(registerChunkList);
 })();
 
 
-//# debugId=10b725f6-0979-dcb8-6d04-f7f42400db60
+//# debugId=66516bcd-473e-2cdd-712a-f3f1d535fbca
 //# sourceMappingURL=1do3_crates_turbopack-tests_tests_snapshot_debug-ids_browser_input_index_19boa0e.js.map

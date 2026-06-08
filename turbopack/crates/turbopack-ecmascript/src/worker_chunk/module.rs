@@ -17,7 +17,7 @@ use turbopack_core::{
     output::{OutputAsset, OutputAssets, OutputAssetsWithReferenced},
     reference::{ModuleReference, ModuleReferences, SingleChunkableModuleReference},
     reference_type::{EcmaScriptModulesReferenceSubType, ReferenceType},
-    resolve::{ExportUsage, ModulePart, ModuleResolveResult},
+    resolve::{ExportUsage, ModuleResolveResult},
 };
 
 use super::worker_type::WorkerType;
@@ -149,9 +149,7 @@ impl WorkerLoaderModule {
             .asset_context
             .process(
                 Vc::upcast(FileSource::new(embed_fs().root().await?.join(&helper)?)),
-                ReferenceType::EcmaScriptModules(EcmaScriptModulesReferenceSubType::ImportPart(
-                    ModulePart::Export(rcstr!("default")),
-                )),
+                ReferenceType::EcmaScriptModules(EcmaScriptModulesReferenceSubType::Import),
             )
             .module())
     }

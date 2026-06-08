@@ -826,14 +826,6 @@ function isJs(chunkUrlOrPath) {
 function isCss(chunkUrl) {
     return endsWithExtension(chunkUrl, '.css');
 }
-function loadWebAssembly(chunkPath, edgeModule, importsObj) {
-    return BACKEND.loadWebAssembly(SourceType.Parent, this.m.id, chunkPath, edgeModule, importsObj);
-}
-contextPrototype.w = loadWebAssembly;
-function loadWebAssemblyModule(chunkPath, edgeModule) {
-    return BACKEND.loadWebAssemblyModule(SourceType.Parent, this.m.id, chunkPath, edgeModule);
-}
-contextPrototype.u = loadWebAssemblyModule;
 /// <reference path="./runtime-utils.ts" />
 /// <reference path="./runtime-types.d.ts" />
 /// <reference path="./dev-extensions.ts" />
@@ -1991,15 +1983,6 @@ let BACKEND;
      * has been loaded.
      */ loadChunkCached (sourceType, chunkUrl) {
             return doLoadChunk(sourceType, chunkUrl);
-        },
-        async loadWebAssembly (_sourceType, _sourceData, wasmChunkPath, _edgeModule, importsObj) {
-            const req = fetchWebAssembly(wasmChunkPath);
-            const { instance } = await WebAssembly.instantiateStreaming(req, importsObj);
-            return instance.exports;
-        },
-        async loadWebAssemblyModule (_sourceType, _sourceData, wasmChunkPath, _edgeModule) {
-            const req = fetchWebAssembly(wasmChunkPath);
-            return await WebAssembly.compileStreaming(req);
         }
     };
     function getOrCreateResolver(chunkUrl) {
@@ -2111,9 +2094,6 @@ let BACKEND;
         }
         resolver.loadingStarted = true;
         return resolver.promise;
-    }
-    function fetchWebAssembly(wasmChunkPath) {
-        return fetch(getChunkRelativeUrl(wasmChunkPath));
     }
 })();
 /**

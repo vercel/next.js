@@ -3,7 +3,6 @@
 /// <reference path="../../shared/runtime/runtime-utils.ts" />
 /// <reference path="../../shared-node/base-externals-utils.ts" />
 /// <reference path="../../shared-node/node-externals-utils.ts" />
-/// <reference path="../../shared-node/node-wasm-utils.ts" />
 /// <reference path="./nodejs-globals.d.ts" />
 
 /**
@@ -143,26 +142,9 @@ function loadChunkAsyncByUrl<TModule extends Module>(
 }
 contextPrototype.L = loadChunkAsyncByUrl
 
-function loadWebAssembly(
-  chunkPath: ChunkPath,
-  _edgeModule: () => WebAssembly.Module,
-  imports: WebAssembly.Imports
-) {
-  const resolved = path.resolve(RUNTIME_ROOT, chunkPath)
-
-  return instantiateWebAssemblyFromPath(resolved, imports)
-}
-contextPrototype.w = loadWebAssembly
-
-function loadWebAssemblyModule(
-  chunkPath: ChunkPath,
-  _edgeModule: () => WebAssembly.Module
-) {
-  const resolved = path.resolve(RUNTIME_ROOT, chunkPath)
-
-  return compileWebAssemblyFromPath(resolved)
-}
-contextPrototype.u = loadWebAssemblyModule
+// Shared runtime primitive: the root that on-disk chunk paths are resolved
+// against. Used by the bundled wasm helper (exposed as `__turbopack_runtime_root__`).
+contextPrototype.w = RUNTIME_ROOT
 
 const regexJsUrl = /\.js(?:\?[^#]*)?(?:#.*)?$/
 /**
