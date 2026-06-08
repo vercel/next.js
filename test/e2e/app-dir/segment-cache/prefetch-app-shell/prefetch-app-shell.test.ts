@@ -93,7 +93,7 @@ describe('App Shell prefetching', () => {
     }, 'no-requests')
   })
 
-  it('skips the per-link Speculative prefetch for a route with unstable_prefetch = "partial"', async () => {
+  it('skips the per-link Speculative prefetch for a route with prefetch = "partial"', async () => {
     let page: Playwright.Page
     const browser = await next.browser('/', {
       beforePageLoad(p: Playwright.Page) {
@@ -129,7 +129,7 @@ describe('App Shell prefetching', () => {
     }, 'no-requests')
   })
 
-  it('does NOT skip the Speculative prefetch for a route with unstable_prefetch = "unstable_eager"', async () => {
+  it('does NOT skip the Speculative prefetch for a route with prefetch = "unstable_eager"', async () => {
     let page: Playwright.Page
     const browser = await next.browser('/', {
       beforePageLoad(p: Playwright.Page) {
@@ -165,7 +165,7 @@ describe('App Shell prefetching', () => {
     )
   })
 
-  it('treats a segment with both unstable_instant and unstable_prefetch = "unstable_eager" as eager', async () => {
+  it('treats a segment with both unstable_instant and prefetch = "unstable_eager" as eager', async () => {
     let page: Playwright.Page
     const browser = await next.browser('/', {
       beforePageLoad(p: Playwright.Page) {
@@ -175,7 +175,7 @@ describe('App Shell prefetching', () => {
     const act = createRouterAct(page)
 
     // /eager-instant/[id] sets BOTH unstable_instant (which alone behaves like
-    // 'partial' — not eager) and unstable_prefetch = 'unstable_eager'. The eager
+    // 'partial' — not eager) and prefetch = 'unstable_eager'. The eager
     // opt-in wins, so the segment is treated as eager. Same two-link pattern as
     // the plain eager test: the first link primes the shared shell...
     await act(async () => {

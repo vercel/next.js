@@ -2,7 +2,7 @@ export const unstable_instant = {
   unstable_samples: [{ cookies: [] }],
   unstable_disableValidation: true,
 }
-export const unstable_prefetch = 'allow-runtime'
+export const prefetch = 'allow-runtime'
 
 export default function Layout({ children }) {
   return <>{children}</>

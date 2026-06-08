@@ -3,7 +3,7 @@ import { Suspense } from 'react'
 import { ensureThrows } from '../../../../ensure-error'
 
 export const unstable_instant = { level: 'experimental-error' }
-export const unstable_prefetch = 'allow-runtime'
+export const prefetch = 'allow-runtime'
 
 export default async function Page() {
   return (

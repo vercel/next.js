@@ -2,7 +2,7 @@ import { Suspense } from 'react'
 import { Static, Runtime, Dynamic } from '../shared'
 
 export const unstable_instant = true
-export const unstable_prefetch = 'allow-runtime'
+export const prefetch = 'allow-runtime'
 
 export default function Root({ children }: { children: React.ReactNode }) {
   return (

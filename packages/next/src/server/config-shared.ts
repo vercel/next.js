@@ -1770,8 +1770,8 @@ export interface NextConfig {
   /**
    * Opts the whole app into Partial Prefetching: `<Link prefetch={true}>`
    * prefetches only the static parts of a route, never its dynamic data.
-   * When `true`, the default segment-level `unstable_prefetch` becomes
-   * `'partial'`; per-segment `unstable_prefetch` exports still win. Requires
+   * When `true`, the default segment-level `prefetch` becomes
+   * `'partial'`; per-segment `prefetch` exports still win. Requires
    * `cacheComponents: true`.
    *
    * When `false` or omitted, this does nothing (the legacy behavior, where

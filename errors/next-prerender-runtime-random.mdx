@@ -23,7 +23,7 @@ If your random value is cacheable, move the `Math.random()` call to a `"use cach
 Before:
 
 ```jsx filename="app/page.js"
-export const unstable_prefetch = 'allow-runtime'
+export const prefetch = 'allow-runtime'
 
 export default async function Page({ params }) {
   const { category } = await params
@@ -37,7 +37,7 @@ export default async function Page({ params }) {
 After:
 
 ```jsx filename="app/page.js"
-export const unstable_prefetch = 'allow-runtime'
+export const prefetch = 'allow-runtime'
 
 async function RandomizedProductsView({ category }) {
   'use cache'
@@ -62,7 +62,7 @@ If you want the random value to be evaluated on each Request precede it with `aw
 Before:
 
 ```jsx filename="app/page.js"
-export const unstable_prefetch = 'allow-runtime'
+export const prefetch = 'allow-runtime'
 
 export default async function Page({ params }) {
   const { category } = await params
@@ -76,7 +76,7 @@ export default async function Page({ params }) {
 After:
 
 ```jsx filename="app/page.js"
-export const unstable_prefetch = 'allow-runtime'
+export const prefetch = 'allow-runtime'
 
 import { connection } from 'next/server'
 

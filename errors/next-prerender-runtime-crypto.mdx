@@ -19,7 +19,7 @@ If you are generating a token to talk to a database that itself should be cached
 Before:
 
 ```jsx filename="app/page.js"
-export const unstable_prefetch = 'allow-runtime'
+export const prefetch = 'allow-runtime'
 
 async function getCachedData(token: string, userId: string) {
   "use cache"
@@ -37,7 +37,7 @@ export default async function Page({ params }) {
 After:
 
 ```jsx filename="app/page.js"
-export const unstable_prefetch = 'allow-runtime'
+export const prefetch = 'allow-runtime'
 
 async function getCachedData(userId: string) {
   "use cache"
@@ -59,7 +59,7 @@ If you require this random value to be unique per Request and an async version o
 Before:
 
 ```jsx filename="app/page.js"
-export const unstable_prefetch = 'allow-runtime'
+export const prefetch = 'allow-runtime'
 
 import { generateKeySync } from 'node:crypto'
 
@@ -75,7 +75,7 @@ export default async function Page({ params }) {
 After:
 
 ```jsx filename="app/page.js"
-export const unstable_prefetch = 'allow-runtime'
+export const prefetch = 'allow-runtime'
 
 import { generateKey } from 'node:crypto'
 
@@ -95,7 +95,7 @@ If you require this random value to be unique per Request and an async version o
 Before:
 
 ```jsx filename="app/page.js"
-export const unstable_prefetch = 'allow-runtime'
+export const prefetch = 'allow-runtime'
 
 export default async function Page({ params }) {
   const { sessionId } = await params
@@ -107,7 +107,7 @@ export default async function Page({ params }) {
 After:
 
 ```jsx filename="app/page.js"
-export const unstable_prefetch = 'allow-runtime'
+export const prefetch = 'allow-runtime'
 
 import { connection } from 'next/server'
 

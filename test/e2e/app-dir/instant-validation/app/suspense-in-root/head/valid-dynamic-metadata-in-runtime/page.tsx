@@ -4,7 +4,7 @@ import { connection } from 'next/server'
 import { Suspense } from 'react'
 
 export const unstable_instant = { level: 'experimental-error' }
-export const unstable_prefetch = 'allow-runtime'
+export const prefetch = 'allow-runtime'
 
 export async function generateMetadata(): Promise<Metadata> {
   await connection()

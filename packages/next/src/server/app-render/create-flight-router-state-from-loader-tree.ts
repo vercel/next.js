@@ -30,8 +30,8 @@ async function createFlightRouterStateFromLoaderTreeImpl(
     {},
   ]
 
-  // Load the layout or page module to check for unstable_instant/unstable_prefetch
-  // config. When a segment doesn't export unstable_prefetch, it defaults to
+  // Load the layout or page module to check its unstable_instant and prefetch
+  // configs. When a segment doesn't export prefetch, it defaults to
   // 'partial' if the app has opted into partial prefetching globally via the
   // `partialPrefetching` config in next.config.js.
   const mod = layout ? await layout[0]() : page ? await page[0]() : undefined
@@ -39,7 +39,7 @@ async function createFlightRouterStateFromLoaderTreeImpl(
     ? (mod as AppSegmentConfig).unstable_instant
     : undefined
   const prefetchConfig =
-    (mod ? (mod as AppSegmentConfig).unstable_prefetch : undefined) ??
+    (mod ? (mod as AppSegmentConfig).prefetch : undefined) ??
     (partialPrefetching === 'unstable_eager'
       ? 'unstable_eager'
       : partialPrefetching

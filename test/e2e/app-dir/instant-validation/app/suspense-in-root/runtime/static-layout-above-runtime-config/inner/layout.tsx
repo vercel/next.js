@@ -4,7 +4,7 @@ import { ReactNode } from 'react'
 // runtime prefetching to handle dynamic data, but the parent layout
 // above this one gets static prefetching by default and blocks.
 export const unstable_instant = { level: 'experimental-error' }
-export const unstable_prefetch = 'allow-runtime'
+export const prefetch = 'allow-runtime'
 
 export default function InnerLayout({ children }: { children: ReactNode }) {
   return (

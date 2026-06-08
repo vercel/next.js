@@ -47,11 +47,11 @@ Set the instant cookie (per shared `instant cookie` section) any time after the 
 
 Apply the shared lever rules from SKILL.md; push-down recipes work at layouts too.
 
-**Nav-only third lever: private cache + runtime prefetch.** For I/O that reads `cookies()` / `headers()` / `searchParams`, shared `'use cache'` won't help — those reads bail to dynamic. Use `'use cache: private'` + `cacheLife({ stale: N })` on **the scope that encloses the request-API read** (see scope rule below), plus `unstable_prefetch = 'allow-runtime'` as a route segment config (page or layout export) on the segment that owns the private content. Private-cache results live only in the browser — **never stored on the server** — so allowing runtime prefetching lets Next.js resolve them at link-visibility time with the user's session; the click commits with cookie-derived data already in place.
+**Nav-only third lever: private cache + runtime prefetch.** For I/O that reads `cookies()` / `headers()` / `searchParams`, shared `'use cache'` won't help — those reads bail to dynamic. Use `'use cache: private'` + `cacheLife({ stale: N })` on **the scope that encloses the request-API read** (see scope rule below), plus `prefetch = 'allow-runtime'` as a route segment config (page or layout export) on the segment that owns the private content. Private-cache results live only in the browser — **never stored on the server** — so allowing runtime prefetching lets Next.js resolve them at link-visibility time with the user's session; the click commits with cookie-derived data already in place.
 
 **Scope rule when cookie-read and data-fetch live in different frames.** The directive's semantics are about the cache scope enclosing the request-API call, not "the I/O function" as a label. If a page reads `cookies()` and passes the value into a separate fetch helper, putting `'use cache: private'` on the helper alone leaves the cookie read outside any cache scope and the segment stays dynamic. Either move the directive up to the frame that reads cookies, or move the cookie read down into the helper. Compiles and typechecks either way — only runtime behavior tells you which is correct.
 
-The `unstable_prefetch` flag applies to the segment plus every descendant — put it on the most ancestral segment with runtime-cacheable content (layout-level covers all child pages; page-level covers only that page). Server Component only (not allowed with `"use client"`); requires `cacheComponents: true`. Valid values: `'auto'` (default) / `'force-disabled'` / `'force-static'` / `'allow-runtime'`. It doesn't make any segment cacheable on its own (each still needs `'use cache: private'`), doesn't help cold loads (no `<Link>` to prefetch from), and doesn't override `await connection()`.
+The `prefetch` flag applies to the segment plus every descendant — put it on the most ancestral segment with runtime-cacheable content (layout-level covers all child pages; page-level covers only that page). Server Component only (not allowed with `"use client"`); requires `cacheComponents: true`. Valid values: `'auto'` (default) / `'force-disabled'` / `'force-static'` / `'allow-runtime'`. It doesn't make any segment cacheable on its own (each still needs `'use cache: private'`), doesn't help cold loads (no `<Link>` to prefetch from), and doesn't override `await connection()`.
 
 ### verify
 
@@ -80,7 +80,7 @@ agent-browser pushstate <url>            client-side navigation (no
 'use cache: private'                     per-session cache; cookies /
                                          headers / searchParams reads ok
 
-unstable_prefetch = 'allow-runtime'      route-level: permits runtime
+prefetch = 'allow-runtime'               route-level: permits runtime
                                          prefetching of private-cached
                                          content when <Link> is visible
 

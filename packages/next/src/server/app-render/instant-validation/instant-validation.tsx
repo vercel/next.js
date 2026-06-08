@@ -1187,13 +1187,12 @@ export async function createCombinedPayloadAtDepth(
         : createChildSegmentPath(parentPath, key!, segment)
 
     let instantConfig: Instant | null = null
-    let prefetchConfig: AppSegmentConfig['unstable_prefetch'] | null = null
+    let prefetchConfig: AppSegmentConfig['prefetch'] | null = null
     let localCreateInstantStack: (() => Error) | null = null
     if (layoutOrPageMod !== undefined) {
       instantConfig =
         (layoutOrPageMod as AppSegmentConfig).unstable_instant ?? null
-      prefetchConfig =
-        (layoutOrPageMod as AppSegmentConfig).unstable_prefetch ?? null
+      prefetchConfig = (layoutOrPageMod as AppSegmentConfig).prefetch ?? null
 
       // When the default validation level is active and this is a page or
       // default segment without an explicit config, treat it as if

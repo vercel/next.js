@@ -4,7 +4,7 @@ import { connection } from 'next/server'
 
 type Params = { id: string }
 
-export const unstable_prefetch = 'allow-runtime'
+export const prefetch = 'allow-runtime'
 
 export default function Page({ params }: { params: Promise<Params> }) {
   return (

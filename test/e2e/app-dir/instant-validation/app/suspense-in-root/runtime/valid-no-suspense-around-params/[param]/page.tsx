@@ -5,7 +5,7 @@ export const unstable_instant = {
   level: 'experimental-error',
   unstable_samples: [{ cookies: [], params: { param: '123' } }],
 }
-export const unstable_prefetch = 'allow-runtime'
+export const prefetch = 'allow-runtime'
 
 export default async function Page({
   params,

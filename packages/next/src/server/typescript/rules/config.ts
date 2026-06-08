@@ -156,8 +156,8 @@ const API_DOCS: Record<
     // `getSemanticDiagnosticsForExportVariableStatement` below, and only provide hover a tooltip + autocomplete.
     insertText: 'unstable_instant = true;',
   },
-  unstable_prefetch: {
-    description: `Controls prefetching behavior for this segment. This configuration is currently under development and will change.`,
+  prefetch: {
+    description: `Controls prefetching behavior for this segment. Some options are experimental and may change.`,
     link: '(docs coming soon)',
     type: `"auto" | "partial" | "unstable_eager" | "force-disabled" | "allow-runtime"`,
     options: {
@@ -172,7 +172,7 @@ const API_DOCS: Record<
       'allow-runtime':
         'Allows Next.js to prefetch this segment with a runtime server request so it can access session data, such as cookies.',
     },
-    insertText: `unstable_prefetch = 'allow-runtime';`,
+    insertText: `prefetch = 'allow-runtime';`,
   },
   unstable_dynamicStaleTime: {
     description: `Controls how long the client-side router cache retains dynamic page data (in seconds). Pages only — not allowed in layouts. Cannot be combined with \`unstable_instant\`.`,
