@@ -504,36 +504,42 @@ export function ErrorTabBar({
   return (
     <div className="error-overlay-tab-bar" data-nextjs-error-overlay-tab-bar>
       {previousButton}
-      <button
-        type="button"
-        className="error-overlay-tab"
-        data-active={activeTab === 'errors'}
-        disabled={errorCount === 0}
-        onClick={() => onTabChange('errors')}
-      >
-        Issues
-        <span
-          className="error-overlay-tab-count"
+      {errorCount > 0 && (
+        <button
+          type="button"
+          className="error-overlay-tab"
           data-active={activeTab === 'errors'}
+          onClick={() => onTabChange('errors')}
         >
-          {createCount(errorActiveIdx, errorCount, activeTab === 'errors')}
-        </span>
-      </button>
-      <button
-        type="button"
-        className="error-overlay-tab"
-        data-active={activeTab === 'instant'}
-        disabled={instantCount === 0}
-        onClick={() => onTabChange('instant')}
-      >
-        Insights
-        <span
-          className="error-overlay-tab-count"
+          Issues
+          <span
+            className="error-overlay-tab-count"
+            data-active={activeTab === 'errors'}
+          >
+            {createCount(errorActiveIdx, errorCount, activeTab === 'errors')}
+          </span>
+        </button>
+      )}
+      {instantCount > 0 && (
+        <button
+          type="button"
+          className="error-overlay-tab"
           data-active={activeTab === 'instant'}
+          onClick={() => onTabChange('instant')}
         >
-          {createCount(instantActiveIdx, instantCount, activeTab === 'instant')}
-        </span>
-      </button>
+          Insights
+          <span
+            className="error-overlay-tab-count"
+            data-active={activeTab === 'instant'}
+          >
+            {createCount(
+              instantActiveIdx,
+              instantCount,
+              activeTab === 'instant'
+            )}
+          </span>
+        </button>
+      )}
       {nextButton}
     </div>
   )
@@ -711,9 +717,7 @@ Next.js version: ${props.versionInfo.installed} (${process.env.__NEXT_BUNDLER})\
     getErrorSource(error) || ''
   )
 
-  // Show the tab bar whenever there are instant errors so the user
-  // knows they're looking at an insight, even if the other tab is empty.
-  const showTabBar = instantErrors.length > 0
+  const showTabBar = normalErrors.length > 0 || instantErrors.length > 0
   const renderTabBar = showTabBar
     ? ({
         previousButton,

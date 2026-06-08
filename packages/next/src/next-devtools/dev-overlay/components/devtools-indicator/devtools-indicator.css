@@ -105,6 +105,11 @@
     --color-secondary: var(--color-red-100);
   }
 
+  &[data-has-issues='true'][data-variant='insight'] {
+    --color-primary: var(--color-amber-800);
+    --color-secondary: var(--color-amber-100);
+  }
+
   .dev-tools-indicator-issue-count-indicator {
     width: var(--size-8);
     height: var(--size-8);

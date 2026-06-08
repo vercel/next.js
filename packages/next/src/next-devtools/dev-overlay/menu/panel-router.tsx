@@ -35,16 +35,27 @@ import { CacheDisabledBody } from '../components/errors/dev-tools-indicator/dev-
 const MenuPanel = () => {
   const { setPanel, setSelectedIndex } = usePanelRouterContext()
   const { state, dispatch } = useDevOverlayContext()
-  const { totalErrorCount } = useRenderErrorContext()
+  const { normalErrorCount, instantErrorCount } = useRenderErrorContext()
   const isAppRouter = state.routerType === 'app'
+
+  const hasNormal = normalErrorCount > 0
+  const hasInstant = instantErrorCount > 0
+  const insightsOnly = !hasNormal && hasInstant
+  const visibleErrorCount = hasNormal ? normalErrorCount : instantErrorCount
+  const label = insightsOnly ? 'Insights' : 'Issues'
+  const noun = insightsOnly ? 'insight' : 'issue'
 
   return (
     <DevtoolMenu
       items={[
-        totalErrorCount > 0 && {
-          title: `${totalErrorCount} ${totalErrorCount === 1 ? 'issue' : 'issues'} found. Click to view details in the dev overlay.`,
-          label: 'Issues',
-          value: <IssueCount>{totalErrorCount}</IssueCount>,
+        (hasNormal || hasInstant) && {
+          title: `${visibleErrorCount} ${visibleErrorCount === 1 ? noun : `${noun}s`} found. Click to view details in the dev overlay.`,
+          label,
+          value: (
+            <IssueCount variant={insightsOnly ? 'insight' : 'issue'}>
+              {visibleErrorCount}
+            </IssueCount>
+          ),
           onClick: () => {
             if (state.isErrorOverlayOpen) {
               dispatch({
@@ -55,11 +66,9 @@ const MenuPanel = () => {
             }
             setPanel(null)
             setSelectedIndex(-1)
-            if (totalErrorCount > 0) {
-              dispatch({
-                type: ACTION_ERROR_OVERLAY_OPEN,
-              })
-            }
+            dispatch({
+              type: ACTION_ERROR_OVERLAY_OPEN,
+            })
           },
         },
         state.staticIndicator === 'disabled'
