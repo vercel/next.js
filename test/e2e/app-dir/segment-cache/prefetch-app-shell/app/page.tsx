@@ -6,7 +6,7 @@ export default function Page() {
     <main>
       <h1>Home</h1>
 
-      <h2>Dynamic posts (force-runtime)</h2>
+      <h2>Dynamic posts (allow-runtime)</h2>
       <p>
         These posts read request-time data (cookies). Their App Shell is the
         part of the page that doesn&apos;t depend on the URL params, so it can

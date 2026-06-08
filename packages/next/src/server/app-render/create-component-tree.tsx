@@ -239,7 +239,7 @@ async function createComponentTreeInternal(
   const prefetchConfig = layoutOrPageMod
     ? (layoutOrPageMod as AppSegmentConfig).unstable_prefetch
     : undefined
-  const hasRuntimePrefetch = prefetchConfig === 'force-runtime'
+  const hasRuntimePrefetch = prefetchConfig === 'allow-runtime'
   const isRuntimePrefetchable = hasRuntimePrefetch || parentRuntimePrefetchable
 
   const [Forbidden, forbiddenStyles] =

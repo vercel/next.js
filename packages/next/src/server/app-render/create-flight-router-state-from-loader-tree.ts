@@ -115,19 +115,19 @@ async function createFlightRouterStateFromLoaderTreeImpl(
       PrefetchHint.SubtreeHasEagerPrefetch
   } else if (prefetchConfig === 'force-disabled') {
     prefetchHints |= PrefetchHint.PrefetchDisabled
-  } else if (prefetchConfig === 'force-runtime') {
+  } else if (prefetchConfig === 'allow-runtime') {
     prefetchHints |= PrefetchHint.HasRuntimePrefetch
   }
 
   // Mark the segment as "eager" unless its effective prefetch strategy is
-  // 'partial' or 'force-runtime'. A truthy unstable_instant is treated as
+  // 'partial' or 'allow-runtime'. A truthy unstable_instant is treated as
   // 'partial' (not eager). 'unstable_eager' already set the bit above. Under
   // App Shells, a subtree with no eager segment skips its Speculative prefetch
   // and relies on the shared app shell instead.
   if (
     !isInstant &&
     prefetchConfig !== 'partial' &&
-    prefetchConfig !== 'force-runtime'
+    prefetchConfig !== 'allow-runtime'
   ) {
     prefetchHints |= PrefetchHint.SubtreeHasEagerPrefetch
   }

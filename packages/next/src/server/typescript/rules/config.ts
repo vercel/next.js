@@ -159,7 +159,7 @@ const API_DOCS: Record<
   unstable_prefetch: {
     description: `Controls prefetching behavior for this segment. This configuration is currently under development and will change.`,
     link: '(docs coming soon)',
-    type: `"auto" | "partial" | "unstable_eager" | "force-disabled" | "force-runtime"`,
+    type: `"auto" | "partial" | "unstable_eager" | "force-disabled" | "allow-runtime"`,
     options: {
       auto: 'Default. Framework decides based on instant validation and segment configuration. You do not need to set this explicitly.',
       partial: 'Enables Partial Prefetching for this segment.',
@@ -169,10 +169,10 @@ const API_DOCS: Record<
         'adopted Partial Prefetching in canary before the behavior changed to ' +
         'only fetch the shell by default.',
       'force-disabled': 'Never prefetch this segment.',
-      'force-runtime':
-        'Prefetch this segment with a runtime server request so it can access session data, such as cookies.',
+      'allow-runtime':
+        'Allows Next.js to prefetch this segment with a runtime server request so it can access session data, such as cookies.',
     },
-    insertText: `unstable_prefetch = 'force-runtime';`,
+    insertText: `unstable_prefetch = 'allow-runtime';`,
   },
   unstable_dynamicStaleTime: {
     description: `Controls how long the client-side router cache retains dynamic page data (in seconds). Pages only — not allowed in layouts. Cannot be combined with \`unstable_instant\`.`,

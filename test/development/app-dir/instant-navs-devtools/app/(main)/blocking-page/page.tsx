@@ -1,6 +1,6 @@
 import { Suspense } from 'react'
 
-export const unstable_prefetch = 'force-runtime'
+export const unstable_prefetch = 'allow-runtime'
 
 export default async function Page({
   searchParams,

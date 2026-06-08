@@ -59,7 +59,7 @@ export async function anySegmentHasRuntimePrefetchEnabled(
   const prefetchConfig = layoutOrPageMod
     ? (layoutOrPageMod as AppSegmentConfig).unstable_prefetch
     : undefined
-  if (prefetchConfig === 'force-runtime') {
+  if (prefetchConfig === 'allow-runtime') {
     return true
   }
 
