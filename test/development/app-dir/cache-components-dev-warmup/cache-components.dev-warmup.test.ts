@@ -280,12 +280,6 @@ describe.each([
           }
         })
 
-        // TODO: Even on a warm render we don't end the cache read in time for a
-        // short-lived handler hit (see use-cache-wrapper.ts, where short-lived
-        // caches are delayed without ending the read), so it appears as a cache
-        // miss on every request. Its content therefore streams in the dynamic
-        // stage ("Server"), because the dynamic stage advances without waiting
-        // for caches to fill. This will be fixed in a follow-up.
         it('cached data + short-lived cached data', async () => {
           const path = '/short-lived-cache'
 
@@ -294,10 +288,8 @@ describe.each([
             assertLog(logs, 'after cache read - layout', 'Prerender')
             assertLog(logs, 'after cache read - page', 'Prerender')
 
-            // Short-lived caches are dynamic holes in static prerenders, so
-            // they resolve after the static stage. Being a cache miss (see the
-            // TODO above), the value isn't ready until the caches fill in the
-            // dynamic stage ("Server").
+            // Excluded from the static shell and from runtime prefetch, so the
+            // value resolves in the dynamic stage ("Server").
             assertLog(logs, 'after short-lived cache read - page', 'Server')
             assertLog(logs, 'after short-lived cache read - layout', 'Server')
 

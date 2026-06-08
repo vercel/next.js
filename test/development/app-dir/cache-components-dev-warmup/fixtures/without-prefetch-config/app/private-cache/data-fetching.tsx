@@ -50,6 +50,6 @@ async function SuccessivePrivateCachedDataChild({
 
 async function getPrivateCachedData(_key: string) {
   'use cache: private'
-  await new Promise((r) => setTimeout(r))
+  await new Promise((r) => setTimeout(r, 1000))
   return Math.random()
 }
