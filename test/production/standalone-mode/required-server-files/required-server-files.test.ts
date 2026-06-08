@@ -72,6 +72,9 @@ describe('required server files', () => {
         }
       },
     },
+    dependencies: {
+      'is-even': '1.0.0',
+    },
     skipStart: true,
   })
 

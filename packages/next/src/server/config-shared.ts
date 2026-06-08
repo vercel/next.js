@@ -14,6 +14,7 @@ import type { SupportedTestRunners } from '../cli/next-test'
 import type { ExperimentalPPRConfig } from './lib/experimental/ppr'
 import { INFINITE_CACHE } from '../lib/constants'
 import type { FallbackRouteParam } from '../build/static-paths/types'
+import type { MemoryEvictionMode } from '../build/swc/types'
 
 /**
  * Resolved form of the prefetchInlining config after normalization in
@@ -38,6 +39,8 @@ export type NextConfigComplete = Required<Omit<NextConfig, 'configFile'>> & {
     useCacheTimeout: number
     // Normalized by config.ts `finalizeConfig`: defaulted to `'warning'`
     instantInsights: { validationLevel: ValidationLevel }
+    // Normalized by finalized config with a default and the expected type
+    turbopackMemoryEvictionMode: MemoryEvictionMode
   }
   // The root directory of the distDir. In development mode, this is the parent directory of `distDir`
   // since development builds use `{distDir}/dev`. This is used to ensure that the bundler doesn't
@@ -680,9 +683,17 @@ export interface ExperimentalConfig {
   gestureTransition?: boolean
 
   /**
-   * A target memory limit for turbo, in bytes.
+   * Controls Turbopack's memory eviction strategy for development sessions
+   *
+   * Only effective in dev sessions where
+   * `experimental.turbopackFileSystemCacheForDev` is enabled (which it is by default).
+   *
+   * - `false`: disable eviction.
+   * - `'full'`: after every snapshot, drop as much memory as possible.
+   *
+   * Defaults to `false`
    */
-  turbopackMemoryLimit?: number
+  turbopackMemoryEviction?: false | 'full'
 
   /**
    * Selects the backend used by Turbopack for Node.js evaluation, e.g. webpack
@@ -1132,13 +1143,6 @@ export interface ExperimentalConfig {
    * @deprecated use top-level `cacheComponents` instead
    */
   useCache?: boolean
-
-  /**
-   * Use Node.js native streams instead of web streams for the App Router
-   * rendering pipeline on the Node.js runtime. This can improve performance
-   * by avoiding the overhead of web stream wrappers.
-   */
-  useNodeStreams?: boolean
 
   /**
    * Enables detection and reporting of slow modules during development builds.
@@ -1753,13 +1757,31 @@ export interface NextConfig {
   enablePrerenderSourceMaps?: boolean
 
   /**
-   * When enabled, in development and build, Next.js will automatically cache
-   * page-level components and functions for faster builds and rendering. This
+   * When enabled, routes can combine a prerendered shell with dynamic content
+   * streamed into it, rather than being either fully static or fully dynamic. You can mark data and parts of your UI as cacheable using the
+   * `use cache` directive, which includes them in the pre-render pass alongside
+   * static parts of the page. Also enables `cacheLife` and `cacheTag` APIs, and
    * includes Partial Prerendering support.
    *
    * @see [Cache Components documentation](https://nextjs.org/docs/app/api-reference/config/next-config-js/cacheComponents)
    */
   cacheComponents?: boolean
+
+  /**
+   * Opts the whole app into Partial Prefetching: `<Link prefetch={true}>`
+   * prefetches only the static parts of a route, never its dynamic data.
+   * When `true`, the default segment-level `unstable_prefetch` becomes
+   * `'partial'`; per-segment `unstable_prefetch` exports still win. Requires
+   * `cacheComponents: true`.
+   *
+   * When `false` or omitted, this does nothing (the legacy behavior, where
+   * dynamic data is included in the prefetch).
+   *
+   * `'unstable_eager'` is like `true`, except the default becomes
+   * `'unstable_eager'` instead of `'partial'`: every Link has an implied
+   * prefetch={true}. Internal migration aid; not part of the public API.
+   */
+  partialPrefetching?: boolean | 'unstable_eager'
 
   cacheLife?: {
     [profile: string]: {
@@ -2040,7 +2062,6 @@ export const defaultConfig = Object.freeze({
     gestureTransition: false,
     inlineCss: false,
     useCache: undefined,
-    useNodeStreams: true,
     slowModuleDetection: undefined,
     globalNotFound: false,
     browserDebugInfoInTerminal: 'warn',
@@ -2088,6 +2109,7 @@ export interface NextConfigRuntime {
 
   distDir: NextConfigComplete['distDir']
   cacheComponents: NextConfigComplete['cacheComponents']
+  partialPrefetching: NextConfigComplete['partialPrefetching']
   agentRules: NextConfigComplete['agentRules']
   htmlLimitedBots: NextConfigComplete['htmlLimitedBots']
   assetPrefix: NextConfigComplete['assetPrefix']
@@ -2159,7 +2181,6 @@ export interface NextConfigRuntime {
     | 'cachedNavigations'
     | 'exposeTestingApiInProductionBuild'
     | 'supportsImmutableAssets'
-    | 'useNodeStreams'
     | 'instantInsights'
   > & {
     // Pick on @internal fields generates invalid .d.ts files
@@ -2229,7 +2250,6 @@ export function getNextConfigRuntime(
     cachedNavigations: ex.cachedNavigations,
     exposeTestingApiInProductionBuild: ex.exposeTestingApiInProductionBuild,
     supportsImmutableAssets: ex.supportsImmutableAssets,
-    useNodeStreams: ex.useNodeStreams,
     instantInsights: ex.instantInsights,
 
     trustHostHeader: ex.trustHostHeader,
@@ -2246,6 +2266,7 @@ export function getNextConfigRuntime(
 
     distDir: config.distDir,
     cacheComponents: config.cacheComponents,
+    partialPrefetching: config.partialPrefetching,
     agentRules: config.agentRules,
     htmlLimitedBots: config.htmlLimitedBots,
     assetPrefix: config.assetPrefix,

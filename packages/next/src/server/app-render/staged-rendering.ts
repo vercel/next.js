@@ -4,14 +4,19 @@ import { createPromiseWithResolvers } from '../../shared/lib/promise-with-resolv
 export enum RenderStage {
   Before = 1,
   //
-  EarlyStatic = 2,
-  Static = 3,
+  ShellEarlyStatic = 10,
+  ShellStatic = 11,
+  EarlyStatic = 12,
+  Static = 13,
   //
-  EarlyRuntime = 4,
-  Runtime = 5,
+  ShellEarlyRuntime = 20,
+  ShellRuntime = 21,
+  EarlyRuntime = 22,
+  Runtime = 23,
   //
-  Dynamic = 6,
-  Abandoned = 7,
+  Dynamic = 30,
+  //
+  Abandoned = 40,
 }
 
 export type AdvanceableRenderStage = Exclude<
@@ -20,14 +25,20 @@ export type AdvanceableRenderStage = Exclude<
 >
 
 export const RENDER_STAGE_ADVANCE_ORDER: AdvanceableRenderStage[] = [
+  RenderStage.ShellEarlyStatic,
+  RenderStage.ShellStatic,
   RenderStage.EarlyStatic,
   RenderStage.Static,
   //
+  RenderStage.ShellEarlyRuntime,
+  RenderStage.ShellRuntime,
   RenderStage.EarlyRuntime,
   RenderStage.Runtime,
   //
   RenderStage.Dynamic,
 ]
+
+export const FIRST_LATE_RENDER_STAGE = RenderStage.ShellStatic
 
 export function getNextStage(
   stage: Exclude<AdvanceableRenderStage, RenderStage.Dynamic>
@@ -37,16 +48,28 @@ export function getNextStage(
   ]
 }
 
+export function isAdvanceableRenderStage(
+  stage: RenderStage
+): stage is AdvanceableRenderStage {
+  return RenderStage.Before < stage && stage <= RenderStage.Dynamic
+}
+
 export function isEarlyRenderStage(
   stage: Exclude<RenderStage, RenderStage.Before>
 ): boolean {
   switch (stage) {
+    case RenderStage.ShellEarlyStatic:
     case RenderStage.EarlyStatic:
+    case RenderStage.ShellEarlyRuntime:
     case RenderStage.EarlyRuntime: {
       return true
     }
+    case RenderStage.ShellStatic:
     case RenderStage.Static:
-    case RenderStage.Runtime:
+    case RenderStage.ShellRuntime:
+    case RenderStage.Runtime: {
+      return false
+    }
     case RenderStage.Dynamic:
     case RenderStage.Abandoned: {
       return false
@@ -69,9 +92,13 @@ export class StagedRenderingController {
   syncInterruptReason: Error | null = null
 
   triggers: Record<AdvanceableRenderStage, StageTrigger> = {
+    [RenderStage.ShellEarlyStatic]: createStageTrigger(),
+    [RenderStage.ShellStatic]: createStageTrigger(),
     [RenderStage.EarlyStatic]: createStageTrigger(),
     [RenderStage.Static]: createStageTrigger(),
     //
+    [RenderStage.ShellEarlyRuntime]: createStageTrigger(),
+    [RenderStage.ShellRuntime]: createStageTrigger(),
     [RenderStage.EarlyRuntime]: createStageTrigger(),
     [RenderStage.Runtime]: createStageTrigger(),
     //
@@ -133,13 +160,17 @@ export class StagedRenderingController {
       case RenderStage.Before:
         // If we haven't started the render yet, it can't be interrupted.
         return false
+      case RenderStage.ShellEarlyStatic:
+      case RenderStage.ShellStatic:
       case RenderStage.EarlyStatic:
       case RenderStage.Static:
         return true
+      case RenderStage.ShellEarlyRuntime:
       case RenderStage.EarlyRuntime:
         // EarlyRuntime is for runtime-prefetchable segments. Sync IO
         // should error because it would abort a runtime prefetch.
         return true
+      case RenderStage.ShellRuntime:
       case RenderStage.Runtime:
         // Runtime is for non-prefetchable segments. Sync IO is fine there
         // because in practice this segment will never be runtime prefetched
@@ -184,8 +215,11 @@ export class StagedRenderingController {
     // we need to advance to the Dynamic stage and capture the interruption reason.
     // (in dev, this will be the restarted render)
     switch (this.currentStage) {
+      case RenderStage.ShellEarlyStatic:
+      case RenderStage.ShellStatic:
       case RenderStage.EarlyStatic:
       case RenderStage.Static:
+      case RenderStage.ShellEarlyRuntime:
       case RenderStage.EarlyRuntime: {
         // EarlyRuntime is for runtime-prefetchable segments. Sync IO here
         // means the prefetch would be aborted too early.
@@ -193,14 +227,16 @@ export class StagedRenderingController {
         this.advanceStage(RenderStage.Dynamic)
         return
       }
+      case RenderStage.ShellRuntime:
       case RenderStage.Runtime: {
-        // `shouldTrackSyncInterrupt` returns false for Runtime, so we should
+        // `shouldTrackSyncInterrupt` returns false for [Shell]Runtime, so we should
         // never get here. Defensive no-op.
         break
       }
       case RenderStage.Dynamic: {
         // `shouldTrackSyncInterrupt` returns false for Dynamic, so we should
         // never get here. Defensive no-op.
+
         break
       }
       default: {
@@ -245,9 +281,13 @@ export class StagedRenderingController {
           "A render that hasn't started yet cannot be abandoned"
         )
       }
+      case RenderStage.ShellEarlyStatic:
       case RenderStage.EarlyStatic:
+      case RenderStage.ShellStatic:
       case RenderStage.Static:
+      case RenderStage.ShellEarlyRuntime:
       case RenderStage.EarlyRuntime:
+      case RenderStage.ShellRuntime:
       case RenderStage.Runtime: {
         // Resolve all stages after the current one, up to runtime (excluding dynamic)
         const nextStageIx = RENDER_STAGE_ADVANCE_ORDER.indexOf(currentStage) + 1
@@ -288,9 +328,13 @@ export class StagedRenderingController {
 
     switch (currentStage) {
       case RenderStage.Before:
+      case RenderStage.ShellEarlyStatic:
       case RenderStage.EarlyStatic:
+      case RenderStage.ShellStatic:
       case RenderStage.Static:
+      case RenderStage.ShellEarlyRuntime:
       case RenderStage.EarlyRuntime:
+      case RenderStage.ShellRuntime:
       case RenderStage.Runtime: {
         // Resolve all stages between the current stage and the target.
         const nextStageIx =

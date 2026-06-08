@@ -96,6 +96,9 @@ export function getErrorTypeLabel(
   if (errorDetails.type === 'blocking-route') {
     return errorDetails.inNavigation ? `Instant` : `Blocking Route`
   }
+  if (errorDetails.type === 'client-hook') {
+    return `Blocking Route`
+  }
   if (errorDetails.type === 'dynamic-metadata') {
     return `Blocking Route`
   }
@@ -124,6 +127,7 @@ type ErrorDetails =
   | NoErrorDetails
   | HydrationErrorDetails
   | BlockingRouteErrorDetails
+  | ClientHookErrorDetails
   | DynamicMetadataErrorDetails
   | DynamicViewportErrorDetails
   | SyncIOErrorDetails
@@ -145,6 +149,11 @@ type BlockingRouteErrorDetails = {
   type: 'blocking-route'
   variant: 'dynamic' | 'runtime'
   inNavigation: boolean
+}
+
+type ClientHookErrorDetails = {
+  type: 'client-hook'
+  expression: string
 }
 
 type DynamicMetadataErrorDetails = {
@@ -332,7 +341,7 @@ const SYNC_IO_APIS = [
 ]
 
 const SYNC_IO_DOCS_PATTERN =
-  /https:\/\/nextjs\.org\/docs\/messages\/next-prerender-(?:runtime-)?(random|current-time|crypto)(-client)?/
+  /https:\/\/nextjs\.org\/docs\/messages\/blocking-prerender-(random|current-time|crypto)(-client)?/
 
 // Discriminate sync IO errors via the docs URL embedded in the user-facing
 // message by `createSyncIOError`, `createSyncIORuntimeError`, and
@@ -367,7 +376,18 @@ export function getBlockingRouteErrorDetails(
   const message = error.message
   const inNavigation = isBlockingRouteInNavError(message)
 
-  const isBlockingPageLoadError = message.includes('/blocking-route')
+  const clientHookMatch =
+    /A Client Component used `([^`]+)` outside of `<Suspense>`\./.exec(message)
+  if (clientHookMatch) {
+    return {
+      type: 'client-hook',
+      expression: clientHookMatch[1],
+    }
+  }
+
+  const isBlockingPageLoadError =
+    message.includes('/blocking-prerender-runtime#') ||
+    message.includes('/blocking-prerender-dynamic#')
   if (isBlockingPageLoadError) {
     return {
       type: 'blocking-route',
@@ -376,9 +396,9 @@ export function getBlockingRouteErrorDetails(
     }
   }
 
-  const isDynamicMetadataError = message.includes(
-    '/next-prerender-dynamic-metadata'
-  )
+  const isDynamicMetadataError =
+    message.includes('/blocking-prerender-metadata-dynamic') ||
+    message.includes('/blocking-prerender-metadata-runtime')
   if (isDynamicMetadataError) {
     return {
       type: 'dynamic-metadata',
@@ -386,9 +406,9 @@ export function getBlockingRouteErrorDetails(
     }
   }
 
-  const isBlockingViewportError = message.includes(
-    '/next-prerender-dynamic-viewport'
-  )
+  const isBlockingViewportError =
+    message.includes('/blocking-prerender-viewport-dynamic') ||
+    message.includes('/blocking-prerender-viewport-runtime')
   if (isBlockingViewportError) {
     return {
       type: 'dynamic-viewport',
@@ -842,6 +862,7 @@ Next.js version: ${props.versionInfo.installed} (${process.env.__NEXT_BUNDLER})\
           headerChildren={
             <InstantHeaderExplanation
               kind="blocking-route"
+              variant={errorDetails.variant}
               explanation={
                 errorDetails.inNavigation
                   ? BLOCKING_ROUTE_NAVIGATION_EXPLANATION
@@ -875,6 +896,46 @@ Next.js version: ${props.versionInfo.installed} (${process.env.__NEXT_BUNDLER})\
           </Suspense>
         </ErrorOverlayLayout>
       )
+    case 'client-hook':
+      return (
+        <ErrorOverlayLayout
+          errorCode={errorCode}
+          errorType={errorType}
+          errorMessage={
+            <>
+              A Client Component used <code>{errorDetails.expression}</code>{' '}
+              outside of <code>&lt;Suspense&gt;</code>.
+            </>
+          }
+          headerChildren={<InstantHeaderExplanation kind="client-hook" />}
+          renderTabBar={renderTabBar}
+          canGoPrevious={canGoPrevious}
+          canGoNext={canGoNext}
+          onPrevious={handlePrevious}
+          onNext={handleNext}
+          onClose={isServerError ? undefined : onClose}
+          debugInfo={debugInfo}
+          error={error}
+          runtimeErrors={activeErrors}
+          activeIdx={activeIdx}
+          setActiveIndex={setActiveIndex}
+          dialogResizerRef={dialogResizerRef}
+          generateErrorInfo={generateErrorInfo}
+          {...props}
+        >
+          <Suspense fallback={<div data-nextjs-error-suspended />}>
+            <InstantRuntimeError
+              key={activeError.id.toString()}
+              error={activeError}
+              variant="runtime"
+              kind="client-hook"
+              cause={errorDetails.expression}
+              showExplanation={false}
+              dialogResizerRef={dialogResizerRef}
+            />
+          </Suspense>
+        </ErrorOverlayLayout>
+      )
     case 'dynamic-metadata':
       return (
         <ErrorOverlayLayout
@@ -893,7 +954,12 @@ Next.js version: ${props.versionInfo.installed} (${process.env.__NEXT_BUNDLER})\
               </>
             )
           }
-          headerChildren={<InstantHeaderExplanation kind="metadata" />}
+          headerChildren={
+            <InstantHeaderExplanation
+              kind="metadata"
+              variant={errorDetails.variant}
+            />
+          }
           renderTabBar={renderTabBar}
           canGoPrevious={canGoPrevious}
           canGoNext={canGoNext}
@@ -939,7 +1005,12 @@ Next.js version: ${props.versionInfo.installed} (${process.env.__NEXT_BUNDLER})\
               </>
             )
           }
-          headerChildren={<InstantHeaderExplanation kind="viewport" />}
+          headerChildren={
+            <InstantHeaderExplanation
+              kind="viewport"
+              variant={errorDetails.variant}
+            />
+          }
           renderTabBar={renderTabBar}
           canGoPrevious={canGoPrevious}
           canGoNext={canGoNext}
@@ -1066,15 +1137,19 @@ Next.js version: ${props.versionInfo.installed} (${process.env.__NEXT_BUNDLER})\
           headerChildren={
             <InstantHeaderExplanation kind="unrendered-segment" />
           }
+          renderTabBar={renderTabBar}
+          canGoPrevious={canGoPrevious}
+          canGoNext={canGoNext}
+          onPrevious={handlePrevious}
+          onNext={handleNext}
           onClose={isServerError ? undefined : onClose}
           debugInfo={debugInfo}
           error={error}
-          runtimeErrors={runtimeErrors}
+          runtimeErrors={activeErrors}
           activeIdx={activeIdx}
           setActiveIndex={setActiveIndex}
           dialogResizerRef={dialogResizerRef}
           generateErrorInfo={generateErrorInfo}
-          renderTabBar={renderTabBar}
           {...props}
         >
           <UnrenderedSegmentInfo

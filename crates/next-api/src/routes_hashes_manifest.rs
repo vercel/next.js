@@ -88,9 +88,8 @@ pub async fn endpoint_entry_modules(
     let entries = endpoint.entries().await?;
     let additional_entries = endpoint.additional_entries(base_module_graph).await?;
     let modules = entries
-        .iter()
-        .chain(additional_entries.iter())
-        .flat_map(|e| e.entries())
+        .chunk_group_modules()
+        .chain(additional_entries.chunk_group_modules())
         .collect::<FxIndexSet<_>>();
     Ok(Vc::cell(modules.into_iter().collect()))
 }
@@ -114,9 +113,8 @@ pub async fn endpoints_entry_modules(
         .iter()
         .flat_map(|(entries, additional_entries)| {
             entries
-                .iter()
-                .chain(additional_entries.iter())
-                .flat_map(|e| e.entries())
+                .chunk_group_modules()
+                .chain(additional_entries.chunk_group_modules())
         })
         .collect::<FxIndexSet<_>>();
     Ok(Vc::cell(modules.into_iter().collect()))
