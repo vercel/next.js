@@ -49,11 +49,16 @@ export const onRequestError: Instrumentation.onRequestError = async (
   context
 ) => {
   const message = err instanceof Error ? err.message : String(err)
+  const digest =
+    typeof err === 'object' && err !== null && 'digest' in err
+      ? String(err.digest)
+      : undefined
 
   await fetch('https://.../report-error', {
     method: 'POST',
     body: JSON.stringify({
       message,
+      digest,
       request,
       context,
     }),
@@ -67,11 +72,16 @@ export const onRequestError: Instrumentation.onRequestError = async (
 ```js filename="instrumentation.js" switcher
 export async function onRequestError(err, request, context) {
   const message = err instanceof Error ? err.message : String(err)
+  const digest =
+    typeof err === 'object' && err !== null && 'digest' in err
+      ? String(err.digest)
+      : undefined
 
   await fetch('https://.../report-error', {
     method: 'POST',
     body: JSON.stringify({
       message,
+      digest,
       request,
       context,
     }),
