@@ -9,6 +9,11 @@ describe('non-rsc-router-prefetch', () => {
     files: __dirname,
   })
 
+  beforeAll(async () => {
+    const res = await next.fetch('/')
+    await res.text()
+  })
+
   it('ignores the router prefetch header for HTML requests', async () => {
     const res = await next.fetch('/', {
       headers: {
