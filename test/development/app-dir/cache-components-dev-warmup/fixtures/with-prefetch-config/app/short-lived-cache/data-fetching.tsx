@@ -19,10 +19,7 @@ export async function ShortLivedCache({
 
 async function getShortLivedCachedData(_key: string) {
   'use cache'
-  // An expire value below 5 minutes and a stale time below 30s excludes this
-  // cache from static shell and from the runtime prefetch, so it resolves in
-  // the dynamic stage.
-  cacheLife({ stale: 29, revalidate: 1, expire: 60 })
+  cacheLife('seconds')
   await new Promise((r) => setTimeout(r))
   return Math.random()
 }
