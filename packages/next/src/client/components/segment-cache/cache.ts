@@ -27,6 +27,7 @@ import {
 import {
   createFetch,
   createFromNextReadableStream,
+  resolveShellStageData,
   type RSCResponse,
   type RequestHeaders,
 } from '../router-reducer/fetch-server-response'
@@ -78,9 +79,11 @@ import {
   setSizeInCacheMap,
   deleteFromCacheMap,
   isValueExpired,
+  EntryStatus,
   type CacheMap,
   type UnknownMapEntry,
 } from './cache-map'
+export { EntryStatus } from './cache-map'
 import {
   appendSegmentRequestKeyPart,
   convertSegmentPathToStaticExportFilename,
@@ -181,18 +184,6 @@ type RouteCacheEntryShared = {
   size: number
   staleAt: number
   version: number
-}
-
-/**
- * Tracks the status of a cache entry as it progresses from no data (Empty),
- * waiting for server data (Pending), and finished (either Fulfilled or
- * Rejected depending on the response from the server.
- */
-export const enum EntryStatus {
-  Empty = 0,
-  Pending = 1,
-  Fulfilled = 2,
-  Rejected = 3,
 }
 
 export type PendingRouteCacheEntry = RouteCacheEntryShared & {
@@ -458,7 +449,8 @@ export function readRouteCacheEntry(
     getCurrentRouteCacheVersion(),
     routeCacheMap,
     varyPath,
-    isRevalidation
+    isRevalidation,
+    false
   )
   if (existingEntry !== null) {
     return existingEntry
@@ -483,7 +475,48 @@ export function readSegmentCacheEntry(
     getCurrentSegmentCacheVersion(),
     segmentCacheMap,
     varyPath,
-    isRevalidation
+    isRevalidation,
+    false
+  )
+}
+
+/**
+ * Like `readSegmentCacheEntry`, but prefers a Fulfilled entry over a
+ * more-specific Pending or Rejected entry. Use this during a navigation, where
+ * a less-specific shell entry (e.g. params -> Fallback) should be rendered
+ * immediately rather than blocking on a more-specific Pending entry that may
+ * still be in-flight.
+ *
+ * Performs up to two lookups:
+ *  1. An `onlyMatchFulfilled` lookup that walks past Pending/Rejected entries
+ *     at more-specific keypaths to find a Fulfilled fallback (e.g. a cached
+ *     shell).
+ *  2. If no Fulfilled entry is found, a regular lookup that returns the most
+ *     specific match regardless of status.
+ */
+export function readSegmentCacheEntryForNavigation(
+  now: number,
+  varyPath: SegmentVaryPath
+): SegmentCacheEntry | null {
+  const isRevalidation = false
+  const fulfilled = getFromCacheMap(
+    now,
+    getCurrentSegmentCacheVersion(),
+    segmentCacheMap,
+    varyPath,
+    isRevalidation,
+    true
+  )
+  if (fulfilled !== null) {
+    return fulfilled
+  }
+  return getFromCacheMap(
+    now,
+    getCurrentSegmentCacheVersion(),
+    segmentCacheMap,
+    varyPath,
+    isRevalidation,
+    false
   )
 }
 
@@ -497,7 +530,8 @@ function readRevalidatingSegmentCacheEntry(
     getCurrentSegmentCacheVersion(),
     segmentCacheMap,
     varyPath,
-    isRevalidation
+    isRevalidation,
+    false
   )
 }
 
@@ -1108,6 +1142,7 @@ export function fulfillRouteCacheEntry(
 export function writeRouteIntoCache(
   now: number,
   pathname: NormalizedPathname,
+  search: NormalizedSearch,
   nextUrl: string | null,
   tree: RouteTree,
   metadataVaryPath: PageVaryPath,
@@ -1125,10 +1160,9 @@ export function writeRouteIntoCache(
     canonicalUrl,
     supportsPerSegmentPrefetching
   )
-  const renderedSearch = fulfilledEntry.renderedSearch
   const varyPath = getFulfilledRouteVaryPath(
     pathname,
-    renderedSearch,
+    search,
     nextUrl as NormalizedNextUrl | null,
     couldBeIntercepted
   )
@@ -1764,6 +1798,7 @@ export async function fetchRouteOnCacheMiss(
       discoverKnownRoute(
         Date.now(),
         pathname,
+        search,
         nextUrl,
         entry,
         routeTree,
@@ -1821,6 +1856,7 @@ export async function fetchRouteOnCacheMiss(
         routeIsPPREnabled,
         headVaryParams,
         pathname,
+        search,
         nextUrl
       )
     }
@@ -2092,6 +2128,7 @@ export async function fetchSegmentPrefetchesUsingDynamicRequest(
   fetchStrategy:
     | FetchStrategy.LoadingBoundary
     | FetchStrategy.PPRRuntime
+    | FetchStrategy.RuntimeShell
     | FetchStrategy.Full,
   dynamicRequestTree: FlightRouterState,
   spawnedEntries: Map<SegmentRequestKey, PendingSegmentCacheEntry>
@@ -2129,6 +2166,10 @@ export async function fetchSegmentPrefetchesUsingDynamicRequest(
     }
     case FetchStrategy.PPRRuntime: {
       headers[NEXT_ROUTER_PREFETCH_HEADER] = '2'
+      break
+    }
+    case FetchStrategy.RuntimeShell: {
+      headers[NEXT_ROUTER_PREFETCH_HEADER] = '3'
       break
     }
     case FetchStrategy.LoadingBoundary: {
@@ -2211,28 +2252,122 @@ export async function fetchSegmentPrefetchesUsingDynamicRequest(
       response.cacheData,
     ])
 
+    const now = Date.now()
+    const staleAt = await getStaleAt(now, serverData.s, response)
+    const buildId =
+      response.headers.get(NEXT_NAV_DEPLOYMENT_ID_HEADER) ?? serverData.b
+
+    // Check if a reusable App Shell can be extracted from the main response.
+    let serverDataThatSatisfiesSpawnedEntries: NavigationFlightResponse
+    // The shell and full response have independent stale times. Track the
+    // staleAt that corresponds to whatever payload the spawned entries get
+    // filled with below.
+    let staleAtForSpawnedEntries = staleAt
+    if (!process.env.__NEXT_APP_SHELLS || cacheData === null) {
+      // NOTE: cacheData is always set when Cached Navigations is enabled, and
+      // therefore when App Shells is enabled. This null check can be removed
+      // when those flags fully land.
+      serverDataThatSatisfiesSpawnedEntries = serverData
+    } else {
+      const shellStageData = await resolveShellStageData(
+        cacheData,
+        serverData,
+        headers
+      )
+      if (shellStageData === null) {
+        // No App Shell can be extracted. This usually means the entire response
+        // _is_ the App Shell. The other possibility (for now, until the feature
+        // is fully stabilized) is that App Shells are not yet enabled. Either
+        // way, there's nothing extra for us to do: fulfill the pending entries
+        // using the response from the server.
+        serverDataThatSatisfiesSpawnedEntries = serverData
+      } else {
+        // Successfully extracted an App Shell that is a subset of the main
+        // response. Depending on the type of prefetch this is, we need to
+        // decide whether to fulfill the pending entries with the shell or with
+        // the entire response. In either scenario, we'll be inserting _both_
+        // versions of the response into the cache; the extra logic is only
+        // here so that we don't fulfill pending shell entries with something
+        // that's more concrete than what they expect.
+        // TODO: The only reason this matters is because during a navigation,
+        // if a segment is still pending, we render a promise that resolves to
+        // the eventual value of that segment. But that means we cannot
+        // eventually resolve that segment to something more concrete than what
+        // was already requested. Hence the extra logic here. A cleaner way to
+        // model this, though, is whenever we render a promise that resolves to
+        // the result of a pending entry, do one additional cache look-up right
+        // after the promise resolves, to ensure we never get a mismatching
+        // entry. Leaving this for a follow up.
+        const shellStaleAt = await getStaleAt(now, shellStageData.s)
+        if (fetchStrategy === FetchStrategy.RuntimeShell) {
+          // This is a Shell prefetch, so the pending entries must be fulfilled
+          // with the shell.
+          serverDataThatSatisfiesSpawnedEntries = shellStageData
+          staleAtForSpawnedEntries = shellStaleAt
+
+          // Separately, we'll also cache the entire response, by upserting it
+          // into the cache.
+          writePrerenderResponseIntoCache(
+            now,
+            FetchStrategy.PPR,
+            serverData.f,
+            buildId,
+            serverData.h,
+            staleAt,
+            dynamicRequestTree,
+            renderedSearch,
+            cacheData.isResponsePartial
+          )
+        } else {
+          // This is _not_ a Shell prefetch, so the pending entries should be
+          // fulfilled with the entire response.
+          serverDataThatSatisfiesSpawnedEntries = serverData
+
+          // Additionally, we might as well upsert the extracted Shell into the
+          // cache, too.
+
+          // `shellStageData` is only provided in cases where the shell is
+          // different from the main response. If they are equivalent, this
+          // branch is skipped. So it follows that any shell data reaches
+          // this path must be partial -- it does not represent the entire
+          // UI of the target page.
+          const isShellStagePartial = true
+          writePrerenderResponseIntoCache(
+            now,
+            FetchStrategy.RuntimeShell,
+            shellStageData.f,
+            buildId,
+            shellStageData.h,
+            shellStaleAt,
+            dynamicRequestTree,
+            renderedSearch,
+            isShellStagePartial
+          )
+        }
+      }
+    }
+
     // Read head vary params synchronously. Individual segments carry their
     // own thenables in CacheNodeSeedData.
-    const headVaryParamsThenable = serverData.h
+    const headVaryParamsThenable = serverDataThatSatisfiesSpawnedEntries.h
     const headVaryParams =
       headVaryParamsThenable !== null
         ? readVaryParams(headVaryParamsThenable)
         : null
 
-    const now = Date.now()
-    const staleAt = await getStaleAt(now, serverData.s, response)
-    // PPRRuntime prefetches are partial when the server marks the response
-    // as '~' (Partial). Full/LoadingBoundary prefetches are always complete.
+    // PPRRuntime and RuntimeShell prefetches are partial when the server
+    // marks the response as '~' (Partial). RuntimeShell additionally omits
+    // every dynamic suspense boundary below the App Shell, so its segments
+    // are always partial regardless of what the server marker says.
+    // Full/LoadingBoundary prefetches are always complete.
     const isResponsePartial =
-      fetchStrategy === FetchStrategy.PPRRuntime &&
-      (cacheData?.isResponsePartial ?? false)
+      fetchStrategy === FetchStrategy.RuntimeShell ||
+      (fetchStrategy === FetchStrategy.PPRRuntime &&
+        (cacheData?.isResponsePartial ?? false))
 
-    // Aside from writing the data into the cache, this function also returns
-    // the entries that were fulfilled, so we can streamingly update their sizes
-    // in the LRU as more data comes in.
-    const buildId =
-      response.headers.get(NEXT_NAV_DEPLOYMENT_ID_HEADER) ?? serverData.b
-    const flightDatas = normalizeFlightData(serverData.f)
+    const flightDatas = normalizeFlightData(
+      serverDataThatSatisfiesSpawnedEntries.f
+    )
     if (typeof flightDatas === 'string') {
       rejectSegmentEntriesIfStillPending(spawnedEntries, Date.now() + 10 * 1000)
       return null
@@ -2245,6 +2380,9 @@ export async function fetchSegmentPrefetchesUsingDynamicRequest(
       // Not needed for prefetch responses; pass unknown to use the default.
       UnknownDynamicStaleTime
     )
+    // Aside from writing the data into the cache, this function also returns
+    // the entries that were fulfilled, so we can streamingly update their sizes
+    // in the LRU as more data comes in.
     fulfilledEntries = writeDynamicRenderResponseIntoCache(
       now,
       fetchStrategy,
@@ -2252,7 +2390,7 @@ export async function fetchSegmentPrefetchesUsingDynamicRequest(
       buildId,
       isResponsePartial,
       headVaryParams,
-      staleAt,
+      staleAtForSpawnedEntries,
       navigationSeed,
       spawnedEntries
     )
@@ -2305,6 +2443,7 @@ function writeDynamicTreeResponseIntoCache(
   routeIsPPREnabled: boolean,
   headVaryParams: VaryParams | null,
   originalPathname: string,
+  originalSearch: NormalizedSearch,
   nextUrl: string | null
 ): void {
   const renderedSearch = getRenderedSearch(response)
@@ -2353,6 +2492,7 @@ function writeDynamicTreeResponseIntoCache(
   discoverKnownRoute(
     now,
     originalPathname,
+    originalSearch,
     nextUrl,
     entry,
     routeTree,
@@ -2411,6 +2551,7 @@ export function writeDynamicRenderResponseIntoCache(
     | FetchStrategy.LoadingBoundary
     | FetchStrategy.PPR
     | FetchStrategy.PPRRuntime
+    | FetchStrategy.RuntimeShell
     | FetchStrategy.Full,
   flightDatas: NormalizedFlightData[],
   buildId: string | undefined,
@@ -2523,6 +2664,7 @@ function writeSeedDataIntoCache(
     | FetchStrategy.LoadingBoundary
     | FetchStrategy.PPR
     | FetchStrategy.PPRRuntime
+    | FetchStrategy.RuntimeShell
     | FetchStrategy.Full,
   tree: RouteTree,
   staleAt: number,
@@ -2577,12 +2719,15 @@ function writeSeedDataIntoCache(
   }
 }
 
+const EMPTY_VARY_PARAMS: Set<string> = new Set()
+
 function fulfillEntrySpawnedByRuntimePrefetch(
   now: number,
   fetchStrategy:
     | FetchStrategy.LoadingBoundary
     | FetchStrategy.PPR
     | FetchStrategy.PPRRuntime
+    | FetchStrategy.RuntimeShell
     | FetchStrategy.Full,
   rsc: React.ReactNode,
   isPartial: boolean,
@@ -2605,11 +2750,28 @@ function fulfillEntrySpawnedByRuntimePrefetch(
   // untrustworthy set could replace concrete params with Fallback and let
   // unrelated URLs read each other's content from the cache.
   //
+  // Override to an empty set for RuntimeShell prefetches. The shell is
+  // param-free by definition — that's the whole point of the strategy — so
+  // every param node in the vary path should be Fallback regardless of what
+  // the server reports.
+  // NOTE: It would be better not to override this value on the client. We
+  // should be able to trust the server. However, there's one known case where
+  // the server can over-report search params: the tracking proxy in
+  // `createVaryingSearchParams` registers `?` on any string property access,
+  // and `Promise.resolve(proxy)` reads `.then` during thenability detection,
+  // so just wrapping the proxy in a promise is enough to leak `?` into the
+  // accumulator. We also don't want to special case "then" access because it's
+  // perfectly valid to have a search param named "then". The plan to address
+  // this is to track each search param individually, rather than the entire
+  // query string as a whole.
+  //
   // When non-null, this is the param set to re-key by; when null, the entry
   // stays keyed by the request's concrete vary path.
   const fulfilledVaryParams =
     process.env.__NEXT_VARY_PARAMS && fetchStrategy !== FetchStrategy.Full
-      ? segmentVaryParams
+      ? fetchStrategy === FetchStrategy.RuntimeShell
+        ? EMPTY_VARY_PARAMS
+        : segmentVaryParams
       : null
 
   // We should only write into cache entries that are owned by us. Or create
@@ -2936,14 +3098,14 @@ export async function getStaleAt(
 }
 
 /**
- * Writes the static stage of a navigation response into the segment cache.
- * When `isResponsePartial` is false, segments are written as non-partial with
- * `FetchStrategy.Full` so no dynamic follow-up is needed. Default segments
- * are skipped (by `writeSeedDataIntoCache`) to avoid caching fallback content
- * that would block refreshes from overwriting with dynamic data.
+ * Writes a prerender response into the segment cache at the vary path
+ * determined by `fetchStrategy`. Default segments are skipped (by
+ * `writeSeedDataIntoCache`) to avoid caching fallback content that would
+ * block refreshes from overwriting with dynamic data.
  */
-export function writeStaticStageResponseIntoCache(
+export function writePrerenderResponseIntoCache(
   now: number,
+  fetchStrategy: FetchStrategy.PPR | FetchStrategy.RuntimeShell,
   flightData: FlightData,
   buildId: string | undefined,
   headVaryParamsThenable: VaryParamsThenable | null,
@@ -2952,10 +3114,6 @@ export function writeStaticStageResponseIntoCache(
   renderedSearch: string,
   isResponsePartial: boolean
 ): void {
-  const fetchStrategy = isResponsePartial
-    ? FetchStrategy.PPR
-    : FetchStrategy.Full
-
   const headVaryParams =
     headVaryParamsThenable !== null
       ? readVaryParams(headVaryParamsThenable)

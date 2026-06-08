@@ -38,8 +38,9 @@ const InstantConfigSchema = z.union([
 
 const PrefetchSchema = z.enum([
   'auto',
+  'partial',
+  'unstable_eager',
   'force-disabled',
-  'force-static',
   'force-runtime',
 ])
 
@@ -47,8 +48,9 @@ export type Instant = InstantConfig | true | false
 
 export type Prefetch =
   | 'auto'
+  | 'partial'
+  | 'unstable_eager'
   | 'force-disabled'
-  | 'force-static'
   | 'force-runtime'
 
 export type InstantConfigForTypeCheckInternal = __GenericInstantConfig | Instant
@@ -137,9 +139,16 @@ const AppSegmentConfigSchema = z.object({
   unstable_instant: InstantConfigSchema.optional(),
 
   /**
-   * Controls runtime prefetching for this segment.
-   * 'static' is a noop (default behavior).
-   * 'runtime' enables runtime prefetching.
+   * Controls prefetching for this segment.
+   * - 'auto' (default) is a noop.
+   * - 'partial' enables Partial Prefetching. Only Cache Components are
+   *   prefetched, not dynamic ones.
+   * - 'unstable_eager' behaves like 'partial' but, when App Shells are enabled,
+   *   keeps eagerly prefetching the route's segments instead of relying on the
+   *   shared app shell. Internal migration aid; not part of the public API.
+   * - 'force-runtime' is a superset of 'partial' and prefetches using a
+   *   runtime request, instead of a static one.
+   * - 'force-disabled' disables prefetching for the segment.
    */
   unstable_prefetch: PrefetchSchema.optional(),
 
@@ -195,7 +204,7 @@ export function parseAppSegmentConfig(
           }
           case 'unstable_prefetch': {
             return {
-              message: `Invalid unstable_prefetch value ${JSON.stringify(ctx.data)} on "${route}", must be "auto", "force-disabled", "force-static", or "force-runtime".`,
+              message: `Invalid unstable_prefetch value ${JSON.stringify(ctx.data)} on "${route}", must be "auto", "partial", "unstable_eager", "force-disabled", or "force-runtime".`,
             }
           }
           case 'unstable_dynamicStaleTime': {
@@ -258,9 +267,16 @@ export type AppSegmentConfig = {
   unstable_instant?: Instant
 
   /**
-   * Controls runtime prefetching for this segment.
-   * 'static' is a noop (default behavior).
-   * 'runtime' enables runtime prefetching.
+   * Controls prefetching for this segment.
+   * - 'auto' (default) is a noop.
+   * - 'partial' enables Partial Prefetching. Only Cache Components are
+   *   prefetched, not dynamic ones.
+   * - 'unstable_eager' behaves like 'partial' but, when App Shells are enabled,
+   *   keeps eagerly prefetching the route's segments instead of relying on the
+   *   shared app shell. Internal migration aid; not part of the public API.
+   * - 'force-runtime' is a superset of 'partial' and prefetches using a
+   *   runtime request, instead of a static one.
+   * - 'force-disabled' disables prefetching for the segment.
    */
   unstable_prefetch?: Prefetch
 

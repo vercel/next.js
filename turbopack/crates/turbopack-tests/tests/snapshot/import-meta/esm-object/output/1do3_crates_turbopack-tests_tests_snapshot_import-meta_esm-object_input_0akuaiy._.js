@@ -5,7 +5,7 @@
 __turbopack_context__.s([]);
 var __TURBOPACK__import$2e$meta__ = {
     get url () {
-        return `file://${__turbopack_context__.P("turbopack/crates/turbopack-tests/tests/snapshot/import-meta/esm-object/input/mod.mjs")}`;
+        return __turbopack_context__.F("turbopack/crates/turbopack-tests/tests/snapshot/import-meta/esm-object/input/mod.mjs");
     }
 };
 console.log(__TURBOPACK__import$2e$meta__);

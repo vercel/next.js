@@ -321,6 +321,27 @@ Always treat environment variable values as sensitive unless they are known test
 - Never commit local secret files; if documenting env setup, use placeholder-only examples.
 - When sharing command output, summarize and redact sensitive-looking values.
 
+### GitHub SSH Authentication
+
+GitHub SSH authentication may depend on a user-configured SSH agent or key
+provider, such as a password manager or hardware-backed key.
+
+If a Git fetch, push, or partial-clone hydration fails or hangs with an SSH
+signing error such as:
+
+- `sign_and_send_pubkey: signing failed`
+- `communication with agent failed`
+- `Permission denied (publickey)`
+
+stop immediately and ask the user to ensure their SSH agent or key provider is
+available and unlocked. Do not switch remotes to HTTPS, mutate remote URLs,
+retry repeatedly, or attempt another authentication workaround unless the user
+explicitly requests it.
+
+Before a force-push or stack rebase that may hydrate partial-clone objects,
+prefer a lightweight SSH preflight. If it fails due to the SSH agent or key
+provider, ask the user to make it available or unlock it before continuing.
+
 ## Specialized Skills
 
 Use skills for conditional, deep workflows. Keep baseline iteration/build/test policy in this file.

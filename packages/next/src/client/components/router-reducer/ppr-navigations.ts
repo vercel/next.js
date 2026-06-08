@@ -30,12 +30,12 @@ import {
   type RefreshState,
   type FulfilledRouteCacheEntry,
   convertReusedFlightRouterStateToRouteTree,
-  readSegmentCacheEntry,
+  readSegmentCacheEntryForNavigation,
   waitForSegmentCacheEntry,
   markRouteEntryAsDynamicRewrite,
   invalidateRouteCacheEntries,
   getStaleAt,
-  writeStaticStageResponseIntoCache,
+  writePrerenderResponseIntoCache,
   processRuntimePrefetchStream,
   writeDynamicRenderResponseIntoCache,
   EntryStatus,
@@ -1072,7 +1072,7 @@ function createCacheNodeForSegment(
   let cachedRsc: React.ReactNode | null = null
   let isCachedRscPartial: boolean = true
 
-  const segmentEntry = readSegmentCacheEntry(now, tree.varyPath)
+  const segmentEntry = readSegmentCacheEntryForNavigation(now, tree.varyPath)
   if (segmentEntry !== null) {
     switch (segmentEntry.status) {
       case EntryStatus.Fulfilled: {
@@ -1175,7 +1175,10 @@ function createCacheNodeForSegment(
     let cachedHead: HeadData | null = null
     let isCachedHeadPartial: boolean = true
     if (metadataVaryPath !== null) {
-      const metadataEntry = readSegmentCacheEntry(now, metadataVaryPath)
+      const metadataEntry = readSegmentCacheEntryForNavigation(
+        now,
+        metadataVaryPath
+      )
       if (metadataEntry !== null) {
         switch (metadataEntry.status) {
           case EntryStatus.Fulfilled: {
@@ -1633,6 +1636,7 @@ function dispatchRetryDueToTreeMismatch(
       discoverKnownRoute(
         now,
         retryUrl.pathname,
+        retryUrl.search as NormalizedSearch,
         retryNextUrl,
         null,
         seed.routeTree,
@@ -1733,6 +1737,9 @@ async function fetchMissingDynamicData(
       await waitForNavigationLock()
     }
 
+    // TODO: Implement Shell extraction as part of Cached Navigations.
+    // Intentionally holding off on doing this until we decide how the Cached
+    // Navigations behavior should work in combination with App Shells.
     if (routeCacheEntry !== null && result.staticStageData !== null) {
       const { response: staticStageResponse, isResponsePartial } =
         result.staticStageData
@@ -1743,8 +1750,9 @@ async function fetchMissingDynamicData(
             result.responseHeaders.get(NEXT_NAV_DEPLOYMENT_ID_HEADER) ??
             staticStageResponse.b
 
-          writeStaticStageResponseIntoCache(
+          writePrerenderResponseIntoCache(
             now,
+            FetchStrategy.PPR,
             staticStageResponse.f,
             buildId,
             staticStageResponse.h,

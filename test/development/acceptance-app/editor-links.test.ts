@@ -1,6 +1,5 @@
 import { check, retry } from 'next-test-utils'
-import type { Playwright } from 'next-webdriver'
-import { FileRef, nextTestSetup } from 'e2e-utils'
+import { FileRef, nextTestSetup, type Playwright } from 'e2e-utils'
 import path from 'path'
 import { createSandbox } from 'development-sandbox'
 import { outdent } from 'outdent'

@@ -74,6 +74,45 @@ export type UpgradeHandler = (
 
 const SYMBOL_LOAD_CONFIG = Symbol('next.load_config')
 
+type DeprecatedCustomServerMethod =
+  | 'setAssetPrefix'
+  | 'logError'
+  | 'logErrorWithOriginalStack'
+  | 'revalidate'
+  | 'render'
+  | 'renderToHTML'
+  | 'renderError'
+  | 'renderErrorToHTML'
+  | 'render404'
+
+const DEPRECATED_CUSTOM_SERVER_METHOD_GUIDANCE: Record<
+  DeprecatedCustomServerMethod,
+  string
+> = {
+  setAssetPrefix: 'Please configure `assetPrefix` in `next.config.js` instead.',
+  logError: 'Please use application logging instead.',
+  logErrorWithOriginalStack: 'Please use application logging instead.',
+  revalidate: 'Please use documented application revalidation APIs instead.',
+  render:
+    'Please use `app.getRequestHandler()` with an adjusted parsed URL instead.',
+  renderToHTML:
+    'Please use `app.getRequestHandler()` with an adjusted parsed URL instead.',
+  renderError:
+    'Please use `app.getRequestHandler()` with an adjusted parsed URL instead.',
+  renderErrorToHTML:
+    'Please use `app.getRequestHandler()` with an adjusted parsed URL instead.',
+  render404:
+    'Please use `app.getRequestHandler()` with an adjusted parsed URL instead.',
+}
+
+function warnDeprecatedCustomServerMethod(
+  method: DeprecatedCustomServerMethod
+) {
+  log.warnOnce(
+    `The \`app.${method}()\` method is deprecated in custom servers. ${DEPRECATED_CUSTOM_SERVER_METHOD_GUIDANCE[method]}`
+  )
+}
+
 interface NextWrapperServer {
   // NOTE: the methods/properties here are the public API for custom servers.
   // Consider backwards compatibilty when changing something here!
@@ -84,6 +123,7 @@ interface NextWrapperServer {
 
   getRequestHandler(): RequestHandler
   prepare(serverFields?: ServerFields): Promise<void>
+  /** @deprecated Configure `assetPrefix` in `next.config.js` instead. */
   setAssetPrefix(assetPrefix: string): void
   close(): Promise<void>
 
@@ -92,30 +132,48 @@ interface NextWrapperServer {
 
   // legacy methods that we left exposed in the past
 
+  /** @deprecated Use application logging instead. */
   logError(...args: Parameters<NextNodeServer['logError']>): void
 
+  /** @deprecated Use documented application revalidation APIs instead. */
   revalidate(
     ...args: Parameters<NextNodeServer['revalidate']>
   ): ReturnType<NextNodeServer['revalidate']>
 
+  /** @deprecated Use application logging instead. */
   logErrorWithOriginalStack(err: unknown, type: string): void
 
+  /**
+   * @deprecated Use `app.getRequestHandler()` with an adjusted parsed URL instead.
+   */
   render(
     ...args: Parameters<NextNodeServer['render']>
   ): ReturnType<NextNodeServer['render']>
 
+  /**
+   * @deprecated Use `app.getRequestHandler()` with an adjusted parsed URL instead.
+   */
   renderToHTML(
     ...args: Parameters<NextNodeServer['renderToHTML']>
   ): ReturnType<NextNodeServer['renderToHTML']>
 
+  /**
+   * @deprecated Use `app.getRequestHandler()` with an adjusted parsed URL instead.
+   */
   renderError(
     ...args: Parameters<NextNodeServer['renderError']>
   ): ReturnType<NextNodeServer['renderError']>
 
+  /**
+   * @deprecated Use `app.getRequestHandler()` with an adjusted parsed URL instead.
+   */
   renderErrorToHTML(
     ...args: Parameters<NextNodeServer['renderErrorToHTML']>
   ): ReturnType<NextNodeServer['renderErrorToHTML']>
 
+  /**
+   * @deprecated Use `app.getRequestHandler()` with an adjusted parsed URL instead.
+   */
   render404(
     ...args: Parameters<NextNodeServer['render404']>
   ): ReturnType<NextNodeServer['render404']>
@@ -463,6 +521,7 @@ class NextCustomServer implements NextWrapperServer {
   }
 
   async render(...args: Parameters<NextWrapperServer['render']>) {
+    warnDeprecatedCustomServerMethod('render')
     let [req, res, pathname, query, parsedUrl] = args
     this.setupWebSocketHandler(this.options.httpServer, req as IncomingMessage)
 
@@ -483,6 +542,7 @@ class NextCustomServer implements NextWrapperServer {
   }
 
   setAssetPrefix(assetPrefix: string): void {
+    warnDeprecatedCustomServerMethod('setAssetPrefix')
     this.server.setAssetPrefix(assetPrefix)
 
     // update the router-server nextConfig instance as
@@ -507,32 +567,39 @@ class NextCustomServer implements NextWrapperServer {
   }
 
   logError(...args: Parameters<NextWrapperServer['logError']>) {
+    warnDeprecatedCustomServerMethod('logError')
     this.server.logError(...args)
   }
 
   logErrorWithOriginalStack(err: unknown, type: string) {
+    warnDeprecatedCustomServerMethod('logErrorWithOriginalStack')
     return this.server.logErrorWithOriginalStack(err, type)
   }
 
   async revalidate(...args: Parameters<NextWrapperServer['revalidate']>) {
+    warnDeprecatedCustomServerMethod('revalidate')
     return this.server.revalidate(...args)
   }
 
   async renderToHTML(...args: Parameters<NextWrapperServer['renderToHTML']>) {
+    warnDeprecatedCustomServerMethod('renderToHTML')
     return this.server.renderToHTML(...args)
   }
 
   async renderError(...args: Parameters<NextWrapperServer['renderError']>) {
+    warnDeprecatedCustomServerMethod('renderError')
     return this.server.renderError(...args)
   }
 
   async renderErrorToHTML(
     ...args: Parameters<NextWrapperServer['renderErrorToHTML']>
   ) {
+    warnDeprecatedCustomServerMethod('renderErrorToHTML')
     return this.server.renderErrorToHTML(...args)
   }
 
   async render404(...args: Parameters<NextWrapperServer['render404']>) {
+    warnDeprecatedCustomServerMethod('render404')
     return this.server.render404(...args)
   }
 

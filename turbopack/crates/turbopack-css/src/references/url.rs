@@ -92,6 +92,10 @@ impl ModuleReference for UrlAssetReference {
             hoisted: false,
         })
     }
+
+    fn source(&self) -> Option<IssueSource> {
+        Some(self.issue_source)
+    }
 }
 
 #[turbo_tasks::function]

@@ -57,11 +57,7 @@ pub async fn endpoints_outputs(endpoints: Vc<Endpoints>) -> Result<Vc<OutputAsse
         .map(async |endpoint| Ok(endpoint.output().await?.output_assets.await?))
         .try_join()
         .await?;
-    let set = all_outputs
-        .into_iter()
-        .flatten()
-        .copied()
-        .collect::<FxIndexSet<_>>();
+    let set = all_outputs.into_iter().flatten().collect::<FxIndexSet<_>>();
     Ok(Vc::cell(set.into_iter().collect()))
 }
 
@@ -71,7 +67,7 @@ pub async fn outputs_hash(outputs: Vc<OutputAssets>) -> Result<Vc<u64>> {
         outputs
             .await?
             .into_iter()
-            .map(|asset| ExpandOutputAssetsInput::Asset(*asset)),
+            .map(ExpandOutputAssetsInput::Asset),
         true,
     )
     .await?;
@@ -89,13 +85,11 @@ pub async fn endpoint_entry_modules(
     base_module_graph: Vc<ModuleGraph>,
     endpoint: Vc<Box<dyn Endpoint>>,
 ) -> Result<Vc<Modules>> {
-    let entries = endpoint.entries();
-    let additional_entries = endpoint.additional_entries(base_module_graph);
+    let entries = endpoint.entries().await?;
+    let additional_entries = endpoint.additional_entries(base_module_graph).await?;
     let modules = entries
-        .await?
-        .into_iter()
-        .chain(additional_entries.await?)
-        .flat_map(|e| e.entries())
+        .chunk_group_modules()
+        .chain(additional_entries.chunk_group_modules())
         .collect::<FxIndexSet<_>>();
     Ok(Vc::cell(modules.into_iter().collect()))
 }
@@ -116,12 +110,11 @@ pub async fn endpoints_entry_modules(
         .try_join()
         .await?;
     let modules = entries_and_additional_entries
-        .into_iter()
+        .iter()
         .flat_map(|(entries, additional_entries)| {
             entries
-                .into_iter()
-                .chain(additional_entries)
-                .flat_map(|e| e.entries())
+                .chunk_group_modules()
+                .chain(additional_entries.chunk_group_modules())
         })
         .collect::<FxIndexSet<_>>();
     Ok(Vc::cell(modules.into_iter().collect()))
@@ -136,7 +129,7 @@ pub async fn sources_hash(module_graph: Vc<ModuleGraph>, modules: Vc<Modules>) -
     let module_graph = module_graph.await?;
 
     module_graph.traverse_nodes_dfs(
-        modules.into_iter().copied(),
+        modules,
         &mut all_modules,
         |module, all_modules| {
             all_modules.insert(*module);
@@ -196,7 +189,7 @@ impl Asset for RoutesHashesManifestAsset {
 
         let entrypoint_groups = self.project.get_all_endpoint_groups(false).await?;
 
-        for (key, EndpointGroup { primary, .. }) in entrypoint_groups {
+        for (key, EndpointGroup { primary, .. }) in &entrypoint_groups {
             let entry = if let &[entry] = &primary.as_slice() {
                 (
                     sources_hash(

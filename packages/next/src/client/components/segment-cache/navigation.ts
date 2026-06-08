@@ -6,6 +6,10 @@ import type {
 } from '../../../shared/lib/app-router-types'
 import type { CacheNode } from '../../../shared/lib/app-router-types'
 import type { HeadData } from '../../../shared/lib/app-router-types'
+import {
+  SubtreePrefetchHints,
+  propagateSubtreeBits,
+} from '../../../shared/lib/app-router-types'
 import type { NormalizedFlightData } from '../../flight-data-helpers'
 import { fetchServerResponse } from '../router-reducer/fetch-server-response'
 import {
@@ -22,7 +26,7 @@ import {
   deprecated_requestOptimisticRouteCacheEntry,
   convertRootFlightRouterStateToRouteTree,
   getStaleAt,
-  writeStaticStageResponseIntoCache,
+  writePrerenderResponseIntoCache,
   processRuntimePrefetchStream,
   writeDynamicRenderResponseIntoCache,
   type RouteTree,
@@ -437,6 +441,7 @@ async function navigateToUnknownRoute(
     discoverKnownRoute(
       now,
       url.pathname,
+      url.search as NormalizedSearch,
       nextUrl,
       null, // No pending entry
       navigationSeed.routeTree,
@@ -459,8 +464,13 @@ async function navigateToUnknownRoute(
             responseHeaders.get(NEXT_NAV_DEPLOYMENT_ID_HEADER) ??
             staticStageResponse.b
 
-          writeStaticStageResponseIntoCache(
+          // TODO: Implement Shell extraction as part of Cached Navigations.
+          // Intentionally holding off on doing this until we decide how the
+          // Cached Navigations behavior should work in combination with App
+          // Shells.
+          writePrerenderResponseIntoCache(
             now,
+            FetchStrategy.PPR,
             staticStageResponse.f,
             buildId,
             staticStageResponse.h,
@@ -908,8 +918,18 @@ function convertServerPatchToFullTreeImpl(
   if (3 in baseRouterState) {
     clonedTree[3] = baseRouterState[3]
   }
-  if (4 in baseRouterState) {
-    clonedTree[4] = baseRouterState[4]
+  // Recompute the propagated "subtree" prefetch hints for this segment. Mirrors
+  // the propagation done on the server in
+  // createFlightRouterStateFromLoaderTree.
+  let prefetchHints = (baseRouterState[4] ?? 0) & ~SubtreePrefetchHints
+  for (const parallelRouteKey in newTreeChildren) {
+    const childHints = newTreeChildren[parallelRouteKey][4]
+    if (childHints !== undefined) {
+      prefetchHints = propagateSubtreeBits(prefetchHints, childHints)
+    }
+  }
+  if (prefetchHints !== 0) {
+    clonedTree[4] = prefetchHints
   }
 
   // Clone the CacheNodeSeedData tree.
@@ -951,15 +971,6 @@ async function ensurePrefetchThenNavigate(
   const link = getLinkForCurrentNavigation()
   const fetchStrategy = link !== null ? link.fetchStrategy : FetchStrategy.PPR
 
-  // Transition the cookie to captured-SPA immediately, before waiting
-  // for the prefetch. This ensures the devtools panel can update its UI
-  // right away, even if the prefetch takes time (e.g. dev compilation).
-  // The "to" tree starts as null and is filled in after the prefetch
-  // resolves and the navigation produces a new router state.
-  const { transitionToCapturedSPA, updateCapturedSPAToTree } =
-    require('./navigation-testing-lock') as typeof import('./navigation-testing-lock')
-  transitionToCapturedSPA(currentFlightRouterState, null)
-
   const cacheKey = createCacheKey(url.href, nextUrl)
 
   await new Promise<void>((resolve) => {
@@ -988,9 +999,14 @@ async function ensurePrefetchThenNavigate(
     navigateType
   )
 
-  // Update the cookie with the resolved "to" tree so the devtools
-  // panel can display both routes immediately.
-  updateCapturedSPAToTree(currentFlightRouterState, result.tree)
+  // Only transition to captured-SPA once the navigation is known to be an SPA.
+  // If the result is an MPA navigation, leave the cookie pending and let the new
+  // document load transition it to captured-MPA.
+  if (!result.pushRef.mpaNavigation) {
+    const { updateCapturedSPAToTree } =
+      require('./navigation-testing-lock') as typeof import('./navigation-testing-lock')
+    updateCapturedSPAToTree(currentFlightRouterState, result.tree)
+  }
 
   return result
 }

@@ -46,11 +46,6 @@ export async function copy_docs(task, opts) {
     .target('dist/docs')
 }
 
-export async function copy_skills(task, opts) {
-  const skillsSource = join(__dirname, '../../skills')
-  await task.source(join(skillsSource, '**/*')).target('dist/skills')
-}
-
 export async function copy_styled_jsx_assets(task, opts) {
   // we copy the styled-jsx types so that we can reference them
   // in the next-env.d.ts file so it doesn't matter if the styled-jsx
@@ -1899,7 +1894,17 @@ externals['@vercel/nft'] = 'next/dist/compiled/@vercel/nft'
 export async function ncc_nft(task, opts) {
   await task
     .source(relative(__dirname, require.resolve('@vercel/nft')))
-    .ncc({ packageName: '@vercel/nft', externals })
+    .ncc({
+      packageName: '@vercel/nft',
+      externals: Object.keys(externals).reduce((acc, key) => {
+        // @vercel/nft uses glob@13, while next/dist/compiled/glob is glob@7
+        // glob@13 -> path-scurry@2 -> lru-cache@11 which is incompatible
+        if (key !== 'glob' && key !== 'lru-cache') {
+          acc[key] = externals[key]
+        }
+        return acc
+      }, {}),
+    })
     .target('src/compiled/@vercel/nft')
 }
 
@@ -2198,13 +2203,7 @@ export async function ncc_safe_stable_stringify(task, opts) {
 
 export async function precompile(task, opts) {
   await task.parallel(
-    [
-      'browser_polyfills',
-      'copy_ncced',
-      'copy_styled_jsx_assets',
-      'copy_docs',
-      'copy_skills',
-    ],
+    ['browser_polyfills', 'copy_ncced', 'copy_styled_jsx_assets', 'copy_docs'],
     opts
   )
 }

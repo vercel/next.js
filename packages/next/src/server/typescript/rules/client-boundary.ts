@@ -75,13 +75,17 @@ const clientBoundary = {
                   const maybeServerAction =
                     propName === 'action' || /.+Action$/.test(propName)
 
-                  // There's a special case for the error file that the `reset` prop
-                  // is allowed to be a function:
+                  // There's a special case for error files where the
+                  // framework-injected `reset` and `unstable_retry` props are
+                  // allowed to be functions. Next.js provides these props, the
+                  // user doesn't pass them, so they don't need to be
+                  // serializable.
                   // https://github.com/vercel/next.js/issues/46573
-                  const isErrorReset =
-                    (isErrorFile || isGlobalErrorFile) && propName === 'reset'
+                  const isErrorBoundaryFunctionProp =
+                    (isErrorFile || isGlobalErrorFile) &&
+                    (propName === 'reset' || propName === 'unstable_retry')
 
-                  if (!maybeServerAction && !isErrorReset) {
+                  if (!maybeServerAction && !isErrorBoundaryFunctionProp) {
                     diagnostics.push({
                       file: source,
                       category: ts.DiagnosticCategory.Warning,

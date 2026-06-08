@@ -52,6 +52,8 @@ import type { NextAdapter } from '../build/adapter/build-complete'
 import { HardDeprecatedConfigError } from '../shared/lib/errors/hard-deprecated-config-error'
 import { NextInstanceErrorState } from './mcp/tools/next-instance-error-state'
 import { Bundler } from '../lib/bundler'
+import type { MemoryEvictionMode } from '../build/swc/types'
+import { isStableBuild } from '../shared/lib/errors/canary-only-config-error'
 
 export { normalizeConfig } from './config-shared'
 export type { DomainLocale, NextConfig } from './config-shared'
@@ -422,6 +424,29 @@ function assignDefaultsAndValidate(
     result.experimental.trustHostHeader = true
   }
 
+  // Normalize the user-facing `turbopackMemoryEviction` (`false | 'full' |
+  // undefined`) into the `turbopackMemoryEvictionMode` enum expected by napi
+  // (`'off' | 'full'`).
+  let turbopackMemoryEvictionMode: 'off' | 'full'
+  if (result.experimental.turbopackMemoryEviction === false) {
+    turbopackMemoryEvictionMode = 'off'
+  } else if (result.experimental.turbopackMemoryEviction === 'full') {
+    turbopackMemoryEvictionMode = 'full'
+  } else {
+    // Not set by the user: fall back to the env var if present, otherwise 'off'.
+    const rawEnv = process.env.TURBO_ENGINE_EVICT_AFTER_SNAPSHOT
+    turbopackMemoryEvictionMode =
+      rawEnv == null
+        ? isStableBuild()
+          ? 'off'
+          : 'full'
+        : rawEnv === '1' || rawEnv === 'true'
+          ? 'full'
+          : 'off'
+  }
+  ;(result as NextConfigComplete).experimental.turbopackMemoryEvictionMode =
+    turbopackMemoryEvictionMode as MemoryEvictionMode
+
   // Normalize experimental.browserDebugInfoInTerminal to logging.browserToTerminal
   if (
     result.logging !== false &&
@@ -499,6 +524,12 @@ function assignDefaultsAndValidate(
   if (result.experimental.cachedNavigations && !result.cacheComponents) {
     throw new Error(
       `\`experimental.cachedNavigations\` requires \`cacheComponents\` to be enabled. Please update your ${configFileName} accordingly.`
+    )
+  }
+
+  if (result.partialPrefetching && !result.cacheComponents) {
+    throw new Error(
+      `\`partialPrefetching\` requires \`cacheComponents\` to be enabled. Please update your ${configFileName} accordingly.`
     )
   }
 
@@ -1618,9 +1649,28 @@ function assignDefaultsAndValidate(
 function finalizeConfig(config: NextConfigComplete): NextConfigComplete {
   config.experimental.instantInsights = {
     validationLevel:
-      config.experimental.instantInsights?.validationLevel ?? 'manual-warning',
+      config.experimental.instantInsights?.validationLevel ?? 'warning',
   }
+  syncUseNodeStreamsEnv(config)
   return config
+}
+
+function syncUseNodeStreamsEnv(config: NextConfig): void {
+  // This must use resolved config: user configs are inspected before defaults
+  // are merged, while runtime bundles must select the default implementation.
+  const useNodeStreams = config.experimental?.useNodeStreams
+    ? 'true'
+    : undefined
+
+  if (useNodeStreams) {
+    process.env.__NEXT_USE_NODE_STREAMS = useNodeStreams
+  } else {
+    delete process.env.__NEXT_USE_NODE_STREAMS
+  }
+
+  // Dev env reloads restore process.env from this snapshot. Preserve the
+  // resolved runtime selection so a reload cannot mix stream implementations.
+  updateInitialEnv({ __NEXT_USE_NODE_STREAMS: useNodeStreams })
 }
 
 async function applyModifyConfig(
@@ -1750,6 +1800,7 @@ export default async function loadConfig(
       return cachedResult.rawConfig
     }
 
+    syncUseNodeStreamsEnv(cachedResult.config)
     return cachedResult.config
   } else {
     // Reset next.config errors before loading config
@@ -1776,6 +1827,8 @@ export default async function loadConfig(
     const standaloneConfig = JSON.parse(
       process.env.__NEXT_PRIVATE_STANDALONE_CONFIG
     )
+
+    syncUseNodeStreamsEnv(standaloneConfig)
 
     // Cache the standalone config
     configCache.set(cacheKey, {
@@ -2184,6 +2237,23 @@ function enforceExperimentalFeatures(
     }
   }
 
+  // Enable cachedNavigations by default when cacheComponents is enabled.
+  // cachedNavigations relies on Cache Components rendering to do anything
+  // useful, so the two features are tied together: we only flip the default
+  // for projects that are already using Cache Components. Done silently —
+  // we don't report this through `configuredExperimentalFeatures` because
+  // (a) the existing `cacheComponents` env-var auto-enable above is also
+  // silent, and (b) reporting it would force every snapshot test that has
+  // `cacheComponents: true` to take on a new line.
+  // TODO: Remove this once cachedNavigations is unconditionally the default.
+  if (
+    config.cacheComponents &&
+    (config.experimental.cachedNavigations === undefined ||
+      (isDefaultConfig && !config.experimental.cachedNavigations))
+  ) {
+    config.experimental.cachedNavigations = true
+  }
+
   // TODO: Remove this once appNewScrollHandler is the default.
   if (
     process.env.__NEXT_EXPERIMENTAL_APP_NEW_SCROLL_HANDLER === 'true' &&
@@ -2210,16 +2280,6 @@ function enforceExperimentalFeatures(
       (isDefaultConfig && !config.experimental.useNodeStreams))
   ) {
     config.experimental.useNodeStreams = true
-  }
-
-  // Keep runtime bundle selection env in sync with the resolved config.
-  // Explicit user config (e.g. useNodeStreams: false) should win over an
-  // inherited shell env var to avoid selecting nodestream runtime bundles
-  // while define-env compiled user bundles with node streams disabled.
-  if (config.experimental.useNodeStreams) {
-    process.env.__NEXT_USE_NODE_STREAMS = 'true'
-  } else {
-    delete process.env.__NEXT_USE_NODE_STREAMS
   }
 
   // TODO: Remove this once strictRouteTypes is the default.

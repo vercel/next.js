@@ -3,7 +3,7 @@ use std::collections::BTreeSet;
 use anyhow::{Result, bail};
 use bincode::{Decode, Encode};
 use turbo_rcstr::{RcStr, rcstr};
-use turbo_tasks::{ResolvedVc, TaskInput, Vc, trace::TraceRawVcs};
+use turbo_tasks::{ResolvedVc, Vc, trace::TraceRawVcs};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack::{
     module_options::{
@@ -78,8 +78,8 @@ use crate::{
     },
 };
 
-#[turbo_tasks::value(shared)]
-#[derive(Debug, Clone, Hash, TaskInput)]
+#[turbo_tasks::value(shared, task_input)]
+#[derive(Debug, Clone, Hash)]
 pub enum ServerContextType {
     Pages {
         pages_dir: FileSystemPath,
@@ -1002,7 +1002,8 @@ fn client_disallowed_directive_transform_plugin(error_proxy_module: RcStr) -> Vc
     )) as Box<dyn CustomTransformer + Send + Sync>)
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, Hash, TaskInput, TraceRawVcs, Encode, Decode)]
+#[turbo_tasks::task_input(contains_unresolved_vcs)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash, TraceRawVcs, Encode, Decode)]
 pub struct ServerChunkingContextOptions {
     pub mode: Vc<NextMode>,
     pub root_path: FileSystemPath,
@@ -1095,7 +1096,6 @@ pub async fn get_server_chunking_context_with_client_assets(
     .module_id_strategy(module_id_strategy.to_resolved().await?)
     .export_usage(*export_usage.await?)
     .unused_references(unused_references.to_resolved().await?)
-    .file_tracing(next_mode.is_production())
     .debug_ids(*debug_ids.await?)
     .hash_salt(hash_salt)
     .nested_async_availability(*nested_async_chunking.await?)
@@ -1203,7 +1203,6 @@ pub async fn get_server_chunking_context(
     .module_id_strategy(module_id_strategy.to_resolved().await?)
     .export_usage(*export_usage.await?)
     .unused_references(unused_references.to_resolved().await?)
-    .file_tracing(next_mode.is_production())
     .debug_ids(*debug_ids.await?)
     .hash_salt(hash_salt)
     .nested_async_availability(*nested_async_chunking.await?)

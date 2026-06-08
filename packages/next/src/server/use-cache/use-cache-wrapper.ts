@@ -28,20 +28,22 @@ import type {
 } from '../app-render/work-unit-async-storage.external'
 import {
   getHmrRefreshHash,
-  getRenderResumeDataCache,
-  getPrerenderResumeDataCache,
+  getResumeDataCache,
   workUnitAsyncStorage,
   getDraftModeProviderForCacheScope,
   getCacheSignal,
   isHmrRefresh,
   getServerComponentsHmrCache,
+  getStagedRenderingController,
 } from '../app-render/work-unit-async-storage.external'
 
 import {
   applyOwnerStack,
-  getRuntimeStage,
   makeDevtoolsIOAwarePromise,
   makeHangingPromise,
+  getSessionDataStage,
+  getRuntimeLinkDataStage,
+  getStaticLinkDataStage,
 } from '../dynamic-rendering-utils'
 
 import type { ClientReferenceManifest } from '../../build/webpack/plugins/flight-manifest-plugin'
@@ -74,7 +76,7 @@ import {
   type SearchParams,
 } from '../request/search-params'
 import type { Params } from '../request/params'
-import type { PrerenderResumeDataCache } from '../resume-data-cache/resume-data-cache'
+import type { ResumeDataCache } from '../resume-data-cache/resume-data-cache'
 import { createLazyResult, isResolvedLazyResult } from '../lib/lazy-result'
 import { dynamicAccessAsyncStorage } from '../app-render/dynamic-access-async-storage.external'
 import type { CacheLife } from './cache-life'
@@ -333,11 +335,11 @@ function computeRootParamsCacheKeySuffix(
 }
 
 function saveToResumeDataCache(
-  prerenderResumeDataCache: PrerenderResumeDataCache | null,
+  resumeDataCache: ResumeDataCache | null,
   serializedCacheKey: string,
   pendingCacheResult: Promise<CollectedCacheResult>
 ): Promise<CollectedCacheResult> {
-  if (!prerenderResumeDataCache) {
+  if (!resumeDataCache?.mutable) {
     return pendingCacheResult
   }
 
@@ -348,7 +350,7 @@ function saveToResumeDataCache(
   // The RDC is per-page and root params are fixed within a page, so we always
   // use the coarse key (without root param suffix). Unlike the cache handler,
   // the RDC doesn't need root-param-specific keys for isolation.
-  prerenderResumeDataCache.cache.set(serializedCacheKey, rdcResult)
+  resumeDataCache.cache.set(serializedCacheKey, rdcResult)
   debug?.('Resume Data Cache entry saved', serializedCacheKey)
 
   return savedCacheResult
@@ -373,11 +375,11 @@ function saveToResumeDataCache(
 function saveSharedCacheEntryToResumeDataCache(
   serializedCacheKey: string,
   sharedCacheEntry: SharedCacheEntry,
-  prerenderResumeDataCache: PrerenderResumeDataCache | null
+  resumeDataCache: ResumeDataCache | null
 ): void {
   if (
-    !prerenderResumeDataCache ||
-    prerenderResumeDataCache.cache.has(serializedCacheKey)
+    !resumeDataCache?.mutable ||
+    resumeDataCache.cache.has(serializedCacheKey)
   ) {
     return
   }
@@ -398,7 +400,7 @@ function saveSharedCacheEntryToResumeDataCache(
       dynamicNestedCacheError: metadata.dynamicNestedCacheError,
     }))
 
-  prerenderResumeDataCache.cache.set(serializedCacheKey, rdcResult)
+  resumeDataCache.cache.set(serializedCacheKey, rdcResult)
   debug?.('Resume Data Cache entry saved by joiner', serializedCacheKey)
 }
 
@@ -1687,7 +1689,10 @@ export async function cache(
         // while runtime-prefetchable segments resolve at Runtime.
         const stagedRendering = outerWorkUnitStore.stagedRendering
         if (stagedRendering) {
-          await stagedRendering.waitForStage(getRuntimeStage(stagedRendering))
+          await stagedRendering.waitForStage(
+            // TODO(app-shells): exclude private caches with a short staletime from shells
+            getSessionDataStage(stagedRendering)
+          )
         }
         break
       }
@@ -1698,7 +1703,8 @@ export async function cache(
           // whether we're in the early or late stages.
           const stagedRendering = outerWorkUnitStore.stagedRendering
           const stage = stagedRendering
-            ? getRuntimeStage(stagedRendering)
+            ? // TODO(app-shells): exclude private caches with a short staletime
+              getSessionDataStage(stagedRendering)
             : RenderStage.Runtime
           await makeDevtoolsIOAwarePromise(undefined, outerWorkUnitStore, stage)
         }
@@ -1982,18 +1988,16 @@ export async function cache(
 
   let stream: undefined | ReadableStream = undefined
 
-  // Get an immutable and mutable versions of the resume data cache.
-  const prerenderResumeDataCache = getPrerenderResumeDataCache(workUnitStore)
-  const renderResumeDataCache = getRenderResumeDataCache(workUnitStore)
+  const resumeDataCache = getResumeDataCache(workUnitStore)
 
   const implicitTags = workUnitStore.implicitTags?.tags ?? []
 
-  if (renderResumeDataCache) {
+  if (resumeDataCache) {
     // If this cache key was already determined to be dynamic during the
     // prospective prerender (e.g. because it accessed fallback params), we
     // return a hanging promise early to avoid trying to regenerate the entry,
     // which would be aborted anyway.
-    if (renderResumeDataCache.dynamicCacheKeys?.has(serializedCacheKey)) {
+    if (resumeDataCache.dynamicCacheKeys?.has(serializedCacheKey)) {
       switch (workUnitStore.type) {
         case 'prerender':
         case 'prerender-runtime':
@@ -2020,7 +2024,7 @@ export async function cache(
     if (cacheSignal) {
       cacheSignal.beginRead()
     }
-    const rdcEntry = renderResumeDataCache.cache.get(serializedCacheKey)
+    const rdcEntry = resumeDataCache.cache.get(serializedCacheKey)
     if (rdcEntry !== undefined) {
       let rdcResult: CollectedCacheResult | undefined = await rdcEntry
 
@@ -2098,7 +2102,8 @@ export async function cache(
               const stagedRendering = workUnitStore.stagedRendering
               if (stagedRendering) {
                 await stagedRendering.waitForStage(
-                  getRuntimeStage(stagedRendering)
+                  // TODO(app-shells): exclude caches with a short staletime
+                  getSessionDataStage(stagedRendering)
                 )
               }
               break
@@ -2131,9 +2136,11 @@ export async function cache(
                 // TODO(restart-on-cache-miss): Optimize this to avoid unnecessary restarts.
                 // We don't end the cache read here, so this will always appear as a cache miss in the static stage,
                 // and thus will cause a restart even if all caches are filled.
+
                 const stagedRendering = workUnitStore.stagedRendering
                 const stage = stagedRendering
-                  ? getRuntimeStage(stagedRendering)
+                  ? // TODO(app-shells): exclude caches with a short staletime
+                    getSessionDataStage(stagedRendering)
                   : RenderStage.Runtime
                 await makeDevtoolsIOAwarePromise(
                   undefined,
@@ -2204,14 +2211,55 @@ export async function cache(
               workUnitStore satisfies never
           }
         }
+
+        // If we're doing staged rendering with shells and the cache accessed root params,
+        // we should exclude it from the shell, because root params are also excluded.
+        const stagedRendering = getStagedRenderingController(workUnitStore)
+        if (
+          process.env.__NEXT_APP_SHELLS &&
+          stagedRendering &&
+          rootParams &&
+          rdcResult.readRootParamNames &&
+          rdcResult.readRootParamNames.size > 0
+        ) {
+          switch (workUnitStore.type) {
+            case 'prerender': {
+              await stagedRendering.waitForStage(
+                getStaticLinkDataStage(stagedRendering)
+              )
+              break
+            }
+            case 'prerender-runtime': {
+              // If we're rendering with shells, this is when params should resolve
+              await stagedRendering.waitForStage(
+                getRuntimeLinkDataStage(stagedRendering)
+              )
+              break
+            }
+            case 'request': {
+              // For a staged dynamic request, assume we're recovering a static shell --
+              // If a session shell is needed, we do it in a separate render
+              await stagedRendering.waitForStage(
+                getStaticLinkDataStage(stagedRendering)
+              )
+              break
+            }
+            case 'cache':
+            case 'private-cache':
+            case 'prerender-legacy':
+            case 'prerender-ppr':
+            case 'generate-static-params': {
+              break
+            }
+            default: {
+              workUnitStore satisfies never
+            }
+          }
+        }
       }
 
       if (rdcResult !== undefined) {
         debug?.('Resume Data Cache entry found', serializedCacheKey)
-
-        if (prerenderResumeDataCache) {
-          prerenderResumeDataCache.cache.set(serializedCacheKey, rdcEntry)
-        }
 
         if (
           rdcResult.readRootParamNames &&
@@ -2262,24 +2310,18 @@ export async function cache(
 
       switch (workUnitStore.type) {
         case 'prerender':
-          // If `allowEmptyStaticShell` is true, and thus a prefilled resume
-          // data cache was provided, then a cache miss means that params were
-          // part of the cache key. In this case, we can make this cache
-          // function a dynamic hole in the shell (or produce an empty shell if
-          // there's no parent suspense boundary). Currently, this also includes
-          // layouts and pages that don't read params, which will be improved
-          // when we implement NAR-136. Otherwise, we assume that if params are
-          // passed explicitly into a "use cache" function, that the params are
-          // also accessed. This allows us to abort early, and treat the
-          // function as dynamic, instead of waiting for the timeout to be
-          // reached. Compared to the instrumentation-based params bailout we do
-          // here, this also covers the case where params are transformed with
-          // an async function, before being passed into the "use cache"
-          // function, which escapes the instrumentation.
-          if (workUnitStore.allowEmptyStaticShell) {
-            if (prerenderResumeDataCache) {
-              prerenderResumeDataCache.dynamicCacheKeys.add(serializedCacheKey)
-            }
+          if (resumeDataCache?.mutable === false) {
+            // We're prerendering a fallback shell whose Resume Data Cache is
+            // the prefilled, read-only seed from a phase-1 prerender of a more-
+            // specific sibling route. A miss here means the cache key depends
+            // on a fallback param. We short-circuit to a dynamic hole (which
+            // may produce an empty shell if there's no parent Suspense
+            // boundary). Currently this also catches layouts and pages that
+            // don't read params, which will be improved when we implement
+            // NAR-136. Compared to the instrumentation-based params bailout we
+            // also do here, this covers the case where params are transformed
+            // with an async function before being passed into the "use cache"
+            // function, which escapes the instrumentation.
             return makeHangingPromise(
               workUnitStore.renderSignal,
               workStore.route,
@@ -2360,7 +2402,7 @@ export async function cache(
       saveSharedCacheEntryToResumeDataCache(
         serializedCacheKey,
         sharedCacheResult.entry,
-        prerenderResumeDataCache
+        resumeDataCache
       )
 
       // End the cache signal read when the result is fully collected, not when
@@ -2465,7 +2507,7 @@ export async function cache(
             saveSharedCacheEntryToResumeDataCache(
               serializedCacheKey,
               sharedCacheResult.entry,
-              prerenderResumeDataCache
+              resumeDataCache
             )
 
             // Resolve for intra-request joiners in this request. They get
@@ -2500,8 +2542,8 @@ export async function cache(
               'cross-request invocation is prerender-dynamic',
               cacheHandlerKey
             )
-            if (prerenderResumeDataCache) {
-              prerenderResumeDataCache.dynamicCacheKeys.add(serializedCacheKey)
+            if (resumeDataCache?.mutable) {
+              resumeDataCache.dynamicCacheKeys.add(serializedCacheKey)
             }
             cacheSignal?.endRead()
             resolvableSharedCacheResult.resolve(sharedCacheResult)
@@ -2649,9 +2691,11 @@ export async function cache(
                 // unnecessary restarts. We don't end the cache read here, so
                 // this will always appear as a cache miss in the static stage,
                 // and thus will cause a restart even if all caches are filled.
+
                 const stagedRendering = workUnitStore.stagedRendering
                 const stage = stagedRendering
-                  ? getRuntimeStage(stagedRendering)
+                  ? // TODO(app-shells): exclude caches with a short staletime
+                    getSessionDataStage(stagedRendering)
                   : RenderStage.Runtime
                 await makeDevtoolsIOAwarePromise(
                   undefined,
@@ -2723,8 +2767,8 @@ export async function cache(
               'leader resolved as prerender-dynamic (generation)',
               cacheHandlerKey
             )
-            if (prerenderResumeDataCache) {
-              prerenderResumeDataCache.dynamicCacheKeys.add(serializedCacheKey)
+            if (resumeDataCache?.mutable) {
+              resumeDataCache.dynamicCacheKeys.add(serializedCacheKey)
             }
             resolvableSharedCacheResult.resolve(result)
             return result.hangingPromise
@@ -2735,7 +2779,7 @@ export async function cache(
           // When draft mode is enabled, we must not save the cache entry.
           if (!workStore.isDraftMode) {
             const savedCacheResult = saveToResumeDataCache(
-              prerenderResumeDataCache,
+              resumeDataCache,
               serializedCacheKey,
               pendingCacheResult
             )
@@ -2809,9 +2853,9 @@ export async function cache(
           // We want to return this stream, even if it's stale.
           stream = entry.value
 
-          // If we have a resume data cache, we need to clone the entry and add
-          // it to the resume data cache.
-          if (prerenderResumeDataCache) {
+          // If we have a mutable resume data cache, we need to clone the entry
+          // and add it to the resume data cache.
+          if (resumeDataCache?.mutable) {
             const [entryLeft, entryRight] = cloneCacheEntry(entry)
             if (cacheSignal) {
               stream = createTrackedReadableStream(entryLeft.value, cacheSignal)
@@ -2821,7 +2865,7 @@ export async function cache(
 
             // The RDC is per-page and root params are fixed within a page, so
             // we always use the coarse key (without root param suffix).
-            prerenderResumeDataCache.cache.set(
+            resumeDataCache.cache.set(
               serializedCacheKey,
               Promise.resolve({
                 entry: entryRight,
@@ -2875,7 +2919,7 @@ export async function cache(
                   const { stream: ignoredStream, pendingCacheResult } = result
 
                   const savedCacheResult = saveToResumeDataCache(
-                    prerenderResumeDataCache,
+                    resumeDataCache,
                     serializedCacheKey,
                     pendingCacheResult
                   )

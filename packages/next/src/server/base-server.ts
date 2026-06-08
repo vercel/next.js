@@ -568,6 +568,7 @@ export default abstract class Server<
       // `htmlLimitedBots` is passed to server as serialized config in string format
       htmlLimitedBots: this.nextConfig.htmlLimitedBots,
       cacheComponents: this.nextConfig.cacheComponents ?? false,
+      partialPrefetching: this.nextConfig.partialPrefetching,
       validationLevel:
         this.nextConfig.experimental.instantInsights.validationLevel,
       experimental: {
@@ -586,6 +587,7 @@ export default abstract class Server<
         useCacheTimeout: this.nextConfig.experimental.useCacheTimeout,
         cachedNavigations:
           this.nextConfig.experimental.cachedNavigations ?? false,
+        appShells: this.nextConfig.experimental.appShells,
         maxPostponedStateSizeBytes: parseMaxPostponedStateSize(
           this.nextConfig.experimental.maxPostponedStateSize
         ),
@@ -2071,8 +2073,10 @@ export default abstract class Server<
       const prefetchHeaderValue = headers[NEXT_ROUTER_PREFETCH_HEADER]
       const routerPrefetch =
         prefetchHeaderValue !== undefined
-          ? // We only recognize '1' and '2'. Strip all other values here.
-            prefetchHeaderValue === '1' || prefetchHeaderValue === '2'
+          ? // We only recognize '1', '2', and '3'. Strip all other values here.
+            prefetchHeaderValue === '1' ||
+            prefetchHeaderValue === '2' ||
+            prefetchHeaderValue === '3'
             ? prefetchHeaderValue
             : undefined
           : // For runtime prefetches, we always perform a dynamic request,

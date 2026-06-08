@@ -16,13 +16,14 @@ import {
   type PrerenderStorePPR,
 } from '../app-render/work-unit-async-storage.external'
 import {
-  delayUntilRuntimeStage,
   makeHangingPromise,
+  RENDER_STAGES_BY_DATA_KIND,
 } from '../dynamic-rendering-utils'
 import { InvariantError } from '../../shared/lib/invariant-error'
 
 export function createServerPathnameForMetadata(
-  underlyingPathname: string
+  underlyingPathname: string,
+  isRuntimePrefetchable: boolean
 ): Promise<string> {
   const workStore = workAsyncStorage.getStore()
   if (!workStore) {
@@ -55,12 +56,30 @@ export function createServerPathnameForMetadata(
         throw new InvariantError(
           'createServerPathnameForMetadata should not be called inside generateStaticParams.'
         )
-      case 'prerender-runtime':
-        return delayUntilRuntimeStage(
-          workUnitStore,
-          createRenderPathname(underlyingPathname)
-        )
+      case 'prerender-runtime': {
+        // TODO(app-shells): whether or not this is included in the shell
+        // should depend on whether this route has params.
+        // if there's no params, it can be included.
+        // for now, we defensively exclude it to match the earlier pessimistic
+        // behavior of always resolving in the runtime stage
+        // (i.e. assuming that we have non-static params in the pathname)
+        const { stagedRendering } = workUnitStore
+        if (stagedRendering) {
+          const pathnameStages = RENDER_STAGES_BY_DATA_KIND.runtimeLinkData
+          const stage = isRuntimePrefetchable
+            ? pathnameStages.early
+            : pathnameStages.late
+          return stagedRendering.delayUntilStage(
+            stage,
+            undefined,
+            underlyingPathname
+          )
+        } else {
+          return createRenderPathname(underlyingPathname)
+        }
+      }
       case 'request':
+        // TODO(app-shells): this should be delayed if there's non-static params
         return createRenderPathname(underlyingPathname)
       default:
         workUnitStore satisfies never

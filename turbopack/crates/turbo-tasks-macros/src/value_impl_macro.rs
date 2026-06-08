@@ -315,21 +315,23 @@ pub fn value_impl(args: TokenStream, input: TokenStream) -> TokenStream {
             // `LazyLock` initializer (via `CollectableTraitMethods::finalize_vtable_registry`).
             // The vtable pointer is materialized at compile time via the null-fat-ptr trick, so
             // there's no runtime `transmute` or indirect fn call.
-            #[turbo_tasks::macro_helpers::ctor::ctor(
-                crate_path = turbo_tasks::macro_helpers::ctor,
-            )]
-            #[allow(non_snake_case)]
-            fn #vtable_register_ident() {
-                <::std::boxed::Box<dyn #trait_path> as turbo_tasks::VcValueTrait>::IMPL_VTABLES
-                    .register(
-                        <#ty as turbo_tasks::macro_helpers::RegistryDef::<turbo_tasks::ValueType>>::DEF,
-                        {
-                            let p: *const #ty = ::std::ptr::null();
-                            // This attaches a fat pointer to the null pointer.
-                            let fat: *const dyn #trait_path = p;
-                            fat
-                        },
-                    );
+
+            #[cfg(not(rust_analyzer))]
+            turbo_tasks::macro_helpers::ctor::declarative::ctor! {
+                #[ctor(unsafe)]
+                #[allow(non_snake_case)]
+                fn #vtable_register_ident() {
+                    <::std::boxed::Box<dyn #trait_path> as turbo_tasks::VcValueTrait>::IMPL_VTABLES
+                        .register(
+                            <#ty as turbo_tasks::macro_helpers::RegistryDef::<turbo_tasks::ValueType>>::DEF,
+                            {
+                                let p: *const #ty = ::std::ptr::null();
+                                // This attaches a fat pointer to the null pointer.
+                                let fat: *const dyn #trait_path = p;
+                                fat
+                            },
+                        );
+                }
             }
 
             // NOTE(alexkirsz) We can't have a general `turbo_tasks::Upcast<Box<dyn Trait>> for T where T: Trait` because

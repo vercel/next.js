@@ -160,6 +160,8 @@ export function getDefineEnv({
         ? 'development'
         : 'production',
     'process.env.__NEXT_DEV_SERVER': dev ? '1' : '',
+    'process.env.__NEXT_DISABLE_DEV_OVERLAY_UX':
+      process.env.NEXT_PRIVATE_DISABLE_DEV_OVERLAY_UX === '1',
     'process.env.NEXT_RUNTIME': isEdgeServer
       ? 'edge'
       : isNodeServer
@@ -177,8 +179,7 @@ export function getDefineEnv({
     'process.env.__NEXT_EXPERIMENTAL_CACHED_NAVIGATIONS': Boolean(
       config.experimental.cachedNavigations
     ),
-    'process.env.__NEXT_INSTANT_NAV_TOGGLE':
-      !!config.experimental.instantNavigationDevToolsToggle,
+    'process.env.__NEXT_INSTANT_NAV_TOGGLE': isCacheComponentsEnabled,
     'process.env.__NEXT_USE_CACHE': isUseCacheEnabled,
     'process.env.__NEXT_USE_NODE_STREAMS': isEdgeServer
       ? false

@@ -18,7 +18,14 @@ import {
   type SyncIOApiType,
 } from '../../../server/app-render/sync-io-messages'
 import {
+  ClientHookDynamicError,
+  ParamClientHookDynamicError,
+} from '../../../server/dynamic-rendering-utils'
+import { getCards } from '../components/instant/instant-guidance-data'
+import {
   getBlockingRouteErrorDetails,
+  getUnrenderedSegmentErrorDetails,
+  isInstantNavigationError,
   isRuntimeVariant,
   isSyncIOClientError,
   isSyncIOError,
@@ -122,6 +129,28 @@ describe('isSyncIOClientError', () => {
 })
 
 describe('getBlockingRouteErrorDetails', () => {
+  it('classifies client hook errors separately', () => {
+    expect(
+      getBlockingRouteErrorDetails(
+        new ClientHookDynamicError(ROUTE, 'useSearchParams()')
+      )
+    ).toEqual({
+      type: 'client-hook',
+      expression: 'useSearchParams()',
+    })
+  })
+
+  it('classifies param-derived client hook errors separately', () => {
+    expect(
+      getBlockingRouteErrorDetails(
+        new ParamClientHookDynamicError(ROUTE, 'useParams()')
+      )
+    ).toEqual({
+      type: 'client-hook',
+      expression: 'useParams()',
+    })
+  })
+
   it('classifies createRuntimeBodyError as blocking-route + runtime (SSR-only)', () => {
     expect(getBlockingRouteErrorDetails(createRuntimeBodyError(ROUTE))).toEqual(
       { type: 'blocking-route', variant: 'runtime', inNavigation: false }
@@ -251,5 +280,136 @@ describe('getBlockingRouteErrorDetails', () => {
 
   it('returns null for an unrelated error', () => {
     expect(getBlockingRouteErrorDetails(new Error('regular bug'))).toBe(null)
+  })
+})
+
+describe('client hook guidance', () => {
+  it('only suggests Suspense for useSearchParams', () => {
+    expect(
+      getCards('client-hook', 'runtime', 'useSearchParams()').map(
+        (card) => card.id
+      )
+    ).toEqual(['wrap-in-or-move-into-suspense'])
+  })
+
+  it('also suggests prerendering known params for param-derived hooks', () => {
+    expect(
+      getCards('client-hook', 'runtime', 'useParams()').map((card) => card.id)
+    ).toEqual([
+      'wrap-in-or-move-into-suspense',
+      'prerender-known-dynamic-params',
+    ])
+  })
+})
+
+describe('getUnrenderedSegmentErrorDetails', () => {
+  function createUnrenderedSegmentError(
+    route: string,
+    files: string[] = []
+  ): Error {
+    let message = `Route "${route}": Could not validate that a segment in your UI has instant navigation.`
+    if (files.length > 0) {
+      const label = files.length === 1 ? 'Dropped segment' : 'Dropped segments'
+      message +=
+        `\n\nThis segment was dropped from rendering. Issues that would prevent instant navigation will go undetected.` +
+        `\n\n${label}:\n${files.map((p) => `  ${p}`).join('\n')}` +
+        `\n\nWays to fix this:` +
+        `\n  - [render] Render the dropped segment` +
+        `\n  - [ignore] Set \`export const unstable_instant = false\` on the dropped segment to skip validation` +
+        `\n\nLearn more: https://nextjs.org/docs/messages/instant-unrendered-segment`
+    }
+    return new Error(message)
+  }
+
+  it('parses route and a single unrendered segment file', () => {
+    const error = createUnrenderedSegmentError(ROUTE, ['app/example/page.tsx'])
+    expect(getUnrenderedSegmentErrorDetails(error)).toEqual({
+      type: 'unrendered-segment',
+      route: ROUTE,
+      files: ['app/example/page.tsx'],
+    })
+  })
+
+  it('parses route and multiple unrendered segment files', () => {
+    const error = createUnrenderedSegmentError(ROUTE, [
+      'app/example/@sidebar/page.tsx',
+      'app/example/page.tsx',
+    ])
+    expect(getUnrenderedSegmentErrorDetails(error)).toEqual({
+      type: 'unrendered-segment',
+      route: ROUTE,
+      files: ['app/example/@sidebar/page.tsx', 'app/example/page.tsx'],
+    })
+  })
+
+  it('parses route with no segment list (defensive — framework currently always emits one)', () => {
+    const error = createUnrenderedSegmentError(ROUTE, [])
+    expect(getUnrenderedSegmentErrorDetails(error)).toEqual({
+      type: 'unrendered-segment',
+      route: ROUTE,
+      files: [],
+    })
+  })
+
+  it('returns null when the headline substring is absent', () => {
+    expect(getUnrenderedSegmentErrorDetails(new Error('regular bug'))).toBe(
+      null
+    )
+  })
+
+  it('returns null when the headline matches but the route prefix is missing', () => {
+    expect(
+      getUnrenderedSegmentErrorDetails(
+        new Error(
+          'Could not validate that a segment in your UI has instant navigation.'
+        )
+      )
+    ).toBe(null)
+  })
+})
+
+describe('isInstantNavigationError', () => {
+  function createUnrenderedSegmentError(route: string): Error {
+    return new Error(
+      `Route "${route}": Could not validate that a segment in your UI has instant navigation.\n\nDropped segment:\n  app/example/page.tsx`
+    )
+  }
+
+  it('returns true for navigation-phase blocking-route errors', () => {
+    expect(
+      isInstantNavigationError(createRuntimeBodyErrorInNavigation(ROUTE))
+    ).toBe(true)
+    expect(
+      isInstantNavigationError(createDynamicBodyErrorInNavigation(ROUTE))
+    ).toBe(true)
+  })
+
+  it('returns true for unrendered-segment errors', () => {
+    expect(isInstantNavigationError(createUnrenderedSegmentError(ROUTE))).toBe(
+      true
+    )
+  })
+
+  it('returns false for prerender-phase blocking-route errors', () => {
+    expect(isInstantNavigationError(createRuntimeBodyError(ROUTE))).toBe(false)
+    expect(isInstantNavigationError(createDynamicBodyError(ROUTE))).toBe(false)
+  })
+
+  it('returns false for metadata/viewport/sync-io errors', () => {
+    expect(isInstantNavigationError(createDynamicMetadataError(ROUTE))).toBe(
+      false
+    )
+    expect(isInstantNavigationError(createRuntimeViewportError(ROUTE))).toBe(
+      false
+    )
+    expect(
+      isInstantNavigationError(
+        createSyncIOError(ROUTE, 'Math.random()', 'random')
+      )
+    ).toBe(false)
+  })
+
+  it('returns false for unrelated errors', () => {
+    expect(isInstantNavigationError(new Error('regular bug'))).toBe(false)
   })
 })
