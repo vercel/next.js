@@ -13,7 +13,7 @@ import {
   ACTION_ERROR_OVERLAY_OPEN,
 } from '../../shared'
 import { usePanelRouterContext } from '../../menu/context'
-import { getIssueBucketState } from '../../menu/dev-overlay-menu'
+import { getIssueBucketState } from '../../menu/issue-bucket-state'
 import { BASE_LOGO_SIZE } from '../../utils/indicator-metrics'
 import { StatusIndicator, Status, getCurrentStatus } from './status-indicator'
 

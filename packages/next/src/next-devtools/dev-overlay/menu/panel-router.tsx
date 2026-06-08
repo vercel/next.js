@@ -1,10 +1,6 @@
 import { usePanelRouterContext, type PanelStateKind } from './context'
-import {
-  ChevronRight,
-  DevtoolMenu,
-  IssueCount,
-  getIssueBucketState,
-} from './dev-overlay-menu'
+import { ChevronRight, DevtoolMenu, IssueCount } from './dev-overlay-menu'
+import { getIssueBucketState } from './issue-bucket-state'
 import { DynamicPanel } from '../panel/dynamic-panel'
 import {
   learnMoreLink,
