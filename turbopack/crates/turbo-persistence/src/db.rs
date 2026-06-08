@@ -331,8 +331,6 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
             is_empty: AtomicBool::new(true),
             active_write_operation: Mutex::new(None),
             deferred_deletions: Mutex::new(Vec::new()),
-            // Block caches are allocated lazily on first read; see
-            // [`Self::key_block_cache`] / [`Self::value_block_cache`].
             key_block_cache: OnceLock::new(),
             value_block_cache: OnceLock::new(),
             config,
@@ -646,9 +644,6 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
         ))
     }
 
-    /// Returns the key block cache, allocating it on first use. Deferring allocation until the
-    /// first read keeps write-only or empty sessions from paying the cache's fixed hash-table
-    /// overhead for a cache they never populate.
     fn key_block_cache(&self) -> &BlockCache {
         self.key_block_cache.get_or_init(|| {
             BlockCache::with(
@@ -661,7 +656,6 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
         })
     }
 
-    /// Returns the value block cache, allocating it on first use. See [`Self::key_block_cache`].
     fn value_block_cache(&self) -> &BlockCache {
         self.value_block_cache.get_or_init(|| {
             BlockCache::with(
