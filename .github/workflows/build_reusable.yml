@@ -62,7 +62,7 @@ on:
         description: 'List of runner labels'
         required: false
         type: string
-        default: '["ubuntu-latest-16-core-oss"]'
+        default: '["ubuntu-latest-32-core-oss"]'
       buildNativeTarget:
         description: 'Target for build-native step'
         required: false
@@ -108,7 +108,7 @@ env:
   NODE_LTS_VERSION: 20.9.0
   # run-tests.js reads `TEST_CONCURRENCY` if no explicit `--concurrency` or `-c`
   # argument is provided
-  TEST_CONCURRENCY: 8
+  TEST_CONCURRENCY: 16
   # overrides `turbo_tasks::parallel::available_parallelism`. Smaller values are more CPU and memory
   # efficient, but won't fully utilize all available CPU cores. A small value here makes sense since
   # we're running many tests in parallel.
