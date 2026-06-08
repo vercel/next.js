@@ -723,7 +723,11 @@ Next.js version: ${props.versionInfo.installed} (${process.env.__NEXT_BUNDLER})\
     getErrorSource(error) || ''
   )
 
-  const showTabBar = normalErrors.length > 0 || instantErrors.length > 0
+  // Show the tab bar only when at least one Insight is present. When the only
+  // bucket with content is Issues, the red pill already conveys the count and a
+  // single-tab bar would be redundant. When Insights exist (alone or alongside
+  // Issues), the bar is shown so the user can switch between buckets.
+  const showTabBar = instantErrors.length > 0
   const renderTabBar = showTabBar
     ? ({
         previousButton,
