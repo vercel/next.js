@@ -1,9 +1,11 @@
-use std::mem::take;
+use std::{iter, mem::take};
 
 pub mod kinds;
 pub mod require_context;
 
 use anyhow::Result;
+use either::Either;
+use smallvec::SmallVec;
 use turbo_rcstr::rcstr;
 use turbo_tasks::Vc;
 use turbopack_core::compile_time_info::CompileTimeInfo;
@@ -228,24 +230,8 @@ fn path_join<'a>(arena: &'a Bump, args: BumpVec<'a, JsValue<'a>>) -> JsValue<'a>
     if args.is_empty() {
         return rcstr!(".").into();
     }
-    let mut parts: Vec<JsValue<'a>> = Vec::new();
-    for item in args {
-        if let Some(str) = item.as_str() {
-            let split = str.split('/');
-            parts.extend(split.map(|s| s.into()));
-        } else {
-            parts.push(item);
-        }
-    }
-    let mut results_final: Vec<JsValue<'a>> = Vec::new();
-    let mut results: Vec<JsValue<'a>> = Vec::new();
-    for item in parts {
-fn path_join<'a>(arena: &'a Bump, args: BumpVec<'a, JsValue<'a>>) -> JsValue<'a> {
-    if args.is_empty() {
-        return rcstr!(".").into();
-    }
-    let mut results_final: SmallVec<JsValue<'a>, [_; 16]> = SmallVec::new();
-    let mut results: SmallVec<JsValue<'a>, [_; 16]> = SmallVec::new();
+    let mut results_final: SmallVec<[JsValue<'a>; 16]> = SmallVec::new();
+    let mut results: SmallVec<[JsValue<'a>; 16]> = SmallVec::new();
     for arg in args {
         let arg_parts = if let Some(str) = arg.as_str() {
             let split = str.split('/');
@@ -319,28 +305,34 @@ fn path_resolve<'a>(
         }
     }
 
-    let mut results_final: Vec<JsValue<'a>> = Vec::new();
-    let mut results: Vec<JsValue<'a>> = Vec::new();
-    for item in args {
-        if let Some(str) = item.as_str() {
-            for str in str.split('/') {
+    let mut results_final: SmallVec<[JsValue<'a>; 16]> = SmallVec::new();
+    let mut results: SmallVec<[JsValue<'a>; 16]> = SmallVec::new();
+    for arg in args {
+        let arg_parts = if let Some(str) = arg.as_str() {
+            let split = str.split('/');
+            Either::Left(split.map(|s| s.into()))
+        } else {
+            Either::Right(iter::once(arg))
+        };
+        for item in arg_parts {
+            if let Some(str) = item.as_str() {
                 match str {
                     "" | "." => {
                         if results_final.is_empty() && results.is_empty() {
-                            results_final.push(str.into());
+                            results_final.push(item);
                         }
                     }
                     ".." => {
                         if results.pop().is_none() {
-                            results_final.push(rcstr!("..").into());
+                            results_final.push(item);
                         }
                     }
-                    _ => results.push(str.into()),
+                    _ => results.push(item),
                 }
+            } else {
+                results_final.append(&mut results);
+                results_final.push(item);
             }
-        } else {
-            results_final.append(&mut results);
-            results_final.push(item);
         }
     }
     results_final.append(&mut results);
