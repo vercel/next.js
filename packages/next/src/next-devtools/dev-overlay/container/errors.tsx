@@ -1307,7 +1307,7 @@ export const styles = `
     transition: color 0.15s ease;
     border-radius: var(--rounded-md);
 
-    &:hover {
+    &:hover:not(:disabled) {
       color: var(--color-gray-1000);
     }
 

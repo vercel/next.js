@@ -43,14 +43,11 @@ const MenuPanel = () => {
   const { normalErrorCount, instantErrorCount } = useRenderErrorContext()
   const isAppRouter = state.routerType === 'app'
 
-  const { hasNormal, hasInstant, hasAny, insightsOnly, variant } =
-    getIssueBucketState(normalErrorCount, instantErrorCount)
-  const label =
-    hasNormal && hasInstant
-      ? 'Issues · Insights'
-      : insightsOnly
-        ? 'Insights'
-        : 'Issues'
+  const { hasNormal, hasInstant, hasAny } = getIssueBucketState(
+    normalErrorCount,
+    instantErrorCount
+  )
+
   const titleParts: string[] = []
   if (hasNormal) {
     titleParts.push(
@@ -62,6 +59,12 @@ const MenuPanel = () => {
       `${instantErrorCount} ${instantErrorCount === 1 ? 'insight' : 'insights'}`
     )
   }
+  const label =
+    hasNormal && hasInstant
+      ? 'Issues · Insights'
+      : hasInstant
+        ? 'Insights'
+        : 'Issues'
 
   return (
     <DevtoolMenu
@@ -70,27 +73,24 @@ const MenuPanel = () => {
           title: `${titleParts.join(' · ')} found. Click to view details in the dev overlay.`,
           label,
           value: (
-            <IssueCount variant={variant} hasIssues={hasAny}>
-              {hasNormal && hasInstant
-                ? `${normalErrorCount} · ${instantErrorCount}`
-                : hasNormal
-                  ? normalErrorCount
-                  : instantErrorCount}
-            </IssueCount>
+            <span className="dev-tools-indicator-issue-counts">
+              {hasNormal && (
+                <IssueCount variant="issue">{normalErrorCount}</IssueCount>
+              )}
+              {hasInstant && (
+                <IssueCount variant="insight">{instantErrorCount}</IssueCount>
+              )}
+            </span>
           ),
           onClick: () => {
             if (state.isErrorOverlayOpen) {
-              dispatch({
-                type: ACTION_ERROR_OVERLAY_CLOSE,
-              })
+              dispatch({ type: ACTION_ERROR_OVERLAY_CLOSE })
               setPanel(null)
               return
             }
             setPanel(null)
             setSelectedIndex(-1)
-            dispatch({
-              type: ACTION_ERROR_OVERLAY_OPEN,
-            })
+            dispatch({ type: ACTION_ERROR_OVERLAY_OPEN })
           },
         },
         state.staticIndicator === 'disabled'

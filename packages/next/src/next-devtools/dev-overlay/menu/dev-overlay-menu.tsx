@@ -318,18 +318,14 @@ function getClickableItemsCount(
 export function IssueCount({
   children,
   variant = 'issue',
-  hasIssues,
 }: {
-  children: React.ReactNode
+  children: number
   variant?: 'issue' | 'insight'
-  hasIssues?: boolean
 }) {
   return (
     <span
       className="dev-tools-indicator-issue-count"
-      data-has-issues={
-        hasIssues ?? (typeof children === 'number' && children > 0)
-      }
+      data-has-issues={children > 0}
       data-variant={variant}
     >
       <span className="dev-tools-indicator-issue-count-indicator" />
