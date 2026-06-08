@@ -11,21 +11,21 @@ const fsReadDirSyncCache = {}
 function parseUrlForPages(
   urlprefix: string,
   directory: string,
-  pageExtensions: string[]
+  pageExtensions: RegExp
 ) {
   fsReadDirSyncCache[directory] ??= fs.readdirSync(directory, {
     withFileTypes: true,
   })
   const res = []
   fsReadDirSyncCache[directory].forEach((dirent) => {
-    const extension = pageExtensions.find((ext) =>
-      dirent.name.endsWith(`.${ext}`)
-    )
-    if (extension) {
-      if (dirent.name === `index.${extension}`) {
+    const extensionMatch = dirent.name.match(pageExtensions)
+    if (extensionMatch) {
+      if (dirent.name === `index${extensionMatch[0]}`) {
         res.push(`${urlprefix}`)
       } else {
-        res.push(`${urlprefix}${dirent.name.slice(0, -(extension.length + 1))}`)
+        res.push(
+          `${urlprefix}${dirent.name.slice(0, -extensionMatch[0].length)}`
+        )
       }
     } else {
       const dirPath = path.join(directory, dirent.name)
@@ -49,21 +49,21 @@ function parseUrlForPages(
 function parseUrlForAppDir(
   urlprefix: string,
   directory: string,
-  pageExtensions: string[]
+  pageExtensions: RegExp
 ) {
   fsReadDirSyncCache[directory] ??= fs.readdirSync(directory, {
     withFileTypes: true,
   })
   const res = []
   fsReadDirSyncCache[directory].forEach((dirent) => {
-    const extension = pageExtensions.find((ext) =>
-      dirent.name.endsWith(`.${ext}`)
-    )
-    if (extension) {
-      if (dirent.name === `page.${extension}`) {
+    const extensionMatch = dirent.name.match(pageExtensions)
+    if (extensionMatch) {
+      if (dirent.name === `page${extensionMatch[0]}`) {
         res.push(`${urlprefix}`)
-      } else if (dirent.name !== `layout.${extension}`) {
-        res.push(`${urlprefix}${dirent.name.slice(0, -(extension.length + 1))}`)
+      } else if (dirent.name !== `layout${extensionMatch[0]}`) {
+        res.push(
+          `${urlprefix}${dirent.name.slice(0, -extensionMatch[0].length)}`
+        )
       }
     } else {
       const dirPath = path.join(directory, dirent.name)
@@ -160,12 +160,18 @@ export function getUrlFromPagesDirectories(
   directories: string[],
   pageExtensions: string[]
 ) {
+  const escapeRegex = (str: string) =>
+    str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+  const pageExtensionsRegex = new RegExp(
+    `\\.(${pageExtensions.map(escapeRegex).join('|')})$`
+  )
+
   return Array.from(
     // De-duplicate similar pages across multiple directories.
     new Set(
       directories
         .flatMap((directory) =>
-          parseUrlForPages(urlPrefix, directory, pageExtensions)
+          parseUrlForPages(urlPrefix, directory, pageExtensionsRegex)
         )
         .map(
           // Since the URLs are normalized we add `^` and `$` to the RegExp to make sure they match exactly.
@@ -183,12 +189,18 @@ export function getUrlFromAppDirectory(
   directories: string[],
   pageExtensions: string[]
 ) {
+  const escapeRegex = (str: string) =>
+    str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+  const pageExtensionsRegex = new RegExp(
+    `\\.(${pageExtensions.map(escapeRegex).join('|')})$`
+  )
+
   return Array.from(
     // De-duplicate similar pages across multiple directories.
     new Set(
       directories
         .map((directory) =>
-          parseUrlForAppDir(urlPrefix, directory, pageExtensions)
+          parseUrlForAppDir(urlPrefix, directory, pageExtensionsRegex)
         )
         .flat()
         .map(
