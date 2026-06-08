@@ -12,8 +12,8 @@ use turbopack_core::{
     module_graph::ModuleGraph,
     output::OutputAssetsWithReferenced,
     reference::{ModuleReferences, SingleChunkableModuleReference},
-    reference_type::{EcmaScriptModulesReferenceSubType, ReferenceType},
-    resolve::{ExportUsage, ModulePart, origin::ResolveOrigin},
+    reference_type::ReferenceType,
+    resolve::{ExportUsage, origin::ResolveOrigin},
     source::{OptionSource, Source},
 };
 use turbopack_ecmascript::{
@@ -74,16 +74,10 @@ impl WebAssemblyModuleAsset {
             .await?;
         let is_edge = matches!(*chunk_loading, ChunkLoading::Edge);
 
-        let (import, loader_source) = if query == "?module" {
-            (
-                rcstr!("compileModule"),
-                compiling_loader_source(*self.source, is_edge),
-            )
+        let loader_source = if query == "?module" {
+            compiling_loader_source(*self.source, is_edge)
         } else {
-            (
-                rcstr!("instantiate"),
-                instantiating_loader_source(*self.source, is_edge),
-            )
+            instantiating_loader_source(*self.source, is_edge)
         };
 
         let helper_path = match *chunk_loading {
@@ -91,15 +85,19 @@ impl WebAssemblyModuleAsset {
             ChunkLoading::NodeJs => rcstr!("node/loadWasm.ts"),
             ChunkLoading::Dom => rcstr!("browser/loadWasm.ts"),
         };
+
         let helper = self
             .asset_context
             .process(
                 Vc::upcast(FileSource::new(
                     embed::embed_fs().root().await?.join(&helper_path)?,
                 )),
-                ReferenceType::EcmaScriptModules(EcmaScriptModulesReferenceSubType::ImportPart(
-                    ModulePart::Export(import),
-                )),
+                /*
+                   TODO (@sampoder): ideally, we would have some sort of hint
+                   here that suggests whether we are using `compileModule()` or
+                   `instantiate()` to avoid loading the other unused function.
+                */
+                ReferenceType::Runtime,
             )
             .module()
             .to_resolved()
