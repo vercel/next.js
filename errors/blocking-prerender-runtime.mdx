@@ -164,7 +164,7 @@ Learn more: [`loading.js` and instant loading states](/docs/app/api-reference/fi
 
 ### Trade-off
 
-The shell ships immediately, but the user sees a loading state for the streamed region on every request. Design the fallback so it approximates the final layout. A generic spinner causes the page to visibly jump when content arrives. See [CLS-safe skeleton fallback guidance](/docs/canary/01-app/02-guides/streaming#cls-cumulative-layout-shift).
+The shell ships immediately, but the user sees a loading state for the streamed region on every request. Design the fallback so it approximates the final layout. A generic spinner causes the page to visibly jump when content arrives. See [CLS-safe skeleton fallback guidance](/docs/app/guides/streaming#cls-cumulative-layout-shift).
 
 ### Choosing where to place the boundary
 
@@ -173,7 +173,7 @@ The location of the boundary controls what the user sees during the navigation:
 - A high boundary (around the whole page) gives one loading state for everything. Less work to set up, but the user loses context about where they were going.
 - A low boundary (around the specific component that reads the runtime API) keeps surrounding content visible and only shows a fallback for the per-request part. Preferred when the surrounding shell has cached content.
 
-A useful rule: **push the boundary as low as possible** while keeping the fallback meaningful. The cached content above the boundary becomes part of the [static shell](/docs/app/glossary#static-shell) on navigation. Wrapping individual pieces or wrapping the whole page in one boundary stream the same way, but a lower boundary keeps more prerendered content visible during the navigation. See [Maximizing the static shell](/docs/app/getting-started/caching#maximizing-the-static-shell) for the canonical pattern.
+A useful rule: **push the boundary as low as possible** while keeping the fallback meaningful. The cached content above the boundary becomes part of the [static shell](/docs/app/glossary#static-shell) on navigation. Wrapping individual pieces or wrapping the whole page in one boundary stream the same way, but a lower boundary keeps more prerendered content visible during the navigation. See [Maximizing the static shell](/docs/app/getting-started/caching#streaming-uncached-data) for the canonical pattern.
 
 ### Gotchas
 

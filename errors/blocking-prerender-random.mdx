@@ -86,7 +86,7 @@ The route renders on every request. The shell still ships instantly because of t
 
 ### Gotchas
 
-- Any UI rendered as part of the prerender shell must be deterministic. That includes [`<Suspense>`](https://react.dev/reference/react/Suspense) fallbacks, [`loading.js`](/docs/app/api-reference/file-conventions/loading), [`error.js`](/docs/app/api-reference/file-conventions/error), [`not-found.js`](/docs/app/api-reference/file-conventions/not-found), and [`global-error.js`](/docs/app/api-reference/file-conventions/error#global-errorjs). Calling [`Math.random()`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Math/random) or [`Date.now()`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Date/now) in any of them raises this same error.
+- Any UI rendered as part of the prerender shell must be deterministic. That includes [`<Suspense>`](https://react.dev/reference/react/Suspense) fallbacks, [`loading.js`](/docs/app/api-reference/file-conventions/loading), [`error.js`](/docs/app/api-reference/file-conventions/error), [`not-found.js`](/docs/app/api-reference/file-conventions/not-found), and [`global-error.js`](/docs/app/api-reference/file-conventions/error#global-error). Calling [`Math.random()`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Math/random) or [`Date.now()`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Date/now) in any of them raises this same error.
 - If [`Math.random()`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Math/random) is being used as a unique ID for logging or correlation, consider an incrementing integer or [`AsyncLocalStorage`](https://nodejs.org/api/async_context.html#class-asynclocalstorage) request scope. Those don't trigger the error at all because they aren't unpredictable from Next.js's point of view.
 - Random values produced inside third-party packages will surface this error in your project code. The same fixes apply at the call site that consumes the value.
 
@@ -180,7 +180,7 @@ export function Avatar() {
 
 If the random value needs to be part of the server-rendered HTML (not deferred to after hydration), the component can call [`Math.random()`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Math/random) during render as long as a [`<Suspense>`](https://react.dev/reference/react/Suspense) boundary wraps it from the parent. Next.js prerenders the fallback and fills in the real component at request time. See [`Math.random()` in a Client Component](/docs/messages/blocking-prerender-random-client) for the full recipe.
 
-Learn more: [Client Components](/docs/app/getting-started/server-and-client-components#client-components), [`Math.random()` in a Client Component](/docs/messages/blocking-prerender-random-client).
+Learn more: [Client Components](/docs/app/getting-started/server-and-client-components#using-client-components), [`Math.random()` in a Client Component](/docs/messages/blocking-prerender-random-client).
 
 ### Trade-off
 

@@ -111,7 +111,7 @@ The route renders on every request. The shell still ships instantly because of t
 
 ### Gotchas
 
-- Any UI rendered as part of the prerender shell must be deterministic. That includes [`<Suspense>`](https://react.dev/reference/react/Suspense) fallbacks, [`loading.js`](/docs/app/api-reference/file-conventions/loading), [`error.js`](/docs/app/api-reference/file-conventions/error), [`not-found.js`](/docs/app/api-reference/file-conventions/not-found), and [`global-error.js`](/docs/app/api-reference/file-conventions/error#global-errorjs). Calling a crypto API in any of them raises this same error.
+- Any UI rendered as part of the prerender shell must be deterministic. That includes [`<Suspense>`](https://react.dev/reference/react/Suspense) fallbacks, [`loading.js`](/docs/app/api-reference/file-conventions/loading), [`error.js`](/docs/app/api-reference/file-conventions/error), [`not-found.js`](/docs/app/api-reference/file-conventions/not-found), and [`global-error.js`](/docs/app/api-reference/file-conventions/error#global-error). Calling a crypto API in any of them raises this same error.
 - For genuinely security-critical tokens (session IDs, CSRF), [Generate on every request](#generate-on-every-request) is the only correct choice. Caching a CSRF token across visitors defeats its purpose.
 - This error only fires for synchronous random-producing APIs. Async crypto operations ([`crypto.subtle.digest()`](https://developer.mozilla.org/en-US/docs/Web/API/SubtleCrypto/digest), [`crypto.generateKeyPair()`](https://nodejs.org/api/crypto.html#cryptogeneratekeypairtype-options-callback)) integrate with [`<Suspense>`](https://react.dev/reference/react/Suspense) naturally and don't trip the error.
 
@@ -201,7 +201,7 @@ export function DraftKey() {
 }
 ```
 
-Learn more: [Client Components](/docs/app/getting-started/server-and-client-components#client-components).
+Learn more: [Client Components](/docs/app/getting-started/server-and-client-components#using-client-components).
 
 ### Trade-off
 

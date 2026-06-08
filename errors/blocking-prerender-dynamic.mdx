@@ -92,7 +92,7 @@ Learn more: [Caching with `use cache`](/docs/app/api-reference/directives/use-ca
 
 #### Tag the cache for targeted invalidation
 
-Choose this when you want control over when the cached value is refreshed. Tag the entry with [`cacheTag`](/docs/app/api-reference/functions/cacheTag) and invalidate it on demand: call [`updateTag`](/docs/app/api-reference/functions/updateTag) from a [Server Action](/docs/app/getting-started/updating-data) when the user performed the mutation and should see fresh data on the next request, or [`revalidateTag`](/docs/app/api-reference/functions/revalidateTag) from a route handler, cron, admin tool, or incoming webhook for stale-while-revalidate refreshes. Tags add an on-demand invalidation path on top of the [`cacheLife`](/docs/app/api-reference/functions/cacheLife) expiration window; the two are independent.
+Choose this when you want control over when the cached value is refreshed. Tag the entry with [`cacheTag`](/docs/app/api-reference/functions/cacheTag) and invalidate it on demand: call [`updateTag`](/docs/app/api-reference/functions/updateTag) from a [Server Action](/docs/app/getting-started/mutating-data) when the user performed the mutation and should see fresh data on the next request, or [`revalidateTag`](/docs/app/api-reference/functions/revalidateTag) from a route handler, cron, admin tool, or incoming webhook for stale-while-revalidate refreshes. Tags add an on-demand invalidation path on top of the [`cacheLife`](/docs/app/api-reference/functions/cacheLife) expiration window; the two are independent.
 
 ```jsx filename="app/dashboard/page.js"
 import { cacheTag } from 'next/cache';
@@ -124,7 +124,7 @@ Learn more: [How to configure cache lifetimes](/docs/app/api-reference/functions
 
 ### Trade-off
 
-Freshness becomes a property of the cache configuration, not the data source. The cached response is reused until [`cacheLife`](/docs/app/api-reference/functions/cacheLife) revalidates or expires, or until [`cacheTag`](/docs/app/api-reference/functions/cacheTag) is invalidated. Plan invalidations alongside the code that mutates the data. Call [`updateTag`](/docs/app/api-reference/functions/updateTag) from a [Server Action](/docs/app/getting-started/updating-data) when the user performed the mutation and should see fresh data on the next request, or [`revalidateTag`](/docs/app/api-reference/functions/revalidateTag) from a route handler, cron, or webhook for stale-while-revalidate refreshes.
+Freshness becomes a property of the cache configuration, not the data source. The cached response is reused until [`cacheLife`](/docs/app/api-reference/functions/cacheLife) revalidates or expires, or until [`cacheTag`](/docs/app/api-reference/functions/cacheTag) is invalidated. Plan invalidations alongside the code that mutates the data. Call [`updateTag`](/docs/app/api-reference/functions/updateTag) from a [Server Action](/docs/app/getting-started/mutating-data) when the user performed the mutation and should see fresh data on the next request, or [`revalidateTag`](/docs/app/api-reference/functions/revalidateTag) from a route handler, cron, or webhook for stale-while-revalidate refreshes.
 
 ### Gotchas
 
@@ -232,7 +232,7 @@ Learn more: [`loading.js` and instant loading states](/docs/app/api-reference/fi
 
 ### Trade-off
 
-The shell ships immediately, but the user sees a loading state for the streamed region on every request. Design the fallback so it approximates the final layout. A generic spinner causes the page to visibly jump when content arrives. See [CLS-safe skeleton fallback guidance](/docs/canary/01-app/02-guides/streaming#cls-cumulative-layout-shift).
+The shell ships immediately, but the user sees a loading state for the streamed region on every request. Design the fallback so it approximates the final layout. A generic spinner causes the page to visibly jump when content arrives. See [CLS-safe skeleton fallback guidance](/docs/app/guides/streaming#cls-cumulative-layout-shift).
 
 ### Choosing where to place the boundary
 
@@ -241,7 +241,7 @@ The location of the boundary controls what the user sees during the navigation:
 - A high boundary (around the whole page) gives one loading state for everything. Less work to set up, but the user loses context about where they were going.
 - A low boundary (around the specific component that fetches) keeps surrounding content visible and only shows a fallback for the part that is in flight. Preferred when the surrounding shell has cached content.
 
-A useful rule: **push the boundary as low as possible** while keeping the fallback meaningful. The cached content above the boundary becomes part of the [static shell](/docs/app/glossary#static-shell) on navigation. Wrapping individual pieces or wrapping the whole page in one boundary stream the same way, but a lower boundary keeps more prerendered content visible during the navigation. See [Maximizing the static shell](/docs/app/getting-started/caching#maximizing-the-static-shell) for the canonical pattern.
+A useful rule: **push the boundary as low as possible** while keeping the fallback meaningful. The cached content above the boundary becomes part of the [static shell](/docs/app/glossary#static-shell) on navigation. Wrapping individual pieces or wrapping the whole page in one boundary stream the same way, but a lower boundary keeps more prerendered content visible during the navigation. See [Maximizing the static shell](/docs/app/getting-started/caching#streaming-uncached-data) for the canonical pattern.
 
 ### Gotchas
 
