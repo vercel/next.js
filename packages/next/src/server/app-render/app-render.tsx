@@ -4688,33 +4688,36 @@ async function renderToStream(
 }
 
 /**
+ * The chunks and stage timings accumulated by a staged dev render once its
+ * stream has finished. Shared by `StagedDevRenderResult` (a render's own
+ * settled output) and `DevValidationInputs` (what validation consumes).
+ */
+interface StagedDevRenderArtifacts {
+  readonly accumulatedChunks: AccumulatedStreamChunks
+  readonly syncInterruptReason: Error | null
+  readonly startTime: number
+  readonly staticStageEndTime: number
+  readonly runtimeStageEndTime: number
+}
+
+/**
  * Everything `spawnStaticShellValidationInDev` needs to validate a render.
  * These are sourced from whichever render is prod-representative: the streamed
  * render when it neither missed caches nor hit sync IO, otherwise a validation
  * render.
  */
-interface DevValidationInputs {
-  readonly accumulatedChunks: AccumulatedStreamChunks
-  readonly syncInterruptReason: Error | null
-  readonly startTime: number
-  readonly staticStageEndTime: number
-  readonly runtimeStageEndTime: number
+interface DevValidationInputs extends StagedDevRenderArtifacts {
   readonly requestStore: RequestStore
   readonly debugChannelClient: AnyStream | undefined
 }
 
 /**
- * The result of a completed streamed/staged dev render: whether it was
- * prod-representative, its stage timings, and its accumulated chunks. Settled
- * once the render's stream has fully finished.
+ * The result of a completed streamed/staged dev render: its artifacts plus
+ * whether it was prod-representative. Settled once the render's stream has fully
+ * finished.
  */
-interface StagedDevRenderResult {
+interface StagedDevRenderResult extends StagedDevRenderArtifacts {
   readonly hadCacheMiss: boolean
-  readonly syncInterruptReason: Error | null
-  readonly startTime: number
-  readonly staticStageEndTime: number
-  readonly runtimeStageEndTime: number
-  readonly accumulatedChunks: AccumulatedStreamChunks
 }
 
 /**
@@ -4755,16 +4758,16 @@ function dropValidationDebugChannel(channel: AnyStream | undefined): void {
 
 /**
  * Inspects a finished streamed dev render and decides how validation proceeds.
- * Must be invoked only after the full streamed render has settled, so the work
- * store read below reflects the final state of the initial render.
+ * The caller must have awaited the full streamed render and, for a cache-miss
+ * render, its cache fills (`cacheSignal.cacheReady()`), so the work store read
+ * below reflects the final state of the initial render.
  */
-async function planDevValidation(
+function planDevValidation(
   result: StagedDevRenderResult,
   requestStore: RequestStore,
   validationDebugChannel: AnyStream | undefined,
-  ctx: AppRenderContext,
-  cacheSignal: CacheSignal
-): Promise<DevValidationPlan> {
+  ctx: AppRenderContext
+): DevValidationPlan {
   const {
     hadCacheMiss,
     syncInterruptReason,
@@ -4773,13 +4776,6 @@ async function planDevValidation(
     runtimeStageEndTime,
     accumulatedChunks,
   } = result
-
-  // A cache-miss render records its `invalidDynamicUsageError` while filling,
-  // so its verdict isn't final until the fills settle. Wait for that here (a
-  // no-op when the render didn't miss) before reading the work store below.
-  if (hadCacheMiss) {
-    await cacheSignal.cacheReady()
-  }
 
   // The streamed render already recorded an invalid dynamic usage error (e.g. a
   // request API used inside `use cache`). There's a definitive error to
@@ -4869,12 +4865,19 @@ function runDevValidationInBackground(
       // settled.
       const devRenderDidError = getDevRenderDidError()
 
-      const plan = await planDevValidation(
+      // A cache-miss render records its `invalidDynamicUsageError` while
+      // filling, so its verdict isn't final until the fills settle. Wait for
+      // that (a no-op when the render didn't miss) before planning, which reads
+      // the work store.
+      if (result.hadCacheMiss) {
+        await cacheSignal.cacheReady()
+      }
+
+      const plan = planDevValidation(
         result,
         requestStore,
         validationDebugChannel,
-        ctx,
-        cacheSignal
+        ctx
       )
 
       switch (plan.kind) {
