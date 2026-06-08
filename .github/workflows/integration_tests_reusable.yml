@@ -20,13 +20,13 @@ on:
         description: >
           Size of the matrix used for running e2e tests (controls parallelism)
         type: number
-        default: 6
+        default: 3
       integration_groups:
         description: >
           Size of the matrix used for running legacy integration tests (controls
           parallelism)
         type: number
-        default: 6
+        default: 3
       e2e_timeout_minutes:
         type: number
         default: 30

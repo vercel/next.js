@@ -17,8 +17,8 @@ jobs:
       # Failing tests take longer (due to timeouts and retries). Since we have
       # many failing tests, we need smaller groups and longer timeouts, in case
       # a group gets stuck with a cluster of failing tests.
-      e2e_groups: 12
-      integration_groups: 12
+      e2e_groups: 6
+      integration_groups: 6
       e2e_timeout_minutes: 60
       integration_timeout_minutes: 60
     secrets: inherit
