@@ -216,14 +216,6 @@ describe.each([
 
     const RUNTIME_ENV = hasRuntimePrefetch ? 'Prefetch' : 'Prefetchable'
 
-    // The private-cache and short-lived-cache cases below currently resolve in
-    // the later runtime stage ("Prefetchable") instead of the earlier
-    // runtime-prefetch stage ("Prefetch") that the runtime-prefetch variant
-    // expects (see the per-test TODOs). The without-prefetch variant expects
-    // "Prefetchable" anyway, so it still passes; we only skip the
-    // runtime-prefetch variant.
-    const itUnlessPrefetch = hasRuntimePrefetch ? it.skip : it
-
     describe.each([
       { description: 'initial load', isInitialLoad: true },
       { description: 'navigation', isInitialLoad: false },
@@ -250,12 +242,14 @@ describe.each([
           }
         })
 
-        // TODO: Private caches aren't persisted in dev yet, so they re-run cold
-        // on every load and resolve in the later runtime stage ("Prefetchable")
-        // rather than the earlier runtime-prefetch stage ("Prefetch"). A
-        // follow-up will persist private caches in dev, after which they
-        // resolve in "Prefetch" again.
-        itUnlessPrefetch('cached data + private cache', async () => {
+        // TODO: Private caches aren't persisted in dev yet, so they're a cache
+        // miss on every request (even a warm second request re-fills them).
+        // Their content therefore streams in the dynamic stage ("Server"),
+        // because the dynamic stage advances without waiting for caches to
+        // fill. A follow-up will persist private caches in dev, after which a
+        // warm request is a hit that resolves in the runtime-prefetch stage
+        // again.
+        it('cached data + private cache', async () => {
           const path = '/private-cache'
 
           const assertLogs = async (browser: Playwright) => {
@@ -263,14 +257,16 @@ describe.each([
             assertLog(logs, 'after cache read - layout', 'Prerender')
             assertLog(logs, 'after cache read - page', 'Prerender')
 
-            // Private caches are dynamic holes in static prerenders,
-            // so they shouldn't resolve in the static stage.
-            assertLog(logs, 'after private cache read - page', RUNTIME_ENV)
-            assertLog(logs, 'after private cache read - layout', RUNTIME_ENV)
+            // Private caches are dynamic holes in static prerenders, so they
+            // resolve after the static stage. Being a cache miss (see the TODO
+            // above), the value isn't ready until the caches fill in the
+            // dynamic stage ("Server").
+            assertLog(logs, 'after private cache read - page', 'Server')
+            assertLog(logs, 'after private cache read - layout', 'Server')
             assertLog(
               logs,
               'after successive private cache reads - page',
-              RUNTIME_ENV
+              'Server'
             )
 
             assertLog(logs, 'after uncached fetch - layout', 'Server')
@@ -287,11 +283,10 @@ describe.each([
         // TODO: Even on a warm render we don't end the cache read in time for a
         // short-lived handler hit (see use-cache-wrapper.ts, where short-lived
         // caches are delayed without ending the read), so it appears as a cache
-        // miss and resolves in the later runtime stage ("Prefetchable") rather
-        // than the earlier runtime-prefetch stage ("Prefetch"). A follow-up
-        // will end the read so warm short-lived hits resolve in "Prefetch"
-        // again.
-        itUnlessPrefetch('cached data + short-lived cached data', async () => {
+        // miss on every request. Its content therefore streams in the dynamic
+        // stage ("Server"), because the dynamic stage advances without waiting
+        // for caches to fill. This will be fixed in a follow-up.
+        it('cached data + short-lived cached data', async () => {
           const path = '/short-lived-cache'
 
           const assertLogs = async (browser: Playwright) => {
@@ -299,14 +294,12 @@ describe.each([
             assertLog(logs, 'after cache read - layout', 'Prerender')
             assertLog(logs, 'after cache read - page', 'Prerender')
 
-            // Short lived caches are dynamic holes in static prerenders,
-            // so they shouldn't resolve in the static stage.
-            assertLog(logs, 'after short-lived cache read - page', RUNTIME_ENV)
-            assertLog(
-              logs,
-              'after short-lived cache read - layout',
-              RUNTIME_ENV
-            )
+            // Short-lived caches are dynamic holes in static prerenders, so
+            // they resolve after the static stage. Being a cache miss (see the
+            // TODO above), the value isn't ready until the caches fill in the
+            // dynamic stage ("Server").
+            assertLog(logs, 'after short-lived cache read - page', 'Server')
+            assertLog(logs, 'after short-lived cache read - layout', 'Server')
 
             assertLog(logs, 'after uncached fetch - layout', 'Server')
             assertLog(logs, 'after uncached fetch - page', 'Server')
