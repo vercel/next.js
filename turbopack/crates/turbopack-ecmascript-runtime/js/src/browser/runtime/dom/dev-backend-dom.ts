@@ -62,11 +62,6 @@ let DEV_BACKEND: DevRuntimeBackend
           `link[rel=stylesheet][href="${baseChunkUrl}"],link[rel=stylesheet][href^="${baseChunkUrl}?"],link[rel=stylesheet][href="${decodedBaseChunkUrl}"],link[rel=stylesheet][href^="${decodedBaseChunkUrl}?"]`
         )
 
-        if (previousLinks.length === 0) {
-          reject(new Error(`No link element found for chunk ${chunkUrl}`))
-          return
-        }
-
         const link = document.createElement('link')
         link.rel = 'stylesheet'
         link.crossOrigin = CROSS_ORIGIN
@@ -111,12 +106,23 @@ let DEV_BACKEND: DevRuntimeBackend
           resolve()
         }
 
-        // Make sure to insert the new CSS right after the previous one, so that
-        // its precedence is higher.
-        previousLinks[0].parentElement!.insertBefore(
-          link,
-          previousLinks[0].nextSibling
-        )
+        if (previousLinks.length === 0) {
+          // The chunk's <link> was already removed from the DOM (the importing
+          // component unmounted via navigation or a `dynamic(ssr: false)`
+          // boundary, so `unloadChunk` removed it), but its chunk list stays
+          // subscribed and can still receive a 'total' update. Mirror the
+          // 'added' branch of `applyChunkListUpdate` and load the fresh
+          // stylesheet instead of rejecting with "No link element found for
+          // chunk" (an unhandledRejection that forced a full page reload).
+          document.head.appendChild(link)
+        } else {
+          // Make sure to insert the new CSS right after the previous one, so that
+          // its precedence is higher.
+          previousLinks[0].parentElement!.insertBefore(
+            link,
+            previousLinks[0].nextSibling
+          )
+        }
       })
     },
 
