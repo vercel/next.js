@@ -417,7 +417,8 @@ export async function createHotReloaderTurbopack(
       serverHmr: serverFastRefresh,
     },
     {
-      memoryLimit: opts.nextConfig.experimental?.turbopackMemoryLimit,
+      turbopackMemoryEviction:
+        opts.nextConfig.experimental.turbopackMemoryEvictionMode,
       isShortSession: false,
     }
   )

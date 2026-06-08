@@ -393,16 +393,18 @@ async fn parse_actions(module: ResolvedVc<Box<dyn Module>>) -> Result<Vc<OptionA
         return Ok(Vc::cell(None));
     };
 
-    if let Some(module) = ResolvedVc::try_downcast_type::<EcmascriptModulePartAsset>(module)
-        && matches!(
-            module.await?.part,
-            ModulePart::Evaluation | ModulePart::Facade
-        )
-    {
-        return Ok(Vc::cell(None));
-    }
+    let original_asset =
+        if let Some(module) = ResolvedVc::try_downcast_type::<EcmascriptModulePartAsset>(module) {
+            let module = module.await?;
+            if matches!(module.part, ModulePart::Evaluation | ModulePart::Facade) {
+                return Ok(Vc::cell(None));
+            }
+            ResolvedVc::upcast(module.full_module)
+        } else {
+            ecmascript_asset
+        };
 
-    let original_parsed = *ecmascript_asset.parse_original().to_resolved().await?;
+    let original_parsed = original_asset.failsafe_parse().to_resolved().await?;
 
     let ParseResult::Ok {
         program: original,
@@ -419,9 +421,9 @@ async fn parse_actions(module: ResolvedVc<Box<dyn Module>>) -> Result<Vc<OptionA
         return Ok(Vc::cell(None));
     };
 
-    let fragment = *ecmascript_asset.failsafe_parse().to_resolved().await?;
-
-    if fragment != original_parsed {
+    // If this is a module-fragment, filter the exports
+    if original_asset != ecmascript_asset {
+        let fragment = ecmascript_asset.failsafe_parse().to_resolved().await?;
         let ParseResult::Ok {
             program: fragment, ..
         } = &*fragment.await?

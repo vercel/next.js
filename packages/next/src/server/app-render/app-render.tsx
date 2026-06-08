@@ -2252,6 +2252,7 @@ async function getRSCPayload(
     hints,
     prefetchInliningEnabled,
     ctx.renderOpts.cacheComponents,
+    ctx.renderOpts.partialPrefetching,
     workStore.isStaticGeneration,
     ctx.renderOpts.isBuildTimePrerendering ?? false,
     getDynamicParamFromSegment,
@@ -2458,6 +2459,7 @@ async function getErrorRSCPayload(
     errorHints,
     errorPrefetchInliningEnabled,
     ctx.renderOpts.cacheComponents,
+    ctx.renderOpts.partialPrefetching,
     workStore.isStaticGeneration,
     ctx.renderOpts.isBuildTimePrerendering ?? false,
     getDynamicParamFromSegment,
@@ -6260,6 +6262,7 @@ async function validateStagedShell(
                 const componentStack = errorInfo.componentStack
                 if (typeof componentStack === 'string') {
                   trackDynamicHole(
+                    err,
                     workStore,
                     componentStack,
                     dynamicValidation,
@@ -6520,6 +6523,7 @@ async function validateInstantConfigs(
                   const componentStack = errorInfo.componentStack
                   if (typeof componentStack === 'string') {
                     trackDynamicHoleInNavigation(
+                      err,
                       workStore,
                       componentStack,
                       instantValidationState,
@@ -8335,6 +8339,7 @@ async function prerenderToStream(
                     ).componentStack
                     if (typeof componentStack === 'string') {
                       trackAllowedDynamicAccess(
+                        err,
                         workStore,
                         componentStack,
                         dynamicValidation,
@@ -9092,6 +9097,7 @@ async function prerenderToStream(
                     ).componentStack
                     if (typeof componentStack === 'string') {
                       trackAllowedDynamicAccess(
+                        clientError,
                         workStore,
                         componentStack,
                         errorDynamicValidation,
