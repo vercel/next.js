@@ -5,9 +5,14 @@ import {
 } from 'next/dist/client/components/app-router-headers'
 
 describe('non-rsc-router-prefetch', () => {
-  const { next } = nextTestSetup({
+  const { next, skipped } = nextTestSetup({
     files: __dirname,
+    skipDeployment: true,
   })
+
+  if (skipped) {
+    return
+  }
 
   beforeAll(async () => {
     const res = await next.fetch('/')
