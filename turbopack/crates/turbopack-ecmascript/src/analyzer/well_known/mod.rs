@@ -240,23 +240,38 @@ fn path_join<'a>(arena: &'a Bump, args: BumpVec<'a, JsValue<'a>>) -> JsValue<'a>
     let mut results_final: Vec<JsValue<'a>> = Vec::new();
     let mut results: Vec<JsValue<'a>> = Vec::new();
     for item in parts {
-        if let Some(str) = item.as_str() {
-            match str {
-                "" | "." => {
-                    if results_final.is_empty() && results.is_empty() {
-                        results_final.push(item);
-                    }
-                }
-                ".." => {
-                    if results.pop().is_none() {
-                        results_final.push(item);
-                    }
-                }
-                _ => results.push(item),
-            }
+fn path_join<'a>(arena: &'a Bump, args: BumpVec<'a, JsValue<'a>>) -> JsValue<'a> {
+    if args.is_empty() {
+        return rcstr!(".").into();
+    }
+    let mut results_final: SmallVec<JsValue<'a>, [_; 16]> = SmallVec::new();
+    let mut results: SmallVec<JsValue<'a>, [_; 16]> = SmallVec::new();
+    for arg in args {
+        let arg_parts = if let Some(str) = arg.as_str() {
+            let split = str.split('/');
+            Either::Left(split.map(|s| s.into()))
         } else {
-            results_final.append(&mut results);
-            results_final.push(item);
+            Either::Right(iter::once(arg))
+        };
+        for item in arg_parts {
+            if let Some(str) = item.as_str() {
+                match str {
+                    "" | "." => {
+                        if results_final.is_empty() && results.is_empty() {
+                            results_final.push(item);
+                        }
+                    }
+                    ".." => {
+                        if results.pop().is_none() {
+                            results_final.push(item);
+                        }
+                    }
+                    _ => results.push(item),
+                }
+            } else {
+                results_final.append(&mut results);
+                results_final.push(item);
+            }
         }
     }
     results_final.append(&mut results);
