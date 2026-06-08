@@ -691,7 +691,7 @@ export interface ExperimentalConfig {
    * - `false`: disable eviction.
    * - `'full'`: after every snapshot, drop as much memory as possible.
    *
-   * Defaults to `false`
+   * Defaults to `'full'`
    */
   turbopackMemoryEviction?: false | 'full'
 
