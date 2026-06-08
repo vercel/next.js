@@ -61,7 +61,7 @@ function CopyPromptButton({ prompt }: { prompt: string }) {
   return (
     <CopyButton
       content={prompt}
-      actionLabel="Copy prompt"
+      actionLabel="Copy AI prompt"
       successLabel="Prompt copied"
       data-nextjs-fix-card-copy-button
     />

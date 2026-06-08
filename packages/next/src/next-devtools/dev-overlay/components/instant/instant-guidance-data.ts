@@ -49,7 +49,7 @@ export type FixCard = {
   link: string | null
   snippets: Snippet[]
   /**
-   * AI-agent prompt copied when the user presses the "Copy prompt" button on
+   * AI-agent prompt copied when the user presses the "Copy AI prompt" button on
    * the card. Phrased as an instruction the agent can act on directly.
    */
   prompt?: string
