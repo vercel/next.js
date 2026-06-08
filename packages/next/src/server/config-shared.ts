@@ -1145,13 +1145,6 @@ export interface ExperimentalConfig {
   useCache?: boolean
 
   /**
-   * Use Node.js native streams instead of web streams for the App Router
-   * rendering pipeline on the Node.js runtime. This can improve performance
-   * by avoiding the overhead of web stream wrappers.
-   */
-  useNodeStreams?: boolean
-
-  /**
    * Enables detection and reporting of slow modules during development builds.
    * Enabling this may impact build performance to ensure accurate measurements.
    */
@@ -2069,7 +2062,6 @@ export const defaultConfig = Object.freeze({
     gestureTransition: false,
     inlineCss: false,
     useCache: undefined,
-    useNodeStreams: true,
     slowModuleDetection: undefined,
     globalNotFound: false,
     browserDebugInfoInTerminal: 'warn',
@@ -2189,7 +2181,6 @@ export interface NextConfigRuntime {
     | 'cachedNavigations'
     | 'exposeTestingApiInProductionBuild'
     | 'supportsImmutableAssets'
-    | 'useNodeStreams'
     | 'instantInsights'
   > & {
     // Pick on @internal fields generates invalid .d.ts files
@@ -2259,7 +2250,6 @@ export function getNextConfigRuntime(
     cachedNavigations: ex.cachedNavigations,
     exposeTestingApiInProductionBuild: ex.exposeTestingApiInProductionBuild,
     supportsImmutableAssets: ex.supportsImmutableAssets,
-    useNodeStreams: ex.useNodeStreams,
     instantInsights: ex.instantInsights,
 
     trustHostHeader: ex.trustHostHeader,

@@ -1651,26 +1651,7 @@ function finalizeConfig(config: NextConfigComplete): NextConfigComplete {
     validationLevel:
       config.experimental.instantInsights?.validationLevel ?? 'warning',
   }
-  syncUseNodeStreamsEnv(config)
   return config
-}
-
-function syncUseNodeStreamsEnv(config: NextConfig): void {
-  // This must use resolved config: user configs are inspected before defaults
-  // are merged, while runtime bundles must select the default implementation.
-  const useNodeStreams = config.experimental?.useNodeStreams
-    ? 'true'
-    : undefined
-
-  if (useNodeStreams) {
-    process.env.__NEXT_USE_NODE_STREAMS = useNodeStreams
-  } else {
-    delete process.env.__NEXT_USE_NODE_STREAMS
-  }
-
-  // Dev env reloads restore process.env from this snapshot. Preserve the
-  // resolved runtime selection so a reload cannot mix stream implementations.
-  updateInitialEnv({ __NEXT_USE_NODE_STREAMS: useNodeStreams })
 }
 
 async function applyModifyConfig(
@@ -1800,7 +1781,6 @@ export default async function loadConfig(
       return cachedResult.rawConfig
     }
 
-    syncUseNodeStreamsEnv(cachedResult.config)
     return cachedResult.config
   } else {
     // Reset next.config errors before loading config
@@ -1827,8 +1807,6 @@ export default async function loadConfig(
     const standaloneConfig = JSON.parse(
       process.env.__NEXT_PRIVATE_STANDALONE_CONFIG
     )
-
-    syncUseNodeStreamsEnv(standaloneConfig)
 
     // Cache the standalone config
     configCache.set(cacheKey, {
@@ -2271,15 +2249,6 @@ function enforceExperimentalFeatures(
         'enabled by `__NEXT_EXPERIMENTAL_APP_NEW_SCROLL_HANDLER`'
       )
     }
-  }
-
-  // Enable node streams via env var (for CI testing).
-  if (
-    process.env.__NEXT_USE_NODE_STREAMS === 'true' &&
-    (config.experimental.useNodeStreams === undefined ||
-      (isDefaultConfig && !config.experimental.useNodeStreams))
-  ) {
-    config.experimental.useNodeStreams = true
   }
 
   // TODO: Remove this once strictRouteTypes is the default.
