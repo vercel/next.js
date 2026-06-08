@@ -5,6 +5,7 @@ use serde::Deserialize;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
     Completion, Completions, ResolvedVc, TryFlatJoinIterExt, Vc, fxindexmap, trace::TraceRawVcs,
+    turbofmt,
 };
 use turbo_tasks_fs::{
     File, FileContent, FileSystemEntryType, FileSystemPath, json::parse_json_with_source_context,
@@ -342,8 +343,7 @@ pub(crate) async fn config_loader_source(
     project_path: FileSystemPath,
     postcss_config_path: FileSystemPath,
 ) -> Result<Vc<Box<dyn Source>>> {
-    let postcss_config_path_value = postcss_config_path.clone();
-    let postcss_config_path_filename = postcss_config_path_value.file_name();
+    let postcss_config_path_filename = postcss_config_path.file_name();
 
     if postcss_config_path_filename == "package.json" {
         return Ok(Vc::upcast(JsonSource::new(
@@ -353,9 +353,7 @@ pub(crate) async fn config_loader_source(
         )));
     }
 
-    if postcss_config_path_value.path.ends_with(".json")
-        || postcss_config_path_filename == ".postcssrc"
-    {
+    if postcss_config_path.path.ends_with(".json") || postcss_config_path_filename == ".postcssrc" {
         return Ok(Vc::upcast(JsonSource::new(
             postcss_config_path,
             Vc::cell(None),
@@ -364,11 +362,11 @@ pub(crate) async fn config_loader_source(
     }
 
     // We can only load js files with `import()`.
-    if !postcss_config_path_value.path.ends_with(".js") {
+    if !postcss_config_path.path.ends_with(".js") {
         return Ok(Vc::upcast(FileSource::new(postcss_config_path)));
     }
 
-    let Some(config_path) = project_path.get_relative_path_to(&postcss_config_path_value) else {
+    let Some(config_path) = project_path.get_relative_path_to(&postcss_config_path) else {
         bail!("Unable to get relative path to postcss config");
     };
 
@@ -405,7 +403,7 @@ async fn postcss_executor(
 ) -> Result<Vc<ProcessResult>> {
     let config_asset = asset_context
         .process(
-            config_loader_source(project_path, postcss_config_path),
+            config_loader_source(project_path, postcss_config_path.clone()),
             ReferenceType::Entry(EntryReferenceSubType::Undefined),
         )
         .module()
@@ -413,10 +411,11 @@ async fn postcss_executor(
         .await?;
 
     Ok(asset_context.process(
-        Vc::upcast(FileSource::new(
+        Vc::upcast(FileSource::new_with_query(
             embed_file_path(rcstr!("transforms/postcss.ts"))
                 .owned()
                 .await?,
+            turbofmt!("?config={postcss_config_path}").await?,
         )),
         ReferenceType::Internal(ResolvedVc::cell(fxindexmap! {
             rcstr!("CONFIG") => config_asset

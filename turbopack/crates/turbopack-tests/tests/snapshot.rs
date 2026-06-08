@@ -11,7 +11,10 @@ use rustc_hash::FxHashSet;
 use serde::Deserialize;
 use serde_json::json;
 use turbo_rcstr::{RcStr, rcstr};
-use turbo_tasks::{Effects, OperationVc, ResolvedVc, TurboTasks, Vc, take_effects, turbofmt};
+use turbo_tasks::{
+    Effects, OperationVc, ResolvedVc, TurboTasks, Vc, read_strongly_consistent_and_apply_effects,
+    take_effects, turbofmt,
+};
 use turbo_tasks_backend::{BackendOptions, TurboTasksBackend, noop_backing_storage};
 use turbo_tasks_env::DotenvProcessEnv;
 use turbo_tasks_fs::{
@@ -249,11 +252,11 @@ async fn run(resource: PathBuf) -> Result<()> {
             Ok(take_effects(op).await?.cell())
         }
 
-        extract_effects(inner_operation(resource.to_str().unwrap().into()))
-            .read_strongly_consistent()
-            .await?
-            .apply()
-            .await?;
+        read_strongly_consistent_and_apply_effects(
+            extract_effects(inner_operation(resource.to_str().unwrap().into())),
+            |e| e,
+        )
+        .await?;
 
         Ok(())
     })

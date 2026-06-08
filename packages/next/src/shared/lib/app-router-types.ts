@@ -184,10 +184,11 @@ export const enum PrefetchHint {
   // This segment has a runtime prefetch enabled (via unstable_instant with
   // prefetch: 'runtime'). Per-segment only, does not propagate to ancestors.
   HasRuntimePrefetch = 0b00001,
-  // This segment or one of its descendants has an instant config defined
-  // (any truthy unstable_instant, regardless of prefetch mode). Propagates
-  // upward so the root segment reflects the entire subtree.
-  SubtreeHasInstant = 0b00010,
+  // This segment or one of its descendants opts into Partial Prefetching.
+  // Currently set when a truthy unstable_instant config is present on any
+  // segment in the subtree (regardless of prefetch mode). Propagates upward
+  // so the root segment reflects the entire subtree.
+  SubtreeHasPartialPrefetching = 0b00010,
   // This segment itself has a loading.tsx boundary.
   SegmentHasLoadingBoundary = 0b00100,
   // A descendant segment (but not this one) has a loading.tsx boundary.
@@ -221,6 +222,12 @@ export const enum PrefetchHint {
   // (HasRuntimePrefetch). Propagates upward so the root reflects the
   // entire subtree.
   SubtreeHasRuntimePrefetch = 0b100000000000,
+  // This segment or one of its descendants prefetches "eagerly" — i.e. its
+  // effective prefetch strategy is anything other than 'partial' or
+  // 'force-runtime'. Used by App Shells: a non-eager subtree relies on the
+  // shared app shell and skips its Speculative prefetch. Propagates upward so
+  // the root reflects the entire subtree.
+  SubtreeHasEagerPrefetch = 0b1000000000000,
 }
 
 /**
@@ -234,6 +241,60 @@ export const enum PrefetchHint {
  */
 export const StaticPrefetchDisabled =
   PrefetchHint.HasRuntimePrefetch | PrefetchHint.PrefetchDisabled
+
+/**
+ * The subset of PrefetchHint bits that propagate upward from a child segment to
+ * its ancestors (as opposed to segment-local bits like SegmentHasLoadingBoundary
+ * or IsRootLayout). Used to clear stale propagated bits before re-deriving them
+ * from a node's children.
+ */
+export const SubtreePrefetchHints =
+  PrefetchHint.SubtreeHasPartialPrefetching |
+  PrefetchHint.SubtreeHasLoadingBoundary |
+  PrefetchHint.SubtreeHasRuntimePrefetch |
+  PrefetchHint.SubtreeHasEagerPrefetch
+
+/**
+ * Folds a child segment's prefetch hints into its parent's, propagating the
+ * "subtree" flags. A child's segment-local flag (e.g. it has a loading boundary,
+ * or it has a runtime prefetch) becomes the corresponding "subtree" flag on the
+ * parent, so the root segment ends up reflecting the entire subtree.
+ *
+ * Used wherever a route tree is assembled bottom-up: on the server when building
+ * a prefetch tree (createFlightRouterStateFromLoaderTree) and on the client when
+ * merging a navigation patch into the existing tree (convertServerPatchToFullTree).
+ * Keep these in sync by routing both through this helper.
+ */
+export function propagateSubtreeBits(
+  parentHints: number,
+  childHints: number
+): number {
+  if (childHints & PrefetchHint.SubtreeHasPartialPrefetching) {
+    parentHints |= PrefetchHint.SubtreeHasPartialPrefetching
+  }
+  // A child with a loading boundary (directly, or anywhere in its subtree) makes
+  // this a SubtreeHasLoadingBoundary on the parent.
+  if (
+    childHints &
+    (PrefetchHint.SegmentHasLoadingBoundary |
+      PrefetchHint.SubtreeHasLoadingBoundary)
+  ) {
+    parentHints |= PrefetchHint.SubtreeHasLoadingBoundary
+  }
+  // Likewise for runtime prefetch.
+  if (
+    childHints &
+    (PrefetchHint.HasRuntimePrefetch | PrefetchHint.SubtreeHasRuntimePrefetch)
+  ) {
+    parentHints |= PrefetchHint.SubtreeHasRuntimePrefetch
+  }
+  // And for eager prefetch. The bit is set directly on each eager segment, so
+  // there's no separate segment-local flag — propagate it as-is.
+  if (childHints & PrefetchHint.SubtreeHasEagerPrefetch) {
+    parentHints |= PrefetchHint.SubtreeHasEagerPrefetch
+  }
+  return parentHints
+}
 
 /**
  * Individual Flight response path
