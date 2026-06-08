@@ -29,6 +29,7 @@ use turbopack_core::{
     file_source::FileSource,
     ident::AssetIdent,
     issue::{Issue, IssueExt, IssueSeverity, IssueSource, IssueStage, StyledString},
+    module::Module,
     module_graph::{
         ModuleGraph, SingleModuleGraph,
         chunk_group_info::{ChunkGroup, ChunkGroupEntry},
@@ -762,8 +763,16 @@ impl EvaluateContext for WebpackLoaderContext {
                     .await?;
 
                 // Generate a full Node.js bundle using the real runtime
-                let output_root = self.chunking_context.output_root().owned().await?;
-                let entry_path = output_root.join("importModule.js")?;
+                let entry_path = self
+                    .chunking_context
+                    .chunk_path(
+                        None,
+                        module.ident(),
+                        Some(rcstr!("importModule")),
+                        rcstr!(".js"),
+                    )
+                    .owned()
+                    .await?;
 
                 let bootstrap = self.chunking_context.root_entry_chunk_group_asset(
                     entry_path.clone(),
@@ -780,6 +789,7 @@ impl EvaluateContext for WebpackLoaderContext {
                     true,
                 )
                 .await?;
+                let output_root = self.chunking_context.output_root().owned().await?;
 
                 let mut chunks = Vec::new();
                 for asset in all_assets {

@@ -9,13 +9,12 @@ use serde::{Deserialize, Serialize, de::DeserializeOwned};
 use serde_json::Value as JsonValue;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
-    Completion, FxIndexMap, OperationVc, PrettyPrintError, ResolvedVc, TryJoinIterExt,
-    ValueToString, Vc, duration_span, fxindexmap, parallel::available_parallelism,
+    Completion, FxIndexMap, OperationVc, PrettyPrintError, ResolvedVc, TryJoinIterExt, Vc,
+    duration_span, fxindexmap, parallel::available_parallelism,
     resolve_strongly_consistent_and_take_and_apply_effects, trace::TraceRawVcs,
 };
 use turbo_tasks_env::{EnvMap, ProcessEnv};
 use turbo_tasks_fs::{File, FileContent, FileSystemPath, to_sys_path};
-use turbo_tasks_hash::{DeterministicHash, Xxh3Hash64Hasher};
 use turbopack_core::{
     asset::AssetContent,
     changed::content_changed,
@@ -151,14 +150,15 @@ async fn emit_evaluate_pool_assets_operation(
         main_entry_ident,
     } = &*entries.await?;
 
-    let module_ident = main_entry_ident.to_string().await?;
-    let module_ident_hash = {
-        let mut hasher = Xxh3Hash64Hasher::new();
-        module_ident.deterministic_hash(&mut hasher);
-        hasher.finish()
-    };
-    let file_name = format!("{module_ident_hash:016x}.js");
-    let entrypoint = chunking_context.output_root().await?.join(&file_name)?;
+    let entrypoint = chunking_context
+        .chunk_path(
+            None,
+            **main_entry_ident,
+            Some(rcstr!("pool_entry")),
+            rcstr!(".js"),
+        )
+        .owned()
+        .await?;
 
     let bootstrap = chunking_context.root_entry_chunk_group_asset(
         entrypoint.clone(),
