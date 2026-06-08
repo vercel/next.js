@@ -34,6 +34,7 @@ use next_api::{
 };
 use next_core::{
     app_structure::find_app_dir,
+    next_config::DIST_PROFILES_DIR_NAME,
     next_telemetry::ProjectFeatureUsageSummary,
     tracing_presets::{
         TRACING_NEXT_OVERVIEW_TARGETS, TRACING_NEXT_TARGETS, TRACING_NEXT_TURBO_TASKS_TARGETS,
@@ -463,7 +464,7 @@ pub fn project_new(
         } else {
             PathBuf::from(&options.root_path)
                 .join(&options.project_path)
-                .join(".next-profiles")
+                .join(DIST_PROFILES_DIR_NAME)
                 .join("trace-turbopack")
         };
         let trace_dir = trace_file
