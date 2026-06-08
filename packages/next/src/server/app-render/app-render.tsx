@@ -1338,7 +1338,7 @@ async function generateDynamicFlightRenderResultWithStagesInDev(
         ? RenderStage.Runtime
         : RenderStage.Static
 
-    const result = await stagedRenderWithCachesInDevNode(
+    const result = await stagedRenderWithCachesInDev(
       ctx,
       initialRequestStore,
       createRequestStore,
@@ -3328,7 +3328,7 @@ async function renderToStream(
           !isBypassingCachesInDev(requestStore, workStore)
         ) {
           const { stream: serverStream, debugChannel: returnedDebugChannel } =
-            await stagedRenderWithCachesInDevNode(
+            await stagedRenderWithCachesInDev(
               ctx,
               requestStore,
               createRequestStore,
@@ -4338,9 +4338,11 @@ function runDevValidationInBackground(
   cacheSignal: CacheSignal,
   ctx: AppRenderContext,
   fallbackRouteParams: OpaqueFallbackRouteParams | null,
+  prerenderResumeDataCache: ReturnType<typeof createPrerenderResumeDataCache>,
   getDevRenderDidError: () => boolean,
-  // TODO: This can be inlined once the Web streams forks are gone.
-  renderWarmCachesForValidation: () => Promise<DevValidationInputs>
+  createRequestStore: () => RequestStore,
+  getPayload: (requestStore: RequestStore) => Promise<RSCPayload>,
+  onError: (error: unknown) => void
 ): void {
   void consoleAsyncStorage
     .run({ dim: true }, async () => {
@@ -4386,7 +4388,13 @@ function runDevValidationInBackground(
           // The streamed render isn't prod-representative (it missed caches or
           // hit sync IO), so produce the validation inputs from a dedicated
           // warm-cache render.
-          const inputs = await renderWarmCachesForValidation()
+          const inputs = await renderWithWarmCachesForValidationInDev(
+            ctx,
+            createRequestStore,
+            getPayload,
+            onError,
+            prerenderResumeDataCache
+          )
 
           // Unlike the cold streamed render, which fills the caches, the warm
           // render reads them back. Reading a `use cache` entry can surface an
@@ -4500,7 +4508,7 @@ function getEnvironmentNameForStage(stage: RenderStage) {
  * reading the whole stream anyway; the same accumulation feeds validation when
  * the render turns out to be prod-representative.
  */
-async function streamStagedRenderInDevNode(
+async function streamStagedRenderInDev(
   ctx: AppRenderContext,
   requestStore: RequestStore,
   rscPayload: RSCPayload,
@@ -4678,7 +4686,7 @@ async function streamStagedRenderInDevNode(
   return { stream, resultPromise }
 }
 
-async function renderWithWarmCachesForValidationInDevNode(
+async function renderWithWarmCachesForValidationInDev(
   ctx: AppRenderContext,
   createRequestStore: () => RequestStore,
   getPayload: (requestStore: RequestStore) => Promise<RSCPayload>,
@@ -4777,7 +4785,7 @@ async function renderWithWarmCachesForValidationInDevNode(
  * otherwise against a separate warm-cache render); otherwise it just forwards
  * any recorded invalid dynamic usage error to the dev overlay.
  */
-async function stagedRenderWithCachesInDevNode(
+async function stagedRenderWithCachesInDev(
   ctx: AppRenderContext,
   requestStore: RequestStore,
   createRequestStore: () => RequestStore,
@@ -4814,7 +4822,7 @@ async function stagedRenderWithCachesInDevNode(
   // abort, so it's fine if it happens while creating the payload.
   const rscPayload = await getPayload(requestStore)
 
-  const { stream, resultPromise } = await streamStagedRenderInDevNode(
+  const { stream, resultPromise } = await streamStagedRenderInDev(
     ctx,
     requestStore,
     rscPayload,
@@ -4834,15 +4842,11 @@ async function stagedRenderWithCachesInDevNode(
       cacheSignal,
       ctx,
       fallbackRouteParams,
+      prerenderResumeDataCache,
       getDevRenderDidError,
-      () =>
-        renderWithWarmCachesForValidationInDevNode(
-          ctx,
-          createRequestStore,
-          getPayload,
-          onError,
-          prerenderResumeDataCache
-        )
+      createRequestStore,
+      getPayload,
+      onError
     )
   } else {
     logValidationSkipped(ctx)
