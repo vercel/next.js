@@ -208,13 +208,18 @@ struct ProcessWebpackLoadersResult {
     assets: Vec<ResolvedVc<VirtualSource>>,
 }
 
+/// The shared transform runtime entry. A single config-independent module that
+/// dispatches to either the PostCSS or webpack-loader transform based on a
+/// leading `kind` argument. Using one entry for both means one
+/// `get_evaluate_pool` cache key, hence one shared worker pool (and one set of
+/// subprocesses/threads) for all JS transforms.
 #[turbo_tasks::function]
-async fn webpack_loaders_executor(
+pub(crate) async fn transform_executor(
     evaluate_context: Vc<Box<dyn AssetContext>>,
 ) -> Result<Vc<ProcessResult>> {
     Ok(evaluate_context.process(
         Vc::upcast(FileSource::new(
-            embed_file_path(rcstr!("transforms/webpack-loaders.ts"))
+            embed_file_path(rcstr!("transforms/dispatch.ts"))
                 .owned()
                 .await?,
         )),
@@ -269,16 +274,12 @@ impl WebpackLoadersProcessedAsset {
             };
             let evaluate_context = transform.evaluate_context;
 
-            let webpack_loaders_executor = webpack_loaders_executor(*evaluate_context).module();
+            let transform_executor = transform_executor(*evaluate_context).module();
 
-            let entries = get_evaluate_entries(
-                webpack_loaders_executor,
-                *evaluate_context,
-                **node_backend,
-                None,
-            )
-            .to_resolved()
-            .await?;
+            let entries =
+                get_evaluate_entries(transform_executor, *evaluate_context, **node_backend, None)
+                    .to_resolved()
+                    .await?;
 
             let module_graph = ModuleGraph::from_graphs(
                 vec![SingleModuleGraph::new_with_entries(
@@ -314,6 +315,8 @@ impl WebpackLoadersProcessedAsset {
                 resolve_options_context: Some(transform.resolve_options_context),
                 asset_context: self.asset_context,
                 args: vec![
+                    // Leading discriminator consumed by the shared dispatch.ts entry.
+                    ResolvedVc::cell("webpack".into()),
                     ResolvedVc::cell(content),
                     // We need to pass the query string to the loader
                     ResolvedVc::cell(resource_path.to_string().into()),
@@ -322,6 +325,9 @@ impl WebpackLoadersProcessedAsset {
                     ResolvedVc::cell(transform.source_maps.into()),
                 ],
                 additional_invalidation: Completion::immutable().to_resolved().await?,
+                // Webpack loaders have no per-request config to invalidate the
+                // transform on; the pool invalidation above is also immutable.
+                transform_invalidation: Completion::immutable().to_resolved().await?,
                 loader_names,
             })
             .await?;
@@ -380,6 +386,10 @@ impl WebpackLoadersProcessedAsset {
 pub(crate) async fn evaluate_webpack_loader(
     webpack_loader_context: WebpackLoaderContext,
 ) -> Result<Vc<Option<RcStr>>> {
+    // Tie the transform result (but not the shared pool) to transform-specific
+    // inputs such as a PostCSS config file, so the cached result re-runs when
+    // they change.
+    webpack_loader_context.transform_invalidation.await?;
     custom_evaluate(webpack_loader_context).await
 }
 
@@ -509,7 +519,16 @@ pub struct WebpackLoaderContext {
     pub resolve_options_context: Option<ResolvedVc<ResolveOptionsContext>>,
     pub asset_context: ResolvedVc<Box<dyn AssetContext>>,
     pub args: Vec<ResolvedVc<JsonValue>>,
+    /// Invalidates the shared worker pool. Kept config-independent (always
+    /// [`Completion::immutable`] for current callers) so the pool is shared
+    /// across all PostCSS configs and webpack loader chains.
     pub additional_invalidation: ResolvedVc<Completion>,
+    /// Invalidates the transform *result* (not the pool) when transform-specific
+    /// inputs such as a PostCSS config file change. Awaited in
+    /// [`evaluate_webpack_loader`], never forwarded to `get_evaluate_pool`. This
+    /// is what makes the cached transform re-run on a config edit while leaving
+    /// the shared pool untouched.
+    pub transform_invalidation: ResolvedVc<Completion>,
     /// Names of the loaders being applied to the source, in pipeline order.
     /// Used to enrich error messages and issue details so users know which
     /// loader chain was running when an error occurred.
@@ -547,6 +566,10 @@ impl EvaluateContext for WebpackLoaderContext {
     type State = Vec<LogInfo>;
 
     fn pool(&self) -> OperationVc<EvaluatePool> {
+        // Note: `additional_invalidation` is kept config-independent (immutable)
+        // by all callers so the pool stays shared. Config-change invalidation is
+        // routed through `transform_invalidation` in `evaluate_webpack_loader`
+        // instead, which invalidates only the transform result.
         get_evaluate_pool(
             self.entries,
             self.cwd.clone(),
