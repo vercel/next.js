@@ -53,7 +53,7 @@ Call [`connection()`](/docs/app/api-reference/functions/connection) before the c
 Push the [`<Suspense>`](https://react.dev/reference/react/Suspense) boundary as close to the crypto call as possible. If the parent has cached content, isolate the crypto read in its own component so only that piece falls behind the boundary.
 
 ```jsx filename="app/dashboard/page.js"
-import { Suspense } from 'react';
+import { Suspense } from 'react'
 
 export default function Page() {
   return (
@@ -63,16 +63,16 @@ export default function Page() {
       </Suspense>
       <CachedStats />
     </DashboardShell>
-  );
+  )
 }
 ```
 
 ```jsx filename="app/dashboard/csrf-token.js"
-import { connection } from 'next/server';
+import { connection } from 'next/server'
 
 export async function CsrfToken() {
-  await connection();
-  return <input type="hidden" name="csrf" value={crypto.randomUUID()} />;
+  await connection()
+  return <input type="hidden" name="csrf" value={crypto.randomUUID()} />
 }
 ```
 
@@ -83,23 +83,23 @@ Learn more: [`connection`](/docs/app/api-reference/functions/connection), [Strea
 When an async equivalent of the API exists, prefer it. Async crypto operations integrate with [`<Suspense>`](https://react.dev/reference/react/Suspense) naturally and don't need [`await connection()`](/docs/app/api-reference/functions/connection): the [`await`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/await) already tells Next.js the surrounding scope is request-time.
 
 ```jsx filename="app/page.js"
-import { randomBytes } from 'node:crypto';
-import { promisify } from 'node:util';
-import { Suspense } from 'react';
+import { randomBytes } from 'node:crypto'
+import { promisify } from 'node:util'
+import { Suspense } from 'react'
 
-const randomBytesAsync = promisify(randomBytes);
+const randomBytesAsync = promisify(randomBytes)
 
 export default async function Page() {
   return (
     <Suspense fallback={<TokenSkeleton />}>
       <TokenDisplay />
     </Suspense>
-  );
+  )
 }
 
 async function TokenDisplay() {
-  const buf = await randomBytesAsync(32);
-  return <code>{buf.toString('hex')}</code>;
+  const buf = await randomBytesAsync(32)
+  return <code>{buf.toString('hex')}</code>
 }
 ```
 
@@ -127,14 +127,14 @@ Wrap both the token generation and the call that consumes it in the same [`use c
 
 ```jsx filename="app/page.js"
 async function getCachedData() {
-  'use cache';
-  const token = crypto.randomUUID();
-  return db.query(token /* … */);
+  'use cache'
+  const token = crypto.randomUUID()
+  return db.query(token /* … */)
 }
 
 export default async function Page() {
-  const data = await getCachedData();
-  return <View data={data} />;
+  const data = await getCachedData()
+  return <View data={data} />
 }
 ```
 
@@ -145,12 +145,12 @@ Learn more: [Caching with `use cache`](/docs/app/api-reference/directives/use-ca
 When you want to rotate the token on a schedule or in response to an event, tag the entry with [`cacheTag`](/docs/app/api-reference/functions/cacheTag). Invalidate from a Server Action with [`updateTag`](/docs/app/api-reference/functions/updateTag) (read-your-own-writes: the next request waits for fresh data) or from a Route Handler with [`revalidateTag`](/docs/app/api-reference/functions/revalidateTag) (stale-while-revalidate).
 
 ```jsx filename="app/page.js"
-import { cacheTag } from 'next/cache';
+import { cacheTag } from 'next/cache'
 
 async function getApiToken() {
-  'use cache';
-  cacheTag('api-token');
-  return crypto.randomBytes(32).toString('hex');
+  'use cache'
+  cacheTag('api-token')
+  return crypto.randomBytes(32).toString('hex')
 }
 ```
 
@@ -183,21 +183,21 @@ Choose this fix when the generated value belongs to the client experience. A cli
 Add [`use client`](/docs/app/api-reference/directives/use-client) and call the crypto API inside the component.
 
 ```jsx filename="app/draft-key.js"
-'use client';
+'use client'
 
-import { startTransition, useEffect, useState } from 'react';
+import { startTransition, useEffect, useState } from 'react'
 
 export function DraftKey() {
-  const [key, setKey] = useState(null);
+  const [key, setKey] = useState(null)
   useEffect(() => {
     // Wrap in startTransition so that if any component below suspends
     // during this update, React keeps the existing UI visible instead
     // of flashing the nearest outer <Suspense> fallback.
     startTransition(() => {
-      setKey(crypto.randomUUID());
-    });
-  }, []);
-  return <input type="hidden" value={key ?? ''} />;
+      setKey(crypto.randomUUID())
+    })
+  }, [])
+  return <input type="hidden" value={key ?? ''} />
 }
 ```
 

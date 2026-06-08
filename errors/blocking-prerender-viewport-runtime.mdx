@@ -46,14 +46,14 @@ export const viewport = {
   themeColor: '#000000',
   width: 'device-width',
   initialScale: 1,
-};
+}
 
 export default function RootLayout({ children }) {
   return (
     <html>
       <body>{children}</body>
     </html>
-  );
+  )
 }
 ```
 
@@ -81,19 +81,19 @@ Unlike page body content, viewport metadata can't be deferred behind [`<Suspense
 Set [`unstable_instant`](/docs/app/api-reference/file-conventions/route-segment-config/instant) to `false` on the layout that defines `generateViewport`. The layout and every route in its subtree are exempted from instant-navigation validation. Apply this to the nested layout that owns the dynamic viewport, not the root layout, so the opt-out is scoped to the affected subtree.
 
 ```jsx filename="app/dashboard/layout.js"
-import { cookies } from 'next/headers';
+import { cookies } from 'next/headers'
 
-export const unstable_instant = false;
+export const unstable_instant = false
 
 export async function generateViewport() {
-  const cookieJar = await cookies();
+  const cookieJar = await cookies()
   return {
     themeColor: cookieJar.get('theme-color')?.value ?? '#000',
-  };
+  }
 }
 
 export default function DashboardLayout({ children }) {
-  return children;
+  return children
 }
 ```
 

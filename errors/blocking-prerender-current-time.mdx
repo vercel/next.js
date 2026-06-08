@@ -64,7 +64,7 @@ Call [`connection()`](/docs/app/api-reference/functions/connection) before the [
 Push the [`<Suspense>`](https://react.dev/reference/react/Suspense) boundary as close to the timestamp read as possible. If the parent has cached content (metrics, headers, navigation), isolate the timestamp in its own component so only that piece falls behind the boundary.
 
 ```jsx filename="app/dashboard/page.js"
-import { Suspense } from 'react';
+import { Suspense } from 'react'
 
 export default function Page() {
   return (
@@ -74,16 +74,16 @@ export default function Page() {
       </Suspense>
       <CachedMetrics />
     </DashboardShell>
-  );
+  )
 }
 ```
 
 ```jsx filename="app/dashboard/updated-at.js"
-import { connection } from 'next/server';
+import { connection } from 'next/server'
 
 export async function UpdatedAt() {
-  await connection();
-  return <small>Updated at {new Date().toLocaleString()}</small>;
+  await connection()
+  return <small>Updated at {new Date().toLocaleString()}</small>
 }
 ```
 
@@ -110,13 +110,13 @@ Wrap the timestamp read in a function with [`use cache`](/docs/app/api-reference
 
 ```jsx filename="app/page.js"
 async function getRenderedAt() {
-  'use cache';
-  return Date.now();
+  'use cache'
+  return Date.now()
 }
 
 export default async function Page() {
-  const renderedAt = await getRenderedAt();
-  return <ReportFooter renderedAt={renderedAt} />;
+  const renderedAt = await getRenderedAt()
+  return <ReportFooter renderedAt={renderedAt} />
 }
 ```
 
@@ -128,14 +128,14 @@ When the timestamp captures "when this cached content was produced" (a "last ref
 
 ```jsx filename="app/dashboard.js"
 async function InformationTable() {
-  'use cache';
-  const data = await fetch('https://api.example.com/info');
+  'use cache'
+  const data = await fetch('https://api.example.com/info')
   return (
     <>
       <table>{renderData(await data.json())}</table>
       <small>Last refresh: {new Date().toString()}</small>
     </>
-  );
+  )
 }
 ```
 
@@ -144,12 +144,12 @@ async function InformationTable() {
 For values like the current year used in a copyright footer, the cached read effectively never changes (until the next year), so it can live in a `cacheLife('max')` entry.
 
 ```jsx filename="app/layout.js"
-import { cacheLife } from 'next/cache';
+import { cacheLife } from 'next/cache'
 
 async function getCurrentYear() {
-  'use cache';
-  cacheLife('max');
-  return new Date().getFullYear();
+  'use cache'
+  cacheLife('max')
+  return new Date().getFullYear()
 }
 
 export default async function Layout({ children }) {
@@ -158,7 +158,7 @@ export default async function Layout({ children }) {
       <main>{children}</main>
       <footer>Copyright {await getCurrentYear()}</footer>
     </>
-  );
+  )
 }
 ```
 
@@ -167,12 +167,12 @@ export default async function Layout({ children }) {
 When you want the timestamp to refresh on a schedule, set a [`cacheLife`](/docs/app/api-reference/functions/cacheLife) profile.
 
 ```jsx filename="app/page.js"
-import { cacheLife } from 'next/cache';
+import { cacheLife } from 'next/cache'
 
 async function getHourlyTimestamp() {
-  'use cache';
-  cacheLife('hours');
-  return Date.now();
+  'use cache'
+  cacheLife('hours')
+  return Date.now()
 }
 ```
 
@@ -204,27 +204,27 @@ Choose this fix when the timestamp belongs to the user's local clock or needs to
 Add [`use client`](/docs/app/api-reference/directives/use-client) and compute the timestamp inside the component.
 
 ```jsx filename="app/now.js"
-'use client';
+'use client'
 
-import { startTransition, useEffect, useState } from 'react';
+import { startTransition, useEffect, useState } from 'react'
 
 export function Now() {
-  const [now, setNow] = useState(null);
+  const [now, setNow] = useState(null)
   useEffect(() => {
     // Wrap in startTransition so that if any component below suspends
     // during this update, React keeps the existing UI visible instead
     // of flashing the nearest outer <Suspense> fallback.
     startTransition(() => {
-      setNow(Date.now());
-    });
+      setNow(Date.now())
+    })
     const id = setInterval(() => {
       startTransition(() => {
-        setNow(Date.now());
-      });
-    }, 1000);
-    return () => clearInterval(id);
-  }, []);
-  return <time>{now ? new Date(now).toLocaleString() : '…'}</time>;
+        setNow(Date.now())
+      })
+    }, 1000)
+    return () => clearInterval(id)
+  }, [])
+  return <time>{now ? new Date(now).toLocaleString() : '…'}</time>
 }
 ```
 
@@ -250,11 +250,11 @@ Drop-in replacement for any elapsed-time calculation.
 
 ```jsx filename="app/page.js"
 export default async function Page() {
-  const start = performance.now();
-  const data = await computeReport();
-  const elapsedMs = performance.now() - start;
-  console.log(`computeReport took ${elapsedMs}ms`);
-  return <Report data={data} />;
+  const start = performance.now()
+  const data = await computeReport()
+  const elapsedMs = performance.now() - start
+  console.log(`computeReport took ${elapsedMs}ms`)
+  return <Report data={data} />
 }
 ```
 

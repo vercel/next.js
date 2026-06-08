@@ -52,8 +52,8 @@ Choose this fix when the timestamp is part of the rendered output and a brief fa
 Place the [`<Suspense>`](https://react.dev/reference/react/Suspense) boundary in the Server Component that renders the Client Component. The fallback prerenders; the inner Client Component runs in the browser.
 
 ```jsx filename="app/article.js"
-import { Suspense } from 'react';
-import { RelativeTime } from './relative-time';
+import { Suspense } from 'react'
+import { RelativeTime } from './relative-time'
 
 export default function Article({ timestamp }) {
   return (
@@ -62,18 +62,18 @@ export default function Article({ timestamp }) {
         <RelativeTime timestamp={timestamp} />
       </Suspense>
     </article>
-  );
+  )
 }
 ```
 
 ```jsx filename="app/relative-time.js"
-'use client';
+'use client'
 
 export function RelativeTime({ timestamp }) {
-  const now = Date.now();
+  const now = Date.now()
   return (
     <time suppressHydrationWarning>{computeTimeAgo({ timestamp, now })}</time>
-  );
+  )
 }
 ```
 
@@ -100,27 +100,27 @@ Choose this fix when the timestamp isn't needed for the first paint. Move the [`
 For displays that should update over time (a relative-time label, a stopwatch). Initialize state to a deterministic placeholder, then assign the real value in [`useEffect`](https://react.dev/reference/react/useEffect).
 
 ```jsx filename="app/clock.js"
-'use client';
+'use client'
 
-import { startTransition, useEffect, useState } from 'react';
+import { startTransition, useEffect, useState } from 'react'
 
 export function Clock() {
-  const [now, setNow] = useState(null);
+  const [now, setNow] = useState(null)
   useEffect(() => {
     // Wrap in startTransition so that if any component below suspends
     // during this update, React keeps the existing UI visible instead
     // of flashing the nearest outer <Suspense> fallback.
     startTransition(() => {
-      setNow(Date.now());
-    });
+      setNow(Date.now())
+    })
     const id = setInterval(() => {
       startTransition(() => {
-        setNow(Date.now());
-      });
-    }, 1000);
-    return () => clearInterval(id);
-  }, []);
-  return <time>{now ? new Date(now).toLocaleTimeString() : '…'}</time>;
+        setNow(Date.now())
+      })
+    }, 1000)
+    return () => clearInterval(id)
+  }, [])
+  return <time>{now ? new Date(now).toLocaleTimeString() : '…'}</time>
 }
 ```
 
@@ -131,17 +131,17 @@ Learn more: [`useEffect`](https://react.dev/reference/react/useEffect).
 When the timestamp is in response to a click ("mark as read", "snapshot now"), compute it in the event handler.
 
 ```jsx filename="app/snapshot.js"
-'use client';
+'use client'
 
-import { useState } from 'react';
+import { useState } from 'react'
 
 export function Snapshot() {
-  const [taken, setTaken] = useState(null);
+  const [taken, setTaken] = useState(null)
   return (
     <button onClick={() => setTaken(Date.now())}>
       {taken ? `Snapshot at ${new Date(taken).toLocaleString()}` : 'Snapshot'}
     </button>
-  );
+  )
 }
 ```
 
@@ -166,18 +166,18 @@ Choose this fix when the timestamp isn't user-visible at all. Logging, performan
 Drop-in replacement for any elapsed-time calculation.
 
 ```jsx filename="app/timed.js"
-'use client';
+'use client'
 
-import { useEffect } from 'react';
+import { useEffect } from 'react'
 
 export function Timed() {
   useEffect(() => {
-    const start = performance.now();
-    doWork();
-    const elapsedMs = performance.now() - start;
-    console.log(`doWork took ${elapsedMs}ms`);
-  }, []);
-  return null;
+    const start = performance.now()
+    doWork()
+    const elapsedMs = performance.now() - start
+    console.log(`doWork took ${elapsedMs}ms`)
+  }, [])
+  return null
 }
 ```
 
@@ -200,12 +200,12 @@ Learn more: [`performance.now()`](https://developer.mozilla.org/en-US/docs/Web/A
 When the timestamp doesn't need to reflect the user's current visit and lives inside a Client Component only because of where it's rendered, lift the read into a Server Component above with [`use cache`](/docs/app/api-reference/directives/use-cache). The canonical case is a copyright year in a footer.
 
 ```jsx filename="app/layout.js"
-import { cacheLife } from 'next/cache';
+import { cacheLife } from 'next/cache'
 
 async function getCurrentYear() {
-  'use cache';
-  cacheLife('max');
-  return new Date().getFullYear();
+  'use cache'
+  cacheLife('max')
+  return new Date().getFullYear()
 }
 
 export default async function Layout({ children }) {
@@ -214,7 +214,7 @@ export default async function Layout({ children }) {
       <main>{children}</main>
       <footer>Copyright {await getCurrentYear()}</footer>
     </>
-  );
+  )
 }
 ```
 

@@ -47,7 +47,7 @@ export default function DashboardLayout({ children }) {
       <Nav />
       {children}
     </>
-  );
+  )
 }
 ```
 
@@ -62,7 +62,7 @@ export default function DashboardLayout({ children, modal }) {
       {children}
       {modal}
     </>
-  );
+  )
 }
 ```
 
@@ -79,18 +79,18 @@ export default function DashboardLayout({ children }) {
       <Nav />
       {children}
     </>
-  );
+  )
 }
 ```
 
 ```jsx filename="app/dashboard/page.js"
-import { redirect } from 'next/navigation';
-import { getSession } from '@/lib/session';
+import { redirect } from 'next/navigation'
+import { getSession } from '@/lib/session'
 
 export default async function DashboardPage() {
-  const session = await getSession();
-  if (!session) redirect('/login');
-  return <Dashboard session={session} />;
+  const session = await getSession()
+  if (!session) redirect('/login')
+  return <Dashboard session={session} />
 }
 ```
 
@@ -116,10 +116,10 @@ Choose this fix when the segment is intentionally not rendered in certain states
 Add the export to the page or layout file of the segment that was dropped from rendering.
 
 ```jsx filename="app/dashboard/@modal/page.js"
-export const unstable_instant = false;
+export const unstable_instant = false
 
 export default function ModalPage() {
-  return <Modal />;
+  return <Modal />
 }
 ```
 

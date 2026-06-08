@@ -54,7 +54,7 @@ Call [`connection()`](/docs/app/api-reference/functions/connection) before [`Mat
 Push the [`<Suspense>`](https://react.dev/reference/react/Suspense) boundary as close to the random read as possible. If the parent has cached content (a header, stats, navigation), isolate the random read in its own component so only that piece falls behind the boundary.
 
 ```jsx filename="app/dashboard/page.js"
-import { Suspense } from 'react';
+import { Suspense } from 'react'
 
 export default function Page() {
   return (
@@ -64,17 +64,17 @@ export default function Page() {
       </Suspense>
       <CachedStats />
     </DashboardShell>
-  );
+  )
 }
 ```
 
 ```jsx filename="app/dashboard/request-trace.js"
-import { connection } from 'next/server';
+import { connection } from 'next/server'
 
 export async function RequestTrace() {
-  await connection();
-  const traceId = Math.random().toString(16).slice(2);
-  return <small>trace: {traceId}</small>;
+  await connection()
+  const traceId = Math.random().toString(16).slice(2)
+  return <small>trace: {traceId}</small>
 }
 ```
 
@@ -102,14 +102,14 @@ Wrap the random generation in its own function with [`use cache`](/docs/app/api-
 
 ```jsx filename="app/page.js"
 async function getRandomSeed() {
-  'use cache';
-  return Math.random();
+  'use cache'
+  return Math.random()
 }
 
 export default async function Page() {
-  const products = await getCachedProducts();
-  const seed = await getRandomSeed();
-  return <ProductsView products={randomize(products, seed)} />;
+  const products = await getCachedProducts()
+  const seed = await getRandomSeed()
+  return <ProductsView products={randomize(products, seed)} />
 }
 ```
 
@@ -120,12 +120,12 @@ Learn more: [Caching with `use cache`](/docs/app/api-reference/directives/use-ca
 When you want the random value to rotate on a schedule (a daily featured item, an hourly shuffle), set a [`cacheLife`](/docs/app/api-reference/functions/cacheLife) profile.
 
 ```jsx filename="app/page.js"
-import { cacheLife } from 'next/cache';
+import { cacheLife } from 'next/cache'
 
 async function getDailySeed() {
-  'use cache';
-  cacheLife('days');
-  return Math.random();
+  'use cache'
+  cacheLife('days')
+  return Math.random()
 }
 ```
 
@@ -158,21 +158,21 @@ Choose this fix when the random value belongs to the client experience. A canvas
 Add the [`use client`](/docs/app/api-reference/directives/use-client) directive. Initialize state to a deterministic placeholder and assign the real value inside [`useEffect`](https://react.dev/reference/react/useEffect), which runs only in the browser after hydration.
 
 ```jsx filename="app/avatar.js"
-'use client';
+'use client'
 
-import { startTransition, useEffect, useState } from 'react';
+import { startTransition, useEffect, useState } from 'react'
 
 export function Avatar() {
-  const [color, setColor] = useState('#888');
+  const [color, setColor] = useState('#888')
   useEffect(() => {
     // Wrap in startTransition so that if any component below suspends
     // during this update, React keeps the existing UI visible instead
     // of flashing the nearest outer <Suspense> fallback.
     startTransition(() => {
-      setColor(`#${Math.random().toString(16).slice(2, 8)}`);
-    });
-  }, []);
-  return <div style={{ background: color }} />;
+      setColor(`#${Math.random().toString(16).slice(2, 8)}`)
+    })
+  }, [])
+  return <div style={{ background: color }} />
 }
 ```
 

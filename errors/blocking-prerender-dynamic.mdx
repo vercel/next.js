@@ -55,16 +55,16 @@ Move the [`fetch()`](/docs/app/getting-started/fetching-data) or database call i
 
 ```jsx filename="app/dashboard/page.js"
 async function getRecentTransactions(limit) {
-  'use cache';
+  'use cache'
   return db.transactions.findMany({
     orderBy: { createdAt: 'desc' },
     take: limit,
-  });
+  })
 }
 
 export default async function Page() {
-  const transactions = await getRecentTransactions(10);
-  return <TransactionList transactions={transactions} />;
+  const transactions = await getRecentTransactions(10)
+  return <TransactionList transactions={transactions} />
 }
 ```
 
@@ -76,15 +76,15 @@ When the component does nothing but read data and render it, mark the [component
 
 ```jsx filename="app/dashboard/transaction-list.js"
 export async function TransactionList({ limit }) {
-  'use cache';
-  const transactions = await db.transactions.findMany({ take: limit });
+  'use cache'
+  const transactions = await db.transactions.findMany({ take: limit })
   return (
     <ul>
       {transactions.map((transaction) => (
         <li key={transaction.id}>{transaction.description}</li>
       ))}
     </ul>
-  );
+  )
 }
 ```
 
@@ -95,12 +95,12 @@ Learn more: [Caching with `use cache`](/docs/app/api-reference/directives/use-ca
 Choose this when you want control over when the cached value is refreshed. Tag the entry with [`cacheTag`](/docs/app/api-reference/functions/cacheTag) and invalidate it on demand: call [`updateTag`](/docs/app/api-reference/functions/updateTag) from a [Server Action](/docs/app/getting-started/mutating-data) when the user performed the mutation and should see fresh data on the next request, or [`revalidateTag`](/docs/app/api-reference/functions/revalidateTag) from a route handler, cron, admin tool, or incoming webhook for stale-while-revalidate refreshes. Tags add an on-demand invalidation path on top of the [`cacheLife`](/docs/app/api-reference/functions/cacheLife) expiration window; the two are independent.
 
 ```jsx filename="app/dashboard/page.js"
-import { cacheTag } from 'next/cache';
+import { cacheTag } from 'next/cache'
 
 async function getRecentTransactions() {
-  'use cache';
-  cacheTag('dashboard-transactions');
-  return db.transactions.findMany({ take: 10 });
+  'use cache'
+  cacheTag('dashboard-transactions')
+  return db.transactions.findMany({ take: 10 })
 }
 ```
 
@@ -111,12 +111,12 @@ Learn more: [How revalidation works](/docs/app/guides/how-revalidation-works).
 When the data has a natural shelf-life (hourly metrics, daily aggregates), pick a [`cacheLife`](/docs/app/api-reference/functions/cacheLife) profile that matches. Without a profile, Next.js uses the project default.
 
 ```jsx filename="app/dashboard/page.js"
-import { cacheLife } from 'next/cache';
+import { cacheLife } from 'next/cache'
 
 async function getDashboard() {
-  'use cache';
-  cacheLife('hours');
-  return db.metrics.summary();
+  'use cache'
+  cacheLife('hours')
+  return db.metrics.summary()
 }
 ```
 
@@ -150,16 +150,16 @@ Choose this fix when the data must be fresh on every request. A [`<Suspense>`](h
 Keep the component that performs the data access intact and add a [`<Suspense>`](https://react.dev/reference/react/Suspense) boundary around its usage in the parent.
 
 ```jsx filename="app/dashboard/page.js"
-import { Suspense } from 'react';
-import { TransactionList } from './transaction-list';
-import { TransactionSkeleton } from './transaction-skeleton';
+import { Suspense } from 'react'
+import { TransactionList } from './transaction-list'
+import { TransactionSkeleton } from './transaction-skeleton'
 
 export default function Page() {
   return (
     <Suspense fallback={<TransactionSkeleton />}>
       <TransactionList />
     </Suspense>
-  );
+  )
 }
 ```
 
@@ -170,7 +170,7 @@ Learn more: [Streaming with Suspense](/docs/app/guides/streaming).
 When the page reads data at the top and forwards it down, move the read into the component that consumes it. The parent stays static and the boundary wraps only the part that needs the data.
 
 ```jsx filename="app/dashboard/page.js"
-import { Suspense } from 'react';
+import { Suspense } from 'react'
 
 export default function Page() {
   return (
@@ -180,14 +180,14 @@ export default function Page() {
         <LatestTransactions />
       </Suspense>
     </main>
-  );
+  )
 }
 ```
 
 ```jsx filename="app/dashboard/latest-transactions.js"
 export async function LatestTransactions() {
-  const transactions = await db.transactions.findMany({ take: 20 });
-  return <TransactionList transactions={transactions} />;
+  const transactions = await db.transactions.findMany({ take: 20 })
+  return <TransactionList transactions={transactions} />
 }
 ```
 
@@ -198,7 +198,7 @@ Learn more: [Streaming patterns and boundary placement](/docs/app/guides/streami
 When several siblings each fetch independently, give each one its own boundary so the streamed regions arrive in parallel instead of waiting on the slowest one.
 
 ```jsx filename="app/dashboard/page.js"
-import { Suspense } from 'react';
+import { Suspense } from 'react'
 
 export default function Page() {
   return (
@@ -210,7 +210,7 @@ export default function Page() {
         <LatestTransactions />
       </Suspense>
     </main>
-  );
+  )
 }
 ```
 
@@ -222,7 +222,7 @@ When the entire page depends on the failing data access and there's nothing stat
 
 ```jsx filename="app/dashboard/loading.js"
 export default function Loading() {
-  return <DashboardSkeleton />;
+  return <DashboardSkeleton />
 }
 ```
 
@@ -260,11 +260,11 @@ Choose this fix when the route renders per-request and there's no useful static 
 Add the export to the page that triggered the error. Only that route blocks.
 
 ```jsx filename="app/dashboard/page.js"
-export const unstable_instant = false;
+export const unstable_instant = false
 
 export default async function Page() {
-  const data = await getDashboard();
-  return <Dashboard data={data} />;
+  const data = await getDashboard()
+  return <Dashboard data={data} />
 }
 ```
 
@@ -275,10 +275,10 @@ Learn more: [Ensuring instant navigations](/docs/app/guides/instant-navigation).
 When the shared layout itself can't ship instantly (it reads runtime data or uncached data of its own), set [`unstable_instant`](/docs/app/api-reference/file-conventions/route-segment-config/instant) to `false` on the layout. The layout and every route in the subtree are exempted from instant-navigation validation.
 
 ```jsx filename="app/dashboard/layout.js"
-export const unstable_instant = false;
+export const unstable_instant = false
 
 export default function DashboardLayout({ children }) {
-  return <DashboardShell>{children}</DashboardShell>;
+  return <DashboardShell>{children}</DashboardShell>
 }
 ```
 

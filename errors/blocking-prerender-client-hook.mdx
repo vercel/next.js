@@ -54,8 +54,8 @@ Choose this fix when you want the route to prerender a fallback and replace it w
 Move the hook call into a small Client Component and wrap it in [`<Suspense>`](https://react.dev/reference/react/Suspense). Next.js prerenders the fallback and streams the real value in when it's available.
 
 ```jsx filename="app/dashboard/page.js"
-import { Suspense } from 'react';
-import { Search } from './search';
+import { Suspense } from 'react'
+import { Search } from './search'
 
 export default function Page() {
   return (
@@ -65,18 +65,18 @@ export default function Page() {
         <Search />
       </Suspense>
     </main>
-  );
+  )
 }
 ```
 
 ```jsx filename="app/dashboard/search.js"
-'use client';
+'use client'
 
-import { useSearchParams } from 'next/navigation';
+import { useSearchParams } from 'next/navigation'
 
 export function Search() {
-  const searchParams = useSearchParams();
-  return <p>Search: {searchParams.get('q')}</p>;
+  const searchParams = useSearchParams()
+  return <p>Search: {searchParams.get('q')}</p>
 }
 ```
 
@@ -87,7 +87,7 @@ Learn more: [`useSearchParams` prerendering behavior](/docs/app/api-reference/fu
 When the hook is read at the top of the tree but only one piece of UI depends on the value, move the read down. The parent stays prerenderable and only the leaf needs a boundary.
 
 ```jsx filename="app/layout.js"
-import { Nav } from './nav';
+import { Nav } from './nav'
 
 export default function Layout({ children }) {
   return (
@@ -95,14 +95,14 @@ export default function Layout({ children }) {
       <Nav />
       {children}
     </div>
-  );
+  )
 }
 ```
 
 ```jsx filename="app/nav.js"
-import { Suspense } from 'react';
-import Link from 'next/link';
-import { ActiveDot } from './active-dot';
+import { Suspense } from 'react'
+import Link from 'next/link'
+import { ActiveDot } from './active-dot'
 
 export function Nav() {
   return (
@@ -120,19 +120,19 @@ export function Nav() {
         </Suspense>
       </Link>
     </nav>
-  );
+  )
 }
 ```
 
 ```jsx filename="app/active-dot.js"
-'use client';
+'use client'
 
-import { usePathname } from 'next/navigation';
+import { usePathname } from 'next/navigation'
 
 export function ActiveDot({ href }) {
-  const pathname = usePathname();
-  const isActive = pathname === href || pathname.startsWith(`${href}/`);
-  return isActive ? <span aria-hidden="true"> •</span> : null;
+  const pathname = usePathname()
+  const isActive = pathname === href || pathname.startsWith(`${href}/`)
+  return isActive ? <span aria-hidden="true"> •</span> : null
 }
 ```
 
@@ -147,9 +147,9 @@ Learn more: [`usePathname`](/docs/app/api-reference/functions/use-pathname), [Cr
 When the hook value drives a non-visual concern (analytics, attribute on a parent), isolate it in a sibling component and wrap that sibling. The visible UI stays in the static shell.
 
 ```jsx filename="app/dashboard/page.js"
-import { Suspense } from 'react';
-import { Header } from './header';
-import { TrackPageView } from './track-page-view';
+import { Suspense } from 'react'
+import { Header } from './header'
+import { TrackPageView } from './track-page-view'
 
 export default function Page() {
   return (
@@ -160,22 +160,22 @@ export default function Page() {
       </Suspense>
       <DashboardContent />
     </>
-  );
+  )
 }
 ```
 
 ```jsx filename="app/dashboard/track-page-view.js"
-'use client';
+'use client'
 
-import { useEffect } from 'react';
-import { usePathname } from 'next/navigation';
+import { useEffect } from 'react'
+import { usePathname } from 'next/navigation'
 
 export function TrackPageView() {
-  const pathname = usePathname();
+  const pathname = usePathname()
   useEffect(() => {
-    track('pageview', { pathname });
-  }, [pathname]);
-  return null;
+    track('pageview', { pathname })
+  }, [pathname])
+  return null
 }
 ```
 
@@ -206,7 +206,7 @@ Export [`generateStaticParams`](/docs/app/api-reference/functions/generate-stati
 
 ```jsx filename="app/blog/[slug]/page.js"
 export function generateStaticParams() {
-  return [{ slug: 'hello-world' }, { slug: 'release-notes' }];
+  return [{ slug: 'hello-world' }, { slug: 'release-notes' }]
 }
 ```
 
@@ -235,10 +235,10 @@ Choose this fix when the route renders per-request and there's no useful static 
 Add the export to the page that triggered the error. Only that route blocks.
 
 ```jsx filename="app/dashboard/page.js"
-export const unstable_instant = false;
+export const unstable_instant = false
 
 export default function Page() {
-  return <Dashboard />;
+  return <Dashboard />
 }
 ```
 
@@ -249,10 +249,10 @@ Learn more: [Ensuring instant navigations](/docs/app/guides/instant-navigation).
 When the shared layout itself can't ship instantly (it reads URL data of its own that has no meaningful fallback), set [`unstable_instant`](/docs/app/api-reference/file-conventions/route-segment-config/instant) to `false` on the layout. The layout and every route in the subtree are exempted from instant-navigation validation.
 
 ```jsx filename="app/dashboard/layout.js"
-export const unstable_instant = false;
+export const unstable_instant = false
 
 export default function DashboardLayout({ children }) {
-  return <DashboardShell>{children}</DashboardShell>;
+  return <DashboardShell>{children}</DashboardShell>
 }
 ```
 

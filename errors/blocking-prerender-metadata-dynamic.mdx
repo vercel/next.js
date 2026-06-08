@@ -46,25 +46,25 @@ Choose this fix when the metadata comes from an external source (CMS, database) 
 Mark the function as cacheable. The metadata is evaluated once per cache window and reused.
 
 ```jsx filename="app/blog/[slug]/page.js"
-import { cms } from './cms';
+import { cms } from './cms'
 
 export async function generateMetadata({ params }) {
-  'use cache';
-  const { slug } = await params;
-  const { title } = await cms.getPageData(slug);
-  return { title };
+  'use cache'
+  const { slug } = await params
+  const { title } = await cms.getPageData(slug)
+  return { title }
 }
 
 async function getPageText(slug) {
-  'use cache';
-  const { text } = await cms.getPageData(slug);
-  return text;
+  'use cache'
+  const { text } = await cms.getPageData(slug)
+  return text
 }
 
 export default async function Page({ params }) {
-  const { slug } = await params;
-  const text = await getPageText(slug);
-  return <article>{text}</article>;
+  const { slug } = await params
+  const text = await getPageText(slug)
+  return <article>{text}</article>
 }
 ```
 
@@ -75,15 +75,15 @@ Learn more: [Caching with `use cache`](/docs/app/api-reference/directives/use-ca
 When you publish new content and want the metadata to refresh, tag the entry with [`cacheTag`](/docs/app/api-reference/functions/cacheTag). Invalidate from a Server Action with [`updateTag`](/docs/app/api-reference/functions/updateTag) (read-your-own-writes: the next request waits for fresh data) or from a Route Handler with [`revalidateTag`](/docs/app/api-reference/functions/revalidateTag).
 
 ```jsx filename="app/blog/[slug]/page.js"
-import { cacheTag } from 'next/cache';
-import { cms } from './cms';
+import { cacheTag } from 'next/cache'
+import { cms } from './cms'
 
 export async function generateMetadata({ params }) {
-  'use cache';
-  const { slug } = await params;
-  cacheTag(`meta-${slug}`);
-  const { title } = await cms.getPageData(slug);
-  return { title };
+  'use cache'
+  const { slug } = await params
+  cacheTag(`meta-${slug}`)
+  const { title } = await cms.getPageData(slug)
+  return { title }
 }
 ```
 
@@ -112,18 +112,18 @@ This error fires specifically because the metadata is the only dynamic part of a
 Create a small component that calls [`connection()`](/docs/app/api-reference/functions/connection) and renders nothing, wrapped in [`<Suspense>`](https://react.dev/reference/react/Suspense). The page content remains prerenderable and only the marker is excluded from the prerender.
 
 ```jsx filename="app/page.js"
-import { Suspense } from 'react';
-import { connection } from 'next/server';
+import { Suspense } from 'react'
+import { connection } from 'next/server'
 
 export async function generateMetadata() {
-  const response = await fetch('https://api.example.com/meta');
-  const { title } = await response.json();
-  return { title };
+  const response = await fetch('https://api.example.com/meta')
+  const { title } = await response.json()
+  return { title }
 }
 
 async function DynamicMarker() {
-  await connection();
-  return null;
+  await connection()
+  return null
 }
 
 export default function Page() {
@@ -134,7 +134,7 @@ export default function Page() {
         <DynamicMarker />
       </Suspense>
     </>
-  );
+  )
 }
 ```
 

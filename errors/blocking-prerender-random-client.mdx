@@ -42,8 +42,8 @@ Choose this fix when the random value is part of the rendered output and a brief
 Place the [`<Suspense>`](https://react.dev/reference/react/Suspense) boundary in the Server Component that renders the Client Component. The fallback prerenders, the inner Client Component runs in the browser, and you only handle the random value once.
 
 ```jsx filename="app/page.js"
-import { Suspense } from 'react';
-import { Avatar } from './avatar';
+import { Suspense } from 'react'
+import { Avatar } from './avatar'
 
 export default function Page() {
   return (
@@ -52,16 +52,16 @@ export default function Page() {
         <Avatar />
       </Suspense>
     </Profile>
-  );
+  )
 }
 ```
 
 ```jsx filename="app/avatar.js"
-'use client';
+'use client'
 
 export function Avatar() {
-  const color = `#${Math.random().toString(16).slice(2, 8)}`;
-  return <div style={{ background: color }} />;
+  const color = `#${Math.random().toString(16).slice(2, 8)}`
+  return <div style={{ background: color }} />
 }
 ```
 
@@ -88,21 +88,21 @@ Choose this fix when the random value isn't needed for the first paint. Move the
 For values that should appear shortly after the page loads. Initialize state to `null` (or another deterministic stand-in) and assign the random value inside [`useEffect`](https://react.dev/reference/react/useEffect).
 
 ```jsx filename="app/avatar.js"
-'use client';
+'use client'
 
-import { startTransition, useEffect, useState } from 'react';
+import { startTransition, useEffect, useState } from 'react'
 
 export function Avatar() {
-  const [color, setColor] = useState('#eaeaea');
+  const [color, setColor] = useState('#eaeaea')
   useEffect(() => {
     // Wrap in startTransition so that if any component below suspends
     // during this update, React keeps the existing UI visible instead
     // of flashing the nearest outer <Suspense> fallback.
     startTransition(() => {
-      setColor(`#${Math.random().toString(16).slice(2, 8)}`);
-    });
-  }, []);
-  return <div style={{ background: color }} />;
+      setColor(`#${Math.random().toString(16).slice(2, 8)}`)
+    })
+  }, [])
+  return <div style={{ background: color }} />
 }
 ```
 
@@ -113,15 +113,15 @@ Learn more: [`useEffect`](https://react.dev/reference/react/useEffect).
 When the random value is in response to a click ("reshuffle", "new card"), compute it in the event handler. No SSR concern at all.
 
 ```jsx filename="app/shuffle.js"
-'use client';
+'use client'
 
-import { useState } from 'react';
+import { useState } from 'react'
 
 export function Shuffle() {
-  const [seed, setSeed] = useState(0);
+  const [seed, setSeed] = useState(0)
   return (
     <button onClick={() => setSeed(Math.random())}>Shuffle ({seed})</button>
-  );
+  )
 }
 ```
 
@@ -130,29 +130,29 @@ export function Shuffle() {
 When a component needs a stable ID for the lifetime of its mount (a tracking ID, a correlation key), produce it lazily inside a [`useRef`](https://react.dev/reference/react/useRef) getter. The ref initializer runs after mount, so SSR sees `null` and the browser fills in the value. Subsequent renders read the same ref so the ID stays stable.
 
 ```jsx filename="app/workflow.js"
-'use client';
+'use client'
 
-import { useRef } from 'react';
+import { useRef } from 'react'
 
 function getOrCreateId(ref) {
   if (!ref.current) {
-    ref.current = Math.random().toString(36).slice(2);
+    ref.current = Math.random().toString(36).slice(2)
   }
-  return ref.current;
+  return ref.current
 }
 
 export function Workflow({ onNext }) {
-  const idRef = useRef(null);
+  const idRef = useRef(null)
   return (
     <button
       onClick={() => {
-        trackEvent(getOrCreateId(idRef), 'forward');
-        onNext();
+        trackEvent(getOrCreateId(idRef), 'forward')
+        onNext()
       }}
     >
       Next
     </button>
-  );
+  )
 }
 ```
 

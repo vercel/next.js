@@ -42,12 +42,12 @@ Choose this fix when the viewport values come from an external source (database,
 Mark the function as cacheable. The viewport is evaluated once per cache window and reused.
 
 ```jsx filename="app/layout.js"
-import { db } from './db';
+import { db } from './db'
 
 export async function generateViewport() {
-  'use cache';
-  const { width, initialScale } = await db.query('viewport-config');
-  return { width, initialScale };
+  'use cache'
+  const { width, initialScale } = await db.query('viewport-config')
+  return { width, initialScale }
 }
 
 export default function RootLayout({ children }) {
@@ -55,7 +55,7 @@ export default function RootLayout({ children }) {
     <html>
       <body>{children}</body>
     </html>
-  );
+  )
 }
 ```
 
@@ -83,17 +83,17 @@ Unlike page body content, viewport metadata can't be deferred behind [`<Suspense
 Set [`unstable_instant`](/docs/app/api-reference/file-conventions/route-segment-config/instant) to `false` on the layout that defines `generateViewport`. The layout and every route in its subtree are exempted from instant-navigation validation. Apply this to the nested layout that owns the dynamic viewport, not the root layout, so the opt-out is scoped to the affected subtree.
 
 ```jsx filename="app/dashboard/layout.js"
-import { db } from './db';
+import { db } from './db'
 
-export const unstable_instant = false;
+export const unstable_instant = false
 
 export async function generateViewport() {
-  const { width, initialScale } = await db.query('viewport-config');
-  return { width, initialScale };
+  const { width, initialScale } = await db.query('viewport-config')
+  return { width, initialScale }
 }
 
 export default function DashboardLayout({ children }) {
-  return children;
+  return children
 }
 ```
 

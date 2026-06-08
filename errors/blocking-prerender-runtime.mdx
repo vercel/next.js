@@ -54,9 +54,9 @@ Choose this fix when the value really is per-request, but the page has parts tha
 Keep the component that reads the runtime API intact and add a [`<Suspense>`](https://react.dev/reference/react/Suspense) boundary around its usage in the parent.
 
 ```jsx filename="app/dashboard/page.js"
-import { Suspense } from 'react';
-import { UserHeader } from './user-header';
-import { HeaderSkeleton } from './header-skeleton';
+import { Suspense } from 'react'
+import { UserHeader } from './user-header'
+import { HeaderSkeleton } from './header-skeleton'
 
 export default function Page() {
   return (
@@ -66,7 +66,7 @@ export default function Page() {
       </Suspense>
       <CachedStats />
     </DashboardShell>
-  );
+  )
 }
 ```
 
@@ -77,7 +77,7 @@ Learn more: [Streaming with Suspense](/docs/app/guides/streaming).
 When the value is read at the top of the tree but only consumed by a small piece of UI, move the read down. The parent stays prerenderable and only the leaf needs a boundary.
 
 ```jsx filename="app/dashboard/page.js"
-import { Suspense } from 'react';
+import { Suspense } from 'react'
 
 export default function Page() {
   return (
@@ -87,16 +87,16 @@ export default function Page() {
       </Suspense>
       <CachedStats />
     </DashboardShell>
-  );
+  )
 }
 ```
 
 ```jsx filename="app/dashboard/user-header.js"
-import { cookies } from 'next/headers';
+import { cookies } from 'next/headers'
 
 export async function UserHeader() {
-  const session = (await cookies()).get('session');
-  return <header>Signed in as {session?.value}</header>;
+  const session = (await cookies()).get('session')
+  return <header>Signed in as {session?.value}</header>
 }
 ```
 
@@ -107,8 +107,8 @@ Learn more: [Streaming patterns and boundary placement](/docs/app/guides/streami
 When the consumer is a child component, pass the promise down instead of awaiting it at the top. The child wraps its own consumption in [`<Suspense>`](https://react.dev/reference/react/Suspense), which keeps the parent prerenderable.
 
 ```jsx filename="app/dashboard/page.js"
-import { Suspense } from 'react';
-import { Results } from './results';
+import { Suspense } from 'react'
+import { Results } from './results'
 
 export default function Page({ searchParams }) {
   return (
@@ -118,15 +118,15 @@ export default function Page({ searchParams }) {
         <Results searchParams={searchParams} />
       </Suspense>
     </DashboardShell>
-  );
+  )
 }
 ```
 
 ```jsx filename="app/dashboard/results.js"
 export async function Results({ searchParams }) {
-  const { q } = await searchParams;
-  const widgets = await searchWidgets(q);
-  return <WidgetList widgets={widgets} />;
+  const { q } = await searchParams
+  const widgets = await searchWidgets(q)
+  return <WidgetList widgets={widgets} />
 }
 ```
 
@@ -141,8 +141,8 @@ export default function Page({ searchParams }) {
   const coords = searchParams.then((sp) => ({
     lat: Number(sp.lat),
     lng: Number(sp.lng),
-  }));
-  return <Map coords={coords} />;
+  }))
+  return <Map coords={coords} />
 }
 ```
 
@@ -154,7 +154,7 @@ When every component in the segment reads the same request value and there's not
 
 ```jsx filename="app/dashboard/loading.js"
 export default function Loading() {
-  return <DashboardSkeleton />;
+  return <DashboardSkeleton />
 }
 ```
 
@@ -195,12 +195,12 @@ Return the full list of params from the export. Use this for routes whose param 
 
 ```jsx filename="app/dashboard/[team]/page.js"
 export function generateStaticParams() {
-  return [{ team: 'marketing' }, { team: 'sales' }, { team: 'ops' }];
+  return [{ team: 'marketing' }, { team: 'sales' }, { team: 'ops' }]
 }
 
 export default async function Page({ params }) {
-  const { team } = await params;
-  return <TeamDashboard team={team} />;
+  const { team } = await params
+  return <TeamDashboard team={team} />
 }
 ```
 
@@ -212,14 +212,14 @@ When the param values come from a content source, fetch them inside `generateSta
 
 ```jsx filename="app/dashboard/[team]/page.js"
 export async function generateStaticParams() {
-  const teams = await db.teams.findMany({ select: { slug: true } });
-  return teams.map((team) => ({ team: team.slug }));
+  const teams = await db.teams.findMany({ select: { slug: true } })
+  return teams.map((team) => ({ team: team.slug }))
 }
 
 export default async function Page({ params }) {
-  const { team } = await params;
-  const dashboard = await getDashboard(team);
-  return <TeamDashboard dashboard={dashboard} />;
+  const { team } = await params
+  const dashboard = await getDashboard(team)
+  return <TeamDashboard dashboard={dashboard} />
 }
 ```
 
@@ -246,11 +246,11 @@ Choose this fix when the route renders per-request and there's no useful static 
 Add the export to the page that triggered the error. Only that route blocks.
 
 ```jsx filename="app/dashboard/page.js"
-export const unstable_instant = false;
+export const unstable_instant = false
 
 export default async function Page() {
-  const session = (await cookies()).get('session');
-  return <Dashboard session={session?.value} />;
+  const session = (await cookies()).get('session')
+  return <Dashboard session={session?.value} />
 }
 ```
 
@@ -261,10 +261,10 @@ Learn more: [Ensuring instant navigations](/docs/app/guides/instant-navigation).
 When the shared layout itself can't ship instantly (it reads [`cookies()`](/docs/app/api-reference/functions/cookies) or [`headers()`](/docs/app/api-reference/functions/headers) of its own), set [`unstable_instant`](/docs/app/api-reference/file-conventions/route-segment-config/instant) to `false` on the layout. The layout and every route in the subtree are exempted from instant-navigation validation.
 
 ```jsx filename="app/dashboard/layout.js"
-export const unstable_instant = false;
+export const unstable_instant = false
 
 export default function DashboardLayout({ children }) {
-  return <DashboardShell>{children}</DashboardShell>;
+  return <DashboardShell>{children}</DashboardShell>
 }
 ```
 

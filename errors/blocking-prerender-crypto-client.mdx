@@ -42,8 +42,8 @@ Choose this fix when the generated value is part of the rendered output and a br
 Place the [`<Suspense>`](https://react.dev/reference/react/Suspense) boundary in the Server Component that renders the Client Component.
 
 ```jsx filename="app/page.js"
-import { Suspense } from 'react';
-import { CorrelationId } from './correlation-id';
+import { Suspense } from 'react'
+import { CorrelationId } from './correlation-id'
 
 export default function Page() {
   return (
@@ -52,15 +52,15 @@ export default function Page() {
         <CorrelationId />
       </Suspense>
     </PageShell>
-  );
+  )
 }
 ```
 
 ```jsx filename="app/correlation-id.js"
-'use client';
+'use client'
 
 export function CorrelationId() {
-  return <input type="hidden" name="trace" value={crypto.randomUUID()} />;
+  return <input type="hidden" name="trace" value={crypto.randomUUID()} />
 }
 ```
 
@@ -87,21 +87,21 @@ Choose this fix when the generated value isn't needed for the first paint. Move 
 For client-side IDs that should appear shortly after the page loads (a draft key in [`localStorage`](https://developer.mozilla.org/en-US/docs/Web/API/Window/localStorage), a UI correlation ID).
 
 ```jsx filename="app/draft.js"
-'use client';
+'use client'
 
-import { startTransition, useEffect, useState } from 'react';
+import { startTransition, useEffect, useState } from 'react'
 
 export function Draft() {
-  const [key, setKey] = useState(null);
+  const [key, setKey] = useState(null)
   useEffect(() => {
     // Wrap in startTransition so that if any component below suspends
     // during this update, React keeps the existing UI visible instead
     // of flashing the nearest outer <Suspense> fallback.
     startTransition(() => {
-      setKey(crypto.randomUUID());
-    });
-  }, []);
-  return <input type="hidden" value={key ?? ''} />;
+      setKey(crypto.randomUUID())
+    })
+  }, [])
+  return <input type="hidden" value={key ?? ''} />
 }
 ```
 
@@ -112,17 +112,17 @@ Learn more: [`useEffect`](https://react.dev/reference/react/useEffect).
 When the value is in response to a click (a new draft, a fresh nonce on submit), compute it in the event handler.
 
 ```jsx filename="app/new-draft.js"
-'use client';
+'use client'
 
-import { useState } from 'react';
+import { useState } from 'react'
 
 export function NewDraft() {
-  const [id, setId] = useState(null);
+  const [id, setId] = useState(null)
   return (
     <button onClick={() => setId(crypto.randomUUID())}>
       {id ? `Draft ${id.slice(0, 8)}` : 'Start a draft'}
     </button>
-  );
+  )
 }
 ```
 
@@ -131,35 +131,35 @@ export function NewDraft() {
 When a component needs a stable secure ID for the lifetime of its mount (a tracking ID, a session correlation key), produce it lazily inside a [`useRef`](https://react.dev/reference/react/useRef) getter. The ref initializer runs after mount, so SSR sees `null` and the browser fills in the value. Subsequent renders read the same ref so the ID stays stable.
 
 ```jsx filename="app/workflow.js"
-'use client';
+'use client'
 
-import { useRef } from 'react';
+import { useRef } from 'react'
 
 function createSecureId() {
-  const array = new Uint8Array(16);
-  crypto.getRandomValues(array);
-  return Array.from(array, (b) => b.toString(16).padStart(2, '0')).join('');
+  const array = new Uint8Array(16)
+  crypto.getRandomValues(array)
+  return Array.from(array, (b) => b.toString(16).padStart(2, '0')).join('')
 }
 
 function getOrCreateId(ref) {
   if (!ref.current) {
-    ref.current = createSecureId();
+    ref.current = createSecureId()
   }
-  return ref.current;
+  return ref.current
 }
 
 export function Workflow({ onNext }) {
-  const idRef = useRef(null);
+  const idRef = useRef(null)
   return (
     <button
       onClick={() => {
-        trackEvent(getOrCreateId(idRef), 'forward');
-        onNext();
+        trackEvent(getOrCreateId(idRef), 'forward')
+        onNext()
       }}
     >
       Next
     </button>
-  );
+  )
 }
 ```
 
