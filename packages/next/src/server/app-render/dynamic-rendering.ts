@@ -39,7 +39,12 @@ import {
   workUnitAsyncStorage,
 } from './work-unit-async-storage.external'
 import { workAsyncStorage } from '../app-render/work-async-storage.external'
-import { makeHangingPromise } from '../dynamic-rendering-utils'
+import {
+  ClientHookDynamicError,
+  isClientHookDynamicError,
+  makeClientHookHangingPromise,
+  ParamClientHookDynamicError,
+} from '../dynamic-rendering-utils'
 import {
   METADATA_BOUNDARY_NAME,
   VIEWPORT_BOUNDARY_NAME,
@@ -103,6 +108,7 @@ export type DynamicTrackingState = {
   readonly dynamicAccesses: Array<DynamicAccess>
 
   syncDynamicErrorWithStack: null | Error
+  syncDynamicErrorWithStackPostMicrotask: boolean
 }
 
 // Stores dynamic reasons used during an SSR render.
@@ -122,6 +128,7 @@ export function createDynamicTrackingState(
     isDebugDynamicAccesses,
     dynamicAccesses: [],
     syncDynamicErrorWithStack: null,
+    syncDynamicErrorWithStackPostMicrotask: false,
   }
 }
 
@@ -134,6 +141,14 @@ export function createDynamicValidationState(): DynamicValidationState {
     hasAllowedDynamic: false,
     dynamicErrors: [],
   }
+}
+
+function getPendingClientSyncDynamicError(
+  clientDynamic: DynamicTrackingState
+): null | Error {
+  return clientDynamic.syncDynamicErrorWithStackPostMicrotask
+    ? null
+    : clientDynamic.syncDynamicErrorWithStack
 }
 
 export function getFirstDynamicReason(
@@ -312,16 +327,18 @@ export function abortOnSynchronousPlatformIOAccess(
   prerenderStore: PrerenderStoreModern
 ): void {
   const dynamicTracking = prerenderStore.dynamicTracking
-  abortOnSynchronousDynamicDataAccess(route, expression, prerenderStore)
-  // It is important that we set this tracking value after aborting. Aborts are executed
-  // synchronously except for the case where you abort during render itself. By setting this
-  // value late we can use it to determine if any of the aborted tasks are the task that
-  // called the sync IO expression in the first place.
-  if (dynamicTracking) {
-    if (dynamicTracking.syncDynamicErrorWithStack === null) {
-      dynamicTracking.syncDynamicErrorWithStack = errorWithStack
-    }
+
+  if (dynamicTracking && dynamicTracking.syncDynamicErrorWithStack === null) {
+    dynamicTracking.syncDynamicErrorWithStack = errorWithStack
+    // React completes the task that is currently rendering before scheduled
+    // abort cleanup. Client tracking can attribute the sync IO only during
+    // that current task; server tracking keeps the error regardless.
+    queueMicrotask(() => {
+      dynamicTracking.syncDynamicErrorWithStackPostMicrotask = true
+    })
   }
+
+  abortOnSynchronousDynamicDataAccess(route, expression, prerenderStore)
 }
 
 /**
@@ -348,10 +365,8 @@ export function abortAndThrowOnSynchronousRequestDataAccess(
     // this way. See how this was handled with `abortOnSynchronousPlatformIOAccess` for a closer
     // to ideal implementation
     abortOnSynchronousDynamicDataAccess(route, expression, prerenderStore)
-    // It is important that we set this tracking value after aborting. Aborts are executed
-    // synchronously except for the case where you abort during render itself. By setting this
-    // value late we can use it to determine if any of the aborted tasks are the task that
-    // called the sync IO expression in the first place.
+    // Preserve the exact server-side dynamic access for final validation after
+    // interrupting this render.
     const dynamicTracking = prerenderStore.dynamicTracking
     if (dynamicTracking) {
       if (dynamicTracking.syncDynamicErrorWithStack === null) {
@@ -614,8 +629,7 @@ export function useDynamicRouteParams(expression: string) {
   const workUnitStore = workUnitAsyncStorage.getStore()
   if (workStore && workUnitStore) {
     switch (workUnitStore.type) {
-      case 'prerender-client':
-      case 'prerender': {
+      case 'prerender-client': {
         const fallbackParams = workUnitStore.fallbackRouteParams
 
         if (fallbackParams && fallbackParams.size > 0) {
@@ -623,15 +637,18 @@ export function useDynamicRouteParams(expression: string) {
           // hang here and never resolve. This will cause the currently
           // rendering component to effectively be a dynamic hole.
           React.use(
-            makeHangingPromise(
+            makeClientHookHangingPromise(
               workUnitStore.renderSignal,
-              workStore.route,
-              expression
+              new ParamClientHookDynamicError(workStore.route, expression)
             )
           )
         }
         break
       }
+      case 'prerender':
+        throw new InvariantError(
+          `\`${expression}\` was called from a Server Component. Next.js should be preventing ${expression} from being included in server components statically, but did not in this case.`
+        )
       case 'prerender-ppr': {
         const fallbackParams = workUnitStore.fallbackRouteParams
         if (fallbackParams && fallbackParams.size > 0) {
@@ -691,10 +708,9 @@ export function useDynamicSearchParams(expression: string) {
       return
     case 'prerender-client': {
       React.use(
-        makeHangingPromise(
+        makeClientHookHangingPromise(
           workUnitStore.renderSignal,
-          workStore.route,
-          expression
+          new ClientHookDynamicError(workStore.route, expression)
         )
       )
       break
@@ -827,11 +843,14 @@ function trackOutletSuspenseAboveBody(
 }
 
 export function trackAllowedDynamicAccess(
+  dynamicReason: unknown,
   workStore: WorkStore,
   componentStack: string,
   dynamicValidation: DynamicValidationState,
   clientDynamic: DynamicTrackingState
 ) {
+  const syncDynamicError = getPendingClientSyncDynamicError(clientDynamic)
+
   if (hasOutletRegex.test(componentStack)) {
     trackOutletSuspenseAboveBody(componentStack, dynamicValidation)
     return
@@ -857,20 +876,25 @@ export function trackAllowedDynamicAccess(
     // of disallowed
     dynamicValidation.hasAllowedDynamic = true
     return
-  } else if (clientDynamic.syncDynamicErrorWithStack) {
-    dynamicValidation.dynamicErrors.push(
-      clientDynamic.syncDynamicErrorWithStack
-    )
-    return
-  } else {
-    const error = addErrorContext(
-      createDynamicOrRuntimeBodyError(workStore.route),
-      componentStack,
-      null
-    )
-    dynamicValidation.dynamicErrors.push(error)
+  } else if (syncDynamicError) {
+    dynamicValidation.dynamicErrors.push(syncDynamicError)
     return
   }
+
+  if (isClientHookDynamicError(dynamicReason)) {
+    dynamicValidation.dynamicErrors.push(
+      addErrorContext(dynamicReason, componentStack, null)
+    )
+    return
+  }
+
+  const error = addErrorContext(
+    createDynamicOrRuntimeBodyError(workStore.route),
+    componentStack,
+    null
+  )
+  dynamicValidation.dynamicErrors.push(error)
+  return
 }
 
 export enum DynamicHoleKind {
@@ -912,6 +936,7 @@ export function createInstantValidationState(
 }
 
 export function trackDynamicHoleInNavigation(
+  dynamicReason: unknown,
   workStore: WorkStore,
   componentStack: string,
   dynamicValidation: InstantValidationState,
@@ -919,6 +944,8 @@ export function trackDynamicHoleInNavigation(
   kind: DynamicHoleKind,
   boundaryState: ValidationBoundaryTracking
 ) {
+  const syncDynamicError = getPendingClientSyncDynamicError(clientDynamic)
+
   if (hasOutletRegex.test(componentStack)) {
     // We don't need to track that this is dynamic. It is only so when something else is also dynamic.
     return
@@ -1015,12 +1042,25 @@ export function trackDynamicHoleInNavigation(
     }
   }
 
-  if (clientDynamic.syncDynamicErrorWithStack) {
-    const syncError = clientDynamic.syncDynamicErrorWithStack
-    if (effectiveCreateInstantStack !== null && syncError.cause === undefined) {
-      syncError.cause = effectiveCreateInstantStack()
+  if (syncDynamicError) {
+    if (
+      effectiveCreateInstantStack !== null &&
+      syncDynamicError.cause === undefined
+    ) {
+      syncDynamicError.cause = effectiveCreateInstantStack()
     }
-    dynamicValidation.dynamicErrors.push(syncError)
+    dynamicValidation.dynamicErrors.push(syncDynamicError)
+    return
+  }
+
+  if (isClientHookDynamicError(dynamicReason)) {
+    dynamicValidation.dynamicErrors.push(
+      addErrorContext(
+        dynamicReason,
+        componentStack,
+        effectiveCreateInstantStack
+      )
+    )
     return
   }
 
@@ -1088,11 +1128,14 @@ export function trackThrownErrorInNavigation(
 }
 
 export function trackDynamicHoleInRuntimeShell(
+  dynamicReason: unknown,
   workStore: WorkStore,
   componentStack: string,
   dynamicValidation: DynamicValidationState,
   clientDynamic: DynamicTrackingState
 ) {
+  const syncDynamicError = getPendingClientSyncDynamicError(clientDynamic)
+
   if (hasOutletRegex.test(componentStack)) {
     trackOutletSuspenseAboveBody(componentStack, dynamicValidation)
     return
@@ -1128,9 +1171,14 @@ export function trackDynamicHoleInRuntimeShell(
     // of disallowed
     dynamicValidation.hasAllowedDynamic = true
     return
-  } else if (clientDynamic.syncDynamicErrorWithStack) {
+  } else if (syncDynamicError) {
+    dynamicValidation.dynamicErrors.push(syncDynamicError)
+    return
+  }
+
+  if (isClientHookDynamicError(dynamicReason)) {
     dynamicValidation.dynamicErrors.push(
-      clientDynamic.syncDynamicErrorWithStack
+      addErrorContext(dynamicReason, componentStack, null)
     )
     return
   }
@@ -1145,11 +1193,14 @@ export function trackDynamicHoleInRuntimeShell(
 }
 
 export function trackDynamicHoleInStaticShell(
+  dynamicReason: unknown,
   workStore: WorkStore,
   componentStack: string,
   dynamicValidation: DynamicValidationState,
   clientDynamic: DynamicTrackingState
 ) {
+  const syncDynamicError = getPendingClientSyncDynamicError(clientDynamic)
+
   if (hasOutletRegex.test(componentStack)) {
     trackOutletSuspenseAboveBody(componentStack, dynamicValidation)
     return
@@ -1185,20 +1236,25 @@ export function trackDynamicHoleInStaticShell(
     // of disallowed
     dynamicValidation.hasAllowedDynamic = true
     return
-  } else if (clientDynamic.syncDynamicErrorWithStack) {
-    dynamicValidation.dynamicErrors.push(
-      clientDynamic.syncDynamicErrorWithStack
-    )
-    return
-  } else {
-    const error = addErrorContext(
-      createRuntimeBodyError(workStore.route),
-      componentStack,
-      null
-    )
-    dynamicValidation.dynamicErrors.push(error)
+  } else if (syncDynamicError) {
+    dynamicValidation.dynamicErrors.push(syncDynamicError)
     return
   }
+
+  if (isClientHookDynamicError(dynamicReason)) {
+    dynamicValidation.dynamicErrors.push(
+      addErrorContext(dynamicReason, componentStack, null)
+    )
+    return
+  }
+
+  const error = addErrorContext(
+    createRuntimeBodyError(workStore.route),
+    componentStack,
+    null
+  )
+  dynamicValidation.dynamicErrors.push(error)
+  return
 }
 
 /**

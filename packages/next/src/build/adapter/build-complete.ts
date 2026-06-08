@@ -2268,6 +2268,7 @@ async function getSharedNodeAssets({
       {
         base: tracingRoot,
         ignore: sharedIgnoreFn,
+        moduleSyncCatchall: true,
       }
     )
     esmFileList.forEach((item) => fileList.add(item))

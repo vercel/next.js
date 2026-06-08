@@ -11,7 +11,10 @@ use rustc_hash::FxHashSet;
 use serde::Deserialize;
 use serde_json::json;
 use turbo_rcstr::{RcStr, rcstr};
-use turbo_tasks::{Effects, OperationVc, ResolvedVc, TurboTasks, Vc, take_effects, turbofmt};
+use turbo_tasks::{
+    Effects, OperationVc, ResolvedVc, TurboTasks, Vc, read_strongly_consistent_and_apply_effects,
+    take_effects, turbofmt,
+};
 use turbo_tasks_backend::{BackendOptions, TurboTasksBackend, noop_backing_storage};
 use turbo_tasks_env::DotenvProcessEnv;
 use turbo_tasks_fs::{
@@ -45,7 +48,7 @@ use turbopack_core::{
     issue::{CollectibleIssuesExt, IssueFilter, IssueSeverity},
     module::Module,
     module_graph::{
-        ModuleGraph, SingleModuleGraph,
+        GraphEntries, ModuleGraph, SingleModuleGraph,
         binding_usage_info::compute_binding_usage_info,
         chunk_group_info::{ChunkGroup, ChunkGroupEntry},
     },
@@ -234,7 +237,7 @@ async fn run(resource: PathBuf) -> Result<()> {
 
             let plain_issues = out_op
                 .peek_issues()
-                .get_plain_issues(IssueFilter::everything())
+                .get_plain_issues(&IssueFilter::everything())
                 .await?;
 
             snapshot_issues(plain_issues, out_vc.join("issues")?, &REPO_ROOT)
@@ -249,11 +252,11 @@ async fn run(resource: PathBuf) -> Result<()> {
             Ok(take_effects(op).await?.cell())
         }
 
-        extract_effects(inner_operation(resource.to_str().unwrap().into()))
-            .read_strongly_consistent()
-            .await?
-            .apply()
-            .await?;
+        read_strongly_consistent_and_apply_effects(
+            extract_effects(inner_operation(resource.to_str().unwrap().into())),
+            |e| e,
+        )
+        .await?;
 
         Ok(())
     })
@@ -456,7 +459,8 @@ async fn run_test_operation(resource: RcStr) -> Result<Vc<FileSystemPath>> {
             .collect();
 
     let single_graph = SingleModuleGraph::new_with_entries(
-        ResolvedVc::cell(vec![ChunkGroupEntry::Entry(entry_modules.clone())]),
+        GraphEntries::from_chunk_groups(vec![ChunkGroupEntry::Entry(entry_modules.clone())])
+            .resolved_cell(),
         false,
         true,
     );

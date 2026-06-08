@@ -14,7 +14,7 @@ use turbopack::externals_tracing_module_context;
 use turbopack_core::{
     asset::{Asset, AssetContent},
     module::{Module, Modules},
-    module_graph::{ModuleGraph, SingleModuleGraph, chunk_group_info::ChunkGroupEntry},
+    module_graph::{GraphEntries, ModuleGraph, SingleModuleGraph},
     output::{OutputAsset, OutputAssets, OutputAssetsReference},
     reference_type::CommonJsReferenceSubType,
     resolve::{ResolveErrorMode, origin::PlainResolveOrigin, parse::Request},
@@ -106,8 +106,8 @@ impl Asset for ServerNftJsonAsset {
             .join(&this.project.node_root().await?.path)?;
 
         let module_graph = ModuleGraph::from_graphs(
-            vec![SingleModuleGraph::new_with_traced_entries(
-                ResolvedVc::cell(vec![ChunkGroupEntry::Entry(self.entries().owned().await?)]),
+            vec![SingleModuleGraph::new_with_entries(
+                GraphEntries::new(vec![], self.entries().owned().await?).resolved_cell(),
                 true,
                 false,
             )],

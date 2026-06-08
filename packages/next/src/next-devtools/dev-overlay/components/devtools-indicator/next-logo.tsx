@@ -512,7 +512,12 @@ export function NextLogo({
                         return
                       }
                       dispatch({ type: ACTION_ERROR_OVERLAY_OPEN })
-                      setPanel(null)
+                      // Keep the instant navigation panel mounted so its capture
+                      // survives and it stays behind the error overlay backdrop.
+                      // Other panels still close when the overlay opens.
+                      if (panel !== 'instant-navs') {
+                        setPanel(null)
+                      }
                     }}
                   >
                     {state.disableDevIndicator && (

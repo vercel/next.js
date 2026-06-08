@@ -1605,7 +1605,7 @@ pub struct OptionSubResourceIntegrity(Option<SubResourceIntegrity>);
 pub struct OptionFileSystemPath(Option<FileSystemPath>);
 
 #[turbo_tasks::value(transparent)]
-pub struct IgnoreIssues(Vec<IgnoreIssue>);
+pub struct IgnoreIssues(Box<[IgnoreIssue]>);
 
 #[turbo_tasks::value(transparent)]
 pub struct OptionJsonValue(
@@ -2594,7 +2594,7 @@ impl NextConfig {
                         .transpose()?,
                 })
             })
-            .collect::<Result<Vec<_>>>()?;
+            .collect::<Result<_>>()?;
         Ok(Vc::cell(rules))
     }
 

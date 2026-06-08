@@ -508,7 +508,7 @@ pub async fn analyze_module_graphs(module_graph: Vc<ModuleGraph>) -> Result<Vc<F
 
     let module_graph = module_graph.await?;
     module_graph.traverse_edges_dfs(
-        module_graph.graphs.iter().flat_map(|g| g.entry_modules()),
+        module_graph.all_entry_modules(),
         &mut (),
         |parent, node, _| {
             all_modules.insert(node);

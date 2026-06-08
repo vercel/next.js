@@ -1,5 +1,9 @@
 import { isNextDev, nextTestSetup } from 'e2e-utils'
-import { retry, waitForNoErrorToast } from 'next-test-utils'
+import {
+  getRedboxDescription,
+  retry,
+  waitForNoErrorToast,
+} from 'next-test-utils'
 import { getDeterministicOutput, getPrerenderOutput } from './utils'
 
 describe('Cache Components Errors', () => {
@@ -2499,6 +2503,49 @@ describe('Cache Components Errors', () => {
                 )
               }
             }
+          })
+        }
+      })
+
+      describe('Unguarded RSC with Client sync IO in a microtask', () => {
+        const pathname =
+          '/sync-attribution/unguarded-async-client-microtask-syncio'
+
+        if (skipped) {
+          return
+        }
+
+        if (isNextDev) {
+          it('should show request data rather than attribute a microtask sync IO access', async () => {
+            const browser = await next.browser(pathname)
+
+            await retry(async () => {
+              const redbox = await getRedboxDescription(browser)
+              expect(redbox).toContain(
+                'Next.js encountered runtime data during prerendering.'
+              )
+              expect(redbox).not.toContain('new Date()')
+            })
+          })
+        } else {
+          it('should error for request data rather than attribute a microtask sync IO access', async () => {
+            try {
+              await prerender(pathname)
+            } catch {
+              // we expect the build to fail
+            }
+
+            const output = getPrerenderOutput(
+              next.cliOutput.slice(cliOutputLength),
+              { isMinified: !isDebugPrerender }
+            )
+
+            expect(output).toContain(
+              `Error: Route "${pathname}": Next.js encountered uncached or runtime data during prerendering.`
+            )
+            expect(output).not.toContain(
+              'Next.js encountered the unstable value `new Date()` in a Client Component.'
+            )
           })
         }
       })
