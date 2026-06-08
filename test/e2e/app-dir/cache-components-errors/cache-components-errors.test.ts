@@ -4585,7 +4585,7 @@ Ways to fix this:
                {
                  "code": "E1016",
                  "description": ""use cache: private" must not be used within \`unstable_cache()\`.",
-                 "environmentLabel": "Prefetchable",
+                 "environmentLabel": "Server",
                  "label": "Runtime Error",
                  "source": "app/use-cache-private-in-unstable-cache/page.tsx (21:38) @ <anonymous>
                > 21 | const getCachedData = unstable_cache(async () => {
@@ -4601,7 +4601,7 @@ Ways to fix this:
                {
                  "code": "E1016",
                  "description": ""use cache: private" must not be used within \`unstable_cache()\`.",
-                 "environmentLabel": "Prefetchable",
+                 "environmentLabel": "Server",
                  "label": "Runtime Error",
                  "source": "app/use-cache-private-in-unstable-cache/page.tsx (21:38) @ eval
                > 21 | const getCachedData = unstable_cache(async () => {

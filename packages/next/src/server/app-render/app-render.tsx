@@ -5087,32 +5087,21 @@ async function streamStagedRenderInDevWeb(
         streamStageReached.resolve()
       }
 
-      if (cacheSignal.hasPendingReads()) {
-        // Caches are still filling. Hold the Dynamic stage until they're ready,
-        // so a cache whose fill depends on Dynamic-stage IO (e.g. joining an
-        // uncached fetch parked on Dynamic) deadlocks and hits the fill timeout
-        // instead of being unparked by reaching Dynamic and silently filling.
-        // `cacheReady()` only ever resolves, and `resultPromise` waits on the
-        // stream (which finishes only after Dynamic advances), so the result
-        // still settles after this.
-        //
-        // The `cacheReady().then(...)` microtask hop disrupts React's IO source
-        // attribution, but that's moot here: pending reads mean this render had
-        // a cache miss, so validation runs against a separate warm render
-        // (which advances Dynamic synchronously and attributes correctly), not
-        // these streamed chunks.
-        void cacheSignal
-          .cacheReady()
-          .then(() => stageController.advanceStage(RenderStage.Dynamic))
-      } else {
-        // Nothing is pending right now, so these streamed chunks may be the
-        // ones validated (they are unless an earlier stage missed a cache,
-        // which routes validation to a separate warm render). Advance
-        // synchronously: if they're validated, deferring through the
-        // `cacheReady().then(...)` microtask hop would disrupt React's IO
-        // source attribution for Dynamic-stage IO.
-        stageController.advanceStage(RenderStage.Dynamic)
-      }
+      // Always advance to the dynamic stage synchronously, even while caches
+      // are still filling, so dynamic content streams to the browser right away
+      // instead of being withheld until the slowest cache fill completes.
+      // Streaming that content promptly is the whole point of the streaming dev
+      // render.
+      //
+      // The tradeoff is that dev no longer detects a `'use cache'` deadlock: a
+      // cache whose fill depends on Dynamic-stage IO used to be held here until
+      // it hit the fill timeout, but advancing now unblocks that IO so the
+      // cache fills instead. That detection only served to debug a build-time
+      // deadlock from within dev, and the streaming render no longer blocks the
+      // page on the fill, so we accept losing it here.
+      // TODO: Surface `'use cache'` deadlocks at build time instead, e.g. via
+      // `next build --debug-prerender`, so they can still be diagnosed.
+      stageController.advanceStage(RenderStage.Dynamic)
     }
   )
 
@@ -5468,37 +5457,26 @@ async function streamStagedRenderInDevNode(
 
       // The runtime stage's chunks flushed in the previous task, so the runtime
       // shell is buffered now. Hand the stream to the caller before advancing
-      // to the the dynamic stage.
+      // to the dynamic stage.
       if (resolveStreamAfterStage === RenderStage.Runtime) {
         streamStageReached.resolve()
       }
 
-      if (cacheSignal.hasPendingReads()) {
-        // Caches are still filling. Hold the Dynamic stage until they're ready,
-        // so a cache whose fill depends on Dynamic-stage IO (e.g. joining an
-        // uncached fetch parked on Dynamic) deadlocks and hits the fill timeout
-        // instead of being unparked by reaching Dynamic and silently filling.
-        // `cacheReady()` only ever resolves, and `resultPromise` waits on the
-        // stream (which finishes only after Dynamic advances), so the result
-        // still settles after this.
-        //
-        // The `cacheReady().then(...)` microtask hop disrupts React's IO source
-        // attribution, but that's moot here: pending reads mean this render had
-        // a cache miss, so validation runs against a separate warm render
-        // (which advances Dynamic synchronously and attributes correctly), not
-        // these streamed chunks.
-        void cacheSignal
-          .cacheReady()
-          .then(() => stageController.advanceStage(RenderStage.Dynamic))
-      } else {
-        // Nothing is pending right now, so these streamed chunks may be the
-        // ones validated (they are unless an earlier stage missed a cache,
-        // which routes validation to a separate warm render). Advance
-        // synchronously: if they're validated, deferring through the
-        // `cacheReady().then(...)` microtask hop would disrupt React's IO
-        // source attribution for Dynamic-stage IO.
-        stageController.advanceStage(RenderStage.Dynamic)
-      }
+      // Always advance to the dynamic stage synchronously, even while caches
+      // are still filling, so dynamic content streams to the browser right away
+      // instead of being withheld until the slowest cache fill completes.
+      // Streaming that content promptly is the whole point of the streaming dev
+      // render.
+      //
+      // The tradeoff is that dev no longer detects a `'use cache'` deadlock: a
+      // cache whose fill depends on Dynamic-stage IO used to be held here until
+      // it hit the fill timeout, but advancing now unblocks that IO so the
+      // cache fills instead. That detection only served to debug a build-time
+      // deadlock from within dev, and the streaming render no longer blocks the
+      // page on the fill, so we accept losing it here.
+      // TODO: Surface `'use cache'` deadlocks at build time instead, e.g. via
+      // `next build --debug-prerender`, so they can still be diagnosed.
+      stageController.advanceStage(RenderStage.Dynamic)
     }
   )
 

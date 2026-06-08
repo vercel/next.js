@@ -28,6 +28,40 @@ describe('cache-components-dev-streaming', () => {
     expect(await browser.elementByCss('p').text()).toBeDateString()
   })
 
+  it('streams dynamic content immediately while a sibling cache is still filling', async () => {
+    const browser = await next.browser('/dynamic-streaming', {
+      waitHydration: false,
+      // do not wait for "load", we want to inspect the page as it streams in
+      waitUntil: 'commit',
+    })
+
+    // The dynamic content (guarded by `await connection()`) must stream right
+    // away, in parallel with the sibling's long-running cache fill, rather than
+    // being withheld until the cache finishes filling.
+    //
+    // Use instant checks throughout: `elementByCss`/`elementById` also wait for
+    // the page "load" event, which (with `waitUntil: 'commit'`) only fires once
+    // the slow cache has filled — that would advance past the very window this
+    // test inspects.
+    await retry(async () => {
+      expect(await browser.elementByCssInstant('#dynamic').text()).toBe(
+        'dynamic content'
+      )
+    })
+
+    // The slow cache is still filling at this point, so its fallback is shown
+    // and its content hasn't streamed in yet.
+    expect(await browser.hasElementByCss('#cached-fallback')).toBe(true)
+    expect(await browser.hasElementByCss('#cached')).toBe(false)
+
+    // Eventually the cache fills and its content streams in.
+    await retry(async () => {
+      expect(
+        await browser.elementByCssInstant('#cached').text()
+      ).toBeDateString()
+    }, 10000)
+  })
+
   // The following are smoke tests that Cache Components validation still
   // surfaces errors for both cold-cache renders (validated via a separate
   // warm-cache render) and warm-cache renders (validated via the streamed
