@@ -30,7 +30,7 @@ use turbopack_core::{
 use turbopack_css::chunk::CssChunkType;
 use turbopack_ecmascript::{
     AnalyzeMode, CustomTransformer, TransformPlugin, TypeofWindow, chunk::EcmascriptChunkType,
-    references::esm::UrlRewriteBehavior,
+    references::esm::UrlRewriteBehavior, transform::PresetEnvConfig,
 };
 use turbopack_ecmascript_plugins::transform::directives::{
     client::ClientDirectiveTransformer, client_disallowed::ClientDisallowedDirectiveTransformer,
@@ -556,6 +556,24 @@ pub async fn get_server_module_options_context(
     .collect();
 
     let source_maps = *next_config.server_source_maps().await?;
+
+    let preset_env_config = (*next_config.experimental_swc_env_options().await?)
+        .as_ref()
+        .map(|opts| {
+            PresetEnvConfig {
+                mode: opts.mode.clone(),
+                core_js: opts.core_js.clone(),
+                skip: opts.skip.clone(),
+                include: opts.include.clone(),
+                exclude: opts.exclude.clone(),
+                shipped_proposals: opts.shipped_proposals,
+                force_all_transforms: opts.force_all_transforms,
+                debug: opts.debug,
+                loose: opts.loose,
+            }
+            .resolved_cell()
+        });
+
     let module_options_context = ModuleOptionsContext {
         ecmascript: EcmascriptOptionsContext {
             enable_typeof_window_inlining: Some(TypeofWindow::Undefined),
@@ -565,6 +583,7 @@ pub async fn get_server_module_options_context(
             ignore_dynamic_requests: true,
             source_maps,
             infer_module_side_effects: *next_config.turbopack_infer_module_side_effects().await?,
+            preset_env_config,
             ..Default::default()
         },
         execution_context: Some(execution_context),
@@ -634,6 +653,11 @@ pub async fn get_server_module_options_context(
             };
 
             let foreign_code_module_options_context = ModuleOptionsContext {
+                ecmascript: EcmascriptOptionsContext {
+                    // Don't inject core-js polyfills into node_modules.
+                    preset_env_config: None,
+                    ..module_options_context.ecmascript.clone()
+                },
                 module_rules: foreign_next_server_rules.clone(),
                 enable_webpack_loaders: foreign_enable_webpack_loaders,
                 // NOTE(WEB-1016) PostCSS transforms should also apply to foreign code.
@@ -648,6 +672,8 @@ pub async fn get_server_module_options_context(
                         TypescriptTransformOptions::default().resolved_cell(),
                     ),
                     enable_jsx: Some(JsxTransformOptions::default().resolved_cell()),
+                    // Don't inject core-js polyfills into framework internals.
+                    preset_env_config: None,
                     ..module_options_context.ecmascript.clone()
                 },
                 module_rules: foreign_next_server_rules,
@@ -698,6 +724,11 @@ pub async fn get_server_module_options_context(
             };
 
             let foreign_code_module_options_context = ModuleOptionsContext {
+                ecmascript: EcmascriptOptionsContext {
+                    // Don't inject core-js polyfills into node_modules.
+                    preset_env_config: None,
+                    ..module_options_context.ecmascript.clone()
+                },
                 module_rules: foreign_next_server_rules.clone(),
                 enable_webpack_loaders: foreign_enable_webpack_loaders,
                 // NOTE(WEB-1016) PostCSS transforms should also apply to foreign code.
@@ -710,6 +741,8 @@ pub async fn get_server_module_options_context(
                     enable_typescript_transform: Some(
                         TypescriptTransformOptions::default().resolved_cell(),
                     ),
+                    // Don't inject core-js polyfills into framework internals.
+                    preset_env_config: None,
                     ..module_options_context.ecmascript.clone()
                 },
                 module_rules: foreign_next_server_rules,
@@ -779,6 +812,11 @@ pub async fn get_server_module_options_context(
             };
 
             let foreign_code_module_options_context = ModuleOptionsContext {
+                ecmascript: EcmascriptOptionsContext {
+                    // Don't inject core-js polyfills into node_modules.
+                    preset_env_config: None,
+                    ..module_options_context.ecmascript.clone()
+                },
                 module_rules: foreign_next_server_rules.clone(),
                 enable_webpack_loaders: foreign_enable_webpack_loaders,
                 // NOTE(WEB-1016) PostCSS transforms should also apply to foreign code.
@@ -791,6 +829,8 @@ pub async fn get_server_module_options_context(
                     enable_typescript_transform: Some(
                         TypescriptTransformOptions::default().resolved_cell(),
                     ),
+                    // Don't inject core-js polyfills into framework internals.
+                    preset_env_config: None,
                     ..module_options_context.ecmascript.clone()
                 },
                 module_rules: foreign_next_server_rules,
@@ -855,6 +895,11 @@ pub async fn get_server_module_options_context(
                 ..module_options_context
             };
             let foreign_code_module_options_context = ModuleOptionsContext {
+                ecmascript: EcmascriptOptionsContext {
+                    // Don't inject core-js polyfills into node_modules.
+                    preset_env_config: None,
+                    ..module_options_context.ecmascript.clone()
+                },
                 module_rules: foreign_next_server_rules.clone(),
                 enable_webpack_loaders: foreign_enable_webpack_loaders,
                 // NOTE(WEB-1016) PostCSS transforms should also apply to foreign code.
@@ -867,6 +912,8 @@ pub async fn get_server_module_options_context(
                     enable_typescript_transform: Some(
                         TypescriptTransformOptions::default().resolved_cell(),
                     ),
+                    // Don't inject core-js polyfills into framework internals.
+                    preset_env_config: None,
                     ..module_options_context.ecmascript.clone()
                 },
                 module_rules: internal_custom_rules,
@@ -942,6 +989,11 @@ pub async fn get_server_module_options_context(
                 ..module_options_context
             };
             let foreign_code_module_options_context = ModuleOptionsContext {
+                ecmascript: EcmascriptOptionsContext {
+                    // Don't inject core-js polyfills into node_modules.
+                    preset_env_config: None,
+                    ..module_options_context.ecmascript.clone()
+                },
                 module_rules: internal_custom_rules.clone(),
                 enable_webpack_loaders: foreign_enable_webpack_loaders,
                 // NOTE(WEB-1016) PostCSS transforms should also apply to foreign code.
@@ -954,6 +1006,8 @@ pub async fn get_server_module_options_context(
                     enable_typescript_transform: Some(
                         TypescriptTransformOptions::default().resolved_cell(),
                     ),
+                    // Don't inject core-js polyfills into framework internals.
+                    preset_env_config: None,
                     ..module_options_context.ecmascript.clone()
                 },
                 module_rules: internal_custom_rules,
