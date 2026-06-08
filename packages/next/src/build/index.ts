@@ -170,6 +170,8 @@ import { isStaticMetadataFile } from '../lib/metadata/is-metadata-route'
 import { createClientRouterFilter } from '../lib/create-client-router-filter'
 import { startTypeChecking } from './type-check'
 import { generateInterceptionRoutesRewrites } from '../lib/generate-interception-routes-rewrites'
+import { isInterceptionRouteRewrite } from '../lib/is-interception-route-rewrite'
+import { isInterceptionRouteAppPath } from '../shared/lib/router/utils/interception-routes'
 
 import { buildDataRoute } from '../server/lib/router-utils/build-data-route'
 import type { BuildTraceContext } from './webpack/plugins/next-trace-entrypoints-plugin'
@@ -2936,6 +2938,23 @@ export default async function build(
                 }
               }
 
+              // A statically prerendered route targeted by an interception
+              // route must be marked as interceptable in its RSC payload,
+              // because the `Vary: next-url` header used at runtime to derive
+              // `couldBeIntercepted` isn't set during prerendering.
+              const interceptionRouteRegexes = rewrites.beforeFiles
+                .filter(isInterceptionRouteRewrite)
+                .map((rewrite) => rewrite.regex)
+                .filter((regex): regex is string => typeof regex === 'string')
+                .map((regex) => new RegExp(regex))
+
+              const basePath = config.basePath || ''
+              const pathCouldBeIntercepted = (pathname: string): boolean =>
+                isInterceptionRouteAppPath(pathname) ||
+                interceptionRouteRegexes.some((regex) =>
+                  regex.test(basePath + pathname)
+                )
+
               // TODO: output manifest specific to app paths and their
               // revalidate periods and dynamicParams settings
               sortedStaticPaths.forEach(([originalAppPath, routes]) => {
@@ -2972,6 +2991,7 @@ export default async function build(
                     _isAppDir: true,
                     _isRoutePPREnabled: isRoutePPREnabled,
                     _allowEmptyStaticShell: !route.throwOnEmptyStaticShell,
+                    _couldBeIntercepted: pathCouldBeIntercepted(route.pathname),
                   }
                 })
               })
