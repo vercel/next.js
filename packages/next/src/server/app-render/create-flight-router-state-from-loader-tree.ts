@@ -13,6 +13,7 @@ async function createFlightRouterStateFromLoaderTreeImpl(
   hintTree: PrefetchHints | null,
   prefetchInliningEnabled: boolean,
   cacheComponents: boolean,
+  partialPrefetching: boolean | undefined,
   isStaticGeneration: boolean,
   isBuildTimePrerendering: boolean,
   getDynamicParamFromSegment: GetDynamicParamFromSegment,
@@ -28,14 +29,17 @@ async function createFlightRouterStateFromLoaderTreeImpl(
     {},
   ]
 
-  // Load the layout or page module to check for unstable_instant/unstable_prefetch config
+  // Load the layout or page module to check for unstable_instant/unstable_prefetch
+  // config. When a segment doesn't export unstable_prefetch, it defaults to
+  // 'partial' if the app has opted into partial prefetching globally via the
+  // `partialPrefetching` config in next.config.js.
   const mod = layout ? await layout[0]() : page ? await page[0]() : undefined
   const instantConfig = mod
     ? (mod as AppSegmentConfig).unstable_instant
     : undefined
-  const prefetchConfig = mod
-    ? (mod as AppSegmentConfig).unstable_prefetch
-    : undefined
+  const prefetchConfig =
+    (mod ? (mod as AppSegmentConfig).unstable_prefetch : undefined) ??
+    (partialPrefetching ? 'partial' : undefined)
   let prefetchHints = 0
 
   // Union in the precomputed build-time hints (e.g. segment inlining
@@ -92,10 +96,12 @@ async function createFlightRouterStateFromLoaderTreeImpl(
     instantConfig === true ||
     (typeof instantConfig === 'object' && instantConfig !== null)
   ) {
-    prefetchHints |= PrefetchHint.SubtreeHasInstant
+    prefetchHints |= PrefetchHint.SubtreeHasPartialPrefetching
   }
 
-  if (prefetchConfig === 'force-disabled') {
+  if (prefetchConfig === 'partial') {
+    prefetchHints |= PrefetchHint.SubtreeHasPartialPrefetching
+  } else if (prefetchConfig === 'force-disabled') {
     prefetchHints |= PrefetchHint.PrefetchDisabled
   } else if (prefetchConfig === 'force-runtime') {
     prefetchHints |= PrefetchHint.HasRuntimePrefetch
@@ -117,6 +123,7 @@ async function createFlightRouterStateFromLoaderTreeImpl(
       childHintNode,
       prefetchInliningEnabled,
       cacheComponents,
+      partialPrefetching,
       isStaticGeneration,
       isBuildTimePrerendering,
       getDynamicParamFromSegment,
@@ -127,7 +134,7 @@ async function createFlightRouterStateFromLoaderTreeImpl(
     if (child[4] !== undefined) {
       prefetchHints |=
         child[4] &
-        (PrefetchHint.SubtreeHasInstant |
+        (PrefetchHint.SubtreeHasPartialPrefetching |
           PrefetchHint.SubtreeHasLoadingBoundary |
           PrefetchHint.SubtreeHasRuntimePrefetch)
       // If a child has a loading boundary (either directly or in its subtree),
@@ -165,6 +172,7 @@ export async function createFlightRouterStateFromLoaderTree(
   hintTree: PrefetchHints | null,
   prefetchInliningEnabled: boolean,
   cacheComponents: boolean,
+  partialPrefetching: boolean | undefined,
   isStaticGeneration: boolean,
   isBuildTimePrerendering: boolean,
   getDynamicParamFromSegment: GetDynamicParamFromSegment,
@@ -176,6 +184,7 @@ export async function createFlightRouterStateFromLoaderTree(
     hintTree,
     prefetchInliningEnabled,
     cacheComponents,
+    partialPrefetching,
     isStaticGeneration,
     isBuildTimePrerendering,
     getDynamicParamFromSegment,
@@ -189,6 +198,7 @@ export async function createRouteTreePrefetch(
   hintTree: PrefetchHints | null,
   prefetchInliningEnabled: boolean,
   cacheComponents: boolean,
+  partialPrefetching: boolean | undefined,
   isStaticGeneration: boolean,
   isBuildTimePrerendering: boolean,
   getDynamicParamFromSegment: GetDynamicParamFromSegment
@@ -203,6 +213,7 @@ export async function createRouteTreePrefetch(
     hintTree,
     prefetchInliningEnabled,
     cacheComponents,
+    partialPrefetching,
     isStaticGeneration,
     isBuildTimePrerendering,
     getDynamicParamFromSegment,

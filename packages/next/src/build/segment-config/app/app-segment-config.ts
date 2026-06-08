@@ -38,18 +38,14 @@ const InstantConfigSchema = z.union([
 
 const PrefetchSchema = z.enum([
   'auto',
+  'partial',
   'force-disabled',
-  'force-static',
   'force-runtime',
 ])
 
 export type Instant = InstantConfig | true | false
 
-export type Prefetch =
-  | 'auto'
-  | 'force-disabled'
-  | 'force-static'
-  | 'force-runtime'
+export type Prefetch = 'auto' | 'partial' | 'force-disabled' | 'force-runtime'
 
 export type InstantConfigForTypeCheckInternal = __GenericInstantConfig | Instant
 // the __GenericInstantConfig type is used to avoid type widening issues with
@@ -137,9 +133,13 @@ const AppSegmentConfigSchema = z.object({
   unstable_instant: InstantConfigSchema.optional(),
 
   /**
-   * Controls runtime prefetching for this segment.
-   * 'static' is a noop (default behavior).
-   * 'runtime' enables runtime prefetching.
+   * Controls prefetching for this segment.
+   * - 'auto' (default) is a noop.
+   * - 'partial' enables Partial Prefetching. Only Cache Components are
+   *   prefetched, not dynamic ones.
+   * - 'force-runtime' is a superset of 'partial' and prefetches using a
+   *   runtime request, instead of a static one.
+   * - 'force-disabled' disables prefetching for the segment.
    */
   unstable_prefetch: PrefetchSchema.optional(),
 
@@ -195,7 +195,7 @@ export function parseAppSegmentConfig(
           }
           case 'unstable_prefetch': {
             return {
-              message: `Invalid unstable_prefetch value ${JSON.stringify(ctx.data)} on "${route}", must be "auto", "force-disabled", "force-static", or "force-runtime".`,
+              message: `Invalid unstable_prefetch value ${JSON.stringify(ctx.data)} on "${route}", must be "auto", "partial", "force-disabled", or "force-runtime".`,
             }
           }
           case 'unstable_dynamicStaleTime': {
@@ -258,9 +258,13 @@ export type AppSegmentConfig = {
   unstable_instant?: Instant
 
   /**
-   * Controls runtime prefetching for this segment.
-   * 'static' is a noop (default behavior).
-   * 'runtime' enables runtime prefetching.
+   * Controls prefetching for this segment.
+   * - 'auto' (default) is a noop.
+   * - 'partial' enables Partial Prefetching. Only Cache Components are
+   *   prefetched, not dynamic ones.
+   * - 'force-runtime' is a superset of 'partial' and prefetches using a
+   *   runtime request, instead of a static one.
+   * - 'force-disabled' disables prefetching for the segment.
    */
   unstable_prefetch?: Prefetch
 

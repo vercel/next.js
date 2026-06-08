@@ -97,6 +97,7 @@ export interface RenderOptsPartial {
   err?: Error | null
   basePath: string
   cacheComponents: boolean
+  partialPrefetching?: NextConfigComplete['partialPrefetching']
   validationLevel: ValidationLevel
   trailingSlash: boolean
   images: ImageConfigComplete

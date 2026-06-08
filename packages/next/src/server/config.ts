@@ -527,6 +527,12 @@ function assignDefaultsAndValidate(
     )
   }
 
+  if (result.partialPrefetching && !result.cacheComponents) {
+    throw new Error(
+      `\`partialPrefetching\` requires \`cacheComponents\` to be enabled. Please update your ${configFileName} accordingly.`
+    )
+  }
+
   if (result.experimental.appShells) {
     // App Shells is tested in combination with the experimental flags it
     // expects to ship alongside. All of these are on track to become

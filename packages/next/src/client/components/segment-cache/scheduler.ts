@@ -745,7 +745,7 @@ function pingRootRouteTree(
       // We don't need to do this for runtime prefetches, because those are only available in
       // `cacheComponents`, where every route is PPR.
       let fetchStrategy: FetchStrategy
-      if (tree.prefetchHints & PrefetchHint.SubtreeHasInstant) {
+      if (tree.prefetchHints & PrefetchHint.SubtreeHasPartialPrefetching) {
         // If `instant` is defined anywhere on the target route, ignore the
         // fetch strategy and switch to unified strategy used by Cache
         // Components (called `PPR` for now, will likely be renamed).

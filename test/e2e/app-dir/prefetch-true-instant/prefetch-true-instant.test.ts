@@ -84,8 +84,8 @@ describe('prefetch={true} with instant route', () => {
     const act = createRouterAct(page)
 
     // The layout has unstable_instant but the page does not. The
-    // SubtreeHasInstant bit should propagate up from the layout, so
-    // prefetch={true} on the Link should still be downgraded.
+    // SubtreeHasPartialPrefetching bit should propagate up from the layout,
+    // so prefetch={true} on the Link should still be downgraded.
     await act(async () => {
       const linkToggle = await browser.elementByCss(
         'input[data-link-accordion="/layout-instant"]'

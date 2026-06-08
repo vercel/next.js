@@ -223,4 +223,32 @@ describe('config', () => {
       expect(config.turbopack.root).toBe(config.outputFileTracingRoot)
     })
   })
+
+  describe('partialPrefetching config', () => {
+    it('Should throw when `partialPrefetching` is set without `cacheComponents`', async () => {
+      await expect(async () => {
+        await loadConfig(PHASE_DEVELOPMENT_SERVER, '<rootDir>-no-cc', {
+          customConfig: {
+            partialPrefetching: true,
+          },
+        })
+      }).rejects.toThrow(
+        /`partialPrefetching` requires `cacheComponents` to be enabled/
+      )
+    })
+
+    it('Should accept `partialPrefetching: true` when `cacheComponents` is enabled', async () => {
+      const config = await loadConfig(
+        PHASE_DEVELOPMENT_SERVER,
+        '<rootDir>-cc',
+        {
+          customConfig: {
+            cacheComponents: true,
+            partialPrefetching: true,
+          },
+        }
+      )
+      expect(config.partialPrefetching).toBe(true)
+    })
+  })
 })
