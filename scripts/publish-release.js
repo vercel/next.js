@@ -69,7 +69,10 @@ const cwd = process.cwd()
         // during publishing, when users install `next@latest`, they might
         // get the backported version instead of the actual "latest" version.
         // Therefore, we explicitly set the tag as 'backport' for backports.
-        tag = 'backport'
+        // But force @latest tag if we accidentally tagged a prerelase as latest
+        if (!semver.prerelease(tags.latest)) {
+          tag = 'backport'
+        }
       }
     }
   } catch (error) {
