@@ -1,7 +1,17 @@
 // this must come first as it includes require hooks
-import type { WorkerRequestHandler, WorkerUpgradeHandler } from './types'
+import type {
+  ServerInitResult,
+  WorkerRequestHandler,
+  WorkerUpgradeHandler,
+} from './types'
 import type { DevBundler } from './router-utils/setup-dev-bundler'
-import type { NextUrlWithParsedQuery, RequestMeta } from '../request-meta'
+import type {
+  NextUrlWithParsedQuery,
+  OnCacheEntryHandler,
+  RequestMeta,
+} from '../request-meta'
+import type { DevServerStateUpdate } from '../dev/dev-server-state'
+import type { ServerResponse } from 'http'
 
 // This is required before other imports to ensure the require hook is setup.
 import '../node-environment'
@@ -9,6 +19,7 @@ import '../require-hook'
 
 import url from 'url'
 import path from 'path'
+import type { NextServer, NextServerOptions, RequestHandler } from '../next'
 import loadConfig, { type ConfiguredExperimentalFeature } from '../config'
 import { finalizeBundlerFromConfig, getBundlerFromEnv } from '../../lib/bundler'
 import { serveStatic } from '../serve-static'
@@ -54,7 +65,6 @@ import {
 } from '../dev/hot-reloader-types'
 import { normalizedAssetPrefix } from '../../shared/lib/normalized-asset-prefix'
 import { NEXT_PATCH_SYMBOL } from './patch-fetch'
-import type { ServerInitResult } from './render-server'
 import { filterInternalHeaders } from './server-ipc/utils'
 import { blockCrossSiteDEV } from './router-utils/block-cross-site-dev'
 import { traceGlobals } from '../../trace/shared'
@@ -72,6 +82,8 @@ import {
   getRequestInsightsSnapshot,
   isRequestInsightsEnabled,
 } from './trace/request-insights'
+import { interopDefault } from '../../lib/interop-default'
+import { formatDynamicImportPath } from '../../lib/format-dynamic-import-path'
 
 const debug = setupDebug('next:router-server:main')
 const isNextFont = (pathname: string | null) =>
@@ -112,17 +124,6 @@ function getErrorMessage(error: unknown): string {
 
   return deobfuscateText(String(error))
 }
-
-export type RenderServer = Pick<
-  typeof import('./render-server'),
-  'initialize' | 'clearModuleContext' | 'updateDevServerState' | 'reloadEnv'
->
-
-export interface LazyRenderServerInstance {
-  instance?: RenderServer
-}
-
-const requestHandlers: Record<string, WorkerRequestHandler> = {}
 
 export async function initialize(opts: {
   dir: string
@@ -177,8 +178,6 @@ export async function initialize(opts: {
     minimalMode: opts.minimalMode,
   })
 
-  const renderServer: LazyRenderServerInstance = {}
-
   let development:
     | {
         bundler: DevBundler
@@ -188,6 +187,33 @@ export async function initialize(opts: {
     | undefined = undefined
 
   let originalFetch = globalThis.fetch
+  let server: NextServer | undefined
+  let serverReady: Promise<void> | undefined
+  let renderRequestHandler: RequestHandler | undefined
+  let createNextServer: (typeof import('../next'))['default'] | undefined
+  let requestHandler: WorkerRequestHandler = async () => {
+    throw new Error('Invariant request handler was not setup')
+  }
+
+  const updateDevServerState = async (update: DevServerStateUpdate) => {
+    const ready = serverReady
+    const initializedServer = server
+    if (!ready || !initializedServer) {
+      return
+    }
+    await ready
+    await initializedServer.updateDevServerState(update)
+  }
+
+  const reloadEnv = async () => {
+    const ready = serverReady
+    const initializedServer = server
+    if (!ready || !initializedServer) {
+      return
+    }
+    await ready
+    await initializedServer.reloadEnv()
+  }
 
   if (opts.dev) {
     const { Telemetry } =
@@ -199,6 +225,10 @@ export async function initialize(opts: {
     traceGlobals.set('telemetry', telemetry)
 
     const { pagesDir, appDir } = findPagesDir(opts.dir)
+
+    createNextServer = interopDefault(
+      require('../next') as typeof import('../next')
+    )
 
     const { setupDevBundler } =
       require('./router-utils/setup-dev-bundler') as typeof import('./router-utils/setup-dev-bundler')
@@ -238,8 +268,8 @@ export async function initialize(opts: {
 
     let developmentBundler = await setupDevBundlerSpan.traceAsyncFn(() =>
       setupDevBundler({
-        // Passed here but the initialization of this object happens below, doing the initialization before the setupDev call breaks.
-        renderServer,
+        updateDevServerState,
+        reloadEnv,
         appDir,
         pagesDir,
         telemetry,
@@ -249,6 +279,7 @@ export async function initialize(opts: {
         isCustomServer: opts.customServer,
         turbo: !!process.env.TURBOPACK,
         port: opts.port,
+        // Cleanup listeners belong to the dev bundler lifecycle.
         onDevServerCleanup: opts.onDevServerCleanup,
         resetFetch,
         serverFastRefresh: effectiveServerFastRefresh,
@@ -257,10 +288,11 @@ export async function initialize(opts: {
 
     let devBundlerService = new DevBundlerService(
       developmentBundler,
-      // The request handler is assigned below, this allows us to create a lazy
-      // reference to it.
+      // Each initialize call owns one dev bundler and request handler. This
+      // closure observes the handler assigned below, so no directory-keyed
+      // registry is needed.
       (req, res) => {
-        return requestHandlers[opts.dir](req, res)
+        return requestHandler(req, res)
       },
       Boolean(developmentConfig.experimental.requestInsights)
     )
@@ -274,8 +306,9 @@ export async function initialize(opts: {
   const devMemoryThresholdRestart =
     development?.config.experimental.devMemoryThresholdRestart !== false
 
-  renderServer.instance =
-    require('./render-server') as typeof import('./render-server')
+  const next =
+    createNextServer ??
+    interopDefault(require('../next') as typeof import('../next'))
 
   const requestHandlerImpl: WorkerRequestHandler = async (req, res) => {
     addRequestMeta(req, 'relativeProjectDir', relativeProjectDir)
@@ -430,7 +463,8 @@ export async function initialize(opts: {
         return null
       }
 
-      if (!handlers) {
+      const handler = renderRequestHandler
+      if (!handler) {
         throw new Error('Failed to initialize render server')
       }
 
@@ -449,10 +483,8 @@ export async function initialize(opts: {
       debug('invokeRender', req.url, req.headers)
 
       try {
-        const initResult =
-          await renderServer?.instance?.initialize(renderServerOpts)
         try {
-          await initResult?.requestHandler(req, res)
+          await handler(req, res)
         } catch (err) {
           if (err instanceof NoFallbackError) {
             await handleRequest(handleIndex + 1)
@@ -896,7 +928,7 @@ export async function initialize(opts: {
     }
   }
 
-  let requestHandler: WorkerRequestHandler = requestHandlerImpl
+  requestHandler = requestHandlerImpl
   if (config.experimental.testProxy) {
     // Intercept fetch and other testmode apis.
     const { wrapRequestHandlerWorker, interceptTestApis } =
@@ -907,33 +939,102 @@ export async function initialize(opts: {
     // We treat the intercepted fetch as "original" fetch that should be reset to during HMR.
     originalFetch = globalThis.fetch
   }
-  requestHandlers[opts.dir] = requestHandler
-
-  const renderServerOpts: Parameters<RenderServer['initialize']>[0] = {
-    port: opts.port,
-    dir: opts.dir,
-    hostname: opts.hostname,
-    minimalMode: opts.minimalMode,
-    dev: !!opts.dev,
-    server: opts.server,
-    devServerState: development?.bundler.devServerState,
-    routerServerHandler: requestHandlerImpl,
-    experimentalTestProxy: !!config.experimental.testProxy,
-    experimentalHttpsServer: !!opts.experimentalHttpsServer,
-    bundlerService: development?.service,
-    startServerSpan: opts.startServerSpan,
-    quiet: opts.quiet,
-    onDevServerCleanup: opts.onDevServerCleanup,
+  const serverInitMetadata = {
     distDir: config.distDir,
     experimentalFeatures,
     cacheComponents: config.cacheComponents,
     partialPrefetching: config.partialPrefetching,
+    agentRules: config.agentRules,
     devMemoryThresholdRestart,
-  }
-  // pre-initialize workers
-  const handlers = await renderServer.instance.initialize(renderServerOpts)
+  } satisfies Pick<
+    ServerInitResult,
+    | 'distDir'
+    | 'experimentalFeatures'
+    | 'cacheComponents'
+    | 'partialPrefetching'
+    | 'agentRules'
+    | 'devMemoryThresholdRestart'
+  >
 
-  // this must come after initialize of render server since it's
+  const commonServerOptions = {
+    dir: opts.dir,
+    port: opts.port,
+    hostname: opts.hostname || 'localhost',
+    minimalMode: opts.minimalMode,
+    customServer: false,
+    httpServer: opts.server,
+    routerServerHandler: requestHandlerImpl,
+    experimentalTestProxy: !!config.experimental.testProxy,
+    experimentalHttpsServer: !!opts.experimentalHttpsServer,
+    quiet: opts.quiet,
+  } as const
+
+  if (development) {
+    const serverOptions = {
+      ...commonServerOptions,
+      dev: true,
+      bundlerService: development.service,
+      startServerSpan: opts.startServerSpan ?? trace('start-next-dev-server'),
+    } satisfies NextServerOptions & {
+      customServer: false
+    }
+    server = next(serverOptions)
+  } else {
+    const serverOptions = {
+      ...commonServerOptions,
+      dev: false,
+    } satisfies NextServerOptions & {
+      customServer: false
+    }
+    server = next(serverOptions)
+  }
+
+  if (
+    process.env.__NEXT_TEST_MODE &&
+    process.env.NEXT_PRIVATE_DEBUG_CACHE_ENTRY_HANDLERS
+  ) {
+    const createOnCacheEntryHandlers = interopDefault(
+      await import(
+        formatDynamicImportPath(
+          opts.dir,
+          process.env.NEXT_PRIVATE_DEBUG_CACHE_ENTRY_HANDLERS
+        )
+      )
+    ) as (res: ServerResponse) => {
+      // TODO: remove onCacheEntry once onCacheEntryV2 is the default.
+      onCacheEntry: OnCacheEntryHandler
+      onCacheEntryV2: OnCacheEntryHandler
+    }
+
+    renderRequestHandler = async (req, res, parsedUrl) => {
+      const {
+        // TODO: remove onCacheEntry once onCacheEntryV2 is the default.
+        onCacheEntry,
+        onCacheEntryV2,
+      } = createOnCacheEntryHandlers(res)
+
+      const handler = server.getRequestHandlerWithMetadata({
+        // TODO: remove onCacheEntry once onCacheEntryV2 is the default.
+        onCacheEntry,
+        onCacheEntryV2,
+      })
+
+      return handler(req, res, parsedUrl)
+    }
+  } else {
+    renderRequestHandler = server.getRequestHandler()
+  }
+
+  serverReady = (async () => {
+    const devServerState = development?.bundler.devServerState
+    if (devServerState) {
+      await server.updateDevServerState(devServerState)
+    }
+    await server.prepare()
+  })()
+  await serverReady
+
+  // this must come after initialization of the server since it's
   // using initialized methods
   if (!routerServerGlobal[RouterServerContextSymbol]) {
     routerServerGlobal[RouterServerContextSymbol] = {}
@@ -942,12 +1043,12 @@ export async function initialize(opts: {
 
   routerServerGlobal[RouterServerContextSymbol][relativeProjectDir] = {
     nextConfig: getNextConfigRuntime(config),
-    hostname: handlers.server.hostname,
-    revalidate: handlers.server.revalidate.bind(handlers.server),
-    render404: handlers.server.render404.bind(handlers.server),
-    experimentalTestProxy: renderServerOpts.experimentalTestProxy,
+    hostname: server.hostname,
+    revalidate: server.revalidate.bind(server),
+    render404: server.render404.bind(server),
+    experimentalTestProxy: !!config.experimental.testProxy,
     logErrorWithOriginalStack: opts.dev
-      ? handlers.server.logErrorWithOriginalStack.bind(handlers.server)
+      ? server.logErrorWithOriginalStack.bind(server)
       : (err: unknown) => !opts.quiet && Log.error(err),
     setCacheStatus: config.cacheComponents
       ? development?.service?.setCacheStatus.bind(development?.service)
@@ -978,8 +1079,7 @@ export async function initialize(opts: {
     fsChecker,
     config,
     opts,
-    renderServer.instance,
-    renderServerOpts,
+    renderRequestHandler,
     development?.bundler?.ensureMiddleware
   )
 
@@ -1093,15 +1193,10 @@ export async function initialize(opts: {
   return {
     requestHandler,
     upgradeHandler,
-    server: handlers.server,
+    server,
     closeUpgraded() {
       development?.bundler?.hotReloader?.close()
     },
-    distDir: config.distDir,
-    experimentalFeatures,
-    cacheComponents: config.cacheComponents,
-    partialPrefetching: config.partialPrefetching,
-    agentRules: config.agentRules,
-    devMemoryThresholdRestart,
+    ...serverInitMetadata,
   }
 }

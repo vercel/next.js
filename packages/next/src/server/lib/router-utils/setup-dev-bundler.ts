@@ -69,7 +69,6 @@ import {
   getPossibleInstrumentationHookFilenames,
 } from '../../../build/utils'
 import { devPageFiles } from '../../../build/webpack/plugins/next-types-plugin/shared'
-import type { LazyRenderServerInstance } from '../router-server'
 import { HMR_MESSAGE_SENT_TO_BROWSER } from '../../dev/hot-reloader-types'
 import { PAGE_TYPES } from '../../../lib/page-types'
 import { generateEncryptionKeyBase64 } from '../../app-render/encryption-utils-server'
@@ -122,7 +121,8 @@ import { deobfuscateText } from '../../../shared/lib/magic-identifier'
 import { RouteKind } from '../../route-kind'
 
 export type SetupOpts = {
-  renderServer: LazyRenderServerInstance
+  updateDevServerState: (update: DevServerStateUpdate) => Promise<void>
+  reloadEnv: () => Promise<void>
   dir: string
   turbo?: boolean
   appDir?: string
@@ -179,7 +179,7 @@ export async function updateDevServerState(
   update: DevServerStateUpdate
 ) {
   Object.assign(state, update)
-  await opts.renderServer.instance?.updateDevServerState(opts.dir, update)
+  await opts.updateDevServerState(update)
 }
 
 async function startWatcher(
@@ -867,7 +867,7 @@ async function startWatcher(
 
       if (envFileChange || clientRouterFiltersChange || tsconfigChange) {
         if (envFileChange) {
-          await opts.renderServer.instance?.reloadEnv(opts.dir)
+          await opts.reloadEnv()
         }
 
         if (hotReloader.turbopackProject) {
