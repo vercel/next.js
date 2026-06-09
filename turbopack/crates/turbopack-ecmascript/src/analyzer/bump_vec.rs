@@ -159,6 +159,12 @@ impl<'a, T> BumpVec<'a, T> {
         }
     }
 
+    /// Move every element out of `other` into `self`, leaving `other` empty. Mirrors
+    /// [`Vec::append`], but takes the `&'a Bump` since growth may reallocate into the arena.
+    pub fn append(&mut self, bump: &'a Bump, other: &mut Self) {
+        self.extend(bump, std::mem::take(other));
+    }
+
     pub fn pop(&mut self) -> Option<T> {
         if self.len == 0 {
             return None;
@@ -297,6 +303,17 @@ impl<T> Iterator for IntoIter<'_, T> {
     fn size_hint(&self) -> (usize, Option<usize>) {
         let remaining = self.len - self.idx;
         (remaining, Some(remaining))
+    }
+}
+
+impl<T> DoubleEndedIterator for IntoIter<'_, T> {
+    fn next_back(&mut self) -> Option<T> {
+        if self.idx == self.len {
+            return None;
+        }
+        self.len -= 1;
+        // SAFETY: index `len` (post-decrement) lies in the initialized `[idx, len)` range.
+        Some(unsafe { self.ptr.as_ptr().add(self.len).read() })
     }
 }
 
@@ -500,6 +517,49 @@ mod tests {
 
         let collected: Vec<i32> = v.into_iter().collect();
         assert_eq!(collected, vec![2, 4, 6]);
+    }
+
+    #[test]
+    fn append_moves_and_empties_other() {
+        let bump = Bump::new();
+        let mut a = BumpVec::from_iter_in(&bump, [1, 2]);
+        let mut b = BumpVec::from_iter_in(&bump, [3, 4, 5]);
+        a.append(&bump, &mut b);
+        assert_eq!(&*a, &[1, 2, 3, 4, 5][..]);
+        assert!(b.is_empty());
+    }
+
+    #[test]
+    fn into_iter_double_ended() {
+        let bump = Bump::new();
+        let v = BumpVec::from_iter_in(&bump, [1, 2, 3, 4]);
+        let reversed: Vec<i32> = v.into_iter().rev().collect();
+        assert_eq!(reversed, vec![4, 3, 2, 1]);
+
+        // Front and back cursors meet without overlap.
+        let v = BumpVec::from_iter_in(&bump, [1, 2, 3]);
+        let mut it = v.into_iter();
+        assert_eq!(it.next(), Some(1));
+        assert_eq!(it.next_back(), Some(3));
+        assert_eq!(it.next(), Some(2));
+        assert_eq!(it.next_back(), None);
+        assert_eq!(it.next(), None);
+    }
+
+    #[test]
+    fn double_ended_drops_remainder_once() {
+        let bump = Bump::new();
+        let counter = Rc::new(Cell::new(0));
+        let mut v = BumpVec::new();
+        for _ in 0..5 {
+            v.push(&bump, DropCounter(counter.clone()));
+        }
+        let mut it = v.into_iter();
+        drop(it.next()); // front
+        drop(it.next_back()); // back
+        assert_eq!(counter.get(), 2);
+        drop(it); // remaining three drop exactly once
+        assert_eq!(counter.get(), 5);
     }
 
     #[test]

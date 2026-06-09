@@ -12,7 +12,7 @@ pub use crate::analyzer::graph::{
 };
 use crate::{
     AnalyzeMode,
-    analyzer::{Bump, JsValue, graph::visitor::Analyzer},
+    analyzer::{Bump, BumpVec, JsValue, graph::visitor::Analyzer},
     code_gen::CodeGen,
 };
 
@@ -30,7 +30,7 @@ pub struct VarGraph<'a> {
     /// non-trivial values.
     pub free_var_ids: FxHashMap<Atom, Id>,
 
-    pub effects: Vec<Effect<'a>>,
+    pub effects: BumpVec<'a, Effect<'a>>,
     // Some unconditional codegens, usually for ESM items.
     pub code_gens: Vec<CodeGen>,
 }

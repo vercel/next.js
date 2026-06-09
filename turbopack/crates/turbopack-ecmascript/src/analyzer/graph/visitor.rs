@@ -31,16 +31,16 @@ use crate::{
 
 enum EarlyReturn<'a> {
     Always {
-        prev_effects: Vec<Effect<'a>>,
+        prev_effects: BumpVec<'a, Effect<'a>>,
         start_ast_path: Vec<AstParentKind>,
     },
     Conditional {
-        prev_effects: Vec<Effect<'a>>,
+        prev_effects: BumpVec<'a, Effect<'a>>,
         start_ast_path: Vec<AstParentKind>,
 
         condition: BumpBox<'a, JsValue<'a>>,
-        then: Option<Box<EffectsBlock<'a>>>,
-        r#else: Option<Box<EffectsBlock<'a>>>,
+        then: Option<BumpBox<'a, EffectsBlock<'a>>>,
+        r#else: Option<BumpBox<'a, EffectsBlock<'a>>>,
         /// The ast path to the condition.
         condition_ast_path: Vec<AstParentKind>,
         span: Span,
@@ -65,11 +65,11 @@ pub(super) struct Analyzer<'arena, 'eval> {
     pub(super) data: VarGraph<'arena>,
     pub(super) state: analyzer_state::AnalyzerState<'arena>,
 
-    pub(super) effects: Vec<Effect<'arena>>,
+    pub(super) effects: BumpVec<'arena, Effect<'arena>>,
     /// Effects collected from hoisted declarations. See https://developer.mozilla.org/en-US/docs/Glossary/Hoisting
     /// Tracked separately so we can preserve effects from hoisted declarations even when we don't
     /// collect effects from the declaring context.
-    pub(super) hoisted_effects: Vec<Effect<'arena>>,
+    pub(super) hoisted_effects: BumpVec<'arena, Effect<'arena>>,
 
     // Some unconditional codegens, usually for ESM items.
     pub(super) code_gens: Vec<CodeGen>,
@@ -403,7 +403,8 @@ mod analyzer_state {
                     } => {
                         self.effects = prev_effects;
                         if self.analyze_mode.is_code_gen() {
-                            self.effects.push(Effect::Unreachable { start_ast_path });
+                            self.effects
+                                .push(self.arena, Effect::Unreachable { start_ast_path });
                         }
                         always_returns = true;
                     }
@@ -417,10 +418,13 @@ mod analyzer_state {
                         span,
                         early_return_condition_value,
                     } => {
-                        let block = Box::new(EffectsBlock {
-                            effects: take(&mut self.effects),
-                            range: AstPathRange::StartAfter(start_ast_path),
-                        });
+                        let block = BumpBox::new_in(
+                            EffectsBlock {
+                                effects: take(&mut self.effects),
+                                range: AstPathRange::StartAfter(start_ast_path),
+                            },
+                            self.arena,
+                        );
                         self.effects = prev_effects;
                         let kind = match (then, r#else, early_return_condition_value) {
                             (None, None, false) => ConditionalKind::If { then: block },
@@ -453,12 +457,15 @@ mod analyzer_state {
                                 r#else: vec![r#else, block],
                             },
                         };
-                        self.effects.push(Effect::Conditional {
-                            condition,
-                            kind: Box::new(kind),
-                            ast_path: condition_ast_path,
-                            span,
-                        })
+                        self.effects.push(
+                            self.arena,
+                            Effect::Conditional {
+                                condition,
+                                kind: BumpBox::new_in(kind, self.arena),
+                                ast_path: condition_ast_path,
+                                span,
+                            },
+                        )
                     }
                 }
             }
@@ -652,7 +659,7 @@ impl<'a> Analyzer<'a, '_> {
     }
 
     fn add_effect(&mut self, effect: Effect<'a>) {
-        self.effects.push(effect);
+        self.effects.push(self.arena, effect);
     }
 
     fn check_iife<'ast: 'r, 'r>(
@@ -879,9 +886,9 @@ impl<'a> Analyzer<'a, '_> {
         n: CallOrNewExpr<'ast>,
     ) {
         let new = n.as_new().is_some();
-        let args = args
-            .enumerate()
-            .map(|(i, arg)| {
+        let args = BumpVec::from_iter_in(
+            self.arena,
+            args.enumerate().map(|(i, arg)| {
                 let mut ast_path = ast_path.with_guard(match n {
                     CallOrNewExpr::Call(n) => AstParentNodeRef::CallExpr(n, CallExprField::Args(i)),
                     CallOrNewExpr::New(n) => AstParentNodeRef::NewExpr(n, NewExprField::Args(i)),
@@ -930,10 +937,13 @@ impl<'a> Analyzer<'a, '_> {
                         let effects = replace(&mut self.effects, old_effects);
                         EffectArg::Closure(
                             value,
-                            Box::new(EffectsBlock {
-                                effects,
-                                range: AstPathRange::Exact(path),
-                            }),
+                            BumpBox::new_in(
+                                EffectsBlock {
+                                    effects,
+                                    range: AstPathRange::Exact(path),
+                                },
+                                self.arena,
+                            ),
                         )
                     } else {
                         arg.visit_with_ast_path(self, &mut ast_path);
@@ -943,8 +953,8 @@ impl<'a> Analyzer<'a, '_> {
                     arg.visit_with_ast_path(self, &mut ast_path);
                     EffectArg::Spread
                 }
-            })
-            .collect();
+            }),
+        );
 
         match callee {
             Callee::Import(_) => {
@@ -1278,7 +1288,7 @@ impl VisitAstPath for Analyzer<'_, '_> {
         // This accounts for the fact that even with `if (true) { return f} function f() {} ` `f` is
         // hoisted earlier of the condition. so we still need to process effects for it.
         // TODO(lukesandberg): shouldn't this just be the effects associated with the function.
-        self.hoisted_effects.append(&mut self.effects);
+        self.hoisted_effects.append(self.arena, &mut self.effects);
 
         self.add_value(decl.ident.to_id(), fn_value);
     }
@@ -1841,7 +1851,7 @@ impl VisitAstPath for Analyzer<'_, '_> {
         self.enter_block(LexicalContext::Block, |this| {
             program.visit_children_with_ast_path(this, ast_path);
         });
-        self.effects.append(&mut self.hoisted_effects);
+        self.effects.append(self.arena, &mut self.hoisted_effects);
         self.data.effects = take(&mut self.effects);
         self.data.code_gens = take(&mut self.code_gens);
     }
@@ -1862,19 +1872,25 @@ impl VisitAstPath for Analyzer<'_, '_> {
             let mut ast_path =
                 ast_path.with_guard(AstParentNodeRef::CondExpr(expr, CondExprField::Cons));
             expr.cons.visit_with_ast_path(self, &mut ast_path);
-            Box::new(EffectsBlock {
-                effects: take(&mut self.effects),
-                range: AstPathRange::Exact(as_parent_path(&ast_path)),
-            })
+            BumpBox::new_in(
+                EffectsBlock {
+                    effects: take(&mut self.effects),
+                    range: AstPathRange::Exact(as_parent_path(&ast_path)),
+                },
+                self.arena,
+            )
         };
         let r#else = {
             let mut ast_path =
                 ast_path.with_guard(AstParentNodeRef::CondExpr(expr, CondExprField::Alt));
             expr.alt.visit_with_ast_path(self, &mut ast_path);
-            Box::new(EffectsBlock {
-                effects: take(&mut self.effects),
-                range: AstPathRange::Exact(as_parent_path(&ast_path)),
-            })
+            BumpBox::new_in(
+                EffectsBlock {
+                    effects: take(&mut self.effects),
+                    range: AstPathRange::Exact(as_parent_path(&ast_path)),
+                },
+                self.arena,
+            )
         };
         self.effects = prev_effects;
 
@@ -1908,10 +1924,13 @@ impl VisitAstPath for Analyzer<'_, '_> {
                 })
                 .1;
 
-            Box::new(EffectsBlock {
-                effects: take(&mut self.effects),
-                range: AstPathRange::Exact(as_parent_path(&ast_path)),
-            })
+            BumpBox::new_in(
+                EffectsBlock {
+                    effects: take(&mut self.effects),
+                    range: AstPathRange::Exact(as_parent_path(&ast_path)),
+                },
+                self.arena,
+            )
         };
         let mut else_returning = false;
         let r#else = stmt.alt.as_ref().map(|alt| {
@@ -1923,10 +1942,13 @@ impl VisitAstPath for Analyzer<'_, '_> {
                 })
                 .1;
 
-            Box::new(EffectsBlock {
-                effects: take(&mut self.effects),
-                range: AstPathRange::Exact(as_parent_path(&ast_path)),
-            })
+            BumpBox::new_in(
+                EffectsBlock {
+                    effects: take(&mut self.effects),
+                    range: AstPathRange::Exact(as_parent_path(&ast_path)),
+                },
+                self.arena,
+            )
         });
         self.effects = prev_effects;
         self.add_conditional_if_effect_with_early_return(
@@ -1966,11 +1988,11 @@ impl VisitAstPath for Analyzer<'_, '_> {
             });
             take(&mut self.effects)
         } else {
-            vec![]
+            BumpVec::new()
         };
         self.effects = prev_effects;
-        self.effects.append(&mut block);
-        self.effects.append(&mut handler);
+        self.effects.append(self.arena, &mut block);
+        self.effects.append(self.arena, &mut handler);
         if let Some(finalizer) = stmt.finalizer.as_ref() {
             let finally_returns_unconditionally = {
                 let mut ast_path =
@@ -1998,7 +2020,7 @@ impl VisitAstPath for Analyzer<'_, '_> {
         });
         let mut effects = take(&mut self.effects);
         self.effects = prev_effects;
-        self.effects.append(&mut effects);
+        self.effects.append(self.arena, &mut effects);
     }
 
     fn visit_block_stmt<'ast: 'r, 'r>(
@@ -2021,8 +2043,8 @@ impl VisitAstPath for Analyzer<'_, '_> {
                 if !returns_unconditionally {
                     self.add_return_value(JsValue::Constant(ConstantValue::Undefined));
                 }
-                self.effects.append(&mut self.hoisted_effects);
-                effects.append(&mut self.effects);
+                self.effects.append(self.arena, &mut self.hoisted_effects);
+                effects.append(self.arena, &mut self.effects);
                 self.hoisted_effects = hoisted_effects;
                 self.effects = effects;
             }
@@ -2080,23 +2102,32 @@ impl VisitAstPath for Analyzer<'_, '_> {
 
         let effects = take(&mut self.effects);
 
-        prev_effects.push(Effect::Conditional {
-            condition: BumpBox::new_in(
-                JsValue::unknown_empty(true, rcstr!("labeled statement")),
-                self.arena,
-            ),
-            kind: Box::new(ConditionalKind::Labeled {
-                body: Box::new(EffectsBlock {
-                    effects,
-                    range: AstPathRange::Exact(as_parent_path_with(
-                        ast_path,
-                        AstParentKind::LabeledStmt(LabeledStmtField::Body),
-                    )),
-                }),
-            }),
-            ast_path: as_parent_path(ast_path),
-            span: stmt.span,
-        });
+        prev_effects.push(
+            self.arena,
+            Effect::Conditional {
+                condition: BumpBox::new_in(
+                    JsValue::unknown_empty(true, rcstr!("labeled statement")),
+                    self.arena,
+                ),
+                kind: BumpBox::new_in(
+                    ConditionalKind::Labeled {
+                        body: BumpBox::new_in(
+                            EffectsBlock {
+                                effects,
+                                range: AstPathRange::Exact(as_parent_path_with(
+                                    ast_path,
+                                    AstParentKind::LabeledStmt(LabeledStmtField::Body),
+                                )),
+                            },
+                            self.arena,
+                        ),
+                    },
+                    self.arena,
+                ),
+                ast_path: as_parent_path(ast_path),
+                span: stmt.span,
+            },
+        );
 
         self.effects = prev_effects;
     }
@@ -2171,8 +2202,8 @@ impl<'a> Analyzer<'a, '_> {
         ast_path: &AstNodePath<AstParentNodeRef<'_>>,
         condition_ast_kind: AstParentKind,
         span: Span,
-        then: Option<Box<EffectsBlock<'a>>>,
-        r#else: Option<Box<EffectsBlock<'a>>>,
+        then: Option<BumpBox<'a, EffectsBlock<'a>>>,
+        r#else: Option<BumpBox<'a, EffectsBlock<'a>>>,
         early_return_when_true: bool,
         early_return_when_false: bool,
     ) {
@@ -2183,10 +2214,10 @@ impl<'a> Analyzer<'a, '_> {
         let condition = BumpBox::new_in(self.eval_context.eval(self.arena, test), self.arena);
         if condition.is_unknown() {
             if let Some(mut then) = then {
-                self.effects.append(&mut then.effects);
+                self.effects.append(self.arena, &mut then.effects);
             }
             if let Some(mut r#else) = r#else {
-                self.effects.append(&mut r#else.effects);
+                self.effects.append(self.arena, &mut r#else.effects);
             }
             return;
         }
@@ -2229,7 +2260,7 @@ impl<'a> Analyzer<'a, '_> {
                 };
                 self.add_effect(Effect::Conditional {
                     condition,
-                    kind: Box::new(kind),
+                    kind: BumpBox::new_in(kind, self.arena),
                     ast_path: as_parent_path_with(ast_path, condition_ast_kind),
                     span,
                 });
@@ -2256,37 +2287,37 @@ impl<'a> Analyzer<'a, '_> {
         if condition.is_unknown() {
             match &mut cond_kind {
                 ConditionalKind::If { then } => {
-                    self.effects.append(&mut then.effects);
+                    self.effects.append(self.arena, &mut then.effects);
                 }
                 ConditionalKind::Else { r#else } => {
-                    self.effects.append(&mut r#else.effects);
+                    self.effects.append(self.arena, &mut r#else.effects);
                 }
                 ConditionalKind::IfElse { then, r#else }
                 | ConditionalKind::Ternary { then, r#else } => {
-                    self.effects.append(&mut then.effects);
-                    self.effects.append(&mut r#else.effects);
+                    self.effects.append(self.arena, &mut then.effects);
+                    self.effects.append(self.arena, &mut r#else.effects);
                 }
                 ConditionalKind::IfElseMultiple { then, r#else } => {
                     for block in then {
-                        self.effects.append(&mut block.effects);
+                        self.effects.append(self.arena, &mut block.effects);
                     }
                     for block in r#else {
-                        self.effects.append(&mut block.effects);
+                        self.effects.append(self.arena, &mut block.effects);
                     }
                 }
                 ConditionalKind::And { expr }
                 | ConditionalKind::Or { expr }
                 | ConditionalKind::NullishCoalescing { expr } => {
-                    self.effects.append(&mut expr.effects);
+                    self.effects.append(self.arena, &mut expr.effects);
                 }
                 ConditionalKind::Labeled { body } => {
-                    self.effects.append(&mut body.effects);
+                    self.effects.append(self.arena, &mut body.effects);
                 }
             }
         } else {
             self.add_effect(Effect::Conditional {
                 condition,
-                kind: Box::new(cond_kind),
+                kind: BumpBox::new_in(cond_kind, self.arena),
                 ast_path: as_parent_path_with(ast_path, ast_kind),
                 span,
             });

@@ -31,6 +31,7 @@ use std::{
 
 use anyhow::Result;
 use bincode::{Decode, Encode};
+use bumpalo::boxed::Box as BumpBox;
 use constant_condition::{ConstantConditionCodeGen, ConstantConditionValue};
 use constant_value::ConstantValueCodeGen;
 use either::Either;
@@ -885,7 +886,7 @@ async fn analyze_ecmascript_module_internal(
                 Action::Effect(effect) => effect,
             };
 
-            let add_effects = |effects: Vec<_>| {
+            let add_effects = |effects: BumpVec<'_, _>| {
                 queue_stack
                     .lock()
                     .extend(effects.into_iter().map(Action::Effect).rev())
@@ -934,12 +935,16 @@ async fn analyze_ecmascript_module_internal(
                     }
                     macro_rules! active {
                         ($block:ident) => {
-                            queue_stack
-                                .get_mut()
-                                .extend($block.effects.into_iter().map(Action::Effect).rev())
+                            queue_stack.get_mut().extend(
+                                BumpBox::into_inner($block)
+                                    .effects
+                                    .into_iter()
+                                    .map(Action::Effect)
+                                    .rev(),
+                            )
                         };
                     }
-                    match *kind {
+                    match BumpBox::into_inner(kind) {
                         ConditionalKind::If { then } => match condition.is_truthy() {
                             Some(true) => {
                                 condition!(ConstantConditionValue::Truthy);
@@ -1488,11 +1493,11 @@ async fn compile_time_info_for_module_options(
     .cell())
 }
 
-async fn handle_call<'a, G: Fn(Vec<Effect<'a>>) + Send + Sync>(
+async fn handle_call<'a, G: Fn(BumpVec<'a, Effect<'a>>) + Send + Sync>(
     ast_path: &[AstParentKind],
     span: Span,
     func: JsValue<'a>,
-    args: Vec<EffectArg<'a>>,
+    args: BumpVec<'a, EffectArg<'a>>,
     state: &AnalysisState<'a>,
     add_effects: &G,
     analysis: &mut AnalyzeEcmascriptModuleResultBuilder,
@@ -1520,7 +1525,7 @@ async fn handle_call<'a, G: Fn(Vec<Effect<'a>>) + Send + Sync>(
         .map(|effect_arg| match effect_arg {
             EffectArg::Value(value) => value,
             EffectArg::Closure(value, block) => {
-                add_effects(block.effects);
+                add_effects(BumpBox::into_inner(block).effects);
                 value
             }
             EffectArg::Spread => {
@@ -1605,10 +1610,10 @@ async fn handle_call<'a, G: Fn(Vec<Effect<'a>>) + Send + Sync>(
     Ok(())
 }
 
-async fn handle_dynamic_import<'a, G: Fn(Vec<Effect<'a>>) + Send + Sync>(
+async fn handle_dynamic_import<'a, G: Fn(BumpVec<'a, Effect<'a>>) + Send + Sync>(
     ast_path: &[AstParentKind],
     span: Span,
-    args: Vec<EffectArg<'a>>,
+    args: BumpVec<'a, EffectArg<'a>>,
     state: &AnalysisState<'a>,
     add_effects: &G,
     analysis: &mut AnalyzeEcmascriptModuleResultBuilder,
@@ -1644,7 +1649,7 @@ async fn handle_dynamic_import<'a, G: Fn(Vec<Effect<'a>>) + Send + Sync>(
         .map(|effect_arg| match effect_arg {
             EffectArg::Value(value) => value,
             EffectArg::Closure(value, block) => {
-                add_effects(block.effects);
+                add_effects(BumpBox::into_inner(block).effects);
                 value
             }
             EffectArg::Spread => {
