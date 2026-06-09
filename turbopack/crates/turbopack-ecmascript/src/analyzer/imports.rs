@@ -1076,6 +1076,7 @@ impl Visit for Analyzer<'_> {
             }
         };
 
+        self.register_assignment_scope(id.clone());
         self.data.exports.insert(
             rcstr!("default"),
             Export::LocalBinding(RcStr::from(id.0.as_str()), false),
@@ -1090,18 +1091,20 @@ impl Visit for Analyzer<'_> {
     fn visit_export_default_expr(&mut self, n: &ExportDefaultExpr) {
         self.data.has_exports = true;
 
+        let default_id = (
+            MAGIC_IDENTIFIER_DEFAULT_EXPORT_ATOM.clone(),
+            SyntaxContext::empty(),
+        );
+
         self.data.exports.insert(
             rcstr!("default"),
             Export::LocalBinding(MAGIC_IDENTIFIER_DEFAULT_EXPORT.clone(), false),
         );
-        self.data.exports_ids.insert(
-            rcstr!("default"),
-            (
-                // `EsmModuleItem::code_generation` inserts this variable.
-                MAGIC_IDENTIFIER_DEFAULT_EXPORT_ATOM.clone(),
-                SyntaxContext::empty(),
-            ),
-        );
+        self.data
+            .exports_ids
+            .insert(rcstr!("default"), default_id.clone());
+
+        self.register_assignment_scope(default_id);
         n.visit_children_with(self);
     }
 
