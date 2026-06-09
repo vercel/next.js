@@ -5,7 +5,7 @@ import { connection } from 'next/server'
 export const unstable_instant = {
   unstable_samples: [{ params: { id: 'test' } }],
 }
-export const unstable_prefetch = 'force-runtime'
+export const unstable_prefetch = 'allow-runtime'
 
 type Params = { id: string }
 

@@ -224,7 +224,7 @@ export const enum PrefetchHint {
   SubtreeHasRuntimePrefetch = 0b100000000000,
   // This segment or one of its descendants prefetches "eagerly" — i.e. its
   // effective prefetch strategy is anything other than 'partial' or
-  // 'force-runtime'. Used by App Shells: a non-eager subtree relies on the
+  // 'allow-runtime'. Used by App Shells: a non-eager subtree relies on the
   // shared app shell and skips its Speculative prefetch. Propagates upward so
   // the root reflects the entire subtree.
   SubtreeHasEagerPrefetch = 0b1000000000000,

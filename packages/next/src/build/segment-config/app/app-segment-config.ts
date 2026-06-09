@@ -41,7 +41,7 @@ const PrefetchSchema = z.enum([
   'partial',
   'unstable_eager',
   'force-disabled',
-  'force-runtime',
+  'allow-runtime',
 ])
 
 export type Instant = InstantConfig | true | false
@@ -51,7 +51,7 @@ export type Prefetch =
   | 'partial'
   | 'unstable_eager'
   | 'force-disabled'
-  | 'force-runtime'
+  | 'allow-runtime'
 
 export type InstantConfigForTypeCheckInternal = __GenericInstantConfig | Instant
 // the __GenericInstantConfig type is used to avoid type widening issues with
@@ -146,8 +146,8 @@ const AppSegmentConfigSchema = z.object({
    * - 'unstable_eager' behaves like 'partial' but, when App Shells are enabled,
    *   keeps eagerly prefetching the route's segments instead of relying on the
    *   shared app shell. Internal migration aid; not part of the public API.
-   * - 'force-runtime' is a superset of 'partial' and prefetches using a
-   *   runtime request, instead of a static one.
+   * - 'allow-runtime' is a superset of 'partial' and permits prefetching with
+   *   a runtime request instead of a static one.
    * - 'force-disabled' disables prefetching for the segment.
    */
   unstable_prefetch: PrefetchSchema.optional(),
@@ -204,7 +204,7 @@ export function parseAppSegmentConfig(
           }
           case 'unstable_prefetch': {
             return {
-              message: `Invalid unstable_prefetch value ${JSON.stringify(ctx.data)} on "${route}", must be "auto", "partial", "unstable_eager", "force-disabled", or "force-runtime".`,
+              message: `Invalid unstable_prefetch value ${JSON.stringify(ctx.data)} on "${route}", must be "auto", "partial", "unstable_eager", "force-disabled", or "allow-runtime".`,
             }
           }
           case 'unstable_dynamicStaleTime': {
@@ -274,8 +274,8 @@ export type AppSegmentConfig = {
    * - 'unstable_eager' behaves like 'partial' but, when App Shells are enabled,
    *   keeps eagerly prefetching the route's segments instead of relying on the
    *   shared app shell. Internal migration aid; not part of the public API.
-   * - 'force-runtime' is a superset of 'partial' and prefetches using a
-   *   runtime request, instead of a static one.
+   * - 'allow-runtime' is a superset of 'partial' and permits prefetching with
+   *   a runtime request instead of a static one.
    * - 'force-disabled' disables prefetching for the segment.
    */
   unstable_prefetch?: Prefetch

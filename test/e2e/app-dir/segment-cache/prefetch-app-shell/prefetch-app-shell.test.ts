@@ -61,7 +61,7 @@ describe('App Shell prefetching', () => {
     )
   })
 
-  it('skips the per-link Speculative prefetch for a non-eager (force-runtime) route', async () => {
+  it('skips the per-link Speculative prefetch for a non-eager (allow-runtime) route', async () => {
     let page: Playwright.Page
     const browser = await next.browser('/', {
       beforePageLoad(p: Playwright.Page) {
@@ -70,7 +70,7 @@ describe('App Shell prefetching', () => {
     })
     const act = createRouterAct(page)
 
-    // Reveal /posts/1 (default/auto prefetch). The route is force-runtime, which
+    // Reveal /posts/1 (default/auto prefetch). The route is allow-runtime, which
     // is NOT eager, so under App Shells only the shared App Shell is prefetched.
     await act(
       async () => {

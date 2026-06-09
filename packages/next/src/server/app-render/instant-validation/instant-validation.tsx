@@ -1220,7 +1220,7 @@ export async function createCombinedPayloadAtDepth(
       }
     }
 
-    const segmentHasRuntimePrefetch = prefetchConfig === 'force-runtime'
+    const segmentHasRuntimePrefetch = prefetchConfig === 'allow-runtime'
 
     let childIsInsideRuntimePrefetch = isInsideRuntimePrefetch
     let stage: SegmentStage
