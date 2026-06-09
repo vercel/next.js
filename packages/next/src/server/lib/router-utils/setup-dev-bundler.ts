@@ -3,12 +3,14 @@ import type { FilesystemDynamicRoute } from './filesystem'
 import type { UnwrapPromise } from '../../../lib/coalesced-function'
 import type { ProxyMatcher } from '../../../build/analysis/get-page-static-info'
 import type { RoutesManifest } from '../../../build'
-import type { MiddlewareRouteMatch } from '../../../shared/lib/router/utils/middleware-route-matcher'
-import type { PropagateToWorkersField } from './types'
 import type { NextJsHotReloaderInterface } from '../../dev/hot-reloader-types'
 import type { AppPageRouteDefinition } from '../../route-definitions/app-page-route-definition'
 import type { AppRouteRouteDefinition } from '../../route-definitions/app-route-route-definition'
 import type { LocaleRouteDefinition } from '../../route-definitions/locale-route-definition'
+import type {
+  DevServerState,
+  DevServerStateUpdate,
+} from '../../dev/dev-server-state'
 
 import { createDefineEnv } from '../../../build/swc'
 import { installBindings } from '../../../build/swc/install-bindings'
@@ -149,25 +151,6 @@ export interface DevRoutesManifest {
   skipProxyUrlNormalize: RoutesManifest['skipProxyUrlNormalize']
 }
 
-export type ServerFields = {
-  actualMiddlewareFile?: string | undefined
-  actualInstrumentationHookFile?: string | undefined
-  appPathRoutes?: Record<string, string | string[]>
-  middleware?:
-    | {
-        page: string
-        match: MiddlewareRouteMatch
-        matchers?: ProxyMatcher[]
-      }
-    | undefined
-  hasAppNotFound?: boolean
-  interceptionRoutes?: ReturnType<
-    typeof import('./filesystem').buildCustomRoute
-  >[]
-  setIsrStatus?: (key: string, value: boolean | undefined) => void
-  resetFetch?: () => void
-}
-
 async function verifyTypeScript(opts: SetupOpts) {
   const verifyResult = await verifyAndRunTypeScript({
     dir: opts.dir,
@@ -190,12 +173,13 @@ async function verifyTypeScript(opts: SetupOpts) {
   return false
 }
 
-export async function propagateServerField(
+export async function updateDevServerState(
   opts: SetupOpts,
-  field: PropagateToWorkersField,
-  args: any
+  state: DevServerState,
+  update: DevServerStateUpdate
 ) {
-  await opts.renderServer?.instance?.propagateServerField(opts.dir, field, args)
+  Object.assign(state, update)
+  await opts.renderServer.instance?.updateDevServerState(opts.dir, update)
 }
 
 async function startWatcher(
@@ -242,7 +226,7 @@ async function startWatcher(
     appDir
   )
 
-  const serverFields: ServerFields = {}
+  const devServerState: DevServerState = {}
 
   // Update logging state once based on next.config.js when initializing
   consoleStore.setState({
@@ -256,7 +240,7 @@ async function startWatcher(
         ).createHotReloaderTurbopack
         return await createHotReloaderTurbopack(
           opts,
-          serverFields,
+          devServerState,
           distDir,
           resetFetch,
           lockfile,
@@ -383,6 +367,7 @@ async function startWatcher(
   let resolved = false
   let prevSortedRoutes: string[] = []
   let hasComputedSortedRoutes = false
+  let hasAppNotFound = false
 
   await new Promise<void>(async (resolve, reject) => {
     if (pagesDir) {
@@ -461,6 +446,8 @@ async function startWatcher(
       let writeEnvDefinitions = false
       let typescriptStatusFromLastAggregation = enabledTypeScript
       let middlewareMatchers: ProxyMatcher[] | undefined
+      let actualMiddlewareFile: string | undefined
+      let actualInstrumentationHookFile: string | undefined
       const routedPages: string[] = []
       const knownFiles = wp.getTimeInfoEntries()
       const appPaths: Record<string, string[]> = {}
@@ -623,25 +610,14 @@ async function startWatcher(
             )
             continue
           }
-          serverFields.actualMiddlewareFile = rootFile
-
-          await propagateServerField(
-            opts,
-            'actualMiddlewareFile',
-            serverFields.actualMiddlewareFile
-          )
+          actualMiddlewareFile = rootFile
           middlewareMatchers = staticInfo.middleware?.matchers || [
             { regexp: '^/.*$', originalSource: '/:path*' },
           ]
           continue
         }
         if (isInstrumentationHookFile(rootFile)) {
-          serverFields.actualInstrumentationHookFile = rootFile
-          await propagateServerField(
-            opts,
-            'actualInstrumentationHookFile',
-            serverFields.actualInstrumentationHookFile
-          )
+          actualInstrumentationHookFile = rootFile
           continue
         }
 
@@ -833,6 +809,11 @@ async function startWatcher(
         routedPages.push(pageName)
       }
 
+      await updateDevServerState(opts, devServerState, {
+        actualMiddlewareFile,
+        actualInstrumentationHookFile,
+      })
+
       const numConflicting = conflictingAppPagePaths.size
       conflictingPageChange = numConflicting - previousConflictingPagePaths.size
 
@@ -886,9 +867,7 @@ async function startWatcher(
 
       if (envFileChange || clientRouterFiltersChange || tsconfigChange) {
         if (envFileChange) {
-          await propagateServerField(opts, 'loadEnvConfig', [
-            { dev: true, forceReload: true },
-          ])
+          await opts.renderServer.instance?.reloadEnv(opts.dir)
         }
 
         if (hotReloader.turbopackProject) {
@@ -1066,14 +1045,10 @@ async function startWatcher(
       normalizeCatchAllRoutes(appPaths)
 
       // Make sure to sort parallel routes to make the result deterministic.
-      serverFields.appPathRoutes = Object.fromEntries(
+      const appPathRoutes = Object.fromEntries(
         Object.entries(appPaths).map(([k, v]) => [k, v.sort(compareAppPaths)])
       )
-      await propagateServerField(
-        opts,
-        'appPathRoutes',
-        serverFields.appPathRoutes
-      )
+      await updateDevServerState(opts, devServerState, { appPathRoutes })
 
       // fsChecker replaces the removed dev matcher providers. Refresh its
       // definitions on every watcher pass so newly added routes can be ensured
@@ -1133,19 +1108,18 @@ async function startWatcher(
       opts.fsChecker.setRouteDefinitions('appFile', appRouteDefinitions)
 
       // TODO: pass this to fsChecker/next-dev-server?
-      serverFields.middleware = middlewareMatchers
+      const middleware = middlewareMatchers
         ? {
-            match: null as any,
             page: '/',
             matchers: middlewareMatchers,
           }
         : undefined
 
-      await propagateServerField(opts, 'middleware', serverFields.middleware)
-      serverFields.hasAppNotFound = hasRootAppNotFound
+      await updateDevServerState(opts, devServerState, { middleware })
+      hasAppNotFound = hasRootAppNotFound
 
-      opts.fsChecker.middlewareMatcher = serverFields.middleware?.matchers
-        ? getMiddlewareRouteMatcher(serverFields.middleware?.matchers)
+      opts.fsChecker.middlewareMatcher = middleware?.matchers
+        ? getMiddlewareRouteMatcher(middleware.matchers)
         : undefined
 
       const interceptionRoutes = generateInterceptionRoutesRewrites(
@@ -1305,7 +1279,7 @@ async function startWatcher(
           }
 
           if (writeEnvDefinitions && nextConfig.experimental?.typedEnv) {
-            // TODO: The call to propagateServerField 'loadEnvConfig' causes the env to be loaded twice on env file changes.
+            // TODO: Calling reloadEnv causes the env to be loaded twice on env file changes.
             const loadEnvConfig = (
               require('@next/env') as typeof import('@next/env')
             ).loadEnvConfig
@@ -1419,7 +1393,7 @@ async function startWatcher(
     ) {
       res.statusCode = 200
       res.setHeader('Content-Type', JSON_CONTENT_TYPE_HEADER)
-      res.end(JSON.stringify(serverFields.middleware?.matchers || []))
+      res.end(JSON.stringify(devServerState.middleware?.matchers || []))
       return { finished: true }
     }
     return { finished: false }
@@ -1450,15 +1424,18 @@ async function startWatcher(
   }
 
   return {
-    serverFields,
+    devServerState,
+    get hasAppNotFound() {
+      return hasAppNotFound
+    },
     hotReloader,
     requestHandler,
     logErrorWithOriginalStack,
 
     async ensureMiddleware(requestUrl?: string) {
-      if (!serverFields.actualMiddlewareFile) return
+      if (!devServerState.actualMiddlewareFile) return
       return hotReloader.ensurePage({
-        page: serverFields.actualMiddlewareFile,
+        page: devServerState.actualMiddlewareFile,
         clientOnly: false,
         definition: undefined,
         url: requestUrl,
