@@ -286,51 +286,6 @@ export async function handler(
 
   try {
     let parentSpan: Span | undefined
-    const invokeRouteModule = async (span?: Span) => {
-      return routeModule.handle(nextReq, context).finally(() => {
-        if (!span) return
-
-        span.setAttributes({
-          'http.status_code': res.statusCode,
-          'next.rsc': false,
-        })
-
-        const rootSpanAttributes = tracer.getRootSpanAttributes()
-        // We were unable to get attributes, probably OTEL is not enabled
-        if (!rootSpanAttributes) {
-          return
-        }
-
-        if (
-          rootSpanAttributes.get('next.span_type') !==
-          BaseServerSpan.handleRequest
-        ) {
-          console.warn(
-            `Unexpected root span type '${rootSpanAttributes.get(
-              'next.span_type'
-            )}'. Please report this Next.js issue https://github.com/vercel/next.js`
-          )
-          return
-        }
-
-        const route = rootSpanAttributes.get('next.route') || normalizedSrcPage
-        const name = `${method} ${route}`
-
-        span.setAttributes({
-          'next.route': route,
-          'http.route': route,
-          'next.span_name': name,
-        })
-        span.updateName(name)
-
-        // Propagate http.route to the parent span if one exists (e.g.
-        // a platform-created HTTP span in adapter deployments).
-        if (parentSpan && parentSpan !== span) {
-          parentSpan.setAttribute('http.route', route)
-          parentSpan.updateName(name)
-        }
-      })
-    }
 
     const handleResponse = async (currentSpan?: Span) => {
       const responseGenerator: ResponseGenerator = async ({
@@ -350,7 +305,7 @@ export async function handler(
             return null
           }
 
-          const response = await invokeRouteModule(currentSpan)
+          const response = await routeModule.handle(nextReq, context)
 
           ;(req as any).fetchMetrics = (context.renderOpts as any).fetchMetrics
           let pendingWaitUntil = context.renderOpts.pendingWaitUntil
@@ -447,6 +402,52 @@ export async function handler(
             )
           }
           throw err
+        } finally {
+          ;(() => {
+            if (!currentSpan) {
+              return
+            }
+            currentSpan.setAttributes({
+              'http.status_code': res.statusCode,
+              'next.rsc': false,
+            })
+
+            const rootSpanAttributes = tracer.getRootSpanAttributes()
+            // We were unable to get attributes, probably OTEL is not enabled
+            if (!rootSpanAttributes) {
+              return
+            }
+
+            if (
+              rootSpanAttributes.get('next.span_type') !==
+              BaseServerSpan.handleRequest
+            ) {
+              console.warn(
+                `Unexpected root span type '${rootSpanAttributes.get(
+                  'next.span_type'
+                )}'. Please report this Next.js issue https://github.com/vercel/next.js`
+              )
+              return
+            }
+
+            const route =
+              rootSpanAttributes.get('next.route') || normalizedSrcPage
+            const name = `${method} ${route}`
+
+            currentSpan.setAttributes({
+              'next.route': route,
+              'http.route': route,
+              'next.span_name': name,
+            })
+            currentSpan.updateName(name)
+
+            // Propagate http.route to the parent span if one exists (e.g.
+            // a platform-created HTTP span in adapter deployments).
+            if (parentSpan && parentSpan !== currentSpan) {
+              parentSpan.setAttribute('http.route', route)
+              parentSpan.updateName(name)
+            }
+          })()
         }
       }
 
