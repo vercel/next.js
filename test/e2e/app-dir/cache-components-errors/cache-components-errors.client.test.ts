@@ -81,7 +81,7 @@ describe('Cache Components Errors - Client Components', () => {
 
           await expect(browser).toDisplayCollapsedRedbox(`
            {
-             "code": "E1290",
+             "code": "E1318",
              "description": "Next.js encountered uncached data during prerendering.",
              "environmentLabel": "Server",
              "label": "Blocking Route",
@@ -116,11 +116,11 @@ describe('Cache Components Errors - Client Components', () => {
                \`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking the page load and leading to a slower user experience.
 
                Ways to fix this:
-                 - [cache] Cache the data access with \`"use cache"\`
-                   https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
                  - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
                    https://nextjs.org/docs/messages/blocking-prerender-dynamic#wrap-in-or-move-into-suspense
-                 - [cache] If the runtime data is \`params\` and they're known, prerender them with \`generateStaticParams\`
+                 - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\`
+                   https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
+                 - [cache] For \`params\`: if the params are known, prerender them with \`generateStaticParams\`
                    https://nextjs.org/docs/messages/blocking-prerender-runtime#for-known-params-prerender
                  - [block] Set \`export const unstable_instant = false\` to silence this warning and allow a blocking route
                    https://nextjs.org/docs/messages/blocking-prerender-dynamic#allow-blocking-route
@@ -146,11 +146,11 @@ describe('Cache Components Errors - Client Components', () => {
                \`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking the page load and leading to a slower user experience.
 
                Ways to fix this:
-                 - [cache] Cache the data access with \`"use cache"\`
-                   https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
                  - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
                    https://nextjs.org/docs/messages/blocking-prerender-dynamic#wrap-in-or-move-into-suspense
-                 - [cache] If the runtime data is \`params\` and they're known, prerender them with \`generateStaticParams\`
+                 - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\`
+                   https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
+                 - [cache] For \`params\`: if the params are known, prerender them with \`generateStaticParams\`
                    https://nextjs.org/docs/messages/blocking-prerender-runtime#for-known-params-prerender
                  - [block] Set \`export const unstable_instant = false\` to silence this warning and allow a blocking route
                    https://nextjs.org/docs/messages/blocking-prerender-dynamic#allow-blocking-route
@@ -179,11 +179,11 @@ describe('Cache Components Errors - Client Components', () => {
                \`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking the page load and leading to a slower user experience.
 
                Ways to fix this:
-                 - [cache] Cache the data access with \`"use cache"\`
-                   https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
                  - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
                    https://nextjs.org/docs/messages/blocking-prerender-dynamic#wrap-in-or-move-into-suspense
-                 - [cache] If the runtime data is \`params\` and they're known, prerender them with \`generateStaticParams\`
+                 - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\`
+                   https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
+                 - [cache] For \`params\`: if the params are known, prerender them with \`generateStaticParams\`
                    https://nextjs.org/docs/messages/blocking-prerender-runtime#for-known-params-prerender
                  - [block] Set \`export const unstable_instant = false\` to silence this warning and allow a blocking route
                    https://nextjs.org/docs/messages/blocking-prerender-dynamic#allow-blocking-route
@@ -209,11 +209,11 @@ describe('Cache Components Errors - Client Components', () => {
                \`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking the page load and leading to a slower user experience.
 
                Ways to fix this:
-                 - [cache] Cache the data access with \`"use cache"\`
-                   https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
                  - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
                    https://nextjs.org/docs/messages/blocking-prerender-dynamic#wrap-in-or-move-into-suspense
-                 - [cache] If the runtime data is \`params\` and they're known, prerender them with \`generateStaticParams\`
+                 - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\`
+                   https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
+                 - [cache] For \`params\`: if the params are known, prerender them with \`generateStaticParams\`
                    https://nextjs.org/docs/messages/blocking-prerender-runtime#for-known-params-prerender
                  - [block] Set \`export const unstable_instant = false\` to silence this warning and allow a blocking route
                    https://nextjs.org/docs/messages/blocking-prerender-dynamic#allow-blocking-route
@@ -262,8 +262,8 @@ describe('Cache Components Errors - Client Components', () => {
 
           await expect(browser).toDisplayCollapsedRedbox(`
            {
-             "code": "E1303",
-             "description": "A Client Component used useSearchParams() outside of <Suspense>.",
+             "code": "E1316",
+             "description": "Next.js encountered URL data useSearchParams() in a Client Component outside of Suspense.",
              "environmentLabel": "Server",
              "label": "Blocking Route",
              "source": "app/client-use-search-params/client.tsx (6:18) @ Client
@@ -292,13 +292,15 @@ describe('Cache Components Errors - Client Components', () => {
           if (isTurbopack) {
             if (isDebugPrerender) {
               expect(output).toMatchInlineSnapshot(`
-               "Error: Route "/client-use-search-params": A Client Component used \`useSearchParams()\` outside of \`<Suspense>\`.
+               "Error: Route "/client-use-search-params": Next.js encountered URL data \`useSearchParams()\` in a Client Component outside of \`<Suspense>\`.
 
-               This prevents the route from being prerendered because the value is only available at runtime.
+               This blocks prerendering because the value is only available at runtime.
 
                Ways to fix this:
-                 - [stream] Wrap the Client Component in \`<Suspense fallback={...}>\`
-                   https://nextjs.org/docs/messages/next-prerender-client-hook#wrap-the-client-component-in-suspense
+                 - [stream] Wrap the component in \`<Suspense fallback={...}>\` so the hook value streams in after prerendering
+                   https://nextjs.org/docs/messages/blocking-prerender-client-hook#wrap-in-or-move-into-suspense
+                 - [block] Set \`export const unstable_instant = false\` to silence this warning and allow a blocking route
+                   https://nextjs.org/docs/messages/blocking-prerender-client-hook#allow-blocking-route
                    at Client (app/client-use-search-params/client.tsx:6:18)
                    at Page (app/client-use-search-params/page.tsx:4:10)
                  4 |
@@ -318,13 +320,15 @@ describe('Cache Components Errors - Client Components', () => {
               `)
             } else {
               expect(output).toMatchInlineSnapshot(`
-               "Error: Route "/client-use-search-params": A Client Component used \`useSearchParams()\` outside of \`<Suspense>\`.
+               "Error: Route "/client-use-search-params": Next.js encountered URL data \`useSearchParams()\` in a Client Component outside of \`<Suspense>\`.
 
-               This prevents the route from being prerendered because the value is only available at runtime.
+               This blocks prerendering because the value is only available at runtime.
 
                Ways to fix this:
-                 - [stream] Wrap the Client Component in \`<Suspense fallback={...}>\`
-                   https://nextjs.org/docs/messages/next-prerender-client-hook#wrap-the-client-component-in-suspense
+                 - [stream] Wrap the component in \`<Suspense fallback={...}>\` so the hook value streams in after prerendering
+                   https://nextjs.org/docs/messages/blocking-prerender-client-hook#wrap-in-or-move-into-suspense
+                 - [block] Set \`export const unstable_instant = false\` to silence this warning and allow a blocking route
+                   https://nextjs.org/docs/messages/blocking-prerender-client-hook#allow-blocking-route
                    at <unknown> (app/client-use-search-params/client.tsx:6:3)
                    at body (<anonymous>)
                    at html (<anonymous>)
@@ -350,13 +354,15 @@ describe('Cache Components Errors - Client Components', () => {
               // snapshot is too noisy and webpack is legacy.
             } else {
               expect(output).toMatchInlineSnapshot(`
-               "Error: Route "/client-use-search-params": A Client Component used \`useSearchParams()\` outside of \`<Suspense>\`.
+               "Error: Route "/client-use-search-params": Next.js encountered URL data \`useSearchParams()\` in a Client Component outside of \`<Suspense>\`.
 
-               This prevents the route from being prerendered because the value is only available at runtime.
+               This blocks prerendering because the value is only available at runtime.
 
                Ways to fix this:
-                 - [stream] Wrap the Client Component in \`<Suspense fallback={...}>\`
-                   https://nextjs.org/docs/messages/next-prerender-client-hook#wrap-the-client-component-in-suspense
+                 - [stream] Wrap the component in \`<Suspense fallback={...}>\` so the hook value streams in after prerendering
+                   https://nextjs.org/docs/messages/blocking-prerender-client-hook#wrap-in-or-move-into-suspense
+                 - [block] Set \`export const unstable_instant = false\` to silence this warning and allow a blocking route
+                   https://nextjs.org/docs/messages/blocking-prerender-client-hook#allow-blocking-route
                    at a (<next-dist-dir>)
                    at b (<next-dist-dir>)
                    at c (<next-dist-dir>)
@@ -405,8 +411,8 @@ describe('Cache Components Errors - Client Components', () => {
 
           await expect(browser).toDisplayCollapsedRedbox(`
            {
-             "code": "E1304",
-             "description": "A Client Component used usePathname() outside of <Suspense>.",
+             "code": "E1315",
+             "description": "Next.js encountered URL data usePathname() in a Client Component outside of Suspense.",
              "environmentLabel": "Server",
              "label": "Blocking Route",
              "source": "app/client-use-pathname/[id]/client.tsx (6:14) @ Client
@@ -435,15 +441,15 @@ describe('Cache Components Errors - Client Components', () => {
           if (isTurbopack) {
             if (isDebugPrerender) {
               expect(output).toMatchInlineSnapshot(`
-               "Error: Route "/client-use-pathname/[id]": A Client Component used \`usePathname()\` outside of \`<Suspense>\`.
+               "Error: Route "/client-use-pathname/[id]": Next.js encountered URL data \`usePathname()\` in a Client Component outside of \`<Suspense>\`.
 
-               This prevents the route from being prerendered because the value is only available at runtime.
+               This blocks prerendering because the value is only available at runtime.
 
                Ways to fix this:
-                 - [stream] Wrap the Client Component in \`<Suspense fallback={...}>\`
-                   https://nextjs.org/docs/messages/next-prerender-client-hook#wrap-the-client-component-in-suspense
-                 - [prerender] If the dynamic params are known, prerender them with \`generateStaticParams\`
-                   https://nextjs.org/docs/messages/next-prerender-client-hook#prerender-known-dynamic-params
+                 - [stream] Wrap the component in \`<Suspense fallback={...}>\` so the hook value streams in after prerendering
+                   https://nextjs.org/docs/messages/blocking-prerender-client-hook#wrap-in-or-move-into-suspense
+                 - [block] Set \`export const unstable_instant = false\` to silence this warning and allow a blocking route
+                   https://nextjs.org/docs/messages/blocking-prerender-client-hook#allow-blocking-route
                    at Client (app/client-use-pathname/[id]/client.tsx:6:14)
                    at Page (app/client-use-pathname/[id]/page.tsx:4:10)
                  4 |
@@ -463,15 +469,15 @@ describe('Cache Components Errors - Client Components', () => {
               `)
             } else {
               expect(output).toMatchInlineSnapshot(`
-               "Error: Route "/client-use-pathname/[id]": A Client Component used \`usePathname()\` outside of \`<Suspense>\`.
+               "Error: Route "/client-use-pathname/[id]": Next.js encountered URL data \`usePathname()\` in a Client Component outside of \`<Suspense>\`.
 
-               This prevents the route from being prerendered because the value is only available at runtime.
+               This blocks prerendering because the value is only available at runtime.
 
                Ways to fix this:
-                 - [stream] Wrap the Client Component in \`<Suspense fallback={...}>\`
-                   https://nextjs.org/docs/messages/next-prerender-client-hook#wrap-the-client-component-in-suspense
-                 - [prerender] If the dynamic params are known, prerender them with \`generateStaticParams\`
-                   https://nextjs.org/docs/messages/next-prerender-client-hook#prerender-known-dynamic-params
+                 - [stream] Wrap the component in \`<Suspense fallback={...}>\` so the hook value streams in after prerendering
+                   https://nextjs.org/docs/messages/blocking-prerender-client-hook#wrap-in-or-move-into-suspense
+                 - [block] Set \`export const unstable_instant = false\` to silence this warning and allow a blocking route
+                   https://nextjs.org/docs/messages/blocking-prerender-client-hook#allow-blocking-route
                    at <unknown> (app/client-use-pathname/[id]/client.tsx:6:3)
                    at body (<anonymous>)
                    at html (<anonymous>)
@@ -497,15 +503,15 @@ describe('Cache Components Errors - Client Components', () => {
               // snapshot is too noisy and webpack is legacy.
             } else {
               expect(output).toMatchInlineSnapshot(`
-               "Error: Route "/client-use-pathname/[id]": A Client Component used \`usePathname()\` outside of \`<Suspense>\`.
+               "Error: Route "/client-use-pathname/[id]": Next.js encountered URL data \`usePathname()\` in a Client Component outside of \`<Suspense>\`.
 
-               This prevents the route from being prerendered because the value is only available at runtime.
+               This blocks prerendering because the value is only available at runtime.
 
                Ways to fix this:
-                 - [stream] Wrap the Client Component in \`<Suspense fallback={...}>\`
-                   https://nextjs.org/docs/messages/next-prerender-client-hook#wrap-the-client-component-in-suspense
-                 - [prerender] If the dynamic params are known, prerender them with \`generateStaticParams\`
-                   https://nextjs.org/docs/messages/next-prerender-client-hook#prerender-known-dynamic-params
+                 - [stream] Wrap the component in \`<Suspense fallback={...}>\` so the hook value streams in after prerendering
+                   https://nextjs.org/docs/messages/blocking-prerender-client-hook#wrap-in-or-move-into-suspense
+                 - [block] Set \`export const unstable_instant = false\` to silence this warning and allow a blocking route
+                   https://nextjs.org/docs/messages/blocking-prerender-client-hook#allow-blocking-route
                    at a (<next-dist-dir>)
                    at b (<next-dist-dir>)
                    at c (<next-dist-dir>)

@@ -2,7 +2,6 @@ export type CardColor = 'blue' | 'purple' | 'red' | 'amber' | 'teal' | 'gray'
 
 export type FixCardGroup =
   | 'stream'
-  | 'prerender'
   | 'block'
   | 'cache'
   | 'static'
@@ -30,7 +29,6 @@ export const FIX_CARD_GROUPS: Record<
   { label: string; color: CardColor; icon: FixCardIcon }
 > = {
   stream: { label: 'Stream', color: 'blue', icon: 'align-left' },
-  prerender: { label: 'Prerender', color: 'purple', icon: 'history' },
   block: { label: 'Block', color: 'red', icon: 'loading' },
   cache: { label: 'Cache', color: 'purple', icon: 'database' },
   static: { label: 'Static', color: 'gray', icon: 'zap' },
@@ -51,7 +49,7 @@ export type FixCard = {
   link: string | null
   snippets: Snippet[]
   /**
-   * AI-agent prompt copied when the user presses the "Copy prompt" button on
+   * AI-agent prompt copied when the user presses the "Copy AI prompt" button on
    * the card. Phrased as an instruction the agent can act on directly.
    */
   prompt?: string
@@ -123,41 +121,81 @@ const runtimeCards: FixCard[] = [
       { text: 'export const instant = false', highlight: true },
     ],
     prompt:
-      'Add "export const instant = false" as a top-level export in the page or layout file. This silences the warning for this segment. Confirm with the user that the route is intentionally request-time before applying this change: the export exempts the segment from instant-navigation validation, and the route renders on every request, so navigations to it block until the render completes. If the user wants to keep the navigation instant, choose "Wrap in or move into Suspense" or "Prerender known params" instead.',
+      'Add "export const instant = false" as a top-level export in the page or layout file. This silences the warning for this segment. Confirm with the user that the route is intentionally request-time before applying this change: the export exempts the segment from instant-navigation validation, and the route renders on every request, so navigations to it block until the render completes.',
   },
 ]
 
-const clientHookCards: FixCard[] = [
-  {
-    id: 'wrap-in-or-move-into-suspense',
-    title: 'Wrap in or move into Suspense',
-    group: 'stream',
-    link: 'https://nextjs.org/docs/messages/next-prerender-client-hook#wrap-the-client-component-in-suspense',
-    snippets: [
-      { text: '<Suspense fallback={…}>', highlight: true },
-      { text: '  <ClientComponent />' },
-      { text: '</Suspense>', highlight: true },
-    ],
-    prompt:
-      'Wrap the Client Component that calls the navigation hook in <Suspense>. The fallback prop must render synchronous, deterministic JSX that approximates the final layout. Import Suspense from "react" and place the boundary as close to the Client Component as possible.',
-  },
+const clientHookSuspenseCard: FixCard = {
+  id: 'wrap-in-or-move-into-suspense',
+  title: 'Wrap in or move into Suspense',
+  group: 'stream',
+  link: 'https://nextjs.org/docs/messages/blocking-prerender-client-hook#wrap-in-or-move-into-suspense',
+  snippets: [
+    { text: '<Suspense fallback={…}>', highlight: true },
+    { text: '  <SidebarNav />' },
+    { text: '</Suspense>', highlight: true },
+  ],
+  prompt:
+    'Wrap the component that calls the navigation hook in <Suspense>. The fallback prop must render synchronous, deterministic JSX (no fetch, no awaiting, no Math.random or Date.now) that approximates the final layout. Import Suspense from "react". Do not change the hook call itself. Place the Suspense boundary as close to the hook call as possible so the rest of the route stays in the prerendered static shell.',
+}
+
+const clientHookBlockCard: FixCard = {
+  id: 'allow-blocking-route',
+  title: 'Allow blocking route',
+  group: 'block',
+  link: 'https://nextjs.org/docs/messages/blocking-prerender-client-hook#allow-blocking-route',
+  snippets: [
+    { text: '// page.tsx or layout.tsx' },
+    { text: 'export const instant = false', highlight: true },
+  ],
+  prompt:
+    'Add "export const unstable_instant = false" as a top-level export in the page or layout file. This silences the warning for this segment. Confirm with the user that the route is intentionally request-time before applying this change: the export exempts the segment from instant-navigation validation, and the route renders on every request, so navigations to it block until the render completes.',
+}
+
+const clientHookGspCard: FixCard = {
+  id: 'for-known-params-prerender',
+  title: 'For known params, prerender',
+  group: 'cache',
+  link: 'https://nextjs.org/docs/messages/blocking-prerender-client-hook#for-known-params-prerender',
+  snippets: [
+    {
+      text: 'function generateStaticParams() {',
+      parts: [
+        { text: 'function ' },
+        { text: 'generateStaticParams', highlight: true },
+        { text: '() {' },
+      ],
+    },
+    {
+      text: '  return [{ slug: "…" }]',
+      parts: [
+        { text: '  return ' },
+        { text: '[{ slug: "…" }]', highlight: true },
+      ],
+    },
+    { text: '}' },
+  ],
+  prompt:
+    "Add a generateStaticParams() export to the page or layout that defines the dynamic segment. Return an array of param objects whose keys match the segment's [param] names. On the generated paths, useParams resolves to a build-time constant, and usePathname and useSelectedLayoutSegment(s) (which derive from the URL path) also resolve without needing a Suspense boundary. Does not help useSearchParams, since search params come from the request URL's query string and are not part of segment params. Do not introduce new imports beyond Next.js types. If you can't return at least one known param at build time, use \"Wrap in or move into Suspense\" instead.",
+}
+
+/** useSearchParams: Stream + Block (GSP doesn't apply — search params come from request). */
+const clientHookCardsSearchParams: FixCard[] = [
+  clientHookSuspenseCard,
+  clientHookBlockCard,
 ]
 
-const paramClientHookCards: FixCard[] = [
-  ...clientHookCards,
-  {
-    id: 'prerender-known-dynamic-params',
-    title: 'Prerender known params',
-    group: 'prerender',
-    link: 'https://nextjs.org/docs/messages/next-prerender-client-hook#prerender-known-dynamic-params',
-    snippets: [
-      { text: 'export function generateStaticParams() {' },
-      { text: '  return [{ slug: "…" }]', highlight: true },
-      { text: '}' },
-    ],
-    prompt:
-      'Add generateStaticParams() to the dynamic route segment and return the param values that should be prerendered. Each object key must match a dynamic segment name. Keep a Suspense boundary for paths that are not returned by generateStaticParams.',
-  },
+/** useParams: Stream + GSP + Block. */
+const clientHookCardsWithGsp: FixCard[] = [
+  clientHookSuspenseCard,
+  clientHookGspCard,
+  clientHookBlockCard,
+]
+
+/** usePathname, useSelectedLayoutSegment(s): Stream + Block. */
+const clientHookCardsNoGsp: FixCard[] = [
+  clientHookSuspenseCard,
+  clientHookBlockCard,
 ]
 
 const dynamicCards: FixCard[] = [
@@ -197,7 +235,7 @@ const dynamicCards: FixCard[] = [
       { text: 'export const instant = false', highlight: true },
     ],
     prompt:
-      'Add "export const instant = false" as a top-level export in the page or layout file. This silences the warning for this segment. Confirm with the user that the route is intentionally request-time before applying this change: the export exempts the segment from instant-navigation validation, and the route renders on every request, so navigations to it block until the render completes. If the user wants to keep the navigation instant, choose "Cache the component or data" or "Wrap in or move into Suspense" instead.',
+      'Add "export const instant = false" as a top-level export in the page or layout file. This silences the warning for this segment. Confirm with the user that the route is intentionally request-time before applying this change: the export exempts the segment from instant-navigation validation, and the route renders on every request, so navigations to it block until the render completes.',
   },
 ]
 
@@ -330,7 +368,7 @@ const viewportRuntimeCards: FixCard[] = [
       { text: 'export const instant = false', highlight: true },
     ],
     prompt:
-      'Add "export const unstable_instant = false" as a top-level export in the page or layout file. This silences the warning for this segment. Confirm with the user that the route is intentionally fully dynamic before applying this change: the export exempts the segment from instant-navigation validation, and the route renders on every request. If the user wants to keep the navigation instant, choose "Use static viewport" instead.',
+      'Add "export const unstable_instant = false" as a top-level export in the page or layout file. This silences the warning for this segment. Confirm with the user that the route is intentionally fully dynamic before applying this change: the export exempts the segment from instant-navigation validation, and the route renders on every request.',
   },
 ]
 
@@ -358,7 +396,7 @@ const viewportDynamicCards: FixCard[] = [
       { text: 'export const instant = false', highlight: true },
     ],
     prompt:
-      'Add "export const unstable_instant = false" as a top-level export in the page or layout file. This silences the warning for this segment. Confirm with the user that the route is intentionally fully dynamic before applying this change: the export exempts the segment from instant-navigation validation, and the route renders on every request. If the user wants to keep the navigation instant, choose "Cache the viewport data" instead.',
+      'Add "export const unstable_instant = false" as a top-level export in the page or layout file. This silences the warning for this segment. Confirm with the user that the route is intentionally fully dynamic before applying this change: the export exempts the segment from instant-navigation validation, and the route renders on every request.',
   },
 ]
 
@@ -620,7 +658,8 @@ export type GuidanceVariant = 'runtime' | 'dynamic'
 
 export const DOCS_URLS: Record<GuidanceKind, string> = {
   'blocking-route': 'https://nextjs.org/docs/messages/blocking-route',
-  'client-hook': 'https://nextjs.org/docs/messages/next-prerender-client-hook',
+  'client-hook':
+    'https://nextjs.org/docs/messages/blocking-prerender-client-hook',
   metadata:
     'https://nextjs.org/docs/messages/blocking-prerender-metadata-dynamic',
   viewport:
@@ -691,7 +730,7 @@ export const EXPLANATIONS: Record<GuidanceKind, string> = {
   'blocking-route':
     'This prevents the route from being prerendered, blocking navigation and leading to a slower user experience.',
   'client-hook':
-    'This prevents the route from being prerendered because the value is only available at runtime.',
+    'This blocks prerendering because the value is only available at runtime.',
   metadata:
     "This route's metadata is blocked, but the rest of its content can be prerendered.",
   viewport:
@@ -747,9 +786,9 @@ export function getCards(
     case 'blocking-route':
       return variant === 'dynamic' ? dynamicCards : runtimeCards
     case 'client-hook':
-      return cause === 'useSearchParams()'
-        ? clientHookCards
-        : paramClientHookCards
+      if (cause === 'useSearchParams()') return clientHookCardsSearchParams
+      if (cause === 'useParams()') return clientHookCardsWithGsp
+      return clientHookCardsNoGsp
     case 'metadata':
       return variant === 'runtime' ? metadataRuntimeCards : metadataDynamicCards
     case 'viewport':

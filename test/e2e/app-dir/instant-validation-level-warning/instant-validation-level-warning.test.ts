@@ -60,7 +60,7 @@ describe('instant validation - level warning', () => {
         const browser = await next.browser('/bare')
         await expect(browser).toDisplayCollapsedRedbox(`
          {
-           "code": "E1298",
+           "code": "E1317",
            "description": "Next.js encountered uncached data during a navigation.",
            "environmentLabel": "Server",
            "label": "Instant",
@@ -90,7 +90,7 @@ describe('instant validation - level warning', () => {
                ],
              },
            ],
-           "code": "E1298",
+           "code": "E1317",
            "description": "Next.js encountered uncached data during a navigation.",
            "environmentLabel": "Server",
            "label": "Instant",
@@ -120,7 +120,7 @@ describe('instant validation - level warning', () => {
                ],
              },
            ],
-           "code": "E1298",
+           "code": "E1317",
            "description": "Next.js encountered uncached data during a navigation.",
            "environmentLabel": "Server",
            "label": "Instant",
@@ -150,7 +150,7 @@ describe('instant validation - level warning', () => {
                ],
              },
            ],
-           "code": "E1298",
+           "code": "E1317",
            "description": "Next.js encountered uncached data during a navigation.",
            "environmentLabel": "Server",
            "label": "Instant",
@@ -177,7 +177,7 @@ describe('instant validation - level warning', () => {
         const browser = await next.browser('/layered')
         await expect(browser).toDisplayCollapsedRedbox(`
          {
-           "code": "E1298",
+           "code": "E1317",
            "description": "Next.js encountered uncached data during a navigation.",
            "environmentLabel": "Server",
            "label": "Instant",
@@ -207,10 +207,10 @@ describe('instant validation - level warning', () => {
          \`fetch(...)\` or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered or the navigation from being instant, leading to a slower user experience.
 
          Ways to fix this:
-           - [cache] Cache the data access with \`"use cache"\`
-             https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
            - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
              https://nextjs.org/docs/messages/blocking-prerender-dynamic#wrap-in-or-move-into-suspense
+           - [cache] Cache the data access with \`"use cache"\`
+             https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
            - [block] Set \`export const unstable_instant = false\` to silence this warning and allow a blocking route
              https://nextjs.org/docs/messages/blocking-prerender-dynamic#allow-blocking-route
              at a (<anonymous>)

@@ -284,20 +284,164 @@ describe('getBlockingRouteErrorDetails', () => {
 })
 
 describe('client hook guidance', () => {
-  it('only suggests Suspense for useSearchParams', () => {
-    expect(
-      getCards('client-hook', 'runtime', 'useSearchParams()').map(
-        (card) => card.id
-      )
-    ).toEqual(['wrap-in-or-move-into-suspense'])
+  it('shows Stream and Block cards for useSearchParams', () => {
+    const cards = getCards('client-hook', 'runtime', 'useSearchParams()')
+    expect(cards.map((card) => card.id)).toEqual([
+      'wrap-in-or-move-into-suspense',
+      'allow-blocking-route',
+    ])
+    expect(cards.map((card) => card.group)).toEqual(['stream', 'block'])
   })
 
-  it('also suggests prerendering known params for param-derived hooks', () => {
+  it('shows Stream, GSP, and Block cards for useParams', () => {
+    const cards = getCards('client-hook', 'runtime', 'useParams()')
+    expect(cards.map((card) => card.id)).toEqual([
+      'wrap-in-or-move-into-suspense',
+      'for-known-params-prerender',
+      'allow-blocking-route',
+    ])
+    expect(cards.map((card) => card.group)).toEqual([
+      'stream',
+      'cache',
+      'block',
+    ])
+  })
+
+  it('shows Stream and Block cards for hooks without GSP', () => {
+    const expected = ['wrap-in-or-move-into-suspense', 'allow-blocking-route']
     expect(
-      getCards('client-hook', 'runtime', 'useParams()').map((card) => card.id)
+      getCards('client-hook', 'runtime', 'usePathname()').map((c) => c.id)
+    ).toEqual(expected)
+    expect(
+      getCards('client-hook', 'runtime', 'useSelectedLayoutSegment()').map(
+        (c) => c.id
+      )
+    ).toEqual(expected)
+    expect(
+      getCards('client-hook', 'runtime', 'useSelectedLayoutSegments()').map(
+        (c) => c.id
+      )
+    ).toEqual(expected)
+  })
+})
+
+describe('card sets for all error families', () => {
+  it('blocking-route runtime', () => {
+    expect(
+      getCards('blocking-route', 'runtime').map((card) => card.id)
     ).toEqual([
       'wrap-in-or-move-into-suspense',
-      'prerender-known-dynamic-params',
+      'for-known-params-prerender',
+      'allow-blocking-route',
+    ])
+  })
+
+  it('blocking-route dynamic', () => {
+    expect(
+      getCards('blocking-route', 'dynamic').map((card) => card.id)
+    ).toEqual([
+      'cache-the-component-or-data',
+      'wrap-in-or-move-into-suspense',
+      'allow-blocking-route',
+    ])
+  })
+
+  it('metadata runtime', () => {
+    expect(getCards('metadata', 'runtime').map((card) => card.id)).toEqual([
+      'use-static-metadata',
+      'render-page-at-request-time',
+    ])
+  })
+
+  it('metadata dynamic', () => {
+    expect(getCards('metadata', 'dynamic').map((card) => card.id)).toEqual([
+      'cache-the-metadata',
+      'render-page-at-request-time',
+    ])
+  })
+
+  it('viewport runtime', () => {
+    expect(getCards('viewport', 'runtime').map((card) => card.id)).toEqual([
+      'use-static-viewport',
+      'allow-blocking-route',
+    ])
+  })
+
+  it('viewport dynamic', () => {
+    expect(getCards('viewport', 'dynamic').map((card) => card.id)).toEqual([
+      'cache-viewport-data',
+      'allow-blocking-route',
+    ])
+  })
+
+  it('unrendered-segment', () => {
+    expect(
+      getCards('unrendered-segment', 'runtime').map((card) => card.id)
+    ).toEqual(['render-the-dropped-segment', 'skip-validation-on-the-segment'])
+  })
+
+  it('sync-io math', () => {
+    expect(
+      getCards('sync-io', 'runtime', 'Math.random()').map((card) => card.id)
+    ).toEqual([
+      'render-at-request-time',
+      'cache-the-random-value',
+      'render-on-the-client',
+    ])
+  })
+
+  it('sync-io date', () => {
+    expect(
+      getCards('sync-io', 'runtime', 'Date.now()').map((card) => card.id)
+    ).toEqual([
+      'render-at-request-time',
+      'cache-the-timestamp',
+      'render-on-the-client',
+      'measure-elapsed-time',
+    ])
+  })
+
+  it('sync-io crypto', () => {
+    expect(
+      getCards('sync-io', 'runtime', 'crypto.randomUUID()').map(
+        (card) => card.id
+      )
+    ).toEqual([
+      'render-at-request-time',
+      'cache-the-generated-value',
+      'render-on-the-client',
+    ])
+  })
+
+  it('sync-io-client math', () => {
+    expect(
+      getCards('sync-io-client', 'runtime', 'Math.random()').map(
+        (card) => card.id
+      )
+    ).toEqual([
+      'wrap-in-or-move-into-suspense',
+      'move-into-effect-or-event-handler',
+    ])
+  })
+
+  it('sync-io-client date', () => {
+    expect(
+      getCards('sync-io-client', 'runtime', 'Date.now()').map((card) => card.id)
+    ).toEqual([
+      'wrap-in-or-move-into-suspense',
+      'move-into-effect-or-event-handler',
+      'measure-elapsed-time',
+    ])
+  })
+
+  it('sync-io-client crypto', () => {
+    expect(
+      getCards('sync-io-client', 'runtime', 'crypto.randomUUID()').map(
+        (card) => card.id
+      )
+    ).toEqual([
+      'wrap-in-or-move-into-suspense',
+      'move-into-effect-or-event-handler',
     ])
   })
 })

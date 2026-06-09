@@ -271,7 +271,7 @@ Navigations to this route are not instant. The user waits for the full server re
 
 ### Gotchas
 
-- Setting [`unstable_instant`](/docs/app/api-reference/file-conventions/route-segment-config/instant) to `false` on a layout exempts every route in the subtree, not only the layout itself. Audit child routes before opting a shared layout out.
+- Setting [`unstable_instant`](/docs/app/api-reference/file-conventions/route-segment-config/instant) to `false` opts only the segment that exports it out. Descendant segments are still validated by the global default. See [Don't want this validation?](#dont-want-this-validation) for the subtree-wide opt-out.
 - This export does not disable [prerendering](/docs/app/glossary#prerendering). The route still prerenders if it can. It only silences the instant-navigation validation error.
 
 ## Don't want this validation?
