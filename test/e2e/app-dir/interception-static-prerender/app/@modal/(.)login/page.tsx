@@ -1,3 +1,3 @@
 export default function LoginModal() {
-  return <p id="login-modal">login modal (intercepted)</p>
+  return <p>login modal</p>
 }
