@@ -26,7 +26,7 @@ This guide covers the behavior change, the recommended path for new apps, and th
 | `<Link>` prop                       | Before (Cache Components default)   | After Partial Prefetching                            |
 | ----------------------------------- | ----------------------------------- | ---------------------------------------------------- |
 | `<Link href="/x">`                  | Prefetched the full rendered page.  | Loads the App Shell for `/x`.                        |
-| `<Link href="/x" prefetch>`         | Same as the default.                | Loads the App Shell **and** the cached page content. |
+| `<Link href="/x" prefetch>`         | Prefetched the full rendered page.  | Loads the App Shell **and** the cached page content. |
 | `<Link href="/x" prefetch={false}>` | Disabled prefetching for this link. | Unchanged. Still disabled.                           |
 
 For pages that rely heavily on `use cache`, the cached page content now ships only when a link sets `prefetch={true}`.
