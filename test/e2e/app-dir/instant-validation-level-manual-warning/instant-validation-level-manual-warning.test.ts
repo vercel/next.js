@@ -93,7 +93,7 @@ describe('instant validation - level manual-warning', () => {
                  ],
                },
              ],
-             "code": "E1298",
+             "code": "E1317",
              "description": "Next.js encountered uncached data during a navigation.",
              "environmentLabel": "Server",
              "label": "Instant",
@@ -125,7 +125,7 @@ describe('instant validation - level manual-warning', () => {
                  ],
                },
              ],
-             "code": "E1298",
+             "code": "E1317",
              "description": "Next.js encountered uncached data during a navigation.",
              "environmentLabel": "Server",
              "label": "Instant",
@@ -157,7 +157,7 @@ describe('instant validation - level manual-warning', () => {
                  ],
                },
              ],
-             "code": "E1298",
+             "code": "E1317",
              "description": "Next.js encountered uncached data during a navigation.",
              "environmentLabel": "Server",
              "label": "Instant",
@@ -197,10 +197,10 @@ describe('instant validation - level manual-warning', () => {
            \`fetch(...)\` or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered or the navigation from being instant, leading to a slower user experience.
 
            Ways to fix this:
-             - [cache] Cache the data access with \`"use cache"\`
-               https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
              - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
                https://nextjs.org/docs/messages/blocking-prerender-dynamic#wrap-in-or-move-into-suspense
+             - [cache] Cache the data access with \`"use cache"\`
+               https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
              - [block] Set \`export const unstable_instant = false\` to silence this warning and allow a blocking route
                https://nextjs.org/docs/messages/blocking-prerender-dynamic#allow-blocking-route
                at a (<anonymous>)
@@ -230,7 +230,7 @@ describe('instant validation - level manual-warning', () => {
           // did not run under 'manual-warning'.
           await expect(browser).toDisplayCollapsedRedbox(`
            {
-             "code": "E1290",
+             "code": "E1318",
              "description": "Next.js encountered uncached data during prerendering.",
              "environmentLabel": "Server",
              "label": "Blocking Route",
@@ -250,7 +250,7 @@ describe('instant validation - level manual-warning', () => {
           )
           await expect(browser).toDisplayCollapsedRedbox(`
            {
-             "code": "E1290",
+             "code": "E1318",
              "description": "Next.js encountered uncached data during prerendering.",
              "environmentLabel": "Server",
              "label": "Blocking Route",
@@ -270,7 +270,7 @@ describe('instant validation - level manual-warning', () => {
           )
           await expect(browser).toDisplayCollapsedRedbox(`
            {
-             "code": "E1290",
+             "code": "E1318",
              "description": "Next.js encountered uncached data during prerendering.",
              "environmentLabel": "Server",
              "label": "Blocking Route",
@@ -290,7 +290,7 @@ describe('instant validation - level manual-warning', () => {
           )
           await expect(browser).toDisplayCollapsedRedbox(`
            {
-             "code": "E1290",
+             "code": "E1318",
              "description": "Next.js encountered uncached data during prerendering.",
              "environmentLabel": "Server",
              "label": "Blocking Route",
@@ -336,11 +336,11 @@ describe('instant validation - level manual-warning', () => {
            \`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking the page load and leading to a slower user experience.
 
            Ways to fix this:
-             - [cache] Cache the data access with \`"use cache"\`
-               https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
              - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
                https://nextjs.org/docs/messages/blocking-prerender-dynamic#wrap-in-or-move-into-suspense
-             - [cache] If the runtime data is \`params\` and they're known, prerender them with \`generateStaticParams\`
+             - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\`
+               https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
+             - [cache] For \`params\`: if the params are known, prerender them with \`generateStaticParams\`
                https://nextjs.org/docs/messages/blocking-prerender-runtime#for-known-params-prerender
              - [block] Set \`export const unstable_instant = false\` to silence this warning and allow a blocking route
                https://nextjs.org/docs/messages/blocking-prerender-dynamic#allow-blocking-route
@@ -364,11 +364,11 @@ describe('instant validation - level manual-warning', () => {
            \`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking the page load and leading to a slower user experience.
 
            Ways to fix this:
-             - [cache] Cache the data access with \`"use cache"\`
-               https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
              - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
                https://nextjs.org/docs/messages/blocking-prerender-dynamic#wrap-in-or-move-into-suspense
-             - [cache] If the runtime data is \`params\` and they're known, prerender them with \`generateStaticParams\`
+             - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\`
+               https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
+             - [cache] For \`params\`: if the params are known, prerender them with \`generateStaticParams\`
                https://nextjs.org/docs/messages/blocking-prerender-runtime#for-known-params-prerender
              - [block] Set \`export const unstable_instant = false\` to silence this warning and allow a blocking route
                https://nextjs.org/docs/messages/blocking-prerender-dynamic#allow-blocking-route
@@ -394,11 +394,11 @@ describe('instant validation - level manual-warning', () => {
            \`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking the page load and leading to a slower user experience.
 
            Ways to fix this:
-             - [cache] Cache the data access with \`"use cache"\`
-               https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
              - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
                https://nextjs.org/docs/messages/blocking-prerender-dynamic#wrap-in-or-move-into-suspense
-             - [cache] If the runtime data is \`params\` and they're known, prerender them with \`generateStaticParams\`
+             - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\`
+               https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
+             - [cache] For \`params\`: if the params are known, prerender them with \`generateStaticParams\`
                https://nextjs.org/docs/messages/blocking-prerender-runtime#for-known-params-prerender
              - [block] Set \`export const unstable_instant = false\` to silence this warning and allow a blocking route
                https://nextjs.org/docs/messages/blocking-prerender-dynamic#allow-blocking-route
@@ -428,11 +428,11 @@ describe('instant validation - level manual-warning', () => {
            \`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking the page load and leading to a slower user experience.
 
            Ways to fix this:
-             - [cache] Cache the data access with \`"use cache"\`
-               https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
              - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
                https://nextjs.org/docs/messages/blocking-prerender-dynamic#wrap-in-or-move-into-suspense
-             - [cache] If the runtime data is \`params\` and they're known, prerender them with \`generateStaticParams\`
+             - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\`
+               https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
+             - [cache] For \`params\`: if the params are known, prerender them with \`generateStaticParams\`
                https://nextjs.org/docs/messages/blocking-prerender-runtime#for-known-params-prerender
              - [block] Set \`export const unstable_instant = false\` to silence this warning and allow a blocking route
                https://nextjs.org/docs/messages/blocking-prerender-dynamic#allow-blocking-route

@@ -192,7 +192,7 @@ export async function generateViewport() {
 }
 ```
 
-If viewport genuinely requires runtime data, wrap the document `<body>` in a Suspense boundary to signal that the entire route should be dynamic:
+If viewport genuinely requires runtime data, wrap the document `<body>` in a [`<Suspense>`](https://react.dev/reference/react/Suspense) boundary to signal that the entire route should be dynamic. The shell ships immediately and the document streams in once the viewport resolves:
 
 ```tsx filename="app/layout.tsx" highlight={1,13,17}
 import { Suspense } from 'react'
@@ -216,7 +216,26 @@ export default function RootLayout({ children }) {
 }
 ```
 
-Caching is preferred because it allows static shell generation. Wrapping the document `body` in Suspense means there is no static shell or content to immediately send when a request arrives, making the entire route block until ready on every request.
+Alternatively, opt the segment out of instant-navigation validation with [`unstable_instant = false`](/docs/app/api-reference/file-conventions/route-segment-config/instant). The route renders on every request and the navigation blocks until the render completes:
+
+```tsx filename="app/dashboard/layout.tsx" highlight={1,3}
+import { cookies } from 'next/headers'
+
+export const unstable_instant = false
+
+export async function generateViewport() {
+  const cookieJar = await cookies()
+  return {
+    themeColor: cookieJar.get('theme-color')?.value,
+  }
+}
+
+export default function DashboardLayout({ children }) {
+  return <section>{children}</section>
+}
+```
+
+Setting `unstable_instant = false` opts only the segment that exports it out. Descendant segments are still validated by the global default. See [Next.js encountered runtime data in `generateViewport()`](/docs/messages/blocking-prerender-viewport-runtime) for the full set of fix options, trade-offs, and the subtree-wide opt-out.
 
 > **Good to know**: Use [multiple root layouts](/docs/app/api-reference/file-conventions/layout#root-layout) to isolate fully dynamic viewport to specific routes, while still letting other routes in your application generate a static shell.
 

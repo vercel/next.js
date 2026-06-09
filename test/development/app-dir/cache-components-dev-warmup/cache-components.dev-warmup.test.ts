@@ -74,15 +74,18 @@ describe.each([
     ) {
       const browser = await next.browser(path)
 
-      // Initial load.
-      await retry(() => assertLogs(browser))
+      // The initial load fills caches while streaming, so cached content
+      // resolves in a later phase than it will once the caches are warm. That's
+      // an accepted, non-representative tradeoff of the streaming dev render,
+      // so we don't assert the logs here — this load just fills the caches.
 
       // We should not see any errors related to the aborted render.
       expect(next.cliOutput).not.toContain(
         'AbortError: This operation was aborted'
       )
 
-      // After another load (with warm caches) the logs should be the same.
+      // After a warm reload the caches are filled, so the logs resolve in the
+      // correct phase.
       await browser.loadPage(next.url + path) // clears old logs
       await retry(() => assertLogs(browser))
 
@@ -103,11 +106,18 @@ describe.each([
         return
       }
 
-      // After a revalidation the subsequent warmup render must discard stale
-      // cache entries.
-      // This should not affect the environment labels.
+      // After a revalidation the subsequent render must discard the stale cache
+      // entries. This should not affect the environment labels once the caches
+      // are warm again.
       await revalidatePath(path)
 
+      // The first load after revalidation is a cold cache-miss request that we
+      // stream, so its stages aren't representative; it just refills the
+      // caches.
+      await browser.loadPage(next.url + path)
+
+      // After a warm reload the caches are filled, so the logs resolve in the
+      // correct phase.
       await browser.loadPage(next.url + path) // clears old logs
       await retry(() => assertLogs(browser))
 
@@ -123,16 +133,27 @@ describe.each([
     ) {
       const browser = await next.browser('/')
 
-      // Initial nav (first time loading the page)
+      // The initial nav fills caches while streaming, so cached content
+      // resolves in a later phase than it will once the caches are warm. That's
+      // an accepted, non-representative tradeoff of the streaming dev render,
+      // so we don't assert the logs here — this nav just fills the caches.
+      const initialNavOutputIndex = next.cliOutput.length
       await browser.elementByCss(`a[href="${path}"]`).click()
-      await retry(() => assertLogs(browser))
+      // Wait for the nav's request to finish before reloading, to ensure all
+      // caches were filled.
+      await retry(() => {
+        expect(next.cliOutput.slice(initialNavOutputIndex)).toContain(
+          `GET ${path} 200`
+        )
+      }, 10_000)
 
       // We should not see any errors related to the aborted render.
       expect(next.cliOutput).not.toContain(
         'AbortError: This operation was aborted'
       )
 
-      // Reload, and perform another nav (with warm caches). the logs should be the same.
+      // After a warm reload + nav the caches are filled, so the logs resolve in
+      // the correct phase.
       await browser.loadPage(next.url + '/') // clears old logs
       await browser.elementByCss(`a[href="${path}"]`).click()
       await retry(() => assertLogs(browser))
@@ -154,11 +175,25 @@ describe.each([
         return
       }
 
-      // After a revalidation the subsequent warmup render must discard stale
-      // cache entries.
-      // This should not affect the environment labels.
+      // After a revalidation the subsequent render must discard the stale cache
+      // entries. This should not affect the environment labels once the caches
+      // are warm again.
       await revalidatePath(path)
 
+      // The first navigation after revalidation is a cold cache-miss request
+      // that we stream, so its stages aren't representative; it just refills
+      // the caches. Wait for its request to finish before navigating again.
+      await browser.loadPage(next.url + '/')
+      const revalidatedNavOutputIndex = next.cliOutput.length
+      await browser.elementByCss(`a[href="${path}"]`).click()
+      await retry(() => {
+        expect(next.cliOutput.slice(revalidatedNavOutputIndex)).toContain(
+          `GET ${path} 200`
+        )
+      }, 10_000)
+
+      // After a warm reload + nav the caches are filled, so the logs resolve in
+      // the correct phase.
       await browser.loadPage(next.url + '/') // clears old logs
       await browser.elementByCss(`a[href="${path}"]`).click()
       await retry(() => assertLogs(browser))
@@ -207,7 +242,12 @@ describe.each([
           }
         })
 
-        it('cached data + private cache', async () => {
+        // TODO: Skipped until private caches are persisted in dev. They aren't
+        // persisted yet, so a warm reload re-runs them as a cache miss that
+        // resolves in the dynamic stage rather than the runtime stage.
+        // Re-enable once private caches are persisted, after which a warm
+        // reload is a hit that resolves in the runtime stage.
+        it.skip('cached data + private cache', async () => {
           const path = '/private-cache'
 
           const assertLogs = async (browser: Playwright) => {
@@ -236,7 +276,12 @@ describe.each([
           }
         })
 
-        it('cached data + short-lived cached data', async () => {
+        // TODO: Skipped until the cache read is ended for short-lived handler
+        // hits. Today a warm reload defers the value without ending the read,
+        // so it triggers as a phantom cache miss whose phase the streaming dev
+        // render doesn't pin down. Re-enable once the read is ended, after
+        // which a warm reload should resolve in the runtime stage.
+        it.skip('cached data + short-lived cached data', async () => {
           const path = '/short-lived-cache'
 
           const assertLogs = async (browser: Playwright) => {

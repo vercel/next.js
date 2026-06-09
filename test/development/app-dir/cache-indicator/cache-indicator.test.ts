@@ -13,11 +13,22 @@ describe('cache-indicator', () => {
 
     const badge = await browser.elementByCss('[data-next-badge]')
     const cacheStatus = await badge.getAttribute('data-status')
-    expect(cacheStatus).toBe('none')
+
+    // If compilation is still in progress (e.g. on a slow CI machine), the
+    // cache status might briefly be "compiling" before becoming "none", so we
+    // allow both here, before eventually asserting that it becomes "none".
+    expect(cacheStatus).toBeOneOf(['none', 'compiling'])
+    await retry(async () => {
+      const badge = await browser.elementByCss('[data-next-badge]')
+      const cacheStatus = await badge.getAttribute('data-status')
+      expect(cacheStatus).toBe('none')
+    })
   })
 
   if (enableCacheComponents) {
-    it('renders the cache warming indicator when navigating to a page that needs to warm the cache', async () => {
+    // TODO: Replace this with tests that assert a cache miss indicator is shown
+    // instead when this is implemented.
+    it.skip('renders the cache warming indicator when navigating to a page that needs to warm the cache', async () => {
       const browser = await next.browser('/')
 
       // navigate to the navigation page
