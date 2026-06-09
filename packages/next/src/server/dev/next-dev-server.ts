@@ -493,6 +493,9 @@ export default class DevServer extends Server {
       const { req, res, page } = params
 
       res.statusCode = 500
+      if (params.isAppPath) {
+        addRequestMeta(req, 'isAppRouteError', true)
+      }
       await this.renderError(err, req, res, page)
       return null
     }
@@ -629,6 +632,14 @@ export default class DevServer extends Server {
       this.logErrorWithOriginalStack(err)
       if (!res.sent) {
         res.statusCode = 500
+        // Tag the request as an App Router error so the error response
+        // uses the in-memory __next_error__ shell instead of Pages Router.
+        if (
+          this.enabledDirectories.app &&
+          Array.isArray(this.getOriginalAppPaths(pathname!))
+        ) {
+          addRequestMeta(req, 'isAppRouteError', true)
+        }
         try {
           return await this.renderError(err, req, res, pathname!, {
             __NEXT_PAGE: (isError(err) && err.page) || pathname || '',
@@ -1036,6 +1047,12 @@ export default class DevServer extends Server {
   protected async getFallbackErrorComponents(
     url?: string
   ): Promise<LoadComponentsReturnType<ErrorModule> | null> {
+    // For app-router-only projects, skip the Pages Router fallback error
+    // infrastructure entirely. The caller in renderErrorToResponseImpl will
+    // use the in-memory __next_error__ HTML shell instead.
+    if (this.enabledDirectories.app && !this.enabledDirectories.pages) {
+      return null
+    }
     await this.bundlerService.getFallbackErrorComponents(url)
     return await loadDefaultErrorComponents(this.distDir)
   }

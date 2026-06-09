@@ -346,6 +346,14 @@ export type ClientInstrumentationHooks = {
   ) => void
 }
 
+// When the dev error shell is served, this holds the error parsed from
+// the <template> tag. The caller (app-next-dev.ts) reads it after
+// hydrate() returns to dispatch to the dev overlay.
+let _pendingShellError: Error | null = null
+export function getPendingShellError(): Error | null {
+  return _pendingShellError
+}
+
 export async function hydrate(
   instrumentationHooks: ClientInstrumentationHooks | null,
   assetPrefix: string
@@ -359,6 +367,42 @@ export async function hydrate(
 
     staticIndicatorState = { pathname: null, appIsrManifest: null }
     webSocket = createWebSocket(assetPrefix, staticIndicatorState)
+
+    if (document.documentElement.id === '__next_dev_error_shell__') {
+      // Dev error page served from the in-memory error shell.
+      // No real RSC payload exists and the full App Router machinery
+      // (ServerRoot, AppRouter, etc.) would crash without valid router
+      // state. Instead, we skip mounting the React tree entirely.
+      // The WebSocket is already connected so HMR can deliver
+      // build/runtime errors. The overlay itself is mounted independently
+      // by renderAppDevOverlay() in the bootstrap's finally block.
+      //
+      // Note: this is distinct from __next_error__ which is used by
+      // app-render.tsx for SSR errors that have valid RSC payloads.
+      //
+      // Store the error from the <template> tag so the caller
+      // (app-next-dev.ts) can dispatch it to the dev overlay after
+      // mounting. We can't dispatch here because the HotReloader never
+      // mounts in this shell and handleClientError wouldn't reach the
+      // overlay, and the dev overlay hasn't been rendered yet.
+      const ssrErrorTemplate = document.querySelector(
+        'template[data-next-error-message]'
+      )
+      if (ssrErrorTemplate) {
+        const message = ssrErrorTemplate.getAttribute(
+          'data-next-error-message'
+        )!
+        const stack = ssrErrorTemplate.getAttribute('data-next-error-stack')
+        const digest = ssrErrorTemplate.getAttribute('data-next-error-digest')
+        const error = new Error(message)
+        if (digest) {
+          ;(error as any).digest = digest
+        }
+        error.stack = stack || ''
+        _pendingShellError = error
+      }
+      return
+    }
   }
   const initialRSCPayload = await initialServerResponse
 

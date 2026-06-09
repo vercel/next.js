@@ -9,7 +9,8 @@ window.next.turbopack = true
 const instrumentationHooks = require('../lib/require-instrumentation-client')
 
 appBootstrap((assetPrefix) => {
-  const { hydrate } = require('./app-index') as typeof import('./app-index')
+  const { hydrate, getPendingShellError } =
+    require('./app-index') as typeof import('./app-index')
   try {
     hydrate(instrumentationHooks, assetPrefix)
   } finally {
@@ -17,13 +18,22 @@ appBootstrap((assetPrefix) => {
       const enableCacheIndicator = process.env.__NEXT_CACHE_COMPONENTS
       const { getOwnerStack } =
         require('../next-devtools/userspace/app/errors/stitched-error') as typeof import('../next-devtools/userspace/app/errors/stitched-error')
-      const { renderAppDevOverlay } =
+      const { dispatcher, renderAppDevOverlay } =
         require('next/dist/compiled/next-devtools') as typeof import('next/dist/compiled/next-devtools')
       renderAppDevOverlay(
         getOwnerStack,
         isRecoverableError,
         enableCacheIndicator
       )
+
+      // If the dev error shell was served, dispatch the embedded error to the
+      // overlay after mounting it, and open the error overlay automatically
+      // (app router defaults to overlay closed).
+      const shellError = getPendingShellError()
+      if (shellError) {
+        dispatcher.onUnhandledError(shellError)
+        dispatcher.openErrorOverlay()
+      }
     }
   }
 })

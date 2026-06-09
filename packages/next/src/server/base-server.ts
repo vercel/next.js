@@ -2835,6 +2835,32 @@ export default abstract class Server<
         body: RenderResult.EMPTY,
       }
     }
+
+    // In dev mode, for App Router requests with real errors (compilation or
+    // SSR crashes — NOT 404s), serve an in-memory HTML shell instead of going
+    // through the Pages Router _error/_app/_document rendering pipeline.
+    // 404s must flow through to the normal not-found handling below.
+    if (this.dev && err != null && this.enabledDirectories.app) {
+      // For app-only projects we always use the in-memory shell.
+      // For mixed projects we auto-detect whether the failing route is an
+      // App Router route, so callers don't need to explicitly tag requests.
+      const isAppRoute =
+        !this.enabledDirectories.pages ||
+        getRequestMeta(ctx.req, 'isAppRouteError') ||
+        this.getOriginalAppPaths(ctx.pathname) != null
+      if (isAppRoute) {
+        const { buildAppRouterDevErrorHtml } =
+          require('./dev/build-dev-error-html') as typeof import('./dev/build-dev-error-html')
+        return {
+          body: await buildAppRouterDevErrorHtml(
+            this.distDir,
+            this.nextConfig.assetPrefix ?? '',
+            err
+          ),
+        }
+      }
+    }
+
     const { res, query } = ctx
 
     try {
