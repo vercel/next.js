@@ -170,7 +170,7 @@ impl NextDynamicGraph {
                 }
                 Either::Left(std::iter::once(entry))
             } else {
-                Either::Right(graph.graphs.first().unwrap().entry_modules())
+                Either::Right(graph.graphs.first().unwrap().chunk_group_modules())
             };
 
             let mut result = vec![];
@@ -557,7 +557,7 @@ impl ClientReferencesGraph {
                 }
                 Either::Left(std::iter::once(entry))
             } else {
-                Either::Right(graph.graphs.first().unwrap().entry_modules())
+                Either::Right(graph.graphs.first().unwrap().chunk_group_modules())
             };
 
             // Because we care about 'evaluation order' we need to collect client references in the
@@ -784,7 +784,7 @@ async fn validate_pages_css_imports_individual(
         }
         Either::Left(std::iter::once(entry))
     } else {
-        Either::Right(graph.graphs.first().unwrap().entry_modules())
+        Either::Right(graph.graphs.first().unwrap().chunk_group_modules())
     };
 
     let mut candidates = vec![];

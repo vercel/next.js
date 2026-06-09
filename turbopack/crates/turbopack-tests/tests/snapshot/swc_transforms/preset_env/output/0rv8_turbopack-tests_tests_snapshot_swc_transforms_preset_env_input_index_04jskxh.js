@@ -8,18 +8,17 @@ if (!Array.isArray(globalThis["TURBOPACK"])) {
 }
 
 var CHUNK_BASE_PATH = "";
-var WORKER_BASE_PATH = null;
 var RELATIVE_ROOT_PATH = "../../../../../../..";
 var RUNTIME_PUBLIC_PATH = "";
 var ASSET_SUFFIX = "";
 var CROSS_ORIGIN = null;
-var WORKER_FORWARDED_GLOBALS = [];
 /**
  * This file contains runtime types and functions that are shared between all
  * TurboPack ECMAScript runtimes.
  *
  * It will be prepended to the runtime code of each runtime.
  */ /* eslint-disable @typescript-eslint/no-unused-vars */ /// <reference path="./runtime-types.d.ts" />
+/// <reference path="./async-module.ts" />
 function asyncGeneratorStep(gen, resolve, reject, _next, _throw, key, arg) {
     try {
         var info = gen[key](arg);
@@ -48,19 +47,6 @@ function _async_to_generator(fn) {
             _next(undefined);
         });
     };
-}
-function _define_property(obj, key, value) {
-    if (key in obj) {
-        Object.defineProperty(obj, key, {
-            value: value,
-            enumerable: true,
-            configurable: true,
-            writable: true
-        });
-    } else {
-        obj[key] = value;
-    }
-    return obj;
 }
 function _type_of(obj) {
     "@swc/helpers - typeof";
@@ -592,25 +578,6 @@ contextPrototype.f = moduleContext;
  */ function getChunkPath(chunkData) {
     return typeof chunkData === 'string' ? chunkData : chunkData.path;
 }
-function isPromise(maybePromise) {
-    return maybePromise != null && (typeof maybePromise === "undefined" ? "undefined" : _type_of(maybePromise)) === 'object' && 'then' in maybePromise && typeof maybePromise.then === 'function';
-}
-function isAsyncModuleExt(obj) {
-    return turbopackQueues in obj;
-}
-function createPromise() {
-    var resolve;
-    var reject;
-    var promise = new Promise(function(res, rej) {
-        reject = rej;
-        resolve = res;
-    });
-    return {
-        promise: promise,
-        resolve: resolve,
-        reject: reject
-    };
-}
 // Load the CompressedmoduleFactories of a chunk into the `moduleFactories` Map.
 // The CompressedModuleFactories format is
 // - 1 or more module ids
@@ -660,116 +627,6 @@ function installCompressedModuleFactories(chunkModules, offset, moduleFactories,
         i = end + 1; // end is pointing at the last factory advance to the next id or the end of the array.
     }
 }
-// everything below is adapted from webpack
-// https://github.com/webpack/webpack/blob/6be4065ade1e252c1d8dcba4af0f43e32af1bdc1/lib/runtime/AsyncModuleRuntimeModule.js#L13
-var turbopackQueues = Symbol('turbopack queues');
-var turbopackExports = Symbol('turbopack exports');
-var turbopackError = Symbol('turbopack error');
-function resolveQueue(queue) {
-    if (queue && queue.status !== 1) {
-        queue.status = 1;
-        queue.forEach(function(fn) {
-            return fn.queueCount--;
-        });
-        queue.forEach(function(fn) {
-            return fn.queueCount-- ? fn.queueCount++ : fn();
-        });
-    }
-}
-function wrapDeps(deps) {
-    return deps.map(function(dep) {
-        if (dep !== null && (typeof dep === "undefined" ? "undefined" : _type_of(dep)) === 'object') {
-            if (isAsyncModuleExt(dep)) return dep;
-            if (isPromise(dep)) {
-                var queue = Object.assign([], {
-                    status: 0
-                });
-                var _obj;
-                var obj = (_obj = {}, _define_property(_obj, turbopackExports, {}), _define_property(_obj, turbopackQueues, function(fn) {
-                    return fn(queue);
-                }), _obj);
-                dep.then(function(res) {
-                    obj[turbopackExports] = res;
-                    resolveQueue(queue);
-                }, function(err) {
-                    obj[turbopackError] = err;
-                    resolveQueue(queue);
-                });
-                return obj;
-            }
-        }
-        var _obj1;
-        return _obj1 = {}, _define_property(_obj1, turbopackExports, dep), _define_property(_obj1, turbopackQueues, function() {}), _obj1;
-    });
-}
-function asyncModule(body, hasAwait) {
-    var module = this.m;
-    var queue = hasAwait ? Object.assign([], {
-        status: -1
-    }) : undefined;
-    var depQueues = new Set();
-    var _createPromise = createPromise(), resolve = _createPromise.resolve, reject = _createPromise.reject, rawPromise = _createPromise.promise;
-    var _obj;
-    var promise = Object.assign(rawPromise, (_obj = {}, _define_property(_obj, turbopackExports, module.exports), _define_property(_obj, turbopackQueues, function(fn) {
-        queue && fn(queue);
-        depQueues.forEach(fn);
-        promise['catch'](function() {});
-    }), _obj));
-    var attributes = {
-        get: function get() {
-            return promise;
-        },
-        set: function set(v) {
-            // Calling `esmExport` leads to this.
-            if (v !== promise) {
-                promise[turbopackExports] = v;
-            }
-        }
-    };
-    Object.defineProperty(module, 'exports', attributes);
-    Object.defineProperty(module, 'namespaceObject', attributes);
-    function handleAsyncDependencies(deps) {
-        var currentDeps = wrapDeps(deps);
-        var getResult = function getResult() {
-            return currentDeps.map(function(d) {
-                if (d[turbopackError]) throw d[turbopackError];
-                return d[turbopackExports];
-            });
-        };
-        var _createPromise = createPromise(), promise = _createPromise.promise, resolve = _createPromise.resolve;
-        var fn = Object.assign(function() {
-            return resolve(getResult);
-        }, {
-            queueCount: 0
-        });
-        function fnQueue(q) {
-            if (q !== queue && !depQueues.has(q)) {
-                depQueues.add(q);
-                if (q && q.status === 0) {
-                    fn.queueCount++;
-                    q.push(fn);
-                }
-            }
-        }
-        currentDeps.map(function(dep) {
-            return dep[turbopackQueues](fnQueue);
-        });
-        return fn.queueCount ? promise : getResult();
-    }
-    function asyncResult(err) {
-        if (err) {
-            reject(promise[turbopackError] = err);
-        } else {
-            resolve(promise[turbopackExports]);
-        }
-        resolveQueue(queue);
-    }
-    body(handleAsyncDependencies, asyncResult);
-    if (queue && queue.status === -1) {
-        queue.status = 0;
-    }
-}
-contextPrototype.a = asyncModule;
 /**
  * A pseudo "fake" URL object to resolve to its relative path.
  *
@@ -877,58 +734,6 @@ function _async_to_generator(fn) {
             _next(undefined);
         });
     };
-}
-function _define_property(obj, key, value) {
-    if (key in obj) {
-        Object.defineProperty(obj, key, {
-            value: value,
-            enumerable: true,
-            configurable: true,
-            writable: true
-        });
-    } else {
-        obj[key] = value;
-    }
-    return obj;
-}
-function _object_spread(target) {
-    for(var i = 1; i < arguments.length; i++){
-        var source = arguments[i] != null ? arguments[i] : {};
-        var ownKeys = Object.keys(source);
-        if (typeof Object.getOwnPropertySymbols === "function") {
-            ownKeys = ownKeys.concat(Object.getOwnPropertySymbols(source).filter(function(sym) {
-                return Object.getOwnPropertyDescriptor(source, sym).enumerable;
-            }));
-        }
-        ownKeys.forEach(function(key) {
-            _define_property(target, key, source[key]);
-        });
-    }
-    return target;
-}
-function ownKeys(object, enumerableOnly) {
-    var keys = Object.keys(object);
-    if (Object.getOwnPropertySymbols) {
-        var symbols = Object.getOwnPropertySymbols(object);
-        if (enumerableOnly) {
-            symbols = symbols.filter(function(sym) {
-                return Object.getOwnPropertyDescriptor(object, sym).enumerable;
-            });
-        }
-        keys.push.apply(keys, symbols);
-    }
-    return keys;
-}
-function _object_spread_props(target, source) {
-    source = source != null ? source : {};
-    if (Object.getOwnPropertyDescriptors) {
-        Object.defineProperties(target, Object.getOwnPropertyDescriptors(source));
-    } else {
-        ownKeys(Object(source)).forEach(function(key) {
-            Object.defineProperty(target, key, Object.getOwnPropertyDescriptor(source, key));
-        });
-    }
-    return target;
 }
 function _ts_generator(thisArg, body) {
     var f, y, t, _ = {
@@ -1292,68 +1097,6 @@ browserContextPrototype.F = resolveFileUrl;
 }
 browserContextPrototype.q = exportUrl;
 /**
- * Creates a worker by instantiating the given WorkerConstructor with the
- * appropriate URL and options.
- *
- * The entrypoint is a pre-compiled worker runtime file. The params configure
- * which module chunks to load and which module to run as the entry point.
- *
- * The params are a JSON array of the following structure:
- * `[TURBOPACK_NEXT_CHUNK_URLS, ASSET_SUFFIX, ...WORKER_FORWARDED_GLOBALS values]`
- *
- * @param WorkerConstructor The Worker or SharedWorker constructor
- * @param entrypoint URL path to the worker entrypoint chunk
- * @param moduleChunks list of module chunk paths to load
- * @param workerOptions options to pass to the Worker constructor (optional)
- */ function createWorker(WorkerConstructor, entrypoint, moduleChunks, workerOptions) {
-    var isSharedWorker = WorkerConstructor.name === 'SharedWorker';
-    // `WORKER_BASE_PATH` overrides `CHUNK_BASE_PATH` for the entrypoint and the
-    // module chunks loaded inside the worker, keeping them same-origin to each
-    // other when `CHUNK_BASE_PATH` (= `assetPrefix`) is a cross-origin CDN.
-    // `null` falls back; an empty string is treated as a literal empty prefix.
-    var workerBasePath = WORKER_BASE_PATH !== null && WORKER_BASE_PATH !== void 0 ? WORKER_BASE_PATH : CHUNK_BASE_PATH;
-    var chunkUrls = moduleChunks.map(function(chunk) {
-        return getChunkRelativeUrl(chunk, workerBasePath);
-    }).reverse();
-    var params = [
-        chunkUrls,
-        ASSET_SUFFIX
-    ];
-    var _iteratorNormalCompletion = true, _didIteratorError = false, _iteratorError = undefined;
-    try {
-        for(var _iterator = WORKER_FORWARDED_GLOBALS[Symbol.iterator](), _step; !(_iteratorNormalCompletion = (_step = _iterator.next()).done); _iteratorNormalCompletion = true){
-            var globalName = _step.value;
-            params.push(globalThis[globalName]);
-        }
-    } catch (err) {
-        _didIteratorError = true;
-        _iteratorError = err;
-    } finally{
-        try {
-            if (!_iteratorNormalCompletion && _iterator.return != null) {
-                _iterator.return();
-            }
-        } finally{
-            if (_didIteratorError) {
-                throw _iteratorError;
-            }
-        }
-    }
-    var url = new URL(getChunkRelativeUrl(entrypoint, workerBasePath), location.origin);
-    var paramsJson = JSON.stringify(params);
-    if (isSharedWorker) {
-        url.searchParams.set('params', paramsJson);
-    } else {
-        url.hash = '#params=' + encodeURIComponent(paramsJson);
-    }
-    // Remove type: "module" from options since our worker entrypoint is not a module
-    var options = workerOptions ? _object_spread_props(_object_spread({}, workerOptions), {
-        type: undefined
-    }) : undefined;
-    return new WorkerConstructor(url, options);
-}
-browserContextPrototype.b = createWorker;
-/**
  * Instantiates a runtime module.
  */ function instantiateRuntimeModule(moduleId, chunkPath) {
     return instantiateModule(moduleId, SourceType.Runtime, chunkPath);
@@ -1366,6 +1109,13 @@ browserContextPrototype.b = createWorker;
         return encodeURIComponent(p);
     }).join('/')}${ASSET_SUFFIX}`;
 }
+// Shared runtime primitives consumed by the bundled `createWorker` helper,
+// exposed as `__turbopack_chunk_base_path__` and `__turbopack_chunk_asset_suffix__`.
+browserContextPrototype.b = CHUNK_BASE_PATH;
+browserContextPrototype.X = ASSET_SUFFIX;
+// Shared runtime primitive: build a chunk's URL. Used by the bundled worker
+// helper and the WASM helper, exposed as `__turbopack_chunk_relative_url__`.
+browserContextPrototype.h = getChunkRelativeUrl;
 function getPathFromScript(chunkScript) {
     if (typeof chunkScript === 'string') {
         return chunkScript;
@@ -1426,14 +1176,6 @@ function isJs(chunkUrlOrPath) {
 function isCss(chunkUrl) {
     return endsWithExtension(chunkUrl, '.css');
 }
-function loadWebAssembly(chunkPath, edgeModule, importsObj) {
-    return BACKEND.loadWebAssembly(SourceType.Parent, this.m.id, chunkPath, edgeModule, importsObj);
-}
-contextPrototype.w = loadWebAssembly;
-function loadWebAssemblyModule(chunkPath, edgeModule) {
-    return BACKEND.loadWebAssemblyModule(SourceType.Parent, this.m.id, chunkPath, edgeModule);
-}
-contextPrototype.u = loadWebAssemblyModule;
 /// <reference path="./runtime-base.ts" />
 /// <reference path="./dummy.ts" />
 var moduleCache = {};
@@ -1735,47 +1477,6 @@ var BACKEND;
      * has been loaded.
      */ loadChunkCached: function loadChunkCached(sourceType, chunkUrl) {
             return doLoadChunk(sourceType, chunkUrl);
-        },
-        loadWebAssembly: function loadWebAssembly(_sourceType, _sourceData, wasmChunkPath, _edgeModule, importsObj) {
-            return _async_to_generator(function() {
-                var req, instance;
-                return _ts_generator(this, function(_state) {
-                    switch(_state.label){
-                        case 0:
-                            req = fetchWebAssembly(wasmChunkPath);
-                            return [
-                                4,
-                                WebAssembly.instantiateStreaming(req, importsObj)
-                            ];
-                        case 1:
-                            instance = _state.sent().instance;
-                            return [
-                                2,
-                                instance.exports
-                            ];
-                    }
-                });
-            })();
-        },
-        loadWebAssemblyModule: function loadWebAssemblyModule(_sourceType, _sourceData, wasmChunkPath, _edgeModule) {
-            return _async_to_generator(function() {
-                var req;
-                return _ts_generator(this, function(_state) {
-                    switch(_state.label){
-                        case 0:
-                            req = fetchWebAssembly(wasmChunkPath);
-                            return [
-                                4,
-                                WebAssembly.compileStreaming(req)
-                            ];
-                        case 1:
-                            return [
-                                2,
-                                _state.sent()
-                            ];
-                    }
-                });
-            })();
         }
     };
     function getOrCreateResolver(chunkUrl) {
@@ -1904,9 +1605,6 @@ var BACKEND;
         }
         resolver.loadingStarted = true;
         return resolver.promise;
-    }
-    function fetchWebAssembly(wasmChunkPath) {
-        return fetch(getChunkRelativeUrl(wasmChunkPath));
     }
 })();
 var chunksToRegister = globalThis["TURBOPACK"];

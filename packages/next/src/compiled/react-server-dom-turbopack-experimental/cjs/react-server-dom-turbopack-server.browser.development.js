@@ -21,7 +21,7 @@
         throw error;
       });
     }
-    function writeChunkAndReturn(destination, chunk) {
+    function writeChunk(destination, chunk) {
       if (0 !== chunk.byteLength)
         if (2048 < chunk.byteLength)
           0 < writtenBytes &&
@@ -47,6 +47,9 @@
           currentView.set(chunk, writtenBytes);
           writtenBytes += chunk.byteLength;
         }
+    }
+    function writeChunkAndReturn(destination, chunk) {
+      writeChunk(destination, chunk);
       return !0;
     }
     function completeWriting(destination) {
@@ -2914,8 +2917,16 @@
       id = id.toString(16) + ":" + tag + tainted.toString(16) + ",";
       id = stringToChunk(id);
       debug
-        ? request.completedDebugChunks.push(id, typedArray)
-        : request.completedRegularChunks.push(id, typedArray);
+        ? request.completedDebugChunks.push(
+            NEXT_TWO_CHUNKS_ARE_ATOMIC,
+            id,
+            typedArray
+          )
+        : request.completedRegularChunks.push(
+            NEXT_TWO_CHUNKS_ARE_ATOMIC,
+            id,
+            typedArray
+          );
     }
     function emitTextChunk(request, id, text, debug) {
       if (null === byteLengthOfChunk)
@@ -2928,8 +2939,16 @@
       id = id.toString(16) + ":T" + binaryLength.toString(16) + ",";
       id = stringToChunk(id);
       debug
-        ? request.completedDebugChunks.push(id, text)
-        : request.completedRegularChunks.push(id, text);
+        ? request.completedDebugChunks.push(
+            NEXT_TWO_CHUNKS_ARE_ATOMIC,
+            id,
+            text
+          )
+        : request.completedRegularChunks.push(
+            NEXT_TWO_CHUNKS_ARE_ATOMIC,
+            id,
+            text
+          );
     }
     function renderDebugModel(
       request,
@@ -3225,6 +3244,12 @@
         return value;
       }
       if ("string" === typeof value) {
+        if (1e6 < value.length)
+          return (
+            "This string of length " +
+            value.length +
+            " has been omitted by React to avoid sending too much data from the server."
+          );
         if (1024 <= value.length) {
           if (0 >= counter.objectLimit)
             return serializeDeferredObject(request, value);
@@ -3668,9 +3693,20 @@
             var debugChunks = request.completedDebugChunks, i = 0;
             i < debugChunks.length;
             i++
-          )
-            request.pendingDebugChunks--,
-              writeChunkAndReturn(debugDestination, debugChunks[i]);
+          ) {
+            var item = debugChunks[i];
+            if (item === NEXT_TWO_CHUNKS_ARE_ATOMIC) {
+              if (i + 2 >= debugChunks.length)
+                throw Error(
+                  "A chunk pair is incomplete. This is a bug in React."
+                );
+              request.pendingDebugChunks -= 2;
+              writeChunk(debugDestination, debugChunks[i + 1]);
+              writeChunk(debugDestination, debugChunks[i + 2]);
+              i += 2;
+            } else
+              request.pendingDebugChunks--, writeChunk(debugDestination, item);
+          }
           debugChunks.splice(0, i);
         } finally {
           completeWriting(debugDestination);
@@ -3715,18 +3751,33 @@
               debugChunks = 0;
               debugChunks < _debugChunks.length;
               debugChunks++
-            )
-              if (
-                (request.pendingDebugChunks--,
-                !writeChunkAndReturn(
+            ) {
+              var _item = _debugChunks[debugChunks];
+              importsChunks = void 0;
+              if (_item === NEXT_TWO_CHUNKS_ARE_ATOMIC) {
+                if (debugChunks + 2 >= _debugChunks.length)
+                  throw Error(
+                    "A chunk pair is incomplete. This is a bug in React."
+                  );
+                request.pendingDebugChunks -= 2;
+                writeChunk(debugDestination, _debugChunks[debugChunks + 1]);
+                importsChunks = writeChunkAndReturn(
                   debugDestination,
-                  _debugChunks[debugChunks]
-                ))
-              ) {
+                  _debugChunks[debugChunks + 2]
+                );
+                debugChunks += 2;
+              } else
+                request.pendingDebugChunks--,
+                  (importsChunks = writeChunkAndReturn(
+                    debugDestination,
+                    _item
+                  ));
+              if (!importsChunks) {
                 request.destination = null;
                 debugChunks++;
                 break;
               }
+            }
             _debugChunks.splice(0, debugChunks);
           }
           var regularChunks = request.completedRegularChunks;
@@ -3734,18 +3785,30 @@
             debugChunks = 0;
             debugChunks < regularChunks.length;
             debugChunks++
-          )
-            if (
-              (request.pendingChunks--,
-              !writeChunkAndReturn(
+          ) {
+            var _item2 = regularChunks[debugChunks];
+            _debugChunks = void 0;
+            if (_item2 === NEXT_TWO_CHUNKS_ARE_ATOMIC) {
+              if (debugChunks + 2 >= regularChunks.length)
+                throw Error(
+                  "A chunk pair is incomplete. This is a bug in React."
+                );
+              request.pendingChunks -= 2;
+              writeChunk(debugDestination, regularChunks[debugChunks + 1]);
+              _debugChunks = writeChunkAndReturn(
                 debugDestination,
-                regularChunks[debugChunks]
-              ))
-            ) {
+                regularChunks[debugChunks + 2]
+              );
+              debugChunks += 2;
+            } else
+              request.pendingChunks--,
+                (_debugChunks = writeChunkAndReturn(debugDestination, _item2));
+            if (!_debugChunks) {
               request.destination = null;
               debugChunks++;
               break;
             }
+          }
           regularChunks.splice(0, debugChunks);
           var errorChunks = request.completedErrorChunks;
           for (debugChunks = 0; debugChunks < errorChunks.length; debugChunks++)
@@ -3763,10 +3826,10 @@
         }
       }
       0 === request.pendingChunks &&
-        ((importsChunks = request.debugDestination),
+        ((regularChunks = request.debugDestination),
         0 === request.pendingDebugChunks
-          ? (null !== importsChunks &&
-              (importsChunks.close(), (request.debugDestination = null)),
+          ? (null !== regularChunks &&
+              (regularChunks.close(), (request.debugDestination = null)),
             cleanupTaintQueue(request),
             request.status < ABORTING &&
               request.cacheController.abort(
@@ -3781,7 +3844,7 @@
             null !== request.debugDestination &&
               (request.debugDestination.close(),
               (request.debugDestination = null)))
-          : null !== importsChunks &&
+          : null !== regularChunks &&
             null !== request.destination &&
             ((request.status = CLOSED),
             request.destination.close(),
@@ -5647,6 +5710,7 @@
       CLOSING = 13,
       CLOSED = 14,
       PRERENDER = 21,
+      NEXT_TWO_CHUNKS_ARE_ATOMIC = Symbol(),
       TaintRegistryObjects = ReactSharedInternalsServer.TaintRegistryObjects,
       TaintRegistryValues = ReactSharedInternalsServer.TaintRegistryValues,
       TaintRegistryByteLengths =

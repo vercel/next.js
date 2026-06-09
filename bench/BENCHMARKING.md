@@ -30,17 +30,6 @@ pnpm bench:render-pipeline \
   --artifact-dir=bench/render-pipeline/artifacts/<run>
 ```
 
-Web vs Node comparison:
-
-```bash
-pnpm bench:render-pipeline \
-  --scenario=e2e \
-  --stream-mode=both \
-  --build=true \
-  --json-out=bench/render-pipeline/artifacts/<run>/results.json \
-  --artifact-dir=bench/render-pipeline/artifacts/<run>
-```
-
 ## 3. Minimal-server benchmark (isolated render path)
 
 Use `--scenario=minimal-server` to bypass the router-server layer and measure the render pipeline in isolation. This starts a bare `NextServer` with `minimalMode: true` via `bench/next-minimal-server` — no `router-server`, no middleware, no asset serving. Prefer this when profiling changes to `app-render.tsx`, streaming internals, or Flight serialization where router overhead would add noise.

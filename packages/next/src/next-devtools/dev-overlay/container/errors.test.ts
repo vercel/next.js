@@ -18,6 +18,11 @@ import {
   type SyncIOApiType,
 } from '../../../server/app-render/sync-io-messages'
 import {
+  ClientHookDynamicError,
+  ParamClientHookDynamicError,
+} from '../../../server/dynamic-rendering-utils'
+import { getCards } from '../components/instant/instant-guidance-data'
+import {
   getBlockingRouteErrorDetails,
   getUnrenderedSegmentErrorDetails,
   isInstantNavigationError,
@@ -124,6 +129,28 @@ describe('isSyncIOClientError', () => {
 })
 
 describe('getBlockingRouteErrorDetails', () => {
+  it('classifies client hook errors separately', () => {
+    expect(
+      getBlockingRouteErrorDetails(
+        new ClientHookDynamicError(ROUTE, 'useSearchParams()')
+      )
+    ).toEqual({
+      type: 'client-hook',
+      expression: 'useSearchParams()',
+    })
+  })
+
+  it('classifies param-derived client hook errors separately', () => {
+    expect(
+      getBlockingRouteErrorDetails(
+        new ParamClientHookDynamicError(ROUTE, 'useParams()')
+      )
+    ).toEqual({
+      type: 'client-hook',
+      expression: 'useParams()',
+    })
+  })
+
   it('classifies createRuntimeBodyError as blocking-route + runtime (SSR-only)', () => {
     expect(getBlockingRouteErrorDetails(createRuntimeBodyError(ROUTE))).toEqual(
       { type: 'blocking-route', variant: 'runtime', inNavigation: false }
@@ -256,6 +283,25 @@ describe('getBlockingRouteErrorDetails', () => {
   })
 })
 
+describe('client hook guidance', () => {
+  it('only suggests Suspense for useSearchParams', () => {
+    expect(
+      getCards('client-hook', 'runtime', 'useSearchParams()').map(
+        (card) => card.id
+      )
+    ).toEqual(['wrap-in-or-move-into-suspense'])
+  })
+
+  it('also suggests prerendering known params for param-derived hooks', () => {
+    expect(
+      getCards('client-hook', 'runtime', 'useParams()').map((card) => card.id)
+    ).toEqual([
+      'wrap-in-or-move-into-suspense',
+      'prerender-known-dynamic-params',
+    ])
+  })
+})
+
 describe('getUnrenderedSegmentErrorDetails', () => {
   function createUnrenderedSegmentError(
     route: string,
@@ -268,9 +314,9 @@ describe('getUnrenderedSegmentErrorDetails', () => {
         `\n\nThis segment was dropped from rendering. Issues that would prevent instant navigation will go undetected.` +
         `\n\n${label}:\n${files.map((p) => `  ${p}`).join('\n')}` +
         `\n\nWays to fix this:` +
-        `\n  - Render the dropped segment` +
-        `\n  - Set \`export const instant = false\` on the dropped segment to skip validation` +
-        `\n\nLearn more: https://nextjs.org/docs/messages/unrendered-instant-segment`
+        `\n  - [render] Render the dropped segment` +
+        `\n  - [ignore] Set \`export const unstable_instant = false\` on the dropped segment to skip validation` +
+        `\n\nLearn more: https://nextjs.org/docs/messages/instant-unrendered-segment`
     }
     return new Error(message)
   }

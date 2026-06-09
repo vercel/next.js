@@ -56,7 +56,7 @@ impl Module for TsConfigModuleAsset {
         let configs = read_tsconfigs(
             self.source.content().file_content(),
             self.source,
-            apply_cjs_specific_options(self.origin.resolve_options()),
+            apply_cjs_specific_options(self.origin.into_trait_ref().await?.resolve_options()),
         )
         .await?;
         references.extend(
