@@ -9,6 +9,8 @@ use std::{
     },
 };
 
+use dashmap::SharedValue;
+use hashbrown::raw::RawIntoIter;
 use thread_local::ThreadLocal;
 use tracing::span::Id;
 use turbo_bincode::TurboBincodeBuffer;
@@ -271,8 +273,10 @@ impl Storage {
     /// entries) are filtered out, but shards may still yield no items if all entries produce
     /// empty `SnapshotItem`s (this is rare and only happens under error conditions).
     ///
-    /// When `drain_entries` is true, each task entry is removed from the map and dropped as soon as
-    /// it has been serialized, draining the core datastructures.
+    /// When `drain_entries` is true (shutdown only), the scan drains the map: unmodified entries
+    /// are erased and freed immediately, and the modified entries are moved out into the
+    /// returned shard iterators, which free each task's memory as it is serialized rather than
+    /// after the whole batch is written.
     pub fn take_snapshot<
         'l,
         P: for<'a> Fn(TaskId, &'a TaskStorage, &mut TurboBincodeBuffer) -> SnapshotItem + Sync,
@@ -301,51 +305,70 @@ impl Storage {
                 return None;
             }
 
-            let mut modified = Vec::with_capacity(modified_count as usize);
-            {
+            // Scan the shard once, building the work this shard's iterator will perform. The two
+            // modes carry different data so that `next` has no per-item `drain` branch:
+            // - keep mode collects the modified `TaskId`s and looks them up again while iterating.
+            // - drain mode erases the unmodified entries here and then moves the remaining
+            //   (modified-only) table out of the map, so the iterator owns and drains it directly.
+            let work = {
                 let mut shard_guard = shard.write();
-                // SAFETY: shard_guard outlives the iterator and we hold it for the whole scan.
-                for bucket in unsafe { shard_guard.iter() } {
-                    // Read the key and modified flag, then drop the borrow before any erase.
-                    // SAFETY: the guard outlives the bucket reference.
-                    let (key, modified_task) = {
-                        let (key, shared_value) = unsafe { bucket.as_ref() };
-                        // Only check modified flags — transient tasks never have modified flags
-                        // set (track_modification guards against it), so this naturally excludes
-                        // them. new_task always comes with modified flags (set_persistent_task_type
-                        // calls track_modification), so any_modified() is sufficient.
-                        (*key, shared_value.get().flags.any_modified())
-                    };
-                    if modified_task {
-                        debug_assert!(
-                            !key.is_transient(),
-                            "found a modified transient task: {key:?}"
-                        );
-                        modified.push(key);
-                    } else if drain_entries {
-                        unsafe { shard_guard.erase(bucket) };
+                if drain_entries {
+                    // SAFETY: shard_guard outlives the iterator and we hold it for the whole scan.
+                    for bucket in unsafe { shard_guard.iter() } {
+                        // Read the key and modified flag, then drop the borrow before any erase.
+                        // SAFETY: the guard outlives the bucket reference.
+                        let (key, modified_task) = {
+                            let (key, shared_value) = unsafe { bucket.as_ref() };
+                            (*key, shared_value.get().flags.any_modified())
+                        };
+                        if modified_task {
+                            debug_assert!(
+                                !key.is_transient(),
+                                "found a modified transient task: {key:?}"
+                            );
+                        } else {
+                            // Unmodified entries are not part of the snapshot. Erase and free them
+                            // now so the table we move out below holds only modified entries.
+                            unsafe { shard_guard.erase(bucket) };
+                        }
                     }
+                    if shard_guard.is_empty() {
+                        // The shard held only unmodified entries, which we've now erased and freed.
+                        // No iterator is created for an empty shard.
+                        return None;
+                    }
+                    // Move the modified-only table out of the map. Iterating it frees each task box
+                    // as it is serialized, and the shard's table allocation is released here.
+                    ShardWork::Drain(std::mem::take(&mut *shard_guard).into_iter())
+                } else {
+                    let mut modified = Vec::with_capacity(modified_count as usize);
+                    // SAFETY: shard_guard outlives the iterator and we hold it for the whole scan.
+                    for bucket in unsafe { shard_guard.iter() } {
+                        // SAFETY: the guard outlives the bucket reference.
+                        let (key, shared_value) = unsafe { bucket.as_ref() };
+                        // Only check modified flags — transient tasks never have modified flags set
+                        // (track_modification guards against it), so this naturally excludes them.
+                        // new_task always comes with modified flags (set_persistent_task_type calls
+                        // track_modification), so any_modified() is sufficient.
+                        if shared_value.get().flags.any_modified() {
+                            debug_assert!(
+                                !key.is_transient(),
+                                "found a modified transient task: {key:?}"
+                            );
+                            modified.push(*key);
+                        }
+                    }
+                    // modified_count > 0 (we returned early otherwise), so this is never empty.
+                    debug_assert!(!modified.is_empty());
+                    ShardWork::Keep(modified)
                 }
-                if drain_entries && shard_guard.is_empty() {
-                    // Drop the whole map shard
-                    drop(std::mem::take(&mut *shard_guard));
-                }
-            }
-
-            if modified.is_empty() {
-                // Only reachable in drain mode (otherwise modified_count > 0): the shard held
-                // only unmodified entries, which we've now erased and freed above. No iterator
-                // is created for an empty shard.
-                debug_assert!(drain_entries);
-                return None;
-            }
+            };
 
             Some(SnapshotShard {
                 shard_idx,
-                modified,
+                work,
                 storage: self,
                 process,
-                drain_entries,
                 _guard: guard.clone(),
             })
         })
@@ -494,16 +517,6 @@ impl Storage {
     /// Drop the `task_cache` map, freeing its memory.
     pub(crate) fn drop_task_cache(&self) {
         drop_contents(&self.task_cache);
-    }
-
-    /// If the `map` shard at `shard_idx` is empty, release its table allocation.
-    ///
-    /// Useful for our 'draining persistence' strategy.
-    fn reset_map_shard_if_empty(&self, shard_idx: usize) {
-        let mut shard_guard = self.map.shards()[shard_idx].write();
-        if shard_guard.is_empty() {
-            drop(std::mem::take(&mut *shard_guard));
-        }
     }
 
     /// Evict tasks from in-memory storage after a successful snapshot.
@@ -824,14 +837,24 @@ impl Drop for SnapshotGuard<'_> {
     }
 }
 
+/// The work a single shard's iterator performs, with the snapshot mode encoded in the data rather
+/// than a runtime flag re-checked per item. Built by `take_snapshot`'s scan.
+enum ShardWork {
+    /// Normal snapshot: look each task up in the map while iterating, serialize it, then clear and
+    /// promote its modified flags so it stays dirty for the next snapshot cycle.
+    Keep(Vec<TaskId>),
+    /// Shutdown drain: the scan already erased the unmodified entries and moved the remaining
+    /// (modified-only) shard table out of the map. The iterator owns that table and drains it
+    /// directly, freeing each task box as it is serialized. No second map lookup, no flag
+    /// bookkeeping (the whole map is discarded right after this snapshot).
+    Drain(RawIntoIter<(TaskId, SharedValue<Box<TaskStorage>>)>),
+}
+
 pub struct SnapshotShard<'l, P> {
     shard_idx: usize,
-    modified: Vec<TaskId>,
+    work: ShardWork,
     storage: &'l Storage,
     process: &'l P,
-    /// When true, remove and drop each task entry from the map as it is serialized
-    /// (shutdown only). See `take_snapshot` for details.
-    drain_entries: bool,
     /// Held for its `Drop` impl — ensures snapshot mode ends when all shards are done.
     _guard: Arc<SnapshotGuard<'l>>,
 }
@@ -866,9 +889,6 @@ where
     type Item = SnapshotItem;
 
     fn next(&mut self) -> Option<Self::Item> {
-        let task_id = self.shard.modified.pop()?;
-
-        // Serialize a single task into a `SnapshotItem`.
         let process = self.shard.process;
         let snapshots = &self.shard.storage.snapshots;
         let buffer = &mut self.buffer;
@@ -887,30 +907,34 @@ where
             }
         };
 
-        if self.shard.drain_entries {
-            // Shutdown only: `remove` instead of `get_mut`. It returns the owned
-            // `Box<TaskStorage>` and releases the shard lock before returning, so we
-            // serialize from a borrow of the owned box and let it drop at the end of this
-            // branch — freeing the task's memory as it is persisted rather than after the
-            // whole batch is written. We skip the flag bookkeeping the normal path does,
-            // since the entire map is discarded right after this snapshot.
-            let (_, inner) = self.shard.storage.map.remove(&task_id).unwrap();
-            let item = serialize_task(task_id, &inner);
-            // we don't need to update any bits because everything is getting dropped.
-            Some(item)
-        } else {
-            let mut inner = self.shard.storage.map.get_mut(&task_id).unwrap();
-            let item = serialize_task(task_id, &inner);
-            // Clear the modified flags that were captured into the snapshot copy,
-            // then promote modified_during_snapshot → modified so the task stays
-            // dirty for the next snapshot cycle.
-            inner.flags.set_data_modified(false);
-            inner.flags.set_meta_modified(false);
-            inner.flags.set_new_task(false);
-            self.shard
-                .storage
-                .promote_during_snapshot_flags(&mut inner, self.shard.shard_idx);
-            Some(item)
+        match &mut self.shard.work {
+            ShardWork::Keep(modified) => {
+                let task_id = modified.pop()?;
+                let mut inner = self.shard.storage.map.get_mut(&task_id).unwrap();
+                let item = serialize_task(task_id, &inner);
+                // Clear the modified flags that were captured into the snapshot copy,
+                // then promote modified_during_snapshot → modified so the task stays
+                // dirty for the next snapshot cycle.
+                inner.flags.set_data_modified(false);
+                inner.flags.set_meta_modified(false);
+                inner.flags.set_new_task(false);
+                self.shard
+                    .storage
+                    .promote_during_snapshot_flags(&mut inner, self.shard.shard_idx);
+                Some(item)
+            }
+            ShardWork::Drain(entries) => {
+                // Shutdown only: the scan already moved this shard's modified entries out of the
+                // map, so we own each `Box<TaskStorage>` here. Serialize from a borrow of the owned
+                // box and let it drop at the end of this branch — freeing the task's memory as it
+                // is persisted rather than after the whole batch is written. We skip the flag
+                // bookkeeping the normal path does, since the entire map is discarded right after
+                // this snapshot.
+                let (task_id, inner) = entries.next()?;
+                let inner = inner.into_inner();
+                Some(serialize_task(task_id, &inner))
+                // we don't need to update any bits because everything is getting dropped.
+            }
         }
     }
 }
@@ -920,15 +944,6 @@ impl<P> Drop for SnapshotShardIter<'_, P> {
         self.shard
             ._guard
             .return_scratch_buffer(std::mem::take(&mut self.buffer));
-        if self.shard.drain_entries {
-            // In drain mode `next` removed this shard's modified entries from the map. Once it
-            // has consumed them all the shard is empty, so release its table allocation now
-            // rather than waiting for the wholesale `drop_contents`. No-op if the iterator was
-            // dropped before fully draining (entries remain) — the reset is gated on emptiness.
-            self.shard
-                .storage
-                .reset_map_shard_if_empty(self.shard.shard_idx);
-        }
     }
 }
 
@@ -1106,9 +1121,10 @@ mod tests {
         );
     }
 
-    /// With `drain_entries = true` (shutdown path), the iterator must serialize each
-    /// modified task and then remove it from the map so its memory is freed as it is
-    /// persisted, rather than being retained until the whole snapshot is written.
+    /// With `drain_entries = true` (shutdown path), the modified entries are moved out of the map
+    /// (during the scan) and serialized by the iterator, freeing each task's memory as it is
+    /// persisted rather than retaining it until the whole snapshot is written. Either way the
+    /// entry must be gone from the map by the time the snapshot is consumed.
     #[tokio::test(flavor = "multi_thread")]
     async fn drain_entries_removes_entry_from_map() {
         let storage = Storage::new(2, true);
@@ -1187,17 +1203,19 @@ mod tests {
         }
     }
 
-    /// In drain mode, `take_snapshot` removes *unmodified* entries from the map during the scan
-    /// (freeing them before serialization), while modified entries are still serialized and then
-    /// removed by the iterator.
+    /// In drain mode, `take_snapshot`'s scan removes *both* kinds of entry from the map: unmodified
+    /// entries are erased and freed (never serialized), and the remaining modified-only table is
+    /// moved out into the shard iterators (to be serialized, then freed as each is consumed). So
+    /// the map is already empty when `take_snapshot` returns, and only the modified task is
+    /// yielded.
     #[tokio::test(flavor = "multi_thread")]
     async fn drain_entries_removes_unmodified_during_take_snapshot() {
         let storage = Storage::new(2, true);
         let modified_id = non_transient_task(1);
         let unmodified_id = non_transient_task(2);
 
-        // One modified task (lands in the modified list) and one unmodified task (e.g. restored
-        // from disk but never dirtied) that just occupies memory.
+        // One modified task (gets serialized) and one unmodified task (e.g. restored from disk but
+        // never dirtied) that just occupies memory and must not be serialized.
         {
             let mut guard = storage.access_mut(modified_id);
             guard.track_modification(SpecificTaskDataCategory::Data, "test");
@@ -1211,21 +1229,24 @@ mod tests {
 
         let shards = storage.take_snapshot(snapshot_guard, &dummy_process, true);
 
-        // The unmodified entry is removed during the scan, before we consume any iterator.
+        // The scan moved the modified table out and freed the unmodified entry, so both ids are
+        // already absent from the map before any iterator is consumed.
         assert!(
             storage.map.get(&unmodified_id).is_none(),
             "unmodified entry should be removed during take_snapshot in drain mode"
         );
-        // The modified entry is still present, awaiting serialization.
-        assert!(storage.map.get(&modified_id).is_some());
+        assert!(
+            storage.map.get(&modified_id).is_none(),
+            "modified entry should be moved out of the map during take_snapshot in drain mode"
+        );
 
-        // Consuming the iterators serializes the modified task and removes it too.
+        // Consuming the iterators yields only the modified task (the unmodified one was never part
+        // of the snapshot).
         let items: Vec<_> = shards
             .into_iter()
             .flat_map(|shard| shard.into_iter())
             .collect();
         assert_eq!(items.len(), 1);
         assert_eq!(items[0].task_id, modified_id);
-        assert!(storage.map.get(&modified_id).is_none());
     }
 }
