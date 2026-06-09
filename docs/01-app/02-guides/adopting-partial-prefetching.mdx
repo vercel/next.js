@@ -88,16 +88,6 @@ const nextConfig: NextConfig = {
 export default nextConfig
 ```
 
-## Choosing a strategy
-
-| Goal                                                                | Configuration                              | Location                |
-| ------------------------------------------------------------------- | ------------------------------------------ | ----------------------- |
-| App-wide shell-only default                                         | `partialPrefetching: true`                 | `next.config.ts`        |
-| Shell-only for one route                                            | `export const prefetch = 'partial'`        | `page.tsx`/`layout.tsx` |
-| Prefetch cached page content for one specific link                  | `<Link prefetch>`                          | call site               |
-| Disable prefetching for one route                                   | `export const prefetch = 'force-disabled'` | `page.tsx`/`layout.tsx` |
-| Prefetch runtime data (cookies, headers, search params) for a route | `export const prefetch = 'allow-runtime'`  | `page.tsx`/`layout.tsx` |
-
 ## Next steps
 
 - [Runtime prefetching](/docs/app/guides/runtime-prefetching) for per-link runtime prefetches and App Shells in depth.
