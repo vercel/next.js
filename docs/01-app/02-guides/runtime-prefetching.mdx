@@ -175,23 +175,20 @@ A per-link runtime prefetch only helps the navigations where it fires before the
 
 The [**App Shell**](/docs/app/glossary#app-shell) closes that gap. It's a per-route prerender, deduped across every link to the same route, generated and prefetched once per route rather than once per visible link.
 
-Enable App Shells alongside Partial Prefetching:
+App Shells are on by default when Partial Prefetching is enabled:
 
-```ts filename="next.config.ts" highlight={3,5-7}
+```ts filename="next.config.ts" highlight={3}
 import type { NextConfig } from 'next'
 
 const nextConfig: NextConfig = {
   cacheComponents: true,
   partialPrefetching: true,
-  experimental: {
-    appShells: true,
-  },
 }
 
 export default nextConfig
 ```
 
-With both on, every Cache Components route has an instant floor. N links to the same route share one prefetched App Shell, and rendering a `<Link>` is effectively free unless `prefetch={true}` is set on the Link, which upgrades to the per-link prefetch. Opting a route into [`prefetch = 'allow-runtime'`](/docs/app/api-reference/file-conventions/route-segment-config/prefetch#allow-runtime) further upgrades those per-link prefetches to runtime prerenders with request data.
+Every Cache Components route has an instant floor. N links to the same route share one prefetched App Shell, and rendering a `<Link>` is effectively free unless `prefetch={true}` is set on the Link, which upgrades to the per-link prefetch. Opting a route into [`prefetch = 'allow-runtime'`](/docs/app/api-reference/file-conventions/route-segment-config/prefetch#allow-runtime) further upgrades those per-link prefetches to runtime prerenders with request data.
 
 Compared with per-link runtime prefetching:
 

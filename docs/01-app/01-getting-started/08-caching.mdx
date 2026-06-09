@@ -133,7 +133,7 @@ Without a `<Suspense>` boundary around the uncached read, the dev overlay surfac
   <FixCard
     group="stream"
     title="Wrap in or move into Suspense"
-    href="/docs/messages/blocking-route#wrap-in-or-move-into-suspense"
+    href="/docs/messages/blocking-prerender-dynamic#wrap-in-or-move-into-suspense"
     snippets={[
       { text: '<Suspense fallback={…}>', highlight: true },
       { text: '  <DataChild />' },
@@ -186,7 +186,7 @@ A runtime API access without `<Suspense>` surfaces the same **blocking-route** i
   <FixCard
     group="stream"
     title="Wrap in or move into Suspense"
-    href="/docs/messages/blocking-route#wrap-in-or-move-into-suspense"
+    href="/docs/messages/blocking-prerender-dynamic#wrap-in-or-move-into-suspense"
     snippets={[
       { text: '<Suspense fallback={…}>', highlight: true },
       { text: '  <DataChild />' },
@@ -351,13 +351,13 @@ export default async function Page() {
 }
 ```
 
-You don't need to memorize which operations behave this way. The dev overlay surfaces a **next-prerender-random**, **next-prerender-current-time**, or **next-prerender-crypto** insight (depending on the call) with these fixes:
+You don't need to memorize which operations behave this way. The dev overlay surfaces a **blocking-prerender-random**, **blocking-prerender-current-time**, or **blocking-prerender-crypto** insight (depending on the call) with these fixes:
 
 <FixCardGrid>
   <FixCard
     group="dynamic"
     title="Generate on every request"
-    href="/docs/messages/next-prerender-random#render-at-request-time"
+    href="/docs/messages/blocking-prerender-random#generate-on-every-request"
     snippets={[
       { text: 'await connection()', highlight: true },
       { text: 'const id = Math.random()' },
@@ -367,7 +367,7 @@ You don't need to memorize which operations behave this way. The dev overlay sur
   <FixCard
     group="cache"
     title="Cache the value"
-    href="/docs/messages/next-prerender-random#cache-the-random-value"
+    href="/docs/messages/blocking-prerender-random#cache-the-random-value"
     snippets={[
       { text: 'function RandomId() {' },
       { text: '  "use cache"', highlight: true },
