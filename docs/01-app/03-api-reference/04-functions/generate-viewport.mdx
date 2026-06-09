@@ -235,7 +235,7 @@ export default function DashboardLayout({ children }) {
 }
 ```
 
-Setting `unstable_instant = false` opts only the segment that exports it out. Descendant segments are still validated by the global default. See [Next.js encountered runtime data in `generateViewport()`](/docs/messages/blocking-prerender-viewport-runtime) for the full set of fix options, trade-offs, and the subtree-wide opt-out.
+Setting `unstable_instant = false` opts only the segment that exports it out. Descendant segments are still validated by the global default. See [Next.js encountered runtime data in `generateViewport()`](/docs/messages/blocking-prerender-viewport-runtime) for the full set of fix options and trade-offs.
 
 > **Good to know**: Use [multiple root layouts](/docs/app/api-reference/file-conventions/layout#root-layout) to isolate fully dynamic viewport to specific routes, while still letting other routes in your application generate a static shell.
 
