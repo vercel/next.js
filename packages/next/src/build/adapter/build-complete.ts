@@ -2285,12 +2285,19 @@ async function getSharedNodeAssets({
     )
     esmFileList.forEach((item) => fileList.add(item))
 
-    for (const rootRelativeFilePath of fileList) {
+    for (const tracingRootRelativeFilePath of fileList) {
+      // nodeFileTrace returns paths relative to `base` (outputFileTracingRoot),
+      // so resolve to an absolute path and re-relativize against repoRoot, which
+      // is the root all adapter output keys/source paths are based on.
+      const absoluteFilePath = path.join(
+        outputFileTracingRoot,
+        tracingRootRelativeFilePath
+      )
       await pushAsset(
         sharedNodeAssets,
         sharedNodeAssetsHashes,
-        rootRelativeFilePath,
-        path.join(repoRoot, rootRelativeFilePath),
+        path.relative(repoRoot, absoluteFilePath),
+        absoluteFilePath,
         bundler
       )
     }
