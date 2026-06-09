@@ -357,6 +357,26 @@ impl EdgeWorkerEnvironment {
 #[turbo_tasks::value(transparent, serialization = "skip")]
 pub struct RuntimeVersions(#[turbo_tasks(trace_ignore)] pub Versions);
 
+/// Checks if a browser version field is either absent or at least the given version.
+/// Supports major-only, major.minor, and major.minor.patch comparisons.
+macro_rules! version_at_least {
+    ($data:expr, $field:ident, $major:expr) => {
+        $data.$field.is_none_or(|v| v.major >= $major)
+    };
+    ($data:expr, $field:ident, $major:expr, $minor:expr) => {
+        $data
+            .$field
+            .is_none_or(|v| v.major > $major || (v.major == $major && v.minor >= $minor))
+    };
+    ($data:expr, $field:ident, $major:expr, $minor:expr, $patch:expr) => {
+        $data.$field.is_none_or(|v| {
+            v.major > $major
+                || (v.major == $major && v.minor > $minor)
+                || (v.major == $major && v.minor == $minor && v.patch >= $patch)
+        })
+    };
+}
+
 #[turbo_tasks::value_impl]
 impl RuntimeVersions {
     /// Whether the environment supports arrow functions.
@@ -376,22 +396,18 @@ impl RuntimeVersions {
         // "opera_mobile": "34",
         // "electron": "0.36"
         let data = &self.0;
-        let supported = data.chrome.is_none_or(|v| v.major >= 47)
-            && data.opera.is_none_or(|v| v.major >= 34)
-            && data.edge.is_none_or(|v| v.major >= 13)
-            && data.firefox.is_none_or(|v| v.major >= 43)
-            && data.safari.is_none_or(|v| v.major >= 10)
-            && data.node.is_none_or(|v| v.major >= 6)
-            && data.deno.is_none_or(|v| v.major >= 1)
-            && data.ios.is_none_or(|v| v.major >= 10)
-            && data.samsung.is_none_or(|v| v.major >= 5)
-            && data.rhino.is_none_or(|v| {
-                v.major > 1
-                    || (v.major == 1 && v.minor > 7)
-                    || (v.major == 1 && v.minor == 7 && v.patch >= 13)
-            })
-            && data.opera_mobile.is_none_or(|v| v.major >= 34)
-            && data.electron.is_none_or(|v| v.major > 0 || v.minor >= 36);
+        let supported = version_at_least!(data, chrome, 47)
+            && version_at_least!(data, opera, 34)
+            && version_at_least!(data, edge, 13)
+            && version_at_least!(data, firefox, 43)
+            && version_at_least!(data, safari, 10)
+            && version_at_least!(data, node, 6)
+            && version_at_least!(data, deno, 1)
+            && version_at_least!(data, ios, 10)
+            && version_at_least!(data, samsung, 5)
+            && version_at_least!(data, rhino, 1, 7, 13)
+            && version_at_least!(data, opera_mobile, 34)
+            && version_at_least!(data, electron, 0, 36);
 
         Vc::cell(supported)
     }
@@ -412,19 +428,49 @@ impl RuntimeVersions {
         // "opera_mobile": "37",
         // "electron": "1.1"
         let data = &self.0;
-        let supported = data.chrome.is_none_or(|v| v.major >= 50)
-            && data.opera.is_none_or(|v| v.major >= 37)
-            && data.edge.is_none_or(|v| v.major >= 14)
-            && data.firefox.is_none_or(|v| v.major >= 53)
-            && data.safari.is_none_or(|v| v.major >= 11)
-            && data.node.is_none_or(|v| v.major >= 6)
-            && data.deno.is_none_or(|v| v.major >= 1)
-            && data.ios.is_none_or(|v| v.major >= 11)
-            && data.samsung.is_none_or(|v| v.major >= 5)
-            && data.opera_mobile.is_none_or(|v| v.major >= 37)
-            && data
-                .electron
-                .is_none_or(|v| v.major > 1 || (v.major == 1 && v.minor >= 1));
+        let supported = version_at_least!(data, chrome, 50)
+            && version_at_least!(data, opera, 37)
+            && version_at_least!(data, edge, 14)
+            && version_at_least!(data, firefox, 53)
+            && version_at_least!(data, safari, 11)
+            && version_at_least!(data, node, 6)
+            && version_at_least!(data, deno, 1)
+            && version_at_least!(data, ios, 11)
+            && version_at_least!(data, samsung, 5)
+            && version_at_least!(data, opera_mobile, 37)
+            && version_at_least!(data, electron, 1, 1);
+
+        Vc::cell(supported)
+    }
+
+    /// Whether the environment supports async/await syntax.
+    #[turbo_tasks::function]
+    pub fn supports_async_await(&self) -> Vc<bool> {
+        // https://github.com/babel/babel/blob/b0e3517dc566880e76b5f1f4dcf7fcecba58337d/packages/babel-compat-data/data/plugins.json#L295-L307
+        // "chrome": "55",
+        // "opera": "42",
+        // "edge": "15",
+        // "firefox": "52",
+        // "safari": "11",
+        // "node": "7.6",
+        // "deno": "1",
+        // "ios": "11",
+        // "samsung": "6",
+        // "opera_mobile": "42",
+        // "electron": "1.6"
+        let data = &self.0;
+
+        let supported = version_at_least!(data, chrome, 55)
+            && version_at_least!(data, opera, 42)
+            && version_at_least!(data, edge, 15)
+            && version_at_least!(data, firefox, 52)
+            && version_at_least!(data, safari, 11)
+            && version_at_least!(data, node, 7, 6)
+            && version_at_least!(data, deno, 1)
+            && version_at_least!(data, ios, 11)
+            && version_at_least!(data, samsung, 6)
+            && version_at_least!(data, opera_mobile, 42)
+            && version_at_least!(data, electron, 1, 6);
 
         Vc::cell(supported)
     }

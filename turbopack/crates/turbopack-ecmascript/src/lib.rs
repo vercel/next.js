@@ -2209,6 +2209,7 @@ fn process_content_with_code_gens(
     let mut hoisted_stmts = FxIndexMap::default();
     let mut early_late_stmts = FxIndexMap::default();
     let mut late_stmts = FxIndexMap::default();
+    let mut body_wrapper = None;
     for code_gen in code_gens {
         for CodeGenerationHoistedStmt { key, stmt } in code_gen.hoisted_stmts.drain(..) {
             hoisted_stmts.entry(key).or_insert(stmt);
@@ -2228,6 +2229,10 @@ fn process_content_with_code_gens(
             } else {
                 visitors.push((path, &**visitor));
             }
+        }
+        if let Some(wrapper) = code_gen.body_wrapper.take() {
+            debug_assert!(body_wrapper.is_none(), "multiple body_wrappers detected");
+            body_wrapper = Some(wrapper);
         }
     }
 
@@ -2258,6 +2263,23 @@ fn process_content_with_code_gens(
                     .chain(late_stmts.into_values())
                     .map(ModuleItem::Stmt),
             );
+
+            // Apply body wrapper LAST — wraps all stmts (including hoisted + late)
+            // in the async module closure at the AST level.
+            if let Some(wrapper) = body_wrapper {
+                let stmts: Vec<Stmt> = body
+                    .drain(..)
+                    .filter_map(|item| match item {
+                        ModuleItem::Stmt(stmt) => Some(stmt),
+                        ModuleItem::ModuleDecl(_) => {
+                            debug_assert!(false, "Unexpected ModuleDecl item after code gen merge");
+                            None
+                        }
+                    })
+                    .collect();
+                let wrapped = wrapper(stmts);
+                body.extend(wrapped.into_iter().map(ModuleItem::Stmt));
+            }
         }
         Program::Script(Script { body, .. }) => {
             body.splice(
@@ -2271,6 +2293,13 @@ fn process_content_with_code_gens(
                     .into_values()
                     .chain(late_stmts.into_values()),
             );
+
+            // Apply body wrapper for scripts too.
+            if let Some(wrapper) = body_wrapper {
+                let stmts: Vec<Stmt> = std::mem::take(body);
+                let wrapped = wrapper(stmts);
+                *body = wrapped;
+            }
         }
     };
 }

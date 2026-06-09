@@ -1,5 +1,14 @@
 'use client'
 
+async function fetchMore() {
+  const res = await Promise.resolve('more data')
+  return res
+}
+
 export default function Page() {
-  return <button>Client</button>
+  return (
+    <div>
+      <button onClick={() => fetchMore().then(console.log)}>Client</button>
+    </div>
+  )
 }

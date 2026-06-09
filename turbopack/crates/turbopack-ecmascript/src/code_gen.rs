@@ -43,6 +43,9 @@ use crate::{
     },
 };
 
+/// Callback that wraps all body stmts after code-gen merge.
+pub type BodyWrapperFn = Box<dyn FnOnce(Vec<Stmt>) -> Vec<Stmt> + Send + Sync>;
+
 #[derive(Default)]
 pub struct CodeGeneration {
     /// ast nodes matching the span will be visitor by the visitor
@@ -52,6 +55,10 @@ pub struct CodeGeneration {
     pub late_stmts: Vec<CodeGenerationHoistedStmt>,
     pub early_late_stmts: Vec<CodeGenerationHoistedStmt>,
     pub comments: Option<SwcComments>,
+    /// An optional callback that wraps all body stmts after they are merged.
+    /// Used by async_module to wrap the entire module body in an async closure
+    /// at the AST level, so that SWC's preset-env can transpile it.
+    pub body_wrapper: Option<BodyWrapperFn>,
 }
 
 impl CodeGeneration {
