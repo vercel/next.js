@@ -29,7 +29,7 @@ use crate::{
     analyzer::{
         ConstantValue, ObjectPart,
         graph::{AssignmentScope, AssignmentScopes, EvalContext},
-        is_unresolved,
+        is_unresolved, is_unresolved_id,
     },
     magic_identifier::{MAGIC_IDENTIFIER_DEFAULT_EXPORT, MAGIC_IDENTIFIER_DEFAULT_EXPORT_ATOM},
     references::{
@@ -593,6 +593,7 @@ impl ImportMap {
                                     self.exports_ids.get(name).cloned().with_context(|| {
                                         format!("Exported binding {name} not found in exports_ids")
                                     })?,
+                                    eval_context.unresolved_mark,
                                 )
                             },
                         ),
@@ -620,7 +621,7 @@ impl ImportMap {
 
     /// Returns the liveness of a given export identifier. An export is live if it might change
     /// values after module evaluation.
-    pub fn get_export_ident_liveness(&self, id: Id) -> Liveness {
+    pub fn get_export_ident_liveness(&self, id: Id, unresolved_mark: Mark) -> Liveness {
         if let Some(assignment_scopes) = self.assignment_scopes.get(&id) {
             // If all assignments are in module scope, the export is not live.
             if *assignment_scopes != AssignmentScopes::AllInModuleEvalScope {
@@ -633,6 +634,14 @@ impl ImportMap {
             // - A free variable or
             // - an imported variable
             // In those cases, we just assume that the value is live since we don't know anything
+            debug_assert!(
+                is_unresolved_id(&id, unresolved_mark)
+                    || self.imports.contains_key(&id)
+                    || self.namespace_imports.contains_key(&id),
+                "export ident {id:?} without an assignment scope should be a free variable or an \
+                 imported variable"
+            );
+
             Liveness::Live
         }
     }
