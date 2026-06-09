@@ -191,6 +191,19 @@ function buildCompletedShellCacheKey(
   )
 }
 
+let srcPage = 'VAR_DEFINITION_PAGE'
+// turbopack doesn't normalize `/index` in the page name
+// so we need to to process dynamic routes properly
+// TODO: fix turbopack providing differing value from webpack
+if (process.env.TURBOPACK) {
+  srcPage = srcPage.replace(/\/index$/, '') || '/'
+} else if (srcPage === '/index') {
+  // we always normalize /index specifically
+  srcPage = '/'
+}
+
+const normalizedSrcPage = normalizeAppPath(srcPage)
+
 export async function handler(
   req: IncomingMessage,
   res: ServerResponse,
@@ -208,17 +221,6 @@ export async function handler(
   }
   const isMinimalMode = Boolean(getRequestMeta(req, 'minimalMode'))
 
-  let srcPage = 'VAR_DEFINITION_PAGE'
-
-  // turbopack doesn't normalize `/index` in the page name
-  // so we need to to process dynamic routes properly
-  // TODO: fix turbopack providing differing value from webpack
-  if (process.env.TURBOPACK) {
-    srcPage = srcPage.replace(/\/index$/, '') || '/'
-  } else if (srcPage === '/index') {
-    // we always normalize /index specifically
-    srcPage = '/'
-  }
   const multiZoneDraftMode = process.env
     .__NEXT_MULTI_ZONE_DRAFT_MODE as any as boolean
 
@@ -257,8 +259,6 @@ export async function handler(
     deploymentId,
     clientAssetToken,
   } = prepareResult
-
-  const normalizedSrcPage = normalizeAppPath(srcPage)
 
   let { isOnDemandRevalidate } = prepareResult
 
