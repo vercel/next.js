@@ -76,14 +76,14 @@ const clientBoundary = {
                     propName === 'action' || /.+Action$/.test(propName)
 
                   // There's a special case for error files where the
-                  // framework-injected `reset` and `retry` props are
+                  // framework-injected `reset` and `unstable_retry` props are
                   // allowed to be functions. Next.js provides these props, the
                   // user doesn't pass them, so they don't need to be
                   // serializable.
                   // https://github.com/vercel/next.js/issues/46573
                   const isErrorBoundaryFunctionProp =
                     (isErrorFile || isGlobalErrorFile) &&
-                    (propName === 'reset' || propName === 'retry')
+                    (propName === 'reset' || propName === 'unstable_retry')
 
                   if (!maybeServerAction && !isErrorBoundaryFunctionProp) {
                     diagnostics.push({

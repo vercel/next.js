@@ -24,17 +24,21 @@ function ErroredHtml({
   globalError: [GlobalError, globalErrorStyles],
   thrownValue,
   reset,
-  retry,
+  unstable_retry,
 }: {
   globalError: GlobalErrorState
   thrownValue: unknown
   reset: () => void
-  retry: () => void
+  unstable_retry: () => void
 }) {
   return (
     <ErrorBoundary errorComponent={DefaultGlobalError}>
       {globalErrorStyles}
-      <GlobalError error={thrownValue} reset={reset} retry={retry} />
+      <GlobalError
+        error={thrownValue}
+        reset={reset}
+        unstable_retry={unstable_retry}
+      />
     </ErrorBoundary>
   )
 }
@@ -71,7 +75,7 @@ export class AppDevOverlayErrorBoundary extends PureComponent<
     dispatcher.openErrorOverlay()
   }
 
-  retry = () => {
+  unstable_retry = () => {
     startTransition(() => {
       this.context?.refresh()
       this.reset()
@@ -93,7 +97,7 @@ export class AppDevOverlayErrorBoundary extends PureComponent<
           globalError={globalError}
           thrownValue={thrownValue}
           reset={this.reset}
-          retry={this.retry}
+          unstable_retry={this.unstable_retry}
         />
       )
     }

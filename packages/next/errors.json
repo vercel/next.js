@@ -1321,7 +1321,5 @@
   "1320": "Route \"%s\": Next.js encountered runtime data during prerendering.\\n\\n\\`cookies()\\`, \\`headers()\\`, \\`params\\`, or \\`searchParams\\` accessed outside of \\`<Suspense>\\` prevents the route from being prerendered, blocking the page load and leading to a slower user experience.\\n\\nWays to fix this:\\n  - [stream] Provide a placeholder with \\`<Suspense fallback={...}>\\` around the data access\\n    https://nextjs.org/docs/messages/blocking-prerender-runtime#wrap-in-or-move-into-suspense\\n  - [cache] For \\`params\\`: if the params are known, prerender them with \\`generateStaticParams\\`\\n    https://nextjs.org/docs/messages/blocking-prerender-runtime#for-known-params-prerender\\n  - [block] Set \\`export const unstable_instant = false\\` to silence this warning and allow a blocking route\\n    https://nextjs.org/docs/messages/blocking-prerender-runtime#allow-blocking-route",
   "1321": "\\`partialPrefetching\\` requires \\`cacheComponents\\` to be enabled. Please update your %s accordingly.",
   "1322": "Route \"%s\" cannot use \\`export const prefetch = ...\\` without enabling \\`cacheComponents\\`.",
-  "1323": "\"prefetch\" is a route segment config and can only be used when the segment is a Server Component module. Remove the \"use client\" directive from \"%s\" to use this API.",
-  "1324": "`retry()` can only be used in the App Router. Use `reset()` in the Pages Router.",
-  "1325": "`catchError` can only be used in Client Components."
+  "1323": "\"prefetch\" is a route segment config and can only be used when the segment is a Server Component module. Remove the \"use client\" directive from \"%s\" to use this API."
 }
