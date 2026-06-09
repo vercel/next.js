@@ -4195,8 +4195,7 @@ export default async function build(
               staticPages,
               serverPropsPages,
               nextVersion: process.env.__NEXT_VERSION as string,
-              // TODO this should not be outputFileTracingRoot but use findRootDirAndLockFiles() instead
-              repoRoot: outputFileTracingRoot,
+              repoRoot: config.repoRoot,
               outputFileTracingRoot,
               hasNodeMiddleware,
               hasInstrumentationHook,

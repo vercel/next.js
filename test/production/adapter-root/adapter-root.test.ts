@@ -30,6 +30,16 @@ describe('adapter-root', () => {
       }
       await next.build()
 
+      if (setEnvVar) {
+        expect(next.cliOutput).not.toContain(
+          'We detected multiple lockfiles and selected the directory'
+        )
+      } else {
+        expect(next.cliOutput).toContain(
+          'We detected multiple lockfiles and selected the directory'
+        )
+      }
+
       const {
         outputs,
         repoRoot,
@@ -47,12 +57,11 @@ describe('adapter-root', () => {
         ...outputs.pages,
         ...outputs.pagesApi,
       ]
-      console.log(combinedRouteOutputs)
-      // for (const output of combinedRouteOutputs) {
-      //   for (const asset of Object.keys(output.assets)) {
-      //     expect(fs.existsSync(path.join(repoRoot, output.assets))).toBeTrue()
-      //   }
-      // }
+      for (const output of combinedRouteOutputs) {
+        for (const asset of Object.keys(output.assets)) {
+          expect(asset).toStartWith('sub/')
+        }
+      }
     })
   })
 })
