@@ -6,6 +6,9 @@ export default function Page() {
       <li>
         <Link href="/use-cache">/use-cache</Link>
       </li>
+      <li>
+        <Link href="/runtime-prefetch">/runtime-prefetch</Link>
+      </li>
     </ul>
   )
 }

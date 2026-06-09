@@ -62,6 +62,58 @@ describe('cache-components-dev-streaming', () => {
     }, 10000)
   })
 
+  it('does not show a Suspense fallback for runtime-prefetchable content on a client navigation', async () => {
+    const browser = await next.browser('/')
+
+    // Record whether each Suspense fallback ever enters the DOM during the
+    // upcoming navigation. We inspect added nodes rather than the live DOM, so
+    // a fallback that's added and then quickly replaced is still caught.
+    await browser.eval(() => {
+      const seen = { runtime: false, dynamic: false }
+      ;(window as any).__fallbacksSeen = seen
+      const check = (node: Node) => {
+        if (!(node instanceof Element)) {
+          return
+        }
+        if (
+          node.id === 'runtime-fallback' ||
+          node.querySelector('#runtime-fallback')
+        ) {
+          seen.runtime = true
+        }
+        if (
+          node.id === 'dynamic-fallback' ||
+          node.querySelector('#dynamic-fallback')
+        ) {
+          seen.dynamic = true
+        }
+      }
+      new MutationObserver((records) => {
+        records.forEach((record) => record.addedNodes.forEach(check))
+      }).observe(document.body, { childList: true, subtree: true })
+    })
+
+    await browser.elementByCss('a[href="/runtime-prefetch"]').click()
+
+    // Wait for the navigation to fully settle.
+    await retry(async () => {
+      expect(await browser.elementByCssInstant('#runtime').text()).toBe(
+        'runtime content'
+      )
+      expect(await browser.elementByCssInstant('#dynamic').text()).toBe(
+        'dynamic content'
+      )
+    })
+
+    // The runtime-prefetchable content was resolved before the response started
+    // streaming, so its fallback was never rendered; the dynamic content's
+    // fallback was.
+    expect(await browser.eval(() => (window as any).__fallbacksSeen)).toEqual({
+      runtime: false,
+      dynamic: true,
+    })
+  })
+
   // The following are smoke tests that Cache Components validation still
   // surfaces errors for both cold-cache renders (validated via a separate
   // warm-cache render) and warm-cache renders (validated via the streamed
