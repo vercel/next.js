@@ -77,9 +77,9 @@ export default function Page() {
 }
 ```
 
-Every link that points at a route with `prefetch = 'partial'` prefetches the App Shell only, even while the global flag is still off. The [`unstable_instant`](/docs/app/api-reference/file-conventions/route-segment-config/instant) export implicitly opts the route into Partial Prefetching, so routes you've already added instant validation to don't need a separate `prefetch` export.
+Every link that points at a route with `prefetch = 'partial'` prefetches the App Shell only, even while the global flag is still off.
 
-Once every route in scope has either `prefetch = 'partial'` or `unstable_instant`, flip the global default and remove the per-route exports:
+Once every route in scope has `prefetch = 'partial'`, flip the global default and remove the per-route exports:
 
 ```ts filename="next.config.ts" highlight={5}
 import type { NextConfig } from 'next'
@@ -116,8 +116,6 @@ Use this for content-heavy routes where the per-link cost of a full prefetch is 
 | This route's visible links to always prefetch page content       | `export const prefetch = 'unstable_eager'` | `page.tsx`/`layout.tsx` |
 | To opt this route out of prefetching entirely                    | `export const prefetch = 'force-disabled'` | `page.tsx`/`layout.tsx` |
 | To prefetch this route's runtime data (cookies, headers, search) | `export const prefetch = 'allow-runtime'`  | `page.tsx`/`layout.tsx` |
-
-A route with `unstable_instant = true` is implicitly partial-prefetched — you don't need both exports.
 
 ## Next steps
 
