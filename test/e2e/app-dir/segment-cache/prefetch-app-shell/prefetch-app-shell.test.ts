@@ -2,6 +2,11 @@ import { nextTestSetup } from 'e2e-utils'
 import type * as Playwright from 'playwright'
 import { createRouterAct } from 'router-act'
 
+// This suite asserts directly on App Shell prefetch responses, so every
+// `createRouterAct` call passes `{ includeAppShellRequests: true }`. By default
+// router-act ignores App Shell requests (those with `next-router-prefetch: '3'`)
+// for assertion purposes, since the App Shell is conceptually part of the route
+// rather than prefetch data. These tests are the exception that opts back in.
 describe('App Shell prefetching', () => {
   const { next, isNextDev } = nextTestSetup({
     files: __dirname,
@@ -18,7 +23,7 @@ describe('App Shell prefetching', () => {
         page = p
       },
     })
-    const act = createRouterAct(page)
+    const act = createRouterAct(page, { includeAppShellRequests: true })
 
     // Reveal the LinkAccordion for /posts/1. This caches the App Shell
     // for the route — the param-independent content of the page that's
@@ -68,7 +73,7 @@ describe('App Shell prefetching', () => {
         page = p
       },
     })
-    const act = createRouterAct(page)
+    const act = createRouterAct(page, { includeAppShellRequests: true })
 
     // Reveal /posts/1 (default/auto prefetch). The route is allow-runtime, which
     // is NOT eager, so under App Shells only the shared App Shell is prefetched.
@@ -100,7 +105,7 @@ describe('App Shell prefetching', () => {
         page = p
       },
     })
-    const act = createRouterAct(page)
+    const act = createRouterAct(page, { includeAppShellRequests: true })
 
     // Reveal /partial/1. /partial/[id] is fully static and opts into Partial
     // Prefetching, so this prefetches the shared app shell ("Partial app
@@ -136,7 +141,7 @@ describe('App Shell prefetching', () => {
         page = p
       },
     })
-    const act = createRouterAct(page)
+    const act = createRouterAct(page, { includeAppShellRequests: true })
 
     // Reveal /eager/1. /eager/[id] opts into Partial Prefetching in "eager"
     // mode, so this primes the shared app shell. (Because the route is eager it
@@ -172,7 +177,7 @@ describe('App Shell prefetching', () => {
         page = p
       },
     })
-    const act = createRouterAct(page)
+    const act = createRouterAct(page, { includeAppShellRequests: true })
 
     // /eager-instant/[id] sets BOTH unstable_instant (which alone behaves like
     // 'partial' — not eager) and prefetch = 'unstable_eager'. The eager
@@ -204,7 +209,7 @@ describe('App Shell prefetching', () => {
         page = p
       },
     })
-    const act = createRouterAct(page)
+    const act = createRouterAct(page, { includeAppShellRequests: true })
 
     // Reveal /partial/1 (default). /partial/[id] opts into Partial Prefetching,
     // so the default link primes the shared shell and skips the Speculative
@@ -246,7 +251,7 @@ describe('App Shell prefetching', () => {
         page = p
       },
     })
-    const act = createRouterAct(page)
+    const act = createRouterAct(page, { includeAppShellRequests: true })
 
     // Reveal the LinkAccordion for /static-posts/1. Two prefetch responses
     // fire: one for the per-segment static prefetch of /static-posts/1
