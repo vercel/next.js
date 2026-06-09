@@ -235,10 +235,10 @@
       "Error overlay - RSC build errors should error when createFactory from react is used in server component",
       "Error overlay - RSC build errors should error when flushSync from react-dom is used in server component",
       "Error overlay - RSC build errors should error when unstable_batchedUpdates from react-dom is used in server component",
-      "Error overlay - RSC build errors should error when unstable_catchError from next/error is imported in instrumentation.js",
-      "Error overlay - RSC build errors should error when unstable_catchError from next/error is imported in middleware.js",
-      "Error overlay - RSC build errors should error when unstable_catchError from next/error is imported in proxy.js",
-      "Error overlay - RSC build errors should error when unstable_catchError from next/error is used in a server component",
+      "Error overlay - RSC build errors should error when catchError from next/error is imported in instrumentation.js",
+      "Error overlay - RSC build errors should error when catchError from next/error is imported in middleware.js",
+      "Error overlay - RSC build errors should error when catchError from next/error is imported in proxy.js",
+      "Error overlay - RSC build errors should error when catchError from next/error is used in a server component",
       "Error overlay - RSC build errors should error when useActionState from react is used in server component",
       "Error overlay - RSC build errors should error when useDeferredValue from react is used in server component",
       "Error overlay - RSC build errors should error when useEffect from react is used in server component",
@@ -4901,11 +4901,11 @@
   },
   "test/e2e/app-dir/catch-error/catch-error-react-compiler.test.ts": {
     "passed": [
-      "app-dir - unstable_catchError with react compiler should recover Client Component error after reset",
-      "app-dir - unstable_catchError with react compiler should recover Client Component error after unstable_retry",
-      "app-dir - unstable_catchError with react compiler should recover Server Component error after unstable_retry",
-      "app-dir - unstable_catchError with react compiler should recover after reset on Pages Router",
-      "app-dir - unstable_catchError with react compiler should throw when unstable_retry is called on Pages Router"
+      "app-dir - catchError with react compiler should recover Client Component error after reset",
+      "app-dir - catchError with react compiler should recover Client Component error after retry",
+      "app-dir - catchError with react compiler should recover Server Component error after retry",
+      "app-dir - catchError with react compiler should recover after reset on Pages Router",
+      "app-dir - catchError with react compiler should throw when retry is called on Pages Router"
     ],
     "failed": [],
     "pending": [],
@@ -4914,11 +4914,11 @@
   },
   "test/e2e/app-dir/catch-error/catch-error.test.ts": {
     "passed": [
-      "app-dir - unstable_catchError should recover Client Component error after reset",
-      "app-dir - unstable_catchError should recover Client Component error after unstable_retry",
-      "app-dir - unstable_catchError should recover Server Component error after unstable_retry",
-      "app-dir - unstable_catchError should recover after reset on Pages Router",
-      "app-dir - unstable_catchError should throw when unstable_retry is called on Pages Router"
+      "app-dir - catchError should recover Client Component error after reset",
+      "app-dir - catchError should recover Client Component error after retry",
+      "app-dir - catchError should recover Server Component error after retry",
+      "app-dir - catchError should recover after reset on Pages Router",
+      "app-dir - catchError should throw when retry is called on Pages Router"
     ],
     "failed": [],
     "pending": [],
@@ -5661,8 +5661,8 @@
       "app-dir - errors error component should trigger error component when null is thrown during server components rendering",
       "app-dir - errors error component should trigger error component when undefined is thrown during server components rendering",
       "app-dir - errors error component should use default error boundary for prod and overlay for dev when no error component specified",
-      "app-dir - errors error component unstable_retry should recover Client Component error after unstable_retry",
-      "app-dir - errors error component unstable_retry should recover Server Component error after unstable_retry"
+      "app-dir - errors error component retry should recover Client Component error after retry",
+      "app-dir - errors error component retry should recover Server Component error after retry"
     ],
     "failed": [],
     "pending": [],
