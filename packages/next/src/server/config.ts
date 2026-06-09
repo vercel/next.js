@@ -532,12 +532,12 @@ function assignDefaultsAndValidate(
     // defaults, so we don't support enabling App Shells against arbitrary
     // subsets of them — the validation goes away once each becomes a
     // default.
+    // Note: `prefetchInlining` is intentionally NOT required. App Shells works
+    // correctly whether or not prefetch inlining is enabled, so disabling it
+    // (e.g. to exercise non-inlined prefetch paths) must not force App Shells off.
     const missing: string[] = []
     if (!result.cacheComponents) {
       missing.push('`cacheComponents`')
-    }
-    if (!result.experimental.prefetchInlining) {
-      missing.push('`experimental.prefetchInlining`')
     }
     if (!result.experimental.varyParams) {
       missing.push('`experimental.varyParams`')
@@ -2223,6 +2223,32 @@ function enforceExperimentalFeatures(
       (isDefaultConfig && !config.experimental.cachedNavigations))
   ) {
     config.experimental.cachedNavigations = true
+  }
+
+  // Enable appShells by default when cacheComponents is enabled, unless
+  // explicitly disabled. App Shells builds on Cache Components rendering, so
+  // the two features are tied together: we only flip the default for projects
+  // that are already using Cache Components. Done silently for the same reasons
+  // as the cachedNavigations default above.
+  //
+  // We only auto-enable when App Shells's required dependencies are satisfied.
+  // If a project has explicitly disabled one of them, we leave App Shells off
+  // rather than force it on — otherwise the validation in
+  // `assignDefaultsAndValidate` would turn a previously-valid config into a
+  // hard error. Users who want App Shells in that situation can still enable it
+  // explicitly and get the actionable validation message. `prefetchInlining` is
+  // intentionally not part of this gate (App Shells works without it). This runs
+  // after the cachedNavigations default above so that dependency is already set.
+  // TODO: Remove this once appShells is unconditionally the default.
+  if (
+    config.cacheComponents &&
+    config.experimental.varyParams !== false &&
+    config.experimental.optimisticRouting !== false &&
+    config.experimental.cachedNavigations !== false &&
+    (config.experimental.appShells === undefined ||
+      (isDefaultConfig && !config.experimental.appShells))
+  ) {
+    config.experimental.appShells = true
   }
 
   // TODO: Remove this once appNewScrollHandler is the default.
