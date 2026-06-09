@@ -377,7 +377,7 @@ This keeps `ProductGrid` simple (it takes a `string`, not a `Promise`) while sti
 | **Navigation** | Prefetched as instant fallback           | Not prefetched by default        |
 | **Best for**   | Pages where nothing renders without data | Most pages, for granular control |
 
-Prefer explicit `<Suspense>` boundaries close to the dynamic access. When the prerenderer encounters dynamic work, it walks up the tree looking for the nearest Suspense boundary. If none is found, the build fails with a [blocking route error](/docs/messages/blocking-route). A `loading.js` high in the tree is a valid boundary, so the framework finds it and stops, but now the entire page falls back to a full-page skeleton instead of streaming granularly.
+Prefer explicit `<Suspense>` boundaries close to the dynamic access. When the prerenderer encounters dynamic work, it walks up the tree looking for the nearest Suspense boundary. If none is found, the build fails with a [blocking route error](/docs/messages/blocking-prerender-dynamic). A `loading.js` high in the tree is a valid boundary, so the framework finds it and stops, but now the entire page falls back to a full-page skeleton instead of streaming granularly.
 
 ### Error handling mid-stream
 

@@ -10,6 +10,10 @@ description: A glossary of common terms used in Next.js.
 
 The Next.js router introduced in version 13, built on top of React Server Components. It uses file-system based routing and supports layouts, nested routing, loading states, error handling, and more. Learn more in the [App Router documentation](/docs/app).
 
+## App Shell
+
+A per-route prerender containing only the generic, reusable parts of a page: what Next.js can produce without any URL-specific data. Used as the loading state of last resort by [ISR with Cache Components](/docs/app/guides/incremental-static-regeneration-cache-components) and [runtime prefetching](/docs/app/guides/runtime-prefetching).
+
 # B
 
 ## Build time
@@ -155,6 +159,10 @@ UI that is unique to a route. Defined by exporting a React component from a [`pa
 ## Parallel Routes
 
 A pattern that allows simultaneously or conditionally rendering multiple pages within the same layout. Created using named slots with the `@folder` convention, useful for dashboards, modals, and complex layouts. Learn more in [Parallel Routes](/docs/app/api-reference/file-conventions/parallel-routes).
+
+## Partial Prefetching
+
+A prefetching strategy for [Cache Components](#cache-components) routes where `<Link>` loads only a per-route [App Shell](#app-shell) by default. The page's cached content is downloaded only when the link sets `prefetch={true}`, and dynamic content is never prefetched. Enable with [`partialPrefetching: true`](/docs/app/api-reference/config/next-config-js/partialPrefetching) in `next.config.ts`. Learn more in the [Adopting Partial Prefetching guide](/docs/app/guides/adopting-partial-prefetching).
 
 ## Partial Prerendering (PPR)
 

@@ -1,0 +1,63 @@
+---
+title: partialPrefetching
+description: Configure the default link prefetch behavior to fetch only the static parts of each route.
+related:
+  title: Related
+  description: View related API references and guides.
+  links:
+    - app/api-reference/config/next-config-js/cacheComponents
+    - app/api-reference/file-conventions/route-segment-config/prefetch
+    - app/api-reference/components/link
+    - app/guides/runtime-prefetching
+---
+
+`partialPrefetching` enables Partial Prefetching at the app level. The framework prefetches the static parts of each route by default; opt individual routes into [runtime prefetching](/docs/app/guides/runtime-prefetching) to fetch more.
+
+## Usage
+
+```ts filename="next.config.ts" highlight={5} switcher
+import type { NextConfig } from 'next'
+
+const nextConfig: NextConfig = {
+  cacheComponents: true,
+  partialPrefetching: true,
+}
+
+export default nextConfig
+```
+
+```js filename="next.config.js" highlight={3} switcher
+module.exports = {
+  cacheComponents: true,
+  partialPrefetching: true,
+}
+```
+
+`partialPrefetching` requires [`cacheComponents`](/docs/app/api-reference/config/next-config-js/cacheComponents). Without it, `next dev` and `next build` throw at config validation.
+
+## Reference
+
+| Value   | Description                                 |
+| ------- | ------------------------------------------- |
+| `true`  | Enables Partial Prefetching across the app. |
+| `false` | Default. No change to prefetch behavior.    |
+
+## How prefetches resolve
+
+With `partialPrefetching` enabled:
+
+- **Plain `<Link>`** prefetches the route's [App Shell](/docs/app/glossary#app-shell), shared across every link to the route.
+- **`<Link prefetch={true}>`** prefetches the route's static shell with its cached content.
+- **`<Link prefetch={true}>` + per-segment `prefetch = 'allow-runtime'`** prefetches a [runtime prerender](/docs/app/guides/runtime-prefetching) that includes cached content gated by runtime data.
+
+See the [runtime prefetching guide](/docs/app/guides/runtime-prefetching) for the per-link behavior in detail.
+
+## Per-segment overrides
+
+A segment that exports an explicit [`prefetch`](/docs/app/api-reference/file-conventions/route-segment-config/prefetch) value overrides the app-level default for that route.
+
+## Version History
+
+| Version | Change                                                                     |
+| ------- | -------------------------------------------------------------------------- |
+| 16.3.0  | `partialPrefetching` introduced. Requires `cacheComponents` to be enabled. |

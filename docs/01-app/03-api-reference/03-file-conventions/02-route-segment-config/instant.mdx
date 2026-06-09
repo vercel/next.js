@@ -96,7 +96,7 @@ Each error identifies the component that would block navigation. The fix is usua
 
 ## Configuring validation defaults
 
-By default, only segments that explicitly export `instant` are validated. The `experimental.instantInsights.validationLevel` config opts every Page and Default segment into validation at once, without needing to repeat `instant` on each route.
+By default (`validationLevel: 'warning'`), Cache Components apps validate every Page and Default segment in development. The `experimental.instantInsights.validationLevel` config tunes this behavior — for example, to limit validation to segments that opt in explicitly via `instant`.
 
 ```js filename="next.config.js"
 module.exports = {
@@ -110,8 +110,8 @@ module.exports = {
 
 The supported levels are:
 
-- **`'manual-warning'`** _(framework default)_: Only segments with an explicit `instant` are validated, at warning level (dev only).
-- **`'warning'`**: Every Page and Default segment is implicitly validated at warning level (dev only).
+- **`'warning'`** _(framework default)_: Every Page and Default segment is implicitly validated at warning level (dev only).
+- **`'manual-warning'`**: Only segments with an explicit `instant` are validated, at warning level (dev only).
 
 Setting `instant = false` on a segment opts it out of validation entirely.
 
