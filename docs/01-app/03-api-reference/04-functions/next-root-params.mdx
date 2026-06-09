@@ -61,7 +61,7 @@ Given this file structure:
 
 Only `lang` is a root parameter. `slug` is a regular route parameter:
 
-```tsx filename="app/[lang]/posts/[slug]/page.tsx" highlight={1,5} switcher
+```tsx filename="app/[lang]/posts/[slug]/page.tsx" highlight={1,7} switcher
 import { lang } from 'next/root-params'
 
 export default async function PostPage(
@@ -268,7 +268,7 @@ Since `id` does not exist in the marketing root layout, `await id()` returns `un
 
 Root parameters work with [catch-all and optional catch-all](/docs/app/api-reference/file-conventions/dynamic-routes#catch-all-segments) segments:
 
-```tsx filename="app/docs/[...path]/layout.tsx" highlight={4} switcher
+```tsx filename="app/docs/[...path]/layout.tsx" highlight={6} switcher
 import { path } from 'next/root-params'
 
 export default async function DocsLayout(
