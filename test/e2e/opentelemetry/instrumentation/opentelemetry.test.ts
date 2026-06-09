@@ -1,5 +1,5 @@
 import { isNextDev, nextTestSetup } from 'e2e-utils'
-import { check, retry } from 'next-test-utils'
+import { retry } from 'next-test-utils'
 import { NEXT_RSC_UNION_QUERY } from 'next/dist/client/components/app-router-headers'
 
 import { SavedSpan } from './constants'
@@ -403,6 +403,61 @@ describe('opentelemetry', () => {
                     name: 'resolve page components',
                     attributes: {
                       'next.route': '/api/app/[param]/data',
+                      'next.span_name': 'resolve page components',
+                      'next.span_type': 'NextNodeServer.findPageComponents',
+                    },
+                    kind: 0,
+                    status: { code: 0 },
+                  },
+                  {
+                    name: 'start response',
+                    attributes: {
+                      'next.span_name': 'start response',
+                      'next.span_type': 'NextNodeServer.startResponse',
+                    },
+                    kind: 0,
+                    status: { code: 0 },
+                  },
+                ],
+              },
+            ])
+          })
+
+          it('should record accurate status code for non-200 route handler responses', async () => {
+            await next.fetch('/api/app/param/status', env.fetchInit)
+
+            await expectTrace(getCollector(), [
+              {
+                name: 'GET /api/app/[param]/status',
+                attributes: {
+                  'http.method': 'GET',
+                  'http.route': '/api/app/[param]/status',
+                  'http.status_code': 418,
+                  'http.target': '/api/app/param/status',
+                  'next.route': '/api/app/[param]/status',
+                  'next.span_name': 'GET /api/app/[param]/status',
+                  'next.span_type': 'BaseServer.handleRequest',
+                },
+                kind: 1,
+                status: { code: 0 },
+                traceId: env.span.traceId,
+                parentId: env.span.rootParentId,
+                spans: [
+                  {
+                    name: 'executing api route (app) /api/app/[param]/status',
+                    attributes: {
+                      'next.route': '/api/app/[param]/status',
+                      'next.span_name':
+                        'executing api route (app) /api/app/[param]/status',
+                      'next.span_type': 'AppRouteRouteHandlers.runHandler',
+                    },
+                    kind: 0,
+                    status: { code: 0 },
+                  },
+                  {
+                    name: 'resolve page components',
+                    attributes: {
+                      'next.route': '/api/app/[param]/status',
                       'next.span_name': 'resolve page components',
                       'next.span_type': 'NextNodeServer.findPageComponents',
                     },
@@ -1631,7 +1686,7 @@ async function expectTrace(
       .filter(Boolean)
   )
 
-  await check(async () => {
+  await retry(async () => {
     const traces = collector.getSpans()
 
     const tree: HierSavedSpan[] = []
@@ -1707,6 +1762,5 @@ async function expectTrace(
     })
 
     expect(filteredTree).toMatchObject(match)
-    return 'success'
-  }, 'success')
+  })
 }
