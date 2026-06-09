@@ -2,7 +2,7 @@ import { connection } from 'next/server'
 import { ReactNode } from 'react'
 
 export const unstable_instant = { level: 'experimental-error' }
-export const unstable_prefetch = 'allow-runtime'
+export const prefetch = 'allow-runtime'
 
 export default async function Layout({ children }: { children: ReactNode }) {
   await connection()

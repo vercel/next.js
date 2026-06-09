@@ -5,7 +5,7 @@ import { connection } from 'next/server'
 // `SubtreeHasPartialPrefetching` hint originates here and must propagate up
 // through the /a/b and /a layouts to the root for the scheduler to downgrade a
 // `prefetch={true}` link into a partial (PPR) prefetch.
-export const unstable_prefetch = 'partial'
+export const prefetch = 'partial'
 
 export default function Page() {
   return (

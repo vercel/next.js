@@ -2,7 +2,7 @@ import { cookies } from 'next/headers'
 import { Suspense } from 'react'
 
 export const unstable_instant = { level: 'experimental-error' }
-export const unstable_prefetch = 'allow-runtime'
+export const prefetch = 'allow-runtime'
 
 export async function generateMetadata() {
   await cookies()

@@ -15,7 +15,7 @@ export const unstable_instant: {
 } = {
   unstable_samples: [{ params: { slug: 'aaa' } }, { params: { slug: 'bbb' } }],
 }
-export const unstable_prefetch = 'allow-runtime'
+export const prefetch = 'allow-runtime'
 
 type Params = { slug: string }
 

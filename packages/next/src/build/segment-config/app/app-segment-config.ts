@@ -150,7 +150,7 @@ const AppSegmentConfigSchema = z.object({
    *   a runtime request instead of a static one.
    * - 'force-disabled' disables prefetching for the segment.
    */
-  unstable_prefetch: PrefetchSchema.optional(),
+  prefetch: PrefetchSchema.optional(),
 
   /**
    * The stale time for dynamic responses in seconds.
@@ -202,9 +202,9 @@ export function parseAppSegmentConfig(
               message: `Invalid unstable_instant value ${JSON.stringify(ctx.data)} on "${route}", must be \`true\`, \`false\`, or an object. Read more at https://nextjs.org/docs/messages/invalid-instant-configuration`,
             }
           }
-          case 'unstable_prefetch': {
+          case 'prefetch': {
             return {
-              message: `Invalid unstable_prefetch value ${JSON.stringify(ctx.data)} on "${route}", must be "auto", "partial", "unstable_eager", "force-disabled", or "allow-runtime".`,
+              message: `Invalid prefetch value ${JSON.stringify(ctx.data)} on "${route}", must be "auto", "partial", "unstable_eager", "force-disabled", or "allow-runtime".`,
             }
           }
           case 'unstable_dynamicStaleTime': {
@@ -278,7 +278,7 @@ export type AppSegmentConfig = {
    *   a runtime request instead of a static one.
    * - 'force-disabled' disables prefetching for the segment.
    */
-  unstable_prefetch?: Prefetch
+  prefetch?: Prefetch
 
   /**
    * The stale time for dynamic responses in seconds.

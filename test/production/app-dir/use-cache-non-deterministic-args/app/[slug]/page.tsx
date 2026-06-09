@@ -3,7 +3,7 @@ import { Suspense, cacheSignal } from 'react'
 import { setTimeout } from 'timers/promises'
 import { cookies } from 'next/headers'
 
-export const unstable_prefetch = 'allow-runtime'
+export const prefetch = 'allow-runtime'
 
 const callCounts = new Map<string, number>()
 

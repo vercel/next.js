@@ -57,7 +57,7 @@ export async function anySegmentHasRuntimePrefetchEnabled(
 
   // TODO(restart-on-cache-miss): Does this work correctly for client page/layout modules?
   const prefetchConfig = layoutOrPageMod
-    ? (layoutOrPageMod as AppSegmentConfig).unstable_prefetch
+    ? (layoutOrPageMod as AppSegmentConfig).prefetch
     : undefined
   if (prefetchConfig === 'allow-runtime') {
     return true

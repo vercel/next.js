@@ -6,7 +6,7 @@ import { connection } from 'next/server'
 export const unstable_instant = {
   unstable_samples: [{ headers: [['host', 'test-host']] }],
 }
-export const unstable_prefetch = 'allow-runtime'
+export const prefetch = 'allow-runtime'
 
 export default async function Page() {
   return (

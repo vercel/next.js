@@ -9,7 +9,7 @@ export const unstable_instant: {
 } = {
   unstable_samples: [{ params: { slug: 'anything' } }],
 }
-export const unstable_prefetch = 'allow-runtime'
+export const prefetch = 'allow-runtime'
 
 export default function UngeneratedParamsRuntimePage({
   params,

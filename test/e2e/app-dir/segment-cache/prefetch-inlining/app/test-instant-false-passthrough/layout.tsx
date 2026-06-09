@@ -6,7 +6,7 @@ import { ReactNode, Suspense } from 'react'
 import { connection } from 'next/server'
 
 export const unstable_instant = false
-export const unstable_prefetch = 'force-disabled'
+export const prefetch = 'force-disabled'
 
 async function DynamicContent() {
   await connection()

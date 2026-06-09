@@ -237,7 +237,7 @@ async function createComponentTreeInternal(
     : []
 
   const prefetchConfig = layoutOrPageMod
-    ? (layoutOrPageMod as AppSegmentConfig).unstable_prefetch
+    ? (layoutOrPageMod as AppSegmentConfig).prefetch
     : undefined
   const hasRuntimePrefetch = prefetchConfig === 'allow-runtime'
   const isRuntimePrefetchable = hasRuntimePrefetch || parentRuntimePrefetchable

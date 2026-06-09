@@ -4,7 +4,7 @@
 // In the future, this test can be used to check whether we correctly
 // *skip* a runtime prefetch if a page was prerendered as static.
 export const unstable_instant = true
-export const unstable_prefetch = 'allow-runtime'
+export const prefetch = 'allow-runtime'
 
 export default async function Page() {
   return (

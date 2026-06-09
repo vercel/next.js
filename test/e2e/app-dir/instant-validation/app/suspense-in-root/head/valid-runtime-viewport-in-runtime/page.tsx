@@ -2,7 +2,7 @@ import type { Viewport } from 'next'
 import { cookies } from 'next/headers'
 
 export const unstable_instant = { level: 'experimental-error' }
-export const unstable_prefetch = 'allow-runtime'
+export const prefetch = 'allow-runtime'
 
 export async function generateViewport(): Promise<Viewport> {
   await cookies()

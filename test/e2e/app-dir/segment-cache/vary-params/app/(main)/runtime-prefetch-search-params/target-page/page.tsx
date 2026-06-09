@@ -10,7 +10,7 @@ import { connection } from 'next/server'
 export const unstable_instant = {
   unstable_samples: [{ searchParams: { q: '1' } }],
 }
-export const unstable_prefetch = 'allow-runtime'
+export const prefetch = 'allow-runtime'
 
 export default async function RuntimePrefetchSearchParamsTargetPage() {
   // Intentionally NOT accessing searchParams
