@@ -428,13 +428,13 @@ The dev overlay surfaces this as the **Block** fix alongside every insight:
   />
 </FixCardGrid>
 
-**One segment.** Set `unstable_instant = false` on the page or layout file. The segment is allowed to block when navigated to; child segments are still validated.
+**One segment.** Set `unstable_instant = false` on the page or layout file. This opts the segment out of validation feedback. The segment may still navigate instantly if its structure supports it; the framework just won't surface insights for it. Navigations between sibling segments below are still validated.
 
 ```tsx filename="app/dashboard/layout.tsx"
 export const unstable_instant = false
 ```
 
-This tells validation: navigating to `/dashboard` from outside does not need to be instant, but sibling navigations within it still do.
+With `false` on `/dashboard/layout.tsx`, validation no longer flags navigations into `/dashboard` from outside; navigations between `/dashboard/a` and `/dashboard/b` are still checked.
 
 **Layout and its children.** To disable validation for the layout and every segment below it, use:
 
