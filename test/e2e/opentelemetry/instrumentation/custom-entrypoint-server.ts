@@ -34,13 +34,38 @@ async function main() {
   require('next/dist/server/node-environment')
 
   const handlers = [
-    [/^\/app\/param\/rsc-fetch$/, 'app/app/[param]/rsc-fetch/page.js'],
     [/^\/api\/app\/param\/data$/, 'app/api/app/[param]/data/route.js'],
+    [/^\/api\/app\/param\/status$/, 'app/api/app/[param]/status/route.js'],
+    [/^\/app\/param\/loading\/error$/, 'app/app/[param]/loading/error/page.js'],
+    [/^\/app\/param\/loading\/page1$/, 'app/app/[param]/loading/page1/page.js'],
+    [/^\/app\/param\/loading\/page2$/, 'app/app/[param]/loading/page2/page.js'],
+    [/^\/app\/param\/rsc-fetch$/, 'app/app/[param]/rsc-fetch/page.js'],
+    [
+      /^\/app\/param\/rsc-fetch\/error$/,
+      'app/app/[param]/rsc-fetch/error/page.js',
+    ],
+    // ---
+    [/^\/api\/pages\/param\/basic$/, 'pages/api/pages/[param]/basic.js'],
     [
       /^\/pages\/param\/getServerSideProps$/,
       'pages/pages/[param]/getServerSideProps.js',
     ],
-    [/^\/api\/pages\/param\/basic$/, 'pages/api/pages/[param]/basic.js'],
+    [
+      /^\/pages\/param\/getServerSidePropsError$/,
+      'pages/pages/[param]/getServerSidePropsError.js',
+    ],
+    [
+      /^\/pages\/param\/getServerSidePropsNotFound$/,
+      'pages/pages/[param]/getServerSidePropsNotFound.js',
+    ],
+    [
+      /^\/pages\/param\/getStaticProps$/,
+      'pages/pages/[param]/getStaticProps.js',
+    ],
+    [
+      /^\/pages\/param\/getStaticProps2$/,
+      'pages/pages/[param]/getStaticProps2.js',
+    ],
   ] as const
 
   const tracer = trace.getTracer('custom-entrypoint-server', '1.0.0')
