@@ -4547,6 +4547,13 @@ async function streamStagedRenderInDev(
   let hadCacheMiss = false
   const checkForCacheMiss = () => {
     if (cacheSignal.hasPendingReads()) {
+      if (!hadCacheMiss) {
+        // First detected cache miss this render: tell the dev overlay the load
+        // is streaming with a cold cache now, while it's still in progress, so
+        // the indicator can combine with the rendering status on client navs.
+        // The per-load `'ready'` reset clears it again on the next load.
+        ctx.renderOpts.setCacheStatus?.('cold', ctx.htmlRequestId)
+      }
       hadCacheMiss = true
     }
     return hadCacheMiss
