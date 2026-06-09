@@ -2,6 +2,7 @@
 
 const path = require('path')
 const execa = require('execa')
+const semver = require('semver')
 const { Sema } = require('async-sema')
 const { readFile, readdir, writeFile, cp } = require('fs/promises')
 
@@ -12,6 +13,37 @@ const cwd = process.cwd()
     const publishSema = new Sema(2)
 
     let version = require('@next/swc/package.json').version
+    const parsedVersion = semver.parse(version)
+    if (parsedVersion === null) {
+      throw new Error(`Invalid version in @next/swc/package.json: ${version}`)
+    }
+    const prereleaseChannel = parsedVersion.prerelease[0]
+    const isPrerelease = prereleaseChannel != null
+
+    let tag = isPrerelease ? String(prereleaseChannel) : 'latest'
+
+    try {
+      if (!isPrerelease) {
+        const res = await fetch(
+          `https://registry.npmjs.org/-/package/next/dist-tags`
+        )
+        const tags = await res.json()
+
+        if (semver.lt(version, tags.latest)) {
+          // If the current version is less than the latest, it means this
+          // is a backport release. Since NPM sets the 'latest' tag by default
+          // during publishing, when users install `next@latest`, they might
+          // get the backported version instead of the actual "latest" version.
+          // Therefore, we explicitly set the tag as 'backport' for backports.
+          tag = 'backport'
+        }
+      }
+    } catch (error) {
+      console.log('Failed to fetch Next.js dist tags from the NPM registry.')
+      throw error
+    }
+
+    console.log(`Publishing as "${tag}" dist tag...`)
 
     // Copy binaries to package folders, update version, and publish
     let nativePackagesDir = path.join(cwd, 'crates/next-napi-bindings/npm')
@@ -47,7 +79,8 @@ const cwd = process.cwd()
               `${path.join(nativePackagesDir, platform)}`,
               `--access`,
               `public`,
-              ...(version.includes('canary') ? ['--tag', 'canary'] : []),
+              '--tag',
+              tag,
             ],
             { stdio: 'inherit' }
           )
@@ -105,7 +138,8 @@ const cwd = process.cwd()
               `${path.join(wasmDir, `pkg-${wasmTarget}`)}`,
               '--access',
               'public',
-              ...(version.includes('canary') ? ['--tag', 'canary'] : []),
+              '--tag',
+              tag,
             ],
             { stdio: 'inherit' }
           )

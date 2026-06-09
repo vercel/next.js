@@ -5,7 +5,6 @@ const path = require('path')
 const execa = require('execa')
 const semver = require('semver')
 const { Sema } = require('async-sema')
-const { execSync } = require('child_process')
 const fs = require('fs')
 const {
   getGitHubToken,
@@ -15,45 +14,22 @@ const {
 const cwd = process.cwd()
 
 ;(async function () {
-  let isCanary = true
-  let isReleaseCandidate = false
-  let isBeta = false
-
-  try {
-    const tagOutput = execSync(
-      `node ${path.join(__dirname, 'check-is-release.js')}`
-    ).toString()
-    console.log(tagOutput)
-
-    if (tagOutput.trim().startsWith('v')) {
-      isCanary = tagOutput.includes('-canary')
-    }
-    isReleaseCandidate = tagOutput.includes('-rc')
-    isBeta = tagOutput.includes('-beta')
-  } catch (err) {
-    console.log(err)
-
-    if (err.message && err.message.includes('no tag exactly matches')) {
-      console.log('Nothing to publish, exiting...')
-      return
-    }
-    throw err
+  const version = JSON.parse(
+    await fs.promises.readFile(path.join(cwd, 'lerna.json'), 'utf-8')
+  ).version
+  const parsedVersion = semver.parse(version)
+  if (parsedVersion === null) {
+    throw new Error(`Invalid version in lerna.json: ${version}`)
   }
+  console.log(`Publishing ${version}`)
 
-  let tag = isCanary
-    ? 'canary'
-    : isReleaseCandidate
-      ? 'rc'
-      : isBeta
-        ? 'beta'
-        : 'latest'
+  const prereleaseChannel = parsedVersion.prerelease[0]
+  const isPrerelease = prereleaseChannel != null
+
+  let tag = isPrerelease ? String(prereleaseChannel) : 'latest'
 
   try {
-    if (!isCanary && !isReleaseCandidate && !isBeta) {
-      const version = JSON.parse(
-        await fs.promises.readFile(path.join(cwd, 'lerna.json'), 'utf-8')
-      ).version
-
+    if (!isPrerelease) {
       const res = await fetch(
         `https://registry.npmjs.org/-/package/next/dist-tags`
       )
@@ -136,15 +112,14 @@ const cwd = process.cwd()
       throw new Error(getGitHubTokenMissingMessage())
     }
 
-    if (isCanary) {
+    if (isPrerelease) {
       try {
         const ghHeaders = {
           Accept: 'application/vnd.github+json',
           Authorization: `Bearer ${githubToken}`,
           'X-GitHub-Api-Version': '2022-11-28',
         }
-        const { version: _version } = require('../lerna.json')
-        const version = `v${_version}`
+        const tag = `v${version}`
 
         let release
         let releasesData
@@ -161,9 +136,7 @@ const cwd = process.cwd()
             )
             releasesData = await releaseUrlRes.json()
 
-            release = releasesData.find(
-              (release) => release.tag_name === version
-            )
+            release = releasesData.find((release) => release.tag_name === tag)
           } catch (err) {
             console.log(`Fetching release failed`, err)
           }
@@ -183,12 +156,12 @@ const cwd = process.cwd()
           method: 'PATCH',
           body: JSON.stringify({
             draft: false,
-            name: version,
+            name: tag,
           }),
         })
 
         if (undraftRes.ok) {
-          console.log('un-drafted canary release successfully')
+          console.log(`un-drafted ${prereleaseChannel} release successfully`)
         } else {
           console.log(`Failed to undraft`, await undraftRes.text())
         }
