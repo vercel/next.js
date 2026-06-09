@@ -1,4 +1,4 @@
-// import fs from 'fs'
+import fs from 'fs'
 import path from 'path'
 import { nextTestSetup } from 'e2e-utils'
 import type { NextAdapter } from 'next'
@@ -58,8 +58,9 @@ describe('adapter-root', () => {
         ...outputs.pagesApi,
       ]
       for (const output of combinedRouteOutputs) {
-        for (const asset of Object.keys(output.assets)) {
+        for (const [asset, source] of Object.entries(output.assets)) {
           expect(asset).toStartWith('sub/')
+          expect(fs.existsSync(source)).toBeTrue()
         }
       }
     })
