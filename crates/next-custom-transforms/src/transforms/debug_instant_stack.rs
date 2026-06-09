@@ -53,21 +53,21 @@ struct DebugInstantStackPass {
 }
 
 /// Given an export specifier, returns `Some((exported_name, local_name))` if
-/// the exported name is `unstable_instant`.
+/// the exported name is `instant`.
 fn get_instant_specifier_names(specifier: &ExportSpecifier) -> Option<(&Ident, &Ident)> {
     match specifier {
-        // `export { orig as unstable_instant }`
+        // `export { orig as instant }`
         ExportSpecifier::Named(ExportNamedSpecifier {
             exported: Some(ModuleExportName::Ident(exported)),
             orig: ModuleExportName::Ident(orig),
             ..
-        }) if exported.sym == "unstable_instant" => Some((exported, orig)),
-        // `export { unstable_instant }`
+        }) if exported.sym == "instant" => Some((exported, orig)),
+        // `export { instant }`
         ExportSpecifier::Named(ExportNamedSpecifier {
             exported: None,
             orig: ModuleExportName::Ident(orig),
             ..
-        }) if orig.sym == "unstable_instant" => Some((orig, orig)),
+        }) if orig.sym == "instant" => Some((orig, orig)),
         _ => None,
     }
 }
@@ -106,12 +106,12 @@ impl VisitMut for DebugInstantStackPass {
 
         for item in items.iter() {
             match item {
-                // `export const unstable_instant = ...`
+                // `export const instant = ...`
                 ModuleItem::ModuleDecl(ModuleDecl::ExportDecl(export_decl)) => {
                     if let Decl::Var(var_decl) = &export_decl.decl {
                         for decl in &var_decl.decls {
                             if let Pat::Ident(ident) = &decl.name
-                                && ident.id.sym == "unstable_instant"
+                                && ident.id.sym == "instant"
                                 && let Some(init) = &decl.init
                             {
                                 self.instant_export_span = Some(init.span());
@@ -119,13 +119,13 @@ impl VisitMut for DebugInstantStackPass {
                         }
                     }
                 }
-                // `export { unstable_instant }` or `export { x as unstable_instant }`
+                // `export { instant }` or `export { x as instant }`
                 // with or without `from '...'`
                 ModuleItem::ModuleDecl(ModuleDecl::ExportNamed(named)) => {
                     for specifier in &named.specifiers {
                         if let Some((_exported, orig)) = get_instant_specifier_names(specifier) {
                             if named.src.is_some() {
-                                // Re-export: `export { unstable_instant } from './config'`
+                                // Re-export: `export { instant } from './config'`
                                 // Point at the export specifier itself
                                 self.instant_export_span = Some(specifier.span());
                             } else {
@@ -156,7 +156,7 @@ impl VisitMut for DebugInstantStackPass {
             }
 
             let mut cons = quote!(
-                "function unstable_instant() {
+                "function instant() {
                     const error = $new_error
                     error.name = 'Instant Validation'
                     return error
@@ -165,7 +165,7 @@ impl VisitMut for DebugInstantStackPass {
             );
 
             // Patch source_span onto the Function
-            // for sourcemap mapping back to the unstable_instant config value
+            // for sourcemap mapping back to the instant config value
             if let Expr::Fn(f) = &mut cons {
                 f.function.span = source_span;
             }

@@ -970,7 +970,7 @@ async function generateStagedDynamicFlightRenderResultNode(
   const staticStageByteLengthDeferred = createPromiseWithResolvers<number>()
 
   // Check if this route has opted into runtime prefetching via
-  // unstable_instant. If so, we piggyback on the dynamic render to fill caches
+  // instant. If so, we piggyback on the dynamic render to fill caches
   // and then spawn a final runtime prerender whose result stream is embedded in
   // the RSC payload. This is gated on the explicit opt-in because it adds extra
   // server processing, increases the response payload size, and the runtime
@@ -5798,7 +5798,7 @@ async function validateStagedShell(
  * shallowest. At each depth, builds a combined payload where segments
  * above the boundary use Dynamic stage (already mounted) and segments
  * below use Static/Runtime stage (being prefetched). If the new subtree
- * contains any `unstable_instant` configs, the payload is rendered to
+ * contains any `instant` configs, the payload is rendered to
  * detect dynamic holes without Suspense.
  */
 async function validateInstantConfigs(
@@ -6511,7 +6511,7 @@ async function validateInstantConfigsInBuild(
 }
 
 /**
- * Runs instant validation at build time using the `samples` from `unstable_instant`.
+ * Runs instant validation at build time using the `samples` from `instant`.
  *
  * For each sample, this creates a staged RSC render with a synthetic `RequestStore`
  * populated from sample data, then feeds the accumulated chunks to

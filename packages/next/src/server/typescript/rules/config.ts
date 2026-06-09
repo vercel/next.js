@@ -146,15 +146,15 @@ const API_DOCS: Record<
       '`maxDuration` allows you to set max default execution time for your function. If it is not specified, the default value is dependent on your deployment platform and plan.',
     link: 'https://nextjs.org/docs/app/api-reference/file-conventions/route-segment-config#maxduration',
   },
-  unstable_instant: {
-    description: `Enables instant navigation validation for this segment. This configuration is currently under development and will change.`,
-    link: '(docs coming soon)',
+  instant: {
+    description: `Enables instant navigation validation for this segment.`,
+    link: 'https://nextjs.org/docs/app/api-reference/file-conventions/route-segment-config/instant',
     type: 'true | object | false',
     // TODO: ideally, we'd validate the config object somehow, but this is difficult to do
     // with the way this plugin is currently structured.
     // For now, since we don't provide an `options` here, we won't do any validation in
     // `getSemanticDiagnosticsForExportVariableStatement` below, and only provide hover a tooltip + autocomplete.
-    insertText: 'unstable_instant = true;',
+    insertText: 'instant = true;',
   },
   prefetch: {
     description: `Controls prefetching behavior for this segment. Some options are experimental and may change.`,
@@ -175,7 +175,7 @@ const API_DOCS: Record<
     insertText: `prefetch = 'allow-runtime';`,
   },
   unstable_dynamicStaleTime: {
-    description: `Controls how long the client-side router cache retains dynamic page data (in seconds). Pages only — not allowed in layouts. Cannot be combined with \`unstable_instant\`.`,
+    description: `Controls how long the client-side router cache retains dynamic page data (in seconds). Pages only — not allowed in layouts. Cannot be combined with \`instant\`.`,
     link: '(docs coming soon)',
     type: 'number',
     isValid: (value: string) => {

@@ -12,7 +12,7 @@ related:
 
 The `prefetch` route segment config controls how a segment is prefetched during client-side navigation. The default (`'auto'`) lets Next.js manage the strategy on your behalf — today that always means a static prefetch. The other options let you declare which prefetch behavior is appropriate for the segment. Use them with care, since they can affect both navigation latency and prefetch cost.
 
-When you do set this export, consider pairing it with [`unstable_instant`](/docs/app/api-reference/file-conventions/route-segment-config/instant) so validation can confirm that navigations to this segment actually produce an instant UI from the prefetched data. This is especially important for runtime prefetching.
+When you do set this export, consider pairing it with [`instant`](/docs/app/api-reference/file-conventions/route-segment-config/instant) so validation can confirm that navigations to this segment actually produce an instant UI from the prefetched data. This is especially important for runtime prefetching.
 
 > **Good to know**:
 >
@@ -41,7 +41,7 @@ export default function Page() {
 
 Lets Next.js manage prefetching for this segment. Today this always means a static prefetch — to permit runtime prefetching, opt in explicitly with [`'allow-runtime'`](#allow-runtime).
 
-A future release will use [`unstable_instant`](/docs/app/api-reference/file-conventions/route-segment-config/instant) validation to choose between static and runtime prefetching automatically. Leaving the default in place means your app will pick up that improvement without code changes.
+A future release will use [`instant`](/docs/app/api-reference/file-conventions/route-segment-config/instant) validation to choose between static and runtime prefetching automatically. Leaving the default in place means your app will pick up that improvement without code changes.
 
 You typically don't need to set this explicitly — omitting the export has the same effect.
 
@@ -57,7 +57,7 @@ export const prefetch = 'allow-runtime'
 
 ### `'force-static'`
 
-Always prefetch this segment statically, even if it has not been validated with `unstable_instant`. Use this when you know the segment produces a valid static shell but do not want to set up instant validation.
+Always prefetch this segment statically, even if it has not been validated with `instant`. Use this when you know the segment produces a valid static shell but do not want to set up instant validation.
 
 ### `'force-disabled'`
 

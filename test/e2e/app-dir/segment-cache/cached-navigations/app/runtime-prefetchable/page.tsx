@@ -3,7 +3,7 @@ import { cookies, headers } from 'next/headers'
 import { connection } from 'next/server'
 import { Suspense } from 'react'
 
-export const unstable_instant = {
+export const instant = {
   unstable_samples: [
     {
       cookies: [{ name: 'testCookie', value: 'testValue' }],

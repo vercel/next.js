@@ -4,7 +4,7 @@ import { connection } from 'next/server'
 import { lang } from 'next/root-params'
 import { cookies } from 'next/headers'
 
-export const unstable_instant = {
+export const instant = {
   unstable_samples: [{ params: { lang: 'en' } }],
 }
 export const prefetch = 'allow-runtime'

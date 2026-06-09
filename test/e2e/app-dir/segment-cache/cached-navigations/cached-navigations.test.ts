@@ -445,7 +445,7 @@ describe('cached navigations', () => {
     // Second navigation — no time has passed, so both the static cache
     // (stale: 120s) and the runtime cache (stale: 30s from the
     // short-lived cache entry in CookiesContent) should still be fresh.
-    // With unstable_instant { prefetch: 'runtime' }, runtime-prefetchable
+    // With instant { prefetch: 'runtime' }, runtime-prefetchable
     // content (cookies, headers, searchParams) should be cached from the
     // first navigation and show instantly alongside the static content.
     // Only truly dynamic content (connection()) needs a server request.

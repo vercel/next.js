@@ -4,7 +4,7 @@ import { Suspense } from 'react'
 // this route opts into runtime prefetching. The prefetch therefore includes
 // the resolved `slug`, so the param should be visible inside the instant
 // scope instead of suspending.
-export const unstable_instant: {
+export const instant: {
   unstable_samples: Array<{ params: { slug: string } }>
 } = {
   unstable_samples: [{ params: { slug: 'anything' } }],

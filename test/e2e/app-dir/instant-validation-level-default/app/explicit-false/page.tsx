@@ -4,7 +4,7 @@
 // redbox appears.
 import { connection } from 'next/server'
 
-export const unstable_instant = false
+export const instant = false
 
 export default async function Page() {
   await connection()

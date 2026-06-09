@@ -3,7 +3,7 @@ import { DebugRenderKind } from '../../../../../shared'
 
 type Params = { id: string }
 
-export const unstable_instant = {
+export const instant = {
   // We're intentionally testing error behavior at runtime.
   // Build-time validation catches it and prevents that.
   unstable_disableValidation: true,

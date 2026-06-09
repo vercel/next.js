@@ -1,6 +1,6 @@
 import { ReactNode } from 'react'
 
-export const unstable_instant = false
+export const instant = false
 
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (

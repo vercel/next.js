@@ -298,7 +298,7 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
                      https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
                    - [cache] For \`params\`: if the params are known, prerender them with \`generateStaticParams\`
                      https://nextjs.org/docs/messages/blocking-prerender-runtime#for-known-params-prerender
-                   - [block] Set \`export const unstable_instant = false\` to silence this warning and allow a blocking route
+                   - [block] Set \`export const instant = false\` to silence this warning and allow a blocking route
                      https://nextjs.org/docs/messages/blocking-prerender-dynamic#allow-blocking-route
                      at DataSlot (webpack:///app/client-hook-abort-reasons/data.tsx:1:23)
                      at Page (webpack:///app/client-hook-abort-reasons/normal/use-search-params/[id]/page.tsx:7:7)
@@ -315,7 +315,7 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
                  Ways to fix this:
                    - [stream] Wrap the component in \`<Suspense fallback={...}>\` so the hook value streams in after prerendering
                      https://nextjs.org/docs/messages/blocking-prerender-client-hook#wrap-in-or-move-into-suspense
-                   - [block] Set \`export const unstable_instant = false\` to silence this warning and allow a blocking route
+                   - [block] Set \`export const instant = false\` to silence this warning and allow a blocking route
                      https://nextjs.org/docs/messages/blocking-prerender-client-hook#allow-blocking-route
                      at useDynamicSearchParams (webpack:///<next-src>)
                      at useSearchParams (webpack:///<next-src>)
@@ -345,7 +345,7 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
                  Ways to fix this:
                    - [stream] Wrap the component in \`<Suspense fallback={...}>\` so the hook value streams in after prerendering
                      https://nextjs.org/docs/messages/blocking-prerender-client-hook#wrap-in-or-move-into-suspense
-                   - [block] Set \`export const unstable_instant = false\` to silence this warning and allow a blocking route
+                   - [block] Set \`export const instant = false\` to silence this warning and allow a blocking route
                      https://nextjs.org/docs/messages/blocking-prerender-client-hook#allow-blocking-route
                      at a (<next-dist-dir>)
                      at b (<next-dist-dir>)
@@ -417,7 +417,7 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
                      https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
                    - [cache] For \`params\`: if the params are known, prerender them with \`generateStaticParams\`
                      https://nextjs.org/docs/messages/blocking-prerender-runtime#for-known-params-prerender
-                   - [block] Set \`export const unstable_instant = false\` to silence this warning and allow a blocking route
+                   - [block] Set \`export const instant = false\` to silence this warning and allow a blocking route
                      https://nextjs.org/docs/messages/blocking-prerender-dynamic#allow-blocking-route
                      at a (<next-dist-dir>)
                      at b (<next-dist-dir>)
@@ -495,7 +495,7 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
                    https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
                  - [cache] For \`params\`: if the params are known, prerender them with \`generateStaticParams\`
                    https://nextjs.org/docs/messages/blocking-prerender-runtime#for-known-params-prerender
-                 - [block] Set \`export const unstable_instant = false\` to silence this warning and allow a blocking route
+                 - [block] Set \`export const instant = false\` to silence this warning and allow a blocking route
                    https://nextjs.org/docs/messages/blocking-prerender-dynamic#allow-blocking-route
                    at DataSlot (app/client-hook-abort-reasons/data.tsx:1:23)
                    at Page (app/client-hook-abort-reasons/normal/use-search-params/[id]/page.tsx:7:7)
@@ -512,7 +512,7 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
                Ways to fix this:
                  - [stream] Wrap the component in \`<Suspense fallback={...}>\` so the hook value streams in after prerendering
                    https://nextjs.org/docs/messages/blocking-prerender-client-hook#wrap-in-or-move-into-suspense
-                 - [block] Set \`export const unstable_instant = false\` to silence this warning and allow a blocking route
+                 - [block] Set \`export const instant = false\` to silence this warning and allow a blocking route
                    https://nextjs.org/docs/messages/blocking-prerender-client-hook#allow-blocking-route
                    at UseSearchParams (app/client-hook-abort-reasons/client.tsx:27:18)
                    at Page (app/client-hook-abort-reasons/normal/use-search-params/[id]/page.tsx:8:7)
@@ -540,7 +540,7 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
                Ways to fix this:
                  - [stream] Wrap the component in \`<Suspense fallback={...}>\` so the hook value streams in after prerendering
                    https://nextjs.org/docs/messages/blocking-prerender-client-hook#wrap-in-or-move-into-suspense
-                 - [block] Set \`export const unstable_instant = false\` to silence this warning and allow a blocking route
+                 - [block] Set \`export const instant = false\` to silence this warning and allow a blocking route
                    https://nextjs.org/docs/messages/blocking-prerender-client-hook#allow-blocking-route
                    at <unknown> (app/client-hook-abort-reasons/client.tsx:27:3)
                    at body (<anonymous>)
@@ -568,7 +568,7 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
                    https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
                  - [cache] For \`params\`: if the params are known, prerender them with \`generateStaticParams\`
                    https://nextjs.org/docs/messages/blocking-prerender-runtime#for-known-params-prerender
-                 - [block] Set \`export const unstable_instant = false\` to silence this warning and allow a blocking route
+                 - [block] Set \`export const instant = false\` to silence this warning and allow a blocking route
                    https://nextjs.org/docs/messages/blocking-prerender-dynamic#allow-blocking-route
                    at body (<anonymous>)
                    at html (<anonymous>)
@@ -600,7 +600,7 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
                      https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
                    - [cache] For \`params\`: if the params are known, prerender them with \`generateStaticParams\`
                      https://nextjs.org/docs/messages/blocking-prerender-runtime#for-known-params-prerender
-                   - [block] Set \`export const unstable_instant = false\` to silence this warning and allow a blocking route
+                   - [block] Set \`export const instant = false\` to silence this warning and allow a blocking route
                      https://nextjs.org/docs/messages/blocking-prerender-dynamic#allow-blocking-route
                      at DataSlot (webpack:///app/client-hook-abort-reasons/data.tsx:1:23)
                      at Page (webpack:///app/client-hook-abort-reasons/normal/use-pathname/[id]/page.tsx:8:7)
@@ -617,7 +617,7 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
                  Ways to fix this:
                    - [stream] Wrap the component in \`<Suspense fallback={...}>\` so the hook value streams in after prerendering
                      https://nextjs.org/docs/messages/blocking-prerender-client-hook#wrap-in-or-move-into-suspense
-                   - [block] Set \`export const unstable_instant = false\` to silence this warning and allow a blocking route
+                   - [block] Set \`export const instant = false\` to silence this warning and allow a blocking route
                      https://nextjs.org/docs/messages/blocking-prerender-client-hook#allow-blocking-route
                      at useDynamicRouteParams (webpack:///<next-src>)
                      at usePathname (webpack:///<next-src>)
@@ -647,7 +647,7 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
                  Ways to fix this:
                    - [stream] Wrap the component in \`<Suspense fallback={...}>\` so the hook value streams in after prerendering
                      https://nextjs.org/docs/messages/blocking-prerender-client-hook#wrap-in-or-move-into-suspense
-                   - [block] Set \`export const unstable_instant = false\` to silence this warning and allow a blocking route
+                   - [block] Set \`export const instant = false\` to silence this warning and allow a blocking route
                      https://nextjs.org/docs/messages/blocking-prerender-client-hook#allow-blocking-route
                      at a (<next-dist-dir>)
                      at b (<next-dist-dir>)
@@ -719,7 +719,7 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
                      https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
                    - [cache] For \`params\`: if the params are known, prerender them with \`generateStaticParams\`
                      https://nextjs.org/docs/messages/blocking-prerender-runtime#for-known-params-prerender
-                   - [block] Set \`export const unstable_instant = false\` to silence this warning and allow a blocking route
+                   - [block] Set \`export const instant = false\` to silence this warning and allow a blocking route
                      https://nextjs.org/docs/messages/blocking-prerender-dynamic#allow-blocking-route
                      at a (<next-dist-dir>)
                      at b (<next-dist-dir>)
@@ -797,7 +797,7 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
                    https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
                  - [cache] For \`params\`: if the params are known, prerender them with \`generateStaticParams\`
                    https://nextjs.org/docs/messages/blocking-prerender-runtime#for-known-params-prerender
-                 - [block] Set \`export const unstable_instant = false\` to silence this warning and allow a blocking route
+                 - [block] Set \`export const instant = false\` to silence this warning and allow a blocking route
                    https://nextjs.org/docs/messages/blocking-prerender-dynamic#allow-blocking-route
                    at DataSlot (app/client-hook-abort-reasons/data.tsx:1:23)
                    at Page (app/client-hook-abort-reasons/normal/use-pathname/[id]/page.tsx:8:7)
@@ -814,7 +814,7 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
                Ways to fix this:
                  - [stream] Wrap the component in \`<Suspense fallback={...}>\` so the hook value streams in after prerendering
                    https://nextjs.org/docs/messages/blocking-prerender-client-hook#wrap-in-or-move-into-suspense
-                 - [block] Set \`export const unstable_instant = false\` to silence this warning and allow a blocking route
+                 - [block] Set \`export const instant = false\` to silence this warning and allow a blocking route
                    https://nextjs.org/docs/messages/blocking-prerender-client-hook#allow-blocking-route
                    at UsePathname (app/client-hook-abort-reasons/client.tsx:22:14)
                    at Page (app/client-hook-abort-reasons/normal/use-pathname/[id]/page.tsx:7:7)
@@ -842,7 +842,7 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
                Ways to fix this:
                  - [stream] Wrap the component in \`<Suspense fallback={...}>\` so the hook value streams in after prerendering
                    https://nextjs.org/docs/messages/blocking-prerender-client-hook#wrap-in-or-move-into-suspense
-                 - [block] Set \`export const unstable_instant = false\` to silence this warning and allow a blocking route
+                 - [block] Set \`export const instant = false\` to silence this warning and allow a blocking route
                    https://nextjs.org/docs/messages/blocking-prerender-client-hook#allow-blocking-route
                    at <unknown> (app/client-hook-abort-reasons/client.tsx:22:3)
                    at body (<anonymous>)
@@ -870,7 +870,7 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
                    https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
                  - [cache] For \`params\`: if the params are known, prerender them with \`generateStaticParams\`
                    https://nextjs.org/docs/messages/blocking-prerender-runtime#for-known-params-prerender
-                 - [block] Set \`export const unstable_instant = false\` to silence this warning and allow a blocking route
+                 - [block] Set \`export const instant = false\` to silence this warning and allow a blocking route
                    https://nextjs.org/docs/messages/blocking-prerender-dynamic#allow-blocking-route
                    at body (<anonymous>)
                    at html (<anonymous>)
@@ -902,7 +902,7 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
                      https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
                    - [cache] For \`params\`: if the params are known, prerender them with \`generateStaticParams\`
                      https://nextjs.org/docs/messages/blocking-prerender-runtime#for-known-params-prerender
-                   - [block] Set \`export const unstable_instant = false\` to silence this warning and allow a blocking route
+                   - [block] Set \`export const instant = false\` to silence this warning and allow a blocking route
                      https://nextjs.org/docs/messages/blocking-prerender-dynamic#allow-blocking-route
                      at DataSlot (webpack:///app/client-hook-abort-reasons/data.tsx:1:23)
                      at Page (webpack:///app/client-hook-abort-reasons/normal/use-params/[id]/page.tsx:7:7)
@@ -921,7 +921,7 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
                      https://nextjs.org/docs/messages/blocking-prerender-client-hook#wrap-in-or-move-into-suspense
                    - [cache] For known params, prerender them with \`generateStaticParams\`
                      https://nextjs.org/docs/messages/blocking-prerender-client-hook#for-known-params-prerender
-                   - [block] Set \`export const unstable_instant = false\` to silence this warning and allow a blocking route
+                   - [block] Set \`export const instant = false\` to silence this warning and allow a blocking route
                      https://nextjs.org/docs/messages/blocking-prerender-client-hook#allow-blocking-route
                      at useDynamicRouteParams (webpack:///<next-src>)
                      at useParams (webpack:///<next-src>)
@@ -953,7 +953,7 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
                      https://nextjs.org/docs/messages/blocking-prerender-client-hook#wrap-in-or-move-into-suspense
                    - [cache] For known params, prerender them with \`generateStaticParams\`
                      https://nextjs.org/docs/messages/blocking-prerender-client-hook#for-known-params-prerender
-                   - [block] Set \`export const unstable_instant = false\` to silence this warning and allow a blocking route
+                   - [block] Set \`export const instant = false\` to silence this warning and allow a blocking route
                      https://nextjs.org/docs/messages/blocking-prerender-client-hook#allow-blocking-route
                      at a (<next-dist-dir>)
                      at b (<next-dist-dir>)
@@ -1025,7 +1025,7 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
                      https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
                    - [cache] For \`params\`: if the params are known, prerender them with \`generateStaticParams\`
                      https://nextjs.org/docs/messages/blocking-prerender-runtime#for-known-params-prerender
-                   - [block] Set \`export const unstable_instant = false\` to silence this warning and allow a blocking route
+                   - [block] Set \`export const instant = false\` to silence this warning and allow a blocking route
                      https://nextjs.org/docs/messages/blocking-prerender-dynamic#allow-blocking-route
                      at a (<next-dist-dir>)
                      at b (<next-dist-dir>)
@@ -1103,7 +1103,7 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
                    https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
                  - [cache] For \`params\`: if the params are known, prerender them with \`generateStaticParams\`
                    https://nextjs.org/docs/messages/blocking-prerender-runtime#for-known-params-prerender
-                 - [block] Set \`export const unstable_instant = false\` to silence this warning and allow a blocking route
+                 - [block] Set \`export const instant = false\` to silence this warning and allow a blocking route
                    https://nextjs.org/docs/messages/blocking-prerender-dynamic#allow-blocking-route
                    at DataSlot (app/client-hook-abort-reasons/data.tsx:1:23)
                    at Page (app/client-hook-abort-reasons/normal/use-params/[id]/page.tsx:7:7)
@@ -1122,7 +1122,7 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
                    https://nextjs.org/docs/messages/blocking-prerender-client-hook#wrap-in-or-move-into-suspense
                  - [cache] For known params, prerender them with \`generateStaticParams\`
                    https://nextjs.org/docs/messages/blocking-prerender-client-hook#for-known-params-prerender
-                 - [block] Set \`export const unstable_instant = false\` to silence this warning and allow a blocking route
+                 - [block] Set \`export const instant = false\` to silence this warning and allow a blocking route
                    https://nextjs.org/docs/messages/blocking-prerender-client-hook#allow-blocking-route
                    at UseParams (app/client-hook-abort-reasons/client.tsx:17:12)
                    at Page (app/client-hook-abort-reasons/normal/use-params/[id]/page.tsx:8:7)
@@ -1152,7 +1152,7 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
                    https://nextjs.org/docs/messages/blocking-prerender-client-hook#wrap-in-or-move-into-suspense
                  - [cache] For known params, prerender them with \`generateStaticParams\`
                    https://nextjs.org/docs/messages/blocking-prerender-client-hook#for-known-params-prerender
-                 - [block] Set \`export const unstable_instant = false\` to silence this warning and allow a blocking route
+                 - [block] Set \`export const instant = false\` to silence this warning and allow a blocking route
                    https://nextjs.org/docs/messages/blocking-prerender-client-hook#allow-blocking-route
                    at <unknown> (app/client-hook-abort-reasons/client.tsx:17:3)
                    at body (<anonymous>)
@@ -1180,7 +1180,7 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
                    https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
                  - [cache] For \`params\`: if the params are known, prerender them with \`generateStaticParams\`
                    https://nextjs.org/docs/messages/blocking-prerender-runtime#for-known-params-prerender
-                 - [block] Set \`export const unstable_instant = false\` to silence this warning and allow a blocking route
+                 - [block] Set \`export const instant = false\` to silence this warning and allow a blocking route
                    https://nextjs.org/docs/messages/blocking-prerender-dynamic#allow-blocking-route
                    at body (<anonymous>)
                    at html (<anonymous>)
@@ -1212,7 +1212,7 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
                      https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
                    - [cache] For \`params\`: if the params are known, prerender them with \`generateStaticParams\`
                      https://nextjs.org/docs/messages/blocking-prerender-runtime#for-known-params-prerender
-                   - [block] Set \`export const unstable_instant = false\` to silence this warning and allow a blocking route
+                   - [block] Set \`export const instant = false\` to silence this warning and allow a blocking route
                      https://nextjs.org/docs/messages/blocking-prerender-dynamic#allow-blocking-route
                      at DataSlot (webpack:///app/client-hook-abort-reasons/data.tsx:1:23)
                      at Page (webpack:///app/client-hook-abort-reasons/normal/use-selected-layout-segments/[id]/page.tsx:8:7)
@@ -1229,7 +1229,7 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
                  Ways to fix this:
                    - [stream] Wrap the component in \`<Suspense fallback={...}>\` so the hook value streams in after prerendering
                      https://nextjs.org/docs/messages/blocking-prerender-client-hook#wrap-in-or-move-into-suspense
-                   - [block] Set \`export const unstable_instant = false\` to silence this warning and allow a blocking route
+                   - [block] Set \`export const instant = false\` to silence this warning and allow a blocking route
                      https://nextjs.org/docs/messages/blocking-prerender-client-hook#allow-blocking-route
                      at useDynamicRouteParams (webpack:///<next-src>)
                      at useSelectedLayoutSegments (webpack:///<next-src>)
@@ -1259,7 +1259,7 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
                  Ways to fix this:
                    - [stream] Wrap the component in \`<Suspense fallback={...}>\` so the hook value streams in after prerendering
                      https://nextjs.org/docs/messages/blocking-prerender-client-hook#wrap-in-or-move-into-suspense
-                   - [block] Set \`export const unstable_instant = false\` to silence this warning and allow a blocking route
+                   - [block] Set \`export const instant = false\` to silence this warning and allow a blocking route
                      https://nextjs.org/docs/messages/blocking-prerender-client-hook#allow-blocking-route
                      at a (<next-dist-dir>)
                      at b (<next-dist-dir>)
@@ -1331,7 +1331,7 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
                      https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
                    - [cache] For \`params\`: if the params are known, prerender them with \`generateStaticParams\`
                      https://nextjs.org/docs/messages/blocking-prerender-runtime#for-known-params-prerender
-                   - [block] Set \`export const unstable_instant = false\` to silence this warning and allow a blocking route
+                   - [block] Set \`export const instant = false\` to silence this warning and allow a blocking route
                      https://nextjs.org/docs/messages/blocking-prerender-dynamic#allow-blocking-route
                      at a (<next-dist-dir>)
                      at b (<next-dist-dir>)
@@ -1409,7 +1409,7 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
                    https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
                  - [cache] For \`params\`: if the params are known, prerender them with \`generateStaticParams\`
                    https://nextjs.org/docs/messages/blocking-prerender-runtime#for-known-params-prerender
-                 - [block] Set \`export const unstable_instant = false\` to silence this warning and allow a blocking route
+                 - [block] Set \`export const instant = false\` to silence this warning and allow a blocking route
                    https://nextjs.org/docs/messages/blocking-prerender-dynamic#allow-blocking-route
                    at DataSlot (app/client-hook-abort-reasons/data.tsx:1:23)
                    at Page (app/client-hook-abort-reasons/normal/use-selected-layout-segments/[id]/page.tsx:8:7)
@@ -1426,7 +1426,7 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
                Ways to fix this:
                  - [stream] Wrap the component in \`<Suspense fallback={...}>\` so the hook value streams in after prerendering
                    https://nextjs.org/docs/messages/blocking-prerender-client-hook#wrap-in-or-move-into-suspense
-                 - [block] Set \`export const unstable_instant = false\` to silence this warning and allow a blocking route
+                 - [block] Set \`export const instant = false\` to silence this warning and allow a blocking route
                    https://nextjs.org/docs/messages/blocking-prerender-client-hook#allow-blocking-route
                    at UseSelectedLayoutSegments (app/client-hook-abort-reasons/client.tsx:37:28)
                    at Page (app/client-hook-abort-reasons/normal/use-selected-layout-segments/[id]/page.tsx:7:7)
@@ -1454,7 +1454,7 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
                Ways to fix this:
                  - [stream] Wrap the component in \`<Suspense fallback={...}>\` so the hook value streams in after prerendering
                    https://nextjs.org/docs/messages/blocking-prerender-client-hook#wrap-in-or-move-into-suspense
-                 - [block] Set \`export const unstable_instant = false\` to silence this warning and allow a blocking route
+                 - [block] Set \`export const instant = false\` to silence this warning and allow a blocking route
                    https://nextjs.org/docs/messages/blocking-prerender-client-hook#allow-blocking-route
                    at <unknown> (app/client-hook-abort-reasons/client.tsx:37:3)
                    at body (<anonymous>)
@@ -1482,7 +1482,7 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
                    https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
                  - [cache] For \`params\`: if the params are known, prerender them with \`generateStaticParams\`
                    https://nextjs.org/docs/messages/blocking-prerender-runtime#for-known-params-prerender
-                 - [block] Set \`export const unstable_instant = false\` to silence this warning and allow a blocking route
+                 - [block] Set \`export const instant = false\` to silence this warning and allow a blocking route
                    https://nextjs.org/docs/messages/blocking-prerender-dynamic#allow-blocking-route
                    at body (<anonymous>)
                    at html (<anonymous>)
@@ -1514,7 +1514,7 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
                      https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
                    - [cache] For \`params\`: if the params are known, prerender them with \`generateStaticParams\`
                      https://nextjs.org/docs/messages/blocking-prerender-runtime#for-known-params-prerender
-                   - [block] Set \`export const unstable_instant = false\` to silence this warning and allow a blocking route
+                   - [block] Set \`export const instant = false\` to silence this warning and allow a blocking route
                      https://nextjs.org/docs/messages/blocking-prerender-dynamic#allow-blocking-route
                      at DataSlot (webpack:///app/client-hook-abort-reasons/data.tsx:1:23)
                      at Page (webpack:///app/client-hook-abort-reasons/normal/use-selected-layout-segment/[id]/page.tsx:7:7)
@@ -1531,7 +1531,7 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
                  Ways to fix this:
                    - [stream] Wrap the component in \`<Suspense fallback={...}>\` so the hook value streams in after prerendering
                      https://nextjs.org/docs/messages/blocking-prerender-client-hook#wrap-in-or-move-into-suspense
-                   - [block] Set \`export const unstable_instant = false\` to silence this warning and allow a blocking route
+                   - [block] Set \`export const instant = false\` to silence this warning and allow a blocking route
                      https://nextjs.org/docs/messages/blocking-prerender-client-hook#allow-blocking-route
                      at useDynamicRouteParams (webpack:///<next-src>)
                      at useSelectedLayoutSegment (webpack:///<next-src>)
@@ -1561,7 +1561,7 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
                  Ways to fix this:
                    - [stream] Wrap the component in \`<Suspense fallback={...}>\` so the hook value streams in after prerendering
                      https://nextjs.org/docs/messages/blocking-prerender-client-hook#wrap-in-or-move-into-suspense
-                   - [block] Set \`export const unstable_instant = false\` to silence this warning and allow a blocking route
+                   - [block] Set \`export const instant = false\` to silence this warning and allow a blocking route
                      https://nextjs.org/docs/messages/blocking-prerender-client-hook#allow-blocking-route
                      at a (<next-dist-dir>)
                      at b (<next-dist-dir>)
@@ -1633,7 +1633,7 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
                      https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
                    - [cache] For \`params\`: if the params are known, prerender them with \`generateStaticParams\`
                      https://nextjs.org/docs/messages/blocking-prerender-runtime#for-known-params-prerender
-                   - [block] Set \`export const unstable_instant = false\` to silence this warning and allow a blocking route
+                   - [block] Set \`export const instant = false\` to silence this warning and allow a blocking route
                      https://nextjs.org/docs/messages/blocking-prerender-dynamic#allow-blocking-route
                      at a (<next-dist-dir>)
                      at b (<next-dist-dir>)
@@ -1711,7 +1711,7 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
                    https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
                  - [cache] For \`params\`: if the params are known, prerender them with \`generateStaticParams\`
                    https://nextjs.org/docs/messages/blocking-prerender-runtime#for-known-params-prerender
-                 - [block] Set \`export const unstable_instant = false\` to silence this warning and allow a blocking route
+                 - [block] Set \`export const instant = false\` to silence this warning and allow a blocking route
                    https://nextjs.org/docs/messages/blocking-prerender-dynamic#allow-blocking-route
                    at DataSlot (app/client-hook-abort-reasons/data.tsx:1:23)
                    at Page (app/client-hook-abort-reasons/normal/use-selected-layout-segment/[id]/page.tsx:7:7)
@@ -1728,7 +1728,7 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
                Ways to fix this:
                  - [stream] Wrap the component in \`<Suspense fallback={...}>\` so the hook value streams in after prerendering
                    https://nextjs.org/docs/messages/blocking-prerender-client-hook#wrap-in-or-move-into-suspense
-                 - [block] Set \`export const unstable_instant = false\` to silence this warning and allow a blocking route
+                 - [block] Set \`export const instant = false\` to silence this warning and allow a blocking route
                    https://nextjs.org/docs/messages/blocking-prerender-client-hook#allow-blocking-route
                    at UseSelectedLayoutSegment (app/client-hook-abort-reasons/client.tsx:32:27)
                    at Page (app/client-hook-abort-reasons/normal/use-selected-layout-segment/[id]/page.tsx:8:7)
@@ -1756,7 +1756,7 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
                Ways to fix this:
                  - [stream] Wrap the component in \`<Suspense fallback={...}>\` so the hook value streams in after prerendering
                    https://nextjs.org/docs/messages/blocking-prerender-client-hook#wrap-in-or-move-into-suspense
-                 - [block] Set \`export const unstable_instant = false\` to silence this warning and allow a blocking route
+                 - [block] Set \`export const instant = false\` to silence this warning and allow a blocking route
                    https://nextjs.org/docs/messages/blocking-prerender-client-hook#allow-blocking-route
                    at <unknown> (app/client-hook-abort-reasons/client.tsx:32:3)
                    at body (<anonymous>)
@@ -1784,7 +1784,7 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
                    https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
                  - [cache] For \`params\`: if the params are known, prerender them with \`generateStaticParams\`
                    https://nextjs.org/docs/messages/blocking-prerender-runtime#for-known-params-prerender
-                 - [block] Set \`export const unstable_instant = false\` to silence this warning and allow a blocking route
+                 - [block] Set \`export const instant = false\` to silence this warning and allow a blocking route
                    https://nextjs.org/docs/messages/blocking-prerender-dynamic#allow-blocking-route
                    at body (<anonymous>)
                    at html (<anonymous>)
@@ -2271,7 +2271,7 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
                      https://nextjs.org/docs/messages/blocking-prerender-client-hook#wrap-in-or-move-into-suspense
                    - [cache] For known params, prerender them with \`generateStaticParams\`
                      https://nextjs.org/docs/messages/blocking-prerender-client-hook#for-known-params-prerender
-                   - [block] Set \`export const unstable_instant = false\` to silence this warning and allow a blocking route
+                   - [block] Set \`export const instant = false\` to silence this warning and allow a blocking route
                      https://nextjs.org/docs/messages/blocking-prerender-client-hook#allow-blocking-route
                      at useDynamicRouteParams (webpack:///<next-src>)
                      at useParams (webpack:///<next-src>)
@@ -2318,7 +2318,7 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
                      https://nextjs.org/docs/messages/blocking-prerender-client-hook#wrap-in-or-move-into-suspense
                    - [cache] For known params, prerender them with \`generateStaticParams\`
                      https://nextjs.org/docs/messages/blocking-prerender-client-hook#for-known-params-prerender
-                   - [block] Set \`export const unstable_instant = false\` to silence this warning and allow a blocking route
+                   - [block] Set \`export const instant = false\` to silence this warning and allow a blocking route
                      https://nextjs.org/docs/messages/blocking-prerender-client-hook#allow-blocking-route
                      at b (<next-dist-dir>)
                      at c (<next-dist-dir>)
@@ -2418,7 +2418,7 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
                    https://nextjs.org/docs/messages/blocking-prerender-client-hook#wrap-in-or-move-into-suspense
                  - [cache] For known params, prerender them with \`generateStaticParams\`
                    https://nextjs.org/docs/messages/blocking-prerender-client-hook#for-known-params-prerender
-                 - [block] Set \`export const unstable_instant = false\` to silence this warning and allow a blocking route
+                 - [block] Set \`export const instant = false\` to silence this warning and allow a blocking route
                    https://nextjs.org/docs/messages/blocking-prerender-client-hook#allow-blocking-route
                    at UseParams (app/client-hook-abort-reasons/client.tsx:17:12)
                    at Page (app/client-hook-abort-reasons/sync-io/use-params/[id]/page.tsx:7:7)
@@ -2470,7 +2470,7 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
                    https://nextjs.org/docs/messages/blocking-prerender-client-hook#wrap-in-or-move-into-suspense
                  - [cache] For known params, prerender them with \`generateStaticParams\`
                    https://nextjs.org/docs/messages/blocking-prerender-client-hook#for-known-params-prerender
-                 - [block] Set \`export const unstable_instant = false\` to silence this warning and allow a blocking route
+                 - [block] Set \`export const instant = false\` to silence this warning and allow a blocking route
                    https://nextjs.org/docs/messages/blocking-prerender-client-hook#allow-blocking-route
                    at <unknown> (app/client-hook-abort-reasons/client.tsx:17:3)
                    at body (<anonymous>)
@@ -2537,7 +2537,7 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
                      https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
                    - [cache] For \`params\`: if the params are known, prerender them with \`generateStaticParams\`
                      https://nextjs.org/docs/messages/blocking-prerender-runtime#for-known-params-prerender
-                   - [block] Set \`export const unstable_instant = false\` to silence this warning and allow a blocking route
+                   - [block] Set \`export const instant = false\` to silence this warning and allow a blocking route
                      https://nextjs.org/docs/messages/blocking-prerender-dynamic#allow-blocking-route
                      at DataSlot (webpack:///app/client-hook-abort-reasons/data.tsx:1:23)
                      at Page (webpack:///app/client-hook-abort-reasons/sync-io/use-selected-layout-segments/[id]/page.tsx:7:7)
@@ -2580,7 +2580,7 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
                      https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
                    - [cache] For \`params\`: if the params are known, prerender them with \`generateStaticParams\`
                      https://nextjs.org/docs/messages/blocking-prerender-runtime#for-known-params-prerender
-                   - [block] Set \`export const unstable_instant = false\` to silence this warning and allow a blocking route
+                   - [block] Set \`export const instant = false\` to silence this warning and allow a blocking route
                      https://nextjs.org/docs/messages/blocking-prerender-dynamic#allow-blocking-route
                      at b (<next-dist-dir>)
                      at c (<next-dist-dir>)
@@ -2679,7 +2679,7 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
                    https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
                  - [cache] For \`params\`: if the params are known, prerender them with \`generateStaticParams\`
                    https://nextjs.org/docs/messages/blocking-prerender-runtime#for-known-params-prerender
-                 - [block] Set \`export const unstable_instant = false\` to silence this warning and allow a blocking route
+                 - [block] Set \`export const instant = false\` to silence this warning and allow a blocking route
                    https://nextjs.org/docs/messages/blocking-prerender-dynamic#allow-blocking-route
                    at DataSlot (app/client-hook-abort-reasons/data.tsx:1:23)
                    at Page (app/client-hook-abort-reasons/sync-io/use-selected-layout-segments/[id]/page.tsx:7:7)
@@ -2729,7 +2729,7 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
                    https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
                  - [cache] For \`params\`: if the params are known, prerender them with \`generateStaticParams\`
                    https://nextjs.org/docs/messages/blocking-prerender-runtime#for-known-params-prerender
-                 - [block] Set \`export const unstable_instant = false\` to silence this warning and allow a blocking route
+                 - [block] Set \`export const instant = false\` to silence this warning and allow a blocking route
                    https://nextjs.org/docs/messages/blocking-prerender-dynamic#allow-blocking-route
                    at body (<anonymous>)
                    at html (<anonymous>)
@@ -2782,7 +2782,7 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
                      https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
                    - [cache] For \`params\`: if the params are known, prerender them with \`generateStaticParams\`
                      https://nextjs.org/docs/messages/blocking-prerender-runtime#for-known-params-prerender
-                   - [block] Set \`export const unstable_instant = false\` to silence this warning and allow a blocking route
+                   - [block] Set \`export const instant = false\` to silence this warning and allow a blocking route
                      https://nextjs.org/docs/messages/blocking-prerender-dynamic#allow-blocking-route
                      at DataSlot (webpack:///app/client-hook-abort-reasons/data.tsx:1:23)
                      at Page (webpack:///app/client-hook-abort-reasons/sync-io/use-selected-layout-segment/[id]/page.tsx:7:7)
@@ -2799,7 +2799,7 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
                  Ways to fix this:
                    - [stream] Wrap the component in \`<Suspense fallback={...}>\` so the hook value streams in after prerendering
                      https://nextjs.org/docs/messages/blocking-prerender-client-hook#wrap-in-or-move-into-suspense
-                   - [block] Set \`export const unstable_instant = false\` to silence this warning and allow a blocking route
+                   - [block] Set \`export const instant = false\` to silence this warning and allow a blocking route
                      https://nextjs.org/docs/messages/blocking-prerender-client-hook#allow-blocking-route
                      at useDynamicRouteParams (webpack:///<next-src>)
                      at useSelectedLayoutSegment (webpack:///<next-src>)
@@ -2844,7 +2844,7 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
                  Ways to fix this:
                    - [stream] Wrap the component in \`<Suspense fallback={...}>\` so the hook value streams in after prerendering
                      https://nextjs.org/docs/messages/blocking-prerender-client-hook#wrap-in-or-move-into-suspense
-                   - [block] Set \`export const unstable_instant = false\` to silence this warning and allow a blocking route
+                   - [block] Set \`export const instant = false\` to silence this warning and allow a blocking route
                      https://nextjs.org/docs/messages/blocking-prerender-client-hook#allow-blocking-route
                      at b (<next-dist-dir>)
                      at c (<next-dist-dir>)
@@ -2916,7 +2916,7 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
                      https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
                    - [cache] For \`params\`: if the params are known, prerender them with \`generateStaticParams\`
                      https://nextjs.org/docs/messages/blocking-prerender-runtime#for-known-params-prerender
-                   - [block] Set \`export const unstable_instant = false\` to silence this warning and allow a blocking route
+                   - [block] Set \`export const instant = false\` to silence this warning and allow a blocking route
                      https://nextjs.org/docs/messages/blocking-prerender-dynamic#allow-blocking-route
                      at b (<next-dist-dir>)
                      at c (<next-dist-dir>)
@@ -3015,7 +3015,7 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
                    https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
                  - [cache] For \`params\`: if the params are known, prerender them with \`generateStaticParams\`
                    https://nextjs.org/docs/messages/blocking-prerender-runtime#for-known-params-prerender
-                 - [block] Set \`export const unstable_instant = false\` to silence this warning and allow a blocking route
+                 - [block] Set \`export const instant = false\` to silence this warning and allow a blocking route
                    https://nextjs.org/docs/messages/blocking-prerender-dynamic#allow-blocking-route
                    at DataSlot (app/client-hook-abort-reasons/data.tsx:1:23)
                    at Page (app/client-hook-abort-reasons/sync-io/use-selected-layout-segment/[id]/page.tsx:7:7)
@@ -3032,7 +3032,7 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
                Ways to fix this:
                  - [stream] Wrap the component in \`<Suspense fallback={...}>\` so the hook value streams in after prerendering
                    https://nextjs.org/docs/messages/blocking-prerender-client-hook#wrap-in-or-move-into-suspense
-                 - [block] Set \`export const unstable_instant = false\` to silence this warning and allow a blocking route
+                 - [block] Set \`export const instant = false\` to silence this warning and allow a blocking route
                    https://nextjs.org/docs/messages/blocking-prerender-client-hook#allow-blocking-route
                    at UseSelectedLayoutSegment (app/client-hook-abort-reasons/client.tsx:32:27)
                    at Page (app/client-hook-abort-reasons/sync-io/use-selected-layout-segment/[id]/page.tsx:8:7)
@@ -3082,7 +3082,7 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
                Ways to fix this:
                  - [stream] Wrap the component in \`<Suspense fallback={...}>\` so the hook value streams in after prerendering
                    https://nextjs.org/docs/messages/blocking-prerender-client-hook#wrap-in-or-move-into-suspense
-                 - [block] Set \`export const unstable_instant = false\` to silence this warning and allow a blocking route
+                 - [block] Set \`export const instant = false\` to silence this warning and allow a blocking route
                    https://nextjs.org/docs/messages/blocking-prerender-client-hook#allow-blocking-route
                    at <unknown> (app/client-hook-abort-reasons/client.tsx:32:3)
                    at body (<anonymous>)
@@ -3110,7 +3110,7 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
                    https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
                  - [cache] For \`params\`: if the params are known, prerender them with \`generateStaticParams\`
                    https://nextjs.org/docs/messages/blocking-prerender-runtime#for-known-params-prerender
-                 - [block] Set \`export const unstable_instant = false\` to silence this warning and allow a blocking route
+                 - [block] Set \`export const instant = false\` to silence this warning and allow a blocking route
                    https://nextjs.org/docs/messages/blocking-prerender-dynamic#allow-blocking-route
                    at body (<anonymous>)
                    at html (<anonymous>)

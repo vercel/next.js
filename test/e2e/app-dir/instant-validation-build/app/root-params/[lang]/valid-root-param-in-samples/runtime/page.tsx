@@ -3,7 +3,7 @@ import { cookies } from 'next/headers'
 import { lang } from 'next/root-params'
 import assert from 'node:assert/strict'
 
-export const unstable_instant: Instant = {
+export const instant: Instant = {
   level: 'experimental-error',
   unstable_samples: [{ params: { lang: 'en-from-samples' } }],
 }

@@ -115,11 +115,11 @@ describe('instant validation - parallel slot configs', () => {
              "cause": [
                {
                  "label": "Caused by: Instant Validation",
-                 "source": "app/suspense-in-root/parallel/slot-config-only/@slot/page.tsx (1:33) @ unstable_instant
-           > 1 | export const unstable_instant = { level: 'experimental-error' }
-               |                                 ^",
+                 "source": "app/suspense-in-root/parallel/slot-config-only/@slot/page.tsx (1:24) @ instant
+           > 1 | export const instant = { level: 'experimental-error' }
+               |                        ^",
                  "stack": [
-                   "unstable_instant app/suspense-in-root/parallel/slot-config-only/@slot/page.tsx (1:33)",
+                   "instant app/suspense-in-root/parallel/slot-config-only/@slot/page.tsx (1:24)",
                    "Set.forEach <anonymous>",
                  ],
                },
@@ -151,7 +151,7 @@ describe('instant validation - parallel slot configs', () => {
                https://nextjs.org/docs/messages/blocking-prerender-runtime#wrap-in-or-move-into-suspense
              - [cache] For \`params\`: if the params are known, prerender them with \`generateStaticParams\`
                https://nextjs.org/docs/messages/blocking-prerender-runtime#for-known-params-prerender
-             - [block] Set \`export const unstable_instant = false\` to silence this warning and allow a blocking route
+             - [block] Set \`export const instant = false\` to silence this warning and allow a blocking route
                https://nextjs.org/docs/messages/blocking-prerender-runtime#allow-blocking-route
                at body (<anonymous>)
                at html (<anonymous>)
@@ -176,11 +176,11 @@ describe('instant validation - parallel slot configs', () => {
              "cause": [
                {
                  "label": "Caused by: Instant Validation",
-                 "source": "app/suspense-in-root/parallel/slot-layout-config/@slot/layout.tsx (3:33) @ unstable_instant
-           > 3 | export const unstable_instant = { level: 'experimental-error' }
-               |                                 ^",
+                 "source": "app/suspense-in-root/parallel/slot-layout-config/@slot/layout.tsx (3:24) @ instant
+           > 3 | export const instant = { level: 'experimental-error' }
+               |                        ^",
                  "stack": [
-                   "unstable_instant app/suspense-in-root/parallel/slot-layout-config/@slot/layout.tsx (3:33)",
+                   "instant app/suspense-in-root/parallel/slot-layout-config/@slot/layout.tsx (3:24)",
                    "Set.forEach <anonymous>",
                  ],
                },
@@ -212,7 +212,7 @@ describe('instant validation - parallel slot configs', () => {
                https://nextjs.org/docs/messages/blocking-prerender-runtime#wrap-in-or-move-into-suspense
              - [cache] For \`params\`: if the params are known, prerender them with \`generateStaticParams\`
                https://nextjs.org/docs/messages/blocking-prerender-runtime#for-known-params-prerender
-             - [block] Set \`export const unstable_instant = false\` to silence this warning and allow a blocking route
+             - [block] Set \`export const instant = false\` to silence this warning and allow a blocking route
                https://nextjs.org/docs/messages/blocking-prerender-runtime#allow-blocking-route
                at body (<anonymous>)
                at html (<anonymous>)
@@ -237,11 +237,11 @@ describe('instant validation - parallel slot configs', () => {
              "cause": [
                {
                  "label": "Caused by: Instant Validation",
-                 "source": "app/suspense-in-root/parallel/slot-runtime-config/@slot/page.tsx (4:33) @ unstable_instant
-           > 4 | export const unstable_instant = { level: 'experimental-error' }
-               |                                 ^",
+                 "source": "app/suspense-in-root/parallel/slot-runtime-config/@slot/page.tsx (4:24) @ instant
+           > 4 | export const instant = { level: 'experimental-error' }
+               |                        ^",
                  "stack": [
-                   "unstable_instant app/suspense-in-root/parallel/slot-runtime-config/@slot/page.tsx (4:33)",
+                   "instant app/suspense-in-root/parallel/slot-runtime-config/@slot/page.tsx (4:24)",
                    "Set.forEach <anonymous>",
                  ],
                },
@@ -273,7 +273,7 @@ describe('instant validation - parallel slot configs', () => {
                https://nextjs.org/docs/messages/blocking-prerender-runtime#wrap-in-or-move-into-suspense
              - [cache] For \`params\`: if the params are known, prerender them with \`generateStaticParams\`
                https://nextjs.org/docs/messages/blocking-prerender-runtime#for-known-params-prerender
-             - [block] Set \`export const unstable_instant = false\` to silence this warning and allow a blocking route
+             - [block] Set \`export const instant = false\` to silence this warning and allow a blocking route
                https://nextjs.org/docs/messages/blocking-prerender-runtime#allow-blocking-route
                at body (<anonymous>)
                at html (<anonymous>)
@@ -300,11 +300,11 @@ describe('instant validation - parallel slot configs', () => {
              "cause": [
                {
                  "label": "Caused by: Instant Validation",
-                 "source": "app/suspense-in-root/parallel/children-config-with-slot/page.tsx (1:33) @ unstable_instant
-           > 1 | export const unstable_instant = { level: 'experimental-error' }
-               |                                 ^",
+                 "source": "app/suspense-in-root/parallel/children-config-with-slot/page.tsx (1:24) @ instant
+           > 1 | export const instant = { level: 'experimental-error' }
+               |                        ^",
                  "stack": [
-                   "unstable_instant app/suspense-in-root/parallel/children-config-with-slot/page.tsx (1:33)",
+                   "instant app/suspense-in-root/parallel/children-config-with-slot/page.tsx (1:24)",
                    "Set.forEach <anonymous>",
                  ],
                },
@@ -336,7 +336,7 @@ describe('instant validation - parallel slot configs', () => {
                https://nextjs.org/docs/messages/blocking-prerender-runtime#wrap-in-or-move-into-suspense
              - [cache] For \`params\`: if the params are known, prerender them with \`generateStaticParams\`
                https://nextjs.org/docs/messages/blocking-prerender-runtime#for-known-params-prerender
-             - [block] Set \`export const unstable_instant = false\` to silence this warning and allow a blocking route
+             - [block] Set \`export const instant = false\` to silence this warning and allow a blocking route
                https://nextjs.org/docs/messages/blocking-prerender-runtime#allow-blocking-route
                at div (<anonymous>)
                at body (<anonymous>)
@@ -363,11 +363,11 @@ describe('instant validation - parallel slot configs', () => {
                "cause": [
                  {
                    "label": "Caused by: Instant Validation",
-                   "source": "app/suspense-in-root/parallel/fork-layout-config-with-slot/layout.tsx (3:33) @ unstable_instant
-           > 3 | export const unstable_instant = { level: 'experimental-error' }
-               |                                 ^",
+                   "source": "app/suspense-in-root/parallel/fork-layout-config-with-slot/layout.tsx (3:24) @ instant
+           > 3 | export const instant = { level: 'experimental-error' }
+               |                        ^",
                    "stack": [
-                     "unstable_instant app/suspense-in-root/parallel/fork-layout-config-with-slot/layout.tsx (3:33)",
+                     "instant app/suspense-in-root/parallel/fork-layout-config-with-slot/layout.tsx (3:24)",
                      "Set.forEach <anonymous>",
                    ],
                  },
@@ -387,11 +387,11 @@ describe('instant validation - parallel slot configs', () => {
                "cause": [
                  {
                    "label": "Caused by: Instant Validation",
-                   "source": "app/suspense-in-root/parallel/fork-layout-config-with-slot/layout.tsx (3:33) @ unstable_instant
-           > 3 | export const unstable_instant = { level: 'experimental-error' }
-               |                                 ^",
+                   "source": "app/suspense-in-root/parallel/fork-layout-config-with-slot/layout.tsx (3:24) @ instant
+           > 3 | export const instant = { level: 'experimental-error' }
+               |                        ^",
                    "stack": [
-                     "unstable_instant app/suspense-in-root/parallel/fork-layout-config-with-slot/layout.tsx (3:33)",
+                     "instant app/suspense-in-root/parallel/fork-layout-config-with-slot/layout.tsx (3:24)",
                      "Set.forEach <anonymous>",
                    ],
                  },
@@ -424,7 +424,7 @@ describe('instant validation - parallel slot configs', () => {
                https://nextjs.org/docs/messages/blocking-prerender-runtime#wrap-in-or-move-into-suspense
              - [cache] For \`params\`: if the params are known, prerender them with \`generateStaticParams\`
                https://nextjs.org/docs/messages/blocking-prerender-runtime#for-known-params-prerender
-             - [block] Set \`export const unstable_instant = false\` to silence this warning and allow a blocking route
+             - [block] Set \`export const instant = false\` to silence this warning and allow a blocking route
                https://nextjs.org/docs/messages/blocking-prerender-runtime#allow-blocking-route
                at div (<anonymous>)
                at body (<anonymous>)
@@ -439,7 +439,7 @@ describe('instant validation - parallel slot configs', () => {
                https://nextjs.org/docs/messages/blocking-prerender-runtime#wrap-in-or-move-into-suspense
              - [cache] For \`params\`: if the params are known, prerender them with \`generateStaticParams\`
                https://nextjs.org/docs/messages/blocking-prerender-runtime#for-known-params-prerender
-             - [block] Set \`export const unstable_instant = false\` to silence this warning and allow a blocking route
+             - [block] Set \`export const instant = false\` to silence this warning and allow a blocking route
                https://nextjs.org/docs/messages/blocking-prerender-runtime#allow-blocking-route
                at body (<anonymous>)
                at html (<anonymous>)
@@ -532,11 +532,11 @@ describe('instant validation - parallel slot configs', () => {
              "cause": [
                {
                  "label": "Caused by: Instant Validation",
-                 "source": "app/suspense-in-root/parallel/conditional-breadcrumbs/show-both/blocked/page.tsx (1:33) @ unstable_instant
-           > 1 | export const unstable_instant = { level: 'experimental-error' }
-               |                                 ^",
+                 "source": "app/suspense-in-root/parallel/conditional-breadcrumbs/show-both/blocked/page.tsx (1:24) @ instant
+           > 1 | export const instant = { level: 'experimental-error' }
+               |                        ^",
                  "stack": [
-                   "unstable_instant app/suspense-in-root/parallel/conditional-breadcrumbs/show-both/blocked/page.tsx (1:33)",
+                   "instant app/suspense-in-root/parallel/conditional-breadcrumbs/show-both/blocked/page.tsx (1:24)",
                    "Set.forEach <anonymous>",
                  ],
                },
@@ -566,7 +566,7 @@ describe('instant validation - parallel slot configs', () => {
                https://nextjs.org/docs/messages/blocking-prerender-runtime#wrap-in-or-move-into-suspense
              - [cache] For \`params\`: if the params are known, prerender them with \`generateStaticParams\`
                https://nextjs.org/docs/messages/blocking-prerender-runtime#for-known-params-prerender
-             - [block] Set \`export const unstable_instant = false\` to silence this warning and allow a blocking route
+             - [block] Set \`export const instant = false\` to silence this warning and allow a blocking route
                https://nextjs.org/docs/messages/blocking-prerender-runtime#allow-blocking-route
                at div (<anonymous>)
                at main (<anonymous>)
@@ -626,11 +626,11 @@ describe('instant validation - parallel slot configs', () => {
              "cause": [
                {
                  "label": "Caused by: Instant Validation",
-                 "source": "app/suspense-in-root/parallel/conditional-breadcrumbs/show-only-breadcrumbs/(group)/blocked/page.tsx (1:33) @ unstable_instant
-           > 1 | export const unstable_instant = { level: 'experimental-error' }
-               |                                 ^",
+                 "source": "app/suspense-in-root/parallel/conditional-breadcrumbs/show-only-breadcrumbs/(group)/blocked/page.tsx (1:24) @ instant
+           > 1 | export const instant = { level: 'experimental-error' }
+               |                        ^",
                  "stack": [
-                   "unstable_instant app/suspense-in-root/parallel/conditional-breadcrumbs/show-only-breadcrumbs/(group)/blocked/page.tsx (1:33)",
+                   "instant app/suspense-in-root/parallel/conditional-breadcrumbs/show-only-breadcrumbs/(group)/blocked/page.tsx (1:24)",
                    "Set.forEach <anonymous>",
                  ],
                },

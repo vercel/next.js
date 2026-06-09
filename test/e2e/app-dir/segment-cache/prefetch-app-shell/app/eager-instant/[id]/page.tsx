@@ -2,12 +2,12 @@ import { Suspense } from 'react'
 
 type Params = { id: string }
 
-// Combines both segment-level opt-ins: `unstable_instant` (which on its own
+// Combines both segment-level opt-ins: `instant` (which on its own
 // behaves like 'partial' — not eager) AND `prefetch = 'unstable_eager'`.
 // 'unstable_eager' wins: the segment is marked eager, so under App Shells the
 // per-link Speculative prefetch still fires and the param-specific content
 // below IS prefetched.
-export const unstable_instant = true
+export const instant = true
 export const prefetch = 'unstable_eager'
 
 export function generateStaticParams() {

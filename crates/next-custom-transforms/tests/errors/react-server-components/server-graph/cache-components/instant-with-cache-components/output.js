@@ -1,4 +1,4 @@
-export const unstable_instant = {
+export const instant = {
     prefetch: 'static'
 };
 export default function Page() {

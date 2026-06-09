@@ -1001,7 +1001,7 @@ export function trackDynamicHoleInNavigation(
       // If shared parents blocked us from validating, we should only log
       // the errors from the innermost (segments), i.e. omit layouts whose
       // slots managed to render (because clearly they didn't block validation)
-      const message = `Route "${workStore.route}": Could not validate \`unstable_instant\` because a Client Component in a parent segment prevented the page from rendering.`
+      const message = `Route "${workStore.route}": Could not validate \`instant\` because a Client Component in a parent segment prevented the page from rendering.`
       const error = addErrorContext(
         new Error(message),
         componentStack,
@@ -1117,7 +1117,7 @@ export function trackThrownErrorInNavigation(
         // invalid - fallthrough
       }
     }
-    const message = `Route "${workStore.route}": Could not validate \`unstable_instant\` because an error prevented the target segment from rendering.`
+    const message = `Route "${workStore.route}": Could not validate \`instant\` because an error prevented the target segment from rendering.`
     const error = addErrorContext(
       new Error(message, { cause: thrownValue }),
       componentStack,
@@ -1335,7 +1335,7 @@ export function throwIfDisallowedDynamic(
   }
 
   // Either flag expresses "this shell is allowed to be empty/blocking":
-  //   - `allowEmptyStaticShell` covers `unstable_instant = false` (user opt-in)
+  //   - `allowEmptyStaticShell` covers `instant = false` (user opt-in)
   //     and the build-phase fallback-shell case.
   //   - `hasSuspenseAboveBody` is the structural opt-in inside the user's root
   //     layout.
@@ -1401,7 +1401,7 @@ export function getStaticShellDisallowedDynamicReasons(
   }
 
   // Either flag expresses "this shell is allowed to be empty/blocking":
-  //   - `allowEmptyStaticShell` covers `unstable_instant = false` (user opt-in)
+  //   - `allowEmptyStaticShell` covers `instant = false` (user opt-in)
   //     and the build-phase fallback-shell case.
   //   - `hasSuspenseAboveBody` is the structural opt-in inside the user's root
   //     layout.
@@ -1542,7 +1542,7 @@ export function getNavigationDisallowedDynamicReasons(
           `\n\nWays to fix this:` +
           `\n  - [render] Render the dropped segment` +
           `\n    https://nextjs.org/docs/messages/instant-unrendered-segment#render-the-dropped-segment` +
-          `\n  - [ignore] Set \`export const unstable_instant = false\` on the dropped segment to skip validation` +
+          `\n  - [ignore] Set \`export const instant = false\` on the dropped segment to skip validation` +
           `\n    https://nextjs.org/docs/messages/instant-unrendered-segment#skip-validation-on-the-segment`
       }
       const error = new Error(message)
@@ -1553,7 +1553,7 @@ export function getNavigationDisallowedDynamicReasons(
       // render. Suppress the validation failure to avoid noise.
       return []
     } else if (thrownErrorsOutsideBoundary.length === 1) {
-      const message = `Route "${workStore.route}": Could not validate \`unstable_instant\` because the target segment was prevented from rendering, likely due to the following error.`
+      const message = `Route "${workStore.route}": Could not validate \`instant\` because the target segment was prevented from rendering, likely due to the following error.`
       const error = rootInstantStack !== null ? rootInstantStack() : new Error()
       error.name = 'Error'
       error.message = message
@@ -1562,7 +1562,7 @@ export function getNavigationDisallowedDynamicReasons(
         thrownErrorsOutsideBoundary[0] as Error,
       ])
     } else {
-      const message = `Route "${workStore.route}": Could not validate \`unstable_instant\` because the target segment was prevented from rendering, likely due to one of the following errors.`
+      const message = `Route "${workStore.route}": Could not validate \`instant\` because the target segment was prevented from rendering, likely due to one of the following errors.`
       const error = rootInstantStack !== null ? rootInstantStack() : new Error()
       error.name = 'Error'
       error.message = message

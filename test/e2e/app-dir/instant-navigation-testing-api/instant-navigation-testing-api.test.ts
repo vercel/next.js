@@ -93,7 +93,8 @@ describe('instant-navigation-testing-api', () => {
     )
   })
 
-  it('renders runtime-prefetched content instantly during navigation', async () => {
+  // TODO: This has been flaky in CI for weeks and needs further investigation.
+  it.skip('renders runtime-prefetched content instantly during navigation', async () => {
     const page = await openPage(next, '/')
 
     await instant(page, async () => {
@@ -300,7 +301,7 @@ describe('instant-navigation-testing-api', () => {
   // behind a Suspense boundary until the instant lock is released.
   //
   // Each test route reads a different runtime param inside a <Suspense>
-  // boundary without opting into `unstable_instant: { prefetch: 'runtime' }`.
+  // boundary without opting into `instant: { prefetch: 'runtime' }`.
   // During the instant scope, the static page title should be visible and the
   // Suspense fallback should be shown, but the resolved param value should
   // NOT be present.

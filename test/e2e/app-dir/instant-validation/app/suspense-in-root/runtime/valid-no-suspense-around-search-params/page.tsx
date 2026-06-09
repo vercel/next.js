@@ -1,7 +1,7 @@
 import { connection } from 'next/server'
 import { Suspense } from 'react'
 
-export const unstable_instant = {
+export const instant = {
   level: 'experimental-error',
   unstable_samples: [{ cookies: [], searchParams: { foo: 'bar' } }],
 }

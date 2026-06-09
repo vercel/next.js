@@ -24,7 +24,7 @@ Request-bound reads ([`cookies()`](/docs/app/api-reference/functions/cookies), [
 <FixOption
   group="block"
   href="#allow-blocking-route"
-  prompt={`Add "export const unstable_instant = false" as a top-level export in the page or layout file. This silences the warning for this segment. Confirm with the user that the route is intentionally fully dynamic before applying this change: the export exempts the segment from instant-navigation validation, and the route renders on every request.`}
+  prompt={`Add "export const instant = false" as a top-level export in the page or layout file. This silences the warning for this segment. Confirm with the user that the route is intentionally fully dynamic before applying this change: the export exempts the segment from instant-navigation validation, and the route renders on every request.`}
   title="Allow blocking route"
 >
   Opt this segment out of instant navigation. The route renders on every request
@@ -72,7 +72,7 @@ Freshness depends on the cache configuration. The viewport stays the same until 
 
 ## Allow blocking route
 
-Choose this fix when the viewport data is genuinely uncacheable. Setting [`unstable_instant`](/docs/app/api-reference/file-conventions/route-segment-config/instant) to `false` exempts the segment from instant-navigation validation. The page renders on every request and the navigation blocks until that render completes.
+Choose this fix when the viewport data is genuinely uncacheable. Setting [`instant`](/docs/app/api-reference/file-conventions/route-segment-config/instant) to `false` exempts the segment from instant-navigation validation. The page renders on every request and the navigation blocks until that render completes.
 
 Unlike page body content, viewport metadata can't be deferred behind [`<Suspense>`](https://react.dev/reference/react/Suspense) because it affects the initial HTML `<head>`. Making the viewport dynamic means the entire page navigation blocks.
 
@@ -80,12 +80,12 @@ Unlike page body content, viewport metadata can't be deferred behind [`<Suspense
 
 #### Opt the layout out
 
-Set [`unstable_instant`](/docs/app/api-reference/file-conventions/route-segment-config/instant) to `false` on the layout that defines `generateViewport`. The layout and every route in its subtree are exempted from instant-navigation validation. Apply this to the nested layout that owns the dynamic viewport, not the root layout, so the opt-out is scoped to the affected subtree.
+Set [`instant`](/docs/app/api-reference/file-conventions/route-segment-config/instant) to `false` on the layout that defines `generateViewport`. This allows that layout segment to block while descendant segments remain independently validated. Apply this to the nested layout that owns the dynamic viewport, not the root layout, so the opt-out is scoped to the affected segment.
 
 ```jsx filename="app/dashboard/layout.js"
 import { db } from './db'
 
-export const unstable_instant = false
+export const instant = false
 
 export async function generateViewport() {
   const { width, initialScale } = await db.query('viewport-config')
@@ -112,17 +112,17 @@ Navigations to this route are not instant. The user waits for the full server re
 
 ### Gotchas
 
-- Setting [`unstable_instant`](/docs/app/api-reference/file-conventions/route-segment-config/instant) to `false` opts only the segment that exports it out. Descendant segments are still validated by the global default. See [Don't want this validation?](#dont-want-this-validation) for the subtree-wide opt-out.
+- Setting [`instant`](/docs/app/api-reference/file-conventions/route-segment-config/instant) to `false` opts only the segment that exports it out. Descendant segments are still validated by the global default. See [Don't want this validation?](#dont-want-this-validation) for the subtree-wide opt-out.
 - This export does not disable [prerendering](/docs/app/glossary#prerendering). The route still prerenders if it can. It only silences the instant-navigation validation error.
-- Framework-synthesized routes (`/_not-found`, `/_global-error`) inherit the root layout's `generateViewport` and must be statically prerendered. [`unstable_instant = false`](/docs/app/api-reference/file-conventions/route-segment-config/instant) silences the validation error but does not let those routes through, so the build still fails when they prerender. If your root layout's `generateViewport` depends on request data, [Cache the viewport data](#cache-the-viewport-data) instead, or move to [`global-not-found.js`](/docs/app/api-reference/file-conventions/not-found#global-not-foundjs-experimental), which bypasses the root layout entirely and avoids inheriting its `generateViewport`.
+- Framework-synthesized routes (`/_not-found`, `/_global-error`) inherit the root layout's `generateViewport` and must be statically prerendered. [`instant = false`](/docs/app/api-reference/file-conventions/route-segment-config/instant) silences the validation error but does not let those routes through, so the build still fails when they prerender. If your root layout's `generateViewport` depends on request data, [Cache the viewport data](#cache-the-viewport-data) instead, or move to [`global-not-found.js`](/docs/app/api-reference/file-conventions/not-found#global-not-foundjs-experimental), which bypasses the root layout entirely and avoids inheriting its `generateViewport`.
 
 ## Don't want this validation?
 
 Instant-navigation validation runs by default in [Cache Components](/docs/app/api-reference/config/next-config-js/cacheComponents) apps and is what surfaces this error.
 
-- **One segment**: add [`export const unstable_instant = false`](/docs/app/api-reference/file-conventions/route-segment-config/instant) to the page or layout file. This opts out the segment itself. Child segments are still validated during client navigations.
-- **Layout and its children**: add `export const unstable_instant = { unstable_disableValidation: true }` to a layout. This disables validation for that layout and every segment below it.
-- **Entire app**: set [`experimental.instantInsights.validationLevel`](/docs/app/api-reference/file-conventions/route-segment-config/instant#configuring-validation-defaults) to `'manual-warning'` in `next.config`. This limits validation to segments that explicitly export `unstable_instant`.
+- **One segment**: add [`export const instant = false`](/docs/app/api-reference/file-conventions/route-segment-config/instant) to the page or layout file. This opts out the segment itself. Child segments are still validated during client navigations.
+- **Layout and its children**: add `export const instant = { unstable_disableValidation: true }` to a layout. This disables validation for that layout and every segment below it.
+- **Entire app**: set [`experimental.instantInsights.validationLevel`](/docs/app/api-reference/file-conventions/route-segment-config/instant#configuring-validation-defaults) to `'manual-warning'` in `next.config`. This limits validation to segments that explicitly export `instant`.
 
 See [Ensuring instant navigations](/docs/app/guides/instant-navigation) for the full model.
 

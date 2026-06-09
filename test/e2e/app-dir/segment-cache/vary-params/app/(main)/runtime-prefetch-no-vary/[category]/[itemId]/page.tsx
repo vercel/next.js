@@ -8,7 +8,7 @@ import { connection } from 'next/server'
  * are NOT tracked in varyParams. This means ALL param combinations should
  * share the same cached loading shell (empty vary params set = max sharing).
  */
-export const unstable_instant: {
+export const instant: {
   unstable_samples: Array<{ params: { category: string; itemId: string } }>
 } = {
   unstable_samples: [

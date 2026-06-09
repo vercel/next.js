@@ -1,6 +1,6 @@
 import { ensureThrows } from '../../../../ensure-error'
 
-export const unstable_instant = {
+export const instant = {
   level: 'experimental-error',
   unstable_samples: [{ searchParams: { q: 'test' } }],
 }

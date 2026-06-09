@@ -363,7 +363,7 @@ export function isSyncIOClientError(message: string): boolean {
 export function isBlockingRouteInNavError(message: string): boolean {
   return (
     message.includes('or a navigation') ||
-    message.includes('Could not validate `unstable_instant`') ||
+    message.includes('Could not validate `instant`') ||
     message.includes(
       'Could not validate that a segment in your UI has instant navigation'
     )

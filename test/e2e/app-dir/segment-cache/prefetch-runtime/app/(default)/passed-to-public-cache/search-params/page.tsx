@@ -3,7 +3,7 @@ import { cachedDelay, DebugRenderKind } from '../../../shared'
 import { connection } from 'next/server'
 import { cookies } from 'next/headers'
 
-export const unstable_instant = {
+export const instant = {
   unstable_samples: [{ searchParams: { searchParam: 'value' } }],
 }
 export const prefetch = 'allow-runtime'

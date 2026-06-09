@@ -171,11 +171,11 @@ describe('instant validation', () => {
            "cause": [
              {
                "label": "Caused by: Instant Validation",
-               "source": "app/suspense-in-root/static/missing-suspense-around-runtime/page.tsx (3:33) @ unstable_instant
-         > 3 | export const unstable_instant = { level: 'experimental-error' }
-             |                                 ^",
+               "source": "app/suspense-in-root/static/missing-suspense-around-runtime/page.tsx (3:24) @ instant
+         > 3 | export const instant = { level: 'experimental-error' }
+             |                        ^",
                "stack": [
-                 "unstable_instant app/suspense-in-root/static/missing-suspense-around-runtime/page.tsx (3:33)",
+                 "instant app/suspense-in-root/static/missing-suspense-around-runtime/page.tsx (3:24)",
                  "Set.forEach <anonymous>",
                ],
              },
@@ -207,7 +207,7 @@ describe('instant validation', () => {
              https://nextjs.org/docs/messages/blocking-prerender-runtime#wrap-in-or-move-into-suspense
            - [cache] For \`params\`: if the params are known, prerender them with \`generateStaticParams\`
              https://nextjs.org/docs/messages/blocking-prerender-runtime#for-known-params-prerender
-           - [block] Set \`export const unstable_instant = false\` to silence this warning and allow a blocking route
+           - [block] Set \`export const instant = false\` to silence this warning and allow a blocking route
              https://nextjs.org/docs/messages/blocking-prerender-runtime#allow-blocking-route
              at body (<anonymous>)
              at html (<anonymous>)
@@ -232,11 +232,11 @@ describe('instant validation', () => {
            "cause": [
              {
                "label": "Caused by: Instant Validation",
-               "source": "app/suspense-in-root/static/missing-suspense-around-dynamic/page.tsx (3:33) @ unstable_instant
-         > 3 | export const unstable_instant = { level: 'experimental-error' }
-             |                                 ^",
+               "source": "app/suspense-in-root/static/missing-suspense-around-dynamic/page.tsx (3:24) @ instant
+         > 3 | export const instant = { level: 'experimental-error' }
+             |                        ^",
                "stack": [
-                 "unstable_instant app/suspense-in-root/static/missing-suspense-around-dynamic/page.tsx (3:33)",
+                 "instant app/suspense-in-root/static/missing-suspense-around-dynamic/page.tsx (3:24)",
                  "Set.forEach <anonymous>",
                ],
              },
@@ -268,7 +268,7 @@ describe('instant validation', () => {
              https://nextjs.org/docs/messages/blocking-prerender-dynamic#wrap-in-or-move-into-suspense
            - [cache] Cache the data access with \`"use cache"\`
              https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
-           - [block] Set \`export const unstable_instant = false\` to silence this warning and allow a blocking route
+           - [block] Set \`export const instant = false\` to silence this warning and allow a blocking route
              https://nextjs.org/docs/messages/blocking-prerender-dynamic#allow-blocking-route
              at body (<anonymous>)
              at html (<anonymous>)
@@ -293,11 +293,11 @@ describe('instant validation', () => {
            "cause": [
              {
                "label": "Caused by: Instant Validation",
-               "source": "app/suspense-in-root/runtime/missing-suspense-around-dynamic/page.tsx (4:33) @ unstable_instant
-         > 4 | export const unstable_instant = { level: 'experimental-error' }
-             |                                 ^",
+               "source": "app/suspense-in-root/runtime/missing-suspense-around-dynamic/page.tsx (4:24) @ instant
+         > 4 | export const instant = { level: 'experimental-error' }
+             |                        ^",
                "stack": [
-                 "unstable_instant app/suspense-in-root/runtime/missing-suspense-around-dynamic/page.tsx (4:33)",
+                 "instant app/suspense-in-root/runtime/missing-suspense-around-dynamic/page.tsx (4:24)",
                  "Set.forEach <anonymous>",
                ],
              },
@@ -330,7 +330,7 @@ describe('instant validation', () => {
              https://nextjs.org/docs/messages/blocking-prerender-dynamic#wrap-in-or-move-into-suspense
            - [cache] Cache the data access with \`"use cache"\`
              https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
-           - [block] Set \`export const unstable_instant = false\` to silence this warning and allow a blocking route
+           - [block] Set \`export const instant = false\` to silence this warning and allow a blocking route
              https://nextjs.org/docs/messages/blocking-prerender-dynamic#allow-blocking-route
              at div (<anonymous>)
              at main (<anonymous>)
@@ -357,11 +357,11 @@ describe('instant validation', () => {
            "cause": [
              {
                "label": "Caused by: Instant Validation",
-               "source": "app/suspense-in-root/static/missing-suspense-around-dynamic-layout/layout.tsx (4:33) @ unstable_instant
-         > 4 | export const unstable_instant = { level: 'experimental-error' }
-             |                                 ^",
+               "source": "app/suspense-in-root/static/missing-suspense-around-dynamic-layout/layout.tsx (4:24) @ instant
+         > 4 | export const instant = { level: 'experimental-error' }
+             |                        ^",
                "stack": [
-                 "unstable_instant app/suspense-in-root/static/missing-suspense-around-dynamic-layout/layout.tsx (4:33)",
+                 "instant app/suspense-in-root/static/missing-suspense-around-dynamic-layout/layout.tsx (4:24)",
                  "Set.forEach <anonymous>",
                ],
              },
@@ -393,7 +393,7 @@ describe('instant validation', () => {
              https://nextjs.org/docs/messages/blocking-prerender-runtime#wrap-in-or-move-into-suspense
            - [cache] For \`params\`: if the params are known, prerender them with \`generateStaticParams\`
              https://nextjs.org/docs/messages/blocking-prerender-runtime#for-known-params-prerender
-           - [block] Set \`export const unstable_instant = false\` to silence this warning and allow a blocking route
+           - [block] Set \`export const instant = false\` to silence this warning and allow a blocking route
              https://nextjs.org/docs/messages/blocking-prerender-runtime#allow-blocking-route
              at body (<anonymous>)
              at html (<anonymous>)
@@ -418,11 +418,11 @@ describe('instant validation', () => {
            "cause": [
              {
                "label": "Caused by: Instant Validation",
-               "source": "app/suspense-in-root/runtime/missing-suspense-around-dynamic-layout/layout.tsx (4:33) @ unstable_instant
-         > 4 | export const unstable_instant = { level: 'experimental-error' }
-             |                                 ^",
+               "source": "app/suspense-in-root/runtime/missing-suspense-around-dynamic-layout/layout.tsx (4:24) @ instant
+         > 4 | export const instant = { level: 'experimental-error' }
+             |                        ^",
                "stack": [
-                 "unstable_instant app/suspense-in-root/runtime/missing-suspense-around-dynamic-layout/layout.tsx (4:33)",
+                 "instant app/suspense-in-root/runtime/missing-suspense-around-dynamic-layout/layout.tsx (4:24)",
                  "Set.forEach <anonymous>",
                ],
              },
@@ -454,7 +454,7 @@ describe('instant validation', () => {
              https://nextjs.org/docs/messages/blocking-prerender-dynamic#wrap-in-or-move-into-suspense
            - [cache] Cache the data access with \`"use cache"\`
              https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
-           - [block] Set \`export const unstable_instant = false\` to silence this warning and allow a blocking route
+           - [block] Set \`export const instant = false\` to silence this warning and allow a blocking route
              https://nextjs.org/docs/messages/blocking-prerender-dynamic#allow-blocking-route
              at body (<anonymous>)
              at html (<anonymous>)
@@ -482,11 +482,11 @@ describe('instant validation', () => {
          "cause": [
            {
              "label": "Caused by: Instant Validation",
-             "source": "app/suspense-in-root/static/missing-suspense-around-params/[param]/page.tsx (1:33) @ unstable_instant
-       > 1 | export const unstable_instant = {
-           |                                 ^",
+             "source": "app/suspense-in-root/static/missing-suspense-around-params/[param]/page.tsx (1:24) @ instant
+       > 1 | export const instant = {
+           |                        ^",
              "stack": [
-               "unstable_instant app/suspense-in-root/static/missing-suspense-around-params/[param]/page.tsx (1:33)",
+               "instant app/suspense-in-root/static/missing-suspense-around-params/[param]/page.tsx (1:24)",
                "Set.forEach <anonymous>",
              ],
            },
@@ -530,11 +530,11 @@ describe('instant validation', () => {
            "cause": [
              {
                "label": "Caused by: Instant Validation",
-               "source": "app/suspense-in-root/static/missing-suspense-around-search-params/page.tsx (1:33) @ unstable_instant
-         > 1 | export const unstable_instant = {
-             |                                 ^",
+               "source": "app/suspense-in-root/static/missing-suspense-around-search-params/page.tsx (1:24) @ instant
+         > 1 | export const instant = {
+             |                        ^",
                "stack": [
-                 "unstable_instant app/suspense-in-root/static/missing-suspense-around-search-params/page.tsx (1:33)",
+                 "instant app/suspense-in-root/static/missing-suspense-around-search-params/page.tsx (1:24)",
                  "Set.forEach <anonymous>",
                ],
              },
@@ -566,7 +566,7 @@ describe('instant validation', () => {
              https://nextjs.org/docs/messages/blocking-prerender-runtime#wrap-in-or-move-into-suspense
            - [cache] For \`params\`: if the params are known, prerender them with \`generateStaticParams\`
              https://nextjs.org/docs/messages/blocking-prerender-runtime#for-known-params-prerender
-           - [block] Set \`export const unstable_instant = false\` to silence this warning and allow a blocking route
+           - [block] Set \`export const instant = false\` to silence this warning and allow a blocking route
              https://nextjs.org/docs/messages/blocking-prerender-runtime#allow-blocking-route
              at body (<anonymous>)
              at html (<anonymous>)
@@ -626,11 +626,11 @@ describe('instant validation', () => {
            "cause": [
              {
                "label": "Caused by: Instant Validation",
-               "source": "app/suspense-in-root/static/suspense-too-high/page.tsx (3:33) @ unstable_instant
-         > 3 | export const unstable_instant = { level: 'experimental-error' }
-             |                                 ^",
+               "source": "app/suspense-in-root/static/suspense-too-high/page.tsx (3:24) @ instant
+         > 3 | export const instant = { level: 'experimental-error' }
+             |                        ^",
                "stack": [
-                 "unstable_instant app/suspense-in-root/static/suspense-too-high/page.tsx (3:33)",
+                 "instant app/suspense-in-root/static/suspense-too-high/page.tsx (3:24)",
                  "Set.forEach <anonymous>",
                ],
              },
@@ -662,7 +662,7 @@ describe('instant validation', () => {
              https://nextjs.org/docs/messages/blocking-prerender-runtime#wrap-in-or-move-into-suspense
            - [cache] For \`params\`: if the params are known, prerender them with \`generateStaticParams\`
              https://nextjs.org/docs/messages/blocking-prerender-runtime#for-known-params-prerender
-           - [block] Set \`export const unstable_instant = false\` to silence this warning and allow a blocking route
+           - [block] Set \`export const instant = false\` to silence this warning and allow a blocking route
              https://nextjs.org/docs/messages/blocking-prerender-runtime#allow-blocking-route
              at a (<anonymous>)
              at div (<anonymous>)
@@ -690,11 +690,11 @@ describe('instant validation', () => {
            "cause": [
              {
                "label": "Caused by: Instant Validation",
-               "source": "app/suspense-in-root/runtime/suspense-too-high/page.tsx (4:33) @ unstable_instant
-         > 4 | export const unstable_instant = { level: 'experimental-error' }
-             |                                 ^",
+               "source": "app/suspense-in-root/runtime/suspense-too-high/page.tsx (4:24) @ instant
+         > 4 | export const instant = { level: 'experimental-error' }
+             |                        ^",
                "stack": [
-                 "unstable_instant app/suspense-in-root/runtime/suspense-too-high/page.tsx (4:33)",
+                 "instant app/suspense-in-root/runtime/suspense-too-high/page.tsx (4:24)",
                  "Set.forEach <anonymous>",
                ],
              },
@@ -727,7 +727,7 @@ describe('instant validation', () => {
              https://nextjs.org/docs/messages/blocking-prerender-dynamic#wrap-in-or-move-into-suspense
            - [cache] Cache the data access with \`"use cache"\`
              https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
-           - [block] Set \`export const unstable_instant = false\` to silence this warning and allow a blocking route
+           - [block] Set \`export const instant = false\` to silence this warning and allow a blocking route
              https://nextjs.org/docs/messages/blocking-prerender-dynamic#allow-blocking-route
              at div (<anonymous>)
              at main (<anonymous>)
@@ -1147,11 +1147,11 @@ describe('instant validation', () => {
            "cause": [
              {
                "label": "Caused by: Instant Validation",
-               "source": "app/suspense-in-root/static/invalid-loading-above-route-group/(group)/page.tsx (4:33) @ unstable_instant
-         > 4 | export const unstable_instant = { level: 'experimental-error' }
-             |                                 ^",
+               "source": "app/suspense-in-root/static/invalid-loading-above-route-group/(group)/page.tsx (4:24) @ instant
+         > 4 | export const instant = { level: 'experimental-error' }
+             |                        ^",
                "stack": [
-                 "unstable_instant app/suspense-in-root/static/invalid-loading-above-route-group/(group)/page.tsx (4:33)",
+                 "instant app/suspense-in-root/static/invalid-loading-above-route-group/(group)/page.tsx (4:24)",
                  "Set.forEach <anonymous>",
                ],
              },
@@ -1184,7 +1184,7 @@ describe('instant validation', () => {
              https://nextjs.org/docs/messages/blocking-prerender-dynamic#wrap-in-or-move-into-suspense
            - [cache] Cache the data access with \`"use cache"\`
              https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
-           - [block] Set \`export const unstable_instant = false\` to silence this warning and allow a blocking route
+           - [block] Set \`export const instant = false\` to silence this warning and allow a blocking route
              https://nextjs.org/docs/messages/blocking-prerender-dynamic#allow-blocking-route
              at div (<anonymous>)
              at main (<anonymous>)
@@ -1212,11 +1212,11 @@ describe('instant validation', () => {
            "cause": [
              {
                "label": "Caused by: Instant Validation",
-               "source": "app/suspense-in-root/static/invalid-dynamic-layout-with-loading/layout.tsx (4:33) @ unstable_instant
-         > 4 | export const unstable_instant = { level: 'experimental-error' }
-             |                                 ^",
+               "source": "app/suspense-in-root/static/invalid-dynamic-layout-with-loading/layout.tsx (4:24) @ instant
+         > 4 | export const instant = { level: 'experimental-error' }
+             |                        ^",
                "stack": [
-                 "unstable_instant app/suspense-in-root/static/invalid-dynamic-layout-with-loading/layout.tsx (4:33)",
+                 "instant app/suspense-in-root/static/invalid-dynamic-layout-with-loading/layout.tsx (4:24)",
                  "Set.forEach <anonymous>",
                ],
              },
@@ -1249,7 +1249,7 @@ describe('instant validation', () => {
              https://nextjs.org/docs/messages/blocking-prerender-dynamic#wrap-in-or-move-into-suspense
            - [cache] Cache the data access with \`"use cache"\`
              https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
-           - [block] Set \`export const unstable_instant = false\` to silence this warning and allow a blocking route
+           - [block] Set \`export const instant = false\` to silence this warning and allow a blocking route
              https://nextjs.org/docs/messages/blocking-prerender-dynamic#allow-blocking-route
              at div (<anonymous>)
              at body (<anonymous>)
@@ -1266,7 +1266,7 @@ describe('instant validation', () => {
     })
 
     describe('blocking', () => {
-      it('valid - blocking layout with unstable_instant = false is allowed to block', async () => {
+      it('valid - blocking layout with instant = false is allowed to block', async () => {
         if (isNextDev) {
           const browser = await navigateTo(
             '/suspense-in-root/static/blocking-layout'
@@ -1290,11 +1290,11 @@ describe('instant validation', () => {
              "cause": [
                {
                  "label": "Caused by: Instant Validation",
-                 "source": "app/suspense-in-root/static/blocking-layout/missing-suspense-around-dynamic/page.tsx (3:33) @ unstable_instant
-           > 3 | export const unstable_instant = { level: 'experimental-error' }
-               |                                 ^",
+                 "source": "app/suspense-in-root/static/blocking-layout/missing-suspense-around-dynamic/page.tsx (3:24) @ instant
+           > 3 | export const instant = { level: 'experimental-error' }
+               |                        ^",
                  "stack": [
-                   "unstable_instant app/suspense-in-root/static/blocking-layout/missing-suspense-around-dynamic/page.tsx (3:33)",
+                   "instant app/suspense-in-root/static/blocking-layout/missing-suspense-around-dynamic/page.tsx (3:24)",
                    "Set.forEach <anonymous>",
                  ],
                },
@@ -1326,7 +1326,7 @@ describe('instant validation', () => {
                https://nextjs.org/docs/messages/blocking-prerender-runtime#wrap-in-or-move-into-suspense
              - [cache] For \`params\`: if the params are known, prerender them with \`generateStaticParams\`
                https://nextjs.org/docs/messages/blocking-prerender-runtime#for-known-params-prerender
-             - [block] Set \`export const unstable_instant = false\` to silence this warning and allow a blocking route
+             - [block] Set \`export const instant = false\` to silence this warning and allow a blocking route
                https://nextjs.org/docs/messages/blocking-prerender-runtime#allow-blocking-route
                at body (<anonymous>)
                at html (<anonymous>)
@@ -1379,11 +1379,11 @@ describe('instant validation', () => {
              "cause": [
                {
                  "label": "Caused by: Instant Validation",
-                 "source": "app/suspense-in-root/static/invalid-blocking-inside-static/layout.tsx (1:33) @ unstable_instant
-           > 1 | export const unstable_instant = { level: 'experimental-error' }
-               |                                 ^",
+                 "source": "app/suspense-in-root/static/invalid-blocking-inside-static/layout.tsx (1:24) @ instant
+           > 1 | export const instant = { level: 'experimental-error' }
+               |                        ^",
                  "stack": [
-                   "unstable_instant app/suspense-in-root/static/invalid-blocking-inside-static/layout.tsx (1:33)",
+                   "instant app/suspense-in-root/static/invalid-blocking-inside-static/layout.tsx (1:24)",
                    "Set.forEach <anonymous>",
                  ],
                },
@@ -1415,7 +1415,7 @@ describe('instant validation', () => {
                https://nextjs.org/docs/messages/blocking-prerender-runtime#wrap-in-or-move-into-suspense
              - [cache] For \`params\`: if the params are known, prerender them with \`generateStaticParams\`
                https://nextjs.org/docs/messages/blocking-prerender-runtime#for-known-params-prerender
-             - [block] Set \`export const unstable_instant = false\` to silence this warning and allow a blocking route
+             - [block] Set \`export const instant = false\` to silence this warning and allow a blocking route
                https://nextjs.org/docs/messages/blocking-prerender-runtime#allow-blocking-route
                at div (<anonymous>)
                at body (<anonymous>)
@@ -1441,11 +1441,11 @@ describe('instant validation', () => {
              "cause": [
                {
                  "label": "Caused by: Instant Validation",
-                 "source": "app/suspense-in-root/runtime/invalid-blocking-inside-runtime/layout.tsx (3:33) @ unstable_instant
-           > 3 | export const unstable_instant = { level: 'experimental-error' }
-               |                                 ^",
+                 "source": "app/suspense-in-root/runtime/invalid-blocking-inside-runtime/layout.tsx (3:24) @ instant
+           > 3 | export const instant = { level: 'experimental-error' }
+               |                        ^",
                  "stack": [
-                   "unstable_instant app/suspense-in-root/runtime/invalid-blocking-inside-runtime/layout.tsx (3:33)",
+                   "instant app/suspense-in-root/runtime/invalid-blocking-inside-runtime/layout.tsx (3:24)",
                    "Set.forEach <anonymous>",
                  ],
                },
@@ -1477,7 +1477,7 @@ describe('instant validation', () => {
                https://nextjs.org/docs/messages/blocking-prerender-dynamic#wrap-in-or-move-into-suspense
              - [cache] Cache the data access with \`"use cache"\`
                https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
-             - [block] Set \`export const unstable_instant = false\` to silence this warning and allow a blocking route
+             - [block] Set \`export const instant = false\` to silence this warning and allow a blocking route
                https://nextjs.org/docs/messages/blocking-prerender-dynamic#allow-blocking-route
                at div (<anonymous>)
                at body (<anonymous>)
@@ -1506,11 +1506,11 @@ describe('instant validation', () => {
              "cause": [
                {
                  "label": "Caused by: Instant Validation",
-                 "source": "app/suspense-in-root/static/missing-suspense-in-parallel-route/@slot/layout.tsx (1:33) @ unstable_instant
-           > 1 | export const unstable_instant = { level: 'experimental-error' }
-               |                                 ^",
+                 "source": "app/suspense-in-root/static/missing-suspense-in-parallel-route/@slot/layout.tsx (1:24) @ instant
+           > 1 | export const instant = { level: 'experimental-error' }
+               |                        ^",
                  "stack": [
-                   "unstable_instant app/suspense-in-root/static/missing-suspense-in-parallel-route/@slot/layout.tsx (1:33)",
+                   "instant app/suspense-in-root/static/missing-suspense-in-parallel-route/@slot/layout.tsx (1:24)",
                    "Set.forEach <anonymous>",
                  ],
                },
@@ -1542,7 +1542,7 @@ describe('instant validation', () => {
                https://nextjs.org/docs/messages/blocking-prerender-runtime#wrap-in-or-move-into-suspense
              - [cache] For \`params\`: if the params are known, prerender them with \`generateStaticParams\`
                https://nextjs.org/docs/messages/blocking-prerender-runtime#for-known-params-prerender
-             - [block] Set \`export const unstable_instant = false\` to silence this warning and allow a blocking route
+             - [block] Set \`export const instant = false\` to silence this warning and allow a blocking route
                https://nextjs.org/docs/messages/blocking-prerender-runtime#allow-blocking-route
                at div (<anonymous>)
                at div (<anonymous>)
@@ -1569,11 +1569,11 @@ describe('instant validation', () => {
              "cause": [
                {
                  "label": "Caused by: Instant Validation",
-                 "source": "app/suspense-in-root/static/missing-suspense-in-parallel-route/foo/page.tsx (1:33) @ unstable_instant
-           > 1 | export const unstable_instant = { level: 'experimental-error' }
-               |                                 ^",
+                 "source": "app/suspense-in-root/static/missing-suspense-in-parallel-route/foo/page.tsx (1:24) @ instant
+           > 1 | export const instant = { level: 'experimental-error' }
+               |                        ^",
                  "stack": [
-                   "unstable_instant app/suspense-in-root/static/missing-suspense-in-parallel-route/foo/page.tsx (1:33)",
+                   "instant app/suspense-in-root/static/missing-suspense-in-parallel-route/foo/page.tsx (1:24)",
                    "Set.forEach <anonymous>",
                  ],
                },
@@ -1605,7 +1605,7 @@ describe('instant validation', () => {
                https://nextjs.org/docs/messages/blocking-prerender-runtime#wrap-in-or-move-into-suspense
              - [cache] For \`params\`: if the params are known, prerender them with \`generateStaticParams\`
                https://nextjs.org/docs/messages/blocking-prerender-runtime#for-known-params-prerender
-             - [block] Set \`export const unstable_instant = false\` to silence this warning and allow a blocking route
+             - [block] Set \`export const instant = false\` to silence this warning and allow a blocking route
                https://nextjs.org/docs/messages/blocking-prerender-runtime#allow-blocking-route
                at div (<anonymous>)
                at div (<anonymous>)
@@ -1632,11 +1632,11 @@ describe('instant validation', () => {
              "cause": [
                {
                  "label": "Caused by: Instant Validation",
-                 "source": "app/suspense-in-root/static/missing-suspense-in-parallel-route/bar/page.tsx (1:33) @ unstable_instant
-           > 1 | export const unstable_instant = { level: 'experimental-error' }
-               |                                 ^",
+                 "source": "app/suspense-in-root/static/missing-suspense-in-parallel-route/bar/page.tsx (1:24) @ instant
+           > 1 | export const instant = { level: 'experimental-error' }
+               |                        ^",
                  "stack": [
-                   "unstable_instant app/suspense-in-root/static/missing-suspense-in-parallel-route/bar/page.tsx (1:33)",
+                   "instant app/suspense-in-root/static/missing-suspense-in-parallel-route/bar/page.tsx (1:24)",
                    "Set.forEach <anonymous>",
                  ],
                },
@@ -1668,7 +1668,7 @@ describe('instant validation', () => {
                https://nextjs.org/docs/messages/blocking-prerender-runtime#wrap-in-or-move-into-suspense
              - [cache] For \`params\`: if the params are known, prerender them with \`generateStaticParams\`
                https://nextjs.org/docs/messages/blocking-prerender-runtime#for-known-params-prerender
-             - [block] Set \`export const unstable_instant = false\` to silence this warning and allow a blocking route
+             - [block] Set \`export const instant = false\` to silence this warning and allow a blocking route
                https://nextjs.org/docs/messages/blocking-prerender-runtime#allow-blocking-route
                at div (<anonymous>)
                at body (<anonymous>)
@@ -1696,17 +1696,17 @@ describe('instant validation', () => {
              "cause": [
                {
                  "label": "Caused by: Instant Validation",
-                 "source": "app/suspense-in-root/static/invalid-client-data-blocks-validation/page.tsx (1:33) @ unstable_instant
-           > 1 | export const unstable_instant = { level: 'experimental-error' }
-               |                                 ^",
+                 "source": "app/suspense-in-root/static/invalid-client-data-blocks-validation/page.tsx (1:24) @ instant
+           > 1 | export const instant = { level: 'experimental-error' }
+               |                        ^",
                  "stack": [
-                   "unstable_instant app/suspense-in-root/static/invalid-client-data-blocks-validation/page.tsx (1:33)",
+                   "instant app/suspense-in-root/static/invalid-client-data-blocks-validation/page.tsx (1:24)",
                    "Set.forEach <anonymous>",
                  ],
                },
              ],
-             "code": "E1082",
-             "description": "Route "/suspense-in-root/static/invalid-client-data-blocks-validation": Could not validate \`unstable_instant\` because a Client Component in a parent segment prevented the page from rendering.",
+             "code": "E1331",
+             "description": "Route "/suspense-in-root/static/invalid-client-data-blocks-validation": Could not validate \`instant\` because a Client Component in a parent segment prevented the page from rendering.",
              "environmentLabel": "Server",
              "label": "Console Error",
              "source": "app/suspense-in-root/static/invalid-client-data-blocks-validation/client.tsx (12:19) @ FetchesClientData
@@ -1727,7 +1727,7 @@ describe('instant validation', () => {
            "client-data-fetching-lib :: MISS my-key
            client-data-fetching-lib :: MISS my-key
            client-data-fetching-lib :: MISS my-key
-           Error: Route "/suspense-in-root/static/invalid-client-data-blocks-validation": Could not validate \`unstable_instant\` because a Client Component in a parent segment prevented the page from rendering.
+           Error: Route "/suspense-in-root/static/invalid-client-data-blocks-validation": Could not validate \`instant\` because a Client Component in a parent segment prevented the page from rendering.
                at <unknown> (app/suspense-in-root/static/invalid-client-data-blocks-validation/client.tsx:6:37)
                at div (<anonymous>)
                at body (<anonymous>)
@@ -1860,14 +1860,14 @@ describe('instant validation', () => {
           expect(errors).toMatchInlineSnapshot(`
            [
              {
-               "description": "Route "/suspense-in-root/static/invalid-client-error-in-parent-blocks-children": Could not validate \`unstable_instant\` because the target segment was prevented from rendering, likely due to the following error.",
+               "description": "Route "/suspense-in-root/static/invalid-client-error-in-parent-blocks-children": Could not validate \`instant\` because the target segment was prevented from rendering, likely due to the following error.",
                "environmentLabel": "Server",
                "label": "Console Error",
-               "source": "app/suspense-in-root/static/invalid-client-error-in-parent-blocks-children/page.tsx (1:33) @ unstable_instant
-           > 1 | export const unstable_instant = { level: 'experimental-error' }
-               |                                 ^",
+               "source": "app/suspense-in-root/static/invalid-client-error-in-parent-blocks-children/page.tsx (1:24) @ instant
+           > 1 | export const instant = { level: 'experimental-error' }
+               |                        ^",
                "stack": [
-                 "unstable_instant app/suspense-in-root/static/invalid-client-error-in-parent-blocks-children/page.tsx (1:33)",
+                 "instant app/suspense-in-root/static/invalid-client-error-in-parent-blocks-children/page.tsx (1:24)",
                ],
              },
              {
@@ -1902,7 +1902,7 @@ describe('instant validation', () => {
           )
           expect(extractBuildValidationError(result.cliOutput))
             .toMatchInlineSnapshot(`
-           "Error: Route "/suspense-in-root/static/invalid-client-error-in-parent-blocks-children": Could not validate \`unstable_instant\` because the target segment was prevented from rendering, likely due to the following error.
+           "Error: Route "/suspense-in-root/static/invalid-client-error-in-parent-blocks-children": Could not validate \`instant\` because the target segment was prevented from rendering, likely due to the following error.
                at ignore-listed frames
            Error: An error occurred while attempting to validate instant UI. This error may be preventing the validation from completing.
                at <unknown> (app/suspense-in-root/static/invalid-client-error-in-parent-blocks-children/client.tsx:3:30)
@@ -1966,14 +1966,14 @@ describe('instant validation', () => {
           expect(errors).toMatchInlineSnapshot(`
            [
              {
-               "description": "Route "/suspense-in-root/static/invalid-error-in-node-modules-blocks-children": Could not validate \`unstable_instant\` because the target segment was prevented from rendering, likely due to the following error.",
+               "description": "Route "/suspense-in-root/static/invalid-error-in-node-modules-blocks-children": Could not validate \`instant\` because the target segment was prevented from rendering, likely due to the following error.",
                "environmentLabel": "Server",
                "label": "Console Error",
-               "source": "app/suspense-in-root/static/invalid-error-in-node-modules-blocks-children/page.tsx (1:33) @ unstable_instant
-           > 1 | export const unstable_instant = { level: 'experimental-error' }
-               |                                 ^",
+               "source": "app/suspense-in-root/static/invalid-error-in-node-modules-blocks-children/page.tsx (1:24) @ instant
+           > 1 | export const instant = { level: 'experimental-error' }
+               |                        ^",
                "stack": [
-                 "unstable_instant app/suspense-in-root/static/invalid-error-in-node-modules-blocks-children/page.tsx (1:33)",
+                 "instant app/suspense-in-root/static/invalid-error-in-node-modules-blocks-children/page.tsx (1:24)",
                ],
              },
              {
@@ -2004,7 +2004,7 @@ describe('instant validation', () => {
           )
           expect(extractBuildValidationError(result.cliOutput))
             .toMatchInlineSnapshot(`
-           "Error: Route "/suspense-in-root/static/invalid-error-in-node-modules-blocks-children": Could not validate \`unstable_instant\` because the target segment was prevented from rendering, likely due to the following error.
+           "Error: Route "/suspense-in-root/static/invalid-error-in-node-modules-blocks-children": Could not validate \`instant\` because the target segment was prevented from rendering, likely due to the following error.
                at ignore-listed frames
            Error: An error occurred while attempting to validate instant UI. This error may be preventing the validation from completing.
                at a (<anonymous>)
@@ -2033,14 +2033,14 @@ describe('instant validation', () => {
           await expect(browser).toDisplayCollapsedRedbox(`
            [
              {
-               "description": "Route "/suspense-in-root/static/invalid-csr-bailout-blocks-children": Could not validate \`unstable_instant\` because the target segment was prevented from rendering, likely due to the following error.",
+               "description": "Route "/suspense-in-root/static/invalid-csr-bailout-blocks-children": Could not validate \`instant\` because the target segment was prevented from rendering, likely due to the following error.",
                "environmentLabel": "Server",
                "label": "Console Error",
-               "source": "app/suspense-in-root/static/invalid-csr-bailout-blocks-children/page.tsx (1:33) @ unstable_instant
-           > 1 | export const unstable_instant = { level: 'experimental-error' }
-               |                                 ^",
+               "source": "app/suspense-in-root/static/invalid-csr-bailout-blocks-children/page.tsx (1:24) @ instant
+           > 1 | export const instant = { level: 'experimental-error' }
+               |                        ^",
                "stack": [
-                 "unstable_instant app/suspense-in-root/static/invalid-csr-bailout-blocks-children/page.tsx (1:33)",
+                 "instant app/suspense-in-root/static/invalid-csr-bailout-blocks-children/page.tsx (1:24)",
                ],
              },
              {
@@ -2071,7 +2071,7 @@ describe('instant validation', () => {
           )
           expect(extractBuildValidationError(result.cliOutput))
             .toMatchInlineSnapshot(`
-           "Error: Route "/suspense-in-root/static/invalid-csr-bailout-blocks-children": Could not validate \`unstable_instant\` because the target segment was prevented from rendering, likely due to the following error.
+           "Error: Route "/suspense-in-root/static/invalid-csr-bailout-blocks-children": Could not validate \`instant\` because the target segment was prevented from rendering, likely due to the following error.
                at ignore-listed frames
            Error: An error occurred while attempting to validate instant UI. This error may be preventing the validation from completing.
                at a (<anonymous>)
@@ -2129,14 +2129,14 @@ describe('instant validation', () => {
           expect(errors).toMatchInlineSnapshot(`
            [
              {
-               "description": "Route "/suspense-in-root/static/invalid-client-error-in-parent-sibling": Could not validate \`unstable_instant\` because the target segment was prevented from rendering, likely due to the following error.",
+               "description": "Route "/suspense-in-root/static/invalid-client-error-in-parent-sibling": Could not validate \`instant\` because the target segment was prevented from rendering, likely due to the following error.",
                "environmentLabel": "Server",
                "label": "Console Error",
-               "source": "app/suspense-in-root/static/invalid-client-error-in-parent-sibling/page.tsx (1:33) @ unstable_instant
-           > 1 | export const unstable_instant = { level: 'experimental-error' }
-               |                                 ^",
+               "source": "app/suspense-in-root/static/invalid-client-error-in-parent-sibling/page.tsx (1:24) @ instant
+           > 1 | export const instant = { level: 'experimental-error' }
+               |                        ^",
                "stack": [
-                 "unstable_instant app/suspense-in-root/static/invalid-client-error-in-parent-sibling/page.tsx (1:33)",
+                 "instant app/suspense-in-root/static/invalid-client-error-in-parent-sibling/page.tsx (1:24)",
                ],
              },
              {
@@ -2171,7 +2171,7 @@ describe('instant validation', () => {
           )
           expect(extractBuildValidationError(result.cliOutput))
             .toMatchInlineSnapshot(`
-           "Error: Route "/suspense-in-root/static/invalid-client-error-in-parent-sibling": Could not validate \`unstable_instant\` because the target segment was prevented from rendering, likely due to the following error.
+           "Error: Route "/suspense-in-root/static/invalid-client-error-in-parent-sibling": Could not validate \`instant\` because the target segment was prevented from rendering, likely due to the following error.
                at ignore-listed frames
            Error: An error occurred while attempting to validate instant UI. This error may be preventing the validation from completing.
                at <unknown> (app/suspense-in-root/static/invalid-client-error-in-parent-sibling/client.tsx:5:11)
@@ -2286,11 +2286,11 @@ describe('instant validation', () => {
              "cause": [
                {
                  "label": "Caused by: Instant Validation",
-                 "source": "app/suspense-in-root/head/invalid-runtime-viewport-in-static/page.tsx (8:33) @ unstable_instant
-           >  8 | export const unstable_instant = { level: 'experimental-error' }
-                |                                 ^",
+                 "source": "app/suspense-in-root/head/invalid-runtime-viewport-in-static/page.tsx (8:24) @ instant
+           >  8 | export const instant = { level: 'experimental-error' }
+                |                        ^",
                  "stack": [
-                   "unstable_instant app/suspense-in-root/head/invalid-runtime-viewport-in-static/page.tsx (8:33)",
+                   "instant app/suspense-in-root/head/invalid-runtime-viewport-in-static/page.tsx (8:24)",
                    "Set.forEach <anonymous>",
                  ],
                },
@@ -2320,7 +2320,7 @@ describe('instant validation', () => {
            Ways to fix this:
              - [static] Use a static viewport export instead of \`generateViewport()\`
                https://nextjs.org/docs/messages/blocking-prerender-viewport-runtime#use-static-viewport
-             - [block] Set \`export const unstable_instant = false\` to silence this warning and allow a blocking route
+             - [block] Set \`export const instant = false\` to silence this warning and allow a blocking route
                https://nextjs.org/docs/messages/blocking-prerender-viewport-runtime#allow-blocking-route
                at ignore-listed frames
            Build-time instant validation failed for route "/suspense-in-root/head/invalid-runtime-viewport-in-static".
@@ -2345,16 +2345,16 @@ describe('instant validation', () => {
              "cause": [
                {
                  "label": "Caused by: Instant Validation",
-                 "source": "app/suspense-in-root/head/invalid-dynamic-viewport-in-runtime/page.tsx (6:33) @ unstable_instant
-           > 6 | export const unstable_instant = { level: 'experimental-error' }
-               |                                 ^",
+                 "source": "app/suspense-in-root/head/invalid-dynamic-viewport-in-runtime/page.tsx (6:24) @ instant
+           > 6 | export const instant = { level: 'experimental-error' }
+               |                        ^",
                  "stack": [
-                   "unstable_instant app/suspense-in-root/head/invalid-dynamic-viewport-in-runtime/page.tsx (6:33)",
+                   "instant app/suspense-in-root/head/invalid-dynamic-viewport-in-runtime/page.tsx (6:24)",
                    "Set.forEach <anonymous>",
                  ],
                },
              ],
-             "code": "E1289",
+             "code": "E1352",
              "description": "Next.js encountered uncached data in generateViewport().",
              "environmentLabel": "Server",
              "label": "Blocking Route",
@@ -2379,7 +2379,7 @@ describe('instant validation', () => {
            Ways to fix this:
              - [cache] Cache the viewport data with \`"use cache"\` in \`generateViewport()\`
                https://nextjs.org/docs/messages/blocking-prerender-viewport-dynamic#cache-the-viewport-data
-             - [block] Set \`export const unstable_instant = false\` to silence this warning and allow a blocking route
+             - [block] Set \`export const instant = false\` to silence this warning and allow a blocking route
                https://nextjs.org/docs/messages/blocking-prerender-viewport-dynamic#allow-blocking-route
                at ignore-listed frames
            Build-time instant validation failed for route "/suspense-in-root/head/invalid-dynamic-viewport-in-runtime".
@@ -2442,16 +2442,16 @@ describe('instant validation', () => {
              "cause": [
                {
                  "label": "Caused by: Instant Validation",
-                 "source": "app/suspense-in-root/head/invalid-dynamic-viewport-in-blocking-inside-static/layout.tsx (3:33) @ unstable_instant
-           > 3 | export const unstable_instant = { level: 'experimental-error' }
-               |                                 ^",
+                 "source": "app/suspense-in-root/head/invalid-dynamic-viewport-in-blocking-inside-static/layout.tsx (3:24) @ instant
+           > 3 | export const instant = { level: 'experimental-error' }
+               |                        ^",
                  "stack": [
-                   "unstable_instant app/suspense-in-root/head/invalid-dynamic-viewport-in-blocking-inside-static/layout.tsx (3:33)",
+                   "instant app/suspense-in-root/head/invalid-dynamic-viewport-in-blocking-inside-static/layout.tsx (3:24)",
                    "Set.forEach <anonymous>",
                  ],
                },
              ],
-             "code": "E1289",
+             "code": "E1352",
              "description": "Next.js encountered uncached data in generateViewport().",
              "environmentLabel": "Server",
              "label": "Blocking Route",
@@ -2476,7 +2476,7 @@ describe('instant validation', () => {
            Ways to fix this:
              - [cache] Cache the viewport data with \`"use cache"\` in \`generateViewport()\`
                https://nextjs.org/docs/messages/blocking-prerender-viewport-dynamic#cache-the-viewport-data
-             - [block] Set \`export const unstable_instant = false\` to silence this warning and allow a blocking route
+             - [block] Set \`export const instant = false\` to silence this warning and allow a blocking route
                https://nextjs.org/docs/messages/blocking-prerender-viewport-dynamic#allow-blocking-route
                at ignore-listed frames
            Build-time instant validation failed for route "/suspense-in-root/head/invalid-dynamic-viewport-in-blocking-inside-static".
@@ -2501,11 +2501,11 @@ describe('instant validation', () => {
              "cause": [
                {
                  "label": "Caused by: Instant Validation",
-                 "source": "app/suspense-in-root/static/route-group-config-only/(group)/layout.tsx (3:33) @ unstable_instant
-           > 3 | export const unstable_instant = { level: 'experimental-error' }
-               |                                 ^",
+                 "source": "app/suspense-in-root/static/route-group-config-only/(group)/layout.tsx (3:24) @ instant
+           > 3 | export const instant = { level: 'experimental-error' }
+               |                        ^",
                  "stack": [
-                   "unstable_instant app/suspense-in-root/static/route-group-config-only/(group)/layout.tsx (3:33)",
+                   "instant app/suspense-in-root/static/route-group-config-only/(group)/layout.tsx (3:24)",
                    "Set.forEach <anonymous>",
                  ],
                },
@@ -2537,7 +2537,7 @@ describe('instant validation', () => {
                https://nextjs.org/docs/messages/blocking-prerender-runtime#wrap-in-or-move-into-suspense
              - [cache] For \`params\`: if the params are known, prerender them with \`generateStaticParams\`
                https://nextjs.org/docs/messages/blocking-prerender-runtime#for-known-params-prerender
-             - [block] Set \`export const unstable_instant = false\` to silence this warning and allow a blocking route
+             - [block] Set \`export const instant = false\` to silence this warning and allow a blocking route
                https://nextjs.org/docs/messages/blocking-prerender-runtime#allow-blocking-route
                at div (<anonymous>)
                at body (<anonymous>)
@@ -2563,11 +2563,11 @@ describe('instant validation', () => {
              "cause": [
                {
                  "label": "Caused by: Instant Validation",
-                 "source": "app/suspense-in-root/static/route-group-config-and-segment-config/(group)/layout.tsx (3:33) @ unstable_instant
-           > 3 | export const unstable_instant = { level: 'experimental-error' }
-               |                                 ^",
+                 "source": "app/suspense-in-root/static/route-group-config-and-segment-config/(group)/layout.tsx (3:24) @ instant
+           > 3 | export const instant = { level: 'experimental-error' }
+               |                        ^",
                  "stack": [
-                   "unstable_instant app/suspense-in-root/static/route-group-config-and-segment-config/(group)/layout.tsx (3:33)",
+                   "instant app/suspense-in-root/static/route-group-config-and-segment-config/(group)/layout.tsx (3:24)",
                    "Set.forEach <anonymous>",
                  ],
                },
@@ -2599,7 +2599,7 @@ describe('instant validation', () => {
                https://nextjs.org/docs/messages/blocking-prerender-runtime#wrap-in-or-move-into-suspense
              - [cache] For \`params\`: if the params are known, prerender them with \`generateStaticParams\`
                https://nextjs.org/docs/messages/blocking-prerender-runtime#for-known-params-prerender
-             - [block] Set \`export const unstable_instant = false\` to silence this warning and allow a blocking route
+             - [block] Set \`export const instant = false\` to silence this warning and allow a blocking route
                https://nextjs.org/docs/messages/blocking-prerender-runtime#allow-blocking-route
                at div (<anonymous>)
                at div (<anonymous>)
@@ -2626,11 +2626,11 @@ describe('instant validation', () => {
              "cause": [
                {
                  "label": "Caused by: Instant Validation",
-                 "source": "app/suspense-in-root/static/route-group-segment-config-only/layout.tsx (3:33) @ unstable_instant
-           > 3 | export const unstable_instant = { level: 'experimental-error' }
-               |                                 ^",
+                 "source": "app/suspense-in-root/static/route-group-segment-config-only/layout.tsx (3:24) @ instant
+           > 3 | export const instant = { level: 'experimental-error' }
+               |                        ^",
                  "stack": [
-                   "unstable_instant app/suspense-in-root/static/route-group-segment-config-only/layout.tsx (3:33)",
+                   "instant app/suspense-in-root/static/route-group-segment-config-only/layout.tsx (3:24)",
                    "Set.forEach <anonymous>",
                  ],
                },
@@ -2662,7 +2662,7 @@ describe('instant validation', () => {
                https://nextjs.org/docs/messages/blocking-prerender-runtime#wrap-in-or-move-into-suspense
              - [cache] For \`params\`: if the params are known, prerender them with \`generateStaticParams\`
                https://nextjs.org/docs/messages/blocking-prerender-runtime#for-known-params-prerender
-             - [block] Set \`export const unstable_instant = false\` to silence this warning and allow a blocking route
+             - [block] Set \`export const instant = false\` to silence this warning and allow a blocking route
                https://nextjs.org/docs/messages/blocking-prerender-runtime#allow-blocking-route
                at div (<anonymous>)
                at div (<anonymous>)
@@ -2689,11 +2689,11 @@ describe('instant validation', () => {
              "cause": [
                {
                  "label": "Caused by: Instant Validation",
-                 "source": "app/suspense-in-root/static/route-group-config-with-deeper-segment/(group)/layout.tsx (3:33) @ unstable_instant
-           > 3 | export const unstable_instant = { level: 'experimental-error' }
-               |                                 ^",
+                 "source": "app/suspense-in-root/static/route-group-config-with-deeper-segment/(group)/layout.tsx (3:24) @ instant
+           > 3 | export const instant = { level: 'experimental-error' }
+               |                        ^",
                  "stack": [
-                   "unstable_instant app/suspense-in-root/static/route-group-config-with-deeper-segment/(group)/layout.tsx (3:33)",
+                   "instant app/suspense-in-root/static/route-group-config-with-deeper-segment/(group)/layout.tsx (3:24)",
                    "Set.forEach <anonymous>",
                  ],
                },
@@ -2725,7 +2725,7 @@ describe('instant validation', () => {
                https://nextjs.org/docs/messages/blocking-prerender-runtime#wrap-in-or-move-into-suspense
              - [cache] For \`params\`: if the params are known, prerender them with \`generateStaticParams\`
                https://nextjs.org/docs/messages/blocking-prerender-runtime#for-known-params-prerender
-             - [block] Set \`export const unstable_instant = false\` to silence this warning and allow a blocking route
+             - [block] Set \`export const instant = false\` to silence this warning and allow a blocking route
                https://nextjs.org/docs/messages/blocking-prerender-runtime#allow-blocking-route
                at div (<anonymous>)
                at div (<anonymous>)
@@ -2752,11 +2752,11 @@ describe('instant validation', () => {
              "cause": [
                {
                  "label": "Caused by: Instant Validation",
-                 "source": "app/suspense-in-root/static/route-group-deeper-segment-config/(group)/inner/layout.tsx (3:33) @ unstable_instant
-           > 3 | export const unstable_instant = { level: 'experimental-error' }
-               |                                 ^",
+                 "source": "app/suspense-in-root/static/route-group-deeper-segment-config/(group)/inner/layout.tsx (3:24) @ instant
+           > 3 | export const instant = { level: 'experimental-error' }
+               |                        ^",
                  "stack": [
-                   "unstable_instant app/suspense-in-root/static/route-group-deeper-segment-config/(group)/inner/layout.tsx (3:33)",
+                   "instant app/suspense-in-root/static/route-group-deeper-segment-config/(group)/inner/layout.tsx (3:24)",
                    "Set.forEach <anonymous>",
                  ],
                },
@@ -2788,7 +2788,7 @@ describe('instant validation', () => {
                https://nextjs.org/docs/messages/blocking-prerender-runtime#wrap-in-or-move-into-suspense
              - [cache] For \`params\`: if the params are known, prerender them with \`generateStaticParams\`
                https://nextjs.org/docs/messages/blocking-prerender-runtime#for-known-params-prerender
-             - [block] Set \`export const unstable_instant = false\` to silence this warning and allow a blocking route
+             - [block] Set \`export const instant = false\` to silence this warning and allow a blocking route
                https://nextjs.org/docs/messages/blocking-prerender-runtime#allow-blocking-route
                at div (<anonymous>)
                at div (<anonymous>)
@@ -2822,11 +2822,11 @@ describe('instant validation', () => {
              "cause": [
                {
                  "label": "Caused by: Instant Validation",
-                 "source": "app/suspense-in-root/static/route-group-shared-boundary/(outer)/(inner)/page.tsx (6:33) @ unstable_instant
-           > 6 | export const unstable_instant = { level: 'experimental-error' }
-               |                                 ^",
+                 "source": "app/suspense-in-root/static/route-group-shared-boundary/(outer)/(inner)/page.tsx (6:24) @ instant
+           > 6 | export const instant = { level: 'experimental-error' }
+               |                        ^",
                  "stack": [
-                   "unstable_instant app/suspense-in-root/static/route-group-shared-boundary/(outer)/(inner)/page.tsx (6:33)",
+                   "instant app/suspense-in-root/static/route-group-shared-boundary/(outer)/(inner)/page.tsx (6:24)",
                    "Set.forEach <anonymous>",
                  ],
                },
@@ -2858,7 +2858,7 @@ describe('instant validation', () => {
                https://nextjs.org/docs/messages/blocking-prerender-runtime#wrap-in-or-move-into-suspense
              - [cache] For \`params\`: if the params are known, prerender them with \`generateStaticParams\`
                https://nextjs.org/docs/messages/blocking-prerender-runtime#for-known-params-prerender
-             - [block] Set \`export const unstable_instant = false\` to silence this warning and allow a blocking route
+             - [block] Set \`export const instant = false\` to silence this warning and allow a blocking route
                https://nextjs.org/docs/messages/blocking-prerender-runtime#allow-blocking-route
                at a (<anonymous>)
                at div (<anonymous>)
@@ -2899,11 +2899,11 @@ describe('instant validation', () => {
              "cause": [
                {
                  "label": "Caused by: Instant Validation",
-                 "source": "app/suspense-in-root/static/parallel-group-depths-deep-slot-hole/@slot/(g1)/(g2)/(g3)/page.tsx (1:33) @ unstable_instant
-           > 1 | export const unstable_instant = { level: 'experimental-error' }
-               |                                 ^",
+                 "source": "app/suspense-in-root/static/parallel-group-depths-deep-slot-hole/@slot/(g1)/(g2)/(g3)/page.tsx (1:24) @ instant
+           > 1 | export const instant = { level: 'experimental-error' }
+               |                        ^",
                  "stack": [
-                   "unstable_instant app/suspense-in-root/static/parallel-group-depths-deep-slot-hole/@slot/(g1)/(g2)/(g3)/page.tsx (1:33)",
+                   "instant app/suspense-in-root/static/parallel-group-depths-deep-slot-hole/@slot/(g1)/(g2)/(g3)/page.tsx (1:24)",
                    "Set.forEach <anonymous>",
                  ],
                },
@@ -2935,7 +2935,7 @@ describe('instant validation', () => {
                https://nextjs.org/docs/messages/blocking-prerender-runtime#wrap-in-or-move-into-suspense
              - [cache] For \`params\`: if the params are known, prerender them with \`generateStaticParams\`
                https://nextjs.org/docs/messages/blocking-prerender-runtime#for-known-params-prerender
-             - [block] Set \`export const unstable_instant = false\` to silence this warning and allow a blocking route
+             - [block] Set \`export const instant = false\` to silence this warning and allow a blocking route
                https://nextjs.org/docs/messages/blocking-prerender-runtime#allow-blocking-route
                at div (<anonymous>)
                at div (<anonymous>)
@@ -2970,11 +2970,11 @@ describe('instant validation', () => {
              "cause": [
                {
                  "label": "Caused by: Instant Validation",
-                 "source": "app/suspense-in-root/static/parallel-group-depths-shallow-slot-hole/(b1)/(b2)/page.tsx (1:33) @ unstable_instant
-           > 1 | export const unstable_instant = { level: 'experimental-error' }
-               |                                 ^",
+                 "source": "app/suspense-in-root/static/parallel-group-depths-shallow-slot-hole/(b1)/(b2)/page.tsx (1:24) @ instant
+           > 1 | export const instant = { level: 'experimental-error' }
+               |                        ^",
                  "stack": [
-                   "unstable_instant app/suspense-in-root/static/parallel-group-depths-shallow-slot-hole/(b1)/(b2)/page.tsx (1:33)",
+                   "instant app/suspense-in-root/static/parallel-group-depths-shallow-slot-hole/(b1)/(b2)/page.tsx (1:24)",
                    "Set.forEach <anonymous>",
                  ],
                },
@@ -3006,7 +3006,7 @@ describe('instant validation', () => {
                https://nextjs.org/docs/messages/blocking-prerender-runtime#wrap-in-or-move-into-suspense
              - [cache] For \`params\`: if the params are known, prerender them with \`generateStaticParams\`
                https://nextjs.org/docs/messages/blocking-prerender-runtime#for-known-params-prerender
-             - [block] Set \`export const unstable_instant = false\` to silence this warning and allow a blocking route
+             - [block] Set \`export const instant = false\` to silence this warning and allow a blocking route
                https://nextjs.org/docs/messages/blocking-prerender-runtime#allow-blocking-route
                at div (<anonymous>)
                at body (<anonymous>)
@@ -3042,11 +3042,11 @@ describe('instant validation', () => {
            "cause": [
              {
                "label": "Caused by: Instant Validation",
-               "source": "app/suspense-in-root/runtime/static-layout-above-runtime-config/inner/layout.tsx (6:33) @ unstable_instant
-         > 6 | export const unstable_instant = { level: 'experimental-error' }
-             |                                 ^",
+               "source": "app/suspense-in-root/runtime/static-layout-above-runtime-config/inner/layout.tsx (6:24) @ instant
+         > 6 | export const instant = { level: 'experimental-error' }
+             |                        ^",
                "stack": [
-                 "unstable_instant app/suspense-in-root/runtime/static-layout-above-runtime-config/inner/layout.tsx (6:33)",
+                 "instant app/suspense-in-root/runtime/static-layout-above-runtime-config/inner/layout.tsx (6:24)",
                  "Set.forEach <anonymous>",
                ],
              },
@@ -3078,7 +3078,7 @@ describe('instant validation', () => {
              https://nextjs.org/docs/messages/blocking-prerender-runtime#wrap-in-or-move-into-suspense
            - [cache] For \`params\`: if the params are known, prerender them with \`generateStaticParams\`
              https://nextjs.org/docs/messages/blocking-prerender-runtime#for-known-params-prerender
-           - [block] Set \`export const unstable_instant = false\` to silence this warning and allow a blocking route
+           - [block] Set \`export const instant = false\` to silence this warning and allow a blocking route
              https://nextjs.org/docs/messages/blocking-prerender-runtime#allow-blocking-route
              at body (<anonymous>)
              at html (<anonymous>)
@@ -3111,11 +3111,11 @@ describe('instant validation', () => {
              "cause": [
                {
                  "label": "Caused by: Instant Validation",
-                 "source": "app/suspense-in-root/static/config-depth-preference/deeper/still/deep/page.tsx (3:33) @ unstable_instant
-           > 3 | export const unstable_instant = { level: 'experimental-error' }
-               |                                 ^",
+                 "source": "app/suspense-in-root/static/config-depth-preference/deeper/still/deep/page.tsx (3:24) @ instant
+           > 3 | export const instant = { level: 'experimental-error' }
+               |                        ^",
                  "stack": [
-                   "unstable_instant app/suspense-in-root/static/config-depth-preference/deeper/still/deep/page.tsx (3:33)",
+                   "instant app/suspense-in-root/static/config-depth-preference/deeper/still/deep/page.tsx (3:24)",
                    "Set.forEach <anonymous>",
                  ],
                },
@@ -3162,11 +3162,11 @@ describe('instant validation', () => {
              "cause": [
                {
                  "label": "Caused by: Instant Validation",
-                 "source": "app/suspense-in-root/static/config-depth-preference-slot-wins/deeper/@anotherSlot/still/deep/page.tsx (3:33) @ unstable_instant
-           > 3 | export const unstable_instant = { level: 'experimental-error' }
-               |                                 ^",
+                 "source": "app/suspense-in-root/static/config-depth-preference-slot-wins/deeper/@anotherSlot/still/deep/page.tsx (3:24) @ instant
+           > 3 | export const instant = { level: 'experimental-error' }
+               |                        ^",
                  "stack": [
-                   "unstable_instant app/suspense-in-root/static/config-depth-preference-slot-wins/deeper/@anotherSlot/still/deep/page.tsx (3:33)",
+                   "instant app/suspense-in-root/static/config-depth-preference-slot-wins/deeper/@anotherSlot/still/deep/page.tsx (3:24)",
                    "Set.forEach <anonymous>",
                  ],
                },
@@ -3198,7 +3198,7 @@ describe('instant validation', () => {
                https://nextjs.org/docs/messages/blocking-prerender-runtime#wrap-in-or-move-into-suspense
              - [cache] For \`params\`: if the params are known, prerender them with \`generateStaticParams\`
                https://nextjs.org/docs/messages/blocking-prerender-runtime#for-known-params-prerender
-             - [block] Set \`export const unstable_instant = false\` to silence this warning and allow a blocking route
+             - [block] Set \`export const instant = false\` to silence this warning and allow a blocking route
                https://nextjs.org/docs/messages/blocking-prerender-runtime#allow-blocking-route
                at div (<anonymous>)
                at div (<anonymous>)
@@ -3227,11 +3227,11 @@ describe('instant validation', () => {
              "cause": [
                {
                  "label": "Caused by: Instant Validation",
-                 "source": "app/suspense-in-root/static/config-children-preferred/page.tsx (4:33) @ unstable_instant
-           > 4 | export const unstable_instant = { level: 'experimental-error' }
-               |                                 ^",
+                 "source": "app/suspense-in-root/static/config-children-preferred/page.tsx (4:24) @ instant
+           > 4 | export const instant = { level: 'experimental-error' }
+               |                        ^",
                  "stack": [
-                   "unstable_instant app/suspense-in-root/static/config-children-preferred/page.tsx (4:33)",
+                   "instant app/suspense-in-root/static/config-children-preferred/page.tsx (4:24)",
                    "Set.forEach <anonymous>",
                  ],
                },
@@ -3263,7 +3263,7 @@ describe('instant validation', () => {
                https://nextjs.org/docs/messages/blocking-prerender-runtime#wrap-in-or-move-into-suspense
              - [cache] For \`params\`: if the params are known, prerender them with \`generateStaticParams\`
                https://nextjs.org/docs/messages/blocking-prerender-runtime#for-known-params-prerender
-             - [block] Set \`export const unstable_instant = false\` to silence this warning and allow a blocking route
+             - [block] Set \`export const instant = false\` to silence this warning and allow a blocking route
                https://nextjs.org/docs/messages/blocking-prerender-runtime#allow-blocking-route
                at div (<anonymous>)
                at div (<anonymous>)
@@ -3293,11 +3293,11 @@ describe('instant validation', () => {
              "cause": [
                {
                  "label": "Caused by: Instant Validation",
-                 "source": "app/suspense-in-root/static/cross-slot-blocking/inner/deep/page.tsx (5:33) @ unstable_instant
-           > 5 | export const unstable_instant = { level: 'experimental-error' }
-               |                                 ^",
+                 "source": "app/suspense-in-root/static/cross-slot-blocking/inner/deep/page.tsx (5:24) @ instant
+           > 5 | export const instant = { level: 'experimental-error' }
+               |                        ^",
                  "stack": [
-                   "unstable_instant app/suspense-in-root/static/cross-slot-blocking/inner/deep/page.tsx (5:33)",
+                   "instant app/suspense-in-root/static/cross-slot-blocking/inner/deep/page.tsx (5:24)",
                    "Set.forEach <anonymous>",
                  ],
                },
@@ -3342,8 +3342,8 @@ describe('instant validation', () => {
       // so the user is still made aware that validation didn't complete.
 
       it('surfaces deferred fallback when no shallower depth has a real error', async () => {
-        // Outer layout has unstable_instant and validates cleanly. Inner
-        // page has unstable_instant but its parent layout drops {children},
+        // Outer layout has instant and validates cleanly. Inner
+        // page has instant but its parent layout drops {children},
         // so the inner boundary can't render. Without the deferral, we'd
         // bail out after the deepest iteration; with deferral, the outer
         // iteration runs cleanly and the deferred fallback then surfaces.
@@ -3384,7 +3384,7 @@ describe('instant validation', () => {
            Ways to fix this:
              - [render] Render the dropped segment
                https://nextjs.org/docs/messages/instant-unrendered-segment#render-the-dropped-segment
-             - [ignore] Set \`export const unstable_instant = false\` on the dropped segment to skip validation
+             - [ignore] Set \`export const instant = false\` on the dropped segment to skip validation
                https://nextjs.org/docs/messages/instant-unrendered-segment#skip-validation-on-the-segment
                at ignore-listed frames
            Build-time instant validation failed for route "/suspense-in-root/static/multi-depth-deferred-fallback/inner".
@@ -3442,7 +3442,7 @@ describe('instant validation', () => {
            Ways to fix this:
              - [render] Render the dropped segment
                https://nextjs.org/docs/messages/instant-unrendered-segment#render-the-dropped-segment
-             - [ignore] Set \`export const unstable_instant = false\` on the dropped segment to skip validation
+             - [ignore] Set \`export const instant = false\` on the dropped segment to skip validation
                https://nextjs.org/docs/messages/instant-unrendered-segment#skip-validation-on-the-segment
                at ignore-listed frames
            Build-time instant validation failed for route "/suspense-in-root/static/test-firstmod/inter/inner".
@@ -3500,7 +3500,7 @@ describe('instant validation', () => {
            Ways to fix this:
              - [render] Render the dropped segment
                https://nextjs.org/docs/messages/instant-unrendered-segment#render-the-dropped-segment
-             - [ignore] Set \`export const unstable_instant = false\` on the dropped segment to skip validation
+             - [ignore] Set \`export const instant = false\` on the dropped segment to skip validation
                https://nextjs.org/docs/messages/instant-unrendered-segment#skip-validation-on-the-segment
                at ignore-listed frames
            Build-time instant validation failed for route "/suspense-in-root/static/test-multi-unrendered".
@@ -3578,7 +3578,7 @@ describe('instant validation', () => {
                https://nextjs.org/docs/messages/blocking-prerender-dynamic#wrap-in-or-move-into-suspense
              - [cache] Cache the data access with \`"use cache"\`
                https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
-             - [block] Set \`export const unstable_instant = false\` to silence this warning and allow a blocking route
+             - [block] Set \`export const instant = false\` to silence this warning and allow a blocking route
                https://nextjs.org/docs/messages/blocking-prerender-dynamic#allow-blocking-route
                at body (<anonymous>)
                at html (<anonymous>)
@@ -3603,11 +3603,11 @@ describe('instant validation', () => {
              "cause": [
                {
                  "label": "Caused by: Instant Validation",
-                 "source": "app/suspense-in-root/disable-validation/disable-build/page.tsx (3:33) @ unstable_instant
-           > 3 | export const unstable_instant = {
-               |                                 ^",
+                 "source": "app/suspense-in-root/disable-validation/disable-build/page.tsx (3:24) @ instant
+           > 3 | export const instant = {
+               |                        ^",
                  "stack": [
-                   "unstable_instant app/suspense-in-root/disable-validation/disable-build/page.tsx (3:33)",
+                   "instant app/suspense-in-root/disable-validation/disable-build/page.tsx (3:24)",
                    "Set.forEach <anonymous>",
                  ],
                },

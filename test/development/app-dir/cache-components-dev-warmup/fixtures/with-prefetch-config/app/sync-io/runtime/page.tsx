@@ -2,7 +2,7 @@ import { Suspense } from 'react'
 import { CachedData, getCachedData } from '../../data-fetching'
 import { cookies } from 'next/headers'
 
-export const unstable_instant = true
+export const instant = true
 export const prefetch = 'allow-runtime'
 
 const CACHE_KEY = __dirname + '/__PAGE__'

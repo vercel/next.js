@@ -79,12 +79,12 @@ export default function Page() {
         </li>
         <li>
           <LinkAccordion href="/eager-instant/1">
-            Eager-instant 1 (unstable_instant + unstable_eager)
+            Eager-instant 1 (instant + unstable_eager)
           </LinkAccordion>
         </li>
         <li>
           <LinkAccordion href="/eager-instant/2">
-            Eager-instant 2 (unstable_instant + unstable_eager)
+            Eager-instant 2 (instant + unstable_eager)
           </LinkAccordion>
         </li>
       </ul>

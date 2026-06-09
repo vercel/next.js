@@ -149,7 +149,7 @@ const clientHookBlockCard: FixCard = {
     { text: 'export const instant = false', highlight: true },
   ],
   prompt:
-    'Add "export const unstable_instant = false" as a top-level export in the page or layout file. This silences the warning for this segment. Confirm with the user that the route is intentionally request-time before applying this change: the export exempts the segment from instant-navigation validation, and the route renders on every request, so navigations to it block until the render completes.',
+    'Add "export const instant = false" as a top-level export in the page or layout file. This silences the warning for this segment. Confirm with the user that the route is intentionally request-time before applying this change: the export exempts the segment from instant-navigation validation, and the route renders on every request, so navigations to it block until the render completes.',
 }
 
 const clientHookGspCard: FixCard = {
@@ -280,7 +280,7 @@ const unrenderedSegmentCards: FixCard[] = [
       { text: 'export const instant = false', highlight: true },
     ],
     prompt:
-      'Add "export const unstable_instant = false" as a top-level export in the dropped segment\'s page or layout file. This silences the warning for the dropped segment and tells Next.js the segment does not need instant-navigation validation. Confirm with the user that skipping validation is intentional before applying this change.',
+      'Add "export const instant = false" as a top-level export in the dropped segment\'s page or layout file. This silences the warning for the dropped segment and tells Next.js the segment does not need instant-navigation validation. Confirm with the user that skipping validation is intentional before applying this change.',
   },
 ]
 
@@ -368,7 +368,7 @@ const viewportRuntimeCards: FixCard[] = [
       { text: 'export const instant = false', highlight: true },
     ],
     prompt:
-      'Add "export const unstable_instant = false" as a top-level export in the page or layout file. This silences the warning for this segment. Confirm with the user that the route is intentionally fully dynamic before applying this change: the export exempts the segment from instant-navigation validation, and the route renders on every request.',
+      'Add "export const instant = false" as a top-level export in the page or layout file. This silences the warning for this segment. Confirm with the user that the route is intentionally fully dynamic before applying this change: the export exempts the segment from instant-navigation validation, and the route renders on every request.',
   },
 ]
 
@@ -396,7 +396,7 @@ const viewportDynamicCards: FixCard[] = [
       { text: 'export const instant = false', highlight: true },
     ],
     prompt:
-      'Add "export const unstable_instant = false" as a top-level export in the page or layout file. This silences the warning for this segment. Confirm with the user that the route is intentionally fully dynamic before applying this change: the export exempts the segment from instant-navigation validation, and the route renders on every request.',
+      'Add "export const instant = false" as a top-level export in the page or layout file. This silences the warning for this segment. Confirm with the user that the route is intentionally fully dynamic before applying this change: the export exempts the segment from instant-navigation validation, and the route renders on every request.',
   },
 ]
 

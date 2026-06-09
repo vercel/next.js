@@ -96,7 +96,7 @@ describe('instant validation - server errors', () => {
         )
         expect(extractBuildValidationError(result.cliOutput))
           .toMatchInlineSnapshot(`
-         "Error: Route "/suspense-in-root/static/server-error-blocks-children": Could not validate \`unstable_instant\` because the target segment was prevented from rendering, likely due to the following error.
+         "Error: Route "/suspense-in-root/static/server-error-blocks-children": Could not validate \`instant\` because the target segment was prevented from rendering, likely due to the following error.
              at ignore-listed frames
          Error: An error occurred while attempting to validate instant UI. This error may be preventing the validation from completing.
              at a (<anonymous>)
@@ -157,7 +157,7 @@ describe('instant validation - server errors', () => {
         )
         expect(extractBuildValidationError(result.cliOutput))
           .toMatchInlineSnapshot(`
-         "Error: Route "/suspense-in-root/static/server-error-inside-boundary": Could not validate \`unstable_instant\` because the target segment was prevented from rendering, likely due to the following error.
+         "Error: Route "/suspense-in-root/static/server-error-inside-boundary": Could not validate \`instant\` because the target segment was prevented from rendering, likely due to the following error.
              at ignore-listed frames
          Error: An error occurred while attempting to validate instant UI. This error may be preventing the validation from completing.
              at body (<anonymous>)

@@ -425,7 +425,7 @@ async function collectPrefetchHintsImpl(
   inlinedBytes: number
 }> {
   // Check if static prefetching is disabled for this segment (runtime
-  // prefetch or unstable_instant = false). Such segments act as transparent
+  // prefetch or instant = false). Such segments act as transparent
   // pass-throughs in the bundle chain: they contribute zero bytes of their
   // own and pass parent data through to children. However, they cannot be
   // the terminal of a chain — if no child accepts the parent data, the
