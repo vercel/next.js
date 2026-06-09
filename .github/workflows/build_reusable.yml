@@ -184,6 +184,8 @@ jobs:
 
           case "$RUNNER_OS" in
             Linux)
+              # The asset names and sha256 are available on the GH releases page
+              # https://github.com/Schniz/fnm/releases
               FNM_ASSET=fnm-linux.zip
               FNM_SHA256=7807664f39d39fc518da1c35ba0181e4b3267603c4b1dedeb4b5fc6ae440a224
               FNM_EXE=fnm
