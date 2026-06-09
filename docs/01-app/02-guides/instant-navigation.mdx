@@ -50,7 +50,21 @@ With Cache Components, **caching directives** (`"use cache"` and its variants) a
 
 > **Good to know:** A fallback may access `cookies()`, `headers()`, or the full URL. At build time, the fallback itself suspends, and a `<Suspense>` boundary further up the tree is needed. With [runtime prefetching](/docs/app/guides/runtime-prefetching), the information is available and such a fallback becomes part of the instant UI. Cached values like timestamps or data fetches can sit directly inside the fallback.
 
-Next.js can also generate an **App Shell** per route: a fallback that renders instantly during client navigations when nothing else is ready. See [App Shells](/docs/app/guides/runtime-prefetching#app-shells) for how to enable them and how they pair with runtime prefetching.
+Next.js can also generate an [**App Shell**](/docs/app/glossary#app-shell) per route: a fallback that renders instantly during client navigations when nothing else is ready. See [App Shells](/docs/app/guides/runtime-prefetching#app-shells) for how to enable them and how they pair with runtime prefetching.
+
+### Tune what `<Link>` prefetches
+
+Under [Partial Prefetching](/docs/app/guides/adopting-partial-prefetching), each visible `<Link>` prefetches the destination's App Shell by default. The shell is shared across every link to the same route, so rendering a `<Link>` is effectively free.
+
+To prefetch the page content alongside the shell for a specific link, set [`prefetch={true}`](/docs/app/api-reference/components/link#prefetch):
+
+```tsx
+<Link href="/checkout" prefetch>
+  Checkout
+</Link>
+```
+
+To prefetch with the user's session (cookies, headers, the full URL), opt the destination segment into [runtime prefetching](/docs/app/guides/runtime-prefetching) with `export const prefetch = 'allow-runtime'`.
 
 ### Validate instant navigation
 
@@ -436,18 +450,11 @@ export const unstable_instant = false
 
 With `false` on `/dashboard/layout.tsx`, validation no longer flags navigations into `/dashboard` from outside; navigations between `/dashboard/a` and `/dashboard/b` are still checked.
 
-**Layout and its children.** To disable validation for the layout and every segment below it, use:
-
-```tsx filename="app/admin/layout.tsx"
-export const unstable_instant = { unstable_disableValidation: true }
-```
-
-Useful when an entire section of the app shouldn't be validated.
-
 For opted-out segments, the navigation blocks on the server. If the content depends on cookies or headers but has a known cache lifetime, [runtime prefetching](/docs/app/guides/runtime-prefetching) can prerender it ahead of click instead of opting out.
 
 ## Next steps
 
+- [Adopting Partial Prefetching](/docs/app/guides/adopting-partial-prefetching) for the recommended `<Link>` defaults and the migration path off `unstable_eager`
 - [`unstable_instant` API reference](/docs/app/api-reference/file-conventions/route-segment-config/instant) for the full configuration
 - [Runtime prefetching](/docs/app/guides/runtime-prefetching) when parts of your route depend on cookies or headers and you want those in the shell
 - [Caching](/docs/app/getting-started/caching) for background on `use cache`, Suspense, and Partial Prerendering

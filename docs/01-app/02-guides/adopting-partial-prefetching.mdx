@@ -1,0 +1,126 @@
+---
+title: Adopting Partial Prefetching
+nav_title: Adopting Partial Prefetching
+description: Learn how to enable Partial Prefetching and what changes for `<Link>`.
+version: draft
+related:
+  title: Next Steps
+  description: Learn more about prefetching and instant navigations.
+  links:
+    - app/guides/instant-navigation
+    - app/guides/runtime-prefetching
+    - app/api-reference/components/link
+    - app/api-reference/config/next-config-js/partialPrefetching
+---
+
+Partial Prefetching changes how `<Link>` decides what to download. Instead of prefetching the entire page for every visible link, it prefetches a reusable [**App Shell**](/docs/app/glossary#app-shell) per route by default. Page content is prefetched per link only when you opt in.
+
+This guide covers the behavior change, the recommended path for new apps, and the incremental adoption path for existing apps.
+
+> **Good to know**: Partial Prefetching only works when [`cacheComponents`](/docs/app/api-reference/config/next-config-js/cacheComponents) is enabled.
+
+## What changes for `<Link>`
+
+When Partial Prefetching is enabled, the default cost of rendering a `<Link>` drops to "effectively free". Each visible link contributes a reusable App Shell prefetch, not a per-link page render. The shell is downloaded once per filesystem route and reused for every link that points at that route, even if the dynamic params differ.
+
+| `<Link>` prop                       | Before (Cache Components default)                                   | After Partial Prefetching                          |
+| ----------------------------------- | ------------------------------------------------------------------- | -------------------------------------------------- |
+| `<Link href="/x">`                  | Static route: prefetched the full route. Dynamic route: shell only. | Prefetches the App Shell for `/x` only.            |
+| `<Link href="/x" prefetch>`         | Prefetched the full route (data + UI).                              | Prefetches the App Shell **and** the page content. |
+| `<Link href="/x" prefetch={false}>` | Disabled all prefetching for this link.                             | Unchanged. Still disabled.                         |
+
+For fully static pages this is the biggest change. Before Partial Prefetching, every `<Link>` to a static page prefetched the whole rendered HTML. After, only links with `prefetch={true}` do.
+
+## Adopting in a new project
+
+Enable [`partialPrefetching`](/docs/app/api-reference/config/next-config-js/partialPrefetching) in `next.config.ts` alongside Cache Components:
+
+```ts filename="next.config.ts" highlight={5}
+import type { NextConfig } from 'next'
+
+const nextConfig: NextConfig = {
+  cacheComponents: true,
+  partialPrefetching: true,
+}
+
+export default nextConfig
+```
+
+Then opt in per link where the page content is worth prefetching alongside the App Shell:
+
+```tsx filename="app/page.tsx"
+import Link from 'next/link'
+
+export default function Page() {
+  return (
+    <nav>
+      <Link href="/products">Products</Link>
+      <Link href="/checkout" prefetch>
+        Checkout
+      </Link>
+    </nav>
+  )
+}
+```
+
+Pair this with [App Shells](/docs/app/guides/runtime-prefetching#app-shells) so every route has an instant floor.
+
+## Adopting incrementally in an existing project
+
+If the app already ships static prefetching and you can't flip the global flag at once, opt routes in one at a time with the [`prefetch`](/docs/app/api-reference/file-conventions/route-segment-config/prefetch) route segment config:
+
+```tsx filename="app/products/[slug]/page.tsx"
+export const prefetch = 'partial'
+
+export default function Page() {
+  return <div>...</div>
+}
+```
+
+Every link that points at a route with `prefetch = 'partial'` prefetches the App Shell only, even when the global flag is off.
+
+Once every route in scope has `prefetch = 'partial'`, flip the global default and remove the per-route exports:
+
+```ts filename="next.config.ts" highlight={5}
+import type { NextConfig } from 'next'
+
+const nextConfig: NextConfig = {
+  cacheComponents: true,
+  partialPrefetching: true,
+}
+
+export default nextConfig
+```
+
+## Per-route eager prefetching
+
+If you need a specific route to keep the pre-Partial-Prefetching behavior (every visible link to it prefetches page content), set the segment config:
+
+```tsx filename="app/blog/[slug]/page.tsx"
+export const prefetch = 'unstable_eager'
+
+export default function Page() {
+  return <article>...</article>
+}
+```
+
+Use this for content-heavy routes where the per-link cost of a full prefetch is acceptable and the value of having the rendered page ready is high. A blog index where most users click through to read is a typical case.
+
+## Choosing a strategy
+
+| You want                                                         | Set                                        | Where                   |
+| ---------------------------------------------------------------- | ------------------------------------------ | ----------------------- |
+| App-wide shell-only default                                      | `partialPrefetching: true`                 | `next.config.ts`        |
+| Shell-only for this route only                                   | `export const prefetch = 'partial'`        | `page.tsx`/`layout.tsx` |
+| This particular link to also prefetch page content               | `<Link prefetch>`                          | call site               |
+| This route's visible links to always prefetch page content       | `export const prefetch = 'unstable_eager'` | `page.tsx`/`layout.tsx` |
+| To opt this route out of prefetching entirely                    | `export const prefetch = 'force-disabled'` | `page.tsx`/`layout.tsx` |
+| To prefetch this route's runtime data (cookies, headers, search) | `export const prefetch = 'allow-runtime'`  | `page.tsx`/`layout.tsx` |
+
+## Next steps
+
+- [Runtime prefetching](/docs/app/guides/runtime-prefetching) for per-link runtime prefetches and App Shells in depth.
+- [`partialPrefetching` API reference](/docs/app/api-reference/config/next-config-js/partialPrefetching) for the global config flag.
+- [`prefetch` API reference](/docs/app/api-reference/file-conventions/route-segment-config/prefetch) for the per-segment prefetch config.
+- [`<Link>` API reference](/docs/app/api-reference/components/link#prefetch) for the per-link `prefetch` prop.
+- [Instant navigation](/docs/app/guides/instant-navigation) to validate that the routes you've marked actually navigate instantly.
