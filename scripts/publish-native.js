@@ -2,16 +2,81 @@
 
 const path = require('path')
 const execa = require('execa')
+const semver = require('semver')
 const { Sema } = require('async-sema')
+const { execSync } = require('child_process')
+const fs = require('fs')
 const { readFile, readdir, writeFile, cp } = require('fs/promises')
 
 const cwd = process.cwd()
 
 ;(async function () {
+  let isCanary = true
+  let isReleaseCandidate = false
+  let isBeta = false
+  let isPreview = false
+
+  try {
+    const tagOutput = execSync(
+      `node ${path.join(__dirname, 'check-is-release.js')}`
+    ).toString()
+    console.log(tagOutput)
+
+    if (tagOutput.trim().startsWith('v')) {
+      isCanary = tagOutput.includes('-canary')
+    }
+    isReleaseCandidate = tagOutput.includes('-rc')
+    isBeta = tagOutput.includes('-beta')
+    isPreview = tagOutput.includes('-preview')
+  } catch (err) {
+    console.log(err)
+
+    if (err.message && err.message.includes('no tag exactly matches')) {
+      console.log('Nothing to publish, exiting...')
+      return
+    }
+    throw err
+  }
+
   try {
     const publishSema = new Sema(2)
 
     let version = require('@next/swc/package.json').version
+
+    let tag = isCanary
+      ? 'canary'
+      : isReleaseCandidate
+        ? 'rc'
+        : isBeta
+          ? 'beta'
+          : isPreview
+            ? 'preview'
+            : 'latest'
+
+    try {
+      if (!isCanary && !isReleaseCandidate && !isBeta && !isPreview) {
+        const version = JSON.parse(
+          await fs.promises.readFile(path.join(cwd, 'lerna.json'), 'utf-8')
+        ).version
+
+        const res = await fetch(
+          `https://registry.npmjs.org/-/package/next/dist-tags`
+        )
+        const tags = await res.json()
+
+        if (semver.lt(version, tags.latest)) {
+          // If the current version is less than the latest, it means this
+          // is a backport release. Since NPM sets the 'latest' tag by default
+          // during publishing, when users install `next@latest`, they might
+          // get the backported version instead of the actual "latest" version.
+          // Therefore, we explicitly set the tag as 'backport' for backports.
+          tag = 'backport'
+        }
+      }
+    } catch (error) {
+      console.log('Failed to fetch Next.js dist tags from the NPM registry.')
+      throw error
+    }
 
     // Copy binaries to package folders, update version, and publish
     let nativePackagesDir = path.join(cwd, 'crates/next-napi-bindings/npm')
@@ -47,7 +112,8 @@ const cwd = process.cwd()
               `${path.join(nativePackagesDir, platform)}`,
               `--access`,
               `public`,
-              ...(version.includes('canary') ? ['--tag', 'canary'] : []),
+              '--tag',
+              tag,
             ],
             { stdio: 'inherit' }
           )
