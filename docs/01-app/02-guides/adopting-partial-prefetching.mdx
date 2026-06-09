@@ -10,6 +10,7 @@ related:
     - app/guides/instant-navigation
     - app/guides/runtime-prefetching
     - app/api-reference/components/link
+    - app/api-reference/config/next-config-js/partialPrefetching
 ---
 
 Partial Prefetching changes how `<Link>` decides what to download. Instead of trying to prefetch the entire page for every visible link, it prefetches a reusable [**App Shell**](/docs/app/glossary#app-shell) per route by default, and per-link page content only when you explicitly opt in.
@@ -32,7 +33,7 @@ For fully static pages this is the biggest change. Before Partial Prefetching, e
 
 ## Adopting in a new project
 
-Enable Partial Prefetching in `next.config.ts` alongside Cache Components:
+Enable [`partialPrefetching`](/docs/app/api-reference/config/next-config-js/partialPrefetching) in `next.config.ts` alongside Cache Components:
 
 ```ts filename="next.config.ts" highlight={5}
 import type { NextConfig } from 'next'
@@ -121,6 +122,7 @@ A route with `unstable_instant = true` is implicitly partial-prefetched — you 
 ## Next steps
 
 - [Runtime prefetching](/docs/app/guides/runtime-prefetching) for per-link runtime prefetches and App Shells in depth.
+- [`partialPrefetching` API reference](/docs/app/api-reference/config/next-config-js/partialPrefetching) for the global config flag.
 - [`prefetch` API reference](/docs/app/api-reference/file-conventions/route-segment-config/prefetch) for all segment-level prefetch modes.
 - [`<Link>` API reference](/docs/app/api-reference/components/link#prefetch) for the per-link `prefetch` prop.
 - [Instant navigation](/docs/app/guides/instant-navigation) to validate that the routes you've marked actually navigate instantly.
