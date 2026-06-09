@@ -590,9 +590,13 @@ function createStagedRenderParamsImpl(
     !allParamsAreRootParams(underlyingParams, workUnitStore.rootParams)
   ) {
     // For a dynamic request we generally want to recover a static shell,
-    // so static params can resolve in the static stage.
-    // Session shells are handled with a separate render.
-    const staticParamsStages = RENDER_STAGES_BY_DATA_KIND.staticLinkData
+    // so static params can resolve in the static stage, because session
+    // shells are handled with a separate render.
+    // However, in dev where we might need to recover a session shell for instant svalidation.
+    // This is indicated by `needsSessionShell`.
+    const staticParamsStages = workUnitStore.needsSessionShell
+      ? RENDER_STAGES_BY_DATA_KIND.runtimeLinkData
+      : RENDER_STAGES_BY_DATA_KIND.staticLinkData
     const stage = isRuntimePrefetchable
       ? staticParamsStages.early
       : staticParamsStages.late

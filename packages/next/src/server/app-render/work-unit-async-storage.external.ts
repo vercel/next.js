@@ -74,8 +74,10 @@ export interface RequestStore extends CommonWorkUnitStore {
   resumeDataCache: ResumeDataCache | null
 
   stale?: number
+
   stagedRendering?: StagedRenderingController | null
   asyncApiPromises?: AsyncApiPromises
+  needsSessionShell?: boolean // DEV-only
   cacheSignal?: CacheSignal | null
   fallbackParams?: OpaqueFallbackRouteParams | null
   varyParamsAccumulator?: ResponseVaryParamsAccumulator | null
