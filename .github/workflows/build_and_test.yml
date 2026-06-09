@@ -2,7 +2,7 @@ name: build-and-test
 
 on:
   push:
-    branches: ['next-16-3-beta']
+    branches: ['next-16-3-preview']
   pull_request:
     types: [opened, synchronize]
 

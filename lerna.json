@@ -11,7 +11,7 @@
       "npmClient": "npm",
       "allowBranch": [
         "canary",
-        "next-16-3-beta"
+        "next-16-3-preview"
       ],
       "registry": "https://registry.npmjs.org/"
     }
