@@ -968,13 +968,20 @@ impl ChunkingContext for BrowserChunkingContext {
             }
 
             assets.push(ResolvedVc::upcast(
-                self.generate_runtime_chunk(*module_graph)
-                    .await?
+                self.generate_evaluate_chunk(ident, other_assets, entries)
                     .to_resolved()
                     .await?,
             ));
+
+            // The shared runtime chunk must be the LAST asset of the group. It drains
+            // the registration queue set up by the chunks above, so it has to load
+            // after them: on a page it is the last `<script>`, and in a web worker the
+            // bootstrap relies on it being last to load it after the module chunks and
+            // to keep it out of `TURBOPACK_NEXT_CHUNK_URLS` (see
+            // `EcmascriptBrowserWorkerEntrypoint`).
             assets.push(ResolvedVc::upcast(
-                self.generate_evaluate_chunk(ident, other_assets, entries)
+                self.generate_runtime_chunk(*module_graph)
+                    .await?
                     .to_resolved()
                     .await?,
             ));
