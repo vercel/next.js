@@ -1,6 +1,6 @@
 import { connection } from 'next/server'
 
-export const unstable_instant = {
+export const instant = {
   unstable_samples: [{ cookies: [] }],
   unstable_disableValidation: true,
 }

@@ -699,16 +699,16 @@ export async function getAppPageStaticInfo({
     )
   }
 
-  // Prevent use client and unstable_instant in the same file.
-  if (directives?.has('client') && 'unstable_instant' in config) {
+  // Prevent use client and instant in the same file.
+  if (directives?.has('client') && 'instant' in config) {
     throw new Error(
-      `"unstable_instant" is a route segment config and can only be used when the segment is a Server Component module. Remove the "use client" directive from "${pageFilePath}" to use this API.`
+      `"instant" is a route segment config and can only be used when the segment is a Server Component module. Remove the "use client" directive from "${pageFilePath}" to use this API.`
     )
   }
 
-  if ('unstable_instant' in config && !nextConfig.cacheComponents) {
+  if ('instant' in config && !nextConfig.cacheComponents) {
     throw new Error(
-      `Route "${page}" cannot use \`export const unstable_instant = ...\` without enabling \`cacheComponents\`.`
+      `Route "${page}" cannot use \`export const instant = ...\` without enabling \`cacheComponents\`.`
     )
   }
 
@@ -735,10 +735,10 @@ export async function getAppPageStaticInfo({
     }
   }
 
-  // Prevent combining unstable_dynamicStaleTime and unstable_instant.
-  if ('unstable_dynamicStaleTime' in config && 'unstable_instant' in config) {
+  // Prevent combining unstable_dynamicStaleTime and instant.
+  if ('unstable_dynamicStaleTime' in config && 'instant' in config) {
     throw new Error(
-      `Page "${page}" cannot use both \`export const unstable_dynamicStaleTime\` and \`export const unstable_instant\`.`
+      `Page "${page}" cannot use both \`export const unstable_dynamicStaleTime\` and \`export const instant\`.`
     )
   }
 

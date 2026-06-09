@@ -459,7 +459,7 @@ describe('getUnrenderedSegmentErrorDetails', () => {
         `\n\n${label}:\n${files.map((p) => `  ${p}`).join('\n')}` +
         `\n\nWays to fix this:` +
         `\n  - [render] Render the dropped segment` +
-        `\n  - [ignore] Set \`export const unstable_instant = false\` on the dropped segment to skip validation` +
+        `\n  - [ignore] Set \`export const instant = false\` on the dropped segment to skip validation` +
         `\n\nLearn more: https://nextjs.org/docs/messages/instant-unrendered-segment`
     }
     return new Error(message)

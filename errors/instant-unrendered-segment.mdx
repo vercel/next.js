@@ -24,7 +24,7 @@ This typically happens when a layout conditionally omits `{children}`, a paralle
 <FixOption
   group="ignore"
   href="#skip-validation-on-the-segment"
-  prompt={`Add "export const unstable_instant = false" as a top-level export in the dropped segment's page or layout file. This silences the warning for the dropped segment and tells Next.js the segment does not need instant-navigation validation. Confirm with the user that skipping validation is intentional before applying this change.`}
+  prompt={`Add "export const instant = false" as a top-level export in the dropped segment's page or layout file. This silences the warning for the dropped segment and tells Next.js the segment does not need instant-navigation validation. Confirm with the user that skipping validation is intentional before applying this change.`}
   title="Skip validation on the segment"
 >
   Opt the dropped segment out of instant-navigation validation.
@@ -107,7 +107,7 @@ The segment is always in the render tree, which means Next.js validates it on ev
 
 ## Skip validation on the segment
 
-Choose this fix when the segment is intentionally not rendered in certain states (a modal that only appears on interaction, a slot gated by authentication). Setting [`unstable_instant`](/docs/app/api-reference/file-conventions/route-segment-config/instant) to `false` on the dropped segment tells Next.js to skip validation for it.
+Choose this fix when the segment is intentionally not rendered in certain states (a modal that only appears on interaction, a slot gated by authentication). Setting [`instant`](/docs/app/api-reference/file-conventions/route-segment-config/instant) to `false` on the dropped segment tells Next.js to skip validation for it.
 
 ### Patterns
 
@@ -116,7 +116,7 @@ Choose this fix when the segment is intentionally not rendered in certain states
 Add the export to the page or layout file of the segment that was dropped from rendering.
 
 ```jsx filename="app/dashboard/@modal/page.js"
-export const unstable_instant = false
+export const instant = false
 
 export default function ModalPage() {
   return <Modal />
@@ -132,15 +132,15 @@ The segment is exempt from instant-navigation validation. If it has issues that 
 ### Gotchas
 
 - The export must be on the **dropped segment's own file** (page or layout), not on a parent. The framework walks top-down and the first explicit config wins.
-- Setting [`unstable_instant`](/docs/app/api-reference/file-conventions/route-segment-config/instant) to `false` does not disable [prerendering](/docs/app/glossary#prerendering). The segment still prerenders if it can. It only silences the validation error.
+- Setting [`instant`](/docs/app/api-reference/file-conventions/route-segment-config/instant) to `false` does not disable [prerendering](/docs/app/glossary#prerendering). The segment still prerenders if it can. It only silences the validation error.
 
 ## Don't want this validation?
 
 Instant-navigation validation runs by default in [Cache Components](/docs/app/api-reference/config/next-config-js/cacheComponents) apps and is what surfaces this error.
 
-- **One segment**: add [`export const unstable_instant = false`](/docs/app/api-reference/file-conventions/route-segment-config/instant) to the page or layout file. This opts out the segment itself. Child segments are still validated during client navigations.
-- **Layout and its children**: add `export const unstable_instant = { unstable_disableValidation: true }` to a layout. This disables validation for that layout and every segment below it.
-- **Entire app**: set [`experimental.instantInsights.validationLevel`](/docs/app/api-reference/file-conventions/route-segment-config/instant#configuring-validation-defaults) to `'manual-warning'` in `next.config`. This limits validation to segments that explicitly export `unstable_instant`.
+- **One segment**: add [`export const instant = false`](/docs/app/api-reference/file-conventions/route-segment-config/instant) to the page or layout file. This opts out the segment itself. Child segments are still validated during client navigations.
+- **Layout and its children**: add `export const instant = { unstable_disableValidation: true }` to a layout. This disables validation for that layout and every segment below it.
+- **Entire app**: set [`experimental.instantInsights.validationLevel`](/docs/app/api-reference/file-conventions/route-segment-config/instant#configuring-validation-defaults) to `'manual-warning'` in `next.config`. This limits validation to segments that explicitly export `instant`.
 
 See [Ensuring instant navigations](/docs/app/guides/instant-navigation) for the full model.
 

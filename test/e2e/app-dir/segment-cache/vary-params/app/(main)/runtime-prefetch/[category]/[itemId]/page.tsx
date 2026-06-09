@@ -11,7 +11,7 @@ import { connection } from 'next/server'
  * This allows cache reuse across different itemId values (same category),
  * providing instant loading feedback when navigating.
  */
-export const unstable_instant: {
+export const instant: {
   unstable_samples: Array<{ params: { category: string; itemId: string } }>
 } = {
   unstable_samples: [

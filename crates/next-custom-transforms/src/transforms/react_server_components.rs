@@ -671,7 +671,7 @@ impl ReactServerComponentValidator {
                         "useFormState",
                     ],
                 ),
-                (atom!("next/error").into(), vec!["catchError"]),
+                (atom!("next/error").into(), vec!["unstable_catchError"]),
                 (
                     atom!("next/navigation").into(),
                     vec![
@@ -956,7 +956,7 @@ impl ReactServerComponentValidator {
                             ),
                         );
                     }
-                    "unstable_instant" if !self.cache_components_enabled => {
+                    "instant" if !self.cache_components_enabled => {
                         possibly_invalid_exports.insert(
                             export_name.clone(),
                             (

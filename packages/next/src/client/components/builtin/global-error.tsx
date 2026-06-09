@@ -7,7 +7,7 @@ import { errorStyles, errorThemeCss, WarningIcon } from './error-styles'
 export type GlobalErrorComponent = React.ComponentType<{
   error: any
   reset: () => void
-  retry: () => void
+  unstable_retry: () => void
 }>
 
 function DefaultGlobalError({ error }: { error: any }) {

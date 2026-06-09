@@ -3,7 +3,7 @@ import assert from 'node:assert/strict'
 
 import { Suspense } from 'react'
 
-export const unstable_instant: Instant = {
+export const instant: Instant = {
   level: 'experimental-error',
   unstable_samples: [
     {

@@ -1190,13 +1190,12 @@ export async function createCombinedPayloadAtDepth(
     let prefetchConfig: AppSegmentConfig['prefetch'] | null = null
     let localCreateInstantStack: (() => Error) | null = null
     if (layoutOrPageMod !== undefined) {
-      instantConfig =
-        (layoutOrPageMod as AppSegmentConfig).unstable_instant ?? null
+      instantConfig = (layoutOrPageMod as AppSegmentConfig).instant ?? null
       prefetchConfig = (layoutOrPageMod as AppSegmentConfig).prefetch ?? null
 
       // When the default validation level is active and this is a page or
       // default segment without an explicit config, treat it as if
-      // unstable_instant = true was exported. Framework-synthesized error
+      // instant = true was exported. Framework-synthesized error
       // routes are excluded — see isFrameworkErrorRoute.
       if (
         instantConfig === null &&

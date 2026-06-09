@@ -68,9 +68,9 @@ To prefetch with the user's session (cookies, headers, the full URL), opt the de
 
 ### Validate instant navigation
 
-By **default** Cache Components apps validate every navigation in development, giving you insight into what would keep it from being instant: which navigations would block, where a `<Suspense>` boundary is missing, and which data is reaching the user uncached.
+By **default** (`validationLevel: 'warning'`), Cache Components apps validate every Page and Default segment in development. Validation surfaces what would keep navigations into a segment from being instant — which navigations would block, where a `<Suspense>` boundary is missing, and which data is reaching the user uncached.
 
-To adopt validation gradually, set the [`validationLevel`](/docs/app/api-reference/file-conventions/route-segment-config/instant#configuring-validation-defaults) to `'manual-warning'`:
+To opt out of automatic validation and only validate segments that explicitly export `instant`, set [`validationLevel`](/docs/app/api-reference/file-conventions/route-segment-config/instant#configuring-validation-defaults) to `'manual-warning'`:
 
 ```ts filename="next.config.ts" highlight={4-8}
 import type { NextConfig } from 'next'
@@ -86,8 +86,6 @@ const nextConfig: NextConfig = {
 
 export default nextConfig
 ```
-
-At that level, only segments that explicitly export `unstable_instant = true` are validated. Opt segments in route by route as you adapt them.
 
 <details>
 <summary>How validation simulates different navigations</summary>
@@ -437,15 +435,15 @@ The dev overlay surfaces this as the **Block** fix alongside every insight:
     href="/docs/messages/blocking-prerender-dynamic#allow-blocking-route"
     snippets={[
       { text: '// page.tsx or layout.tsx' },
-      { text: 'export const unstable_instant = false', highlight: true },
+      { text: 'export const instant = false', highlight: true },
     ]}
   />
 </FixCardGrid>
 
-Set `unstable_instant = false` on the page or layout file. This opts the segment out of validation feedback. The segment may still navigate instantly if its structure supports it; the framework just won't surface insights for it. Navigations between sibling segments below are still validated.
+Set `instant = false` on the page or layout file. This opts the segment out of validation feedback. The segment may still navigate instantly if its structure supports it; the framework just won't surface insights for it. Navigations between sibling segments below are still validated.
 
 ```tsx filename="app/dashboard/layout.tsx"
-export const unstable_instant = false
+export const instant = false
 ```
 
 With `false` on `/dashboard/layout.tsx`, validation no longer flags navigations into `/dashboard` from outside; navigations between `/dashboard/a` and `/dashboard/b` are still checked.
@@ -455,7 +453,7 @@ For opted-out segments, the navigation blocks on the server. If the content depe
 ## Next steps
 
 - [Adopting Partial Prefetching](/docs/app/guides/adopting-partial-prefetching) for the recommended `<Link>` defaults and the migration path off `unstable_eager`
-- [`unstable_instant` API reference](/docs/app/api-reference/file-conventions/route-segment-config/instant) for the full configuration
+- [`instant` API reference](/docs/app/api-reference/file-conventions/route-segment-config/instant) for the full configuration
 - [Runtime prefetching](/docs/app/guides/runtime-prefetching) when parts of your route depend on cookies or headers and you want those in the shell
 - [Caching](/docs/app/getting-started/caching) for background on `use cache`, Suspense, and Partial Prerendering
 - [Revalidating](/docs/app/getting-started/revalidating) for how to expire cached data with `cacheLife` and `updateTag`

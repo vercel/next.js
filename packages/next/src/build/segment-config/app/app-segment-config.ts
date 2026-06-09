@@ -136,7 +136,7 @@ const AppSegmentConfigSchema = z.object({
   /**
    * How this segment should be prefetched.
    */
-  unstable_instant: InstantConfigSchema.optional(),
+  instant: InstantConfigSchema.optional(),
 
   /**
    * Controls prefetching for this segment.
@@ -196,10 +196,10 @@ export function parseAppSegmentConfig(
               )} on "${route}", must be a non-negative number or false`,
             }
           }
-          case 'unstable_instant': {
+          case 'instant': {
             return {
               // @TODO replace this link with a link to the docs when they are written
-              message: `Invalid unstable_instant value ${JSON.stringify(ctx.data)} on "${route}", must be \`true\`, \`false\`, or an object. Read more at https://nextjs.org/docs/messages/invalid-instant-configuration`,
+              message: `Invalid instant value ${JSON.stringify(ctx.data)} on "${route}", must be \`true\`, \`false\`, or an object. Read more at https://nextjs.org/docs/messages/invalid-instant-configuration`,
             }
           }
           case 'prefetch': {
@@ -264,7 +264,7 @@ export type AppSegmentConfig = {
   /**
    * How this segment should be prefetched.
    */
-  unstable_instant?: Instant
+  instant?: Instant
 
   /**
    * Controls prefetching for this segment.

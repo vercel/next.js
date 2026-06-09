@@ -1,6 +1,6 @@
 import { nextTestSetup } from 'e2e-utils'
 
-describe('app-dir - catchError', () => {
+describe('app-dir - unstable_catchError', () => {
   const { next, isNextDev } = nextTestSetup({
     files: __dirname,
   })
@@ -30,7 +30,7 @@ describe('app-dir - catchError', () => {
     }
   })
 
-  it('should recover Client Component error after retry', async () => {
+  it('should recover Client Component error after unstable_retry', async () => {
     const browser = await next.browser('/client-component')
 
     // Try triggering and retrying a few times in a row
@@ -55,7 +55,7 @@ describe('app-dir - catchError', () => {
     }
   })
 
-  it('should recover Server Component error after retry', async () => {
+  it('should recover Server Component error after unstable_retry', async () => {
     const browser = await next.browser('/server-component')
 
     expect(await browser.elementByCss('#error-boundary-message').text()).toBe(
@@ -131,7 +131,7 @@ describe('app-dir - catchError', () => {
     )
   })
 
-  it('should throw when retry is called on Pages Router', async () => {
+  it('should throw when unstable_retry is called on Pages Router', async () => {
     const browser = await next.browser('/pages-router')
 
     await browser
@@ -143,7 +143,7 @@ describe('app-dir - catchError', () => {
     await browser.waitForElementByCss('#pages-retry-error')
 
     expect(await browser.elementByCss('#pages-retry-error').text()).toBe(
-      '`retry()` can only be used in the App Router. Use `reset()` in the Pages Router.'
+      '`unstable_retry()` can only be used in the App Router. Use `reset()` in the Pages Router.'
     )
   })
 })
