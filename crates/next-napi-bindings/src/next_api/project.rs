@@ -465,7 +465,8 @@ pub fn project_new(
             PathBuf::from(&options.root_path)
                 .join(&options.project_path)
                 .join(DIST_PROFILES_DIR_NAME)
-                .join("trace-turbopack")
+                // use a generic binary extension to hint to random tools not to read it.
+                .join("trace-turbopack.bin")
         };
         let trace_dir = trace_file
             .parent()
