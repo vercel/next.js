@@ -4530,10 +4530,7 @@ async function streamStagedRenderInDev(
   // `resolveStreamAfterStage`. We await both before returning, so the static
   // (and, for runtime prefetches, runtime-prefetchable) shell content has been
   // emitted before the first flush instead of flushing a premature Suspense
-  // fallback for content that belongs in the shell. We deliberately stop at
-  // `resolveStreamAfterStage` rather than the Dynamic stage: Dynamic is gated
-  // on `cacheReady()` and would block on cold cache fills, and dynamic content
-  // is meant to stream in after the shell anyway.
+  // fallback for content that belongs in the shell.
   const streamReady = createPromiseWithResolvers<{
     stream: Readable
     accumulatedChunksPromise: Promise<AccumulatedStreamChunks>
