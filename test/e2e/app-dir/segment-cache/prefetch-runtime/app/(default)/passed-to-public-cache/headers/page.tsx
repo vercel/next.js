@@ -3,7 +3,7 @@ import { Suspense } from 'react'
 import { cachedDelay, DebugRenderKind } from '../../../shared'
 import { connection } from 'next/server'
 
-export const unstable_instant = {
+export const instant = {
   unstable_samples: [{ headers: [['host', 'test-host']] }],
 }
 export const prefetch = 'allow-runtime'

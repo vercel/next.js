@@ -2,7 +2,7 @@ import type { Instant } from 'next'
 import { Suspense } from 'react'
 import { SearchParamsReader } from './search-params-reader'
 
-export const unstable_instant: Instant = {
+export const instant: Instant = {
   level: 'experimental-error',
   unstable_samples: [
     {

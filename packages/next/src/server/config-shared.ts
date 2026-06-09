@@ -1092,9 +1092,9 @@ export interface ExperimentalConfig {
      * Controls the validation behavior of Instant Insights
      *
      * - `'warning'` (default): Validates all navigations for Instant UI in development
-     * - `'manual-warning'`: Validates navigations for Instant UI in development only when configured with `unstable_instant` in Pages and Layouts
+     * - `'manual-warning'`: Validates navigations for Instant UI in development only when configured with `instant` in Pages and Layouts
      * - `'experimental-error'`: Validates all navigations for Instant in development and build. Use with caution.
-     * - `'experimental-manual-error'`: Validates navigations for Instant UI in development and build when configured with `unstable_instant` in Pages and Layouts. Use with caution.
+     * - `'experimental-manual-error'`: Validates navigations for Instant UI in development and build when configured with `instant` in Pages and Layouts. Use with caution.
      */
     validationLevel?: ValidationLevel
   }
@@ -1345,7 +1345,7 @@ export type ExportPathMap = {
     /**
      * When true, run build-time instant validation for this export path.
      * Only set on the first export entry per page, since validation uses
-     * unstable_instant.unstable_samples (not actual params from generateStaticParams),
+     * instant.unstable_samples (not actual params from generateStaticParams),
      * so the result is the same for all param combinations.
      *
      * @internal

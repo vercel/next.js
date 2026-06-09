@@ -3,7 +3,7 @@ import { cookies } from 'next/headers'
 import { lang } from 'next/root-params'
 import { ensureRejects } from '../../../../ensure-error'
 
-export const unstable_instant: Instant = {
+export const instant: Instant = {
   level: 'experimental-error',
   // no samples
   unstable_samples: [{}],

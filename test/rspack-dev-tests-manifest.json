@@ -6070,11 +6070,11 @@
   },
   "test/e2e/app-dir/instant-validation-causes/instant-validation-causes.test.ts": {
     "passed": [
-      "instant validation causes aliased export - export { instant as unstable_instant }",
-      "instant validation causes does not add an instant stack for random unstable_instant exports",
-      "instant validation causes indirect export - const instant = _instant; export { instant as unstable_instant }",
-      "instant validation causes named export - export { unstable_instant }",
-      "instant validation causes re-export - export { unstable_instant } from \"./config\""
+      "instant validation causes aliased export - export { instantConfig as instant }",
+      "instant validation causes does not add an instant stack for random instant exports",
+      "instant validation causes indirect export - const instantConfig = _instant; export { instantConfig as instant }",
+      "instant validation causes named export - export { instant }",
+      "instant validation causes re-export - export { instant } from \"./config\""
     ],
     "failed": [],
     "pending": [],
@@ -6083,7 +6083,7 @@
   },
   "test/e2e/app-dir/instant-validation-client/instant-validation-client.test.ts": {
     "passed": [
-      "app dir - instant-validation-client should error when a client component exports unstable_instant"
+      "app dir - instant-validation-client should error when a client component exports instant"
     ],
     "failed": [],
     "pending": [],
@@ -6141,7 +6141,7 @@
       "instant validation dev - client navigation blocking invalid - blocking page inside a runtime layout is not allowed if the layout has no suspense",
       "instant validation dev - client navigation blocking invalid - blocking page inside a static layout is not allowed if the layout has no suspense",
       "instant validation dev - client navigation blocking invalid - missing suspense inside blocking layout",
-      "instant validation dev - client navigation blocking valid - blocking layout with unstable_instant = false is allowed to block",
+      "instant validation dev - client navigation blocking valid - blocking layout with instant = false is allowed to block",
       "instant validation dev - client navigation blocking valid - blocking page inside a runtime layout is allowed if the layout has suspense",
       "instant validation dev - client navigation blocking valid - blocking page inside a static layout is allowed if the layout has suspense",
       "instant validation dev - client navigation client components unable to validate - parent suspends on client data and blocks children",
@@ -6210,7 +6210,7 @@
       "instant validation dev - initial load blocking invalid - blocking page inside a runtime layout is not allowed if the layout has no suspense",
       "instant validation dev - initial load blocking invalid - blocking page inside a static layout is not allowed if the layout has no suspense",
       "instant validation dev - initial load blocking invalid - missing suspense inside blocking layout",
-      "instant validation dev - initial load blocking valid - blocking layout with unstable_instant = false is allowed to block",
+      "instant validation dev - initial load blocking valid - blocking layout with instant = false is allowed to block",
       "instant validation dev - initial load blocking valid - blocking page inside a runtime layout is allowed if the layout has suspense",
       "instant validation dev - initial load blocking valid - blocking page inside a static layout is allowed if the layout has suspense",
       "instant validation dev - initial load client components unable to validate - parent suspends on client data and blocks children",

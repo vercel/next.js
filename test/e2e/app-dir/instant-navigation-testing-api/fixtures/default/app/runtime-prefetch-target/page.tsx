@@ -1,7 +1,7 @@
 import { Suspense } from 'react'
 import { connection } from 'next/server'
 
-export const unstable_instant = {
+export const instant = {
   unstable_samples: [{ searchParams: { myParam: 'testValue' } }],
 }
 export const prefetch = 'allow-runtime'

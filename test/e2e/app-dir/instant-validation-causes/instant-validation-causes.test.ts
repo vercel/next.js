@@ -88,7 +88,7 @@ describe('instant validation causes', () => {
     )
   }
 
-  it('named export - export { unstable_instant }', async () => {
+  it('named export - export { instant }', async () => {
     const browser = await next.browser('/named-export')
     await waitForValidation(await browser.url())
     await expect(browser).toDisplayCollapsedRedbox(`
@@ -96,11 +96,11 @@ describe('instant validation causes', () => {
        "cause": [
          {
            "label": "Caused by: Instant Validation",
-           "source": "app/named-export/page.tsx (3:26) @ unstable_instant
-     > 3 | const unstable_instant = true
-         |                          ^",
+           "source": "app/named-export/page.tsx (3:17) @ instant
+     > 3 | const instant = true
+         |                 ^",
            "stack": [
-             "unstable_instant app/named-export/page.tsx (3:26)",
+             "instant app/named-export/page.tsx (3:17)",
              "Set.forEach <anonymous>",
            ],
          },
@@ -119,7 +119,7 @@ describe('instant validation causes', () => {
     `)
   })
 
-  it('aliased export - export { instant as unstable_instant }', async () => {
+  it('aliased export - export { instantConfig as instant }', async () => {
     const browser = await next.browser('/aliased-export')
     await waitForValidation(await browser.url())
     await expect(browser).toDisplayCollapsedRedbox(`
@@ -127,11 +127,11 @@ describe('instant validation causes', () => {
        "cause": [
          {
            "label": "Caused by: Instant Validation",
-           "source": "app/aliased-export/page.tsx (3:17) @ unstable_instant
-     > 3 | const instant = true
-         |                 ^",
+           "source": "app/aliased-export/page.tsx (3:23) @ instant
+     > 3 | const instantConfig = true
+         |                       ^",
            "stack": [
-             "unstable_instant app/aliased-export/page.tsx (3:17)",
+             "instant app/aliased-export/page.tsx (3:23)",
              "Set.forEach <anonymous>",
            ],
          },
@@ -150,7 +150,7 @@ describe('instant validation causes', () => {
     `)
   })
 
-  it('re-export - export { unstable_instant } from "./config"', async () => {
+  it('re-export - export { instant } from "./config"', async () => {
     const browser = await next.browser('/reexport')
     await waitForValidation(await browser.url())
     await expect(browser).toDisplayCollapsedRedbox(`
@@ -158,11 +158,11 @@ describe('instant validation causes', () => {
        "cause": [
          {
            "label": "Caused by: Instant Validation",
-           "source": "app/reexport/page.tsx (3:10) @ unstable_instant
-     > 3 | export { unstable_instant } from './config'
+           "source": "app/reexport/page.tsx (3:10) @ instant
+     > 3 | export { instant } from './config'
          |          ^",
            "stack": [
-             "unstable_instant app/reexport/page.tsx (3:10)",
+             "instant app/reexport/page.tsx (3:10)",
              "Set.forEach <anonymous>",
            ],
          },
@@ -181,7 +181,7 @@ describe('instant validation causes', () => {
     `)
   })
 
-  it('indirect export - const instant = _instant; export { instant as unstable_instant }', async () => {
+  it('indirect export - const instantConfig = _instant; export { instantConfig as instant }', async () => {
     const browser = await next.browser('/indirect-export')
     await waitForValidation(await browser.url())
     // Ideally we'd be pointing at the original value declaration.
@@ -192,11 +192,11 @@ describe('instant validation causes', () => {
        "cause": [
          {
            "label": "Caused by: Instant Validation",
-           "source": "app/indirect-export/page.tsx (4:17) @ unstable_instant
-     > 4 | const instant = _instant
-         |                 ^",
+           "source": "app/indirect-export/page.tsx (4:23) @ instant
+     > 4 | const instantConfig = _instant
+         |                       ^",
            "stack": [
-             "unstable_instant app/indirect-export/page.tsx (4:17)",
+             "instant app/indirect-export/page.tsx (4:23)",
              "Set.forEach <anonymous>",
            ],
          },
@@ -215,11 +215,9 @@ describe('instant validation causes', () => {
     `)
   })
 
-  it('does not add an instant stack for random unstable_instant exports', async () => {
+  it('does not add an instant stack for random instant exports', async () => {
     const browser = await next.browser('/not-actual-instant')
     const config = await browser.waitForElementByCss('[data-testid="config"]')
-    expect(await config.innerText()).toBe(
-      JSON.stringify({ unstable_instant: false })
-    )
+    expect(await config.innerText()).toBe(JSON.stringify({ instant: false }))
   })
 })

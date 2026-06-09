@@ -2,7 +2,7 @@ import type { Instant } from 'next'
 import assert from 'node:assert/strict'
 import { ensureThrows } from '../../../../../../ensure-error'
 
-export const unstable_instant: Instant = {
+export const instant: Instant = {
   level: 'experimental-error',
   unstable_samples: [
     {

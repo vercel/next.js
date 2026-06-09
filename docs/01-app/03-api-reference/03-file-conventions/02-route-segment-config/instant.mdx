@@ -12,20 +12,20 @@ related:
     - app/api-reference/directives/use-cache
 ---
 
-The `unstable_instant` route segment config controls how Next.js validates whether a navigation into this segment would produce an instant UI.
+The `instant` route segment config controls how Next.js validates whether a navigation into this segment would produce an instant UI.
 
-Next.js uses prefetching to preload navigations for all in-app links on the current page. However, client-side data fetching or partially prerendered results from the server can lead to navigations that don't update the UI immediately. To help you build fast-feeling navigations, `unstable_instant` lets you tell Next.js what to expect from navigations through the configured segment. For instance, you can indicate that navigations into this segment should produce a UI that renders instantly without waiting on any externally loaded data. You can also indicate that navigations aren't expected to be instant.
+Next.js uses prefetching to preload navigations for all in-app links on the current page. However, client-side data fetching or partially prerendered results from the server can lead to navigations that don't update the UI immediately. To help you build fast-feeling navigations, `instant` lets you tell Next.js what to expect from navigations through the configured segment. For instance, you can indicate that navigations into this segment should produce a UI that renders instantly without waiting on any externally loaded data. You can also indicate that navigations aren't expected to be instant.
 
 When a segment is configured to expect an instant UI, Next.js surfaces any code in your application that would block the navigation from updating the UI immediately. See the [Instant Navigation guide](/docs/app/guides/instant-navigation) for an end-to-end walkthrough.
 
 > **Good to know**:
 >
-> - The `unstable_instant` export only works when [`cacheComponents`](/docs/app/api-reference/config/next-config-js/cacheComponents) is enabled.
-> - `unstable_instant` cannot be used in Client Components. It will throw an error.
+> - The `instant` export only works when [`cacheComponents`](/docs/app/api-reference/config/next-config-js/cacheComponents) is enabled.
+> - `instant` cannot be used in Client Components. It will throw an error.
 > - Next.js does not perform prefetches in development, so navigations may not feel as instant as they will in production. Validation reflects what will happen during `next start`, where prefetching is enabled.
 
 ```tsx filename="layout.tsx | page.tsx" switcher
-export const unstable_instant = true
+export const instant = true
 
 export default function Page() {
   return <div>...</div>
@@ -33,7 +33,7 @@ export default function Page() {
 ```
 
 ```jsx filename="layout.js | page.js" switcher
-export const unstable_instant = true
+export const instant = true
 
 export default function Page() {
   return <div>...</div>
@@ -53,7 +53,7 @@ The export accepts:
 Sets the severity at which validation runs for this segment.
 
 ```tsx filename="page.tsx"
-export const unstable_instant = {
+export const instant = {
   level: 'warning',
 }
 ```
@@ -62,41 +62,41 @@ export const unstable_instant = {
 
 In the future a validation level that supports validation during build will be supported. Unless you are enabling experimental validation modes there is no need to specify level since the only level available is `"warning"`.
 
-When `level` is omitted (or `unstable_instant = true` is used), the segment is validated at whatever level is configured globally — see [Configuring validation defaults](#configuring-validation-defaults).
+When `level` is omitted (or `instant = true` is used), the segment is validated at whatever level is configured globally — see [Configuring validation defaults](#configuring-validation-defaults).
 
 ### Disabling instant
 
 Set `false` on a layout or page to indicate that this segment is allowed to block when navigating to it.
 
-This is useful when a deeper page should be instant but an ancestor can't be. For instance, if a shared layout cannot load instantly but you still want to assert that pages beneath this layout can be navigated to instantly, you can ensure that the pages have `unstable_instant = true` while the shared layout has `unstable_instant = false`.
+This is useful when a deeper page should be instant but an ancestor can't be. For instance, if a shared layout cannot load instantly but you still want to assert that pages beneath this layout can be navigated to instantly, you can ensure that the pages have `instant = true` while the shared layout has `instant = false`.
 
 ```tsx filename="app/tabs/layout.tsx"
-export const unstable_instant = false
+export const instant = false
 ```
 
 ```tsx filename="app/tabs/[tab]/page.tsx"
-export const unstable_instant = true
+export const instant = true
 ```
 
 Navigations from outside into a tab are allowed to block at the layout. Navigations between tabs are validated for instant UI.
 
-You don't need to add `false` to ancestors of an instant page just because they do something blocking — a higher-up `unstable_instant = true` doesn't force its descendants to validate, and leaving an ancestor unconfigured is fine. Reach for `false` only when you've configured a deeper page as instant and need to exempt navigations that pass through a blocking ancestor.
+You don't need to add `false` to ancestors of an instant page just because they do something blocking — a higher-up `instant = true` doesn't force its descendants to validate, and leaving an ancestor unconfigured is fine. Reach for `false` only when you've configured a deeper page as instant and need to exempt navigations that pass through a blocking ancestor.
 
 ### Disabling static shell validation
 
-Cache Components also validates that each page in your app produces a non-empty static shell at prerender time. To opt a route out of this validation, ensure the highest `unstable_instant` config in the route's tree is `false` — a `false` higher in the tree takes precedence over any deeper `true` for the static-shell check.
+Cache Components also validates that each page in your app produces a non-empty static shell at prerender time. To opt a route out of this validation, ensure the highest `instant` config in the route's tree is `false` — a `false` higher in the tree takes precedence over any deeper `true` for the static-shell check.
 
 Setting `false` on the root layout disables static shell validation for the entire app. Place the `false` as low as possible — only as high as needed to cover the routes you want to opt out — so the rest of the app keeps validating.
 
 ## How validation works
 
-`unstable_instant` triggers validation at every shared layout boundary in the route. Validation runs during development (on page loads and HMR updates) and surfaces errors in the dev error overlay.
+`instant` triggers validation at every shared layout boundary in the route. Validation runs during development (on page loads and HMR updates) and surfaces errors in the dev error overlay.
 
 Each error identifies the component that would block navigation. The fix is usually to cache the data with `use cache` or wrap it in a `<Suspense>` boundary.
 
 ## Configuring validation defaults
 
-By default, only segments that explicitly export `unstable_instant` are validated. The `experimental.instantInsights.validationLevel` config opts every Page and Default segment into validation at once, without needing to repeat `unstable_instant` on each route.
+By default, only segments that explicitly export `instant` are validated. The `experimental.instantInsights.validationLevel` config opts every Page and Default segment into validation at once, without needing to repeat `instant` on each route.
 
 ```js filename="next.config.js"
 module.exports = {
@@ -110,15 +110,15 @@ module.exports = {
 
 The supported levels are:
 
-- **`'manual-warning'`** _(framework default)_: Only segments with an explicit `unstable_instant` are validated, at warning level (dev only).
+- **`'manual-warning'`** _(framework default)_: Only segments with an explicit `instant` are validated, at warning level (dev only).
 - **`'warning'`**: Every Page and Default segment is implicitly validated at warning level (dev only).
 
-Setting `unstable_instant = false` on a segment opts it out of validation entirely.
+Setting `instant = false` on a segment opts it out of validation entirely.
 
 > **Good to know**:
 >
 > - The framework default may change in future versions to opt users into higher levels of validation. Because this feature is experimental, that change is not considered a breaking change. To pin a specific behavior, set `validationLevel` explicitly.
-> - Framework-synthesized error routes (`/_global-error`, `/_not-found`) are excluded from implicit validation. To validate them, opt in explicitly with `unstable_instant`.
+> - Framework-synthesized error routes (`/_global-error`, `/_not-found`) are excluded from implicit validation. To validate them, opt in explicitly with `instant`.
 
 ## Inspecting loading states
 
@@ -163,11 +163,11 @@ type InstantConfig =
       level?: 'warning'
     }
 
-export const unstable_instant: InstantConfig = true
+export const instant: InstantConfig = true
 ```
 
 ## Version History
 
-| Version   | Changes                                                      |
-| --------- | ------------------------------------------------------------ |
-| `v16.x.x` | `unstable_instant` export introduced (Cache Components only) |
+| Version   | Changes                                             |
+| --------- | --------------------------------------------------- |
+| `v16.x.x` | `instant` export introduced (Cache Components only) |

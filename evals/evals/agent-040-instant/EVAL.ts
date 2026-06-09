@@ -5,7 +5,7 @@
  *
  * The eval harness runs `next build` as a script — with `cacheComponents: true`,
  * the build validates that the caching structure produces an instant static shell.
- * This test checks the agent actually exported `unstable_instant` (the build would
+ * This test checks the agent actually exported `instant` (the build would
  * pass without it, since Suspense alone satisfies the build on a static route).
  */
 
@@ -56,14 +56,12 @@ function readSourceFiles(dir: string): SourceFile[] {
 
 const sourceFiles = readSourceFiles(process.cwd())
 
-test('unstable_instant exported from the product route', () => {
+test('instant exported from the product route', () => {
   const productPage = sourceFiles.find(
     (f) => f.path.includes('product') && /page\.(tsx?|jsx?)$/.test(f.path)
   )
 
   expect(productPage).toBeDefined()
-  expect(productPage!.content).toMatch(
-    /export\s+(const|var|let)\s+unstable_instant\b/
-  )
+  expect(productPage!.content).toMatch(/export\s+(const|var|let)\s+instant\b/)
   expect(productPage!.content).toMatch(/prefetch\s*:\s*['"]static['"]/)
 })
