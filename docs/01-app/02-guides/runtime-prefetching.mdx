@@ -1,6 +1,6 @@
 ---
 title: Runtime prefetching
-description: Extend the static shell with personalized content using unstable_prefetch and per-session caching directives.
+description: Extend the static shell with personalized content using the prefetch segment config and per-session caching directives.
 nav_title: Runtime prefetching
 version: experimental
 related:
@@ -22,7 +22,7 @@ This guide assumes you've structured your route for instant navigation. If you h
 
 When a [`<Link>`](/docs/app/api-reference/components/link) becomes visible, Next.js fetches the static shell for the destination. The static shell was generated at build time without any request-specific data, so anything that reads cookies, headers, or other runtime APIs sits behind a `<Suspense>` fallback.
 
-With [`unstable_prefetch = 'force-runtime'`](/docs/app/api-reference/file-conventions/route-segment-config/prefetch) on the route, Next.js **prerenders with the request's data, past the static shell**.
+With [`prefetch = 'allow-runtime'`](/docs/app/api-reference/file-conventions/route-segment-config/prefetch) on the route, Next.js **prerenders with the request's data, past the static shell**.
 
 The prerender advances through anything that's static or cached. When it reaches an uncached read (for example, a database query that must be fresh on every request), it stops there and falls back to the surrounding `<Suspense>` boundary. The query then streams in after navigation, like before. The boundary is already in place from your **instant-nav validation**.
 
@@ -37,7 +37,7 @@ Generating the runtime prerender costs **a server invocation per prefetchable li
 Take a dashboard layout that reads the user's session. Without runtime prefetching, `<UserNav>` always streams in behind a `<Suspense>` fallback after navigation, even though the cookie that determines its content is already known when the prefetch fires. With runtime prefetching, Next.js prerenders the layout with the user's actual session before the click, and the user's name becomes part of the runtime prerender:
 
 ```tsx filename="app/dashboard/layout.tsx"
-export const unstable_prefetch = 'force-runtime'
+export const prefetch = 'allow-runtime'
 ```
 
 The route still needs a valid static shell, so `<UserNav>` stays behind a `<Suspense>` boundary:
@@ -103,25 +103,26 @@ Use it on routes where:
 - That chunk has a known cache lifetime (it can be expressed with `"use cache"` or `"use cache: private"`)
 - The traffic justifies the per-link server invocation
 
-Skip it when:
+Skip it when the prefetch can't produce a better UI than the static shell. Each visible `<Link>` to a route with `'allow-runtime'` wakes a server, and that cost only pays off if more of the page is ready before the click:
 
 - The route has little or no runtime-data dependency. The static shell already gets you instant.
-- The dependent content has to be fresh on every request. There's nothing to cache, so prefetching costs without speeding anything up.
-- The route is rarely navigated to. Prefetch cost is paid per visible link, regardless of click-through.
+- The dependent content has to be fresh on every request. The prerender stops at the same `<Suspense>` fallback, so the user sees the same UI either way.
+- The route is rarely navigated to. You pay per visible link, regardless of click-through.
 
 ## App Shells
 
 A per-link runtime prefetch only helps the navigations where it fires before the click and completes before the click. On a slow connection, on a feed of many links, or on a direct visit, the per-link prefetch may not yet exist when the user navigates. Without something to fall back on, the navigation blocks until the server responds.
 
-The [**App Shell**](/docs/app/glossary#app-shell) closes that gap. It's a per-route prerender, reusable across every navigation into the route, generated and prefetched once per route rather than once per visible link. While a per-link runtime prefetch resolves the specific request, the App Shell is the route's reusable floor: it renders instantly whenever a more complete prerender isn't ready in time.
+The [**App Shell**](/docs/app/glossary#app-shell) closes that gap. It's a per-route prerender, deduped across every link to the same route, generated and prefetched once per route rather than once per visible link.
 
-Enable App Shells in your config:
+Enable App Shells alongside Partial Prefetching:
 
-```ts filename="next.config.ts" highlight={5-7}
+```ts filename="next.config.ts" highlight={3,5-7}
 import type { NextConfig } from 'next'
 
 const nextConfig: NextConfig = {
   cacheComponents: true,
+  partialPrefetching: true,
   experimental: {
     appShells: true,
   },
@@ -130,33 +131,20 @@ const nextConfig: NextConfig = {
 export default nextConfig
 ```
 
-When enabled, the framework prefetches each route's App Shell as links to it become visible. On click, the App Shell is the **loading state of last resort**: if a more complete per-link prerender is already cached, it's served and the App Shell is bypassed. If not, the App Shell renders immediately and the per-link content streams in.
+With both on, every Cache Components route has an instant floor. N links to the same route share one prefetched App Shell, and rendering a `<Link>` is effectively free unless `prefetch={true}` is set on the Link, which upgrades to the per-link prefetch. Opting a route into [`prefetch = 'allow-runtime'`](/docs/app/api-reference/file-conventions/route-segment-config/prefetch#allow-runtime) further upgrades those per-link prefetches to runtime prerenders with the user's request data.
 
 Compared with per-link runtime prefetching:
 
-|         | App Shell                                 | Per-link runtime prefetch (`force-runtime`) |
+|         | App Shell                                 | Per-link runtime prefetch (`allow-runtime`) |
 | ------- | ----------------------------------------- | ------------------------------------------- |
 | Scope   | One per route                             | One per visible link                        |
 | Content | Route shell, reusable across param values | Concrete request prerender, param-specific  |
 | Cost    | Bounded by route count                    | Bounded by visible-link count               |
-| Role    | Floor: always something instant           | Upgrade: more rendered before click         |
-
-The two compose. With `experimental.appShells` on, every Cache Components route has an instant floor; opting a route into runtime prefetching upgrades that floor for the navigations that matter most.
-
-> **Good to know:** The default prefetching behavior may shift in a future release: App Shells could become the default, with per-link prefetching becoming an explicit opt-in. The App Shell's caching scope may also extend beyond the session toward persistent and offline use.
-
-## Pairing with `unstable_instant`
-
-Runtime prefetching and instant validation are independent features. You can opt into either or both:
-
-- **Validation only** (`unstable_instant`): catch structural problems before they ship. No extra runtime cost.
-- **Validation + runtime prefetching** (`unstable_instant` + `unstable_prefetch = 'force-runtime'`): validate the structure, and prefetch personalized content into the runtime prerender.
-
-Don't enable runtime prefetching without validation. If the route's structure can't produce an instant navigation, you've paid for the prefetch without getting one.
+| Role    | Default: every route has an instant floor | Upgrade: more rendered before click         |
 
 ## Next steps
 
-- [`unstable_prefetch` API reference](/docs/app/api-reference/file-conventions/route-segment-config/prefetch) for all prefetch modes.
+- [`prefetch` API reference](/docs/app/api-reference/file-conventions/route-segment-config/prefetch) for all prefetch modes.
 - [`use cache: private` reference](/docs/app/api-reference/directives/use-cache-private) for per-user caching specifics.
 - [Instant navigation guide](/docs/app/guides/instant-navigation) for validating the route's caching structure.
 - [Caching](/docs/app/getting-started/caching) for background on `use cache`, Suspense, and Partial Prerendering.

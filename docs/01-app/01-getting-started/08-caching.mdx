@@ -500,7 +500,7 @@ Read the [Instant navigation guide](/docs/app/guides/instant-navigation) for exa
 
 ### Runtime prefetching
 
-With [`unstable_prefetch = 'force-runtime'`](/docs/app/api-reference/file-conventions/route-segment-config/prefetch) on a route, Next.js renders that route's component tree again at prefetch time, this time with the user's cookies, headers, and full URL available. The same rules apply, but more of the tree resolves now that runtime data is in scope:
+With [`prefetch = 'allow-runtime'`](/docs/app/api-reference/file-conventions/route-segment-config/prefetch) on a route, Next.js renders that route's component tree again at prefetch time, this time with the user's cookies, headers, and full URL available. The same rules apply, but more of the tree resolves now that runtime data is in scope:
 
 - [`use cache`](#usage) called with values extracted from runtime APIs (passed as arguments) joins the runtime prerender
 - [`use cache: private`](/docs/app/api-reference/directives/use-cache-private) executes on the server, reads runtime data directly, and caches the result in the browser, joining the runtime prerender
@@ -514,7 +514,7 @@ For example, take a dashboard that reads the user's session cookie and opts into
 import { cookies } from 'next/headers'
 import { Suspense } from 'react'
 
-export const unstable_prefetch = 'force-runtime'
+export const prefetch = 'allow-runtime'
 
 export default function Dashboard() {
   return (
@@ -539,6 +539,6 @@ async function getStats(session: string) {
 
 On a direct visit, `<Stats>` streams in behind the fallback. When a user navigates to `/dashboard` from another route, the framework prefetches with their session cookie. `getStats` is cached, so its result joins the runtime prerender before the click.
 
-See the [Runtime prefetching guide](/docs/app/guides/runtime-prefetching) for full patterns and the [`unstable_prefetch` reference](/docs/app/api-reference/file-conventions/route-segment-config/prefetch) for all modes.
+See the [Runtime prefetching guide](/docs/app/guides/runtime-prefetching) for full patterns and the [`prefetch` reference](/docs/app/api-reference/file-conventions/route-segment-config/prefetch) for all modes.
 
 {/* I wonder if we need a small section that develops ISR briefly and links to the ISR w/ CC guide */}
