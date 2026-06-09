@@ -7,8 +7,13 @@ describe('multiple-lockfiles - has-output-file-tracing-root', () => {
       app: new FileRef(join(__dirname, 'app')),
       // This will silence the multiple lockfiles warning.
       'next.config.js': `module.exports = { outputFileTracingRoot: __dirname }`,
-      // Write a package-lock.json file to the parent directory to simulate
-      // multiple lockfiles.
+      // Write workspace metadata and a package-lock.json file to the parent
+      // directory to simulate multiple valid lockfiles.
+      '../package.json': JSON.stringify({
+        name: 'parent-workspace',
+        private: true,
+        workspaces: ['test'],
+      }),
       '../package-lock.json': JSON.stringify({
         name: 'parent-workspace',
         version: '1.0.0',

@@ -1,34 +1,74 @@
-import { dirname } from 'path'
-import findUp from 'next/dist/compiled/find-up'
+import { existsSync, readFileSync } from 'fs'
+import { dirname, join } from 'path'
 import * as Log from '../build/output/log'
 
-function findWorkRoot(cwd: string) {
-  // Find-up evaluates the list of files at each level.
-  // For pnpm-workspace.yaml we first want to look up before searching for lockfiles as those can be included in the application directory by accident.
-  const pnpmWorkspaceFile = findUp.sync(
-    'pnpm-workspace.yaml',
+const lockFileNames = [
+  'pnpm-lock.yaml',
+  'package-lock.json',
+  'yarn.lock',
+  'bun.lock',
+  'bun.lockb',
+]
 
-    {
-      cwd,
+function findUpFile(
+  fileNames: string[],
+  cwd: string,
+  isCandidate = (_file: string) => true
+) {
+  let currentDir = cwd
+
+  while (true) {
+    for (const fileName of fileNames) {
+      const file = join(currentDir, fileName)
+      if (existsSync(file) && isCandidate(file)) {
+        return file
+      }
     }
-  )
+
+    const parentDir = dirname(currentDir)
+    if (parentDir === currentDir) {
+      return undefined
+    }
+    currentDir = parentDir
+  }
+}
+
+function hasPackageJson(dir: string) {
+  return existsSync(join(dir, 'package.json'))
+}
+
+function hasWorkspacePackageJson(dir: string) {
+  try {
+    const pkg = JSON.parse(readFileSync(join(dir, 'package.json'), 'utf8'))
+    const workspaces = pkg?.workspaces
+    return Array.isArray(workspaces)
+      ? workspaces.length > 0
+      : Array.isArray(workspaces?.packages) && workspaces.packages.length > 0
+  } catch {
+    return false
+  }
+}
+
+function isLockFile(file: string) {
+  return lockFileNames.some((fileName) => file.endsWith(fileName))
+}
+
+function findWorkRoot(cwd: string, requireWorkspaceRoot = false) {
+  // pnpm-workspace.yaml is an explicit workspace root marker and should win
+  // before nested lockfiles are considered.
+  const pnpmWorkspaceFile = findUpFile(['pnpm-workspace.yaml'], cwd)
 
   if (pnpmWorkspaceFile) {
     return pnpmWorkspaceFile
   }
 
-  return findUp.sync(
-    [
-      'pnpm-lock.yaml',
-      'package-lock.json',
-      'yarn.lock',
-      'bun.lock',
-      'bun.lockb',
-    ],
-    {
-      cwd,
+  return findUpFile(lockFileNames, cwd, (file) => {
+    if (!isLockFile(file) || !hasPackageJson(dirname(file))) {
+      return false
     }
-  )
+
+    return !requireWorkspaceRoot || hasWorkspacePackageJson(dirname(file))
+  })
 }
 
 export function findRootDirAndLockFiles(cwd: string): {
@@ -51,7 +91,7 @@ export function findRootDirAndLockFiles(cwd: string): {
     // dirname('/')==='/' so if we happen to reach the FS root (as might happen in a container we need to quit to avoid looping forever
     if (parentDir === currentDir) break
 
-    const newLockFile = findWorkRoot(parentDir)
+    const newLockFile = findWorkRoot(parentDir, true)
 
     if (!newLockFile) break
 
