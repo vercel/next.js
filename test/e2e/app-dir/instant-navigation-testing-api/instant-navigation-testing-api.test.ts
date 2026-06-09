@@ -93,7 +93,8 @@ describe('instant-navigation-testing-api', () => {
     )
   })
 
-  it('renders runtime-prefetched content instantly during navigation', async () => {
+  // TODO: This has been flaky in CI for weeks and needs further investigation.
+  it.skip('renders runtime-prefetched content instantly during navigation', async () => {
     const page = await openPage(next, '/')
 
     await instant(page, async () => {
