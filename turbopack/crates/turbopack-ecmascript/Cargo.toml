@@ -46,6 +46,7 @@ serde_json = { workspace = true, features = ["raw_value"] }
 swc_sourcemap = { workspace = true }
 smallvec = { workspace = true }
 strsim = { workspace = true }
+thread_local = { workspace = true }
 tokio = { workspace = true }
 tracing = { workspace = true }
 turbo-bincode = { workspace = true }

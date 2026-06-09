@@ -14,19 +14,31 @@ use swc_core::{
 use turbo_rcstr::RcStr;
 
 use crate::{
-    analyzer::{JsValue, imports::ImportAnnotations},
+    analyzer::{Bump, JsValue, imports::ImportAnnotations},
     utils::StringifyJs,
 };
 
-#[derive(Debug, Clone, Hash, PartialEq)]
-pub enum ObjectPart {
-    KeyValue(JsValue, JsValue),
-    Spread(JsValue),
+#[derive(Debug, Hash, PartialEq)]
+pub enum ObjectPart<'a> {
+    KeyValue(JsValue<'a>, JsValue<'a>),
+    Spread(JsValue<'a>),
 }
 
-impl Default for ObjectPart {
+impl Default for ObjectPart<'_> {
     fn default() -> Self {
         ObjectPart::Spread(Default::default())
+    }
+}
+
+impl<'a> ObjectPart<'a> {
+    /// Deep-clone this object part into `arena`. See [`JsValue::clone_in`].
+    pub(crate) fn clone_in(&self, arena: &'a Bump) -> Self {
+        match self {
+            ObjectPart::KeyValue(k, v) => {
+                ObjectPart::KeyValue(k.clone_in(arena), v.clone_in(arena))
+            }
+            ObjectPart::Spread(s) => ObjectPart::Spread(s.clone_in(arena)),
+        }
     }
 }
 

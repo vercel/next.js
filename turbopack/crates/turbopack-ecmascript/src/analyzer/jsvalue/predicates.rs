@@ -4,7 +4,7 @@ use crate::analyzer::{
 };
 
 // Compile-time information gathering
-impl JsValue {
+impl JsValue<'_> {
     /// Returns the constant string if the value represents a constant string.
     pub fn as_str(&self) -> Option<&str> {
         match self {
@@ -101,9 +101,9 @@ impl JsValue {
                     shortcircuit_if_known(list, JsValue::is_not_nullish, JsValue::is_truthy)
                 }
             },
-            JsValue::Binary(_, box a, op, box b) => {
+            JsValue::Binary(_, a, op, b) => {
                 let (positive_op, negate) = op.positive_op();
-                match (positive_op, a, b) {
+                match (positive_op, &**a, &**b) {
                     (
                         PositiveBinaryOperator::StrictEqual,
                         JsValue::Constant(a),
@@ -478,14 +478,21 @@ mod tests {
     use rstest::rstest;
     use turbo_rcstr::rcstr;
 
-    use crate::analyzer::{ConstantValue, JsValue, graph::EvalContext};
+    use crate::analyzer::{Bump, ConstantValue, JsValue, ThreadLocal, graph::EvalContext};
+
+    // A leaked arena for building test `JsValue`s with a `'static` lifetime. Tests are
+    // short-lived processes, so the leak is inconsequential.
+    fn test_arena() -> &'static Bump {
+        Box::leak(Box::new(Bump::new()))
+    }
 
     // `construct_test_ternary(cons, alt)` builds a ternary with an unknown test condition.
-    fn construct_test_ternary(cons: JsValue, alt: JsValue) -> JsValue {
+    fn construct_test_ternary(cons: JsValue<'static>, alt: JsValue<'static>) -> JsValue<'static> {
         JsValue::tenary(
-            Box::new(JsValue::unknown_empty(false, rcstr!("test"))),
-            Box::new(cons),
-            Box::new(alt),
+            test_arena(),
+            JsValue::unknown_empty(false, rcstr!("test")),
+            cons,
+            alt,
         )
     }
 
@@ -493,9 +500,9 @@ mod tests {
     #[case(JsValue::from(1.0))]
     #[case(JsValue::from("hi"))]
     #[case(ConstantValue::True.into())]
-    #[case(JsValue::promise(ConstantValue::Null.into()))]
+    #[case(JsValue::promise(test_arena(), ConstantValue::Null.into()))]
     #[case(construct_test_ternary(JsValue::from(1.0), JsValue::from("hi")))]
-    fn is_truthy_positive(#[case] v: JsValue) {
+    fn is_truthy_positive(#[case] v: JsValue<'static>) {
         assert_eq!(v.is_truthy(), Some(true), "expected '{v}' to be truthy");
     }
 
@@ -506,7 +513,7 @@ mod tests {
     #[case(ConstantValue::Null.into())]
     #[case(ConstantValue::Undefined.into())]
     #[case(construct_test_ternary(JsValue::from(0.0), JsValue::from("")))]
-    fn is_truthy_negative(#[case] v: JsValue) {
+    fn is_truthy_negative(#[case] v: JsValue<'static>) {
         assert_eq!(v.is_truthy(), Some(false), "expected '{v}' to be falsy");
     }
 
@@ -514,7 +521,7 @@ mod tests {
     #[case(ConstantValue::Null.into())]
     #[case(ConstantValue::Undefined.into())]
     #[case(construct_test_ternary(ConstantValue::Null.into(), ConstantValue::Undefined.into()))]
-    fn is_nullish_positive(#[case] v: JsValue) {
+    fn is_nullish_positive(#[case] v: JsValue<'static>) {
         assert_eq!(v.is_nullish(), Some(true), "expected '{v}' to be nullish");
     }
 
@@ -523,9 +530,9 @@ mod tests {
     #[case(JsValue::from(""))]
     #[case(JsValue::from("hi"))]
     #[case(ConstantValue::True.into())]
-    #[case(JsValue::promise(ConstantValue::Null.into()))]
+    #[case(JsValue::promise(test_arena(), ConstantValue::Null.into()))]
     #[case(construct_test_ternary(JsValue::from(0.0), JsValue::from("hi")))]
-    fn is_nullish_negative(#[case] v: JsValue) {
+    fn is_nullish_negative(#[case] v: JsValue<'static>) {
         assert_eq!(
             v.is_nullish(),
             Some(false),
@@ -537,7 +544,7 @@ mod tests {
     #[case(JsValue::from("hi"))]
     #[case(JsValue::from(""))]
     #[case(construct_test_ternary(JsValue::from("a"), JsValue::from("b")))]
-    fn is_string_positive(#[case] v: JsValue) {
+    fn is_string_positive(#[case] v: JsValue<'static>) {
         assert_eq!(v.is_string(), Some(true), "expected '{v}' to be a string");
     }
 
@@ -546,7 +553,7 @@ mod tests {
     #[case(ConstantValue::True.into())]
     #[case(ConstantValue::Null.into())]
     #[case(construct_test_ternary(JsValue::from(1.0), JsValue::from(2.0)))]
-    fn is_string_negative(#[case] v: JsValue) {
+    fn is_string_negative(#[case] v: JsValue<'static>) {
         assert_eq!(
             v.is_string(),
             Some(false),
@@ -557,7 +564,7 @@ mod tests {
     #[rstest]
     #[case(JsValue::from(""))]
     #[case(construct_test_ternary(JsValue::from(""), JsValue::from("")))]
-    fn is_empty_string_positive(#[case] v: JsValue) {
+    fn is_empty_string_positive(#[case] v: JsValue<'static>) {
         assert_eq!(
             v.is_empty_string(),
             Some(true),
@@ -570,7 +577,7 @@ mod tests {
     #[case(JsValue::from(1.0))]
     #[case(ConstantValue::True.into())]
     #[case(construct_test_ternary(JsValue::from("a"), JsValue::from("b")))]
-    fn is_empty_string_negative(#[case] v: JsValue) {
+    fn is_empty_string_negative(#[case] v: JsValue<'static>) {
         assert_eq!(
             v.is_empty_string(),
             Some(false),
@@ -580,7 +587,9 @@ mod tests {
 
     #[test]
     fn is_string_constant() {
-        let value = EvalContext::eval_single_expr_lit(&rcstr!("'hello'")).unwrap();
+        let arena = ThreadLocal::new();
+        let value =
+            EvalContext::eval_single_expr_lit(arena.get_or_default(), &rcstr!("'hello'")).unwrap();
         assert_eq!(value.is_string(), Some(true));
     }
 
@@ -588,8 +597,9 @@ mod tests {
     #[case("1 && 'hello'")]
     #[case("'hello' || 'bye' || 2")]
     fn is_string_short_circuiting_positive(#[case] input: &str) {
+        let arena = ThreadLocal::new();
         assert_eq!(
-            EvalContext::eval_single_expr_lit(&input.into())
+            EvalContext::eval_single_expr_lit(arena.get_or_default(), &input.into())
                 .unwrap()
                 .is_string(),
             Some(true),
@@ -602,8 +612,9 @@ mod tests {
     #[case("'hello' && 2")]
     #[case("2 || 1 || 'hello' || 'bye'")]
     fn is_string_short_circuiting_negative(#[case] input: &str) {
+        let arena = ThreadLocal::new();
         assert_eq!(
-            EvalContext::eval_single_expr_lit(&input.into())
+            EvalContext::eval_single_expr_lit(arena.get_or_default(), &input.into())
                 .unwrap()
                 .is_string(),
             Some(false),
@@ -619,8 +630,9 @@ mod tests {
     #[case("x || 'bye'")]
     #[case("false || x")]
     fn is_string_short_circuiting_unknown(#[case] input: &str) {
+        let arena = ThreadLocal::new();
         assert_eq!(
-            EvalContext::eval_single_expr_lit(&input.into())
+            EvalContext::eval_single_expr_lit(arena.get_or_default(), &input.into())
                 .unwrap()
                 .is_string(),
             None,
@@ -634,8 +646,9 @@ mod tests {
     #[case("false || ''")]
     #[case("1 && 'a' && ''")]
     fn is_empty_string_short_circuiting_positive(#[case] input: &str) {
+        let arena = ThreadLocal::new();
         assert_eq!(
-            EvalContext::eval_single_expr_lit(&input.into())
+            EvalContext::eval_single_expr_lit(arena.get_or_default(), &input.into())
                 .unwrap()
                 .is_empty_string(),
             Some(true),
@@ -649,8 +662,9 @@ mod tests {
     #[case("'' || 'string'")]
     #[case("'' || 0 || 'string'")]
     fn is_empty_string_short_circuiting_negative(#[case] input: &str) {
+        let arena = ThreadLocal::new();
         assert_eq!(
-            EvalContext::eval_single_expr_lit(&input.into())
+            EvalContext::eval_single_expr_lit(arena.get_or_default(), &input.into())
                 .unwrap()
                 .is_empty_string(),
             Some(false),
@@ -666,8 +680,9 @@ mod tests {
     #[case("'' || x")]
     #[case("false || 0 || x")]
     fn is_empty_string_short_circuiting_unknown(#[case] input: &str) {
+        let arena = ThreadLocal::new();
         assert_eq!(
-            EvalContext::eval_single_expr_lit(&input.into())
+            EvalContext::eval_single_expr_lit(arena.get_or_default(), &input.into())
                 .unwrap()
                 .is_empty_string(),
             None,
@@ -681,8 +696,9 @@ mod tests {
     #[case("'' || null")]
     #[case("1 && 2 && null")]
     fn is_nullish_short_circuiting_positive(#[case] input: &str) {
+        let arena = ThreadLocal::new();
         assert_eq!(
-            EvalContext::eval_single_expr_lit(&input.into())
+            EvalContext::eval_single_expr_lit(arena.get_or_default(), &input.into())
                 .unwrap()
                 .is_nullish(),
             Some(true),
@@ -696,8 +712,9 @@ mod tests {
     #[case("null || ''")]
     #[case("null || '' || 'a'")]
     fn is_nullish_short_circuiting_negative(#[case] input: &str) {
+        let arena = ThreadLocal::new();
         assert_eq!(
-            EvalContext::eval_single_expr_lit(&input.into())
+            EvalContext::eval_single_expr_lit(arena.get_or_default(), &input.into())
                 .unwrap()
                 .is_nullish(),
             Some(false),
@@ -714,8 +731,9 @@ mod tests {
     #[case("false || x")]
     #[case("1 && x && null")]
     fn is_nullish_short_circuiting_unknown(#[case] input: &str) {
+        let arena = ThreadLocal::new();
         assert_eq!(
-            EvalContext::eval_single_expr_lit(&input.into())
+            EvalContext::eval_single_expr_lit(arena.get_or_default(), &input.into())
                 .unwrap()
                 .is_nullish(),
             None,
@@ -729,8 +747,9 @@ mod tests {
     #[case("null || ''")]
     #[case("null || 0 || 'a'")]
     fn is_not_nullish_short_circuiting_positive(#[case] input: &str) {
+        let arena = ThreadLocal::new();
         assert_eq!(
-            EvalContext::eval_single_expr_lit(&input.into())
+            EvalContext::eval_single_expr_lit(arena.get_or_default(), &input.into())
                 .unwrap()
                 .is_not_nullish(),
             Some(true),
@@ -744,8 +763,9 @@ mod tests {
     #[case("'' || null")]
     #[case("'' || 0 || null")]
     fn is_not_nullish_short_circuiting_negative(#[case] input: &str) {
+        let arena = ThreadLocal::new();
         assert_eq!(
-            EvalContext::eval_single_expr_lit(&input.into())
+            EvalContext::eval_single_expr_lit(arena.get_or_default(), &input.into())
                 .unwrap()
                 .is_not_nullish(),
             Some(false),
@@ -762,8 +782,9 @@ mod tests {
     #[case("false || x")]
     #[case("false || x || ''")]
     fn is_not_nullish_short_circuiting_unknown(#[case] input: &str) {
+        let arena = ThreadLocal::new();
         assert_eq!(
-            EvalContext::eval_single_expr_lit(&input.into())
+            EvalContext::eval_single_expr_lit(arena.get_or_default(), &input.into())
                 .unwrap()
                 .is_not_nullish(),
             None,

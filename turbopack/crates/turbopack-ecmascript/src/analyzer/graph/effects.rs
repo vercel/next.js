@@ -1,56 +1,60 @@
+use bumpalo::boxed::Box as BumpBox;
 use swc_core::{atoms::Atom, common::Span, ecma::visit::fields::*};
 use turbo_rcstr::RcStr;
 use turbopack_core::resolve::ExportUsage;
 
-use crate::{analyzer::JsValue, utils::AstPathRange};
+use crate::{
+    analyzer::{Bump, JsValue},
+    utils::AstPathRange,
+};
 
 #[derive(Debug)]
-pub struct EffectsBlock {
-    pub effects: Vec<Effect>,
+pub struct EffectsBlock<'a> {
+    pub effects: Vec<Effect<'a>>,
     pub range: AstPathRange,
 }
 
-impl EffectsBlock {
+impl EffectsBlock<'_> {
     pub fn is_empty(&self) -> bool {
         self.effects.is_empty()
     }
 }
 
 #[derive(Debug)]
-pub enum ConditionalKind {
+pub enum ConditionalKind<'a> {
     /// The blocks of an `if` statement without an `else` block.
-    If { then: Box<EffectsBlock> },
+    If { then: Box<EffectsBlock<'a>> },
     /// The blocks of an `if ... else` or `if { ... return ... } ...` statement.
     IfElse {
-        then: Box<EffectsBlock>,
-        r#else: Box<EffectsBlock>,
+        then: Box<EffectsBlock<'a>>,
+        r#else: Box<EffectsBlock<'a>>,
     },
     /// The blocks of an `if ... else` statement.
-    Else { r#else: Box<EffectsBlock> },
+    Else { r#else: Box<EffectsBlock<'a>> },
     /// The blocks of an `if { ... return ... } else { ... } ...` or `if { ... }
     /// else { ... return ... } ...` statement.
     IfElseMultiple {
-        then: Vec<Box<EffectsBlock>>,
-        r#else: Vec<Box<EffectsBlock>>,
+        then: Vec<Box<EffectsBlock<'a>>>,
+        r#else: Vec<Box<EffectsBlock<'a>>>,
     },
     /// The expressions on the right side of the `?:` operator.
     Ternary {
-        then: Box<EffectsBlock>,
-        r#else: Box<EffectsBlock>,
+        then: Box<EffectsBlock<'a>>,
+        r#else: Box<EffectsBlock<'a>>,
     },
     /// The expression on the right side of the `&&` operator.
-    And { expr: Box<EffectsBlock> },
+    And { expr: Box<EffectsBlock<'a>> },
     /// The expression on the right side of the `||` operator.
-    Or { expr: Box<EffectsBlock> },
+    Or { expr: Box<EffectsBlock<'a>> },
     /// The expression on the right side of the `??` operator.
-    NullishCoalescing { expr: Box<EffectsBlock> },
+    NullishCoalescing { expr: Box<EffectsBlock<'a>> },
     /// The expression on the right side of a labeled statement.
-    Labeled { body: Box<EffectsBlock> },
+    Labeled { body: Box<EffectsBlock<'a>> },
 }
 
-impl ConditionalKind {
+impl<'a> ConditionalKind<'a> {
     /// Normalizes all contained values.
-    pub fn normalize(&mut self) {
+    pub fn normalize(&mut self, arena: &'a Bump) {
         match self {
             ConditionalKind::If { then: block }
             | ConditionalKind::Else { r#else: block }
@@ -58,28 +62,28 @@ impl ConditionalKind {
             | ConditionalKind::Or { expr: block, .. }
             | ConditionalKind::NullishCoalescing { expr: block, .. } => {
                 for effect in &mut block.effects {
-                    effect.normalize();
+                    effect.normalize(arena);
                 }
             }
             ConditionalKind::IfElse { then, r#else, .. }
             | ConditionalKind::Ternary { then, r#else, .. } => {
                 for effect in &mut then.effects {
-                    effect.normalize();
+                    effect.normalize(arena);
                 }
                 for effect in &mut r#else.effects {
-                    effect.normalize();
+                    effect.normalize(arena);
                 }
             }
             ConditionalKind::IfElseMultiple { then, r#else, .. } => {
                 for block in then.iter_mut().chain(r#else.iter_mut()) {
                     for effect in &mut block.effects {
-                        effect.normalize();
+                        effect.normalize(arena);
                     }
                 }
             }
             ConditionalKind::Labeled { body } => {
                 for effect in &mut body.effects {
-                    effect.normalize();
+                    effect.normalize(arena);
                 }
             }
         }
@@ -87,21 +91,21 @@ impl ConditionalKind {
 }
 
 #[derive(Debug)]
-pub enum EffectArg {
-    Value(JsValue),
-    Closure(JsValue, Box<EffectsBlock>),
+pub enum EffectArg<'a> {
+    Value(JsValue<'a>),
+    Closure(JsValue<'a>, Box<EffectsBlock<'a>>),
     Spread,
 }
 
-impl EffectArg {
+impl<'a> EffectArg<'a> {
     /// Normalizes all contained values.
-    pub fn normalize(&mut self) {
+    pub fn normalize(&mut self, arena: &'a Bump) {
         match self {
-            EffectArg::Value(value) => value.normalize(),
+            EffectArg::Value(value) => value.normalize(arena),
             EffectArg::Closure(value, effects) => {
-                value.normalize();
+                value.normalize(arena);
                 for effect in &mut effects.effects {
-                    effect.normalize();
+                    effect.normalize(arena);
                 }
             }
             EffectArg::Spread => {}
@@ -110,21 +114,21 @@ impl EffectArg {
 }
 
 #[derive(Debug)]
-pub enum Effect {
+pub enum Effect<'a> {
     /// Some condition which affects which effects might be executed. If the
     /// condition evaluates to some compile-time constant, we can use that
     /// to determine which effects are executed and remove the others.
     Conditional {
-        condition: Box<JsValue>,
-        kind: Box<ConditionalKind>,
+        condition: BumpBox<'a, JsValue<'a>>,
+        kind: Box<ConditionalKind<'a>>,
         /// The ast path to the condition.
         ast_path: Vec<AstParentKind>,
         span: Span,
     },
     /// A function call or a new call of a function.
     Call {
-        func: Box<JsValue>,
-        args: Vec<EffectArg>,
+        func: BumpBox<'a, JsValue<'a>>,
+        args: Vec<EffectArg<'a>>,
         ast_path: Vec<AstParentKind>,
         span: Span,
         in_try: bool,
@@ -132,9 +136,9 @@ pub enum Effect {
     },
     /// A function call or a new call of a property of an object.
     MemberCall {
-        obj: Box<JsValue>,
-        prop: Box<JsValue>,
-        args: Vec<EffectArg>,
+        obj: BumpBox<'a, JsValue<'a>>,
+        prop: BumpBox<'a, JsValue<'a>>,
+        args: Vec<EffectArg<'a>>,
         ast_path: Vec<AstParentKind>,
         span: Span,
         in_try: bool,
@@ -142,8 +146,8 @@ pub enum Effect {
     },
     /// A property access.
     Member {
-        obj: Box<JsValue>,
-        prop: Box<JsValue>,
+        obj: BumpBox<'a, JsValue<'a>>,
+        prop: BumpBox<'a, JsValue<'a>>,
         ast_path: Vec<AstParentKind>,
         span: Span,
     },
@@ -162,7 +166,7 @@ pub enum Effect {
     },
     /// A typeof expression
     TypeOf {
-        arg: Box<JsValue>,
+        arg: BumpBox<'a, JsValue<'a>>,
         ast_path: Vec<AstParentKind>,
         span: Span,
     },
@@ -182,7 +186,7 @@ pub enum Effect {
     /// - `import(/* webpackExports: ["a"] */ './lib')` (magic comment)
     /// - `import(/* turbopackExports: ["a"] */ './lib')` (magic comment)
     DynamicImport {
-        args: Vec<EffectArg>,
+        args: Vec<EffectArg<'a>>,
         ast_path: Vec<AstParentKind>,
         span: Span,
         in_try: bool,
@@ -193,43 +197,43 @@ pub enum Effect {
     Unreachable { start_ast_path: Vec<AstParentKind> },
 }
 
-impl Effect {
+impl<'a> Effect<'a> {
     /// Normalizes all contained values.
-    pub fn normalize(&mut self) {
+    pub fn normalize(&mut self, arena: &'a Bump) {
         match self {
             Effect::Conditional {
                 condition, kind, ..
             } => {
-                condition.normalize();
-                kind.normalize();
+                condition.normalize(arena);
+                kind.normalize(arena);
             }
             Effect::Call { func, args, .. } => {
-                func.normalize();
+                func.normalize(arena);
                 for arg in args.iter_mut() {
-                    arg.normalize();
+                    arg.normalize(arena);
                 }
             }
             Effect::MemberCall {
                 obj, prop, args, ..
             } => {
-                obj.normalize();
-                prop.normalize();
+                obj.normalize(arena);
+                prop.normalize(arena);
                 for arg in args.iter_mut() {
-                    arg.normalize();
+                    arg.normalize(arena);
                 }
             }
             Effect::Member { obj, prop, .. } => {
-                obj.normalize();
-                prop.normalize();
+                obj.normalize(arena);
+                prop.normalize(arena);
             }
             Effect::DynamicImport { args, .. } => {
                 for arg in args.iter_mut() {
-                    arg.normalize();
+                    arg.normalize(arena);
                 }
             }
             Effect::ImportedBinding { .. } => {}
             Effect::TypeOf { arg, .. } => {
-                arg.normalize();
+                arg.normalize(arena);
             }
             Effect::FreeVar { .. } => {}
             Effect::ImportMeta { .. } => {}

@@ -4,7 +4,7 @@ use either::Either;
 
 use crate::analyzer::{JsValue, ModuleValue, ObjectPart};
 
-impl Display for ObjectPart {
+impl Display for ObjectPart<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             ObjectPart::KeyValue(key, value) => write!(f, "{key}: {value}"),
@@ -13,7 +13,7 @@ impl Display for ObjectPart {
     }
 }
 
-impl Display for JsValue {
+impl Display for JsValue<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             JsValue::Constant(v) => write!(f, "{v}"),
