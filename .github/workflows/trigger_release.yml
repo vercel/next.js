@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
     inputs:
       releaseType:
-        description: stable, canary, beta, or release candidate?
+        description: stable, canary, beta, preview, or release candidate?
         required: true
         type: choice
         options:
@@ -14,6 +14,7 @@ on:
           - stable
           - release-candidate
           - beta
+          - preview
 
       semverType:
         description: semver type?

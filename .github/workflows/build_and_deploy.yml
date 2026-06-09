@@ -80,6 +80,9 @@ jobs:
             elif [[ "$RELEASE_VERSION" == *-beta.* ]];
             then
               RELEASE_ENVIRONMENT="release-beta"
+            elif [[ "$RELEASE_VERSION" == *-preview.* ]];
+            then
+              RELEASE_ENVIRONMENT="release-preview"
             elif [[ "$RELEASE_VERSION" == *-rc.* ]];
             then
               RELEASE_ENVIRONMENT="release-release-candidate"
@@ -93,7 +96,7 @@ jobs:
               exit 1
             fi
             echo "release_environment=$RELEASE_ENVIRONMENT" >> $GITHUB_OUTPUT
-          elif [ ''"${GIT_REF}"'' == 'refs/heads/canary' ]
+          elif [ ''"${GIT_REF}"'' == 'refs/heads/next-16-3-preview' ]
           then
             echo "value=staging" >> $GITHUB_OUTPUT
           elif [ '${{ github.event_name }}' == 'workflow_dispatch' ]
