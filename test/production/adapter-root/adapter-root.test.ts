@@ -32,15 +32,9 @@ describe('adapter-root', () => {
       }
       await next.build()
 
-      if (setEnvVar) {
-        expect(next.cliOutput).not.toContain(
-          'We detected multiple lockfiles and selected the directory'
-        )
-      } else {
-        expect(next.cliOutput).toContain(
-          'We detected multiple lockfiles and selected the directory'
-        )
-      }
+      expect(next.cliOutput).not.toContain(
+        'We detected multiple lockfiles and selected the directory'
+      )
 
       const {
         outputs,
