@@ -16,7 +16,6 @@ use turbopack_core::{
     code_builder::{Code, CodeBuilder},
     ident::AssetIdent,
     module::Module,
-    module_graph::ModuleGraph,
     output::{OutputAsset, OutputAssets, OutputAssetsReference, OutputAssetsWithReferenced},
     source_map::{GenerateSourceMap, SourceMapAsset},
 };
@@ -25,16 +24,15 @@ use turbopack_ecmascript::{
     minify::minify,
     utils::StringifyJs,
 };
-use turbopack_ecmascript_runtime::RuntimeType;
 
 use crate::{
     BrowserChunkingContext,
     chunking_context::{CURRENT_CHUNK_METHOD_DOCUMENT_CURRENT_SCRIPT_EXPR, CurrentChunkMethod},
 };
 
-/// An Ecmascript chunk that:
-/// * Contains the Turbopack browser runtime code; and
-/// * Evaluates a list of runtime entries.
+/// An Ecmascript chunk that registers an entrypoint's chunks and runtime module
+/// IDs onto the `globalThis[TURBOPACK]` queue, which the shared
+/// [`super::runtime::EcmascriptBrowserRuntimeChunk`] drains.
 #[turbo_tasks::value(shared)]
 #[derive(ValueToString)]
 #[value_to_string("Ecmascript Browser Evaluate Chunk")]
@@ -43,9 +41,6 @@ pub(crate) struct EcmascriptBrowserEvaluateChunk {
     ident: ResolvedVc<AssetIdent>,
     other_chunks: ResolvedVc<OutputAssets>,
     evaluatable_assets: ResolvedVc<EvaluatableAssets>,
-    // TODO(sokra): It's weird to use ModuleGraph here, we should convert evaluatable_assets to a
-    // list of chunk items before passing it to this struct
-    module_graph: ResolvedVc<ModuleGraph>,
 }
 
 #[turbo_tasks::value_impl]
@@ -57,14 +52,12 @@ impl EcmascriptBrowserEvaluateChunk {
         ident: ResolvedVc<AssetIdent>,
         other_chunks: ResolvedVc<OutputAssets>,
         evaluatable_assets: ResolvedVc<EvaluatableAssets>,
-        module_graph: ResolvedVc<ModuleGraph>,
     ) -> Vc<Self> {
         EcmascriptBrowserEvaluateChunk {
             chunking_context,
             ident,
             other_chunks,
             evaluatable_assets,
-            module_graph,
         }
         .cell()
     }
@@ -80,13 +73,6 @@ impl EcmascriptBrowserEvaluateChunk {
     #[turbo_tasks::function]
     pub(crate) async fn code(self: Vc<Self>) -> Result<Vc<Code>> {
         let this = self.await?;
-        let environment = this.chunking_context.environment();
-
-        let output_root_to_root_path = this
-            .chunking_context
-            .output_root_to_root_path()
-            .owned()
-            .await?;
         let source_maps = *this
             .chunking_context
             .reference_chunk_source_maps(Vc::upcast(self))
@@ -170,41 +156,6 @@ impl EcmascriptBrowserEvaluateChunk {
             chunk_loading_global = StringifyJs(&chunk_loading_global),
             params = StringifyJs(&params),
         )?;
-
-        let asset_context = turbopack::get_runtime_asset_context(environment);
-
-        let runtime_type = *this.chunking_context.runtime_type().await?;
-        // Detect async modules from the whole-app graph in production. In development, the graph
-        // is per-page. To keep the shared `runtime.js` stable, always include the machinery.
-        let has_async_modules = if matches!(runtime_type, RuntimeType::Production) {
-            !this.module_graph.async_module_info().await?.is_empty()
-        } else {
-            true
-        };
-        match runtime_type {
-            RuntimeType::Production | RuntimeType::Development => {
-                let runtime_code = turbopack_ecmascript_runtime::get_browser_runtime_code(
-                    asset_context,
-                    this.chunking_context.chunk_base_path(),
-                    this.chunking_context.asset_suffix(),
-                    runtime_type,
-                    output_root_to_root_path,
-                    source_maps,
-                    this.chunking_context.chunk_loading_global(),
-                    this.chunking_context.cross_origin(),
-                    this.chunking_context.chunk_load_retry(),
-                    has_async_modules,
-                    this.chunking_context.chunk_loading(),
-                    *this.chunking_context.generate_component_chunks().await?,
-                );
-                code.push_code(&*runtime_code.await?);
-            }
-            #[cfg(feature = "test")]
-            RuntimeType::Dummy => {
-                let runtime_code = turbopack_ecmascript_runtime::get_dummy_runtime_code();
-                code.push_code(&runtime_code);
-            }
-        }
 
         let mut code = code.build();
 

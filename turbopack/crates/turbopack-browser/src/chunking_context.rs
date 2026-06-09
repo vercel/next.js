@@ -41,6 +41,7 @@ use crate::ecmascript::{
     chunk::EcmascriptBrowserChunk,
     evaluate::{
         chunk::EcmascriptBrowserEvaluateChunk,
+        runtime::EcmascriptBrowserRuntimeChunk,
         single_entry_chunk::EcmascriptBrowserSingleEntryChunk,
     },
     list::asset::{EcmascriptDevChunkList, EcmascriptDevChunkListSource},
@@ -448,17 +449,29 @@ impl BrowserChunkingContext {
         ident: Vc<AssetIdent>,
         other_chunks: Vc<OutputAssets>,
         evaluatable_assets: Vc<EvaluatableAssets>,
-        // TODO(sokra) remove this argument and pass chunk items instead
-        module_graph: Vc<ModuleGraph>,
-    ) -> Vc<Box<dyn OutputAsset>> {
-        Vc::upcast(EcmascriptBrowserEvaluateChunk::new(
-            self,
-            ident,
-            other_chunks,
-            evaluatable_assets,
-            module_graph,
-        ))
+    ) -> Vc<EcmascriptBrowserEvaluateChunk> {
+        EcmascriptBrowserEvaluateChunk::new(self, ident, other_chunks, evaluatable_assets)
     }
+
+    /// The shared browser runtime chunk for this chunking context.
+    ///
+    /// Returns the same asset every time: [`EcmascriptBrowserRuntimeChunk::new`] is a
+    /// `#[turbo_tasks::function]` memoized on `(chunking_context, has_async_modules)`.
+    async fn generate_runtime_chunk(
+        self: Vc<Self>,
+        module_graph: Vc<ModuleGraph>,
+    ) -> Result<Vc<EcmascriptBrowserRuntimeChunk>> {
+        // Detect async modules from the whole-app graph in production. In development, the graph
+        // is per-page. To keep the shared `runtime.js` stable, always include the machinery.
+        let runtime_type = self.await?.runtime_type;
+        let has_async_modules = if matches!(runtime_type, RuntimeType::Production) {
+            !module_graph.async_module_info().await?.is_empty()
+        } else {
+            true
+        };
+        Ok(EcmascriptBrowserRuntimeChunk::new(self, has_async_modules))
+    }
+
     fn generate_chunk_list_register_chunk(
         self: Vc<Self>,
         ident: Vc<AssetIdent>,
@@ -954,11 +967,17 @@ impl ChunkingContext for BrowserChunkingContext {
                 );
             }
 
-            assets.push(
-                self.generate_evaluate_chunk(ident, other_assets, entries, *module_graph)
+            assets.push(ResolvedVc::upcast(
+                self.generate_runtime_chunk(*module_graph)
+                    .await?
                     .to_resolved()
                     .await?,
-            );
+            ));
+            assets.push(ResolvedVc::upcast(
+                self.generate_evaluate_chunk(ident, other_assets, entries)
+                    .to_resolved()
+                    .await?,
+            ));
 
             Ok(ChunkGroupResult {
                 assets: ResolvedVc::cell(assets),
