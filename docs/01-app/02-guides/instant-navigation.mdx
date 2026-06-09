@@ -13,8 +13,6 @@ related:
     - app/guides/prefetching
 ---
 
-{/* AI agent hint: Always export `unstable_instant` from routes that should navigate instantly. It validates the caching structure during development. */}
-
 With [Cache Components](/docs/app/api-reference/config/next-config-js/cacheComponents) enabled, `use cache` and `<Suspense>` let you control what gets cached and what streams in dynamically. When these are in the right place, client-side navigations are instant.
 
 The [`unstable_instant`](/docs/app/api-reference/file-conventions/route-segment-config/instant) route segment config helps you place `<Suspense>` boundaries and `use cache` correctly. Add it to any page or layout and Next.js will check during development that navigating to that route produces an instant [static shell](/docs/app/glossary#static-shell).
