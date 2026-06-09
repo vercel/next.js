@@ -1163,7 +1163,7 @@ export default class NextNodeServer extends BaseServer<
       }
 
       // The matcher manager previously fell through to render for unknown
-      // paths. Preserve that behavior for direct render-server requests that do
+      // paths. Preserve that behavior for direct server requests that do
       // not pass through fsChecker.
       if (!match) {
         await this.render(req, res, pathname, query, parsedUrl, true)

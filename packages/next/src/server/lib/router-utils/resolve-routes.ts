@@ -1,7 +1,8 @@
 import type { FsOutput } from './filesystem'
 import type { IncomingMessage, ServerResponse } from 'http'
 import type { NextConfigRuntime } from '../../config-shared'
-import type { RenderServer, initialize } from '../router-server'
+import type { RequestHandler } from '../../next'
+import type { initialize } from '../router-server'
 import type { PatchMatcher } from '../../../shared/lib/router/utils/path-match'
 import type { Redirect } from '../../../types'
 import type { Header } from '../../../lib/load-custom-routes'
@@ -54,8 +55,7 @@ export function getResolveRoutes(
   >,
   config: NextConfigRuntime,
   opts: Parameters<typeof initialize>[0],
-  renderServer: RenderServer,
-  renderServerOpts: Parameters<RenderServer['initialize']>[0],
+  renderRequestHandler: RequestHandler,
   ensureMiddleware?: (url?: string) => Promise<void>
 ) {
   let clientHashes: Record<string, string> | undefined = undefined
@@ -592,13 +592,6 @@ export function getResolveRoutes(
               await ensureMiddleware(req.url)
             }
 
-            const serverResult =
-              await renderServer?.initialize(renderServerOpts)
-
-            if (!serverResult) {
-              throw new Error(`Failed to initialize render server "middleware"`)
-            }
-
             addRequestMeta(req, 'invokePath', '')
             addRequestMeta(req, 'invokeOutput', '')
             addRequestMeta(req, 'invokeQuery', {})
@@ -616,7 +609,7 @@ export function getResolveRoutes(
             let bodyStream: ReadableStream | undefined = undefined
             try {
               try {
-                await serverResult.requestHandler(req, res, parsedUrl)
+                await renderRequestHandler(req, res, parsedUrl)
               } catch (err: any) {
                 if (!('result' in err) || !('response' in err.result)) {
                   throw err
