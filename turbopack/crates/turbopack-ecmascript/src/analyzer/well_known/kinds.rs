@@ -143,7 +143,7 @@ impl WellKnownObjectKind {
 
 /// A list of well-known functions that have special meaning in the analysis.
 #[derive(Debug, Clone, Hash, PartialEq)]
-pub enum WellKnownFunctionKind {
+pub enum WellKnownFunctionKind<'a> {
     ArrayFilter,
     ArrayForEach,
     ArrayMap,
@@ -151,7 +151,7 @@ pub enum WellKnownFunctionKind {
     PathJoin,
     PathDirname,
     /// `0` is the current working directory.
-    PathResolve(Box<JsValue>),
+    PathResolve(&'a JsValue<'a>),
     Import,
     Require,
     /// `0` is the path to resolve from (relative to the current module).
@@ -196,7 +196,7 @@ pub enum WellKnownFunctionKind {
     ImportMetaGlob,
 }
 
-impl WellKnownFunctionKind {
+impl WellKnownFunctionKind<'_> {
     pub fn as_define_name(&self) -> Option<&[&str]> {
         match self {
             Self::Import { .. } => Some(&["import"]),

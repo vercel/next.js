@@ -56,7 +56,12 @@ import type { CacheEntry } from '../lib/cache-handlers/types'
 import type { CacheSignal } from '../app-render/cache-signal'
 import { decryptActionBoundArgs } from '../app-render/encryption'
 import { InvariantError } from '../../shared/lib/invariant-error'
-import { createReactServerErrorHandler } from '../app-render/create-error-handler'
+import {
+  createReactServerErrorHandler,
+  type DigestedError,
+} from '../app-render/create-error-handler'
+import { createDigestWithErrorCode } from '../../lib/error-telemetry-utils'
+import stringHash from 'next/dist/compiled/string-hash'
 import { DYNAMIC_EXPIRE, RUNTIME_PREFETCH_DYNAMIC_STALE } from './constants'
 import { NEXT_CACHE_ROOT_PARAM_TAG_ID } from '../../lib/constants'
 import type { CacheHandler } from '../lib/cache-handlers/types'
@@ -1215,29 +1220,36 @@ async function generateCacheEntryImpl(
       // relevant in restart-on-cache-miss in general, so when we implement that
       // for cached navs, it'll also be needed in prod
       if (process.env.__NEXT_DEV_SERVER && outerWorkUnitStore.cacheSignal) {
+        const stagedRendering = outerWorkUnitStore.stagedRendering
+
+        // Capture the render stage at the start of this cache read, before the
+        // yield below. A streamed staged render advances its controller on its
+        // own schedule, independently of this read, so by the time the yield
+        // resolves the controller may have raced ahead to the Dynamic stage even
+        // though the read began in an earlier (prerender) stage.
+        const stageAtReadStart = stagedRendering?.currentStage
+
         // If we're filling caches for a staged render, make sure that it takes
         // at least a task, so we'll always notice a cache miss between stages.
         //
-        // TODO(restart-on-cache-miss): This is suboptimal. Ideally we wouldn't
-        // need to restart for microtasky caches, but the current logic for
-        // omitting short-lived caches only works correctly if we do a second
-        // render, so that's the best we can do until we refactor that.
+        // TODO(restart-on-cache-miss): This is suboptimal. Ideally microtasky
+        // caches wouldn't register as a miss, but short-lived caches are only
+        // omitted correctly when read back in a separate render (now the
+        // background validation render, not a restart of the streamed
+        // response), so forcing the miss is the best we can do until that's
+        // refactored.
         await new Promise((resolve) => setTimeout(resolve))
 
         // Start a cache-fill timeout so a hanging `'use cache'` entry surfaces
         // the same error in dev as during prerender. Cleared when
         // pendingCacheResult settles.
         //
-        // Only skip the timeout when we're exactly in the Dynamic stage. That
-        // mirrors prerender, where caches guarded by e.g. `await connection()`
-        // aren't executed at all. We can't use `< RenderStage.Dynamic` here
-        // because `RenderStage.Abandoned` is numerically higher than Dynamic,
-        // but semantically it means the initial prospective render was aborted
-        // while caches are still pending — the outer flow then awaits
-        // `cacheSignal.cacheReady()`, so we need the timer to break a potential
-        // deadlock.
-        const stagedRendering = outerWorkUnitStore.stagedRendering
-        if (stagedRendering?.currentStage !== RenderStage.Dynamic) {
+        // Skip the timeout only when the read began in the Dynamic stage, which
+        // mirrors prerender: a cache guarded by e.g. `await connection()` is a
+        // legitimate dynamic hole and isn't executed there. We use the stage
+        // captured at read start, not the current one, because the staged render
+        // may have advanced past it during the yield above.
+        if (stageAtReadStart !== RenderStage.Dynamic) {
           const devRenderAbortController = new AbortController()
           const fillTimeoutMs = getUseCacheFillTimeoutMs(
             workStore,
@@ -1269,9 +1281,32 @@ async function generateCacheEntryImpl(
               onError(error) {
                 if (
                   devRenderAbortController.signal.aborted &&
-                  devRenderAbortController.signal.reason === error
+                  devRenderAbortController.signal.reason === error &&
+                  error instanceof Error
                 ) {
-                  return undefined
+                  // The abort reason is the same error stored as
+                  // `workStore.invalidDynamicUsageError` (a fill timeout or
+                  // deadlock). Register it under a digest and return that
+                  // digest, so the error that surfaces on the consumer side of
+                  // this Flight boundary carries it and the outer render's
+                  // handler can recover *this* object via
+                  // `reactServerErrorsByDigest`.
+                  //
+                  // We deliberately do not set `error.digest` here: whether the
+                  // error actually surfaces (vs. being caught in userland) is
+                  // the consumer's decision, so the "surfaced" mark is left to
+                  // the outer handler.
+                  const digest = createDigestWithErrorCode(
+                    error,
+                    stringHash(error.message + (error.stack || '')).toString()
+                  )
+
+                  workStore.reactServerErrorsByDigest.set(
+                    digest,
+                    error as DigestedError
+                  )
+
+                  return digest
                 }
 
                 return handleError(error)
@@ -2133,9 +2168,11 @@ export async function cache(
                 // We delay the cache here so that it doesn't resolve in the static task --
                 // in a regular static prerender, it'd be a hanging promise, and we need to reflect that,
                 // so it has to resolve later.
-                // TODO(restart-on-cache-miss): Optimize this to avoid unnecessary restarts.
-                // We don't end the cache read here, so this will always appear as a cache miss in the static stage,
-                // and thus will cause a restart even if all caches are filled.
+                // TODO(restart-on-cache-miss): Optimize away this phantom miss.
+                // We don't end the cache read here, so it always appears as a
+                // cache miss in the static stage even when all caches are
+                // filled, which now routes validation through the background
+                // warm render rather than restarting the streamed response.
 
                 const stagedRendering = workUnitStore.stagedRendering
                 const stage = stagedRendering
@@ -2188,9 +2225,11 @@ export async function cache(
                 // We delay the cache here so that it doesn't resolve in the runtime phase --
                 // in a regular runtime prerender, it'd be a hanging promise, and we need to reflect that,
                 // so it has to resolve later.
-                // TODO(restart-on-cache-miss): Optimize this to avoid unnecessary restarts.
-                // We don't end the cache read here, so this will always appear as a cache miss in the runtime stage,
-                // and thus will cause a restart even if all caches are filled.
+                // TODO(restart-on-cache-miss): Optimize away this phantom miss.
+                // We don't end the cache read here, so it always appears as a
+                // cache miss in the runtime stage even when all caches are
+                // filled, which now routes validation through the background
+                // warm render rather than restarting the streamed response.
                 await makeDevtoolsIOAwarePromise(
                   undefined,
                   workUnitStore,
@@ -2687,10 +2726,12 @@ export async function cache(
                 // static task -- in a regular static prerender, it'd be a
                 // hanging promise, and we need to reflect that, so it has to
                 // resolve later.
-                // TODO(restart-on-cache-miss): Optimize this to avoid
-                // unnecessary restarts. We don't end the cache read here, so
-                // this will always appear as a cache miss in the static stage,
-                // and thus will cause a restart even if all caches are filled.
+                // TODO(restart-on-cache-miss): Optimize away this phantom miss.
+                // We don't end the cache read here, so on a warm handler hit it
+                // still appears as a cache miss in the static stage even when
+                // all caches are filled, which now routes validation through the
+                // background warm render rather than restarting the streamed
+                // response.
 
                 const stagedRendering = workUnitStore.stagedRendering
                 const stage = stagedRendering

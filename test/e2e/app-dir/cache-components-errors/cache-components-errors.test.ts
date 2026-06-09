@@ -2712,12 +2712,12 @@ describe('Cache Components Errors', () => {
           it('should show a redbox error', async () => {
             const browser = await next.browser(pathname)
 
-            await expect(browser).toDisplayRedbox(`
+            await expect(browser).toDisplayCollapsedRedbox(`
              {
                "code": "E831",
                "description": "Route /use-cache-cookies used \`cookies()\` inside "use cache". Accessing Dynamic data sources inside a cache scope is not supported. If you need this data inside a cached function use \`cookies()\` outside of the cached function and pass the required dynamic data in as an argument. See more info here: https://nextjs.org/docs/messages/next-request-in-use-cache",
-               "environmentLabel": "Prerender",
-               "label": "Runtime Error",
+               "environmentLabel": "Server",
+               "label": "Console Error",
                "source": "app/use-cache-cookies/page.tsx (22:18) @ CookiesReadingComponent
              > 22 |     await cookies()
                   |                  ^",
@@ -2821,12 +2821,12 @@ describe('Cache Components Errors', () => {
           it('should show a redbox error', async () => {
             const browser = await next.browser(pathname)
 
-            await expect(browser).toDisplayRedbox(`
+            await expect(browser).toDisplayCollapsedRedbox(`
              {
                "code": "E829",
                "description": "Route /use-cache-draft-mode used "draftMode().enable()" inside "use cache". The enabled status of \`draftMode()\` can be read in caches but you must not enable or disable \`draftMode()\` inside a cache. See more info here: https://nextjs.org/docs/messages/next-request-in-use-cache",
-               "environmentLabel": "Prerender",
-               "label": "Runtime Error",
+               "environmentLabel": "Server",
+               "label": "Console Error",
                "source": "app/use-cache-draft-mode/page.tsx (20:26) @ DraftModeEnablingComponent
              > 20 |     ;(await draftMode()).enable()
                   |                          ^",
@@ -2929,12 +2929,12 @@ describe('Cache Components Errors', () => {
           it('should show a redbox error', async () => {
             const browser = await next.browser(pathname)
 
-            await expect(browser).toDisplayRedbox(`
+            await expect(browser).toDisplayCollapsedRedbox(`
              {
                "code": "E833",
                "description": "Route /use-cache-headers used \`headers()\` inside "use cache". Accessing Dynamic data sources inside a cache scope is not supported. If you need this data inside a cached function use \`headers()\` outside of the cached function and pass the required dynamic data in as an argument. See more info here: https://nextjs.org/docs/messages/next-request-in-use-cache",
-               "environmentLabel": "Prerender",
-               "label": "Runtime Error",
+               "environmentLabel": "Server",
+               "label": "Console Error",
                "source": "app/use-cache-headers/page.tsx (21:18) @ HeadersReadingComponent
              > 21 |     await headers()
                   |                  ^",
@@ -3036,12 +3036,12 @@ describe('Cache Components Errors', () => {
           it('should show a redbox error', async () => {
             const browser = await next.browser('/use-cache-connection')
 
-            await expect(browser).toDisplayRedbox(`
+            await expect(browser).toDisplayCollapsedRedbox(`
              {
                "code": "E841",
                "description": "Route /use-cache-connection used \`connection()\` inside "use cache". The \`connection()\` function is used to indicate the subsequent code must only run when there is an actual request, but caches must be able to be produced before a request, so this function is not allowed in this scope. See more info here: https://nextjs.org/docs/messages/next-request-in-use-cache",
-               "environmentLabel": "Prerender",
-               "label": "Runtime Error",
+               "environmentLabel": "Server",
+               "label": "Console Error",
                "source": "app/use-cache-connection/page.tsx (21:21) @ ConnectionCallingComponent
              > 21 |     await connection()
                   |                     ^",
@@ -4229,12 +4229,12 @@ Ways to fix this:
                 '/use-cache-cookies-third-party'
               )
 
-              await expect(browser).toDisplayRedbox(`
+              await expect(browser).toDisplayCollapsedRedbox(`
                {
                  "code": "E831",
                  "description": "Route /use-cache-cookies-third-party used \`cookies()\` inside "use cache". Accessing Dynamic data sources inside a cache scope is not supported. If you need this data inside a cached function use \`cookies()\` outside of the cached function and pass the required dynamic data in as an argument. See more info here: https://nextjs.org/docs/messages/next-request-in-use-cache",
-                 "environmentLabel": "Prerender",
-                 "label": "Runtime Error",
+                 "environmentLabel": "Server",
+                 "label": "Console Error",
                  "source": "app/use-cache-cookies-third-party/page.tsx (10:7) @ Page
                > 10 |       <CachedCookiesReader />
                     |       ^",
@@ -4328,12 +4328,12 @@ Ways to fix this:
                 '/use-cache-draft-mode-third-party'
               )
 
-              await expect(browser).toDisplayRedbox(`
+              await expect(browser).toDisplayCollapsedRedbox(`
                {
                  "code": "E829",
                  "description": "Route /use-cache-draft-mode-third-party used "draftMode().enable()" inside "use cache". The enabled status of \`draftMode()\` can be read in caches but you must not enable or disable \`draftMode()\` inside a cache. See more info here: https://nextjs.org/docs/messages/next-request-in-use-cache",
-                 "environmentLabel": "Prerender",
-                 "label": "Runtime Error",
+                 "environmentLabel": "Server",
+                 "label": "Console Error",
                  "source": "app/use-cache-draft-mode-third-party/page.tsx (10:7) @ Page
                > 10 |       <CachedDraftModeEnabler />
                     |       ^",
@@ -4426,12 +4426,12 @@ Ways to fix this:
                 '/use-cache-headers-third-party'
               )
 
-              await expect(browser).toDisplayRedbox(`
+              await expect(browser).toDisplayCollapsedRedbox(`
                {
                  "code": "E833",
                  "description": "Route /use-cache-headers-third-party used \`headers()\` inside "use cache". Accessing Dynamic data sources inside a cache scope is not supported. If you need this data inside a cached function use \`headers()\` outside of the cached function and pass the required dynamic data in as an argument. See more info here: https://nextjs.org/docs/messages/next-request-in-use-cache",
-                 "environmentLabel": "Prerender",
-                 "label": "Runtime Error",
+                 "environmentLabel": "Server",
+                 "label": "Console Error",
                  "source": "app/use-cache-headers-third-party/page.tsx (10:7) @ Page
                > 10 |       <CachedHeadersReader />
                     |       ^",
@@ -4525,12 +4525,12 @@ Ways to fix this:
                 '/use-cache-connection-third-party'
               )
 
-              await expect(browser).toDisplayRedbox(`
+              await expect(browser).toDisplayCollapsedRedbox(`
                {
                  "code": "E841",
                  "description": "Route /use-cache-connection-third-party used \`connection()\` inside "use cache". The \`connection()\` function is used to indicate the subsequent code must only run when there is an actual request, but caches must be able to be produced before a request, so this function is not allowed in this scope. See more info here: https://nextjs.org/docs/messages/next-request-in-use-cache",
-                 "environmentLabel": "Prerender",
-                 "label": "Runtime Error",
+                 "environmentLabel": "Server",
+                 "label": "Console Error",
                  "source": "app/use-cache-connection-third-party/page.tsx (10:7) @ Page
                > 10 |       <CachedConnectionCaller />
                     |       ^",
@@ -4760,7 +4760,7 @@ Ways to fix this:
              {
                "code": "E1001",
                "description": ""use cache: private" must not be used within "use cache". It can only be nested inside of another "use cache: private".",
-               "environmentLabel": "Prerender",
+               "environmentLabel": "Cache",
                "label": "Runtime Error",
                "source": "app/use-cache-private-in-use-cache/page.tsx (15:1) @ Private
              > 15 | async function Private() {
