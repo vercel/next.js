@@ -44,11 +44,15 @@ module.exports = {
 
 ## How prefetches resolve
 
+`partialPrefetching` interacts with two complementary controls:
+
+- The [`<Link prefetch>`](/docs/app/api-reference/components/link#prefetch) prop on each link controls **when** a prefetch fires.
+- The segment-level [`prefetch`](/docs/app/api-reference/file-conventions/route-segment-config/prefetch) export on each route controls **what** is in the prefetch.
+
 With `partialPrefetching` enabled:
 
-- **Plain `<Link>`** prefetches the route's [App Shell](/docs/app/glossary#app-shell), shared across every link to the route.
-- **`<Link prefetch={true}>`** prefetches the route's static shell with its cached content.
-- **`<Link prefetch={true}>` + per-segment `prefetch = 'allow-runtime'`** prefetches a [runtime prerender](/docs/app/guides/runtime-prefetching) that includes cached content gated by runtime data.
+- Every visible `<Link>` prefetches the route's [App Shell](/docs/app/glossary#app-shell): session data (cookies, headers) and cached content, shared across every visible link to the route. `<Link prefetch={true}>` commits to fetching the shell eagerly on visibility; the payload is the same as a plain `<Link>` unless the destination route has opted in for more.
+- To upgrade past the shell, opt the destination route into [runtime prefetching](/docs/app/guides/runtime-prefetching) with `export const prefetch = 'allow-runtime'`. `<Link prefetch={true}>` then includes link data (`params`, `searchParams`) in the prefetch, one server invocation per visible link.
 
 See the [runtime prefetching guide](/docs/app/guides/runtime-prefetching) for the per-link behavior in detail.
 
