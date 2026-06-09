@@ -10,7 +10,7 @@ use rustc_hash::{FxHashMap, FxHashSet};
 use smallvec::SmallVec;
 use swc_core::{
     atoms::Wtf8Atom,
-    common::{BytePos, Mark, Span, Spanned, SyntaxContext, comments::Comments},
+    common::{BytePos, GLOBALS, Mark, Span, Spanned, SyntaxContext, comments::Comments},
     ecma::{
         ast::*,
         atoms::{Atom, atom},
@@ -635,9 +635,10 @@ impl ImportMap {
             // - an imported variable
             // In those cases, we just assume that the value is live since we don't know anything
             debug_assert!(
-                is_unresolved_id(&id, unresolved_mark)
-                    || self.imports.contains_key(&id)
-                    || self.namespace_imports.contains_key(&id),
+                self.imports.contains_key(&id)
+                    || self.namespace_imports.contains_key(&id)
+                    || !GLOBALS.is_set()
+                    || is_unresolved_id(&id, unresolved_mark),
                 "export ident {id:?} without an assignment scope should be a free variable or an \
                  imported variable"
             );
