@@ -62,6 +62,10 @@ jobs:
           owner: ${{ github.repository_owner }}
           repositories: next.js
           permission-contents: write
+          # Even though this permission may seem optional, it's required for
+          # creating refs on branches that have diverged a lot from the default
+          # branch. This is not documented but was confirmed by GitHub support.
+          permission-workflows: write
 
       - name: Get GitHub App user ID
         id: release-app-user
