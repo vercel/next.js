@@ -13,13 +13,15 @@ describe('adapter-root', () => {
       files: path.join(__dirname, 'fixture'),
       subDir: 'sub',
       skipStart: true,
-      overrideFiles: {
-        '../package-lock.json': JSON.stringify({
-          name: 'parent-workspace',
-          version: '1.0.0',
-          lockfileVersion: 3,
-        }),
-      },
+      overrideFiles: setEnvVar
+        ? undefined
+        : {
+            '../package-lock.json': JSON.stringify({
+              name: 'parent-workspace',
+              version: '1.0.0',
+              lockfileVersion: 3,
+            }),
+          },
     })
 
     it('should correctly determine repoRoot', async () => {
