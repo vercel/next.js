@@ -10,14 +10,14 @@ import { connection } from 'next/server'
  * - Page varies only on category → cached when only itemId changes
  */
 export const unstable_instant: {
-  samples: Array<{ params: { category: string; itemId: string } }>
+  unstable_samples: Array<{ params: { category: string; itemId: string } }>
 } = {
-  samples: [
+  unstable_samples: [
     { params: { category: 'electronics', itemId: 'phone' } },
     { params: { category: 'clothing', itemId: 'shirt' } },
   ],
 }
-export const unstable_prefetch = 'force-runtime'
+export const prefetch = 'allow-runtime'
 
 type Params = { category: string; itemId: string }
 

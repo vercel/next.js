@@ -2,9 +2,10 @@ import { connection } from 'next/server'
 import { Suspense } from 'react'
 
 export const unstable_instant = {
-  samples: [{ cookies: [], searchParams: { foo: 'bar' } }],
+  level: 'experimental-error',
+  unstable_samples: [{ cookies: [], searchParams: { foo: 'bar' } }],
 }
-export const unstable_prefetch = 'force-runtime'
+export const prefetch = 'allow-runtime'
 
 export default async function Page({
   searchParams,

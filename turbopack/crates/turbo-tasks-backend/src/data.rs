@@ -8,6 +8,8 @@ use anyhow::Result;
 use bincode::{Decode, Encode};
 use parking_lot::Mutex;
 use rustc_hash::FxHashSet;
+#[cfg(feature = "task_dirty_cause")]
+use turbo_tasks::TaskDirtyCause;
 use turbo_tasks::{
     CellId, RawVc, TaskExecutionReason, TaskId, TaskPriority, TraitTypeId,
     backend::TransientTaskRoot,
@@ -74,6 +76,49 @@ impl CollectiblesRef {
     /// Returns true if this collectibles reference points to a transient task.
     pub fn is_transient(&self) -> bool {
         self.task.is_transient()
+    }
+}
+
+/// An edge between a [`CellRef`] and a task, optionally narrowed by a hashed sub-key.
+///
+/// Used both as a forward and reverse edge:
+/// - In `cell_dependencies`, the [`CellRef`] is the cell another task owns that this task depends
+///   on.
+/// - In `cell_dependents`, the [`CellRef`]'s `task` is the dependent task and `cell` is the cell of
+///   the storing task; the `task` field is reused as the dependent's id rather than the cell's
+///   owning task. The fields encode the same bits either way.
+#[derive(Debug, Copy, Clone, Hash, PartialEq, Eq, Encode, Decode)]
+pub enum CellDependency {
+    /// Depend on the cell as a whole.
+    All(CellRef),
+    /// Depend only on the sub-value identified by this hash key.
+    Hash(CellRef, u64),
+}
+
+impl CellDependency {
+    pub fn cell_ref(&self) -> CellRef {
+        match *self {
+            CellDependency::All(c) | CellDependency::Hash(c, _) => c,
+        }
+    }
+
+    /// Decompose into the underlying `(CellRef, Option<u64>)` in a single match.
+    pub fn into_parts(self) -> (CellRef, Option<u64>) {
+        match self {
+            CellDependency::All(c) => (c, None),
+            CellDependency::Hash(c, k) => (c, Some(k)),
+        }
+    }
+
+    pub fn new(cell_ref: CellRef, key: Option<u64>) -> Self {
+        match key {
+            None => CellDependency::All(cell_ref),
+            Some(k) => CellDependency::Hash(cell_ref, k),
+        }
+    }
+
+    pub fn is_transient(&self) -> bool {
+        self.cell_ref().is_transient()
     }
 }
 
@@ -212,9 +257,13 @@ impl Display for TransientTask {
 
 transient_traits!(TransientTask);
 
-#[derive(Debug, Clone, Copy, Encode, Decode, PartialEq, Eq)]
+#[derive(Debug, Clone, Encode, Decode, PartialEq, Eq)]
 pub enum Dirtyness {
-    Dirty(TaskPriority),
+    Dirty {
+        parent_priority: TaskPriority,
+        #[cfg(feature = "task_dirty_cause")]
+        cause: TaskDirtyCause,
+    },
     SessionDependent,
 }
 
@@ -238,7 +287,6 @@ pub struct InProgressStateInner {
     pub stale: bool,
     #[allow(dead_code)]
     pub once_task: bool,
-    pub session_dependent: bool,
     /// Early marking as completed. This is set before the output is available and will ignore full
     /// task completion of the task for strongly consistent reads.
     pub marked_as_completed: bool,

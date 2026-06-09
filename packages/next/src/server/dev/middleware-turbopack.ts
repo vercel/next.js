@@ -283,10 +283,22 @@ async function nativeTraceSource(
   return undefined
 }
 
+/**
+ * Code frame rendering options. The defaults match terminal consumers; only
+ * the overlay HTTP path opts in to always-on colors and the wide max width.
+ */
+type CodeFrameOptions = {
+  /** Defaults to `process.stdout.isTTY`. */
+  colors?: boolean
+  /** Defaults to the dev server's terminal width. */
+  maxWidth?: number
+}
+
 async function createOriginalStackFrame(
   project: Project,
   projectPath: string,
-  frame: TurbopackStackFrame
+  frame: TurbopackStackFrame,
+  codeFrameOptions?: CodeFrameOptions
 ): Promise<OriginalStackFrameResponse | null> {
   const traced =
     (await nativeTraceSource(frame)) ??
@@ -324,9 +336,8 @@ async function createOriginalStackFrame(
     get originalCodeFrame() {
       if (originalCodeFrame === undefined) {
         originalCodeFrame = getOriginalCodeFrame(tracedFrame, traced.source, {
-          // The overlay renders in a browser with horizontal scrolling,
-          // so don't truncate lines to the server's terminal width.
-          maxWidth: DEVTOOLS_CODE_FRAME_MAX_WIDTH,
+          colors: codeFrameOptions?.colors,
+          maxWidth: codeFrameOptions?.maxWidth,
         })
       }
       return originalCodeFrame
@@ -372,6 +383,13 @@ export function getOverlayMiddleware({
         isServer: request.isServer,
         isEdgeServer: request.isEdgeServer,
         isAppDirectory: request.isAppDirectory,
+        codeFrameOptions: {
+          // Overlay parses ANSI in JS and renders in a scrollable
+          // `<pre>`, so colors are always wanted and terminal width is
+          // irrelevant.
+          colors: true,
+          maxWidth: DEVTOOLS_CODE_FRAME_MAX_WIDTH,
+        },
       })
 
       ignoreListAnonymousStackFramesIfSandwiched(result)
@@ -492,6 +510,7 @@ export async function getOriginalStackFrames({
   isServer,
   isEdgeServer,
   isAppDirectory,
+  codeFrameOptions,
 }: {
   project: Project
   projectPath: string
@@ -499,6 +518,7 @@ export async function getOriginalStackFrames({
   isServer: boolean
   isEdgeServer: boolean
   isAppDirectory: boolean
+  codeFrameOptions?: CodeFrameOptions
 }): Promise<OriginalStackFramesResponse> {
   const stackFrames = createStackFrames({
     frames,
@@ -513,7 +533,8 @@ export async function getOriginalStackFrames({
         const stackFrame = await createOriginalStackFrame(
           project,
           projectPath,
-          frame
+          frame,
+          codeFrameOptions
         )
         if (stackFrame === null) {
           return {

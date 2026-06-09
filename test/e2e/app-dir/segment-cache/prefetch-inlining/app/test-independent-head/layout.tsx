@@ -6,7 +6,7 @@ import { cookies } from 'next/headers'
 // Once cached from the first prefetch, a subsequent prefetch to a sibling
 // page won't need a runtime request for this layout — it's already cached.
 export const unstable_instant = {
-  samples: [
+  unstable_samples: [
     {
       cookies: [{ name: 'theme', value: 'default' }],
       searchParams: { q: null },
@@ -14,7 +14,7 @@ export const unstable_instant = {
     },
   ],
 }
-export const unstable_prefetch = 'force-runtime'
+export const prefetch = 'allow-runtime'
 
 async function LayoutContent({ children }: { children: ReactNode }) {
   const cookieStore = await cookies()

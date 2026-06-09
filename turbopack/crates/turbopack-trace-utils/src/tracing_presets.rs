@@ -1,6 +1,6 @@
-use once_cell::sync::Lazy;
+use std::sync::LazyLock;
 
-pub static TRACING_OVERVIEW_TARGETS: Lazy<Vec<&str>> = Lazy::new(|| {
+pub static TRACING_OVERVIEW_TARGETS: LazyLock<Vec<&str>> = LazyLock::new(|| {
     vec![
         "turbo_tasks=info",
         "turbo_tasks_fs=info",
@@ -30,7 +30,7 @@ pub static TRACING_OVERVIEW_TARGETS: Lazy<Vec<&str>> = Lazy::new(|| {
         "turbopack_wasm=info",
     ]
 });
-pub static TRACING_TURBOPACK_TARGETS: Lazy<Vec<&str>> = Lazy::new(|| {
+pub static TRACING_TURBOPACK_TARGETS: LazyLock<Vec<&str>> = LazyLock::new(|| {
     [
         &TRACING_OVERVIEW_TARGETS[..],
         &[
@@ -60,7 +60,7 @@ pub static TRACING_TURBOPACK_TARGETS: Lazy<Vec<&str>> = Lazy::new(|| {
     ]
     .concat()
 });
-pub static TRACING_TURBO_TASKS_TARGETS: Lazy<Vec<&str>> = Lazy::new(|| {
+pub static TRACING_TURBO_TASKS_TARGETS: LazyLock<Vec<&str>> = LazyLock::new(|| {
     [
         &TRACING_TURBOPACK_TARGETS[..],
         &[

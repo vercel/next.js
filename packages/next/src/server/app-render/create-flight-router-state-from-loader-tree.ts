@@ -1,6 +1,7 @@
 import type { LoaderTree } from '../lib/app-dir-module'
 import {
   PrefetchHint,
+  propagateSubtreeBits,
   type FlightRouterState,
   type PrefetchHints,
 } from '../../shared/lib/app-router-types'
@@ -13,6 +14,7 @@ async function createFlightRouterStateFromLoaderTreeImpl(
   hintTree: PrefetchHints | null,
   prefetchInliningEnabled: boolean,
   cacheComponents: boolean,
+  partialPrefetching: boolean | 'unstable_eager' | undefined,
   isStaticGeneration: boolean,
   isBuildTimePrerendering: boolean,
   getDynamicParamFromSegment: GetDynamicParamFromSegment,
@@ -28,14 +30,21 @@ async function createFlightRouterStateFromLoaderTreeImpl(
     {},
   ]
 
-  // Load the layout or page module to check for unstable_instant/unstable_prefetch config
+  // Load the layout or page module to check its unstable_instant and prefetch
+  // configs. When a segment doesn't export prefetch, it defaults to
+  // 'partial' if the app has opted into partial prefetching globally via the
+  // `partialPrefetching` config in next.config.js.
   const mod = layout ? await layout[0]() : page ? await page[0]() : undefined
   const instantConfig = mod
     ? (mod as AppSegmentConfig).unstable_instant
     : undefined
-  const prefetchConfig = mod
-    ? (mod as AppSegmentConfig).unstable_prefetch
-    : undefined
+  const prefetchConfig =
+    (mod ? (mod as AppSegmentConfig).prefetch : undefined) ??
+    (partialPrefetching === 'unstable_eager'
+      ? 'unstable_eager'
+      : partialPrefetching
+        ? 'partial'
+        : undefined)
   let prefetchHints = 0
 
   // Union in the precomputed build-time hints (e.g. segment inlining
@@ -88,17 +97,39 @@ async function createFlightRouterStateFromLoaderTreeImpl(
     prefetchHints |= PrefetchHint.IsRootLayout
   }
 
-  if (
+  const isInstant =
     instantConfig === true ||
     (typeof instantConfig === 'object' && instantConfig !== null)
-  ) {
-    prefetchHints |= PrefetchHint.SubtreeHasInstant
+  if (isInstant) {
+    prefetchHints |= PrefetchHint.SubtreeHasPartialPrefetching
   }
 
-  if (prefetchConfig === 'force-disabled') {
+  if (prefetchConfig === 'partial') {
+    prefetchHints |= PrefetchHint.SubtreeHasPartialPrefetching
+  } else if (prefetchConfig === 'unstable_eager') {
+    // Like 'partial' (uses the PPR fetch strategy) but also marks the segment
+    // as eager, so App Shells keeps prefetching it instead of relying on the
+    // shared app shell.
+    prefetchHints |=
+      PrefetchHint.SubtreeHasPartialPrefetching |
+      PrefetchHint.SubtreeHasEagerPrefetch
+  } else if (prefetchConfig === 'force-disabled') {
     prefetchHints |= PrefetchHint.PrefetchDisabled
-  } else if (prefetchConfig === 'force-runtime') {
+  } else if (prefetchConfig === 'allow-runtime') {
     prefetchHints |= PrefetchHint.HasRuntimePrefetch
+  }
+
+  // Mark the segment as "eager" unless its effective prefetch strategy is
+  // 'partial' or 'allow-runtime'. A truthy unstable_instant is treated as
+  // 'partial' (not eager). 'unstable_eager' already set the bit above. Under
+  // App Shells, a subtree with no eager segment skips its Speculative prefetch
+  // and relies on the shared app shell instead.
+  if (
+    !isInstant &&
+    prefetchConfig !== 'partial' &&
+    prefetchConfig !== 'allow-runtime'
+  ) {
+    prefetchHints |= PrefetchHint.SubtreeHasEagerPrefetch
   }
 
   // Check if this segment has a loading boundary
@@ -117,6 +148,7 @@ async function createFlightRouterStateFromLoaderTreeImpl(
       childHintNode,
       prefetchInliningEnabled,
       cacheComponents,
+      partialPrefetching,
       isStaticGeneration,
       isBuildTimePrerendering,
       getDynamicParamFromSegment,
@@ -125,29 +157,7 @@ async function createFlightRouterStateFromLoaderTreeImpl(
     )
     // Propagate subtree flags from children
     if (child[4] !== undefined) {
-      prefetchHints |=
-        child[4] &
-        (PrefetchHint.SubtreeHasInstant |
-          PrefetchHint.SubtreeHasLoadingBoundary |
-          PrefetchHint.SubtreeHasRuntimePrefetch)
-      // If a child has a loading boundary (either directly or in its subtree),
-      // propagate that as SubtreeHasLoadingBoundary to this segment.
-      if (
-        child[4] &
-        (PrefetchHint.SegmentHasLoadingBoundary |
-          PrefetchHint.SubtreeHasLoadingBoundary)
-      ) {
-        prefetchHints |= PrefetchHint.SubtreeHasLoadingBoundary
-      }
-      // If a child has runtime prefetch (either directly or in its subtree),
-      // propagate that as SubtreeHasRuntimePrefetch to this segment.
-      if (
-        child[4] &
-        (PrefetchHint.HasRuntimePrefetch |
-          PrefetchHint.SubtreeHasRuntimePrefetch)
-      ) {
-        prefetchHints |= PrefetchHint.SubtreeHasRuntimePrefetch
-      }
+      prefetchHints = propagateSubtreeBits(prefetchHints, child[4])
     }
     children[parallelRouteKey] = child
   }
@@ -165,6 +175,7 @@ export async function createFlightRouterStateFromLoaderTree(
   hintTree: PrefetchHints | null,
   prefetchInliningEnabled: boolean,
   cacheComponents: boolean,
+  partialPrefetching: boolean | 'unstable_eager' | undefined,
   isStaticGeneration: boolean,
   isBuildTimePrerendering: boolean,
   getDynamicParamFromSegment: GetDynamicParamFromSegment,
@@ -176,6 +187,7 @@ export async function createFlightRouterStateFromLoaderTree(
     hintTree,
     prefetchInliningEnabled,
     cacheComponents,
+    partialPrefetching,
     isStaticGeneration,
     isBuildTimePrerendering,
     getDynamicParamFromSegment,
@@ -189,6 +201,7 @@ export async function createRouteTreePrefetch(
   hintTree: PrefetchHints | null,
   prefetchInliningEnabled: boolean,
   cacheComponents: boolean,
+  partialPrefetching: boolean | 'unstable_eager' | undefined,
   isStaticGeneration: boolean,
   isBuildTimePrerendering: boolean,
   getDynamicParamFromSegment: GetDynamicParamFromSegment
@@ -203,6 +216,7 @@ export async function createRouteTreePrefetch(
     hintTree,
     prefetchInliningEnabled,
     cacheComponents,
+    partialPrefetching,
     isStaticGeneration,
     isBuildTimePrerendering,
     getDynamicParamFromSegment,

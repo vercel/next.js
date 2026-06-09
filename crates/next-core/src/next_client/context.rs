@@ -3,12 +3,11 @@ use std::collections::BTreeSet;
 use anyhow::Result;
 use bincode::{Decode, Encode};
 use turbo_rcstr::{RcStr, rcstr};
-use turbo_tasks::{ResolvedVc, TaskInput, Vc, trace::TraceRawVcs};
+use turbo_tasks::{ResolvedVc, Vc, trace::TraceRawVcs};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack::module_options::{
-    CssOptionsContext, EcmascriptOptionsContext, JsxTransformOptions, ModuleRule,
-    TypescriptTransformOptions, module_options_context::ModuleOptionsContext,
-    side_effect_free_packages_glob,
+    CssOptionsContext, EcmascriptOptionsContext, JsxTransformOptions, TypescriptTransformOptions,
+    module_options_context::ModuleOptionsContext, side_effect_free_packages_glob,
 };
 use turbopack_browser::{
     BrowserChunkingContext, CurrentChunkMethod, react_refresh::assert_can_resolve_react_refresh,
@@ -23,7 +22,9 @@ use turbopack_core::{
     environment::{BrowserEnvironment, Environment, ExecutionEnvironment},
     free_var_references,
     issue::IssueSeverity,
-    module_graph::binding_usage_info::OptionBindingUsageInfo,
+    module_graph::{
+        binding_usage_info::OptionBindingUsageInfo, style_groups::StyleGroupsAlgorithm,
+    },
     resolve::{parse::Request, pattern::Pattern},
 };
 use turbopack_css::chunk::CssChunkType;
@@ -51,15 +52,7 @@ use crate::{
         get_next_client_resolved_map,
     },
     next_shared::{
-        resolve::{ModuleFeatureReportResolvePlugin, NextSharedRuntimeResolvePlugin},
-        transforms::{
-            emotion::get_emotion_transform_rule,
-            react_remove_properties::get_react_remove_properties_transform_rule,
-            relay::get_relay_transform_rule, remove_console::get_remove_console_transform_rule,
-            styled_components::get_styled_components_transform_rule,
-            styled_jsx::get_styled_jsx_transform_rule,
-            swc_ecma_transform_plugins::get_swc_ecma_transform_plugin_rule,
-        },
+        resolve::NextSharedRuntimeResolvePlugin,
         webpack_rules::{WebpackLoaderBuiltinCondition, webpack_loader_options},
     },
     transform_options::{
@@ -133,8 +126,8 @@ pub async fn get_client_compile_time_info(
     .await
 }
 
-#[turbo_tasks::value(shared)]
-#[derive(Debug, Clone, Hash, TaskInput)]
+#[turbo_tasks::value(shared, task_input)]
+#[derive(Debug, Clone, Hash)]
 pub enum ClientContextType {
     Pages { pages_dir: FileSystemPath },
     App { app_dir: FileSystemPath },
@@ -180,18 +173,11 @@ pub async fn get_client_resolve_options_context(
         resolved_map: Some(next_client_resolved_map),
         browser: true,
         module: true,
-        before_resolve_plugins: vec![
-            ResolvedVc::upcast(
-                ModuleFeatureReportResolvePlugin::new(project_path.clone())
-                    .to_resolved()
-                    .await?,
-            ),
-            ResolvedVc::upcast(
-                NextFontLocalResolvePlugin::new(project_path.clone())
-                    .to_resolved()
-                    .await?,
-            ),
-        ],
+        before_resolve_plugins: vec![ResolvedVc::upcast(
+            NextFontLocalResolvePlugin::new(project_path.clone())
+                .to_resolved()
+                .await?,
+        )],
         after_resolve_plugins: vec![ResolvedVc::upcast(
             NextSharedRuntimeResolvePlugin::new(project_path.clone())
                 .to_resolved()
@@ -291,26 +277,26 @@ pub async fn get_client_module_options_context(
         .await?;
     let target_browsers = env.runtime_versions();
 
-    let mut next_client_rules =
-        get_next_client_transforms_rules(next_config, ty.clone(), mode, false, encryption_key)
-            .await?;
-    let foreign_next_client_rules =
-        get_next_client_transforms_rules(next_config, ty.clone(), mode, true, encryption_key)
-            .await?;
-    let additional_rules: Vec<ModuleRule> = vec![
-        get_swc_ecma_transform_plugin_rule(next_config, project_path.clone()).await?,
-        get_relay_transform_rule(next_config, project_path.clone()).await?,
-        get_emotion_transform_rule(next_config).await?,
-        get_styled_components_transform_rule(next_config).await?,
-        get_styled_jsx_transform_rule(next_config, target_browsers).await?,
-        get_react_remove_properties_transform_rule(next_config).await?,
-        get_remove_console_transform_rule(next_config).await?,
-    ]
-    .into_iter()
-    .flatten()
-    .collect();
-
-    next_client_rules.extend(additional_rules);
+    let next_client_rules = get_next_client_transforms_rules(
+        next_config,
+        &project_path,
+        ty.clone(),
+        mode,
+        false,
+        encryption_key,
+        target_browsers,
+    )
+    .await?;
+    let foreign_next_client_rules = get_next_client_transforms_rules(
+        next_config,
+        &project_path,
+        ty.clone(),
+        mode,
+        true,
+        encryption_key,
+        target_browsers,
+    )
+    .await?;
 
     let local_postcss_config = *next_config
         .experimental_turbopack_local_postcss_config()
@@ -459,7 +445,8 @@ pub async fn get_client_module_options_context(
     Ok(module_options_context)
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, Hash, TaskInput, TraceRawVcs, Encode, Decode)]
+#[turbo_tasks::task_input(contains_unresolved_vcs)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash, TraceRawVcs, Encode, Decode)]
 pub struct ClientChunkingContextOptions {
     pub mode: Vc<NextMode>,
     pub root_path: FileSystemPath,
@@ -477,10 +464,13 @@ pub struct ClientChunkingContextOptions {
     pub scope_hoisting: Vc<bool>,
     pub nested_async_chunking: Vc<bool>,
     pub debug_ids: Vc<bool>,
+    pub worker_asset_prefix: Vc<Option<RcStr>>,
     pub should_use_absolute_url_references: Vc<bool>,
     pub css_url_suffix: Vc<Option<RcStr>>,
     pub hash_salt: ResolvedVc<RcStr>,
     pub cross_origin: Vc<CrossOrigin>,
+    pub chunk_loading_global: Vc<Option<RcStr>>,
+    pub style_groups_algorithm: StyleGroupsAlgorithm,
 }
 
 #[turbo_tasks::function]
@@ -504,10 +494,13 @@ pub async fn get_client_chunking_context(
         scope_hoisting,
         nested_async_chunking,
         debug_ids,
+        worker_asset_prefix,
         should_use_absolute_url_references,
         css_url_suffix,
         hash_salt,
         cross_origin,
+        chunk_loading_global,
+        style_groups_algorithm,
     } = options;
 
     let next_mode = mode.await?;
@@ -544,6 +537,7 @@ pub async fn get_client_chunking_context(
     .unused_references(unused_references.to_resolved().await?)
     .module_id_strategy(module_id_strategy.to_resolved().await?)
     .debug_ids(*debug_ids.await?)
+    .worker_asset_prefix(worker_asset_prefix.owned().await?)
     .should_use_absolute_url_references(*should_use_absolute_url_references.await?)
     .nested_async_availability(*nested_async_chunking.await?)
     .worker_forwarded_globals(worker_forwarded_globals())
@@ -552,6 +546,10 @@ pub async fn get_client_chunking_context(
         suffix: AssetSuffix::Inferred,
         static_suffix: css_url_suffix.to_resolved().await?,
     });
+
+    if let Some(g) = &*chunk_loading_global.await? {
+        builder = builder.chunk_loading_global(g.clone());
+    }
 
     if next_mode.is_development() {
         builder = builder
@@ -573,6 +571,7 @@ pub async fn get_client_chunking_context(
                 Vc::<CssChunkType>::default().to_resolved().await?,
                 ChunkingConfig {
                     max_merge_chunk_size: 100_000,
+                    style_groups_algorithm: style_groups_algorithm.clone(),
                     ..Default::default()
                 },
             )

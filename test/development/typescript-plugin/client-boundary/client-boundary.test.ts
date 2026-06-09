@@ -2,7 +2,7 @@ import type { PluginLanguageService } from '../test-utils'
 
 import ts from 'typescript'
 import { relative, resolve } from 'node:path'
-import { getPluginLanguageService } from '../test-utils'
+import { getPluginLanguageService, NEXT_TS_ERRORS } from '../test-utils'
 
 type PartialDiagnostic = Pick<
   ts.Diagnostic,
@@ -117,5 +117,47 @@ describe('typescript-plugin - client-boundary', () => {
        ],
      }
     `)
+  })
+
+  it('should not flag framework-injected function props in error files', () => {
+    const tsFile = resolve(__dirname, 'app/error.tsx')
+
+    const flaggedProps = languageService
+      .getSemanticDiagnostics(tsFile)
+      .filter(
+        (diagnostic) =>
+          diagnostic.code === NEXT_TS_ERRORS.INVALID_CLIENT_ENTRY_PROP
+      )
+      .map((diagnostic) => String(diagnostic.messageText))
+
+    // `reset` and `unstable_retry` are injected by Next.js into error
+    // boundaries, so they must not be flagged as non-serializable props.
+    expect(flaggedProps.some((m) => m.includes('"reset"'))).toBe(false)
+    expect(flaggedProps.some((m) => m.includes('"unstable_retry"'))).toBe(false)
+    // The exemption stays scoped to known error-boundary props: an ordinary
+    // function prop in an error file is still flagged.
+    expect(flaggedProps.some((m) => m.includes('"_notExempt"'))).toBe(true)
+    expect(flaggedProps).toHaveLength(1)
+  })
+
+  it('should not flag framework-injected function props in global-error files', () => {
+    const tsFile = resolve(__dirname, 'app/global-error.tsx')
+
+    const flaggedProps = languageService
+      .getSemanticDiagnostics(tsFile)
+      .filter(
+        (diagnostic) =>
+          diagnostic.code === NEXT_TS_ERRORS.INVALID_CLIENT_ENTRY_PROP
+      )
+      .map((diagnostic) => String(diagnostic.messageText))
+
+    // `reset` and `unstable_retry` are injected by Next.js into global-error
+    // boundaries, so they must not be flagged as non-serializable props.
+    expect(flaggedProps.some((m) => m.includes('"reset"'))).toBe(false)
+    expect(flaggedProps.some((m) => m.includes('"unstable_retry"'))).toBe(false)
+    // The exemption stays scoped to known error-boundary props: an ordinary
+    // function prop in a global-error file is still flagged.
+    expect(flaggedProps.some((m) => m.includes('"_notExempt"'))).toBe(true)
+    expect(flaggedProps).toHaveLength(1)
   })
 })

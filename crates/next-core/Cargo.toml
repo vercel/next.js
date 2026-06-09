@@ -24,8 +24,8 @@ indoc = { workspace = true }
 itertools = { workspace = true }
 lightningcss = { workspace = true }
 mime_guess = "2.0.4"
-once_cell = { workspace = true }
 percent-encoding = "2.3.1"
+phf = { workspace = true }
 qstring = { workspace = true }
 react_remove_properties = { workspace = true }
 regex = { workspace = true }
@@ -86,6 +86,10 @@ turbopack-nodejs = { workspace = true }
 turbopack-resolve = { workspace = true }
 turbopack-static = { workspace = true }
 turbopack-trace-utils = { workspace = true }
+
+[dev-dependencies]
+tokio = { workspace = true }
+turbo-tasks-backend = { workspace = true }
 
 [features]
 default = ["process_pool"]

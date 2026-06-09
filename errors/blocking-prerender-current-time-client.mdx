@@ -1,0 +1,241 @@
+---
+title: Next.js encountered the unstable value Date.now() in a Client Component
+kind: insight
+---
+
+A [Client Component](/docs/app/getting-started/server-and-client-components#using-client-components) called [`Date.now()`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Date/now), [`Date()`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Date), or [`new Date()`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Date) inline during render, and the surrounding tree had no [`<Suspense>`](https://react.dev/reference/react/Suspense) boundary. Client Components are server-side rendered on first load, so Next.js can't bake "now" into the prerendered HTML. The SSR timestamp won't match the value the client computes on hydration, so you need to choose: defer the value behind a [`<Suspense>`](https://react.dev/reference/react/Suspense) boundary so SSR can stream it, or move the call into [`useEffect`](https://react.dev/reference/react/useEffect) (or an event handler) so it only runs on the client.
+
+The Server Component case is handled at [`Date.now()` during prerendering](/docs/messages/blocking-prerender-current-time). Other unpredictable client-side APIs ([`Math.random()`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Math/random), [`crypto.randomUUID()`](https://developer.mozilla.org/en-US/docs/Web/API/Crypto/randomUUID)) have parallel error pages: [`Math.random()` in a Client Component](/docs/messages/blocking-prerender-random-client) and [Crypto APIs in a Client Component](/docs/messages/blocking-prerender-crypto-client).
+
+> **Good to know**: In [`next dev`](/docs/app/api-reference/cli/next#next-dev-options), the error overlay points at the failing component. Run `next build --debug-prerender` to get the full list of blocking routes with stack traces. When iterating on specific routes, use `next build --debug-build-paths /dashboard /settings` to rebuild only those pages.
+
+## Ways to fix this
+
+<FixOption
+  group="stream"
+  href="#wrap-in-or-move-into-suspense"
+  prompt={`Wrap the Client Component that calls Date.now() in <Suspense> in its parent. The fallback prop must render synchronous, deterministic JSX (no Date.now or Math.random) that approximates the final layout. Import Suspense from "react". Do not change the Date.now() call.`}
+  title="Wrap in or move into Suspense"
+>
+  Wrap the component in a Suspense boundary so the shell ships instantly and the
+  timestamp streams in.
+</FixOption>
+
+<FixOption
+  group="defer"
+  href="#move-into-effect-or-event-handler"
+  prompt={`Move the Date.now() call out of the inline render path and into useEffect (for first-paint values) or an event handler (for interaction values). Initialize state to a deterministic value so SSR and the first hydrated render agree. Do not introduce new imports beyond "react".`}
+  title="Move into effect or event handler"
+>
+  Defer the timestamp read until after hydration so SSR and the browser agree on
+  the initial render.
+</FixOption>
+
+<FixOption
+  group="measure"
+  href="#for-telemetry-use-a-timing-api"
+  prompt={`Replace Date.now() with performance.now() if the value is used for elapsed-time measurement, instrumentation, or telemetry. performance.now() returns a high-resolution monotonic timestamp and does not interfere with prerendering. Do not change the call if the value is rendered into the UI.`}
+  title="For telemetry, use a timing API"
+>
+  When the timestamp is only used for measuring durations, switch to
+  performance.now().
+</FixOption>
+
+## Wrap in or move into Suspense
+
+Choose this fix when the timestamp is part of the rendered output and a brief fallback during SSR is acceptable. Wrap the consuming Client Component in [`<Suspense>`](https://react.dev/reference/react/Suspense) from its parent. The fallback ships in the prerendered HTML, and Next.js fills in the real component when the browser hydrates.
+
+### Patterns
+
+#### Wrap from a Server Component parent
+
+Place the [`<Suspense>`](https://react.dev/reference/react/Suspense) boundary in the Server Component that renders the Client Component. The fallback prerenders; the inner Client Component runs in the browser.
+
+```jsx filename="app/article.js"
+import { Suspense } from 'react'
+import { RelativeTime } from './relative-time'
+
+export default function Article({ timestamp }) {
+  return (
+    <article>
+      <Suspense fallback={<time>…</time>}>
+        <RelativeTime timestamp={timestamp} />
+      </Suspense>
+    </article>
+  )
+}
+```
+
+```jsx filename="app/relative-time.js"
+'use client'
+
+export function RelativeTime({ timestamp }) {
+  const now = Date.now()
+  return (
+    <time suppressHydrationWarning>{computeTimeAgo({ timestamp, now })}</time>
+  )
+}
+```
+
+Learn more: [Streaming with Suspense](/docs/app/guides/streaming).
+
+### Trade-off
+
+The component shows the fallback during SSR and the first paint. For above-the-fold UI this can be visible. Pick a fallback that matches the final layout to minimize visual jump.
+
+### Gotchas
+
+- Any UI rendered as part of the prerender shell must be deterministic, including [`<Suspense>`](https://react.dev/reference/react/Suspense) fallbacks, [`loading.js`](/docs/app/api-reference/file-conventions/loading), [`error.js`](/docs/app/api-reference/file-conventions/error), [`not-found.js`](/docs/app/api-reference/file-conventions/not-found), and [`global-error.js`](/docs/app/api-reference/file-conventions/error#global-error). Calling [`Date.now()`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Date/now) in any of them raises this same error. Use stable placeholder content.
+- The inner Client Component still runs during SSR, behind the boundary. If you need to guarantee the timestamp only runs in the browser, use [Move into effect or event handler](#move-into-effect-or-event-handler) instead.
+- A [`<Suspense>`](https://react.dev/reference/react/Suspense) boundary only fixes the prerender/hydration mismatch, not client re-renders. If the component using [`Date.now()`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Date/now) re-renders on the client (a parent state change, a context update), it reads a fresh timestamp each time. To stabilize the value across re-renders, capture [`Date.now()`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Date/now) once in a [`useState`](https://react.dev/reference/react/useState) initializer or [`useRef`](https://react.dev/reference/react/useRef), or compute it on the server and pass it down as a prop.
+
+## Move into effect or event handler
+
+Choose this fix when the timestamp isn't needed for the first paint. Move the [`Date.now()`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Date/now) call into [`useEffect`](https://react.dev/reference/react/useEffect) (for first-paint-after-mount values) or an event handler (for interaction values). The initial render uses a deterministic placeholder, so SSR and hydration agree.
+
+### Patterns
+
+#### Use `useEffect` to initialize after mount
+
+For displays that should update over time (a relative-time label, a stopwatch). Initialize state to a deterministic placeholder, then assign the real value in [`useEffect`](https://react.dev/reference/react/useEffect).
+
+```jsx filename="app/clock.js"
+'use client'
+
+import { startTransition, useEffect, useState } from 'react'
+
+export function Clock() {
+  const [now, setNow] = useState(null)
+  useEffect(() => {
+    // Wrap in startTransition so that if any component below suspends
+    // during this update, React keeps the existing UI visible instead
+    // of flashing the nearest outer <Suspense> fallback.
+    startTransition(() => {
+      setNow(Date.now())
+    })
+    const id = setInterval(() => {
+      startTransition(() => {
+        setNow(Date.now())
+      })
+    }, 1000)
+    return () => clearInterval(id)
+  }, [])
+  return <time>{now ? new Date(now).toLocaleTimeString() : '…'}</time>
+}
+```
+
+Learn more: [`useEffect`](https://react.dev/reference/react/useEffect).
+
+#### Compute on user interaction
+
+When the timestamp is in response to a click ("mark as read", "snapshot now"), compute it in the event handler.
+
+```jsx filename="app/snapshot.js"
+'use client'
+
+import { useState } from 'react'
+
+export function Snapshot() {
+  const [taken, setTaken] = useState(null)
+  return (
+    <button onClick={() => setTaken(Date.now())}>
+      {taken ? `Snapshot at ${new Date(taken).toLocaleString()}` : 'Snapshot'}
+    </button>
+  )
+}
+```
+
+### Trade-off
+
+The user sees the placeholder briefly before the real timestamp. For interactions the wait is invisible, but for `useEffect`-based values there's a flash of the initial state. See [Preventing flash before hydration](/docs/app/guides/preventing-flash-before-hydration) for techniques that eliminate the flash.
+
+### Gotchas
+
+- Don't compute the timestamp inline during render with a lazy initializer like `useState(() => Date.now())`. The initializer still runs during SSR and triggers the error.
+- If the value needs to be hydration-stable, use [Wrap in or move into Suspense](#wrap-in-or-move-into-suspense) instead.
+- When you call `setState` from inside [`useEffect`](https://react.dev/reference/react/useEffect), wrap it in [`startTransition`](https://react.dev/reference/react/startTransition). Cascading state updates during hydration can cause an outer [`<Suspense>`](https://react.dev/reference/react/Suspense) boundary's fallback to briefly flash. `startTransition` marks the update as non-blocking so React keeps the existing UI in place while the new value resolves.
+
+## For telemetry, use a timing API
+
+Choose this fix when the timestamp isn't user-visible at all. Logging, performance instrumentation, span correlation: all measurements that need a clock but don't render anything. Switch to [`performance.now()`](https://developer.mozilla.org/en-US/docs/Web/API/Performance/now), a high-resolution monotonic timer that doesn't carry the same semantic ("the current wall-clock time") that prevents prerendering.
+
+### Patterns
+
+#### Replace `Date.now()` with `performance.now()`
+
+Drop-in replacement for any elapsed-time calculation.
+
+```jsx filename="app/timed.js"
+'use client'
+
+import { useEffect } from 'react'
+
+export function Timed() {
+  useEffect(() => {
+    const start = performance.now()
+    doWork()
+    const elapsedMs = performance.now() - start
+    console.log(`doWork took ${elapsedMs}ms`)
+  }, [])
+  return null
+}
+```
+
+Learn more: [`performance.now()`](https://developer.mozilla.org/en-US/docs/Web/API/Performance/now).
+
+### Trade-off
+
+[`performance.now()`](https://developer.mozilla.org/en-US/docs/Web/API/Performance/now) returns a high-resolution timestamp relative to time origin, not a wall-clock time. Use it only for durations.
+
+### Gotchas
+
+- [`performance.now()`](https://developer.mozilla.org/en-US/docs/Web/API/Performance/now) values from the server and browser can't be compared. Each environment has its own time origin.
+- Don't pass a [`performance.now()`](https://developer.mozilla.org/en-US/docs/Web/API/Performance/now) value into the rendered output. It's non-deterministic between SSR and the browser.
+- For absolute time in an observability tool, use `performance.timeOrigin + performance.now()` to get a wall-clock timestamp without tripping this error.
+
+## Other options
+
+### Cache the value in a Server Component
+
+When the timestamp doesn't need to reflect the user's current visit and lives inside a Client Component only because of where it's rendered, lift the read into a Server Component above with [`use cache`](/docs/app/api-reference/directives/use-cache). The canonical case is a copyright year in a footer.
+
+```jsx filename="app/layout.js"
+import { cacheLife } from 'next/cache'
+
+async function getCurrentYear() {
+  'use cache'
+  cacheLife('max')
+  return new Date().getFullYear()
+}
+
+export default async function Layout({ children }) {
+  return (
+    <>
+      <main>{children}</main>
+      <footer>Copyright {await getCurrentYear()}</footer>
+    </>
+  )
+}
+```
+
+Learn more: [`Date.now()` during prerendering](/docs/messages/blocking-prerender-current-time).
+
+## Don't want this validation?
+
+Instant-navigation validation runs by default in [Cache Components](/docs/app/api-reference/config/next-config-js/cacheComponents) apps and is what surfaces this error.
+
+- **One segment**: add [`export const unstable_instant = false`](/docs/app/api-reference/file-conventions/route-segment-config/instant) to the page or layout file. This opts out the segment itself. Child segments are still validated during client navigations.
+- **Layout and its children**: add `export const unstable_instant = { unstable_disableValidation: true }` to a layout. This disables validation for that layout and every segment below it.
+- **Entire app**: set [`experimental.instantInsights.validationLevel`](/docs/app/api-reference/file-conventions/route-segment-config/instant#configuring-validation-defaults) to `'manual-warning'` in `next.config`. This limits validation to segments that explicitly export `unstable_instant`.
+
+See [Ensuring instant navigations](/docs/app/guides/instant-navigation) for the full model.
+
+## Useful links
+
+- [`Date.now()` during prerendering](/docs/messages/blocking-prerender-current-time)
+- [`Math.random()` in a Client Component](/docs/messages/blocking-prerender-random-client)
+- [Crypto APIs in a Client Component](/docs/messages/blocking-prerender-crypto-client)
+- [`useEffect`](https://react.dev/reference/react/useEffect)
+- [`performance.now()`](https://developer.mozilla.org/en-US/docs/Web/API/Performance/now)
+- [Streaming with Suspense](/docs/app/guides/streaming)
+- [Ensuring instant navigations](/docs/app/guides/instant-navigation)

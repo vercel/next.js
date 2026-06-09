@@ -3,9 +3,9 @@ import { Suspense } from 'react'
 import { cachedDelay, DebugRenderKind } from '../../../shared'
 
 export const unstable_instant = {
-  samples: [{ cookies: [{ name: 'testCookie', value: 'testValue' }] }],
+  unstable_samples: [{ cookies: [{ name: 'testCookie', value: 'testValue' }] }],
 }
-export const unstable_prefetch = 'force-runtime'
+export const prefetch = 'allow-runtime'
 
 export default async function Page() {
   return (

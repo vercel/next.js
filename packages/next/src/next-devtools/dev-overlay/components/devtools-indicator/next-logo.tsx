@@ -7,27 +7,88 @@ import { css } from '../../utils/css'
 import { useDevOverlayContext } from '../../../dev-overlay.browser'
 import { useRenderErrorContext } from '../../dev-overlay'
 import { useDelayedRender } from '../../hooks/use-delayed-render'
+import { useDebouncedValue } from '../../hooks/use-debounced-value'
 import {
   ACTION_ERROR_OVERLAY_CLOSE,
   ACTION_ERROR_OVERLAY_OPEN,
 } from '../../shared'
 import { usePanelRouterContext } from '../../menu/context'
+import { getIssueBucketState } from '../../menu/issue-bucket-state'
 import { BASE_LOGO_SIZE } from '../../utils/indicator-metrics'
 import { StatusIndicator, Status, getCurrentStatus } from './status-indicator'
 
 const SHORT_DURATION_MS = 150
+
+function Plural({ count, animate }: { count: number; animate: boolean }) {
+  if (count <= 1) return null
+  return (
+    <span aria-hidden data-issues-count-plural data-animate={animate}>
+      s
+    </span>
+  )
+}
+
+function PillLabel({
+  normalCount,
+  instantCount,
+  normalCountAnimating,
+  instantCountAnimating,
+}: {
+  normalCount: number
+  instantCount: number
+  normalCountAnimating: boolean
+  instantCountAnimating: boolean
+}) {
+  const hasNormal = normalCount > 0
+  const hasInstant = instantCount > 0
+  return (
+    <>
+      {hasNormal && (
+        <>
+          Issue
+          <Plural
+            count={normalCount}
+            animate={normalCountAnimating && normalCount === 2}
+          />
+        </>
+      )}
+      {hasNormal && hasInstant && ' · '}
+      {hasInstant && (
+        <>
+          {hasNormal && <>{instantCount} </>}
+          Insight
+          <Plural
+            count={instantCount}
+            animate={instantCountAnimating && instantCount === 2}
+          />
+        </>
+      )}
+    </>
+  )
+}
+
+// Smooth out rapid status transitions driven by bursty HMR events (e.g.
+// Compiling→None→Compiling when consecutive compile episodes are <300ms apart,
+// or Compiling→Rendering→Compiling oscillation). The debounce bridges burst
+// gaps and active↔active flicker.
+const STATUS_DEBOUNCE_MS = 300
 
 export function NextLogo({
   onTriggerClick,
   ...buttonProps
 }: { onTriggerClick: () => void } & React.ComponentProps<'button'>) {
   const { state, dispatch } = useDevOverlayContext()
-  const { totalErrorCount } = useRenderErrorContext()
+  const { totalErrorCount, normalErrorCount, instantErrorCount } =
+    useRenderErrorContext()
   const SIZE = BASE_LOGO_SIZE / state.scale
   const { panel, triggerRef, setPanel } = usePanelRouterContext()
   const isMenuOpen = panel === 'panel-selector'
 
   const hasError = totalErrorCount > 0
+  const { insightsOnly } = getIssueBucketState(
+    normalErrorCount,
+    instantErrorCount
+  )
   const [isErrorExpanded, setIsErrorExpanded] = useState(hasError)
   const [previousHasError, setPreviousHasError] = useState(hasError)
   if (previousHasError !== hasError) {
@@ -36,18 +97,45 @@ export function NextLogo({
     setIsErrorExpanded(hasError)
   }
   const [dismissed, setDismissed] = useState(false)
-  const newErrorDetected = useUpdateAnimation(
-    totalErrorCount,
+  const normalErrorAnimating = useUpdateAnimation(
+    normalErrorCount,
     SHORT_DURATION_MS
   )
+  const instantErrorAnimating = useUpdateAnimation(
+    instantErrorCount,
+    SHORT_DURATION_MS
+  )
+  const newErrorDetected = normalErrorAnimating || instantErrorAnimating
+  const leadingCount =
+    normalErrorCount > 0 ? normalErrorCount : instantErrorCount
+  const leadingCountAnimating =
+    normalErrorCount > 0 ? normalErrorAnimating : instantErrorAnimating
 
   // Cache indicator state management
-  const isCacheFilling = state.cacheIndicator === 'filling'
   const isCacheBypassing = state.cacheIndicator === 'bypass'
 
+  // Get the current status from the state. Debounce active↔active transitions
+  // (e.g. Compiling→Rendering) so bursts of HMR events don't flicker the
+  // badge. Transitions to None are committed immediately so fast single builds
+  // cancel the enter timer before the pill becomes visible.
+  const currentStatus = useDebouncedValue(
+    getCurrentStatus(
+      state.buildingIndicator,
+      state.renderingIndicator,
+      state.cacheIndicator
+    ),
+    STATUS_DEBOUNCE_MS,
+    {
+      // Only None→active is immediate (no debounce on top of enterDelay).
+      // active→None is debounced so short inter-burst gaps don't prematurely
+      // collapse the pill. Fast single builds (completing in <enterDelay-debounce ms)
+      // still stay hidden because the debounced None commits before enterDelay fires.
+      leading: (prev: Status) => prev === Status.None,
+    }
+  )
+
   // Determine if we should show any status (excluding cache bypass, which renders like error badge)
-  const shouldShowStatus =
-    state.buildingIndicator || state.renderingIndicator || isCacheFilling
+  const shouldShowStatus = currentStatus !== Status.None
 
   // Delay showing for 400ms to catch fast operations,
   // and keep visible for minimum time (longer for warnings)
@@ -58,13 +146,6 @@ export function NextLogo({
 
   const ref = useRef<HTMLDivElement | null>(null)
   const measuredWidth = useMeasureWidth(ref)
-
-  // Get the current status from the state
-  const currentStatus = getCurrentStatus(
-    state.buildingIndicator,
-    state.renderingIndicator,
-    state.cacheIndicator
-  )
 
   const displayStatus = showStatusIndicator ? currentStatus : Status.None
 
@@ -176,6 +257,15 @@ export function NextLogo({
             }
 
             &[data-cache-bypassing='true']:not([data-error='true']) {
+              background: rgba(217, 119, 6, 0.95);
+              --color-inner-border: rgba(245, 158, 11, 0.9);
+
+              [data-issues-open] {
+                color: white;
+              }
+            }
+
+            &[data-insights-only='true']:not([data-error='true']) {
               background: rgba(217, 119, 6, 0.95);
               --color-inner-border: rgba(245, 158, 11, 0.9);
 
@@ -375,7 +465,8 @@ export function NextLogo({
       </style>
       <div
         data-next-badge
-        data-error={hasError}
+        data-error={hasError && !insightsOnly}
+        data-insights-only={insightsOnly}
         data-error-expanded={isExpanded}
         data-status={hasError || isCacheBypassing ? Status.None : currentStatus}
         data-cache-bypassing={isCacheBypassing}
@@ -423,7 +514,12 @@ export function NextLogo({
                         return
                       }
                       dispatch({ type: ACTION_ERROR_OVERLAY_OPEN })
-                      setPanel(null)
+                      // Keep the instant navigation panel mounted so its capture
+                      // survives and it stays behind the error overlay backdrop.
+                      // Other panels still close when the overlay opens.
+                      if (panel !== 'instant-navs') {
+                        setPanel(null)
+                      }
                     }}
                   >
                     {state.disableDevIndicator && (
@@ -433,27 +529,19 @@ export function NextLogo({
                     )}
                     <AnimateCount
                       // Used the key to force a re-render when the count changes.
-                      key={totalErrorCount}
-                      animate={newErrorDetected}
+                      key={leadingCount}
+                      animate={leadingCountAnimating}
                       data-issues-count-animation
                     >
-                      {totalErrorCount}
+                      {leadingCount}
                     </AnimateCount>{' '}
                     <div>
-                      Issue
-                      {totalErrorCount > 1 && (
-                        <span
-                          aria-hidden
-                          data-issues-count-plural
-                          // This only needs to animate once the count changes from 1 -> 2,
-                          // otherwise it should stay static between re-renders.
-                          data-animate={
-                            newErrorDetected && totalErrorCount === 2
-                          }
-                        >
-                          s
-                        </span>
-                      )}
+                      <PillLabel
+                        normalCount={normalErrorCount}
+                        instantCount={instantErrorCount}
+                        normalCountAnimating={normalErrorAnimating}
+                        instantCountAnimating={instantErrorAnimating}
+                      />
                     </div>
                   </button>
                   {!state.buildError && (

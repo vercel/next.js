@@ -3,9 +3,10 @@ import { connection } from 'next/server'
 import { Suspense } from 'react'
 
 export const unstable_instant = {
-  samples: [{ cookies: [{ name: 'auth', value: '1' }] }],
+  level: 'experimental-error',
+  unstable_samples: [{ cookies: [{ name: 'auth', value: '1' }] }],
 }
-export const unstable_prefetch = 'force-runtime'
+export const prefetch = 'allow-runtime'
 
 export default async function Page() {
   return (

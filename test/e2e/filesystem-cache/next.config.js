@@ -1,4 +1,5 @@
 const enableCaching = !!process.env.ENABLE_CACHING
+const enableEviction = !!process.env.ENABLE_EVICTION
 
 /**
  * @type {import('next').NextConfig}
@@ -20,6 +21,7 @@ const nextConfig = {
   experimental: {
     turbopackFileSystemCacheForBuild: enableCaching,
     turbopackFileSystemCacheForDev: enableCaching,
+    turbopackMemoryEviction: enableEviction ? false : 'off',
   },
   env: {
     NEXT_PUBLIC_CONFIG_ENV: 'hello world',

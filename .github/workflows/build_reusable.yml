@@ -96,6 +96,11 @@ on:
         required: false
         type: string
         default: 'chromium'
+      needsPlaywright:
+        description: 'whether Playwright browser installation is needed'
+        required: false
+        type: string
+        default: 'yes'
 env:
   NAPI_CLI_VERSION: 2.18.4
   TURBO_VERSION: 2.9.4
@@ -104,6 +109,10 @@ env:
   # run-tests.js reads `TEST_CONCURRENCY` if no explicit `--concurrency` or `-c`
   # argument is provided
   TEST_CONCURRENCY: 8
+  # overrides `turbo_tasks::parallel::available_parallelism`. Smaller values are more CPU and memory
+  # efficient, but won't fully utilize all available CPU cores. A small value here makes sense since
+  # we're running many tests in parallel.
+  TURBO_TASKS_AVAILABLE_PARALLELISM: 4
   # disable backtrace for test snapshots
   RUST_BACKTRACE: 0
 
@@ -123,6 +132,8 @@ env:
   KV_REST_API_URL: ${{ secrets.KV_REST_API_URL }}
   KV_REST_API_TOKEN: ${{ secrets.KV_REST_API_TOKEN }}
   NEXT_TEST_JOB: 1
+  # Per-job memoization of passed test files.
+  NEXT_TEST_PASSED_FILE: .next-test-passed.txt
   VERCEL_TEST_TOKEN: ${{ secrets.VERCEL_TEST_TOKEN }}
   VERCEL_TEST_TEAM: vtest314-next-e2e-tests
   VERCEL_ADAPTER_TEST_TOKEN: ${{ secrets.VERCEL_ADAPTER_TEST_TOKEN }}
@@ -182,7 +193,7 @@ jobs:
           fnm env --json | jq -r 'to_entries|map("\(.key)=\(.value|tostring)")|.[]' | xargs -I {} echo "{}" >> $GITHUB_ENV
 
       - name: Normalize input step names into path key
-        uses: actions/github-script@v7
+        uses: actions/github-script@d746ffe35508b1917358783b479e04febd2b8f71 # v9.0.0
         id: var
         with:
           script: |
@@ -224,25 +235,16 @@ jobs:
 
       - run: rm -rf .git
 
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           fetch-depth: 25
+          persist-credentials: false
 
       # Cache pnpm store on GitHub-hosted runners (self-hosted runners have their own persistent storage)
       - name: Get pnpm store directory
         if: ${{ runner.environment == 'github-hosted' }}
         id: get-store-path
         run: echo STORE_PATH=$(pnpm store path) >> $GITHUB_OUTPUT
-
-      - name: Cache pnpm store
-        if: ${{ runner.environment == 'github-hosted' }}
-        uses: actions/cache@v4
-        timeout-minutes: 5
-        id: cache-pnpm-store
-        with:
-          path: ${{ steps.get-store-path.outputs.STORE_PATH }}
-          key: pnpm-store-v2-${{ hashFiles('pnpm-lock.yaml') }}
-          # Do not use restore-keys since it leads to indefinite growth of the cache.
 
       # local action -> needs to run after checkout
       - name: Install Rust
@@ -308,8 +310,22 @@ jobs:
       - run: git checkout .
         if: ${{ inputs.skipInstallBuild != 'yes' }}
 
+      - name: Cache pnpm store
+        # conditions must be subset of runs executing pnpm install, otherwise we
+        # risk caching an incomplete store
+        # If keep conditions in sync breaks, we can split into restore and save
+        # steps where saving runs based on the outcome of the install step
+        if: ${{ runner.environment == 'github-hosted' && (inputs.skipInstallBuild != 'yes' || inputs.needsNextest == 'yes') }}
+        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+        timeout-minutes: 5
+        id: cache-pnpm-store
+        with:
+          path: ${{ steps.get-store-path.outputs.STORE_PATH }}
+          key: pnpm-store-root-v1-${{ hashFiles('pnpm-lock.yaml') }}
+          # Do not use restore-keys since it leads to indefinite growth of the cache.
       - run: pnpm install
-        if: ${{ inputs.skipInstallBuild != 'yes' }}
+        # condititions must be superset of cache step, otherwise we risk running install without a cache and then caching the incomplete store.
+        if: ${{ inputs.skipInstallBuild != 'yes' || inputs.needsNextest == 'yes' }}
 
       - name: Install node-file-trace test dependencies
         if: ${{ inputs.needsNextest == 'yes' }}
@@ -320,7 +336,7 @@ jobs:
         if: ${{ inputs.skipInstallBuild != 'yes' }}
 
       - name: Install Playwright browsers
-        if: ${{ inputs.skipInstallBuild != 'yes' }}
+        if: ${{ inputs.skipInstallBuild != 'yes' && inputs.needsPlaywright != 'no' }}
         run: |
           PW_VERSION=$(pnpm playwright --version 2>/dev/null || echo "unknown")
           CACHE_DIR="$HOME/.cache"
@@ -362,6 +378,17 @@ jobs:
         if: ${{ inputs.testTimingsArtifact == '' }}
         run: pnpm dlx turbo@${TURBO_VERSION} run get-test-timings -- --build ${{ github.sha }}
 
+      # Restore the list of tests that already passed in an earlier
+      # attempt of this same workflow run.
+      - name: Restore passed-tests cache
+        if: ${{ inputs.afterBuild && runner.environment == 'github-hosted' }}
+        uses: actions/cache/restore@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+        with:
+          path: ${{ env.NEXT_TEST_PASSED_FILE }}
+          key: next-test-passed-${{ steps.var.outputs.input_step_key }}-${{ github.run_id }}-attempt${{ github.run_attempt }}
+          restore-keys: |
+            next-test-passed-${{ steps.var.outputs.input_step_key }}-${{ github.run_id }}-
+
       - run: ${{ inputs.afterBuild }}
         # defaults.run.shell sets a stronger options (`-leo pipefail`)
         # Set this back to github action's weaker defaults:
@@ -370,6 +397,15 @@ jobs:
         # We must use a login shell: fnm installation may modify the `.profile`
         shell: bash -le {0}
         timeout-minutes: ${{ inputs.timeout_minutes }}
+
+      # Save the passed-tests file so the next attempt (if any) can skip
+      # them. `always()` makes this run on success, failure, or cancellation.
+      - name: Save passed-tests cache
+        if: ${{ always() && inputs.afterBuild && runner.environment == 'github-hosted' }}
+        uses: actions/cache/save@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+        with:
+          path: ${{ env.NEXT_TEST_PASSED_FILE }}
+          key: next-test-passed-${{ steps.var.outputs.input_step_key }}-${{ github.run_id }}-attempt${{ github.run_attempt }}
 
       - name: Upload test result artifacts
         if: ${{ inputs.testReportsArtifactPrefix != '' && inputs.afterBuild && always() }}

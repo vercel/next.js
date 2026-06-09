@@ -103,7 +103,7 @@ struct VcHolder {
 
 #[turbo_tasks::value_impl]
 impl VcHolder {
-    #[turbo_tasks::function]
+    #[turbo_tasks::function(root)]
     fn compute(&self) -> Vc<Output> {
         compute(*self.vc, *self.vc)
     }
@@ -116,7 +116,7 @@ struct Output {
     random_value: u32,
 }
 
-#[turbo_tasks::function]
+#[turbo_tasks::function(root)]
 async fn compute(input: Vc<ChangingInput>, input2: Vc<ChangingInput>) -> Result<Vc<Output>> {
     let state_value = *input.await?.state.get();
     let state_value2 = if state_value < 5 {
@@ -227,7 +227,7 @@ async fn inner_compute(input: Vc<ChangingInput>) -> Result<Vc<u32>> {
 }
 
 /// Outer task - depends on inner_compute
-#[turbo_tasks::function]
+#[turbo_tasks::function(root)]
 async fn outer_compute(input: Vc<ChangingInput>) -> Result<Vc<DependencyOutput>> {
     println!("outer_compute()");
     let inner_result = *inner_compute(input).await?;

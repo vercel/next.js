@@ -4,9 +4,9 @@ import { cachedDelay, DebugRenderKind, uncachedIO } from '../../../shared'
 import { connection } from 'next/server'
 
 export const unstable_instant = {
-  samples: [{ headers: [['host', 'test-host']] }],
+  unstable_samples: [{ headers: [['host', 'test-host']] }],
 }
-export const unstable_prefetch = 'force-runtime'
+export const prefetch = 'allow-runtime'
 
 export default async function Page() {
   return (

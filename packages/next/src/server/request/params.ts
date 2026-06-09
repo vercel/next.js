@@ -34,6 +34,8 @@ import {
 import {
   makeDevtoolsIOAwarePromise,
   makeHangingPromise,
+  makePromiseFromTrigger,
+  RENDER_STAGES_BY_DATA_KIND,
 } from '../dynamic-rendering-utils'
 import { createDedupedByCallsiteServerErrorLoggerDev } from '../create-deduped-by-callsite-server-error-logger'
 import { dynamicAccessAsyncStorage } from '../app-render/dynamic-access-async-storage.external'
@@ -266,10 +268,9 @@ export function createServerParamsForServerSegment(
             workUnitStore,
             isRuntimePrefetchable
           )
-        } else if (
-          workUnitStore.asyncApiPromises &&
-          workUnitStore.validationSamples
-        ) {
+        }
+
+        if (workUnitStore.asyncApiPromises && workUnitStore.validationSamples) {
           return createServerParamsInInstantValidation(
             underlyingParams,
             workStore,
@@ -277,18 +278,49 @@ export function createServerParamsForServerSegment(
             workUnitStore.asyncApiPromises,
             isRuntimePrefetchable
           )
-        } else if (
-          workUnitStore.asyncApiPromises &&
-          hasFallbackRouteParams(underlyingParams, workUnitStore.fallbackParams)
-        ) {
-          return (
-            isRuntimePrefetchable
-              ? workUnitStore.asyncApiPromises.earlySharedParamsParent
-              : workUnitStore.asyncApiPromises.sharedParamsParent
-          ).then(() => underlyingParams)
-        } else {
-          return createRenderParamsInProd(underlyingParams)
         }
+
+        const { stagedRendering } = workUnitStore
+
+        if (workUnitStore.asyncApiPromises && stagedRendering) {
+          // We're rendering in stages for cachedNavigations.
+          const hasFallbackParams = hasFallbackRouteParams(
+            underlyingParams,
+            workUnitStore.fallbackParams
+          )
+
+          // If we're rendering with shells, even static params must be delayed to exclude them from the shell.
+          // NOTE: For a dynamic request, assume we're recovering a static shell.
+          // If a session shell is needed, we do it in a separate render
+          if (
+            process.env.__NEXT_APP_SHELLS &&
+            // Params are non-empty, and there's no fallback params, so all params are static
+            !isEmptyParams(underlyingParams) &&
+            !hasFallbackParams
+          ) {
+            const paramsStages = RENDER_STAGES_BY_DATA_KIND.staticLinkData
+            const stage = isRuntimePrefetchable
+              ? paramsStages.early
+              : paramsStages.late
+            return stagedRendering.delayUntilStage(
+              stage,
+              'params',
+              underlyingParams
+            )
+          }
+
+          // Otherwise, only delay if we have fallbacks params
+          if (hasFallbackParams) {
+            return makePromiseFromTrigger(
+              isRuntimePrefetchable
+                ? workUnitStore.asyncApiPromises.earlySharedParamsParent
+                : workUnitStore.asyncApiPromises.sharedParamsParent,
+              underlyingParams
+            )
+          }
+        }
+
+        return createRenderParamsInProd(underlyingParams)
       default:
         workUnitStore satisfies never
     }
@@ -343,9 +375,9 @@ export function createPrerenderParamsForClientSegment(
         throw new InvariantError(
           'createPrerenderParamsForClientSegment should not be called inside generateStaticParams.'
         )
+      case 'prerender-runtime':
       case 'prerender-ppr':
       case 'prerender-legacy':
-      case 'prerender-runtime':
       case 'request':
         break
       default:
@@ -365,17 +397,51 @@ function createStaticPrerenderParams(
   prerenderStore: StaticPrerenderStore,
   varyParamsAccumulator: VaryParamsAccumulator | null
 ): Promise<Params> {
-  const underlyingParamsWithVarying =
-    varyParamsAccumulator !== null
-      ? createVaryingParams(
-          varyParamsAccumulator,
-          underlyingParams,
-          optionalCatchAllParamName
-        )
-      : underlyingParams
-
   switch (prerenderStore.type) {
-    case 'prerender':
+    case 'prerender': {
+      const fallbackParams = prerenderStore.fallbackRouteParams
+      if (fallbackParams) {
+        for (const key in underlyingParams) {
+          if (fallbackParams.has(key)) {
+            // This params object has one or more fallback params, so we need
+            // to consider the awaiting of this params object "dynamic". Since
+            // we are in cacheComponents mode we encode this as a promise that never
+            // resolves.
+            return makeHangingParams(
+              underlyingParams,
+              workStore,
+              prerenderStore
+            )
+          }
+        }
+      }
+
+      // Even if all params are static, we need to exclude them from the shell
+      // by delaying them to the static stage. This includes root params.
+      const { stagedRendering } = prerenderStore
+      if (
+        process.env.__NEXT_APP_SHELLS &&
+        stagedRendering &&
+        !isEmptyParams(underlyingParams)
+      ) {
+        const underlyingParamsWithVarying =
+          varyParamsAccumulator !== null
+            ? createVaryingParams(
+                varyParamsAccumulator,
+                underlyingParams,
+                optionalCatchAllParamName
+              )
+            : underlyingParams
+
+        return stagedRendering.delayUntilStage(
+          // static prerenders don't distinguish early/late, this is just for consistency.
+          RENDER_STAGES_BY_DATA_KIND.staticLinkData.late,
+          'params',
+          underlyingParamsWithVarying
+        )
+      }
+      break
+    }
     case 'prerender-client': {
       const fallbackParams = prerenderStore.fallbackRouteParams
       if (fallbackParams) {
@@ -386,7 +452,7 @@ function createStaticPrerenderParams(
             // we are in cacheComponents mode we encode this as a promise that never
             // resolves.
             return makeHangingParams(
-              underlyingParamsWithVarying,
+              underlyingParams,
               workStore,
               prerenderStore
             )
@@ -401,7 +467,7 @@ function createStaticPrerenderParams(
         for (const key in underlyingParams) {
           if (fallbackParams.has(key)) {
             return makeErroringParams(
-              underlyingParamsWithVarying,
+              underlyingParams,
               fallbackParams,
               workStore,
               prerenderStore
@@ -417,6 +483,14 @@ function createStaticPrerenderParams(
       prerenderStore satisfies never
   }
 
+  const underlyingParamsWithVarying =
+    varyParamsAccumulator !== null
+      ? createVaryingParams(
+          varyParamsAccumulator,
+          underlyingParams,
+          optionalCatchAllParamName
+        )
+      : underlyingParams
   return makeUntrackedParams(underlyingParamsWithVarying)
 }
 
@@ -439,12 +513,29 @@ function createRuntimePrerenderParams(
   const result = makeUntrackedParams(underlyingParamsWithVarying)
   const { stagedRendering } = workUnitStore
   if (!stagedRendering) {
+    // If there's no staging, we're in a prospective runtime prerender,
+    // and it doesn't matter when params resolve.
     return result
   }
-  const stage = isRuntimePrefetchable
-    ? RenderStage.EarlyRuntime
-    : RenderStage.Runtime
+
+  // if the params are empty, there's nothing to delay
+  if (isEmptyParams(underlyingParams)) {
+    return result
+  }
+
+  // Semantically, we should resolve static params in the static stage.
+  // But params are link data, and we need to recover a param-less session shell,
+  // so we delay all params until the runtime stage instead.
+  const paramsStages = RENDER_STAGES_BY_DATA_KIND.runtimeLinkData
+  const stage = isRuntimePrefetchable ? paramsStages.early : paramsStages.late
   return stagedRendering.waitForStage(stage).then(() => result)
+}
+
+function isEmptyParams(params: Params): boolean {
+  for (const _paramKey in params) {
+    return false
+  }
+  return true
 }
 
 function hasFallbackRouteParams(
@@ -476,11 +567,12 @@ function createServerParamsInInstantValidation(
     declaredParams,
     workStore.route
   )
-  return (
+  return makePromiseFromTrigger(
     isRuntimePrefetchable
       ? asyncApiPromises.earlySharedParamsParent
-      : asyncApiPromises.sharedParamsParent
-  ).then(() => proxiedUnderlying)
+      : asyncApiPromises.sharedParamsParent,
+    proxiedUnderlying
+  )
 }
 
 function createClientParamsInInstantValidation(

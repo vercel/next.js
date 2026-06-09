@@ -13,11 +13,9 @@ related:
     - app/guides/prefetching
 ---
 
-{/* AI agent hint: Always export `unstable_instant` from routes that should navigate instantly. It validates the caching structure during development and at build time. */}
-
 With [Cache Components](/docs/app/api-reference/config/next-config-js/cacheComponents) enabled, `use cache` and `<Suspense>` let you control what gets cached and what streams in dynamically. When these are in the right place, client-side navigations are instant.
 
-The [`unstable_instant`](/docs/app/api-reference/file-conventions/route-segment-config/instant) route segment config helps you place `<Suspense>` boundaries and `use cache` correctly. Add it to any page or layout and Next.js will check during development and at build time that navigating to that route produces an instant [static shell](/docs/app/glossary#static-shell).
+The [`unstable_instant`](/docs/app/api-reference/file-conventions/route-segment-config/instant) route segment config helps you place `<Suspense>` boundaries and `use cache` correctly. Add it to any page or layout and Next.js will check during development that navigating to that route produces an instant [static shell](/docs/app/glossary#static-shell).
 
 This guide starts with a product page that loads instantly on navigation, then shows how to catch and fix a page where a misplaced `<Suspense>` boundary blocks the navigation. Nothing visible changes until the server finishes rendering.
 
@@ -32,14 +30,11 @@ A product page at `/store/[slug]` that fetches two pieces of data: product detai
 - **Product info** rarely changes and is queried from the db using a cached function
 - **Inventory** must be fresh on each request. The db query is inside a `<Suspense>` boundary
 
-```tsx filename="app/store/[slug]/page.tsx" highlight={4-7,12-17,35-37}
+```tsx filename="app/store/[slug]/page.tsx" highlight={4,9-14,32-34}
 import { Suspense } from 'react'
 import { db } from '@/lib/db'
 
-export const unstable_instant = {
-  prefetch: 'static',
-  samples: [{ params: { slug: 'example' } }],
-}
+export const unstable_instant = true
 
 export default function ProductPage(props: PageProps<'/store/[slug]'>) {
   return (
@@ -79,39 +74,36 @@ async function Inventory({ params }: { params: Params }) {
 }
 ```
 
-The [`unstable_instant`](/docs/app/api-reference/file-conventions/route-segment-config/instant) export tells Next.js to check that navigating to this page from any other page in your app is instant. It does this during development and at build time. If a component would delay the transition (for example, by fetching uncached data without a local `<Suspense>` boundary), the error overlay tells you which one and suggests a fix.
+The [`unstable_instant`](/docs/app/api-reference/file-conventions/route-segment-config/instant) export tells Next.js to check that navigating to this page from any other page in your app is instant. It does this during development. If a component would delay the transition (for example, by fetching uncached data without a local `<Suspense>` boundary), the error overlay tells you which one and suggests a fix.
 
-This route has a `[slug]` param that can take any value. During development, validation runs automatically on every page load using the real request from your browser. During a build, there is no browser request. The `samples` array provides example data for the build to simulate navigations with.
-
-In this example we provide a `slug` sample. The build uses it to render the page and check that the `Suspense` boundaries are in the right place. If your code also reads `cookies`, `headers`, or `searchParams`, add those to the sample too. You can provide multiple samples to cover different code paths. The build will tell you if anything is missing.
+Validation runs automatically on every page load using the real request from your browser, so dynamic params like `[slug]` are checked against actual values as you navigate.
 
 ## Visualize loading states with the Next.js DevTools
 
 The Next.js DevTools let you see what users see on page loads and client navigations before dynamic data streams in. Use it to verify your loading states look right, check that the right content appears immediately, and iterate on where to place `<Suspense>` boundaries.
 
-Enable the toggle in your Next.js config:
+The Navigation Inspector is available when Cache Components is enabled:
 
-```ts filename="next.config.ts" highlight={5-7}
+```ts filename="next.config.ts" highlight={4}
 import type { NextConfig } from 'next'
 
 const nextConfig: NextConfig = {
   cacheComponents: true,
-  experimental: {
-    instantNavigationDevToolsToggle: true,
-  },
 }
 
 export default nextConfig
 ```
 
-Open the Next.js DevTools and select **Instant Navs**. Two options are available:
+Open the Next.js DevTools and select **Navigation Inspector**, then click **Start Capturing**. While capturing is active:
 
-- **Page load**: click **Reload** to refresh the page and freeze it at the initial static UI generated for this route, before any dynamic data streams in.
-- **Client navigation**: once enabled, clicking any link in your app shows the prefetched UI for that page instead of the full result.
+- Refresh the page to freeze the initial static UI generated for the route, before any dynamic data streams in.
+- Click a link to freeze the prefetched UI for the destination route.
 
-Try a **page load** on the product page. Two separate fallbacks appear: "Loading product..." and "Checking availability...". On the first visit the cache is cold and both fallbacks are visible. Navigate to the page again and the product name appears immediately from cache.
+When the UI is frozen, click **Continue Rendering** to let the current navigation finish while keeping the Navigation Inspector in capturing mode. Click **Stop Capturing** when you are done inspecting loading states.
 
-Now try a **client navigation** (click a link from `/store/shoes` to `/store/hats`). The product name and price appear immediately (cached). "Checking availability..." shows where inventory will stream in.
+Try refreshing the product page. Two separate fallbacks appear: "Loading product..." and "Checking availability...". On the first visit the cache is cold and both fallbacks are visible. Navigate to the page again and the product name appears immediately from cache.
+
+Now click a link from `/store/shoes` to `/store/hats`. The product name and price appear immediately (cached). "Checking availability..." shows where inventory will stream in.
 
 > **Good to know:** Page loads and client navigations can produce different shells. Client-side hooks like `useSearchParams` suspend on page loads (search params are not known at build time) but resolve synchronously on client navigations (the router already has the params).
 
@@ -128,7 +120,7 @@ This is also why client-side hooks behave differently. `useSearchParams()` suspe
 
 ## Prevent regressions with e2e tests
 
-Validation catches structural problems during development and at build time. To prevent regressions as the codebase evolves, the `@next/playwright` package includes an `instant()` helper that asserts on exactly what appears in the instant shell:
+Validation catches structural problems during development. To prevent regressions as the codebase evolves, the `@next/playwright` package includes an `instant()` helper that asserts on exactly what appears in the instant shell:
 
 ```typescript filename="e2e/navigation.test.ts"
 import { test, expect } from '@playwright/test'
@@ -149,7 +141,7 @@ test('product title appears instantly', async ({ page }) => {
 
 Inside the `instant()` callback, only the static shell is visible. After the callback finishes, dynamic content streams in and you can assert on the full page.
 
-There is no need to write an `instant()` test for every navigation. Build-time validation already provides the structural guarantee. Use `instant()` for the user flows that matter most.
+There is no need to write an `instant()` test for every navigation. Use `instant()` for the user flows that matter most. In the future build-time `instant` validation will be available to cover a broader set of navigation cases.
 
 ## Fixing a navigation that blocks
 
@@ -200,13 +192,10 @@ You can see this with the DevTools. Try a **page load**: the root `<Suspense>` c
 
 Add an `unstable_instant` export to the page to surface the problem:
 
-```tsx filename="app/shop/[slug]/page.tsx" highlight={3-6}
+```tsx filename="app/shop/[slug]/page.tsx" highlight={3}
 import { db } from '@/lib/db'
 
-export const unstable_instant = {
-  prefetch: 'static',
-  samples: [{ params: { slug: 'example' } }],
-}
+export const unstable_instant = true
 
 export default async function ProductPage(props: PageProps<'/shop/[slug]'>) {
   const { slug } = await props.params
@@ -264,14 +253,11 @@ async function Inventory({ params }: { params: Promise<{ slug: string }> }) {
 
 The page passes `params` to each component and wraps them with `<Suspense>`:
 
-```tsx filename="app/shop/[slug]/page.tsx" highlight={4-7,12-17}
+```tsx filename="app/shop/[slug]/page.tsx" highlight={4,9-14}
 import { Suspense } from 'react'
 import { db } from '@/lib/db'
 
-export const unstable_instant = {
-  prefetch: 'static',
-  samples: [{ params: { slug: 'example' } }],
-}
+export const unstable_instant = true
 
 export default function ProductPage(props: PageProps<'/shop/[slug]'>) {
   return (
