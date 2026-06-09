@@ -165,7 +165,7 @@ mod analyzer_state {
         /// return statement handler.
         cur_fn_return_values: Option<Vec<JsValue<'a>>>,
         /// Stack of early returns for control flow analysis.
-        early_return_stack: Vec<EarlyReturn<'a>>,
+        early_return_stack: BumpVec<'a, EarlyReturn<'a>>,
         lexical_stack: Vec<LexicalContext>,
         var_decl_kind: Option<VarDeclKind>,
     }
@@ -325,8 +325,9 @@ mod analyzer_state {
         }
 
         /// Helper to access the early_return_stack mutably (for push operations)
-        pub(super) fn early_return_stack_mut(&mut self) -> &mut Vec<EarlyReturn<'a>> {
-            &mut self.state.early_return_stack
+        pub(super) fn push_early_return(&mut self, early_return: EarlyReturn<'a>) {
+            let arena = self.arena;
+            self.state.early_return_stack.push(arena, early_return);
         }
 
         /// Records an unconditional early return (return, throw, or finally block that always
@@ -340,7 +341,7 @@ mod analyzer_state {
                 prev_effects: take(&mut self.effects),
                 start_ast_path: as_parent_path(ast_path),
             };
-            self.early_return_stack_mut().push(early_return);
+            self.push_early_return(early_return);
         }
 
         /// Runs `func` with a fresh early return stack, restoring the previous stack afterwards.
@@ -2202,7 +2203,7 @@ impl<'a> Analyzer<'a, '_> {
                     span,
                     early_return_condition_value: true,
                 };
-                self.early_return_stack_mut().push(early_return);
+                self.push_early_return(early_return);
             }
             (false, true) => {
                 let early_return = EarlyReturn::Conditional {
@@ -2215,7 +2216,7 @@ impl<'a> Analyzer<'a, '_> {
                     span,
                     early_return_condition_value: false,
                 };
-                self.early_return_stack_mut().push(early_return);
+                self.push_early_return(early_return);
             }
             (false, false) | (true, true) => {
                 let kind = match (then, r#else) {
@@ -2238,7 +2239,7 @@ impl<'a> Analyzer<'a, '_> {
                         prev_effects: take(&mut self.effects),
                         start_ast_path: as_parent_path(ast_path),
                     };
-                    self.early_return_stack_mut().push(early_return);
+                    self.push_early_return(early_return);
                 }
             }
         }
