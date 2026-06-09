@@ -130,10 +130,10 @@ describe('typescript-plugin - client-boundary', () => {
       )
       .map((diagnostic) => String(diagnostic.messageText))
 
-    // `reset` and `retry` are injected by Next.js into error
+    // `reset` and `unstable_retry` are injected by Next.js into error
     // boundaries, so they must not be flagged as non-serializable props.
     expect(flaggedProps.some((m) => m.includes('"reset"'))).toBe(false)
-    expect(flaggedProps.some((m) => m.includes('"retry"'))).toBe(false)
+    expect(flaggedProps.some((m) => m.includes('"unstable_retry"'))).toBe(false)
     // The exemption stays scoped to known error-boundary props: an ordinary
     // function prop in an error file is still flagged.
     expect(flaggedProps.some((m) => m.includes('"_notExempt"'))).toBe(true)
@@ -151,10 +151,10 @@ describe('typescript-plugin - client-boundary', () => {
       )
       .map((diagnostic) => String(diagnostic.messageText))
 
-    // `reset` and `retry` are injected by Next.js into global-error
+    // `reset` and `unstable_retry` are injected by Next.js into global-error
     // boundaries, so they must not be flagged as non-serializable props.
     expect(flaggedProps.some((m) => m.includes('"reset"'))).toBe(false)
-    expect(flaggedProps.some((m) => m.includes('"retry"'))).toBe(false)
+    expect(flaggedProps.some((m) => m.includes('"unstable_retry"'))).toBe(false)
     // The exemption stays scoped to known error-boundary props: an ordinary
     // function prop in a global-error file is still flagged.
     expect(flaggedProps.some((m) => m.includes('"_notExempt"'))).toBe(true)

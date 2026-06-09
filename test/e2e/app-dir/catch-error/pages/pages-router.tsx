@@ -1,9 +1,9 @@
 import { useState } from 'react'
-import { catchError, type ErrorInfo } from 'next/error'
+import { unstable_catchError, type ErrorInfo } from 'next/error'
 
 function ErrorFallback(
   { clearError }: { clearError: () => void },
-  { error, reset, retry }: ErrorInfo
+  { error, reset, unstable_retry }: ErrorInfo
 ) {
   const [retryError, setRetryError] = useState<string | null>(null)
 
@@ -23,7 +23,7 @@ function ErrorFallback(
         id="pages-retry"
         onClick={() => {
           try {
-            retry()
+            unstable_retry()
           } catch (error) {
             setRetryError((error as Error).message)
           }
@@ -36,7 +36,7 @@ function ErrorFallback(
   )
 }
 
-const ErrorBoundary = catchError(ErrorFallback)
+const ErrorBoundary = unstable_catchError(ErrorFallback)
 
 function ErrorThrower({ shouldThrow }: { shouldThrow: boolean }) {
   if (shouldThrow) {

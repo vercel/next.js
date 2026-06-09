@@ -5,7 +5,7 @@ import { isReact18, nextTestSetup } from 'e2e-utils'
 // _describe for cleaner git history.
 const _describe = isReact18 ? describe.skip : describe
 
-_describe('app-dir - catchError with react compiler', () => {
+_describe('app-dir - unstable_catchError with react compiler', () => {
   const { next, isNextDev } = nextTestSetup({
     files: __dirname,
     nextConfig: {
@@ -41,7 +41,7 @@ _describe('app-dir - catchError with react compiler', () => {
     }
   })
 
-  it('should recover Client Component error after retry', async () => {
+  it('should recover Client Component error after unstable_retry', async () => {
     const browser = await next.browser('/client-component')
 
     // Try triggering and retrying a few times in a row
@@ -66,7 +66,7 @@ _describe('app-dir - catchError with react compiler', () => {
     }
   })
 
-  it('should recover Server Component error after retry', async () => {
+  it('should recover Server Component error after unstable_retry', async () => {
     const browser = await next.browser('/server-component')
 
     expect(await browser.elementByCss('#error-boundary-message').text()).toBe(
@@ -100,7 +100,7 @@ _describe('app-dir - catchError with react compiler', () => {
     )
   })
 
-  it('should throw when retry is called on Pages Router', async () => {
+  it('should throw when unstable_retry is called on Pages Router', async () => {
     const browser = await next.browser('/pages-router')
 
     await browser
@@ -112,7 +112,7 @@ _describe('app-dir - catchError with react compiler', () => {
     await browser.waitForElementByCss('#pages-retry-error')
 
     expect(await browser.elementByCss('#pages-retry-error').text()).toBe(
-      '`retry()` can only be used in the App Router. Use `reset()` in the Pages Router.'
+      '`unstable_retry()` can only be used in the App Router. Use `reset()` in the Pages Router.'
     )
   })
 })

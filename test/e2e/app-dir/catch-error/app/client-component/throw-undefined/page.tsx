@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import type { ErrorInfo } from 'next/error'
-import { catchError } from 'next/error'
+import { unstable_catchError } from 'next/error'
 
 function Inner() {
   const [clicked, setClicked] = useState(false)
@@ -26,7 +26,7 @@ function ErrorFallback(_props: {}, { error }: ErrorInfo) {
   return <p id="error-boundary-message">{`An error occurred: ${error}`}</p>
 }
 
-const Wrapped = catchError(ErrorFallback)
+const Wrapped = unstable_catchError(ErrorFallback)
 
 export default function Page() {
   return (
