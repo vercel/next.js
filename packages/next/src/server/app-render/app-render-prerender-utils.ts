@@ -155,16 +155,19 @@ export class ReplayableNodeStream {
     }
 
     let ReadableCtor: typeof import('node:stream').Readable
-    if (process.env.TURBOPACK) {
-      ReadableCtor = (require('node:stream') as typeof import('node:stream'))
-        .Readable
-    } else if (process.env.__NEXT_BUNDLER === 'Webpack') {
-      ReadableCtor = (
-        __non_webpack_require__('node:stream') as typeof import('node:stream')
-      ).Readable
+    if (process.env.NEXT_RUNTIME === 'edge') {
+      throw new InvariantError(
+        'Node.js Readable cannot be teed in the edge runtime'
+      )
     } else {
-      ReadableCtor = (require('node:stream') as typeof import('node:stream'))
-        .Readable
+      if (process.env.__NEXT_BUNDLER === 'Webpack') {
+        ReadableCtor = (
+          __non_webpack_require__('node:stream') as typeof import('node:stream')
+        ).Readable
+      } else {
+        ReadableCtor = (require('node:stream') as typeof import('node:stream'))
+          .Readable
+      }
     }
 
     const bufferedChunks = this._chunks.slice()
