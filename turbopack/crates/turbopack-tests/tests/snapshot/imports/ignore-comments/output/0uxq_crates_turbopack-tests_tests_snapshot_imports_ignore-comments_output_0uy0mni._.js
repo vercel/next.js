@@ -32,15 +32,9 @@ function sameOriginUrl(chunk) {
     return chunkUrl.toString();
 }
 
-// The Turbopack runtime is shared across entrypoints and emitted as the last
-// asset of the evaluated chunk group (see
-// `BrowserChunkingContext::evaluated_chunk_group`), so after `createWorker`
-// reverses the chunk list it is the FIRST entry here. It bootstraps the module
-// system by draining the registration queue, so it must be loaded AFTER the
-// module chunks have enqueued their registrations. It must also stay out of
-// `TURBOPACK_NEXT_CHUNK_URLS`: it never registers itself, so leaving it in the
-// list would desync the pop-based chunk-path identification used in workers
-// (see `getChunkFromRegistration`).
+// The Turbopack runtime is the last asset emitted by (see
+// `BrowserChunkingContext::evaluated_chunk_group`). `createWorker`
+// reverses the chunk list, so it is the first item in `chunkUrls`.
 var runtimeUrl = chunkUrls.length > 0 ? chunkUrls.shift() : undefined;
 
 Object.assign(self, {
