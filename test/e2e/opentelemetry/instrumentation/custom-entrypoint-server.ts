@@ -6,6 +6,8 @@ import { trace } from '@opentelemetry/api'
 
 import { register } from './instrumentation-custom-server'
 
+const withoutParentSpan = process.argv.includes('--without-parent-span')
+
 register()
 
 type EntrypointHandler = (
@@ -16,8 +18,8 @@ type EntrypointHandler = (
   }
 ) => Promise<unknown>
 
-function loadEntrypointHandler(pathParts: string[]): EntrypointHandler {
-  const entrypointPath = path.join(__dirname, '.next', 'server', ...pathParts)
+function loadEntrypointHandler(handler: string): EntrypointHandler {
+  const entrypointPath = path.join(__dirname, '.next', 'server', handler)
   const mod = require(entrypointPath) as { handler?: EntrypointHandler }
   if (typeof mod.handler !== 'function') {
     throw new Error(`Entrypoint handler missing at ${entrypointPath}`)
@@ -31,42 +33,23 @@ async function main() {
 
   require('next/dist/server/node-environment')
 
-  const appPageHandler = loadEntrypointHandler([
-    'app',
-    'app',
-    '[param]',
-    'rsc-fetch',
-    'page.js',
-  ])
-  const appRouteHandler = loadEntrypointHandler([
-    'app',
-    'api',
-    'app',
-    '[param]',
-    'data',
-    'route.js',
-  ])
-  const pagesRouteHandler = loadEntrypointHandler([
-    'pages',
-    'pages',
-    '[param]',
-    'getServerSideProps.js',
-  ])
-  const pagesApiRouteHandler = loadEntrypointHandler([
-    'pages',
-    'api',
-    'pages',
-    '[param]',
-    'basic.js',
-  ])
+  const handlers = [
+    [/^\/app\/param\/rsc-fetch$/, 'app/app/[param]/rsc-fetch/page.js'],
+    [/^\/api\/app\/param\/data$/, 'app/api/app/[param]/data/route.js'],
+    [
+      /^\/pages\/param\/getServerSideProps$/,
+      'pages/pages/[param]/getServerSideProps.js',
+    ],
+    [/^\/api\/pages\/param\/basic$/, 'pages/api/pages/[param]/basic.js'],
+  ] as const
 
   const tracer = trace.getTracer('custom-entrypoint-server', '1.0.0')
 
   const resolveHandler = (pathname: string): EntrypointHandler | undefined => {
-    if (pathname.startsWith('/app/')) return appPageHandler
-    if (pathname.startsWith('/api/app/')) return appRouteHandler
-    if (pathname.startsWith('/pages/')) return pagesRouteHandler
-    if (pathname.startsWith('/api/pages/')) return pagesApiRouteHandler
+    for (const [pattern, handler] of handlers) {
+      if (pattern.test(pathname)) return loadEntrypointHandler(handler)
+    }
+    console.error("Couldn't find resolve handler for path:", pathname)
     return undefined
   }
 
@@ -81,20 +64,31 @@ async function main() {
       return
     }
 
+    const handle = () => handler(req, res, { waitUntil: () => {} })
+
     // Simulate a custom parent span around direct entrypoint invocation.
-    tracer.startActiveSpan(method, async (span) => {
-      try {
-        await handler(req, res, {
-          waitUntil: () => {},
-        })
-      } catch (err) {
-        span.recordException(err as Error)
-        res.statusCode = 500
-        res.end('Internal Server Error')
-      } finally {
-        span.end()
-      }
-    })
+    if (withoutParentSpan) {
+      ;(async () => {
+        try {
+          await handle()
+        } catch (err) {
+          res.statusCode = 500
+          res.end('Internal Server Error')
+        }
+      })()
+    } else {
+      tracer.startActiveSpan(method, async (span) => {
+        try {
+          await handle()
+        } catch (err) {
+          span.recordException(err as Error)
+          res.statusCode = 500
+          res.end('Internal Server Error')
+        } finally {
+          span.end()
+        }
+      })
+    }
   }).listen(port, undefined, (err?: Error) => {
     if (err) throw err
     console.log(`- Local: http://${hostname}:${port}`)
