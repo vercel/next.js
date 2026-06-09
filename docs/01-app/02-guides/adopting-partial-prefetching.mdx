@@ -105,6 +105,19 @@ export default function Page() {
 
 Use this for content-heavy routes where the per-link cost of a full prefetch is acceptable and the value of having the rendered page ready is high — for example, a blog index where most users click through to read.
 
+## Choosing a strategy
+
+| You want                                                         | Set                                        | Where                   |
+| ---------------------------------------------------------------- | ------------------------------------------ | ----------------------- |
+| App-wide shell-only default                                      | `partialPrefetching: true`                 | `next.config.ts`        |
+| Shell-only for this route only                                   | `export const prefetch = 'partial'`        | `page.tsx`/`layout.tsx` |
+| This particular link to also prefetch page content               | `<Link prefetch>`                          | call site               |
+| This route's visible links to always prefetch page content       | `export const prefetch = 'unstable_eager'` | `page.tsx`/`layout.tsx` |
+| To opt this route out of prefetching entirely                    | `export const prefetch = 'force-disabled'` | `page.tsx`/`layout.tsx` |
+| To prefetch this route's runtime data (cookies, headers, search) | `export const prefetch = 'allow-runtime'`  | `page.tsx`/`layout.tsx` |
+
+A route with `unstable_instant = true` is implicitly partial-prefetched — you don't need both exports.
+
 ## Next steps
 
 - [Runtime prefetching](/docs/app/guides/runtime-prefetching) for per-link runtime prefetches and App Shells in depth.
