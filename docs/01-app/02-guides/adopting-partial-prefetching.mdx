@@ -13,7 +13,9 @@ related:
     - app/api-reference/config/next-config-js/partialPrefetching
 ---
 
-Partial Prefetching changes how `<Link>` decides what to download. Instead of prefetching the entire page for every visible link, it prefetches a reusable [**App Shell**](/docs/app/glossary#app-shell) per route by default. Page content is prefetched per link only when you opt in.
+Partial Prefetching changes what `<Link>` downloads for a Cache Components page. By default, a `<Link>` loads a reusable [App Shell](/docs/app/glossary#app-shell) for the destination route. The cached page content is downloaded per link only when you set `prefetch={true}`.
+
+The App Shell is loaded once per filesystem route and reused for every link to that route, regardless of dynamic params.
 
 This guide covers the behavior change, the recommended path for new apps, and the incremental adoption path for existing apps.
 
@@ -21,15 +23,13 @@ This guide covers the behavior change, the recommended path for new apps, and th
 
 ## What changes for `<Link>`
 
-When Partial Prefetching is enabled, the default cost of rendering a `<Link>` drops to "effectively free". Each visible link contributes a reusable App Shell prefetch, not a per-link page render. The shell is downloaded once per filesystem route and reused for every link that points at that route, even if the dynamic params differ.
+| `<Link>` prop                       | Before (Cache Components default)   | After Partial Prefetching                            |
+| ----------------------------------- | ----------------------------------- | ---------------------------------------------------- |
+| `<Link href="/x">`                  | Prefetched the full rendered page.  | Loads the App Shell for `/x`.                        |
+| `<Link href="/x" prefetch>`         | Same as the default.                | Loads the App Shell **and** the cached page content. |
+| `<Link href="/x" prefetch={false}>` | Disabled prefetching for this link. | Unchanged. Still disabled.                           |
 
-| `<Link>` prop                       | Before (Cache Components default)                                   | After Partial Prefetching                          |
-| ----------------------------------- | ------------------------------------------------------------------- | -------------------------------------------------- |
-| `<Link href="/x">`                  | Static route: prefetched the full route. Dynamic route: shell only. | Prefetches the App Shell for `/x` only.            |
-| `<Link href="/x" prefetch>`         | Prefetched the full route (data + UI).                              | Prefetches the App Shell **and** the page content. |
-| `<Link href="/x" prefetch={false}>` | Disabled all prefetching for this link.                             | Unchanged. Still disabled.                         |
-
-For fully static pages this is the biggest change. Before Partial Prefetching, every `<Link>` to a static page prefetched the whole rendered HTML. After, only links with `prefetch={true}` do.
+For pages that rely heavily on `use cache`, the cached page content now ships only when a link sets `prefetch={true}`.
 
 ## Adopting in a new project
 
