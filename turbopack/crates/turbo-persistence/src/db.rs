@@ -6,7 +6,10 @@ use std::{
     mem::take,
     ops::RangeInclusive,
     path::{Path, PathBuf},
-    sync::atomic::{AtomicBool, AtomicU32, Ordering},
+    sync::{
+        OnceLock,
+        atomic::{AtomicBool, AtomicU32, Ordering},
+    },
 };
 
 use anyhow::{Context, Result, bail};
@@ -228,10 +231,13 @@ pub struct TurboPersistence<S: ParallelScheduler, const FAMILIES: usize> {
     /// maps) and will be retried on the next commit or at shutdown.
     /// Protected by `active_write_operation` (only mutated inside a write operation).
     deferred_deletions: Mutex<Vec<DeferredDeletion>>,
-    /// A cache for decompressed key blocks.
-    key_block_cache: BlockCache,
-    /// A cache for decompressed value blocks.
-    value_block_cache: BlockCache,
+    /// A cache for decompressed key blocks. Allocated lazily on first read via
+    /// [`Self::key_block_cache`] so write-only or empty sessions never pay the cache's fixed
+    /// hash-table overhead.
+    key_block_cache: OnceLock<BlockCache>,
+    /// A cache for decompressed value blocks. Allocated lazily on first read via
+    /// [`Self::value_block_cache`]; see [`Self::key_block_cache`].
+    value_block_cache: OnceLock<BlockCache>,
     /// Per-family configuration for file limits.
     config: DbConfig<FAMILIES>,
     /// Statistics for the database.
@@ -264,7 +270,6 @@ pub struct CommitOptions {
 struct OpenOpts<S: ParallelScheduler, const FAMILIES: usize> {
     path: PathBuf,
     read_only: bool,
-    empty: bool,
     parallel_scheduler: S,
     config: DbConfig<FAMILIES>,
 }
@@ -298,7 +303,6 @@ impl<S: ParallelScheduler + Default, const FAMILIES: usize> TurboPersistence<S, 
         Self::new(OpenOpts {
             path: PathBuf::new(),
             read_only: true,
-            empty: true,
             parallel_scheduler: Default::default(),
             config,
         })
@@ -310,28 +314,10 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
         OpenOpts {
             path,
             read_only,
-            empty,
             parallel_scheduler,
             config,
         }: OpenOpts<S, FAMILIES>,
     ) -> Self {
-        // For an empty instance the block caches will never be populated, so allocate them with
-        // zero-sized buckets to skip the ~2 MiB of hash-table headroom they'd otherwise reserve.
-        let (
-            key_estimated_items,
-            key_weight_capacity,
-            value_estimated_items,
-            value_weight_capacity,
-        ) = if empty && read_only {
-            (0, 0, 0, 0)
-        } else {
-            (
-                KEY_BLOCK_CACHE_SIZE as usize / KEY_BLOCK_AVG_SIZE,
-                KEY_BLOCK_CACHE_SIZE,
-                VALUE_BLOCK_CACHE_SIZE as usize / VALUE_BLOCK_AVG_SIZE,
-                VALUE_BLOCK_CACHE_SIZE,
-            )
-        };
         Self {
             parallel_scheduler,
             path,
@@ -345,20 +331,8 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
             is_empty: AtomicBool::new(true),
             active_write_operation: Mutex::new(None),
             deferred_deletions: Mutex::new(Vec::new()),
-            key_block_cache: BlockCache::with(
-                key_estimated_items,
-                key_weight_capacity,
-                Default::default(),
-                Default::default(),
-                Default::default(),
-            ),
-            value_block_cache: BlockCache::with(
-                value_estimated_items,
-                value_weight_capacity,
-                Default::default(),
-                Default::default(),
-                Default::default(),
-            ),
+            key_block_cache: OnceLock::new(),
+            value_block_cache: OnceLock::new(),
             config,
             #[cfg(feature = "stats")]
             stats: TrackedStats::default(),
@@ -382,7 +356,6 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
         let mut db = Self::new(OpenOpts {
             path,
             read_only: false,
-            empty: false,
             parallel_scheduler,
             config,
         });
@@ -400,7 +373,6 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
         let mut db = Self::new(OpenOpts {
             path,
             read_only: true,
-            empty: false,
             parallel_scheduler,
             config,
         });
@@ -672,6 +644,30 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
         ))
     }
 
+    fn key_block_cache(&self) -> &BlockCache {
+        self.key_block_cache.get_or_init(|| {
+            BlockCache::with(
+                KEY_BLOCK_CACHE_SIZE as usize / KEY_BLOCK_AVG_SIZE,
+                KEY_BLOCK_CACHE_SIZE,
+                Default::default(),
+                Default::default(),
+                Default::default(),
+            )
+        })
+    }
+
+    fn value_block_cache(&self) -> &BlockCache {
+        self.value_block_cache.get_or_init(|| {
+            BlockCache::with(
+                VALUE_BLOCK_CACHE_SIZE as usize / VALUE_BLOCK_AVG_SIZE,
+                VALUE_BLOCK_CACHE_SIZE,
+                Default::default(),
+                Default::default(),
+                Default::default(),
+            )
+        })
+    }
+
     /// Clears all caches of the database.
     pub fn clear_cache(&self) {
         self.clear_block_caches();
@@ -680,10 +676,15 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
         }
     }
 
-    /// Clears block caches of the database.
+    /// Clears block caches of the database. Caches that have not been allocated yet are left
+    /// uninitialized, so clearing never forces allocation.
     pub fn clear_block_caches(&self) {
-        self.key_block_cache.clear();
-        self.value_block_cache.clear();
+        if let Some(cache) = self.key_block_cache.get() {
+            cache.clear();
+        }
+        if let Some(cache) = self.value_block_cache.get() {
+            cache.clear();
+        }
     }
 
     /// Prefetches all SST files which are usually lazy loaded. This can be used to reduce latency
@@ -1799,8 +1800,8 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                 family as u32,
                 hash,
                 key,
-                &self.key_block_cache,
-                &self.value_block_cache,
+                self.key_block_cache(),
+                self.value_block_cache(),
             )? {
                 MetaLookupResult::FamilyMiss => {
                     #[cfg(feature = "stats")]
@@ -1923,8 +1924,8 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                 keys,
                 &mut cells,
                 &mut empty_cells,
-                &self.key_block_cache,
-                &self.value_block_cache,
+                self.key_block_cache(),
+                self.value_block_cache(),
             )?;
 
             #[cfg(feature = "stats")]
@@ -2008,8 +2009,8 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
         Statistics {
             meta_files: inner.meta_files.len(),
             sst_files: inner.meta_files.iter().map(|m| m.entries().len()).sum(),
-            key_block_cache: CacheStatistics::new(&self.key_block_cache),
-            value_block_cache: CacheStatistics::new(&self.value_block_cache),
+            key_block_cache: CacheStatistics::new(self.key_block_cache()),
+            value_block_cache: CacheStatistics::new(self.value_block_cache()),
             hits: self.stats.hits_deleted.load(Ordering::Relaxed)
                 + self.stats.hits_small.load(Ordering::Relaxed)
                 + self.stats.hits_blob.load(Ordering::Relaxed),
