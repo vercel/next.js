@@ -19,12 +19,14 @@ async function main() {
   const isCanary = releaseType === 'canary'
   const isReleaseCandidate = releaseType === 'release-candidate'
   const isBeta = releaseType === 'beta'
+  const isPreview = releaseType === 'preview'
 
   if (
     releaseType !== 'stable' &&
     releaseType !== 'canary' &&
     releaseType !== 'release-candidate' &&
-    releaseType !== 'beta'
+    releaseType !== 'beta' &&
+    releaseType !== 'preview'
   ) {
     console.log(
       `Invalid release type ${releaseType}, must be stable, canary, release-candidate, or beta`
@@ -74,7 +76,9 @@ async function main() {
   const lernaArgs = [
     'lerna',
     'version',
-    isCanary || isReleaseCandidate || isBeta ? preleaseType : semverType,
+    isCanary || isReleaseCandidate || isBeta || isPreview
+      ? preleaseType
+      : semverType,
   ]
 
   if (isCanary) {
@@ -83,6 +87,8 @@ async function main() {
     lernaArgs.push('--preid', 'rc')
   } else if (isBeta) {
     lernaArgs.push('--preid', 'beta')
+  } else if (isPreview) {
+    lernaArgs.push('--preid', 'preview')
   }
 
   lernaArgs.push('--force-publish', '-y', '--no-push')
