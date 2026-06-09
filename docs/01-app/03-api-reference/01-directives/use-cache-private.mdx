@@ -24,8 +24,6 @@ It is **not** possible to configure custom cache handlers for `'use cache: priva
 
 For a comparison of the different cache directives, see [How `use cache: remote` differs from `use cache` and `use cache: private`](/docs/app/api-reference/directives/use-cache-remote#how-use-cache-remote-differs-from-use-cache-and-use-cache-private).
 
-> **Good to know**: This directive is marked as `experimental` because it depends on runtime prefetching, which is not yet stable. Runtime prefetching is an upcoming feature that will let the router prefetch past the [static shell](/docs/app/getting-started/caching#prerendering) into **any** cached scope, not just private caches.
-
 ## Usage
 
 To use `'use cache: private'`, enable the [`cacheComponents`](/docs/app/api-reference/config/next-config-js/cacheComponents) flag in your `next.config.ts` file:
