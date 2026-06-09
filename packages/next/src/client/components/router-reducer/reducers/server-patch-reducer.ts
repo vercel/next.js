@@ -11,7 +11,7 @@ import {
   navigateToKnownRoute,
 } from '../../segment-cache/navigation'
 import { refreshReducer } from './refresh-reducer'
-import { FreshnessPolicy } from '../ppr-navigations'
+import { FreshnessPolicy, getCurrentNavigationLock } from '../ppr-navigations'
 
 export function serverPatchReducer(
   state: ReadonlyReducerState,
@@ -43,6 +43,7 @@ export function serverPatchReducer(
   const retryCanonicalUrl = createHrefFromUrl(retryUrl)
   const retryNextUrl = action.nextUrl
   const scrollBehavior = ScrollBehavior.Default
+  const navigationLock = getCurrentNavigationLock()
   const now = Date.now()
   return navigateToKnownRoute(
     now,
@@ -58,6 +59,7 @@ export function serverPatchReducer(
     retryNextUrl,
     scrollBehavior,
     navigateType,
+    navigationLock,
     null,
     // Server patch (retry) navigations don't use route prediction. This is
     // typically a retry after a previous mismatch, so the route was already

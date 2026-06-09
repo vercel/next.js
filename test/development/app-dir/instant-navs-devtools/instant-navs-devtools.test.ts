@@ -13,8 +13,6 @@ describe.skip('instant-nav-panel', () => {
     files: __dirname,
   })
 
-  const targetPage = '/target-page/my-post?search=foo'
-
   async function waitForPanelRouterTransition() {
     // Run all the necessary CSS transitions
     // and click-outside event handler adjustment due to cascading update.
@@ -301,12 +299,26 @@ describe.skip('instant-nav-panel', () => {
       .waitFor({ state: 'visible', timeout: 30000 })
   }
 
+  async function expectAwaitConnectionPageLoading(browser: Playwright) {
+    await retry(
+      async () => {
+        const text = await browser.elementByCss('body').text()
+        expect(text).toContain('Loading await connection page...')
+      },
+      30_000,
+      500
+    )
+    expect(
+      await browser.locator('[data-testid="dynamic-content"]').count()
+    ).toBe(0)
+  }
+
   async function openHomeWithTargetPageWarmup() {
     const [browser] = await Promise.all([
       next.browser('/'),
       isNextDev && !isTurbopack
         ? // warmup target page compilation before clicking Start, to avoid extra flakiness.
-          next.render(targetPage).catch(() => {})
+          next.render('/target-page/my-post?search=foo').catch(() => {})
         : null,
     ])
     await clearInstantModeCookie(browser)
@@ -384,7 +396,7 @@ describe.skip('instant-nav-panel', () => {
 
   describe('MPA captures', () => {
     it('should show page load state after clicking Start and refreshing', async () => {
-      const browser = await next.browser(targetPage)
+      const browser = await next.browser('/target-page/my-post?search=foo')
       await clearInstantModeCookie(browser)
 
       await openInstantNavPanel(browser)
@@ -421,7 +433,7 @@ describe.skip('instant-nav-panel', () => {
     })
 
     it('should reset the panel and app when pressing the close button from captured MPA state', async () => {
-      const browser = await next.browser(targetPage)
+      const browser = await next.browser('/target-page/my-post?search=foo')
       await clearInstantModeCookie(browser)
 
       await openInstantNavPanel(browser)
@@ -441,7 +453,7 @@ describe.skip('instant-nav-panel', () => {
     })
 
     it('should keep params and searchParams RSC content suspended for a captured MPA page load', async () => {
-      const browser = await next.browser(targetPage)
+      const browser = await next.browser('/target-page/my-post?search=foo')
       await clearInstantModeCookie(browser)
 
       await openInstantNavPanel(browser)
@@ -480,7 +492,7 @@ describe.skip('instant-nav-panel', () => {
     })
 
     it('should re-arm capture and return to awaiting navigation after Continue Rendering from MPA state', async () => {
-      const browser = await next.browser(targetPage)
+      const browser = await next.browser('/target-page/my-post?search=foo')
       await clearInstantModeCookie(browser)
 
       await openInstantNavPanel(browser)
@@ -519,7 +531,7 @@ describe.skip('instant-nav-panel', () => {
       })
 
       // Navigate to target page via SPA (use eval to bypass overlay pointer interception)
-      await clickLink(browser, targetPage)
+      await clickLink(browser, '/target-page/my-post?search=foo')
 
       // Panel should transition to client navigation capture state
       await expectSpaPanel(browser)
@@ -537,7 +549,7 @@ describe.skip('instant-nav-panel', () => {
       await clickStartCapturing(browser)
 
       // Navigate to target page via SPA (use eval to bypass overlay pointer interception)
-      await clickLink(browser, targetPage)
+      await clickLink(browser, '/target-page/my-post?search=foo')
 
       // Dynamic data should be suspended under the lock.
       // Use a longer timeout because dev mode needs to compile the target page.
@@ -557,7 +569,7 @@ describe.skip('instant-nav-panel', () => {
 
       await openInstantNavPanel(browser)
       await clickStartCapturing(browser)
-      await clickLink(browser, targetPage)
+      await clickLink(browser, '/target-page/my-post?search=foo')
       await expectSpaPanel(browser)
       await expectTargetPageSpaShell(browser)
 
@@ -575,7 +587,7 @@ describe.skip('instant-nav-panel', () => {
 
       await openInstantNavPanel(browser)
       await clickStartCapturing(browser)
-      await clickLink(browser, targetPage)
+      await clickLink(browser, '/target-page/my-post?search=foo')
       await expectSpaPanel(browser)
 
       await expectTargetPageSpaShell(browser)
@@ -586,8 +598,23 @@ describe.skip('instant-nav-panel', () => {
 
       await openInstantNavPanel(browser)
       await clickStartCapturing(browser)
-      await clickLink(browser, targetPage)
+      await clickLink(browser, '/target-page/my-post?search=foo')
       await expectSpaPanel(browser)
+
+      await clickContinueRendering(browser)
+      await expectPendingPanel(browser)
+      await expectTargetPageRendered(browser)
+      await waitForInstantModeCookie(browser)
+    })
+
+    it('should continue rendering a captured await connection navigation with loading.tsx', async () => {
+      const browser = await openHomeWithTargetPageWarmup()
+
+      await openInstantNavPanel(browser)
+      await clickStartCapturing(browser)
+      await clickLink(browser, '/await-connection')
+      await expectSpaPanel(browser)
+      await expectAwaitConnectionPageLoading(browser)
 
       await clickContinueRendering(browser)
       await expectPendingPanel(browser)
@@ -608,7 +635,7 @@ describe.skip('instant-nav-panel', () => {
       await waitForInstantNavPanelOpen(browser)
       await expectMpaPanel(browser)
 
-      await clickLink(browser, targetPage)
+      await clickLink(browser, '/target-page/my-post?search=foo')
       await expectSpaPanel(browser)
       await expectTargetPageSpaShell(browser)
     })
@@ -618,7 +645,7 @@ describe.skip('instant-nav-panel', () => {
 
       await openInstantNavPanel(browser)
       await clickStartCapturing(browser)
-      await clickLink(browser, targetPage)
+      await clickLink(browser, '/target-page/my-post?search=foo')
       await expectSpaPanel(browser)
 
       await browser.refresh()
