@@ -13,7 +13,9 @@ related:
     - app/api-reference/config/next-config-js/partialPrefetching
 ---
 
-Partial Prefetching changes what `<Link>` downloads for a Cache Components route. By default, a `<Link>` loads a reusable [App Shell](/docs/app/glossary#app-shell) for the destination route. The cached page content is downloaded per link only when you set `prefetch={true}`.
+Partial Prefetching changes what `<Link>` downloads for a Cache Components route. By default, a `<Link>` loads a reusable [App Shell](/docs/app/glossary#app-shell) for the destination route. The cached page content is downloaded per link only when you set `prefetch={true}`. This is the biggest change from the pre-Cache Components behavior, where fully static pages were always prefetched by default.
+
+A `<Link prefetch={true}>` also stops prefetching dynamic content. It only prefetches the cached parts of the page. The earlier "force dynamic" behavior is gone, which means rendering a `<Link prefetch={true}>` no longer pulls cookies, headers, or other request-time data ahead of the navigation.
 
 The App Shell is loaded once per filesystem route and reused for every link to that route, regardless of dynamic params.
 
