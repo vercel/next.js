@@ -13,23 +13,23 @@ related:
     - app/api-reference/config/next-config-js/partialPrefetching
 ---
 
-Partial Prefetching changes how `<Link>` decides what to download. Instead of trying to prefetch the entire page for every visible link, it prefetches a reusable [**App Shell**](/docs/app/glossary#app-shell) per route by default, and per-link page content only when you explicitly opt in.
+Partial Prefetching changes how `<Link>` decides what to download. Instead of prefetching the entire page for every visible link, it prefetches a reusable [**App Shell**](/docs/app/glossary#app-shell) per route by default. Page content is prefetched per link only when you opt in.
 
-This guide covers the behavior change and the recommended path for adopting it, including the incremental adoption path for existing apps.
+This guide covers the behavior change, the recommended path for new apps, and the incremental adoption path for existing apps.
 
 > **Good to know**: Partial Prefetching only works when [`cacheComponents`](/docs/app/api-reference/config/next-config-js/cacheComponents) is enabled.
 
 ## What changes for `<Link>`
 
-When Partial Prefetching is enabled, the default cost of rendering a `<Link>` drops to "effectively free": each visible link only contributes a reusable App Shell prefetch, not a per-link page render. The shell is downloaded once per filesystem route and reused for every link that points at that route, even if the dynamic params differ.
+When Partial Prefetching is enabled, the default cost of rendering a `<Link>` drops to "effectively free". Each visible link contributes a reusable App Shell prefetch, not a per-link page render. The shell is downloaded once per filesystem route and reused for every link that points at that route, even if the dynamic params differ.
 
 | `<Link>` prop                       | Before (Cache Components default)                                   | After Partial Prefetching                          |
 | ----------------------------------- | ------------------------------------------------------------------- | -------------------------------------------------- |
 | `<Link href="/x">`                  | Static route: prefetched the full route. Dynamic route: shell only. | Prefetches the App Shell for `/x` only.            |
 | `<Link href="/x" prefetch>`         | Prefetched the full route (data + UI).                              | Prefetches the App Shell **and** the page content. |
-| `<Link href="/x" prefetch={false}>` | Disabled all prefetching for this link.                             | Unchanged — still disabled.                        |
+| `<Link href="/x" prefetch={false}>` | Disabled all prefetching for this link.                             | Unchanged. Still disabled.                         |
 
-For fully static pages this is the biggest change. Before Partial Prefetching, every `<Link>` to a static page would prefetch the whole rendered HTML; after, only links with `prefetch={true}` do.
+For fully static pages this is the biggest change. Before Partial Prefetching, every `<Link>` to a static page prefetched the whole rendered HTML. After, only links with `prefetch={true}` do.
 
 ## Adopting in a new project
 
@@ -77,7 +77,7 @@ export default function Page() {
 }
 ```
 
-Every link that points at a route with `prefetch = 'partial'` prefetches the App Shell only, even while the global flag is still off.
+Every link that points at a route with `prefetch = 'partial'` prefetches the App Shell only, even when the global flag is off.
 
 Once every route in scope has `prefetch = 'partial'`, flip the global default and remove the per-route exports:
 
@@ -104,7 +104,7 @@ export default function Page() {
 }
 ```
 
-Use this for content-heavy routes where the per-link cost of a full prefetch is acceptable and the value of having the rendered page ready is high — for example, a blog index where most users click through to read.
+Use this for content-heavy routes where the per-link cost of a full prefetch is acceptable and the value of having the rendered page ready is high. A blog index where most users click through to read is a typical case.
 
 ## Choosing a strategy
 
