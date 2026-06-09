@@ -15,7 +15,10 @@ pub mod top_level_await;
 pub mod well_known;
 
 mod jsvalue;
+pub use bump_vec::BumpVec;
+pub use bumpalo::Bump;
 pub use jsvalue::*;
+pub use thread_local::ThreadLocal;
 pub use well_known::{kinds::*, require_context::*};
 
 fn is_unresolved(i: &Ident, unresolved_mark: Mark) -> bool {
@@ -39,24 +42,28 @@ pub mod test_utils {
     };
     use crate::{
         analyzer::{
-            RequireContextValue, builtin::replace_builtin, imports::ImportAttributes,
-            parse_require_context,
+            Bump, RequireContextValue, ThreadLocal, builtin::replace_builtin,
+            imports::ImportAttributes, parse_require_context,
         },
         utils::module_value_to_well_known_object,
     };
 
-    pub async fn early_visitor(mut v: JsValue) -> Result<(JsValue, bool)> {
+    pub async fn early_visitor<'a>(
+        _arena: &'a ThreadLocal<Bump>,
+        mut v: JsValue<'a>,
+    ) -> Result<(JsValue<'a>, bool)> {
         let m = early_replace_builtin(&mut v);
         Ok((v, m))
     }
 
     /// Visitor that replaces well known functions and objects with their
     /// corresponding values. Returns the new value and whether it was modified.
-    pub async fn visitor(
-        v: JsValue,
+    pub async fn visitor<'a>(
+        arena: &'a ThreadLocal<Bump>,
+        v: JsValue<'a>,
         compile_time_info: Vc<CompileTimeInfo>,
         attributes: &ImportAttributes,
-    ) -> Result<(JsValue, bool)> {
+    ) -> Result<(JsValue<'a>, bool)> {
         let ImportAttributes { ignore, .. } = *attributes;
         let mut new_value = match v {
             JsValue::Call(_, ref call)
@@ -66,12 +73,13 @@ pub mod test_utils {
                 ) =>
             {
                 match &call.args()[0] {
-                    JsValue::Constant(ConstantValue::Str(v)) => {
-                        JsValue::promise(JsValue::Module(ModuleValue {
+                    JsValue::Constant(ConstantValue::Str(v)) => JsValue::promise(
+                        arena.get_or_default(),
+                        JsValue::Module(ModuleValue {
                             module: v.as_atom().into_owned().into(),
                             annotations: None,
-                        }))
-                    }
+                        }),
+                    ),
                     _ => v.into_unknown(true, rcstr!("import() non constant")),
                 }
             }
@@ -81,13 +89,12 @@ pub mod test_utils {
                     JsValue::WellKnownFunction(WellKnownFunctionKind::CreateRequire)
                 ) =>
             {
-                if let [
-                    JsValue::Member(
-                        _,
-                        box JsValue::WellKnownObject(WellKnownObjectKind::ImportMeta),
-                        box JsValue::Constant(ConstantValue::Str(prop)),
-                    ),
-                ] = call.args()
+                if let [JsValue::Member(_, obj, prop)] = call.args()
+                    && matches!(
+                        &**obj,
+                        JsValue::WellKnownObject(WellKnownObjectKind::ImportMeta)
+                    )
+                    && let JsValue::Constant(ConstantValue::Str(prop)) = &**prop
                     && prop.as_str() == "url"
                 {
                     JsValue::WellKnownFunction(WellKnownFunctionKind::Require)
@@ -152,12 +159,13 @@ pub mod test_utils {
             {
                 if let [
                     JsValue::Constant(ConstantValue::Str(url)),
-                    JsValue::Member(
-                        _,
-                        box JsValue::WellKnownObject(WellKnownObjectKind::ImportMeta),
-                        box JsValue::Constant(ConstantValue::Str(prop)),
-                    ),
+                    JsValue::Member(_, obj, prop),
                 ] = call.args()
+                    && matches!(
+                        &**obj,
+                        JsValue::WellKnownObject(WellKnownObjectKind::ImportMeta)
+                    )
+                    && let JsValue::Constant(ConstantValue::Str(prop)) = &**prop
                 {
                     if prop.as_str() == "url" {
                         // TODO avoid clone
@@ -206,13 +214,13 @@ pub mod test_utils {
                 }
             }
             _ => {
-                let (mut v, m1) = replace_well_known(v, compile_time_info, true).await?;
-                let m2 = replace_builtin(&mut v);
+                let (mut v, m1) = replace_well_known(arena, v, compile_time_info, true).await?;
+                let m2 = replace_builtin(arena.get_or_default(), &mut v);
                 let m = m1 || m2 || v.make_nested_operations_unknown();
                 return Ok((v, m));
             }
         };
-        new_value.normalize_shallow();
+        new_value.normalize_shallow(arena.get_or_default());
         Ok((new_value, true))
     }
 }
@@ -251,7 +259,7 @@ mod tests {
     };
     use crate::{
         AnalyzeMode,
-        analyzer::{graph::AssignmentScopes, imports::ImportAttributes},
+        analyzer::{Bump, ThreadLocal, graph::AssignmentScopes, imports::ImportAttributes},
     };
 
     #[fixture("tests/analyzer/graph/**/input.js")]
@@ -288,6 +296,7 @@ mod tests {
 
         let cm: Arc<SourceMap> = Arc::new(SourceMap::new(FilePathMapping::empty()));
         let globals = Arc::new(Globals::new());
+        let arena = ThreadLocal::new();
 
         // Keep all non-`Send` SWC types (`SingleThreadedComments`, `Lrc<SourceFile>`)
         // confined to this synchronous block so they don't have to cross an `.await`
@@ -317,6 +326,7 @@ mod tests {
             );
 
             let var_graph = create_graph(
+                arena.get_or_default(),
                 &m,
                 &eval_context,
                 AnalyzeMode::CodeGenerationAndTracing,
@@ -328,21 +338,21 @@ mod tests {
 
         let mut named_values = var_graph
             .values
-            .clone()
-            .into_iter()
+            .iter()
             .map(|((id, ctx), value)| {
-                let unique = var_graph.values.keys().filter(|(i, _)| &id == i).count() == 1;
+                let unique = var_graph.values.keys().filter(|(i, _)| id == i).count() == 1;
+                let value = value.clone_in(arena.get_or_default());
                 if unique {
-                    (id.to_string(), ((id, ctx), value))
+                    (id.to_string(), ((id.clone(), *ctx), value))
                 } else {
-                    (format!("{id}{ctx:?}"), ((id, ctx), value))
+                    (format!("{id}{ctx:?}"), ((id.clone(), *ctx), value))
                 }
             })
             .collect::<Vec<_>>();
         named_values.sort_by(|a, b| a.0.cmp(&b.0));
 
-        fn explain_all<'a>(
-            values: impl IntoIterator<Item = (&'a String, &'a JsValue, Option<AssignmentScopes>)>,
+        fn explain_all<'x, 'a: 'x>(
+            values: impl IntoIterator<Item = (&'x String, &'x JsValue<'a>, Option<AssignmentScopes>)>,
         ) -> String {
             values
                 .into_iter()
@@ -397,13 +407,14 @@ mod tests {
 
             let start = Instant::now();
             let mut resolved = Vec::new();
-            for (name, (id, _)) in named_values.iter().cloned() {
+            for (name, id) in named_values.iter().map(|(name, (id, _))| (name, id)) {
                 let start = Instant::now();
                 // Ideally this would use eval_context.imports.get_attributes(span), but the
                 // span isn't available here
                 let (res, steps) = resolve(
+                    &arena,
                     &var_graph,
-                    JsValue::Variable(id),
+                    JsValue::Variable(id.clone()),
                     ImportAttributes::empty_ref(),
                     &var_cache,
                 )
@@ -418,7 +429,7 @@ mod tests {
                     );
                 }
 
-                resolved.push((name, res));
+                resolved.push((name.clone(), res));
             }
             let time = start.elapsed();
             if time.as_millis() > 1 {
@@ -455,28 +466,41 @@ mod tests {
             while let Some((parent, effect)) = queue.pop() {
                 i += 1;
                 let start = Instant::now();
-                async fn handle_args(
-                    args: Vec<EffectArg>,
-                    queue: &mut Vec<(usize, Effect)>,
-                    var_graph: &VarGraph,
-                    var_cache: &Mutex<FxHashMap<Id, JsValue>>,
+                async fn handle_args<'a>(
+                    arena: &'a ThreadLocal<Bump>,
+                    args: Vec<EffectArg<'a>>,
+                    queue: &mut Vec<(usize, Effect<'a>)>,
+                    var_graph: &VarGraph<'a>,
+                    var_cache: &Mutex<FxHashMap<Id, JsValue<'a>>>,
                     i: usize,
-                ) -> Vec<JsValue> {
+                ) -> Vec<JsValue<'a>> {
                     let mut new_args = Vec::with_capacity(args.len());
                     for arg in args {
                         match arg {
                             EffectArg::Value(v) => {
                                 new_args.push(
-                                    resolve(var_graph, v, ImportAttributes::empty_ref(), var_cache)
-                                        .await
-                                        .0,
+                                    resolve(
+                                        arena,
+                                        var_graph,
+                                        v,
+                                        ImportAttributes::empty_ref(),
+                                        var_cache,
+                                    )
+                                    .await
+                                    .0,
                                 );
                             }
                             EffectArg::Closure(v, effects) => {
                                 new_args.push(
-                                    resolve(var_graph, v, ImportAttributes::empty_ref(), var_cache)
-                                        .await
-                                        .0,
+                                    resolve(
+                                        arena,
+                                        var_graph,
+                                        v,
+                                        ImportAttributes::empty_ref(),
+                                        var_cache,
+                                    )
+                                    .await
+                                    .0,
                                 );
                                 queue.extend(effects.effects.into_iter().rev().map(|e| (i, e)));
                             }
@@ -489,11 +513,14 @@ mod tests {
                 }
                 let steps = match effect {
                     Effect::Conditional {
-                        condition, kind, ..
+                        mut condition,
+                        kind,
+                        ..
                     } => {
                         let (condition, steps) = resolve(
+                            &arena,
                             &var_graph,
-                            *condition,
+                            take(&mut *condition),
                             ImportAttributes::empty_ref(),
                             &var_cache,
                         )
@@ -529,27 +556,28 @@ mod tests {
                         steps
                     }
                     Effect::Call {
-                        func,
+                        mut func,
                         args,
                         new,
                         span,
                         ..
                     } => {
                         let (func, steps) = resolve(
+                            &arena,
                             &var_graph,
-                            *func,
+                            take(&mut *func),
                             eval_context.imports.get_attributes(span),
                             &var_cache,
                         )
                         .await;
                         let new_args =
-                            handle_args(args, &mut queue, &var_graph, &var_cache, i).await;
+                            handle_args(&arena, args, &mut queue, &var_graph, &var_cache, i).await;
                         resolved.push((
                             format!("{parent} -> {i} call"),
                             if new {
-                                JsValue::new_from_iter(func, new_args)
+                                JsValue::new_from_iter(arena.get_or_default(), func, new_args)
                             } else {
-                                JsValue::call_from_iter(func, new_args)
+                                JsValue::call_from_iter(arena.get_or_default(), func, new_args)
                             },
                         ));
                         steps
@@ -558,39 +586,66 @@ mod tests {
                         resolved.push((format!("{parent} -> {i} free var"), JsValue::FreeVar(var)));
                         0
                     }
-                    Effect::TypeOf { arg, .. } => {
-                        let (arg, steps) =
-                            resolve(&var_graph, *arg, ImportAttributes::empty_ref(), &var_cache)
-                                .await;
+                    Effect::TypeOf { mut arg, .. } => {
+                        let (arg, steps) = resolve(
+                            &arena,
+                            &var_graph,
+                            take(&mut *arg),
+                            ImportAttributes::empty_ref(),
+                            &var_cache,
+                        )
+                        .await;
                         resolved.push((
                             format!("{parent} -> {i} typeof"),
-                            JsValue::type_of(Box::new(arg)),
+                            JsValue::type_of(arena.get_or_default(), arg),
                         ));
                         steps
                     }
                     Effect::MemberCall {
-                        obj, prop, args, ..
+                        mut obj,
+                        mut prop,
+                        args,
+                        ..
                     } => {
-                        let (obj, obj_steps) =
-                            resolve(&var_graph, *obj, ImportAttributes::empty_ref(), &var_cache)
-                                .await;
-                        let (prop, prop_steps) =
-                            resolve(&var_graph, *prop, ImportAttributes::empty_ref(), &var_cache)
-                                .await;
+                        let (obj, obj_steps) = resolve(
+                            &arena,
+                            &var_graph,
+                            take(&mut *obj),
+                            ImportAttributes::empty_ref(),
+                            &var_cache,
+                        )
+                        .await;
+                        let (prop, prop_steps) = resolve(
+                            &arena,
+                            &var_graph,
+                            take(&mut *prop),
+                            ImportAttributes::empty_ref(),
+                            &var_cache,
+                        )
+                        .await;
                         let new_args =
-                            handle_args(args, &mut queue, &var_graph, &var_cache, i).await;
+                            handle_args(&arena, args, &mut queue, &var_graph, &var_cache, i).await;
                         resolved.push((
                             format!("{parent} -> {i} member call"),
-                            JsValue::member_call_from_iter(obj, prop, new_args),
+                            JsValue::member_call_from_iter(
+                                arena.get_or_default(),
+                                obj,
+                                prop,
+                                new_args,
+                            ),
                         ));
                         obj_steps + prop_steps
                     }
                     Effect::DynamicImport { args, .. } => {
                         let new_args =
-                            handle_args(args, &mut queue, &var_graph, &var_cache, i).await;
+                            handle_args(&arena, args, &mut queue, &var_graph, &var_cache, i).await;
                         resolved.push((
                             format!("{parent} -> {i} dynamic import"),
-                            JsValue::call_from_iter(JsValue::FreeVar("import".into()), new_args),
+                            JsValue::call_from_iter(
+                                arena.get_or_default(),
+                                JsValue::FreeVar("import".into()),
+                                new_args,
+                            ),
                         ));
                         0
                     }
@@ -643,12 +698,13 @@ mod tests {
         Ok(())
     }
 
-    async fn resolve(
-        var_graph: &VarGraph,
-        val: JsValue,
+    async fn resolve<'a>(
+        arena: &'a ThreadLocal<Bump>,
+        var_graph: &VarGraph<'a>,
+        val: JsValue<'a>,
         attributes: &ImportAttributes,
-        var_cache: &Mutex<FxHashMap<Id, JsValue>>,
-    ) -> (JsValue, u32) {
+        var_cache: &Mutex<FxHashMap<Id, JsValue<'a>>>,
+    ) -> (JsValue<'a>, u32) {
         // The caller (`fixture`) runs us inside `tt.run_once`, so a real
         // turbo-tasks task context is already established here.
         async {
@@ -673,11 +729,13 @@ mod tests {
             .cell()
             .await?;
             link(
+                arena,
                 var_graph,
                 val,
-                &super::test_utils::early_visitor,
+                &(|val| Box::pin(super::test_utils::early_visitor(arena, val))),
                 &(|val| {
                     Box::pin(super::test_utils::visitor(
+                        arena,
                         val,
                         compile_time_info,
                         attributes,

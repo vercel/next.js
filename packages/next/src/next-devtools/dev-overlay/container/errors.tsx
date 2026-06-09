@@ -509,31 +509,43 @@ export function ErrorTabBar({
         className="error-overlay-tab"
         data-active={activeTab === 'errors'}
         disabled={errorCount === 0}
+        aria-disabled={errorCount === 0}
         onClick={() => onTabChange('errors')}
       >
-        Issues
-        <span
-          className="error-overlay-tab-count"
-          data-active={activeTab === 'errors'}
-        >
-          {createCount(errorActiveIdx, errorCount, activeTab === 'errors')}
-        </span>
+        {errorCount === 0 ? (
+          'No issues'
+        ) : (
+          <>
+            Issues
+            <span
+              className="error-overlay-tab-count"
+              data-active={activeTab === 'errors'}
+            >
+              {createCount(errorActiveIdx, errorCount, activeTab === 'errors')}
+            </span>
+          </>
+        )}
       </button>
-      <button
-        type="button"
-        className="error-overlay-tab"
-        data-active={activeTab === 'instant'}
-        disabled={instantCount === 0}
-        onClick={() => onTabChange('instant')}
-      >
-        Insights
-        <span
-          className="error-overlay-tab-count"
+      {instantCount > 0 && (
+        <button
+          type="button"
+          className="error-overlay-tab"
           data-active={activeTab === 'instant'}
+          onClick={() => onTabChange('instant')}
         >
-          {createCount(instantActiveIdx, instantCount, activeTab === 'instant')}
-        </span>
-      </button>
+          Insights
+          <span
+            className="error-overlay-tab-count"
+            data-active={activeTab === 'instant'}
+          >
+            {createCount(
+              instantActiveIdx,
+              instantCount,
+              activeTab === 'instant'
+            )}
+          </span>
+        </button>
+      )}
       {nextButton}
     </div>
   )
@@ -711,8 +723,10 @@ Next.js version: ${props.versionInfo.installed} (${process.env.__NEXT_BUNDLER})\
     getErrorSource(error) || ''
   )
 
-  // Show the tab bar whenever there are instant errors so the user
-  // knows they're looking at an insight, even if the other tab is empty.
+  // Show the tab bar only when at least one Insight is present. When the only
+  // bucket with content is Issues, the red pill already conveys the count and a
+  // single-tab bar would be redundant. When Insights exist (alone or alongside
+  // Issues), the bar is shown so the user can switch between buckets.
   const showTabBar = instantErrors.length > 0
   const renderTabBar = showTabBar
     ? ({
@@ -1297,7 +1311,7 @@ export const styles = `
     transition: color 0.15s ease;
     border-radius: var(--rounded-md);
 
-    &:hover {
+    &:hover:not(:disabled) {
       color: var(--color-gray-1000);
     }
 

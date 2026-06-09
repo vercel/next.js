@@ -168,6 +168,19 @@ impl<'a, T> BumpVec<'a, T> {
         Some(unsafe { self.ptr.as_ptr().add(self.len).read() })
     }
 
+    /// Remove the element at `index` and return it, moving the last element into its slot. This
+    /// does not preserve element order but is O(1). Panics if `index` is out of bounds.
+    pub fn swap_remove(&mut self, index: usize) -> T {
+        assert!(index < self.len, "swap_remove index out of bounds");
+        // Move the last item into the slot and return the displaced one.
+        let last = self.pop().unwrap();
+        if index < self.len {
+            std::mem::replace(&mut self[index], last)
+        } else {
+            last
+        }
+    }
+
     /// Split the vec in two at `at`: `self` retains the prefix `[0, at)` and the returned vec owns
     /// the suffix `[at, len)`, moved into a fresh arena allocation.
     pub fn split_off(&mut self, bump: &'a Bump, at: usize) -> Self {
@@ -280,7 +293,14 @@ impl<T> Iterator for IntoIter<'_, T> {
         self.idx += 1;
         Some(value)
     }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        let remaining = self.len - self.idx;
+        (remaining, Some(remaining))
+    }
 }
+
+impl<T> ExactSizeIterator for IntoIter<'_, T> {}
 
 impl<T> Drop for IntoIter<'_, T> {
     fn drop(&mut self) {
@@ -403,6 +423,45 @@ mod tests {
         assert_eq!(v.pop(), Some(1));
         assert_eq!(v.pop(), None);
         assert!(v.is_empty());
+    }
+
+    #[test]
+    fn swap_remove() {
+        let bump = Bump::new();
+        let mut v = BumpVec::from_iter_in(&bump, [1, 2, 3, 4, 5]);
+        // Removing a middle element moves the last element into its slot.
+        assert_eq!(v.swap_remove(1), 2);
+        assert_eq!(&*v, &[1, 5, 3, 4][..]);
+        // Removing the last element is just a pop.
+        assert_eq!(v.swap_remove(3), 4);
+        assert_eq!(&*v, &[1, 5, 3][..]);
+        // Removing the first element.
+        assert_eq!(v.swap_remove(0), 1);
+        assert_eq!(&*v, &[3, 5][..]);
+    }
+
+    #[test]
+    #[should_panic(expected = "swap_remove index out of bounds")]
+    fn swap_remove_out_of_bounds() {
+        let bump = Bump::new();
+        let mut v = BumpVec::from_iter_in(&bump, [1, 2, 3]);
+        v.swap_remove(3);
+    }
+
+    #[test]
+    fn swap_remove_does_not_double_free() {
+        let bump = Bump::new();
+        let counter = Rc::new(Cell::new(0));
+        let mut v = BumpVec::new();
+        for _ in 0..3 {
+            v.push(&bump, DropCounter(counter.clone()));
+        }
+        let removed = v.swap_remove(0);
+        drop(removed);
+        assert_eq!(counter.get(), 1);
+        // The two remaining drop exactly once; the removed slot must not be dropped again.
+        drop(v);
+        assert_eq!(counter.get(), 3);
     }
 
     #[test]

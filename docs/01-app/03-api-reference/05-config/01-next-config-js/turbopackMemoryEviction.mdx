@@ -6,12 +6,12 @@ description: Learn how to control Turbopack's memory eviction strategy for the p
 
 ## Usage
 
-`turbopackMemoryEviction` controls how aggressively Turbopack reclaims memory while the persistent (FileSystem) cache is enabled. After Turbopack writes a snapshot of its cache to disk, it can evict the in-memory copies of that data and reload them from disk on demand, lowering peak memory usage at the cost of some extra disk reads.
+`turbopackMemoryEviction` controls how whether Turbopack reclaims memory while the persistent (FileSystem) cache is enabled. After Turbopack writes a snapshot of its cache to disk, it can 'evict' the in-memory copies of that data and reload them from disk on demand.
 
 Currently there are two options
 
-- `false` (default): never evict. Cached data stays in memory for the lifetime of the process.
-- `'full'`: after every snapshot, evict all evictable tasks from memory. They are reloaded from disk on demand.
+- `false`: never evict. Cached data stays in memory for the lifetime of the process.
+- `'full'` (default): after every snapshot, evict all possible data from memory. They are reloaded from disk on demand.
 
 > **Good to know:** This option only has an effect in `next dev` sessions when the [FileSystem Cache](/docs/app/api-reference/config/next-config-js/turbopackFileSystemCache) is enabled, since eviction relies on data already being persisted to disk. It is experimental and under active development.
 
