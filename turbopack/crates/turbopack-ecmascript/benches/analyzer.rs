@@ -25,6 +25,7 @@ use turbopack_core::{
 use turbopack_ecmascript::{
     AnalyzeMode,
     analyzer::{
+        Bump, ThreadLocal,
         graph::{EvalContext, VarGraph, create_graph},
         imports::ImportAttributes,
         linker::link,
@@ -72,7 +73,11 @@ pub fn benchmark(c: &mut Criterion) {
                     Default::default(),
                     None,
                 );
+                // Leak a per-benchmark arena so the stored `VarGraph` can be `'static` (benches are
+                // short-lived processes, so the leak is inconsequential).
+                let arena: &'static ThreadLocal<Bump> = Box::leak(Box::new(ThreadLocal::new()));
                 let var_graph = Arc::new(create_graph(
+                    arena.get_or_default(),
                     &program,
                     &eval_context,
                     AnalyzeMode::CodeGenerationAndTracing,
@@ -83,6 +88,7 @@ pub fn benchmark(c: &mut Criterion) {
                     program,
                     eval_context,
                     var_graph,
+                    arena,
                 };
 
                 group.bench_with_input(
@@ -99,17 +105,20 @@ pub fn benchmark(c: &mut Criterion) {
 struct BenchInput {
     program: Program,
     eval_context: EvalContext,
-    var_graph: Arc<VarGraph>,
+    var_graph: Arc<VarGraph<'static>>,
+    arena: &'static ThreadLocal<Bump>,
 }
 
 fn bench_create_graph(b: &mut Bencher, input: &BenchInput) {
     b.iter(|| {
-        create_graph(
+        let arena = ThreadLocal::new();
+        criterion::black_box(create_graph(
+            arena.get_or_default(),
             &input.program,
             &input.eval_context,
             AnalyzeMode::CodeGenerationAndTracing,
             true,
-        )
+        ));
     });
 }
 
@@ -117,6 +126,8 @@ fn bench_link(b: &mut Bencher, input: &BenchInput) {
     let rt = tokio::runtime::Builder::new_current_thread()
         .build()
         .unwrap();
+
+    let arena = input.arena;
     let var_graph = input.var_graph.clone();
 
     b.to_async(rt).iter_custom(move |iters| {
@@ -150,10 +161,18 @@ fn bench_link(b: &mut Bencher, input: &BenchInput) {
                     let var_cache = Default::default();
                     for value in var_graph.values.values() {
                         link(
+                            arena,
                             &var_graph,
-                            value.clone(),
-                            &early_visitor,
-                            &(|val| visitor(val, compile_time_info, ImportAttributes::empty_ref())),
+                            value.clone_in(arena.get_or_default()),
+                            &(|val| early_visitor(arena, val)),
+                            &(|val| {
+                                visitor(
+                                    arena,
+                                    val,
+                                    compile_time_info,
+                                    ImportAttributes::empty_ref(),
+                                )
+                            }),
                             &Default::default(),
                             &var_cache,
                         )

@@ -712,16 +712,16 @@ export async function getAppPageStaticInfo({
     )
   }
 
-  // Prevent use client and unstable_prefetch in the same file.
-  if (directives?.has('client') && 'unstable_prefetch' in config) {
+  // Prevent use client and prefetch in the same file.
+  if (directives?.has('client') && 'prefetch' in config) {
     throw new Error(
-      `"unstable_prefetch" is a route segment config and can only be used when the segment is a Server Component module. Remove the "use client" directive from "${pageFilePath}" to use this API.`
+      `"prefetch" is a route segment config and can only be used when the segment is a Server Component module. Remove the "use client" directive from "${pageFilePath}" to use this API.`
     )
   }
 
-  if ('unstable_prefetch' in config && !nextConfig.cacheComponents) {
+  if ('prefetch' in config && !nextConfig.cacheComponents) {
     throw new Error(
-      `Route "${page}" cannot use \`export const unstable_prefetch = ...\` without enabling \`cacheComponents\`.`
+      `Route "${page}" cannot use \`export const prefetch = ...\` without enabling \`cacheComponents\`.`
     )
   }
 

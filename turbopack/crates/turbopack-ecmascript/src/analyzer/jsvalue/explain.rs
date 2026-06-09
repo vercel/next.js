@@ -5,8 +5,12 @@ use either::Either;
 use crate::analyzer::{JsValue, ModuleValue, ObjectPart, jsvalue::pretty_join};
 
 // Methods for explaining a value
-impl JsValue {
-    pub fn explain_args(args: &[JsValue], depth: usize, unknown_depth: usize) -> (String, String) {
+impl JsValue<'_> {
+    pub fn explain_args(
+        args: &[JsValue<'_>],
+        depth: usize,
+        unknown_depth: usize,
+    ) -> (String, String) {
         let mut hints = Vec::new();
         let args = args
             .iter()
