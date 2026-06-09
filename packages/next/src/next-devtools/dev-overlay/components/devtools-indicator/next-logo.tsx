@@ -256,7 +256,7 @@ export function NextLogo({
             outline: var(--focus-ring);
           }
 
-          [data-issues]:has([data-issues-open]:focus-visible) {
+          [data-toast-pill]:has([data-issues-open]:focus-visible) {
             outline: var(--focus-ring);
             outline-offset: -1px;
           }
@@ -277,7 +277,10 @@ export function NextLogo({
             transition-delay: var(--duration-short);
           }
 
-          [data-issues] {
+          /* Shared pill layout for the errors toast and the cache badge. Keyed
+             on data-toast-pill rather than data-issues so it applies to both,
+             while data-issues stays exclusive to the errors toast. */
+          [data-toast-pill] {
             --padding-left: 8px;
             display: flex;
             gap: 2px;
@@ -468,7 +471,7 @@ export function NextLogo({
             <>
               {/* Error badge has priority over cache indicator */}
               {(isErrorExpanded || state.disableDevIndicator) && (
-                <div data-issues>
+                <div data-issues data-toast-pill>
                   <button
                     data-issues-open
                     aria-label="Open issues overlay"
@@ -594,8 +597,13 @@ function CacheStatusBadge({
   const label = kind === 'bypass' ? 'Cache disabled' : 'Cold cache'
 
   return (
+    // Reuses the errors toast pill styling (data-toast-pill) but is
+    // deliberately not data-issues: that attribute marks the errors toast,
+    // which test utilities click to open the redbox. A cold or cache-disabled
+    // load can also surface a validation error, so a shared data-issues would
+    // let those helpers grab this badge instead of the real toast.
     <div
-      data-issues
+      data-toast-pill
       data-cache-bypass-badge={kind === 'bypass' ? true : undefined}
       data-cold-cache-badge={kind === 'cold' ? true : undefined}
     >
