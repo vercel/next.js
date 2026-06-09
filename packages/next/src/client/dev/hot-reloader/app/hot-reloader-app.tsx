@@ -52,7 +52,14 @@ const createFromReadableStream =
   createFromReadableStreamBrowser as (typeof import('react-server-dom-webpack/client.browser'))['createFromReadableStream']
 
 let mostRecentCompilationHash: any = null
-let __nextDevClientId = Math.round(Math.random() * 100 + Date.now())
+// The dev client id is only read by the browser-side HMR websocket connection.
+// Compute it only in the browser: there is no client during SSR, and calling
+// `Math.random()`/`Date.now()` at module scope would be tracked as sync IO by
+// Cache Components and advance the render stage.
+let __nextDevClientId =
+  typeof window !== 'undefined'
+    ? Math.round(Math.random() * 100 + Date.now())
+    : 0
 let reloading = false
 let webpackStartMsSinceEpoch: number | null = null
 const turbopackHmr: TurbopackHmr | null = process.env.TURBOPACK

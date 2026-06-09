@@ -81,21 +81,25 @@ export function createReactServerErrorHandler(
     // If the error already has a digest, respect the original digest,
     // so it won't get re-generated into another new error.
     if (err.digest) {
-      if (
-        process.env.NODE_ENV === 'production' &&
-        reactServerErrors.has(err.digest)
-      ) {
-        // This error is likely an obfuscated error from another react-server
-        // environment (e.g. 'use cache'). We recover the original error here
-        // for reporting purposes.
-        err = reactServerErrors.get(err.digest)!
-        // We don't log it again though, as it was already logged in the
-        // original environment.
-        silenceLog = true
-      } else {
-        // Either we're in development (where we want to keep the transported
-        // error with environmentName), or the error is not in reactServerErrors
-        // but has a digest from other means. Keep the error as-is.
+      const originalError = reactServerErrors.get(err.digest)
+
+      if (originalError) {
+        // This error crossed a react-server boundary (e.g. from a `'use cache'`
+        // render). Reaching the handler means it surfaced (it wasn't caught in
+        // userland), so stamp the digest onto the original to mark it surfaced.
+        // If the original was recorded as `invalidDynamicUsageError` without a
+        // digest (a cache that aborted across the boundary), this is what lets
+        // the dev overlay dedup: the separate forwarding checks for that digest
+        // and skips it.
+        originalError.digest ??= err.digest
+
+        if (process.env.NODE_ENV === 'production') {
+          // In production we use the recovered original (de-obfuscated!) error
+          // for reporting, and don't log it again as it was already logged in
+          // the original environment.
+          err = originalError
+          silenceLog = true
+        }
       }
     } else {
       // TODO-APP: look at using webcrypto instead of string-hash. Requires a promise to be awaited.
