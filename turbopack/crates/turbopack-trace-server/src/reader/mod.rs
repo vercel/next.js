@@ -6,7 +6,7 @@ use std::{
     any::Any,
     env,
     fs::File,
-    io::{self, BufReader, Read, Seek, SeekFrom},
+    io::{self, BufReader, IsTerminal, Read, Seek, SeekFrom, Write},
     path::PathBuf,
     sync::Arc,
     thread::{self, JoinHandle},
@@ -22,6 +22,10 @@ use crate::{
 };
 
 const MIN_INITIAL_REPORT_SIZE: u64 = 100 * 1024 * 1024;
+
+/// Width to pad the in-place progress line to, so shorter updates fully
+/// overwrite the leftover characters of a previous, longer update.
+const LINE_CLEAR_WIDTH: usize = 100;
 
 trait TraceFormat {
     type Reused: Default;
@@ -127,11 +131,19 @@ impl TraceFile {
 pub struct TraceReader {
     store: Arc<StoreContainer>,
     path: PathBuf,
+    /// Whether stdout is a terminal. When true, progress is rendered in place
+    /// on a single line; when piped to a file/CI it falls back to one line per
+    /// update so the logs stay readable.
+    stdout_is_terminal: bool,
 }
 
 impl TraceReader {
     pub fn spawn(store: Arc<StoreContainer>, path: PathBuf) -> JoinHandle<()> {
-        let mut reader = Self { store, path };
+        let mut reader = Self {
+            store,
+            path,
+            stdout_is_terminal: io::stdout().is_terminal(),
+        };
         std::thread::spawn(move || reader.run())
     }
 
@@ -277,7 +289,7 @@ impl TraceReader {
                                     let uncompressed = current_read / (1024 * 1024);
                                     let total = *total / (1024 * 1024);
                                     let stats = format.stats();
-                                    print!(
+                                    let mut line = format!(
                                         "{}% read ({}/{} MB, {} MB/s)",
                                         percentage,
                                         read,
@@ -285,12 +297,24 @@ impl TraceReader {
                                         read * 1000 / (start.elapsed().as_millis() + 1) as u64
                                     );
                                     if uncompressed != read {
-                                        print!(" ({uncompressed} MB uncompressed)");
+                                        line += &format!(" ({uncompressed} MB uncompressed)");
                                     }
-                                    if stats.is_empty() {
-                                        println!();
+                                    if !stats.is_empty() {
+                                        line += &format!(" - {stats}");
+                                    }
+                                    if self.stdout_is_terminal {
+                                        // Overwrite the same line so the progress
+                                        // updates don't scroll the port/URL info
+                                        // off the screen. `\r` returns to the
+                                        // start of the line and the trailing
+                                        // spaces clear any leftover characters
+                                        // from a previous, longer line.
+                                        print!("\r{line:<width$}", width = LINE_CLEAR_WIDTH);
+                                        let _ = io::stdout().flush();
                                     } else {
-                                        println!(" - {stats}");
+                                        // Piped to a file/CI: keep one line per
+                                        // update so the log stays readable.
+                                        println!("{line}");
                                     }
                                 }
                             }
@@ -337,6 +361,12 @@ impl TraceReader {
             return Some(true);
         };
         if let Some((total, start)) = initial_read.take() {
+            // In terminal mode the last progress line was printed with a leading
+            // `\r` and no newline, so emit a newline first to keep the final
+            // messages on their own line instead of overwriting it.
+            if self.stdout_is_terminal {
+                println!();
+            }
             if let Some(format) = format {
                 let stats = format.stats();
                 println!("{stats}");
