@@ -1174,12 +1174,11 @@ function assignDefaultsAndValidate(
   const turbopackRoot = result?.turbopack?.root
 
   let repoRoot = process.env.NEXT_PRIVATE_OUTPUT_TRACE_ROOT
+  let lockFiles: string[] | undefined = undefined
   if (!repoRoot) {
-    const { rootDir, lockFiles } = findRootDirAndLockFiles(dir)
-    repoRoot = rootDir
-    if (!silent) {
-      warnDuplicatedLockFiles(lockFiles)
-    }
+    const rootDirResult = findRootDirAndLockFiles(dir)
+    repoRoot = rootDirResult.rootDir
+    lockFiles = rootDirResult.lockFiles
   }
   ;(result as NextConfigComplete).repoRoot = repoRoot
 
@@ -1193,6 +1192,9 @@ function assignDefaultsAndValidate(
   let rootDir = tracingRoot || turbopackRoot
   if (!rootDir) {
     rootDir = repoRoot
+    if (lockFiles && !silent) {
+      warnDuplicatedLockFiles(lockFiles)
+    }
   }
   if (!rootDir) {
     throw new Error(
