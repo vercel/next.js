@@ -1325,14 +1325,14 @@ async function generateDynamicFlightRenderResultWithStagesInDev(
       setCacheStatus('ready', htmlRequestId)
     }
 
-    // A client navigation into a runtime-prefetch route resolves the stream
-    // after the runtime-prefetchable shell: that content has already settled on
-    // the client (via the prefetch) by the time it navigates, so it belongs in
-    // this response's shell. Everything else resolves after the static shell,
-    // like an initial load: plain navigations, and HMR refreshes (a fresh
-    // render of the current page, with no settled prefetch to draw on). Truly
-    // dynamic content always streams in after the shell.
-    const resolveStreamAfterStage =
+    // A client navigation into a runtime-prefetch route extends the shell
+    // through the runtime-prefetchable content: it has already settled on the
+    // client (via the prefetch) by the time it navigates, so it belongs in this
+    // response's shell. Everything else uses the static shell, like an initial
+    // load: plain navigations, and HMR refreshes (a fresh render of the current
+    // page, with no settled prefetch to draw on). Dynamic content always
+    // streams in after the shell.
+    const shellStage =
       initialRequestStore.isHmrRefresh !== true &&
       (await anySegmentHasRuntimePrefetchEnabled(loaderTree))
         ? RenderStage.Runtime
@@ -1347,7 +1347,7 @@ async function generateDynamicFlightRenderResultWithStagesInDev(
       shouldValidate,
       fallbackParams,
       () => didErrorObservably,
-      resolveStreamAfterStage
+      shellStage
     )
     stream = result.stream
     debugChannel = result.debugChannel
@@ -4517,7 +4517,7 @@ async function streamStagedRenderInDev(
   environmentName: () => string,
   onError: (error: unknown) => void,
   debugChannel: NodeDebugChannelPair | undefined,
-  resolveStreamAfterStage: RenderStage.Static | RenderStage.Runtime
+  shellStage: RenderStage.Static | RenderStage.Runtime
 ): Promise<{
   stream: Readable
   resultPromise: Promise<StagedDevRenderResult>
@@ -4526,35 +4526,38 @@ async function streamStagedRenderInDev(
   const { clientModules } = getClientReferenceManifest()
 
   // The first task creates the stream; `streamReady` carries it out of that
-  // task. `streamStageReached` resolves once the render has advanced through
-  // `resolveStreamAfterStage`. We await both before returning, so the static
-  // (and, for runtime prefetches, runtime-prefetchable) shell content has been
-  // emitted before the first flush instead of flushing a premature Suspense
-  // fallback for content that belongs in the shell.
+  // task. `streamReleased` resolves when the stream may be handed to the
+  // caller: once the render has buffered the `shellStage` content (the static
+  // shell, or the runtime-prefetchable shell for runtime-prefetch routes) so we
+  // don't flush a premature Suspense fallback into the shell - or earlier, on a
+  // cache miss, since then there's nothing prod-representative to wait for. We
+  // await both before returning.
   const streamReady = createPromiseWithResolvers<{
     stream: Readable
     accumulatedChunksPromise: Promise<AccumulatedStreamChunks>
   }>()
-  const streamStageReached = createPromiseWithResolvers<void>()
+  const streamReleased = createPromiseWithResolvers<void>()
 
   let startTime = -Infinity
 
   // Whether any stage boundary still had pending cache reads (or modules): i.e.
   // the caches weren't filled yet and the render streamed Suspense fallbacks
-  // for content that would be cached in production.
+  // for content that would be cached in production. Returns the running verdict
+  // so each boundary can release the stream as soon as a miss is seen.
   let hadCacheMiss = false
   const checkForCacheMiss = () => {
     if (cacheSignal.hasPendingReads()) {
       hadCacheMiss = true
     }
+    return hadCacheMiss
   }
 
   // The render runs to completion; it never aborts. The first task starts the
   // render in the `ShellEarlyStatic` stage and creates the stream (one replay
   // for the response, one to accumulate the chunks). The later tasks advance
-  // the stages, settle `hadCacheMiss`, and hand the stream to the caller once
-  // the render reaches `resolveStreamAfterStage`. The replayable stays local:
-  // the response is the only reader outside this function.
+  // the stages, settle `hadCacheMiss`, and release the stream – as soon as a
+  // cache miss is seen, or once the render reaches `shellStage`. The replayable
+  // stays local: the response is the only reader outside this function.
   const stagesAdvanced = runInSequentialTasks(
     () => {
       stageController.advanceStage(RenderStage.ShellEarlyStatic)
@@ -4587,47 +4590,63 @@ async function streamStagedRenderInDev(
       })
     },
     () => {
-      checkForCacheMiss()
+      if (checkForCacheMiss()) {
+        streamReleased.resolve()
+      }
       stageController.advanceStage(RenderStage.ShellStatic)
     },
     () => {
-      checkForCacheMiss()
+      if (checkForCacheMiss()) {
+        streamReleased.resolve()
+      }
       stageController.advanceStage(RenderStage.EarlyStatic)
     },
     () => {
-      checkForCacheMiss()
+      if (checkForCacheMiss()) {
+        streamReleased.resolve()
+      }
       stageController.advanceStage(RenderStage.Static)
     },
     () => {
-      checkForCacheMiss()
+      if (checkForCacheMiss()) {
+        streamReleased.resolve()
+      }
       // The static stage's chunks flushed in the previous task, so the static
-      // shell is buffered now. Hand the stream to the caller before advancing
-      // into the runtime stages, which belong after the static shell.
-      if (resolveStreamAfterStage === RenderStage.Static) {
-        streamStageReached.resolve()
+      // shell is buffered now. For a static shell, release the stream before
+      // advancing into the runtime stages.
+      if (shellStage === RenderStage.Static) {
+        streamReleased.resolve()
       }
       stageController.advanceStage(RenderStage.ShellEarlyRuntime)
     },
     () => {
-      checkForCacheMiss()
+      if (checkForCacheMiss()) {
+        streamReleased.resolve()
+      }
       stageController.advanceStage(RenderStage.ShellRuntime)
     },
     () => {
-      checkForCacheMiss()
+      if (checkForCacheMiss()) {
+        streamReleased.resolve()
+      }
       stageController.advanceStage(RenderStage.EarlyRuntime)
     },
     () => {
-      checkForCacheMiss()
+      if (checkForCacheMiss()) {
+        streamReleased.resolve()
+      }
       stageController.advanceStage(RenderStage.Runtime)
     },
     () => {
-      checkForCacheMiss()
+      if (checkForCacheMiss()) {
+        streamReleased.resolve()
+      }
 
       // The runtime stage's chunks flushed in the previous task, so the runtime
-      // shell is buffered now. Hand the stream to the caller before advancing
-      // to the dynamic stage.
-      if (resolveStreamAfterStage === RenderStage.Runtime) {
-        streamStageReached.resolve()
+      // shell is buffered now. For a runtime-prefetch route, release the stream
+      // before advancing to the dynamic stage.
+      if (shellStage === RenderStage.Runtime) {
+        streamReleased.resolve()
       }
 
       // Always advance to the dynamic stage synchronously, even while caches
@@ -4648,18 +4667,19 @@ async function streamStagedRenderInDev(
     }
   )
 
-  // If a task throws before the stream is created or the resolve stage is
-  // reached, surface it to the awaiters below.
+  // If a task throws before the stream is created or released, surface it to
+  // the awaiters below.
   stagesAdvanced.catch((err) => {
     streamReady.reject(err)
-    streamStageReached.reject(err)
+    streamReleased.reject(err)
   })
 
   const { stream, accumulatedChunksPromise } = await streamReady.promise
 
-  // Don't hand the stream to the caller until the render has advanced through
-  // the resolve stage, so the shell content is buffered before the first flush.
-  await streamStageReached.promise
+  // Don't hand the stream to the caller until it's been released: at the
+  // `shellStage` (so the shell content is buffered before the first flush), or
+  // earlier on a cache miss.
+  await streamReleased.promise
 
   // Advancing the stages only drives the pipeline forward; the render isn't
   // actually complete until its stream has fully finished. The accumulation
@@ -4791,7 +4811,7 @@ async function stagedRenderWithCachesInDev(
   shouldValidate: boolean,
   fallbackRouteParams: OpaqueFallbackRouteParams | null,
   getDevRenderDidError: () => boolean,
-  resolveStreamAfterStage: RenderStage.Static | RenderStage.Runtime
+  shellStage: RenderStage.Static | RenderStage.Runtime
 ): Promise<{
   stream: Readable
   debugChannel: NodeDebugChannelPair | undefined
@@ -4828,7 +4848,7 @@ async function stagedRenderWithCachesInDev(
     environmentName,
     onError,
     debugChannel,
-    resolveStreamAfterStage
+    shellStage
   )
 
   if (shouldValidate) {
