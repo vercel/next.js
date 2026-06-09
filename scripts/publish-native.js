@@ -171,7 +171,8 @@ const cwd = process.cwd()
               `${path.join(wasmDir, `pkg-${wasmTarget}`)}`,
               '--access',
               'public',
-              ...(version.includes('canary') ? ['--tag', 'canary'] : []),
+              '--tag',
+              tag,
             ],
             { stdio: 'inherit' }
           )
