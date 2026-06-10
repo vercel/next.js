@@ -246,27 +246,29 @@ describe('cache-indicator', () => {
       ])
     })
 
-    // TODO: short-lived `'use cache'` entries are deferred to a later stage
-    // without ending the cache read, so they register as a cache miss on every
-    // load. Until that's fixed, the Cold cache badge shows even on subsequent
-    // reloads. After this is fixed, flip the warm-reload assertion below to
-    // expect no badge.
-    it('shows the Cold cache badge on every load for a short-lived cache (current limitation)', async () => {
+    it('shows the Cold cache badge on an initial cold load and not on a warm reload for a short-lived cache', async () => {
       const browser = await next.browser('/short-lived')
 
-      await retry(async () => {
-        expect(await browser.hasElementByCss('[data-cold-cache-badge]')).toBe(
-          true
-        )
-      })
-
-      await browser.refresh()
+      // Cold load: the short-lived cache misses and fills while streaming, so
+      // the cold verdict is replayed after load.
       await browser.elementById('short-lived')
       await retry(async () => {
         expect(await browser.hasElementByCss('[data-cold-cache-badge]')).toBe(
           true
         )
       })
+
+      // Warm reload: the short-lived entry is a hit. It is deferred to a later
+      // stage (it stays out of the static shell), but its cache read is ended up
+      // front, so it does not register as a phantom cache miss and no badge
+      // appears. An absence can't be retried on, so wait out the
+      // replay-on-connect window and then assert it never showed.
+      await browser.refresh()
+      await browser.elementById('short-lived')
+      await waitFor(500)
+      expect(await browser.hasElementByCss('[data-cold-cache-badge]')).toBe(
+        false
+      )
     })
 
     // TODO: private `'use cache'` entries aren't persisted in dev yet, so they
