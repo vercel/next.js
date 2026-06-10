@@ -4,7 +4,6 @@
 const path = require('path')
 const execa = require('execa')
 const semver = require('semver')
-const { Sema } = require('async-sema')
 const fs = require('fs')
 const {
   getGitHubToken,
@@ -61,61 +60,44 @@ const publishRetryDelaySeconds = 15
 
   console.log(`Publishing as "${tag}" dist tag...`)
 
-  const packagesDir = path.join(cwd, 'packages')
-  const packageDirs = fs.readdirSync(packagesDir)
-  const publishSema = new Sema(2)
-
-  const publish = async (pkg, attempt = 1) => {
-    let output = ''
+  // pnpm publish --recursive respects the workspace topological order,
+  // skips private packages, and skips packages whose version is already
+  // published. We wrap the whole invocation in a retry loop so transient
+  // registry failures don't abort the release.
+  const publish = async (attempt = 1) => {
     try {
-      await publishSema.acquire()
-      const child = execa(
-        `npm`,
+      await execa(
+        'pnpm',
         [
+          '--filter',
+          './packages/**',
           'publish',
-          `${path.join(packagesDir, pkg)}`,
+          '--recursive',
           '--access',
           'public',
+          '--no-git-checks',
           '--ignore-scripts',
+          '--report-summary',
           '--tag',
           tag,
           ...(dryRun ? ['--dry-run'] : []),
         ],
-        { stdio: 'pipe' }
+        { stdio: 'inherit', cwd }
       )
-      const handleData = (type) => (chunk) => {
-        process[type].write(chunk)
-        output += chunk.toString()
-      }
-      child.stdout?.on('data', handleData('stdout'))
-      child.stderr?.on('data', handleData('stderr'))
-      // Return here to avoid retry logic
-      return await child
     } catch (err) {
       console.error(
-        `Failed to publish ${pkg} (attempt ${attempt} of ${maxPublishAttempts})`,
+        `Publish attempt ${attempt} of ${maxPublishAttempts} failed`,
         err
       )
-
-      if (
-        output.includes('cannot publish over the previously published versions')
-      ) {
-        console.error('Ignoring already published error', pkg)
-        return
-      }
-
       if (attempt >= maxPublishAttempts) {
         throw err
       }
-    } finally {
-      publishSema.release()
+      console.log(`retrying in ${publishRetryDelaySeconds}s`)
+      await new Promise((resolve) =>
+        setTimeout(resolve, publishRetryDelaySeconds * 1000)
+      )
+      await publish(attempt + 1)
     }
-    // Recursive call need to be outside of the publishSema
-    console.log(`retrying in ${publishRetryDelaySeconds}s`)
-    await new Promise((resolve) =>
-      setTimeout(resolve, publishRetryDelaySeconds * 1000)
-    )
-    await publish(pkg, attempt + 1)
   }
 
   const undraft = async () => {
@@ -188,25 +170,10 @@ const publishRetryDelaySeconds = 15
     }
   }
 
-  const results = await Promise.allSettled(
-    packageDirs.map(async (packageDir) => {
-      const pkgJson = JSON.parse(
-        await fs.promises.readFile(
-          path.join(packagesDir, packageDir, 'package.json'),
-          'utf-8'
-        )
-      )
-
-      if (pkgJson.private) {
-        console.log(`Skipping private package ${packageDir}`)
-        return
-      }
-      await publish(packageDir)
-    })
-  )
-
-  if (results.some((item) => item.status === 'rejected')) {
-    console.error(`Not all packages published successfully`, results)
+  try {
+    await publish()
+  } catch (err) {
+    console.error('Publish failed after all retries', err)
     process.exit(1)
   }
   await undraft()
