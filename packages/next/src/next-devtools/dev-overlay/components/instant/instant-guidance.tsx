@@ -249,19 +249,28 @@ export function InstantGuidance({
     docsUrl = SYNC_IO_CLIENT_DOCS[cause] || DOCS_URLS[kind]
   } else if (kind === 'blocking-route') {
     docsUrl =
-      variant === 'runtime'
+      // TODO(app-shells): dedicated docs for link data errors (reuses runtime for now)
+      variant === 'link'
         ? 'https://nextjs.org/docs/messages/blocking-prerender-runtime'
-        : 'https://nextjs.org/docs/messages/blocking-prerender-dynamic'
+        : variant === 'runtime'
+          ? 'https://nextjs.org/docs/messages/blocking-prerender-runtime'
+          : 'https://nextjs.org/docs/messages/blocking-prerender-dynamic'
   } else if (kind === 'metadata') {
     docsUrl =
-      variant === 'runtime'
+      // TODO(app-shells): dedicated docs for link data errors (reuses runtime for now)
+      variant === 'link'
         ? 'https://nextjs.org/docs/messages/blocking-prerender-metadata-runtime'
-        : 'https://nextjs.org/docs/messages/blocking-prerender-metadata-dynamic'
+        : variant === 'runtime'
+          ? 'https://nextjs.org/docs/messages/blocking-prerender-metadata-runtime'
+          : 'https://nextjs.org/docs/messages/blocking-prerender-metadata-dynamic'
   } else if (kind === 'viewport') {
     docsUrl =
-      variant === 'runtime'
+      // TODO(app-shells): dedicated docs for link data errors (reuses runtime for now)
+      variant === 'link'
         ? 'https://nextjs.org/docs/messages/blocking-prerender-viewport-runtime'
-        : 'https://nextjs.org/docs/messages/blocking-prerender-viewport-dynamic'
+        : variant === 'runtime'
+          ? 'https://nextjs.org/docs/messages/blocking-prerender-viewport-runtime'
+          : 'https://nextjs.org/docs/messages/blocking-prerender-viewport-dynamic'
   } else {
     docsUrl = DOCS_URLS[kind]
   }
@@ -307,19 +316,28 @@ export function InstantHeaderExplanation({
   let resolvedDocsUrl = docsUrl
   if (!resolvedDocsUrl && kind === 'blocking-route') {
     resolvedDocsUrl =
-      variant === 'runtime'
+      // TODO(app-shells): dedicated docs for link data errors (reuses runtime for now)
+      variant === 'link'
         ? 'https://nextjs.org/docs/messages/blocking-prerender-runtime'
-        : 'https://nextjs.org/docs/messages/blocking-prerender-dynamic'
+        : variant === 'runtime'
+          ? 'https://nextjs.org/docs/messages/blocking-prerender-runtime'
+          : 'https://nextjs.org/docs/messages/blocking-prerender-dynamic'
   } else if (!resolvedDocsUrl && kind === 'metadata') {
     resolvedDocsUrl =
-      variant === 'runtime'
+      // TODO(app-shells): dedicated docs for link data errors (reuses runtime for now)
+      variant === 'link'
         ? 'https://nextjs.org/docs/messages/blocking-prerender-metadata-runtime'
-        : 'https://nextjs.org/docs/messages/blocking-prerender-metadata-dynamic'
+        : variant === 'runtime'
+          ? 'https://nextjs.org/docs/messages/blocking-prerender-metadata-runtime'
+          : 'https://nextjs.org/docs/messages/blocking-prerender-metadata-dynamic'
   } else if (!resolvedDocsUrl && kind === 'viewport') {
     resolvedDocsUrl =
-      variant === 'runtime'
+      // TODO(app-shells): dedicated docs for link data errors (reuses runtime for now)
+      variant === 'link'
         ? 'https://nextjs.org/docs/messages/blocking-prerender-viewport-runtime'
-        : 'https://nextjs.org/docs/messages/blocking-prerender-viewport-dynamic'
+        : variant === 'runtime'
+          ? 'https://nextjs.org/docs/messages/blocking-prerender-viewport-runtime'
+          : 'https://nextjs.org/docs/messages/blocking-prerender-viewport-dynamic'
   } else if (!resolvedDocsUrl && kind) {
     resolvedDocsUrl = DOCS_URLS[kind]
   }
