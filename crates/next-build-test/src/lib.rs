@@ -13,13 +13,14 @@ use next_api::{
 };
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
-    Effects, ReadConsistency, ReadRef, ResolvedVc, TransientInstance, TurboTasks, Vc, take_effects,
+    Effects, ReadConsistency, ReadRef, ResolvedVc, TransientInstance, TurboTasks, Vc,
+    read_strongly_consistent_and_apply_effects, take_effects,
 };
-use turbo_tasks_backend::{NoopBackingStorage, TurboTasksBackend};
+use turbo_tasks_backend::TurboTasksBackend;
 use turbo_tasks_malloc::TurboMalloc;
 
 pub async fn main_inner(
-    tt: &TurboTasks<TurboTasksBackend<NoopBackingStorage>>,
+    tt: &TurboTasks<TurboTasksBackend>,
     strategy: Strategy,
     factor: usize,
     limit: usize,
@@ -161,7 +162,7 @@ pub fn shuffle<'a, T: 'a>(items: impl Iterator<Item = T>) -> impl Iterator<Item 
 }
 
 pub async fn render_routes(
-    tt: &TurboTasks<TurboTasksBackend<NoopBackingStorage>>,
+    tt: &TurboTasks<TurboTasksBackend>,
     routes: impl Iterator<Item = (RcStr, Route)>,
     strategy: Strategy,
     factor: usize,
@@ -275,17 +276,13 @@ async fn endpoint_write_to_disk_with_apply(
     }
 
     let op = inner_operation_with_effects(endpoint);
-    let WithEffects {
-        output_paths,
-        effects,
-    } = &*op.read_strongly_consistent().await?;
-    effects.apply().await?;
+    let read = read_strongly_consistent_and_apply_effects(op, |v| &v.effects).await?;
 
-    Ok(output_paths.clone())
+    Ok(read.output_paths.clone())
 }
 
 async fn hmr(
-    tt: &TurboTasks<TurboTasksBackend<NoopBackingStorage>>,
+    tt: &TurboTasks<TurboTasksBackend>,
     project: ResolvedVc<ProjectContainer>,
 ) -> Result<()> {
     tracing::info!("HMR...");

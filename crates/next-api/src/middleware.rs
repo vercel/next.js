@@ -2,6 +2,7 @@ use std::future::IntoFuture;
 
 use anyhow::{Context, Result};
 use next_core::{
+    app_structure::FileSystemPathVec,
     middleware::get_middleware_module,
     next_edge::entry::wrap_edge_entry,
     next_manifests::{EdgeFunctionDefinition, MiddlewaresManifestV2, ProxyMatcher, Regions},
@@ -28,6 +29,7 @@ use turbopack_core::{
 };
 
 use crate::{
+    nft::{EndpointTraceResult, trace_endpoint},
     nft_json::NftJsonAsset,
     paths::{
         all_asset_paths, all_paths_in_root, get_asset_paths_from_root, get_js_paths_from_root,
@@ -116,6 +118,7 @@ impl MiddlewareEndpoint {
             module.ident(),
             ChunkGroup::Entry(vec![module]),
             module_graph,
+            OutputAssets::empty(),
             AvailabilityInfo::root(),
         );
         Ok(edge_chunk_grou)
@@ -226,18 +229,10 @@ impl MiddlewareEndpoint {
             let chunk = self.node_chunk().to_resolved().await?;
             let mut output_assets = vec![chunk];
             if this.project.next_mode().await?.is_production() {
-                let userland_module = self.entry_module();
                 output_assets.push(ResolvedVc::upcast(
-                    NftJsonAsset::new(
-                        *this.project,
-                        None,
-                        *chunk,
-                        vec![],
-                        this.project.module_graph(userland_module),
-                        vec![userland_module],
-                    )
-                    .to_resolved()
-                    .await?,
+                    NftJsonAsset::new(*this.project, None, *chunk, vec![], self.trace_result())
+                        .to_resolved()
+                        .await?,
                 ));
             }
             let middleware_manifest_v2 = MiddlewaresManifestV2 {
@@ -343,6 +338,18 @@ impl MiddlewareEndpoint {
             )
             .module()
     }
+
+    #[turbo_tasks::function]
+    async fn trace_result(self: Vc<Self>) -> Result<Vc<EndpointTraceResult>> {
+        let this = self.await?;
+        let userland_module = self.entry_module();
+        Ok(trace_endpoint(
+            *this.project,
+            None,
+            this.project.module_graph(userland_module),
+            userland_module,
+        ))
+    }
 }
 
 #[turbo_tasks::value_impl]
@@ -399,9 +406,12 @@ impl Endpoint for MiddlewareEndpoint {
 
     #[turbo_tasks::function]
     async fn entries(self: Vc<Self>) -> Result<Vc<GraphEntries>> {
-        Ok(Vc::cell(vec![ChunkGroupEntry::Entry(vec![
-            self.entry_module().to_resolved().await?,
-        ])]))
+        Ok(
+            GraphEntries::from_chunk_groups(vec![ChunkGroupEntry::Entry(vec![
+                self.entry_module().to_resolved().await?,
+            ])])
+            .cell(),
+        )
     }
 
     #[turbo_tasks::function]
@@ -418,5 +428,10 @@ impl Endpoint for MiddlewareEndpoint {
     #[turbo_tasks::function]
     fn project(&self) -> Vc<Project> {
         *self.project
+    }
+
+    #[turbo_tasks::function]
+    fn traced_files(self: Vc<Self>) -> Vc<FileSystemPathVec> {
+        self.trace_result().all_files()
     }
 }

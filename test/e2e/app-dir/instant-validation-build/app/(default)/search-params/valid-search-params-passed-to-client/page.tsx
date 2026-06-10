@@ -3,7 +3,7 @@ import assert from 'node:assert/strict'
 
 import { ClientChild } from './client'
 
-export const unstable_instant: Instant = {
+export const instant: Instant = {
   level: 'experimental-error',
   unstable_samples: [
     {
@@ -14,7 +14,7 @@ export const unstable_instant: Instant = {
     },
   ],
 }
-export const unstable_prefetch = 'force-runtime'
+export const prefetch = 'allow-runtime'
 
 export default async function Page({
   searchParams,

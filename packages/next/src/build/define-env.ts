@@ -124,7 +124,6 @@ export function getDefineEnv({
   const isPPREnabled = checkIsAppPPREnabled(config.experimental.ppr)
   const isCacheComponentsEnabled = !!config.cacheComponents
   const isUseCacheEnabled = !!config.experimental.useCache
-  const isUseNodeStreamsEnabled = !!config.experimental.useNodeStreams
 
   const defineEnv: DefineEnv = {
     // internal field to identify the plugin config
@@ -160,6 +159,8 @@ export function getDefineEnv({
         ? 'development'
         : 'production',
     'process.env.__NEXT_DEV_SERVER': dev ? '1' : '',
+    'process.env.__NEXT_DISABLE_DEV_OVERLAY_UX':
+      process.env.NEXT_PRIVATE_DISABLE_DEV_OVERLAY_UX === '1',
     'process.env.NEXT_RUNTIME': isEdgeServer
       ? 'edge'
       : isNodeServer
@@ -177,12 +178,9 @@ export function getDefineEnv({
     'process.env.__NEXT_EXPERIMENTAL_CACHED_NAVIGATIONS': Boolean(
       config.experimental.cachedNavigations
     ),
-    'process.env.__NEXT_INSTANT_NAV_TOGGLE':
-      !!config.experimental.instantNavigationDevToolsToggle,
+    'process.env.__NEXT_INSTANT_NAV_TOGGLE': isCacheComponentsEnabled,
     'process.env.__NEXT_USE_CACHE': isUseCacheEnabled,
-    'process.env.__NEXT_USE_NODE_STREAMS': isEdgeServer
-      ? false
-      : isUseNodeStreamsEnabled,
+    'process.env.__NEXT_USE_NODE_STREAMS': isEdgeServer ? false : true,
 
     'process.env.NEXT_SUPPORTS_IMMUTABLE_ASSETS':
       config.experimental.supportsImmutableAssets || false,

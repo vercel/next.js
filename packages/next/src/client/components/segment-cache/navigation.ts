@@ -6,12 +6,18 @@ import type {
 } from '../../../shared/lib/app-router-types'
 import type { CacheNode } from '../../../shared/lib/app-router-types'
 import type { HeadData } from '../../../shared/lib/app-router-types'
+import {
+  SubtreePrefetchHints,
+  propagateSubtreeBits,
+} from '../../../shared/lib/app-router-types'
 import type { NormalizedFlightData } from '../../flight-data-helpers'
 import { fetchServerResponse } from '../router-reducer/fetch-server-response'
 import {
   startPPRNavigation,
   spawnDynamicRequests,
   FreshnessPolicy,
+  getCurrentNavigationLock,
+  type NavigationLock,
   type NavigationRequestAccumulation,
 } from '../router-reducer/ppr-navigations'
 import { createHrefFromUrl } from '../router-reducer/create-href-from-url'
@@ -22,7 +28,7 @@ import {
   deprecated_requestOptimisticRouteCacheEntry,
   convertRootFlightRouterStateToRouteTree,
   getStaleAt,
-  writeStaticStageResponseIntoCache,
+  writePrerenderResponseIntoCache,
   processRuntimePrefetchStream,
   writeDynamicRenderResponseIntoCache,
   type RouteTree,
@@ -60,6 +66,8 @@ export function navigate(
   scrollBehavior: ScrollBehavior,
   navigateType: 'push' | 'replace'
 ): AppRouterState | Promise<AppRouterState> {
+  let navigationLock: NavigationLock = null
+
   // Instant Navigation Testing API: when the lock is active, ensure a
   // prefetch task has been initiated before proceeding with the navigation.
   // This guarantees that segment data requests are at least pending, even
@@ -70,6 +78,7 @@ export function navigate(
     const { isNavigationLocked } =
       require('./navigation-testing-lock') as typeof import('./navigation-testing-lock')
     if (isNavigationLocked()) {
+      navigationLock = getCurrentNavigationLock()
       return ensurePrefetchThenNavigate(
         state,
         url,
@@ -80,7 +89,8 @@ export function navigate(
         nextUrl,
         freshnessPolicy,
         scrollBehavior,
-        navigateType
+        navigateType,
+        navigationLock
       )
     }
   }
@@ -95,7 +105,8 @@ export function navigate(
     nextUrl,
     freshnessPolicy,
     scrollBehavior,
-    navigateType
+    navigateType,
+    navigationLock
   )
 }
 
@@ -109,7 +120,8 @@ function navigateImpl(
   nextUrl: string | null,
   freshnessPolicy: FreshnessPolicy,
   scrollBehavior: ScrollBehavior,
-  navigateType: 'push' | 'replace'
+  navigateType: 'push' | 'replace',
+  navigationLock: NavigationLock
 ): AppRouterState | Promise<AppRouterState> {
   const now = Date.now()
   const href = url.href
@@ -130,7 +142,8 @@ function navigateImpl(
       freshnessPolicy,
       scrollBehavior,
       navigateType,
-      route
+      route,
+      navigationLock
     )
   }
 
@@ -166,7 +179,8 @@ function navigateImpl(
           freshnessPolicy,
           scrollBehavior,
           navigateType,
-          optimisticRoute
+          optimisticRoute,
+          navigationLock
         )
       }
     }
@@ -188,7 +202,8 @@ function navigateImpl(
     currentFlightRouterState,
     freshnessPolicy,
     scrollBehavior,
-    navigateType
+    navigateType,
+    navigationLock
   ).catch(() => {
     // If the navigation fails, return the current state
     return state
@@ -209,6 +224,7 @@ export function navigateToKnownRoute(
   nextUrl: string | null,
   scrollBehavior: ScrollBehavior,
   navigateType: 'push' | 'replace',
+  navigationLock: NavigationLock,
   debugInfo: Array<unknown> | null,
   // The route cache entry used for this navigation, if it came from route
   // prediction. Passed through so it can be marked as having a dynamic rewrite
@@ -272,7 +288,8 @@ export function navigateToKnownRoute(
         freshnessPolicy,
         accumulation,
         routeCacheEntry,
-        navigateType
+        navigateType,
+        navigationLock
       )
     }
     return completeSoftNavigation(
@@ -305,7 +322,8 @@ function navigateUsingPrefetchedRouteTree(
   freshnessPolicy: FreshnessPolicy,
   scrollBehavior: ScrollBehavior,
   navigateType: 'push' | 'replace',
-  route: FulfilledRouteCacheEntry
+  route: FulfilledRouteCacheEntry,
+  navigationLock: NavigationLock
 ): AppRouterState {
   const routeTree = route.tree
   const canonicalUrl = route.canonicalUrl + url.hash
@@ -332,6 +350,7 @@ function navigateUsingPrefetchedRouteTree(
     nextUrl,
     scrollBehavior,
     navigateType,
+    navigationLock,
     null,
     route
   )
@@ -360,7 +379,8 @@ async function navigateToUnknownRoute(
   currentFlightRouterState: FlightRouterState,
   freshnessPolicy: FreshnessPolicy,
   scrollBehavior: ScrollBehavior,
-  navigateType: 'push' | 'replace'
+  navigateType: 'push' | 'replace',
+  navigationLock: NavigationLock
 ): Promise<AppRouterState> {
   // Runs when a navigation happens but there's no cached prefetch we can use.
   // Don't bother to wait for a prefetch response; go straight to a full
@@ -460,8 +480,13 @@ async function navigateToUnknownRoute(
             responseHeaders.get(NEXT_NAV_DEPLOYMENT_ID_HEADER) ??
             staticStageResponse.b
 
-          writeStaticStageResponseIntoCache(
+          // TODO: Implement Shell extraction as part of Cached Navigations.
+          // Intentionally holding off on doing this until we decide how the
+          // Cached Navigations behavior should work in combination with App
+          // Shells.
+          writePrerenderResponseIntoCache(
             now,
+            FetchStrategy.PPR,
             staticStageResponse.f,
             buildId,
             staticStageResponse.h,
@@ -520,6 +545,7 @@ async function navigateToUnknownRoute(
     nextUrl,
     scrollBehavior,
     navigateType,
+    navigationLock,
     debugInfo,
     // Unknown route navigations don't use route prediction - the route tree
     // came directly from the server. If a mismatch occurs during dynamic data
@@ -909,8 +935,18 @@ function convertServerPatchToFullTreeImpl(
   if (3 in baseRouterState) {
     clonedTree[3] = baseRouterState[3]
   }
-  if (4 in baseRouterState) {
-    clonedTree[4] = baseRouterState[4]
+  // Recompute the propagated "subtree" prefetch hints for this segment. Mirrors
+  // the propagation done on the server in
+  // createFlightRouterStateFromLoaderTree.
+  let prefetchHints = (baseRouterState[4] ?? 0) & ~SubtreePrefetchHints
+  for (const parallelRouteKey in newTreeChildren) {
+    const childHints = newTreeChildren[parallelRouteKey][4]
+    if (childHints !== undefined) {
+      prefetchHints = propagateSubtreeBits(prefetchHints, childHints)
+    }
+  }
+  if (prefetchHints !== 0) {
+    clonedTree[4] = prefetchHints
   }
 
   // Clone the CacheNodeSeedData tree.
@@ -947,7 +983,8 @@ async function ensurePrefetchThenNavigate(
   nextUrl: string | null,
   freshnessPolicy: FreshnessPolicy,
   scrollBehavior: ScrollBehavior,
-  navigateType: 'push' | 'replace'
+  navigateType: 'push' | 'replace',
+  navigationLock: NavigationLock
 ): Promise<AppRouterState> {
   const link = getLinkForCurrentNavigation()
   const fetchStrategy = link !== null ? link.fetchStrategy : FetchStrategy.PPR
@@ -977,7 +1014,8 @@ async function ensurePrefetchThenNavigate(
     nextUrl,
     freshnessPolicy,
     scrollBehavior,
-    navigateType
+    navigateType,
+    navigationLock
   )
 
   // Only transition to captured-SPA once the navigation is known to be an SPA.

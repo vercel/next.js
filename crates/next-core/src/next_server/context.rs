@@ -3,7 +3,7 @@ use std::collections::BTreeSet;
 use anyhow::{Result, bail};
 use bincode::{Decode, Encode};
 use turbo_rcstr::{RcStr, rcstr};
-use turbo_tasks::{ResolvedVc, TaskInput, Vc, trace::TraceRawVcs};
+use turbo_tasks::{ResolvedVc, Vc, trace::TraceRawVcs};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack::{
     module_options::{
@@ -78,8 +78,8 @@ use crate::{
     },
 };
 
-#[turbo_tasks::value(shared)]
-#[derive(Debug, Clone, Hash, TaskInput)]
+#[turbo_tasks::value(shared, task_input)]
+#[derive(Debug, Clone, Hash)]
 pub enum ServerContextType {
     Pages {
         pages_dir: FileSystemPath,
@@ -1002,7 +1002,8 @@ fn client_disallowed_directive_transform_plugin(error_proxy_module: RcStr) -> Vc
     )) as Box<dyn CustomTransformer + Send + Sync>)
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, Hash, TaskInput, TraceRawVcs, Encode, Decode)]
+#[turbo_tasks::task_input(contains_unresolved_vcs)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash, TraceRawVcs, Encode, Decode)]
 pub struct ServerChunkingContextOptions {
     pub mode: Vc<NextMode>,
     pub root_path: FileSystemPath,

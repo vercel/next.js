@@ -605,9 +605,10 @@ function filteringUnhandledRejectionHandler(
       case 'prerender':
       case 'prerender-client':
       case 'validation-client':
-      case 'prerender-runtime': {
+      case 'prerender-runtime':
+      case 'request': {
         const signal = workUnitStore.renderSignal
-        if (signal.aborted) {
+        if (signal && signal.aborted) {
           // This unhandledRejection is from async work spawned in a now
           // aborted prerender. We don't need to report this.
           return
@@ -616,7 +617,6 @@ function filteringUnhandledRejectionHandler(
       }
       case 'prerender-ppr':
       case 'prerender-legacy':
-      case 'request':
       case 'cache':
       case 'private-cache':
       case 'unstable-cache':

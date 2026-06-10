@@ -18,6 +18,7 @@ import { DEV_TOOLS_INFO_USER_PREFERENCES_STYLES } from '../components/errors/dev
 import { CALL_STACK_STYLES } from '../components/call-stack/call-stack'
 import { SHORTCUT_RECORDER_STYLES } from '../components/errors/dev-tools-indicator/dev-tools-info/shortcut-recorder'
 import { INSTANT_GUIDANCE_STYLES } from '../components/instant/instant-guidance'
+import { UNRENDERED_SEGMENT_INFO_STYLES } from '../components/instant/unrendered-segment-info'
 
 export function ComponentStyles() {
   return (
@@ -42,6 +43,7 @@ export function ComponentStyles() {
         ${DEV_TOOLS_INFO_USER_PREFERENCES_STYLES}
         ${SHORTCUT_RECORDER_STYLES}
         ${INSTANT_GUIDANCE_STYLES}
+        ${UNRENDERED_SEGMENT_INFO_STYLES}
       `}
     </style>
   )

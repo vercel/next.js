@@ -5,8 +5,7 @@ use bincode::{Decode, Encode};
 use regex::Regex;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    NonLocalValue, ReadRef, ResolvedVc, TaskInput, ValueToString, ValueToStringRef, Vc,
-    trace::TraceRawVcs, turbofmt,
+    ReadRef, ResolvedVc, ValueToString, ValueToStringRef, Vc, trace::TraceRawVcs, turbofmt,
 };
 use turbo_tasks_fs::FileSystemPath;
 use turbo_tasks_hash::{DeterministicHash, Xxh3Hash64Hasher, encode_base38, hash_xxh3_hash64};
@@ -14,19 +13,8 @@ use turbo_tasks_hash::{DeterministicHash, Xxh3Hash64Hasher, encode_base38, hash_
 use crate::resolve::ModulePart;
 
 /// A layer identifies a distinct part of the module graph.
-#[derive(
-    Clone,
-    TaskInput,
-    Hash,
-    Debug,
-    DeterministicHash,
-    Eq,
-    PartialEq,
-    TraceRawVcs,
-    NonLocalValue,
-    Encode,
-    Decode,
-)]
+#[turbo_tasks::task_input]
+#[derive(Clone, Hash, Debug, DeterministicHash, Eq, PartialEq, TraceRawVcs, Encode, Decode)]
 pub struct Layer {
     name: RcStr,
     user_friendly_name: Option<RcStr>,
@@ -59,8 +47,8 @@ impl Layer {
     }
 }
 
-#[turbo_tasks::value]
-#[derive(Clone, Debug, Hash, TaskInput)]
+#[turbo_tasks::value(task_input)]
+#[derive(Clone, Debug, Hash)]
 pub struct AssetIdent {
     /// The primary path of the asset
     pub path: FileSystemPath,

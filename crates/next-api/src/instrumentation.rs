@@ -1,5 +1,6 @@
 use anyhow::Result;
 use next_core::{
+    app_structure::FileSystemPathVec,
     next_edge::entry::wrap_edge_entry,
     next_manifests::{InstrumentationDefinition, MiddlewaresManifestV2},
 };
@@ -26,6 +27,7 @@ use turbopack_core::{
 };
 
 use crate::{
+    nft::{EndpointTraceResult, trace_endpoint},
     nft_json::NftJsonAsset,
     paths::{
         all_asset_paths, get_js_paths_from_root, get_wasm_paths_from_root, wasm_paths_to_bindings,
@@ -107,6 +109,7 @@ impl InstrumentationEndpoint {
             module.ident(),
             ChunkGroup::Entry(vec![module]),
             module_graph,
+            OutputAssets::empty(),
             AvailabilityInfo::root(),
         ))
     }
@@ -184,22 +187,26 @@ impl InstrumentationEndpoint {
             let chunk = self.node_chunk().to_resolved().await?;
             let mut output_assets = vec![chunk];
             if this.project.next_mode().await?.is_production() {
-                let userland_module = self.entry_module();
                 output_assets.push(ResolvedVc::upcast(
-                    NftJsonAsset::new(
-                        *this.project,
-                        None,
-                        *chunk,
-                        vec![],
-                        this.project.module_graph(userland_module),
-                        vec![userland_module],
-                    )
-                    .to_resolved()
-                    .await?,
+                    NftJsonAsset::new(*this.project, None, *chunk, vec![], self.trace_result())
+                        .to_resolved()
+                        .await?,
                 ));
             }
             Ok(Vc::cell(output_assets))
         }
+    }
+
+    #[turbo_tasks::function]
+    async fn trace_result(self: Vc<Self>) -> Result<Vc<EndpointTraceResult>> {
+        let this = self.await?;
+        let userland_module = self.entry_module();
+        Ok(trace_endpoint(
+            *this.project,
+            None,
+            this.project.module_graph(userland_module),
+            userland_module,
+        ))
     }
 }
 
@@ -249,7 +256,10 @@ impl Endpoint for InstrumentationEndpoint {
     #[turbo_tasks::function]
     async fn entries(self: Vc<Self>) -> Result<Vc<GraphEntries>> {
         let entry_module = self.entry_module().to_resolved().await?;
-        Ok(Vc::cell(vec![ChunkGroupEntry::Entry(vec![entry_module])]))
+        Ok(
+            GraphEntries::from_chunk_groups(vec![ChunkGroupEntry::Entry(vec![entry_module])])
+                .cell(),
+        )
     }
 
     #[turbo_tasks::function]
@@ -263,5 +273,10 @@ impl Endpoint for InstrumentationEndpoint {
     #[turbo_tasks::function]
     fn project(&self) -> Vc<Project> {
         *self.project
+    }
+
+    #[turbo_tasks::function]
+    fn traced_files(self: Vc<Self>) -> Vc<FileSystemPathVec> {
+        self.trace_result().all_files()
     }
 }
