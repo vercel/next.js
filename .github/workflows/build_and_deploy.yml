@@ -106,8 +106,10 @@ jobs:
           fi
         env:
           GIT_REF: ${{ github.ref }}
-      - name: Print deploy target
-        run: echo "Deploy target is '${{ steps.deploy-target.outputs.value }}'"
+      - name: Print deploy plan
+        run: |
+          echo "Deploy target is '${{ steps.deploy-target.outputs.value }}'"
+          echo "Release environment is '${{ steps.deploy-target.outputs.release_environment }}'"
 
   build:
     if: ${{ needs.deploy-target.outputs.value != 'skipped' }}
