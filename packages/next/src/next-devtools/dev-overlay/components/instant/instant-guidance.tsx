@@ -21,6 +21,7 @@ import {
   SYNC_IO_DOCS,
   getCards,
   type FixCard,
+  type FixCardGroup,
   type FixCardIcon,
   type GuidanceKind,
   type GuidanceVariant,
@@ -57,22 +58,45 @@ function getCardIcon(icon: FixCardIcon) {
   }
 }
 
-function CopyPromptButton({ title, link }: { title: string; link: string }) {
+function CopyPromptButton({
+  title,
+  group,
+  link,
+  generateErrorInfo,
+}: {
+  title: string
+  group: FixCardGroup
+  link: string
+  generateErrorInfo?: () => Promise<string>
+}) {
+  const groupLabel = FIX_CARD_GROUPS[group].label
   const hashIndex = link.indexOf('#')
   const rulePage = hashIndex === -1 ? link : link.slice(0, hashIndex)
-  const prompt = [
-    'Before applying this fix:',
+  const fixHeader = [
+    `Apply the [${groupLabel}] "${title}" fix to the Next.js Insight raised in this project.`,
     '',
-    "1. Read the actual Next.js error in the dev overlay (or browser/terminal console) to identify the failing file, line, and component. Match the fix to that component — don't patch unrelated files.",
+    'Steps:',
     '',
-    `2. Read the full context for this rule at ${rulePage}, then read the specific fix section at ${link}. The fix section names the exact code shape, every constraint, and the imports allowed. Follow it exactly — don't improvise.`,
+    "1. The failing code is in the error block below — it may be a data-access call, a hook call, a metadata or viewport export, or a component. The fix applies to that exact code; don't touch unrelated files.",
     '',
-    `Apply the "${title}" fix.`,
+    `2. Read the rule docs at ${rulePage} for the full Insight explanation, then read the fix section at ${link}. Pick the pattern under "### Patterns" that matches the failing code, then read "### Gotchas" before editing — they list constraints that are easy to miss. Use the canonical imports and code shape from the page; don't improvise variations.`,
+    '',
+    `3. Apply the chosen pattern to the code identified in step 1.`,
   ].join('\n')
 
-  return (
+  return generateErrorInfo ? (
     <CopyButton
-      content={prompt}
+      getContent={async () => {
+        const info = await generateErrorInfo()
+        return info ? `${fixHeader}\n\n${info}` : fixHeader
+      }}
+      actionLabel="Copy AI prompt"
+      successLabel="Prompt copied"
+      data-nextjs-fix-card-copy-button
+    />
+  ) : (
+    <CopyButton
+      content={fixHeader}
       actionLabel="Copy AI prompt"
       successLabel="Prompt copied"
       data-nextjs-fix-card-copy-button
@@ -80,7 +104,13 @@ function CopyPromptButton({ title, link }: { title: string; link: string }) {
   )
 }
 
-function CardGrid({ cards }: { cards: FixCard[] }) {
+function CardGrid({
+  cards,
+  generateErrorInfo,
+}: {
+  cards: FixCard[]
+  generateErrorInfo?: () => Promise<string>
+}) {
   return (
     <div data-nextjs-card-grid>
       {cards.map((card) => {
@@ -158,7 +188,12 @@ function CardGrid({ cards }: { cards: FixCard[] }) {
         return card.copyable && card.link ? (
           <div data-nextjs-fix-card-wrapper key={card.id}>
             {cardElement}
-            <CopyPromptButton title={card.title} link={card.link} />
+            <CopyPromptButton
+              title={card.title}
+              group={card.group}
+              link={card.link}
+              generateErrorInfo={generateErrorInfo}
+            />
           </div>
         ) : (
           <div data-nextjs-fix-card-wrapper key={card.id}>
@@ -176,12 +211,14 @@ export function InstantGuidance({
   explanation,
   cause,
   showExplanation = true,
+  generateErrorInfo,
 }: {
   variant: GuidanceVariant
   kind?: GuidanceKind
   explanation?: string
   cause?: string
   showExplanation?: boolean
+  generateErrorInfo?: () => Promise<string>
 }) {
   const cards = getCards(kind, variant, cause)
   let docsUrl: string
@@ -229,7 +266,7 @@ export function InstantGuidance({
         Ways to fix this:
       </div>
 
-      <CardGrid cards={cards} />
+      <CardGrid cards={cards} generateErrorInfo={generateErrorInfo} />
     </div>
   )
 }
