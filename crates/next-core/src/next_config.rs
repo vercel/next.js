@@ -8,8 +8,8 @@ use serde_json::Value as JsonValue;
 use turbo_esregex::EsRegex;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
-    FxIndexMap, NonLocalValue, OperationValue, ResolvedVc, TaskInput, Vc, debug::ValueDebugFormat,
-    trace::TraceRawVcs,
+    FxIndexMap, NonLocalValue, OperationValue, ResolvedVc, TryJoinIterExt, Vc,
+    debug::ValueDebugFormat, trace::TraceRawVcs,
 };
 use turbo_tasks_env::EnvMap;
 use turbo_tasks_fetch::FetchClientConfig;
@@ -43,7 +43,13 @@ use crate::{
     next_shared::{
         transforms::ModularizeImportPackageConfig, webpack_rules::WebpackLoaderBuiltinCondition,
     },
+    util::relativize_glob,
 };
+
+/// Name of the directory at the project root where CPU profiles are written when profiling is
+/// enabled (see the `--cpu-prof` CLI flag). It is a fixed-name sibling of `distDir`, not
+/// configurable. Kept here so the bundler and the napi bindings agree on the path.
+pub const DIST_PROFILES_DIR_NAME: &str = ".next-profiles";
 
 #[turbo_tasks::value(transparent)]
 pub struct ModularizeImports(
@@ -349,6 +355,7 @@ pub enum OutputType {
 #[turbo_tasks::value(transparent)]
 pub struct OptionOutputType(Option<OutputType>);
 
+#[turbo_tasks::task_input]
 #[derive(
     Debug,
     Clone,
@@ -357,11 +364,9 @@ pub struct OptionOutputType(Option<OutputType>);
     PartialEq,
     Ord,
     PartialOrd,
-    TaskInput,
     TraceRawVcs,
     Serialize,
     Deserialize,
-    NonLocalValue,
     OperationValue,
     Encode,
     Decode,
@@ -1605,7 +1610,7 @@ pub struct OptionSubResourceIntegrity(Option<SubResourceIntegrity>);
 pub struct OptionFileSystemPath(Option<FileSystemPath>);
 
 #[turbo_tasks::value(transparent)]
-pub struct IgnoreIssues(Vec<IgnoreIssue>);
+pub struct IgnoreIssues(Box<[IgnoreIssue]>);
 
 #[turbo_tasks::value(transparent)]
 pub struct OptionJsonValue(
@@ -1691,6 +1696,53 @@ impl Issue for InvalidLoaderRuleConditionIssue {
 
     fn documentation_link(&self) -> RcStr {
         turbopack_config_documentation_link()
+    }
+}
+
+#[turbo_tasks::value(transparent)]
+pub struct OutputFileTracingIncludesExcludes(
+    #[bincode(with = "turbo_bincode::indexmap")]
+    FxIndexMap<ResolvedVc<Glob>, Vec<(RcStr, FileSystemPath)>>,
+);
+
+impl OutputFileTracingIncludesExcludes {
+    pub async fn parse(
+        project_path: FileSystemPath,
+        value: &Option<serde_json::Value>,
+    ) -> Result<OutputFileTracingIncludesExcludes> {
+        if let Some(value) = value
+            && let Some(map) = value.as_object()
+        {
+            Ok(OutputFileTracingIncludesExcludes(
+                map.iter()
+                    .map(async |(route_pattern, file_patterns)| {
+                        let route_pattern = Glob::new(
+                            RcStr::from(route_pattern.clone()),
+                            GlobOptions { contains: true },
+                        )
+                        .to_resolved()
+                        .await?;
+                        let file_patterns = file_patterns
+                            .as_array()
+                            .iter()
+                            .flat_map(|pattern| pattern.iter())
+                            .filter_map(|pattern| pattern.as_str())
+                            .map(async |pattern_str| {
+                                let (glob, root) = relativize_glob(pattern_str, &project_path)?;
+                                Ok((RcStr::from(glob), root))
+                            })
+                            .try_join()
+                            .await?;
+                        Ok((route_pattern, file_patterns))
+                    })
+                    .try_join()
+                    .await?
+                    .into_iter()
+                    .collect(),
+            ))
+        } else {
+            Ok(OutputFileTracingIncludesExcludes(FxIndexMap::default()))
+        }
     }
 }
 
@@ -2480,13 +2532,29 @@ impl NextConfig {
     }
 
     #[turbo_tasks::function]
-    pub fn output_file_tracing_includes(&self) -> Vc<OptionJsonValue> {
-        Vc::cell(self.output_file_tracing_includes.clone())
+    pub async fn output_file_tracing_includes(
+        &self,
+        project_path: FileSystemPath,
+    ) -> Result<Vc<OutputFileTracingIncludesExcludes>> {
+        Ok(OutputFileTracingIncludesExcludes::parse(
+            project_path,
+            &self.output_file_tracing_includes,
+        )
+        .await?
+        .cell())
     }
 
     #[turbo_tasks::function]
-    pub fn output_file_tracing_excludes(&self) -> Vc<OptionJsonValue> {
-        Vc::cell(self.output_file_tracing_excludes.clone())
+    pub async fn output_file_tracing_excludes(
+        &self,
+        project_path: FileSystemPath,
+    ) -> Result<Vc<OutputFileTracingIncludesExcludes>> {
+        Ok(OutputFileTracingIncludesExcludes::parse(
+            project_path,
+            &self.output_file_tracing_excludes,
+        )
+        .await?
+        .cell())
     }
 
     #[turbo_tasks::function]
@@ -2531,7 +2599,7 @@ impl NextConfig {
                         .transpose()?,
                 })
             })
-            .collect::<Result<Vec<_>>>()?;
+            .collect::<Result<_>>()?;
         Ok(Vc::cell(rules))
     }
 

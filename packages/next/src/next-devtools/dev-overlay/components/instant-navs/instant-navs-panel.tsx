@@ -195,6 +195,8 @@ function InstantNavTransitionLayer({
   )
 }
 
+// Ends the capture: deleting the cookie triggers the CookieStore handler in
+// navigation-testing-lock.ts, which releases the lock and soft-refreshes to real data.
 function clearInstantNavCaptureCookie(): void {
   setInstantNavTransientStatus('idle')
   if (typeof cookieStore !== 'undefined') {
@@ -210,16 +212,18 @@ export function InstantNavsPanel() {
   // state, including the from-route URL for SPA captures.
   const cookieData = useInstantNavCookieState()
 
-  // Cleanup on unmount: clear cookie and close the panel.
+  // Reset UI state only, not the cookie: unmount also fires on Fast Refresh
+  // remounts, where ending an active capture would be wrong.
   useEffect(() => {
     return () => {
-      clearInstantNavCaptureCookie()
+      setInstantNavTransientStatus('idle')
       dispatch({ type: ACTION_INSTANT_NAVS_RESET })
     }
   }, [dispatch])
 
-  // Panel routes stay mounted briefly for exit animations. Reset as soon as
-  // close is requested so reopening during that animation starts fresh.
+  // Leaving the instant panel (menu/logo, X, ESC) ends the capture. The error
+  // overlay is the exception: it keeps `panel` as 'instant-navs' and only moves
+  // the panel behind it, so this effect never fires and the capture survives.
   useEffect(() => {
     if (panel !== 'instant-navs') {
       clearInstantNavCaptureCookie()

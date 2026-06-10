@@ -83,6 +83,10 @@ impl ModuleReference for FileSourceReference {
             mode: TracedMode::Entry,
         })
     }
+
+    fn source(&self) -> Option<IssueSource> {
+        Some(self.issue_source)
+    }
 }
 
 #[turbo_tasks::value]
@@ -212,5 +216,9 @@ impl ModuleReference for DirAssetReference {
         Some(ChunkingType::Traced {
             mode: TracedMode::Entry,
         })
+    }
+
+    fn source(&self) -> Option<IssueSource> {
+        Some(self.issue_source)
     }
 }

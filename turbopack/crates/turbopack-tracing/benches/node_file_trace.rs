@@ -3,7 +3,9 @@ use std::{fs, path::PathBuf};
 use criterion::{Bencher, BenchmarkId, Criterion};
 use regex::Regex;
 use turbo_rcstr::{RcStr, rcstr};
-use turbo_tasks::{Effects, OperationVc, TurboTasks, Vc, take_effects};
+use turbo_tasks::{
+    Effects, OperationVc, TurboTasks, Vc, read_strongly_consistent_and_apply_effects, take_effects,
+};
 use turbo_tasks_backend::{BackendOptions, TurboTasksBackend, noop_backing_storage};
 use turbo_tasks_fs::{DiskFileSystem, FileSystem, NullFileSystem};
 use turbopack::{
@@ -129,11 +131,11 @@ fn bench_emit(b: &mut Bencher, bench_input: &BenchInput) {
                     .to_resolved()
                     .await?;
 
-                extract_effects_operation(emit_assets_into_dir_operation(assets, output_dir))
-                    .read_strongly_consistent()
-                    .await?
-                    .apply()
-                    .await?;
+                read_strongly_consistent_and_apply_effects(
+                    extract_effects_operation(emit_assets_into_dir_operation(assets, output_dir)),
+                    |e| e,
+                )
+                .await?;
 
                 Ok(())
             })

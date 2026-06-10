@@ -77,6 +77,10 @@ impl ModuleReference for CjsAssetReference {
             hoisted: false,
         })
     }
+
+    fn source(&self) -> Option<IssueSource> {
+        Some(self.issue_source)
+    }
 }
 
 #[turbo_tasks::value]
@@ -138,6 +142,10 @@ impl ModuleReference for CjsRequireAssetReference {
             },
             |c| c.as_chunking_type(false, false),
         )
+    }
+
+    fn source(&self) -> Option<IssueSource> {
+        Some(self.issue_source)
     }
 }
 
@@ -275,6 +283,10 @@ impl ModuleReference for CjsRequireResolveAssetReference {
             },
             |c| c.as_chunking_type(false, false),
         )
+    }
+
+    fn source(&self) -> Option<IssueSource> {
+        Some(self.issue_source)
     }
 }
 

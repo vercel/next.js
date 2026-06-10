@@ -374,7 +374,7 @@ export async function generateMetadata(props) {
   const query = searchParams.query
 }
 
-export async function Page(props) {
+export default async function Page(props) {
   const params = await props.params
   const searchParams = await props.searchParams
   const slug = params.slug

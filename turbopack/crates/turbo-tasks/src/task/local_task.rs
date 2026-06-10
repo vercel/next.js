@@ -3,8 +3,8 @@ use std::{fmt, sync::Arc};
 use anyhow::{Result, bail};
 
 use crate::{
-    CellId, DynTaskInputs, OutputContent, OwnedStackDynTaskInputs, RawVc, TaskPersistence,
-    TraitMethod, TurboTasksBackendApi, ValueTypeId, backend::Backend, event::Event,
+    CellId, DynTaskInputs, HeapDynTaskInputsStorage, OutputContent, RawVc, TaskPersistence,
+    TraitMethod, TurboTasks, ValueTypeId, backend::Backend, event::Event,
     macro_helpers::NativeFunction, registry,
 };
 
@@ -55,13 +55,13 @@ impl LocalTaskType {
         mut this: Option<RawVc>,
         arg: &dyn DynTaskInputs,
         persistence: TaskPersistence,
-        turbo_tasks: Arc<dyn TurboTasksBackendApi<B>>,
+        turbo_tasks: Arc<TurboTasks<B>>,
     ) -> Result<RawVc> {
         if let Some(this) = this.as_mut() {
             *this = this.resolve().await?;
         }
         let arg = native_fn.arg_meta.resolve(arg).await?;
-        let mut arg = OwnedStackDynTaskInputs::new(arg);
+        let mut arg = HeapDynTaskInputsStorage::new(arg);
         Ok(turbo_tasks.native_call(native_fn, this, &mut arg, persistence))
     }
     /// Implementation of the LocalTaskType::ResolveTrait task.
@@ -70,7 +70,7 @@ impl LocalTaskType {
         this: RawVc,
         arg: &dyn DynTaskInputs,
         persistence: TaskPersistence,
-        turbo_tasks: Arc<dyn TurboTasksBackendApi<B>>,
+        turbo_tasks: Arc<TurboTasks<B>>,
     ) -> Result<RawVc> {
         let this = this.resolve().await?;
         let RawVc::TaskCell(_, CellId { type_id, .. }) = this else {
@@ -79,7 +79,7 @@ impl LocalTaskType {
 
         let native_fn = Self::resolve_trait_method_from_value(trait_method, type_id)?;
         let arg = native_fn.arg_meta.filter_and_resolve(arg).await?;
-        let mut arg = OwnedStackDynTaskInputs::new(arg);
+        let mut arg = HeapDynTaskInputsStorage::new(arg);
         Ok(turbo_tasks.native_call(native_fn, Some(this), &mut arg, persistence))
     }
 

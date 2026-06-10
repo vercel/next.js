@@ -3,14 +3,14 @@ use std::{cell::LazyCell, mem::take};
 use bincode::{Decode, Encode};
 use rustc_hash::FxHashSet;
 use smallvec::SmallVec;
+#[cfg(feature = "task_dirty_cause")]
+use turbo_tasks::TaskDirtyCause;
 use turbo_tasks::{
     CellId, FxIndexMap, TaskId, TypedSharedReference, ValueTypePersistence,
     backend::{CellContent, CellHash, VerificationMode},
     registry,
 };
 
-#[cfg(feature = "trace_task_dirty")]
-use crate::backend::operation::invalidate::TaskDirtyCause;
 use crate::{
     backend::{
         TaskDataCategory,
@@ -30,7 +30,7 @@ pub enum UpdateCellOperation {
         cell_ref: CellRef,
         #[bincode(with = "turbo_bincode::indexmap")]
         dependent_tasks: FxIndexMap<TaskId, SmallVec<[Option<u64>; 2]>>,
-        #[cfg(feature = "trace_task_dirty")]
+        #[cfg(feature = "task_dirty_cause")]
         has_updated_key_hashes: bool,
         content: Option<TypedSharedReference>,
         queue: AggregationUpdateQueue,
@@ -125,7 +125,7 @@ impl UpdateCellOperation {
                     }
                 };
 
-            #[cfg(feature = "trace_task_dirty")]
+            #[cfg(feature = "task_dirty_cause")]
             let has_updated_key_hashes = updated_key_hashes.is_some();
             let updated_key_hashes_set = updated_key_hashes.map(|updated_key_hashes| {
                 LazyCell::new(|| updated_key_hashes.into_iter().collect::<FxHashSet<u64>>())
@@ -195,7 +195,7 @@ impl UpdateCellOperation {
                         cell,
                     },
                     dependent_tasks,
-                    #[cfg(feature = "trace_task_dirty")]
+                    #[cfg(feature = "task_dirty_cause")]
                     has_updated_key_hashes,
                     content: content.map(|r| r.into_typed(cell.type_id)),
                     queue: AggregationUpdateQueue::new(),
@@ -272,7 +272,7 @@ impl Operation for UpdateCellOperation {
                 UpdateCellOperation::InvalidateWhenCellDependency {
                     cell_ref,
                     ref mut dependent_tasks,
-                    #[cfg(feature = "trace_task_dirty")]
+                    #[cfg(feature = "task_dirty_cause")]
                     has_updated_key_hashes,
                     ref mut content,
                     ref mut queue,
@@ -302,7 +302,7 @@ impl Operation for UpdateCellOperation {
                             dependent,
                             dependent_task_id,
                             make_stale,
-                            #[cfg(feature = "trace_task_dirty")]
+                            #[cfg(feature = "task_dirty_cause")]
                             TaskDirtyCause::CellChange {
                                 value_type: cell_ref.cell.type_id,
                                 keys: has_updated_key_hashes.then_some(keys).unwrap_or_default(),

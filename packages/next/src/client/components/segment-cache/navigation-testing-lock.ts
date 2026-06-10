@@ -26,9 +26,11 @@ function parseCookieValue(raw: string): InstantNavCookieState {
   }
   try {
     const parsed = JSON.parse(raw)
-    if (Array.isArray(parsed) && parsed.length >= 3) {
-      const rawState = parsed[2]
-      return rawState === null ? 'mpa' : 'spa'
+    if (Array.isArray(parsed)) {
+      if (parsed.length >= 3) {
+        const rawState = parsed[2]
+        return rawState === null ? 'mpa' : 'spa'
+      }
     }
   } catch {}
   return 'pending'
@@ -189,7 +191,11 @@ export function startListeningForInstantNavigationCookie(): void {
           if (state === 'pending') {
             // External actor starting a new lock scope.
             if (lockState !== null) {
-              releaseLock()
+              // This can be the delayed CookieStore event for the pending
+              // cookie that was already observed synchronously from
+              // document.cookie. Keep the existing lock identity so work that
+              // captured it keeps waiting on the same promise.
+              return
             }
             acquireLock()
           }
@@ -262,14 +268,23 @@ export function isNavigationLocked(): boolean {
   return false
 }
 
+export function getCurrentNavigationLock(): Promise<void> | null {
+  if (process.env.__NEXT_EXPOSE_TESTING_API) {
+    return lockState !== null ? lockState.promise : null
+  }
+  return null
+}
+
 /**
  * Waits for the navigation lock to be released, if it's currently held.
  * No-op if the lock is not acquired.
  */
-export async function waitForNavigationLockIfActive(): Promise<void> {
+export async function waitForNavigationLockIfActive(
+  lock: Promise<void> | null = getCurrentNavigationLock()
+): Promise<void> {
   if (process.env.__NEXT_EXPOSE_TESTING_API) {
-    if (lockState !== null) {
-      await lockState.promise
+    if (lock !== null) {
+      await lock
     }
   }
 }
