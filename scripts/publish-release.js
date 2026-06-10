@@ -12,6 +12,7 @@ const {
 } = require('./release-github-auth')
 
 const cwd = process.cwd()
+const dryRun = process.argv.includes('--dry-run')
 
 ;(async function () {
   const version = JSON.parse(
@@ -21,7 +22,11 @@ const cwd = process.cwd()
   if (parsedVersion === null) {
     throw new Error(`Invalid version in lerna.json: ${version}`)
   }
-  console.log(`Publishing ${version}`)
+  console.log(
+    dryRun
+      ? `Dry run: not publishing ${version} to npm`
+      : `Publishing ${version}`
+  )
 
   const prereleaseChannel = parsedVersion.prerelease[0]
   const isPrerelease = prereleaseChannel != null
@@ -72,6 +77,7 @@ const cwd = process.cwd()
           '--ignore-scripts',
           '--tag',
           tag,
+          ...(dryRun ? ['--dry-run'] : []),
         ],
         { stdio: 'pipe' }
       )
@@ -109,6 +115,10 @@ const cwd = process.cwd()
   }
 
   const undraft = async () => {
+    if (dryRun) {
+      console.log('Dry run: skipping GitHub release un-draft')
+      return
+    }
     const githubToken = getGitHubToken()
 
     if (!githubToken) {

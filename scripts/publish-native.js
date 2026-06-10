@@ -7,9 +7,13 @@ const { Sema } = require('async-sema')
 const { readFile, readdir, writeFile, cp } = require('fs/promises')
 
 const cwd = process.cwd()
+const dryRun = process.argv.includes('--dry-run')
 
 ;(async function () {
   try {
+    if (dryRun) {
+      console.log('Dry run: not publishing native packages to npm')
+    }
     const publishSema = new Sema(2)
 
     let version = require('@next/swc/package.json').version
@@ -61,10 +65,21 @@ const cwd = process.cwd()
 
         try {
           let binaryName = `next-swc.${platform}.node`
-          await cp(
-            path.join(cwd, 'packages/next-swc/native', binaryName),
-            path.join(nativePackagesDir, platform, binaryName)
-          )
+          try {
+            await cp(
+              path.join(cwd, 'packages/next-swc/native', binaryName),
+              path.join(nativePackagesDir, platform, binaryName)
+            )
+          } catch (error) {
+            if (dryRun) {
+              console.warn(
+                `Binary for platform ${platform} not found, but ignoring due to dry run`
+              )
+              return
+            }
+            throw error
+          }
+
           let pkg = JSON.parse(
             await readFile(
               path.join(nativePackagesDir, platform, 'package.json')
@@ -84,6 +99,7 @@ const cwd = process.cwd()
               `public`,
               '--tag',
               tag,
+              ...(dryRun ? ['--dry-run'] : []),
             ],
             { stdio: 'inherit' }
           )
@@ -143,6 +159,7 @@ const cwd = process.cwd()
               'public',
               '--tag',
               tag,
+              ...(dryRun ? ['--dry-run'] : []),
             ],
             { stdio: 'inherit' }
           )
