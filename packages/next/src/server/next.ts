@@ -22,6 +22,7 @@ import {
 import { PHASE_PRODUCTION_SERVER } from '../shared/lib/constants'
 import { getTracer } from './lib/trace/tracer'
 import { NextServerSpan } from './lib/trace/constants'
+import { getOutputExportStartError } from './lib/output-error'
 import { formatUrl } from '../shared/lib/router/utils/format-url'
 import type { ServerFields } from './lib/router-utils/setup-dev-bundler'
 import type { ServerInitResult } from './lib/render-server'
@@ -385,9 +386,7 @@ export class NextServer implements NextWrapperServer {
               )
             }
           } else if (conf.output === 'export') {
-            throw new Error(
-              `"next start" does not work with "output: export" configuration. Use "npx serve@latest out" instead.`
-            )
+            throw new Error(getOutputExportStartError(conf))
           }
         }
 
