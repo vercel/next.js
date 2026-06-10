@@ -534,7 +534,10 @@ pub struct StaticRcStr(pub &'static StaticPrehashedString);
 
 // Link-time collection of every `rcstr!` static.
 //
-// Disabled under wasm because scattered-collect relies on a environment provided function described in https://docs.rs/link-section/latest/link_section/#wasm and installing it is tricky using wasm-bindgen.  Also this is only hear to support desrialization of rcstrs which shouldn't happen under wasm anyway.
+// Disabled under wasm because scattered-collect relies on a environment provided function 
+// described in <https://docs.rs/link-section/latest/link_section/#wasm> and installing it is tricky
+// using wasm-bindgen. Also this is only here to support deserialization of rcstrs which shouldn't
+// happen under wasm anyway.
 #[cfg(not(target_family = "wasm"))]
 #[doc(hidden)]
 #[scattered_collect::gather]
