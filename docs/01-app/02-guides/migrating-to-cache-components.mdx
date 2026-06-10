@@ -623,7 +623,7 @@ async function Dashboard() {
 }
 ```
 
-Your page receives `params` and `searchParams` as props, and both are promises. Apply the same pattern: pass the promise straight through to the `<Suspense>`-wrapped component as a prop and `await` it there, rather than at the top of the page. You can also unwrap the promise inline with `.then()` and pass a plain value down; see [Streaming](/docs/app/guides/streaming) for the full pattern.
+Your page receives `params` and `searchParams` as props, and both are promises. Apply the same pattern: pass the promise straight through to the `<Suspense>`-wrapped component as a prop and `await` it there, rather than at the top of the page. You can also unwrap the promise inline with `.then()` and pass a plain value down; see [Streaming](/docs/app/guides/streaming#push-dynamic-access-down) for a similar pattern.
 
 ```tsx filename="app/page.tsx" switcher
 import { Suspense } from 'react'
@@ -717,7 +717,7 @@ async function getProducts() {
 }
 ```
 
-> **Good to know:** Reading uncached or runtime data in a `GET` handler bails out of prerendering by **throwing**. A `try/catch` you already have around other operations will catch that bail-out. This is harmless (prerendering has already stopped and the value isn't used), but a `catch` that logs the error produces noisy build-time logs. To quiet them, set `experimental.hideLogsAfterAbort: true` to hide logs emitted after a bail-out.
+> **Good to know:** Reading uncached or runtime data in a `GET` handler bails out of prerendering by **throwing**. A `try/catch` you already have around other operations will catch that bail-out. If the `catch` block logs the error, it adds noise to the build output. Set `experimental.hideLogsAfterAbort: true` to hide logs emitted after a bail-out.
 
 ## `generateMetadata` and `generateViewport`
 
