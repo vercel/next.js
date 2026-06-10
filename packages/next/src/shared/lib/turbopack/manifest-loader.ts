@@ -27,7 +27,7 @@ import type { SetupOpts } from '../../../server/lib/router-utils/setup-dev-bundl
 import { deleteCache } from '../../../server/dev/require-cache'
 import { writeFileAtomic } from '../../../lib/fs/write-atomic'
 import getAssetPathFromRoute from '../router/utils/get-asset-path-from-route'
-import { getEntryKey, type EntryKey } from './entry-key'
+import { getEntryKey, splitEntryKey, type EntryKey } from './entry-key'
 import type { CustomRoutes } from '../../../lib/load-custom-routes'
 import { getSortedRoutes } from '../router/utils'
 import { existsSync } from 'fs'
@@ -171,6 +171,10 @@ class ManifestsMap<K, V> {
 
   values() {
     return this.map.values()
+  }
+
+  entries() {
+    return this.map.entries()
   }
 }
 
@@ -590,7 +594,11 @@ export class TurbopackManifestLoader {
     // stores params as raw JSON per route.
     const pageBootstrapParams: Record<string, unknown> = {}
     let chunkLoadingGlobal: string | undefined
-    for (const m of this.buildManifests.values()) {
+    for (const [key, m] of this.buildManifests.entries()) {
+      // Only the pages-router `route-loader` reads `__TURBOPACK_PAGE_BOOTSTRAP`. App routes
+      // navigate via flight and never use it, so skip app entries to keep `_buildManifest.js`
+      // (loaded on every page) small.
+      if (splitEntryKey(key).type !== 'pages') continue
       if (m.chunkLoadingGlobal) chunkLoadingGlobal = m.chunkLoadingGlobal
       for (const [route, params] of Object.entries(
         m.pagesChunkGroupBootstrapParams ?? {}
