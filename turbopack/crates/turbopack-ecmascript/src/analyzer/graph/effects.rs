@@ -34,8 +34,8 @@ pub enum ConditionalKind<'a> {
     /// The blocks of an `if { ... return ... } else { ... } ...` or `if { ... }
     /// else { ... return ... } ...` statement.
     IfElseMultiple {
-        then: Vec<EffectsBlock<'a>>,
-        r#else: Vec<EffectsBlock<'a>>,
+        then: Box<[EffectsBlock<'a>]>,
+        r#else: Box<[EffectsBlock<'a>]>,
     },
     /// The expressions on the right side of the `?:` operator.
     Ternary {

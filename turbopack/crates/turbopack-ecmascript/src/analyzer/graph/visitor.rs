@@ -426,32 +426,32 @@ mod analyzer_state {
                         let kind = match (then, r#else, early_return_condition_value) {
                             (None, None, false) => ConditionalKind::If { then: block },
                             (None, None, true) => ConditionalKind::IfElseMultiple {
-                                then: vec![block],
-                                r#else: vec![],
+                                then: Box::from([block]),
+                                r#else: Box::from([]),
                             },
                             (Some(then), None, false) => ConditionalKind::IfElseMultiple {
-                                then: vec![then, block],
-                                r#else: vec![],
+                                then: Box::from([then, block]),
+                                r#else: Box::from([]),
                             },
                             (Some(then), None, true) => ConditionalKind::IfElse {
                                 then,
                                 r#else: block,
                             },
                             (Some(then), Some(r#else), false) => ConditionalKind::IfElseMultiple {
-                                then: vec![then, block],
-                                r#else: vec![r#else],
+                                then: Box::from([then, block]),
+                                r#else: Box::from([r#else]),
                             },
                             (Some(then), Some(r#else), true) => ConditionalKind::IfElseMultiple {
-                                then: vec![then],
-                                r#else: vec![r#else, block],
+                                then: Box::from([then]),
+                                r#else: Box::from([r#else, block]),
                             },
                             (None, Some(r#else), false) => ConditionalKind::IfElse {
                                 then: block,
                                 r#else,
                             },
                             (None, Some(r#else), true) => ConditionalKind::IfElseMultiple {
-                                then: vec![],
-                                r#else: vec![r#else, block],
+                                then: Box::from([]),
+                                r#else: Box::from([r#else, block]),
                             },
                         };
                         self.effects.push(
