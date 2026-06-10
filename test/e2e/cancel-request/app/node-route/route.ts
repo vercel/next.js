@@ -50,3 +50,21 @@ export async function GET(req: NextRequest): Promise<Response> {
   const i = await old.finished
   return new Response(`${i}`)
 }
+
+export async function POST(req: NextRequest): Promise<Response> {
+  if (req.nextUrl.searchParams.has('compile')) {
+    return new Response(null, { status: 204 })
+  }
+
+  if (req.nextUrl.searchParams.has('sse')) {
+    const stream = new TransformStream()
+
+    return new Response(stream.readable, {
+      headers: {
+        'Content-Type': 'text/event-stream',
+      },
+    })
+  }
+
+  return new Response(null, { status: 404 })
+}

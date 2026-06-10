@@ -1,21 +1,43 @@
 import { nextTestSetup } from 'e2e-utils'
 import { sleep } from './sleep'
-import { get } from 'http'
+import { request } from 'http'
 
 describe('streaming responses cancel inner stream after disconnect', () => {
   const { next } = nextTestSetup({
     files: __dirname,
   })
 
-  function prime(url: string, noData?: boolean) {
+  function prime(
+    url: string,
+    noData?: boolean,
+    init: { method?: string; body?: string } = {}
+  ) {
     return new Promise<void>((resolve, reject) => {
       url = new URL(url, next.url).href
+      const { method = 'GET', body } = init
+      const headers = body
+        ? {
+            'content-type': 'application/json',
+            'content-length': Buffer.byteLength(body),
+          }
+        : undefined
+      let abortTimer: ReturnType<typeof setTimeout> | undefined
 
       // There's a bug in node-fetch v2 where aborting the fetch will never abort
       // the connection, because the body is a transformed stream that doesn't
       // close the connection stream.
       // https://github.com/node-fetch/node-fetch/pull/670
-      const req = get(url, async (res) => {
+      const req = request(url, { method, headers }, async (res) => {
+        if (noData) {
+          if (abortTimer) {
+            clearTimeout(abortTimer)
+          }
+
+          res.destroy()
+          resolve()
+          return
+        }
+
         while (true) {
           const value = res.read(1)
           if (value) break
@@ -26,7 +48,6 @@ describe('streaming responses cancel inner stream after disconnect', () => {
         resolve()
       })
       req.on('error', reject)
-      req.end()
 
       if (noData) {
         req.on('error', (e) => {
@@ -37,11 +58,17 @@ describe('streaming responses cancel inner stream after disconnect', () => {
           }
         })
 
-        setTimeout(() => {
+        abortTimer = setTimeout(() => {
           req.abort()
           resolve()
         }, 100)
       }
+
+      if (body) {
+        req.write(body)
+      }
+
+      req.end()
     })
   }
 
@@ -83,6 +110,33 @@ describe('streaming responses cancel inner stream after disconnect', () => {
       const res = await next.fetch(path)
       const i = await res.text()
       expect(i).toBe('0')
+    }, 2500)
+  })
+
+  describe.each([
+    ['edge app route handler', '/edge-route'],
+    ['node app route handler', '/node-route'],
+  ])('%s', (_name, path) => {
+    beforeAll(async () => {
+      await next.fetch(path + '?compile', {
+        method: 'POST',
+        body: '{}',
+      })
+    })
+
+    it('does not log aborted POST stream responses as uncaught exceptions', async () => {
+      const outputStart = next.cliOutput.length
+
+      await prime(path + '?sse', true, {
+        method: 'POST',
+        body: JSON.stringify({ foo: 'bar' }),
+      })
+      await sleep(500)
+
+      const newOutput = next.cliOutput.slice(outputStart)
+      expect(newOutput).not.toContain('uncaughtException')
+      expect(newOutput).not.toContain('ECONNRESET')
+      expect(newOutput).not.toContain('Error: aborted')
     }, 2500)
   })
 })
