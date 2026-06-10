@@ -8,6 +8,8 @@ const { readFile, readdir, writeFile, cp } = require('fs/promises')
 
 const cwd = process.cwd()
 const dryRun = process.argv.includes('--dry-run')
+const maxPublishAttempts = 4
+const publishRetryDelaySeconds = 15
 
 ;(async function () {
   try {
@@ -52,7 +54,7 @@ const dryRun = process.argv.includes('--dry-run')
 
     console.log(`Publishing as "${tag}" dist tag...`)
 
-    const publish = async (label, pkgPath, retry = 0) => {
+    const publish = async (label, pkgPath, attempt = 1) => {
       let output = ''
       try {
         await publishSema.acquire()
@@ -78,7 +80,10 @@ const dryRun = process.argv.includes('--dry-run')
         // Return here to avoid retry logic
         return await child
       } catch (err) {
-        console.error(`Failed to publish ${label}`, err)
+        console.error(
+          `Failed to publish ${label} (attempt ${attempt} of ${maxPublishAttempts})`,
+          err
+        )
 
         if (
           output.includes(
@@ -89,19 +94,18 @@ const dryRun = process.argv.includes('--dry-run')
           return
         }
 
-        if (retry >= 3) {
+        if (attempt >= maxPublishAttempts) {
           throw err
         }
       } finally {
         publishSema.release()
       }
       // Recursive call need to be outside of the publishSema
-      const retryDelaySeconds = 15
-      console.log(`retrying ${label} in ${retryDelaySeconds}s`)
+      console.log(`retrying ${label} in ${publishRetryDelaySeconds}s`)
       await new Promise((resolve) =>
-        setTimeout(resolve, retryDelaySeconds * 1000)
+        setTimeout(resolve, publishRetryDelaySeconds * 1000)
       )
-      await publish(label, pkgPath, retry + 1)
+      await publish(label, pkgPath, attempt + 1)
     }
 
     // Copy binaries to package folders, update version, and publish
