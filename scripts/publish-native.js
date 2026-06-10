@@ -52,89 +52,99 @@ const dryRun = process.argv.includes('--dry-run')
 
     console.log(`Publishing as "${tag}" dist tag...`)
 
+    const publish = async (label, pkgPath, retry = 0) => {
+      let output = ''
+      try {
+        await publishSema.acquire()
+        const child = execa(
+          `npm`,
+          [
+            'publish',
+            pkgPath,
+            '--access',
+            'public',
+            '--tag',
+            tag,
+            ...(dryRun ? ['--dry-run'] : []),
+          ],
+          { stdio: 'pipe' }
+        )
+        const handleData = (type) => (chunk) => {
+          process[type].write(chunk)
+          output += chunk.toString()
+        }
+        child.stdout?.on('data', handleData('stdout'))
+        child.stderr?.on('data', handleData('stderr'))
+        // Return here to avoid retry logic
+        return await child
+      } catch (err) {
+        console.error(`Failed to publish ${label}`, err)
+
+        if (
+          output.includes(
+            'cannot publish over the previously published versions'
+          )
+        ) {
+          console.error('Ignoring already published error', label)
+          return
+        }
+
+        if (retry >= 3) {
+          throw err
+        }
+      } finally {
+        publishSema.release()
+      }
+      // Recursive call need to be outside of the publishSema
+      const retryDelaySeconds = 15
+      console.log(`retrying ${label} in ${retryDelaySeconds}s`)
+      await new Promise((resolve) =>
+        setTimeout(resolve, retryDelaySeconds * 1000)
+      )
+      await publish(label, pkgPath, retry + 1)
+    }
+
     // Copy binaries to package folders, update version, and publish
     let nativePackagesDir = path.join(cwd, 'crates/next-napi-bindings/npm')
     let platforms = (await readdir(nativePackagesDir)).filter(
       (name) => !name.startsWith('.')
     )
 
-    await Promise.all(
+    const nativeResults = await Promise.allSettled(
       platforms.map(async (platform) => {
-        await publishSema.acquire()
-        let output = ''
-
+        let binaryName = `next-swc.${platform}.node`
         try {
-          let binaryName = `next-swc.${platform}.node`
-          try {
-            await cp(
-              path.join(cwd, 'packages/next-swc/native', binaryName),
-              path.join(nativePackagesDir, platform, binaryName)
-            )
-          } catch (error) {
-            if (dryRun) {
-              console.warn(
-                `Binary for platform ${platform} not found, but ignoring due to dry run`
-              )
-              return
-            }
-            throw error
-          }
-
-          let pkg = JSON.parse(
-            await readFile(
-              path.join(nativePackagesDir, platform, 'package.json')
-            )
+          await cp(
+            path.join(cwd, 'packages/next-swc/native', binaryName),
+            path.join(nativePackagesDir, platform, binaryName)
           )
-          pkg.version = version
-          await writeFile(
-            path.join(nativePackagesDir, platform, 'package.json'),
-            JSON.stringify(pkg, null, 2)
-          )
-          const child = execa(
-            `npm`,
-            [
-              `publish`,
-              `${path.join(nativePackagesDir, platform)}`,
-              `--access`,
-              `public`,
-              '--tag',
-              tag,
-              ...(dryRun ? ['--dry-run'] : []),
-            ],
-            { stdio: 'inherit' }
-          )
-          const handleData = (type) => (chunk) => {
-            process[type].write(chunk)
-            output += chunk.toString()
-          }
-          child.stdout?.on('data', handleData('stdout'))
-          child.stderr?.on('data', handleData('stderr'))
-          await child
-        } catch (err) {
-          // don't block publishing other versions on single platform error
-          console.error(`Failed to publish`, platform, err)
-
-          if (
-            output.includes(
-              'cannot publish over the previously published versions'
+        } catch (error) {
+          if (dryRun) {
+            console.warn(
+              `Binary ${binaryName} not found, but ignoring due to dry run`
             )
-          ) {
-            console.error('Ignoring already published error', platform, err)
-          } else {
-            // throw err
+            return
           }
-        } finally {
-          publishSema.release()
+          throw error
         }
+
+        let pkg = JSON.parse(
+          await readFile(path.join(nativePackagesDir, platform, 'package.json'))
+        )
+        pkg.version = version
+        await writeFile(
+          path.join(nativePackagesDir, platform, 'package.json'),
+          JSON.stringify(pkg, null, 2)
+        )
+        await publish(platform, path.join(nativePackagesDir, platform))
       })
     )
 
     // Update name/version of wasm packages and publish
     const pkgDirectory = 'crates/wasm'
     let wasmDir = path.join(cwd, pkgDirectory)
-    await Promise.all(
+    const wasmResults = await Promise.allSettled(
       ['web', 'nodejs'].map(async (wasmTarget) => {
-        await publishSema.acquire()
         let wasmPkg = JSON.parse(
           await readFile(path.join(wasmDir, `pkg-${wasmTarget}/package.json`))
         )
@@ -149,38 +159,15 @@ const dryRun = process.argv.includes('--dry-run')
           path.join(wasmDir, `pkg-${wasmTarget}/package.json`),
           JSON.stringify(wasmPkg, null, 2)
         )
-        try {
-          await execa(
-            `npm`,
-            [
-              'publish',
-              `${path.join(wasmDir, `pkg-${wasmTarget}`)}`,
-              '--access',
-              'public',
-              '--tag',
-              tag,
-              ...(dryRun ? ['--dry-run'] : []),
-            ],
-            { stdio: 'inherit' }
-          )
-        } catch (err) {
-          // don't block publishing other versions on single platform error
-          console.error(`Failed to publish`, wasmTarget, err)
-          if (
-            err.message &&
-            err.message.includes(
-              'You cannot publish over the previously published versions'
-            )
-          ) {
-            console.error('Ignoring already published error', wasmTarget)
-          } else {
-            // throw err
-          }
-        } finally {
-          publishSema.release()
-        }
+        await publish(wasmTarget, path.join(wasmDir, `pkg-${wasmTarget}`))
       })
     )
+
+    const results = [...nativeResults, ...wasmResults]
+    if (results.some((item) => item.status === 'rejected')) {
+      console.error(`Not all packages published successfully`, results)
+      process.exit(1)
+    }
 
     // Update optional dependencies versions
     let nextPkg = JSON.parse(
