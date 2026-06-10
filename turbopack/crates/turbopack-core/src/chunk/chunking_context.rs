@@ -129,6 +129,7 @@ pub struct ChunkGroupResult {
     pub referenced_assets: ResolvedVc<OutputAssets>,
     pub references: ResolvedVc<OutputAssetsReferences>,
     pub availability_info: AvailabilityInfo,
+    pub chunk_group_bootstrap_params: Option<RcStr>,
 }
 
 impl ChunkGroupResult {
@@ -138,6 +139,7 @@ impl ChunkGroupResult {
             referenced_assets: ResolvedVc::cell(vec![]),
             references: ResolvedVc::cell(vec![]),
             availability_info: AvailabilityInfo::root(),
+            chunk_group_bootstrap_params: None,
         }
         .cell()
     }
@@ -148,6 +150,7 @@ impl ChunkGroupResult {
             referenced_assets: ResolvedVc::cell(vec![]),
             references: ResolvedVc::cell(vec![]),
             availability_info: AvailabilityInfo::root(),
+            chunk_group_bootstrap_params: None,
         }
         .resolved_cell()
     }
@@ -181,6 +184,7 @@ impl ChunkGroupResult {
                 .to_resolved()
                 .await?,
             availability_info: next.availability_info,
+            chunk_group_bootstrap_params: next.chunk_group_bootstrap_params.clone(),
         }
         .cell())
     }

@@ -880,6 +880,7 @@ impl ChunkingContext for BrowserChunkingContext {
                 referenced_assets: OutputAssets::empty_resolved(),
                 references: ResolvedVc::cell(references),
                 availability_info,
+                chunk_group_bootstrap_params: None,
             }
             .cell())
         }
@@ -988,11 +989,28 @@ impl ChunkingContext for BrowserChunkingContext {
                 );
             }
 
-            assets.push(ResolvedVc::upcast(
-                self.generate_evaluate_chunk(ident, other_assets, entries, *module_graph)
-                    .to_resolved()
-                    .await?,
-            ));
+            // The evaluate chunk registers this entry's chunks/modules onto the
+            // `globalThis[TURBOPACK]` queue. When `shared_runtime` is enabled we return that chunk
+            // group's bootstrap params for Next to inline into the HTML and skip emitting the
+            // per-route evaluate chunk file. Only `ChunkGroup::Entry` groups (the page/app client
+            // entries Next renders into HTML) can be inlined. When `shared_runtime` is disabled the
+            // evaluate chunk itself carries the runtime, so it is always emitted as an asset.
+            let evaluate_chunk = self
+                .generate_evaluate_chunk(ident, other_assets, entries, *module_graph)
+                .to_resolved()
+                .await?;
+            let chunk_group_bootstrap_params =
+                if this.shared_runtime && matches!(chunk_group, ChunkGroup::Entry(_)) {
+                    Some(
+                        evaluate_chunk
+                            .chunk_group_bootstrap_params()
+                            .owned()
+                            .await?,
+                    )
+                } else {
+                    assets.push(ResolvedVc::upcast(evaluate_chunk));
+                    None
+                };
 
             // The shared runtime chunk must be the LAST asset of the group. It drains
             // the registration queue set up by the chunks above, so it has to load
@@ -1017,6 +1035,7 @@ impl ChunkingContext for BrowserChunkingContext {
                 referenced_assets: OutputAssets::empty_resolved(),
                 references: ResolvedVc::cell(references),
                 availability_info,
+                chunk_group_bootstrap_params,
             }
             .cell())
         }
