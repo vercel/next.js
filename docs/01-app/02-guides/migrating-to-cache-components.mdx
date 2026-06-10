@@ -20,7 +20,7 @@ The migration is driven by **instant navigation validation**. With Cache Compone
 
 Start by removing the route segment configs (`dynamic`, `revalidate`, `fetchCache`), then follow the validation insights and errors. Each one names the code to fix, most often uncached data to cache with [`use cache`](/docs/app/api-reference/directives/use-cache) or runtime data to wrap in [`<Suspense>`](https://react.dev/reference/react/Suspense). If a route needs more work than you want to take on right now, you can [opt it out of validation](#opting-out-of-validation) and come back to it later.
 
-Your existing `fetch` caching keeps working as a separate layer, so let the insights and errors guide what to change.
+Your existing `fetch` and `unstable_cache` caching keeps working as a separate layer, so let the insights and errors guide what to change.
 
 Some surfaces have their own steps:
 
@@ -211,7 +211,7 @@ export default async function Page() {
 
 ## Following validation
 
-When a component would block a navigation, the dev overlay surfaces a **blocking-route** insight that names the component and points at two fixes: cache it, or stream it behind `<Suspense>`.
+Cache Components validates your routes in development and surfaces errors and insights in the dev overlay. Some look like this, naming the affected component and pointing at a fix:
 
 <FixCardGrid>
   <FixCard
@@ -237,11 +237,11 @@ When a component would block a navigation, the dev overlay surfaces a **blocking
   />
 </FixCardGrid>
 
-Work through the insights and errors until they're gone. For the full validation workflow, the DevTools, and CI testing, see the [instant navigation guide](/docs/app/guides/instant-navigation).
+Each card is clickable and opens a page with patterns, code samples, and trade-offs. Work through the insights and errors until they're gone. For the full validation workflow, the DevTools, and CI testing, see the [instant navigation guide](/docs/app/guides/instant-navigation).
 
 ## Opting out of validation
 
-A validation insight or error tells you a route won't render instantly. Resolve it by following the recommendation: cache the data with [`use cache`](/docs/app/api-reference/directives/use-cache) or wrap it in [`<Suspense>`](https://react.dev/reference/react/Suspense). If you don't want to deal with it right now, set the [`instant`](/docs/app/api-reference/file-conventions/route-segment-config/instant) config to `false` on the segment that raised it (a layout, page, or parallel slot), then come back to it later.
+A validation insight or error tells you a route won't render instantly. Resolve it by following the recommendation: cache the data with [`use cache`](/docs/app/api-reference/directives/use-cache) or wrap it in [`<Suspense>`](https://react.dev/reference/react/Suspense). If you're not ready to address it yet, set the [`instant`](/docs/app/api-reference/file-conventions/route-segment-config/instant) config to `false` on the segment that raised it (a layout, page, or parallel slot), then come back to it later.
 
 ```tsx filename="app/dashboard/layout.tsx"
 export const instant = false
@@ -381,11 +381,7 @@ export async function getUser(id) {
 }
 ```
 
-Similarly to the `fetch` cache, `unstable_cache` persists cached values across deployments and across serverless instances.
-
-`use cache` defaults to in-memory storage, so its entries are discarded when the serverless instance is destroyed and are scoped to a single deployment. Use [`use cache: remote`](/docs/app/api-reference/directives/use-cache-remote) or a [cache handler](/docs/app/api-reference/config/next-config-js/cacheHandlers) for storage that survives instance teardown. Even with durable storage, expect cached values to recompute after a new deployment.
-
-> **Good to know:** Like `unstable_cache`, a `use cache` function cannot read runtime data such as `cookies()` or `headers()`. Read it outside the cached function and pass what you need in as an argument.
+Like the `fetch` Data Cache, `unstable_cache` persists cached values across deployments and serverless instances, while `use cache` does not. See [`fetch` cache options](#fetch-cache-options) above for the storage details.
 
 ## On-demand revalidation (`revalidateTag`, `revalidatePath`, `updateTag`)
 
@@ -507,6 +503,8 @@ Paths you don't return are still served. Next.js serves the App Shell instantly,
 
 To produce the App Shell, pass the `params` promise into a [`<Suspense>`](/docs/app/api-reference/file-conventions/loading) boundary instead of awaiting it at the top of the component, so unknown params can still prerender.
 
+> **Good to know:** The client hooks [`usePathname`](/docs/app/api-reference/functions/use-pathname), [`useSelectedLayoutSegment`](/docs/app/api-reference/functions/use-selected-layout-segment), and [`useSelectedLayoutSegments`](/docs/app/api-reference/functions/use-selected-layout-segments) need the same treatment. On a route with dynamic params not covered by `generateStaticParams`, they suspend during prerendering because the pathname depends on the unknown param, so wrap the component that calls them in `<Suspense>` or the build fails. See [Next.js encountered URL data in a Client Component outside of Suspense](/docs/messages/blocking-prerender-client-hook).
+
 ```tsx filename="app/blog/[slug]/page.tsx" switcher
 // Before - awaiting params at the top blocks the shell
 export default async function Page({
@@ -565,7 +563,7 @@ async function Post({ params }) {
 
 ## `cookies`, `headers`, and `searchParams`
 
-**Wrap runtime data access in `<Suspense>`.** Without Cache Components, reading [`cookies()`](/docs/app/api-reference/functions/cookies), [`headers()`](/docs/app/api-reference/functions/headers), or [`searchParams`](/docs/app/api-reference/file-conventions/page#searchparams-optional) opts the whole route into dynamic rendering. With Cache Components, accessing them outside a [`<Suspense>`](https://react.dev/reference/react/Suspense) boundary raises [`Uncached data was accessed outside of <Suspense>`](/docs/messages/blocking-route). Move the access into a component wrapped in `<Suspense>` so the rest of the page prerenders as a static shell and the dynamic part streams in at request time.
+**Wrap runtime data access in `<Suspense>`.** Without Cache Components, reading [`cookies()`](/docs/app/api-reference/functions/cookies), [`headers()`](/docs/app/api-reference/functions/headers), or [`searchParams`](/docs/app/api-reference/file-conventions/page#searchparams-optional) opts the whole route into dynamic rendering. With Cache Components, accessing them outside a [`<Suspense>`](https://react.dev/reference/react/Suspense) boundary surfaces the [**blocking-route** insight](/docs/messages/blocking-prerender-dynamic). Move the access into a component wrapped in `<Suspense>` so the rest of the page prerenders as a static shell and the dynamic part streams in at request time.
 
 ```tsx filename="app/page.tsx" switcher
 import { cookies } from 'next/headers'
@@ -625,7 +623,7 @@ async function Dashboard() {
 }
 ```
 
-`params` and `searchParams` arrive as props on your page, and both are promises. Apply the same pattern: pass the promise straight through to the `<Suspense>`-wrapped component as a prop and `await` it there, rather than at the top of the page.
+Your page receives `params` and `searchParams` as props, and both are promises. Apply the same pattern: pass the promise straight through to the `<Suspense>`-wrapped component as a prop and `await` it there, rather than at the top of the page. You can also unwrap the promise inline with `.then()` and pass a plain value down; see [Streaming](/docs/app/guides/streaming) for the full pattern.
 
 ```tsx filename="app/page.tsx" switcher
 import { Suspense } from 'react'
@@ -719,7 +717,7 @@ async function getProducts() {
 }
 ```
 
-> **Good to know:** Reading uncached or runtime data in a `GET` handler bails out of prerendering by **throwing**. A `try/catch` you already have around other operations will catch that bail-out. This is harmless (prerendering has already stopped and the value isn't used), but a `catch` that logs the error produces noisy build-time logs. To quiet them, either set `experimental.hideLogsAfterAbort: true` to hide logs emitted after a bail-out, or call [`unstable_rethrow`](/docs/app/api-reference/functions/unstable_rethrow) at the top of your `catch` so the framework's control-flow error propagates instead of being logged.
+> **Good to know:** Reading uncached or runtime data in a `GET` handler bails out of prerendering by **throwing**. A `try/catch` you already have around other operations will catch that bail-out. This is harmless (prerendering has already stopped and the value isn't used), but a `catch` that logs the error produces noisy build-time logs. To quiet them, set `experimental.hideLogsAfterAbort: true` to hide logs emitted after a bail-out.
 
 ## `generateMetadata` and `generateViewport`
 
