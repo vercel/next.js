@@ -66,6 +66,22 @@ describe('app-dir - metadata-streaming', () => {
     expect(await $('title').text()).toBe('index page')
   })
 
+  it('should isolate metadata rendering between concurrent requests', async () => {
+    const [bot$, user$] = await Promise.all([
+      next.render$('/', undefined, {
+        headers: {
+          'user-agent': 'Twitterbot',
+        },
+      }),
+      next.render$('/'),
+    ])
+
+    expect(bot$('head title').text()).toBe('index page')
+    expect(bot$('body title').length).toBe(0)
+    expect(user$('head title').length).toBe(0)
+    expect(user$('body title').text()).toBe('index page')
+  })
+
   it('should send streaming response for headless browser bots', async () => {
     const browser = await next.browser('/')
     await retry(async () => {
