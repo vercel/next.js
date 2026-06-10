@@ -674,7 +674,7 @@ If you click delete now, the card fades to 30% opacity the moment the click regi
 
 Every pattern so far smooths a single interaction. Across navigations, the same reads still rerun and the same fallbacks still paint. [Caching](/docs/app/getting-started/caching) reusable reads, and [prefetching](/docs/app/guides/prefetching) them with the real request, closes that gap without moving the data model into the browser.
 
-This step uses [Cache Components](/docs/app/api-reference/config/next-config-js/cacheComponents) APIs. Steps 1–7 work without it. If you are not using Cache Components, see [Caching without Cache Components](/docs/app/guides/caching-without-cache-components).
+This step uses [Cache Components](/docs/app/api-reference/config/next-config-js/cacheComponents), introduced in Next.js 16. Steps 1–7 work without it. If you are not using Cache Components, see [Caching without Cache Components](/docs/app/guides/caching-without-cache-components).
 
 #### Cache reusable reads
 
@@ -715,14 +715,22 @@ Every Server Function follows the same shape: run the write, then call `updateTa
 
 #### Prefetch the destination with the real request
 
-By default, [`<Link>`](/docs/app/api-reference/components/link) prefetches against build-time inputs only. For destinations that read cookies, headers, or `params`, opt the route into [runtime prefetching](/docs/app/guides/prefetching) with the [`prefetch`](/docs/app/api-reference/file-conventions/route-segment-config/prefetch) segment export:
+> Available in v16.3 and later with [`partialPrefetching: true`](/docs/app/api-reference/config/next-config-js/partialPrefetching) set in `next.config.ts`.
+
+By default, [`<Link>`](/docs/app/api-reference/components/link) prefetches the destination's App Shell. Setting `prefetch={true}` extends the prefetch to include the destination's cached content. For destinations that also read cookies, headers, or `params`, opt the route into [runtime prefetching](/docs/app/guides/prefetching) with the [`prefetch`](/docs/app/api-reference/file-conventions/route-segment-config/prefetch) segment export so private-cached reads come along too:
 
 ```tsx filename="app/task/[id]/page.tsx"
-export const unstable_prefetch = 'force-runtime'
+export const prefetch = 'allow-runtime'
 
 export default function TaskPage({ params }) {
   // …
 }
+```
+
+```tsx filename="components/task-card.tsx"
+<Link href={`/task/${id}`} prefetch={true}>
+  {/* … */}
+</Link>
 ```
 
 Prefetch only sticks if the destination reads are cached. The tags from the previous subsections give the prefetched output a stable slot in the [Client Cache](/docs/app/glossary#client-cache). In the companion app, each task card is a [`<Link>`](/docs/app/api-reference/components/link) that navigates to the task detail page. The same element is also `draggable`, and the browser distinguishes a click from a drag natively. Because cards are links, the detail page prefetches as they scroll into view. By the time the user clicks, the destination paints instantly. See the [Prefetching guide](/docs/app/guides/prefetching) for prefetch modes, and the [Instant Navigation guide](/docs/app/guides/instant-navigation) for validating that navigations stay instant in production.
