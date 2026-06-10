@@ -73,52 +73,6 @@ The mutation, the cache invalidation, and the page re-render all complete in a s
 
 [`revalidateTag`](/docs/app/api-reference/functions/revalidateTag) with a stale-while-revalidate profile is the exception: it marks the tag for background refresh and does **not** include a re-render in the action response. The page reflects the change on a later read. An action that does none of the above carries only its return value, and the current route is not re-rendered.
 
-## Returning UI from an action
-
-A Server Action's return value uses the same serialization as the [RSC Payload](/docs/app/glossary#rsc-payload), so it can be a React element, not just data. Returning JSX from an action lets the server pick the next view without an extra fetch.
-
-This pairs naturally with [`useActionState`](https://react.dev/reference/react/useActionState). Build the initial view in a Server Component and pass it as a prop to the client form, then use `null` as the `useActionState` initial state and fall back to the prop until the action returns:
-
-```tsx filename="app/login/actions.tsx"
-'use server'
-
-import type { ReactNode } from 'react'
-import { EmailStep, OtpStep } from './steps'
-
-export async function stepAction(_prev: ReactNode, formData: FormData) {
-  const email = String(formData.get('email') ?? '').trim()
-  if (!email) return <EmailStep error="Email required" />
-  return <OtpStep email={email} />
-}
-```
-
-```tsx filename="app/login/page.tsx"
-import { LoginForm } from './login-form'
-import { EmailStep } from './steps'
-
-export default function Page() {
-  return <LoginForm initial={<EmailStep />} />
-}
-```
-
-```tsx filename="app/login/login-form.tsx"
-'use client'
-
-import { useActionState, type ReactNode } from 'react'
-import { stepAction } from './actions'
-
-export function LoginForm({ initial }: { initial: ReactNode }) {
-  const [node, formAction] = useActionState(stepAction, null)
-  return <form action={formAction}>{node ?? initial}</form>
-}
-```
-
-Caveats:
-
-- **Sequential dispatch still applies.** The returned UI lands in the same one-at-a-time queue described in [Sequential dispatch](#sequential-dispatch-on-the-client), so back-to-back submissions render in order, not in parallel.
-- **Client Components in the returned tree must already be reachable from the route's [module graph](/docs/app/glossary#module-graph).** A Client Component imported _only_ inside a Server Action is not traced into the React Client Manifest, and returning it fails with `Could not find the module in the React Client Manifest`. Make sure the same Client Component is rendered or imported elsewhere in the route, or wrap it in a Server Component that the action returns.
-- **Initial state must be serializable.** `useActionState`'s initial state is bound into the form for no-JS submissions, so a React element can't go there. Pass `null` and render the initial view yourself, as above. JSX returned by the action only renders once JS has loaded.
-
 ## Security
 
 A Server Action runs as a POST request against the page that invokes it. At build time, the `'use server'` directive tells the compiler to swap the function's implementation in client bundles for a reference (an action ID plus a dispatcher) that POSTs back to the server. The implementation stays on the server, but the route is reachable to anyone who can send the same POST. Treat every action as an untrusted entry point.
