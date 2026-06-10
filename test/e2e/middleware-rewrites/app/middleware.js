@@ -67,6 +67,14 @@ export async function middleware(request) {
     )
   }
 
+  if (url.pathname.startsWith('/middleware-rewrite-to-pages-api/')) {
+    const slug = url.pathname.split('/').pop()
+    url.pathname = `/api/proxy/${slug}`
+    url.searchParams.set('added', '1')
+    url.searchParams.set('extra', '2')
+    return NextResponse.rewrite(url)
+  }
+
   if (url.pathname.includes('/rewrite-to-static')) {
     request.nextUrl.pathname = '/static-ssg/post-1'
     return NextResponse.rewrite(request.nextUrl)

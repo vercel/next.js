@@ -93,6 +93,23 @@ describe('Middleware Rewrite', () => {
       expect(json.headers['x-hello-from-middleware1']).toBe('hello')
     })
 
+    it('should pass middleware rewrite query values to pages api routes', async () => {
+      const res = await next.fetch(
+        '/middleware-rewrite-to-pages-api/bar?key=value'
+      )
+
+      expect(res.status).toBe(200)
+      await expect(res.json()).resolves.toEqual({
+        url: '/middleware-rewrite-to-pages-api/bar?key=value',
+        query: {
+          key: 'value',
+          added: '1',
+          extra: '2',
+          slug: ['bar'],
+        },
+      })
+    })
+
     it('should handle static dynamic rewrite from middleware correctly', async () => {
       const browser = await next.browser('/rewrite-to-static')
 
