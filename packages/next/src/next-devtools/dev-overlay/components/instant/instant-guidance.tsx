@@ -57,7 +57,19 @@ function getCardIcon(icon: FixCardIcon) {
   }
 }
 
-function CopyPromptButton({ prompt }: { prompt: string }) {
+function CopyPromptButton({ title, link }: { title: string; link: string }) {
+  const hashIndex = link.indexOf('#')
+  const rulePage = hashIndex === -1 ? link : link.slice(0, hashIndex)
+  const prompt = [
+    'Before applying this fix:',
+    '',
+    "1. Read the actual Next.js error in the dev overlay (or browser/terminal console) to identify the failing file, line, and component. Match the fix to that component — don't patch unrelated files.",
+    '',
+    `2. Read the full context for this rule at ${rulePage}, then read the specific fix section at ${link}. The fix section names the exact code shape, every constraint, and the imports allowed. Follow it exactly — don't improvise.`,
+    '',
+    `Apply the "${title}" fix.`,
+  ].join('\n')
+
   return (
     <CopyButton
       content={prompt}
@@ -75,7 +87,7 @@ function CardGrid({ cards }: { cards: FixCard[] }) {
         const groupMeta = FIX_CARD_GROUPS[card.group]
         const inner = (
           <>
-            {card.link && !card.prompt ? (
+            {card.link && !card.copyable ? (
               <span data-nextjs-fix-card-link-icon aria-hidden="true">
                 <ExternalIcon width={16} height={16} />
               </span>
@@ -85,7 +97,7 @@ function CardGrid({ cards }: { cards: FixCard[] }) {
               <div data-nextjs-fix-card-header-text>
                 <div data-nextjs-fix-card-title-row>
                   <span data-nextjs-fix-card-title>{groupMeta.label}</span>
-                  {card.prompt && card.link ? (
+                  {card.copyable && card.link ? (
                     <span
                       data-nextjs-fix-card-title-link-icon
                       aria-hidden="true"
@@ -143,10 +155,10 @@ function CardGrid({ cards }: { cards: FixCard[] }) {
         // Render the copy button as a sibling of the card so the <button>
         // isn't nested inside the card's <a>, which would be invalid HTML
         // and break keyboard / focus behavior.
-        return card.prompt ? (
+        return card.copyable && card.link ? (
           <div data-nextjs-fix-card-wrapper key={card.id}>
             {cardElement}
-            <CopyPromptButton prompt={card.prompt} />
+            <CopyPromptButton title={card.title} link={card.link} />
           </div>
         ) : (
           <div data-nextjs-fix-card-wrapper key={card.id}>

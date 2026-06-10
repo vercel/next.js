@@ -16,7 +16,6 @@ Server-side request-bound reads ([`cookies()`](/docs/app/api-reference/functions
 <FixOption
   group="stream"
   href="#wrap-in-or-move-into-suspense"
-  prompt={`Wrap the component that calls the navigation hook in <Suspense>. The fallback prop must render synchronous, deterministic JSX (no fetch, no awaiting, no Math.random or Date.now) that approximates the final layout. Import Suspense from "react". Do not change the hook call itself. Place the Suspense boundary as close to the hook call as possible so the rest of the route stays in the prerendered static shell.`}
   title="Wrap in or move into Suspense"
 >
   Wrap the component that calls the hook in a Suspense boundary so Next.js can
@@ -26,7 +25,6 @@ Server-side request-bound reads ([`cookies()`](/docs/app/api-reference/functions
 <FixOption
   group="cache"
   href="#for-known-params-prerender"
-  prompt={`Add a generateStaticParams() export to the page or layout that defines the dynamic segment. Return an array of param objects whose keys match the segment's [param] names. On the generated paths, useParams resolves to a build-time constant, and usePathname and useSelectedLayoutSegment(s) (which derive from the URL path) also resolve without needing a Suspense boundary. Does not help useSearchParams, since search params come from the request URL's query string and are not part of segment params. Do not introduce new imports beyond Next.js types. If you can't return at least one known param at build time, use "Wrap in or move into Suspense" instead.`}
   title="For known params, prerender"
 >
   Tell Next.js the full set of valid params ahead of time. Each one becomes a
@@ -36,7 +34,6 @@ Server-side request-bound reads ([`cookies()`](/docs/app/api-reference/functions
 <FixOption
   group="block"
   href="#allow-blocking-route"
-  prompt={`Add "export const instant = false" as a top-level export in the page or layout file. This silences the warning for this segment. Confirm with the user that the route is intentionally request-time before applying this change: the export exempts the segment from instant-navigation validation, and the route renders on every request, so navigations to it block until the render completes.`}
   title="Allow blocking route"
 >
   Opt the segment out of instant-navigation validation. The route renders on

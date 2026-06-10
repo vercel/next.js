@@ -14,7 +14,6 @@ Other unpredictable APIs ([`Date.now()`](https://developer.mozilla.org/en-US/doc
 <FixOption
   group="dynamic"
   href="#generate-on-every-request"
-  prompt={`Add "await connection()" from "next/server" immediately before the Math.random() call. This marks the component as request-time, so Next.js excludes it from the prerendered HTML and streams it in from the nearest <Suspense> boundary on each request. Do not change the call site of Math.random() itself. Only change the call site once you've confirmed with the user that a fresh value on every request is the intent.`}
   title="Generate on every request"
 >
   Mark the component as request-time so the random value is generated each time
@@ -24,7 +23,6 @@ Other unpredictable APIs ([`Date.now()`](https://developer.mozilla.org/en-US/doc
 <FixOption
   group="cache"
   href="#cache-the-random-value"
-  prompt={`Move the Math.random() call into its own function or component and add "use cache" as the first statement of the body. Optionally call cacheLife(profile) to control how long the same random value is reused before regeneration. Do not introduce new imports beyond "next/cache".`}
   title="Cache the random value"
 >
   Generate one random value at build time and reuse it. The route stays
@@ -34,7 +32,6 @@ Other unpredictable APIs ([`Date.now()`](https://developer.mozilla.org/en-US/doc
 <FixOption
   group="client"
   href="#render-on-the-client"
-  prompt={`Move the component that calls Math.random() into a Client Component by adding "use client" at the top of the file. The browser produces a fresh value on each visit. If the value needs to be hydration-stable, compute it inside a useEffect or event handler instead of inline during render.`}
   title="Render on the client"
 >
   Move the call into a Client Component. The browser produces the random value,

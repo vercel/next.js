@@ -18,7 +18,6 @@ For errors in the page body rather than metadata, see [Next.js encountered runti
 <FixOption
   group="static"
   href="#use-static-metadata"
-  prompt={`Replace the generateMetadata() function with a static metadata export. Convert all dynamic values to static strings. If the metadata depends on params, use generateStaticParams instead to prerender each variant. Do not introduce new imports.`}
   title="Use static metadata"
 >
   Replace the dynamic function with a static export so the metadata is known at
@@ -28,7 +27,6 @@ For errors in the page body rather than metadata, see [Next.js encountered runti
 <FixOption
   group="dynamic"
   href="#mark-the-route-as-dynamic"
-  prompt={`Add "await connection()" from "next/server" inside a component rendered by the page, wrapped in <Suspense>. The component can render null. This creates a dynamic hole inside Suspense so the rest of the page can still prerender, while signalling to Next.js that the dynamic metadata is intentional. Use this fix when the page would otherwise have no dynamic content other than the metadata.`}
   title="Mark the route as dynamic"
 >
   Tell Next.js the page itself has dynamic content, so the dynamic metadata is

@@ -15,12 +15,7 @@ For errors in the page body rather than metadata, see [Next.js encountered uncac
 
 ## Ways to fix this
 
-<FixOption
-  group="cache"
-  href="#cache-the-metadata"
-  prompt={`Add "use cache" as the first statement inside generateMetadata(). This caches the metadata so it can be included in the prerender. Optionally call cacheTag(tag) so the entry can be invalidated on-demand from a Server Action via updateTag(tag), or from a Route Handler via revalidateTag(tag, "max") for stale-while-revalidate semantics. Optionally call cacheLife(profile) to control how long the cache lives before background revalidation or full expiration. Do not introduce new imports beyond "next/cache".`}
-  title="Cache the metadata"
->
+<FixOption group="cache" href="#cache-the-metadata" title="Cache the metadata">
   Cache the metadata function so the result is reused and the route stays
   prerenderable.
 </FixOption>
@@ -28,7 +23,6 @@ For errors in the page body rather than metadata, see [Next.js encountered uncac
 <FixOption
   group="dynamic"
   href="#mark-the-route-as-dynamic"
-  prompt={`Add "await connection()" from "next/server" inside a component rendered by the page, wrapped in <Suspense>. The component can render null. This creates a dynamic hole inside Suspense so the rest of the page can still prerender, while signalling to Next.js that the dynamic metadata is intentional. Use this fix when the page would otherwise have no dynamic content other than the metadata.`}
   title="Mark the route as dynamic"
 >
   Tell Next.js the page itself has dynamic content, so the dynamic metadata is

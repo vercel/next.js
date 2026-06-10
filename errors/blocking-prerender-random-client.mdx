@@ -14,7 +14,6 @@ The Server Component case is handled at [`Math.random()` during prerendering](/d
 <FixOption
   group="stream"
   href="#wrap-in-or-move-into-suspense"
-  prompt={`Wrap the Client Component that calls Math.random() in <Suspense> in its parent. The fallback prop must render synchronous, deterministic JSX (no Math.random or Date.now) that approximates the final layout (skeleton, spinner, or stable placeholder text). Import Suspense from "react". Do not change the Math.random() call.`}
   title="Wrap in or move into Suspense"
 >
   Wrap the component in a Suspense boundary so the shell ships instantly and the
@@ -24,7 +23,6 @@ The Server Component case is handled at [`Math.random()` during prerendering](/d
 <FixOption
   group="defer"
   href="#move-into-effect-or-event-handler"
-  prompt={`Move the Math.random() call out of the inline render path and into useEffect (for first-paint values) or an event handler (for interaction values). Initialize state to a deterministic value so SSR and the first hydrated render agree. Do not introduce new imports beyond "react".`}
   title="Move into effect or event handler"
 >
   Defer the random read until after hydration so SSR and the browser agree on

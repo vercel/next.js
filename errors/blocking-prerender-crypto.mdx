@@ -14,7 +14,6 @@ Other unpredictable APIs ([`Math.random()`](https://developer.mozilla.org/en-US/
 <FixOption
   group="dynamic"
   href="#generate-on-every-request"
-  prompt={`Add "await connection()" from "next/server" immediately before the crypto call. This marks the component as request-time, so Next.js excludes it from the prerendered HTML and streams it in from the nearest <Suspense> boundary on each request. Do not change the crypto call itself. Only change the call site once you've confirmed with the user that a fresh value on every request is the intent.`}
   title="Generate on every request"
 >
   Mark the component as request-time so a fresh token is produced for each
@@ -24,7 +23,6 @@ Other unpredictable APIs ([`Math.random()`](https://developer.mozilla.org/en-US/
 <FixOption
   group="cache"
   href="#cache-the-generated-value"
-  prompt={`Move the crypto call into its own function and add "use cache" as the first statement. Useful when the same generated value is reused as a key for another cached operation (talking to a database, signing a payload). Do not introduce new imports beyond "next/cache".`}
   title="Cache the generated value"
 >
   Generate one value at build time and reuse it. Useful when the value is a key
@@ -34,7 +32,6 @@ Other unpredictable APIs ([`Math.random()`](https://developer.mozilla.org/en-US/
 <FixOption
   group="client"
   href="#render-on-the-client"
-  prompt={`Move the component that calls the crypto API into a Client Component by adding "use client" at the top of the file. The browser produces the value, so the server never has to. If the value needs to be hydration-stable, compute it inside useEffect instead of inline during render.`}
   title="Render on the client"
 >
   Move the call into a Client Component. The browser produces the random value.

@@ -16,7 +16,6 @@ This error can also appear during a client-side navigation when the data access 
 <FixOption
   group="cache"
   href="#cache-the-component-or-data"
-  prompt={`Convert the highlighted data access into a cached function. Put "use cache" as the first statement of the function body. If the value depends on input that changes between calls, accept the input as a function argument so it becomes part of the cache key. Optionally call cacheTag(tag) so the entry can be invalidated on-demand from a Server Action via updateTag(tag), or from a Route Handler via revalidateTag(tag, "max") for stale-while-revalidate semantics. Optionally call cacheLife(profile) to control how long the cache lives before background revalidation or full expiration. Do not move the call site. Do not introduce new imports beyond "next/cache".`}
   title="Cache the component or data"
 >
   Move the data access into a cached function so the result is reused and the
@@ -26,7 +25,6 @@ This error can also appear during a client-side navigation when the data access 
 <FixOption
   group="stream"
   href="#wrap-in-or-move-into-suspense"
-  prompt={`Wrap the component that performs the failing data access in <Suspense>. The fallback prop must render synchronous, deterministic JSX (no fetch, no awaiting, no Math.random or Date.now) that approximates the final layout (skeleton, spinner, or stable placeholder text). Import Suspense from "react". Do not change the data fetching logic. If the surrounding parent component already has cached content, place the Suspense boundary as close to the data access as possible so the cached content remains in the static shell.`}
   title="Wrap in or move into Suspense"
 >
   Wrap the data-accessing component in a Suspense boundary. The shell ships
@@ -36,7 +34,6 @@ This error can also appear during a client-side navigation when the data access 
 <FixOption
   group="block"
   href="#allow-blocking-route"
-  prompt={`Add "export const instant = false" as a top-level export in the page or layout file. This silences the warning for this segment. Confirm with the user that the route is intentionally request-time before applying this change: the export exempts the segment from instant-navigation validation, and the route renders on every request, so navigations to it block until the render completes.`}
   title="Allow blocking route"
 >
   Opt this segment out of instant navigation. The route has no static shell and

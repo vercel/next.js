@@ -14,7 +14,6 @@ Uncached data accesses ([`fetch()`](https://developer.mozilla.org/en-US/docs/Web
 <FixOption
   group="static"
   href="#use-static-viewport"
-  prompt={`Replace the generateViewport() function with a static viewport export. Convert all dynamic values to static ones. Do not introduce new imports.`}
   title="Use static viewport"
 >
   Replace the dynamic function with a static export so the viewport is known at
@@ -24,7 +23,6 @@ Uncached data accesses ([`fetch()`](https://developer.mozilla.org/en-US/docs/Web
 <FixOption
   group="block"
   href="#allow-blocking-route"
-  prompt={`Add "export const instant = false" as a top-level export in the page or layout file. This silences the warning for this segment. Confirm with the user that the route is intentionally fully dynamic before applying this change: the export exempts the segment from instant-navigation validation, and the route renders on every request.`}
   title="Allow blocking route"
 >
   Opt this segment out of instant navigation. The route renders on every request
