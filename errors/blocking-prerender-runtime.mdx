@@ -16,7 +16,6 @@ This error can also appear during a client-side navigation when the data access 
 <FixOption
   group="stream"
   href="#wrap-in-or-move-into-suspense"
-  prompt={`Wrap the component that reads cookies(), headers(), params, or searchParams in <Suspense>. The fallback prop must render synchronous, deterministic JSX (no fetch, no awaiting, no Math.random or Date.now) that approximates the final layout (skeleton, spinner, or stable placeholder text). Import Suspense from "react". Do not change the data access call. Place the Suspense boundary as close to the access as possible so the cached content above remains in the static shell. If the access is deep in a tree and used for a small piece of UI, prefer to push the access down to the leaf component that needs it instead of awaiting it at the top and forwarding the value.`}
   title="Wrap in or move into Suspense"
 >
   Wrap the component that reads the request-time value in a Suspense boundary,
@@ -26,7 +25,6 @@ This error can also appear during a client-side navigation when the data access 
 <FixOption
   group="cache"
   href="#for-known-params-prerender"
-  prompt={`Add a generateStaticParams() export to the dynamic segment. Return an array of param objects whose keys match the segment's [param] names. Each entry is prerendered into static HTML at build time. With Cache Components, requests for params not in the list are served a fallback shell and the route is upgraded in the background. Return a subset of known params for common routes (popular categories, top locales, recent slugs); rare or open-ended params will fall back at runtime. Do not introduce new imports beyond Next.js types. If you can't return at least one known param at build time, use "Wrap in or move into Suspense" instead.`}
   title="For known params, prerender"
 >
   Tell Next.js the full set of valid params ahead of time. Each one becomes a
@@ -36,7 +34,6 @@ This error can also appear during a client-side navigation when the data access 
 <FixOption
   group="block"
   href="#allow-blocking-route"
-  prompt={`Add "export const instant = false" as a top-level export in the page or layout file. This silences the warning for this segment. Confirm with the user that the route is intentionally request-time before applying this change: the export exempts the segment from instant-navigation validation, and the route renders on every request, so navigations to it block until the render completes.`}
   title="Allow blocking route"
 >
   Opt this segment out of instant navigation. The route has no static shell and

@@ -14,7 +14,6 @@ Request-bound reads ([`cookies()`](/docs/app/api-reference/functions/cookies), [
 <FixOption
   group="cache"
   href="#cache-the-viewport-data"
-  prompt={`Add "use cache" as the first statement inside generateViewport(). This caches the viewport so Next.js can include it in the prerender. Optionally call cacheLife(profile) to set automatic expiration. Do not introduce new imports beyond "next/cache".`}
   title="Cache the viewport data"
 >
   Cache the viewport function so the result is reused and the route stays
@@ -24,7 +23,6 @@ Request-bound reads ([`cookies()`](/docs/app/api-reference/functions/cookies), [
 <FixOption
   group="block"
   href="#allow-blocking-route"
-  prompt={`Add "export const instant = false" as a top-level export in the page or layout file. This silences the warning for this segment. Confirm with the user that the route is intentionally fully dynamic before applying this change: the export exempts the segment from instant-navigation validation, and the route renders on every request.`}
   title="Allow blocking route"
 >
   Opt this segment out of instant navigation. The route renders on every request
