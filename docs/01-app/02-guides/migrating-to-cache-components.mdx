@@ -6,6 +6,8 @@ related:
   title: Next Steps
   description: Learn about other behavior changes when Cache Components is enabled.
   links:
+    - app/guides/instant-navigation
+    - app/getting-started/caching
     - app/guides/preserving-ui-state
     - app/guides/incremental-static-regeneration-cache-components
     - app/api-reference/functions/generate-static-params
@@ -16,9 +18,9 @@ When [Cache Components](/docs/app/api-reference/config/next-config-js/cacheCompo
 
 The migration is driven by **instant navigation validation**. With Cache Components enabled, Next.js validates in development whether navigating into each route renders instantly, and surfaces the code that would block it as an error or insight.
 
-Start by removing the route segment configs (`dynamic`, `revalidate`, `fetchCache`), then follow the validation insights and errors. Each one points you at uncached data to cache with [`use cache`](/docs/app/api-reference/directives/use-cache), or runtime data to wrap in [`<Suspense>`](https://react.dev/reference/react/Suspense). If a route needs more work than you want to take on right now, you can [opt it out of validation](#opting-out-of-validation) and come back to it later.
+Start by removing the route segment configs (`dynamic`, `revalidate`, `fetchCache`), then follow the validation insights and errors. Each one names the code to fix, most often uncached data to cache with [`use cache`](/docs/app/api-reference/directives/use-cache) or runtime data to wrap in [`<Suspense>`](https://react.dev/reference/react/Suspense). If a route needs more work than you want to take on right now, you can [opt it out of validation](#opting-out-of-validation) and come back to it later.
 
-You don't have to remove every cache. `use cache` stores entries in memory by default, scoped to a single deployment, so keep `fetch` cache options or `unstable_cache` where you want to protect an upstream resource or database from overload.
+Your existing `fetch` caching keeps working as a separate layer, so let the insights and errors guide what to change.
 
 Some surfaces have their own steps:
 
@@ -206,6 +208,36 @@ export default async function Page() {
   return <div>...</div>
 }
 ```
+
+## Following validation
+
+When a component would block a navigation, the dev overlay surfaces a **blocking-route** insight that names the component and points at two fixes: cache it, or stream it behind `<Suspense>`.
+
+<FixCardGrid>
+  <FixCard
+    group="cache"
+    title="Cache the component or data"
+    href="/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data"
+    snippets={[
+      { text: 'async function Posts() {' },
+      { text: '  "use cache"', highlight: true },
+      { text: '  return <List items={…} />' },
+      { text: '}' },
+    ]}
+  />
+  <FixCard
+    group="stream"
+    title="Wrap in or move into Suspense"
+    href="/docs/messages/blocking-prerender-dynamic#wrap-in-or-move-into-suspense"
+    snippets={[
+      { text: '<Suspense fallback={…}>', highlight: true },
+      { text: '  <DataChild />' },
+      { text: '</Suspense>', highlight: true },
+    ]}
+  />
+</FixCardGrid>
+
+Work through the insights and errors until they're gone. For the full validation workflow, the DevTools, and CI testing, see the [instant navigation guide](/docs/app/guides/instant-navigation).
 
 ## Opting out of validation
 
