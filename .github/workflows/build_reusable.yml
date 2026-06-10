@@ -172,73 +172,65 @@ jobs:
           git config --global core.eol lf
         shell: bash
 
-      - name: Check if fnm is installed
-        id: check-fnm
-        run: |
-          if [ -x "$(command -v fnm)" ]; then
-            echo "fnm found."
-            echo "found=true" >> $GITHUB_OUTPUT
-          else
-            echo "fnm not found."
-            echo "found=false" >> $GITHUB_OUTPUT
-          fi
-
-      - name: Install fnm
-        if: steps.check-fnm.outputs.found != 'true'
-        run: |
-          export FNM_DIR="${HOME}/.local/share/fnm"
-          curl -fsSL https://fnm.vercel.app/install | bash
-          export PATH="$FNM_DIR:$PATH"
-          echo "$FNM_DIR" >> $GITHUB_PATH
-          fnm env --json | jq -r 'to_entries|map("\(.key)=\(.value|tostring)")|.[]' | xargs -I {} echo "{}" >> $GITHUB_ENV
-
-      - name: Normalize input step names into path key
-        uses: actions/github-script@d746ffe35508b1917358783b479e04febd2b8f71 # v9.0.0
-        id: var
-        with:
-          script: |
-            core.setOutput('input_step_key', '${{ inputs.stepName }}'.toLowerCase().replaceAll(/[/.]/g, '-').trim('-'));
-
-      - name: Use Node.js ${{ inputs.nodeVersion || env.NODE_LTS_VERSION }} for default shell
-        run: |
-          node --version || true
-          which node || true
-          # TODO: May be sufficient to just set `$FNM_MULTISHELL_PATH/bin` from `fnm env --json` into GITHUB_PATH
-          fnm_env=$(fnm env)
-          # Debug what we're about to eval
-          echo "$fnm_env"
-          eval "$fnm_env"
-          fnm use --install-if-missing ${{ inputs.nodeVersion || env.NODE_LTS_VERSION }}
-          fnm default ${{ inputs.nodeVersion || env.NODE_LTS_VERSION }}
-          node --version
-          which node
-          NODE_SHELL_PATH=$(dirname "$(which node)")
-          echo "Adding '$NODE_SHELL_PATH' to GITHUB_PATH"
-          echo "$NODE_SHELL_PATH" >> "$GITHUB_PATH"
-      # Debug used Node.js version in a separate step to ensure
-      # the Node.js version is set for the entire job
-      - name: Verify Node.js version
-        run: |
-          which node
-          node --version
-      - name: Prepare corepack
-        if: ${{ runner.os == 'Linux' }}
-        run: |
-          npm i -g corepack@0.31
-      - run: corepack enable
-      - run: pwd
-
-      - name: Kill stale sccache processes
-        if: ${{ runner.os == 'Windows' }}
-        shell: powershell
-        run: Get-Process sccache -ErrorAction SilentlyContinue | Stop-Process -Force
-
-      - run: rm -rf .git
-
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           fetch-depth: 25
           persist-credentials: false
+
+      - name: Install fnm
+        run: |
+          FNM_VERSION=v1.39.0
+          FNM_BIN_DIR="$HOME/.local/share/fnm/bin"
+
+          case "$RUNNER_OS" in
+            Linux)
+              # The asset names and sha256 are available on the GH releases page
+              # https://github.com/Schniz/fnm/releases
+              FNM_ASSET=fnm-linux.zip
+              FNM_SHA256=7807664f39d39fc518da1c35ba0181e4b3267603c4b1dedeb4b5fc6ae440a224
+              FNM_EXE=fnm
+              ;;
+            Windows)
+              FNM_ASSET=fnm-windows.zip
+              FNM_SHA256=8183bed4348cb78fdfd8abb3d1247fbeab7b2082f941363929c61e747c001e10
+              FNM_EXE=fnm.exe
+              ;;
+            *)
+              echo "::error::Unsupported RUNNER_OS: $RUNNER_OS"
+              exit 1
+              ;;
+          esac
+          FNM_BIN="$FNM_BIN_DIR/$FNM_EXE"
+
+          mkdir -p "$FNM_BIN_DIR"
+          curl -L --fail --retry 3 -o /tmp/fnm.zip \
+            "https://github.com/Schniz/fnm/releases/download/$FNM_VERSION/$FNM_ASSET"
+          echo "$FNM_SHA256  /tmp/fnm.zip" | sha256sum --check --status
+          unzip /tmp/fnm.zip "$FNM_EXE" -d "$FNM_BIN_DIR"
+          rm /tmp/fnm.zip
+          chmod +x "$FNM_BIN"
+
+          echo "$FNM_BIN_DIR" >> $GITHUB_PATH
+          "$FNM_BIN" env --corepack-enabled --json | \
+            jq -r 'to_entries|map("\(.key)=\(.value|tostring|@sh)")|.[]' | \
+            xargs -I {} echo "{}" >> $GITHUB_ENV
+
+      - name: Use Node.js ${{ inputs.nodeVersion || env.NODE_LTS_VERSION }}
+        run: |
+          fnm use --install-if-missing "$NODE_VERSION"
+          fnm default "$NODE_VERSION"
+          eval "$(fnm env)"
+          echo "$(dirname "$(which node)")" >> "$GITHUB_PATH"
+        env:
+          NODE_VERSION: ${{ inputs.nodeVersion || env.NODE_LTS_VERSION }}
+
+      # Debug used Node.js version in a separate step to ensure the Node.js
+      # version is set for the entire job
+      - name: Verify Node.js version
+        run: |
+          which node
+          node --version
+          pnpm --version
 
       # Cache pnpm store on GitHub-hosted runners (self-hosted runners have their own persistent storage)
       - name: Get pnpm store directory
@@ -377,6 +369,13 @@ jobs:
       - name: Fetch test timings via turbo
         if: ${{ inputs.testTimingsArtifact == '' }}
         run: pnpm dlx turbo@${TURBO_VERSION} run get-test-timings -- --build ${{ github.sha }}
+
+      - name: Normalize input step names into path key
+        uses: actions/github-script@d746ffe35508b1917358783b479e04febd2b8f71 # v9.0.0
+        id: var
+        with:
+          script: |
+            core.setOutput('input_step_key', '${{ inputs.stepName }}'.toLowerCase().replaceAll(/[/.]/g, '-').trim('-'));
 
       # Restore the list of tests that already passed in an earlier
       # attempt of this same workflow run.
