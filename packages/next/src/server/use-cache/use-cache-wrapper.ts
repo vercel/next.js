@@ -2861,6 +2861,17 @@ export async function cache(
             }
           }
 
+          if (cacheSignal && cacheSignalReadEnded) {
+            // A short-lived deferral above (a `revalidate` of zero or a short
+            // expire, or a short stale time) already ended this read. We're now
+            // regenerating the entry rather than serving it, and the generation
+            // ends the read again once its entry is collected. Re-begin the
+            // read here so the trailing `endRead` stays balanced instead of
+            // over-decrementing the cache signal.
+            cacheSignal.beginRead()
+            cacheSignalReadEnded = false
+          }
+
           const result = await generateCacheEntry(
             workStore,
             cacheContext,
