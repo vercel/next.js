@@ -1,8 +1,9 @@
 #!/usr/bin/env node
 // Write the turbo-computed TURBO_HASH to a stamp file.
 // This is used as a turbo task whose only purpose is to compute
-// a fingerprint of all Rust inputs. Other scripts (native-cache.js)
-// read this stamp to get a cache key without re-hashing everything.
+// a fingerprint of all Rust inputs. The build_and_deploy workflow
+// reads this stamp to derive the actions/cache key for the compiled
+// next-swc native binary without re-hashing everything.
 
 const fs = require('fs')
 const path = require('path')
