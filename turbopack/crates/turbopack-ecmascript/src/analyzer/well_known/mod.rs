@@ -1218,6 +1218,47 @@ mod tests {
         assert_eq!(join(&arena, &[".", ".", "."]), ".");
     }
 
+    /// Cases where `path_join`'s static-analysis result diverges from Node's
+    /// `path.posix.join`. These all involve absolute paths (a leading `/`) or
+    /// empty-string inputs, which the static analysis does not model the same way
+    /// Node does at runtime.
+    ///
+    /// The assertions below are intentionally commented out — they describe the
+    /// behaviour we would want to match (Node's computed value) but which
+    /// `path_join` does not currently produce. The trailing comment on each line
+    /// records what `path_join` returns today.
+    ///
+    /// Mirrors additional rows of the `joinTests` table in Node's
+    /// `test/parallel/test-path-join.js`:
+    /// <https://github.com/nodejs/node/blob/main/test/parallel/test-path-join.js>
+    #[test]
+    fn diverges_from_node_path_posix_join() {
+        // let arena = Bump::new();
+
+        // path_join: "/foo"
+        // assert_eq!(join(&arena, &["", "foo"]), "foo");
+        // path_join: "/foo"
+        // assert_eq!(join(&arena, &["", "", "foo"]), "foo");
+        // path_join: "/../../foo"
+        // assert_eq!(join(&arena, &["", "..", "..", "/foo"]), "../../foo");
+        // path_join: ""
+        // assert_eq!(join(&arena, &["/"]), "/");
+        // path_join: ""
+        // assert_eq!(join(&arena, &["/", "."]), "/");
+        // path_join: "/../../bar"
+        // assert_eq!(join(&arena, &["/foo", "../../../bar"]), "/bar");
+        // path_join: "/.."
+        // assert_eq!(join(&arena, &["/", ".."]), "/");
+        // path_join: "/../.."
+        // assert_eq!(join(&arena, &["/", "..", ".."]), "/");
+        // path_join: ""
+        // assert_eq!(join(&arena, &["", "."]), ".");
+        // path_join: ""
+        // assert_eq!(join(&arena, &[""]), ".");
+        // path_join: ""
+        // assert_eq!(join(&arena, &["", ""]), ".");
+    }
+
     /// A non-constant (dynamic) segment flushes the working `segments` stack into
     /// `locked_prefix` and freezes everything before it. A later `..` cannot pop
     /// across that boundary, unlike the all-constant case.
