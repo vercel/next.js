@@ -235,14 +235,23 @@ pub async fn get_browser_runtime_code(
         );
     }
 
-    // Registering chunks and chunk lists depends on the BACKEND variable, which is set by the
-    // specific runtime code, hence it must be appended after it.
+    // Registering chunks/chunk lists depends on the BACKEND variable set by the specific
+    // runtime code, so it must be appended after it. `registerChunkOrEntry` dispatches
+    // each queued registration: arrays are chunk registrations, while the inlined entry
+    // objects (`{ otherChunks, runtimeModuleIds }`) go to `BACKEND.registerEntry`.
     writedoc!(
         code,
         r#"
+            function registerChunkOrEntry(registration) {{
+                if (Array.isArray(registration)) {{
+                    registerChunk(registration);
+                }} else {{
+                    BACKEND.registerEntry(registration);
+                }}
+            }}
             var chunksToRegister = globalThis[{chunk_loading_global}];
-            globalThis[{chunk_loading_global}] = {{ push: registerChunk }};
-            chunksToRegister.forEach(registerChunk);
+            globalThis[{chunk_loading_global}] = {{ push: registerChunkOrEntry }};
+            chunksToRegister.forEach(registerChunkOrEntry);
         "#,
         chunk_loading_global = StringifyJs(&chunk_loading_global),
     )?;

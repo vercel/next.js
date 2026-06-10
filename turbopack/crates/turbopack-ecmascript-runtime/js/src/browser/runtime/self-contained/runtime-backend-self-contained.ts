@@ -56,6 +56,13 @@ let BACKEND: RuntimeBackend
       }
     },
 
+    // Entry-only registrations are inlined into the HTML and only produced for
+    // the browser/DOM runtime; the edge ("none") runtime never receives them
+    // (its chunks self-register via `registerChunk`).
+    registerEntry(_params) {
+      throw new Error('inline entry registration is not supported')
+    },
+
     loadChunkCached(_sourceType: SourceType, _chunkUrl: ChunkUrl) {
       throw new Error('chunk loading is not supported')
     },

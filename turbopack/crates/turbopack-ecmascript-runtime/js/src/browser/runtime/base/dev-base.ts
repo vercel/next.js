@@ -86,7 +86,7 @@ const chunkChunkListsMap: Map<ChunkPath, Set<ChunkListPath>> = new Map()
  */
 // @ts-ignore
 function getOrInstantiateRuntimeModule(
-  chunkPath: ChunkPath,
+  chunkPath: ChunkPath | undefined,
   moduleId: ModuleId
 ): Module {
   const module = devModuleCache[moduleId]

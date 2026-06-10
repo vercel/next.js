@@ -68,6 +68,25 @@ const chunkResolvers: Map<ChunkUrl, ChunkResolver> = new Map()
       }
     },
 
+    // Handles an inlined entry-only registration. Load the entry's other chunks and run its
+    // runtime modules with no source chunk (`undefined`).
+    async registerEntry(params) {
+      for (const otherChunkData of params.otherChunks) {
+        const otherChunkUrl = getChunkRelativeUrl(getChunkPath(otherChunkData))
+        getOrCreateResolver(otherChunkUrl)
+      }
+
+      await Promise.all(
+        params.otherChunks.map((otherChunkData) =>
+          loadInitialChunk(undefined, otherChunkData)
+        )
+      )
+
+      for (const moduleId of params.runtimeModuleIds) {
+        getOrInstantiateRuntimeModule(undefined, moduleId)
+      }
+    },
+
     /**
      * Loads the given chunk, and returns a promise that resolves once the chunk
      * has been loaded.

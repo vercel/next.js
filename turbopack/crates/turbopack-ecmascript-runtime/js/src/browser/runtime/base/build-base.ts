@@ -10,7 +10,7 @@ contextPrototype.c = moduleCache
 // @ts-ignore
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 function getOrInstantiateRuntimeModule(
-  chunkPath: ChunkPath,
+  chunkPath: ChunkPath | undefined,
   moduleId: ModuleId
 ): Module {
   const module = moduleCache[moduleId]
