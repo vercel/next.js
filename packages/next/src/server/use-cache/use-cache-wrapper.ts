@@ -91,7 +91,10 @@ import type { ResumeDataCache } from '../resume-data-cache/resume-data-cache'
 import { createLazyResult, isResolvedLazyResult } from '../lib/lazy-result'
 import { dynamicAccessAsyncStorage } from '../app-render/dynamic-access-async-storage.external'
 import type { CacheLife } from './cache-life'
-import { RenderStage } from '../app-render/staged-rendering'
+import {
+  RenderStage,
+  type StagedRenderingController,
+} from '../app-render/staged-rendering'
 import * as Log from '../../build/output/log'
 import { getServerReact, getClientReact } from '../runtime-reacts.external'
 import { createPromiseWithResolvers } from '../../shared/lib/promise-with-resolvers'
@@ -2415,45 +2418,14 @@ export async function cache(
         // If we're doing staged rendering with shells and the cache accessed root params,
         // we should exclude it from the shell, because root params are also excluded.
         const stagedRendering = getStagedRenderingController(workUnitStore)
-        if (
-          process.env.__NEXT_APP_SHELLS &&
-          stagedRendering &&
-          rootParams &&
-          rdcResult.readRootParamNames &&
-          rdcResult.readRootParamNames.size > 0
-        ) {
-          switch (workUnitStore.type) {
-            case 'prerender': {
-              await stagedRendering.waitForStage(
-                getStaticLinkDataStage(stagedRendering)
-              )
-              break
-            }
-            case 'prerender-runtime': {
-              // If we're rendering with shells, this is when params should resolve
-              await stagedRendering.waitForStage(
-                getRuntimeLinkDataStage(stagedRendering)
-              )
-              break
-            }
-            case 'request': {
-              // For a staged dynamic request, assume we're recovering a static shell --
-              // If a session shell is needed, we do it in a separate render
-              await stagedRendering.waitForStage(
-                getStaticLinkDataStage(stagedRendering)
-              )
-              break
-            }
-            case 'cache':
-            case 'private-cache':
-            case 'prerender-legacy':
-            case 'prerender-ppr':
-            case 'generate-static-params': {
-              break
-            }
-            default: {
-              workUnitStore satisfies never
-            }
+        if (process.env.__NEXT_APP_SHELLS && stagedRendering && rootParams) {
+          const delayPromise = getStageDelayIfRootParamsUsed(
+            workUnitStore,
+            stagedRendering,
+            rdcResult.readRootParamNames
+          )
+          if (delayPromise) {
+            await delayPromise
           }
         }
       }
@@ -2967,6 +2939,34 @@ export async function cache(
           }
         }
 
+        if (entry !== undefined) {
+          // We've read an entry from the cache handler.
+          //
+          // If we're doing staged rendering with shells and the cache accessed root params,
+          // we should exclude it from the shell, because root params are also excluded.
+          //
+          // NOTE: For prerenders, this has to be a cache-filling read, but a staged render
+          // may use this result as-is, so we still have to do the delay here.
+          const stagedRendering = getStagedRenderingController(workUnitStore)
+          if (process.env.__NEXT_APP_SHELLS && stagedRendering && rootParams) {
+            const readRootParamNames = knownRootParamsByFunctionId.get(id)
+            if (
+              process.env.__NEXT_APP_SHELLS &&
+              stagedRendering &&
+              rootParams
+            ) {
+              const delayPromise = getStageDelayIfRootParamsUsed(
+                workUnitStore,
+                stagedRendering,
+                readRootParamNames
+              )
+              if (delayPromise) {
+                await delayPromise
+              }
+            }
+          }
+        }
+
         if (
           entry === undefined ||
           currentTime > entry.timestamp + entry.expire * 1000 ||
@@ -3245,6 +3245,59 @@ export async function cache(
     replayConsoleLogs,
     environmentName: 'Cache',
   })
+}
+
+function getStageDelayIfRootParamsUsed(
+  workUnitStore: PublicCacheContext['outerWorkUnitStore'],
+  stagedRendering: StagedRenderingController,
+  readRootParamNames: ReadonlySet<string> | undefined
+): Promise<void> | null {
+  if (readRootParamNames && readRootParamNames.size > 0) {
+    switch (workUnitStore.type) {
+      case 'prerender': {
+        // We should only delay in the final prerender.
+        // (We don't currently use a staged rendering controller in the prospective prerender,
+        // this is defensive against future changes)
+        if (workUnitStore.resumeDataCache?.mutable) {
+          return null
+        }
+        return stagedRendering.waitForStage(
+          getStaticLinkDataStage(stagedRendering)
+        )
+      }
+      case 'prerender-runtime': {
+        // We should only delay in the final prerender.
+        // (We don't currently use a staged rendering controller in the prospective prerender,
+        // this is defensive against future changes)
+        if (workUnitStore.resumeDataCache?.mutable) {
+          return null
+        }
+        // If we're rendering with shells, this is when params should resolve
+        return stagedRendering.waitForStage(
+          getRuntimeLinkDataStage(stagedRendering)
+        )
+      }
+      case 'request': {
+        // For a staged dynamic request, assume we're recovering a static shell --
+        // If a session shell is needed, we do it in a separate render
+        return stagedRendering.waitForStage(
+          getStaticLinkDataStage(stagedRendering)
+        )
+      }
+      case 'unstable-cache':
+      case 'cache':
+      case 'private-cache':
+      case 'prerender-legacy':
+      case 'prerender-ppr':
+      case 'generate-static-params': {
+        break
+      }
+      default: {
+        workUnitStore satisfies never
+      }
+    }
+  }
+  return null
 }
 
 /**
