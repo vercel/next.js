@@ -15,6 +15,8 @@ import type { ExperimentalPPRConfig } from './lib/experimental/ppr'
 import { INFINITE_CACHE } from '../lib/constants'
 import type { FallbackRouteParam } from '../build/static-paths/types'
 import type { MemoryEvictionMode } from '../build/swc/types'
+import { isStableBuild } from '../shared/lib/errors/canary-only-config-error'
+import { isCI } from './ci-info'
 
 /**
  * Resolved form of the prefetchInlining config after normalization in
@@ -796,7 +798,7 @@ export interface ExperimentalConfig {
   /**
    * Enable filesystem cache for the turbopack build.
    *
-   * Defaults to `false`.
+   * Defaults to `true` in canary/preview builds, `false` in production.
    */
   turbopackFileSystemCacheForBuild?: boolean
 
@@ -2070,13 +2072,22 @@ export const defaultConfig = Object.freeze({
     hideLogsAfterAbort: false,
     mcpServer: true,
     turbopackFileSystemCacheForDev: true,
-    turbopackFileSystemCacheForBuild: false,
+    turbopackFileSystemCacheForBuild: turbopackFileSystemCacheForBuildDefault(),
     turbopackInferModuleSideEffects: true,
     turbopackPluginRuntimeStrategy: 'childProcesses',
   },
   htmlLimitedBots: undefined,
   bundlePagesRouterDependencies: false,
 } satisfies NextConfig)
+
+function turbopackFileSystemCacheForBuildDefault() {
+  if (isStableBuild()) return false
+  if (isCI && process.env.NOW_BUILDER) {
+    // Assume caching is available on vercel
+    return true
+  }
+  return false
+}
 
 export async function normalizeConfig(phase: string, config: any) {
   if (typeof config === 'function') {

@@ -36,6 +36,7 @@ async function readFilesNext(
       cwd: path.join(next.testDir, next.distDir),
       nodir: true,
       dot: true,
+      ignore: 'cache/**',
     })) as string[]
   )
     .filter((f) => !IGNORE.test(f) && !IGNORE_CONTENT_NEXT_REGEX.test(f))
