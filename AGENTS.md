@@ -55,6 +55,7 @@ Before editing or creating files in any subdirectory (e.g., `packages/*`, `crate
 ## Build Commands
 
 ```bash
+
 # Build the Next.js package
 pnpm --filter=next build
 
@@ -77,7 +78,9 @@ For iterative development, default to watch mode plus the explicit test script t
 **1. Start watch build in background:**
 
 ```bash
+
 # Auto-rebuilds on file changes (~1-2s per change vs ~60s full build)
+
 # Keep this running while you iterate on code
 pnpm --filter=next dev
 ```
@@ -85,6 +88,7 @@ pnpm --filter=next dev
 **2. Run focused tests with the matching mode script:**
 
 ```bash
+
 # Development mode with Turbopack
 pnpm test-dev-turbo test/path/to/test.ts
 
@@ -125,6 +129,7 @@ There is no `--no-turbopack` flag.
 ## Testing
 
 ```bash
+
 # Run specific test file (development mode with Turbopack)
 pnpm test-dev-turbo test/path/to/test.test.ts
 
@@ -152,10 +157,15 @@ pnpm test-dev-turbo test/development/
 Generating tests using `pnpm new-test` is mandatory.
 
 ```bash
+
 # Use --args for non-interactive mode (forward args to the script using `--`)
+
 # Format: pnpm new-test -- --args <appDir> <name> <type>
+
 # appDir: true/false (is this for app directory?)
+
 # name: test name (e.g. "my-feature")
+
 # type: e2e | production | development | unit
 
 pnpm new-test -- --args true my-feature e2e
@@ -166,6 +176,7 @@ pnpm new-test -- --args true my-feature e2e
 Never re-run the same test suite with different grep filters. Capture output once to a file, then read from it:
 
 ```bash
+
 # Run once, save everything
 HEADLESS=true pnpm test-dev-turbo test/path/to/test.ts > /tmp/test-output.log 2>&1
 
@@ -269,6 +280,7 @@ For full triage workflow (failure prioritization, mode selection, CI env reprodu
 **Run tests in the right mode:**
 
 ```bash
+
 # Dev mode (Turbopack)
 pnpm test-dev-turbo test/path/to/test.ts
 
@@ -395,6 +407,7 @@ Use skills for conditional, deep workflows. Keep baseline iteration/build/test p
 **Pre-validate before committing** to avoid slow lint-staged failures (~2 min each):
 
 ```bash
+
 # Run exactly what the pre-commit hook runs on your changed files:
 pnpm prettier --with-node-modules --ignore-path .prettierignore --write <files>
 npx eslint --config eslint.config.mjs --fix <files>
