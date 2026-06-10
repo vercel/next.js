@@ -32,6 +32,7 @@ import { saveDevToolsConfig } from '../utils/save-devtools-config'
 import { InstantNavsPanel } from '../components/instant-navs/instant-navs-panel'
 import './panel-router.css'
 import { CacheDisabledBody } from '../components/errors/dev-tools-indicator/dev-tools-info/cache-disabled'
+import { ColdCacheBody } from '../components/errors/dev-tools-indicator/dev-tools-info/cold-cache'
 
 const MenuPanel = () => {
   const { setPanel, setSelectedIndex } = usePanelRouterContext()
@@ -153,6 +154,16 @@ const MenuPanel = () => {
           onClick: () => setPanel('cache-disabled'),
           attributes: {
             'data-cache-disabled': true,
+          },
+        },
+        state.cacheIndicator === 'cold' && {
+          title:
+            'This load filled one or more caches while streaming, so it is not representative of production. Click to learn more.',
+          label: 'Cache',
+          value: 'Cold',
+          onClick: () => setPanel('cold-cache'),
+          attributes: {
+            'data-cold-cache': true,
           },
         },
         isAppRouter && {
@@ -361,6 +372,25 @@ export const PanelRouter = () => {
           >
             <div className="panel-content">
               <CacheDisabledBody />
+            </div>
+          </DynamicPanel>
+        </PanelRoute>
+      )}
+
+      {state.cacheIndicator === 'cold' && (
+        <PanelRoute name="cold-cache">
+          <DynamicPanel
+            sharePanelSizeGlobally={false}
+            sizeConfig={{
+              kind: 'fixed',
+              height: 400 / state.scale,
+              width: 480 / state.scale,
+            }}
+            closeOnClickOutside
+            header={<DevToolsHeader title="Cold cache" />}
+          >
+            <div className="panel-content">
+              <ColdCacheBody />
             </div>
           </DynamicPanel>
         </PanelRoute>

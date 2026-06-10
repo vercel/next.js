@@ -6,8 +6,7 @@ import { Warning } from '../../icons/warning'
 import { css } from '../../utils/css'
 import { useDevOverlayContext } from '../../../dev-overlay.browser'
 import { useRenderErrorContext } from '../../dev-overlay'
-import { useDelayedRender } from '../../hooks/use-delayed-render'
-import { useDebouncedValue } from '../../hooks/use-debounced-value'
+import { useIndicatorDisplay } from '../../hooks/use-indicator-display'
 import {
   ACTION_ERROR_OVERLAY_CLOSE,
   ACTION_ERROR_OVERLAY_OPEN,
@@ -15,7 +14,7 @@ import {
 import { usePanelRouterContext } from '../../menu/context'
 import { getIssueBucketState } from '../../menu/issue-bucket-state'
 import { BASE_LOGO_SIZE } from '../../utils/indicator-metrics'
-import { StatusIndicator, Status, getCurrentStatus } from './status-indicator'
+import { StatusIndicator, Status } from './status-indicator'
 
 const SHORT_DURATION_MS = 150
 
@@ -67,12 +66,6 @@ function PillLabel({
   )
 }
 
-// Smooth out rapid status transitions driven by bursty HMR events (e.g.
-// Compiling→None→Compiling when consecutive compile episodes are <300ms apart,
-// or Compiling→Rendering→Compiling oscillation). The debounce bridges burst
-// gaps and active↔active flicker.
-const STATUS_DEBOUNCE_MS = 300
-
 export function NextLogo({
   onTriggerClick,
   ...buttonProps
@@ -111,47 +104,23 @@ export function NextLogo({
   const leadingCountAnimating =
     normalErrorCount > 0 ? normalErrorAnimating : instantErrorAnimating
 
-  // Cache indicator state management
-  const isCacheBypassing = state.cacheIndicator === 'bypass'
-
-  // Get the current status from the state. Debounce active↔active transitions
-  // (e.g. Compiling→Rendering) so bursts of HMR events don't flicker the
-  // badge. Transitions to None are committed immediately so fast single builds
-  // cancel the enter timer before the pill becomes visible.
-  const currentStatus = useDebouncedValue(
-    getCurrentStatus(
-      state.buildingIndicator,
-      state.renderingIndicator,
-      state.cacheIndicator
-    ),
-    STATUS_DEBOUNCE_MS,
-    {
-      // Only None→active is immediate (no debounce on top of enterDelay).
-      // active→None is debounced so short inter-burst gaps don't prematurely
-      // collapse the pill. Fast single builds (completing in <enterDelay-debounce ms)
-      // still stay hidden because the debounced None commits before enterDelay fires.
-      leading: (prev: Status) => prev === Status.None,
-    }
+  // The status pill and the persistent cache badge are owned by a single state
+  // machine that handles all the show/hide timing and the atomic handoff
+  // between the two (so the indicator never blanks to the bare logo between
+  // them). The two are mutually exclusive.
+  const { status: displayStatus, cacheBadge } = useIndicatorDisplay(
+    state.buildingIndicator,
+    state.renderingIndicator,
+    state.cacheIndicator
   )
-
-  // Determine if we should show any status (excluding cache bypass, which renders like error badge)
-  const shouldShowStatus = currentStatus !== Status.None
-
-  // Delay showing for 400ms to catch fast operations,
-  // and keep visible for minimum time (longer for warnings)
-  const { rendered: showStatusIndicator } = useDelayedRender(shouldShowStatus, {
-    enterDelay: 400,
-    exitDelay: 500,
-  })
+  const showStatusIndicator = displayStatus !== Status.None
 
   const ref = useRef<HTMLDivElement | null>(null)
   const measuredWidth = useMeasureWidth(ref)
 
-  const displayStatus = showStatusIndicator ? currentStatus : Status.None
-
   const isExpanded =
     isErrorExpanded ||
-    isCacheBypassing ||
+    cacheBadge !== null ||
     showStatusIndicator ||
     state.disableDevIndicator
   const width = measuredWidth === 0 ? 'auto' : measuredWidth
@@ -256,7 +225,7 @@ export function NextLogo({
               }
             }
 
-            &[data-cache-bypassing='true']:not([data-error='true']) {
+            &[data-cache-badge]:not([data-error='true']) {
               background: rgba(217, 119, 6, 0.95);
               --color-inner-border: rgba(245, 158, 11, 0.9);
 
@@ -287,7 +256,7 @@ export function NextLogo({
             outline: var(--focus-ring);
           }
 
-          [data-issues]:has([data-issues-open]:focus-visible) {
+          [data-toast-pill]:has([data-issues-open]:focus-visible) {
             outline: var(--focus-ring);
             outline-offset: -1px;
           }
@@ -308,7 +277,10 @@ export function NextLogo({
             transition-delay: var(--duration-short);
           }
 
-          [data-issues] {
+          /* Shared pill layout for the errors toast and the cache badge. Keyed
+             on data-toast-pill rather than data-issues so it applies to both,
+             while data-issues stays exclusive to the errors toast. */
+          [data-toast-pill] {
             --padding-left: 8px;
             display: flex;
             gap: 2px;
@@ -468,8 +440,8 @@ export function NextLogo({
         data-error={hasError && !insightsOnly}
         data-insights-only={insightsOnly}
         data-error-expanded={isExpanded}
-        data-status={hasError || isCacheBypassing ? Status.None : currentStatus}
-        data-cache-bypassing={isCacheBypassing}
+        data-status={hasError ? Status.None : displayStatus}
+        data-cache-badge={cacheBadge ?? undefined}
         data-animate={newErrorDetected}
         style={{ width }}
       >
@@ -488,10 +460,7 @@ export function NextLogo({
               aria-label={`${isMenuOpen ? 'Close' : 'Open'} Next.js Dev Tools`}
               data-nextjs-dev-tools-button
               style={{
-                display:
-                  showStatusIndicator && !hasError && !isCacheBypassing
-                    ? 'none'
-                    : 'flex',
+                display: showStatusIndicator && !hasError ? 'none' : 'flex',
               }}
               {...buttonProps}
             >
@@ -502,7 +471,7 @@ export function NextLogo({
             <>
               {/* Error badge has priority over cache indicator */}
               {(isErrorExpanded || state.disableDevIndicator) && (
-                <div data-issues>
+                <div data-issues data-toast-pill>
                   <button
                     data-issues-open
                     aria-label="Open issues overlay"
@@ -563,17 +532,18 @@ export function NextLogo({
                   )}
                 </div>
               )}
-              {/* Cache bypass badge shown when cache is being bypassed */}
-              {isCacheBypassing && !hasError && !state.disableDevIndicator && (
-                <CacheBypassBadge
+              {/* Persistent cache badge shown when a load bypassed caches or
+                  rendered with a cold cache and nothing is actively rendering */}
+              {cacheBadge && !hasError && !state.disableDevIndicator && (
+                <CacheStatusBadge
+                  kind={cacheBadge}
                   onTriggerClick={onTriggerClick}
                   triggerRef={triggerRef}
                 />
               )}
-              {/* Status indicator shown when no errors and no cache bypass */}
+              {/* Status indicator shown while rendering or compiling */}
               {showStatusIndicator &&
                 !hasError &&
-                !isCacheBypassing &&
                 !state.disableDevIndicator && (
                   <StatusIndicator
                     status={displayStatus}
@@ -609,10 +579,12 @@ function AnimateCount({
   )
 }
 
-function CacheBypassBadge({
+function CacheStatusBadge({
+  kind,
   onTriggerClick,
   triggerRef,
 }: {
+  kind: 'cold' | 'bypass'
   onTriggerClick: () => void
   triggerRef: React.RefObject<HTMLButtonElement | null>
 }) {
@@ -622,19 +594,30 @@ function CacheBypassBadge({
     return null
   }
 
+  const label = kind === 'bypass' ? 'Cache disabled' : 'Cold cache'
+
   return (
-    <div data-issues data-cache-bypass-badge>
+    // Reuses the errors toast pill styling (data-toast-pill) but is
+    // deliberately not data-issues: that attribute marks the errors toast,
+    // which test utilities click to open the redbox. A cold or cache-disabled
+    // load can also surface a validation error, so a shared data-issues would
+    // let those helpers grab this badge instead of the real toast.
+    <div
+      data-toast-pill
+      data-cache-bypass-badge={kind === 'bypass' ? true : undefined}
+      data-cold-cache-badge={kind === 'cold' ? true : undefined}
+    >
       <button
         data-issues-open
         data-nextjs-dev-tools-button
         aria-label="Open Next.js Dev Tools"
         onClick={onTriggerClick}
       >
-        Cache disabled
+        {label}
       </button>
       <button
         data-issues-collapse
-        aria-label="Collapse cache bypass badge"
+        aria-label={`Collapse ${label} badge`}
         onClick={() => {
           setDismissed(true)
           // Move focus to the trigger to prevent having it stuck on this element
