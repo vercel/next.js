@@ -417,6 +417,7 @@ export class TurbopackManifestLoader {
       lowPriorityFiles,
       rootMainFiles: [],
       rootMainFilesTree: {},
+      pagesChunkGroupBootstrapParams: {},
     }
     for (const m of manifests) {
       Object.assign(manifest.pages, m.pages)
@@ -426,6 +427,14 @@ export class TurbopackManifestLoader {
       if (m.rootMainFilesTree) {
         Object.assign(manifest.rootMainFilesTree!, m.rootMainFilesTree)
       }
+      if (m.pagesChunkGroupBootstrapParams) {
+        Object.assign(
+          manifest.pagesChunkGroupBootstrapParams!,
+          m.pagesChunkGroupBootstrapParams
+        )
+      }
+      if (m.chunkLoadingGlobal)
+        manifest.chunkLoadingGlobal = m.chunkLoadingGlobal
     }
     manifest.pages = sortObjectByKey(manifest.pages) as BuildManifest['pages']
     return manifest
@@ -575,6 +584,7 @@ export class TurbopackManifestLoader {
       rewrites,
       sortedPageKeys
     )
+
     const clientBuildManifestJs = `self.__BUILD_MANIFEST = ${JSON.stringify(
       clientBuildManifest,
       null,
