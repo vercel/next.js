@@ -784,6 +784,13 @@ export interface ExperimentalConfig {
   turbopackGenerateComponentChunks?: boolean
 
   /**
+   * Share the browser runtime across routes in a single `runtime.js` asset and inline the
+   * per-route chunk-group bootstrap into the HTML, dropping the per-route runtime. Defaults to
+   * false. Only applies to production builds; has no effect in development mode.
+   */
+  turbopackSharedRuntime?: boolean
+
+  /**
    * (`next --turbopack` only) Traffic-related hints for the production chunker. These change the
    * assumptions Turbopack makes when making chunk merging decisions.
    */

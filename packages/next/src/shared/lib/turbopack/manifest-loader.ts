@@ -585,11 +585,34 @@ export class TurbopackManifestLoader {
       sortedPageKeys
     )
 
-    const clientBuildManifestJs = `self.__BUILD_MANIFEST = ${JSON.stringify(
-      clientBuildManifest,
-      null,
-      2
-    )};self.__BUILD_MANIFEST_CB && self.__BUILD_MANIFEST_CB()`
+    // Expose each route's bootstrap params and the chunk-loading global to the client
+    // so `route-loader` can instantiate a navigated page's entry module. The server
+    // stores params as raw JSON per route.
+    const pageBootstrapParams: Record<string, unknown> = {}
+    let chunkLoadingGlobal: string | undefined
+    for (const m of this.buildManifests.values()) {
+      if (m.chunkLoadingGlobal) chunkLoadingGlobal = m.chunkLoadingGlobal
+      for (const [route, params] of Object.entries(
+        m.pagesChunkGroupBootstrapParams ?? {}
+      )) {
+        pageBootstrapParams[route] = params
+      }
+    }
+
+    // Only emit the bootstrap globals when a route actually inlined its bootstrap (shared runtime
+    // enabled).
+    const hasBootstrapParams = Object.keys(pageBootstrapParams).length > 0
+    const clientBuildManifestJs =
+      `self.__BUILD_MANIFEST = ${JSON.stringify(clientBuildManifest, null, 2)};` +
+      (hasBootstrapParams
+        ? `self.__TURBOPACK_PAGE_BOOTSTRAP = ${JSON.stringify(pageBootstrapParams)};` +
+          (chunkLoadingGlobal
+            ? `self.__TURBOPACK_CHUNK_LOADING_GLOBAL = ${JSON.stringify(
+                chunkLoadingGlobal
+              )};`
+            : '')
+        : '') +
+      `self.__BUILD_MANIFEST_CB && self.__BUILD_MANIFEST_CB()`
 
     writeFileAtomic(
       join(this.distDir, buildManifestPath),

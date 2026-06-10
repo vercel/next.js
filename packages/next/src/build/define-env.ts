@@ -174,6 +174,9 @@ export function getDefineEnv({
     'process.env.__NEXT_APP_NEW_SCROLL_HANDLER': Boolean(
       config.experimental.appNewScrollHandler
     ),
+    'process.env.__NEXT_TURBOPACK_SHARED_RUNTIME': Boolean(
+      config.experimental.turbopackSharedRuntime
+    ),
     'process.env.__NEXT_PPR': isPPREnabled,
     'process.env.__NEXT_CACHE_COMPONENTS': isCacheComponentsEnabled,
     'process.env.__NEXT_EXPERIMENTAL_CACHED_NAVIGATIONS': Boolean(
