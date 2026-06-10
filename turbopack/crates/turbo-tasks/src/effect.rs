@@ -566,7 +566,7 @@ where
 {
     let mut attempts = 0usize;
     loop {
-        let value = op.read_strongly_consistent().await?;
+        let value = op.read_strongly_consistent().final_read_hint().await?;
         // Deref the `ReadRef<T>` to the read target (`T` for non-transparent types).
         let effects = get_effects(&*value);
         match effects.apply().await {

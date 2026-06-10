@@ -1362,6 +1362,7 @@ pub async fn project_write_all_entrypoints_to_disk(
                 let DeferredEntrypointInfo(entrypoints, deferred_entries) =
                     &*deferred_entrypoint_info_operation(container)
                         .read_strongly_consistent()
+                        .final_read_hint()
                         .await?;
 
                 Ok(compute_deferred_phase_build_paths(
@@ -1707,6 +1708,7 @@ pub async fn project_entrypoints(
                 effects: _,
             } = &*entrypoints_with_issues_op
                 .read_strongly_consistent()
+                .final_read_hint()
                 .await?;
 
             Ok((entrypoints.clone(), issues.clone()))
@@ -1813,7 +1815,10 @@ async fn hmr_update_with_issues_operation(
     // consumers in `hot-reloader-turbopack.ts` (`subscribeToServerHmr` and
     // `subscribeToClientHmrEvents`) rely on this read *throwing* on build-graph
     // failures to trigger their recovery paths
-    let update = update_op.read_strongly_consistent().await?;
+    let update = update_op
+        .read_strongly_consistent()
+        .final_read_hint()
+        .await?;
     let filter = project.issue_filter().await?;
     let issues = get_issues(update_op, &filter).await?;
     let effects = Arc::new(take_effects(update_op).await?);
@@ -2539,7 +2544,8 @@ pub async fn project_get_all_compilation_issues(
         .turbo_tasks()
         .run_once(async move {
             let op = get_all_compilation_issues_operation(container);
-            let OperationResult { issues, effects: _ } = &*op.read_strongly_consistent().await?;
+            let OperationResult { issues, effects: _ } =
+                &*op.read_strongly_consistent().final_read_hint().await?;
             Ok(issues.clone())
         })
         .await
