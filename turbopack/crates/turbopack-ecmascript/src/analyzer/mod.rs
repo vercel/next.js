@@ -535,71 +535,29 @@ mod tests {
                         resolved.push((format!("{parent} -> {i} conditional"), condition));
                         match BumpBox::into_inner(kind) {
                             ConditionalKind::If { then } => {
-                                queue.extend(
-                                    BumpBox::into_inner(then)
-                                        .effects
-                                        .into_iter()
-                                        .rev()
-                                        .map(|e| (i, e)),
-                                );
+                                queue.extend(then.effects.into_iter().rev().map(|e| (i, e)));
                             }
                             ConditionalKind::Else { r#else } => {
-                                queue.extend(
-                                    BumpBox::into_inner(r#else)
-                                        .effects
-                                        .into_iter()
-                                        .rev()
-                                        .map(|e| (i, e)),
-                                );
+                                queue.extend(r#else.effects.into_iter().rev().map(|e| (i, e)));
                             }
                             ConditionalKind::IfElse { then, r#else }
                             | ConditionalKind::Ternary { then, r#else } => {
-                                queue.extend(
-                                    BumpBox::into_inner(r#else)
-                                        .effects
-                                        .into_iter()
-                                        .rev()
-                                        .map(|e| (i, e)),
-                                );
-                                queue.extend(
-                                    BumpBox::into_inner(then)
-                                        .effects
-                                        .into_iter()
-                                        .rev()
-                                        .map(|e| (i, e)),
-                                );
+                                queue.extend(r#else.effects.into_iter().rev().map(|e| (i, e)));
+                                queue.extend(then.effects.into_iter().rev().map(|e| (i, e)));
                             }
                             ConditionalKind::IfElseMultiple { then, r#else } => {
                                 for then in then {
-                                    queue.extend(
-                                        BumpBox::into_inner(then)
-                                            .effects
-                                            .into_iter()
-                                            .rev()
-                                            .map(|e| (i, e)),
-                                    );
+                                    queue.extend(then.effects.into_iter().rev().map(|e| (i, e)));
                                 }
                                 for r#else in r#else {
-                                    queue.extend(
-                                        BumpBox::into_inner(r#else)
-                                            .effects
-                                            .into_iter()
-                                            .rev()
-                                            .map(|e| (i, e)),
-                                    );
+                                    queue.extend(r#else.effects.into_iter().rev().map(|e| (i, e)));
                                 }
                             }
                             ConditionalKind::And { expr }
                             | ConditionalKind::Or { expr }
                             | ConditionalKind::NullishCoalescing { expr }
                             | ConditionalKind::Labeled { body: expr } => {
-                                queue.extend(
-                                    BumpBox::into_inner(expr)
-                                        .effects
-                                        .into_iter()
-                                        .rev()
-                                        .map(|e| (i, e)),
-                                );
+                                queue.extend(expr.effects.into_iter().rev().map(|e| (i, e)));
                             }
                         };
                         steps

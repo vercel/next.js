@@ -23,35 +23,33 @@ impl EffectsBlock<'_> {
 #[derive(Debug)]
 pub enum ConditionalKind<'a> {
     /// The blocks of an `if` statement without an `else` block.
-    If { then: BumpBox<'a, EffectsBlock<'a>> },
+    If { then: EffectsBlock<'a> },
     /// The blocks of an `if ... else` or `if { ... return ... } ...` statement.
     IfElse {
-        then: BumpBox<'a, EffectsBlock<'a>>,
-        r#else: BumpBox<'a, EffectsBlock<'a>>,
+        then: EffectsBlock<'a>,
+        r#else: EffectsBlock<'a>,
     },
     /// The blocks of an `if ... else` statement.
-    Else {
-        r#else: BumpBox<'a, EffectsBlock<'a>>,
-    },
+    Else { r#else: EffectsBlock<'a> },
     /// The blocks of an `if { ... return ... } else { ... } ...` or `if { ... }
     /// else { ... return ... } ...` statement.
     IfElseMultiple {
-        then: Vec<BumpBox<'a, EffectsBlock<'a>>>,
-        r#else: Vec<BumpBox<'a, EffectsBlock<'a>>>,
+        then: Vec<EffectsBlock<'a>>,
+        r#else: Vec<EffectsBlock<'a>>,
     },
     /// The expressions on the right side of the `?:` operator.
     Ternary {
-        then: BumpBox<'a, EffectsBlock<'a>>,
-        r#else: BumpBox<'a, EffectsBlock<'a>>,
+        then: EffectsBlock<'a>,
+        r#else: EffectsBlock<'a>,
     },
     /// The expression on the right side of the `&&` operator.
-    And { expr: BumpBox<'a, EffectsBlock<'a>> },
+    And { expr: EffectsBlock<'a> },
     /// The expression on the right side of the `||` operator.
-    Or { expr: BumpBox<'a, EffectsBlock<'a>> },
+    Or { expr: EffectsBlock<'a> },
     /// The expression on the right side of the `??` operator.
-    NullishCoalescing { expr: BumpBox<'a, EffectsBlock<'a>> },
+    NullishCoalescing { expr: EffectsBlock<'a> },
     /// The expression on the right side of a labeled statement.
-    Labeled { body: BumpBox<'a, EffectsBlock<'a>> },
+    Labeled { body: EffectsBlock<'a> },
 }
 
 impl<'a> ConditionalKind<'a> {

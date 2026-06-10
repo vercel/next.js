@@ -935,13 +935,9 @@ async fn analyze_ecmascript_module_internal(
                     }
                     macro_rules! active {
                         ($block:ident) => {
-                            queue_stack.get_mut().extend(
-                                BumpBox::into_inner($block)
-                                    .effects
-                                    .into_iter()
-                                    .map(Action::Effect)
-                                    .rev(),
-                            )
+                            queue_stack
+                                .get_mut()
+                                .extend($block.effects.into_iter().map(Action::Effect).rev())
                         };
                     }
                     match BumpBox::into_inner(kind) {

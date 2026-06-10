@@ -39,8 +39,8 @@ enum EarlyReturn<'a> {
         start_ast_path: Vec<AstParentKind>,
 
         condition: BumpBox<'a, JsValue<'a>>,
-        then: Option<BumpBox<'a, EffectsBlock<'a>>>,
-        r#else: Option<BumpBox<'a, EffectsBlock<'a>>>,
+        then: Option<EffectsBlock<'a>>,
+        r#else: Option<EffectsBlock<'a>>,
         /// The ast path to the condition.
         condition_ast_path: Vec<AstParentKind>,
         span: Span,
@@ -418,13 +418,10 @@ mod analyzer_state {
                         span,
                         early_return_condition_value,
                     } => {
-                        let block = BumpBox::new_in(
-                            EffectsBlock {
-                                effects: take(&mut self.effects),
-                                range: AstPathRange::StartAfter(start_ast_path),
-                            },
-                            self.arena,
-                        );
+                        let block = EffectsBlock {
+                            effects: take(&mut self.effects),
+                            range: AstPathRange::StartAfter(start_ast_path),
+                        };
                         self.effects = prev_effects;
                         let kind = match (then, r#else, early_return_condition_value) {
                             (None, None, false) => ConditionalKind::If { then: block },
@@ -1872,25 +1869,19 @@ impl VisitAstPath for Analyzer<'_, '_> {
             let mut ast_path =
                 ast_path.with_guard(AstParentNodeRef::CondExpr(expr, CondExprField::Cons));
             expr.cons.visit_with_ast_path(self, &mut ast_path);
-            BumpBox::new_in(
-                EffectsBlock {
-                    effects: take(&mut self.effects),
-                    range: AstPathRange::Exact(as_parent_path(&ast_path)),
-                },
-                self.arena,
-            )
+            EffectsBlock {
+                effects: take(&mut self.effects),
+                range: AstPathRange::Exact(as_parent_path(&ast_path)),
+            }
         };
         let r#else = {
             let mut ast_path =
                 ast_path.with_guard(AstParentNodeRef::CondExpr(expr, CondExprField::Alt));
             expr.alt.visit_with_ast_path(self, &mut ast_path);
-            BumpBox::new_in(
-                EffectsBlock {
-                    effects: take(&mut self.effects),
-                    range: AstPathRange::Exact(as_parent_path(&ast_path)),
-                },
-                self.arena,
-            )
+            EffectsBlock {
+                effects: take(&mut self.effects),
+                range: AstPathRange::Exact(as_parent_path(&ast_path)),
+            }
         };
         self.effects = prev_effects;
 
@@ -1924,13 +1915,10 @@ impl VisitAstPath for Analyzer<'_, '_> {
                 })
                 .1;
 
-            BumpBox::new_in(
-                EffectsBlock {
-                    effects: take(&mut self.effects),
-                    range: AstPathRange::Exact(as_parent_path(&ast_path)),
-                },
-                self.arena,
-            )
+            EffectsBlock {
+                effects: take(&mut self.effects),
+                range: AstPathRange::Exact(as_parent_path(&ast_path)),
+            }
         };
         let mut else_returning = false;
         let r#else = stmt.alt.as_ref().map(|alt| {
@@ -1942,13 +1930,10 @@ impl VisitAstPath for Analyzer<'_, '_> {
                 })
                 .1;
 
-            BumpBox::new_in(
-                EffectsBlock {
-                    effects: take(&mut self.effects),
-                    range: AstPathRange::Exact(as_parent_path(&ast_path)),
-                },
-                self.arena,
-            )
+            EffectsBlock {
+                effects: take(&mut self.effects),
+                range: AstPathRange::Exact(as_parent_path(&ast_path)),
+            }
         });
         self.effects = prev_effects;
         self.add_conditional_if_effect_with_early_return(
@@ -2111,16 +2096,13 @@ impl VisitAstPath for Analyzer<'_, '_> {
                 ),
                 kind: BumpBox::new_in(
                     ConditionalKind::Labeled {
-                        body: BumpBox::new_in(
-                            EffectsBlock {
-                                effects,
-                                range: AstPathRange::Exact(as_parent_path_with(
-                                    ast_path,
-                                    AstParentKind::LabeledStmt(LabeledStmtField::Body),
-                                )),
-                            },
-                            self.arena,
-                        ),
+                        body: EffectsBlock {
+                            effects,
+                            range: AstPathRange::Exact(as_parent_path_with(
+                                ast_path,
+                                AstParentKind::LabeledStmt(LabeledStmtField::Body),
+                            )),
+                        },
                     },
                     self.arena,
                 ),
@@ -2202,8 +2184,8 @@ impl<'a> Analyzer<'a, '_> {
         ast_path: &AstNodePath<AstParentNodeRef<'_>>,
         condition_ast_kind: AstParentKind,
         span: Span,
-        then: Option<BumpBox<'a, EffectsBlock<'a>>>,
-        r#else: Option<BumpBox<'a, EffectsBlock<'a>>>,
+        then: Option<EffectsBlock<'a>>,
+        r#else: Option<EffectsBlock<'a>>,
         early_return_when_true: bool,
         early_return_when_false: bool,
     ) {
