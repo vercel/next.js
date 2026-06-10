@@ -276,12 +276,7 @@ describe.each([
           }
         })
 
-        // TODO: Skipped until the cache read is ended for short-lived handler
-        // hits. Today a warm reload defers the value without ending the read,
-        // so it triggers as a phantom cache miss whose phase the streaming dev
-        // render doesn't pin down. Re-enable once the read is ended, after
-        // which a warm reload should resolve in the runtime stage.
-        it.skip('cached data + short-lived cached data', async () => {
+        it('cached data + short-lived cached data', async () => {
           const path = '/short-lived-cache'
 
           const assertLogs = async (browser: Playwright) => {
@@ -296,6 +291,47 @@ describe.each([
               logs,
               'after short-lived cache read - layout',
               RUNTIME_ENV
+            )
+
+            assertLog(logs, 'after uncached fetch - layout', 'Server')
+            assertLog(logs, 'after uncached fetch - page', 'Server')
+          }
+
+          if (isInitialLoad) {
+            await testInitialLoad(path, assertLogs)
+          } else {
+            await testNavigation(path, assertLogs)
+          }
+        })
+
+        it('cached data + short-stale cached data', async () => {
+          const path = '/short-stale-cache'
+
+          // A short stale time excludes the entry from the runtime prefetch
+          // shell, but not from the static shell. So an initial load resolves
+          // it in the static stage (Prerender), and so does a navigation into a
+          // route without runtime prefetch. Only a navigation into a
+          // runtime-prefetch route excludes it, resolving it in the dynamic
+          // stage (Server). This asymmetry mirrors the build-time behavior,
+          // where a short stale time is omitted from the runtime prefetch but
+          // not from the static shell.
+          const shortStaleEnv =
+            !isInitialLoad && hasRuntimePrefetch ? 'Server' : 'Prerender'
+
+          const assertLogs = async (browser: Playwright) => {
+            const logs = await browser.log()
+            assertLog(logs, 'after cache read - layout', 'Prerender')
+            assertLog(logs, 'after cache read - page', 'Prerender')
+
+            assertLog(
+              logs,
+              'after short-stale cache read - page',
+              shortStaleEnv
+            )
+            assertLog(
+              logs,
+              'after short-stale cache read - layout',
+              shortStaleEnv
             )
 
             assertLog(logs, 'after uncached fetch - layout', 'Server')
