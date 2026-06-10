@@ -789,9 +789,9 @@ type TreeResult = {
    * Surfaced in the missing-boundary fallback message as a pointer
    * to "something inside the subtree that didn't render". */
   firstModFilePath: string | null
-  /** How deep in the tree the config was found. Higher = more specific.
-   * Used to prefer deeper configs over shallower ones when multiple
-   * slots have configs. */
+  /** Root-relative URL segment depth where the config was found.
+   * Higher = more specific. Used to prefer deeper configs over shallower
+   * ones when multiple slots have configs. */
   configDepth: number
 }
 
@@ -1014,7 +1014,8 @@ export async function createCombinedPayloadAtDepth(
     parentPath: SegmentPath | null,
     key: string | null,
     urlDepthConsumed: number,
-    groupDepthConsumed: number
+    groupDepthConsumed: number,
+    absoluteSegmentDepth: number
   ): Promise<TreeResult> {
     const { parallelRoutes } = parseLoaderTree(loaderTree)
 
@@ -1052,6 +1053,9 @@ export async function createCombinedPayloadAtDepth(
     // real navigation boundary.
     let nextUrlDepth = urlDepthConsumed
     let currentGroupDepth = groupDepthConsumed
+    const childSegmentDepth = consumesUrlDepth
+      ? absoluteSegmentDepth + 1
+      : absoluteSegmentDepth
     if (consumesUrlDepth) {
       nextUrlDepth++
       currentGroupDepth = 0
@@ -1099,7 +1103,7 @@ export async function createCombinedPayloadAtDepth(
           path,
           parallelRouteKey,
           false /* isInsideRuntimePrefetch */,
-          0 /* segmentDepth */
+          childSegmentDepth
         )
         slotResults.set(parallelRouteKey, result)
         slots[parallelRouteKey] = result.seedData
@@ -1153,7 +1157,8 @@ export async function createCombinedPayloadAtDepth(
         path,
         parallelRouteKey,
         nextUrlDepth,
-        currentGroupDepth
+        currentGroupDepth,
+        childSegmentDepth
       )
       slotResults.set(parallelRouteKey, result)
       slots[parallelRouteKey] = result.seedData
@@ -1350,7 +1355,8 @@ export async function createCombinedPayloadAtDepth(
       null /* parentPath */,
       null /* key */,
       0 /* urlDepthConsumed */,
-      0 /* groupDepthConsumed */
+      0 /* groupDepthConsumed */,
+      0 /* absoluteSegmentDepth */
     )
 
   if (!requiresInstantUI) {
