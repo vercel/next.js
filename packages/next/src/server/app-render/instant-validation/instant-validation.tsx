@@ -821,6 +821,17 @@ function segmentConsumesURLDepth(segment: Segment): boolean {
 }
 
 /**
+ * Catchall segments capture every remaining URL segment, so there are no
+ * intermediate loader tree nodes where a deeper navigation boundary can be
+ * placed.
+ */
+function isCatchallSegment(segment: Segment): boolean {
+  if (typeof segment === 'string') return false
+  const type = segment[2]
+  return type === 'c' || type === 'oc' || type.startsWith('ci')
+}
+
+/**
  * Walks the LoaderTree to discover validation depth bounds.
  *
  * Each route group between URL segments represents a potential
@@ -1044,6 +1055,11 @@ export async function createCombinedPayloadAtDepth(
     if (consumesUrlDepth) {
       nextUrlDepth++
       currentGroupDepth = 0
+      if (isCatchallSegment(segment)) {
+        // A catchall extends beyond every remaining URL boundary, so its
+        // loader tree node must become the boundary for all deeper depths.
+        nextUrlDepth = Infinity
+      }
     } else if (isGroup) {
       currentGroupDepth++
     }
