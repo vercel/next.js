@@ -14,5 +14,7 @@ export default function Page() {
 
 async function Dynamic() {
   await connection()
-  return <div id="dynamic-content">Dynamic content</div>
+  return (
+    <div id="dynamic-content">Dynamic content {new Date().toISOString()}</div>
+  )
 }
