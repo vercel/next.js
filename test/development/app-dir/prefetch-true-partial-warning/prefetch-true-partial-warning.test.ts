@@ -1,16 +1,9 @@
 import { nextTestSetup } from 'e2e-utils'
 
 describe('prefetch-true-partial-warning', () => {
-  const { next, isNextDev } = nextTestSetup({
+  const { next } = nextTestSetup({
     files: __dirname,
   })
-
-  // The warning is only emitted in development. In dev we don't prefetch, so it
-  // fires at navigation time instead.
-  if (!isNextDev) {
-    it('is skipped outside of dev', () => {})
-    return
-  }
 
   // A stable substring of the dev warning emitted from navigation.ts.
   const WARNING = 'Partial Prefetching is not enabled'
