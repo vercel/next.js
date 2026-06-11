@@ -15,7 +15,7 @@ describe('empty resume', () => {
 
   it('treats an empty Next-Resume body as a dynamic RSC request', async () => {
     const slug = 'cold-rdc'
-    const response = await next.fetch(`/dynamic/${slug}`, {
+    const response = await next.fetch(`/dynamic/${slug}.rsc`, {
       method: 'POST',
       headers: {
         rsc: '1',
