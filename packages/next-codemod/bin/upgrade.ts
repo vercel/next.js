@@ -360,7 +360,7 @@ export async function runUpgrade(
     overrides['@types/react-dom'] = versionMapping['@types/react-dom'].version
   }
 
-  writeOverridesField(appPackageJson, packageManager, overrides, cwd)
+  writeOverridesField(appPackageJson, packageManager, overrides)
 
   for (const [packageName, { version, required }] of Object.entries(
     versionMapping
@@ -645,8 +645,7 @@ async function suggestReactTypesCodemods(): Promise<boolean> {
 function writeOverridesField(
   packageJson: any,
   packageManager: PackageManager,
-  overrides: Record<string, string>,
-  projectDir: string
+  overrides: Record<string, string>
 ) {
   const entries = Object.entries(overrides)
   // Avoids writing an empty overrides field into package.json
@@ -670,7 +669,7 @@ function writeOverridesField(
     // since that's the surface where silently-dropped overrides hurt most.
     const pnpmMajorVersion = getPnpmMajorVersion()
     if (pnpmMajorVersion === null || pnpmMajorVersion >= 11) {
-      writePnpmWorkspaceOverrides(projectDir, overrides)
+      writePnpmWorkspaceOverrides(overrides)
       return
     }
 
@@ -716,16 +715,13 @@ function writeOverridesField(
   }
 }
 
-function writePnpmWorkspaceOverrides(
-  projectDir: string,
-  overrides: Record<string, string>
-) {
+function writePnpmWorkspaceOverrides(overrides: Record<string, string>) {
   // Deferred require so `js-yaml` is only loaded when we hit the pnpm v11+
   // branch (i.e. not for npm/yarn/bun/pnpm-v10 upgrades). The package is CJS,
   // so a sync `require()` keeps this function synchronous.
   const yaml = require('js-yaml') as typeof import('js-yaml')
 
-  const filePath = path.join(projectDir, 'pnpm-workspace.yaml')
+  const filePath = path.join(cwd, 'pnpm-workspace.yaml')
 
   let doc: Record<string, any> = {}
   if (fs.existsSync(filePath)) {
