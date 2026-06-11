@@ -777,6 +777,24 @@ export interface ExperimentalConfig {
   turbopackWorkerAssetPrefix?: string
 
   /**
+   * Path to a service worker entry file (relative to the project root). When
+   * set, Turbopack compiles it into a single self-contained bundle with all
+   * dynamic imports inlined. The service worker will then be served at
+   * /service-worker.js.
+   *
+   * @example
+   * ```js
+   * // next.config.js
+   * module.exports = {
+   *   experimental: {
+   *     turbopackServiceWorkerPath: './service-worker.ts',
+   *   },
+   * }
+   * ```
+   */
+  turbopackServiceWorkerPath?: string
+
+  /**
    * Enable nested async chunking for client side assets. Defaults to true in build mode and false in dev mode.
    * This optimization computes all possible paths through dynamic imports in the applications to figure out the modules needed at dynamic imports for every path.
    */

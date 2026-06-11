@@ -1309,6 +1309,10 @@ pub struct ExperimentalConfig {
     /// string is a literal empty prefix; only `None` falls back to
     /// `assetPrefix`.
     turbopack_worker_asset_prefix: Option<RcStr>,
+    /// Path to a service worker entry file (relative to the project root). When
+    /// set, Turbopack compiles it into a single self-contained chunk and serves
+    /// it at /service-worker.js.
+    turbopack_service_worker_path: Option<RcStr>,
     turbopack_client_side_nested_async_chunking: Option<bool>,
     turbopack_server_side_nested_async_chunking: Option<bool>,
     turbopack_import_type_bytes: Option<bool>,
@@ -2495,6 +2499,13 @@ impl NextConfig {
                 .as_ref()
                 .map(|prefix| format!("{}/_next/", prefix.trim_end_matches('/')).into()),
         )
+    }
+
+    /// Returns the configured service worker entry path (relative to the project
+    /// root), if any.
+    #[turbo_tasks::function]
+    pub fn turbopack_service_worker_path(&self) -> Vc<Option<RcStr>> {
+        Vc::cell(self.experimental.turbopack_service_worker_path.clone())
     }
 
     #[turbo_tasks::function]

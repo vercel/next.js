@@ -380,6 +380,7 @@ export const experimentalSchema = {
   turbopackRemoveUnusedExports: z.boolean().optional(),
   turbopackScopeHoisting: z.boolean().optional(),
   turbopackWorkerAssetPrefix: z.string().optional(),
+  turbopackServiceWorkerPath: z.string().optional(),
   turbopackClientSideNestedAsyncChunking: z.boolean().optional(),
   turbopackServerSideNestedAsyncChunking: z.boolean().optional(),
   turbopackImportTypeBytes: z.boolean().optional(),

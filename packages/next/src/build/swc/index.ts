@@ -518,6 +518,7 @@ function bindingToApi(
     routes: NapiRoute[]
     middleware?: NapiMiddleware
     instrumentation?: NapiInstrumentation
+    serviceWorker?: NapiServiceWorker
     pagesDocumentEndpoint: NapiEndpoint
     pagesAppEndpoint: NapiEndpoint
     pagesErrorEndpoint: NapiEndpoint
@@ -531,6 +532,10 @@ function bindingToApi(
   type NapiInstrumentation = {
     nodeJs: NapiEndpoint
     edge: NapiEndpoint
+  }
+
+  type NapiServiceWorker = {
+    endpoint: NapiEndpoint
   }
 
   type NapiRoute = {
@@ -1233,11 +1238,20 @@ function bindingToApi(
     const instrumentation = entrypoints.instrumentation
       ? napiInstrumentationToInstrumentation(entrypoints.instrumentation)
       : undefined
+    const napiServiceWorkerToServiceWorker = (
+      serviceWorker: NapiServiceWorker
+    ) => ({
+      endpoint: new EndpointImpl(serviceWorker.endpoint),
+    })
+    const serviceWorker = entrypoints.serviceWorker
+      ? napiServiceWorkerToServiceWorker(entrypoints.serviceWorker)
+      : undefined
 
     return {
       routes,
       middleware,
       instrumentation,
+      serviceWorker,
       pagesDocumentEndpoint: new EndpointImpl(
         entrypoints.pagesDocumentEndpoint
       ),

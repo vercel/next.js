@@ -189,10 +189,15 @@ export interface Instrumentation {
   edge: Endpoint
 }
 
+export interface ServiceWorker {
+  endpoint: Endpoint
+}
+
 export interface RawEntrypoints {
   routes: Map<string, Route>
   middleware?: Middleware
   instrumentation?: Instrumentation
+  serviceWorker?: ServiceWorker
   pagesDocumentEndpoint: Endpoint
   pagesAppEndpoint: Endpoint
   pagesErrorEndpoint: Endpoint
@@ -497,6 +502,7 @@ export interface GlobalEntrypoints {
   error: Endpoint | undefined
   middleware: Middleware | undefined
   instrumentation: Instrumentation | undefined
+  serviceWorker: ServiceWorker | undefined
 }
 
 export type PageRoute =

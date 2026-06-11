@@ -22,7 +22,7 @@ use next_api::{
     next_server_nft::next_server_nft_assets,
     operation::{
         EntrypointsOperation, InstrumentationOperation, MiddlewareOperation, OptionEndpoint,
-        RouteOperation,
+        RouteOperation, ServiceWorkerOperation,
     },
     project::{
         DebugBuildPaths, DefineEnv, DraftModeOptions, HmrTarget, PartialProjectOptions, Project,
@@ -929,10 +929,30 @@ impl NapiInstrumentation {
 }
 
 #[napi(object)]
+pub struct NapiServiceWorker {
+    pub endpoint: External<ExternalEndpoint>,
+}
+
+impl NapiServiceWorker {
+    fn from_service_worker(
+        value: &ServiceWorkerOperation,
+        turbopack_ctx: &NextTurbopackContext,
+    ) -> Result<Self> {
+        Ok(NapiServiceWorker {
+            endpoint: External::new(ExternalEndpoint(DetachedVc::new(
+                turbopack_ctx.clone(),
+                value.endpoint,
+            ))),
+        })
+    }
+}
+
+#[napi(object)]
 pub struct NapiEntrypoints {
     pub routes: Vec<NapiRoute>,
     pub middleware: Option<NapiMiddleware>,
     pub instrumentation: Option<NapiInstrumentation>,
+    pub service_worker: Option<NapiServiceWorker>,
     pub pages_document_endpoint: External<ExternalEndpoint>,
     pub pages_app_endpoint: External<ExternalEndpoint>,
     pub pages_error_endpoint: External<ExternalEndpoint>,
@@ -958,6 +978,11 @@ impl NapiEntrypoints {
             .as_ref()
             .map(|i| NapiInstrumentation::from_instrumentation(i, turbopack_ctx))
             .transpose()?;
+        let service_worker = entrypoints
+            .service_worker
+            .as_ref()
+            .map(|sw| NapiServiceWorker::from_service_worker(sw, turbopack_ctx))
+            .transpose()?;
         let pages_document_endpoint = External::new(ExternalEndpoint(DetachedVc::new(
             turbopack_ctx.clone(),
             entrypoints.pages_document_endpoint,
@@ -974,6 +999,7 @@ impl NapiEntrypoints {
             routes,
             middleware,
             instrumentation,
+            service_worker,
             pages_document_endpoint,
             pages_app_endpoint,
             pages_error_endpoint,

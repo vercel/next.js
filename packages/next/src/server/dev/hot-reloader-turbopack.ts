@@ -456,6 +456,7 @@ export async function createHotReloaderTurbopack(
 
       middleware: undefined,
       instrumentation: undefined,
+      serviceWorker: undefined,
     },
 
     page: new Map(),

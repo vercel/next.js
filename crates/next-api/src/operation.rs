@@ -26,6 +26,7 @@ pub struct EntrypointsOperation {
     pub routes: FxIndexMap<RcStr, RouteOperation>,
     pub middleware: Option<MiddlewareOperation>,
     pub instrumentation: Option<InstrumentationOperation>,
+    pub service_worker: Option<ServiceWorkerOperation>,
     pub pages_document_endpoint: OperationVc<OptionEndpoint>,
     pub pages_app_endpoint: OperationVc<OptionEndpoint>,
     pub pages_error_endpoint: OperationVc<OptionEndpoint>,
@@ -66,6 +67,9 @@ impl EntrypointsOperation {
                     node_js: pick_endpoint(entrypoints, EndpointSelector::InstrumentationNodeJs),
                     edge: pick_endpoint(entrypoints, EndpointSelector::InstrumentationEdge),
                 }),
+            service_worker: e.service_worker.as_ref().map(|_| ServiceWorkerOperation {
+                endpoint: pick_endpoint(entrypoints, EndpointSelector::ServiceWorker),
+            }),
             pages_document_endpoint: pick_endpoint(entrypoints, EndpointSelector::PagesDocument),
             pages_app_endpoint: pick_endpoint(entrypoints, EndpointSelector::PagesApp),
             pages_error_endpoint: pick_endpoint(entrypoints, EndpointSelector::PagesError),
@@ -122,6 +126,7 @@ enum EndpointSelector {
     InstrumentationNodeJs,
     InstrumentationEdge,
     Middleware,
+    ServiceWorker,
     PagesDocument,
     PagesApp,
     PagesError,
@@ -145,6 +150,7 @@ async fn pick_endpoint(
         }
         EndpointSelector::InstrumentationEdge => endpoints.instrumentation.as_ref().map(|i| i.edge),
         EndpointSelector::Middleware => endpoints.middleware.as_ref().map(|m| m.endpoint),
+        EndpointSelector::ServiceWorker => endpoints.service_worker.as_ref().map(|sw| sw.endpoint),
         EndpointSelector::PagesDocument => Some(endpoints.pages_document_endpoint),
         EndpointSelector::PagesApp => Some(endpoints.pages_app_endpoint),
         EndpointSelector::PagesError => Some(endpoints.pages_error_endpoint),
@@ -204,6 +210,11 @@ pub struct InstrumentationOperation {
 pub struct MiddlewareOperation {
     pub endpoint: OperationVc<OptionEndpoint>,
     pub is_proxy: bool,
+}
+
+#[derive(TraceRawVcs, PartialEq, Eq, ValueDebugFormat, NonLocalValue, Encode, Decode)]
+pub struct ServiceWorkerOperation {
+    pub endpoint: OperationVc<OptionEndpoint>,
 }
 
 #[turbo_tasks::value(shared)]

@@ -382,10 +382,14 @@ export interface NapiInstrumentation {
   nodeJs: ExternalObject<ExternalEndpoint>
   edge: ExternalObject<ExternalEndpoint>
 }
+export interface NapiServiceWorker {
+  endpoint: ExternalObject<ExternalEndpoint>
+}
 export interface NapiEntrypoints {
   routes: Array<NapiRoute>
   middleware?: NapiMiddleware
   instrumentation?: NapiInstrumentation
+  serviceWorker?: NapiServiceWorker
   pagesDocumentEndpoint: ExternalObject<ExternalEndpoint>
   pagesAppEndpoint: ExternalObject<ExternalEndpoint>
   pagesErrorEndpoint: ExternalObject<ExternalEndpoint>

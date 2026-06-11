@@ -2,7 +2,7 @@ use turbo_rcstr::RcStr;
 use turbo_tasks::{FxIndexMap, ResolvedVc};
 
 use crate::{
-    project::{Instrumentation, Middleware},
+    project::{Instrumentation, Middleware, ServiceWorker},
     route::{Endpoint, Route},
 };
 
@@ -12,6 +12,7 @@ pub struct Entrypoints {
     pub routes: FxIndexMap<RcStr, Route>,
     pub middleware: Option<Middleware>,
     pub instrumentation: Option<Instrumentation>,
+    pub service_worker: Option<ServiceWorker>,
     pub pages_document_endpoint: ResolvedVc<Box<dyn Endpoint>>,
     pub pages_app_endpoint: ResolvedVc<Box<dyn Endpoint>>,
     pub pages_error_endpoint: ResolvedVc<Box<dyn Endpoint>>,
