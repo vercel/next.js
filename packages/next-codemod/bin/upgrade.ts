@@ -646,7 +646,7 @@ function writeOverridesField(
   packageJson: any,
   packageManager: PackageManager,
   overrides: Record<string, string>,
-  cwd: string
+  projectDir: string
 ) {
   const entries = Object.entries(overrides)
   // Avoids writing an empty overrides field into package.json
@@ -670,7 +670,7 @@ function writeOverridesField(
     // since that's the surface where silently-dropped overrides hurt most.
     const pnpmMajorVersion = getPnpmMajorVersion()
     if (pnpmMajorVersion === null || pnpmMajorVersion >= 11) {
-      writePnpmWorkspaceOverrides(cwd, overrides)
+      writePnpmWorkspaceOverrides(projectDir, overrides)
       return
     }
 
@@ -717,7 +717,7 @@ function writeOverridesField(
 }
 
 function writePnpmWorkspaceOverrides(
-  cwd: string,
+  projectDir: string,
   overrides: Record<string, string>
 ) {
   // Deferred require so `js-yaml` is only loaded when we hit the pnpm v11+
@@ -725,7 +725,7 @@ function writePnpmWorkspaceOverrides(
   // so a sync `require()` keeps this function synchronous.
   const yaml = require('js-yaml') as typeof import('js-yaml')
 
-  const filePath = path.join(cwd, 'pnpm-workspace.yaml')
+  const filePath = path.join(projectDir, 'pnpm-workspace.yaml')
 
   let doc: Record<string, any> = {}
   if (fs.existsSync(filePath)) {
