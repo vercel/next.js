@@ -2487,16 +2487,6 @@ async fn get_all_compilation_issues_inner_operation(
     Ok(Vc::cell(()))
 }
 
-#[turbo_tasks::function(operation, root)]
-async fn get_all_compilation_issues_operation(
-    container: ResolvedVc<ProjectContainer>,
-) -> Result<Vc<OperationResult>> {
-    let inner_op = get_all_compilation_issues_inner_operation(container);
-    let filter = container.project().issue_filter().await?;
-    let (_, issues, effects) = strongly_consistent_catch_collectables(inner_op, &filter).await?;
-    Ok(OperationResult { issues, effects }.cell())
-}
-
 /// Returns the build-feature-usage telemetry summary for this project — the set of
 /// `(featureName, invocationCount)` pairs reported to the Next.js telemetry service.
 ///
@@ -2538,6 +2528,16 @@ pub async fn project_feature_usage(
 pub async fn project_get_all_compilation_issues(
     #[napi(ts_arg_type = "{ __napiType: \"Project\" }")] project: External<ProjectInstance>,
 ) -> napi::Result<TurbopackResult<()>> {
+    #[turbo_tasks::function(operation, root)]
+    async fn get_all_compilation_issues_operation(
+        container: ResolvedVc<ProjectContainer>,
+    ) -> Result<Vc<OperationResult>> {
+        let inner_op = get_all_compilation_issues_inner_operation(container);
+        let filter = container.project().issue_filter().await?;
+        let (_, issues, effects) =
+            strongly_consistent_catch_collectables(inner_op, &filter).await?;
+        Ok(OperationResult { issues, effects }.cell())
+    }
     let container = project.container;
     let issues = project
         .turbopack_ctx
