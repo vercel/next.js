@@ -30,12 +30,12 @@ import {
   type RefreshState,
   type FulfilledRouteCacheEntry,
   convertReusedFlightRouterStateToRouteTree,
-  readSegmentCacheEntry,
+  readSegmentCacheEntryForNavigation,
   waitForSegmentCacheEntry,
   markRouteEntryAsDynamicRewrite,
   invalidateRouteCacheEntries,
   getStaleAt,
-  writeStaticStageResponseIntoCache,
+  writePrerenderResponseIntoCache,
   processRuntimePrefetchStream,
   writeDynamicRenderResponseIntoCache,
   EntryStatus,
@@ -126,6 +126,8 @@ export type NavigationRequestAccumulation = {
    */
   scrollRef: ScrollRef | null
 }
+
+export type NavigationLock = Promise<void> | null
 
 const noop = () => {}
 
@@ -1072,7 +1074,7 @@ function createCacheNodeForSegment(
   let cachedRsc: React.ReactNode | null = null
   let isCachedRscPartial: boolean = true
 
-  const segmentEntry = readSegmentCacheEntry(now, tree.varyPath)
+  const segmentEntry = readSegmentCacheEntryForNavigation(now, tree.varyPath)
   if (segmentEntry !== null) {
     switch (segmentEntry.status) {
       case EntryStatus.Fulfilled: {
@@ -1175,7 +1177,10 @@ function createCacheNodeForSegment(
     let cachedHead: HeadData | null = null
     let isCachedHeadPartial: boolean = true
     if (metadataVaryPath !== null) {
-      const metadataEntry = readSegmentCacheEntry(now, metadataVaryPath)
+      const metadataEntry = readSegmentCacheEntryForNavigation(
+        now,
+        metadataVaryPath
+      )
       if (metadataEntry !== null) {
         switch (metadataEntry.status) {
           case EntryStatus.Fulfilled: {
@@ -1380,7 +1385,8 @@ export function spawnDynamicRequests(
   // The original navigation's push/replace intent. Threaded through to the
   // server-patch retry logic so it can inherit the intent if the original
   // transition hasn't committed yet.
-  navigateType: 'push' | 'replace'
+  navigateType: 'push' | 'replace',
+  navigationLock: NavigationLock
 ): void {
   const dynamicRequestTree = task.dynamicRequestTree
   if (dynamicRequestTree === null) {
@@ -1404,7 +1410,8 @@ export function spawnDynamicRequests(
     primaryUrl,
     nextUrl,
     freshnessPolicy,
-    routeCacheEntry
+    routeCacheEntry,
+    navigationLock
   )
 
   const separateRefreshUrls = accumulation.separateRefreshUrls
@@ -1456,7 +1463,8 @@ export function spawnDynamicRequests(
             // hard refresh.
             nextUrl,
             freshnessPolicy,
-            routeCacheEntry
+            routeCacheEntry,
+            navigationLock
           )
         )
       }
@@ -1633,6 +1641,7 @@ function dispatchRetryDueToTreeMismatch(
       discoverKnownRoute(
         now,
         retryUrl.pathname,
+        retryUrl.search as NormalizedSearch,
         retryNextUrl,
         null,
         seed.routeTree,
@@ -1693,7 +1702,8 @@ async function fetchMissingDynamicData(
   url: URL,
   nextUrl: string | null,
   freshnessPolicy: FreshnessPolicy,
-  routeCacheEntry: FulfilledRouteCacheEntry | null
+  routeCacheEntry: FulfilledRouteCacheEntry | null,
+  navigationLock: NavigationLock
 ): Promise<{
   exitStatus: NavigationTaskExitStatus
   url: URL
@@ -1730,9 +1740,12 @@ async function fetchMissingDynamicData(
     // writing the dynamic data. This allows tests to assert on the prefetched
     // UI state.
     if (process.env.__NEXT_EXPOSE_TESTING_API) {
-      await waitForNavigationLock()
+      await waitForNavigationLock(navigationLock)
     }
 
+    // TODO: Implement Shell extraction as part of Cached Navigations.
+    // Intentionally holding off on doing this until we decide how the Cached
+    // Navigations behavior should work in combination with App Shells.
     if (routeCacheEntry !== null && result.staticStageData !== null) {
       const { response: staticStageResponse, isResponsePartial } =
         result.staticStageData
@@ -1743,8 +1756,9 @@ async function fetchMissingDynamicData(
             result.responseHeaders.get(NEXT_NAV_DEPLOYMENT_ID_HEADER) ??
             staticStageResponse.b
 
-          writeStaticStageResponseIntoCache(
+          writePrerenderResponseIntoCache(
             now,
+            FetchStrategy.PPR,
             staticStageResponse.f,
             buildId,
             staticStageResponse.h,
@@ -2144,16 +2158,25 @@ function createDeferredRsc<
 }
 
 /**
- * Helper for the Instant Navigation Testing API. Waits for the navigation lock
- * to be released before returning. The network request has already completed by
- * the time this is called, so this only delays writing the dynamic data.
+ * Helper for the Instant Navigation Testing API. Snapshots the lock that is
+ * active when a navigation starts, so the navigation can wait for the same lock
+ * even if another lock is acquired before its dynamic response is applied.
  *
  * Not exposed in production builds by default.
  */
-async function waitForNavigationLock(): Promise<void> {
+export function getCurrentNavigationLock(): NavigationLock {
+  if (process.env.__NEXT_EXPOSE_TESTING_API) {
+    const { getCurrentNavigationLock: getCurrentLock } =
+      require('../segment-cache/navigation-testing-lock') as typeof import('../segment-cache/navigation-testing-lock')
+    return getCurrentLock()
+  }
+  return null
+}
+
+async function waitForNavigationLock(lock: NavigationLock): Promise<void> {
   if (process.env.__NEXT_EXPOSE_TESTING_API) {
     const { waitForNavigationLockIfActive } =
       require('../segment-cache/navigation-testing-lock') as typeof import('../segment-cache/navigation-testing-lock')
-    await waitForNavigationLockIfActive()
+    await waitForNavigationLockIfActive(lock)
   }
 }

@@ -90,7 +90,7 @@ impl GetContentFn {
 async fn peek_issues<T: Send>(source: OperationVc<T>) -> Result<Vec<ReadRef<PlainIssue>>> {
     let captured = source.peek_issues();
 
-    captured.get_plain_issues(IssueFilter::everything()).await
+    captured.get_plain_issues(&IssueFilter::everything()).await
 }
 
 fn extend_issues(issues: &mut Vec<ReadRef<PlainIssue>>, new_issues: Vec<ReadRef<PlainIssue>>) {

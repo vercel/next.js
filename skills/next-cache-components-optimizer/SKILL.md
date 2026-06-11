@@ -83,6 +83,7 @@ agent-browser eval "document.querySelector('nextjs-portal').style.display=''"
 ## gotchas (shared)
 
 - Dev doesn't prefetch the way production does, and routes compile on first hit — so after a navigation or reload, the DOM keeps updating for noticeably longer than the eventual production experience. Wait patiently for the DOM to stabilize before capturing the React tree or taking a screenshot — e.g., poll `document.documentElement.innerHTML.length` until it's unchanged across two consecutive reads. A fixed short delay risks sampling mid-render.
+- Don't try to verify nav prefetch by inspecting dev network traffic — dev doesn't fire prefetch requests at all, so the network tab, manual `router.prefetch()` calls, and `<Link prefetch={true}>` will all look broken regardless of whether your code is correct. The cookie-locked SPA-nav recipe in [instant-nav-loop.md](./instant-nav-loop.md) under `verify` is already the canonical recipe for this — it simulates what production would prerender into the prefetched RSC without requiring prefetch to actually fire. Use it; don't invent a network-tab alternative.
 - The diagnose pipeline can be flaky — DevTools attachment timing, DOM-settle races, and dev compilation effects can each produce inconsistent captures from one run to the next. When a result feels off (a candidate appears that you don't expect, or one you expect doesn't), re-run the diagnose 2–3 times and cross-check; boundaries that appear consistently are real, one-off appearances are noise.
 
 ## reference (shared primitives)

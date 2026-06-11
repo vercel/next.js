@@ -16,6 +16,7 @@ describe('adapter-config export', () => {
       'app/node-app/page.tsx',
       'app/node-route/route.ts',
       'app/edge-route/route.ts',
+      'app/preferred-region/route.ts',
       'app/isr-route/route.ts',
       'app/isr-route/[slug]/route.ts',
       'app/edge-app/page.tsx',

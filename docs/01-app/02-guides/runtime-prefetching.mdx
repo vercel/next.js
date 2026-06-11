@@ -1,0 +1,208 @@
+---
+title: Runtime prefetching
+description: Extend the static shell with personalized content using the prefetch segment config and per-session caching directives.
+nav_title: Runtime prefetching
+version: experimental
+related:
+  title: Learn more
+  description: Validate your structure and dive into caching primitives.
+  links:
+    - app/api-reference/file-conventions/route-segment-config/prefetch
+    - app/api-reference/file-conventions/route-segment-config/instant
+    - app/api-reference/directives/use-cache-private
+    - app/getting-started/caching
+    - app/guides/instant-navigation
+---
+
+The router prefetches the static shell of every visible `<Link>`. Runtime prefetching lets it also include content that depends on the request: cookies, headers, the full URL, `searchParams`, and `params` not resolved by [`generateStaticParams`](/docs/app/api-reference/functions/generate-static-params). On a direct visit, the `<Suspense>` boundaries around runtime data render their fallbacks and the content streams in. With runtime prefetching, the prerender walks past static and cached content before the click, stopping at boundaries that wrap uncached reads.
+
+This guide assumes you've structured your route for instant navigation. If you haven't, start with the [Instant navigation guide](/docs/app/guides/instant-navigation) to validate the route's caching structure first. Runtime prefetching costs a per-link server invocation. That cost only pays off if your route's caching structure lets the prerender resolve past the static shell.
+
+## What runtime prefetching does
+
+A user on `/` sees a [`<Link>`](/docs/app/api-reference/components/link) to `/courses`. The destination mixes four kinds of content: a static heading, an `<EnrolledBadge>` that reads the session cookie, a cached `<FeaturedCourses>` list, and a `<LiveEnrollment>` count that has to be fresh on every request.
+
+```tsx filename="app/layout.tsx"
+import Link from 'next/link'
+
+export default function RootLayout({ children }: LayoutProps<'/'>) {
+  return (
+    <html>
+      <body>
+        <nav>
+          <Link href="/courses">Courses</Link>
+        </nav>
+        {children}
+      </body>
+    </html>
+  )
+}
+```
+
+```tsx filename="app/courses/page.tsx"
+import { Suspense } from 'react'
+
+export const prefetch = 'allow-runtime'
+
+export default function CoursesPage() {
+  return (
+    <>
+      <h1>Courses</h1>
+      <Suspense fallback={<BadgeFallback />}>
+        <EnrolledBadge /> {/* reads the session cookie */}
+      </Suspense>
+      <FeaturedCourses /> {/* 'use cache' */}
+      <Suspense fallback={<Loading />}>
+        <LiveEnrollment /> {/* uncached, fresh per request */}
+      </Suspense>
+    </>
+  )
+}
+```
+
+Without `prefetch = 'allow-runtime'`, the router prefetches the static shell. `<h1>` and `<FeaturedCourses>` are in it; both `<Suspense>` boundaries render to their fallbacks. After the click, `<EnrolledBadge>` and `<LiveEnrollment>` stream in.
+
+When [`prefetch = 'allow-runtime'`](/docs/app/api-reference/file-conventions/route-segment-config/prefetch) is set on the route, the router prefetches a prerender of `/courses` that includes request data, past the static shell. `<EnrolledBadge>` resolves because the session cookie is available at prefetch time. `<LiveEnrollment>` still sits behind its fallback because no prerender can know its current value. After the click, only `<LiveEnrollment>` streams in.
+
+The prerender advances through anything that's static or cached, then stops at uncached reads and falls back to the surrounding `<Suspense>` boundary. The boundary is already in place from your **instant-nav validation**.
+
+The result is a **runtime prerender**: more of the page is already rendered before the user clicks, with fewer loading spinners.
+
+Generating the runtime prerender costs **a server invocation per prefetchable link**, so it is opt-in per route.
+
+> **Good to know:** A cold cache (first visit, or after expiration) means the server still has to compute the cached result. Users may see a loading spinner on that first navigation. Subsequent navigations are instant as long as the cache is warm.
+
+## Example: a dashboard layout
+
+Take a dashboard layout with a nav that depends on request data. Without runtime prefetching, `<UserNav>` always streams in behind a `<Suspense>` fallback after navigation, even though the cookie that determines its content is already known when the prefetch fires. With runtime prefetching, the router prefetches a prerender that resolves `<UserNav>` before the click:
+
+```tsx filename="app/dashboard/layout.tsx"
+export const prefetch = 'allow-runtime'
+```
+
+The route still needs a valid static shell, so `<UserNav>` stays behind a `<Suspense>` boundary:
+
+```tsx filename="app/dashboard/layout.tsx"
+import { Suspense } from 'react'
+
+export default function DashboardLayout({
+  children,
+}: LayoutProps<'/dashboard'>) {
+  return (
+    <div>
+      <Suspense fallback={<nav>Loading...</nav>}>
+        <UserNav />
+      </Suspense>
+      <main>{children}</main>
+    </div>
+  )
+}
+```
+
+`<UserNav>` reads a cookie, then looks up data based on it. The challenge is that `"use cache"` can't read `cookies()` inside the cached function. Two patterns handle this: **extract and pass** when the lookup result is shared across many users, and `"use cache: private"` when it's tied to a specific user.
+
+### Extract and pass
+
+Read the cookie outside the cached function and pass the value in as an argument. `cookies()` stays outside the cache scope, the argument crosses the boundary, and the cached function has a deterministic signature. The cache entry is keyed on that argument; if many users share the value, they share the entry.
+
+```tsx filename="app/dashboard/user-nav.tsx"
+import { cookies } from 'next/headers'
+
+async function UserNav() {
+  const team = (await cookies()).get('team')?.value
+  const topics = await getTopics(team)
+  return (
+    <nav>
+      {topics.map((topic) => (
+        <a key={topic.id} href={topic.href}>
+          {topic.label}
+        </a>
+      ))}
+    </nav>
+  )
+}
+
+async function getTopics(team: string | undefined) {
+  'use cache'
+  return db.topics.forTeam(team)
+}
+```
+
+On a direct visit, `<UserNav>` streams in behind the fallback. With runtime prefetching, the prerender resolves `<UserNav>` before the click because the team cookie is available at prefetch time. Users on the same team share the cache entry, so traffic to the underlying data scales with team count, not user count.
+
+Anything without a caching directive still streams in after navigation. The runtime prerender is not a full server render. It advances only as far as the caching structure allows.
+
+### `"use cache: private"`
+
+When the lookup is tied to a specific user, use [`"use cache: private"`](/docs/app/api-reference/directives/use-cache-private). It assigns a cache lifetime to a function that reads cookies, headers, or other runtime data directly. Results are cached in the browser only, so the cache is per-user by definition.
+
+```tsx filename="app/dashboard/user-nav.tsx"
+import { cookies } from 'next/headers'
+
+async function UserNav() {
+  const user = await getUser()
+  return <nav>{user.name}</nav>
+}
+
+async function getUser() {
+  'use cache: private'
+  const session = (await cookies()).get('session')?.value
+  return db.users.findBySession(session)
+}
+```
+
+`cookies()` lives inside the cached function, which only works under `"use cache: private"`. This is also the pattern when you can't extract the runtime data from the outside: auth helpers that check `Date.now()` against a token's expiry, or session helpers that read cookies deep inside their own code, can't be wrapped at the call site.
+
+Everything inside the scope shares the same lifetime, so colocate `"use cache: private"` as close to the runtime data access as possible.
+
+## When to reach for runtime prefetching
+
+Use it on routes where:
+
+- A useful chunk of the page depends on request data: cookies, headers, the full URL, `searchParams`, or `params` not resolved by [`generateStaticParams`](/docs/app/api-reference/functions/generate-static-params)
+- That chunk has a known cache lifetime (it can be expressed with `"use cache"` or `"use cache: private"`)
+- The traffic justifies the per-link server invocation
+
+Skip it when the prefetch can't produce a better UI than the static shell. Each visible `<Link>` to a route with `'allow-runtime'` wakes a server, and that cost only pays off if more of the page is ready before the click:
+
+- The route has little or no runtime-data dependency. The static shell already gets you instant.
+- The dependent content has to be fresh on every request. The prerender stops at the same `<Suspense>` fallback, so the user sees the same UI either way.
+- The route is rarely navigated to. You pay per visible link, regardless of click-through.
+
+## App Shells
+
+A per-link runtime prefetch only helps the navigations where it fires before the click and completes before the click. On a slow connection, on a feed of many links, or on a direct visit, the per-link prefetch may not yet exist when the user navigates. Without something to fall back on, the navigation blocks until the server responds.
+
+The [**App Shell**](/docs/app/glossary#app-shell) closes that gap. It's a per-route prerender, deduped across every link to the same route, generated and prefetched once per route rather than once per visible link.
+
+App Shells are on by default when Partial Prefetching is enabled:
+
+```ts filename="next.config.ts" highlight={3}
+import type { NextConfig } from 'next'
+
+const nextConfig: NextConfig = {
+  cacheComponents: true,
+  partialPrefetching: true,
+}
+
+export default nextConfig
+```
+
+Every Cache Components route has an instant floor. N links to the same route share one prefetched App Shell, and rendering a `<Link>` is effectively free unless `prefetch={true}` is set on the Link, which upgrades to the per-link prefetch. Opting a route into [`prefetch = 'allow-runtime'`](/docs/app/api-reference/file-conventions/route-segment-config/prefetch#allow-runtime) further upgrades those per-link prefetches to runtime prerenders with request data.
+
+Compared with per-link runtime prefetching:
+
+|         | App Shell                                 | Per-link runtime prefetch (`allow-runtime`) |
+| ------- | ----------------------------------------- | ------------------------------------------- |
+| Scope   | One per route                             | One per visible link                        |
+| Content | Route shell, reusable across param values | Concrete request prerender, param-specific  |
+| Cost    | Bounded by route count                    | Bounded by visible-link count               |
+| Role    | Default: every route has an instant floor | Upgrade: more rendered before click         |
+
+## Next steps
+
+- [Adopting Partial Prefetching](/docs/app/guides/adopting-partial-prefetching) for how `<Link>` behaves under the new model and how to migrate existing apps.
+- [`prefetch` API reference](/docs/app/api-reference/file-conventions/route-segment-config/prefetch) for all prefetch modes.
+- [`use cache: private` reference](/docs/app/api-reference/directives/use-cache-private) for per-user caching specifics.
+- [Instant navigation guide](/docs/app/guides/instant-navigation) for validating the route's caching structure.
+- [Caching](/docs/app/getting-started/caching) for background on `use cache`, Suspense, and Partial Prerendering.

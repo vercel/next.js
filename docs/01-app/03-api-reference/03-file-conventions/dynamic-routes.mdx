@@ -1,7 +1,7 @@
 ---
 title: Dynamic Route Segments
 nav_title: Dynamic Segments
-description: Dynamic Route Segments can be used to programmatically generate route segments from dynamic data.
+description: Use Dynamic Segments to read URL path params and generate routes from dynamic data.
 related:
   title: Next Steps
   description: For more information on what to do next, we recommend the following sections
@@ -9,7 +9,9 @@ related:
     - app/api-reference/functions/generate-static-params
 ---
 
-When you don't know the exact route segment names ahead of time and want to create routes from dynamic data, you can use Dynamic Segments that are filled in at request time or prerendered at build time.
+A URL path is a sequence of path segments. In the App Router, a segment may be **static** (a literal value matched exactly) or **dynamic** (a placeholder that captures a value from the URL). When you don't know a segment's value ahead of time, define a Dynamic Segment to create routes from dynamic data. Next.js passes the captured values to your page via the path `params` prop, either filled in at request time or prerendered at build time.
+
+> **Good to know**: Dynamic Segments are often referred to as path params, route params, or URL params.
 
 ## Convention
 
@@ -40,6 +42,8 @@ Dynamic Segments are passed as the `params` prop to [`layout`](/docs/app/api-ref
 | `app/blog/[slug]/page.js` | `/blog/a`   | `{ slug: 'a' }` |
 | `app/blog/[slug]/page.js` | `/blog/b`   | `{ slug: 'b' }` |
 | `app/blog/[slug]/page.js` | `/blog/c`   | `{ slug: 'c' }` |
+
+Dynamic segments that appear before the [root layout](/docs/app/api-reference/file-conventions/layout#root-layout) are **root parameters**, which can additionally be read from any Server Component with [`next/root-params`](/docs/app/api-reference/functions/next-root-params).
 
 ### In Client Components
 
@@ -158,7 +162,10 @@ The sections below demonstrate both patterns.
 
 All params are runtime data. Param access must be wrapped by Suspense fallback UI. Next.js generates a static shell at build time, and content loads on each request.
 
-> **Good to know**: You can also use [`loading.tsx`](/docs/app/api-reference/file-conventions/loading) for page-level fallback UI.
+> **Good to know**:
+>
+> - You can also use [`loading.tsx`](/docs/app/api-reference/file-conventions/loading) for page-level fallback UI.
+> - In layouts, avoid awaiting `params` at the top level. Doing so prevents the layout from being prerendered. Instead, pass the params promise down to the component that needs it and await there. See [Maximizing the static shell](/docs/app/getting-started/caching#maximizing-the-static-shell) for examples.
 
 ```tsx filename="app/blog/[slug]/page.tsx"
 import { Suspense } from 'react'

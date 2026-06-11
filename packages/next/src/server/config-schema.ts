@@ -253,13 +253,13 @@ export const experimentalSchema = {
   externalMiddlewareRewritesResolve: z.boolean().optional(),
   externalProxyRewritesResolve: z.boolean().optional(),
   exposeTestingApiInProductionBuild: z.boolean().optional(),
-  instantNavigationDevToolsToggle: z.boolean().optional(),
   fallbackNodePolyfills: z.literal(false).optional(),
   fetchCacheKeyPrefix: z.string().optional(),
   forceSwcTransforms: z.boolean().optional(),
   fullySpecified: z.boolean().optional(),
   gzipSize: z.boolean().optional(),
   imgOptConcurrency: z.number().int().optional().nullable(),
+  imgOptOperationCache: z.boolean().optional().nullable(),
   imgOptTimeoutInSeconds: z.number().int().optional(),
   imgOptMaxInputPixels: z.number().int().optional(),
   imgOptSequentialRead: z.boolean().optional().nullable(),
@@ -364,7 +364,9 @@ export const experimentalSchema = {
   typedRoutes: z.boolean().optional(),
   webpackBuildWorker: z.boolean().optional(),
   webpackMemoryOptimizations: z.boolean().optional(),
-  turbopackMemoryLimit: z.number().optional(),
+  turbopackMemoryEviction: z
+    .union([z.literal(false), z.literal('full')])
+    .optional(),
   turbopackPluginRuntimeStrategy: z
     .enum(['workerThreads', 'childProcesses', 'forceWorkerThreads'])
     .optional(),
@@ -427,7 +429,6 @@ export const experimentalSchema = {
   authInterrupts: z.boolean().optional(),
   useCache: z.boolean().optional(),
   useCacheTimeout: z.number().positive().optional(),
-  useNodeStreams: z.boolean().optional(),
   slowModuleDetection: z
     .object({
       buildTimeThresholdMs: z.number().int(),
@@ -764,6 +765,9 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
       .optional(),
     pageExtensions: z.array(z.string()).min(1).optional(),
     instrumentationClientInject: z.array(z.string()).optional(),
+    partialPrefetching: z
+      .union([z.boolean(), z.literal('unstable_eager')])
+      .optional(),
     poweredByHeader: z.boolean().optional(),
     productionBrowserSourceMaps: z.boolean().optional(),
     reactCompiler: z.union([

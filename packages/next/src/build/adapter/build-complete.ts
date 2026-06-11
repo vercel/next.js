@@ -53,6 +53,7 @@ import { sortSortableRoutes } from '../../shared/lib/router/utils/sortable-route
 import { defaultOverrides } from '../../server/require-hook'
 import { generateRoutesManifest } from '../generate-routes-manifest'
 import { Bundler } from '../../lib/bundler'
+import { resolveCacheHandlerPathToFilesystem } from '../../lib/format-dynamic-import-path'
 
 interface SharedRouteFields {
   /**
@@ -582,6 +583,7 @@ export async function handleBuildComplete({
         tracingRoot,
         bundler,
         hasInstrumentationHook,
+        config,
       })
 
       async function handleTraceFiles(
@@ -674,6 +676,7 @@ export async function handleBuildComplete({
           wasmAssets: {},
           config: {
             env: page.env,
+            preferredRegion: page.regions,
           },
         }
 
@@ -2125,6 +2128,7 @@ async function getSharedNodeAssets({
   tracingRoot,
   requiredServerFiles,
   hasInstrumentationHook,
+  config,
 }: {
   dir: string
   bundler: Bundler
@@ -2132,6 +2136,7 @@ async function getSharedNodeAssets({
   tracingRoot: string
   requiredServerFiles: string[]
   hasInstrumentationHook: boolean
+  config: NextConfigComplete
 }) {
   const sharedNodeAssets: Record<string, string> = {}
   const sharedNodeAssetsHashes: Record<string, string> = {}
@@ -2198,6 +2203,7 @@ async function getSharedNodeAssets({
     bundler
   )
 
+  // Turbopack handles this automatically and these files are listed in the nft.json files.
   if (bundler !== Bundler.Turbopack) {
     const { nodeFileTrace } =
       require('next/dist/compiled/@vercel/nft') as typeof import('next/dist/compiled/@vercel/nft')
@@ -2230,11 +2236,39 @@ async function getSharedNodeAssets({
       ...Object.values(defaultOverrides).filter((item) => path.extname(item)),
     ]
 
+    const { cacheHandler, cacheHandlers } = config
+    // ensure we trace any dependencies needed for a custom incremental cache handler
+    if (cacheHandler) {
+      const resolvedPath = resolveCacheHandlerPathToFilesystem(cacheHandler)
+      necessaryNodeDependencies.push(
+        require.resolve(
+          path.isAbsolute(resolvedPath)
+            ? resolvedPath
+            : path.join(dir, resolvedPath)
+        )
+      )
+    }
+    if (cacheHandlers) {
+      for (const handlerPath of Object.values(cacheHandlers)) {
+        if (handlerPath) {
+          const resolvedPath = resolveCacheHandlerPathToFilesystem(handlerPath)
+          necessaryNodeDependencies.push(
+            require.resolve(
+              path.isAbsolute(resolvedPath)
+                ? resolvedPath
+                : path.join(dir, resolvedPath)
+            )
+          )
+        }
+      }
+    }
+
     const { fileList, esmFileList } = await nodeFileTrace(
       necessaryNodeDependencies,
       {
         base: tracingRoot,
         ignore: sharedIgnoreFn,
+        moduleSyncCatchall: true,
       }
     )
     esmFileList.forEach((item) => fileList.add(item))

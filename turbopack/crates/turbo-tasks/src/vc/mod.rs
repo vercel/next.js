@@ -3,6 +3,7 @@ mod cell_mode;
 pub(crate) mod default;
 mod local;
 pub(crate) mod operation;
+mod raw;
 mod read;
 pub(crate) mod resolved;
 mod traits;
@@ -32,6 +33,7 @@ pub use self::{
     default::ValueDefault,
     local::NonLocalValue,
     operation::{OperationValue, OperationVc, ResolveOperationVcFuture},
+    raw::{CellId, RawVc, ReadRawVcFuture, ResolveRawVcFuture},
     read::{ReadOwnedVcFuture, ReadVcFuture, VcDefaultRead, VcRead, VcTransparentRead},
     resolved::ResolvedVc,
     traits::{Dynamic, Upcast, UpcastStrict, VcValueTrait, VcValueType},
@@ -39,7 +41,6 @@ pub use self::{
 #[cfg(debug_assertions)]
 use crate::debug::{ValueDebug, ValueDebugFormat, ValueDebugFormatString};
 use crate::{
-    CellId, RawVc, ResolveRawVcFuture,
     keyed::{KeyedAccess, KeyedEq},
     registry,
     trace::{TraceRawVcs, TraceRawVcsContext},
