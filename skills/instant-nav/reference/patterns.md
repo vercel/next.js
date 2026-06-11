@@ -1,0 +1,272 @@
+# Refactor patterns — push dynamic down into the shell
+
+Each pattern is **before → after**: keep as much as possible in the prerendered shell, and wrap only genuinely per-request work in a tight `<Suspense>` (or hoist it into `use cache`). Production shapes — parallel-route slots, deferring an auth gate, client slot-routers — are in `real-app-patterns.md`.
+
+---
+
+## 1. Awaiting at the top → move the await into a Suspense child
+
+The most common blocking shape. Awaiting request-time data at the top of a page/layout makes **everything below it** dynamic.
+
+```tsx
+// ❌ before — top-level await of a non-static param + uncached data
+export default async function Page(props: PageProps<"/store/[slug]">) {
+  const { slug } = await props.params;
+  const product = await db.products.findBySlug(slug);
+  return (
+    <article>
+      <h1>{product.name}</h1>
+    </article>
+  );
+}
+```
+
+```tsx
+// ✅ after — pass the params promise down; await inside a Suspense-wrapped child
+import { Suspense } from "react";
+
+export default function Page(props: PageProps<"/store/[slug]">) {
+  return (
+    <Suspense fallback={<p>Loading product…</p>}>
+      <Product params={props.params} />
+    </Suspense>
+  );
+}
+
+async function Product({ params }: { params: Promise<{ slug: string }> }) {
+  const { slug } = await params;
+  const product = await db.products.findBySlug(slug);
+  return (
+    <article>
+      <h1>{product.name}</h1>
+    </article>
+  );
+}
+```
+
+Inline variant when you don't want a separate component — unwrap the promise without awaiting at the top:
+
+```tsx
+export default function Page(props: PageProps<"/store/[category]">) {
+  return (
+    <Suspense fallback={<Grid.Skeleton />}>
+      {props.params.then(({ category }) => (
+        <ProductGrid category={category} />
+      ))}
+    </Suspense>
+  );
+}
+```
+
+---
+
+## 2. `cookies()` / `headers()` in a layout → start, don't await; pass down
+
+A layout that awaits request data blocks the layout **and every page under it**.
+
+```tsx
+// ❌ before — whole layout (and all children) becomes dynamic
+export default async function Layout({ children }) {
+  const cookieStore = await cookies();
+  const theme = cookieStore.get("theme")?.value;
+  return <body data-theme={theme}>{children}</body>;
+}
+```
+
+```tsx
+// ✅ after — start the read without awaiting, pass the promise to a Suspense child
+import { Suspense } from "react";
+import { cookies } from "next/headers";
+
+export default function Layout({ children }: { children: React.ReactNode }) {
+  const cookieStore = cookies(); // not awaited → does not block the shell
+  return (
+    <body>
+      <nav>
+        <Suspense fallback={<UserMenu.Skeleton />}>
+          <UserMenu cookiePromise={cookieStore} />
+        </Suspense>
+      </nav>
+      {children}
+    </body>
+  );
+}
+
+async function UserMenu({
+  cookiePromise,
+}: {
+  cookiePromise: ReturnType<typeof cookies>;
+}) {
+  const theme = (await cookiePromise).get("theme")?.value;
+  return <div data-theme={theme}>…</div>;
+}
+```
+
+`{children}` and `<nav>` stay in the shell; only `<UserMenu>` streams.
+
+---
+
+## 3. Uncached fetch / DB read → choose `use cache` _or_ `<Suspense>`
+
+Decide per data source. Same-for-everyone & rarely-changing → cache it (it joins the shell). Per-request & must-be-fresh → leave it uncached behind a boundary.
+
+```tsx
+// ❌ before — both block the shell
+const product = await db.products.findBySlug(slug); // rarely changes
+const inventory = await db.inventory.findBySlug(slug); // must be fresh
+```
+
+```tsx
+// ✅ after — cache the stable one (shell), defer the fresh one (streams)
+async function getProduct(slug: string) {
+  "use cache"; // → resolved at prerender, lands in the shell
+  return db.products.findBySlug(slug);
+}
+
+<Suspense fallback={<p>Checking availability…</p>}>
+  <Inventory params={params} /> {/* uncached read stays here, streams in */}
+</Suspense>;
+```
+
+> Serverless note: `use cache` is in-memory and does not persist across instances — use [`use cache: remote`](https://nextjs.org/docs/app/api-reference/directives/use-cache-remote) for a durable shell.
+
+---
+
+## 4. Dynamic params → `generateStaticParams` (shell) or `<Suspense>` (stream)
+
+If the set of params is enumerable, prerender them so `await params` resolves into the shell. Otherwise treat params as request-time and wrap consumers in `<Suspense>`.
+
+```tsx
+// ✅ option A — enumerate → params resolve into the shell, no Suspense needed for params
+export function generateStaticParams() {
+  return [{ slug: "shoes" }, { slug: "hats" }];
+}
+export default async function Page({ params }: PageProps<"/store/[slug]">) {
+  const { slug } = await params; // known at build → shell-safe
+  // ...
+}
+```
+
+```tsx
+// ✅ option B — not enumerable → params is request-time; await it inside a boundary (pattern #1)
+```
+
+Root params (the dynamic segments the root layout sits inside, e.g. `app/[lang]/layout.tsx`) are readable from any Server Component via `next/root-params` without prop-drilling — but under Cache Components they must still be enumerated by `generateStaticParams` (at least one value per root param) to land in the shell, just like any other dynamic param.
+
+---
+
+## 5. `searchParams` → always behind `<Suspense>` (on page load)
+
+Search params are never known at build, so awaiting them (or `useSearchParams()`) suspends on a page load. Keep the rest of the page in the shell by isolating the consumer.
+
+```tsx
+// ✅ static content stays in the shell; the search-dependent part streams
+export default function Page(props: PageProps<"/search">) {
+  return (
+    <>
+      <h1>Search</h1> {/* shell */}
+      <Suspense fallback={<Results.Skeleton />}>
+        <Results searchParams={props.searchParams} />
+      </Suspense>
+    </>
+  );
+}
+async function Results({
+  searchParams,
+}: {
+  searchParams: Promise<{ q?: string }>;
+}) {
+  const { q } = await searchParams;
+  return <ResultList query={q} />;
+}
+```
+
+On a **client navigation** the router already has the URL, so a `useSearchParams()` consumer resolves synchronously and can appear in the prefetched shell — but you still need the boundary for the page-load path.
+
+---
+
+## 6. Non-deterministic values → `connection()` + `<Suspense>`, or cache
+
+`Math.random()`, `Date.now()`, `crypto.randomUUID()` produce different output each run, so Cache Components makes you choose: per-request (defer) or fixed (cache).
+
+```tsx
+// ✅ per-request value: gate on connection() and wrap in Suspense
+import { connection } from "next/server";
+async function RequestId() {
+  await connection();
+  return <span>{crypto.randomUUID()}</span>;
+}
+// <Suspense fallback={null}><RequestId /></Suspense>
+```
+
+```tsx
+// ✅ same value for everyone: cache it so it joins the shell
+async function buildId() {
+  "use cache";
+  return Date.now();
+}
+```
+
+---
+
+## 7. Dynamic `generateMetadata` → static export or `use cache` (not Suspense)
+
+```tsx
+// ❌ before — reading request data blocks the route's metadata
+export async function generateMetadata() {
+  const c = await cookies();
+  return { title: c.get("title")?.value };
+}
+```
+
+```tsx
+// ✅ option A — static
+export const metadata = { title: "Store" };
+
+// ✅ option B — cache the metadata
+export async function generateMetadata() {
+  "use cache";
+  return { title: await getTitle() };
+}
+```
+
+`generateViewport` is the same, except dynamic viewport blocks the **whole page** — fix with a static `viewport` export, `use cache`, `export const unstable_instant = false`, or a `<Suspense>` above the document `<body>` (makes the whole route dynamic). The error text prints `export const instant = false`, but the real export is `unstable_instant`.
+
+---
+
+## 8. Keep the LCP element in the shell
+
+Don't bury the hero / main heading inside a boundary — it can't paint until the boundary resolves.
+
+```tsx
+// ✅ LCP outside the boundary → paints in the shell
+<h1>{product.name}</h1>                 {/* shell (cache the name if needed) */}
+<Suspense fallback={<Reviews.Skeleton />}>
+  <Reviews productId={id} />            {/* streams */}
+</Suspense>
+```
+
+---
+
+## 9. Granularity below shared layouts (client-nav correctness)
+
+A single boundary in the **root** layout passes a page-load check but leaves sibling client navigations blocking. Put a boundary **below the shared layout**.
+
+```tsx
+// app/store/layout.tsx — boundary below the /store shared layout covers
+//   client navs like /store/shoes → /store/hats (the root boundary does not)
+export default function StoreLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  return (
+    <section>
+      <StoreNav /> {/* shell */}
+      <Suspense fallback={<Page.Skeleton />}>{children}</Suspense>
+    </section>
+  );
+}
+```
+
+Prefer per-component boundaries inside the page (patterns #1–#5) over one big layout boundary — they keep more real content in the shell and stream independently.
