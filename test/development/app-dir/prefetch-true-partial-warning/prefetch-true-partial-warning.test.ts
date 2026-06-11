@@ -1,16 +1,9 @@
 import { nextTestSetup } from 'e2e-utils'
 
 describe('prefetch-true-partial-warning', () => {
-  const { next, isNextDev } = nextTestSetup({
+  const { next } = nextTestSetup({
     files: __dirname,
   })
-
-  // The warning is only emitted in development. In dev we don't prefetch, so it
-  // fires at navigation time instead.
-  if (!isNextDev) {
-    it('is skipped outside of dev', () => {})
-    return
-  }
 
   // A stable substring of the dev warning emitted from navigation.ts.
   const WARNING = 'Partial Prefetching is not enabled'
@@ -39,6 +32,21 @@ describe('prefetch-true-partial-warning', () => {
       'Default dynamic'
     )
 
+    await expect(browser).toDisplayCollapsedRedbox(`
+     {
+       "code": "E1362",
+       "description": "A <Link prefetch={true}> navigated to "/default-route", but Partial Prefetching is not enabled for that route, so its dynamic data was included in the prefetch. Enable Partial Prefetching app-wide by setting \`partialPrefetching: true\` in next.config, or per-route by exporting \`const prefetch = 'partial'\` from the page or layout.",
+       "environmentLabel": null,
+       "label": "Console Error",
+       "source": "components/link-accordion.tsx (25:9) @ LinkAccordion
+     > 25 |         <Link href={href} prefetch={prefetch}>
+          |         ^",
+       "stack": [
+         "LinkAccordion components/link-accordion.tsx (25:9)",
+         "Page app/page.tsx (10:11)",
+       ],
+     }
+    `)
     expect(await browser.log()).toContainEqual(
       expect.objectContaining({
         source: 'error',
