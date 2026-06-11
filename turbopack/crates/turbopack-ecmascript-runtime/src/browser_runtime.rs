@@ -26,6 +26,10 @@ pub async fn get_browser_runtime_code(
     chunk_loading_global: Vc<RcStr>,
     cross_origin: Vc<CrossOrigin>,
     has_async_modules: bool,
+    // The chunk-loading capability for the runtime backend. This is supplied by the chunking
+    // context (which may override the execution environment's default, e.g. for single-chunk
+    // service-worker bundles) rather than read from the environment directly.
+    chunk_loading: Vc<ChunkLoading>,
 ) -> Result<Vc<Code>> {
     let asset_context = *asset_context;
     let environment = asset_context.compile_time_info().environment();
@@ -49,21 +53,21 @@ pub async fn get_browser_runtime_code(
         }
     }
 
-    let chunk_loading = &*asset_context
-        .compile_time_info()
-        .environment()
-        .chunk_loading()
-        .await?;
+    let chunk_loading = &*chunk_loading.await?;
 
     let mut runtime_backend_code = vec![];
     match (chunk_loading, runtime_type) {
-        (ChunkLoading::Edge, RuntimeType::Development) => {
+        // The self-contained backend performs no runtime chunk loading and registers chunks only
+        // via `globalThis`/`self` (no DOM). It serves the Edge execution environment and
+        // single-chunk (service-worker) bundles, where everything is inlined into one file and
+        // there are no additional chunks to fetch.
+        (ChunkLoading::Edge | ChunkLoading::SingleChunk, RuntimeType::Development) => {
             runtime_backend_code
                 .push("browser/runtime/self-contained/runtime-backend-self-contained.ts");
             runtime_backend_code
                 .push("browser/runtime/self-contained/dev-backend-self-contained.ts");
         }
-        (ChunkLoading::Edge, RuntimeType::Production) => {
+        (ChunkLoading::Edge | ChunkLoading::SingleChunk, RuntimeType::Production) => {
             runtime_backend_code
                 .push("browser/runtime/self-contained/runtime-backend-self-contained.ts");
         }
@@ -140,8 +144,11 @@ pub async fn get_browser_runtime_code(
             )?;
         }
         AssetSuffix::Inferred => {
-            if chunk_loading == &ChunkLoading::Edge {
-                panic!("AssetSuffix::Inferred is not supported in Edge runtimes");
+            if matches!(
+                chunk_loading,
+                ChunkLoading::Edge | ChunkLoading::SingleChunk
+            ) {
+                panic!("AssetSuffix::Inferred is not supported in Edge or single-chunk runtimes");
             }
             writedoc!(
                 code,
