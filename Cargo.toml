@@ -277,7 +277,6 @@ hashbrown = "0.14.5"
 image = { version = "0.25.8", default-features = false }
 indexmap = "2.13.0"
 indoc = "2.0.0"
-inventory = "0.3.21"
 itertools = "0.10.5"
 lightningcss = { version = "1.0.0-alpha.70", features = [
   "serde",

@@ -619,8 +619,8 @@ pub fn value_type_and_register(
     };
 
     quote! {
-        turbo_tasks::macro_helpers::turbo_register!(
-            #ty => #value_type_ident: turbo_tasks::ValueType = #new_value_type
+        turbo_tasks::macro_helpers::register_value!(
+            #ty => #value_type_ident = #new_value_type
         );
 
         #[automatically_derived]
