@@ -144,7 +144,6 @@ export function getRootParam(paramName: string): Promise<ParamValue> {
         } catch (err) {
           return Promise.reject(err)
         }
-        break
       }
 
       const { stagedRendering } = workUnitStore
