@@ -595,6 +595,21 @@ export default function LinkComponent(
     ? child && typeof child === 'object' && child.ref
     : forwardedRef
 
+  // Capture the Owner Stack during render so dev-only warnings emitted later
+  // at navigation time can be associated with the JSX that created
+  // this <Link>.
+  // Only capture when a warning might actually need it. Otherwise leave
+  // it `undefined` so consumers can detect the opt-out and degrade
+  // gracefully.
+  let ownerStack: string | null | undefined = undefined
+  if (
+    process.env.NODE_ENV !== 'production' &&
+    process.env.__NEXT_CACHE_COMPONENTS &&
+    fetchStrategy === FetchStrategy.Full
+  ) {
+    ownerStack = React.captureOwnerStack()
+  }
+
   // Use a callback ref to attach an IntersectionObserver to the anchor tag on
   // mount. In the future we will also use this to keep track of all the
   // currently mounted <Link> instances, e.g. so we can re-prefetch them after
@@ -608,7 +623,8 @@ export default function LinkComponent(
           router,
           fetchStrategy,
           prefetchEnabled,
-          setOptimisticLinkStatus
+          setOptimisticLinkStatus,
+          ownerStack
         )
       }
 
@@ -626,6 +642,7 @@ export default function LinkComponent(
       router,
       fetchStrategy,
       setOptimisticLinkStatus,
+      ownerStack,
     ]
   )
 
