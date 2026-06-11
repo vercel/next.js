@@ -360,13 +360,18 @@ const COOKIES_EXCLUDED_FROM_PRIVATE_CACHE_KEY = new Set<string>([
 // spurious misses (a browser reload adds `cache-control`/`pragma` that an
 // initial navigation doesn't, and `accept`/`sec-fetch-*` differ between an HTML
 // navigation and an RSC or prefetch request for the same page), or are
-// connection- and proxy-level rather than application data. Header names are
-// lowercased by `HeadersAdapter`, so every entry here is lowercase.
+// connection- and proxy-level rather than application data. The `cookie` header
+// is excluded because cookies are keyed separately below (via the dedicated
+// cookie path, which applies `COOKIES_EXCLUDED_FROM_PRIVATE_CACHE_KEY`);
+// including the raw header would duplicate them and reintroduce the cookies
+// that path excludes. Header names are lowercased by `HeadersAdapter`, so every
+// entry here is lowercase.
 const HEADERS_EXCLUDED_FROM_PRIVATE_CACHE_KEY = new Set<string>([
   'accept',
   'accept-encoding',
   'cache-control',
   'connection',
+  'cookie',
   'if-match',
   'if-modified-since',
   'if-none-match',
