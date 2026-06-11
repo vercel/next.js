@@ -641,7 +641,110 @@ async function suggestReactTypesCodemods(): Promise<boolean> {
   return runReactTypesCodemod
 }
 
-function writeOverridesField(
+export function updatePnpmWorkspaceYaml(
+  yamlContent: string,
+  newOverrides: Record<string, string>
+): string {
+  const lines = yamlContent.split(/\r?\n/)
+  const updatedLines: string[] = []
+  let inOverrides = false
+  let overridesFound = false
+  const writtenOverrides = new Set<string>()
+  const bufferedLines: string[] = []
+
+  // Determine/default indentation style
+  let indent = '  '
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i]
+    const trimmed = line.trim()
+
+    if (inOverrides) {
+      // Check if we exited the overrides block
+      if (
+        trimmed.length > 0 &&
+        !trimmed.startsWith('#') &&
+        !/^\s+/.test(line)
+      ) {
+        for (const [key, val] of Object.entries(newOverrides)) {
+          if (!writtenOverrides.has(key)) {
+            updatedLines.push(`${indent}"${key}": "${val}"`)
+            writtenOverrides.add(key)
+          }
+        }
+        // Output buffered comments/empty lines
+        for (const buffered of bufferedLines) {
+          updatedLines.push(buffered)
+        }
+        bufferedLines.length = 0
+        inOverrides = false
+      }
+    }
+
+    if (/^overrides\s*:/.test(trimmed)) {
+      inOverrides = true
+      overridesFound = true
+      updatedLines.push(line)
+      continue
+    }
+
+    if (inOverrides) {
+      const match = line.match(
+        /^(\s+)['"]?([^'":\s]+)['"]?\s*:\s*['"]?([^'":\s][^'"]*?)['"]?\s*$/
+      )
+      if (match) {
+        // Output any buffered comments or empty lines before this key-value line
+        for (const buffered of bufferedLines) {
+          updatedLines.push(buffered)
+        }
+        bufferedLines.length = 0
+
+        indent = match[1]
+        const key = match[2]
+        if (newOverrides[key] !== undefined) {
+          updatedLines.push(`${indent}"${key}": "${newOverrides[key]}"`)
+          writtenOverrides.add(key)
+        } else {
+          updatedLines.push(line)
+        }
+      } else {
+        bufferedLines.push(line)
+      }
+    } else {
+      updatedLines.push(line)
+    }
+  }
+
+  if (inOverrides) {
+    for (const [key, val] of Object.entries(newOverrides)) {
+      if (!writtenOverrides.has(key)) {
+        updatedLines.push(`${indent}"${key}": "${val}"`)
+        writtenOverrides.add(key)
+      }
+    }
+    // Output buffered lines (comments/empty lines at the end of the block/file)
+    for (const buffered of bufferedLines) {
+      updatedLines.push(buffered)
+    }
+  }
+
+  if (!overridesFound) {
+    if (
+      updatedLines.length > 0 &&
+      updatedLines[updatedLines.length - 1].trim() !== ''
+    ) {
+      updatedLines.push('')
+    }
+    updatedLines.push('overrides:')
+    for (const [key, val] of Object.entries(newOverrides)) {
+      updatedLines.push(`  "${key}": "${val}"`)
+    }
+  }
+
+  return updatedLines.join('\n')
+}
+
+export function writeOverridesField(
   packageJson: any,
   packageManager: PackageManager,
   overrides: Record<string, string>
@@ -661,21 +764,28 @@ function writeOverridesField(
       packageJson.overrides[key] = value
     }
   } else if (packageManager === 'pnpm') {
-    // pnpm supports pnpm.overrides and pnpm.resolutions
-    if (packageJson.resolutions) {
-      for (const [key, value] of entries) {
-        packageJson.resolutions[key] = value
+    const mergedOverrides = {
+      ...(packageJson.pnpm?.overrides || {}),
+      ...(packageJson.resolutions || {}),
+      ...overrides,
+    }
+
+    const pnpmWorkspacePath = path.resolve(process.cwd(), 'pnpm-workspace.yaml')
+    let yamlContent = ''
+    if (fs.existsSync(pnpmWorkspacePath)) {
+      try {
+        yamlContent = fs.readFileSync(pnpmWorkspacePath, 'utf8')
+      } catch (err) {
+        console.warn(`${pc.yellow('⚠')} Failed to read ${pnpmWorkspacePath}.`)
       }
-    } else {
-      if (!packageJson.pnpm) {
-        packageJson.pnpm = {}
-      }
-      if (!packageJson.pnpm.overrides) {
-        packageJson.pnpm.overrides = {}
-      }
-      for (const [key, value] of entries) {
-        packageJson.pnpm.overrides[key] = value
-      }
+    }
+    const updatedYaml = updatePnpmWorkspaceYaml(yamlContent, mergedOverrides)
+    try {
+      fs.writeFileSync(pnpmWorkspacePath, updatedYaml, 'utf8')
+    } catch (err) {
+      console.warn(
+        `${pc.yellow('⚠')} Failed to write to ${pnpmWorkspacePath}.`
+      )
     }
   } else if (packageManager === 'yarn') {
     if (!packageJson.resolutions) {

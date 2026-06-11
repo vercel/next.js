@@ -23,12 +23,15 @@ index 5ec4c37f0b..131f5b9f4a 100644
 +    "react-dom": "19.0.0",
 +    "@types/react": "19.0.0",
 +    "@types/react-dom": "19.0.0"
-+  },
-+  "pnpm": {
-+    "overrides": {
-+      "@types/react": "19.0.0",
-+      "@types/react-dom": "19.0.0"
-+    }
-   }
- }
++  }
++}
+diff --git a/packages/next-codemod/bin/__testfixtures__/next-14-installed/pnpm-workspace.yaml b/packages/next-codemod/bin/__testfixtures__/next-14-installed/pnpm-workspace.yaml
+index e69de29bb2..fb3db0b6ec 100644
+--- a/packages/next-codemod/bin/__testfixtures__/next-14-installed/pnpm-workspace.yaml
++++ b/packages/next-codemod/bin/__testfixtures__/next-14-installed/pnpm-workspace.yaml
+@@ -0,0 +1,3 @@
++overrides:
++  "@types/react": "19.0.0"
++  "@types/react-dom": "19.0.0"
+```
 ```
