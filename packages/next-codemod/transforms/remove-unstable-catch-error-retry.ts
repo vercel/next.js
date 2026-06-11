@@ -2,29 +2,31 @@ import type { API, FileInfo, Options } from 'jscodeshift'
 import { createParserFromPath } from '../lib/parser'
 
 // `catchError` and the `retry` error prop dropped their `unstable_` prefix when
-// they stabilized. This codemod migrates both:
+// they stabilized. This codemod migrates both, scoped narrowly so it never
+// rewrites unrelated identifiers that happen to share the name:
 //
-//   1. `unstable_catchError` is a named export of `next/error`, so it is renamed
-//      wherever it is imported/required/re-exported from that module (and at its
-//      usage sites).
+//   1. `unstable_catchError` is a named export of `next/error`. Only references
+//      bound to that import are renamed; a local that shadows the name in a
+//      nested scope is left untouched (scope-aware rename).
 //   2. `unstable_retry` is a framework-injected prop on `error`/`global-error`
-//      components. It has no import to anchor on, so the reserved-prefix
-//      identifier is renamed wherever it appears.
+//      components and on `ErrorInfo` (the `catchError` callback argument). It
+//      has no import to anchor on, so it is renamed only in error-prop-shaped
+//      positions: a destructure, type, or member access that also carries the
+//      sibling `reset` prop. Unrelated imports, locals, parameters, and object
+//      literals named `unstable_retry` are left untouched.
 
-// Named exports keyed by the module they come from. Extend this when more named
-// exports from these modules stabilize.
+// Named exports keyed by the module they come from.
 const IMPORT_RENAMES_BY_SOURCE: Record<string, Record<string, string>> = {
   'next/error': {
     unstable_catchError: 'catchError',
   },
 }
 
-// Framework-injected props that stabilized. These are not importable, so they
-// are renamed by identifier. The `unstable_` prefix is reserved for Next.js
-// APIs, which makes the bare identifier match unambiguous.
-const PROP_RENAMES: Record<string, string> = {
-  unstable_retry: 'retry',
-}
+// Stabilized framework-injected props. `sibling` is a co-located prop that must
+// be present for a position to be treated as the error-prop shape.
+const PROP_RENAMES: Array<{ from: string; to: string; sibling: string }> = [
+  { from: 'unstable_retry', to: 'retry', sibling: 'reset' },
+]
 
 export default function transformer(
   file: FileInfo,
@@ -35,19 +37,76 @@ export default function transformer(
   const root = j(file.source)
   let hasChanges = false
 
-  // Renames a stabilized named export across every form it can be imported,
-  // re-exported, required, or accessed from `source`.
-  function renameImportedApis(
+  function isWithin(path: any, ancestor: any): boolean {
+    let cur = path
+    while (cur) {
+      if (cur.node === ancestor.node) return true
+      cur = cur.parent
+    }
+    return false
+  }
+
+  // True when `path` is an identifier used as a value reference, not a binding,
+  // declaration, import/export specifier, property key, or member property.
+  function isReferencePosition(path: any): boolean {
+    const node = path.node
+    const parent = path.parent?.node
+    if (!parent) return false
+    switch (parent.type) {
+      case 'ImportSpecifier':
+      case 'ImportDefaultSpecifier':
+      case 'ImportNamespaceSpecifier':
+      case 'ExportSpecifier':
+        return false
+      case 'ObjectProperty':
+      case 'Property':
+      case 'ObjectMethod':
+      case 'ClassMethod':
+      case 'ClassProperty':
+      case 'TSPropertySignature':
+        if (parent.key === node && !parent.computed) return false
+        break
+      case 'MemberExpression':
+      case 'OptionalMemberExpression':
+        if (parent.property === node && !parent.computed) return false
+        break
+      case 'VariableDeclarator':
+      case 'FunctionDeclaration':
+      case 'FunctionExpression':
+      case 'ClassDeclaration':
+        if (parent.id === node) return false
+        break
+    }
+    return true
+  }
+
+  // Renames value references of `oldName` to `newName` that resolve to
+  // `bindingScope`, skipping anything inside `declPath` (the binding site) and
+  // any reference that resolves to a different (shadowing) scope. Must run
+  // before the binding itself is renamed so scope lookup still finds `oldName`.
+  function renameReferences(
+    oldName: string,
+    newName: string,
+    bindingScope: any,
+    declPath: any
+  ): void {
+    root.find(j.Identifier, { name: oldName }).forEach((path) => {
+      if (declPath && isWithin(path, declPath)) return
+      if (!isReferencePosition(path)) return
+      const scope = path.scope
+      if (scope && scope.lookup(oldName) === bindingScope) {
+        path.node.name = newName
+      }
+    })
+  }
+
+  function renameImportedApi(
     source: string,
     mapping: Record<string, string>
   ): boolean {
     let changed = false
     const shouldRename = (name: string): boolean => name in mapping
-
-    // Local identifiers that need their usage sites renamed after the
-    // import/require binding itself is renamed.
-    const identifierRenames: Array<{ oldName: string; newName: string }> = []
-    // Variables bound to the whole module: `import * as m`, `const m = require(...)`.
+    // Variables bound to the whole module: `import * as m`, `const m = require()`.
     const moduleVariables = new Set<string>()
 
     // import { unstable_catchError } from 'next/error'
@@ -55,32 +114,34 @@ export default function transformer(
       .find(j.ImportDeclaration, { source: { value: source } })
       .forEach((path) => {
         path.node.specifiers?.forEach((specifier) => {
-          if (
-            specifier.type === 'ImportSpecifier' &&
-            specifier.imported?.type === 'Identifier' &&
-            shouldRename(specifier.imported.name)
-          ) {
-            const oldName = specifier.imported.name
-            const newName = mapping[oldName]
-
-            if (specifier.local && specifier.local.name === newName) {
-              // { unstable_catchError as catchError } -> { catchError }
-              const newSpecifier = j.importSpecifier(j.identifier(newName))
-              const specifierIndex = path.node.specifiers.indexOf(specifier)
-              path.node.specifiers[specifierIndex] = newSpecifier
-              identifierRenames.push({ oldName, newName })
-            } else {
-              specifier.imported = j.identifier(newName)
-              if (!specifier.local || specifier.local.name === oldName) {
-                identifierRenames.push({ oldName, newName })
-              }
-            }
-
-            changed = true
-          } else if (specifier.type === 'ImportNamespaceSpecifier') {
-            // import * as nextError from 'next/error'
+          if (specifier.type === 'ImportNamespaceSpecifier') {
             moduleVariables.add(specifier.local.name)
+            return
           }
+          if (
+            specifier.type !== 'ImportSpecifier' ||
+            specifier.imported?.type !== 'Identifier' ||
+            !shouldRename(specifier.imported.name)
+          ) {
+            return
+          }
+          const oldName = specifier.imported.name
+          const newName = mapping[oldName]
+          const localName = specifier.local ? specifier.local.name : oldName
+
+          if (localName === newName) {
+            // import { unstable_x as x } -> import { x }
+            const idx = path.node.specifiers.indexOf(specifier)
+            path.node.specifiers[idx] = j.importSpecifier(j.identifier(newName))
+          } else if (localName === oldName) {
+            // import { unstable_x } -> import { x }; rename bound references
+            renameReferences(oldName, newName, path.scope, path)
+            specifier.imported = j.identifier(newName)
+          } else {
+            // import { unstable_x as foo } -> import { x as foo }; keep usages
+            specifier.imported = j.identifier(newName)
+          }
+          changed = true
         })
       })
 
@@ -90,283 +151,269 @@ export default function transformer(
       .forEach((path) => {
         path.node.specifiers?.forEach((specifier) => {
           if (
-            specifier.type === 'ExportSpecifier' &&
-            specifier.local?.type === 'Identifier' &&
-            shouldRename(specifier.local.name)
+            specifier.type !== 'ExportSpecifier' ||
+            specifier.local?.type !== 'Identifier' ||
+            !shouldRename(specifier.local.name)
           ) {
-            const oldName = specifier.local.name
-            const newName = mapping[oldName]
-
-            if (specifier.exported && specifier.exported.name === newName) {
-              // export { unstable_catchError as catchError } -> export { catchError }
-              // Replace with a fresh shorthand specifier so recast collapses the
-              // now-redundant alias instead of printing `catchError as catchError`.
-              const specifierIndex = path.node.specifiers.indexOf(specifier)
-              path.node.specifiers[specifierIndex] = j.exportSpecifier.from({
-                local: j.identifier(newName),
-                exported: j.identifier(newName),
-              })
-            } else {
-              specifier.local = j.identifier(newName)
-              if (!specifier.exported || specifier.exported.name === oldName) {
-                // export { unstable_catchError } -> export { catchError }
-                specifier.exported = j.identifier(newName)
-              }
-              // Otherwise keep a custom alias: { unstable_catchError as myCatch }.
-            }
-
-            changed = true
+            return
           }
+          const oldName = specifier.local.name
+          const newName = mapping[oldName]
+
+          if (specifier.exported && specifier.exported.name === newName) {
+            // export { unstable_x as x } -> export { x }
+            const idx = path.node.specifiers.indexOf(specifier)
+            path.node.specifiers[idx] = j.exportSpecifier.from({
+              local: j.identifier(newName),
+              exported: j.identifier(newName),
+            })
+          } else {
+            specifier.local = j.identifier(newName)
+            if (!specifier.exported || specifier.exported.name === oldName) {
+              specifier.exported = j.identifier(newName)
+            }
+          }
+          changed = true
         })
       })
 
     // const { unstable_catchError } = require('next/error')
+    // const nextError = require('next/error')
     root
       .find(j.CallExpression, { callee: { name: 'require' } })
       .forEach((path) => {
         if (
-          path.node.arguments[0]?.type === 'StringLiteral' &&
-          path.node.arguments[0].value === source
+          path.node.arguments[0]?.type !== 'StringLiteral' ||
+          path.node.arguments[0].value !== source
         ) {
-          const parent = path.parent?.node
-          if (
-            parent?.type === 'VariableDeclarator' &&
-            parent.id?.type === 'Identifier'
-          ) {
-            moduleVariables.add(parent.id.name)
-          }
-
-          if (
-            parent?.type === 'VariableDeclarator' &&
-            parent.id?.type === 'ObjectPattern'
-          ) {
-            renameObjectPattern(parent.id, mapping, identifierRenames, () => {
-              changed = true
-            })
-          }
+          return
         }
-      })
+        const declaratorPath = path.parent
+        const parent = declaratorPath?.node
+        if (parent?.type !== 'VariableDeclarator') return
 
-    // const { unstable_catchError } = await import('next/error')
-    root.find(j.AwaitExpression).forEach((path) => {
-      const arg = path.node.argument
-      if (
-        arg?.type === 'CallExpression' &&
-        arg.callee?.type === 'Import' &&
-        arg.arguments[0]?.type === 'StringLiteral' &&
-        arg.arguments[0].value === source
-      ) {
-        const parent = path.parent?.node
-        if (
-          parent?.type === 'VariableDeclarator' &&
-          parent.id?.type === 'Identifier'
-        ) {
+        if (parent.id?.type === 'Identifier') {
           moduleVariables.add(parent.id.name)
+          return
         }
+        if (parent.id?.type !== 'ObjectPattern') return
 
-        if (
-          parent?.type === 'VariableDeclarator' &&
-          parent.id?.type === 'ObjectPattern'
-        ) {
-          renameObjectPattern(parent.id, mapping, identifierRenames, () => {
-            changed = true
-          })
-        }
-      }
-    })
+        parent.id.properties?.forEach((property: any) => {
+          if (
+            property.type !== 'ObjectProperty' ||
+            property.key?.type !== 'Identifier' ||
+            !shouldRename(property.key.name)
+          ) {
+            return
+          }
+          const oldName = property.key.name
+          const newName = mapping[oldName]
+          const valueName =
+            property.value?.type === 'Identifier' ? property.value.name : null
 
-    // import('next/error').then(({ unstable_catchError }) => ...)
-    root.find(j.CallExpression).forEach((path) => {
-      if (
-        path.node.callee?.type === 'MemberExpression' &&
-        path.node.callee.property?.type === 'Identifier' &&
-        path.node.callee.property.name === 'then' &&
-        path.node.callee.object?.type === 'CallExpression' &&
-        path.node.callee.object.callee?.type === 'Import' &&
-        path.node.callee.object.arguments[0]?.type === 'StringLiteral' &&
-        path.node.callee.object.arguments[0].value === source &&
-        path.node.arguments.length > 0
-      ) {
-        const callback = path.node.arguments[0]
-        let params = null
-
-        if (
-          callback.type === 'ArrowFunctionExpression' ||
-          callback.type === 'FunctionExpression'
-        ) {
-          params = callback.params
-        }
-
-        if (params && params.length > 0 && params[0].type === 'ObjectPattern') {
-          renameObjectPattern(params[0], mapping, identifierRenames, () => {
-            changed = true
-          })
-        }
-      }
-    })
+          if (valueName === oldName) {
+            renameReferences(
+              oldName,
+              newName,
+              declaratorPath.scope,
+              declaratorPath
+            )
+            property.key = j.identifier(newName)
+            property.value = j.identifier(newName)
+            property.shorthand = true
+          } else if (valueName === newName) {
+            property.key = j.identifier(newName)
+            property.value = j.identifier(newName)
+            property.shorthand = true
+          } else {
+            // const { unstable_x: foo } = require(...): rename the source key only
+            property.key = j.identifier(newName)
+          }
+          changed = true
+        })
+      })
 
     // require('next/error').unstable_catchError and nextError.unstable_catchError
     root.find(j.MemberExpression).forEach((path) => {
       const node = path.node
-
       const isRequireOfSource =
         node.object?.type === 'CallExpression' &&
         node.object.callee?.type === 'Identifier' &&
         node.object.callee.name === 'require' &&
         node.object.arguments[0]?.type === 'StringLiteral' &&
         node.object.arguments[0].value === source
-
-      const isModuleVariable =
+      const isModuleVar =
         node.object?.type === 'Identifier' &&
         moduleVariables.has(node.object.name)
-
-      if (!isRequireOfSource && !isModuleVariable) {
-        return
-      }
+      if (!isRequireOfSource && !isModuleVar) return
 
       if (
-        node.computed &&
-        node.property?.type === 'StringLiteral' &&
-        shouldRename(node.property.value)
-      ) {
-        node.property = j.stringLiteral(mapping[node.property.value])
-        changed = true
-      } else if (
         !node.computed &&
         node.property?.type === 'Identifier' &&
         shouldRename(node.property.name)
       ) {
         node.property = j.identifier(mapping[node.property.name])
         changed = true
+      } else if (
+        node.computed &&
+        node.property?.type === 'StringLiteral' &&
+        shouldRename(node.property.value)
+      ) {
+        node.property = j.stringLiteral(mapping[node.property.value])
+        changed = true
       }
-    })
-
-    // Rename usage sites of locally-bound names, skipping the declarations
-    // themselves (those were handled above).
-    identifierRenames.forEach(({ oldName, newName }) => {
-      root
-        .find(j.Identifier, { name: oldName })
-        .filter((identifierPath) => {
-          const parent = identifierPath.parent
-          return !(
-            parent.node.type === 'ImportSpecifier' ||
-            parent.node.type === 'ExportSpecifier' ||
-            (parent.node.type === 'ObjectProperty' &&
-              parent.node.key === identifierPath.node) ||
-            (parent.node.type === 'VariableDeclarator' &&
-              parent.node.id === identifierPath.node) ||
-            (parent.node.type === 'FunctionDeclaration' &&
-              parent.node.id === identifierPath.node) ||
-            (parent.node.type === 'Property' &&
-              parent.node.key === identifierPath.node &&
-              !parent.node.computed)
-          )
-        })
-        .forEach((identifierPath) => {
-          identifierPath.node.name = newName
-        })
     })
 
     return changed
   }
 
-  // Renames keys (and shorthand values) of a destructuring pattern that match
-  // the mapping, queuing usage-site renames for renamed bindings.
-  function renameObjectPattern(
-    objectPattern: any,
-    mapping: Record<string, string>,
-    identifierRenames: Array<{ oldName: string; newName: string }>,
-    onChange: () => void
-  ): void {
-    objectPattern.properties?.forEach((property: any) => {
-      if (
-        property.type === 'ObjectProperty' &&
-        property.key?.type === 'Identifier' &&
-        property.key.name in mapping
-      ) {
-        const oldName = property.key.name
-        const newName = mapping[oldName]
-
-        property.key = j.identifier(newName)
-
-        if (!property.value) {
-          property.value = j.identifier(newName)
-          identifierRenames.push({ oldName, newName })
-        } else if (property.value.type === 'Identifier') {
-          const localName = property.value.name
-          if (localName === oldName) {
-            property.value = j.identifier(newName)
-            identifierRenames.push({ oldName, newName })
-          } else if (localName === newName) {
-            // { unstable_catchError: catchError } -> { catchError }
-            property.value = j.identifier(newName)
-            property.shorthand = true
-            identifierRenames.push({ oldName, newName })
-          }
-        }
-
-        onChange()
-      }
-    })
+  function hasSibling(properties: any[], siblingName: string): boolean {
+    return (properties || []).some(
+      (pr) =>
+        (pr.type === 'ObjectProperty' || pr.type === 'Property') &&
+        pr.key?.type === 'Identifier' &&
+        pr.key.name === siblingName
+    )
   }
 
-  // Renames a stabilized prop by its (reserved-prefix) identifier everywhere it
-  // appears: destructured params, type members, call/usage sites, and member
-  // access. Import/export specifiers are skipped so an unrelated same-named
-  // import is never broken.
-  function renameStabilizedProps(mapping: Record<string, string>): boolean {
+  function renameTypeMember(
+    members: any[],
+    oldName: string,
+    newName: string,
+    sibling: string
+  ): boolean {
+    const hasResetSibling = (members || []).some(
+      (m) =>
+        m.type === 'TSPropertySignature' &&
+        m.key?.type === 'Identifier' &&
+        m.key.name === sibling
+    )
+    if (!hasResetSibling) return false
+    let changed = false
+    members.forEach((m) => {
+      if (
+        m.type === 'TSPropertySignature' &&
+        m.key?.type === 'Identifier' &&
+        m.key.name === oldName
+      ) {
+        m.key = j.identifier(newName)
+        changed = true
+      }
+    })
+    return changed
+  }
+
+  function renameStabilizedProp(rename: {
+    from: string
+    to: string
+    sibling: string
+  }): boolean {
+    const { from: oldName, to: newName, sibling } = rename
     let changed = false
 
-    Object.keys(mapping).forEach((oldName) => {
-      const newName = mapping[oldName]
-
-      root.find(j.Identifier, { name: oldName }).forEach((path) => {
-        const parentType = path.parent?.node?.type
+    // 1. Destructured prop: { error, reset, unstable_retry } (param or const)
+    root.find(j.ObjectPattern).forEach((patternPath) => {
+      const props = patternPath.node.properties || []
+      if (!hasSibling(props, sibling)) return
+      props.forEach((property: any) => {
         if (
-          parentType === 'ImportSpecifier' ||
-          parentType === 'ImportDefaultSpecifier' ||
-          parentType === 'ImportNamespaceSpecifier' ||
-          parentType === 'ExportSpecifier'
+          property.type !== 'ObjectProperty' ||
+          property.key?.type !== 'Identifier' ||
+          property.key.name !== oldName
         ) {
           return
         }
-        path.node.name = newName
+        const value = property.value
+        if (value?.type === 'Identifier' && value.name === oldName) {
+          // shorthand { unstable_retry }
+          renameReferences(oldName, newName, patternPath.scope, patternPath)
+          property.key = j.identifier(newName)
+          property.value = j.identifier(newName)
+          property.shorthand = true
+        } else if (
+          value?.type === 'AssignmentPattern' &&
+          value.left?.type === 'Identifier' &&
+          value.left.name === oldName
+        ) {
+          // { unstable_retry = defaultValue }
+          renameReferences(oldName, newName, patternPath.scope, patternPath)
+          property.key = j.identifier(newName)
+          value.left = j.identifier(newName)
+          property.shorthand = true
+        } else {
+          // { unstable_retry: localAlias }: rename the source key only
+          property.key = j.identifier(newName)
+        }
         changed = true
       })
+    })
 
-      // Computed access: props['unstable_retry'] or { ['unstable_retry']: ... }
-      root.find(j.StringLiteral, { value: oldName }).forEach((path) => {
-        const parent = path.parent?.node
-        const isComputedMember =
-          parent?.type === 'MemberExpression' &&
-          parent.computed &&
-          parent.property === path.node
-        const isComputedKey =
-          (parent?.type === 'ObjectProperty' ||
-            parent?.type === 'Property' ||
-            parent?.type === 'TSPropertySignature') &&
-          parent.computed &&
-          parent.key === path.node
+    // 2. Type members: { error: ...; reset: ...; unstable_retry: ... }
+    root.find(j.TSTypeLiteral).forEach((p) => {
+      if (renameTypeMember(p.node.members, oldName, newName, sibling)) {
+        changed = true
+      }
+    })
+    root.find(j.TSInterfaceBody).forEach((p) => {
+      if (renameTypeMember(p.node.body, oldName, newName, sibling)) {
+        changed = true
+      }
+    })
 
-        if (isComputedMember || isComputedKey) {
-          path.node.value = newName
+    // 3. Member access: props.unstable_retry where props.reset is also accessed
+    const siblingObjects = new Set<string>()
+    root.find(j.MemberExpression).forEach((path) => {
+      const node = path.node
+      if (
+        node.object?.type === 'Identifier' &&
+        !node.computed &&
+        node.property?.type === 'Identifier' &&
+        node.property.name === sibling
+      ) {
+        siblingObjects.add(node.object.name)
+      }
+    })
+    if (siblingObjects.size > 0) {
+      root.find(j.MemberExpression).forEach((path) => {
+        const node = path.node
+        if (
+          node.object?.type !== 'Identifier' ||
+          !siblingObjects.has(node.object.name)
+        ) {
+          return
+        }
+        if (
+          !node.computed &&
+          node.property?.type === 'Identifier' &&
+          node.property.name === oldName
+        ) {
+          node.property = j.identifier(newName)
+          changed = true
+        } else if (
+          node.computed &&
+          node.property?.type === 'StringLiteral' &&
+          node.property.value === oldName
+        ) {
+          node.property = j.stringLiteral(newName)
           changed = true
         }
       })
-    })
+    }
 
     return changed
   }
 
   try {
     for (const source of Object.keys(IMPORT_RENAMES_BY_SOURCE)) {
-      if (renameImportedApis(source, IMPORT_RENAMES_BY_SOURCE[source])) {
+      if (renameImportedApi(source, IMPORT_RENAMES_BY_SOURCE[source])) {
         hasChanges = true
       }
     }
 
-    if (renameStabilizedProps(PROP_RENAMES)) {
-      hasChanges = true
+    for (const rename of PROP_RENAMES) {
+      if (renameStabilizedProp(rename)) {
+        hasChanges = true
+      }
     }
 
     return hasChanges ? root.toSource(options) : file.source
