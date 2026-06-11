@@ -100,6 +100,13 @@ export default function transformer(
     })
   }
 
+  // True when `name` already resolves to a binding visible at `scope`. Used to
+  // detect a collision before renaming a binding onto the stable name, so we can
+  // alias instead of shadowing/duplicating an existing `catchError`/`retry`.
+  function nameInScope(scope: any, name: string): boolean {
+    return !!(scope && scope.lookup(name))
+  }
+
   function renameImportedApi(
     source: string,
     mapping: Record<string, string>
@@ -145,9 +152,19 @@ export default function transformer(
             const idx = path.node.specifiers.indexOf(specifier)
             path.node.specifiers[idx] = j.importSpecifier(j.identifier(newName))
           } else if (localName === oldName) {
-            // import { unstable_x } -> import { x }; rename bound references
-            renameReferences(oldName, newName, path.scope, path)
-            specifier.imported = j.identifier(newName)
+            if (nameInScope(path.scope, newName)) {
+              // `catchError` already exists in scope: alias to keep the local
+              // name so existing references and the existing binding are safe.
+              const idx = path.node.specifiers.indexOf(specifier)
+              path.node.specifiers[idx] = j.importSpecifier(
+                j.identifier(newName),
+                j.identifier(oldName)
+              )
+            } else {
+              // import { unstable_x } -> import { x }; rename bound references
+              renameReferences(oldName, newName, path.scope, path)
+              specifier.imported = j.identifier(newName)
+            }
           } else {
             // import { unstable_x as foo } -> import { x as foo }; keep usages
             specifier.imported = j.identifier(newName)
@@ -223,15 +240,22 @@ export default function transformer(
             property.value?.type === 'Identifier' ? property.value.name : null
 
           if (valueName === oldName) {
-            renameReferences(
-              oldName,
-              newName,
-              declaratorPath.scope,
-              declaratorPath
-            )
-            property.key = j.identifier(newName)
-            property.value = j.identifier(newName)
-            property.shorthand = true
+            if (nameInScope(declaratorPath.scope, newName)) {
+              // `catchError` already exists in scope: keep the local name.
+              property.key = j.identifier(newName)
+              property.value = j.identifier(oldName)
+              property.shorthand = false
+            } else {
+              renameReferences(
+                oldName,
+                newName,
+                declaratorPath.scope,
+                declaratorPath
+              )
+              property.key = j.identifier(newName)
+              property.value = j.identifier(newName)
+              property.shorthand = true
+            }
           } else if (valueName === newName) {
             property.key = j.identifier(newName)
             property.value = j.identifier(newName)
@@ -294,20 +318,17 @@ export default function transformer(
     newName: string,
     sibling: string
   ): boolean {
-    const hasResetSibling = (members || []).some(
-      (m) =>
-        m.type === 'TSPropertySignature' &&
-        m.key?.type === 'Identifier' &&
-        m.key.name === sibling
-    )
+    const isMember = (m: any, name: string): boolean =>
+      m.type === 'TSPropertySignature' &&
+      m.key?.type === 'Identifier' &&
+      m.key.name === name
+    const hasResetSibling = (members || []).some((m) => isMember(m, sibling))
     if (!hasResetSibling) return false
+    // Skip if `retry` already exists as a member to avoid a duplicate key.
+    if ((members || []).some((m) => isMember(m, newName))) return false
     let changed = false
     members.forEach((m) => {
-      if (
-        m.type === 'TSPropertySignature' &&
-        m.key?.type === 'Identifier' &&
-        m.key.name === oldName
-      ) {
+      if (isMember(m, oldName)) {
         m.key = j.identifier(newName)
         changed = true
       }
@@ -336,22 +357,37 @@ export default function transformer(
           return
         }
         const value = property.value
+        // If `retry` is already bound in this scope, aliasing onto it would
+        // shadow the existing binding or duplicate it; keep the local name.
+        const collides = nameInScope(patternPath.scope, newName)
         if (value?.type === 'Identifier' && value.name === oldName) {
-          // shorthand { unstable_retry }
-          renameReferences(oldName, newName, patternPath.scope, patternPath)
-          property.key = j.identifier(newName)
-          property.value = j.identifier(newName)
-          property.shorthand = true
+          if (collides) {
+            // { retry: unstable_retry }: read the new prop, keep the local name.
+            property.key = j.identifier(newName)
+            property.value = j.identifier(oldName)
+            property.shorthand = false
+          } else {
+            // shorthand { unstable_retry } -> { retry }
+            renameReferences(oldName, newName, patternPath.scope, patternPath)
+            property.key = j.identifier(newName)
+            property.value = j.identifier(newName)
+            property.shorthand = true
+          }
         } else if (
           value?.type === 'AssignmentPattern' &&
           value.left?.type === 'Identifier' &&
           value.left.name === oldName
         ) {
           // { unstable_retry = defaultValue }
-          renameReferences(oldName, newName, patternPath.scope, patternPath)
-          property.key = j.identifier(newName)
-          value.left = j.identifier(newName)
-          property.shorthand = true
+          if (collides) {
+            property.key = j.identifier(newName)
+            property.shorthand = false
+          } else {
+            renameReferences(oldName, newName, patternPath.scope, patternPath)
+            property.key = j.identifier(newName)
+            value.left = j.identifier(newName)
+            property.shorthand = true
+          }
         } else {
           // { unstable_retry: localAlias }: rename the source key only
           property.key = j.identifier(newName)
