@@ -53,6 +53,7 @@ type PrefetchableLinkInstance = LinkOrFormInstanceShared & {
 }
 
 type NonPrefetchableLinkInstance = LinkOrFormInstanceShared & {
+  ownerStack: string | null | undefined
   prefetchHref: null
   setOptimisticLinkStatus: (status: { pending: boolean }) => void
 }
@@ -171,7 +172,7 @@ export function mountLinkInstance(
   fetchStrategy: PrefetchTaskFetchStrategy,
   prefetchEnabled: boolean,
   setOptimisticLinkStatus: (status: { pending: boolean }) => void,
-  ownerStack: string | undefined
+  ownerStack: string | null | undefined
 ): LinkInstance {
   if (prefetchEnabled) {
     const prefetchURL = coercePrefetchableUrl(href)
@@ -226,7 +227,6 @@ export function mountFormInstance(
     prefetchTask: null,
     prefetchHref: prefetchURL.href,
     setOptimisticLinkStatus: null,
-    ownerStack: undefined,
   }
   observeVisibility(element, instance)
 }

@@ -270,7 +270,7 @@ export function navigateToKnownRoute(
           `setting \`partialPrefetching: true\` in next.config, or per-route by ` +
           `exporting \`const prefetch = 'partial'\` from the page or layout.`
       )
-      const ownerStack = link.ownerStack
+      const ownerStack = 'ownerStack' in link ? link.ownerStack : undefined
       if (ownerStack === undefined) {
         console.error(
           '' +
@@ -283,7 +283,7 @@ export function navigateToKnownRoute(
         // the <Link> rendered. That way the dev overlay associates this
         // warning with the JSX that created the link, not with
         // navigation.ts.
-        error.stack = `${error.name}: ${error.message}${link.ownerStack}`
+        error.stack = `${error.name}: ${error.message}${ownerStack}`
       }
       console.error(error)
     }

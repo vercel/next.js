@@ -598,17 +598,19 @@ export default function LinkComponent(
   // Capture the Owner Stack during render so dev-only warnings emitted later
   // at navigation time can be associated with the JSX that created
   // this <Link>.
-  // Only capture when a warning might actually need it. Otherwise leave
-  // it `undefined` so consumers can detect the opt-out and degrade
-  // gracefully.
-  let ownerStack: string | null | undefined = undefined
-  if (
-    process.env.NODE_ENV !== 'production' &&
-    process.env.__NEXT_CACHE_COMPONENTS &&
-    fetchStrategy === FetchStrategy.Full
-  ) {
-    ownerStack = React.captureOwnerStack()
-  }
+  const ownerStack = React.useMemo(() => {
+    // Only capture when a warning might actually need it. Otherwise leave
+    // it `undefined` so consumers can detect the opt-out and degrade
+    // gracefully.
+    if (
+      process.env.NODE_ENV !== 'production' &&
+      process.env.__NEXT_CACHE_COMPONENTS &&
+      fetchStrategy === FetchStrategy.Full
+    ) {
+      return React.captureOwnerStack()
+    }
+    return undefined
+  }, [fetchStrategy])
 
   // Use a callback ref to attach an IntersectionObserver to the anchor tag on
   // mount. In the future we will also use this to keep track of all the
