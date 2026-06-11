@@ -141,12 +141,16 @@ export default function transformer(
 
   // Drops duplicate named exports (keeping the first) that collapsing aliases can
   // create, since duplicate ESM export names are a syntax error. Only removes
-  // duplicates, which never exist in valid input.
+  // duplicates, which never exist in valid input. Type-only and value exports
+  // live in separate namespaces, so they are tracked separately and never
+  // conflated (a `export type { x }` next to `export { x }` is valid).
   function dedupeExports(): void {
-    const seen = new Set<string>()
+    const seenValue = new Set<string>()
+    const seenType = new Set<string>()
     root.find(j.ExportNamedDeclaration).forEach((path) => {
       const specifiers = path.node.specifiers
       if (!specifiers || specifiers.length === 0) return
+      const declIsType = (path.node as any).exportKind === 'type'
       const kept = specifiers.filter((specifier: any) => {
         if (
           specifier.type !== 'ExportSpecifier' ||
@@ -154,6 +158,8 @@ export default function transformer(
         ) {
           return true
         }
+        const seen =
+          declIsType || specifier.exportKind === 'type' ? seenType : seenValue
         if (seen.has(specifier.exported.name)) return false
         seen.add(specifier.exported.name)
         return true
