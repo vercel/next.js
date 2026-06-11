@@ -448,6 +448,7 @@ Core runtime/bundling rules (always apply; skills above expand on these with ver
 
 - cargo fmt uses ASCII order (uppercase before lowercase) - just run `cargo fmt`
 - **Internal compiler error (ICE)?** Delete incremental compilation artifacts and retry. Remove `*/incremental` directories from your cargo target directory (default `target/`, or check `CARGO_TARGET_DIR` env var)
+- Avoid `super::` imports outside of test files — prefer `crate::`-rooted paths.
 
 ### Node.js Source Maps
 
