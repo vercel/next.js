@@ -107,6 +107,66 @@ export default function transformer(
     return !!(scope && scope.lookup(name))
   }
 
+  // Source-less re-exports of a renamed local binding, e.g.
+  //   import { unstable_catchError } from 'next/error'
+  //   export { unstable_catchError }        -> export { catchError }
+  //   export { unstable_catchError as foo } -> export { catchError as foo }
+  // Only specifiers whose local resolves to `bindingScope` are touched.
+  function renameLocalExports(
+    oldName: string,
+    newName: string,
+    bindingScope: any
+  ): void {
+    root.find(j.ExportNamedDeclaration).forEach((path) => {
+      if (path.node.source) return
+      const scope = path.scope
+      if (!scope || scope.lookup(oldName) !== bindingScope) return
+      path.node.specifiers?.forEach((specifier) => {
+        if (
+          specifier.type !== 'ExportSpecifier' ||
+          specifier.local?.type !== 'Identifier' ||
+          specifier.local.name !== oldName
+        ) {
+          return
+        }
+        const exportedWasOld =
+          !specifier.exported || specifier.exported.name === oldName
+        specifier.local = j.identifier(newName)
+        if (exportedWasOld) {
+          specifier.exported = j.identifier(newName)
+        }
+      })
+    })
+  }
+
+  // Drops duplicate named exports (keeping the first) that collapsing aliases can
+  // create, since duplicate ESM export names are a syntax error. Only removes
+  // duplicates, which never exist in valid input.
+  function dedupeExports(): void {
+    const seen = new Set<string>()
+    root.find(j.ExportNamedDeclaration).forEach((path) => {
+      const specifiers = path.node.specifiers
+      if (!specifiers || specifiers.length === 0) return
+      const kept = specifiers.filter((specifier: any) => {
+        if (
+          specifier.type !== 'ExportSpecifier' ||
+          specifier.exported?.type !== 'Identifier'
+        ) {
+          return true
+        }
+        if (seen.has(specifier.exported.name)) return false
+        seen.add(specifier.exported.name)
+        return true
+      })
+      if (kept.length === specifiers.length) return
+      if (kept.length === 0 && !path.node.declaration) {
+        j(path).remove()
+      } else {
+        path.node.specifiers = kept
+      }
+    })
+  }
+
   function renameImportedApi(
     source: string,
     mapping: Record<string, string>
@@ -162,7 +222,9 @@ export default function transformer(
               )
             } else {
               // import { unstable_x } -> import { x }; rename bound references
+              // and any source-less re-export of this binding.
               renameReferences(oldName, newName, path.scope, path)
+              renameLocalExports(oldName, newName, path.scope)
               specifier.imported = j.identifier(newName)
             }
           } else {
@@ -299,6 +361,8 @@ export default function transformer(
         changed = true
       }
     })
+
+    if (changed) dedupeExports()
 
     return changed
   }
