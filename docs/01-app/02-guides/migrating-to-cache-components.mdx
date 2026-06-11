@@ -45,6 +45,8 @@ const nextConfig: NextConfig = {
 export default nextConfig
 ```
 
+> **Good to know:** If you were using `experimental.dynamicIO` or `experimental.useCache`, `cacheComponents` replaces them. See the [version 16 upgrade guide](/docs/app/guides/upgrading/version-16#experimentaldynamicio-and-experimentalusecache).
+
 ## `dynamic = "force-dynamic"`
 
 **Not needed.** All pages are dynamic by default.
@@ -503,8 +505,6 @@ Paths you don't return are still served. Next.js serves the App Shell instantly,
 
 To produce the App Shell, pass the `params` promise into a [`<Suspense>`](/docs/app/api-reference/file-conventions/loading) boundary instead of awaiting it at the top of the component, so unknown params can still prerender.
 
-> **Good to know:** The client hooks [`usePathname`](/docs/app/api-reference/functions/use-pathname), [`useSelectedLayoutSegment`](/docs/app/api-reference/functions/use-selected-layout-segment), and [`useSelectedLayoutSegments`](/docs/app/api-reference/functions/use-selected-layout-segments) need the same treatment. On a route with dynamic params not covered by `generateStaticParams`, they suspend during prerendering because the pathname depends on the unknown param, so wrap the component that calls them in `<Suspense>` or the build fails. See [Next.js encountered URL data in a Client Component outside of Suspense](/docs/messages/blocking-prerender-client-hook).
-
 ```tsx filename="app/blog/[slug]/page.tsx" switcher
 // Before - awaiting params at the top blocks the shell
 export default async function Page({
@@ -560,6 +560,15 @@ async function Post({ params }) {
   // ...
 }
 ```
+
+Client hooks that read the route need the same treatment. In the App Shell, the params, and by extension the pathname, are unknown, so reading these hooks suspends, wherever the component renders. A nav or breadcrumb in a shared layout, for instance, suspends while Next.js generates the App Shell for any route below it that has dynamic params. Wrap the component that reads the hook in `<Suspense>` (push the read down to the smallest leaf so the rest stays prerendered), or the build fails:
+
+- [`usePathname`](/docs/app/api-reference/functions/use-pathname)
+- [`useParams`](/docs/app/api-reference/functions/use-params)
+- [`useSelectedLayoutSegment`](/docs/app/api-reference/functions/use-selected-layout-segment)
+- [`useSelectedLayoutSegments`](/docs/app/api-reference/functions/use-selected-layout-segments)
+
+The [`useSearchParams`](/docs/app/api-reference/functions/use-search-params) hook always needs a `<Suspense>` boundary, since search params are only known at request time. See [Next.js encountered URL data in a Client Component outside of Suspense](/docs/messages/blocking-prerender-client-hook) for fixes.
 
 ## `cookies`, `headers`, and `searchParams`
 
