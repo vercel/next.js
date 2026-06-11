@@ -4,7 +4,11 @@ than `package.json#pnpm.overrides`. pnpm v11 silently ignores
 `pnpm.overrides` in `package.json` — see
 https://github.com/pnpm/pnpm/issues/11536 and https://pnpm.io/settings.
 
-Run this fixture with pnpm v11+ on PATH.
+Run this fixture with pnpm v11+ on PATH:
+
+```sh
+pnpm test:upgrade-fixture bin/__testfixtures__/pnpm-v11-overrides latest
+```
 
 ```diff
 diff --git a/packages/next-codemod/bin/__testfixtures__/pnpm-v11-overrides/package.json b/packages/next-codemod/bin/__testfixtures__/pnpm-v11-overrides/package.json
