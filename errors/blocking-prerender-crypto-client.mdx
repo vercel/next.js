@@ -14,7 +14,6 @@ The Server Component case is handled at [Crypto APIs during prerendering](/docs/
 <FixOption
   group="stream"
   href="#wrap-in-or-move-into-suspense"
-  prompt={`Wrap the Client Component that calls the crypto API in <Suspense> in its parent. The fallback prop must render synchronous, deterministic JSX that approximates the final layout. Import Suspense from "react". Do not change the crypto call.`}
   title="Wrap in or move into Suspense"
 >
   Wrap the component in a Suspense boundary so the shell ships instantly and the
@@ -24,7 +23,6 @@ The Server Component case is handled at [Crypto APIs during prerendering](/docs/
 <FixOption
   group="defer"
   href="#move-into-effect-or-event-handler"
-  prompt={`Move the crypto call out of the inline render path and into useEffect (for first-paint values) or an event handler (for interaction values). Initialize state to a deterministic value so SSR and the first hydrated render agree. Do not introduce new imports beyond "react".`}
   title="Move into effect or event handler"
 >
   Defer the crypto call until after hydration so SSR and the browser agree on

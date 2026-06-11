@@ -14,7 +14,6 @@ The Server Component case is handled at [`Date.now()` during prerendering](/docs
 <FixOption
   group="stream"
   href="#wrap-in-or-move-into-suspense"
-  prompt={`Wrap the Client Component that calls Date.now() in <Suspense> in its parent. The fallback prop must render synchronous, deterministic JSX (no Date.now or Math.random) that approximates the final layout. Import Suspense from "react". Do not change the Date.now() call.`}
   title="Wrap in or move into Suspense"
 >
   Wrap the component in a Suspense boundary so the shell ships instantly and the
@@ -24,7 +23,6 @@ The Server Component case is handled at [`Date.now()` during prerendering](/docs
 <FixOption
   group="defer"
   href="#move-into-effect-or-event-handler"
-  prompt={`Move the Date.now() call out of the inline render path and into useEffect (for first-paint values) or an event handler (for interaction values). Initialize state to a deterministic value so SSR and the first hydrated render agree. Do not introduce new imports beyond "react".`}
   title="Move into effect or event handler"
 >
   Defer the timestamp read until after hydration so SSR and the browser agree on
@@ -34,7 +32,6 @@ The Server Component case is handled at [`Date.now()` during prerendering](/docs
 <FixOption
   group="measure"
   href="#for-telemetry-use-a-timing-api"
-  prompt={`Replace Date.now() with performance.now() if the value is used for elapsed-time measurement, instrumentation, or telemetry. performance.now() returns a high-resolution monotonic timestamp and does not interfere with prerendering. Do not change the call if the value is rendered into the UI.`}
   title="For telemetry, use a timing API"
 >
   When the timestamp is only used for measuring durations, switch to

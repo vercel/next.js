@@ -14,7 +14,6 @@ Other unpredictable APIs ([`Math.random()`](https://developer.mozilla.org/en-US/
 <FixOption
   group="dynamic"
   href="#generate-on-every-request"
-  prompt={`Add "await connection()" from "next/server" immediately before the Date.now() call. This marks the component as request-time, so Next.js excludes it from the prerendered HTML and streams it in from the nearest <Suspense> boundary on each request. Do not change the call site of Date.now() itself. Only change the call site once you've confirmed with the user that a fresh value on every request is the intent.`}
   title="Generate on every request"
 >
   Mark the component as request-time so the timestamp is recomputed each time
@@ -24,7 +23,6 @@ Other unpredictable APIs ([`Math.random()`](https://developer.mozilla.org/en-US/
 <FixOption
   group="cache"
   href="#cache-the-timestamp"
-  prompt={`Move the Date.now() call into its own function and add "use cache" as the first statement. Optionally call cacheLife(profile) to control how often the timestamp is regenerated. Do not introduce new imports beyond "next/cache".`}
   title="Cache the timestamp"
 >
   Capture one timestamp per cache window and reuse it. The route stays
@@ -34,7 +32,6 @@ Other unpredictable APIs ([`Math.random()`](https://developer.mozilla.org/en-US/
 <FixOption
   group="client"
   href="#render-on-the-client"
-  prompt={`Move the component that calls Date.now() into a Client Component by adding "use client" at the top of the file. If the value needs to be hydration-stable, compute it inside useEffect instead of inline during render.`}
   title="Render on the client"
 >
   Move the call into a Client Component. The browser produces the timestamp on
@@ -44,7 +41,6 @@ Other unpredictable APIs ([`Math.random()`](https://developer.mozilla.org/en-US/
 <FixOption
   group="measure"
   href="#for-telemetry-use-a-timing-api"
-  prompt={`Replace Date.now() with performance.now() if the value is used for elapsed-time measurement, instrumentation, or telemetry. performance.now() returns a high-resolution monotonic timestamp and does not interfere with prerendering. Do not change the call if the value is rendered into the UI.`}
   title="For telemetry, use a timing API"
 >
   When the timestamp is only used for measuring durations, switch to

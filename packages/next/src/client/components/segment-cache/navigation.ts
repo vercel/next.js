@@ -7,6 +7,7 @@ import type {
 import type { CacheNode } from '../../../shared/lib/app-router-types'
 import type { HeadData } from '../../../shared/lib/app-router-types'
 import {
+  PrefetchHint,
   SubtreePrefetchHints,
   propagateSubtreeBits,
 } from '../../../shared/lib/app-router-types'
@@ -241,6 +242,36 @@ export function navigateToKnownRoute(
 ): AppRouterState {
   // A version of navigate() that accepts the target route tree as an argument
   // rather than reading it from the prefetch cache.
+  if (
+    process.env.NODE_ENV !== 'production' &&
+    process.env.__NEXT_CACHE_COMPONENTS
+  ) {
+    // Warn when navigating via a `<Link prefetch={true}>` to a route that has
+    // not opted into Partial Prefetching. Such a link does a legacy "full"
+    // prefetch that includes the route's dynamic data, defeating the
+    // static/dynamic split that Cache Components provides.
+    //
+    // This runs at navigation time (rather than prefetch time) so that, in dev
+    // where we don't prefetch, the warning only appears when you actually
+    // navigate to the route — existing apps with many `prefetch={true}` links
+    // aren't flooded with warnings the moment they enable Cache Components.
+    const link = getLinkForCurrentNavigation()
+    if (
+      link !== null &&
+      link.fetchStrategy === FetchStrategy.Full &&
+      (navigationSeed.routeTree.prefetchHints &
+        PrefetchHint.SubtreeHasPartialPrefetching) ===
+        0
+    ) {
+      console.error(
+        `A <Link prefetch={true}> navigated to "${url.pathname}", but Partial ` +
+          `Prefetching is not enabled for that route, so its dynamic data was ` +
+          `included in the prefetch. Enable Partial Prefetching app-wide by ` +
+          `setting \`partialPrefetching: true\` in next.config, or per-route by ` +
+          `exporting \`const prefetch = 'partial'\` from the page or layout.`
+      )
+    }
+  }
   const accumulation: NavigationRequestAccumulation = {
     separateRefreshUrls: null,
     scrollRef: null,

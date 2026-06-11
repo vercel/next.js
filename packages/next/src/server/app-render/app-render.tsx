@@ -4339,6 +4339,7 @@ function runDevValidationInBackground(
   ctx: AppRenderContext,
   fallbackRouteParams: OpaqueFallbackRouteParams | null,
   prerenderResumeDataCache: ReturnType<typeof createPrerenderResumeDataCache>,
+  shellStage: RenderStage.Static | RenderStage.Runtime,
   getDevRenderDidError: () => boolean,
   createRequestStore: () => RequestStore,
   getPayload: (requestStore: RequestStore) => Promise<RSCPayload>,
@@ -4393,7 +4394,8 @@ function runDevValidationInBackground(
             createRequestStore,
             getPayload,
             onError,
-            prerenderResumeDataCache
+            prerenderResumeDataCache,
+            shellStage
           )
 
           // Unlike the cold streamed render, which fills the caches, the warm
@@ -4440,7 +4442,8 @@ interface StagedDevRenderSetup {
  * the request store.
  */
 function setUpStagedDevRender(
-  requestStore: RequestStore
+  requestStore: RequestStore,
+  shellStage: RenderStage.Static | RenderStage.Runtime
 ): StagedDevRenderSetup {
   const cacheSignal = new CacheSignal()
   trackPendingModules(cacheSignal)
@@ -4460,6 +4463,7 @@ function setUpStagedDevRender(
     requestStore.headers
   )
   requestStore.cacheSignal = cacheSignal
+  requestStore.shellStage = shellStage
 
   const environmentName = () =>
     getEnvironmentNameForStage(stageController.currentStage)
@@ -4547,6 +4551,13 @@ async function streamStagedRenderInDev(
   let hadCacheMiss = false
   const checkForCacheMiss = () => {
     if (cacheSignal.hasPendingReads()) {
+      if (!hadCacheMiss) {
+        // First detected cache miss this render: tell the dev overlay the load
+        // is streaming with a cold cache now, while it's still in progress, so
+        // the indicator can combine with the rendering status on client navs.
+        // The per-load `'ready'` reset clears it again on the next load.
+        ctx.renderOpts.setCacheStatus?.('cold', ctx.htmlRequestId)
+      }
       hadCacheMiss = true
     }
     return hadCacheMiss
@@ -4708,7 +4719,8 @@ async function renderWithWarmCachesForValidationInDev(
   createRequestStore: () => RequestStore,
   getPayload: (requestStore: RequestStore) => Promise<RSCPayload>,
   onError: (error: unknown) => void,
-  prerenderResumeDataCache: ReturnType<typeof createPrerenderResumeDataCache>
+  prerenderResumeDataCache: ReturnType<typeof createPrerenderResumeDataCache>,
+  shellStage: RenderStage.Static | RenderStage.Runtime
 ): Promise<DevValidationInputs> {
   const { ComponentMod, setReactDebugChannel } = ctx.renderOpts
   const { clientModules } = getClientReferenceManifest()
@@ -4721,6 +4733,7 @@ async function renderWithWarmCachesForValidationInDev(
   })
 
   const requestStore = createRequestStore()
+  requestStore.shellStage = shellStage
   requestStore.resumeDataCache = createRenderResumeDataCache(
     prerenderResumeDataCache
   )
@@ -4823,7 +4836,7 @@ async function stagedRenderWithCachesInDev(
     prerenderResumeDataCache,
     stageController,
     environmentName,
-  } = setUpStagedDevRender(requestStore)
+  } = setUpStagedDevRender(requestStore, shellStage)
 
   let validationDebugChannel: AnyStream | undefined
   const debugChannel = setReactDebugChannel && createNodeDebugChannel()
@@ -4860,6 +4873,7 @@ async function stagedRenderWithCachesInDev(
       ctx,
       fallbackRouteParams,
       prerenderResumeDataCache,
+      shellStage,
       getDevRenderDidError,
       createRequestStore,
       getPayload,

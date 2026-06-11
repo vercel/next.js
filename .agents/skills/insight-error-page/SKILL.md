@@ -95,8 +95,8 @@ kind: insight
 - `title` = card title from framework, **verbatim**. If it reads awkward as a heading, change the framework first — never the docs.
 - `href` = `#` + the auto-slug of the title (e.g. "Generate on every request" → `#generate-on-every-request`). This must match what the heading auto-generates.
 - `group` = card group from framework (`dynamic`, `cache`, `client`, `stream`, `defer`, `measure`, `block`, `render`, `silence`).
-- `prompt` = AI-agent prompt. Single line, no rendered markdown. The user copies this to the clipboard via the Copy AI prompt button to paste into their agent. It is read by an agent acting on the user's behalf, so guardrail phrasing like `Confirm with the user that ...` is fine here — it tells the agent to verify intent before applying an irreversible or surprising change. Keep prompts directive and specific ("Add X. Do not do Y."). Do not add cross-fix comparisons ("If the user wants X, choose Y instead") — by the time the agent reads the prompt the user has already clicked this card.
 - Children = one-sentence plain-prose summary. **No inline code**, no API names in backticks, no snippets. Save technical detail for the section body.
+- **No `prompt` prop.** The "Copy AI prompt" button builds the prompt dynamically at click time from the page URL and the card's `title` + `href`. The agent receives a prompt that points at the rule docs and names the fix — it then reads the docs page (the same one the user is on) for every constraint and code shape. That is why this skill exists: the docs page itself **is** the prompt's source of truth.
 
 ### `## <Fix>` sections
 
@@ -142,7 +142,7 @@ kind: insight
 
 When the framework card set includes `instant = false` (group `block`), use the canonical `## Allow blocking route` section shape. All pages with this fix must match. Cross-page consistency matters — diverging from this shape produces a page that reads like an outlier.
 
-**Intro**: One paragraph explaining what setting `instant` to `false` does and what the trade-off is. Optional second paragraph noting when this is _rarely_ the right answer (for example, on client-hook or cache fixes where a Suspense boundary is almost always feasible). Phrase the rarity directly. Do not write `Confirm with the user` in body prose — that phrasing belongs in `prompt={...}` agent strings, not in the page the user reads.
+**Intro**: One paragraph explaining what setting `instant` to `false` does and what the trade-off is. Optional second paragraph noting when this is _rarely_ the right answer (for example, on client-hook or cache fixes where a Suspense boundary is almost always feasible). Phrase the rarity directly.
 
 **Patterns**: For page-body errors (runtime data, uncached data, client hooks), use both `#### Opt the page out` and `#### Opt the layout out`. For viewport errors, use only `#### Opt the layout out` (viewport always lives on a layout). Each pattern has:
 
@@ -160,7 +160,7 @@ After the pattern snippets, include a "Use either pattern when:" bulleted list (
 - This export does not disable prerendering. The route still prerenders if it can. It only silences the instant-navigation validation error.
 - Page-specific gotchas (for example, viewport pages add framework-synthesized routes gotcha) come after the two canonical bullets.
 
-**Never** add a gotcha that says `Confirm with the user that ...` in user-facing body prose. That phrasing is agent-prompt voice and belongs in `prompt={...}` strings, not in gotchas or trade-offs the user reads on the page.
+**Never** add a gotcha that says `Confirm with the user that ...` in user-facing body prose. The page is what the user reads — write for them, not for the agent. Guardrails the agent should apply belong in the actual code-shape guidance under the `### Patterns` heading (which the agent reads via the docs link in the copied prompt).
 
 ### Don't want this validation?
 
@@ -199,12 +199,12 @@ When auditing an existing page, check every item:
 - [ ] Every `<FixOption>` `title` = card title verbatim
 - [ ] Every `<FixOption>` `href` = auto-slug of the heading
 - [ ] Every `<FixOption>` `group` matches framework card group
-- [ ] Every `<FixOption>` has a `prompt` prop (AI-agent prompt, single line)
+- [ ] No `prompt` prop on any `<FixOption>` — the copy button generates the prompt from `title` + `href` + the page URL
 - [ ] `<FixOption>` children: plain prose, no backticks, no inline code
 - [ ] Every `## <Fix>` heading = card title verbatim
 - [ ] Every fix section has `### Patterns`, `### Trade-off`, `### Gotchas`
 - [ ] No "Default." labels on patterns
-- [ ] No `Confirm with the user ...` phrasing in user-facing body prose (intro paragraphs, Trade-off, Gotchas). It belongs in `prompt={...}` agent strings, not on the page the reader sees.
+- [ ] No `Confirm with the user ...` phrasing anywhere in the page. The page is for the user; the agent reads the same page via the docs link in the copied prompt.
 - [ ] If the page has `## Allow blocking route`, it matches the canonical shape: patterns (page-body errors use both Opt the page out + Opt the layout out; viewport errors use Opt the layout out only), "Use either pattern when" list, "Don't use this to dismiss the error" closer, canonical 2-bullet Gotchas
 - [ ] Code snippets are valid React (no inline `Math.random()` during render in Client Components)
 - [ ] `useState(() => Math.random())` warned against in Gotchas
