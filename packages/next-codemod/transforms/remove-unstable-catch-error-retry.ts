@@ -76,6 +76,8 @@ export default function transformer(
       case 'ClassDeclaration':
         if (parent.id === node) return false
         break
+      default:
+        break
     }
     return true
   }
