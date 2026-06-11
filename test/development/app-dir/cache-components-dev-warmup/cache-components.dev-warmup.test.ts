@@ -242,12 +242,7 @@ describe.each([
           }
         })
 
-        // TODO: Skipped until private caches are persisted in dev. They aren't
-        // persisted yet, so a warm reload re-runs them as a cache miss that
-        // resolves in the dynamic stage rather than the runtime stage.
-        // Re-enable once private caches are persisted, after which a warm
-        // reload is a hit that resolves in the runtime stage.
-        it.skip('cached data + private cache', async () => {
+        it('cached data + private cache', async () => {
           const path = '/private-cache'
 
           const assertLogs = async (browser: Playwright) => {

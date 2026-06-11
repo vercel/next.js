@@ -166,7 +166,12 @@ export function getRootParam(paramName: string): Promise<ParamValue> {
     case 'private-cache': {
       // NOTE: In shell prerenders, we delay caches that used root params
       // in use-cache-wrapper, during the final prerender, so we don't
-      // need to do anything here
+      // need to do anything here.
+      // In dev, private caches are persisted and keyed by root params (like
+      // public caches), so we track which ones were read.
+      if (workUnitStore.readRootParamNames) {
+        workUnitStore.readRootParamNames.add(paramName)
+      }
       break
     }
     case 'prerender-runtime': {

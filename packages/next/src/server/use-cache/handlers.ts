@@ -10,6 +10,7 @@ const debug = process.env.NEXT_PRIVATE_DEBUG_CACHE
 const handlersSymbol = Symbol.for('@next/cache-handlers')
 const handlersMapSymbol = Symbol.for('@next/cache-handlers-map')
 const handlersSetSymbol = Symbol.for('@next/cache-handlers-set')
+const privateHandlerSymbol = Symbol.for('@next/cache-handlers-private')
 
 /**
  * The reference to the cache handlers. We store the cache handlers on the
@@ -23,6 +24,8 @@ const reference: typeof globalThis & {
   }
   [handlersMapSymbol]?: Map<string, CacheHandler>
   [handlersSetSymbol]?: Set<CacheHandler>
+  // DEV-only
+  [privateHandlerSymbol]?: CacheHandler
 } = globalThis
 
 /**
@@ -76,6 +79,18 @@ export function initializeCacheHandlers(cacheMaxMemorySize: number): boolean {
   // Create a set of the cache handlers.
   reference[handlersSetSymbol] = new Set(reference[handlersMapSymbol].values())
 
+  // In development, private caches are persisted in a dedicated built-in
+  // in-memory handler so that warm reloads are fast. This must always be the
+  // built-in handler, never the user-configured `default` alias (which could be
+  // a remote or otherwise persistent handler), because private cache entries
+  // can hold data specific to the incoming request (for example, derived from
+  // its cookies or headers). It is gated on the dev server so production never
+  // persists private caches.
+  if (process.env.__NEXT_DEV_SERVER) {
+    reference[privateHandlerSymbol] =
+      createDefaultCacheHandler(cacheMaxMemorySize)
+  }
+
   return true
 }
 
@@ -92,6 +107,21 @@ export function getCacheHandler(kind: string): CacheHandler | undefined {
   }
 
   return reference[handlersMapSymbol].get(kind)
+}
+
+/**
+ * Get the dedicated in-memory cache handler that persists private caches in
+ * development. Returns `undefined` outside the dev server, where private caches
+ * must not be persisted. This is intentionally not part of the kind-keyed
+ * handlers map so that it can never be replaced by a user-configured handler.
+ */
+export function getPrivateCacheHandler(): CacheHandler | undefined {
+  // This should never be called before initializeCacheHandlers.
+  if (!reference[handlersMapSymbol]) {
+    throw new Error('Cache handlers not initialized')
+  }
+
+  return reference[privateHandlerSymbol]
 }
 
 /**
