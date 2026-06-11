@@ -1,4 +1,4 @@
-# instant-nav-loop (sub-reference of next-cache-components-optimizer)
+# dev-nav-loop (sub-reference of the next-instant dev loop)
 
 In-app navigation optimization: when the user clicks a link from A to B, show B's static layout immediately — chrome, structure, content-shaped fallbacks — instead of holding A's UI until B's data resolves.
 
@@ -27,7 +27,7 @@ Set the instant cookie (per shared `instant cookie` section) any time after the 
 
 1. **Set the instant cookie and navigate via `pushstate <B>`.** Wait for the DOM to settle. B's tree is now mounted; its dynamic boundaries stay in fallback while the cookie holds.
 
-2. **Check B for the no-shell bailout** per SKILL.md.
+2. **Check B for the no-shell bailout** per dev-loop.md.
 
 3. **Capture B's suspended set.** `agent-browser react suspense --only-dynamic --json` → boundaries with `suspended_by[]`.
 
@@ -45,7 +45,7 @@ Set the instant cookie (per shared `instant cookie` section) any time after the 
 
 ### decide / apply
 
-Apply the shared lever rules from SKILL.md; push-down recipes work at layouts too.
+Apply the shared lever rules from dev-loop.md; push-down recipes work at layouts too.
 
 **Nav-only third lever: private cache + runtime prefetch.** For I/O that reads `cookies()` / `headers()` / `searchParams`, shared `'use cache'` won't help — those reads bail to dynamic. Use `'use cache: private'` + `cacheLife({ stale: N })` on **the scope that encloses the request-API read** (see scope rule below), plus `prefetch = 'allow-runtime'` as a route segment config (page or layout export) on the segment that owns the private content. Private-cache results live only in the browser — **never stored on the server** — so allowing runtime prefetching lets Next.js resolve them at link-visibility time with the user's session; the click commits with cookie-derived data already in place.
 

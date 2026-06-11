@@ -10,51 +10,51 @@ The most common blocking shape. Awaiting request-time data at the top of a page/
 
 ```tsx
 // ❌ before — top-level await of a non-static param + uncached data
-export default async function Page(props: PageProps<"/store/[slug]">) {
-  const { slug } = await props.params;
-  const product = await db.products.findBySlug(slug);
+export default async function Page(props: PageProps<'/store/[slug]'>) {
+  const { slug } = await props.params
+  const product = await db.products.findBySlug(slug)
   return (
     <article>
       <h1>{product.name}</h1>
     </article>
-  );
+  )
 }
 ```
 
 ```tsx
 // ✅ after — pass the params promise down; await inside a Suspense-wrapped child
-import { Suspense } from "react";
+import { Suspense } from 'react'
 
-export default function Page(props: PageProps<"/store/[slug]">) {
+export default function Page(props: PageProps<'/store/[slug]'>) {
   return (
     <Suspense fallback={<p>Loading product…</p>}>
       <Product params={props.params} />
     </Suspense>
-  );
+  )
 }
 
 async function Product({ params }: { params: Promise<{ slug: string }> }) {
-  const { slug } = await params;
-  const product = await db.products.findBySlug(slug);
+  const { slug } = await params
+  const product = await db.products.findBySlug(slug)
   return (
     <article>
       <h1>{product.name}</h1>
     </article>
-  );
+  )
 }
 ```
 
 Inline variant when you don't want a separate component — unwrap the promise without awaiting at the top:
 
 ```tsx
-export default function Page(props: PageProps<"/store/[category]">) {
+export default function Page(props: PageProps<'/store/[category]'>) {
   return (
     <Suspense fallback={<Grid.Skeleton />}>
       {props.params.then(({ category }) => (
         <ProductGrid category={category} />
       ))}
     </Suspense>
-  );
+  )
 }
 ```
 
@@ -67,19 +67,19 @@ A layout that awaits request data blocks the layout **and every page under it**.
 ```tsx
 // ❌ before — whole layout (and all children) becomes dynamic
 export default async function Layout({ children }) {
-  const cookieStore = await cookies();
-  const theme = cookieStore.get("theme")?.value;
-  return <body data-theme={theme}>{children}</body>;
+  const cookieStore = await cookies()
+  const theme = cookieStore.get('theme')?.value
+  return <body data-theme={theme}>{children}</body>
 }
 ```
 
 ```tsx
 // ✅ after — start the read without awaiting, pass the promise to a Suspense child
-import { Suspense } from "react";
-import { cookies } from "next/headers";
+import { Suspense } from 'react'
+import { cookies } from 'next/headers'
 
 export default function Layout({ children }: { children: React.ReactNode }) {
-  const cookieStore = cookies(); // not awaited → does not block the shell
+  const cookieStore = cookies() // not awaited → does not block the shell
   return (
     <body>
       <nav>
@@ -89,16 +89,16 @@ export default function Layout({ children }: { children: React.ReactNode }) {
       </nav>
       {children}
     </body>
-  );
+  )
 }
 
 async function UserMenu({
   cookiePromise,
 }: {
-  cookiePromise: ReturnType<typeof cookies>;
+  cookiePromise: ReturnType<typeof cookies>
 }) {
-  const theme = (await cookiePromise).get("theme")?.value;
-  return <div data-theme={theme}>…</div>;
+  const theme = (await cookiePromise).get('theme')?.value
+  return <div data-theme={theme}>…</div>
 }
 ```
 
@@ -112,20 +112,20 @@ Decide per data source. Same-for-everyone & rarely-changing → cache it (it joi
 
 ```tsx
 // ❌ before — both block the shell
-const product = await db.products.findBySlug(slug); // rarely changes
-const inventory = await db.inventory.findBySlug(slug); // must be fresh
+const product = await db.products.findBySlug(slug) // rarely changes
+const inventory = await db.inventory.findBySlug(slug) // must be fresh
 ```
 
 ```tsx
 // ✅ after — cache the stable one (shell), defer the fresh one (streams)
 async function getProduct(slug: string) {
-  "use cache"; // → resolved at prerender, lands in the shell
-  return db.products.findBySlug(slug);
+  'use cache' // → resolved at prerender, lands in the shell
+  return db.products.findBySlug(slug)
 }
 
-<Suspense fallback={<p>Checking availability…</p>}>
+;<Suspense fallback={<p>Checking availability…</p>}>
   <Inventory params={params} /> {/* uncached read stays here, streams in */}
-</Suspense>;
+</Suspense>
 ```
 
 > Serverless note: `use cache` is in-memory and does not persist across instances — use [`use cache: remote`](https://nextjs.org/docs/app/api-reference/directives/use-cache-remote) for a durable shell.
@@ -139,10 +139,10 @@ If the set of params is enumerable, prerender them so `await params` resolves in
 ```tsx
 // ✅ option A — enumerate → params resolve into the shell, no Suspense needed for params
 export function generateStaticParams() {
-  return [{ slug: "shoes" }, { slug: "hats" }];
+  return [{ slug: 'shoes' }, { slug: 'hats' }]
 }
-export default async function Page({ params }: PageProps<"/store/[slug]">) {
-  const { slug } = await params; // known at build → shell-safe
+export default async function Page({ params }: PageProps<'/store/[slug]'>) {
+  const { slug } = await params // known at build → shell-safe
   // ...
 }
 ```
@@ -161,7 +161,7 @@ Search params are never known at build, so awaiting them (or `useSearchParams()`
 
 ```tsx
 // ✅ static content stays in the shell; the search-dependent part streams
-export default function Page(props: PageProps<"/search">) {
+export default function Page(props: PageProps<'/search'>) {
   return (
     <>
       <h1>Search</h1> {/* shell */}
@@ -169,15 +169,15 @@ export default function Page(props: PageProps<"/search">) {
         <Results searchParams={props.searchParams} />
       </Suspense>
     </>
-  );
+  )
 }
 async function Results({
   searchParams,
 }: {
-  searchParams: Promise<{ q?: string }>;
+  searchParams: Promise<{ q?: string }>
 }) {
-  const { q } = await searchParams;
-  return <ResultList query={q} />;
+  const { q } = await searchParams
+  return <ResultList query={q} />
 }
 ```
 
@@ -191,10 +191,10 @@ On a **client navigation** the router already has the URL, so a `useSearchParams
 
 ```tsx
 // ✅ per-request value: gate on connection() and wrap in Suspense
-import { connection } from "next/server";
+import { connection } from 'next/server'
 async function RequestId() {
-  await connection();
-  return <span>{crypto.randomUUID()}</span>;
+  await connection()
+  return <span>{crypto.randomUUID()}</span>
 }
 // <Suspense fallback={null}><RequestId /></Suspense>
 ```
@@ -202,8 +202,8 @@ async function RequestId() {
 ```tsx
 // ✅ same value for everyone: cache it so it joins the shell
 async function buildId() {
-  "use cache";
-  return Date.now();
+  'use cache'
+  return Date.now()
 }
 ```
 
@@ -214,19 +214,19 @@ async function buildId() {
 ```tsx
 // ❌ before — reading request data blocks the route's metadata
 export async function generateMetadata() {
-  const c = await cookies();
-  return { title: c.get("title")?.value };
+  const c = await cookies()
+  return { title: c.get('title')?.value }
 }
 ```
 
 ```tsx
 // ✅ option A — static
-export const metadata = { title: "Store" };
+export const metadata = { title: 'Store' }
 
 // ✅ option B — cache the metadata
 export async function generateMetadata() {
-  "use cache";
-  return { title: await getTitle() };
+  'use cache'
+  return { title: await getTitle() }
 }
 ```
 
@@ -258,14 +258,14 @@ A single boundary in the **root** layout passes a page-load check but leaves sib
 export default function StoreLayout({
   children,
 }: {
-  children: React.ReactNode;
+  children: React.ReactNode
 }) {
   return (
     <section>
       <StoreNav /> {/* shell */}
       <Suspense fallback={<Page.Skeleton />}>{children}</Suspense>
     </section>
-  );
+  )
 }
 ```
 

@@ -1,4 +1,4 @@
-# ppr-loop (sub-reference of next-cache-components-optimizer)
+# dev-ppr-loop (sub-reference of the next-instant dev loop)
 
 Page-render optimization: grow the static shell of a single `cacheComponents` page.
 
@@ -12,7 +12,7 @@ The page to optimize is whatever route the user is currently on (per shared pref
 
 ### diagnose
 
-1. **Check for the no-shell bailout** per SKILL.md.
+1. **Check for the no-shell bailout** per dev-loop.md.
 
 2. **List candidates.** `agent-browser react suspense --only-dynamic --json` → each boundary has `jsx_source` (file:line:col) and `suspended_by[].name`. Resolve `jsx_source` (or `suspended_by[].owner_stack`) via `POST /__nextjs_original-stack-frames`.
 
@@ -24,7 +24,7 @@ The page to optimize is whatever route the user is currently on (per shared pref
 
 ### decide / apply
 
-Apply the shared lever rules from SKILL.md.
+Apply the shared lever rules from dev-loop.md.
 
 ### verify
 

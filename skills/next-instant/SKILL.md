@@ -1,9 +1,9 @@
 ---
-name: instant-nav
-description: Make a Next.js route render instantly under Cache Components / PPR — on initial load (hard navigation) and on client-side navigation (soft navigation) — by formulating the goal as a failing @next/playwright instant() e2e and working it to green; the shipped test then guards against regression. Use when asked to make a navigation instant, fix a route whose static shell isn't served or prefetched, or write the instant() e2e guard for one. A setup phase discovers the project's build/deploy/test infrastructure (Vercel, generic CI, or local-only) and records it in a project-local rig file. Covers the RED-test trustworthiness gate, the Suspense push-down fix patterns, and the parity check that the refactor changed only the instancy.
+name: next-instant
+description: Make a Next.js route render instantly under Cache Components / PPR — on initial load (hard navigation) and on client-side navigation (soft navigation) — by formulating the goal as a failing @next/playwright instant() e2e and working it to green; the shipped test then guards against regression. Use when asked to make a navigation instant, fix a route whose static shell isn't served or prefetched, or write the instant() e2e guard for one. Requires Next.js 16+ with cacheComponents enabled — when the project is older, the skill directs an upgrade first. A setup phase discovers the project's build/deploy/test infrastructure (Vercel, generic CI, or local-only) and records it in a project-local rig file. Includes the dev-time diagnosis loop (suspended-boundary ranking against next dev) that previously shipped as next-cache-components-optimizer. Covers the RED-test trustworthiness gate, the Suspense push-down fix patterns, and the parity check that the refactor changed only the instancy.
 ---
 
-# instant-nav
+# next-instant
 
 Take one route from "not instant" to "instant" with a test-driven loop:
 encode the goal as a failing `@next/playwright` `instant()` test, make it
@@ -63,16 +63,17 @@ project's actual build/deploy/test flow rather than assuming a platform.
 ## The workflow
 
 ```
-- [ ] 0  SETUP        once per repo: discover + write instant-nav.rig.md       → rig-template.md
-- [ ] A  RIG          production build with the testing API exposed            → below
-- [ ] B  BASELINE     unlocked: the marker renders for the CI test user        → test-template.md
-- [ ] C  RED          locked instant(): the shell does not commit              → test-template.md
-- [ ] C-gate          VERIFY-RED: stop until the RED is trustworthy            → reference/red-test-robustness.md
-- [ ] D  FIX          push each Suspense boundary down to the data it guards   → reference/patterns.md
+- [ ] P  PREREQS      Next.js 16+ with cacheComponents: true; upgrade first  → below
+- [ ] 0  SETUP        once per repo: discover + write next-instant.rig.md    → rig-template.md
+- [ ] A  RIG          production build with the testing API exposed          → below
+- [ ] B  BASELINE     unlocked: the marker renders for the CI test user      → test-template.md
+- [ ] C  RED          locked instant(): the shell does not commit            → test-template.md
+- [ ] C-gate          VERIFY-RED: stop until the RED is trustworthy          → reference/red-test-robustness.md
+- [ ] D  FIX          push each Suspense boundary down to the data it guards → reference/patterns.md
 - [ ]      D1 reuse the route's existing loading UI; do not hand-build skeletons
 - [ ]      D2 the shell matches the real render at every breakpoint
 - [ ] E  PARITY       the refactor changed only the instancy
-- [ ] F  DIFFERENTIAL revert only the fix → RED; re-apply → GREEN              → reference/red-test-robustness.md
+- [ ] F  DIFFERENTIAL revert only the fix → RED; re-apply → GREEN            → reference/red-test-robustness.md
 - [ ] G  REVIEW       PR checklist (below)
 ```
 
@@ -80,20 +81,37 @@ Phases B–C build the test; only the locked test from C ships.
 
 ---
 
+## P — PREREQUISITES: current Next.js with Cache Components
+
+The workflow depends on framework capabilities that ship with current Next.js:
+
+- **Next.js 16+ with `cacheComponents: true`** in `next.config.ts` — without
+  Cache Components there is no static shell to optimize.
+- **`@next/playwright`** at the version matching the project's `next` — it
+  provides `instant()` and the testing API
+  (`experimental.exposeTestingApiInProductionBuild`).
+- For the optional dev-time loop: a running `next dev` with the `next-dev-loop`
+  skill initiated.
+
+If the project does not meet these, upgrade first (`npx @next/codemod upgrade`
+automates most of it), enable `cacheComponents`, and then continue. This gate
+is deliberate: the skill targets current Next.js, and none of the verdicts
+below are meaningful on older versions.
+
 ## 0 — SETUP: discover this project's rig, once per repo
 
 The principles in this skill are fixed; the infrastructure they run on is
 yours. On first use in a repository, discover how the project builds, deploys,
 authenticates, and tests — inspect the repository first, and ask the user only
 what it cannot answer — then write the answers to a committed
-`instant-nav.rig.md`. Every later run reads that file instead of
+`next-instant.rig.md`. Every later run reads that file instead of
 rediscovering. The six questions (BUILD / EXPOSE / RUN / TEST USER / DRIFT /
 LOOP), the file template, and filled examples (Vercel previews, generic CI +
 container, local-only) are in **`rig-template.md`**.
 
 ## A — RIG: a production build with the testing API exposed
 
-Stand up the rig described by `instant-nav.rig.md`. Two invariants hold on
+Stand up the rig described by `next-instant.rig.md`. Two invariants hold on
 every platform:
 
 1. **Never measure on `next dev`.** Its lock is unreliable for blocking routes
@@ -182,6 +200,13 @@ page-level skeleton to keep in sync.
 **Rule:** if an element renders in both the fallback and the resolved tree,
 hoist it above the boundary.
 
+For interactive diagnosis while fixing — ranking suspended boundaries by
+visible area, classifying blockers by `suspended_by[].name`, screenshot-delta
+verification against `next dev` — use the dev-time loop in
+`reference/dev-loop.md` (initial load: `reference/dev-ppr-loop.md`;
+navigation: `reference/dev-nav-loop.md`). The verdict still comes from the
+production-build test (phases A–C).
+
 ### The most common blocker: a top-level `await` in a layout on a fallback route
 
 ```
@@ -206,12 +231,12 @@ request time (`reference/real-app-patterns.md`, "Deferring an auth gate").
 ```tsx
 // ❌ Before — blocks the whole subtree out of the shell
 export default async function Layout({ children, params }) {
-  await requireUser(params);
-  return <Shell>{children}</Shell>;
+  await requireUser(params)
+  return <Shell>{children}</Shell>
 }
 
 // ✅ After — the layout is in the shell; the gate streams
-import { Suspense } from "react";
+import { Suspense } from 'react'
 export default function Layout({ children, params }) {
   return (
     <Shell>
@@ -220,11 +245,11 @@ export default function Layout({ children, params }) {
       </Suspense>
       {children}
     </Shell>
-  );
+  )
 }
 async function RequireUserGate({ params }) {
-  await requireUser(params);
-  return null;
+  await requireUser(params)
+  return null
 }
 ```
 
@@ -327,7 +352,7 @@ A green final state means nothing if the RED was never trustworthy. Require:
 ## Files
 
 - `rig-template.md` — phase 0: the six-question rig discovery, the
-  `instant-nav.rig.md` template, and filled examples (Vercel, generic CI,
+  `next-instant.rig.md` template, and filled examples (Vercel, generic CI,
   local-only).
 - `test-template.md` — the shipped `instant()` specs for both navigation
   types (phase C), and the delete-before-PR baseline scaffold (phase B).
@@ -340,3 +365,7 @@ A green final state means nothing if the RED was never trustworthy. Require:
 - `reference/real-app-patterns.md` — parallel routes, deferring an auth gate,
   initial-load vs soft-navigation shells, the blank-shell trap, the
   responsive-skeleton trap, edge cases.
+- `reference/dev-loop.md` (+ `dev-ppr-loop.md`, `dev-nav-loop.md`) — the
+  dev-time diagnosis loop: suspended-boundary capture and ranking, blocker
+  classification, refactor levers, screenshot-delta verification. Formerly the
+  `next-cache-components-optimizer` skill.
