@@ -55,6 +55,7 @@ export type FsOutput = {
     | 'publicFolder'
     | 'nextStaticFolder'
     | 'legacyStaticFolder'
+    | 'serviceWorker'
     | 'devVirtualFsItem'
 
   itemPath: string
@@ -524,6 +525,28 @@ export async function setupFsCheck(opts: {
         }
       }
 
+      // Service worker (experimental.turbopackServiceWorkerPath): a single
+      // self-contained bundle served at the root-scoped URL "/service-worker.js".
+      // It is emitted to "<distDir>/service-worker.js" only when configured, so
+      // when the feature is off the file is absent and we fall through.
+      if (itemPath === '/service-worker.js') {
+        const swFsPath = path.join(distDir, 'service-worker.js')
+        const swExists = await fs
+          .access(swFsPath)
+          .then(() => true)
+          .catch(() => false)
+        if (swExists) {
+          // Dedicated "serviceWorker" output served at a root-scoped URL with
+          // no-cache headers (see router-server.ts) so the browser always
+          // revalidates and picks up service-worker updates.
+          return {
+            type: 'serviceWorker',
+            fsPath: swFsPath,
+            itemPath: swFsPath,
+          }
+        }
+      }
+
       const itemsToCheck: Array<[Set<string>, FsOutput['type']]> = [
         [this.devVirtualFsItems, 'devVirtualFsItem'],
         [nextStaticFolderItems, 'nextStaticFolder'],
@@ -652,6 +675,7 @@ export async function setupFsCheck(opts: {
             case 'appFile':
             case 'pageFile':
             case 'nextImage':
+            case 'serviceWorker':
             case 'devVirtualFsItem': {
               break
             }

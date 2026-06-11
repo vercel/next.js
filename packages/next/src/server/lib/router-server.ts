@@ -536,6 +536,14 @@ export async function initialize(opts: {
             )
           }
         }
+
+        // A service worker must always be revalidated so the browser picks up updates.
+        if (
+          !res.getHeader('cache-control') &&
+          matchedOutput.type === 'serviceWorker'
+        ) {
+          res.setHeader('Cache-Control', 'no-cache, must-revalidate')
+        }
         if (!(req.method === 'GET' || req.method === 'HEAD')) {
           res.setHeader('Allow', ['GET', 'HEAD'])
           res.statusCode = 405

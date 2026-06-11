@@ -596,6 +596,7 @@ export async function handleEntrypoints({
   currentEntrypoints.global.error = entrypoints.pagesErrorEndpoint
 
   currentEntrypoints.global.instrumentation = entrypoints.instrumentation
+  currentEntrypoints.global.serviceWorker = entrypoints.serviceWorker
 
   currentEntrypoints.page.clear()
   currentEntrypoints.app.clear()
@@ -780,6 +781,54 @@ export async function handleEntrypoints({
     )
     dev.serverFields.actualMiddlewareFile = undefined
     dev.serverFields.middleware = undefined
+  }
+
+  // Build the single-chunk service-worker bundle so it exists on disk and is
+  // served at /service-worker.js. In dev, we also subscribe to changes on the
+  // service-worker endpoint so editing the service-worker source rebuilds the
+  // bundle without restarting the dev server, and we push a full page reload so
+  // the browser re-fetches the worker and runs its install/activate lifecycle
+  // to pick up the change.
+  const { serviceWorker } = entrypoints
+  if (serviceWorker) {
+    const key = getEntryKey('root', 'server', 'service-worker')
+    const endpoint = serviceWorker.endpoint
+
+    async function processServiceWorker() {
+      const finishBuilding = dev.hooks.startBuilding(
+        'service-worker',
+        undefined,
+        true
+      )
+      const writtenEndpoint = await endpoint.writeToDisk()
+      dev.hooks.handleWrittenEndpoint(key, writtenEndpoint, false)
+      processIssues(currentEntryIssues, key, writtenEndpoint, false, logErrors)
+      finishBuilding()
+    }
+    await processServiceWorker()
+
+    if (dev) {
+      dev.hooks.subscribeToChanges(
+        key,
+        /** includeIssues=*/ false,
+        endpoint,
+        async () => {
+          await processServiceWorker()
+          return {
+            type: HMR_MESSAGE_SENT_TO_BROWSER.RELOAD_PAGE,
+            data: 'service-worker has changed',
+          }
+        },
+        (e) => {
+          return {
+            type: HMR_MESSAGE_SENT_TO_BROWSER.RELOAD_PAGE,
+            data: `error in service-worker subscription: ${e}`,
+          }
+        }
+      )
+    }
+  } else {
+    currentEntryIssues.delete(getEntryKey('root', 'server', 'service-worker'))
   }
 
   await dev.hooks.propagateServerField(
