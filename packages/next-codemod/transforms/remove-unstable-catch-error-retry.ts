@@ -107,7 +107,18 @@ export default function transformer(
     let changed = false
     const shouldRename = (name: string): boolean => name in mapping
     // Variables bound to the whole module: `import * as m`, `const m = require()`.
-    const moduleVariables = new Set<string>()
+    // Keyed by name -> the binding scopes where that name is the module binding,
+    // so a shadowing local of the same name is never treated as the module.
+    const moduleVariables = new Map<string, any[]>()
+    const addModuleVariable = (name: string, scope: any): void => {
+      const scopes = moduleVariables.get(name) || []
+      scopes.push(scope)
+      moduleVariables.set(name, scopes)
+    }
+    const isModuleVariable = (name: string, scope: any): boolean => {
+      const scopes = moduleVariables.get(name)
+      return !!scopes && scopes.indexOf(scope) !== -1
+    }
 
     // import { unstable_catchError } from 'next/error'
     root
@@ -115,7 +126,7 @@ export default function transformer(
       .forEach((path) => {
         path.node.specifiers?.forEach((specifier) => {
           if (specifier.type === 'ImportNamespaceSpecifier') {
-            moduleVariables.add(specifier.local.name)
+            addModuleVariable(specifier.local.name, path.scope)
             return
           }
           if (
@@ -193,7 +204,7 @@ export default function transformer(
         if (parent?.type !== 'VariableDeclarator') return
 
         if (parent.id?.type === 'Identifier') {
-          moduleVariables.add(parent.id.name)
+          addModuleVariable(parent.id.name, declaratorPath.scope)
           return
         }
         if (parent.id?.type !== 'ObjectPattern') return
@@ -244,7 +255,8 @@ export default function transformer(
         node.object.arguments[0].value === source
       const isModuleVar =
         node.object?.type === 'Identifier' &&
-        moduleVariables.has(node.object.name)
+        !!path.scope &&
+        isModuleVariable(node.object.name, path.scope.lookup(node.object.name))
       if (!isRequireOfSource && !isModuleVar) return
 
       if (
@@ -360,8 +372,10 @@ export default function transformer(
       }
     })
 
-    // 3. Member access: props.unstable_retry where props.reset is also accessed
-    const siblingObjects = new Set<string>()
+    // 3. Member access: obj.unstable_retry where the SAME `obj` binding also has
+    // an `obj.reset` access. Matching is by binding identity (scope lookup), not
+    // by name, so a same-named object in another scope is never rewritten.
+    const siblingBindingScopes = new Map<string, Set<any>>()
     root.find(j.MemberExpression).forEach((path) => {
       const node = path.node
       if (
@@ -370,18 +384,23 @@ export default function transformer(
         node.property?.type === 'Identifier' &&
         node.property.name === sibling
       ) {
-        siblingObjects.add(node.object.name)
+        const objName = node.object.name
+        const bindingScope = path.scope ? path.scope.lookup(objName) : null
+        const set = siblingBindingScopes.get(objName) || new Set()
+        set.add(bindingScope)
+        siblingBindingScopes.set(objName, set)
       }
     })
-    if (siblingObjects.size > 0) {
+    if (siblingBindingScopes.size > 0) {
       root.find(j.MemberExpression).forEach((path) => {
         const node = path.node
-        if (
-          node.object?.type !== 'Identifier' ||
-          !siblingObjects.has(node.object.name)
-        ) {
-          return
-        }
+        if (node.object?.type !== 'Identifier') return
+        const set = siblingBindingScopes.get(node.object.name)
+        if (!set) return
+        const bindingScope = path.scope
+          ? path.scope.lookup(node.object.name)
+          : null
+        if (!set.has(bindingScope)) return
         if (
           !node.computed &&
           node.property?.type === 'Identifier' &&
