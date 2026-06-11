@@ -561,7 +561,7 @@ async function Post({ params }) {
 }
 ```
 
-Client hooks that read the route need the same treatment. In the App Shell, the params, and by extension the pathname, are unknown, so reading these hooks suspends, wherever the component renders. A nav or breadcrumb in a shared layout, for instance, suspends while Next.js generates the App Shell for any route below it that has dynamic params. Wrap the component that reads the hook in `<Suspense>` (push the read down to the smallest leaf so the rest stays prerendered), or the build fails:
+The same applies to client hooks that read the route. When the route's pathname is fully known, they resolve during prerendering and need no boundary. When it depends on dynamic params not yet known, they suspend, wherever the component sits. A nav or breadcrumb in a shared layout, for instance, suspends while Next.js generates the App Shell for any route below it that has dynamic params. Wrap the component that reads the hook in `<Suspense>` (push the read down to the smallest leaf so the rest stays prerendered), or the build fails:
 
 - [`usePathname`](/docs/app/api-reference/functions/use-pathname)
 - [`useParams`](/docs/app/api-reference/functions/use-params)
