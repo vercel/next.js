@@ -1,10 +1,10 @@
-# Rig discovery — generate this project's `instant-nav.rig.md`
+# Rig discovery — generate this project's `next-instant.rig.md`
 
 The skill's principles are environment-independent. Your build, deploy, auth,
 and test infrastructure are not. This phase converts the principles into THIS
 project's concrete workflow: run discovery once per repo, write the answers to
-a committed `instant-nav.rig.md` (repo root, or next to your e2e config), and
-every later instant-nav run reads that file instead of rediscovering.
+a committed `next-instant.rig.md` (repo root, or next to your e2e config), and
+every later next-instant run reads that file instead of rediscovering.
 
 The skill is deliberately opinionated about **what** the rig must provide, and
 deliberately unopinionated about **how** your stack provides it.
@@ -49,10 +49,10 @@ agent is allowed to push and wait on CI unattended.
    local build → start → test. Note anything an agent cannot do alone
    (deploy approvals, secrets, protected branches).
 
-## The file — copy, fill, commit as `instant-nav.rig.md`
+## The file — copy, fill, commit as `next-instant.rig.md`
 
 ```md
-# instant-nav rig — <project>
+# next-instant rig — <project>
 
 - BUILD: <command / platform that produces the measured production build>
 - EXPOSE: <the condition wired to exposeTestingApiInProductionBuild>

@@ -14,38 +14,38 @@ assertions in the shipped test.
 Drive a real `<Link>` click. The committed shell is the destination's prefetched static shell.
 
 ```ts
-import { test, expect } from "@playwright/test";
-import { instant } from "@next/playwright";
+import { test, expect } from '@playwright/test'
+import { instant } from '@next/playwright'
 // Use the auth/setup helpers your e2e suite already has. The test user here
 // must be the CI test user — the account the suite runs as in CI.
-import { logIntoTestAccount, testUrl } from "../helpers";
+import { logIntoTestAccount, testUrl } from '../helpers'
 
 // A SYNC element of the destination's static shell (header, action button,
 // column header) — not data that streams in, and one that renders for the CI
 // test user (not gated by a flag, plan, role, or empty state). Prefer a
 // data-testid on a known static node over a guessed role/name.
-const SHELL_MARKER = '[data-testid="<b>-shell-marker"]';
+const SHELL_MARKER = '[data-testid="<b>-shell-marker"]'
 
-test.describe("instant nav: A -> B", () => {
+test.describe('instant nav: A -> B', () => {
   test.beforeEach(async ({ page, browser }) => {
-    await logIntoTestAccount(page, browser);
-  });
+    await logIntoTestAccount(page, browser)
+  })
 
-  test("B shell commits under instant()", async ({ page }) => {
-    await page.goto(testUrl("/"));
-    const trigger = page.getByRole("link", { name: "<Trigger>", exact: true });
-    await expect(trigger).toBeVisible({ timeout: 20000 });
+  test('B shell commits under instant()', async ({ page }) => {
+    await page.goto(testUrl('/'))
+    const trigger = page.getByRole('link', { name: '<Trigger>', exact: true })
+    await expect(trigger).toBeVisible({ timeout: 20000 })
 
     await instant(page, async () => {
-      await trigger.click();
+      await trigger.click()
       // Dynamic data is gated under the lock — assert the static shell
       // appears. That is the instant property. No custom timeout: a blocking
       // route's content never commits under the lock, and an instant route's
       // shell is present.
-      await expect(page.locator(SHELL_MARKER)).toBeVisible();
-    });
-  });
-});
+      await expect(page.locator(SHELL_MARKER)).toBeVisible()
+    })
+  })
+})
 ```
 
 ## Initial load (hard navigation)
@@ -55,17 +55,17 @@ route's prerendered static shell. This is also where interactivity across hydrat
 asserted — for example, that input typed before hydration completes is preserved.
 
 ```ts
-test("initial load: B shell is served", async ({ page }) => {
-  const url = testUrl("/<b>");
+test('initial load: B shell is served', async ({ page }) => {
+  const url = testUrl('/<b>')
   await instant(
     page,
     async () => {
-      await page.goto(url);
-      await expect(page.locator(SHELL_MARKER)).toBeVisible();
+      await page.goto(url)
+      await expect(page.locator(SHELL_MARKER)).toBeVisible()
     },
-    { baseURL: new URL(url).origin },
-  );
-});
+    { baseURL: new URL(url).origin }
+  )
+})
 ```
 
 The two shells can differ for the same route (`reference/real-app-patterns.md`). Guard the case
@@ -80,11 +80,11 @@ route — a warmed route serves the content regardless (see `reference/red-test-
 
 ```ts
 await instant(page, async () => {
-  await trigger.click();
-  await expect(page.getByTestId("b-shell")).toBeVisible(); // shell present
-  await expect(page.getByTestId("b-content")).toHaveCount(0); // deferred data gated
-});
-await expect(page.getByTestId("b-content")).toBeVisible(); // streams after release
+  await trigger.click()
+  await expect(page.getByTestId('b-shell')).toBeVisible() // shell present
+  await expect(page.getByTestId('b-content')).toHaveCount(0) // deferred data gated
+})
+await expect(page.getByTestId('b-content')).toBeVisible() // streams after release
 ```
 
 ## Baseline scaffold — do not ship
@@ -96,16 +96,16 @@ most untrustworthy REDs come from. Confirm the marker is real and reachable, the
 scaffold before the PR:
 
 ```ts
-test("dev-only: navigating to <b> renders its shell (no lock)", async ({
+test('dev-only: navigating to <b> renders its shell (no lock)', async ({
   page,
 }) => {
-  await page.goto(testUrl("/"));
-  const trigger = page.getByRole("link", { name: "<Trigger>", exact: true });
-  await expect(trigger).toBeVisible({ timeout: 20000 });
-  await trigger.click();
-  await expect(page).toHaveURL(/\/<b>(\?|$)/); // confirm the real destination (no redirect away)
-  await expect(page.locator(SHELL_MARKER)).toBeVisible({ timeout: 15000 });
-});
+  await page.goto(testUrl('/'))
+  const trigger = page.getByRole('link', { name: '<Trigger>', exact: true })
+  await expect(trigger).toBeVisible({ timeout: 20000 })
+  await trigger.click()
+  await expect(page).toHaveURL(/\/<b>(\?|$)/) // confirm the real destination (no redirect away)
+  await expect(page.locator(SHELL_MARKER)).toBeVisible({ timeout: 15000 })
+})
 ```
 
 Notes:
