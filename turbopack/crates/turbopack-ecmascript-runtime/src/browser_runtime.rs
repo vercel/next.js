@@ -59,11 +59,14 @@ pub async fn get_browser_runtime_code(
     let mut runtime_backend_code = vec![];
     match (chunk_loading, runtime_type) {
         (ChunkLoading::Edge, RuntimeType::Development) => {
-            runtime_backend_code.push("browser/runtime/edge/runtime-backend-edge.ts");
-            runtime_backend_code.push("browser/runtime/edge/dev-backend-edge.ts");
+            runtime_backend_code
+                .push("browser/runtime/self-contained/runtime-backend-self-contained.ts");
+            runtime_backend_code
+                .push("browser/runtime/self-contained/dev-backend-self-contained.ts");
         }
         (ChunkLoading::Edge, RuntimeType::Production) => {
-            runtime_backend_code.push("browser/runtime/edge/runtime-backend-edge.ts");
+            runtime_backend_code
+                .push("browser/runtime/self-contained/runtime-backend-self-contained.ts");
         }
         // This case should never be hit.
         (ChunkLoading::NodeJs, _) => {
