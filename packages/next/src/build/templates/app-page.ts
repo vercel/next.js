@@ -882,6 +882,7 @@ export async function handler(
               }
             : {}),
           cacheComponents: Boolean(nextConfig.cacheComponents),
+          partialPrefetching: nextConfig.partialPrefetching,
           validationLevel:
             nextConfig.experimental.instantInsights.validationLevel,
           experimental: {
