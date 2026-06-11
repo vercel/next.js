@@ -376,7 +376,7 @@ export async function handler(
   }
 
   if (
-    !getRequestMeta(req, 'postponed') &&
+    typeof getRequestMeta(req, 'postponed') !== 'string' &&
     couldSupportPPR &&
     req.headers[NEXT_RESUME_HEADER] === '1' &&
     req.method === 'POST'
@@ -470,6 +470,7 @@ export async function handler(
   const minimalPostponed = isRoutePPREnabled
     ? getRequestMeta(req, 'postponed')
     : undefined
+  const hasPostponedState = typeof minimalPostponed === 'string'
 
   // If PPR is enabled, and this is a RSC request (but not a prefetch), then
   // we can use this fact to only generate the flight data for the request
@@ -486,11 +487,11 @@ export async function handler(
     // Only do this for routes that have a concrete prefetchDataRoute.
     !staticPrefetchDataRoute
 
-  // During a PPR revalidation, the RSC request is not dynamic if we do not have the postponed data.
-  // We only attach the postponed data during a resume. If there's no postponed data, then it must be a revalidation.
-  // This is to ensure that we don't bypass the cache during a revalidation.
+  // During a PPR revalidation, the RSC request is not dynamic if postponed
+  // metadata is absent. An empty string represents a resume request without
+  // postponed state, which should perform a full dynamic render.
   if (isMinimalMode) {
-    isDynamicRSCRequest = isDynamicRSCRequest && !!minimalPostponed
+    isDynamicRSCRequest = isDynamicRSCRequest && hasPostponedState
   }
 
   // Need to read this before it's stripped by stripFlightHeaders. We don't
@@ -546,7 +547,7 @@ export async function handler(
     !isSSG ||
     // If this request has provided postponed data, it supports dynamic
     // HTML.
-    typeof minimalPostponed === 'string' ||
+    hasPostponedState ||
     // If this handler supports onCacheEntryV2, then we can only support
     // dynamic responses if it's a dynamic RSC request and not in minimal mode. If it
     // doesn't support it we must fallback to the default behavior.
@@ -583,7 +584,7 @@ export async function handler(
     isSSG &&
     !supportsDynamicResponse &&
     !isPossibleServerAction &&
-    !minimalPostponed &&
+    !hasPostponedState &&
     !isDynamicRSCRequest
   ) {
     // For normal SSG routes we cache by the fully resolved pathname. For
@@ -1595,7 +1596,7 @@ export async function handler(
 
       // If this is a resume request in minimal mode it is streamed with dynamic
       // content and should not be cached.
-      if (minimalPostponed) {
+      if (hasPostponedState) {
         cacheControl = { revalidate: 0, expire: undefined }
       }
 
