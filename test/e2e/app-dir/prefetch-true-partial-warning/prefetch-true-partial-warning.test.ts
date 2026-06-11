@@ -39,6 +39,16 @@ describe('prefetch-true-partial-warning', () => {
       'Default dynamic'
     )
 
+    await expect(browser).toDisplayCollapsedRedbox(`
+     {
+       "code": "E394",
+       "description": "A <Link prefetch={true}> navigated to "/default-route", but Partial Prefetching is not enabled for that route, so its dynamic data was included in the prefetch. Enable Partial Prefetching app-wide by setting \`partialPrefetching: true\` in next.config, or per-route by exporting \`const prefetch = 'partial'\` from the page or layout.",
+       "environmentLabel": null,
+       "label": "Console Error",
+       "source": null,
+       "stack": [],
+     }
+    `)
     expect(await browser.log()).toContainEqual(
       expect.objectContaining({
         source: 'error',
