@@ -39,7 +39,6 @@ import {
 
 import {
   applyOwnerStack,
-  makeDevtoolsIOAwarePromise,
   makeHangingPromise,
   getSessionDataStage,
   getRuntimeLinkDataStage,
@@ -964,10 +963,8 @@ function maybePropagateCacheEntryMetadata(
       break
     }
     case 'request': {
-      if (
-        process.env.NODE_ENV === 'development' &&
-        outerWorkUnitStore.cacheSignal
-      ) {
+      // TODO: is this correct for cached navs?
+      if (process.env.__NEXT_DEV_SERVER && outerWorkUnitStore.cacheSignal) {
         // If we're filling caches for a dev request, apply the same logic as
         // prerenders do above.
         break
@@ -1844,31 +1841,16 @@ export async function cache(
   if (cacheContext.kind === 'private') {
     const { outerWorkUnitStore } = cacheContext
     switch (outerWorkUnitStore.type) {
+      case 'request':
       case 'prerender-runtime': {
-        // In a runtime prerender, we have to make sure that APIs that would hang during a static prerender
-        // are resolved with a delay, in the appropriate runtime stage. Private caches read from
-        // Segments not using runtime prefetch resolve at EarlyRuntime,
-        // while runtime-prefetchable segments resolve at Runtime.
+        // In a runtime prerender or a staged render, we have to make sure that APIs that would
+        // hang during a static prerender are excluded from the static stage, so we delay them.
         const stagedRendering = outerWorkUnitStore.stagedRendering
         if (stagedRendering) {
           await stagedRendering.waitForStage(
             // TODO(app-shells): exclude private caches with a short staletime from shells
             getSessionDataStage(stagedRendering)
           )
-        }
-        break
-      }
-      case 'request': {
-        if (process.env.NODE_ENV === 'development') {
-          // Similar to runtime prerenders, private caches should not resolve in the static stage
-          // of a dev request, so we delay them. We pick the appropriate runtime stage based on
-          // whether we're in the early or late stages.
-          const stagedRendering = outerWorkUnitStore.stagedRendering
-          const stage = stagedRendering
-            ? // TODO(app-shells): exclude private caches with a short staletime
-              getSessionDataStage(stagedRendering)
-            : RenderStage.Runtime
-          await makeDevtoolsIOAwarePromise(undefined, outerWorkUnitStore, stage)
         }
         break
       }
@@ -2294,35 +2276,44 @@ export async function cache(
               break
             }
             case 'request': {
-              if (process.env.NODE_ENV === 'development') {
-                // These throws force the user to make an explicit cache life
-                // decision on an outer cache that an inner cache would
-                // otherwise silently shorten. A dev private cache's
-                // `revalidate` is forced to 0 by us (not by a nested cache), so
-                // it's excluded from the first throw to avoid a false positive.
-                // Its forced `expire` is exactly DYNAMIC_EXPIRE, so it never
-                // trips the second throw and needs no exclusion there.
-                if (
-                  cacheContext.kind !== 'private' &&
-                  rdcResult.entry.revalidate === 0 &&
-                  rdcResult.hasExplicitRevalidate === false
-                ) {
-                  throw wrapAsInvalidDynamicUsageError(
+              // These throws force the user to make an explicit cache life
+              // decision on an outer cache that an inner cache would
+              // otherwise silently shorten. A dev private cache's
+              // `revalidate` is forced to 0 by us (not by a nested cache), so
+              // it's excluded from the first throw to avoid a false positive.
+              // Its forced `expire` is exactly DYNAMIC_EXPIRE, so it never
+              // trips the second throw and needs no exclusion there.
+              if (
+                !(
+                  process.env.NODE_ENV === 'development' &&
+                  cacheContext.kind === 'private'
+                ) &&
+                rdcResult.entry.revalidate === 0 &&
+                rdcResult.hasExplicitRevalidate === false
+              ) {
+                throwInDev(
+                  wrapAsInvalidDynamicUsageError(
                     new Error(nestedCacheZeroRevalidateErrorMessage, {
                       cause: rdcResult.dynamicNestedCacheError,
                     })
                   )
-                }
-                if (
-                  rdcResult.entry.expire < DYNAMIC_EXPIRE &&
-                  rdcResult.hasExplicitExpire === false
-                ) {
-                  throw wrapAsInvalidDynamicUsageError(
+                )
+              }
+              if (
+                rdcResult.entry.expire < DYNAMIC_EXPIRE &&
+                rdcResult.hasExplicitExpire === false
+              ) {
+                throwInDev(
+                  wrapAsInvalidDynamicUsageError(
                     new Error(nestedCacheShortExpireErrorMessage, {
                       cause: rdcResult.dynamicNestedCacheError,
                     })
                   )
-                }
+                )
+              }
+
+              const stagedRendering = workUnitStore.stagedRendering
+              if (stagedRendering) {
                 // A short-lived entry is a dynamic hole, excluded from the
                 // static shell, so we end the cache signal read here (the
                 // prerender case does the same) to avoid this cache hit being
@@ -2334,15 +2325,8 @@ export async function cache(
                   cacheSignalReadEnded = true
                 }
 
-                const stagedRendering = workUnitStore.stagedRendering
-                const stage = stagedRendering
-                  ? getSessionDataStage(stagedRendering)
-                  : RenderStage.Runtime
-                await makeDevtoolsIOAwarePromise(
-                  undefined,
-                  workUnitStore,
-                  stage
-                )
+                const stage = getSessionDataStage(stagedRendering)
+                await stagedRendering.waitForStage(stage)
               }
               break
             }
@@ -2383,7 +2367,9 @@ export async function cache(
             case 'request': {
               // A short stale time excludes the entry from prerenders.
               // We delay it here to match that.
-              if (process.env.NODE_ENV === 'development') {
+              const stagedRendering =
+                getStagedRenderingController(workUnitStore)
+              if (stagedRendering) {
                 // End the cache signal read (once, in case the expire block
                 // above already did) so the deferred value isn't counted as a
                 // pending read at a staged rendering boundary, then defer it to
@@ -2392,11 +2378,7 @@ export async function cache(
                   cacheSignal.endRead()
                   cacheSignalReadEnded = true
                 }
-                await makeDevtoolsIOAwarePromise(
-                  undefined,
-                  workUnitStore,
-                  RenderStage.Dynamic
-                )
+                await stagedRendering.waitForStage(RenderStage.Dynamic)
               }
               break
             }
@@ -2891,7 +2873,8 @@ export async function cache(
               })
               return hangingPromise
             case 'request': {
-              if (process.env.NODE_ENV === 'development') {
+              const stagedRendering = workUnitStore.stagedRendering
+              if (stagedRendering) {
                 // A short-lived entry is a dynamic hole, excluded from the
                 // static shell, so we end the cache signal read here (the
                 // prerender case does the same) to avoid this cache hit being
@@ -2902,15 +2885,8 @@ export async function cache(
                   cacheSignal.endRead()
                   cacheSignalReadEnded = true
                 }
-
-                const stagedRendering = workUnitStore.stagedRendering
-                const stage = stagedRendering
-                  ? getSessionDataStage(stagedRendering)
-                  : RenderStage.Runtime
-                await makeDevtoolsIOAwarePromise(
-                  undefined,
-                  workUnitStore,
-                  stage
+                await stagedRendering.waitForStage(
+                  getSessionDataStage(stagedRendering)
                 )
               }
               break
@@ -2933,7 +2909,9 @@ export async function cache(
             case 'request': {
               // A short stale time excludes the entry from prerenders.
               // We delay it here to match that.
-              if (process.env.NODE_ENV === 'development') {
+              const stagedRendering =
+                getStagedRenderingController(workUnitStore)
+              if (stagedRendering) {
                 // End the cache signal read (once, in case the expire block
                 // above already did) so the deferred value isn't counted as a
                 // pending read at a staged rendering boundary, then defer it to
@@ -2942,11 +2920,7 @@ export async function cache(
                   cacheSignal.endRead()
                   cacheSignalReadEnded = true
                 }
-                await makeDevtoolsIOAwarePromise(
-                  undefined,
-                  workUnitStore,
-                  RenderStage.Dynamic
-                )
+                await stagedRendering.waitForStage(RenderStage.Dynamic)
               }
               break
             }
@@ -3245,6 +3219,14 @@ export async function cache(
     replayConsoleLogs,
     environmentName: 'Cache',
   })
+}
+
+function throwInDev(error: Error) {
+  if (process.env.NODE_ENV === 'development') {
+    throw error
+  } else {
+    console.error(error)
+  }
 }
 
 /**
