@@ -1,0 +1,105 @@
+---
+title: prefetchInlining
+description: Configure App Router segment prefetch inlining.
+version: experimental
+related:
+  title: Related
+  description: View related API references and guides.
+  links:
+    - app/api-reference/config/next-config-js/cacheComponents
+    - app/api-reference/config/next-config-js/partialPrefetching
+    - app/api-reference/components/link
+    - app/guides/runtime-prefetching
+---
+
+`prefetchInlining` controls whether small App Router segment prefetch responses are bundled into fewer requests. It is enabled by default.
+
+The App Router can prefetch segment data independently so shared layouts can be reused across routes. Inlining reduces the number of prefetch requests by including small segment responses in another segment's response, trading some deduplication for lower request overhead.
+
+Most apps do not need to configure this option. It is primarily useful when you need to tune or temporarily disable prefetch inlining while testing navigation behavior or request volume.
+
+## Usage
+
+To disable prefetch inlining, set `experimental.prefetchInlining` to `false`:
+
+```ts filename="next.config.ts" switcher
+import type { NextConfig } from 'next'
+
+const nextConfig: NextConfig = {
+  experimental: {
+    prefetchInlining: false,
+  },
+}
+
+export default nextConfig
+```
+
+```js filename="next.config.js" switcher
+/** @type {import('next').NextConfig} */
+const nextConfig = {
+  experimental: {
+    prefetchInlining: false,
+  },
+}
+
+module.exports = nextConfig
+```
+
+To tune the inlining thresholds, pass an object:
+
+```ts filename="next.config.ts" switcher
+import type { NextConfig } from 'next'
+
+const nextConfig: NextConfig = {
+  experimental: {
+    prefetchInlining: {
+      maxSize: 2048,
+      maxBundleSize: 10240,
+    },
+  },
+}
+
+export default nextConfig
+```
+
+```js filename="next.config.js" switcher
+/** @type {import('next').NextConfig} */
+const nextConfig = {
+  experimental: {
+    prefetchInlining: {
+      maxSize: 2048,
+      maxBundleSize: 10240,
+    },
+  },
+}
+
+module.exports = nextConfig
+```
+
+## Reference
+
+| Value    | Description                                                                 |
+| -------- | --------------------------------------------------------------------------- |
+| `true`   | Enables prefetch inlining with the default thresholds. This is the default. |
+| `false`  | Disables prefetch inlining.                                                 |
+| `object` | Enables prefetch inlining with custom `maxSize` or `maxBundleSize` values.  |
+
+### Options
+
+| Option          | Type     | Default | Description                                                                                                      |
+| --------------- | -------- | ------- | ---------------------------------------------------------------------------------------------------------------- |
+| `maxSize`       | `number` | `2048`  | Maximum gzip-compressed size, in bytes, for a segment response to be considered for inlining.                    |
+| `maxBundleSize` | `number` | `10240` | Maximum total gzip-compressed size, in bytes, that can be inlined into a bundled prefetch response along a path. |
+
+## Trade-offs
+
+Inlining can reduce request count for prefetched routes, which is useful on high-latency networks or platforms where request volume affects cost. The trade-off is that shared layout data may be duplicated across multiple prefetched route responses instead of being fetched once and reused from the client cache.
+
+Lower thresholds preserve more per-segment deduplication. Higher thresholds inline more segment data and can reduce the number of prefetch requests further.
+
+## Version History
+
+| Version | Change                                 |
+| ------- | -------------------------------------- |
+| 16.3.0  | `prefetchInlining` enabled by default. |
+| 16.2.0  | `experimental.prefetchInlining` added. |
