@@ -34,9 +34,9 @@ use turbo_tasks::{
 use crate::{
     backend::{cell_data::CellData, counter_map::CounterMap},
     data::{
-        ActivenessState, AggregationNumber, CellDependency, CollectibleRef, CollectiblesRef,
-        Dirtyness, InProgressCellState, InProgressState, LeafDistance, OutputValue, RootType,
-        TransientTask,
+        ActivenessState, AggregationNumber, CellDependency, CellRef, CollectibleRef,
+        CollectiblesRef, Dirtyness, InProgressCellState, InProgressState, LeafDistance,
+        OutputValue, RootType, TransientTask,
     },
 };
 
@@ -245,7 +245,9 @@ struct TaskStorageSchema {
     )]
     output_dependencies: AutoSet<TaskId, 6>,
 
-    /// Cells this task depends on.
+    /// Cells this task depends on as a whole (keyless `CellDependency::All`). The common case;
+    /// kept separate from `cell_dependencies_hashed` so it stores a bare `CellRef` instead of the
+    /// wider `CellDependency` enum (no tag, no `u64`).
     #[field(
         storage = "auto_set",
         category = "data",
@@ -253,7 +255,17 @@ struct TaskStorageSchema {
         shrink_on_completion,
         drop_on_completion_if_immutable
     )]
-    cell_dependencies: AutoSet<CellDependency, 1>,
+    cell_dependencies_all: AutoSet<CellRef, 1>,
+
+    /// Cells this task depends on, narrowed to a hashed sub-value (`CellDependency::Hash`). Rare.
+    #[field(
+        storage = "auto_set",
+        category = "data",
+        filter_transient,
+        shrink_on_completion,
+        drop_on_completion_if_immutable
+    )]
+    cell_dependencies_hashed: AutoSet<(CellRef, u64), 1>,
 
     /// Collectibles this task depends on.
     #[field(
@@ -269,9 +281,13 @@ struct TaskStorageSchema {
     #[field(storage = "auto_set", category = "transient", shrink_on_completion)]
     outdated_output_dependencies: AutoSet<TaskId, 6>,
 
-    /// Outdated cell dependencies to be cleaned up (transient).
+    /// Outdated keyless cell dependencies to be cleaned up (transient).
     #[field(storage = "auto_set", category = "transient", shrink_on_completion)]
-    outdated_cell_dependencies: AutoSet<CellDependency, 1>,
+    outdated_cell_dependencies_all: AutoSet<CellRef, 1>,
+
+    /// Outdated hashed cell dependencies to be cleaned up (transient).
+    #[field(storage = "auto_set", category = "transient", shrink_on_completion)]
+    outdated_cell_dependencies_hashed: AutoSet<(CellRef, u64), 1>,
 
     /// Outdated collectibles dependencies to be cleaned up (transient).
     #[field(storage = "auto_set", category = "transient", shrink_on_completion)]
@@ -280,13 +296,26 @@ struct TaskStorageSchema {
     // =========================================================================
     // DEPENDENTS - Tasks that depend on this task's cells
     // =========================================================================
+    /// Tasks that depend on this task's cells as a whole (keyless). Reverse of
+    /// `cell_dependencies_all`. In a `cell_dependents` entry the `CellRef.task` field holds the
+    /// DEPENDENT task's id and `CellRef.cell` is this task's cell (see `CellDependency` docs).
     #[field(
         storage = "auto_set",
         category = "data",
         filter_transient,
         drop_on_completion_if_immutable
     )]
-    cell_dependents: AutoSet<CellDependency, 1>,
+    cell_dependents_all: AutoSet<CellRef, 1>,
+
+    /// Tasks that depend on a hashed sub-value of this task's cells. Reverse of
+    /// `cell_dependencies_hashed`.
+    #[field(
+        storage = "auto_set",
+        category = "data",
+        filter_transient,
+        drop_on_completion_if_immutable
+    )]
+    cell_dependents_hashed: AutoSet<(CellRef, u64), 1>,
 
     /// Tasks that depend on collectibles of a specific type from this task.
     /// Maps TraitTypeId -> Set<TaskId>
@@ -855,6 +884,16 @@ impl IsTransient for CellDependency {
         CellDependency::is_transient(self)
     }
 }
+impl IsTransient for CellRef {
+    fn is_transient(&self) -> bool {
+        CellRef::is_transient(self)
+    }
+}
+impl IsTransient for (CellRef, u64) {
+    fn is_transient(&self) -> bool {
+        self.0.is_transient()
+    }
+}
 
 /// Defines a strategy for merging data from disk into this storage item.
 ///
@@ -957,7 +996,7 @@ mod tests {
     use turbo_tasks::{CellId, TaskId};
 
     use super::*;
-    use crate::data::{AggregationNumber, CellDependency, CellRef, Dirtyness, OutputValue};
+    use crate::data::{AggregationNumber, CellRef, Dirtyness, OutputValue};
 
     #[test]
     fn test_accessors() {
@@ -1243,15 +1282,13 @@ mod tests {
         original
             .output_dependencies_mut()
             .insert(TaskId::new(200).unwrap());
-        original
-            .cell_dependencies_mut()
-            .insert(CellDependency::All(CellRef {
-                task: TaskId::new(1).unwrap(),
-                cell: CellId {
-                    type_id: unsafe { turbo_tasks::ValueTypeId::new_unchecked(1) },
-                    index: 0,
-                },
-            }));
+        original.cell_dependencies_all_mut().insert(CellRef {
+            task: TaskId::new(1).unwrap(),
+            cell: CellId {
+                type_id: unsafe { turbo_tasks::ValueTypeId::new_unchecked(1) },
+                index: 0,
+            },
+        });
 
         // Set lazy data transient field (should NOT be serialized)
         original
@@ -1304,7 +1341,7 @@ mod tests {
                 .unwrap()
                 .contains(&TaskId::new(200).unwrap())
         );
-        assert_eq!(decoded.cell_dependencies().unwrap().len(), 1);
+        assert_eq!(decoded.cell_dependencies_all().unwrap().len(), 1);
 
         // Verify transient fields were NOT decoded
         assert!(decoded.outdated_output_dependencies().is_none());
@@ -1390,15 +1427,13 @@ mod tests {
         storage.output_dependent_mut().insert(transient_task(3));
 
         // Lazy filter_transient data field.
-        storage
-            .cell_dependencies_mut()
-            .insert(CellDependency::All(CellRef {
-                task: persistent_task(10),
-                cell: CellId {
-                    type_id: unsafe { turbo_tasks::ValueTypeId::new_unchecked(1) },
-                    index: 0,
-                },
-            }));
+        storage.cell_dependencies_all_mut().insert(CellRef {
+            task: persistent_task(10),
+            cell: CellId {
+                type_id: unsafe { turbo_tasks::ValueTypeId::new_unchecked(1) },
+                index: 0,
+            },
+        });
 
         // Mark as restored so the task is eligible for dropping.
         storage.flags.set_data_restored(true);
@@ -1416,7 +1451,7 @@ mod tests {
         assert_eq!(storage.output_dependent().len(), 1);
         // Lazy non-filter-transient residue: cell_dependencies had only persistent
         // entries and should be dropped entirely.
-        assert!(storage.cell_dependencies().is_none());
+        assert!(storage.cell_dependencies_all().is_none());
         // data_restored cleared; meta_restored untouched.
         assert!(!storage.flags.data_restored());
         assert!(storage.flags.meta_restored());

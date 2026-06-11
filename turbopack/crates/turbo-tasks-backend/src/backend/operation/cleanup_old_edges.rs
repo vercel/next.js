@@ -9,7 +9,7 @@ use crate::{
     backend::{
         TaskDataCategory,
         operation::{
-            AggregatedDataUpdate, ExecuteContext, Operation,
+            AggregatedDataUpdate, ExecuteContext, Operation, TaskGuard,
             aggregation_update::{
                 AggregationUpdateJob, AggregationUpdateQueue, InnerOfUppersLostFollowersJob,
                 get_aggregation_number, get_uppers, is_aggregating_node,

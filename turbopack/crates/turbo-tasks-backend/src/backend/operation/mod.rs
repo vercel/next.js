@@ -31,7 +31,9 @@ use crate::{
         storage::{SpecificTaskDataCategory, StorageWriteGuard},
         storage_schema::{TaskStorage, TaskStorageAccessors},
     },
-    data::{ActivenessState, CollectibleRef, Dirtyness, InProgressState, TransientTask},
+    data::{
+        ActivenessState, CellDependency, CollectibleRef, Dirtyness, InProgressState, TransientTask,
+    },
 };
 
 pub trait Operation: Encode + Decode<()> + Default + TryFrom<AnyOperation, Error = ()> {
@@ -1297,6 +1299,92 @@ pub trait TaskGuard: Debug + TaskStorageAccessors {
     fn get_task_name(&self) -> String {
         let task_type = self.get_task_type().to_owned();
         format!("{task_type}")
+    }
+
+    // ============ Cell dependency edges (CellDependency API over split storage) ============
+    //
+    // Cell dependency edges are stored split into a keyless set (`*_all: AutoSet<CellRef>`) and a
+    // keyed set (`*_hashed: AutoSet<(CellRef, u64)>`) so the common keyless edge doesn't pay for
+    // the `CellDependency` enum tag + `u64`. These methods preserve the original
+    // `CellDependency`-based API by dispatching/merging over the two generated accessor sets, so
+    // callers don't need to know about the split.
+
+    fn remove_cell_dependencies(&mut self, dep: &CellDependency) -> bool {
+        match *dep {
+            CellDependency::All(r) => self.remove_cell_dependencies_all(&r),
+            CellDependency::Hash(r, k) => self.remove_cell_dependencies_hashed(&(r, k)),
+        }
+    }
+    fn remove_outdated_cell_dependencies(&mut self, dep: &CellDependency) -> bool {
+        match *dep {
+            CellDependency::All(r) => self.remove_outdated_cell_dependencies_all(&r),
+            CellDependency::Hash(r, k) => self.remove_outdated_cell_dependencies_hashed(&(r, k)),
+        }
+    }
+
+    fn cell_dependencies_contains(&self, dep: &CellDependency) -> bool {
+        match *dep {
+            CellDependency::All(r) => self.cell_dependencies_all_contains(&r),
+            CellDependency::Hash(r, k) => self.cell_dependencies_hashed_contains(&(r, k)),
+        }
+    }
+
+    fn outdated_cell_dependencies_contains(&self, dep: &CellDependency) -> bool {
+        match *dep {
+            CellDependency::All(r) => self.outdated_cell_dependencies_all_contains(&r),
+            CellDependency::Hash(r, k) => self.outdated_cell_dependencies_hashed_contains(&(r, k)),
+        }
+    }
+
+    fn add_cell_dependencies(&mut self, dep: CellDependency) -> bool {
+        match dep {
+            CellDependency::All(r) => self.add_cell_dependencies_all(r),
+            CellDependency::Hash(r, k) => self.add_cell_dependencies_hashed((r, k)),
+        }
+    }
+
+    fn add_cell_dependents(&mut self, dep: CellDependency) -> bool {
+        match dep {
+            CellDependency::All(r) => self.add_cell_dependents_all(r),
+            CellDependency::Hash(r, k) => self.add_cell_dependents_hashed((r, k)),
+        }
+    }
+
+    fn remove_cell_dependents(&mut self, dep: &CellDependency) -> bool {
+        match *dep {
+            CellDependency::All(r) => self.remove_cell_dependents_all(&r),
+            CellDependency::Hash(r, k) => self.remove_cell_dependents_hashed(&(r, k)),
+        }
+    }
+
+    /// Iterate all forward cell dependencies as `CellDependency` (keyless then keyed).
+    fn iter_cell_dependencies(&self) -> impl Iterator<Item = CellDependency> + '_ {
+        self.iter_cell_dependencies_all()
+            .map(CellDependency::All)
+            .chain(
+                self.iter_cell_dependencies_hashed()
+                    .map(|(r, k)| CellDependency::Hash(r, k)),
+            )
+    }
+
+    /// Iterate all outdated forward cell dependencies as `CellDependency`.
+    fn iter_outdated_cell_dependencies(&self) -> impl Iterator<Item = CellDependency> + '_ {
+        self.iter_outdated_cell_dependencies_all()
+            .map(CellDependency::All)
+            .chain(
+                self.iter_outdated_cell_dependencies_hashed()
+                    .map(|(r, k)| CellDependency::Hash(r, k)),
+            )
+    }
+
+    /// Iterate all reverse cell dependents as `CellDependency`.
+    fn iter_cell_dependents(&self) -> impl Iterator<Item = CellDependency> + '_ {
+        self.iter_cell_dependents_all()
+            .map(CellDependency::All)
+            .chain(
+                self.iter_cell_dependents_hashed()
+                    .map(|(r, k)| CellDependency::Hash(r, k)),
+            )
     }
 }
 

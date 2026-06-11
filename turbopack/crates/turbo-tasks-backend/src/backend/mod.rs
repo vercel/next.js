@@ -453,7 +453,6 @@ impl TurboTasksBackend {
         let mut ctx = self.execute_context(turbo_tasks);
         let need_reader_task = if self.should_track_dependencies()
             && !matches!(options.tracking, ReadTracking::Untracked)
-            && reader.is_some_and(|reader_id| reader_id != task_id)
             && let Some(reader_id) = reader
             && reader_id != task_id
         {
@@ -821,7 +820,7 @@ impl TurboTasksBackend {
         } = options;
 
         let mut ctx = self.execute_context(turbo_tasks);
-        let (mut task, reader_task) = if self.should_track_dependencies()
+        let (track_dependencies, mut task, reader_task) = if self.should_track_dependencies()
             && !matches!(tracking, ReadCellTracking::Untracked)
             && let Some(reader_id) = reader
             && reader_id != task_id
@@ -830,9 +829,9 @@ impl TurboTasksBackend {
             // condition. See below.
             // TODO(sokra): solve that in a more performant way.
             let (task, reader) = ctx.task_pair(task_id, reader_id, TaskDataCategory::All);
-            (task, Some(reader))
+            (true, task, Some(reader))
         } else {
-            (ctx.task(task_id, TaskDataCategory::All), None)
+            (false, ctx.task(task_id, TaskDataCategory::All), None)
         };
 
         let content = if final_read_hint {
@@ -865,7 +864,7 @@ impl TurboTasksBackend {
         let max_id = task.get_cell_type_max_index(&cell.type_id).copied();
         let Some(max_id) = max_id else {
             let task_desc = task.get_task_description();
-            if tracking.should_track(true) {
+            if track_dependencies && tracking.should_track(true) {
                 add_cell_dependency(task_id, task, reader, reader_task, cell, tracking.key());
             }
             bail!(
@@ -874,7 +873,7 @@ impl TurboTasksBackend {
         };
         if cell.index >= max_id {
             let task_desc = task.get_task_description();
-            if tracking.should_track(true) {
+            if track_dependencies && tracking.should_track(true) {
                 add_cell_dependency(task_id, task, reader, reader_task, cell, tracking.key());
             }
             bail!("Cell {cell:?} no longer exists in task {task_desc} (index out of bounds)");
@@ -1922,8 +1921,13 @@ impl TurboTasksBackend {
 
             if self.should_track_dependencies() {
                 // Make all dependencies outdated
-                let cell_dependencies = task.iter_cell_dependencies().collect();
-                task.set_outdated_cell_dependencies(cell_dependencies);
+                // We copy to outdated which allows us to detect when we drop a dependency, but we
+                // keep existing dependencies in place to avoid redoing the
+                // dependency registration work if we re-read them
+                let cell_dependencies_all = task.iter_cell_dependencies_all().collect();
+                task.set_outdated_cell_dependencies_all(cell_dependencies_all);
+                let cell_dependencies_hashed = task.iter_cell_dependencies_hashed().collect();
+                task.set_outdated_cell_dependencies_hashed(cell_dependencies_hashed);
 
                 let outdated_output_dependencies = task.iter_output_dependencies().collect();
                 task.set_outdated_output_dependencies(outdated_output_dependencies);
