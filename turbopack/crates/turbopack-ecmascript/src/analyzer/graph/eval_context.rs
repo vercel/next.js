@@ -1,4 +1,4 @@
-use std::{iter, sync::Arc};
+use std::sync::Arc;
 
 use anyhow::{Ok, Result};
 use rustc_hash::FxHashSet;
@@ -12,8 +12,8 @@ use turbo_rcstr::{RcStr, rcstr};
 use crate::{
     SpecifiedModuleType,
     analyzer::{
-        ConstantNumber, ConstantValue, ImportMap, JsValue, ObjectPart, WellKnownObjectKind,
-        is_unresolved,
+        Bump, BumpVec, ConstantNumber, ConstantValue, ImportMap, JsValue, ObjectPart,
+        WellKnownObjectKind, is_unresolved,
     },
     references::constant_value::parse_single_expr_lit,
     utils::unparen,
@@ -59,25 +59,29 @@ impl EvalContext {
         self.imports.is_esm(specified_type)
     }
 
-    pub(super) fn eval_prop_name(&self, prop: &PropName) -> JsValue {
+    pub(super) fn eval_prop_name<'a>(&self, arena: &'a Bump, prop: &PropName) -> JsValue<'a> {
         match prop {
             PropName::Ident(ident) => ident.sym.clone().into(),
             PropName::Str(str) => str.value.clone().to_atom_lossy().into_owned().into(),
             PropName::Num(num) => num.value.into(),
-            PropName::Computed(ComputedPropName { expr, .. }) => self.eval(expr),
+            PropName::Computed(ComputedPropName { expr, .. }) => self.eval(arena, expr),
             PropName::BigInt(bigint) => (*bigint.value.clone()).into(),
         }
     }
 
-    pub(super) fn eval_member_prop(&self, prop: &MemberProp) -> Option<JsValue> {
+    pub(super) fn eval_member_prop<'a>(
+        &self,
+        arena: &'a Bump,
+        prop: &MemberProp,
+    ) -> Option<JsValue<'a>> {
         match prop {
             MemberProp::Ident(ident) => Some(ident.sym.clone().into()),
-            MemberProp::Computed(ComputedPropName { expr, .. }) => Some(self.eval(expr)),
+            MemberProp::Computed(ComputedPropName { expr, .. }) => Some(self.eval(arena, expr)),
             MemberProp::PrivateName(_) => None,
         }
     }
 
-    fn eval_tpl(&self, e: &Tpl, raw: bool) -> JsValue {
+    fn eval_tpl<'a>(&self, arena: &'a Bump, e: &Tpl, raw: bool) -> JsValue<'a> {
         debug_assert!(e.quasis.len() == e.exprs.len() + 1);
 
         let mut values = vec![];
@@ -107,20 +111,20 @@ impl EvalContext {
                 let idx = idx / 2;
                 let e = &e.exprs[idx];
 
-                values.push(self.eval(e));
+                values.push(self.eval(arena, e));
             }
         }
 
         match values.len() {
             0 => JsValue::Constant(ConstantValue::Str(rcstr!("").into())),
             1 => values.into_iter().next().unwrap(),
-            _ => JsValue::concat(values),
+            _ => JsValue::concat(BumpVec::from_iter_in(arena, values)),
         }
     }
 
-    pub(super) fn eval_ident(&self, i: &Ident) -> JsValue {
+    pub(super) fn eval_ident<'a>(&self, arena: &'a Bump, i: &Ident) -> JsValue<'a> {
         let id = i.to_id();
-        if let Some(imported) = self.imports.get_import(&id) {
+        if let Some(imported) = self.imports.get_import(arena, &id) {
             return imported;
         }
         if is_unresolved(i, self.unresolved_mark) || self.force_free_values.contains(&id) {
@@ -137,15 +141,15 @@ impl EvalContext {
         }
     }
 
-    pub fn eval(&self, e: &Expr) -> JsValue {
+    pub fn eval<'a>(&self, arena: &'a Bump, e: &Expr) -> JsValue<'a> {
         debug_assert!(
             GLOBALS.is_set(),
             "Eval requires globals from its parsed result"
         );
         match e {
-            Expr::Paren(e) => self.eval(&e.expr),
+            Expr::Paren(e) => self.eval(arena, &e.expr),
             Expr::Lit(e) => JsValue::Constant(e.clone().into()),
-            Expr::Ident(i) => self.eval_ident(i),
+            Expr::Ident(i) => self.eval_ident(arena, i),
 
             Expr::Unary(UnaryExpr {
                 op: op!("void"),
@@ -165,9 +169,9 @@ impl EvalContext {
             Expr::Unary(UnaryExpr {
                 op: op!("!"), arg, ..
             }) => {
-                let arg = self.eval(arg);
+                let arg = self.eval(arena, arg);
 
-                JsValue::logical_not(Box::new(arg))
+                JsValue::logical_not(arena, arg)
             }
 
             Expr::Unary(UnaryExpr {
@@ -175,9 +179,9 @@ impl EvalContext {
                 arg,
                 ..
             }) => {
-                let arg = self.eval(arg);
+                let arg = self.eval(arena, arg);
 
-                JsValue::type_of(Box::new(arg))
+                JsValue::type_of(arena, arg)
             }
 
             Expr::Bin(BinExpr {
@@ -186,15 +190,16 @@ impl EvalContext {
                 right,
                 ..
             }) => {
-                let l = self.eval(left);
-                let r = self.eval(right);
+                let l = self.eval(arena, left);
+                let r = self.eval(arena, right);
 
                 match (l, r) {
-                    (JsValue::Add(c, l), r) => JsValue::Add(
-                        c + r.total_nodes(),
-                        l.into_iter().chain(iter::once(r)).collect(),
-                    ),
-                    (l, r) => JsValue::add(vec![l, r]),
+                    (JsValue::Add(c, mut l), r) => {
+                        let total = c + r.total_nodes();
+                        l.push(arena, r);
+                        JsValue::Add(total, l)
+                    }
+                    (l, r) => JsValue::add(BumpVec::from_iter_in(arena, [l, r])),
                 }
             }
 
@@ -203,49 +208,58 @@ impl EvalContext {
                 left,
                 right,
                 ..
-            }) => JsValue::logical_and(vec![self.eval(left), self.eval(right)]),
+            }) => JsValue::logical_and(BumpVec::from_iter_in(
+                arena,
+                [self.eval(arena, left), self.eval(arena, right)],
+            )),
 
             Expr::Bin(BinExpr {
                 op: op!("||"),
                 left,
                 right,
                 ..
-            }) => JsValue::logical_or(vec![self.eval(left), self.eval(right)]),
+            }) => JsValue::logical_or(BumpVec::from_iter_in(
+                arena,
+                [self.eval(arena, left), self.eval(arena, right)],
+            )),
 
             Expr::Bin(BinExpr {
                 op: op!("??"),
                 left,
                 right,
                 ..
-            }) => JsValue::nullish_coalescing(vec![self.eval(left), self.eval(right)]),
+            }) => JsValue::nullish_coalescing(BumpVec::from_iter_in(
+                arena,
+                [self.eval(arena, left), self.eval(arena, right)],
+            )),
 
             Expr::Bin(BinExpr {
                 op: op!("=="),
                 left,
                 right,
                 ..
-            }) => JsValue::equal(Box::new(self.eval(left)), Box::new(self.eval(right))),
+            }) => JsValue::equal(arena, self.eval(arena, left), self.eval(arena, right)),
 
             Expr::Bin(BinExpr {
                 op: op!("!="),
                 left,
                 right,
                 ..
-            }) => JsValue::not_equal(Box::new(self.eval(left)), Box::new(self.eval(right))),
+            }) => JsValue::not_equal(arena, self.eval(arena, left), self.eval(arena, right)),
 
             Expr::Bin(BinExpr {
                 op: op!("==="),
                 left,
                 right,
                 ..
-            }) => JsValue::strict_equal(Box::new(self.eval(left)), Box::new(self.eval(right))),
+            }) => JsValue::strict_equal(arena, self.eval(arena, left), self.eval(arena, right)),
 
             Expr::Bin(BinExpr {
                 op: op!("!=="),
                 left,
                 right,
                 ..
-            }) => JsValue::strict_not_equal(Box::new(self.eval(left)), Box::new(self.eval(right))),
+            }) => JsValue::strict_not_equal(arena, self.eval(arena, left), self.eval(arena, right)),
 
             &Expr::Cond(CondExpr {
                 box ref cons,
@@ -253,23 +267,19 @@ impl EvalContext {
                 box ref test,
                 ..
             }) => {
-                let test = self.eval(test);
+                let test = self.eval(arena, test);
                 if let Some(truthy) = test.is_truthy() {
                     if truthy {
-                        self.eval(cons)
+                        self.eval(arena, cons)
                     } else {
-                        self.eval(alt)
+                        self.eval(arena, alt)
                     }
                 } else {
-                    JsValue::tenary(
-                        Box::new(test),
-                        Box::new(self.eval(cons)),
-                        Box::new(self.eval(alt)),
-                    )
+                    JsValue::tenary(arena, test, self.eval(arena, cons), self.eval(arena, alt))
                 }
             }
 
-            Expr::Tpl(e) => self.eval_tpl(e, false),
+            Expr::Tpl(e) => self.eval_tpl(arena, e, false),
 
             Expr::TaggedTpl(TaggedTpl {
                 tag:
@@ -285,7 +295,7 @@ impl EvalContext {
                     && &*tag_prop.sym == "raw"
                     && is_unresolved(tag_obj, self.unresolved_mark)
                 {
-                    self.eval_tpl(tpl, true)
+                    self.eval_tpl(arena, tpl, true)
                 } else {
                     JsValue::unknown_empty(
                         true,
@@ -309,10 +319,10 @@ impl EvalContext {
                 SyntaxContext::empty(),
             )),
 
-            Expr::Await(AwaitExpr { arg, .. }) => JsValue::awaited(Box::new(self.eval(arg))),
+            Expr::Await(AwaitExpr { arg, .. }) => JsValue::awaited(arena, self.eval(arena, arg)),
 
             Expr::Seq(e) => {
-                let mut seq = e.exprs.iter().map(|e| self.eval(e)).peekable();
+                let mut seq = e.exprs.iter().map(|e| self.eval(arena, e)).peekable();
                 let mut side_effects = false;
                 let mut last = seq.next().unwrap();
                 for e in seq {
@@ -330,8 +340,8 @@ impl EvalContext {
                 prop: MemberProp::Ident(prop),
                 ..
             }) => {
-                let obj = self.eval(obj);
-                JsValue::member(Box::new(obj), Box::new(prop.sym.clone().into()))
+                let obj = self.eval(arena, obj);
+                JsValue::member(arena, obj, prop.sym.clone().into())
             }
 
             Expr::Member(MemberExpr {
@@ -339,9 +349,9 @@ impl EvalContext {
                 prop: MemberProp::Computed(computed),
                 ..
             }) => {
-                let obj = self.eval(obj);
-                let prop = self.eval(&computed.expr);
-                JsValue::member(Box::new(obj), Box::new(prop))
+                let obj = self.eval(arena, obj);
+                let prop = self.eval(arena, &computed.expr);
+                JsValue::member(arena, obj, prop)
             }
 
             Expr::New(NewExpr {
@@ -359,8 +369,9 @@ impl EvalContext {
                 }
 
                 JsValue::new_from_iter(
-                    self.eval(callee),
-                    args.iter().map(|arg| self.eval(&arg.expr)),
+                    arena,
+                    self.eval(arena, callee),
+                    args.iter().map(|arg| self.eval(arena, &arg.expr)),
                 )
             }
 
@@ -386,18 +397,22 @@ impl EvalContext {
                                 rcstr!("private names in function calls is not supported"),
                             );
                         }
-                        MemberProp::Computed(ComputedPropName { expr, .. }) => self.eval(expr),
+                        MemberProp::Computed(ComputedPropName { expr, .. }) => {
+                            self.eval(arena, expr)
+                        }
                     };
-                    let obj = self.eval(obj);
+                    let obj = self.eval(arena, obj);
                     JsValue::member_call_from_iter(
+                        arena,
                         obj,
                         prop,
-                        args.iter().map(|arg| self.eval(&arg.expr)),
+                        args.iter().map(|arg| self.eval(arena, &arg.expr)),
                     )
                 } else {
                     JsValue::call_from_iter(
-                        self.eval(callee),
-                        args.iter().map(|arg| self.eval(&arg.expr)),
+                        arena,
+                        self.eval(arena, callee),
+                        args.iter().map(|arg| self.eval(arena, &arg.expr)),
                     )
                 }
             }
@@ -415,7 +430,11 @@ impl EvalContext {
                     );
                 }
 
-                let args = args.iter().map(|arg| self.eval(&arg.expr)).collect();
+                let args = bumpalo::collections::Vec::from_iter_in(
+                    args.iter().map(|arg| self.eval(arena, &arg.expr)),
+                    arena,
+                )
+                .into_boxed_slice();
 
                 JsValue::super_call(args)
             }
@@ -433,8 +452,9 @@ impl EvalContext {
                     );
                 }
                 JsValue::call_from_iter(
+                    arena,
                     JsValue::FreeVar(atom!("import")),
-                    args.iter().map(|arg| self.eval(&arg.expr)),
+                    args.iter().map(|arg| self.eval(arena, &arg.expr)),
                 )
             }
 
@@ -443,38 +463,38 @@ impl EvalContext {
                     return JsValue::unknown_empty(true, rcstr!("spread is not supported"));
                 }
 
-                let arr = arr
-                    .elems
-                    .iter()
-                    .map(|e| match e {
-                        Some(e) => self.eval(&e.expr),
+                let arr = BumpVec::from_iter_in(
+                    arena,
+                    arr.elems.iter().map(|e| match e {
+                        Some(e) => self.eval(arena, &e.expr),
                         _ => JsValue::Constant(ConstantValue::Undefined),
-                    })
-                    .collect();
+                    }),
+                );
                 JsValue::array(arr)
             }
 
-            Expr::Object(obj) => JsValue::object(
-                obj.props
-                    .iter()
-                    .map(|prop| match prop {
-                        PropOrSpread::Spread(SpreadElement { expr, .. }) => {
-                            ObjectPart::Spread(self.eval(expr))
-                        }
-                        PropOrSpread::Prop(box Prop::KeyValue(KeyValueProp { key, box value })) => {
-                            ObjectPart::KeyValue(self.eval_prop_name(key), self.eval(value))
-                        }
-                        PropOrSpread::Prop(box Prop::Shorthand(ident)) => ObjectPart::KeyValue(
-                            ident.sym.clone().into(),
-                            self.eval(&Expr::Ident(ident.clone())),
-                        ),
-                        _ => ObjectPart::Spread(JsValue::unknown_empty(
-                            true,
-                            rcstr!("unsupported object part"),
-                        )),
-                    })
-                    .collect(),
-            ),
+            Expr::Object(obj) => JsValue::object(BumpVec::from_iter_in(
+                arena,
+                obj.props.iter().map(|prop| match prop {
+                    PropOrSpread::Spread(SpreadElement { expr, .. }) => {
+                        ObjectPart::Spread(self.eval(arena, expr))
+                    }
+                    PropOrSpread::Prop(box Prop::KeyValue(KeyValueProp { key, box value })) => {
+                        ObjectPart::KeyValue(
+                            self.eval_prop_name(arena, key),
+                            self.eval(arena, value),
+                        )
+                    }
+                    PropOrSpread::Prop(box Prop::Shorthand(ident)) => ObjectPart::KeyValue(
+                        ident.sym.clone().into(),
+                        self.eval(arena, &Expr::Ident(ident.clone())),
+                    ),
+                    _ => ObjectPart::Spread(JsValue::unknown_empty(
+                        true,
+                        rcstr!("unsupported object part"),
+                    )),
+                }),
+            )),
 
             Expr::MetaProp(MetaPropExpr {
                 kind: MetaPropKind::ImportMeta,
@@ -482,8 +502,8 @@ impl EvalContext {
             }) => JsValue::WellKnownObject(WellKnownObjectKind::ImportMeta),
 
             Expr::Assign(AssignExpr { op, .. }) => match op {
-                // TODO: `self.eval(right)` would be the value, but we need to handle the side
-                // effect of that expression
+                // TODO: `self.eval(arena, right)` would be the value, but we need to handle the
+                // side effect of that expression
                 AssignOp::Assign => JsValue::unknown_empty(true, rcstr!("assignment expression")),
                 _ => JsValue::unknown_empty(true, rcstr!("compound assignment expression")),
             },
@@ -492,7 +512,7 @@ impl EvalContext {
         }
     }
 
-    pub fn eval_single_expr_lit(expr_lit: &RcStr) -> Result<JsValue> {
+    pub fn eval_single_expr_lit<'a>(arena: &'a Bump, expr_lit: &RcStr) -> Result<JsValue<'a>> {
         let cm = Lrc::new(SourceMap::default());
 
         let js_value = try_with_handler(cm, Default::default(), |_| {
@@ -501,7 +521,7 @@ impl EvalContext {
                 let eval_context =
                     EvalContext::new(None, Mark::new(), Mark::new(), Default::default(), None);
 
-                Ok(eval_context.eval(&expr))
+                Ok(eval_context.eval(arena, &expr))
             })
         })
         .map_err(|e| e.to_pretty_error())?;

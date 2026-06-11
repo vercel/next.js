@@ -89,6 +89,8 @@ When [`cacheComponents`](/docs/app/api-reference/config/next-config-js/cacheComp
 
 This applies even when the component that calls `useSelectedLayoutSegments` is itself static. For example, a breadcrumb component rendered in a parent layout suspends on any page below it that has an unknown dynamic param. To keep the rest of the layout prerendered, wrap the component that calls `useSelectedLayoutSegments` (or a parent) in a `Suspense` boundary with a fallback.
 
+See [Next.js encountered URL data in a Client Component outside of Suspense](/docs/messages/blocking-prerender-client-hook) for full fix options and trade-offs.
+
 ## Version History
 
 | Version   | Changes                                 |

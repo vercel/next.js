@@ -30,16 +30,14 @@ async function createFlightRouterStateFromLoaderTreeImpl(
     {},
   ]
 
-  // Load the layout or page module to check for unstable_instant/unstable_prefetch
-  // config. When a segment doesn't export unstable_prefetch, it defaults to
+  // Load the layout or page module to check its instant and prefetch
+  // configs. When a segment doesn't export prefetch, it defaults to
   // 'partial' if the app has opted into partial prefetching globally via the
   // `partialPrefetching` config in next.config.js.
   const mod = layout ? await layout[0]() : page ? await page[0]() : undefined
-  const instantConfig = mod
-    ? (mod as AppSegmentConfig).unstable_instant
-    : undefined
+  const instantConfig = mod ? (mod as AppSegmentConfig).instant : undefined
   const prefetchConfig =
-    (mod ? (mod as AppSegmentConfig).unstable_prefetch : undefined) ??
+    (mod ? (mod as AppSegmentConfig).prefetch : undefined) ??
     (partialPrefetching === 'unstable_eager'
       ? 'unstable_eager'
       : partialPrefetching
@@ -115,19 +113,19 @@ async function createFlightRouterStateFromLoaderTreeImpl(
       PrefetchHint.SubtreeHasEagerPrefetch
   } else if (prefetchConfig === 'force-disabled') {
     prefetchHints |= PrefetchHint.PrefetchDisabled
-  } else if (prefetchConfig === 'force-runtime') {
+  } else if (prefetchConfig === 'allow-runtime') {
     prefetchHints |= PrefetchHint.HasRuntimePrefetch
   }
 
   // Mark the segment as "eager" unless its effective prefetch strategy is
-  // 'partial' or 'force-runtime'. A truthy unstable_instant is treated as
+  // 'partial' or 'allow-runtime'. A truthy instant is treated as
   // 'partial' (not eager). 'unstable_eager' already set the bit above. Under
   // App Shells, a subtree with no eager segment skips its Speculative prefetch
   // and relies on the shared app shell instead.
   if (
     !isInstant &&
     prefetchConfig !== 'partial' &&
-    prefetchConfig !== 'force-runtime'
+    prefetchConfig !== 'allow-runtime'
   ) {
     prefetchHints |= PrefetchHint.SubtreeHasEagerPrefetch
   }

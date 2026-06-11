@@ -16,7 +16,8 @@ use next_core::{
         ClientChunkingContextOptions, get_client_chunking_context, get_client_compile_time_info,
     },
     next_config::{
-        ModuleIds as ModuleIdStrategyConfig, NextConfig, TurbopackPluginRuntimeStrategy,
+        DIST_PROFILES_DIR_NAME, ModuleIds as ModuleIdStrategyConfig, NextConfig,
+        TurbopackPluginRuntimeStrategy,
     },
     next_edge::context::EdgeChunkingContextOptions,
     next_server::{
@@ -1066,10 +1067,16 @@ impl Project {
             }
         };
 
+        // CPU profiles are written to `.next-profiles/` at the project root (see `--cpu-prof`).
+        // Deny access to it so the bundler doesn't traverse into the profiling output directory.
+        let denied_profiles_path = join_path(&self.project_path, DIST_PROFILES_DIR_NAME)
+            .unwrap()
+            .into();
+
         Ok(DiskFileSystem::new_with_denied_paths(
             PROJECT_FILESYSTEM_NAME,
             *self.root_path,
-            vec![denied_path],
+            vec![denied_path, denied_profiles_path],
         ))
     }
 

@@ -1187,17 +1187,15 @@ export async function createCombinedPayloadAtDepth(
         : createChildSegmentPath(parentPath, key!, segment)
 
     let instantConfig: Instant | null = null
-    let prefetchConfig: AppSegmentConfig['unstable_prefetch'] | null = null
+    let prefetchConfig: AppSegmentConfig['prefetch'] | null = null
     let localCreateInstantStack: (() => Error) | null = null
     if (layoutOrPageMod !== undefined) {
-      instantConfig =
-        (layoutOrPageMod as AppSegmentConfig).unstable_instant ?? null
-      prefetchConfig =
-        (layoutOrPageMod as AppSegmentConfig).unstable_prefetch ?? null
+      instantConfig = (layoutOrPageMod as AppSegmentConfig).instant ?? null
+      prefetchConfig = (layoutOrPageMod as AppSegmentConfig).prefetch ?? null
 
       // When the default validation level is active and this is a page or
       // default segment without an explicit config, treat it as if
-      // unstable_instant = true was exported. Framework-synthesized error
+      // instant = true was exported. Framework-synthesized error
       // routes are excluded — see isFrameworkErrorRoute.
       if (
         instantConfig === null &&
@@ -1220,7 +1218,7 @@ export async function createCombinedPayloadAtDepth(
       }
     }
 
-    const segmentHasRuntimePrefetch = prefetchConfig === 'force-runtime'
+    const segmentHasRuntimePrefetch = prefetchConfig === 'allow-runtime'
 
     let childIsInsideRuntimePrefetch = isInsideRuntimePrefetch
     let stage: SegmentStage

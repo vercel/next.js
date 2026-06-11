@@ -56,7 +56,12 @@ import type { CacheEntry } from '../lib/cache-handlers/types'
 import type { CacheSignal } from '../app-render/cache-signal'
 import { decryptActionBoundArgs } from '../app-render/encryption'
 import { InvariantError } from '../../shared/lib/invariant-error'
-import { createReactServerErrorHandler } from '../app-render/create-error-handler'
+import {
+  createReactServerErrorHandler,
+  type DigestedError,
+} from '../app-render/create-error-handler'
+import { createDigestWithErrorCode } from '../../lib/error-telemetry-utils'
+import stringHash from 'next/dist/compiled/string-hash'
 import { DYNAMIC_EXPIRE, RUNTIME_PREFETCH_DYNAMIC_STALE } from './constants'
 import { NEXT_CACHE_ROOT_PARAM_TAG_ID } from '../../lib/constants'
 import type { CacheHandler } from '../lib/cache-handlers/types'
@@ -1215,29 +1220,36 @@ async function generateCacheEntryImpl(
       // relevant in restart-on-cache-miss in general, so when we implement that
       // for cached navs, it'll also be needed in prod
       if (process.env.__NEXT_DEV_SERVER && outerWorkUnitStore.cacheSignal) {
+        const stagedRendering = outerWorkUnitStore.stagedRendering
+
+        // Capture the render stage at the start of this cache read, before the
+        // yield below. A streamed staged render advances its controller on its
+        // own schedule, independently of this read, so by the time the yield
+        // resolves the controller may have raced ahead to the Dynamic stage even
+        // though the read began in an earlier (prerender) stage.
+        const stageAtReadStart = stagedRendering?.currentStage
+
         // If we're filling caches for a staged render, make sure that it takes
         // at least a task, so we'll always notice a cache miss between stages.
         //
-        // TODO(restart-on-cache-miss): This is suboptimal. Ideally we wouldn't
-        // need to restart for microtasky caches, but the current logic for
-        // omitting short-lived caches only works correctly if we do a second
-        // render, so that's the best we can do until we refactor that.
+        // TODO(restart-on-cache-miss): This is suboptimal. Ideally microtasky
+        // caches wouldn't register as a miss, but short-lived caches are only
+        // omitted correctly when read back in a separate render (now the
+        // background validation render, not a restart of the streamed
+        // response), so forcing the miss is the best we can do until that's
+        // refactored.
         await new Promise((resolve) => setTimeout(resolve))
 
         // Start a cache-fill timeout so a hanging `'use cache'` entry surfaces
         // the same error in dev as during prerender. Cleared when
         // pendingCacheResult settles.
         //
-        // Only skip the timeout when we're exactly in the Dynamic stage. That
-        // mirrors prerender, where caches guarded by e.g. `await connection()`
-        // aren't executed at all. We can't use `< RenderStage.Dynamic` here
-        // because `RenderStage.Abandoned` is numerically higher than Dynamic,
-        // but semantically it means the initial prospective render was aborted
-        // while caches are still pending — the outer flow then awaits
-        // `cacheSignal.cacheReady()`, so we need the timer to break a potential
-        // deadlock.
-        const stagedRendering = outerWorkUnitStore.stagedRendering
-        if (stagedRendering?.currentStage !== RenderStage.Dynamic) {
+        // Skip the timeout only when the read began in the Dynamic stage, which
+        // mirrors prerender: a cache guarded by e.g. `await connection()` is a
+        // legitimate dynamic hole and isn't executed there. We use the stage
+        // captured at read start, not the current one, because the staged render
+        // may have advanced past it during the yield above.
+        if (stageAtReadStart !== RenderStage.Dynamic) {
           const devRenderAbortController = new AbortController()
           const fillTimeoutMs = getUseCacheFillTimeoutMs(
             workStore,
@@ -1269,9 +1281,32 @@ async function generateCacheEntryImpl(
               onError(error) {
                 if (
                   devRenderAbortController.signal.aborted &&
-                  devRenderAbortController.signal.reason === error
+                  devRenderAbortController.signal.reason === error &&
+                  error instanceof Error
                 ) {
-                  return undefined
+                  // The abort reason is the same error stored as
+                  // `workStore.invalidDynamicUsageError` (a fill timeout or
+                  // deadlock). Register it under a digest and return that
+                  // digest, so the error that surfaces on the consumer side of
+                  // this Flight boundary carries it and the outer render's
+                  // handler can recover *this* object via
+                  // `reactServerErrorsByDigest`.
+                  //
+                  // We deliberately do not set `error.digest` here: whether the
+                  // error actually surfaces (vs. being caught in userland) is
+                  // the consumer's decision, so the "surfaced" mark is left to
+                  // the outer handler.
+                  const digest = createDigestWithErrorCode(
+                    error,
+                    stringHash(error.message + (error.stack || '')).toString()
+                  )
+
+                  workStore.reactServerErrorsByDigest.set(
+                    digest,
+                    error as DigestedError
+                  )
+
+                  return digest
                 }
 
                 return handleError(error)
@@ -1988,6 +2023,12 @@ export async function cache(
 
   let stream: undefined | ReadableStream = undefined
 
+  // Set when a short-lived warm hit ends its cache read up front (dev only) so
+  // the static-shell boundary doesn't count it as a phantom miss. Once set, the
+  // cache signal read is balanced, so serving must use a plain stream and skip
+  // any trailing cacheSignal.endRead() call.
+  let cacheSignalReadEnded = false
+
   const resumeDataCache = getResumeDataCache(workUnitStore)
 
   const implicitTags = workUnitStore.implicitTags?.tags ?? []
@@ -2130,17 +2171,20 @@ export async function cache(
                     })
                   )
                 }
-                // We delay the cache here so that it doesn't resolve in the static task --
-                // in a regular static prerender, it'd be a hanging promise, and we need to reflect that,
-                // so it has to resolve later.
-                // TODO(restart-on-cache-miss): Optimize this to avoid unnecessary restarts.
-                // We don't end the cache read here, so this will always appear as a cache miss in the static stage,
-                // and thus will cause a restart even if all caches are filled.
+                // A short-lived entry is a dynamic hole, excluded from the
+                // static shell, so we end the cache signal read here (the
+                // prerender case does the same) to avoid this cache hit being
+                // considered a cache miss when checking for pending cache reads
+                // at staged rendering task boundaries. The value is deferred to
+                // the runtime stage.
+                if (cacheSignal && !cacheSignalReadEnded) {
+                  cacheSignal.endRead()
+                  cacheSignalReadEnded = true
+                }
 
                 const stagedRendering = workUnitStore.stagedRendering
                 const stage = stagedRendering
-                  ? // TODO(app-shells): exclude caches with a short staletime
-                    getSessionDataStage(stagedRendering)
+                  ? getSessionDataStage(stagedRendering)
                   : RenderStage.Runtime
                 await makeDevtoolsIOAwarePromise(
                   undefined,
@@ -2184,13 +2228,25 @@ export async function cache(
                 'dynamic "use cache"'
               )
             case 'request': {
-              if (process.env.NODE_ENV === 'development') {
-                // We delay the cache here so that it doesn't resolve in the runtime phase --
-                // in a regular runtime prerender, it'd be a hanging promise, and we need to reflect that,
-                // so it has to resolve later.
-                // TODO(restart-on-cache-miss): Optimize this to avoid unnecessary restarts.
-                // We don't end the cache read here, so this will always appear as a cache miss in the runtime stage,
-                // and thus will cause a restart even if all caches are filled.
+              // A short stale time excludes the entry from the runtime prefetch
+              // shell, but not from the static shell. We only replicate that
+              // exclusion (the `prerender-runtime` behavior) when this render
+              // produces the runtime prefetch shell: a client navigation into a
+              // runtime-prefetch route. An initial load, a plain navigation,
+              // and an HMR refresh produce the static shell, where the entry
+              // stays and resolves like the static prerender.
+              if (
+                process.env.NODE_ENV === 'development' &&
+                workUnitStore.shellStage === RenderStage.Runtime
+              ) {
+                // End the cache signal read (once, in case the expire block
+                // above already did) so the deferred value isn't counted as a
+                // pending read at a staged rendering boundary, then defer it to
+                // the dynamic stage.
+                if (cacheSignal && !cacheSignalReadEnded) {
+                  cacheSignal.endRead()
+                  cacheSignalReadEnded = true
+                }
                 await makeDevtoolsIOAwarePromise(
                   undefined,
                   workUnitStore,
@@ -2286,11 +2342,13 @@ export async function cache(
         const [streamA, streamB] = rdcResult.entry.value.tee()
         rdcResult.entry.value = streamB
 
-        if (cacheSignal) {
+        if (cacheSignal && !cacheSignalReadEnded) {
           // When we have a cacheSignal we need to block on reading the cache
           // entry before ending the read.
           stream = createTrackedReadableStream(streamA, cacheSignal)
         } else {
+          // The cache signal read was already ended for a short-lived deferral
+          // (or there is no cacheSignal), so serve a plain stream.
           stream = streamA
         }
       } else {
@@ -2683,19 +2741,20 @@ export async function cache(
               return hangingPromise
             case 'request': {
               if (process.env.NODE_ENV === 'development') {
-                // We delay the cache here so that it doesn't resolve in the
-                // static task -- in a regular static prerender, it'd be a
-                // hanging promise, and we need to reflect that, so it has to
-                // resolve later.
-                // TODO(restart-on-cache-miss): Optimize this to avoid
-                // unnecessary restarts. We don't end the cache read here, so
-                // this will always appear as a cache miss in the static stage,
-                // and thus will cause a restart even if all caches are filled.
+                // A short-lived entry is a dynamic hole, excluded from the
+                // static shell, so we end the cache signal read here (the
+                // prerender case does the same) to avoid this cache hit being
+                // considered a cache miss when checking for pending cache reads
+                // at staged rendering task boundaries. The value is deferred to
+                // the runtime stage.
+                if (cacheSignal && !cacheSignalReadEnded) {
+                  cacheSignal.endRead()
+                  cacheSignalReadEnded = true
+                }
 
                 const stagedRendering = workUnitStore.stagedRendering
                 const stage = stagedRendering
-                  ? // TODO(app-shells): exclude caches with a short staletime
-                    getSessionDataStage(stagedRendering)
+                  ? getSessionDataStage(stagedRendering)
                   : RenderStage.Runtime
                 await makeDevtoolsIOAwarePromise(
                   undefined,
@@ -2712,6 +2771,56 @@ export async function cache(
             case 'private-cache':
             case 'unstable-cache':
             case 'generate-static-params':
+              break
+            default:
+              workUnitStore satisfies never
+          }
+        }
+
+        if (
+          entry !== undefined &&
+          entry.stale < RUNTIME_PREFETCH_DYNAMIC_STALE
+        ) {
+          switch (workUnitStore.type) {
+            case 'request': {
+              // A short stale time excludes the entry from the runtime prefetch
+              // shell, but not from the static shell. We only replicate that
+              // exclusion (the `prerender-runtime` behavior) when this render
+              // produces the runtime prefetch shell: a client navigation into a
+              // runtime-prefetch route. An initial load, a plain navigation,
+              // and an HMR refresh produce the static shell, where the entry
+              // stays and resolves like the static prerender.
+              if (
+                process.env.NODE_ENV === 'development' &&
+                workUnitStore.shellStage === RenderStage.Runtime
+              ) {
+                // End the cache signal read (once, in case the expire block
+                // above already did) so the deferred value isn't counted as a
+                // pending read at a staged rendering boundary, then defer it to
+                // the dynamic stage.
+                if (cacheSignal && !cacheSignalReadEnded) {
+                  cacheSignal.endRead()
+                  cacheSignalReadEnded = true
+                }
+                await makeDevtoolsIOAwarePromise(
+                  undefined,
+                  workUnitStore,
+                  RenderStage.Dynamic
+                )
+              }
+              break
+            }
+            case 'prerender':
+            case 'prerender-runtime':
+            case 'prerender-ppr':
+            case 'prerender-legacy':
+            case 'cache':
+            case 'private-cache':
+            case 'unstable-cache':
+            case 'generate-static-params':
+              // A handler read in a prerender context is a cache-filling read.
+              // The stale exclusion for those is applied when the RDC is read
+              // in the final prerender, so there's nothing to do here.
               break
             default:
               workUnitStore satisfies never
@@ -2750,6 +2859,17 @@ export async function cache(
             ) {
               debug?.('static generation, entry is stale', cacheHandlerKey)
             }
+          }
+
+          if (cacheSignal && cacheSignalReadEnded) {
+            // A short-lived deferral above (a `revalidate` of zero or a short
+            // expire, or a short stale time) already ended this read. We're now
+            // regenerating the entry rather than serving it, and the generation
+            // ends the read again once its entry is collected. Re-begin the
+            // read here so the trailing `endRead` stays balanced instead of
+            // over-decrementing the cache signal.
+            cacheSignal.beginRead()
+            cacheSignalReadEnded = false
           }
 
           const result = await generateCacheEntry(
@@ -2857,9 +2977,11 @@ export async function cache(
           // and add it to the resume data cache.
           if (resumeDataCache?.mutable) {
             const [entryLeft, entryRight] = cloneCacheEntry(entry)
-            if (cacheSignal) {
+            if (cacheSignal && !cacheSignalReadEnded) {
               stream = createTrackedReadableStream(entryLeft.value, cacheSignal)
             } else {
+              // The read was already ended for a short-lived deferral (or there
+              // is no cacheSignal), so serve a plain stream.
               stream = entryLeft.value
             }
 
@@ -2875,10 +2997,11 @@ export async function cache(
                 dynamicNestedCacheError: entryMetadata.dynamicNestedCacheError,
               })
             )
-          } else {
+          } else if (!cacheSignalReadEnded) {
             // If we're not regenerating we need to signal that we've finished
             // putting the entry into the cache scope at this point. Otherwise
-            // we do that inside generateCacheEntry.
+            // we do that inside generateCacheEntry. (Skipped when the read was
+            // already ended for a short-lived deferral.)
             cacheSignal?.endRead()
           }
 

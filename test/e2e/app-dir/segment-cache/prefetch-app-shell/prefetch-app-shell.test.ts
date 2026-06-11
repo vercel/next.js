@@ -2,6 +2,11 @@ import { nextTestSetup } from 'e2e-utils'
 import type * as Playwright from 'playwright'
 import { createRouterAct } from 'router-act'
 
+// This suite asserts directly on App Shell prefetch responses, so every
+// `createRouterAct` call passes `{ includeAppShellRequests: true }`. By default
+// router-act ignores App Shell requests (those with `next-router-prefetch: '3'`)
+// for assertion purposes, since the App Shell is conceptually part of the route
+// rather than prefetch data. These tests are the exception that opts back in.
 describe('App Shell prefetching', () => {
   const { next, isNextDev } = nextTestSetup({
     files: __dirname,
@@ -18,7 +23,7 @@ describe('App Shell prefetching', () => {
         page = p
       },
     })
-    const act = createRouterAct(page)
+    const act = createRouterAct(page, { includeAppShellRequests: true })
 
     // Reveal the LinkAccordion for /posts/1. This caches the App Shell
     // for the route — the param-independent content of the page that's
@@ -61,16 +66,16 @@ describe('App Shell prefetching', () => {
     )
   })
 
-  it('skips the per-link Speculative prefetch for a non-eager (force-runtime) route', async () => {
+  it('skips the per-link Speculative prefetch for a non-eager (allow-runtime) route', async () => {
     let page: Playwright.Page
     const browser = await next.browser('/', {
       beforePageLoad(p: Playwright.Page) {
         page = p
       },
     })
-    const act = createRouterAct(page)
+    const act = createRouterAct(page, { includeAppShellRequests: true })
 
-    // Reveal /posts/1 (default/auto prefetch). The route is force-runtime, which
+    // Reveal /posts/1 (default/auto prefetch). The route is allow-runtime, which
     // is NOT eager, so under App Shells only the shared App Shell is prefetched.
     await act(
       async () => {
@@ -93,14 +98,14 @@ describe('App Shell prefetching', () => {
     }, 'no-requests')
   })
 
-  it('skips the per-link Speculative prefetch for a route with unstable_prefetch = "partial"', async () => {
+  it('skips the per-link Speculative prefetch for a route with prefetch = "partial"', async () => {
     let page: Playwright.Page
     const browser = await next.browser('/', {
       beforePageLoad(p: Playwright.Page) {
         page = p
       },
     })
-    const act = createRouterAct(page)
+    const act = createRouterAct(page, { includeAppShellRequests: true })
 
     // Reveal /partial/1. /partial/[id] is fully static and opts into Partial
     // Prefetching, so this prefetches the shared app shell ("Partial app
@@ -129,14 +134,14 @@ describe('App Shell prefetching', () => {
     }, 'no-requests')
   })
 
-  it('does NOT skip the Speculative prefetch for a route with unstable_prefetch = "unstable_eager"', async () => {
+  it('does NOT skip the Speculative prefetch for a route with prefetch = "unstable_eager"', async () => {
     let page: Playwright.Page
     const browser = await next.browser('/', {
       beforePageLoad(p: Playwright.Page) {
         page = p
       },
     })
-    const act = createRouterAct(page)
+    const act = createRouterAct(page, { includeAppShellRequests: true })
 
     // Reveal /eager/1. /eager/[id] opts into Partial Prefetching in "eager"
     // mode, so this primes the shared app shell. (Because the route is eager it
@@ -165,17 +170,17 @@ describe('App Shell prefetching', () => {
     )
   })
 
-  it('treats a segment with both unstable_instant and unstable_prefetch = "unstable_eager" as eager', async () => {
+  it('treats a segment with both instant and prefetch = "unstable_eager" as eager', async () => {
     let page: Playwright.Page
     const browser = await next.browser('/', {
       beforePageLoad(p: Playwright.Page) {
         page = p
       },
     })
-    const act = createRouterAct(page)
+    const act = createRouterAct(page, { includeAppShellRequests: true })
 
-    // /eager-instant/[id] sets BOTH unstable_instant (which alone behaves like
-    // 'partial' — not eager) and unstable_prefetch = 'unstable_eager'. The eager
+    // /eager-instant/[id] sets BOTH instant (which alone behaves like
+    // 'partial' — not eager) and prefetch = 'unstable_eager'. The eager
     // opt-in wins, so the segment is treated as eager. Same two-link pattern as
     // the plain eager test: the first link primes the shared shell...
     await act(async () => {
@@ -204,7 +209,7 @@ describe('App Shell prefetching', () => {
         page = p
       },
     })
-    const act = createRouterAct(page)
+    const act = createRouterAct(page, { includeAppShellRequests: true })
 
     // Reveal /partial/1 (default). /partial/[id] opts into Partial Prefetching,
     // so the default link primes the shared shell and skips the Speculative
@@ -246,7 +251,7 @@ describe('App Shell prefetching', () => {
         page = p
       },
     })
-    const act = createRouterAct(page)
+    const act = createRouterAct(page, { includeAppShellRequests: true })
 
     // Reveal the LinkAccordion for /static-posts/1. Two prefetch responses
     // fire: one for the per-segment static prefetch of /static-posts/1

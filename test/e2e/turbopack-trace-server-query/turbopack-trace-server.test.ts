@@ -161,7 +161,7 @@ describe('turbopack-trace-server', () => {
     const traceFileNewPath = path.join(
       next.testDir,
       '.next-profiles',
-      'trace-turbopack'
+      'trace-turbopack.bin'
     )
     const traceFileOldPath = path.join(
       next.testDir,

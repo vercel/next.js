@@ -273,55 +273,120 @@ jobs:
       - name: normalize versions
         run: node scripts/normalize-version-bump.js
 
-      - name: Cache on ${{ github.ref_name }}
-        if: ${{ !matrix.docker && !env.NEXT_SKIP_BUILD_CACHE }}
-        uses: ijjk/rust-cache@a34594c450817c9860143c79797a8770c4e587f5 # turbo-cache-v1.0.9
-        with:
-          save-if: 'true'
-          cache-provider: 'turbo'
-          shared-key: build-${{ matrix.target }}-${{ hashFiles('.cargo/config.toml') }}
-
-      - name: Clear native build
-        run: rm -rf packages/next-swc/native
-
       # Try to restore the native binary BEFORE loading the Docker image.
       # If the binary cache hits, we skip the expensive Docker image restore entirely.
       - name: Rust fingerprint
         if: ${{ matrix.docker && !env.NEXT_SKIP_BUILD_CACHE }}
-        run: pnpm dlx turbo@${TURBO_VERSION} run rust-fingerprint ${TURBO_ARGS}
+        id: rust-fingerprint
+        run: |
+          pnpm dlx turbo@${TURBO_VERSION} run rust-fingerprint ${TURBO_ARGS}
+          echo "hash=$(cat target/.rust-fingerprint)" >> "$GITHUB_OUTPUT"
 
       - name: Restore native binary cache
         if: ${{ matrix.docker && !env.NEXT_SKIP_BUILD_CACHE }}
         id: native-cache
-        run: node scripts/native-cache.js --restore --target ${{ matrix.target }} && echo "HIT=yes" >> $GITHUB_OUTPUT || echo "HIT=no" >> $GITHUB_OUTPUT
+        uses: actions/cache/restore@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+        with:
+          path: packages/next-swc/native
+          key: build-and-deploy-native-cache-${{ matrix.target }}-${{ steps.rust-fingerprint.outputs.hash }}
 
-      # Only load the Docker image if we need to compile (native cache miss)
-      - name: Build/restore Docker image
-        if: ${{ matrix.docker && steps.native-cache.outputs.HIT != 'yes' }}
-        run: node scripts/docker-image-cache.js
+      # This is a simplified version of
+      # https://github.com/crazy-max/ghaction-github-runtime
+      # These environment variables are only exposed to node.js actions, but
+      # `docker buildx` needs them to use the GHA cache.
+      - name: Expose Actions cache to buildx
+        if: ${{ matrix.docker && steps.native-cache.outputs.cache-hit != 'true' && !env.NEXT_SKIP_BUILD_CACHE }}
+        uses: actions/github-script@d746ffe35508b1917358783b479e04febd2b8f71 # v9.0.0
+        with:
+          script: |
+            const names = [
+              'ACTIONS_RUNTIME_TOKEN',
+              'ACTIONS_RESULTS_URL',
+              'ACTIONS_CACHE_URL',
+              'ACTIONS_CACHE_SERVICE_V2',
+            ]
+            for (const name of names) {
+              core.exportVariable(name, process.env[name] || '')
+            }
+
+      - name: Build Docker builder image
+        if: ${{ matrix.docker && steps.native-cache.outputs.cache-hit != 'true' }}
+        env:
+          IMAGE_NAME: ${{ matrix.docker }}
+        run: |
+          docker buildx create --use --name next-swc-builder-buildx
+
+          # Minimal context: the Dockerfile only COPYs rust-toolchain.toml.
+          CTX_DIR="$(mktemp -d)"
+          cp rust-toolchain.toml "$CTX_DIR/"
+
+          CACHE_ARGS=()
+          if [ -z "${NEXT_SKIP_BUILD_CACHE:-}" ]; then
+            SCOPE="build-and-deploy-docker-image-${RUNNER_ARCH}"
+            CACHE_ARGS=(
+              --cache-from="type=gha,scope=$SCOPE"
+              --cache-to="type=gha,scope=$SCOPE"
+            )
+          fi
+
+          # --load imports the image into the local Docker store so the
+          # `docker run` step finds it.
+          docker buildx build \
+            --load \
+            --provenance=false \
+            -t "$IMAGE_NAME" \
+            -f scripts/native-builder.Dockerfile \
+            "${CACHE_ARGS[@]}" \
+            "$CTX_DIR"
+
+          rm -rf "$CTX_DIR"
 
       - name: Build in docker
-        if: ${{ matrix.docker && steps.native-cache.outputs.HIT != 'yes' }}
+        if: ${{ matrix.docker && steps.native-cache.outputs.cache-hit != 'true' }}
+        env:
+          IMAGE_NAME: ${{ matrix.docker }}
+          TARGET: ${{ matrix.target }}
+          ABI: ${{ matrix.abi }}
+          ARCH: ${{ matrix.arch }}
+          BUILD_TASK: ${{ matrix.build_task }}
+          WORKSPACE: ${{ github.workspace }}
+          CARGO_HOME_DIR: ${{ env.HOME }}/.cargo
         run: |
+          set -euo pipefail
+          # Forward the Turbo remote-cache env into the container unless this is a
+          # cache-skipping deploy. Same gating as the image build step above.
+          TURBO_ENV_ARGS=()
+          if [ -z "${NEXT_SKIP_BUILD_CACHE:-}" ]; then
+            TURBO_ENV_ARGS=(
+              -e TURBO_API
+              -e TURBO_TEAM
+              -e TURBO_TOKEN
+              -e TURBO_VERSION
+              -e TURBO_CACHE=local:rw,remote:rw
+            )
+          fi
           docker run --rm \
             -e CI -e RUST_BACKTRACE -e CARGO_TERM_COLOR \
             -e CARGO_INCREMENTAL=0 -e CARGO_REGISTRIES_CRATES_IO_PROTOCOL \
-            ${{ env.NEXT_SKIP_BUILD_CACHE && ' ' || '-e TURBO_API -e TURBO_TEAM -e TURBO_TOKEN -e TURBO_VERSION -e TURBO_CACHE=local:rw,remote:rw' }} \
-            -e TARGET="${{ matrix.target }}" \
-            -e ABI="${{ matrix.abi }}" \
-            -e ARCH="${{ matrix.arch }}" \
-            -e BUILD_TASK="${{ matrix.build_task }}" \
-            -v ${{ env.HOME }}/.cargo/git:/root/.cargo/git \
-            -v ${{ env.HOME }}/.cargo/registry:/root/.cargo/registry \
-            -v ${{ github.workspace }}:/build \
+            "${TURBO_ENV_ARGS[@]}" \
+            -e TARGET="$TARGET" \
+            -e ABI="$ABI" \
+            -e ARCH="$ARCH" \
+            -e BUILD_TASK="$BUILD_TASK" \
+            -v "$CARGO_HOME_DIR/git:/root/.cargo/git" \
+            -v "$CARGO_HOME_DIR/registry:/root/.cargo/registry" \
+            -v "$WORKSPACE:/build" \
             -w /build \
             --entrypoint bash \
-            ${{ matrix.docker }} \
+            "$IMAGE_NAME" \
             -xeo pipefail scripts/docker-native-build.sh
 
       - name: Save native binary cache
-        if: ${{ matrix.docker && steps.native-cache.outputs.HIT != 'yes' && !env.NEXT_SKIP_BUILD_CACHE }}
-        run: node scripts/native-cache.js --save --target ${{ matrix.target }}
+        if: ${{ matrix.docker && steps.native-cache.outputs.cache-hit != 'true' && !env.NEXT_SKIP_BUILD_CACHE }}
+        uses: actions/cache/save@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+        with:
+          path: packages/next-swc/native
+          key: build-and-deploy-native-cache-${{ matrix.target }}-${{ steps.rust-fingerprint.outputs.hash }}
 
       - name: 'Build'
         if: ${{ !matrix.docker }}
