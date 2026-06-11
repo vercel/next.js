@@ -244,9 +244,7 @@ where
 }
 
 /// One `impl Trait for ConcreteType` registration, gathered at link time into
-/// [`TRAIT_IMPLS_SLICE`]. Replaces the old `inventory`-collected `CollectableTraitMethods` plus the
-/// per-impl `#[ctor]` that seeded the vtable: both the method table and the Rust vtable now come
-/// from the same link-time record, so a partial view is impossible regardless of constructor order.
+/// [`TRAIT_IMPLS_SLICE`].
 pub struct TraitImplRecord {
     pub value_type: &'static ValueType,
     pub trait_type: &'static TraitType,

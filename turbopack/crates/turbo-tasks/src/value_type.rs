@@ -15,8 +15,8 @@ use crate::{
     id::TraitTypeId,
     macro_helpers::{NativeFunction, TRAIT_IMPLS_SLICE},
     registry::{
-        RegistryType, get_trait_type_id, get_value_type_id_unchecked, trait_type_count,
-        turbo_registry,
+        RegistryType, get_trait_type_id, get_value_type_id_unchecked, impl_ptr_identity,
+        trait_type_count,
     },
     task::shared_reference::TypedSharedReference,
     vc::VcCellMode,
@@ -106,6 +106,7 @@ pub struct ValueType {
 
     traits: SyncUnsafeCell<ValueTypeTraits>,
 }
+impl_ptr_identity!(ValueType);
 
 impl Debug for ValueType {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
@@ -268,8 +269,6 @@ impl ValueType {
     }
 }
 
-turbo_registry!("Value", ValueType);
-
 // Called during ValueType registry post_init to register all trait methods.
 // Single-threaded during Lazy init.
 pub(crate) fn register_all_trait_methods() {
@@ -360,6 +359,7 @@ pub struct TraitType {
     pub methods: &'static [TraitMethod],
     pub default_methods: &'static [Option<&'static NativeFunction>],
 }
+impl_ptr_identity!(TraitType);
 
 impl Debug for TraitType {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
@@ -400,8 +400,6 @@ impl TraitType {
             .expect("Method not found!")
     }
 }
-
-turbo_registry!("Trait", TraitType);
 
 pub trait TraitVtablePrototype {
     const LEN: usize;

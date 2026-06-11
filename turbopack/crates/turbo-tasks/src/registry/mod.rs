@@ -13,15 +13,9 @@ mod registry_type;
 
 pub use registry_type::RegistryType;
 
-/// Declare a type as a compile-time-collected registry item.
-///
 /// Generates pointer-based `Eq`, `PartialEq`, `Hash`, `Ord`, `PartialOrd` impls.
-///
-/// The actual link-time gather slice for each registry is declared separately (see
-/// [`FUNCTIONS_SLICE`], [`VALUES_SLICE`], [`TRAITS_SLICE`]) because each needs a distinct
-/// module-level static and a wrapping [`LazyLock`].
-macro_rules! turbo_registry {
-    ($name:literal, $ty:ty) => {
+macro_rules! impl_ptr_identity {
+    ($ty:ty) => {
         impl ::core::cmp::Eq for $ty {}
         impl ::core::cmp::PartialEq for $ty {
             fn eq(&self, other: &$ty) -> bool {
@@ -46,16 +40,17 @@ macro_rules! turbo_registry {
     };
 }
 
-pub(crate) use turbo_registry;
+pub(crate) use impl_ptr_identity;
 
-// Link-time gather slices, one per registry. Each item is a `&'static T` reference scattered by
-// the `register_*!` macros below.
+// Link-time gather slices, one per registry.
 #[doc(hidden)]
 #[scattered_collect::gather]
 pub static FUNCTIONS_SLICE: ScatteredSlice<&'static NativeFunction>;
+
 #[doc(hidden)]
 #[scattered_collect::gather]
 pub static VALUES_SLICE: ScatteredSlice<&'static ValueType>;
+
 #[doc(hidden)]
 #[scattered_collect::gather]
 pub static TRAITS_SLICE: ScatteredSlice<&'static TraitType>;
