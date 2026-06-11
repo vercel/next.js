@@ -449,6 +449,13 @@ export type NavigationFlightResponse = {
    * If it resolves to null, then the shell is the same as the main response.
    * */
   a?: Promise<number | null>
+  /**
+   * shellUsedSessionData - true if resolving session data
+   * unblocked new content in the shell.
+   * NOTE: only use this in runtime/session prefetch requests
+   * where we have a proper session shell.
+   * */
+  u?: Promise<boolean>
   /** headVaryParams */
   h: VaryParamsThenable | null
   /** runtimePrefetchStream — Embedded runtime prefetch Flight stream. */
