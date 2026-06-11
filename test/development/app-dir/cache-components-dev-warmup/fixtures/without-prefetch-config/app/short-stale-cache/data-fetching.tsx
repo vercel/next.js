@@ -24,13 +24,9 @@ async function getShortStaleCachedData(_key: string) {
   // an initial load, and a navigation into a route without runtime prefetch,
   // resolves it during the static stage. The short stale time excludes it from
   // the runtime prefetch shell, so a navigation into a runtime-prefetch route
-  // resolves it dynamically instead. The long revalidate keeps the entry a
-  // fresh hit for the duration of the test, isolating it from the in-memory
-  // handler dropping the entry at `revalidate` (and thus from dev
-  // stale-while-revalidate).
-  // TODO(make-dev-fast): Once the dev in-memory handler serves stale entries
-  // (SWR), the long revalidate can be dropped.
-  cacheLife({ stale: 10, revalidate: 120, expire: 3600 })
+  // resolves it dynamically instead. On a warm reload the entry may be past its
+  // 1s revalidate, but the dev server serves it stale (SWR), so it stays a hit.
+  cacheLife({ stale: 10, revalidate: 1, expire: 3600 })
   await new Promise((r) => setTimeout(r))
   return Math.random()
 }

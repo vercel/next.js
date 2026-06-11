@@ -5,6 +5,11 @@
  * likely going to get evicted before we get to use it anyway. However, we also
  * don't want to reuse a stale entry for too long so stale entries should be
  * considered expired/missing in such cache handlers.
+ *
+ * The dev server (`next dev`) is the exception: to keep reloads fast it serves
+ * stale entries until they expire, relying on the wrapper's
+ * stale-while-revalidate path to warm a fresh entry in the background. See
+ * `get` for where this branches.
  */
 
 import { LRUCache } from '../lru-cache'
@@ -77,13 +82,17 @@ export function createDefaultCacheHandler(maxSize: number): CacheHandler {
       }
 
       const entry = privateEntry.entry
+
+      // The dev server serves stale entries until they expire (see the file
+      // overview); production drops them once past the revalidate time.
+      const maxAgeSeconds = process.env.__NEXT_DEV_SERVER
+        ? entry.expire
+        : entry.revalidate
+
       if (
         performance.timeOrigin + performance.now() >
-        entry.timestamp + entry.revalidate * 1000
+        entry.timestamp + maxAgeSeconds * 1000
       ) {
-        // In-memory caches should expire after revalidate time because it is
-        // unlikely that a new entry will be able to be used before it is dropped
-        // from the cache.
         debug?.('get', cacheKey, 'expired')
 
         return undefined
