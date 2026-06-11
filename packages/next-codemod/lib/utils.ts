@@ -143,4 +143,10 @@ export const TRANSFORMER_INQUIRER_CHOICES = [
     value: 'remove-experimental-ppr',
     version: '16.0.0-canary.11',
   },
+  {
+    title:
+      'Remove `unstable_` prefix from the stabilized `catchError` API and `retry` error prop',
+    value: 'remove-unstable-catch-error-retry',
+    version: '16.3.0-canary.47',
+  },
 ]

@@ -61,6 +61,44 @@ npx @next/codemod upgrade canary
 
 ## Codemods
 
+### 16.3
+
+#### Remove `unstable_` prefix from `catchError` and `retry`
+
+##### `remove-unstable-catch-error-retry`
+
+```bash filename="Terminal"
+npx @next/codemod@latest remove-unstable-catch-error-retry .
+```
+
+This codemod removes the `unstable_` prefix from the stabilized `catchError` API (imported from `next/error`) and the `retry` error prop.
+
+For example:
+
+```tsx filename="app/error.tsx"
+'use client'
+import { unstable_catchError } from 'next/error'
+
+function ErrorBoundary({ error, reset, unstable_retry }) {
+  return <button onClick={() => unstable_retry()}>Retry</button>
+}
+
+export default unstable_catchError(ErrorBoundary)
+```
+
+Transforms into:
+
+```tsx filename="app/error.tsx"
+'use client'
+import { catchError } from 'next/error'
+
+function ErrorBoundary({ error, reset, retry }) {
+  return <button onClick={() => retry()}>Retry</button>
+}
+
+export default catchError(ErrorBoundary)
+```
+
 ### 16.0
 
 #### Remove `experimental_ppr` Route Segment Config from App Router pages and layouts
