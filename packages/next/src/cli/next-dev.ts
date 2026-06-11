@@ -33,6 +33,10 @@ import {
   isPortIsReserved,
 } from '../lib/helpers/get-reserved-port'
 import { getCacheDirectory } from '../lib/helpers/get-cache-directory'
+import {
+  registerDevServer,
+  unregisterDevServer,
+} from '../lib/helpers/dev-server-registry'
 import { getGitBranch } from '../lib/helpers/git'
 import os from 'os'
 import fs from 'node:fs'
@@ -193,6 +197,7 @@ process.on('SIGTERM', () => handleSessionStop('SIGTERM'))
 
 // exit event must be synchronous
 process.on('exit', () => {
+  unregisterDevServer(child?.pid)
   child?.kill('SIGKILL')
   // Catch aggressive kills (e.g. OOM, unhandled exception) that bypass handleSessionStop.
   // SIGKILL of the parent cannot be caught; for all other exits this ensures state is written.
@@ -439,6 +444,20 @@ const nextDev = async (
             if (msg.distDir) {
               // Store the distDir from the child process for telemetry and trace uploads.
               distDir = msg.distDir
+            }
+
+            // Register in the machine-wide dev server registry so external
+            // tooling can discover this server without scanning ports.
+            if (child?.pid) {
+              registerDevServer(child.pid, {
+                projectDir: dir,
+                url:
+                  typeof msg.appUrl === 'string' && msg.appUrl
+                    ? msg.appUrl
+                    : `http://localhost:${port}`,
+                port,
+                startedAt: Date.now(),
+              })
             }
 
             resolved = true

@@ -668,6 +668,9 @@ if (process.env.NEXT_PRIVATE_WORKER && process.send) {
         nextServerReady: true,
         port: process.env.PORT,
         distDir: result.distDir,
+        // The exact URL the server announced (set when the server started
+        // listening), so the parent process doesn't have to re-derive it.
+        appUrl: process.env.__NEXT_PRIVATE_ORIGIN,
       })
     }
   })
