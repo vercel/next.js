@@ -51,7 +51,7 @@ async function createFlightRouterStateFromLoaderTreeImpl(
   // compute the other hints below. In the future this should be a build
   // error, but for now we gracefully degrade.
   //
-  // TODO: Move more of the hints computation (IsRootLayout, instant config,
+  // TODO: Move more of the hints computation (IsRootLayoutOrAbove, instant config,
   // loading boundary detection) into the build-time measurement step in
   // collectPrefetchHints, so this function only needs to union the
   // precomputed bitmask rather than re-derive hints on every render.
@@ -89,10 +89,14 @@ async function createFlightRouterStateFromLoaderTreeImpl(
     }
   }
 
-  // Mark the first segment that has a layout as the "root" layout
-  if (!didFindRootLayout && typeof layout !== 'undefined') {
-    didFindRootLayout = true
-    prefetchHints |= PrefetchHint.IsRootLayout
+  // Mark every segment at or above the root layout (i.e. until we descend past
+  // the first segment that has a layout).
+  if (!didFindRootLayout) {
+    prefetchHints |= PrefetchHint.IsRootLayoutOrAbove
+    if (typeof layout !== 'undefined') {
+      // This segment is the root layout; its descendants are below it.
+      didFindRootLayout = true
+    }
   }
 
   const isInstant =
@@ -177,9 +181,12 @@ export async function createFlightRouterStateFromLoaderTree(
   isStaticGeneration: boolean,
   isBuildTimePrerendering: boolean,
   getDynamicParamFromSegment: GetDynamicParamFromSegment,
-  searchParams: any
+  searchParams: any,
+  // Whether a root layout was already found above this loader tree slice, so a
+  // slice that starts below the root layout doesn't mark a sub-layout as the
+  // root layout.
+  didFindRootLayout: boolean = false
 ): Promise<FlightRouterState> {
-  const didFindRootLayout = false
   return createFlightRouterStateFromLoaderTreeImpl(
     loaderTree,
     hintTree,
@@ -202,13 +209,14 @@ export async function createRouteTreePrefetch(
   partialPrefetching: boolean | 'unstable_eager' | undefined,
   isStaticGeneration: boolean,
   isBuildTimePrerendering: boolean,
-  getDynamicParamFromSegment: GetDynamicParamFromSegment
+  getDynamicParamFromSegment: GetDynamicParamFromSegment,
+  // See note on createFlightRouterStateFromLoaderTree's didFindRootLayout.
+  didFindRootLayout: boolean = false
 ): Promise<FlightRouterState> {
   // Search params should not be added to page segment's cache key during a
   // route tree prefetch request, because they do not affect the structure of
   // the route. The client cache has its own logic to handle search params.
   const searchParams = {}
-  const didFindRootLayout = false
   return createFlightRouterStateFromLoaderTreeImpl(
     loaderTree,
     hintTree,

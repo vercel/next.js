@@ -167,7 +167,8 @@ export async function walkTreeWithFlightRouterState({
           partialPrefetching,
           isStaticGeneration,
           isBuildTimePrerendering,
-          getDynamicParamFromSegment
+          getDynamicParamFromSegment,
+          rootLayoutIncluded
         )
       : await createFlightRouterStateFromLoaderTree(
           loaderTreeToFilter,
@@ -178,7 +179,8 @@ export async function walkTreeWithFlightRouterState({
           isStaticGeneration,
           isBuildTimePrerendering,
           getDynamicParamFromSegment,
-          query
+          query,
+          rootLayoutIncluded
         )
 
     return [
@@ -220,7 +222,8 @@ export async function walkTreeWithFlightRouterState({
           isStaticGeneration,
           isBuildTimePrerendering,
           getDynamicParamFromSegment,
-          query
+          query,
+          rootLayoutIncluded
         )
     return [
       [
@@ -253,7 +256,8 @@ export async function walkTreeWithFlightRouterState({
       isStaticGeneration,
       isBuildTimePrerendering,
       getDynamicParamFromSegment,
-      query
+      query,
+      rootLayoutIncluded
     )
 
     // Create component tree using the slice of the loaderTree

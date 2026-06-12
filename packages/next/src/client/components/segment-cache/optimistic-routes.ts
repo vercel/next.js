@@ -44,6 +44,7 @@
  */
 
 import type { DynamicParamTypesShort } from '../../../shared/lib/app-router-types'
+import { PrefetchHint } from '../../../shared/lib/app-router-types'
 import type { RouteTree, FulfilledRouteCacheEntry } from './cache'
 import {
   EntryStatus,
@@ -61,6 +62,7 @@ import {
   finalizeLayoutVaryPath,
   finalizePageVaryPath,
   finalizeMetadataVaryPath,
+  getShellSegmentVaryPath,
   type PartialSegmentVaryPath,
   type PageVaryPath,
 } from './vary-path'
@@ -883,6 +885,11 @@ function reifyRouteTree(
 ): RouteTree {
   const originalSegment = pattern.segment
 
+  // This segment's param (if any) is a root param iff the segment is at or
+  // above the root layout, which the server marks directly.
+  const isRootParam =
+    (pattern.prefetchHints & PrefetchHint.IsRootLayoutOrAbove) !== 0
+
   let newSegment = originalSegment
   let partialVaryPath: PartialSegmentVaryPath | null
 
@@ -900,7 +907,8 @@ function reifyRouteTree(
       partialVaryPath = appendLayoutVaryPath(
         parentPartialVaryPath,
         newCacheKey,
-        paramName
+        paramName,
+        isRootParam
       )
     } else {
       // Param not found in resolvedParams - keep original and inherit partial
@@ -945,6 +953,7 @@ function reifyRouteTree(
     return {
       requestKey: pattern.requestKey,
       segment: newSegment,
+      shellVaryPath: getShellSegmentVaryPath(newVaryPath),
       refreshState: pattern.refreshState,
       slots: newSlots,
 
@@ -961,6 +970,7 @@ function reifyRouteTree(
     return {
       requestKey: pattern.requestKey,
       segment: newSegment,
+      shellVaryPath: getShellSegmentVaryPath(newVaryPath),
       refreshState: pattern.refreshState,
       slots: newSlots,
 

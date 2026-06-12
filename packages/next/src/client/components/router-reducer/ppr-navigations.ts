@@ -202,7 +202,6 @@ export function startPPRNavigation(
   isSamePageNavigation: boolean,
   accumulation: NavigationRequestAccumulation
 ): NavigationTask | null {
-  const didFindRootLayout = false
   const parentNeedsDynamicRequest = false
   const parentRefreshState = null
   const oldRootRefreshState: RefreshState = {
@@ -217,7 +216,6 @@ export function startPPRNavigation(
     newRouteTree,
     newMetadataVaryPath,
     freshness,
-    didFindRootLayout,
     seedData,
     seedHead,
     seedDynamicStaleAt,
@@ -237,7 +235,6 @@ function updateCacheNodeOnNavigation(
   newRouteTree: RouteTree,
   newMetadataVaryPath: PageVaryPath | null,
   freshness: FreshnessPolicy,
-  didFindRootLayout: boolean,
   seedData: CacheNodeSeedData | null,
   seedHead: HeadData | null,
   seedDynamicStaleAt: number,
@@ -275,11 +272,12 @@ function updateCacheNodeOnNavigation(
       //
       // Refer to isNavigatingToNewRootLayout for details.
       //
-      // Note that we only have to perform this extra traversal if we didn't
-      // already discover a root layout in the part of the tree that is
-      // unchanged. We also only need to compare the subtree that is not
+      // Note that we only have to perform this extra traversal if this changed
+      // segment is still at or above the root layout (IsRootLayoutOrAbove);
+      // once we've descended past the root layout, a segment change can't alter
+      // the root layout. We also only need to compare the subtree that is not
       // shared. In the common case, this branch is skipped completely.
-      (!didFindRootLayout &&
+      ((newRouteTree.prefetchHints & PrefetchHint.IsRootLayoutOrAbove) !== 0 &&
         isNavigatingToNewRootLayout(oldRouterState, newRouteTree)) ||
       // The global Not Found route (app/global-not-found.tsx) is a special
       // case, because it acts like a root layout, but in the router tree, it
@@ -311,13 +309,6 @@ function updateCacheNodeOnNavigation(
   const newSlots = newRouteTree.slots
   const oldRouterStateChildren = oldRouterState[1]
   const seedDataChildren = seedData !== null ? seedData[1] : null
-
-  // We're currently traversing the part of the tree that was also part of
-  // the previous route. If we discover a root layout, then we don't need to
-  // trigger an MPA navigation.
-  const childDidFindRootLayout =
-    didFindRootLayout ||
-    (newRouteTree.prefetchHints & PrefetchHint.IsRootLayout) !== 0
 
   let shouldRefreshDynamicData: boolean = false
   switch (freshness) {
@@ -517,7 +508,6 @@ function updateCacheNodeOnNavigation(
         newRouteTreeChild,
         newMetadataVaryPath,
         freshness,
-        childDidFindRootLayout,
         seedDataChild ?? null,
         seedHeadChild,
         seedDynamicStaleAt,
