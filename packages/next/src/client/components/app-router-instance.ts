@@ -35,9 +35,9 @@ import type {
   PrefetchOptions,
 } from '../../shared/lib/app-router-context.shared-runtime'
 import { setLinkForCurrentNavigation, type LinkInstance } from './links'
-import type { ClientInstrumentationHooks } from '../app-index'
 import type { GlobalErrorComponent } from './builtin/global-error'
 import { isJavaScriptURLString } from '../lib/javascript-url'
+import { startRouterTransition } from './router-transition'
 
 export type DispatchStatePromise = React.Dispatch<ReducerState>
 
@@ -45,10 +45,6 @@ export type AppRouterActionQueue = {
   state: AppRouterState
   dispatch: (payload: ReducerActions, setState: DispatchStatePromise) => void
   action: (state: AppRouterState, action: ReducerActions) => ReducerState
-
-  onRouterTransitionStart:
-    | ((url: string, type: 'push' | 'replace' | 'traverse') => void)
-    | null
 
   pending: ActionQueueNode | null
   needsRefresh?: boolean
@@ -218,8 +214,7 @@ function dispatchAction(
 let globalActionQueue: AppRouterActionQueue | null = null
 
 export function createMutableActionQueue(
-  initialState: AppRouterState,
-  instrumentationHooks: ClientInstrumentationHooks | null
+  initialState: AppRouterState
 ): AppRouterActionQueue {
   const actionQueue: AppRouterActionQueue = {
     state: initialState,
@@ -231,12 +226,6 @@ export function createMutableActionQueue(
     },
     pending: null,
     last: null,
-    onRouterTransitionStart:
-      instrumentationHooks !== null &&
-      typeof instrumentationHooks.onRouterTransitionStart === 'function'
-        ? // This profiling hook will be called at the start of every navigation.
-          instrumentationHooks.onRouterTransitionStart
-        : null,
   }
 
   if (typeof window !== 'undefined') {
@@ -268,13 +257,6 @@ function getAppRouterActionQueue(): AppRouterActionQueue {
   return globalActionQueue
 }
 
-function getProfilingHookForOnNavigationStart() {
-  if (globalActionQueue !== null) {
-    return globalActionQueue.onRouterTransitionStart
-  }
-  return null
-}
-
 export function dispatchNavigateAction(
   href: string,
   navigateType: NavigateAction['navigateType'],
@@ -297,11 +279,7 @@ export function dispatchNavigateAction(
   }
 
   setLinkForCurrentNavigation(linkInstanceRef)
-
-  const onRouterTransitionStart = getProfilingHookForOnNavigationStart()
-  if (onRouterTransitionStart !== null) {
-    onRouterTransitionStart(href, navigateType)
-  }
+  startRouterTransition(href, navigateType)
 
   dispatchAppRouterAction({
     type: ACTION_NAVIGATE,
@@ -317,10 +295,7 @@ export function dispatchTraverseAction(
   href: string,
   historyState: AppHistoryState | undefined
 ) {
-  const onRouterTransitionStart = getProfilingHookForOnNavigationStart()
-  if (onRouterTransitionStart !== null) {
-    onRouterTransitionStart(href, 'traverse')
-  }
+  startRouterTransition(href, 'traverse')
   dispatchAppRouterAction({
     type: ACTION_RESTORE,
     url: new URL(href),

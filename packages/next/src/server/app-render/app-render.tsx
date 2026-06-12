@@ -2310,7 +2310,7 @@ function App<T>({
     location: null,
   })
 
-  const actionQueue = createMutableActionQueue(initialState, null)
+  const actionQueue = createMutableActionQueue(initialState)
 
   const { HeadManagerContext } =
     require('../../shared/lib/head-manager-context.shared-runtime') as typeof import('../../shared/lib/head-manager-context.shared-runtime')
@@ -2371,7 +2371,7 @@ function ErrorApp<T>({
     location: null,
   })
 
-  const actionQueue = createMutableActionQueue(initialState, null)
+  const actionQueue = createMutableActionQueue(initialState)
 
   return (
     <ImageConfigContext.Provider value={images ?? imageConfigDefault}>

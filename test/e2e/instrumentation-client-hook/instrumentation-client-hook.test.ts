@@ -115,31 +115,32 @@ describe('Instrumentation Client Hook', () => {
       packageJson,
     })
 
-    it('runs each injected entry before the user instrumentation-client and before hydration, in array order', async () => {
+    it('runs each injected module before the user instrumentation-client and before hydration, in array order', async () => {
       const browser = await next.browser('/')
 
       const order = await browser.eval(`window.__INJECT_ORDER`)
-      expect(order).toEqual(['a', 'b', 'user'])
+      expect(order).toEqual(['side-effect', 'late-hook', 'a', 'b', 'user'])
 
-      const injectA = await browser.eval(`window.__INJECT_A_EXECUTED_AT`)
-      const injectB = await browser.eval(`window.__INJECT_B_EXECUTED_AT`)
+      const moduleA = await browser.eval(`window.__INJECT_A_EXECUTED_AT`)
+      const moduleB = await browser.eval(`window.__INJECT_B_EXECUTED_AT`)
       const userTime = await browser.eval(
         `window.__INSTRUMENTATION_CLIENT_EXECUTED_AT`
       )
       const hydrationTime = await browser.eval(`window.__NEXT_HYDRATED_AT`)
 
-      expect(injectA).toBeDefined()
-      expect(injectB).toBeDefined()
+      expect(moduleA).toBeDefined()
+      expect(moduleB).toBeDefined()
       expect(userTime).toBeDefined()
       expect(hydrationTime).toBeDefined()
 
-      expect(injectA).toBeLessThanOrEqual(injectB)
-      expect(injectB).toBeLessThanOrEqual(userTime)
+      expect(moduleA).toBeLessThanOrEqual(moduleB)
+      expect(moduleB).toBeLessThanOrEqual(userTime)
       expect(userTime).toBeLessThan(hydrationTime)
     })
 
-    it('still surfaces onRouterTransitionStart from the user instrumentation-client when injects are configured', async () => {
+    it('surfaces onRouterTransitionStart from every injected module', async () => {
       const browser = await next.browser('/')
+      await browser.eval(`window.__INSTALL_LATE_INSTRUMENTATION_HOOK()`)
 
       const linkToSomePage = await browser.elementByCss('a[href="/some-page"]')
       await linkToSomePage.click()
@@ -150,13 +151,39 @@ describe('Instrumentation Client Hook', () => {
       await browser.elementById('home')
 
       expect(filterNavigationStartLogs(await browser.log())).toEqual([
+        '[Router Transition Start] [push] /some-page late-hook',
         '[Router Transition Start] [push] /some-page a',
         '[Router Transition Start] [push] /some-page b',
         '[Router Transition Start] [push] /some-page user',
+        '[Router Transition Start] [push] / late-hook',
         '[Router Transition Start] [push] / a',
         '[Router Transition Start] [push] / b',
         '[Router Transition Start] [push] / user',
       ])
+    })
+
+    it('isolates hook errors between injected modules', async () => {
+      const browser = await next.browser('/')
+
+      await browser.eval(`window.__INSTALL_LATE_INSTRUMENTATION_HOOK()`)
+      await browser.eval(`window.__THROW_INJECT_A = true`)
+      await browser.elementByCss('a[href="/some-page"]').click()
+      await browser.elementById('some-page')
+
+      const logs = await browser.log()
+      expect(filterNavigationStartLogs(logs)).toEqual([
+        '[Router Transition Start] [push] /some-page late-hook',
+        '[Router Transition Start] [push] /some-page a',
+        '[Router Transition Start] [push] /some-page b',
+        '[Router Transition Start] [push] /some-page user',
+      ])
+      expect(
+        logs.filter((log) =>
+          log.message.includes(
+            'An instrumentation-client router transition hook failed'
+          )
+        )
+      ).toHaveLength(1)
     })
   })
 
