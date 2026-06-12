@@ -2935,11 +2935,6 @@ impl TurboTasksBackend {
                                 // be evicted).
                                 let mut ran_eviction = false;
                                 if self.should_evict() && (new_data || !evicted) {
-                                    if check_idle_ended!() {
-                                        // need to start all the way over so we catch the next
-                                        // signal
-                                        continue 'outer;
-                                    }
                                     evicted = true;
                                     ran_eviction = true;
                                     self.storage.evict_after_snapshot(background_span.id());
