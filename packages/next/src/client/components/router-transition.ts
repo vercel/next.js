@@ -18,6 +18,7 @@ import type {
 
 type RouterTransitionRecord = {
   id: string
+  resolvedUrl: string
   type: RouterTransitionType
   prefetch: RouterTransitionPrefetch
   committed: boolean
@@ -38,7 +39,9 @@ export function initializeRouterTransitionModules(
     !process.env.__NEXT_INSTRUMENTATION_CLIENT_ROUTER_TRANSITION_EVENTS &&
     process.env.NODE_ENV !== 'production' &&
     instrumentationModules.some(
-      (hooks) => typeof hooks.unstable_onRouterTransitionCommit === 'function'
+      (hooks) =>
+        typeof hooks.unstable_onRouterTransitionCommit === 'function' ||
+        typeof hooks.unstable_onRouterTransitionAbort === 'function'
     )
   ) {
     console.warn(
@@ -69,7 +72,8 @@ function hasLifecycleInstrumentation(): boolean {
   return instrumentationModules.some(
     (hooks) =>
       typeof hooks.onRouterTransitionStart === 'function' ||
-      typeof hooks.unstable_onRouterTransitionCommit === 'function'
+      typeof hooks.unstable_onRouterTransitionCommit === 'function' ||
+      typeof hooks.unstable_onRouterTransitionAbort === 'function'
   )
 }
 
@@ -92,9 +96,14 @@ export function startRouterTransition(
     return null
   }
 
+  if (activeTransition !== null) {
+    abortRouterTransition(activeTransition.id, 'superseded')
+  }
+
   const id = `${Date.now().toString(36)}-${(++nextTransitionId).toString(36)}`
   const record: RouterTransitionRecord = {
     id,
+    resolvedUrl: url,
     type,
     prefetch: 'none',
     committed: false,
@@ -137,12 +146,35 @@ export function commitRouterTransition(
   }
 
   record.committed = true
+  record.resolvedUrl = url
   callHooks((hooks) =>
     hooks.unstable_onRouterTransitionCommit?.(url, record.type, {
       id: record.id,
       timestamp: timestamp(),
       routes: getActiveRoutePaths(tree),
       prefetch: record.prefetch,
+    })
+  )
+  activeTransition = null
+}
+
+export function abortRouterTransition(
+  id: string | null,
+  reason: 'superseded' | 'hard-navigation' | 'error',
+  url?: string
+): void {
+  const record = getActiveTransition(id)
+  if (record === null) {
+    return
+  }
+
+  record.resolvedUrl = url ?? record.resolvedUrl
+  activeTransition = null
+  callHooks((hooks) =>
+    hooks.unstable_onRouterTransitionAbort?.(record.resolvedUrl, record.type, {
+      id: record.id,
+      timestamp: timestamp(),
+      reason,
     })
   )
 }

@@ -46,7 +46,10 @@ import { ScrollBehavior } from '../router-reducer/router-reducer-types'
 import { computeChangedPath } from '../router-reducer/compute-changed-path'
 import { isJavaScriptURLString } from '../../lib/javascript-url'
 import { UnknownDynamicStaleTime, computeDynamicStaleAt } from './bfcache'
-import { setRouterTransitionPrefetch } from '../router-transition'
+import {
+  abortRouterTransition,
+  setRouterTransitionPrefetch,
+} from '../router-transition'
 
 /**
  * Navigate to a new URL, using the Segment Cache to construct a response.
@@ -215,6 +218,7 @@ function navigateImpl(
     navigationLock,
     transitionId
   ).catch(() => {
+    abortRouterTransition(transitionId, 'error')
     // If the navigation fails, return the current state
     return state
   })
@@ -637,8 +641,10 @@ export function completeHardNavigation(
     console.error(
       'Next.js has blocked a javascript: URL as a security precaution.'
     )
+    abortRouterTransition(transitionId, 'error', url.href)
     return state
   }
+  abortRouterTransition(transitionId, 'hard-navigation', url.href)
   const newState: AppRouterState = {
     canonicalUrl:
       url.origin === location.origin ? createHrefFromUrl(url) : url.href,

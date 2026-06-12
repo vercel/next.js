@@ -23,6 +23,10 @@ export type RouterTransitionCommitEvent = RouterTransitionEvent & {
   prefetch: RouterTransitionPrefetch
 }
 
+export type RouterTransitionAbortEvent = RouterTransitionEvent & {
+  reason: 'superseded' | 'hard-navigation' | 'error'
+}
+
 export type ClientInstrumentationHooks = {
   onRouterTransitionStart?: (
     url: string,
@@ -33,6 +37,11 @@ export type ClientInstrumentationHooks = {
     url: string,
     navigationType: RouterTransitionType,
     event: RouterTransitionCommitEvent
+  ) => void
+  unstable_onRouterTransitionAbort?: (
+    url: string,
+    navigationType: RouterTransitionType,
+    event: RouterTransitionAbortEvent
   ) => void
 }
 

@@ -19,6 +19,11 @@ export default function RootLayout({ children }) {
           <li>
             <Link href="/blog/hello">Blog post</Link>
           </li>
+          <li>
+            <Link href="/slow" prefetch={true}>
+              Slow page
+            </Link>
+          </li>
         </ul>
         {children}
       </body>
