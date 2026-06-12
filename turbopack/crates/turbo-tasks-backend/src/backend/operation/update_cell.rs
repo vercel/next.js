@@ -20,7 +20,7 @@ use crate::{
         },
         storage_schema::TaskStorageAccessors,
     },
-    data::{CellDependency, CellRef},
+    data::CellRef,
 };
 
 #[derive(Encode, Decode, Clone, Default)]
@@ -132,29 +132,43 @@ impl UpdateCellOperation {
             });
 
             // Collect dependent tasks only when not skipping invalidation.
-            // The iterator borrows from `task`, so it must be scoped to drop before
+            // The iterators borrow from `task`, so they must be scoped to drop before
             // we mutably borrow `task` again in the fast path.
             let mut dependent_tasks: FxIndexMap<TaskId, SmallVec<[Option<u64>; 2]>> =
                 FxIndexMap::default();
             if !skip_invalidation {
-                let tasks_with_keys = task.iter_cell_dependents().filter_map(|dep| {
-                    let (
-                        CellRef {
-                            task: dependent_task,
-                            cell: dependent_cell,
-                        },
-                        key,
-                    ) = dep.into_parts();
-                    (dependent_cell == cell
-                        && key.is_none_or(|key_hash| {
-                            updated_key_hashes_set
-                                .as_ref()
-                                .is_none_or(|set| set.contains(&key_hash))
-                        }))
-                    .then_some((dependent_task, key))
-                });
-                for (task, key) in tasks_with_keys {
-                    dependent_tasks.entry(task).or_default().push(key);
+                // Keyless dependents: always invalidate when the cell matches.
+                for CellRef {
+                    task: dependent_task,
+                    cell: dependent_cell,
+                } in task.iter_cell_dependents()
+                {
+                    if dependent_cell == cell {
+                        dependent_tasks
+                            .entry(dependent_task)
+                            .or_default()
+                            .push(None);
+                    }
+                }
+                // Keyed dependents: invalidate only when the changed sub-value (key) matches.
+                for (
+                    CellRef {
+                        task: dependent_task,
+                        cell: dependent_cell,
+                    },
+                    key_hash,
+                ) in task.iter_cell_dependents_hashed()
+                {
+                    if dependent_cell == cell
+                        && updated_key_hashes_set
+                            .as_ref()
+                            .is_none_or(|set| set.contains(&key_hash))
+                    {
+                        dependent_tasks
+                            .entry(dependent_task)
+                            .or_default()
+                            .push(Some(key_hash));
+                    }
                 }
             }
 
@@ -281,15 +295,27 @@ impl Operation for UpdateCellOperation {
                         let mut make_stale = false;
                         let dependent = ctx.task(dependent_task_id, TaskDataCategory::All);
                         for key in keys.iter().copied() {
-                            let dep = CellDependency::new(cell_ref, key);
-                            if dependent.outdated_cell_dependencies_contains(&dep) {
+                            let (in_outdated, in_current) = if let Some(k) = key {
+                                let in_outdated = dependent
+                                    .outdated_cell_dependencies_hashed_contains(&(cell_ref, k));
+                                let in_current = !in_outdated
+                                    && dependent.cell_dependencies_hashed_contains(&(cell_ref, k));
+                                (in_outdated, in_current)
+                            } else {
+                                let in_outdated =
+                                    dependent.outdated_cell_dependencies_contains(&cell_ref);
+                                let in_current =
+                                    !in_outdated && dependent.cell_dependencies_contains(&cell_ref);
+                                (in_outdated, in_current)
+                            };
+                            if in_outdated {
                                 // cell dependency is outdated, so it hasn't read the cell yet
                                 // and doesn't need to be invalidated.
                                 // We do not need to make the task stale in this case.
                                 // But importantly we still need to make the task dirty as it should
                                 // no longer be considered as
                                 // "recomputation".
-                            } else if !dependent.cell_dependencies_contains(&dep) {
+                            } else if !in_current {
                                 // cell dependency has been removed, so the task doesn't depend on
                                 // the cell anymore and doesn't need
                                 // to be invalidated

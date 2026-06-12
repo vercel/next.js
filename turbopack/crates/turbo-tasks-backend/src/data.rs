@@ -79,49 +79,6 @@ impl CollectiblesRef {
     }
 }
 
-/// An edge between a [`CellRef`] and a task, optionally narrowed by a hashed sub-key.
-///
-/// Used both as a forward and reverse edge:
-/// - In `cell_dependencies`, the [`CellRef`] is the cell another task owns that this task depends
-///   on.
-/// - In `cell_dependents`, the [`CellRef`]'s `task` is the dependent task and `cell` is the cell of
-///   the storing task; the `task` field is reused as the dependent's id rather than the cell's
-///   owning task. The fields encode the same bits either way.
-#[derive(Debug, Copy, Clone, Hash, PartialEq, Eq, Encode, Decode)]
-pub enum CellDependency {
-    /// Depend on the cell as a whole.
-    All(CellRef),
-    /// Depend only on the sub-value identified by this hash key.
-    Hash(CellRef, u64),
-}
-
-impl CellDependency {
-    pub fn cell_ref(&self) -> CellRef {
-        match *self {
-            CellDependency::All(c) | CellDependency::Hash(c, _) => c,
-        }
-    }
-
-    /// Decompose into the underlying `(CellRef, Option<u64>)` in a single match.
-    pub fn into_parts(self) -> (CellRef, Option<u64>) {
-        match self {
-            CellDependency::All(c) => (c, None),
-            CellDependency::Hash(c, k) => (c, Some(k)),
-        }
-    }
-
-    pub fn new(cell_ref: CellRef, key: Option<u64>) -> Self {
-        match key {
-            None => CellDependency::All(cell_ref),
-            Some(k) => CellDependency::Hash(cell_ref, k),
-        }
-    }
-
-    pub fn is_transient(&self) -> bool {
-        self.cell_ref().is_transient()
-    }
-}
-
 #[derive(Debug, Clone, PartialEq, Eq, Encode, Decode)]
 pub enum OutputValue {
     Cell(CellRef),
