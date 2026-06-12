@@ -44,19 +44,25 @@ A future release will use [`instant`](/docs/app/api-reference/file-conventions/r
 
 You typically don't need to set this explicitly — omitting the export has the same effect.
 
+### `'partial'`
+
+Opts this segment into Partial Prefetching. The prefetch contains the route's cached content; uncached parts and link-specific data (such as `params` and `searchParams`) stream in after navigation.
+
+This is the per-segment equivalent of enabling [`partialPrefetching`](/docs/app/api-reference/config/next-config-js/partialPrefetching) at the app level. To include link data in the prefetch, use [`'allow-runtime'`](#allow-runtime), which is a superset of `'partial'`.
+
+```tsx filename="page.tsx"
+export const prefetch = 'partial'
+```
+
 ### `'allow-runtime'`
 
 Allows Next.js to prefetch this segment at runtime. Today, setting this option causes Next.js to issue a runtime prefetch request, so the server can render a fresh response that includes runtime data like cookies, headers, and search params. Use this for personalized content when the latency and cost of runtime prefetching are appropriate for the segment.
 
-> **Good to know**: When Next.js runtime-prefetches a segment, all downstream segments are included in the same runtime prefetch request. This means segments deeper in the tree that are configured with `'force-static'` or `'force-disabled'` will still be prefetched as part of the runtime response.
+> **Good to know**: When Next.js runtime-prefetches a segment, all downstream segments are included in the same runtime prefetch request. Segments deeper in the tree that are configured with `'force-disabled'` will still be prefetched as part of the runtime response.
 
 ```tsx filename="page.tsx"
 export const prefetch = 'allow-runtime'
 ```
-
-### `'force-static'`
-
-Always prefetch this segment statically, even if it has not been validated with `instant`. Use this when you know the segment produces a valid static shell but do not want to set up instant validation.
 
 ### `'force-disabled'`
 
@@ -76,7 +82,7 @@ In general, both of these are special circumstances. The default behavior — wh
 ## TypeScript
 
 ```tsx
-type Prefetch = 'auto' | 'force-disabled' | 'force-static' | 'allow-runtime'
+type Prefetch = 'auto' | 'partial' | 'allow-runtime' | 'force-disabled'
 
 export const prefetch: Prefetch = 'allow-runtime'
 ```
