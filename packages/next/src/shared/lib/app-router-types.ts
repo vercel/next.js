@@ -428,6 +428,18 @@ export type InitialRSCPayload = {
    * staleness.
    */
   d?: number
+  /**
+   * revealAfter (dev only). Resolves once the server has flushed the
+   * shell-stage content to the stream (static shell, or runtime-prefetchable
+   * shell for runtime-prefetch routes), or earlier on a cache miss. The client
+   * decodes this from the payload and defers resolving the response's deferred
+   * RSCs on it, so a boundary's children aren't revealed before their row has
+   * been decoded (which would flush a premature Suspense fallback). Its
+   * resolution row follows the children's row in the payload, so the children
+   * are decoded by the time the client unblocks. The HTML render gates on the
+   * same signal server-side instead of reading this field.
+   */
+  _revealAfter?: Promise<void>
 }
 
 // Response from `createFromFetch` for normal rendering
@@ -470,6 +482,18 @@ export type NavigationFlightResponse = {
    * staleness.
    */
   d?: number
+  /**
+   * revealAfter (dev only). Resolves once the server has flushed the
+   * shell-stage content to the stream (static shell, or runtime-prefetchable
+   * shell for runtime-prefetch routes), or earlier on a cache miss. The client
+   * decodes this from the payload and defers resolving the response's deferred
+   * RSCs on it, so a boundary's children aren't revealed before their row has
+   * been decoded (which would flush a premature Suspense fallback). Its
+   * resolution row follows the children's row in the payload, so the children
+   * are decoded by the time the client unblocks. The HTML render gates on the
+   * same signal server-side instead of reading this field.
+   */
+  _revealAfter?: Promise<void>
 }
 
 // Response from `createFromFetch` for server actions. Action's flight data can be null
