@@ -64,8 +64,15 @@ import { createDigestWithErrorCode } from '../../lib/error-telemetry-utils'
 import stringHash from 'next/dist/compiled/string-hash'
 import { DYNAMIC_EXPIRE, DYNAMIC_STALE } from './constants'
 import { NEXT_CACHE_ROOT_PARAM_TAG_ID } from '../../lib/constants'
-import type { CacheHandler } from '../lib/cache-handlers/types'
-import { getCacheHandler, getPrivateCacheHandler } from './handlers'
+import {
+  getCacheHandler,
+  getDevTieredCacheHandler,
+  getPrivateCacheHandler,
+  isCustomCacheHandler,
+  isMemoryCacheDisabled,
+} from './handlers'
+import type { CacheReadWriteHandler } from './tiered-cache-handler'
+import { cloneCacheEntry } from './clone-cache-entry'
 import {
   NEXT_HMR_REFRESH_HASH_COOKIE,
   NEXT_INSTANT_TEST_COOKIE,
@@ -499,7 +506,7 @@ function saveSharedCacheEntryToResumeDataCache(
 }
 
 function saveToCacheHandler(
-  cacheHandler: CacheHandler,
+  cacheHandler: CacheReadWriteHandler,
   workStore: WorkStore,
   id: string,
   cacheHandlerKeyBase: string,
@@ -1076,25 +1083,36 @@ async function collectResult(
 
   const collectedTags = innerCacheStore.tags
 
-  // In development, private caches are forced to `revalidate: 0` and an
-  // `expire` of `DYNAMIC_EXPIRE` (5 minutes), the shortest expire not treated
-  // as dynamically shortened. The zero revalidate makes every read serve
-  // stale-while-revalidate (re-warming a fresh entry in the background) so warm
-  // reloads stay fast. The expire bounds how long an entry lingers in the dev
-  // in-memory cache.
   const isPrivateCacheInDev = Boolean(
     process.env.__NEXT_DEV_SERVER && cacheContext.kind === 'private'
   )
 
+  // In development, force a dynamic cache life (`revalidate: 0`, `expire:
+  // DYNAMIC_EXPIRE`) for caches that have no real backing: private caches, and
+  // any built-in (non-custom) kind when the in-memory cache is disabled
+  // (`cacheMaxMemorySize: 0`). The zero revalidate makes every read serve
+  // stale-while-revalidate (re-warming a fresh entry in the background) so warm
+  // reloads stay fast, and `DYNAMIC_EXPIRE` (5 minutes, the shortest expire not
+  // treated as dynamically shortened) bounds how long an entry lingers in the
+  // dev in-memory cache. Custom kinds keep their real cache life, since their
+  // backing handler owns it.
+  const forceDynamicCacheLifeInDev =
+    isPrivateCacheInDev ||
+    Boolean(
+      process.env.__NEXT_DEV_SERVER &&
+        isMemoryCacheDisabled() &&
+        !isCustomCacheHandler(cacheContext.kind)
+    )
+
   // If cacheLife() was used to set an explicit revalidate/expire/stale time we
   // use that. Otherwise, we use the lowest of all inner fetch(),
   // unstable_cache() or nested "use cache", if they're lower than our default.
-  const collectedRevalidate = isPrivateCacheInDev
+  const collectedRevalidate = forceDynamicCacheLifeInDev
     ? 0
     : innerCacheStore.explicitRevalidate !== undefined
       ? innerCacheStore.explicitRevalidate
       : innerCacheStore.revalidate
-  const collectedExpire = isPrivateCacheInDev
+  const collectedExpire = forceDynamicCacheLifeInDev
     ? DYNAMIC_EXPIRE
     : innerCacheStore.explicitExpire !== undefined
       ? innerCacheStore.explicitExpire
@@ -1514,20 +1532,6 @@ async function generateCacheEntryImpl(
   }
 }
 
-function cloneCacheEntry(entry: CacheEntry): [CacheEntry, CacheEntry] {
-  const [streamA, streamB] = entry.value.tee()
-  entry.value = streamA
-  const clonedEntry: CacheEntry = {
-    value: streamB,
-    timestamp: entry.timestamp,
-    revalidate: entry.revalidate,
-    expire: entry.expire,
-    stale: entry.stale,
-    tags: entry.tags,
-  }
-  return [entry, clonedEntry]
-}
-
 function cloneCacheResult(
   result: CollectedCacheResult
 ): [CollectedCacheResult, CollectedCacheResult] {
@@ -1635,7 +1639,7 @@ export async function cache(
   // Probe re-executions (the dev-server's hang-detection worker) short-circuit
   // further down before any handler is consulted, so we skip handler selection
   // entirely and the worker can boot without registering handlers at all.
-  let cacheHandler: CacheHandler | undefined
+  let cacheHandler: CacheReadWriteHandler | undefined
   if (workStore.useCacheProbeMode === undefined) {
     if (isPrivate) {
       // Private caches normally go to the Resume Data Cache (RDC), not a cache
@@ -1645,9 +1649,30 @@ export async function cache(
         cacheHandler = getPrivateCacheHandler()
       }
     } else {
-      cacheHandler = getCacheHandler(kind)
-      if (!cacheHandler) {
+      const handler = getCacheHandler(kind)
+      if (!handler) {
         throw new Error('Unknown cache handler: ' + kind)
+      }
+
+      // In development, a user-configured (custom) handler may be slow or
+      // remote, so we read through a tiered handler that puts a built-in
+      // in-memory front in front of it to keep warm reads microtask-fast.
+      // Built-in handlers (the default handler, and its size-0 replacement) are
+      // already in-memory and used directly.
+      if (process.env.__NEXT_DEV_SERVER && isCustomCacheHandler(kind)) {
+        // A custom kind always has a dev tiered handler: it is created in the
+        // same `setCacheHandler` call that makes `isCustomCacheHandler` true.
+        const tieredCacheHandler = getDevTieredCacheHandler(kind)
+
+        if (!tieredCacheHandler) {
+          throw new InvariantError(
+            `Expected a dev tiered cache handler for kind "${kind}".`
+          )
+        }
+
+        cacheHandler = tieredCacheHandler
+      } else {
+        cacheHandler = handler
       }
     }
   }
