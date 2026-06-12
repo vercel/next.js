@@ -48,6 +48,7 @@ export type {
   RouterTransitionPrefetchIntent,
   RouterTransitionEvent,
   RouterTransitionStartEvent,
+  RouterTransitionCommitEvent,
 } from './client/router-transition-types'
 
 /**

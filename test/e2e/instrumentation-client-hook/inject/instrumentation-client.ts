@@ -6,3 +6,11 @@ export function onRouterTransitionStart(href: string, navigateType: string) {
   const pathname = new URL(href, window.location.href).pathname
   console.log(`[Router Transition Start] [${navigateType}] ${pathname} user`)
 }
+
+export function unstable_onRouterTransitionCommit(
+  href: string,
+  navigateType: string
+) {
+  const pathname = new URL(href, window.location.href).pathname
+  console.log(`[Router Transition Commit] [${navigateType}] ${pathname} user`)
+}

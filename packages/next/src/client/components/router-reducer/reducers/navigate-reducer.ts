@@ -24,16 +24,17 @@ export function navigateReducer(
   state: ReadonlyReducerState,
   action: NavigateAction
 ): ReducerState {
-  const { url, isExternalUrl, navigateType, scrollBehavior } = action
+  const { url, isExternalUrl, navigateType, scrollBehavior, transitionId } =
+    action
 
   if (isExternalUrl) {
-    return completeHardNavigation(state, url, navigateType)
+    return completeHardNavigation(state, url, navigateType, transitionId)
   }
 
   // Handles case where `<meta http-equiv="refresh">` tag is present,
   // which will trigger an MPA navigation.
   if (document.getElementById('__next-page-redirect')) {
-    return completeHardNavigation(state, url, navigateType)
+    return completeHardNavigation(state, url, navigateType, transitionId)
   }
 
   // Temporary glue code between the router reducer and the new navigation
@@ -51,6 +52,7 @@ export function navigateReducer(
     state.nextUrl,
     FreshnessPolicy.Default,
     scrollBehavior,
-    navigateType
+    navigateType,
+    transitionId
   )
 }

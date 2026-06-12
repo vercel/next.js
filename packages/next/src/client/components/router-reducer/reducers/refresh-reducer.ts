@@ -99,6 +99,7 @@ export function refreshDynamicData(
     // cache entry to mark as having a dynamic rewrite on mismatch. If a
     // mismatch occurs, the retry handler will traverse the known route tree
     // to find and mark the entry.
+    null,
     null
   )
 }

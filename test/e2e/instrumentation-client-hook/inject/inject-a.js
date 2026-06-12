@@ -9,3 +9,8 @@ export function onRouterTransitionStart(href, navigateType) {
     throw new Error('inject a transition hook failed')
   }
 }
+
+export function unstable_onRouterTransitionCommit(href, navigateType) {
+  const pathname = new URL(href, window.location.href).pathname
+  console.log(`[Router Transition Commit] [${navigateType}] ${pathname} a`)
+}

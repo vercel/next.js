@@ -281,7 +281,7 @@ export function dispatchNavigateAction(
   }
 
   setLinkForCurrentNavigation(linkInstanceRef)
-  startRouterTransition(
+  const transitionId = startRouterTransition(
     href,
     navigateType,
     getAppRouterActionQueue().state.tree,
@@ -295,6 +295,7 @@ export function dispatchNavigateAction(
     locationSearch: location.search,
     scrollBehavior,
     navigateType,
+    transitionId,
   })
 }
 
@@ -302,7 +303,7 @@ export function dispatchTraverseAction(
   href: string,
   historyState: AppHistoryState | undefined
 ) {
-  startRouterTransition(
+  const transitionId = startRouterTransition(
     href,
     'traverse',
     getAppRouterActionQueue().state.tree,
@@ -312,6 +313,7 @@ export function dispatchTraverseAction(
     type: ACTION_RESTORE,
     url: new URL(href),
     historyState,
+    transitionId,
   })
 }
 
@@ -365,7 +367,8 @@ function gesturePush(href: string, options?: NavigateOptions): void {
       state.nextUrl,
       freshnessPolicy,
       scrollBehavior,
-      'push'
+      'push',
+      null
     )
     dispatchGestureState(forkedGestureState)
   }
