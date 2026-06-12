@@ -21,7 +21,7 @@ function parseUrlForPages(
   fsReadDirSyncCache[directory].forEach((dirent) => {
     if (extRegex.test(dirent.name)) {
       if (/^index\./.test(dirent.name)) {
-        res.push(`${urlprefix}${dirent.name.replace(extRegex, '')}`)
+        res.push(urlprefix)
       }
       res.push(`${urlprefix}${dirent.name.replace(extRegex, '')}`)
     } else {

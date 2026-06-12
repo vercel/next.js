@@ -82,8 +82,7 @@ export default defineRule({
    * Creates an ESLint rule listener.
    */
   create(context) {
-    const ruleOptions: (string | string[])[] = context.options
-    const [customPagesDirectory, options] = ruleOptions
+    const [customPagesDirectory, options] = context.options
 
     const pageExtensions: string[] = options?.pageExtensions ?? [
       'tsx',

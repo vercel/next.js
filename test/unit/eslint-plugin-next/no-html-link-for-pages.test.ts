@@ -529,6 +529,31 @@ describe('no-html-link-for-pages', function () {
       'Do not use an `<a>` element to navigate to `/`. Use `<Link />` from `next/link` instead. See: https://nextjs.org/docs/messages/no-html-link-for-pages'
     )
   })
+  it('should detect nested index page via custom pages directory', function () {
+    const nestedIndexCode = `
+import Link from 'next/link';
+export class Blah extends Head {
+  render() {
+    return (
+      <div>
+        <a href='/profile/'>Profile</a>
+        <h1>Hello title</h1>
+      </div>
+    );
+  }
+}
+`
+    const [report] = linters.withCustomPages.verify(
+      nestedIndexCode,
+      linterConfigWithCustomDirectory,
+      { filename: 'foo.js' }
+    )
+    assert.notEqual(report, undefined, 'No lint errors found.')
+    assert.equal(
+      report.message,
+      'Do not use an `<a>` element to navigate to `/profile/`. Use `<Link />` from `next/link` instead. See: https://nextjs.org/docs/messages/no-html-link-for-pages'
+    )
+  })
   it('should NOT detect links when custom pageExtensions do not match any files', function () {
     const consoleSpy = jest.spyOn(console, 'warn').mockImplementation()
     const report = linters.withCustomPages.verify(
