@@ -14,6 +14,7 @@
 #![allow(clippy::mutable_key_type)]
 
 pub mod attach;
+mod denied_paths;
 pub mod embed;
 pub mod glob;
 mod globset;
@@ -77,6 +78,7 @@ use turbo_unix_path::{
 
 use crate::{
     attach::AttachedFileSystem,
+    denied_paths::{is_relative_path_denied, is_sys_path_denied},
     glob::Glob,
     invalidation::Write,
     invalidator_map::InvalidatorMap,
@@ -303,12 +305,12 @@ impl DiskFileSystemInner {
     ///
     /// We can efficiently check using string operations
     fn is_path_denied(&self, path: &FileSystemPath) -> bool {
-        let path = &path.path;
-        self.denied_paths.iter().any(|denied_path| {
-            path.starts_with(denied_path.as_str())
-                && (path.len() == denied_path.len()
-                    || path.as_bytes().get(denied_path.len()) == Some(&b'/'))
-        })
+        is_relative_path_denied(&path.path, &self.denied_paths)
+    }
+
+    /// Checks if an absolute filesystem event path falls within a denied path.
+    fn is_sys_path_denied(&self, path: &Path) -> bool {
+        is_sys_path_denied(path, self.root_path(), &self.denied_paths)
     }
 
     /// registers the path as an invalidator for the current task,

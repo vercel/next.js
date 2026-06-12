@@ -546,7 +546,54 @@ impl DiskWatcher {
                             break;
                         }
 
-                        let paths: Vec<PathBuf> = event.paths;
+                        let kind = event.kind;
+                        let paths = event.paths;
+                        if paths.is_empty() {
+                            // this event isn't useful, but keep trying to process the batch
+                            event_result = rx.try_recv();
+                            continue;
+                        }
+
+                        if let EventKind::Modify(ModifyKind::Name(RenameMode::Both)) = kind {
+                            // For rename::both, notify provides source and destination paths in
+                            // order. Keep the original pair intact before denied-path filtering so
+                            // filtering out one side cannot turn a valid rename event into a
+                            // malformed one.
+                            if let [source, destination, ..] = &paths[..] {
+                                if !fs_inner.is_sys_path_denied(source) {
+                                    queue_rename_path(
+                                        source,
+                                        &mut batched_invalidate_path_and_children,
+                                        &mut batched_invalidate_path_dir,
+                                    );
+                                }
+                                if !fs_inner.is_sys_path_denied(destination) {
+                                    queue_rename_path(
+                                        destination,
+                                        &mut batched_invalidate_path_and_children,
+                                        &mut batched_invalidate_path_dir,
+                                    );
+                                    if let Some(batched_new_paths) = &mut batched_new_paths {
+                                        batched_new_paths.insert(destination.clone());
+                                    }
+                                }
+                            } else {
+                                // If we hit here, we expect this as a bug either in
+                                // notify or system weirdness.
+                                panic!(
+                                    "Rename event does not contain source and destination paths \
+                                     {paths:#?}"
+                                );
+                            }
+
+                            event_result = rx.try_recv();
+                            continue;
+                        }
+
+                        let paths: Vec<PathBuf> = paths
+                            .into_iter()
+                            .filter(|path| !fs_inner.is_sys_path_denied(path))
+                            .collect();
                         if paths.is_empty() {
                             // this event isn't useful, but keep trying to process the batch
                             event_result = rx.try_recv();
@@ -556,7 +603,7 @@ impl DiskWatcher {
                         // [NOTE] there is attrs in the `Event` struct, which contains few
                         // more metadata like process_id who triggered the event,
                         // or the source we may able to utilize later.
-                        match event.kind {
+                        match kind {
                             // [NOTE] Observing `ModifyKind::Metadata(MetadataKind::Any)` is
                             // not a mistake, fix for PACK-2437.
                             // In here explicitly subscribes to the `ModifyKind::Data` which
@@ -597,32 +644,6 @@ impl DiskWatcher {
                                     }
                                 });
                             }
-                            // A single event emitted with both the `From` and `To` paths.
-                            EventKind::Modify(ModifyKind::Name(RenameMode::Both)) => {
-                                // For the rename::both, notify provides an array of paths
-                                // in given order
-                                if let [source, destination, ..] = &paths[..] {
-                                    batched_invalidate_path_and_children.insert(source.clone());
-                                    if let Some(parent) = source.parent() {
-                                        batched_invalidate_path_dir.insert(PathBuf::from(parent));
-                                    }
-                                    batched_invalidate_path_and_children
-                                        .insert(destination.clone());
-                                    if let Some(parent) = destination.parent() {
-                                        batched_invalidate_path_dir.insert(PathBuf::from(parent));
-                                    }
-                                    if let Some(batched_new_paths) = &mut batched_new_paths {
-                                        batched_new_paths.insert(destination.clone());
-                                    }
-                                } else {
-                                    // If we hit here, we expect this as a bug either in
-                                    // notify or system weirdness.
-                                    panic!(
-                                        "Rename event does not contain source and destination \
-                                         paths {paths:#?}"
-                                    );
-                                }
-                            }
                             // We expect `RenameMode::Both` to cover most of the cases we
                             // need to invalidate,
                             // but we also check other RenameModes
@@ -646,6 +667,15 @@ impl DiskWatcher {
                     }
                     // Error raised by notify watcher itself
                     Ok(Err(notify::Error { kind, paths })) => {
+                        let had_paths = !paths.is_empty();
+                        let paths: Vec<PathBuf> = paths
+                            .into_iter()
+                            .filter(|path| !fs_inner.is_sys_path_denied(path))
+                            .collect();
+                        if had_paths && paths.is_empty() {
+                            event_result = rx.try_recv();
+                            continue;
+                        }
                         println!("watch error ({paths:?}): {kind:?} ");
 
                         if paths.is_empty() {
@@ -815,6 +845,17 @@ fn invalidate_path_and_children_execute(
                 .into_iter()
                 .for_each(|i| invalidate(inner, turbo_tasks, report_invalidation_reason, &path, i));
         }
+    }
+}
+
+fn queue_rename_path(
+    path: &Path,
+    batched_invalidate_path_and_children: &mut FxHashSet<PathBuf>,
+    batched_invalidate_path_dir: &mut FxHashSet<PathBuf>,
+) {
+    batched_invalidate_path_and_children.insert(path.to_path_buf());
+    if let Some(parent) = path.parent() {
+        batched_invalidate_path_dir.insert(PathBuf::from(parent));
     }
 }
 
