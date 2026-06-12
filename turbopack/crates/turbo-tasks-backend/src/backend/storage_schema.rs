@@ -34,9 +34,8 @@ use turbo_tasks::{
 use crate::{
     backend::{cell_data::CellData, counter_map::CounterMap},
     data::{
-        ActivenessState, AggregationNumber, CellDependency, CellRef, CollectibleRef,
-        CollectiblesRef, Dirtyness, InProgressCellState, InProgressState, LeafDistance,
-        OutputValue, RootType, TransientTask,
+        ActivenessState, AggregationNumber, CellRef, CollectibleRef, CollectiblesRef, Dirtyness,
+        InProgressCellState, InProgressState, LeafDistance, OutputValue, RootType, TransientTask,
     },
 };
 
@@ -255,7 +254,7 @@ struct TaskStorageSchema {
         shrink_on_completion,
         drop_on_completion_if_immutable
     )]
-    cell_dependencies_all: AutoSet<CellRef, 2>,
+    cell_dependencies: AutoSet<CellRef, 2>,
 
     /// Cells this task depends on, narrowed to a hashed sub-value (`CellDependency::Hash`). Rare.
     #[field(
@@ -283,7 +282,7 @@ struct TaskStorageSchema {
 
     /// Outdated keyless cell dependencies to be cleaned up (transient).
     #[field(storage = "auto_set", category = "transient", shrink_on_completion)]
-    outdated_cell_dependencies_all: AutoSet<CellRef, 2>,
+    outdated_cell_dependencies: AutoSet<CellRef, 2>,
 
     /// Outdated hashed cell dependencies to be cleaned up (transient).
     #[field(storage = "auto_set", category = "transient", shrink_on_completion)]
@@ -297,7 +296,7 @@ struct TaskStorageSchema {
     // DEPENDENTS - Tasks that depend on this task's cells
     // =========================================================================
     /// Tasks that depend on this task's cells as a whole (keyless). Reverse of
-    /// `cell_dependencies_all`. In a `cell_dependents` entry the `CellRef.task` field holds the
+    /// `cell_dependencies`. In a `cell_dependents` entry the `CellRef.task` field holds the
     /// DEPENDENT task's id and `CellRef.cell` is this task's cell (see `CellDependency` docs).
     #[field(
         storage = "auto_set",
@@ -305,7 +304,7 @@ struct TaskStorageSchema {
         filter_transient,
         drop_on_completion_if_immutable
     )]
-    cell_dependents_all: AutoSet<CellRef, 2>,
+    cell_dependents: AutoSet<CellRef, 2>,
 
     /// Tasks that depend on a hashed sub-value of this task's cells. Reverse of
     /// `cell_dependencies_hashed`.
@@ -879,11 +878,6 @@ impl IsTransient for (TraitTypeId, TaskId) {
         self.1.is_transient()
     }
 }
-impl IsTransient for CellDependency {
-    fn is_transient(&self) -> bool {
-        CellDependency::is_transient(self)
-    }
-}
 impl IsTransient for CellRef {
     fn is_transient(&self) -> bool {
         CellRef::is_transient(self)
@@ -1282,7 +1276,7 @@ mod tests {
         original
             .output_dependencies_mut()
             .insert(TaskId::new(200).unwrap());
-        original.cell_dependencies_all_mut().insert(CellRef {
+        original.cell_dependencies_mut().insert(CellRef {
             task: TaskId::new(1).unwrap(),
             cell: CellId {
                 type_id: unsafe { turbo_tasks::ValueTypeId::new_unchecked(1) },
@@ -1341,7 +1335,7 @@ mod tests {
                 .unwrap()
                 .contains(&TaskId::new(200).unwrap())
         );
-        assert_eq!(decoded.cell_dependencies_all().unwrap().len(), 1);
+        assert_eq!(decoded.cell_dependencies().unwrap().len(), 1);
 
         // Verify transient fields were NOT decoded
         assert!(decoded.outdated_output_dependencies().is_none());
@@ -1427,7 +1421,7 @@ mod tests {
         storage.output_dependent_mut().insert(transient_task(3));
 
         // Lazy filter_transient data field.
-        storage.cell_dependencies_all_mut().insert(CellRef {
+        storage.cell_dependencies_mut().insert(CellRef {
             task: persistent_task(10),
             cell: CellId {
                 type_id: unsafe { turbo_tasks::ValueTypeId::new_unchecked(1) },
@@ -1451,7 +1445,7 @@ mod tests {
         assert_eq!(storage.output_dependent().len(), 1);
         // Lazy non-filter-transient residue: cell_dependencies had only persistent
         // entries and should be dropped entirely.
-        assert!(storage.cell_dependencies_all().is_none());
+        assert!(storage.cell_dependencies().is_none());
         // data_restored cleared; meta_restored untouched.
         assert!(!storage.flags.data_restored());
         assert!(storage.flags.meta_restored());
