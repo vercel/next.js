@@ -7,6 +7,10 @@ on:
   # Allow manual triggering for emergency resets
   workflow_dispatch:
 
+
+permissions:
+  contents: read
+
 env:
   VERCEL_TEST_TEAM: vtest314-next-e2e-tests
   VERCEL_TEST_TOKEN: ${{ secrets.VERCEL_TEST_TOKEN }}

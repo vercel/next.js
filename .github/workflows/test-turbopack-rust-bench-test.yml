@@ -76,3 +76,7 @@ jobs:
         timeout-minutes: 120
         run: |
           cargo test --benches --release -p turbopack-bench
+
+
+permissions:
+  contents: read

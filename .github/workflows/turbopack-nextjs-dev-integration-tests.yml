@@ -15,3 +15,7 @@ jobs:
       run_before_test: |
         export IS_TURBOPACK_TEST=1 TURBOPACK_DEV=1 RUST_BACKTRACE=1
     secrets: inherit
+
+
+permissions:
+  contents: read

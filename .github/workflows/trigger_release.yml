@@ -30,6 +30,10 @@ on:
 
 name: Trigger Release
 
+
+permissions:
+  contents: read
+
 env:
   NAPI_CLI_VERSION: 2.18.4
   TURBO_VERSION: 2.9.4

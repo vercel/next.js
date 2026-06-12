@@ -56,3 +56,7 @@ jobs:
 
         env:
           GRAPHITE_CI_OPTIMIZER_TOKEN_NON_EMPTY: ${{ secrets.GRAPHITE_CI_OPTIMIZER_TOKEN != '' }}
+
+
+permissions:
+  contents: read

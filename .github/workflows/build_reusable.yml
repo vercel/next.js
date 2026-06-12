@@ -470,3 +470,7 @@ jobs:
           path: |
             test/traces
           if-no-files-found: ignore
+
+
+permissions:
+  contents: read
