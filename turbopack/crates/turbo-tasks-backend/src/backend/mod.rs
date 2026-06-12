@@ -170,6 +170,35 @@ pub enum TurboTasksBackendJob {
     Snapshot,
 }
 
+/// Why a snapshot/persist is being performed.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum SnapshotReason {
+    Test,
+    Stop,
+    InitialSnapshotTimeout,
+    RegularSnapshotInterval,
+    IdleTimeout,
+}
+
+impl SnapshotReason {
+    fn as_str(self) -> &'static str {
+        match self {
+            SnapshotReason::Test => "test",
+            SnapshotReason::Stop => "stop",
+            SnapshotReason::InitialSnapshotTimeout => "initial snapshot timeout",
+            SnapshotReason::RegularSnapshotInterval => "regular snapshot interval",
+            SnapshotReason::IdleTimeout => "idle timeout",
+        }
+    }
+
+    /// True only for `Stop`: at shutdown the whole map is dropped right after, so each task
+    /// entry can be drained from the map and freed as it is serialized instead of after the
+    /// whole batch is written. This reduces peak memory during `next build` shutdown.
+    fn drain_entries(self) -> bool {
+        matches!(self, SnapshotReason::Stop)
+    }
+}
+
 pub struct TurboTasksBackend {
     options: BackendOptions,
 
@@ -296,7 +325,7 @@ impl TurboTasksBackend {
             self.should_persist(),
             "snapshot_and_evict requires persistence"
         );
-        let snapshot_result = self.snapshot_and_persist(None, "test", turbo_tasks);
+        let snapshot_result = self.snapshot_and_persist(None, SnapshotReason::Test, turbo_tasks);
         let had_new_data = match snapshot_result {
             Ok((_, new_data)) => new_data,
             Err(_) => {
@@ -915,11 +944,11 @@ impl TurboTasksBackend {
     fn snapshot_and_persist(
         &self,
         parent_span: Option<tracing::Id>,
-        reason: &str,
+        reason: SnapshotReason,
         turbo_tasks: &TurboTasks<TurboTasksBackend>,
     ) -> Result<(Instant, bool), anyhow::Error> {
         let snapshot_span =
-            tracing::trace_span!(parent: parent_span.clone(), "snapshot", reason = reason)
+            tracing::trace_span!(parent: parent_span.clone(), "snapshot", reason = reason.as_str())
                 .entered();
         // Serialize snapshots. The internal protocol (snapshot_mode, snapshot
         // request bit, suspended_operations) assumes only one snapshot runs at
@@ -1201,7 +1230,9 @@ impl TurboTasksBackend {
             }
         };
 
-        let task_snapshots = self.storage.take_snapshot(snapshot_guard, &process);
+        let task_snapshots =
+            self.storage
+                .take_snapshot(snapshot_guard, &process, reason.drain_entries());
 
         drop(snapshot_span);
         let snapshot_duration = start.elapsed();
@@ -1218,7 +1249,7 @@ impl TurboTasksBackend {
         let span = tracing::info_span!(
             parent: parent_span,
             "persist",
-            reason = reason,
+            reason = reason.as_str(),
             data_items= tracing::field::Empty,
             meta_items= tracing::field::Empty,
             task_cache_items= tracing::field::Empty,
@@ -1338,7 +1369,7 @@ impl TurboTasksBackend {
             wall_start_ms,
             wall_end_ms,
             vec![
-                ("reason", serde_json::Value::from(reason)),
+                ("reason", serde_json::Value::from(reason.as_str())),
                 (
                     "snapshot_duration_ms",
                     serde_json::Value::from(snapshot_duration.as_secs_f64() * 1000.0),
@@ -1393,10 +1424,17 @@ impl TurboTasksBackend {
             self.is_idle.store(false, Ordering::Release);
             self.verify_aggregation_graph(turbo_tasks, false);
         }
-        if self.should_persist()
-            && let Err(err) = self.snapshot_and_persist(Span::current().into(), "stop", turbo_tasks)
-        {
-            eprintln!("Persisting failed during shutdown: {err:?}");
+        // eagerly drop the task cache before persisting
+        self.storage.drop_task_cache();
+        if self.should_persist() {
+            // The task_cache is a pure perf cache backed by the DB and isn't read during the
+            // stop snapshot (no task creation runs concurrently with stop). Drop it before
+            // persisting to lower peak memory during the serialization/write.
+            if let Err(err) =
+                self.snapshot_and_persist(Span::current().into(), SnapshotReason::Stop, turbo_tasks)
+            {
+                eprintln!("Persisting failed during shutdown: {err:?}");
+            }
         }
         self.storage.drop_contents();
         if let Err(err) = self.backing_storage.shutdown() {
@@ -2786,9 +2824,9 @@ impl TurboTasksBackend {
                         const SNAPSHOT_INTERVAL: Duration = Duration::from_secs(120);
                         let idle_timeout = *IDLE_TIMEOUT;
                         let (time, mut reason) = if is_first {
-                            (FIRST_SNAPSHOT_WAIT, "initial snapshot timeout")
+                            (FIRST_SNAPSHOT_WAIT, SnapshotReason::InitialSnapshotTimeout)
                         } else {
-                            (SNAPSHOT_INTERVAL, "regular snapshot interval")
+                            (SNAPSHOT_INTERVAL, SnapshotReason::RegularSnapshotInterval)
                         };
 
                         let until = last_snapshot + time;
@@ -2820,7 +2858,7 @@ impl TurboTasksBackend {
                                     },
                                     _ = tokio::time::sleep_until(idle_time) => {
                                         if turbo_tasks.is_idle() {
-                                            reason = "idle timeout";
+                                            reason = SnapshotReason::IdleTimeout;
                                             break;
                                         }
                                     },
