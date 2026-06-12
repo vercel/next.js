@@ -14,6 +14,7 @@
     "find-up": "4.1.0",
     "globby": "11.0.1",
     "is-git-clean": "1.1.0",
+    "js-yaml": "4.2.0",
     "jscodeshift": "17.0.0",
     "picocolors": "1.0.0",
     "prompts": "2.4.2",
@@ -37,6 +38,7 @@
   "bin": "./bin/next-codemod.js",
   "devDependencies": {
     "@types/find-up": "4.0.0",
+    "@types/js-yaml": "4.0.9",
     "@types/jscodeshift": "0.11.0",
     "@types/prompts": "2.4.2",
     "@types/semver": "7.3.1",
