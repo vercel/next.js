@@ -1,4 +1,4 @@
-import { type Span, trace, context } from '@opentelemetry/api'
+import { type Span, type Tracer, trace, context } from '@opentelemetry/api'
 import { Suspense } from 'react'
 
 async function asyncWork() {
@@ -180,3 +180,42 @@ function Loading() {
 function Result({ children }: { children: React.ReactNode }) {
   return <p className="result">{children}</p>
 }
+
+function withEarlyTracerActiveSpan(fn) {
+  return function () {
+    // Acquired in instrumentation.node.ts before the provider was registered
+    // (a ProxyTracer), like OTel instrumentation libraries do in their
+    // constructors. Undefined during build prerendering, where instrumentation
+    // is not loaded — fall back to a render-time tracer which is equally inert
+    // there (no provider is registered either).
+    const tracer =
+      ((globalThis as any).__earlyTracer as Tracer | undefined) ??
+      trace.getTracer('early-tracer')
+    return tracer.startActiveSpan('span-early-active-span', fn)
+  }
+}
+
+export const TracedComponentEarlyTracerActiveSpan = withEarlyTracerActiveSpan(
+  async function (span: Span) {
+    async function Inner() {
+      const result = await asyncWork()
+      return <Result>{result}</Result>
+    }
+    return (
+      <section id="t9">
+        <h2>(Active Span) Tracer acquired before provider registration</h2>
+        <div>
+          <p>
+            Span Representative{' '}
+            <span className="span" suppressHydrationWarning>
+              {parseInt(span.spanContext().spanId.slice(10), 16)}
+            </span>
+          </p>
+          <Suspense fallback={<Loading />}>
+            <Inner />
+          </Suspense>
+        </div>
+      </section>
+    )
+  }
+)
