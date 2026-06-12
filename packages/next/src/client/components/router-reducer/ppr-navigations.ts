@@ -46,6 +46,7 @@ import { discoverKnownRoute } from '../segment-cache/optimistic-routes'
 import { NEXT_NAV_DEPLOYMENT_ID_HEADER } from '../../../lib/constants'
 import { urlSearchParamsToParsedUrlQuery } from '../../route-params'
 import type { NormalizedSearch } from '../segment-cache/cache-key'
+import { routeMismatchRouterTransition } from '../router-transition'
 import {
   getRenderedSearchFromVaryPath,
   type PageVaryPath,
@@ -113,8 +114,8 @@ const enum NavigationTaskExitStatus {
    */
   SoftRetry = 1,
   /**
-   * Some data failed to load in an unrecoverable way, e.g. in an inactive
-   * parallel route. Fall back to a hard (MPA-style) retry.
+   * Some data failed to load in an unrecoverable way. Fall back to a hard
+   * (MPA-style) retry.
    */
   HardRetry = 2,
   /**
@@ -125,6 +126,11 @@ const enum NavigationTaskExitStatus {
    * the retry reuses it instead of re-fetching.
    */
   RedirectRetry = 3,
+  /**
+   * A route tree mismatch occurred inside an inactive parallel route. Fall
+   * back to a hard retry.
+   */
+  HardMismatch = 4,
 }
 
 export type NavigationRequestAccumulation = {
@@ -1411,7 +1417,8 @@ export function spawnDynamicRequests(
   // server-patch retry logic so it can inherit the intent if the original
   // transition hasn't committed yet.
   navigateType: 'push' | 'replace',
-  navigationLock: NavigationLock
+  navigationLock: NavigationLock,
+  transitionId: string | null
 ): void {
   const dynamicRequestTree = task.dynamicRequestTree
   if (dynamicRequestTree === null) {
@@ -1504,7 +1511,8 @@ export function spawnDynamicRequests(
     primaryRequestPromise,
     refreshRequestPromises,
     routeCacheEntry,
-    navigateType
+    navigateType,
+    transitionId
   )
   // `finishNavigationTask` is responsible for error handling, so we can attach
   // noop callbacks to this promise.
@@ -1519,7 +1527,8 @@ async function finishNavigationTask(
     ReturnType<typeof fetchMissingDynamicData>
   > | null,
   routeCacheEntry: FulfilledRouteCacheEntry | null,
-  navigateType: 'push' | 'replace'
+  navigateType: 'push' | 'replace',
+  transitionId: string | null
 ): Promise<void> {
   // Wait for all the requests to finish, or for the first one to fail.
   let exitStatus = await waitForRequestsToFinish(
@@ -1544,41 +1553,45 @@ async function finishNavigationTask(
       return
     }
     case NavigationTaskExitStatus.SoftRetry: {
-      // Some data failed to finish loading. Trigger a soft retry that re-fetches
-      // the tree's dynamic data.
+      // Some data failed to finish loading, or the served tree didn't match
+      // the prefetched route — a route mismatch. Trigger a soft retry that
+      // re-fetches the tree's dynamic data.
       // TODO: As an extra precaution against soft retry loops, consider
       // tracking whether a navigation was itself triggered by a retry. If two
       // happen in a row, fall back to a hard retry.
-      const isHardRetry = false
       const primaryRequestResult = await primaryRequestPromise
+      routeMismatchRouterTransition(transitionId, primaryRequestResult.url.href)
       dispatchRetryDueToTreeMismatch(
-        isHardRetry,
+        false,
         primaryRequestResult.url,
         nextUrl,
         primaryRequestResult.seed,
         task.route,
         routeCacheEntry,
         navigateType,
-        FreshnessPolicy.RefreshAll
+        FreshnessPolicy.RefreshAll,
+        transitionId
       )
       return
     }
     case NavigationTaskExitStatus.RedirectRetry: {
       // The route matched, but the request was redirected, so we committed the
       // wrong canonical URL. Re-resolve the route to invalidate the now-stale
-      // route cache and correct the URL — but reuse the data we already received
-      // (HistoryTraversal) instead of re-fetching it. See issue #95195.
-      const isHardRetry = false
+      // route cache and correct the URL — but reuse the data we already
+      // received (HistoryTraversal) instead of re-fetching it. See issue
+      // #95195. This is a redirect, not a tree mismatch, so it is not reported
+      // as one.
       const primaryRequestResult = await primaryRequestPromise
       dispatchRetryDueToTreeMismatch(
-        isHardRetry,
+        false,
         primaryRequestResult.url,
         nextUrl,
         primaryRequestResult.seed,
         task.route,
         routeCacheEntry,
         navigateType,
-        FreshnessPolicy.HistoryTraversal
+        FreshnessPolicy.HistoryTraversal,
+        transitionId
       )
       return
     }
@@ -1591,17 +1604,36 @@ async function finishNavigationTask(
       // browser behavior for offline navigations. In the future, Next.js may
       // introduce its own custom handling of offline navigations, but that
       // doesn't exist yet.
-      const isHardRetry = true
       const primaryRequestResult = await primaryRequestPromise
       dispatchRetryDueToTreeMismatch(
-        isHardRetry,
+        true,
         primaryRequestResult.url,
         nextUrl,
         primaryRequestResult.seed,
         task.route,
         routeCacheEntry,
         navigateType,
-        FreshnessPolicy.RefreshAll
+        FreshnessPolicy.RefreshAll,
+        transitionId
+      )
+      return
+    }
+    case NavigationTaskExitStatus.HardMismatch: {
+      // A route tree mismatch occurred inside an inactive parallel route — a
+      // route mismatch we can't recover with a soft retry. Report it, then fall
+      // back to a hard retry.
+      const primaryRequestResult = await primaryRequestPromise
+      routeMismatchRouterTransition(transitionId, primaryRequestResult.url.href)
+      dispatchRetryDueToTreeMismatch(
+        true,
+        primaryRequestResult.url,
+        nextUrl,
+        primaryRequestResult.seed,
+        task.route,
+        routeCacheEntry,
+        navigateType,
+        FreshnessPolicy.RefreshAll,
+        transitionId
       )
       return
     }
@@ -1678,7 +1710,8 @@ function dispatchRetryDueToTreeMismatch(
   // correcting after a redirect).
   retryFreshnessPolicy:
     | FreshnessPolicy.RefreshAll
-    | FreshnessPolicy.HistoryTraversal
+    | FreshnessPolicy.HistoryTraversal,
+  transitionId: string | null
 ) {
   // If the navigation used a route prediction, mark it as having a dynamic
   // rewrite since it resulted in a mismatch.
@@ -1747,7 +1780,7 @@ function dispatchRetryDueToTreeMismatch(
     mpa: isHardRetry,
     navigateType: retryNavigateType,
     freshnessPolicy: retryFreshnessPolicy,
-    transitionId: null,
+    transitionId,
   }
   dispatchAppRouterAction(retryAction)
 }
@@ -2122,7 +2155,7 @@ function abortRemainingPendingTasks(
       // TODO: An alternative could be to trigger a soft refresh but to _not_
       // re-use the inactive parallel routes this time. Similar to what would
       // happen if were to do a hard refrehs, but without the HTML page.
-      exitStatus = NavigationTaskExitStatus.HardRetry
+      exitStatus = NavigationTaskExitStatus.HardMismatch
     }
   } else {
     // This segment finished. (An error here is treated as Done because they are

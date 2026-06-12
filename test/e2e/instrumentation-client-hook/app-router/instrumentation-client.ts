@@ -38,6 +38,14 @@ export function unstable_onRouterTransitionCommit(
   record('commit', href, navigateType, event)
 }
 
+export function unstable_onRouterTransitionRouteMismatch(
+  href: string,
+  navigateType: string,
+  event: unknown
+) {
+  record('route-mismatch', href, navigateType, event)
+}
+
 export function unstable_onRouterTransitionAbort(
   href: string,
   navigateType: string,
