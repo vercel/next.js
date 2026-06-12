@@ -48,9 +48,9 @@ use tracing::Instrument;
 use tracing_subscriber::{Registry, layer::SubscriberExt, util::SubscriberInitExt};
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
-    Effects, FxIndexSet, OperationValue, OperationVc, PrettyPrintError, ReadRef, ResolvedVc,
-    TransientInstance, TryJoinIterExt, TurboTasksApi, TurboTasksCallApi, UpdateInfo, Vc,
-    mark_top_level_task,
+    Effects, FxIndexSet, NonLocalValue, OperationValue, OperationVc, PrettyPrintError, ReadRef,
+    ResolvedVc, TransientInstance, TryJoinIterExt, TurboTasksApi, TurboTasksCallApi, UpdateInfo,
+    Vc, mark_top_level_task,
     message_queue::{CompilationEvent, Severity},
     read_strongly_consistent_and_apply_effects, take_effects,
     trace::TraceRawVcs,
@@ -1777,6 +1777,8 @@ pub fn project_entrypoints_subscribe(
     )
 }
 
+/// Per-chunk update payload computed by [`hmr_chunk_event`] and forwarded across the HMR
+/// event channel to JS.
 #[turbo_tasks::value(serialization = "skip")]
 struct HmrUpdateWithIssues {
     update: ReadRef<Update>,
@@ -1809,10 +1811,9 @@ async fn hmr_update_with_issues_operation(
 ) -> Result<Vc<HmrUpdateWithIssues>> {
     tracing::info!(chunk_name = %chunk_name, target = %target, "hmr subscription");
     let update_op = project_hmr_update_operation(project, chunk_name, target, state);
-    // NOTE: we do not use `strongly_consistent_catch_collectables` here. The JS HMR
-    // consumers in `hot-reloader-turbopack.ts` (`subscribeToServerHmr` and
-    // `subscribeToClientHmrEvents`) rely on this read *throwing* on build-graph
-    // failures to trigger their recovery paths
+    // NOTE: we do not use `strongly_consistent_catch_collectables` here. Build-graph
+    // failures must surface as an error so the firehose can emit a per-chunk
+    // `Error` event instead of silently swallowing the failure.
     let update = update_op.read_strongly_consistent().await?;
     let filter = project.issue_filter().await?;
     let issues = get_issues(update_op, &filter).await?;
@@ -1825,104 +1826,12 @@ async fn hmr_update_with_issues_operation(
     .cell())
 }
 
-#[tracing::instrument(level = "info", name = "get HMR events", skip(project, func), fields(target = %target, chunk_name = %chunk_name))]
-#[napi(ts_return_type = "{ __napiType: \"RootTask\" }")]
-pub fn project_hmr_events(
-    #[napi(ts_arg_type = "{ __napiType: \"Project\" }")] project: External<ProjectInstance>,
-    chunk_name: RcStr,
-    target: String,
-    func: JsFunction,
-) -> napi::Result<External<RootTask>> {
-    let hmr_target = target
-        .parse::<HmrTarget>()
-        .map_err(napi::Error::from_reason)?;
-
-    let container = project.container;
-    let session = TransientInstance::new(());
-    subscribe(
-        project.turbopack_ctx.clone(),
-        func,
-        {
-            let outer_chunk_name = chunk_name.clone();
-            let session = session.clone();
-            move || {
-                let chunk_name: RcStr = outer_chunk_name.clone();
-                let session = session.clone();
-                async move {
-                    // HACK(bgw): Remove this unmark call
-                    unmark_top_level_task_may_leak_eventually_consistent_state();
-                    let project = container.project().to_resolved().await?;
-                    let state = project
-                        .hmr_version_state(chunk_name.clone(), hmr_target, session)
-                        .to_resolved()
-                        .await?;
-
-                    let update_op = hmr_update_with_issues_operation(
-                        project,
-                        chunk_name.clone(),
-                        state,
-                        hmr_target,
-                    );
-                    // HACK(bgw): Remove this mark call
-                    mark_top_level_task();
-                    let read =
-                        read_strongly_consistent_and_apply_effects(update_op, |v| &v.effects)
-                            .await?;
-                    // HACK(bgw): Remove this unmark call
-                    unmark_top_level_task_may_leak_eventually_consistent_state();
-                    let HmrUpdateWithIssues { update, issues, .. } = &*read;
-                    match &**update {
-                        Update::Missing | Update::None => {}
-                        Update::Total(TotalUpdate { to }) => {
-                            state.set(to.clone()).await?;
-                        }
-                        Update::Partial(PartialUpdate { to, .. }) => {
-                            state.set(to.clone()).await?;
-                        }
-                    }
-                    Ok((Some(update.clone()), issues.clone()))
-                }
-            }
-        },
-        move |ctx| {
-            let (update, issues) = ctx.value;
-
-            let napi_issues = issues
-                .iter()
-                .map(|issue| NapiIssue::from(&**issue))
-                .collect();
-            let update_issues = issues
-                .iter()
-                .map(|issue| Issue::from(&**issue))
-                .collect::<Vec<_>>();
-
-            let identifier = ResourceIdentifier {
-                path: chunk_name.clone(),
-                headers: None,
-            };
-            let update = match update.as_deref() {
-                None | Some(Update::Missing) | Some(Update::Total(_)) => {
-                    ClientUpdateInstruction::restart(&identifier, &update_issues)
-                }
-                Some(Update::Partial(update)) => ClientUpdateInstruction::partial(
-                    &identifier,
-                    &update.instruction,
-                    &update_issues,
-                ),
-                Some(Update::None) => ClientUpdateInstruction::issues(&identifier, &update_issues),
-            };
-
-            Ok(vec![TurbopackResult {
-                result: ctx.env.to_js_value(&update)?,
-                issues: napi_issues,
-            }])
-        },
-    )
-}
-
-#[napi(object)]
-struct HmrChunkNames {
-    pub chunk_names: Vec<RcStr>,
+#[turbo_tasks::function(operation, root)]
+fn project_hmr_chunk_names_operation(
+    container: ResolvedVc<ProjectContainer>,
+    target: HmrTarget,
+) -> Vc<Vec<RcStr>> {
+    container.hmr_chunk_names(target)
 }
 
 #[turbo_tasks::value(serialization = "skip")]
@@ -1933,25 +1842,13 @@ struct HmrChunkNamesWithIssues {
 }
 
 #[turbo_tasks::function(operation, root)]
-fn project_hmr_chunk_names_operation(
-    container: ResolvedVc<ProjectContainer>,
-    target: HmrTarget,
-) -> Vc<Vec<RcStr>> {
-    container.hmr_chunk_names(target)
-}
-
-#[turbo_tasks::function(operation, root)]
 async fn get_hmr_chunk_names_with_issues_operation(
     container: ResolvedVc<ProjectContainer>,
     target: HmrTarget,
 ) -> Result<Vc<HmrChunkNamesWithIssues>> {
     let hmr_chunk_names_op = project_hmr_chunk_names_operation(container, target);
-    // Do NOT switch this to `strongly_consistent_catch_collectables`. The JS HMR
-    // chunk-names consumer in `hot-reloader-turbopack.ts` relies on this read
-    // *throwing* on build-graph failures so its outer `try` block exits the
-    // subscription loop. Swallowing the error and emitting an empty chunk-name
-    // list keeps the loop running but with stale state, and obscures the real
-    // failure from the dev server log.
+    // Errors here propagate up through the HMR root task and tear down the entire
+    // subscription; JS recovers by re-subscribing.
     let hmr_chunk_names = hmr_chunk_names_op.read_strongly_consistent().await?;
     let filter = container.project().issue_filter().await?;
     let issues = get_issues(hmr_chunk_names_op, &filter).await?;
@@ -1964,9 +1861,224 @@ async fn get_hmr_chunk_names_with_issues_operation(
     .cell())
 }
 
-#[tracing::instrument(level = "info", name = "get HMR chunk names", skip(project, func), fields(target = %target))]
+/// One event from the HMR subscription.
+///
+/// The shape is a tagged union discriminated by [`kind`]:
+/// - `"update"`: a chunk recomputed. `chunk_name`, `update`, and `issues` are populated.
+/// - `"error"`: a chunk's update computation failed. `chunk_name` and `error` are populated.
+/// - `"removed"`: a chunk left the chunk-name set. `chunk_name` is populated.
+/// - `"enumerationIssues"`: top-level issues from the chunk-names enumeration. `issues` is
+///   populated.
+///
+/// All optional fields are `None` for kinds where they don't apply, which produces `undefined`
+/// on the JS side.
+#[napi(object)]
+pub struct NapiHmrEvent {
+    pub kind: &'static str,
+    pub chunk_name: Option<String>,
+    /// JSON payload matching the `Update` / `NodeJsHmrUpdate` TS type (depends on `HmrTarget`).
+    /// Only present when `kind === "update"`.
+    pub update: Option<serde_json::Value>,
+    /// Per-chunk error message. Only present when `kind === "error"`.
+    pub error: Option<String>,
+    /// Issues attached to this event. Present for `"update"` and `"enumerationIssues"` kinds.
+    pub issues: Option<Vec<NapiIssue>>,
+}
+
+/// Wrapper that lets us pass the shared mpsc [`Sender`] as a `TransientInstance` argument to a
+/// `#[turbo_tasks::function]`. Mirrors `ComputeUpdateStreamSender` in
+/// `turbopack-dev-server`.
+#[derive(TraceRawVcs)]
+struct HmrEventSender(
+    // HACK: `trace_ignore`: the channel does not carry any `RawVc`s, but we cannot statically
+    // assert that here.
+    #[turbo_tasks(trace_ignore)] tokio::sync::mpsc::UnboundedSender<NapiHmrEvent>,
+);
+
+/// Per-chunk activation flag. Wrapped in [`TransientInstance`] so each "add chunk" event creates
+/// a fresh cached per-chunk task (different identity), avoiding any stale [`VersionState`] from a
+/// prior add/remove cycle.
+#[derive(TraceRawVcs, NonLocalValue)]
+struct HmrChunkFlag(#[turbo_tasks(trace_ignore)] std::sync::atomic::AtomicBool);
+
+/// The cached per-chunk reactive computation. Re-executes whenever `hmr_update` for this chunk
+/// invalidates (turbo-tasks tracks deps automatically). Sends an `Update` or `Error` event onto
+/// the shared HMR event channel each time it runs.
+///
+/// Identity (and therefore turbo-tasks task identity) is determined by the combination of:
+/// - `chunk_name`, `target`, `container`: the chunk being subscribed to
+/// - `session`: per-add identity that controls the [`VersionState`] lifetime
+/// - `flag`: per-add identity that controls whether the task is still "live"
+/// - `sender`: shared channel identity (same across all chunks of a subscription)
+#[turbo_tasks::function]
+async fn hmr_chunk_event(
+    chunk_name: RcStr,
+    target: HmrTarget,
+    container: ResolvedVc<ProjectContainer>,
+    session: TransientInstance<()>,
+    flag: TransientInstance<HmrChunkFlag>,
+    sender: TransientInstance<HmrEventSender>,
+) -> () {
+    // If this per-chunk task has been deactivated (because the chunk is no longer in the project)
+    // suppress any further events. The cached task itself remains scheduled by turbo-tasks until
+    // its `active` count is dropped (which won't happen until the firehose subscription itself is
+    // disposed and the chunk-names root task stops referencing this task).
+    if !flag
+        .0
+        .load(std::sync::atomic::Ordering::Acquire)
+    {
+        return;
+    }
+
+    let chunk_name_for_event = chunk_name.clone();
+    let result: Result<(ReadRef<Update>, Arc<Vec<ReadRef<PlainIssue>>>)> = async {
+        // HACK(bgw): Remove this unmark call
+        unmark_top_level_task_may_leak_eventually_consistent_state();
+        let project = container.project().to_resolved().await?;
+        let state = project
+            .hmr_version_state(chunk_name.clone(), target, session.clone())
+            .to_resolved()
+            .await?;
+
+        let update_op =
+            hmr_update_with_issues_operation(project, chunk_name.clone(), state, target);
+        // HACK(bgw): Remove this mark call
+        mark_top_level_task();
+        let read = read_strongly_consistent_and_apply_effects(update_op, |v| &v.effects).await?;
+        // HACK(bgw): Remove this unmark call
+        unmark_top_level_task_may_leak_eventually_consistent_state();
+        let HmrUpdateWithIssues { update, issues, .. } = &*read;
+        match &**update {
+            Update::Missing | Update::None => {}
+            Update::Total(TotalUpdate { to }) => {
+                state.set(to.clone()).await?;
+            }
+            Update::Partial(PartialUpdate { to, .. }) => {
+                state.set(to.clone()).await?;
+            }
+        }
+        Ok((update.clone(), issues.clone()))
+    }
+    .await;
+
+    let event = match result {
+        Ok((update, issues)) => build_update_event(chunk_name_for_event, &update, &issues),
+        Err(err) => NapiHmrEvent {
+            kind: "error",
+            chunk_name: Some(chunk_name_for_event.to_string()),
+            update: None,
+            error: Some(PrettyPrintError(&err).to_string()),
+            issues: None,
+        },
+    };
+
+    // Ignore send errors: the only failure mode is "subscription disposed" which means the
+    // receiver was dropped; the event is no longer wanted.
+    let _ = sender.0.send(event);
+}
+
+/// Construct an `"update"` event from a per-chunk `Update` + its issues. The `update` field is
+/// serialized to a `serde_json::Value` matching the `ClientUpdateInstruction` shape that the JS
+/// dev server (and ultimately the browser) consumes.
+fn build_update_event(
+    chunk_name: RcStr,
+    update: &Update,
+    issues: &[ReadRef<PlainIssue>],
+) -> NapiHmrEvent {
+    let update_issues = issues
+        .iter()
+        .map(|issue| Issue::from(&**issue))
+        .collect::<Vec<_>>();
+    let identifier = ResourceIdentifier {
+        path: chunk_name.clone(),
+        headers: None,
+    };
+    let instruction = match update {
+        Update::Missing | Update::Total(_) => {
+            ClientUpdateInstruction::restart(&identifier, &update_issues)
+        }
+        Update::Partial(update) => {
+            ClientUpdateInstruction::partial(&identifier, &update.instruction, &update_issues)
+        }
+        Update::None => ClientUpdateInstruction::issues(&identifier, &update_issues),
+    };
+    let update_value = serde_json::to_value(&instruction).unwrap_or(serde_json::Value::Null);
+
+    let napi_issues: Vec<NapiIssue> = issues
+        .iter()
+        .map(|issue| NapiIssue::from(&**issue))
+        .collect();
+
+    NapiHmrEvent {
+        kind: "update",
+        chunk_name: Some(chunk_name.to_string()),
+        update: Some(update_value),
+        error: None,
+        issues: Some(napi_issues),
+    }
+}
+
+/// Per-chunk handles persisted across re-executions of the firehose root task.
+///
+/// The HMR root task must re-connect (via [`hmr_chunk_event`]) to every chunk on every
+/// invocation. If it doesn't, the cleanup of the previous execution's parent→child edges runs
+/// `CleanupOldEdgesOperation` which decrements the child's active count to zero — at which point
+/// turbo-tasks stops re-scheduling it on dependency invalidation, and HMR for that chunk dies.
+///
+/// To preserve cache hits across re-executions (so we don't create a fresh `hmr_chunk_event`
+/// task on every chunk-set change), we persist the `flag` and `session` `TransientInstance`s per
+/// chunk in this state.
+struct HmrChunkHandles {
+    /// Per-chunk activation flag observed at the top of [`hmr_chunk_event`].
+    flag: TransientInstance<HmrChunkFlag>,
+    /// Per-chunk session identity controlling the [`VersionState`] lifetime.
+    session: TransientInstance<()>,
+}
+
+/// Per-subscription state. Tracks the per-chunk activation flags + session identities so the
+/// HMR root task can re-connect to each existing chunk on every re-execution, deactivate flags
+/// on chunk removal, and deactivate everything at teardown via `on_dispose`.
+struct HmrSubscriptionState {
+    chunks: std::collections::HashMap<RcStr, HmrChunkHandles>,
+}
+
+impl HmrSubscriptionState {
+    fn new() -> Self {
+        Self {
+            chunks: std::collections::HashMap::new(),
+        }
+    }
+}
+
+/// Subscribe to HMR updates for every chunk produced by the project, for a given `HmrTarget`.
+///
+/// Emits four event kinds via the supplied callback:
+/// - `update`: a chunk recomputed (real change, no-op, or issues-only notification)
+/// - `error`: a chunk's update computation failed (subscription remains live)
+/// - `removed`: a chunk left the project's HMR chunk-name set
+/// - `enumerationIssues`: top-level issues from the chunk-names enumeration itself
+///
+/// A subscription-level failure (e.g. `hmr_chunk_names` itself throws) tears down the root task
+/// and surfaces to JS as a thrown error from the next async iteration.
+///
+/// # Reactivity model
+///
+/// A single turbo-tasks root task tracks `hmr_chunk_names`. On each invocation it diffs the
+/// current chunk set against the previous one and:
+/// - For each removed chunk: deactivates its per-chunk task (via an `AtomicBool` flag) and emits
+///   `removed`.
+/// - For each added chunk: calls [`hmr_chunk_event`] — a `#[turbo_tasks::function]` that
+///   independently re-executes whenever `hmr_update` for that chunk invalidates. The per-chunk
+///   task's "active count" persists across the root task's executions (see
+///   `ConnectChildOperation`), so reactivity continues even after the root task completes.
+#[tracing::instrument(
+    level = "info",
+    name = "subscribe to HMR",
+    skip(project, func),
+    fields(target = %target),
+)]
 #[napi(ts_return_type = "{ __napiType: \"RootTask\" }")]
-pub fn project_hmr_chunk_names_subscribe(
+pub fn project_hmr_subscribe(
     #[napi(ts_arg_type = "{ __napiType: \"Project\" }")] project: External<ProjectInstance>,
     target: String,
     func: JsFunction,
@@ -1975,40 +2087,164 @@ pub fn project_hmr_chunk_names_subscribe(
         .parse::<HmrTarget>()
         .map_err(napi::Error::from_reason)?;
 
+    let ctx = project.turbopack_ctx.clone();
     let container = project.container;
-    subscribe(
-        project.turbopack_ctx.clone(),
-        func,
-        move || async move {
-            let hmr_chunk_names_with_issues_op =
-                get_hmr_chunk_names_with_issues_operation(container, hmr_target);
-            let read =
-                read_strongly_consistent_and_apply_effects(hmr_chunk_names_with_issues_op, |v| {
-                    &v.effects
-                })
+
+    // Build the threadsafe function and the HMR event channel. The channel is forwarded into the
+    // threadsafe function by a background tokio task; this mirrors
+    // `project_compilation_events_subscribe`'s pattern of "drain mpsc into threadsafe function".
+    let tsfn: ThreadsafeFunction<NapiHmrEvent> =
+        func.create_threadsafe_function(0, |ctx| Ok(vec![ctx.value]))?;
+    let (sender, mut receiver) = tokio::sync::mpsc::unbounded_channel::<NapiHmrEvent>();
+    let sender_transient = TransientInstance::new(HmrEventSender(sender));
+
+    tokio::spawn(async move {
+        while let Some(event) = receiver.recv().await {
+            let status = tsfn.call(Ok(event), ThreadsafeFunctionCallMode::NonBlocking);
+            if !matches!(status, Status::Ok) {
+                eprintln!("Error calling HMR JS function: {status}");
+                break;
+            }
+        }
+    });
+
+    let state = Arc::new(std::sync::Mutex::new(HmrSubscriptionState::new()));
+
+    let task_id = ctx.turbo_tasks().spawn_root_task({
+        let state = Arc::clone(&state);
+        let sender_transient = sender_transient.clone();
+        let ctx = ctx.clone();
+        move || {
+            let state = Arc::clone(&state);
+            let sender_transient = sender_transient.clone();
+            let ctx = ctx.clone();
+            async move {
+                let hmr_chunk_names_with_issues_op =
+                    get_hmr_chunk_names_with_issues_operation(container, hmr_target);
+                let read = read_strongly_consistent_and_apply_effects(
+                    hmr_chunk_names_with_issues_op,
+                    |v| &v.effects,
+                )
+                .or_else(|e| ctx.throw_turbopack_internal_result(&e))
                 .await?;
-            let HmrChunkNamesWithIssues {
-                chunk_names,
-                issues,
-                ..
-            } = &*read;
+                let HmrChunkNamesWithIssues {
+                    chunk_names,
+                    issues,
+                    ..
+                } = &*read;
 
-            Ok((chunk_names.clone(), issues.clone()))
-        },
-        move |ctx| {
-            let (chunk_names, issues) = ctx.value;
+                let new_set: std::collections::HashSet<RcStr> =
+                    chunk_names.iter().cloned().collect();
 
-            Ok(vec![TurbopackResult {
-                result: HmrChunkNames {
-                    chunk_names: ReadRef::into_owned(chunk_names),
-                },
-                issues: issues
-                    .iter()
-                    .map(|issue| NapiIssue::from(&**issue))
-                    .collect(),
-            }])
+                // Compute the diff under the lock and gather everything needed to re-connect to
+                // every current chunk. We must call `hmr_chunk_event` for ALL chunks (not just
+                // newly-added ones) on every re-execution of this root task, so that
+                // `ConnectChildOperation` keeps the per-chunk task's active count > 0. If we
+                // only connected to newly-added chunks, `CleanupOldEdgesOperation` would
+                // decrement the active count for existing chunks back to zero and they would
+                // stop being scheduled on invalidation — silently breaking HMR for any chunk
+                // present at startup.
+                let (removed, current_chunks) = {
+                    let mut state = state.lock().unwrap();
+                    let removed: Vec<RcStr> = state
+                        .chunks
+                        .keys()
+                        .filter(|name| !new_set.contains(*name))
+                        .cloned()
+                        .collect();
+                    for name in &removed {
+                        if let Some(handles) = state.chunks.remove(name) {
+                            handles
+                                .flag
+                                .0
+                                .store(false, std::sync::atomic::Ordering::Release);
+                        }
+                    }
+
+                    for name in new_set.iter() {
+                        if !state.chunks.contains_key(name) {
+                            let flag = TransientInstance::new(HmrChunkFlag(
+                                std::sync::atomic::AtomicBool::new(true),
+                            ));
+                            let session = TransientInstance::new(());
+                            state.chunks.insert(
+                                name.clone(),
+                                HmrChunkHandles { flag, session },
+                            );
+                        }
+                    }
+
+                    let current_chunks: Vec<(RcStr, TransientInstance<()>, TransientInstance<HmrChunkFlag>)> = state
+                        .chunks
+                        .iter()
+                        .map(|(name, handles)| {
+                            (name.clone(), handles.session.clone(), handles.flag.clone())
+                        })
+                        .collect();
+                    (removed, current_chunks)
+                };
+
+                // Re-connect (or first-connect) to every current chunk's reactive task. Same
+                // arguments → cached task, no recomputation. Different arguments (newly-added
+                // chunks) → fresh task that begins reacting to its own dependencies.
+                for (name, session, flag) in current_chunks {
+                    let _ = hmr_chunk_event(
+                        name,
+                        hmr_target,
+                        *container,
+                        session,
+                        flag,
+                        sender_transient.clone(),
+                    );
+                }
+
+                // Surface enumeration issues and removed-chunk events through the channel.
+                let send_event = |event: NapiHmrEvent| -> bool {
+                    sender_transient.0.send(event).is_ok()
+                };
+                for name in removed {
+                    if !send_event(NapiHmrEvent {
+                        kind: "removed",
+                        chunk_name: Some(name.to_string()),
+                        update: None,
+                        error: None,
+                        issues: None,
+                    }) {
+                        // Receiver gone, subscription has been disposed.
+                        return Ok(Default::default());
+                    }
+                }
+                let enumeration_issues: Vec<NapiIssue> =
+                    issues.iter().map(|issue| NapiIssue::from(&**issue)).collect();
+                if !send_event(NapiHmrEvent {
+                    kind: "enumerationIssues",
+                    chunk_name: None,
+                    update: None,
+                    error: None,
+                    issues: Some(enumeration_issues),
+                }) {
+                    return Ok(Default::default());
+                }
+
+                Ok::<Vc<()>, anyhow::Error>(Default::default())
+            }
+        }
+    });
+
+    Ok(External::new(RootTask::new(ctx, task_id).with_on_dispose(
+        move |_ctx| {
+            // The HMR root task and any per-chunk tasks still hold their own sender clones, so
+            // the channel doesn't fully close on dispose until they're garbage-collected.
+            // Deactivating every chunk's flag stops them emitting in the meantime.
+            let mut state = state.lock().unwrap();
+            for (_, handles) in state.chunks.drain() {
+                handles
+                    .flag
+                    .0
+                    .store(false, std::sync::atomic::Ordering::Release);
+            }
         },
-    )
+    )))
 }
 
 pub enum UpdateMessage {

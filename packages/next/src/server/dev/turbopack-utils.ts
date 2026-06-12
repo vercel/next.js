@@ -129,7 +129,8 @@ export type ClientState = {
   clientIssues: EntryIssuesMap
   messages: Map<string, HmrMessageSentToBrowser>
   turbopackUpdates: TurbopackUpdate[]
-  subscriptions: Map<string, AsyncIterator<any>>
+  /** Chunk IDs this client has subscribed to via `turbopack-subscribe`. */
+  subscriptions: Set<string>
 }
 
 export type ClientStateMap = WeakMap<ws, ClientState>

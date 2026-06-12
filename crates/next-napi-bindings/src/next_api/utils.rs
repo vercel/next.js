@@ -78,6 +78,29 @@ impl<T> Deref for DetachedVc<T> {
 pub struct RootTask {
     turbopack_ctx: NextTurbopackContext,
     task_id: Option<TaskId>,
+    /// Optional cleanup callback invoked from [`root_task_dispose`] before the primary task is
+    /// disposed. Used by subscriptions that internally manage additional state (e.g. child root
+    /// tasks) that must be torn down alongside the primary task.
+    on_dispose: Option<Box<dyn FnOnce(&NextTurbopackContext) + Send>>,
+}
+
+impl RootTask {
+    pub fn new(turbopack_ctx: NextTurbopackContext, task_id: TaskId) -> Self {
+        Self {
+            turbopack_ctx,
+            task_id: Some(task_id),
+            on_dispose: None,
+        }
+    }
+
+    /// Attach a cleanup callback that runs when the task is disposed via [`root_task_dispose`].
+    pub fn with_on_dispose(
+        mut self,
+        on_dispose: impl FnOnce(&NextTurbopackContext) + Send + 'static,
+    ) -> Self {
+        self.on_dispose = Some(Box::new(on_dispose));
+        self
+    }
 }
 
 impl Drop for RootTask {
@@ -90,6 +113,9 @@ impl Drop for RootTask {
 pub fn root_task_dispose(
     #[napi(ts_arg_type = "{ __napiType: \"RootTask\" }")] mut root_task: External<RootTask>,
 ) -> napi::Result<()> {
+    if let Some(on_dispose) = root_task.on_dispose.take() {
+        on_dispose(&root_task.turbopack_ctx);
+    }
     if let Some(task) = root_task.task_id.take() {
         root_task
             .turbopack_ctx
@@ -437,10 +463,7 @@ pub fn subscribe<T: 'static + Send + Sync, F: Future<Output = Result<T>> + Send,
             }
         }
     });
-    Ok(External::new(RootTask {
-        turbopack_ctx: ctx,
-        task_id: Some(task_id),
-    }))
+    Ok(External::new(RootTask::new(ctx, task_id)))
 }
 
 // Await the source and return fatal issues if there are any, otherwise

@@ -26,7 +26,7 @@ import type {
   CompilationEvent,
   DefineEnv,
   Endpoint,
-  HmrChunkNames,
+  HmrEvent,
   Lockfile,
   NodeJsHmrUpdate,
   PartialProjectOptions,
@@ -762,39 +762,15 @@ function bindingToApi(
       })()
     }
 
-    hmrEvents(
-      chunkName: string,
+    hmrSubscribe(
       target: HmrTarget.Client
-    ): AsyncIterableIterator<TurbopackResult<Update>>
-    hmrEvents(
-      chunkName: string,
+    ): AsyncIterableIterator<TurbopackResult<HmrEvent<Update>>>
+    hmrSubscribe(
       target: HmrTarget.Server
-    ): AsyncIterableIterator<TurbopackResult<NodeJsHmrUpdate>>
-    hmrEvents(chunkName: string, target: HmrTarget.Client | HmrTarget.Server) {
+    ): AsyncIterableIterator<TurbopackResult<HmrEvent<NodeJsHmrUpdate>>>
+    hmrSubscribe(target: HmrTarget) {
       return subscribe(true, async (callback) =>
-        binding.projectHmrEvents(
-          this._nativeProject,
-          chunkName,
-          target,
-          callback
-        )
-      )
-    }
-
-    /**
-     * Subscribe to the list of output chunk paths that can receive HMR updates.
-     * Chunk paths are output file paths like "server/chunks/ssr/..._.js" for server
-     * or "_next/static/chunks/app/page.js" for client.
-     */
-    hmrChunkNamesSubscribe(target: HmrTarget) {
-      return subscribe<TurbopackResult<HmrChunkNames>>(
-        false,
-        async (callback) =>
-          binding.projectHmrChunkNamesSubscribe(
-            this._nativeProject,
-            target,
-            callback
-          )
+        binding.projectHmrSubscribe(this._nativeProject, target, callback)
       )
     }
 

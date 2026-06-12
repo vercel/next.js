@@ -405,16 +405,56 @@ export declare function projectEntrypointsSubscribe(
   project: { __napiType: 'Project' },
   func: (...args: any[]) => any
 ): { __napiType: 'RootTask' }
-export declare function projectHmrEvents(
-  project: { __napiType: 'Project' },
-  chunkName: RcStr,
-  target: string,
-  func: (...args: any[]) => any
-): { __napiType: 'RootTask' }
-export interface HmrChunkNames {
-  chunkNames: Array<RcStr>
+/**
+ * One event from the HMR subscription.
+ *
+ * The shape is a tagged union discriminated by [`kind`]:
+ * - `"update"`: a chunk recomputed. `chunk_name`, `update`, and `issues` are populated.
+ * - `"error"`: a chunk's update computation failed. `chunk_name` and `error` are populated.
+ * - `"removed"`: a chunk left the chunk-name set. `chunk_name` is populated.
+ * - `"enumerationIssues"`: top-level issues from the chunk-names enumeration. `issues` is
+ *   populated.
+ *
+ * All optional fields are `None` for kinds where they don't apply, which produces `undefined`
+ * on the JS side.
+ */
+export interface NapiHmrEvent {
+  kind: string
+  chunkName?: string
+  /**
+   * JSON payload matching the `Update` / `NodeJsHmrUpdate` TS type (depends on `HmrTarget`).
+   * Only present when `kind === "update"`.
+   */
+  update?: any
+  /** Per-chunk error message. Only present when `kind === "error"`. */
+  error?: string
+  /** Issues attached to this event. Present for `"update"` and `"enumerationIssues"` kinds. */
+  issues?: Array<NapiIssue>
 }
-export declare function projectHmrChunkNamesSubscribe(
+/**
+ * Subscribe to HMR updates for every chunk produced by the project, for a given `HmrTarget`.
+ *
+ * Emits four event kinds via the supplied callback:
+ * - `update`: a chunk recomputed (real change, no-op, or issues-only notification)
+ * - `error`: a chunk's update computation failed (subscription remains live)
+ * - `removed`: a chunk left the project's HMR chunk-name set
+ * - `enumerationIssues`: top-level issues from the chunk-names enumeration itself
+ *
+ * A subscription-level failure (e.g. `hmr_chunk_names` itself throws) tears down the root task
+ * and surfaces to JS as a thrown error from the next async iteration.
+ *
+ * # Reactivity model
+ *
+ * A single turbo-tasks root task tracks `hmr_chunk_names`. On each invocation it diffs the
+ * current chunk set against the previous one and:
+ * - For each removed chunk: deactivates its per-chunk task (via an `AtomicBool` flag) and emits
+ *   `removed`.
+ * - For each added chunk: calls [`hmr_chunk_event`] — a `#[turbo_tasks::function]` that
+ *   independently re-executes whenever `hmr_update` for that chunk invalidates. The per-chunk
+ *   task's "active count" persists across the root task's executions (see
+ *   `ConnectChildOperation`), so reactivity continues even after the root task completes.
+ */
+export declare function projectHmrSubscribe(
   project: { __napiType: 'Project' },
   target: string,
   func: (...args: any[]) => any

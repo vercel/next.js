@@ -255,10 +255,36 @@ export type NodeJsHmrUpdate =
   | NodeJsPartialHmrUpdate
   | NodeJsRestartHmrUpdate
 
-export interface HmrChunkNames {
-  /** Relative paths to output chunks that can receive HMR updates (e.g., "server/chunks/ssr/..._.js") */
-  chunkNames: string[]
-}
+/**
+ * One event from `Project.hmrSubscribe(target)`. A single subscription per `HmrTarget` covers
+ * all chunks; downstream code is responsible for filtering events to interested consumers (e.g.
+ * routing client updates to subscribed WebSocket clients).
+ *
+ * Issues are attached per-event-kind rather than wrapped in `TurbopackResult` because each
+ * event kind has different issue semantics: `update` events carry the issues produced while
+ * computing that chunk's update, `enumerationIssues` events carry issues from the chunk-name
+ * enumeration itself, and `error` events carry a single error message instead of an issue list.
+ */
+export type HmrEvent<TUpdate = Update | NodeJsHmrUpdate> =
+  | {
+      kind: 'update'
+      chunkName: string
+      update: TUpdate
+      issues: Issue[]
+    }
+  | {
+      kind: 'error'
+      chunkName: string
+      error: string
+    }
+  | {
+      kind: 'removed'
+      chunkName: string
+    }
+  | {
+      kind: 'enumerationIssues'
+      issues: Issue[]
+    }
 
 /** @see https://github.com/vercel/next.js/blob/415cd74b9a220b6f50da64da68c13043e9b02995/crates/next-napi-bindings/src/next_api/project.rs#L824-L833 */
 export interface TurbopackStackFrame {
@@ -321,18 +347,12 @@ export interface Project {
     TurbopackResult<RawEntrypoints | {}>
   >
 
-  hmrEvents(
-    identifier: string,
+  hmrSubscribe(
     target: import('./index').HmrTarget.Client
-  ): AsyncIterableIterator<TurbopackResult<Update>>
-  hmrEvents(
-    identifier: string,
+  ): AsyncIterableIterator<TurbopackResult<HmrEvent<Update>>>
+  hmrSubscribe(
     target: import('./index').HmrTarget.Server
-  ): AsyncIterableIterator<TurbopackResult<NodeJsHmrUpdate>>
-
-  hmrChunkNamesSubscribe(
-    target: import('./index').HmrTarget
-  ): AsyncIterableIterator<TurbopackResult<HmrChunkNames>>
+  ): AsyncIterableIterator<TurbopackResult<HmrEvent<NodeJsHmrUpdate>>>
 
   getSourceForAsset(filePath: string): Promise<string | null>
 

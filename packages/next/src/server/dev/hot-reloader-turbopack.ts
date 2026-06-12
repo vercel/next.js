@@ -152,10 +152,9 @@ declare const __turbopack_server_hmr_apply__:
   | ((update: NodeJsPartialHmrUpdate) => boolean)
   | undefined
 
-type ServerHmrSubscriptions = Map<
-  string,
-  AsyncIterableIterator<TurbopackResult<NodeJsHmrUpdate>>
->
+/** Tracks server-side chunks observed via `project.hmrSubscribe(Server)` so the dev server can
+ *  clear their require cache when a `restart`-class update arrives. */
+type ServerHmrChunks = Set<string>
 
 function setupServerHmr(
   project: Project,
@@ -164,99 +163,63 @@ function setupServerHmr(
   }: {
     clear: () => void | Promise<void>
   }
-) {
-  const serverHmrSubscriptions: ServerHmrSubscriptions = new Map()
+): ServerHmrChunks {
+  const knownChunks: ServerHmrChunks = new Set()
+  const subscription = project.hmrSubscribe(HmrTarget.Server)
 
-  /**
-   * Subscribe to HMR updates for a server chunk.
-   * @param chunkPath - Server chunk output path (e.g., "server/chunks/ssr/..._.js")
-   */
-  function subscribeToServerHmr(chunkPath: string) {
-    if (serverHmrSubscriptions.has(chunkPath)) {
-      return
-    }
-
-    const subscription = project.hmrEvents(chunkPath, HmrTarget.Server)
-    serverHmrSubscriptions.set(chunkPath, subscription)
-
-    // Start listening for changes in background
-    ;(async () => {
-      // Skip initial state
-      await subscription.next()
-
-      for await (const result of subscription) {
-        const update = result as NodeJsHmrUpdate
-
-        // Fully re-evaluate all chunks from disk. Clears the module cache and
-        // notifies browsers to refetch RSC.
-        if (update.type === 'restart') {
-          await clear()
-          continue
-        }
-
-        if (update.type !== 'partial') {
-          continue
-        }
-
-        const instruction = update.instruction
-        if (!instruction || instruction.type !== 'EcmascriptMergedUpdate') {
-          continue
-        }
-
-        if (typeof __turbopack_server_hmr_apply__ === 'function') {
-          const applied = __turbopack_server_hmr_apply__(update)
-          if (!applied) {
-            await clear()
-          }
-        }
-      }
-    })().catch(async (err) => {
-      console.error('[Server HMR] Subscription error:', err)
-      serverHmrSubscriptions.delete(chunkPath)
-      await clear()
-    })
-  }
-
-  // Listen to the Rust bindings update us on changing server HMR chunk paths
   ;(async () => {
     try {
-      const serverHmrChunkPaths = project.hmrChunkNamesSubscribe(
-        HmrTarget.Server
-      )
-
-      // Process chunk paths (both initial and subsequent updates)
-      for await (const data of serverHmrChunkPaths) {
-        const currentChunkPaths = new Set<string>(
-          data.chunkNames.filter((path) => path.endsWith('.js'))
-        )
-
-        // Clean up subscriptions for removed chunk paths (like when pages are deleted)
-        const chunkPathsToRemove: string[] = []
-        for (const chunkPath of serverHmrSubscriptions.keys()) {
-          if (!currentChunkPaths.has(chunkPath)) {
-            chunkPathsToRemove.push(chunkPath)
+      for await (const result of subscription) {
+        if (result.kind === 'update') {
+          // Only `.js` chunks carry runtime updates we can apply server-side; ignore
+          // source maps and other auxiliary outputs.
+          if (!result.chunkName.endsWith('.js')) {
+            continue
           }
-        }
+          knownChunks.add(result.chunkName)
 
-        for (const chunkPath of chunkPathsToRemove) {
-          const subscription = serverHmrSubscriptions.get(chunkPath)
-          subscription?.return?.()
-          serverHmrSubscriptions.delete(chunkPath)
-        }
+          const update = result.update
 
-        // Subscribe to HMR events for new server chunks
-        for (const chunkPath of currentChunkPaths) {
-          if (!serverHmrSubscriptions.has(chunkPath)) {
-            subscribeToServerHmr(chunkPath)
+          // Fully re-evaluate all chunks from disk. Clears the module cache and
+          // notifies browsers to refetch RSC.
+          if (update.type === 'restart') {
+            await clear()
+            continue
           }
+
+          if (update.type !== 'partial') {
+            continue
+          }
+
+          const instruction = update.instruction
+          if (!instruction || instruction.type !== 'EcmascriptMergedUpdate') {
+            continue
+          }
+
+          if (typeof __turbopack_server_hmr_apply__ === 'function') {
+            const applied = __turbopack_server_hmr_apply__(update)
+            if (!applied) {
+              await clear()
+            }
+          }
+        } else if (result.kind === 'removed') {
+          knownChunks.delete(result.chunkName)
+        } else if (result.kind === 'error') {
+          console.error(
+            `[Server HMR] Update for ${result.chunkName} failed:`,
+            result.error
+          )
+          await clear()
         }
+        // `enumerationIssues` events are diagnostic only and not actionable here.
       }
     } catch (err) {
-      console.error('[Server HMR Setup] Error in chunk path subscription:', err)
+      console.error('[Server HMR] Subscription terminated:', err)
+      await clear()
     }
   })()
 
-  return serverHmrSubscriptions
+  return knownChunks
 }
 
 /**
@@ -689,7 +652,7 @@ export async function createHotReloaderTurbopack(
     }
   }
 
-  let serverHmrSubscriptions: ServerHmrSubscriptions | undefined
+  let serverHmrSubscriptions: ServerHmrChunks | undefined
 
   let hmrEventHappened = false
   let hmrHash = 0
@@ -835,7 +798,7 @@ export async function createHotReloaderTurbopack(
     currentEntryIssues.delete(key)
   }
 
-  async function subscribeToClientHmrEvents(client: ws, id: string) {
+  function subscribeToClientHmrEvents(client: ws, id: string) {
     const key = getEntryKey('assets', 'client', id)
     if (!hasEntrypointForKey(currentEntrypoints, key, assetMapper)) {
       // maybe throw an error / force the client to reload?
@@ -847,33 +810,11 @@ export async function createHotReloaderTurbopack(
       return
     }
 
-    const subscription = project!.hmrEvents(id, HmrTarget.Client)
-    state.subscriptions.set(id, subscription)
-
-    // The subscription will always emit once, which is the initial
-    // computation. This is not a change, so swallow it.
-    try {
-      await subscription.next()
-
-      for await (const data of subscription) {
-        processIssues(state.clientIssues, key, data, false, true)
-        if (data.type !== 'issues') {
-          sendTurbopackMessage(data as TurbopackUpdate)
-        }
-      }
-    } catch (e) {
-      // The client might be using an HMR session from a previous server, tell them
-      // to fully reload the page to resolve the issue. We can't use
-      // `hotReloader.send` since that would force every connected client to
-      // reload, only this client is out of date.
-      const reloadMessage: ReloadPageMessage = {
-        type: HMR_MESSAGE_SENT_TO_BROWSER.RELOAD_PAGE,
-        data: `error in HMR event subscription for ${id}: ${e}`,
-      }
-      sendToClient(client, reloadMessage)
-      client.close()
-      return
-    }
+    // Track which chunks each client cares about so `turbopack-utils.ts` can prune stale
+    // per-client issue entries when routes are removed. We do not filter HMR updates by interest:
+    // the client-side HMR firehose is broadcast to every connected client, and the browser
+    // runtime ignores updates for chunks it hasn't loaded.
+    state.subscriptions.add(id)
   }
 
   function unsubscribeFromClientHmrEvents(client: ws, id: string) {
@@ -882,12 +823,41 @@ export async function createHotReloaderTurbopack(
       return
     }
 
-    const subscription = state.subscriptions.get(id)
-    subscription?.return!()
+    state.subscriptions.delete(id)
 
     const key = getEntryKey('assets', 'client', id)
     state.clientIssues.delete(key)
   }
+
+  /**
+   * Drains the client-side HMR subscription and broadcasts each chunk update to every connected
+   * WebSocket client. The browser runtime filters updates for chunks it hasn't loaded.
+   * Per-chunk errors are logged on the server; the next successful compile will deliver any
+   * issues to the browser through the normal update path.
+   */
+  function setupClientHmrDispatch() {
+    const subscription = project.hmrSubscribe(HmrTarget.Client)
+    ;(async () => {
+      try {
+        for await (const result of subscription) {
+          if (result.kind === 'update') {
+            if (result.update.type !== 'issues') {
+              sendTurbopackMessage(result.update as TurbopackUpdate)
+            }
+          } else if (result.kind === 'error') {
+            console.error(
+              `[Client HMR] Update for ${result.chunkName} failed:`,
+              result.error
+            )
+          }
+          // `removed` and `enumerationIssues` events are not actionable here.
+        }
+      } catch (err) {
+        console.error('[Client HMR] Subscription terminated:', err)
+      }
+    })()
+  }
+  setupClientHmrDispatch()
 
   async function handleEntrypointsSubscription() {
     for await (const entrypoints of entrypointsSubscription) {
@@ -1247,7 +1217,7 @@ export async function createHotReloaderTurbopack(
     onHMR(req, socket: Socket, head, onUpgrade) {
       wsServer.handleUpgrade(req, socket, head, (client) => {
         const clientIssues: EntryIssuesMap = new Map()
-        const subscriptions: Map<string, AsyncIterator<any>> = new Map()
+        const subscriptions: Set<string> = new Set()
 
         const htmlRequestId = req.url
           ? new URL(req.url, 'http://n').searchParams.get('id')
@@ -1297,10 +1267,6 @@ export async function createHotReloaderTurbopack(
         })
 
         client.on('close', () => {
-          // Remove active subscriptions
-          for (const subscription of subscriptions.values()) {
-            subscription.return?.()
-          }
           clientStates.delete(client)
 
           if (htmlRequestId) {
