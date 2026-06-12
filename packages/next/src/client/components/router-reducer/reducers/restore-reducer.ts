@@ -9,6 +9,7 @@ import {
   getCurrentNavigationLock,
   spawnDynamicRequests,
   startPPRNavigation,
+  trackPrefetchedResponseEnds,
   type NavigationRequestAccumulation,
 } from '../ppr-navigations'
 import type { FlightRouterState } from '../../../../shared/lib/app-router-types'
@@ -52,6 +53,7 @@ export function restoreReducer(
   // during restores and refreshes.
   const accumulation: NavigationRequestAccumulation = {
     separateRefreshUrls: null,
+    prefetchedResponseEnds: null,
     scrollRef: null,
   }
   const restoreSeed = convertServerPatchToFullTree(
@@ -80,6 +82,7 @@ export function restoreReducer(
   if (task === null) {
     return completeHardNavigation(state, restoredUrl, 'replace', transitionId)
   }
+  trackPrefetchedResponseEnds(accumulation, transitionId)
   spawnDynamicRequests(
     task,
     restoredUrl,

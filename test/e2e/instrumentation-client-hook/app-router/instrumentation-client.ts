@@ -38,6 +38,14 @@ export function unstable_onRouterTransitionCommit(
   record('commit', href, navigateType, event)
 }
 
+export function unstable_onRouterTransitionSettled(
+  href: string,
+  navigateType: string,
+  event: unknown
+) {
+  record('settled', href, navigateType, event)
+}
+
 export function unstable_onRouterTransitionRouteMismatch(
   href: string,
   navigateType: string,

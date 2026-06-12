@@ -54,7 +54,7 @@ export function onRouterTransitionStart(
 }
 ```
 
-Additional router transition information is experimental. Enable it to receive the third `event` argument and the `unstable_` commit, route mismatch, and abort hooks:
+The complete router transition lifecycle is experimental. Enable it to receive the third `event` argument and the `unstable_` commit, settled, mismatch, and abort hooks:
 
 ```ts filename="next.config.ts"
 import type { NextConfig } from 'next'
@@ -68,13 +68,14 @@ const nextConfig: NextConfig = {
 export default nextConfig
 ```
 
-Then export the optional commit hook:
+Then export any of the optional `unstable_` lifecycle hooks:
 
 ```ts filename="instrumentation-client.ts" switcher
 import type {
   RouterTransitionAbortEvent,
   RouterTransitionCommitEvent,
   RouterTransitionRouteMismatchEvent,
+  RouterTransitionSettledEvent,
   RouterTransitionStartEvent,
   RouterTransitionType,
 } from 'next'
@@ -98,7 +99,18 @@ export function unstable_onRouterTransitionCommit(
   const start = starts.get(event.id)
   if (start !== undefined) {
     console.log('Time to navigation commit:', event.timestamp - start)
-    starts.delete(event.id)
+  }
+}
+
+export function unstable_onRouterTransitionSettled(
+  url: string,
+  navigationType: RouterTransitionType,
+  { id, timestamp }: RouterTransitionSettledEvent
+) {
+  const start = starts.get(id)
+  if (start !== undefined) {
+    console.log('Time to navigation settled:', timestamp - start)
+    starts.delete(id)
   }
 }
 
@@ -131,6 +143,13 @@ export function unstable_onRouterTransitionCommit(url, navigationType, event) {
   const start = starts.get(event.id)
   if (start !== undefined) {
     console.log('Time to navigation commit:', event.timestamp - start)
+  }
+}
+
+export function unstable_onRouterTransitionSettled(url, navigationType, event) {
+  const start = starts.get(event.id)
+  if (start !== undefined) {
+    console.log('Time to navigation settled:', event.timestamp - start)
     starts.delete(event.id)
   }
 }
@@ -156,14 +175,15 @@ Each hook receives the same three parameters:
 
 The available hooks are:
 
-| Hook                                       | Timing                                                                   |
-| ------------------------------------------ | ------------------------------------------------------------------------ |
-| `onRouterTransitionStart`                  | The navigation is dispatched.                                            |
-| `unstable_onRouterTransitionCommit`        | The first destination UI and URL commit.                                 |
-| `unstable_onRouterTransitionRouteMismatch` | The live route tree differs from the prefetched or predicted route tree. |
-| `unstable_onRouterTransitionAbort`         | The transition stops before completion.                                  |
+| Hook                                       | Timing                                                                    |
+| ------------------------------------------ | ------------------------------------------------------------------------- |
+| `onRouterTransitionStart`                  | The navigation is dispatched.                                             |
+| `unstable_onRouterTransitionCommit`        | The first destination UI and URL commit.                                  |
+| `unstable_onRouterTransitionSettled`       | All router-owned response streams and retries finish.                     |
+| `unstable_onRouterTransitionRouteMismatch` | The live route tree differs from the prefetched or predicted route tree.  |
+| `unstable_onRouterTransitionAbort`         | The transition is superseded, falls back to a hard navigation, or errors. |
 
-`unstable_onRouterTransitionRouteMismatch` is diagnostic and non-terminal. It indicates that Next.js detected a different route tree and retried the navigation.
+`unstable_onRouterTransitionRouteMismatch` is diagnostic and non-terminal. It indicates that Next.js detected a different route tree and retried the navigation. The same transition will later settle or abort.
 
 The start event also includes:
 
@@ -177,7 +197,7 @@ The commit event also includes:
 
 Route entries use filesystem-style patterns, so `/blog/hello` may report `/blog/[slug]`.
 
-`unstable_onRouterTransitionAbort` receives a `reason` of `superseded`, `hard-navigation`, or `error`. Hook errors are isolated and do not affect navigation or other hooks.
+`unstable_onRouterTransitionAbort` receives a `reason` of `superseded`, `hard-navigation`, or `error`. Every started transition ends with either `unstable_onRouterTransitionSettled` or `unstable_onRouterTransitionAbort`. Hook errors are isolated and do not affect navigation or other hooks.
 
 ## Performance considerations
 

@@ -1,7 +1,19 @@
 import { connection } from 'next/server'
+import { Suspense } from 'react'
 
-export default async function Page() {
+async function SlowContent() {
   await connection()
   await new Promise((resolve) => setTimeout(resolve, 500))
-  return <h1 id="slow-page">Slow page</h1>
+  return <p id="slow-content">Slow content</p>
+}
+
+export default function Page() {
+  return (
+    <>
+      <h1 id="slow-shell">Slow page</h1>
+      <Suspense fallback={<p id="slow-fallback">Loading</p>}>
+        <SlowContent />
+      </Suspense>
+    </>
+  )
 }

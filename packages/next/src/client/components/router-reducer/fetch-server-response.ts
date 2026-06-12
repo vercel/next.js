@@ -66,6 +66,7 @@ export interface FetchServerResponseOptions {
   readonly flightRouterState: FlightRouterState
   readonly nextUrl: string | null
   readonly isHmrRefresh?: boolean
+  readonly onResponseEnd?: () => void
 }
 
 export type StaticStageData<
@@ -141,6 +142,14 @@ export async function fetchServerResponse(
   options: FetchServerResponseOptions
 ): Promise<FetchServerResponseResult> {
   const { flightRouterState, nextUrl } = options
+  const onResponseEnd = options.onResponseEnd
+  let responseEndNotified = false
+  const notifyResponseEnd = () => {
+    if (!responseEndNotified) {
+      responseEndNotified = true
+      onResponseEnd?.()
+    }
+  }
 
   const headers: RequestHeaders = {
     // Enable flight response
@@ -189,8 +198,13 @@ export async function fetchServerResponse(
       url,
       headers,
       'auto',
-      shouldImmediatelyDecode
+      shouldImmediatelyDecode,
+      undefined,
+      onResponseEnd !== undefined
     )
+    if (onResponseEnd !== undefined) {
+      res.responseEnd.then(notifyResponseEnd, notifyResponseEnd)
+    }
 
     // If the fetch succeeds while we're in the offline state, notify the
     // offline module so it can short-circuit the polling loop.
@@ -325,6 +339,7 @@ export async function fetchServerResponse(
       }
     }
 
+    notifyResponseEnd()
     if (!isPageUnloading) {
       console.error(
         `Failed to fetch RSC payload for ${originalUrl}. Falling back to browser navigation.`,
@@ -353,6 +368,7 @@ export type RSCResponse<T> = {
   url: string
   flightResponsePromise: (Promise<T> & { _debugInfo?: Array<any> }) | null
   cacheData: Promise<FetchResponseCacheData | null>
+  responseEnd: Promise<void>
 }
 
 type FetchResponseCacheData = {
@@ -377,20 +393,97 @@ type FetchResponseCacheData = {
  * When cache components is disabled, returns the original response with
  * cacheData: null.
  */
-export async function processFetch(response: Response): Promise<{
+function trackReadableStream(stream: ReadableStream<Uint8Array<ArrayBuffer>>): {
+  stream: ReadableStream<Uint8Array<ArrayBuffer>>
+  responseEnd: Promise<void>
+} {
+  const reader = stream.getReader()
+  let resolveResponseEnd!: () => void
+  const responseEnd = new Promise<void>((resolve) => {
+    resolveResponseEnd = resolve
+  })
+  let finished = false
+  const finish = () => {
+    if (!finished) {
+      finished = true
+      resolveResponseEnd()
+    }
+  }
+
+  return {
+    stream: new ReadableStream<Uint8Array<ArrayBuffer>>({
+      async pull(controller) {
+        try {
+          const result = await reader.read()
+          if (result.done) {
+            finish()
+            controller.close()
+          } else {
+            controller.enqueue(result.value)
+          }
+        } catch (error) {
+          finish()
+          controller.error(error)
+        }
+      },
+      cancel(reason) {
+        finish()
+        return reader.cancel(reason)
+      },
+    }),
+    responseEnd,
+  }
+}
+
+function cloneResponseWithBody(
+  response: Response,
+  body: ReadableStream<Uint8Array>
+): Response {
+  const clonedResponse = new Response(body, {
+    headers: response.headers,
+    status: response.status,
+    statusText: response.statusText,
+  })
+  Object.defineProperty(clonedResponse, 'url', { value: response.url })
+  Object.defineProperty(clonedResponse, 'redirected', {
+    value: response.redirected,
+  })
+  return clonedResponse
+}
+
+export async function processFetch(
+  response: Response,
+  trackResponseEnd: boolean = false
+): Promise<{
   response: Response
   cacheData: FetchResponseCacheData | null
+  responseEnd: Promise<void>
 }> {
-  if (process.env.__NEXT_CACHE_COMPONENTS) {
-    if (!response.body) {
+  if (!response.body) {
+    if (process.env.__NEXT_CACHE_COMPONENTS) {
       throw new InvariantError(
         'Expected RSC navigation response to have a body'
       )
     }
+    return {
+      response,
+      cacheData: null,
+      responseEnd: Promise.resolve(),
+    }
+  }
 
-    const { stream, isPartial } = await stripIsPartialByte(response.body)
+  let responseStream = response.body
+  let responseEnd = Promise.resolve()
+  if (trackResponseEnd) {
+    const tracked = trackReadableStream(responseStream)
+    responseStream = tracked.stream
+    responseEnd = tracked.responseEnd
+  }
 
-    let responseStream: ReadableStream<Uint8Array>
+  if (process.env.__NEXT_CACHE_COMPONENTS) {
+    const { stream, isPartial } = await stripIsPartialByte(responseStream)
+
+    let flightResponseStream: ReadableStream<Uint8Array>
     let cacheData: FetchResponseCacheData
 
     if (process.env.__NEXT_EXPERIMENTAL_CACHED_NAVIGATIONS) {
@@ -398,35 +491,37 @@ export async function processFetch(response: Response): Promise<{
       // extractor, and the shell-stage extractor. Tee twice.
       const [stream1, rest] = stream.tee()
       const [staticBodyClone, shellBodyClone] = rest.tee()
-      responseStream = stream1
+      flightResponseStream = stream1
       cacheData = {
         isResponsePartial: isPartial,
         staticBodyClone,
         shellBodyClone,
       }
     } else {
-      responseStream = stream
+      flightResponseStream = stream
       cacheData = { isResponsePartial: isPartial }
     }
 
-    const strippedResponse = new Response(responseStream, {
-      headers: response.headers,
-      status: response.status,
-      statusText: response.statusText,
-    })
-
-    // The Response constructor doesn't preserve `url` or `redirected` from
-    // the original. We need both: `url` for React DevTools and `redirected`
-    // for the redirect replay logic below.
-    Object.defineProperty(strippedResponse, 'url', { value: response.url })
-    Object.defineProperty(strippedResponse, 'redirected', {
-      value: response.redirected,
-    })
-
-    return { response: strippedResponse, cacheData }
+    return {
+      response: cloneResponseWithBody(response, flightResponseStream),
+      cacheData,
+      responseEnd,
+    }
   }
 
-  return { response, cacheData: null }
+  if (!trackResponseEnd) {
+    return {
+      response,
+      cacheData: null,
+      responseEnd,
+    }
+  }
+
+  return {
+    response: cloneResponseWithBody(response, responseStream),
+    cacheData: null,
+    responseEnd,
+  }
 }
 
 /**
@@ -544,7 +639,8 @@ export async function createFetch<T>(
   headers: RequestHeaders,
   fetchPriority: 'auto' | 'high' | 'low' | null,
   shouldImmediatelyDecode: boolean,
-  signal?: AbortSignal
+  signal?: AbortSignal,
+  trackResponseEnd: boolean = false
 ): Promise<RSCResponse<T>> {
   // TODO: In output: "export" mode, the headers do nothing. Omit them (and the
   // cache busting search param) from the request so they're
@@ -584,7 +680,10 @@ export async function createFetch<T>(
   // track them separately.
   let fetchUrl = new URL(url)
   await setCacheBustingSearchParam(fetchUrl, headers)
-  let processed = fetch(fetchUrl, fetchOptions).then(processFetch)
+  let processed = fetch(fetchUrl, fetchOptions).then((response) =>
+    processFetch(response, trackResponseEnd)
+  )
+  const responseEnds = [processed.then(({ responseEnd }) => responseEnd)]
   let fetchPromise = processed.then(({ response }) => response)
 
   // Immediately pass the fetch promise to the Flight client so that the debug
@@ -654,7 +753,10 @@ export async function createFetch<T>(
       // TODO: We should abort the previous request.
       fetchUrl = new URL(responseUrl)
       await setCacheBustingSearchParam(fetchUrl, headers)
-      processed = fetch(fetchUrl, fetchOptions).then(processFetch)
+      processed = fetch(fetchUrl, fetchOptions).then((response) =>
+        processFetch(response, trackResponseEnd)
+      )
+      responseEnds.push(processed.then(({ responseEnd }) => responseEnd))
       fetchPromise = processed.then(({ response }) => response)
       flightResponsePromise = shouldImmediatelyDecode
         ? createFromNextFetch<T>(fetchPromise, headers)
@@ -693,6 +795,7 @@ export async function createFetch<T>(
     flightResponsePromise: flightResponsePromise,
 
     cacheData: processed.then(({ cacheData }) => cacheData),
+    responseEnd: Promise.all(responseEnds).then(() => {}),
   }
 
   return rscResponse
