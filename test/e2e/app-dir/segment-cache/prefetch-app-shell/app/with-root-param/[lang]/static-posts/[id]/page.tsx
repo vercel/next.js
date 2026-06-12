@@ -29,5 +29,7 @@ export default async function Page({ params }: { params: Promise<Params> }) {
 
 async function ParamsDependent({ params }: { params: Promise<Params> }) {
   const { id } = await params
-  return <p id="static-content">{`Static post ${id}`}</p>
+  return (
+    <p id="static-content">{`Static post ${id} with root param: ${await lang()}`}</p>
+  )
 }

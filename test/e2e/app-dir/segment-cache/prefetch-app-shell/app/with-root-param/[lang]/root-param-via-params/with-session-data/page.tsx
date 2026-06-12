@@ -1,6 +1,6 @@
 import { cookies } from 'next/headers'
 import { connection } from 'next/server'
-import { ReactNode, Suspense } from 'react'
+import { Suspense } from 'react'
 
 export const prefetch = 'allow-runtime'
 
@@ -8,7 +8,6 @@ export default async function Page({
   params,
 }: {
   params: Promise<{ lang: string }>
-  children: ReactNode
 }) {
   // All params at this level are root params, so we should be able
   // to access them without blocking the app shell.

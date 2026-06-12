@@ -53,5 +53,7 @@ async function ParamsDependent({ params }: { params: Promise<Params> }) {
 
 async function Dynamic({ id }: { id: string }) {
   await connection()
-  return <p id="dynamic-content">{`Post body for ${id}`}</p>
+  return (
+    <p id="dynamic-content">{`Post body for ${id} with root param: ${await lang()}`}</p>
+  )
 }

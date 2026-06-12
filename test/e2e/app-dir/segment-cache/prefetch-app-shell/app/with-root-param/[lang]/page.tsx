@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import { LinkAccordion } from '../../../components/link-accordion'
+import { LinkWithPendingIndicator } from '../../../components/link-with-pending-indicator'
 
 export default function Page() {
   return (
@@ -15,33 +16,52 @@ export default function Page() {
       <ul>
         <li>
           <LinkAccordion href="/with-root-param/en/posts/1">
-            Post 1
+            Post 1 (en)
           </LinkAccordion>
         </li>
         <li>
           <LinkAccordion href="/with-root-param/en/posts/2">
-            Post 2
+            Post 2 (en)
           </LinkAccordion>
         </li>
         <li>
           <LinkAccordion href="/with-root-param/en/posts/3">
-            Post 3
+            Post 3 (en)
           </LinkAccordion>
         </li>
         <li>
           <Link href="/with-root-param/en/posts/124" prefetch={false}>
-            Unprefetched post
+            Unprefetched post 124 (en)
           </Link>
         </li>
         <li>
-          <Link href="/with-root-param/en/posts/125?foo=bar" prefetch={false}>
-            Unprefetched post with search params
-          </Link>
+          <LinkWithPendingIndicator
+            href="/with-root-param/en/posts/125?foo=bar"
+            prefetch={false}
+          >
+            Unprefetched post with search params (en)
+          </LinkWithPendingIndicator>
         </li>
         <li>
-          <Link href="/with-root-param/pl/posts/126" prefetch={false}>
-            Unprefetched post with a different root param
-          </Link>
+          <LinkWithPendingIndicator
+            href="/with-root-param/pl/posts/126"
+            prefetch={false}
+          >
+            Unprefetched post 126 (pl)
+          </LinkWithPendingIndicator>
+        </li>
+        <li>
+          <LinkAccordion href="/with-root-param/fr/posts/1">
+            Post 1 (fr)
+          </LinkAccordion>
+        </li>
+        <li>
+          <LinkWithPendingIndicator
+            href="/with-root-param/fr/posts/124"
+            prefetch={false}
+          >
+            Unprefetched post 124 (fr)
+          </LinkWithPendingIndicator>
         </li>
       </ul>
 
@@ -55,23 +75,42 @@ export default function Page() {
       <ul>
         <li>
           <LinkAccordion href="/with-root-param/en/static-posts/1">
-            Static post 1
+            Static post 1 (en)
           </LinkAccordion>
         </li>
         <li>
           <LinkAccordion href="/with-root-param/en/static-posts/2">
-            Static post 2
+            Static post 2 (en)
           </LinkAccordion>
         </li>
         <li>
-          <Link href="/with-root-param/en/static-posts/124" prefetch={false}>
-            Unprefetched static post
-          </Link>
+          <LinkWithPendingIndicator
+            href="/with-root-param/en/static-posts/124"
+            prefetch={false}
+          >
+            Unprefetched static post 124 (en)
+          </LinkWithPendingIndicator>
         </li>
         <li>
-          <Link href="/with-root-param/pl/static-posts/125" prefetch={false}>
-            Unprefetched post with a different root param
-          </Link>
+          <LinkWithPendingIndicator
+            href="/with-root-param/pl/static-posts/125"
+            prefetch={false}
+          >
+            Unprefetched static post 125 (pl)
+          </LinkWithPendingIndicator>
+        </li>
+        <li>
+          <LinkAccordion href="/with-root-param/fr/static-posts/1">
+            Static post 1 (fr)
+          </LinkAccordion>
+        </li>
+        <li>
+          <LinkWithPendingIndicator
+            href="/with-root-param/fr/static-posts/124"
+            prefetch={false}
+          >
+            Unprefetched static post 124 (fr)
+          </LinkWithPendingIndicator>
         </li>
       </ul>
 

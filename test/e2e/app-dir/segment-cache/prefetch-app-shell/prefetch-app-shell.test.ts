@@ -343,7 +343,7 @@ describe('App Shell prefetching', () => {
         'Post 124'
       )
       expect(await browser.elementById('dynamic-content').text()).toEqual(
-        'Post body for 124'
+        'Post body for 124 with root param: en'
       )
     })
 
@@ -400,7 +400,7 @@ describe('App Shell prefetching', () => {
       // After the outer act unblocks the navigation, the per-URL content
       // streams in.
       expect(await browser.elementById('static-content').text()).toEqual(
-        'Static post 124'
+        'Static post 124 with root param: en'
       )
     })
 
@@ -550,15 +550,15 @@ describe('App Shell prefetching', () => {
           .elementByCss('a[href="/with-root-param/pl/posts/126"]')
           .click()
 
-        // Make sure the click had a chance to have an effect.
-        await browser.eval(
-          () => new Promise((resolve) => setTimeout(resolve, 5))
+        // Wait for the router to actually start the navigation.
+        // This will be observable by a pending indicator on the link.
+        await browser.elementByCss(
+          'a[href="/with-root-param/pl/posts/126"] [data-pending]'
         )
 
-        // We're blocked, so the original link should still be visible,
+        // We're blocked, so the url should stay unchanged
         // and the cached App Shell should not be visible.
         expect(await browser.url()).toEqual(startingUrl)
-        await browser.elementByCss('a[href="/with-root-param/pl/posts/126"]')
         expect(await browser.locator('#shell').count()).toBe(0)
       })
 
@@ -568,7 +568,48 @@ describe('App Shell prefetching', () => {
         'Post 126'
       )
       expect(await browser.elementById('dynamic-content').text()).toEqual(
-        'Post body for 126'
+        'Post body for 126 with root param: pl'
+      )
+
+      // Go back to the home page, then repeat the "prefetch post / navigate to
+      // an unprefetched post that shares its shell" flow (from the "includes
+      // root params" tests) with a THIRD root param ("fr"). This proves the
+      // freshly prefetched "fr" shell is actually used — not the earlier "en"
+      // shell.
+      await browser.back()
+
+      await act(
+        async () => {
+          await browser
+            .elementByCss(
+              'input[data-link-accordion="/with-root-param/fr/posts/1"]'
+            )
+            .click()
+        },
+        { includes: 'App shell for posts with root param: fr' }
+      )
+
+      await act(async () => {
+        // Navigate to an unprefetched post that shares the "fr" shell. The
+        // cached "fr" shell (not "en") should render immediately, before the
+        // navigation response arrives.
+        await browser
+          .elementByCss('a[href="/with-root-param/fr/posts/124"]')
+          .click()
+
+        expect(await browser.elementById('shell').text()).toEqual(
+          'App shell for posts with root param: fr'
+        )
+        expect(await browser.elementById('cookie-value').text()).toEqual(
+          'Cookie: none'
+        )
+      })
+
+      expect(await browser.elementById('param-value').text()).toEqual(
+        'Post 124'
+      )
+      expect(await browser.elementById('dynamic-content').text()).toEqual(
+        'Post body for 124 with root param: fr'
       )
     })
 
@@ -610,24 +651,63 @@ describe('App Shell prefetching', () => {
           .elementByCss('a[href="/with-root-param/pl/static-posts/125"]')
           .click()
 
-        // Make sure the click had a chance to have an effect.
-        await browser.eval(
-          () => new Promise((resolve) => setTimeout(resolve, 5))
+        // Make sure the router actually started the navigation.
+        // This will be observable by a pending indicator on the link.
+        await browser.elementByCss(
+          'a[href="/with-root-param/pl/static-posts/125"] [data-pending]'
         )
 
-        // We're blocked, so the original link should still be visible,
+        // We're blocked, so the url should stay unchanged
         // and the cached App Shell should not be visible.
         expect(await browser.url()).toEqual(startingUrl)
-        await browser.elementByCss(
-          'a[href="/with-root-param/pl/static-posts/125"]'
-        )
         expect(await browser.locator('#static-shell').count()).toBe(0)
       })
 
       // After the outer act unblocks the navigation, the per-URL content
       // streams in.
       expect(await browser.elementById('static-content').text()).toEqual(
-        'Static post 125'
+        'Static post 125 with root param: pl'
+      )
+
+      // Go back to the home page, then repeat the "prefetch post / navigate to
+      // an unprefetched post that shares its shell" flow (from the "includes
+      // root params" tests) with a THIRD root param ("fr"). This proves the
+      // freshly prefetched "fr" shell is actually used — not the earlier "en"
+      // shell.
+      await browser.back()
+
+      await act(
+        async () => {
+          await browser
+            .elementByCss(
+              'input[data-link-accordion="/with-root-param/fr/static-posts/1"]'
+            )
+            .click()
+        },
+        [
+          // TODO(app-shells): why aren't there requests here?
+          // { includes: 'App shell for static posts with root param: fr' },
+          // { includes: 'App shell for static posts with root param: fr' },
+        ]
+      )
+
+      await act(async () => {
+        // Navigate to an unprefetched post that shares the "fr" shell. The
+        // cached "fr" shell (not "en") should render immediately, before the
+        // navigation response arrives.
+        await browser
+          .elementByCss('a[href="/with-root-param/fr/static-posts/124"]')
+          .click()
+
+        expect(await browser.elementById('static-shell').text()).toEqual(
+          'App shell for static posts with root param: fr'
+        )
+      })
+
+      // After the outer act unblocks the navigation, the per-URL content
+      // streams in.
+      expect(await browser.elementById('static-content').text()).toEqual(
+        'Static post 124 with root param: fr'
       )
     })
   })

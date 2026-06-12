@@ -604,7 +604,7 @@ function createStagedRenderParamsImpl(
 
 function allParamsAreRootParams(underlyingParams: Params, rootParams: Params) {
   for (const paramName in underlyingParams) {
-    if (!(paramName in rootParams)) {
+    if (!Object.hasOwn(rootParams, paramName)) {
       return false
     }
   }
