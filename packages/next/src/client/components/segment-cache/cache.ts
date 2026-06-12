@@ -236,6 +236,7 @@ export type RouteCacheEntry =
 
 type SegmentCacheEntryShared = {
   fetchStrategy: FetchStrategy
+  responseEnd: Promise<void>
 
   /**
    * True if this entry was fulfilled from a fallback shell response (the page
@@ -323,6 +324,7 @@ export const MetadataOnlyRequestTree: FlightRouterState = [
 
 let routeCacheMap: CacheMap<RouteCacheEntry> = createCacheMap()
 let segmentCacheMap: CacheMap<SegmentCacheEntry> = createCacheMap()
+const resolvedResponseEnd = Promise.resolve()
 
 // All invalidation listeners for the whole cache are tracked in single set.
 // Since we don't yet support tag or path-based invalidation, there's no point
@@ -1053,6 +1055,7 @@ export function createDetachedSegmentCacheEntry(
     isPartial: true,
     isUpgradeableISRFallback: false,
     promise: null,
+    responseEnd: resolvedResponseEnd,
 
     // Map-related fields
     ref: null,
@@ -2482,6 +2485,12 @@ export async function fetchSegmentPrefetchesUsingDynamicRequest(
   const key = task.key
   const url = new URL(route.canonicalUrl, location.origin)
   const nextUrl = key.nextUrl
+  const responseEnd = createPromiseWithResolvers<void>()
+  if (fetchStrategy === FetchStrategy.Full) {
+    for (const entry of spawnedEntries.values()) {
+      entry.responseEnd = responseEnd.promise
+    }
+  }
 
   if (
     spawnedEntries.size === 1 &&
@@ -2533,6 +2542,7 @@ export async function fetchSegmentPrefetchesUsingDynamicRequest(
       // Server responded with an error, or with a miss. We should still cache
       // the response, but we can try again after 10 seconds.
       rejectSegmentEntriesIfStillPending(spawnedEntries, Date.now() + 10 * 1000)
+      responseEnd.resolve()
       return null
     }
 
@@ -2546,14 +2556,13 @@ export async function fetchSegmentPrefetchesUsingDynamicRequest(
       // the proper way to handle this is to evict the stale route tree entry
       // then fill the cache with the new response.
       rejectSegmentEntriesIfStillPending(spawnedEntries, Date.now() + 10 * 1000)
+      responseEnd.resolve()
       return null
     }
 
     // Track when the network connection closes. Only meaningful for Full
     // (dynamic) prefetches which use incremental streaming. For buffered
     // paths, this is resolved immediately — see TODO in fetchRouteOnCacheMiss.
-    const closed = createPromiseWithResolvers<void>()
-
     let fulfilledEntries: Array<FulfilledSegmentCacheEntry> | null = null
     let prefetchStream: ReadableStream<Uint8Array>
     let bufferedResponseSize: number | null = null
@@ -2564,7 +2573,7 @@ export async function fetchSegmentPrefetchesUsingDynamicRequest(
       // processed as it arrives.
       prefetchStream = createIncrementalPrefetchResponseStream(
         response.body,
-        closed.resolve,
+        responseEnd.resolve,
         function onResponseSizeUpdate(totalBytesReceivedSoFar) {
           // When processing a dynamic response, we don't know how large each
           // individual segment is, so approximate by assigning each segment
@@ -2584,7 +2593,7 @@ export async function fetchSegmentPrefetchesUsingDynamicRequest(
       const { stream, size } = await createNonTaskyPrefetchResponseStream(
         response.body
       )
-      closed.resolve()
+      responseEnd.resolve()
       prefetchStream = stream
       bufferedResponseSize = size
     }
@@ -2721,6 +2730,7 @@ export async function fetchSegmentPrefetchesUsingDynamicRequest(
     )
     if (typeof flightDatas === 'string') {
       rejectSegmentEntriesIfStillPending(spawnedEntries, Date.now() + 10 * 1000)
+      responseEnd.resolve()
       return null
     }
     const navigationSeed = convertServerPatchToFullTree(
@@ -2746,6 +2756,11 @@ export async function fetchSegmentPrefetchesUsingDynamicRequest(
       navigationSeed,
       spawnedEntries
     )
+    if (fetchStrategy === FetchStrategy.Full && fulfilledEntries !== null) {
+      for (const entry of fulfilledEntries) {
+        entry.responseEnd = responseEnd.promise
+      }
+    }
 
     // For buffered responses, update LRU sizes now that we know which
     // entries were fulfilled.
@@ -2762,7 +2777,7 @@ export async function fetchSegmentPrefetchesUsingDynamicRequest(
 
     // Return a promise that resolves when the network connection closes, so
     // the scheduler can track the number of concurrent network connections.
-    return { value: null, closed: closed.promise }
+    return { value: null, closed: responseEnd.promise }
   } catch (error) {
     if (process.env.__NEXT_USE_OFFLINE) {
       const { checkOfflineError } =
@@ -2773,10 +2788,12 @@ export async function fetchSegmentPrefetchesUsingDynamicRequest(
         // immediate expiration so it gets retried once the scheduler is
         // re-pinged after connectivity is restored.
         rejectSegmentEntriesIfStillPending(spawnedEntries, -1)
+        responseEnd.resolve()
         return null
       }
     }
     rejectSegmentEntriesIfStillPending(spawnedEntries, Date.now() + 10 * 1000)
+    responseEnd.resolve()
     return null
   }
 }

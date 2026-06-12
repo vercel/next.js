@@ -21,6 +21,7 @@ type RouterTransitionRecord = {
   resolvedUrl: string
   type: RouterTransitionType
   prefetch: RouterTransitionPrefetch
+  pendingRequests: number
   committed: boolean
   routeMismatchEmitted: boolean
 }
@@ -42,6 +43,7 @@ export function initializeRouterTransitionModules(
     instrumentationModules.some(
       (hooks) =>
         typeof hooks.unstable_onRouterTransitionCommit === 'function' ||
+        typeof hooks.unstable_onRouterTransitionSettled === 'function' ||
         typeof hooks.unstable_onRouterTransitionRouteMismatch === 'function' ||
         typeof hooks.unstable_onRouterTransitionAbort === 'function'
     )
@@ -75,6 +77,7 @@ function hasLifecycleInstrumentation(): boolean {
     (hooks) =>
       typeof hooks.onRouterTransitionStart === 'function' ||
       typeof hooks.unstable_onRouterTransitionCommit === 'function' ||
+      typeof hooks.unstable_onRouterTransitionSettled === 'function' ||
       typeof hooks.unstable_onRouterTransitionRouteMismatch === 'function' ||
       typeof hooks.unstable_onRouterTransitionAbort === 'function'
   )
@@ -97,11 +100,7 @@ export function startRouterTransition(
     }
 
     if (activeTransition !== null) {
-      if (activeTransition.committed) {
-        activeTransition = null
-      } else {
-        abortRouterTransition(activeTransition.id, 'superseded')
-      }
+      abortRouterTransition(activeTransition.id, 'superseded')
     }
 
     const id = `${Date.now().toString(36)}-${(++nextTransitionId).toString(36)}`
@@ -110,6 +109,7 @@ export function startRouterTransition(
       resolvedUrl: url,
       type,
       prefetch: 'none',
+      pendingRequests: 0,
       committed: false,
       routeMismatchEmitted: false,
     }
@@ -144,6 +144,31 @@ export function setRouterTransitionPrefetch(
   }
 }
 
+export function beginRouterTransitionRequest(
+  id: string | null
+): (() => void) | undefined {
+  const record = getActiveTransition(id)
+  if (record === null) {
+    return undefined
+  }
+
+  record.pendingRequests++
+  const transitionId = record.id
+  let finished = false
+  return () => {
+    if (finished) {
+      return
+    }
+    finished = true
+    const current = getActiveTransition(transitionId)
+    if (current === null) {
+      return
+    }
+    current.pendingRequests--
+    scheduleSettle(current)
+  }
+}
+
 export function commitRouterTransition(
   id: string | null,
   url: string,
@@ -164,6 +189,7 @@ export function commitRouterTransition(
       prefetch: record.prefetch,
     })
   )
+  scheduleSettle(record)
 }
 
 export function routeMismatchRouterTransition(
@@ -204,6 +230,35 @@ export function abortRouterTransition(
       reason,
     })
   )
+}
+
+function scheduleSettle(record: RouterTransitionRecord): void {
+  if (!record.committed || record.pendingRequests !== 0) {
+    return
+  }
+
+  setTimeout(() => {
+    const current = getActiveTransition(record.id)
+    if (
+      current === null ||
+      !current.committed ||
+      current.pendingRequests !== 0
+    ) {
+      return
+    }
+
+    activeTransition = null
+    callHooks((hooks) =>
+      hooks.unstable_onRouterTransitionSettled?.(
+        current.resolvedUrl,
+        current.type,
+        {
+          id: current.id,
+          timestamp: timestamp(),
+        }
+      )
+    )
+  }, 0)
 }
 
 function classifySegment(segment: Segment): {

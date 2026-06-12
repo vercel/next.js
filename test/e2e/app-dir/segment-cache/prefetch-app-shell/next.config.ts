@@ -8,6 +8,7 @@ const nextConfig: NextConfig = {
     cachedNavigations: true,
     appShells: true,
     varyParams: true,
+    instrumentationClientRouterTransitionEvents: true,
   },
 }
 

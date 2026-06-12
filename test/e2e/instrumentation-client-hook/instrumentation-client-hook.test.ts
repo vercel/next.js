@@ -149,10 +149,10 @@ describe('Instrumentation Client Hook', () => {
       await retry(async () => {
         expect(
           (await getTransitionEvents(browser)).map((event) => event.phase)
-        ).toEqual(['start', 'commit'])
+        ).toEqual(['start', 'commit', 'settled'])
       })
 
-      const [start, commit] = await getTransitionEvents(browser)
+      const [start, commit, settled] = await getTransitionEvents(browser)
       expect(start.url).toBe('/some-page')
       expect(start.navigateType).toBe('push')
       expect(typeof start.event.id).toBe('string')
@@ -168,8 +168,12 @@ describe('Instrumentation Client Hook', () => {
         )
       }
       expect(commit.event.id).toBe(start.event.id)
+      expect(settled.event.id).toBe(start.event.id)
       expect(commit.event.timestamp).toBeGreaterThanOrEqual(
         start.event.timestamp
+      )
+      expect(settled.event.timestamp).toBeGreaterThanOrEqual(
+        commit.event.timestamp
       )
     })
 
@@ -248,22 +252,57 @@ describe('Instrumentation Client Hook', () => {
       await browser.elementByCss('a[href="/blog/hello"]').click()
       await browser.elementById('blog-post')
       await retry(async () => {
-        expect((await getTransitionEvents(browser)).at(-1).phase).toBe('commit')
+        expect(
+          (await getTransitionEvents(browser)).some(
+            (event) => event.phase === 'commit'
+          )
+        ).toBe(true)
       })
-      expect((await getTransitionEvents(browser)).at(-1).event.routes).toEqual([
-        '/blog/[slug]',
-      ])
+      expect(
+        (await getTransitionEvents(browser))
+          .filter((event) => event.phase === 'commit')
+          .at(-1).event.routes
+      ).toEqual(['/blog/[slug]'])
 
       await browser.elementByCss('a[href="/dashboard"]').click()
       await browser.elementById('dashboard')
       await browser.elementById('analytics')
       await retry(async () => {
-        expect((await getTransitionEvents(browser)).at(-1).phase).toBe('commit')
+        expect(
+          (await getTransitionEvents(browser))
+            .filter((event) => event.phase === 'commit')
+            .at(-1).event.routes
+        ).toEqual(['/dashboard', '/dashboard/@analytics'])
       })
-      expect((await getTransitionEvents(browser)).at(-1).event.routes).toEqual([
-        '/dashboard',
-        '/dashboard/@analytics',
-      ])
+    })
+
+    it('commits the shell before the response settles', async () => {
+      const browser = await next.browser('/')
+
+      await browser.elementByCss('a[href="/slow"]').click()
+      await browser.elementById('slow-shell')
+
+      await retry(async () => {
+        expect(
+          (await getTransitionEvents(browser)).some(
+            (event) => event.phase === 'commit'
+          )
+        ).toBe(true)
+      })
+      if (!process.env.IS_WEBPACK_TEST) {
+        expect(
+          (await getTransitionEvents(browser)).some(
+            (event) => event.phase === 'settled'
+          )
+        ).toBe(false)
+      }
+
+      await browser.elementById('slow-content')
+      await retry(async () => {
+        expect(
+          (await getTransitionEvents(browser)).map((event) => event.phase)
+        ).toEqual(['start', 'commit', 'settled'])
+      })
     })
 
     it('aborts a transition when it is superseded', async () => {
@@ -277,15 +316,20 @@ describe('Instrumentation Client Hook', () => {
       await browser.elementByCss('a[href="/some-page"]').click()
       await browser.elementById('some-page')
       await retry(async () => {
-        expect((await getTransitionEvents(browser)).at(-1).phase).toBe('commit')
+        expect((await getTransitionEvents(browser)).at(-1).phase).toBe(
+          'settled'
+        )
       })
 
       const events = await getTransitionEvents(browser)
       const firstId = events[0].event.id
-      const abort = events.find(
-        (event) => event.event.id === firstId && event.phase === 'abort'
+      const firstTerminalEvent = events.find(
+        (event) =>
+          event.event.id === firstId &&
+          (event.phase === 'abort' || event.phase === 'settled')
       )
-      expect(abort.event.reason).toBe('superseded')
+      expect(firstTerminalEvent.phase).toBe('abort')
+      expect(firstTerminalEvent.event.reason).toBe('superseded')
     })
   })
 
