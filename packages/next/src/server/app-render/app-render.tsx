@@ -1847,7 +1847,7 @@ async function finalRuntimeServerPrerender(
 
       // Note: this await will only resolve after the last task (unless sync IO aborts the render earlier)
       // We await it here so that if the stream errors, it's not an unhandled rejection.
-      await iterateStreamingPrerenderChunksWeb(
+      await iterateStreamingPrerenderChunks(
         stream,
         finalServerController.signal,
         collectChunk,
@@ -7868,7 +7868,7 @@ async function prerenderToStream(
 
           // Note: this await will only resolve after the last task (unless sync IO aborts the render earlier)
           // We await it here so that if the stream errors, it's not an unhandled rejection.
-          await iterateStreamingPrerenderChunksWeb(
+          await iterateStreamingPrerenderChunks(
             stream,
             finalServerReactController.signal,
             collectChunk,
@@ -9162,38 +9162,76 @@ function collectPrerenderChunk(
   chunks.allChunks?.push(chunk)
 }
 
-async function iterateStreamingPrerenderChunksWeb(
-  stream: ReadableStream<Uint8Array>,
+async function iterateStreamingPrerenderChunks(
+  stream: AnyStream,
   signal: AbortSignal,
   onChunk: (chunk: Uint8Array) => void,
   streamState?: StreamPendingState
 ): Promise<void> {
-  const reader = stream.getReader()
-  if (streamState) {
-    streamState.isPending = true
-  }
-
-  // In production, there's no debug info, so we don't need to capture
-  // anything emitted after the abort and can cancel immediately.
-  if (process.env.NODE_ENV !== 'development') {
-    signal.addEventListener(
-      'abort',
-      () => {
-        reader.cancel(signal.reason)
-      },
-      { once: true }
-    )
-  }
-
-  while (true) {
-    const { done, value } = await reader.read()
-    if (done) {
-      break
+  if (stream instanceof ReadableStream) {
+    const reader = stream.getReader()
+    if (streamState) {
+      streamState.isPending = true
     }
-    onChunk(value)
-  }
-  if (streamState) {
-    streamState.isPending = false
+
+    // In production, there's no debug info, so we don't need to capture
+    // anything emitted after the abort and can cancel immediately.
+    if (process.env.NODE_ENV !== 'development') {
+      signal.addEventListener(
+        'abort',
+        () => {
+          reader.cancel(signal.reason)
+        },
+        { once: true }
+      )
+    }
+
+    while (true) {
+      const { done, value } = await reader.read()
+      if (done) {
+        break
+      }
+      onChunk(value)
+    }
+    if (streamState) {
+      streamState.isPending = false
+    }
+  } else {
+    const nodeStream = stream as Readable
+    if (streamState) {
+      streamState.isPending = true
+    }
+
+    let cancelled = false
+
+    // In production, there's no debug info, so we don't need to capture
+    // anything emitted after the abort and can cancel immediately.
+    if (process.env.NODE_ENV !== 'development') {
+      signal.addEventListener(
+        'abort',
+        () => {
+          if (!cancelled) {
+            cancelled = true
+            nodeStream.destroy()
+          }
+        },
+        { once: true }
+      )
+    }
+
+    try {
+      for await (const value of nodeStream) {
+        if (cancelled) break
+        onChunk(value)
+      }
+    } catch (err) {
+      if (!cancelled) {
+        throw err
+      }
+    }
+    if (streamState) {
+      streamState.isPending = false
+    }
   }
 }
 
