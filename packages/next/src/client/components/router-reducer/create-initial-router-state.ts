@@ -269,6 +269,7 @@ export function createInitialRouterState({
       (extractPathFromFlightRouterState(initialTree) || location?.pathname) ??
       null,
     previousNextUrl: null,
+    transitionId: null,
     debugInfo: null,
   }
 

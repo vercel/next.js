@@ -1682,6 +1682,7 @@ function dispatchRetryDueToTreeMismatch(
     seed,
     mpa: isHardRetry,
     navigateType: retryNavigateType,
+    transitionId: null,
   }
   dispatchAppRouterAction(retryAction)
 }

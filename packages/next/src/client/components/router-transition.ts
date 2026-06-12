@@ -15,8 +15,15 @@ import type {
   RouterTransitionType,
 } from '../router-transition-types'
 
+type RouterTransitionRecord = {
+  id: string
+  type: RouterTransitionType
+  committed: boolean
+}
+
 let instrumentationModules: readonly ClientInstrumentationHooks[] = []
 let nextTransitionId = 0
+let activeTransition: RouterTransitionRecord | null = null
 
 export function initializeRouterTransitionModules(
   modules: ClientInstrumentationModules
@@ -24,6 +31,23 @@ export function initializeRouterTransitionModules(
   instrumentationModules = modules.filter(
     (module): module is ClientInstrumentationHooks => module != null
   )
+
+  if (
+    !process.env.__NEXT_INSTRUMENTATION_CLIENT_ROUTER_TRANSITION_EVENTS &&
+    process.env.NODE_ENV !== 'production' &&
+    instrumentationModules.some(
+      (hooks) => typeof hooks.unstable_onRouterTransitionCommit === 'function'
+    )
+  ) {
+    console.warn(
+      'Router transition lifecycle hooks in instrumentation-client require ' +
+        '`experimental.instrumentationClientRouterTransitionEvents` to be enabled.'
+    )
+  }
+}
+
+function timestamp(): number {
+  return performance.timeOrigin + performance.now()
 }
 
 function callHooks(invoke: (hooks: ClientInstrumentationHooks) => void): void {
@@ -39,8 +63,16 @@ function callHooks(invoke: (hooks: ClientInstrumentationHooks) => void): void {
   }
 }
 
-function timestamp(): number {
-  return performance.timeOrigin + performance.now()
+function hasLifecycleInstrumentation(): boolean {
+  return instrumentationModules.some(
+    (hooks) =>
+      typeof hooks.onRouterTransitionStart === 'function' ||
+      typeof hooks.unstable_onRouterTransitionCommit === 'function'
+  )
+}
+
+function getActiveTransition(id: string | null): RouterTransitionRecord | null {
+  return id !== null && activeTransition?.id === id ? activeTransition : null
 }
 
 export function startRouterTransition(
@@ -48,18 +80,20 @@ export function startRouterTransition(
   type: RouterTransitionType,
   fromTree: FlightRouterState,
   prefetchIntent: RouterTransitionPrefetchIntent | null
-): void {
+): string | null {
   // Positive flag check so the instrumentation-only path is removed by DCE when disabled.
   if (process.env.__NEXT_INSTRUMENTATION_CLIENT_ROUTER_TRANSITION_EVENTS) {
-    if (
-      !instrumentationModules.some(
-        (hooks) => typeof hooks.onRouterTransitionStart === 'function'
-      )
-    ) {
-      return
+    if (!hasLifecycleInstrumentation()) {
+      return null
     }
 
     const id = `${Date.now().toString(36)}-${(++nextTransitionId).toString(36)}`
+    const record: RouterTransitionRecord = {
+      id,
+      type,
+      committed: false,
+    }
+    activeTransition = record
 
     callHooks((hooks) =>
       hooks.onRouterTransitionStart?.(url, type, {
@@ -69,9 +103,26 @@ export function startRouterTransition(
         prefetchIntent,
       })
     )
+    return id
   } else {
     callHooks((hooks) => hooks.onRouterTransitionStart?.(url, type, null))
+    return null
   }
+}
+
+export function commitRouterTransition(id: string | null, url: string): void {
+  const record = getActiveTransition(id)
+  if (record === null || record.committed) {
+    return
+  }
+
+  record.committed = true
+  callHooks((hooks) =>
+    hooks.unstable_onRouterTransitionCommit?.(url, record.type, {
+      id: record.id,
+      timestamp: timestamp(),
+    })
+  )
 }
 
 function classifySegment(segment: Segment): {

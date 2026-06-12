@@ -65,7 +65,8 @@ export function navigate(
   nextUrl: string | null,
   freshnessPolicy: FreshnessPolicy,
   scrollBehavior: ScrollBehavior,
-  navigateType: 'push' | 'replace'
+  navigateType: 'push' | 'replace',
+  transitionId: string | null
 ): AppRouterState | Promise<AppRouterState> {
   let navigationLock: NavigationLock = null
 
@@ -91,7 +92,8 @@ export function navigate(
         freshnessPolicy,
         scrollBehavior,
         navigateType,
-        navigationLock
+        navigationLock,
+        transitionId
       )
     }
   }
@@ -107,7 +109,8 @@ export function navigate(
     freshnessPolicy,
     scrollBehavior,
     navigateType,
-    navigationLock
+    navigationLock,
+    transitionId
   )
 }
 
@@ -122,7 +125,8 @@ function navigateImpl(
   freshnessPolicy: FreshnessPolicy,
   scrollBehavior: ScrollBehavior,
   navigateType: 'push' | 'replace',
-  navigationLock: NavigationLock
+  navigationLock: NavigationLock,
+  transitionId: string | null
 ): AppRouterState | Promise<AppRouterState> {
   const now = Date.now()
   const href = url.href
@@ -144,7 +148,8 @@ function navigateImpl(
       scrollBehavior,
       navigateType,
       route,
-      navigationLock
+      navigationLock,
+      transitionId
     )
   }
 
@@ -181,7 +186,8 @@ function navigateImpl(
           scrollBehavior,
           navigateType,
           optimisticRoute,
-          navigationLock
+          navigationLock,
+          transitionId
         )
       }
     }
@@ -204,7 +210,8 @@ function navigateImpl(
     freshnessPolicy,
     scrollBehavior,
     navigateType,
-    navigationLock
+    navigationLock,
+    transitionId
   ).catch(() => {
     // If the navigation fails, return the current state
     return state
@@ -238,7 +245,8 @@ export function navigateToKnownRoute(
   // In these cases, if a mismatch occurs, we still mark the route as having a
   // dynamic rewrite by traversing the known route tree (see
   // dispatchRetryDueToTreeMismatch).
-  routeCacheEntry: FulfilledRouteCacheEntry | null
+  routeCacheEntry: FulfilledRouteCacheEntry | null,
+  transitionId: string | null
 ): AppRouterState {
   // A version of navigate() that accepts the target route tree as an argument
   // rather than reading it from the prefetch cache.
@@ -350,11 +358,12 @@ export function navigateToKnownRoute(
       navigateType,
       scrollBehavior,
       accumulation.scrollRef,
-      debugInfo
+      debugInfo,
+      transitionId
     )
   }
   // Could not perform a SPA navigation. Revert to a full-page (MPA) navigation.
-  return completeHardNavigation(state, url, navigateType)
+  return completeHardNavigation(state, url, navigateType, transitionId)
 }
 
 function navigateUsingPrefetchedRouteTree(
@@ -370,7 +379,8 @@ function navigateUsingPrefetchedRouteTree(
   scrollBehavior: ScrollBehavior,
   navigateType: 'push' | 'replace',
   route: FulfilledRouteCacheEntry,
-  navigationLock: NavigationLock
+  navigationLock: NavigationLock,
+  transitionId: string | null
 ): AppRouterState {
   const routeTree = route.tree
   const canonicalUrl = route.canonicalUrl + url.hash
@@ -399,7 +409,8 @@ function navigateUsingPrefetchedRouteTree(
     navigateType,
     navigationLock,
     null,
-    route
+    route,
+    transitionId
   )
 }
 
@@ -427,7 +438,8 @@ async function navigateToUnknownRoute(
   freshnessPolicy: FreshnessPolicy,
   scrollBehavior: ScrollBehavior,
   navigateType: 'push' | 'replace',
-  navigationLock: NavigationLock
+  navigationLock: NavigationLock,
+  transitionId: string | null
 ): Promise<AppRouterState> {
   // Runs when a navigation happens but there's no cached prefetch we can use.
   // Don't bother to wait for a prefetch response; go straight to a full
@@ -467,7 +479,12 @@ async function navigateToUnknownRoute(
   if (typeof result === 'string') {
     // This is an MPA navigation.
     const redirectUrl = new URL(result, location.origin)
-    return completeHardNavigation(state, redirectUrl, navigateType)
+    return completeHardNavigation(
+      state,
+      redirectUrl,
+      navigateType,
+      transitionId
+    )
   }
 
   const {
@@ -615,14 +632,16 @@ async function navigateToUnknownRoute(
     // came directly from the server. If a mismatch occurs during dynamic data
     // fetch, the retry handler will traverse the known route tree to mark the
     // entry as having a dynamic rewrite.
-    null
+    null,
+    transitionId
   )
 }
 
 export function completeHardNavigation(
   state: AppRouterState,
   url: URL,
-  navigateType: 'push' | 'replace'
+  navigateType: 'push' | 'replace',
+  transitionId: string | null = null
 ): AppRouterState {
   if (isJavaScriptURLString(url.href)) {
     console.error(
@@ -649,6 +668,7 @@ export function completeHardNavigation(
     tree: state.tree,
     nextUrl: state.nextUrl,
     previousNextUrl: state.previousNextUrl,
+    transitionId,
     debugInfo: null,
   }
   return newState
@@ -665,7 +685,8 @@ export function completeSoftNavigation(
   navigateType: 'push' | 'replace',
   scrollBehavior: ScrollBehavior,
   scrollRef: ScrollRef | null,
-  collectedDebugInfo: Array<unknown> | null
+  collectedDebugInfo: Array<unknown> | null,
+  transitionId: string | null
 ) {
   // The "Next-Url" is a special representation of the URL that Next.js
   // uses to implement interception routes.
@@ -787,6 +808,7 @@ export function completeSoftNavigation(
     tree,
     nextUrl: nextUrlForNewRoute,
     previousNextUrl,
+    transitionId,
     debugInfo: collectedDebugInfo,
   }
   return newState
@@ -798,7 +820,8 @@ export function completeTraverseNavigation(
   renderedSearch: string,
   cache: CacheNode,
   tree: FlightRouterState,
-  nextUrl: string | null
+  nextUrl: string | null,
+  transitionId: string | null
 ) {
   return {
     // Set canonical url
@@ -819,6 +842,7 @@ export function completeTraverseNavigation(
     // Next-Url that was used to fetch the data. Anywhere we fetch using the
     // canonical URL, there should be a corresponding Next-Url.
     previousNextUrl: null,
+    transitionId,
     debugInfo: null,
   }
 }
@@ -1048,7 +1072,8 @@ async function ensurePrefetchThenNavigate(
   freshnessPolicy: FreshnessPolicy,
   scrollBehavior: ScrollBehavior,
   navigateType: 'push' | 'replace',
-  navigationLock: NavigationLock
+  navigationLock: NavigationLock,
+  transitionId: string | null
 ): Promise<AppRouterState> {
   const link = getLinkForCurrentNavigation()
   const fetchStrategy = link !== null ? link.fetchStrategy : FetchStrategy.PPR
@@ -1079,7 +1104,8 @@ async function ensurePrefetchThenNavigate(
     freshnessPolicy,
     scrollBehavior,
     navigateType,
-    navigationLock
+    navigationLock,
+    transitionId
   )
 
   // Only transition to captured-SPA once the navigation is known to be an SPA.

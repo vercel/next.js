@@ -92,6 +92,7 @@ export interface NavigateAction {
   locationSearch: Location['search']
   navigateType: 'push' | 'replace'
   scrollBehavior: ScrollBehavior
+  transitionId: string | null
 }
 
 /**
@@ -107,6 +108,7 @@ export interface RestoreAction {
   type: typeof ACTION_RESTORE
   url: URL
   historyState: AppHistoryState | undefined
+  transitionId: string | null
 }
 
 export type AppHistoryState = {
@@ -125,6 +127,7 @@ export interface ServerPatchAction {
   seed: NavigationSeed | null
   mpa: boolean
   navigateType: 'push' | 'replace'
+  transitionId: string | null
 }
 
 /**
@@ -245,6 +248,11 @@ export type AppRouterState = {
    * The previous next-url that was used previous to a dynamic navigation.
    */
   previousNextUrl: string | null
+
+  /**
+   * Identifies the router transition represented by this state, if any.
+   */
+  transitionId: string | null
 
   debugInfo: Array<unknown> | null
 }

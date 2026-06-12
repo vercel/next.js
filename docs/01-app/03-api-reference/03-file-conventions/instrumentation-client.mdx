@@ -54,7 +54,7 @@ export function onRouterTransitionStart(
 }
 ```
 
-Additional router transition information is experimental. Enable it to receive a third `event` argument:
+Additional router transition information is experimental. Enable it to receive the third `event` argument and the `unstable_onRouterTransitionCommit` hook:
 
 ```ts filename="next.config.ts"
 import type { NextConfig } from 'next'
@@ -68,39 +68,72 @@ const nextConfig: NextConfig = {
 export default nextConfig
 ```
 
-The event includes the transition metadata and source context known when the navigation is dispatched:
+Then export the optional commit hook:
 
 ```ts filename="instrumentation-client.ts" switcher
-import type { RouterTransitionStartEvent, RouterTransitionType } from 'next'
+import type {
+  RouterTransitionCommitEvent,
+  RouterTransitionStartEvent,
+  RouterTransitionType,
+} from 'next'
+
+const starts = new Map<string, number>()
 
 export function onRouterTransitionStart(
   url: string,
   navigationType: RouterTransitionType,
   { id, timestamp, fromRoutes, prefetchIntent }: RouterTransitionStartEvent
 ) {
-  console.log(id, timestamp, url, navigationType, fromRoutes, prefetchIntent)
+  console.log('Navigating from:', fromRoutes, prefetchIntent)
+  starts.set(id, timestamp)
+}
+
+export function unstable_onRouterTransitionCommit(
+  url: string,
+  navigationType: RouterTransitionType,
+  event: RouterTransitionCommitEvent
+) {
+  const start = starts.get(event.id)
+  if (start !== undefined) {
+    console.log('Time to navigation commit:', event.timestamp - start)
+    starts.delete(event.id)
+  }
 }
 ```
 
 ```js filename="instrumentation-client.js" switcher
+const starts = new Map()
+
 export function onRouterTransitionStart(url, navigationType, event) {
-  console.log(
-    event.id,
-    event.timestamp,
-    url,
-    navigationType,
-    event.fromRoutes,
-    event.prefetchIntent
-  )
+  console.log('Navigating from:', event.fromRoutes, event.prefetchIntent)
+  starts.set(event.id, event.timestamp)
+}
+
+export function unstable_onRouterTransitionCommit(url, navigationType, event) {
+  const start = starts.get(event.id)
+  if (start !== undefined) {
+    console.log('Time to navigation commit:', event.timestamp - start)
+    starts.delete(event.id)
+  }
 }
 ```
 
-`onRouterTransitionStart` receives:
+Each hook receives the same three parameters:
 
 - `url: string` - The URL being navigated to
 - `navigationType: 'push' | 'replace' | 'traverse'` - The type of navigation
 - `event.id` - An opaque ID shared by events for this transition
 - `event.timestamp` - A framework-captured Unix timestamp in milliseconds
+
+The available hooks are:
+
+| Hook                                | Timing                                   |
+| ----------------------------------- | ---------------------------------------- |
+| `onRouterTransitionStart`           | The navigation is dispatched.            |
+| `unstable_onRouterTransitionCommit` | The first destination UI and URL commit. |
+
+The start event (`onRouterTransitionStart`) also includes:
+
 - `event.fromRoutes` - Route patterns visible before navigation. The primary `children` route is first, followed by parallel slots in deterministic order
 - `event.prefetchIntent` - For link navigations, whether the clicked link requested full prefetching (`full`), used automatic prefetching (`auto`), or did not request prefetching (`none`). For navigations with no associated link (programmatic `router.push()`/`router.replace()`, or browser back/forward) this is `null`, since no link prefetch intent applies
 
@@ -126,7 +159,7 @@ This timing makes it ideal for setting up error tracking, analytics, and perform
 
 ## See also
 
-`next.config.js` plugins (for example, wrappers like `withSentry`) can register their own client instrumentation module via the [`instrumentationClientInject`](/docs/app/api-reference/config/next-config-js/instrumentationClientInject) option. Injected modules run before this file, in array order, and may export the same router transition start hook. Application code should continue to use this file convention directly.
+`next.config.js` plugins (for example, wrappers like `withSentry`) can register their own client instrumentation module via the [`instrumentationClientInject`](/docs/app/api-reference/config/next-config-js/instrumentationClientInject) option. Injected modules run before this file, in array order, and may export the same router transition hooks. Application code should continue to use this file convention directly.
 
 ## Examples
 
@@ -260,7 +293,7 @@ if (!window.ResizeObserver) {
 
 ## Version history
 
-| Version   | Changes                                               |
-| --------- | ----------------------------------------------------- |
-| `v16.3.0` | Experimental router transition start event introduced |
-| `v15.3`   | `instrumentation-client` introduced                   |
+| Version   | Changes                                                   |
+| --------- | --------------------------------------------------------- |
+| `v16.3.0` | Experimental router transition lifecycle hooks introduced |
+| `v15.3`   | `instrumentation-client` introduced                       |
