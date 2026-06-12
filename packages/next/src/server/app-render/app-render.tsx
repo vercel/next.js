@@ -1735,6 +1735,16 @@ async function finalRuntimeServerPrerender(
     mode.type === 'session-shell-only'
       ? createStageByteLengths()
       : null
+  const collectChunk = (chunk: Uint8Array) => {
+    collectPrerenderChunk(collectedChunks, finalServerController.signal, chunk)
+    if (stageByteLengths) {
+      increaseChunkByteLengths(
+        stageByteLengths,
+        finalStageController.currentStage,
+        chunk.byteLength
+      )
+    }
+  }
 
   await runInSequentialTasks(
     async () => {
@@ -1754,24 +1764,13 @@ async function finalRuntimeServerPrerender(
         }
       )
 
-      if (stageByteLengths) {
-        let countStream: typeof stream
-        ;[stream, countStream] = stream.tee()
-        void countStageBytesUntilAbortWeb(
-          stageByteLengths,
-          countStream,
-          finalStageController,
-          finalServerController.signal
-        ).catch(() => {})
-      }
-
       // Note: this await will only resolve after the last task (unless sync IO aborts the render earlier)
       // We await it here so that if the stream errors, it's not an unhandled rejection.
-      await collectPrerenderChunksWeb(
+      await iterateStreamingPrerenderChunksWeb(
         stream,
-        collectedChunks,
-        streamState,
-        finalServerController.signal
+        finalServerController.signal,
+        collectChunk,
+        streamState
       )
     },
     () => {
@@ -4982,11 +4981,11 @@ async function accumulateStreamChunksInto(
     try {
       while (!cancelled) {
         const { done, value } = await reader.read()
-        if (done) {
+        if (done || cancelled) {
           cancel()
           break
         }
-        accumulateChunk(stageController.currentStage, accumulator, value)
+        collectStageChunk(accumulator, stageController.currentStage, value)
       }
     } catch (err) {
       // When we cancel the reader we may reject the read.
@@ -5013,7 +5012,7 @@ async function accumulateStreamChunksInto(
     try {
       for await (const value of nodeStream) {
         if (cancelled) break
-        accumulateChunk(stageController.currentStage, accumulator, value)
+        collectStageChunk(accumulator, stageController.currentStage, value)
       }
     } catch (err) {
       if (!cancelled) {
@@ -5023,9 +5022,9 @@ async function accumulateStreamChunksInto(
   }
 }
 
-function accumulateChunk(
-  stage: RenderStage,
+function collectStageChunk(
   accumulator: AccumulatedStreamChunks,
+  stage: RenderStage,
   value: Uint8Array
 ): void {
   switch (stage) {
@@ -5088,30 +5087,6 @@ function createStageByteLengths(): StageByteLengths {
     result[stage] = 0
   }
   return result as StageByteLengths
-}
-
-async function countStageBytesUntilAbortWeb(
-  byteLengths: StageByteLengths,
-  stream: ReadableStream<Uint8Array>,
-  stageController: StagedRenderingController,
-  abortSignal: AbortSignal
-): Promise<void> {
-  const reader = stream.getReader()
-  abortSignal.addEventListener('abort', reader.cancel.bind(reader), {
-    once: true,
-  })
-
-  while (true) {
-    const { done, value } = await reader.read()
-    if (done || abortSignal.aborted) {
-      break
-    }
-    increaseChunkByteLengths(
-      byteLengths,
-      stageController.currentStage,
-      value.byteLength
-    )
-  }
 }
 
 async function countStageBytesUntilAbortNode(
@@ -7582,7 +7557,24 @@ async function prerenderToStream(
 
       const streamState = createStreamPendingState()
       const collectedChunks = createPrerenderChunksAccumulator()
-      const collectedChunksByStage = createStageChunksAccumulator()
+      const collectedChunksByStage = appShells
+        ? createStageChunksAccumulator()
+        : null
+      const collectChunk = (chunk: Uint8Array) => {
+        collectPrerenderChunk(
+          collectedChunks,
+          finalServerReactController.signal,
+          chunk
+        )
+        if (collectedChunksByStage) {
+          collectStageChunk(
+            collectedChunksByStage,
+            finalStageController.currentStage,
+            chunk
+          )
+        }
+      }
+
       let debugEndTime: number | undefined = undefined
       let didLinkDataUnblockNewContent = false
 
@@ -7628,25 +7620,13 @@ async function prerenderToStream(
             { once: true }
           )
 
-          if (appShells) {
-            let teedStream: typeof stream
-            ;[stream, teedStream] = stream.tee()
-
-            void accumulateStreamChunksInto(
-              collectedChunksByStage,
-              teedStream,
-              finalStageController,
-              finalServerRenderController.signal
-            ).catch(() => {})
-          }
-
           // Note: this await will only resolve after the last task (unless sync IO aborts the render earlier)
           // We await it here so that if the stream errors, it's not an unhandled rejection.
-          await collectPrerenderChunksWeb(
+          await iterateStreamingPrerenderChunksWeb(
             stream,
-            collectedChunks,
-            streamState,
-            finalServerReactController.signal
+            finalServerReactController.signal,
+            collectChunk,
+            streamState
           )
         },
         () => {
@@ -7675,9 +7655,11 @@ async function prerenderToStream(
           // then the prerender uses link data.
           // NOTE: we must capture this *before* resolving staleTime/varyParams,
           // which always emit new static chunks.
-          didLinkDataUnblockNewContent =
-            collectedChunksByStage.staticChunks.length >
-            collectedChunksByStage.shellStaticChunks.length
+          if (collectedChunksByStage) {
+            didLinkDataUnblockNewContent =
+              collectedChunksByStage.staticChunks.length >
+              collectedChunksByStage.shellStaticChunks.length
+          }
 
           // Now that the prerendering is complete, we know the final stale
           // time and vary params. Close the stale time iterable and resolve
@@ -7689,7 +7671,8 @@ async function prerenderToStream(
           if (staleTimeIterable !== undefined) {
             staleTimeIterable.close()
           }
-          if (shellByteLengthDeferred) {
+
+          if (shellByteLengthDeferred && collectedChunksByStage) {
             shellByteLengthDeferred.resolve(
               didLinkDataUnblockNewContent
                 ? collectedChunksByStage.shellStaticChunks.reduce(
@@ -7753,7 +7736,7 @@ async function prerenderToStream(
           ctx.pagePath,
           metadata
         )
-        if (appShells) {
+        if (appShells && collectedChunksByStage) {
           // If link data (static params) unblocked new content, then the shell has to be partial.
           // If not, then the shell prerender and the static prerender are the same except for staleTime/varyParams.
           const shellIsPartial = didLinkDataUnblockNewContent
@@ -8924,19 +8907,36 @@ function createPrerenderChunksAccumulator(): PrerenderChunksAccumulator {
     allChunks: process.env.NODE_ENV === 'development' ? [] : null,
   }
 }
+
 type PrerenderChunksAccumulator = {
   prerenderChunks: Uint8Array[]
   allChunks: Uint8Array[] | null
 }
 
-async function collectPrerenderChunksWeb(
-  stream: ReadableStream<Uint8Array>,
+function collectPrerenderChunk(
   chunks: PrerenderChunksAccumulator,
-  streamState: StreamPendingState,
-  signal: AbortSignal
+  signal: AbortSignal,
+  chunk: Uint8Array
+) {
+  // The chunks emitted after an abort are not part of the prerender...
+  if (!signal.aborted) {
+    chunks.prerenderChunks.push(chunk)
+  }
+  // ...but if they contain debug info, we still want to collect them
+  // to improve error messages.
+  chunks.allChunks?.push(chunk)
+}
+
+async function iterateStreamingPrerenderChunksWeb(
+  stream: ReadableStream<Uint8Array>,
+  signal: AbortSignal,
+  onChunk: (chunk: Uint8Array) => void,
+  streamState?: StreamPendingState
 ): Promise<void> {
   const reader = stream.getReader()
-  streamState.isPending = true
+  if (streamState) {
+    streamState.isPending = true
+  }
 
   // In production, there's no debug info, so we don't need to capture
   // anything emitted after the abort and can cancel immediately.
@@ -8953,14 +8953,12 @@ async function collectPrerenderChunksWeb(
   while (true) {
     const { done, value } = await reader.read()
     if (done) {
-      streamState.isPending = false
       break
     }
-
-    if (!signal.aborted) {
-      chunks.prerenderChunks.push(value)
-    }
-    chunks.allChunks?.push(value)
+    onChunk(value)
+  }
+  if (streamState) {
+    streamState.isPending = false
   }
 }
 
