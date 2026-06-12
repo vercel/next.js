@@ -263,13 +263,29 @@ export function navigateToKnownRoute(
         PrefetchHint.SubtreeHasPartialPrefetching) ===
         0
     ) {
-      console.error(
+      const error = new Error(
         `A <Link prefetch={true}> navigated to "${url.pathname}", but Partial ` +
           `Prefetching is not enabled for that route, so its dynamic data was ` +
           `included in the prefetch. Enable Partial Prefetching app-wide by ` +
           `setting \`partialPrefetching: true\` in next.config, or per-route by ` +
           `exporting \`const prefetch = 'partial'\` from the page or layout.`
       )
+      const ownerStack = 'ownerStack' in link ? link.ownerStack : undefined
+      if (ownerStack === undefined) {
+        console.error(
+          '' +
+            'Cannot associate the "prefetch={true}" warning with a specific <Link> making it harder to find the cause of the following warning. ' +
+            'This is a bug in Next.js.'
+        )
+      } else if (ownerStack !== null) {
+        // Replace the (useless) stack captured at the throw site — which
+        // points into router internals — with the Owner Stack captured when
+        // the <Link> rendered. That way the dev overlay associates this
+        // warning with the JSX that created the link, not with
+        // navigation.ts.
+        error.stack = `${error.name}: ${error.message}${ownerStack}`
+      }
+      console.error(error)
     }
   }
   const accumulation: NavigationRequestAccumulation = {

@@ -65,7 +65,13 @@ import stringHash from 'next/dist/compiled/string-hash'
 import { DYNAMIC_EXPIRE, RUNTIME_PREFETCH_DYNAMIC_STALE } from './constants'
 import { NEXT_CACHE_ROOT_PARAM_TAG_ID } from '../../lib/constants'
 import type { CacheHandler } from '../lib/cache-handlers/types'
-import { getCacheHandler } from './handlers'
+import { getCacheHandler, getPrivateCacheHandler } from './handlers'
+import {
+  NEXT_HMR_REFRESH_HASH_COOKIE,
+  NEXT_INSTANT_TEST_COOKIE,
+} from '../../client/components/app-router-headers'
+import type { ReadonlyRequestCookies } from '../web/spec-extension/adapters/request-cookies'
+import type { ReadonlyHeaders } from '../web/spec-extension/adapters/headers'
 import {
   NestedDynamicUseCacheError,
   UseCacheDeadlockError,
@@ -339,6 +345,89 @@ function computeRootParamsCacheKeySuffix(
   )
 }
 
+// Next-internal cookies that must not vary the private cache key, since they're
+// not part of the application's own cookie state. The instant-navigation cookie
+// toggles while a navigation lock is held, so including it would force spurious
+// misses. The HMR refresh hash is already part of the cache key (see
+// `cacheKeyParts`), so including its cookie too would just be redundant.
+const COOKIES_EXCLUDED_FROM_PRIVATE_CACHE_KEY = new Set<string>([
+  NEXT_HMR_REFRESH_HASH_COOKIE,
+  NEXT_INSTANT_TEST_COOKIE,
+])
+
+// Request and transport headers that must not vary the private cache key. They
+// either differ between otherwise-equivalent requests, which would cause
+// spurious misses (a browser reload adds `cache-control`/`pragma` that an
+// initial navigation doesn't, and `accept`/`sec-fetch-*` differ between an HTML
+// navigation and an RSC or prefetch request for the same page), or are
+// connection- and proxy-level rather than application data. The `cookie` header
+// is excluded because cookies are keyed separately below (via the dedicated
+// cookie path, which applies `COOKIES_EXCLUDED_FROM_PRIVATE_CACHE_KEY`);
+// including the raw header would duplicate them and reintroduce the cookies
+// that path excludes. Header names are lowercased by `HeadersAdapter`, so every
+// entry here is lowercase.
+const HEADERS_EXCLUDED_FROM_PRIVATE_CACHE_KEY = new Set<string>([
+  'accept',
+  'accept-encoding',
+  'cache-control',
+  'connection',
+  'cookie',
+  'if-match',
+  'if-modified-since',
+  'if-none-match',
+  'if-range',
+  'if-unmodified-since',
+  'keep-alive',
+  'pragma',
+  'priority',
+  'purpose',
+  'range',
+  'sec-fetch-dest',
+  'sec-fetch-mode',
+  'sec-fetch-site',
+  'sec-fetch-user',
+  'sec-purpose',
+  'te',
+  'upgrade',
+  'upgrade-insecure-requests',
+  'x-forwarded-for',
+  'x-forwarded-host',
+  'x-forwarded-port',
+  'x-forwarded-proto',
+])
+
+// TODO: This varies the dev private cache key by the request's cookies and
+// headers (minus the transport and content-negotiation headers excluded above).
+// It's a heuristic: it still over-keys (a cache that reads only one cookie or
+// header varies by all of them) and the header denylist is necessarily
+// incomplete. Follow up by tracking which cookies and headers a cache function
+// actually reads (the same mechanism root params use via `readRootParamNames`)
+// and keying by only those. Note that Next-internal flight headers such as
+// `rsc` and `next-router-state-tree` are already stripped upstream in
+// `getHeaders`, so they never appear here.
+function computePrivateCacheKeyRequestSuffix(
+  cookies: ReadonlyRequestCookies,
+  headers: ReadonlyHeaders
+): string {
+  const relevantCookies = cookies
+    .getAll()
+    .filter(
+      (cookie) => !COOKIES_EXCLUDED_FROM_PRIVATE_CACHE_KEY.has(cookie.name)
+    )
+    .map((cookie): [string, string] => [cookie.name, cookie.value])
+    .sort(([nameA], [nameB]) => (nameA < nameB ? -1 : nameA > nameB ? 1 : 0))
+
+  const relevantHeaders = [...headers.entries()]
+    .filter(([name]) => !HEADERS_EXCLUDED_FROM_PRIVATE_CACHE_KEY.has(name))
+    .sort(([nameA], [nameB]) => (nameA < nameB ? -1 : nameA > nameB ? 1 : 0))
+
+  if (relevantCookies.length === 0 && relevantHeaders.length === 0) {
+    return ''
+  }
+
+  return JSON.stringify({ cookies: relevantCookies, headers: relevantHeaders })
+}
+
 function saveToResumeDataCache(
   resumeDataCache: ResumeDataCache | null,
   serializedCacheKey: string,
@@ -413,11 +502,15 @@ function saveToCacheHandler(
   cacheHandler: CacheHandler,
   workStore: WorkStore,
   id: string,
-  serializedCacheKey: string,
+  cacheHandlerKeyBase: string,
   savedCacheResult: Promise<CollectedCacheResult>,
   rootParams: Params | undefined
-): void {
-  const pendingCoarseEntry = savedCacheResult.then((collectedResult) => {
+): Promise<CollectedCacheResult> {
+  // Write the entry to the cache handler. With root params, this is a redirect
+  // entry at the coarse key plus the actual entry at the specific key;
+  // otherwise just the entry at the coarse key. Both set calls are fired
+  // together and awaited in parallel.
+  const combinedSetPromise = savedCacheResult.then(async (collectedResult) => {
     const { entry: fullEntry, readRootParamNames } = collectedResult
 
     // Use the combined set (union of all historically observed reads) for both
@@ -432,27 +525,26 @@ function saveToCacheHandler(
       ? addKnownRootParamNames(id, readRootParamNames)
       : knownRootParamsByFunctionId.get(id)
 
+    const setPromises: Promise<void>[] = []
+    let coarseEntry: CacheEntry = fullEntry
+
     if (rootParamNames && rootParamNames.size > 0 && rootParams) {
       const specificKey =
-        serializedCacheKey +
+        cacheHandlerKeyBase +
         computeRootParamsCacheKeySuffix(rootParams, rootParamNames)
 
-      const specificSetPromise = cacheHandler.set(
-        specificKey,
-        Promise.resolve(fullEntry)
+      setPromises.push(
+        cacheHandler.set(specificKey, Promise.resolve(fullEntry))
       )
-      workStore.pendingRevalidateWrites ??= []
-      workStore.pendingRevalidateWrites.push(specificSetPromise)
 
-      // Return a redirect entry for the coarse key. On a cold server (empty
-      // knownRootParamsByFunctionId), this entry's tags tell us which root
-      // params to include in the specific key for the follow-up lookup.
-
+      // The coarse key gets a redirect entry instead. On a cold server (empty
+      // knownRootParamsByFunctionId), its tags tell a reader which root params
+      // to include in the specific-key lookup.
       const rootParamTags = [...rootParamNames].map(
         (paramName) => NEXT_CACHE_ROOT_PARAM_TAG_ID + paramName
       )
 
-      return {
+      coarseEntry = {
         value: new ReadableStream({
           start(controller) {
             // Single byte so the entry has non-zero size in LRU caches.
@@ -468,12 +560,26 @@ function saveToCacheHandler(
       } satisfies CacheEntry
     }
 
-    return fullEntry
+    setPromises.push(
+      cacheHandler.set(cacheHandlerKeyBase, Promise.resolve(coarseEntry))
+    )
+
+    await Promise.all(setPromises)
   })
 
-  const promise = cacheHandler.set(serializedCacheKey, pendingCoarseEntry)
   workStore.pendingRevalidateWrites ??= []
-  workStore.pendingRevalidateWrites.push(promise)
+  workStore.pendingRevalidateWrites.push(combinedSetPromise)
+
+  // A cross-request joiner reads its recomputed specific key only after it has
+  // awaited this entry's metadata, so gate the metadata on the writes landing:
+  // that guarantees the entry is present when the joiner re-reads. A failed
+  // write shouldn't reject the metadata (the joiner just misses and
+  // regenerates), so settle either way; a collection failure still propagates
+  // through `savedCacheResult`.
+  return combinedSetPromise.then(
+    () => savedCacheResult,
+    () => savedCacheResult
+  )
 }
 
 function generateCacheEntry(
@@ -559,6 +665,7 @@ function createUseCacheStore(
         outerWorkUnitStore
       ),
       rootParams: outerWorkUnitStore.rootParams,
+      readRootParamNames: process.env.__NEXT_DEV_SERVER ? new Set() : undefined,
       headers: outerWorkUnitStore.headers,
       cookies: outerWorkUnitStore.cookies,
       outerOwnerStack: cacheContext.outerOwnerStack,
@@ -968,15 +1075,28 @@ async function collectResult(
   })
 
   const collectedTags = innerCacheStore.tags
-  // If cacheLife() was used to set an explicit revalidate time we use that.
-  // Otherwise, we use the lowest of all inner fetch()/unstable_cache() or nested "use cache".
-  // If they're lower than our default.
-  const collectedRevalidate =
-    innerCacheStore.explicitRevalidate !== undefined
+
+  // In development, private caches are forced to `revalidate: 0` and an
+  // `expire` of `DYNAMIC_EXPIRE` (5 minutes), the shortest expire not treated
+  // as dynamically shortened. The zero revalidate makes every read serve
+  // stale-while-revalidate (re-warming a fresh entry in the background) so warm
+  // reloads stay fast. The expire bounds how long an entry lingers in the dev
+  // in-memory cache.
+  const isPrivateCacheInDev = Boolean(
+    process.env.__NEXT_DEV_SERVER && cacheContext.kind === 'private'
+  )
+
+  // If cacheLife() was used to set an explicit revalidate/expire/stale time we
+  // use that. Otherwise, we use the lowest of all inner fetch(),
+  // unstable_cache() or nested "use cache", if they're lower than our default.
+  const collectedRevalidate = isPrivateCacheInDev
+    ? 0
+    : innerCacheStore.explicitRevalidate !== undefined
       ? innerCacheStore.explicitRevalidate
       : innerCacheStore.revalidate
-  const collectedExpire =
-    innerCacheStore.explicitExpire !== undefined
+  const collectedExpire = isPrivateCacheInDev
+    ? DYNAMIC_EXPIRE
+    : innerCacheStore.explicitExpire !== undefined
       ? innerCacheStore.explicitExpire
       : innerCacheStore.expire
   const collectedStale =
@@ -998,7 +1118,7 @@ async function collectResult(
     hasExplicitRevalidate: innerCacheStore.explicitRevalidate !== undefined,
     hasExplicitExpire: innerCacheStore.explicitExpire !== undefined,
     readRootParamNames:
-      innerCacheStore.type === 'cache'
+      innerCacheStore.type === 'cache' || isPrivateCacheInDev
         ? innerCacheStore.readRootParamNames
         : undefined,
     // The store accumulates this from nested public caches that propagated a
@@ -1512,16 +1632,23 @@ export async function cache(
     )
   }
 
-  // Two cases skip the cache handler lookup:
-  //   - Private caches go to the Resume Data Cache (RDC), not cache handlers.
-  //   - Probe re-executions short-circuit further down before any handler is
-  //     consulted, so the dev-server's hang-detection worker can boot without
-  //     registering handlers at all.
+  // Probe re-executions (the dev-server's hang-detection worker) short-circuit
+  // further down before any handler is consulted, so we skip handler selection
+  // entirely and the worker can boot without registering handlers at all.
   let cacheHandler: CacheHandler | undefined
-  if (!isPrivate && workStore.useCacheProbeMode === undefined) {
-    cacheHandler = getCacheHandler(kind)
-    if (!cacheHandler) {
-      throw new Error('Unknown cache handler: ' + kind)
+  if (workStore.useCacheProbeMode === undefined) {
+    if (isPrivate) {
+      // Private caches normally go to the Resume Data Cache (RDC), not a cache
+      // handler. In development we additionally persist them in a dedicated
+      // built-in in-memory handler so that warm reloads are fast.
+      if (process.env.__NEXT_DEV_SERVER) {
+        cacheHandler = getPrivateCacheHandler()
+      }
+    } else {
+      cacheHandler = getCacheHandler(kind)
+      if (!cacheHandler) {
+        throw new Error('Unknown cache handler: ' + kind)
+      }
     }
   }
 
@@ -1868,14 +1995,15 @@ export async function cache(
 
   const temporaryReferences = createClientTemporaryReferenceSet()
 
-  // For private caches, which are allowed to read cookies, we still don't
-  // need to include the cookies in the cache key. This is because we don't
-  // store the cache entries in a cache handler, but only in the Resume Data
-  // Cache (RDC). Private caches are only used during dynamic requests and
-  // runtime prefetches. For dynamic requests, the RDC is immutable, so it
-  // does not include any private caches. For runtime prefetches, the RDC is
-  // mutable, but only lives as long as the request, so the key does not
-  // need to include cookies.
+  // The base serialized cache key doesn't include the cookies or headers that
+  // private caches are allowed to read. In production this is because private
+  // cache entries aren't stored in a cache handler, only in the Resume Data
+  // Cache (RDC): private caches are only used during dynamic requests and
+  // runtime prefetches; for dynamic requests the RDC is immutable and excludes
+  // private caches, and for runtime prefetches it's mutable but lives only as
+  // long as the request. In development private caches are persisted across
+  // requests, so `cacheHandlerKeyBase` (below) additionally scopes the handler
+  // key by the request's cookies and headers.
   const cacheKeyParts: CacheKeyParts = hmrRefreshHash
     ? [buildId, id, args, hmrRefreshHash]
     : [buildId, id, args]
@@ -2010,16 +2138,32 @@ export async function cache(
         encodedCacheKeyParts
       : await encodeFormData(encodedCacheKeyParts)
 
+  const rootParams = workUnitStore.rootParams
+  const knownRootParamNames = knownRootParamsByFunctionId.get(id)
+
+  // The coarse cache-handler key. With no root params read, it locates the
+  // entry directly; otherwise it locates a redirect entry from which the
+  // specific key (this key + root params, computed below) is derived. For
+  // private caches in development (persisted in the built-in in-memory handler)
+  // it's additionally scoped by the request's cookies and headers, so entries
+  // for requests with different request data don't collide; keys derived from
+  // it inherit that scoping.
+  const cacheHandlerKeyBase =
+    process.env.__NEXT_DEV_SERVER && cacheContext.kind === 'private'
+      ? serializedCacheKey +
+        computePrivateCacheKeyRequestSuffix(
+          cacheContext.outerWorkUnitStore.cookies,
+          cacheContext.outerWorkUnitStore.headers
+        )
+      : serializedCacheKey
   // If we already know which root params this function reads, include them in
   // the cache handler key for a direct hit (skipping the redirect entry).
   // rootParams is undefined when nested inside unstable_cache.
-  const rootParams = workUnitStore.rootParams
-  const knownRootParamNames = knownRootParamsByFunctionId.get(id)
   let cacheHandlerKey =
     knownRootParamNames && rootParams
-      ? serializedCacheKey +
+      ? cacheHandlerKeyBase +
         computeRootParamsCacheKeySuffix(rootParams, knownRootParamNames)
-      : serializedCacheKey
+      : cacheHandlerKeyBase
 
   let stream: undefined | ReadableStream = undefined
 
@@ -2151,7 +2295,15 @@ export async function cache(
             }
             case 'request': {
               if (process.env.NODE_ENV === 'development') {
+                // These throws force the user to make an explicit cache life
+                // decision on an outer cache that an inner cache would
+                // otherwise silently shorten. A dev private cache's
+                // `revalidate` is forced to 0 by us (not by a nested cache), so
+                // it's excluded from the first throw to avoid a false positive.
+                // Its forced `expire` is exactly DYNAMIC_EXPIRE, so it never
+                // trips the second throw and needs no exclusion there.
                 if (
+                  cacheContext.kind !== 'private' &&
                   rdcResult.entry.revalidate === 0 &&
                   rdcResult.hasExplicitRevalidate === false
                 ) {
@@ -2495,6 +2647,15 @@ export async function cache(
       serializedCacheKey
     )
 
+    // Cross-request deduplication lets concurrent requests for the same key
+    // share a single fill. Private caches are skipped in production, where they
+    // hold request-specific data that must not be shared across requests. In
+    // development they're persisted and keyed by the request's cookies and
+    // headers, so concurrent requests with identical request data should share
+    // a fill too; that request-scoped `cacheHandlerKey` keeps requests with
+    // different cookies or headers in separate entries.
+    const skipCrossRequestDedupe = isPrivate && !process.env.__NEXT_DEV_SERVER
+
     try {
       // The loop handles cross-request root param mismatches: when a
       // cross-request joiner discovers that the leader's root params differ
@@ -2502,9 +2663,7 @@ export async function cache(
       // exits when stream is assigned (cross-request joiner match or leader
       // path) or via early return (prerender-dynamic).
       while (stream === undefined) {
-        // Cross-request deduplication. Private caches are skipped because they
-        // contain per-request data that must not be shared across requests.
-        const crossRequestPendingCacheInvocation = isPrivate
+        const crossRequestPendingCacheInvocation = skipCrossRequestDedupe
           ? undefined
           : crossRequestPendingCacheInvocations.get(cacheHandlerKey)
 
@@ -2531,7 +2690,7 @@ export async function cache(
             const updatedRootParamNames = knownRootParamsByFunctionId.get(id)
             if (updatedRootParamNames && rootParams) {
               const newCacheHandlerKey =
-                serializedCacheKey +
+                cacheHandlerKeyBase +
                 computeRootParamsCacheKeySuffix(
                   rootParams,
                   updatedRootParamNames
@@ -2577,7 +2736,7 @@ export async function cache(
             const updatedRootParamNames = knownRootParamsByFunctionId.get(id)
             if (updatedRootParamNames && rootParams) {
               const newCacheHandlerKey =
-                serializedCacheKey +
+                cacheHandlerKeyBase +
                 computeRootParamsCacheKeySuffix(
                   rootParams,
                   updatedRootParamNames
@@ -2610,7 +2769,7 @@ export async function cache(
         }
 
         // No pending cross-request invocation — become the leader.
-        if (!isPrivate) {
+        if (!skipCrossRequestDedupe) {
           debug?.(
             'registering as cross-request invocation leader',
             cacheHandlerKey
@@ -2653,7 +2812,7 @@ export async function cache(
             if (paramNames.size > 0) {
               addKnownRootParamNames(id, paramNames)
               cacheHandlerKey =
-                serializedCacheKey +
+                cacheHandlerKeyBase +
                 computeRootParamsCacheKeySuffix(rootParams, paramNames)
               entry = await cacheHandler.get(cacheHandlerKey, implicitTags)
             }
@@ -2896,6 +3055,13 @@ export async function cache(
 
           const { stream: newStream, pendingCacheResult } = result
 
+          // Cross-request joiners derive their metadata from this promise. By
+          // default it's the collected result, but when we write to a cache
+          // handler we swap in a promise that resolves only after the write has
+          // landed, so a joiner that re-reads its recomputed key finds the
+          // entry.
+          let metadataSource: Promise<CollectedCacheResult> = pendingCacheResult
+
           // When draft mode is enabled, we must not save the cache entry.
           if (!workStore.isDraftMode) {
             const savedCacheResult = saveToResumeDataCache(
@@ -2905,11 +3071,11 @@ export async function cache(
             )
 
             if (cacheHandler) {
-              saveToCacheHandler(
+              metadataSource = saveToCacheHandler(
                 cacheHandler,
                 workStore,
                 id,
-                serializedCacheKey,
+                cacheHandlerKeyBase,
                 savedCacheResult,
                 rootParams
               )
@@ -2919,7 +3085,7 @@ export async function cache(
           debug?.('leader resolved with generated entry', cacheHandlerKey)
 
           const pendingMetadata: Promise<CacheResultMetadata> =
-            pendingCacheResult.then((collected) => ({
+            metadataSource.then((collected) => ({
               tags: collected.entry.tags,
               revalidate: collected.entry.revalidate,
               expire: collected.entry.expire,
@@ -2941,14 +3107,6 @@ export async function cache(
             entry: sharedCacheEntry,
           })
         } else {
-          // If we have an entry at this point, this can't be a private cache
-          // entry.
-          if (cacheContext.kind === 'private') {
-            throw new InvariantError(
-              `A private cache entry must not be retrieved from the cache handler.`
-            )
-          }
-
           const entryMetadata: CacheResultMetadata = {
             tags: entry.tags,
             revalidate: entry.revalidate,
@@ -3052,7 +3210,7 @@ export async function cache(
                       cacheHandler,
                       workStore,
                       id,
-                      serializedCacheKey,
+                      cacheHandlerKeyBase,
                       savedCacheResult,
                       rootParams
                     )

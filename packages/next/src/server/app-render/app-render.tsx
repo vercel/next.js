@@ -604,6 +604,7 @@ async function generateDynamicRSCPayload(
     staleTimeIterable?: AsyncIterable<number>
     staticStageByteLengthPromise?: Promise<number>
     shellByteLengthPromise?: Promise<number | null>
+    shellUsedSessionDataPromise?: Promise<boolean>
     runtimePrefetchStream?: ReadableStream<Uint8Array>
   }
 ): Promise<RSCPayload> {
@@ -751,6 +752,9 @@ async function generateDynamicRSCPayload(
   }
   if (options?.shellByteLengthPromise !== undefined) {
     baseResponse.a = options.shellByteLengthPromise
+  }
+  if (options?.shellUsedSessionDataPromise !== undefined) {
+    baseResponse.u = options.shellUsedSessionDataPromise
   }
 
   if (options?.runtimePrefetchStream !== undefined) {
@@ -1098,6 +1102,7 @@ async function spawnRuntimePrefetchWithFilledCaches(
       ? // If appShells is on, we want to be able to rewind the result to a session shell.
         {
           type: 'rewindable-session-shell',
+          shellUsedSessionDataDeferred: createPromiseWithResolvers(),
           shellByteLengthDeferred: createPromiseWithResolvers(),
         }
       : // Otherwise, render everything without considering shells.
@@ -1111,6 +1116,10 @@ async function spawnRuntimePrefetchWithFilledCaches(
         shellByteLengthPromise:
           mode.type === 'rewindable-session-shell'
             ? mode.shellByteLengthDeferred.promise
+            : undefined,
+        shellUsedSessionDataPromise:
+          mode.type !== 'runtime-only'
+            ? mode.shellUsedSessionDataDeferred.promise
             : undefined,
       }),
       prerenderResumeDataCache,
@@ -1440,9 +1449,13 @@ async function generateRuntimePrefetchResult(
 
   const mode: RuntimePrerenderMode = appShells
     ? isShellPrefetch
-      ? { type: 'session-shell-only' }
+      ? {
+          type: 'session-shell-only',
+          shellUsedSessionDataDeferred: createPromiseWithResolvers(),
+        }
       : {
           type: 'rewindable-session-shell',
+          shellUsedSessionDataDeferred: createPromiseWithResolvers(),
           shellByteLengthDeferred: createPromiseWithResolvers(),
         }
     : { type: 'runtime-only' }
@@ -1455,6 +1468,10 @@ async function generateRuntimePrefetchResult(
       shellByteLengthPromise:
         mode.type === 'rewindable-session-shell'
           ? mode.shellByteLengthDeferred.promise
+          : undefined,
+      shellUsedSessionDataPromise:
+        mode.type !== 'runtime-only'
+          ? mode.shellUsedSessionDataDeferred.promise
           : undefined,
     }),
     prerenderResumeDataCache,
@@ -1629,9 +1646,13 @@ function prependIsPartialByteToChunks(
 
 type RuntimePrerenderMode =
   | { type: 'runtime-only' }
-  | { type: 'session-shell-only' }
+  | {
+      type: 'session-shell-only'
+      shellUsedSessionDataDeferred: PromiseWithResolvers<boolean>
+    }
   | {
       type: 'rewindable-session-shell'
+      shellUsedSessionDataDeferred: PromiseWithResolvers<boolean>
       shellByteLengthDeferred: PromiseWithResolvers<number | null>
     }
 
@@ -1710,7 +1731,10 @@ async function finalRuntimeServerPrerender(
   const streamState = createStreamPendingState()
   const collectedChunks = createPrerenderChunksAccumulator()
   const stageByteLengths =
-    mode.type === 'rewindable-session-shell' ? createStageByteLengths() : null
+    mode.type === 'rewindable-session-shell' ||
+    mode.type === 'session-shell-only'
+      ? createStageByteLengths()
+      : null
 
   await runInSequentialTasks(
     async () => {
@@ -1807,6 +1831,20 @@ async function finalRuntimeServerPrerender(
         }
 
         return
+      }
+
+      // Check if session data unblocked new content in the shell.
+      if (
+        (mode.type === 'rewindable-session-shell' ||
+          mode.type === 'session-shell-only') &&
+        stageByteLengths
+      ) {
+        const didSessionDataUnblockNewContent =
+          stageByteLengths[RenderStage.ShellRuntime] >
+          stageByteLengths[RenderStage.Static]
+        mode.shellUsedSessionDataDeferred.resolve(
+          didSessionDataUnblockNewContent
+        )
       }
 
       if (mode.type === 'rewindable-session-shell' && stageByteLengths) {

@@ -271,26 +271,28 @@ describe('cache-indicator', () => {
       )
     })
 
-    // TODO: private `'use cache'` entries aren't persisted in dev yet, so they
-    // re-fill on every load and register as a cache miss each time. Until
-    // that's fixed, the Cold cache badge shows on every load. After this is
-    // fixed, flip the warm-reload assertion below to expect no badge.
-    it('shows the Cold cache badge on every load for a private cache (current limitation)', async () => {
+    it('shows the Cold cache badge on an initial cold load and not on a warm reload for a private cache', async () => {
       const browser = await next.browser('/private')
 
-      await retry(async () => {
-        expect(await browser.hasElementByCss('[data-cold-cache-badge]')).toBe(
-          true
-        )
-      })
-
-      await browser.refresh()
+      // Cold load: the private cache misses and fills while streaming, so the
+      // cold verdict is replayed after load.
       await browser.elementById('private')
       await retry(async () => {
         expect(await browser.hasElementByCss('[data-cold-cache-badge]')).toBe(
           true
         )
       })
+
+      // Warm reload: the private entry is now persisted in dev and served as a
+      // stale-while-revalidate hit, so it does not register as a cache miss and
+      // no badge appears. An absence can't be retried on, so wait out the
+      // replay-on-connect window and then assert it never showed.
+      await browser.refresh()
+      await browser.elementById('private')
+      await waitFor(500)
+      expect(await browser.hasElementByCss('[data-cold-cache-badge]')).toBe(
+        false
+      )
     })
 
     it('shows cache-bypassing badge when cache is disabled', async () => {

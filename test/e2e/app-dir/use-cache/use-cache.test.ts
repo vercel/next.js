@@ -1615,17 +1615,28 @@ describe('use-cache', () => {
     expect(first).toBe(second)
   })
 
-  it('should not dedupe private caches across concurrent requests', async () => {
+  it('dedupes private caches across concurrent requests in dev but not in production', async () => {
     const [first$, second$] = await Promise.all([
-      next.render$('/private-dedup'),
-      next.render$('/private-dedup'),
+      next.render$('/private-dedup-cross-request'),
+      next.render$('/private-dedup-cross-request'),
     ])
 
-    const firstValue = first$('.rand').first().text()
-    const secondValue = second$('.rand').first().text()
+    const firstValue = first$('.rand').text()
+    const secondValue = second$('.rand').text()
 
-    // Across requests, private caches must NOT be deduped.
-    expect(firstValue).not.toBe(secondValue)
+    if (isNextDev) {
+      // In dev, private caches are persisted and keyed by the request's cookies
+      // and headers, so two concurrent requests with identical request data
+      // join one in-flight invocation and share a single fill. Different
+      // cookies or headers yield different entries; that's covered by 'keys
+      // persisted entries by cookies in dev' and 'keys persisted entries by
+      // headers in dev' in the use-cache-private suite.
+      expect(firstValue).toBe(secondValue)
+    } else {
+      // In production, private caches are not persisted, so each request
+      // generates its own entry; across requests they are never deduped.
+      expect(firstValue).not.toBe(secondValue)
+    }
   })
 
   it('should stream the result of a deduped invocation', async () => {
