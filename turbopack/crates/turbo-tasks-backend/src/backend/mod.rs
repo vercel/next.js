@@ -827,7 +827,7 @@ impl TurboTasksBackend {
         } = options;
 
         let mut ctx = self.execute_context(turbo_tasks);
-        let (track_dependencies, mut task, reader_task) = if self.should_track_dependencies()
+        let (mut task, reader_task) = if self.should_track_dependencies()
             && !matches!(tracking, ReadCellTracking::Untracked)
             && let Some(reader_id) = reader
             && reader_id != task_id
@@ -836,9 +836,9 @@ impl TurboTasksBackend {
             // condition. See below.
             // TODO(sokra): solve that in a more performant way.
             let (task, reader) = ctx.task_pair(task_id, reader_id, TaskDataCategory::All);
-            (true, task, Some(reader))
+            (task, Some(reader))
         } else {
-            (false, ctx.task(task_id, TaskDataCategory::All), None)
+            (ctx.task(task_id, TaskDataCategory::All), None)
         };
 
         let content = if final_read_hint {
@@ -871,7 +871,7 @@ impl TurboTasksBackend {
         let max_id = task.get_cell_type_max_index(&cell.type_id).copied();
         let Some(max_id) = max_id else {
             let task_desc = task.get_task_description();
-            if track_dependencies && tracking.should_track(true) {
+            if tracking.should_track(true) {
                 add_cell_dependency(task_id, task, reader, reader_task, cell, tracking.key());
             }
             bail!(
@@ -880,7 +880,7 @@ impl TurboTasksBackend {
         };
         if cell.index >= max_id {
             let task_desc = task.get_task_description();
-            if track_dependencies && tracking.should_track(true) {
+            if tracking.should_track(true) {
                 add_cell_dependency(task_id, task, reader, reader_task, cell, tracking.key());
             }
             bail!("Cell {cell:?} no longer exists in task {task_desc} (index out of bounds)");
