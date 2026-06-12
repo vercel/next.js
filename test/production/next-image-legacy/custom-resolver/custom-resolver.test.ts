@@ -6,39 +6,34 @@ describe('Custom Resolver Tests', () => {
   })
   type Browser = Playwright
 
-  function runTests(browser: () => Browser) {
+  function runTests(getBrowser: () => Promise<Browser>) {
     it('Should use a custom resolver for image URL', async () => {
-      expect(
-        await browser().elementById('basic-image').getAttribute('src')
-      ).toBe('https://customresolver.com/foo.jpg?w~~1024,q~~60')
+      const browser = await getBrowser()
+      expect(await browser.elementById('basic-image').getAttribute('src')).toBe(
+        'https://customresolver.com/foo.jpg?w~~1024,q~~60'
+      )
     })
     it('should add a srcset based on the custom resolver', async () => {
+      const browser = await getBrowser()
       expect(
-        await browser().elementById('basic-image').getAttribute('srcset')
+        await browser.elementById('basic-image').getAttribute('srcset')
       ).toBe(
         'https://customresolver.com/foo.jpg?w~~480,q~~60 1x, https://customresolver.com/foo.jpg?w~~1024,q~~60 2x'
       )
     })
     it('should support the unoptimized attribute', async () => {
+      const browser = await getBrowser()
       expect(
-        await browser().elementById('unoptimized-image').getAttribute('src')
+        await browser.elementById('unoptimized-image').getAttribute('src')
       ).toBe('https://arbitraryurl.com/foo.jpg')
     })
   }
 
   describe('SSR Custom Loader Tests', () => {
-    let browser: Playwright
-    beforeAll(async () => {
-      browser = await next.browser('/')
-    })
-    runTests(() => browser)
+    runTests(() => next.browser('/'))
   })
 
   describe('Client-side Custom Loader Tests', () => {
-    let browser: Playwright
-    beforeAll(async () => {
-      browser = await next.browser('/client-side')
-    })
-    runTests(() => browser)
+    runTests(() => next.browser('/client-side'))
   })
 })

@@ -124,11 +124,9 @@ export function runTests(ctx: {
           window.uncaught.push(err)
         })
       })()`)
-      const curFrames = [...(await browser.websocketFrames())]
+      const initialFrames = [...browser.websocketFrames]
       await retry(async () => {
-        const frames = await browser.websocketFrames()
-        const newFrames = frames.slice(curFrames.length)
-
+        const newFrames = browser.websocketFrames.slice(initialFrames.length)
         const found = newFrames.some((frame) => {
           try {
             const data = JSON.parse('' + frame.payload)

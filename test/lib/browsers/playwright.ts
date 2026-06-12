@@ -22,13 +22,46 @@ type PageLog = { source: string; message: string; args: unknown[] }
 
 export type Permissions = BrowserContextOptions['permissions']
 
-let page: Page
-let browser: Browser | undefined
-let context: BrowserContext | undefined
-let contextHasJSEnabled: boolean = true
-let contextPermissions: Permissions = undefined
-let pageLogs: Array<Promise<PageLog> | PageLog> = []
-let websocketFrames: Array<{ payload: string | Buffer }> = []
+export function getDeviceOptionsByName(deviceName: string | undefined) {
+  if (!deviceName) {
+    return undefined
+  }
+  if (!(deviceName in devices)) {
+    throw new Error(`Invalid playwright device name ${deviceName}`)
+  }
+  return devices[deviceName as keyof typeof devices]
+}
+
+export async function launchBrowserProcess(
+  browserName: string,
+  launchOptions: { headless: boolean }
+) {
+  if (browserName === 'safari') {
+    return await webkit.launch(launchOptions)
+  } else if (browserName === 'firefox') {
+    return await firefox.launch({
+      ...launchOptions,
+      firefoxUserPrefs: {
+        // The "fission.webContentIsolationStrategy" pref must be
+        // set to 1 on Firefox due to the bug where a new history
+        // state is pushed on a page reload.
+        // See https://github.com/microsoft/playwright/issues/22640
+        // See https://bugzilla.mozilla.org/show_bug.cgi?id=1832341
+        'fission.webContentIsolationStrategy': 1,
+      },
+    })
+  } else {
+    let launchArgs: string[] = []
+    if (!launchOptions.headless) {
+      launchArgs.push('--auto-open-devtools-for-tabs')
+    }
+    return await chromium.launch({
+      ...launchOptions,
+      args: launchArgs,
+      ignoreDefaultArgs: ['--disable-back-forward-cache'],
+    })
+  }
+}
 
 const tracePlaywright = process.env.TRACE_PLAYWRIGHT
 
@@ -37,25 +70,6 @@ const defaultTimeout = process.env.NEXT_E2E_TEST_TIMEOUT
   : // In development mode, compilation can take longer due to lower CPU
     // availability in GitHub Actions.
     60 * 1000
-
-// loose global to register teardown functions before quitting the browser instance.
-// This is due to `quit` can be called anytime outside of Playwright's lifecycle,
-// which can create corrupted state by terminating the context.
-// [TODO] global `quit` might need to be removed, instead should introduce per-instance teardown
-const pendingTeardown: Array<() => Promise<void>> = []
-export async function quit() {
-  await Promise.all(pendingTeardown.map((fn) => fn()))
-  await context?.close()
-  await browser?.close()
-  context = undefined
-  browser = undefined
-}
-
-async function teardown(tearDownFn: () => Promise<void>) {
-  pendingTeardown.push(tearDownFn)
-  await tearDownFn()
-  pendingTeardown.splice(pendingTeardown.indexOf(tearDownFn), 1)
-}
 
 interface ElementHandleExt extends ElementHandle {
   getComputedCss(prop: string): Promise<string>
@@ -83,21 +97,45 @@ export type PlaywrightNavigationWaitUntil =
   | 'commit'
 
 export class Playwright<TCurrent = undefined> {
+  context: BrowserContext
+
+  _page: Page | null = null
+  get page() {
+    const page = this._page
+    if (!page) {
+      throw new Error('Expected a page to be loaded')
+    }
+    return page
+  }
+
+  constructor(context: BrowserContext) {
+    this.context = context
+  }
+
   private activeTrace?: string
   private eventCallbacks: Record<EventType, Set<(...args: any[]) => void>> = {
     request: new Set(),
     response: new Set(),
   }
-  private async initContextTracing(url: string, context: BrowserContext) {
+
+  private pageLogs: Array<Promise<PageLog> | PageLog> = []
+  private websocketFrames: Array<{ payload: string | Buffer }> = []
+
+  static async create(browser: Browser, options: BrowserContextOptions) {
+    const context = await browser.newContext(options)
+    return new Playwright(context)
+  }
+
+  private async initContextTracing(url: string) {
     if (!tracePlaywright) {
       return
     }
 
     try {
       // Clean up if any previous traces are still active
-      await teardown(this.teardownTracing.bind(this))
+      await this.teardownTracing()
 
-      await context.tracing.start({
+      await this.context.tracing.start({
         screenshots: true,
         snapshots: true,
         sources: true,
@@ -124,7 +162,7 @@ export class Playwright<TCurrent = undefined> {
       )
 
       await fs.remove(traceOutputPath)
-      await context!.tracing.stop({
+      await this.context.tracing.stop({
         path: traceOutputPath,
       })
     } catch (e) {
@@ -165,102 +203,30 @@ export class Playwright<TCurrent = undefined> {
     this.eventCallbacks[event]?.delete(cb)
   }
 
-  async setup(
-    browserName: string,
-    locale: string,
-    javaScriptEnabled: boolean,
-    ignoreHTTPSErrors: boolean,
-    headless: boolean,
-    userAgent: string | undefined,
-    permissions: Permissions
-  ) {
-    let device
-
-    if (process.env.DEVICE_NAME) {
-      device = devices[process.env.DEVICE_NAME]
-
-      if (!device) {
-        throw new Error(
-          `Invalid playwright device name ${process.env.DEVICE_NAME}`
-        )
-      }
-    }
-
-    if (browser) {
-      if (
-        contextHasJSEnabled !== javaScriptEnabled ||
-        // Even triggers on same set of permissions, but we don't want to deal
-        // with the complexity of diffing them, so we just always recreate the
-        // context when permissions are set.
-        contextPermissions !== permissions
-      ) {
-        // If we have switched from having JS enable/disabled we need to recreate the context.
-        await teardown(this.teardownTracing.bind(this))
-        await context?.close()
-        context = await browser.newContext({
-          locale,
-          javaScriptEnabled,
-          ignoreHTTPSErrors,
-          ...(userAgent ? { userAgent } : {}),
-          ...device,
-          permissions,
-        })
-        contextHasJSEnabled = javaScriptEnabled
-        contextPermissions = permissions
-      }
-      return
-    }
-
-    browser = await this.launchBrowser(browserName, { headless })
-    context = await browser.newContext({
-      locale,
-      javaScriptEnabled,
-      ignoreHTTPSErrors,
-      ...(userAgent ? { userAgent } : {}),
-      ...device,
-      permissions,
-    })
-    contextHasJSEnabled = javaScriptEnabled
-  }
-
   async close(): Promise<void> {
-    await teardown(this.teardownTracing.bind(this))
-    await page?.close()
+    await this.teardownTracing()
+
+    const page = this._page
+    if (page) {
+      this._page = null
+      this.pageLogs = []
+      this.websocketFrames = []
+      await page.close()
+    }
+
+    // clean-up other existing pages
+    for (const oldPage of this.context.pages()) {
+      await oldPage.close()
+    }
   }
 
-  async launchBrowser(
-    browserName: string,
-    launchOptions: { headless: boolean }
-  ) {
-    if (browserName === 'safari') {
-      return await webkit.launch(launchOptions)
-    } else if (browserName === 'firefox') {
-      return await firefox.launch({
-        ...launchOptions,
-        firefoxUserPrefs: {
-          // The "fission.webContentIsolationStrategy" pref must be
-          // set to 1 on Firefox due to the bug where a new history
-          // state is pushed on a page reload.
-          // See https://github.com/microsoft/playwright/issues/22640
-          // See https://bugzilla.mozilla.org/show_bug.cgi?id=1832341
-          'fission.webContentIsolationStrategy': 1,
-        },
-      })
-    } else {
-      let launchArgs: string[] = []
-      if (!launchOptions.headless) {
-        launchArgs.push('--auto-open-devtools-for-tabs')
-      }
-      return await chromium.launch({
-        ...launchOptions,
-        args: launchArgs,
-        ignoreDefaultArgs: ['--disable-back-forward-cache'],
-      })
-    }
+  async destroy() {
+    await this.close()
+    await this.context.close()
   }
 
   async get(url: string): Promise<void> {
-    await page.goto(url)
+    await this.page.goto(url)
   }
 
   async loadPage(
@@ -279,13 +245,15 @@ export class Playwright<TCurrent = undefined> {
   ) {
     await this.close()
 
-    // clean-up existing pages
-    for (const oldPage of context!.pages()) {
-      await oldPage.close()
-    }
+    await this.initContextTracing(url)
 
-    await this.initContextTracing(url, context!)
-    page = await context!.newPage()
+    const page = await this.context.newPage()
+    const pageLogs: typeof this.pageLogs = []
+    const websocketFrames: typeof this.websocketFrames = []
+
+    this._page = page
+    this.pageLogs = pageLogs
+    this.websocketFrames = websocketFrames
 
     page.setDefaultTimeout(defaultTimeout)
     page.setDefaultNavigationTimeout(defaultTimeout)
@@ -293,9 +261,6 @@ export class Playwright<TCurrent = undefined> {
     if (extraHTTPHeaders !== undefined) {
       page.setExtraHTTPHeaders(extraHTTPHeaders)
     }
-
-    pageLogs = []
-    websocketFrames = []
 
     page.on('console', (msg) => {
       debugPrint('Browser Log:', msg)
@@ -313,7 +278,11 @@ export class Playwright<TCurrent = undefined> {
       console.error('page error', error)
 
       if (opts?.pushErrorAsConsoleLog) {
-        pageLogs.push({ source: 'error', message: error.message, args: [] })
+        pageLogs.push({
+          source: 'error',
+          message: error.message,
+          args: [],
+        })
       }
     })
     page.on('request', (req) => {
@@ -325,12 +294,12 @@ export class Playwright<TCurrent = undefined> {
 
     if (opts?.disableCache) {
       // TODO: this doesn't seem to work (dev tools does not check the box as expected)
-      const session = await context!.newCDPSession(page)
+      const session = await this.context.newCDPSession(page)
       session.send('Network.setCacheDisabled', { cacheDisabled: true })
     }
 
     if (opts?.cpuThrottleRate) {
-      const session = await context!.newCDPSession(page)
+      const session = await this.context.newCDPSession(page)
       // https://chromedevtools.github.io/devtools-protocol/tot/Emulation/#method-setCPUThrottlingRate
       session.send('Emulation.setCPUThrottlingRate', {
         rate: opts.cpuThrottleRate,
@@ -374,19 +343,19 @@ export class Playwright<TCurrent = undefined> {
   back(options?: Parameters<Page['goBack']>[0]) {
     // do not preserve the previous chained value, it might be invalid after a navigation.
     return this.startChain(async () => {
-      await page.goBack(options)
+      await this.page.goBack(options)
     })
   }
   forward(options?: Parameters<Page['goForward']>[0]) {
     // do not preserve the previous chained value, it might be invalid after a navigation.
     return this.startChain(async () => {
-      await page.goForward(options)
+      await this.page.goForward(options)
     })
   }
   refresh() {
     // do not preserve the previous chained value, it's likely to be invalid after a reload.
     return this.startChain(async () => {
-      await page.reload()
+      await this.page.reload()
     })
   }
   /**
@@ -406,25 +375,26 @@ export class Playwright<TCurrent = undefined> {
   }
   setDimensions({ width, height }: { height: number; width: number }) {
     return this.startOrPreserveChain(() =>
-      page.setViewportSize({ width, height })
+      this.page.setViewportSize({ width, height })
     )
   }
   addCookie(opts: { name: string; value: string }) {
     return this.startOrPreserveChain(async () =>
-      context!.addCookies([
+      this.context.addCookies([
         {
           path: '/',
-          domain: await page.evaluate('window.location.hostname'),
+          domain: await this.page.evaluate('window.location.hostname'),
           ...opts,
         },
       ])
     )
   }
   deleteCookies() {
-    return this.startOrPreserveChain(async () => context!.clearCookies())
+    return this.startOrPreserveChain(async () => this.context.clearCookies())
   }
 
   private wrapElement(el: ElementHandle, selector: string): ElementHandleExt {
+    const { page } = this
     function getComputedCss(prop: string) {
       return page.evaluate(
         function (args) {
@@ -459,7 +429,7 @@ export class Playwright<TCurrent = undefined> {
   }
 
   hasElementByCss(selector: string) {
-    return this.startChain(() => page.locator(selector).isVisible())
+    return this.startChain(() => this.page.locator(selector).isVisible())
   }
 
   elementById(id: string) {
@@ -501,11 +471,11 @@ export class Playwright<TCurrent = undefined> {
   }
 
   keydown(key: string) {
-    return this.startOrPreserveChain(() => page.keyboard.down(key))
+    return this.startOrPreserveChain(() => this.page.keyboard.down(key))
   }
 
   keyup(key: string) {
-    return this.startOrPreserveChain(() => page.keyboard.up(key))
+    return this.startOrPreserveChain(() => this.page.keyboard.up(key))
   }
 
   click(this: Playwright<ElementHandleExt>) {
@@ -524,7 +494,7 @@ export class Playwright<TCurrent = undefined> {
 
   elementsByCss(selector: string) {
     return this.startChain(() =>
-      page.$$(selector).then((els) => {
+      this.page.$$(selector).then((els) => {
         return els.map((el) => {
           const origGetAttribute = el.getAttribute.bind(el)
           el.getAttribute = (name) => {
@@ -559,6 +529,7 @@ export class Playwright<TCurrent = undefined> {
     } = typeof opts === 'number' ? { timeout: opts } : opts
 
     return this.startChain(async () => {
+      const { page } = this
       const el = await page.waitForSelector(selector, {
         timeout,
         state,
@@ -579,7 +550,7 @@ export class Playwright<TCurrent = undefined> {
 
   waitForCondition(snippet: string, timeout?: number) {
     return this.startOrPreserveChain(async () => {
-      await page.waitForFunction(snippet, { timeout })
+      await this.page.waitForFunction(snippet, { timeout })
     })
   }
 
@@ -598,8 +569,9 @@ export class Playwright<TCurrent = undefined> {
     fn: string | ((...args: any[]) => any),
     ...args: any[]
   ): Playwright<any> & Promise<any> {
-    return this.startChain(async () =>
-      page
+    return this.startChain(async () => {
+      const { page } = this
+      return page
         .evaluate(fn, ...args)
         .catch((err) => {
           // TODO: gross, why are we doing this
@@ -609,15 +581,15 @@ export class Playwright<TCurrent = undefined> {
         .finally(async () => {
           await page.waitForLoadState()
         })
-    )
+    })
   }
 
   async log<T extends boolean = false>(options?: { includeArgs?: T }) {
     return this.startChain(
       () =>
         options?.includeArgs
-          ? Promise.all(pageLogs)
-          : Promise.all(pageLogs).then((logs) =>
+          ? Promise.all(this.pageLogs)
+          : Promise.all(this.pageLogs).then((logs) =>
               logs.map(({ source, message }) => ({ source, message }))
             )
       // TODO: Starting with TypeScript 5.8 we might not need this type cast.
@@ -628,39 +600,37 @@ export class Playwright<TCurrent = undefined> {
     >
   }
 
-  async websocketFrames() {
-    return this.startChain(() => websocketFrames)
-  }
-
   async url() {
-    return this.startChain(() => page.url())
+    return this.startChain(() => this.page.url())
   }
 
   async waitForIdleNetwork() {
     return this.startOrPreserveChain(() => {
-      return page.waitForLoadState('networkidle')
+      return this.page.waitForLoadState('networkidle')
     })
   }
 
   getByRole(
-    role: Parameters<(typeof page)['getByRole']>[0],
-    options?: Parameters<(typeof page)['getByRole']>[1]
+    role: Parameters<Page['getByRole']>[0],
+    options?: Parameters<Page['getByRole']>[1]
   ) {
-    return page.getByRole(role, options)
+    return this.page.getByRole(role, options)
   }
 
   locateRedbox(): Locator {
-    return page.locator(
+    return this.page.locator(
       'nextjs-portal [aria-labelledby="nextjs__container_errors_label"]'
     )
   }
 
   locateDevToolsIndicator(): Locator {
-    return page.locator('nextjs-portal [data-nextjs-dev-tools-button]:visible')
+    return this.page.locator(
+      'nextjs-portal [data-nextjs-dev-tools-button]:visible'
+    )
   }
 
-  locator(selector: string, options?: Parameters<(typeof page)['locator']>[1]) {
-    return page.locator(selector, options)
+  locator(selector: string, options?: Parameters<Page['locator']>[1]) {
+    return this.page.locator(selector, options)
   }
 
   /** A call that expects to be chained after a previous call, because it needs its value. */

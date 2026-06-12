@@ -4,8 +4,10 @@ import {
   Permissions,
   Playwright,
   PlaywrightNavigationWaitUntil,
+  getDeviceOptionsByName,
+  launchBrowserProcess,
 } from './browsers/playwright'
-import { Page } from 'playwright'
+import { Page, Browser } from 'playwright'
 
 export type { Playwright }
 
@@ -33,18 +35,66 @@ if (isBrowserStack) {
   }
 }
 
-let browserTeardown: (() => Promise<void>)[] = []
-let browserQuit: (() => Promise<void>) | undefined
+let browserProcesses = new Map<string, Browser>()
+
+async function launchOrReuseBrowserProcess(
+  ...args: Parameters<typeof launchBrowserProcess>
+) {
+  const key = JSON.stringify(args)
+  let browserProcess = browserProcesses.get(key)
+  if (!browserProcess) {
+    browserProcess = await launchBrowserProcess(...args)
+    browserProcesses.set(key, browserProcess)
+  }
+  return browserProcess
+}
+
+async function closeActiveBrowserProcesses() {
+  const currentBrowserProcesses = browserProcesses
+  browserProcesses = new Map()
+
+  await Promise.all(
+    [...currentBrowserProcesses.values()].map((browserProcess) =>
+      browserProcess
+        .close()
+        .catch((err) =>
+          console.error('error while closing browser process:', err)
+        )
+    )
+  )
+}
+
+/**
+ * Despite generally calling them "browsers" (as per `next.browser()`),
+ * these really correspond to playwright's "browser contexts".
+ * We can create multiple browser contexts in the same browser process
+ * (generally one per test), but the browser process is generally shared across
+ * the whole test suite (unless some options result in us creating a second one)
+ */
+let browserInstances = new Set<Playwright>()
+
+async function closeActiveBrowserInstances() {
+  const currentPlaywrightInstances = browserInstances
+  browserInstances = new Set()
+
+  await Promise.all(
+    [...currentPlaywrightInstances].map((browser) =>
+      browser
+        .destroy()
+        .catch((err) => console.error('error while destroying browser:', err))
+    )
+  )
+}
 
 if (typeof afterAll === 'function') {
   afterAll(async () => {
-    await Promise.all(browserTeardown.map((f) => f())).catch((e) =>
-      console.error('browser teardown', e)
-    )
+    await closeActiveBrowserProcesses()
+  })
+}
 
-    if (browserQuit) {
-      await browserQuit()
-    }
+if (typeof afterEach === 'function') {
+  afterEach(async () => {
+    await closeActiveBrowserInstances()
   })
 }
 
@@ -113,25 +163,19 @@ export interface WebdriverOptions {
 export default async function webdriver(
   appPortOrUrl: string | number,
   url: string,
-  options?: WebdriverOptions
+  options: WebdriverOptions = {}
 ): Promise<Playwright> {
-  const defaultOptions = {
-    waitHydration: true,
-    retryWaitHydration: false,
-    disableCache: false,
-  }
-  options = Object.assign(defaultOptions, options)
   const {
-    waitHydration,
-    retryWaitHydration,
-    disableCache,
+    waitHydration = true,
+    retryWaitHydration = false,
+    disableCache = false,
     beforePageLoad,
     extraHTTPHeaders,
     locale,
     disableJavaScript,
     permissions,
     ignoreHTTPSErrors,
-    headless,
+    headless = !!process.env.HEADLESS,
     cpuThrottleRate,
     pushErrorAsConsoleLog,
     userAgent,
@@ -142,22 +186,26 @@ export default async function webdriver(
     appPortOrUrl = baseUrl
   }
 
-  const { Playwright, quit } = await import('./browsers/playwright')
-  browserQuit = quit
-
-  const browser = new Playwright()
   const browserName = process.env.BROWSER_NAME || 'chrome'
-  await browser.setup(
-    browserName,
-    locale!,
-    !disableJavaScript,
-    Boolean(ignoreHTTPSErrors),
-    // allow headless to be overwritten for a particular test
-    typeof headless !== 'undefined' ? headless : !!process.env.HEADLESS,
-    userAgent,
-    permissions
-  )
+  // Some tests rely on this being set
   ;(global as any).browserName = browserName
+
+  const deviceName = process.env.DEVICE_NAME
+
+  const browserProcess = await launchOrReuseBrowserProcess(browserName, {
+    headless,
+  })
+
+  const deviceOptions = getDeviceOptionsByName(deviceName)
+  const browser = await Playwright.create(browserProcess, {
+    locale: locale!,
+    javaScriptEnabled: !disableJavaScript,
+    ignoreHTTPSErrors: Boolean(ignoreHTTPSErrors),
+    userAgent,
+    permissions,
+    ...deviceOptions,
+  })
+  browserInstances.add(browser)
 
   const fullUrl = getFullUrl(
     appPortOrUrl,
@@ -176,8 +224,6 @@ export default async function webdriver(
     waitUntil,
   })
   debugPrint(`Loaded browser with ${fullUrl}`)
-
-  browserTeardown.push(browser.close.bind(browser))
 
   // Wait for application to hydrate
   if (!disableJavaScript && waitHydration) {

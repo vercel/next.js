@@ -1434,21 +1434,20 @@ describe('Image Component App Dir Tests', () => {
   })
 
   describe('Fill-mode tests', () => {
-    let browser
-    beforeAll(async () => {
-      browser = await next.browser('/fill')
-    })
     it('should include a data-attribute on fill images', async () => {
+      const browser = await next.browser('/fill')
       expect(
         await browser.elementById('fill-image-1').getAttribute('data-nimg')
       ).toBe('fill')
     })
     it('should add position:absolute to fill images', async () => {
+      const browser = await next.browser('/fill')
       expect(await getComputedStyle(browser, 'fill-image-1', 'position')).toBe(
         'absolute'
       )
     })
     it('should add 100% width and height to fill images', async () => {
+      const browser = await next.browser('/fill')
       expect(
         await browser.eval(
           `document.getElementById("fill-image-1").style.height`
@@ -1461,6 +1460,7 @@ describe('Image Component App Dir Tests', () => {
       ).toBe('100%')
     })
     it('should add position styles to fill images', async () => {
+      const browser = await next.browser('/fill')
       expect(
         await browser.eval(
           `document.getElementById("fill-image-1").getAttribute('style')`
@@ -1471,6 +1471,7 @@ describe('Image Component App Dir Tests', () => {
     })
     if (isNextDev) {
       it('should not log incorrect warnings', async () => {
+        const browser = await next.browser('/fill')
         await new Promise((r) => setTimeout(r, 1000))
         const warnings = (await browser.log())
           .map((log) => log.message)
@@ -1481,7 +1482,7 @@ describe('Image Component App Dir Tests', () => {
         )
       })
       it('should log warnings when using fill mode incorrectly', async () => {
-        browser = await next.browser('/fill-warnings')
+        const browser = await next.browser('/fill-warnings')
         await new Promise((r) => setTimeout(r, 1000))
         const warnings = (await browser.log())
           .map((log) => log.message)
@@ -1500,7 +1501,7 @@ describe('Image Component App Dir Tests', () => {
         )
       })
       it('should not log warnings when image unmounts', async () => {
-        browser = await next.browser('/should-not-warn-unmount')
+        const browser = await next.browser('/should-not-warn-unmount')
         await new Promise((r) => setTimeout(r, 1000))
         const warnings = (await browser.log())
           .map((log) => log.message)
