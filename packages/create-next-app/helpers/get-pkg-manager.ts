@@ -63,3 +63,14 @@ export function getPnpmMajorVersion(): number | null {
   const major = parseInt(version.split('.')[0], 10)
   return Number.isNaN(major) ? null : major
 }
+
+/**
+ * Get the minor version of pnpm being used.
+ * Returns null if unable to determine the version.
+ */
+export function getPnpmMinorVersion(): number | null {
+  const version = getPackageManagerVersion('pnpm')
+  if (!version) return null
+  const minor = parseInt(version.split('.')[1], 10)
+  return Number.isNaN(minor) ? null : minor
+}

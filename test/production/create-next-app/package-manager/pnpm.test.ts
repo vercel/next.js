@@ -93,7 +93,7 @@ describe('create-next-app with package manager pnpm', () => {
   // 1. We only need to verify the workspace file is created/not created
   // 2. The CI runs pnpm v9, but when testing v10 behavior, the workspace file
   //    created for v10 (without packages field) would fail with pnpm v9
-  it('should create pnpm-workspace.yaml with ignoredBuiltDependencies for pnpm v10', async () => {
+  it('should create pnpm-workspace.yaml with packages field for pnpm v10.0-10.4', async () => {
     await useTempDir(async (cwd) => {
       const projectName = 'pnpm-v10-workspace'
       const res = await run(
@@ -126,6 +126,48 @@ describe('create-next-app with package manager pnpm', () => {
         path.join(cwd, projectName, 'pnpm-workspace.yaml'),
         'utf8'
       )
+      expect(workspaceYaml).toContain('packages: []')
+      expect(workspaceYaml).toContain('ignoredBuiltDependencies:')
+      expect(workspaceYaml).toContain('- sharp')
+      expect(workspaceYaml).toContain('- unrs-resolver')
+      expect(workspaceYaml).not.toContain('allowBuilds:')
+    })
+  })
+
+  it('should create pnpm-workspace.yaml without packages field for pnpm v10.5+', async () => {
+    await useTempDir(async (cwd) => {
+      const projectName = 'pnpm-v105-workspace'
+      const res = await run(
+        [
+          projectName,
+          '--ts',
+          '--app',
+          '--no-linter',
+          '--no-src-dir',
+          '--no-tailwind',
+          '--no-import-alias',
+          '--no-react-compiler',
+          '--no-agents-md',
+          '--skip-install',
+        ],
+        nextTgzFilename,
+        {
+          cwd,
+          env: { npm_config_user_agent: 'pnpm/10.5.0 npm/? node/v20.0.0' },
+        }
+      )
+
+      expect(res.exitCode).toBe(0)
+      projectFilesShouldExist({
+        cwd,
+        projectName,
+        files: ['package.json', 'pnpm-workspace.yaml'],
+      })
+      const workspaceYaml = fs.readFileSync(
+        path.join(cwd, projectName, 'pnpm-workspace.yaml'),
+        'utf8'
+      )
+      expect(workspaceYaml).not.toContain('packages: []')
       expect(workspaceYaml).toContain('ignoredBuiltDependencies:')
       expect(workspaceYaml).toContain('- sharp')
       expect(workspaceYaml).toContain('- unrs-resolver')
