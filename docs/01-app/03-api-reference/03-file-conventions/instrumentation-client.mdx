@@ -136,7 +136,12 @@ The start event also includes:
 - `fromRoutes`: Route patterns visible before navigation. The primary `children` route is first, followed by parallel slots in deterministic order.
 - `prefetchIntent`: Whether the clicked link requested full prefetching (`full`), used automatic prefetching (`auto`), or did not request prefetching (`none`).
 
-Route entries use filesystem-style patterns, so a navigation away from `/blog/hello` may report `/blog/[slug]`.
+The commit event also includes:
+
+- `routes`: Active route patterns in the destination UI. The primary `children` route is first, followed by parallel slots in deterministic order.
+- `prefetch`: Whether the navigation used a fully cached route (`hit-route`), a cached shell with dynamic data remaining (`hit-shell`), no matching prefetch (`miss`), or did not use prefetching (`none`).
+
+Route entries use filesystem-style patterns, so `/blog/hello` may report `/blog/[slug]`.
 
 Hook errors are isolated and do not affect navigation or other hooks.
 

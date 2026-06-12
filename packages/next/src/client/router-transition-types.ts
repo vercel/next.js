@@ -1,5 +1,11 @@
 export type RouterTransitionType = 'push' | 'replace' | 'traverse'
 
+export type RouterTransitionPrefetch =
+  | 'hit-route'
+  | 'hit-shell'
+  | 'miss'
+  | 'none'
+
 export type RouterTransitionPrefetchIntent = 'full' | 'auto' | 'none'
 
 export type RouterTransitionEvent = {
@@ -12,7 +18,10 @@ export type RouterTransitionStartEvent = RouterTransitionEvent & {
   prefetchIntent: RouterTransitionPrefetchIntent
 }
 
-export type RouterTransitionCommitEvent = RouterTransitionEvent
+export type RouterTransitionCommitEvent = RouterTransitionEvent & {
+  routes: string[]
+  prefetch: RouterTransitionPrefetch
+}
 
 export type ClientInstrumentationHooks = {
   onRouterTransitionStart?: (

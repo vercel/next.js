@@ -11,6 +11,7 @@ import { segmentToSourcePagePathname } from './router-reducer/compute-changed-pa
 import type {
   ClientInstrumentationHooks,
   ClientInstrumentationModules,
+  RouterTransitionPrefetch,
   RouterTransitionPrefetchIntent,
   RouterTransitionType,
 } from '../router-transition-types'
@@ -18,6 +19,7 @@ import type {
 type RouterTransitionRecord = {
   id: string
   type: RouterTransitionType
+  prefetch: RouterTransitionPrefetch
   committed: boolean
 }
 
@@ -94,6 +96,7 @@ export function startRouterTransition(
   const record: RouterTransitionRecord = {
     id,
     type,
+    prefetch: 'none',
     committed: false,
   }
   activeTransition = record
@@ -109,7 +112,25 @@ export function startRouterTransition(
   return id
 }
 
-export function commitRouterTransition(id: string | null, url: string): void {
+export function setRouterTransitionPrefetch(
+  id: string | null,
+  prefetch: RouterTransitionPrefetch
+): void {
+  const record = getActiveTransition(id)
+  if (record !== null) {
+    // A route prediction can provide a tree after the prefetch cache misses.
+    // Preserve the miss instead of later reclassifying it as a shell hit.
+    if (record.prefetch !== 'miss') {
+      record.prefetch = prefetch
+    }
+  }
+}
+
+export function commitRouterTransition(
+  id: string | null,
+  url: string,
+  tree: FlightRouterState
+): void {
   const record = getActiveTransition(id)
   if (record === null || record.committed) {
     return
@@ -120,6 +141,8 @@ export function commitRouterTransition(id: string | null, url: string): void {
     hooks.unstable_onRouterTransitionCommit?.(url, record.type, {
       id: record.id,
       timestamp: timestamp(),
+      routes: getActiveRoutePaths(tree),
+      prefetch: record.prefetch,
     })
   )
 }
