@@ -1607,6 +1607,9 @@ export function convertRouteTreeToFlightRouterState(
     null,
     null,
   ]
+  if (routeTree.prefetchHints !== 0) {
+    flightRouterState[4] = routeTree.prefetchHints
+  }
   return flightRouterState
 }
 
