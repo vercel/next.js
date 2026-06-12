@@ -140,7 +140,7 @@ describe('Instrumentation Client Hook', () => {
       return browser.eval(`window.__ROUTER_TRANSITION_EVENTS`)
     }
 
-    it('reports correlated start and commit events', async () => {
+    it('reports correlated lifecycle events and route information', async () => {
       const browser = await next.browser('/')
 
       await browser.elementByCss('a[href="/some-page"]').click()
@@ -159,6 +159,14 @@ describe('Instrumentation Client Hook', () => {
       expect(start.event.timestamp).toBeGreaterThan(0)
       expect(start.event.fromRoutes).toEqual(['/'])
       expect(start.event.prefetchIntent).toBe('full')
+      expect(commit.event.routes).toEqual(['/some-page'])
+      if (isNextDev) {
+        expect(commit.event.prefetch).toBe('miss')
+      } else {
+        expect(['hit-route', 'hit-shell', 'miss']).toContain(
+          commit.event.prefetch
+        )
+      }
       expect(commit.event.id).toBe(start.event.id)
       expect(commit.event.timestamp).toBeGreaterThanOrEqual(
         start.event.timestamp
@@ -232,6 +240,30 @@ describe('Instrumentation Client Hook', () => {
           .filter((e) => e.phase === 'start')
           .at(-1).event.fromRoutes
       ).toEqual(['/gallery', '/gallery/@modal/(.)photos/[id]'])
+    })
+
+    it('uses route patterns and puts the primary destination route first', async () => {
+      const browser = await next.browser('/')
+
+      await browser.elementByCss('a[href="/blog/hello"]').click()
+      await browser.elementById('blog-post')
+      await retry(async () => {
+        expect((await getTransitionEvents(browser)).at(-1).phase).toBe('commit')
+      })
+      expect((await getTransitionEvents(browser)).at(-1).event.routes).toEqual([
+        '/blog/[slug]',
+      ])
+
+      await browser.elementByCss('a[href="/dashboard"]').click()
+      await browser.elementById('dashboard')
+      await browser.elementById('analytics')
+      await retry(async () => {
+        expect((await getTransitionEvents(browser)).at(-1).phase).toBe('commit')
+      })
+      expect((await getTransitionEvents(browser)).at(-1).event.routes).toEqual([
+        '/dashboard',
+        '/dashboard/@analytics',
+      ])
     })
   })
 

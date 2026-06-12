@@ -99,7 +99,7 @@ function HistoryUpdater({
       window.history.replaceState(historyState, '', canonicalUrl)
     }
 
-    commitRouterTransition(transitionId, canonicalUrl)
+    commitRouterTransition(transitionId, canonicalUrl, tree)
     setLastCommittedTree(tree)
   }, [appRouterState])
 

@@ -47,6 +47,7 @@ import { computeChangedPath } from '../router-reducer/compute-changed-path'
 import { isJavaScriptURLString } from '../../lib/javascript-url'
 import { UnknownDynamicStaleTime, computeDynamicStaleAt } from './bfcache'
 import { createLinkPrefetchPartialError } from '../../../shared/lib/instant-messages'
+import { setRouterTransitionPrefetch } from '../router-transition'
 
 /**
  * Navigate to a new URL, using the Segment Cache to construct a response.
@@ -174,6 +175,7 @@ function navigateImpl(
       )
       if (optimisticRoute !== null) {
         // We have an optimistic route tree. Proceed with the normal flow.
+        setRouterTransitionPrefetch(transitionId, 'miss')
         return navigateUsingPrefetchedRouteTree(
           now,
           state,
@@ -351,6 +353,10 @@ export function navigateToKnownRoute(
     restrictToShell
   )
   if (task !== null) {
+    setRouterTransitionPrefetch(
+      transitionId,
+      task.dynamicRequestTree === null ? 'hit-route' : 'hit-shell'
+    )
     if (freshnessPolicy !== FreshnessPolicy.Gesture) {
       spawnDynamicRequests(
         task,
@@ -487,6 +493,7 @@ async function navigateToUnknownRoute(
       break
   }
 
+  setRouterTransitionPrefetch(transitionId, 'miss')
   const promiseForDynamicServerResponse = fetchServerResponse(url, {
     flightRouterState: dynamicRequestTree,
     nextUrl,

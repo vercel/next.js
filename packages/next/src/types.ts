@@ -45,6 +45,7 @@ export type { Instant } from './build/segment-config/app/app-segment-config'
 export type { Instrumentation } from './server/instrumentation/types'
 export type {
   RouterTransitionType,
+  RouterTransitionPrefetch,
   RouterTransitionPrefetchIntent,
   RouterTransitionEvent,
   RouterTransitionStartEvent,
