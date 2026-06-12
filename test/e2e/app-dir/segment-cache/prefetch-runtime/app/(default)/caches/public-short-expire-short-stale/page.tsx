@@ -13,7 +13,7 @@ export default async function Page() {
         This page uses a short-lived public cache (expire &lt; DYNAMIC_EXPIRE,
         5min), which should not be included in a static prefetch, and should
         also not be included in a runtime prefetch, because it has a short
-        enough stale time (&lt; RUNTIME_PREFETCH_DYNAMIC_STALE, 30s)
+        enough stale time (&lt; DYNAMIC_STALE, 30s)
       </p>
       <Suspense fallback={<div style={{ color: 'grey' }}>Loading...</div>}>
         <ShortLivedCache />
@@ -25,7 +25,7 @@ export default async function Page() {
 async function ShortLivedCache() {
   'use cache'
   cacheLife({
-    stale: 20, // < RUNTIME_PREFETCH_DYNAMIC_STALE
+    stale: 20, // < DYNAMIC_STALE
     revalidate: 2 * 60,
     expire: 3 * 60, // < DYNAMIC_EXPIRE
   })

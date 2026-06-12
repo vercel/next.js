@@ -90,13 +90,6 @@ export interface RequestStore extends CommonWorkUnitStore {
 
   // DEV-only
   usedDynamic?: boolean
-  /**
-   * Which shell this dev render produces: `Static` for an initial HTML load, a
-   * plain client navigation, or an HMR refresh; `Runtime` for a client
-   * navigation into a runtime-prefetch route, where the runtime-prefetchable
-   * content has already settled on the client.
-   */
-  shellStage?: RenderStage.Static | RenderStage.Runtime
 }
 
 export type InstantValidationSamples = {
