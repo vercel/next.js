@@ -1341,7 +1341,7 @@ async function generateDynamicFlightRenderResultWithStagesInDev(
     // load: plain navigations, and HMR refreshes (a fresh render of the current
     // page, with no settled prefetch to draw on). Dynamic content always
     // streams in after the shell.
-    const shellStage =
+    const streamReleaseStage =
       initialRequestStore.isHmrRefresh !== true &&
       (await anySegmentHasRuntimePrefetchEnabled(loaderTree))
         ? RenderStage.Runtime
@@ -1356,7 +1356,7 @@ async function generateDynamicFlightRenderResultWithStagesInDev(
       shouldValidate,
       fallbackParams,
       () => didErrorObservably,
-      shellStage
+      streamReleaseStage
     )
     stream = result.stream
     debugChannel = result.debugChannel
@@ -4555,7 +4555,7 @@ async function streamStagedRenderInDev(
   environmentName: () => string,
   onError: (error: unknown) => void,
   debugChannel: NodeDebugChannelPair | undefined,
-  shellStage: RenderStage.Static | RenderStage.Runtime
+  streamReleaseStage: RenderStage.Static | RenderStage.Runtime
 ): Promise<{
   stream: Readable
   resultPromise: Promise<StagedDevRenderResult>
@@ -4565,7 +4565,7 @@ async function streamStagedRenderInDev(
 
   // The first task creates the stream; `streamReady` carries it out of that
   // task. `streamReleased` resolves when the stream may be handed to the
-  // caller: once the render has buffered the `shellStage` content (the static
+  // caller: once the render has buffered the `streamReleaseStage` content (the static
   // shell, or the runtime-prefetchable shell for runtime-prefetch routes) so we
   // don't flush a premature Suspense fallback into the shell - or earlier, on a
   // cache miss, since then there's nothing prod-representative to wait for. We
@@ -4601,7 +4601,7 @@ async function streamStagedRenderInDev(
   // render in the `ShellEarlyStatic` stage and creates the stream (one replay
   // for the response, one to accumulate the chunks). The later tasks advance
   // the stages, settle `hadCacheMiss`, and release the stream – as soon as a
-  // cache miss is seen, or once the render reaches `shellStage`. The replayable
+  // cache miss is seen, or once the render reaches `streamReleaseStage`. The replayable
   // stays local: the response is the only reader outside this function.
   const stagesAdvanced = runInSequentialTasks(
     () => {
@@ -4659,7 +4659,7 @@ async function streamStagedRenderInDev(
       // The static stage's chunks flushed in the previous task, so the static
       // shell is buffered now. For a static shell, release the stream before
       // advancing into the runtime stages.
-      if (shellStage === RenderStage.Static) {
+      if (streamReleaseStage === RenderStage.Static) {
         streamReleased.resolve()
       }
       stageController.advanceStage(RenderStage.ShellEarlyRuntime)
@@ -4690,7 +4690,7 @@ async function streamStagedRenderInDev(
       // The runtime stage's chunks flushed in the previous task, so the runtime
       // shell is buffered now. For a runtime-prefetch route, release the stream
       // before advancing to the dynamic stage.
-      if (shellStage === RenderStage.Runtime) {
+      if (streamReleaseStage === RenderStage.Runtime) {
         streamReleased.resolve()
       }
 
@@ -4722,7 +4722,7 @@ async function streamStagedRenderInDev(
   const { stream, accumulatedChunksPromise } = await streamReady.promise
 
   // Don't hand the stream to the caller until it's been released: at the
-  // `shellStage` (so the shell content is buffered before the first flush), or
+  // `streamReleaseStage` (so the shell content is buffered before the first flush), or
   // earlier on a cache miss.
   await streamReleased.promise
 
@@ -4856,7 +4856,7 @@ async function stagedRenderWithCachesInDev(
   shouldValidate: boolean,
   fallbackRouteParams: OpaqueFallbackRouteParams | null,
   getDevRenderDidError: () => boolean,
-  shellStage: RenderStage.Static | RenderStage.Runtime
+  streamReleaseStage: RenderStage.Static | RenderStage.Runtime
 ): Promise<{
   stream: Readable
   debugChannel: NodeDebugChannelPair | undefined
@@ -4893,7 +4893,7 @@ async function stagedRenderWithCachesInDev(
     environmentName,
     onError,
     debugChannel,
-    shellStage
+    streamReleaseStage
   )
 
   if (shouldValidate) {
