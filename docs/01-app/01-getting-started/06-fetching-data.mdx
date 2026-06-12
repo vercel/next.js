@@ -116,6 +116,8 @@ There are two ways you can use streaming in your application:
 1. Wrapping a page with a [`loading.js` file](#with-loadingjs)
 2. Wrapping a component with [`<Suspense>`](#with-suspense)
 
+> **Good to know:** Bots and crawlers are served differently from browsers. Next.js waits for data fetching to finish and sends the fully rendered page instead of streaming it progressively. See [Bots and crawlers](/docs/app/guides/streaming#bots-and-crawlers).
+
 #### With `loading.js`
 
 You can create a `loading.js` file in the same folder as your page to stream the **entire page** while the data is being fetched. For example, to stream `app/blog/page.js`, add the file inside the `app/blog` folder.

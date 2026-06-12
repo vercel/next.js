@@ -436,6 +436,12 @@ Next.js requires you to explicitly handle components that can't complete during 
 
 > **🎥 Watch:** Why Partial Prerendering and how it works → [YouTube (10 minutes)](https://www.youtube.com/watch?v=MTcPrTIBkpA).
 
+### Bots and crawlers
+
+Browsers receive the static shell instantly. Bots and crawlers are detected by their user agent and handled differently: because they need a complete document, Next.js skips the shell and renders the entire page dynamically at request time, then sends the finished HTML once the render completes.
+
+Because the shell is re-rendered instead of reused, work that completed during prerendering now runs at request time for a bot. If part of your shell depends on inputs that only exist while prerendering, such as build-time data or values that are not reachable in the request-time environment, a page that loads for a person can fail to render for a crawler. Make sure the data your shell relies on is also available at request time. See [Bots and crawlers](/docs/app/guides/streaming#bots-and-crawlers) for more details.
+
 ### Maximizing the static shell
 
 The deeper your async work sits in the tree, the more of the page can be prerendered. This is the structural pattern Cache Components rewards: a general practice worth applying everywhere, and the foundation for the instant navigation and runtime prefetching that follow. It applies to all [runtime APIs](#working-with-runtime-apis) and async operations like data fetches.
