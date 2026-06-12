@@ -93,7 +93,8 @@ export function restoreReducer(
     null,
     // History traversal always uses 'replace'.
     'replace',
-    navigationLock
+    navigationLock,
+    transitionId
   )
   return completeTraverseNavigation(
     state,

@@ -54,7 +54,7 @@ export function onRouterTransitionStart(
 }
 ```
 
-Additional router transition information is experimental. Enable it to receive the third `event` argument and the `unstable_` commit and abort hooks:
+Additional router transition information is experimental. Enable it to receive the third `event` argument and the `unstable_` commit, route mismatch, and abort hooks:
 
 ```ts filename="next.config.ts"
 import type { NextConfig } from 'next'
@@ -74,6 +74,7 @@ Then export the optional commit hook:
 import type {
   RouterTransitionAbortEvent,
   RouterTransitionCommitEvent,
+  RouterTransitionRouteMismatchEvent,
   RouterTransitionStartEvent,
   RouterTransitionType,
 } from 'next'
@@ -108,6 +109,14 @@ export function unstable_onRouterTransitionAbort(
 ) {
   starts.delete(id)
 }
+
+export function unstable_onRouterTransitionRouteMismatch(
+  url: string,
+  navigationType: RouterTransitionType,
+  event: RouterTransitionRouteMismatchEvent
+) {
+  console.log('Route mismatch:', event.id, url)
+}
 ```
 
 ```js filename="instrumentation-client.js" switcher
@@ -129,6 +138,14 @@ export function unstable_onRouterTransitionCommit(url, navigationType, event) {
 export function unstable_onRouterTransitionAbort(url, navigationType, event) {
   starts.delete(event.id)
 }
+
+export function unstable_onRouterTransitionRouteMismatch(
+  url,
+  navigationType,
+  event
+) {
+  console.log('Route mismatch:', event.id, url)
+}
 ```
 
 Each hook receives the same three parameters:
@@ -139,11 +156,14 @@ Each hook receives the same three parameters:
 
 The available hooks are:
 
-| Hook                                | Timing                                   |
-| ----------------------------------- | ---------------------------------------- |
-| `onRouterTransitionStart`           | The navigation is dispatched.            |
-| `unstable_onRouterTransitionCommit` | The first destination UI and URL commit. |
-| `unstable_onRouterTransitionAbort`  | The transition stops before completion.  |
+| Hook                                       | Timing                                                                   |
+| ------------------------------------------ | ------------------------------------------------------------------------ |
+| `onRouterTransitionStart`                  | The navigation is dispatched.                                            |
+| `unstable_onRouterTransitionCommit`        | The first destination UI and URL commit.                                 |
+| `unstable_onRouterTransitionRouteMismatch` | The live route tree differs from the prefetched or predicted route tree. |
+| `unstable_onRouterTransitionAbort`         | The transition stops before completion.                                  |
+
+`unstable_onRouterTransitionRouteMismatch` is diagnostic and non-terminal. It indicates that Next.js detected a different route tree and retried the navigation.
 
 The start event also includes:
 

@@ -22,6 +22,7 @@ type RouterTransitionRecord = {
   type: RouterTransitionType
   prefetch: RouterTransitionPrefetch
   committed: boolean
+  routeMismatchEmitted: boolean
 }
 
 let instrumentationModules: readonly ClientInstrumentationHooks[] = []
@@ -41,6 +42,7 @@ export function initializeRouterTransitionModules(
     instrumentationModules.some(
       (hooks) =>
         typeof hooks.unstable_onRouterTransitionCommit === 'function' ||
+        typeof hooks.unstable_onRouterTransitionRouteMismatch === 'function' ||
         typeof hooks.unstable_onRouterTransitionAbort === 'function'
     )
   ) {
@@ -73,6 +75,7 @@ function hasLifecycleInstrumentation(): boolean {
     (hooks) =>
       typeof hooks.onRouterTransitionStart === 'function' ||
       typeof hooks.unstable_onRouterTransitionCommit === 'function' ||
+      typeof hooks.unstable_onRouterTransitionRouteMismatch === 'function' ||
       typeof hooks.unstable_onRouterTransitionAbort === 'function'
   )
 }
@@ -97,7 +100,11 @@ export function startRouterTransition(
   }
 
   if (activeTransition !== null) {
-    abortRouterTransition(activeTransition.id, 'superseded')
+    if (activeTransition.committed) {
+      activeTransition = null
+    } else {
+      abortRouterTransition(activeTransition.id, 'superseded')
+    }
   }
 
   const id = `${Date.now().toString(36)}-${(++nextTransitionId).toString(36)}`
@@ -107,6 +114,7 @@ export function startRouterTransition(
     type,
     prefetch: 'none',
     committed: false,
+    routeMismatchEmitted: false,
   }
   activeTransition = record
 
@@ -155,7 +163,25 @@ export function commitRouterTransition(
       prefetch: record.prefetch,
     })
   )
-  activeTransition = null
+}
+
+export function routeMismatchRouterTransition(
+  id: string | null,
+  url: string
+): void {
+  const record = getActiveTransition(id)
+  if (record === null || record.routeMismatchEmitted) {
+    return
+  }
+
+  record.routeMismatchEmitted = true
+  record.resolvedUrl = url
+  callHooks((hooks) =>
+    hooks.unstable_onRouterTransitionRouteMismatch?.(url, record.type, {
+      id: record.id,
+      timestamp: timestamp(),
+    })
+  )
 }
 
 export function abortRouterTransition(
