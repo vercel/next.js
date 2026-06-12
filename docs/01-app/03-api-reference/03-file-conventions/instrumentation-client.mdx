@@ -54,7 +54,7 @@ export function onRouterTransitionStart(
 }
 ```
 
-Additional router transition information is experimental. Enable it to receive the third `event` argument and the `unstable_onRouterTransitionCommit` hook:
+Additional router transition information is experimental. Enable it to receive the third `event` argument and the `unstable_` commit and abort hooks:
 
 ```ts filename="next.config.ts"
 import type { NextConfig } from 'next'
@@ -72,6 +72,7 @@ Then export the optional commit hook:
 
 ```ts filename="instrumentation-client.ts" switcher
 import type {
+  RouterTransitionAbortEvent,
   RouterTransitionCommitEvent,
   RouterTransitionStartEvent,
   RouterTransitionType,
@@ -99,6 +100,14 @@ export function unstable_onRouterTransitionCommit(
     starts.delete(event.id)
   }
 }
+
+export function unstable_onRouterTransitionAbort(
+  url: string,
+  navigationType: RouterTransitionType,
+  { id }: RouterTransitionAbortEvent
+) {
+  starts.delete(id)
+}
 ```
 
 ```js filename="instrumentation-client.js" switcher
@@ -116,6 +125,10 @@ export function unstable_onRouterTransitionCommit(url, navigationType, event) {
     starts.delete(event.id)
   }
 }
+
+export function unstable_onRouterTransitionAbort(url, navigationType, event) {
+  starts.delete(event.id)
+}
 ```
 
 Each hook receives the same three parameters:
@@ -131,6 +144,7 @@ The available hooks are:
 | ----------------------------------- | ---------------------------------------- |
 | `onRouterTransitionStart`           | The navigation is dispatched.            |
 | `unstable_onRouterTransitionCommit` | The first destination UI and URL commit. |
+| `unstable_onRouterTransitionAbort`  | The transition stops before completion.  |
 
 The start event (`onRouterTransitionStart`) also includes:
 
@@ -144,7 +158,7 @@ The commit event also includes:
 
 Route entries use filesystem-style patterns, so `/blog/hello` may report `/blog/[slug]`.
 
-Hook errors are isolated and do not affect navigation or other hooks.
+`unstable_onRouterTransitionAbort` receives a `reason` of `superseded`, `hard-navigation`, or `error`. Hook errors are isolated and do not affect navigation or other hooks.
 
 ## Performance considerations
 

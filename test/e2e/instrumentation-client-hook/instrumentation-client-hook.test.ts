@@ -265,6 +265,28 @@ describe('Instrumentation Client Hook', () => {
         '/dashboard/@analytics',
       ])
     })
+
+    it('aborts a transition when it is superseded', async () => {
+      const browser = await next.browser('/')
+
+      await browser.elementByCss('a[href="/slow"]').click()
+      await retry(async () => {
+        expect((await getTransitionEvents(browser))[0].phase).toBe('start')
+      })
+
+      await browser.elementByCss('a[href="/some-page"]').click()
+      await browser.elementById('some-page')
+      await retry(async () => {
+        expect((await getTransitionEvents(browser)).at(-1).phase).toBe('commit')
+      })
+
+      const events = await getTransitionEvents(browser)
+      const firstId = events[0].event.id
+      const abort = events.find(
+        (event) => event.event.id === firstId && event.phase === 'abort'
+      )
+      expect(abort.event.reason).toBe('superseded')
+    })
   })
 
   describe.each([

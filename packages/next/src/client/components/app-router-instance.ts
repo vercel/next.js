@@ -6,6 +6,7 @@ import {
   ACTION_SERVER_ACTION,
   ACTION_NAVIGATE,
   ACTION_RESTORE,
+  ACTION_SERVER_PATCH,
   type NavigateAction,
   ACTION_HMR_REFRESH,
   PrefetchKind,
@@ -38,7 +39,10 @@ import { setLinkForCurrentNavigation, type LinkInstance } from './links'
 import type { RouterTransitionPrefetchIntent } from '../router-transition-types'
 import type { GlobalErrorComponent } from './builtin/global-error'
 import { isJavaScriptURLString } from '../lib/javascript-url'
-import { startRouterTransition } from './router-transition'
+import {
+  abortRouterTransition,
+  startRouterTransition,
+} from './router-transition'
 
 export type DispatchStatePromise = React.Dispatch<ReducerState>
 
@@ -63,6 +67,14 @@ export type ActionQueueNode = {
   resolve: (value: ReducerState) => void
   reject: (err: Error) => void
   discarded?: boolean
+}
+
+function getActionTransitionId(action: ReducerActions): string | null {
+  return action.type === ACTION_NAVIGATE ||
+    action.type === ACTION_RESTORE ||
+    action.type === ACTION_SERVER_PATCH
+    ? action.transitionId
+    : null
 }
 
 function runRemainingActions(
@@ -133,6 +145,7 @@ async function runAction({
   if (isThenable(actionResult)) {
     actionResult.then(handleResult, (err) => {
       runRemainingActions(actionQueue, setState)
+      abortRouterTransition(getActionTransitionId(action.payload), 'error')
       action.reject(err)
     })
   } else {
