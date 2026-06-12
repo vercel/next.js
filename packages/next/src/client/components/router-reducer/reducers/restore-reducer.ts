@@ -32,6 +32,7 @@ export function restoreReducer(
   let treeToRestore: FlightRouterState | undefined
   let renderedSearch: string | undefined
   const historyState = action.historyState
+  const transitionId = action.transitionId
   if (historyState) {
     treeToRestore = historyState.tree
     renderedSearch = historyState.renderedSearch
@@ -79,7 +80,7 @@ export function restoreReducer(
   )
 
   if (task === null) {
-    return completeHardNavigation(state, restoredUrl, 'replace')
+    return completeHardNavigation(state, restoredUrl, 'replace', transitionId)
   }
   spawnDynamicRequests(
     task,
@@ -102,6 +103,7 @@ export function restoreReducer(
     renderedSearch,
     task.node,
     task.route,
-    restoredNextUrl
+    restoredNextUrl,
+    transitionId
   )
 }

@@ -57,6 +57,16 @@ describe('Instrumentation Client Hook', () => {
     return result
   }
 
+  function filterNavigationCommitLogs(logs: Array<{ message: string }>) {
+    const result = []
+    for (const log of logs) {
+      if (log.message.startsWith('[Router Transition Commit]')) {
+        result.push(log.message)
+      }
+    }
+    return result
+  }
+
   describe('onRouterTransitionStart', () => {
     const { next } = nextTestSetup({
       files: path.join(__dirname, 'app-router'),
@@ -116,7 +126,7 @@ describe('Instrumentation Client Hook', () => {
     })
   })
 
-  describe('router transition start context', () => {
+  describe('router transition lifecycle', () => {
     const { next } = nextTestSetup({
       files: path.join(__dirname, 'app-router'),
       nextConfig: {
@@ -130,20 +140,29 @@ describe('Instrumentation Client Hook', () => {
       return browser.eval(`window.__ROUTER_TRANSITION_EVENTS`)
     }
 
-    it('reports transition metadata, source routes, and prefetch intent', async () => {
+    it('reports correlated start and commit events', async () => {
       const browser = await next.browser('/')
 
       await browser.elementByCss('a[href="/some-page"]').click()
       await browser.elementById('some-page')
 
-      const [start] = await getTransitionEvents(browser)
-      expect(start.phase).toBe('start')
+      await retry(async () => {
+        expect(
+          (await getTransitionEvents(browser)).map((event) => event.phase)
+        ).toEqual(['start', 'commit'])
+      })
+
+      const [start, commit] = await getTransitionEvents(browser)
       expect(start.url).toBe('/some-page')
       expect(start.navigateType).toBe('push')
       expect(typeof start.event.id).toBe('string')
       expect(start.event.timestamp).toBeGreaterThan(0)
       expect(start.event.fromRoutes).toEqual(['/'])
       expect(start.event.prefetchIntent).toBe('full')
+      expect(commit.event.id).toBe(start.event.id)
+      expect(commit.event.timestamp).toBeGreaterThanOrEqual(
+        start.event.timestamp
+      )
     })
 
     it('reports a null prefetch intent for programmatic navigation', async () => {
@@ -168,7 +187,9 @@ describe('Instrumentation Client Hook', () => {
       await browser.elementById('home')
 
       expect(
-        (await getTransitionEvents(browser)).at(-1).event.fromRoutes
+        (await getTransitionEvents(browser))
+          .filter((e) => e.phase === 'start')
+          .at(-1).event.fromRoutes
       ).toEqual(['/blog/[slug]'])
 
       await browser.elementByCss('a[href="/dashboard"]').click()
@@ -178,7 +199,9 @@ describe('Instrumentation Client Hook', () => {
       await browser.elementById('home')
 
       expect(
-        (await getTransitionEvents(browser)).at(-1).event.fromRoutes
+        (await getTransitionEvents(browser))
+          .filter((e) => e.phase === 'start')
+          .at(-1).event.fromRoutes
       ).toEqual(['/dashboard', '/dashboard/@analytics'])
     })
 
@@ -189,7 +212,9 @@ describe('Instrumentation Client Hook', () => {
       await browser.elementById('home')
 
       expect(
-        (await getTransitionEvents(browser)).at(-1).event.fromRoutes
+        (await getTransitionEvents(browser))
+          .filter((e) => e.phase === 'start')
+          .at(-1).event.fromRoutes
       ).toEqual(['/about'])
     })
 
@@ -203,7 +228,9 @@ describe('Instrumentation Client Hook', () => {
       await browser.elementById('home')
 
       expect(
-        (await getTransitionEvents(browser)).at(-1).event.fromRoutes
+        (await getTransitionEvents(browser))
+          .filter((e) => e.phase === 'start')
+          .at(-1).event.fromRoutes
       ).toEqual(['/gallery', '/gallery/@modal/(.)photos/[id]'])
     })
   })
@@ -267,6 +294,15 @@ describe('Instrumentation Client Hook', () => {
         '[Router Transition Start] [push] / a',
         '[Router Transition Start] [push] / b',
         '[Router Transition Start] [push] / user',
+      ])
+
+      expect(filterNavigationCommitLogs(await browser.log())).toEqual([
+        '[Router Transition Commit] [push] /some-page a',
+        '[Router Transition Commit] [push] /some-page b',
+        '[Router Transition Commit] [push] /some-page user',
+        '[Router Transition Commit] [push] / a',
+        '[Router Transition Commit] [push] / b',
+        '[Router Transition Commit] [push] / user',
       ])
     })
 

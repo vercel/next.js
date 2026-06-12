@@ -13,11 +13,18 @@ export type RouterTransitionStartEvent = RouterTransitionEvent & {
   prefetchIntent: RouterTransitionPrefetchIntent | null
 }
 
+export type RouterTransitionCommitEvent = RouterTransitionEvent
+
 export type ClientInstrumentationHooks = {
   onRouterTransitionStart?: (
     url: string,
     navigationType: RouterTransitionType,
     event: RouterTransitionStartEvent | null
+  ) => void
+  unstable_onRouterTransitionCommit?: (
+    url: string,
+    navigationType: RouterTransitionType,
+    event: RouterTransitionCommitEvent
   ) => void
 }
 

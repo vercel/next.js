@@ -25,10 +25,11 @@ export function serverPatchReducer(
   const retryUrl = new URL(action.url, location.origin)
   const retrySeed = action.seed
   const navigateType = action.navigateType
+  const transitionId = action.transitionId
   if (retryMpa || retrySeed === null) {
     // If the server did not send back data during the mismatch, fall back to
     // an MPA navigation.
-    return completeHardNavigation(state, retryUrl, navigateType)
+    return completeHardNavigation(state, retryUrl, navigateType, transitionId)
   }
   const currentUrl = new URL(state.canonicalUrl, location.origin)
   const currentRenderedSearch = state.renderedSearch
@@ -69,6 +70,7 @@ export function serverPatchReducer(
     // Server patch (retry) navigations don't use route prediction. This is
     // typically a retry after a previous mismatch, so the route was already
     // marked as having a dynamic rewrite when the mismatch was detected.
-    null
+    null,
+    transitionId
   )
 }

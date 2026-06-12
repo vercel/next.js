@@ -6,4 +6,7 @@ export default {
     './inject-a.js',
     './inject-b.js',
   ],
+  experimental: {
+    instrumentationClientRouterTransitionEvents: true,
+  },
 }

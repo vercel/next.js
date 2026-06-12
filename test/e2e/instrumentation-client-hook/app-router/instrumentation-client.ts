@@ -29,3 +29,11 @@ export function onRouterTransitionStart(
   console.log(`[Router Transition Start] [${navigateType}] ${pathname}`)
   record('start', href, navigateType, event)
 }
+
+export function unstable_onRouterTransitionCommit(
+  href: string,
+  navigateType: string,
+  event: unknown
+) {
+  record('commit', href, navigateType, event)
+}

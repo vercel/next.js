@@ -51,6 +51,7 @@ import DefaultGlobalError from './builtin/global-error'
 import { RootLayoutBoundary } from '../../lib/framework/boundary-components'
 import type { StaticIndicatorState } from '../dev/hot-reloader/app/hot-reloader-app'
 import { getAssetTokenQuery } from '../../shared/lib/deployment-id'
+import { commitRouterTransition } from './router-transition'
 
 const globalMutable: {
   pendingMpaPath?: string
@@ -68,7 +69,8 @@ function HistoryUpdater({
       window.next.__pendingUrl = undefined
     }
 
-    const { tree, pushRef, canonicalUrl, renderedSearch } = appRouterState
+    const { tree, pushRef, canonicalUrl, renderedSearch, transitionId } =
+      appRouterState
 
     const appHistoryState: AppHistoryState = {
       tree,
@@ -97,6 +99,7 @@ function HistoryUpdater({
       window.history.replaceState(historyState, '', canonicalUrl)
     }
 
+    commitRouterTransition(transitionId, canonicalUrl)
     setLastCommittedTree(tree)
   }, [appRouterState])
 
@@ -229,6 +232,7 @@ function Router({
         type: ACTION_RESTORE,
         url: new URL(window.location.href),
         historyState: window.history.state.__PRIVATE_NEXTJS_INTERNALS_TREE,
+        transitionId: null,
       })
     }
 
@@ -319,6 +323,7 @@ function Router({
           type: ACTION_RESTORE,
           url: new URL(url ?? href, href),
           historyState: appHistoryState,
+          transitionId: null,
         })
       })
     }
