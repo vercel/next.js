@@ -13,19 +13,11 @@ import {
   type PrerenderStoreModernServer,
   type PrerenderStorePPR,
 } from '../app-render/work-unit-async-storage.external'
-import {
-  getRuntimeLinkDataStage,
-  getStaticLinkDataStage,
-  makeHangingPromise,
-} from '../dynamic-rendering-utils'
+import { makeHangingPromise } from '../dynamic-rendering-utils'
 import type { ParamValue } from './params'
 import { describeStringPropertyAccess } from '../../shared/lib/utils/reflect-utils'
 import { actionAsyncStorage } from '../app-render/action-async-storage.external'
 import { accumulateRootVaryParam } from '../app-render/vary-params'
-import type {
-  RenderStage,
-  StagedRenderingController,
-} from '../app-render/staged-rendering'
 
 /**
  * Used for the compiler-generated `next/root-params` module.
@@ -72,9 +64,6 @@ export function getRootParam(paramName: string): Promise<ParamValue> {
       )
     }
     case 'cache': {
-      // NOTE: In shell prerenders, we delay caches that used root params
-      // in use-cache-wrapper, during the final prerender, so we don't
-      // need to do anything here
       if (!workUnitStore.rootParams) {
         throw new Error(
           `Route ${workStore.route} used ${apiName} inside \`"use cache"\` nested within \`unstable_cache\`. Root params are not available in this context.`
@@ -83,35 +72,7 @@ export function getRootParam(paramName: string): Promise<ParamValue> {
       workUnitStore.readRootParamNames.add(paramName)
       return Promise.resolve(workUnitStore.rootParams[paramName])
     }
-    case 'prerender': {
-      const { stagedRendering, fallbackRouteParams } = workUnitStore
-      if (stagedRendering && process.env.__NEXT_APP_SHELLS) {
-        // If the root param is a fallback param, we don't have a value to return
-        if (fallbackRouteParams && fallbackRouteParams.has(paramName)) {
-          return makeHangingPromise<ParamValue>(
-            workUnitStore.renderSignal,
-            workStore.route,
-            apiName
-          )
-        }
-        // Otherwise, it's link data, so we delay it to exclude it from the shell
-        // and only resolve in the param-ful static stage
-        return createRootParamPromiseForShellRender(
-          stagedRendering,
-          getStaticLinkDataStage(stagedRendering),
-          apiName,
-          paramName,
-          workUnitStore.rootParams[paramName]
-        )
-      }
-
-      return createPrerenderRootParamPromise(
-        paramName,
-        workStore,
-        workUnitStore,
-        apiName
-      )
-    }
+    case 'prerender':
     case 'prerender-ppr':
     case 'prerender-legacy': {
       return createPrerenderRootParamPromise(
@@ -145,27 +106,9 @@ export function getRootParam(paramName: string): Promise<ParamValue> {
           return Promise.reject(err)
         }
       }
-
-      const { stagedRendering } = workUnitStore
-      if (stagedRendering && process.env.__NEXT_APP_SHELLS) {
-        return createRootParamPromiseForShellRender(
-          stagedRendering,
-          // Assuming we're rendering for cached navs, we only need
-          // to recover a static shell and a static stage, so we can
-          // resolve root params here. it means we can't get a session shell,
-          // but that's okay because we get that from a separate render anyway.
-          getStaticLinkDataStage(stagedRendering),
-          apiName,
-          paramName,
-          workUnitStore.rootParams[paramName]
-        )
-      }
       break
     }
     case 'private-cache': {
-      // NOTE: In shell prerenders, we delay caches that used root params
-      // in use-cache-wrapper, during the final prerender, so we don't
-      // need to do anything here.
       // In dev, private caches are persisted and keyed by root params (like
       // public caches), so we track which ones were read.
       if (workUnitStore.readRootParamNames) {
@@ -174,21 +117,6 @@ export function getRootParam(paramName: string): Promise<ParamValue> {
       break
     }
     case 'prerender-runtime': {
-      const { stagedRendering } = workUnitStore
-      if (stagedRendering && process.env.__NEXT_APP_SHELLS) {
-        return createRootParamPromiseForShellRender(
-          stagedRendering,
-          // A runtime prerender with shells means that we want to recover a session shell.
-          // Root params are link data, so we have to omit them from the shell.
-          // Tihs means we must delay them until the runtime stage even though
-          // semantically they're considered static.
-          getRuntimeLinkDataStage(stagedRendering),
-          apiName,
-          paramName,
-          workUnitStore.rootParams[paramName]
-        )
-      }
-
       break
     }
     case 'generate-static-params': {
@@ -206,23 +134,6 @@ export function getRootParam(paramName: string): Promise<ParamValue> {
 
   accumulateRootVaryParam(paramName)
   return Promise.resolve(workUnitStore.rootParams[paramName])
-}
-
-type LinkDataStage =
-  | RenderStage.EarlyStatic
-  | RenderStage.Static
-  | RenderStage.EarlyRuntime
-  | RenderStage.Runtime
-
-function createRootParamPromiseForShellRender(
-  stagedRendering: StagedRenderingController,
-  stage: LinkDataStage,
-  apiName: string,
-  paramName: string,
-  paramValue: ParamValue
-): Promise<ParamValue> {
-  accumulateRootVaryParam(paramName)
-  return stagedRendering.delayUntilStage(stage, apiName, paramValue)
 }
 
 function createPrerenderRootParamPromise(
