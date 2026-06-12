@@ -74,15 +74,18 @@ describe.each([
     ) {
       const browser = await next.browser(path)
 
-      // Initial load.
-      await retry(() => assertLogs(browser))
+      // The initial load fills caches while streaming, so cached content
+      // resolves in a later phase than it will once the caches are warm. That's
+      // an accepted, non-representative tradeoff of the streaming dev render,
+      // so we don't assert the logs here — this load just fills the caches.
 
       // We should not see any errors related to the aborted render.
       expect(next.cliOutput).not.toContain(
         'AbortError: This operation was aborted'
       )
 
-      // After another load (with warm caches) the logs should be the same.
+      // After a warm reload the caches are filled, so the logs resolve in the
+      // correct phase.
       await browser.loadPage(next.url + path) // clears old logs
       await retry(() => assertLogs(browser))
 
@@ -103,11 +106,18 @@ describe.each([
         return
       }
 
-      // After a revalidation the subsequent warmup render must discard stale
-      // cache entries.
-      // This should not affect the environment labels.
+      // After a revalidation the subsequent render must discard the stale cache
+      // entries. This should not affect the environment labels once the caches
+      // are warm again.
       await revalidatePath(path)
 
+      // The first load after revalidation is a cold cache-miss request that we
+      // stream, so its stages aren't representative; it just refills the
+      // caches.
+      await browser.loadPage(next.url + path)
+
+      // After a warm reload the caches are filled, so the logs resolve in the
+      // correct phase.
       await browser.loadPage(next.url + path) // clears old logs
       await retry(() => assertLogs(browser))
 
@@ -123,16 +133,27 @@ describe.each([
     ) {
       const browser = await next.browser('/')
 
-      // Initial nav (first time loading the page)
+      // The initial nav fills caches while streaming, so cached content
+      // resolves in a later phase than it will once the caches are warm. That's
+      // an accepted, non-representative tradeoff of the streaming dev render,
+      // so we don't assert the logs here — this nav just fills the caches.
+      const initialNavOutputIndex = next.cliOutput.length
       await browser.elementByCss(`a[href="${path}"]`).click()
-      await retry(() => assertLogs(browser))
+      // Wait for the nav's request to finish before reloading, to ensure all
+      // caches were filled.
+      await retry(() => {
+        expect(next.cliOutput.slice(initialNavOutputIndex)).toContain(
+          `GET ${path} 200`
+        )
+      }, 10_000)
 
       // We should not see any errors related to the aborted render.
       expect(next.cliOutput).not.toContain(
         'AbortError: This operation was aborted'
       )
 
-      // Reload, and perform another nav (with warm caches). the logs should be the same.
+      // After a warm reload + nav the caches are filled, so the logs resolve in
+      // the correct phase.
       await browser.loadPage(next.url + '/') // clears old logs
       await browser.elementByCss(`a[href="${path}"]`).click()
       await retry(() => assertLogs(browser))
@@ -154,11 +175,25 @@ describe.each([
         return
       }
 
-      // After a revalidation the subsequent warmup render must discard stale
-      // cache entries.
-      // This should not affect the environment labels.
+      // After a revalidation the subsequent render must discard the stale cache
+      // entries. This should not affect the environment labels once the caches
+      // are warm again.
       await revalidatePath(path)
 
+      // The first navigation after revalidation is a cold cache-miss request
+      // that we stream, so its stages aren't representative; it just refills
+      // the caches. Wait for its request to finish before navigating again.
+      await browser.loadPage(next.url + '/')
+      const revalidatedNavOutputIndex = next.cliOutput.length
+      await browser.elementByCss(`a[href="${path}"]`).click()
+      await retry(() => {
+        expect(next.cliOutput.slice(revalidatedNavOutputIndex)).toContain(
+          `GET ${path} 200`
+        )
+      }, 10_000)
+
+      // After a warm reload + nav the caches are filled, so the logs resolve in
+      // the correct phase.
       await browser.loadPage(next.url + '/') // clears old logs
       await browser.elementByCss(`a[href="${path}"]`).click()
       await retry(() => assertLogs(browser))
@@ -251,6 +286,47 @@ describe.each([
               logs,
               'after short-lived cache read - layout',
               RUNTIME_ENV
+            )
+
+            assertLog(logs, 'after uncached fetch - layout', 'Server')
+            assertLog(logs, 'after uncached fetch - page', 'Server')
+          }
+
+          if (isInitialLoad) {
+            await testInitialLoad(path, assertLogs)
+          } else {
+            await testNavigation(path, assertLogs)
+          }
+        })
+
+        it('cached data + short-stale cached data', async () => {
+          const path = '/short-stale-cache'
+
+          // A short stale time excludes the entry from the runtime prefetch
+          // shell, but not from the static shell. So an initial load resolves
+          // it in the static stage (Prerender), and so does a navigation into a
+          // route without runtime prefetch. Only a navigation into a
+          // runtime-prefetch route excludes it, resolving it in the dynamic
+          // stage (Server). This asymmetry mirrors the build-time behavior,
+          // where a short stale time is omitted from the runtime prefetch but
+          // not from the static shell.
+          const shortStaleEnv =
+            !isInitialLoad && hasRuntimePrefetch ? 'Server' : 'Prerender'
+
+          const assertLogs = async (browser: Playwright) => {
+            const logs = await browser.log()
+            assertLog(logs, 'after cache read - layout', 'Prerender')
+            assertLog(logs, 'after cache read - page', 'Prerender')
+
+            assertLog(
+              logs,
+              'after short-stale cache read - page',
+              shortStaleEnv
+            )
+            assertLog(
+              logs,
+              'after short-stale cache read - layout',
+              shortStaleEnv
             )
 
             assertLog(logs, 'after uncached fetch - layout', 'Server')

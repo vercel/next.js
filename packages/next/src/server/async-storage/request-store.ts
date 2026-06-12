@@ -5,7 +5,11 @@ import type { RenderOpts } from '../app-render/types'
 import type { NextRequest } from '../web/spec-extension/request'
 import type { __ApiPreviewProps } from '../api-utils'
 
-import { FLIGHT_HEADERS } from '../../client/components/app-router-headers'
+import {
+  FLIGHT_HEADERS,
+  NEXT_HTML_REQUEST_ID_HEADER,
+  NEXT_REQUEST_ID_HEADER,
+} from '../../client/components/app-router-headers'
 import {
   HeadersAdapter,
   type ReadonlyHeaders,
@@ -31,6 +35,15 @@ function getHeaders(headers: Headers | IncomingHttpHeaders): ReadonlyHeaders {
   for (const header of FLIGHT_HEADERS) {
     cleaned.delete(header)
   }
+
+  // The client sends these dev-only request IDs so the server can route debug
+  // information back to the originating request. Like the flight headers, they
+  // are internal plumbing and must not be exposed to userland `headers()`. The
+  // server reads them from the raw request headers, not from here, so removing
+  // them from this copy doesn't affect the debug channel for which they are
+  // used.
+  cleaned.delete(NEXT_REQUEST_ID_HEADER)
+  cleaned.delete(NEXT_HTML_REQUEST_ID_HEADER)
 
   return HeadersAdapter.seal(cleaned)
 }

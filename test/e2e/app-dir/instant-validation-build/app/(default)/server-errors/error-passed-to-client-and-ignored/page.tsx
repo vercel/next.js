@@ -1,7 +1,7 @@
 import { cookies } from 'next/headers'
 import { IgnoreServerContent } from './client'
 
-export const unstable_instant = { level: 'experimental-error' }
+export const instant = { level: 'experimental-error' }
 export const prefetch = 'allow-runtime'
 
 export default function Page() {

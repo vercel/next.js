@@ -2,7 +2,7 @@ import { Suspense } from 'react'
 import { UncachedFetch, CachedData } from '../data-fetching'
 import { ShortLivedCache } from './data-fetching'
 
-export const unstable_instant = true
+export const instant = true
 export const prefetch = 'allow-runtime'
 
 const CACHE_KEY = __dirname + '/__LAYOUT__'

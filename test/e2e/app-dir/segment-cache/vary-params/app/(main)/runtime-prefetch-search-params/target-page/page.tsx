@@ -7,7 +7,7 @@ import { connection } from 'next/server'
  * Since searchParams are not accessed, the '?' sentinel is not added to
  * varyParams, and different search param values share the cached segment.
  */
-export const unstable_instant = {
+export const instant = {
   unstable_samples: [{ searchParams: { q: '1' } }],
 }
 export const prefetch = 'allow-runtime'

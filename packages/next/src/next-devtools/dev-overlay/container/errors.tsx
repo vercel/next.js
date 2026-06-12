@@ -25,8 +25,7 @@ import type { ReadyRuntimeError } from '../utils/get-error-by-type'
 import type { ErrorBaseProps } from '../components/errors/error-overlay/error-overlay'
 import type { HydrationErrorState } from '../../shared/hydration-error'
 import { useActiveRuntimeError } from '../hooks/use-active-runtime-error'
-import { formatCodeFrame } from '../components/code-frame/parse-code-frame'
-import stripAnsi from 'next/dist/compiled/strip-ansi'
+import { generateErrorInfo as generateErrorInfoHelper } from '../utils/generate-error-info'
 import {
   InstantHeaderExplanation,
   InstantGuidance,
@@ -257,6 +256,7 @@ function InstantRuntimeError({
   cause,
   showExplanation = true,
   dialogResizerRef,
+  generateErrorInfo,
 }: {
   error: ReadyRuntimeError
   variant: GuidanceVariant
@@ -265,6 +265,7 @@ function InstantRuntimeError({
   cause?: string
   showExplanation?: boolean
   dialogResizerRef: React.RefObject<HTMLDivElement | null>
+  generateErrorInfo: () => Promise<string>
 }) {
   const frames = useFrames(error)
 
@@ -292,6 +293,7 @@ function InstantRuntimeError({
         explanation={explanation}
         cause={cause}
         showExplanation={showExplanation}
+        generateErrorInfo={generateErrorInfo}
       />
       {frames.length > 0 && (
         <ErrorOverlayCallStack
@@ -363,7 +365,7 @@ export function isSyncIOClientError(message: string): boolean {
 export function isBlockingRouteInNavError(message: string): boolean {
   return (
     message.includes('or a navigation') ||
-    message.includes('Could not validate `unstable_instant`') ||
+    message.includes('Could not validate `instant`') ||
     message.includes(
       'Could not validate that a segment in your UI has instant navigation'
     )
@@ -377,7 +379,9 @@ export function getBlockingRouteErrorDetails(
   const inNavigation = isBlockingRouteInNavError(message)
 
   const clientHookMatch =
-    /A Client Component used `([^`]+)` outside of `<Suspense>`\./.exec(message)
+    /Next\.js encountered URL data `([^`]+)` in a Client Component outside of `<Suspense>`\./.exec(
+      message
+    )
   if (clientHookMatch) {
     return {
       type: 'client-hook',
@@ -621,89 +625,16 @@ export function Errors({
     },
   })
 
-  const generateErrorInfo = useCallback(async () => {
-    if (!activeError) return ''
-
-    const parts: string[] = []
-
-    // 1. Error Type
-    if (errorType) {
-      parts.push(`## Error Type\n${errorType}`)
-    }
-
-    // 2. Error Message
-    const error = activeError.error
-    let message = error.message
-    if ('environmentName' in error && error.environmentName) {
-      const envPrefix = `[ ${error.environmentName} ] `
-      if (message.startsWith(envPrefix)) {
-        message = message.slice(envPrefix.length)
-      }
-    }
-    if (message) {
-      parts.push(`## Error Message\n${message}`)
-    }
-
-    const frames = await Promise.race([
-      activeError.frames(),
-      new Promise<null>((resolve) => setTimeout(() => resolve(null), 2000)),
-    ])
-
-    // Append call stack
-    if (frames === null) {
-      parts.push(
-        'Unable to retrieve stack frames for this error. Falling back to unsourcemapped stack\n\n' +
-          error.stack
-      )
-    } else {
-      if (frames.length > 0) {
-        const visibleFrames = frames.filter((frame) => !frame.ignored)
-        if (visibleFrames.length > 0) {
-          const stackLines = visibleFrames
-            .map((frame) => {
-              if (frame.originalStackFrame) {
-                const { methodName, file, line1, column1 } =
-                  frame.originalStackFrame
-                return `    at ${methodName} (${file}:${line1}:${column1})`
-              } else if (frame.sourceStackFrame) {
-                const { methodName, file, line1, column1 } =
-                  frame.sourceStackFrame
-                return `    at ${methodName} (${file}:${line1}:${column1})`
-              }
-              return ''
-            })
-            .filter(Boolean)
-
-          if (stackLines.length > 0) {
-            parts.push(`\n${stackLines.join('\n')}`)
-          }
-        }
-      }
-
-      // 3. Code Frame (decoded)
-      const firstFirstPartyFrameIndex = frames.findIndex(
-        (entry) =>
-          !entry.ignored &&
-          Boolean(entry.originalCodeFrame) &&
-          Boolean(entry.originalStackFrame)
-      )
-
-      const firstFrame = frames[firstFirstPartyFrameIndex] ?? null
-      if (firstFrame?.originalCodeFrame) {
-        const decodedCodeFrame = stripAnsi(
-          formatCodeFrame(firstFrame.originalCodeFrame)
-        )
-        parts.push(`## Code Frame\n${decodedCodeFrame}`)
-      }
-    }
-
-    // Format as markdown error info
-    const errorInfo = `${parts.join('\n\n')}
-
-Next.js version: ${props.versionInfo.installed} (${process.env.__NEXT_BUNDLER})\n`
-
-    return errorInfo
-  }, [activeError, errorType, props.versionInfo])
+  const generateErrorInfo = useCallback(
+    () =>
+      generateErrorInfoHelper({
+        activeError,
+        errorType,
+        versionInfo: props.versionInfo.installed,
+        bundler: process.env.__NEXT_BUNDLER as string,
+      }),
+    [activeError, errorType, props.versionInfo]
+  )
 
   if (isLoading) {
     // TODO: better loading state
@@ -906,6 +837,7 @@ Next.js version: ${props.versionInfo.installed} (${process.env.__NEXT_BUNDLER})\
               variant={errorDetails.variant}
               showExplanation={false}
               dialogResizerRef={dialogResizerRef}
+              generateErrorInfo={generateErrorInfo}
             />
           </Suspense>
         </ErrorOverlayLayout>
@@ -917,8 +849,9 @@ Next.js version: ${props.versionInfo.installed} (${process.env.__NEXT_BUNDLER})\
           errorType={errorType}
           errorMessage={
             <>
-              A Client Component used <code>{errorDetails.expression}</code>{' '}
-              outside of <code>&lt;Suspense&gt;</code>.
+              Next.js encountered URL data{' '}
+              <code>{errorDetails.expression}</code> in a Client Component
+              outside of Suspense.
             </>
           }
           headerChildren={<InstantHeaderExplanation kind="client-hook" />}
@@ -946,6 +879,7 @@ Next.js version: ${props.versionInfo.installed} (${process.env.__NEXT_BUNDLER})\
               cause={errorDetails.expression}
               showExplanation={false}
               dialogResizerRef={dialogResizerRef}
+              generateErrorInfo={generateErrorInfo}
             />
           </Suspense>
         </ErrorOverlayLayout>
@@ -997,6 +931,7 @@ Next.js version: ${props.versionInfo.installed} (${process.env.__NEXT_BUNDLER})\
               kind="metadata"
               showExplanation={false}
               dialogResizerRef={dialogResizerRef}
+              generateErrorInfo={generateErrorInfo}
             />
           </Suspense>
         </ErrorOverlayLayout>
@@ -1048,6 +983,7 @@ Next.js version: ${props.versionInfo.installed} (${process.env.__NEXT_BUNDLER})\
               kind="viewport"
               showExplanation={false}
               dialogResizerRef={dialogResizerRef}
+              generateErrorInfo={generateErrorInfo}
             />
           </Suspense>
         </ErrorOverlayLayout>
@@ -1093,6 +1029,7 @@ Next.js version: ${props.versionInfo.installed} (${process.env.__NEXT_BUNDLER})\
               cause={errorDetails.cause}
               showExplanation={false}
               dialogResizerRef={dialogResizerRef}
+              generateErrorInfo={generateErrorInfo}
             />
           </Suspense>
         </ErrorOverlayLayout>
@@ -1138,6 +1075,7 @@ Next.js version: ${props.versionInfo.installed} (${process.env.__NEXT_BUNDLER})\
               cause={errorDetails.cause}
               showExplanation={false}
               dialogResizerRef={dialogResizerRef}
+              generateErrorInfo={generateErrorInfo}
             />
           </Suspense>
         </ErrorOverlayLayout>

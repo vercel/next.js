@@ -1,7 +1,7 @@
 import { cookies } from 'next/headers'
 import { connection } from 'next/server'
 
-export const unstable_instant = {
+export const instant = {
   level: 'experimental-error',
   unstable_samples: [{ cookies: [{ name: 'auth', value: '1' }] }],
 }

@@ -3,6 +3,7 @@ import {
   assertNoConsoleErrors,
   waitForNoErrorToast,
   retry,
+  waitFor,
 } from 'next-test-utils'
 import type { Playwright } from 'e2e-utils'
 import stripAnsi from 'strip-ansi'
@@ -1186,6 +1187,13 @@ describe('use-cache', () => {
 
   if (withCacheComponents) {
     it('can resume a cached generateMetadata function', async () => {
+      // In dev the initial request fills the caches while streaming the
+      // response. The second request will have filled caches and server a
+      // prod-like shell.
+      if (isNextDev) {
+        await next.fetch('/generate-metadata-resume/nested')
+      }
+
       // First load the page with JavaScript disabled, to ensure that the
       // generateMetadata result was included in the prerendered shell.
       let browser = await next.browser('/generate-metadata-resume/nested', {
@@ -1607,17 +1615,28 @@ describe('use-cache', () => {
     expect(first).toBe(second)
   })
 
-  it('should not dedupe private caches across concurrent requests', async () => {
+  it('dedupes private caches across concurrent requests in dev but not in production', async () => {
     const [first$, second$] = await Promise.all([
-      next.render$('/private-dedup'),
-      next.render$('/private-dedup'),
+      next.render$('/private-dedup-cross-request'),
+      next.render$('/private-dedup-cross-request'),
     ])
 
-    const firstValue = first$('.rand').first().text()
-    const secondValue = second$('.rand').first().text()
+    const firstValue = first$('.rand').text()
+    const secondValue = second$('.rand').text()
 
-    // Across requests, private caches must NOT be deduped.
-    expect(firstValue).not.toBe(secondValue)
+    if (isNextDev) {
+      // In dev, private caches are persisted and keyed by the request's cookies
+      // and headers, so two concurrent requests with identical request data
+      // join one in-flight invocation and share a single fill. Different
+      // cookies or headers yield different entries; that's covered by 'keys
+      // persisted entries by cookies in dev' and 'keys persisted entries by
+      // headers in dev' in the use-cache-private suite.
+      expect(firstValue).toBe(secondValue)
+    } else {
+      // In production, private caches are not persisted, so each request
+      // generates its own entry; across requests they are never deduped.
+      expect(firstValue).not.toBe(secondValue)
+    }
   })
 
   it('should stream the result of a deduped invocation', async () => {
@@ -1628,6 +1647,36 @@ describe('use-cache', () => {
     // The loading boundaries of both inner cache functions are expected to be
     // shown while the page is loading.
     expect(html).toIncludeRepeated('<p class="loading">Loading...</p>', 2)
+  })
+
+  it('serves a stale cache entry on reload in dev and warms a fresh one in the background', async () => {
+    const browser = await next.browser('/stale-while-revalidate')
+    const initialValue = await browser.waitForElementByCss('#value').text()
+
+    // Let the 2s `revalidate` elapse. The entry is now stale, but still far
+    // inside its 300s `expire` window.
+    await waitFor(3000)
+
+    await browser.refresh()
+    const reloadedValue = await browser.waitForElementByCss('#value').text()
+
+    if (isNextDev) {
+      // In dev the default in-memory cache handler serves the stale entry
+      // instead of dropping it at `revalidate`, so the reload shows the
+      // previous value immediately and warms a fresh entry in the background.
+      expect(reloadedValue).toBe(initialValue)
+
+      // A subsequent reload reflects the freshly warmed value.
+      await retry(async () => {
+        await browser.refresh()
+        const warmedValue = await browser.waitForElementByCss('#value').text()
+        expect(warmedValue).not.toBe(initialValue)
+      })
+    } else {
+      // In production the in-memory handler keeps dropping the entry at
+      // `revalidate`, so the reload re-runs the cache and shows a fresh value.
+      expect(reloadedValue).not.toBe(initialValue)
+    }
   })
 })
 

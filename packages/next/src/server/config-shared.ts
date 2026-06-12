@@ -15,6 +15,8 @@ import type { ExperimentalPPRConfig } from './lib/experimental/ppr'
 import { INFINITE_CACHE } from '../lib/constants'
 import type { FallbackRouteParam } from '../build/static-paths/types'
 import type { MemoryEvictionMode } from '../build/swc/types'
+import { isStableBuild } from '../shared/lib/errors/canary-only-config-error'
+import { isCI } from './ci-info'
 
 /**
  * Resolved form of the prefetchInlining config after normalization in
@@ -796,7 +798,7 @@ export interface ExperimentalConfig {
   /**
    * Enable filesystem cache for the turbopack build.
    *
-   * Defaults to `false`.
+   * Defaults to `true` in canary/preview builds, `false` in production.
    */
   turbopackFileSystemCacheForBuild?: boolean
 
@@ -1092,9 +1094,9 @@ export interface ExperimentalConfig {
      * Controls the validation behavior of Instant Insights
      *
      * - `'warning'` (default): Validates all navigations for Instant UI in development
-     * - `'manual-warning'`: Validates navigations for Instant UI in development only when configured with `unstable_instant` in Pages and Layouts
+     * - `'manual-warning'`: Validates navigations for Instant UI in development only when configured with `instant` in Pages and Layouts
      * - `'experimental-error'`: Validates all navigations for Instant in development and build. Use with caution.
-     * - `'experimental-manual-error'`: Validates navigations for Instant UI in development and build when configured with `unstable_instant` in Pages and Layouts. Use with caution.
+     * - `'experimental-manual-error'`: Validates navigations for Instant UI in development and build when configured with `instant` in Pages and Layouts. Use with caution.
      */
     validationLevel?: ValidationLevel
   }
@@ -1345,7 +1347,7 @@ export type ExportPathMap = {
     /**
      * When true, run build-time instant validation for this export path.
      * Only set on the first export entry per page, since validation uses
-     * unstable_instant.unstable_samples (not actual params from generateStaticParams),
+     * instant.unstable_samples (not actual params from generateStaticParams),
      * so the result is the same for all param combinations.
      *
      * @internal
@@ -2070,13 +2072,22 @@ export const defaultConfig = Object.freeze({
     hideLogsAfterAbort: false,
     mcpServer: true,
     turbopackFileSystemCacheForDev: true,
-    turbopackFileSystemCacheForBuild: false,
+    turbopackFileSystemCacheForBuild: turbopackFileSystemCacheForBuildDefault(),
     turbopackInferModuleSideEffects: true,
     turbopackPluginRuntimeStrategy: 'childProcesses',
   },
   htmlLimitedBots: undefined,
   bundlePagesRouterDependencies: false,
 } satisfies NextConfig)
+
+function turbopackFileSystemCacheForBuildDefault() {
+  if (isStableBuild()) return false
+  if (isCI && process.env.NOW_BUILDER) {
+    // Assume caching is available on vercel
+    return true
+  }
+  return false
+}
 
 export async function normalizeConfig(phase: string, config: any) {
   if (typeof config === 'function') {

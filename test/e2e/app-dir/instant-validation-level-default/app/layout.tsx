@@ -10,7 +10,7 @@ import { Suspense, type ReactNode } from 'react'
 // (the Suspense fallback renders into the static shell). Instant
 // validation flags "Suspense too high for instant navigation" as an
 // instant-specific violation when it runs.
-export const unstable_instant = false
+export const instant = false
 
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (

@@ -7,6 +7,7 @@ import type {
 import type { CacheNode } from '../../../shared/lib/app-router-types'
 import type { HeadData } from '../../../shared/lib/app-router-types'
 import {
+  PrefetchHint,
   SubtreePrefetchHints,
   propagateSubtreeBits,
 } from '../../../shared/lib/app-router-types'
@@ -16,6 +17,8 @@ import {
   startPPRNavigation,
   spawnDynamicRequests,
   FreshnessPolicy,
+  getCurrentNavigationLock,
+  type NavigationLock,
   type NavigationRequestAccumulation,
 } from '../router-reducer/ppr-navigations'
 import { createHrefFromUrl } from '../router-reducer/create-href-from-url'
@@ -64,6 +67,8 @@ export function navigate(
   scrollBehavior: ScrollBehavior,
   navigateType: 'push' | 'replace'
 ): AppRouterState | Promise<AppRouterState> {
+  let navigationLock: NavigationLock = null
+
   // Instant Navigation Testing API: when the lock is active, ensure a
   // prefetch task has been initiated before proceeding with the navigation.
   // This guarantees that segment data requests are at least pending, even
@@ -74,6 +79,7 @@ export function navigate(
     const { isNavigationLocked } =
       require('./navigation-testing-lock') as typeof import('./navigation-testing-lock')
     if (isNavigationLocked()) {
+      navigationLock = getCurrentNavigationLock()
       return ensurePrefetchThenNavigate(
         state,
         url,
@@ -84,7 +90,8 @@ export function navigate(
         nextUrl,
         freshnessPolicy,
         scrollBehavior,
-        navigateType
+        navigateType,
+        navigationLock
       )
     }
   }
@@ -99,7 +106,8 @@ export function navigate(
     nextUrl,
     freshnessPolicy,
     scrollBehavior,
-    navigateType
+    navigateType,
+    navigationLock
   )
 }
 
@@ -113,7 +121,8 @@ function navigateImpl(
   nextUrl: string | null,
   freshnessPolicy: FreshnessPolicy,
   scrollBehavior: ScrollBehavior,
-  navigateType: 'push' | 'replace'
+  navigateType: 'push' | 'replace',
+  navigationLock: NavigationLock
 ): AppRouterState | Promise<AppRouterState> {
   const now = Date.now()
   const href = url.href
@@ -134,7 +143,8 @@ function navigateImpl(
       freshnessPolicy,
       scrollBehavior,
       navigateType,
-      route
+      route,
+      navigationLock
     )
   }
 
@@ -170,7 +180,8 @@ function navigateImpl(
           freshnessPolicy,
           scrollBehavior,
           navigateType,
-          optimisticRoute
+          optimisticRoute,
+          navigationLock
         )
       }
     }
@@ -192,7 +203,8 @@ function navigateImpl(
     currentFlightRouterState,
     freshnessPolicy,
     scrollBehavior,
-    navigateType
+    navigateType,
+    navigationLock
   ).catch(() => {
     // If the navigation fails, return the current state
     return state
@@ -213,6 +225,7 @@ export function navigateToKnownRoute(
   nextUrl: string | null,
   scrollBehavior: ScrollBehavior,
   navigateType: 'push' | 'replace',
+  navigationLock: NavigationLock,
   debugInfo: Array<unknown> | null,
   // The route cache entry used for this navigation, if it came from route
   // prediction. Passed through so it can be marked as having a dynamic rewrite
@@ -229,6 +242,52 @@ export function navigateToKnownRoute(
 ): AppRouterState {
   // A version of navigate() that accepts the target route tree as an argument
   // rather than reading it from the prefetch cache.
+  if (
+    process.env.NODE_ENV !== 'production' &&
+    process.env.__NEXT_CACHE_COMPONENTS
+  ) {
+    // Warn when navigating via a `<Link prefetch={true}>` to a route that has
+    // not opted into Partial Prefetching. Such a link does a legacy "full"
+    // prefetch that includes the route's dynamic data, defeating the
+    // static/dynamic split that Cache Components provides.
+    //
+    // This runs at navigation time (rather than prefetch time) so that, in dev
+    // where we don't prefetch, the warning only appears when you actually
+    // navigate to the route — existing apps with many `prefetch={true}` links
+    // aren't flooded with warnings the moment they enable Cache Components.
+    const link = getLinkForCurrentNavigation()
+    if (
+      link !== null &&
+      link.fetchStrategy === FetchStrategy.Full &&
+      (navigationSeed.routeTree.prefetchHints &
+        PrefetchHint.SubtreeHasPartialPrefetching) ===
+        0
+    ) {
+      const error = new Error(
+        `A <Link prefetch={true}> navigated to "${url.pathname}", but Partial ` +
+          `Prefetching is not enabled for that route, so its dynamic data was ` +
+          `included in the prefetch. Enable Partial Prefetching app-wide by ` +
+          `setting \`partialPrefetching: true\` in next.config, or per-route by ` +
+          `exporting \`const prefetch = 'partial'\` from the page or layout.`
+      )
+      const ownerStack = 'ownerStack' in link ? link.ownerStack : undefined
+      if (ownerStack === undefined) {
+        console.error(
+          '' +
+            'Cannot associate the "prefetch={true}" warning with a specific <Link> making it harder to find the cause of the following warning. ' +
+            'This is a bug in Next.js.'
+        )
+      } else if (ownerStack !== null) {
+        // Replace the (useless) stack captured at the throw site — which
+        // points into router internals — with the Owner Stack captured when
+        // the <Link> rendered. That way the dev overlay associates this
+        // warning with the JSX that created the link, not with
+        // navigation.ts.
+        error.stack = `${error.name}: ${error.message}${ownerStack}`
+      }
+      console.error(error)
+    }
+  }
   const accumulation: NavigationRequestAccumulation = {
     separateRefreshUrls: null,
     scrollRef: null,
@@ -276,7 +335,8 @@ export function navigateToKnownRoute(
         freshnessPolicy,
         accumulation,
         routeCacheEntry,
-        navigateType
+        navigateType,
+        navigationLock
       )
     }
     return completeSoftNavigation(
@@ -309,7 +369,8 @@ function navigateUsingPrefetchedRouteTree(
   freshnessPolicy: FreshnessPolicy,
   scrollBehavior: ScrollBehavior,
   navigateType: 'push' | 'replace',
-  route: FulfilledRouteCacheEntry
+  route: FulfilledRouteCacheEntry,
+  navigationLock: NavigationLock
 ): AppRouterState {
   const routeTree = route.tree
   const canonicalUrl = route.canonicalUrl + url.hash
@@ -336,6 +397,7 @@ function navigateUsingPrefetchedRouteTree(
     nextUrl,
     scrollBehavior,
     navigateType,
+    navigationLock,
     null,
     route
   )
@@ -364,7 +426,8 @@ async function navigateToUnknownRoute(
   currentFlightRouterState: FlightRouterState,
   freshnessPolicy: FreshnessPolicy,
   scrollBehavior: ScrollBehavior,
-  navigateType: 'push' | 'replace'
+  navigateType: 'push' | 'replace',
+  navigationLock: NavigationLock
 ): Promise<AppRouterState> {
   // Runs when a navigation happens but there's no cached prefetch we can use.
   // Don't bother to wait for a prefetch response; go straight to a full
@@ -529,6 +592,7 @@ async function navigateToUnknownRoute(
     nextUrl,
     scrollBehavior,
     navigateType,
+    navigationLock,
     debugInfo,
     // Unknown route navigations don't use route prediction - the route tree
     // came directly from the server. If a mismatch occurs during dynamic data
@@ -966,7 +1030,8 @@ async function ensurePrefetchThenNavigate(
   nextUrl: string | null,
   freshnessPolicy: FreshnessPolicy,
   scrollBehavior: ScrollBehavior,
-  navigateType: 'push' | 'replace'
+  navigateType: 'push' | 'replace',
+  navigationLock: NavigationLock
 ): Promise<AppRouterState> {
   const link = getLinkForCurrentNavigation()
   const fetchStrategy = link !== null ? link.fetchStrategy : FetchStrategy.PPR
@@ -996,7 +1061,8 @@ async function ensurePrefetchThenNavigate(
     nextUrl,
     freshnessPolicy,
     scrollBehavior,
-    navigateType
+    navigateType,
+    navigationLock
   )
 
   // Only transition to captured-SPA once the navigation is known to be an SPA.

@@ -230,8 +230,8 @@ fn path_join<'a>(arena: &'a Bump, args: BumpVec<'a, JsValue<'a>>) -> JsValue<'a>
     if args.is_empty() {
         return rcstr!(".").into();
     }
-    let mut results_final: SmallVec<[JsValue<'a>; 16]> = SmallVec::new();
-    let mut results: SmallVec<[JsValue<'a>; 16]> = SmallVec::new();
+    let mut locked_prefix: SmallVec<[JsValue<'a>; 16]> = SmallVec::new();
+    let mut segments: SmallVec<[JsValue<'a>; 16]> = SmallVec::new();
     for arg in args {
         let arg_parts = if let Some(str) = arg.as_str() {
             let split = str.split('/');
@@ -243,42 +243,45 @@ fn path_join<'a>(arena: &'a Bump, args: BumpVec<'a, JsValue<'a>>) -> JsValue<'a>
             if let Some(str) = item.as_str() {
                 match str {
                     "" | "." => {
-                        if results_final.is_empty() && results.is_empty() {
-                            results_final.push(item);
+                        if locked_prefix.is_empty() && segments.is_empty() {
+                            locked_prefix.push(item);
                         }
                     }
                     ".." => {
-                        if results.pop().is_none() {
-                            results_final.push(item);
+                        if segments.pop().is_none() {
+                            locked_prefix.push(item);
                         }
                     }
-                    _ => results.push(item),
+                    _ => segments.push(item),
                 }
             } else {
-                results_final.append(&mut results);
-                results_final.push(item);
+                locked_prefix.append(&mut segments);
+                locked_prefix.push(item);
             }
         }
     }
-    results_final.append(&mut results);
-    let mut iter = results_final.into_iter();
+    locked_prefix.append(&mut segments);
+    let mut iter = locked_prefix.into_iter();
     let first = iter.next().unwrap();
     let mut last_is_str = first.as_str().is_some();
-    results.push(first);
+    // `segments` is now empty; reuse it as the render buffer (`result`) for the
+    // joined parts to avoid allocating a third vec.
+    let mut result = segments;
+    result.push(first);
     for part in iter {
         let is_str = part.as_str().is_some();
         if last_is_str && is_str {
-            results.push(rcstr!("/").into());
+            result.push(rcstr!("/").into());
         } else {
-            results.push(JsValue::alternatives(BumpVec::from_iter_in(
+            result.push(JsValue::alternatives(BumpVec::from_iter_in(
                 arena,
                 [rcstr!("/").into(), rcstr!("").into()],
             )));
         }
-        results.push(part);
+        result.push(part);
         last_is_str = is_str;
     }
-    JsValue::concat(BumpVec::from_iter_in(arena, results))
+    JsValue::concat(BumpVec::from_iter_in(arena, result))
 }
 
 fn path_resolve<'a>(
@@ -1094,5 +1097,188 @@ fn protobuf_loader<'a>(arena: &'a Bump, prop: JsValue<'a>) -> JsValue<'a> {
             true,
             rcstr!("unsupported property on require('@grpc/proto-loader') object"),
         ),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use bumpalo::Bump;
+
+    use super::path_join;
+    use crate::analyzer::{BumpVec, JsValue};
+
+    /// Renders the result of [`path_join`] into a single `String`.
+    ///
+    /// `path_join` returns a [`JsValue::Concat`] of the resulting path segments
+    /// interleaved with `/` separators (or a bare [`JsValue::Constant`] for the
+    /// empty-args case). When every input is a constant string the entire result
+    /// is made of constant strings, so we can flatten it back into the joined
+    /// path by concatenating each leaf. This avoids relying on `normalize`, which
+    /// would collapse a result of `""` into an empty `Concat` rather than a
+    /// `Constant`.
+    ///
+    /// For non-constant inputs the result also contains [`JsValue::FreeVar`]
+    /// leaves and `"/"`-or-`""` separator [`JsValue::Alternatives`]; we render a
+    /// free var as its name and pick the first (`"/"`) option of a separator so
+    /// the rendering stays deterministic.
+    fn render(value: &JsValue<'_>) -> String {
+        match value {
+            JsValue::Concat(_, parts) => parts.iter().map(render).collect(),
+            JsValue::Alternatives { values, .. } => render(&values[0]),
+            JsValue::FreeVar(name) => name.to_string(),
+            other => other
+                .as_str()
+                .expect("path_join over constant strings should yield constant strings")
+                .to_string(),
+        }
+    }
+
+    /// Calls `path_join` with the given string segments and returns the joined
+    /// path as a `String`.
+    fn join(arena: &Bump, segments: &[&str]) -> String {
+        let args = BumpVec::from_iter_in(arena, segments.iter().map(|s| JsValue::from(*s)));
+        render(&path_join(arena, args))
+    }
+
+    /// Cases where `path_join`'s static-analysis result matches the runtime
+    /// behaviour of Node's `path.posix.join`.
+    ///
+    /// Mirrors the `joinTests` table in Node's `test/parallel/test-path-join.js`:
+    /// <https://github.com/nodejs/node/blob/main/test/parallel/test-path-join.js>
+    #[test]
+    fn matches_node_path_posix_join() {
+        let arena = Bump::new();
+
+        assert_eq!(join(&arena, &[]), ".");
+        assert_eq!(join(&arena, &["/.", "x/b", "..", "/b/c.js"]), "/x/b/c.js");
+        assert_eq!(join(&arena, &["foo", "../../../bar"]), "../../bar");
+        assert_eq!(join(&arena, &["foo/", "../../../bar"]), "../../bar");
+        assert_eq!(join(&arena, &["foo/x", "../../../bar"]), "../bar");
+        assert_eq!(join(&arena, &["foo/x", "./bar"]), "foo/x/bar");
+        assert_eq!(join(&arena, &["foo/x/", "./bar"]), "foo/x/bar");
+        assert_eq!(join(&arena, &["foo/x/", ".", "bar"]), "foo/x/bar");
+        assert_eq!(join(&arena, &[".", ".", "."]), ".");
+        assert_eq!(join(&arena, &[".", "./", "."]), ".");
+        assert_eq!(join(&arena, &[".", "/./", "."]), ".");
+        assert_eq!(join(&arena, &[".", "/////./", "."]), ".");
+        assert_eq!(join(&arena, &["."]), ".");
+        assert_eq!(join(&arena, &["foo", "/bar"]), "foo/bar");
+        assert_eq!(join(&arena, &["", "/foo"]), "/foo");
+        assert_eq!(join(&arena, &["", "", "/foo"]), "/foo");
+        assert_eq!(join(&arena, &["foo", ""]), "foo");
+        assert_eq!(join(&arena, &["foo", "", "/bar"]), "foo/bar");
+        assert_eq!(join(&arena, &[" /foo"]), " /foo");
+        assert_eq!(join(&arena, &[" ", "foo"]), " /foo");
+        assert_eq!(join(&arena, &[" ", "."]), " ");
+        assert_eq!(join(&arena, &[" ", ""]), " ");
+        assert_eq!(join(&arena, &["/", "foo"]), "/foo");
+        assert_eq!(join(&arena, &["/", "/foo"]), "/foo");
+        assert_eq!(join(&arena, &["/", "//foo"]), "/foo");
+        assert_eq!(join(&arena, &["/", "", "/foo"]), "/foo");
+        assert_eq!(join(&arena, &["", "/", "foo"]), "/foo");
+        assert_eq!(join(&arena, &["", "/", "/foo"]), "/foo");
+    }
+
+    /// `..` cancels the most recent entry on the poppable `segments` stack.
+    #[test]
+    fn dotdot_pops_from_segments() {
+        let arena = Bump::new();
+
+        assert_eq!(join(&arena, &["foo/bar/baz", "../.."]), "foo");
+        assert_eq!(join(&arena, &["a/b", ".."]), "a");
+        assert_eq!(join(&arena, &["a/b/c/d", "../../.."]), "a");
+        // The `..` only pops what is currently on the stack.
+        assert_eq!(join(&arena, &["a/b", "../../c"]), "c");
+    }
+
+    /// When `segments` is empty there is nothing to pop, so `..` is committed to
+    /// `locked_prefix` instead. Once there it can no longer be cancelled, which
+    /// is why `..` is not clamped at the root.
+    #[test]
+    fn unpoppable_dotdot_is_locked_into_prefix() {
+        let arena = Bump::new();
+
+        assert_eq!(join(&arena, &["../../foo"]), "../../foo");
+        // The leading `..` is locked into the prefix; the later `foo/..` cancels
+        // within `segments`, leaving only the locked `..`.
+        assert_eq!(join(&arena, &["..", "foo", ".."]), "..");
+        // `..` past an absolute root accumulates rather than being clamped.
+        assert_eq!(join(&arena, &["/foo", "../../bar"]), "/../bar");
+    }
+
+    /// A leading `.` (or empty segment) is locked into `locked_prefix`, but only
+    /// while both stacks are still empty — interior `.`/empty segments are
+    /// dropped.
+    #[test]
+    fn leading_dot_is_locked_but_interior_is_dropped() {
+        let arena = Bump::new();
+
+        assert_eq!(join(&arena, &["./foo", ".", "bar"]), "./foo/bar");
+        assert_eq!(join(&arena, &["foo/x", ".", "bar"]), "foo/x/bar");
+        assert_eq!(join(&arena, &[".", ".", "."]), ".");
+    }
+
+    /// Cases where `path_join`'s static-analysis result diverges from Node's
+    /// `path.posix.join`. These all involve absolute paths (a leading `/`) or
+    /// empty-string inputs, which the static analysis does not model the same way
+    /// Node does at runtime.
+    ///
+    /// The assertions below are intentionally commented out — they describe the
+    /// behaviour we would want to match (Node's computed value) but which
+    /// `path_join` does not currently produce. The trailing comment on each line
+    /// records what `path_join` returns today.
+    ///
+    /// Mirrors additional rows of the `joinTests` table in Node's
+    /// `test/parallel/test-path-join.js`:
+    /// <https://github.com/nodejs/node/blob/main/test/parallel/test-path-join.js>
+    #[test]
+    fn diverges_from_node_path_posix_join() {
+        // let arena = Bump::new();
+
+        // path_join: "/foo"
+        // assert_eq!(join(&arena, &["", "foo"]), "foo");
+        // path_join: "/foo"
+        // assert_eq!(join(&arena, &["", "", "foo"]), "foo");
+        // path_join: "/../../foo"
+        // assert_eq!(join(&arena, &["", "..", "..", "/foo"]), "../../foo");
+        // path_join: ""
+        // assert_eq!(join(&arena, &["/"]), "/");
+        // path_join: ""
+        // assert_eq!(join(&arena, &["/", "."]), "/");
+        // path_join: "/../../bar"
+        // assert_eq!(join(&arena, &["/foo", "../../../bar"]), "/bar");
+        // path_join: "/.."
+        // assert_eq!(join(&arena, &["/", ".."]), "/");
+        // path_join: "/../.."
+        // assert_eq!(join(&arena, &["/", "..", ".."]), "/");
+        // path_join: ""
+        // assert_eq!(join(&arena, &["", "."]), ".");
+        // path_join: ""
+        // assert_eq!(join(&arena, &[""]), ".");
+        // path_join: ""
+        // assert_eq!(join(&arena, &["", ""]), ".");
+    }
+
+    /// A non-constant (dynamic) segment flushes the working `segments` stack into
+    /// `locked_prefix` and freezes everything before it. A later `..` cannot pop
+    /// across that boundary, unlike the all-constant case.
+    #[test]
+    fn dynamic_segment_freezes_preceding_segments() {
+        let arena = Bump::new();
+
+        // Baseline: with all-constant segments, `..` pops `x` off `segments`.
+        assert_eq!(join(&arena, &["foo", "x", ".."]), "foo");
+
+        // With a dynamic segment between `foo` and `..`, `foo` is flushed into
+        // `locked_prefix` and survives — the trailing `..` cannot reach it.
+        let args = BumpVec::from_iter_in(
+            &arena,
+            [
+                JsValue::from("foo"),
+                JsValue::FreeVar("dynamic".into()),
+                JsValue::from(".."),
+            ],
+        );
+        assert_eq!(render(&path_join(&arena, args)), "foo/dynamic/..");
     }
 }

@@ -5,7 +5,7 @@
 import { ReactNode, Suspense } from 'react'
 import { cookies } from 'next/headers'
 
-export const unstable_instant = {
+export const instant = {
   unstable_samples: [{ cookies: [{ name: 'theme', value: 'default' }] }],
 }
 export const prefetch = 'allow-runtime'
