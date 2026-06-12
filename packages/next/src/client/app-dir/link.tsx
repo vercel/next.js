@@ -22,6 +22,7 @@ import {
   FetchStrategy,
   type PrefetchTaskFetchStrategy,
 } from '../components/segment-cache/types'
+import type { RouterTransitionPrefetchIntent } from '../router-transition-types'
 
 type Url = string | UrlObject
 type RequiredKeys<T> = {
@@ -256,7 +257,8 @@ function linkClicked(
   replace?: boolean,
   scroll?: boolean,
   onNavigate?: OnNavigateEventHandler,
-  transitionTypes?: string[]
+  transitionTypes?: string[],
+  prefetchIntent: RouterTransitionPrefetchIntent = 'none'
 ): void {
   if (typeof window !== 'undefined') {
     const { nodeName } = e.currentTarget
@@ -308,7 +310,8 @@ function linkClicked(
         replace ? 'replace' : 'push',
         scroll === false ? ScrollBehavior.NoScroll : ScrollBehavior.Default,
         linkInstanceRef.current,
-        transitionTypes
+        transitionTypes,
+        prefetchIntent
       )
     })
   }
@@ -376,6 +379,8 @@ export default function LinkComponent(
   const router = React.useContext(AppRouterContext)
 
   const prefetchEnabled = prefetchProp !== false
+  const prefetchIntent: RouterTransitionPrefetchIntent =
+    prefetchProp === false ? 'none' : prefetchProp === true ? 'full' : 'auto'
 
   const fetchStrategy =
     prefetchProp !== false
@@ -692,7 +697,8 @@ export default function LinkComponent(
         replace,
         scroll,
         onNavigate,
-        transitionTypes
+        transitionTypes,
+        prefetchIntent
       )
     },
     onMouseEnter(e) {
