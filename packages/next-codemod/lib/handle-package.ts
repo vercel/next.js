@@ -1,8 +1,56 @@
 import findUp from 'find-up'
 import execa from 'execa'
+import { execSync } from 'node:child_process'
 import { basename } from 'node:path'
 
 export type PackageManager = 'npm' | 'pnpm' | 'yarn' | 'bun'
+
+/**
+ * Get the full version string for the given package manager.
+ *
+ * First tries to parse from `npm_config_user_agent` (e.g., "pnpm/9.13.2 npm/? ..."),
+ * then falls back to spawning `<packageManager> --version`.
+ *
+ * Returns null if unable to determine the version.
+ *
+ * Mirrors `packages/create-next-app/helpers/get-pkg-manager.ts`.
+ */
+export function getPackageManagerVersion(
+  packageManager: PackageManager
+): string | null {
+  const userAgent = process.env.npm_config_user_agent || ''
+  const userAgentMatch = userAgent.match(
+    new RegExp(`${packageManager}/([\\d.]+[\\w.-]*)`)
+  )
+  if (userAgentMatch) {
+    return userAgentMatch[1]
+  }
+
+  try {
+    const version = execSync(`${packageManager} --version`, {
+      encoding: 'utf8',
+      stdio: ['pipe', 'pipe', 'ignore'],
+    }).trim()
+    if (/^\d+\.\d+\.\d+/.test(version)) {
+      return version
+    }
+  } catch {
+    // package manager not available or failed to run
+  }
+
+  return null
+}
+
+/**
+ * Get the major version of pnpm being used.
+ * Returns null if unable to determine the version.
+ */
+export function getPnpmMajorVersion(): number | null {
+  const version = getPackageManagerVersion('pnpm')
+  if (!version) return null
+  const major = parseInt(version.split('.')[0], 10)
+  return Number.isNaN(major) ? null : major
+}
 
 export function getPkgManager(baseDir: string): PackageManager {
   try {

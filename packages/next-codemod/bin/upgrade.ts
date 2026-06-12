@@ -12,6 +12,7 @@ import path from 'path'
 import pc from 'picocolors'
 import {
   getPkgManager,
+  getPnpmMajorVersion,
   addPackageDependency,
   runInstallation,
 } from '../lib/handle-package'
@@ -661,6 +662,17 @@ function writeOverridesField(
       packageJson.overrides[key] = value
     }
   } else if (packageManager === 'pnpm') {
+    // pnpm v11 silently ignores `pnpm.overrides` in package.json. The
+    // canonical location moved to `pnpm-workspace.yaml#overrides`.
+    // See https://pnpm.io/settings and https://github.com/pnpm/pnpm/issues/11536.
+    // When the version cannot be detected, assume the current (v11+) layout
+    // since that's the surface where silently-dropped overrides hurt most.
+    const pnpmMajorVersion = getPnpmMajorVersion()
+    if (pnpmMajorVersion === null || pnpmMajorVersion >= 11) {
+      writePnpmWorkspaceOverrides(overrides)
+      return
+    }
+
     // pnpm supports pnpm.overrides and pnpm.resolutions
     if (packageJson.resolutions) {
       for (const [key, value] of entries) {
@@ -701,6 +713,33 @@ function writeOverridesField(
       }
     }
   }
+}
+
+function writePnpmWorkspaceOverrides(overrides: Record<string, string>) {
+  // Deferred require so `js-yaml` is only loaded when we hit the pnpm v11+
+  // branch (i.e. not for npm/yarn/bun/pnpm-v10 upgrades). The package is CJS,
+  // so a sync `require()` keeps this function synchronous.
+  const yaml = require('js-yaml') as typeof import('js-yaml')
+
+  const filePath = path.join(cwd, 'pnpm-workspace.yaml')
+
+  let doc: Record<string, any> = {}
+  if (fs.existsSync(filePath)) {
+    const existing = fs.readFileSync(filePath, 'utf8')
+    const parsed = yaml.load(existing)
+    if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+      doc = parsed as Record<string, any>
+    }
+  }
+
+  if (!doc.overrides || typeof doc.overrides !== 'object') {
+    doc.overrides = {}
+  }
+  for (const [key, value] of Object.entries(overrides)) {
+    doc.overrides[key] = value
+  }
+
+  fs.writeFileSync(filePath, yaml.dump(doc))
 }
 
 function warnDependenciesOutOfRange(
