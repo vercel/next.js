@@ -22,6 +22,7 @@ export interface PackageJson {
   peerDependencies?: Record<string, string>
   overrides?: Record<string, string>
   resolutions?: Record<string, string>
+  pnpm?: { overrides?: Record<string, string>; [key: string]: unknown }
   workspaces?: string[] | { packages: string[] }
   [key: string]: unknown
 }
@@ -37,9 +38,25 @@ export default async function patchPackageJson(
 ): Promise<string> {
   try {
     const packageJsonPath = await findPackageJsonPath(targetProjectPath)
+    const workspaceRoot = path.dirname(packageJsonPath)
     const packageJsonValue = await readJsonValue(packageJsonPath)
-    await patchWorkspacePackageJsonMap(paths, packageJsonValue)
+    const overrides = await patchWorkspacePackageJsonMap(
+      paths,
+      packageJsonValue,
+      await isPnpmProject(workspaceRoot)
+    )
     await writeJsonValue(packageJsonPath, packageJsonValue)
+    if (await isPnpmProject(workspaceRoot)) {
+      // pnpm v11+ reads `overrides` from `pnpm-workspace.yaml`, not from
+      // `package.json#pnpm.overrides`. See https://pnpm.io/settings and
+      // https://github.com/pnpm/pnpm/issues/11536. We also keep writing to
+      // `package.json#pnpm.overrides` (in patchWorkspacePackageJsonMap) for
+      // pnpm v10 and below.
+      await mergePnpmWorkspaceOverrides(
+        workspaceRoot,
+        Object.fromEntries(overrides)
+      )
+    }
 
     return packageJsonPath
   } catch (error) {
@@ -79,8 +96,9 @@ async function writeJsonValue(
 
 async function patchWorkspacePackageJsonMap(
   paths: DependencyPaths,
-  packageJsonMap: PackageJson
-): Promise<PackageJson> {
+  packageJsonMap: PackageJson,
+  isPnpm: boolean
+): Promise<[string, string][]> {
   const nextPeerDeps = await getNextPeerDeps()
 
   const overrides: [string, string][] = [
@@ -101,6 +119,14 @@ async function patchWorkspacePackageJsonMap(
   packageJsonMap.resolutions = packageJsonMap.resolutions || {}
   insertMapEntries(packageJsonMap.resolutions, overrides)
 
+  // pnpm v10 and below read `pnpm.overrides` from package.json.
+  // pnpm v11+ reads `pnpm-workspace.yaml#overrides` (written separately).
+  if (isPnpm) {
+    packageJsonMap.pnpm = packageJsonMap.pnpm || {}
+    packageJsonMap.pnpm.overrides = packageJsonMap.pnpm.overrides || {}
+    insertMapEntries(packageJsonMap.pnpm.overrides, overrides)
+  }
+
   // Add @next/swc to dependencies
   packageJsonMap.dependencies = packageJsonMap.dependencies || {}
   insertMapEntries(packageJsonMap.dependencies, [
@@ -110,7 +136,7 @@ async function patchWorkspacePackageJsonMap(
   // Update direct dependencies to match overrides
   updateMapEntriesIfExists(packageJsonMap.dependencies, overrides)
 
-  return packageJsonMap
+  return overrides
 }
 
 /**
@@ -140,6 +166,37 @@ async function getNextPeerDeps(): Promise<NextPeerDeps> {
   } catch (error) {
     throw new Error('Failed to get Next.js peer dependencies', { cause: error })
   }
+}
+
+async function isPnpmProject(workspaceRoot: string): Promise<boolean> {
+  return (
+    (await fileExists(path.join(workspaceRoot, 'pnpm-lock.yaml'))) ||
+    (await fileExists(path.join(workspaceRoot, 'pnpm-workspace.yaml')))
+  )
+}
+
+async function mergePnpmWorkspaceOverrides(
+  workspaceRoot: string,
+  overrides: Record<string, string>
+): Promise<void> {
+  const yaml = await import('js-yaml')
+  const filePath = path.join(workspaceRoot, 'pnpm-workspace.yaml')
+
+  let doc: Record<string, unknown> = {}
+  if (await fileExists(filePath)) {
+    const parsed = yaml.load(await fs.readFile(filePath, 'utf8'))
+    if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+      doc = parsed as Record<string, unknown>
+    }
+  }
+
+  const existing =
+    doc.overrides && typeof doc.overrides === 'object'
+      ? (doc.overrides as Record<string, string>)
+      : {}
+  doc.overrides = { ...existing, ...overrides }
+
+  await fs.writeFile(filePath, yaml.dump(doc))
 }
 
 function insertMapEntries(
