@@ -246,6 +246,8 @@ impl RawVc {
     }
 
     /// Reads the `TaskId` from a `TaskOutput` / `TaskCell` word.
+    ///
+    /// Produces a garbage value if this is a `LocalOutput` word
     #[inline]
     fn read_task_id(self) -> TaskId {
         let id = ((self.bits() >> RAW_VC_TASK_SHIFT) & RAW_VC_TASK_MASK) as u32;
@@ -254,6 +256,8 @@ impl RawVc {
     }
 
     /// Reads the [`CellId`] from a `TaskCell` word.
+    ///
+    /// Produces a garbage value if this is a `LocalOutput` or `TaskOutput` word
     #[inline]
     fn read_cell(self) -> CellId {
         let raw = (self.bits() >> RAW_VC_CELL_SHIFT) as u32;
@@ -263,24 +267,12 @@ impl RawVc {
 
     /// Unpacks into the logical [`RawVcUnpacked`] enum for matching.
     pub fn unpack(self) -> RawVcUnpacked {
-        let bits = self.bits();
-        match bits & RAW_VC_TAG_MASK {
+        match self.tag() {
             RAW_VC_TAG_OUTPUT => RawVcUnpacked::TaskOutput(self.read_task_id()),
             RAW_VC_TAG_CELL => RawVcUnpacked::TaskCell(self.read_task_id(), self.read_cell()),
             RAW_VC_TAG_LOCAL => {
-                let persistence = if (bits >> RAW_VC_LOCAL_TRANSIENT_SHIFT) & 1 == 1 {
-                    TaskPersistence::Transient
-                } else {
-                    TaskPersistence::Persistent
-                };
-                let execution_id = ((bits >> RAW_VC_LOCAL_EXECUTION_SHIFT) & 0xFFFF) as u16;
-                let local_task_id = ((bits >> RAW_VC_LOCAL_TASK_SHIFT) & 0xFFFF_FFFF) as u32;
-                // SAFETY: non-zero `ExecutionId`/`LocalTaskId` were packed in.
-                RawVcUnpacked::LocalOutput(
-                    unsafe { ExecutionId::new_unchecked(execution_id) },
-                    unsafe { LocalTaskId::new_unchecked(local_task_id) },
-                    persistence,
-                )
+                let (execution_id, local_task_id, persistence) = self.decode_local_output();
+                RawVcUnpacked::LocalOutput(execution_id, local_task_id, persistence)
             }
             _ => unreachable!("invalid RawVc tag"),
         }
@@ -302,6 +294,34 @@ impl RawVc {
     /// bits.
     pub fn as_task_cell(self) -> Option<(TaskId, CellId)> {
         (self.tag() == RAW_VC_TAG_CELL).then(|| (self.read_task_id(), self.read_cell()))
+    }
+
+    /// Returns the `(ExecutionId, LocalTaskId, TaskPersistence)` triple if this
+    /// is a `LocalOutput`, otherwise `None`.
+    ///
+    /// Prefer this over [`unpack`][Self::unpack] when a caller only cares about
+    /// the `LocalOutput` case.
+    pub fn as_local_output(self) -> Option<(ExecutionId, LocalTaskId, TaskPersistence)> {
+        (self.tag() == RAW_VC_TAG_LOCAL).then(|| self.decode_local_output())
+    }
+
+    /// Decodes the fields of a `LocalOutput` word. Only valid when the tag is
+    /// [`RAW_VC_TAG_LOCAL`].
+    fn decode_local_output(self) -> (ExecutionId, LocalTaskId, TaskPersistence) {
+        let bits = self.bits();
+        let persistence = if (bits >> RAW_VC_LOCAL_TRANSIENT_SHIFT) & 1 == 1 {
+            TaskPersistence::Transient
+        } else {
+            TaskPersistence::Persistent
+        };
+        let execution_id = ((bits >> RAW_VC_LOCAL_EXECUTION_SHIFT) & 0xFFFF) as u16;
+        let local_task_id = ((bits >> RAW_VC_LOCAL_TASK_SHIFT) & 0xFFFF_FFFF) as u32;
+        // SAFETY: non-zero `ExecutionId`/`LocalTaskId` were packed in.
+        (
+            unsafe { ExecutionId::new_unchecked(execution_id) },
+            unsafe { LocalTaskId::new_unchecked(local_task_id) },
+            persistence,
+        )
     }
 }
 
@@ -377,18 +397,16 @@ impl RawVc {
     /// Convert a potentially local `RawVc` into a non-local `RawVc`. This is a subset of resolution
     /// resolution, because the returned `RawVc` can be a `TaskOutput`.
     pub async fn to_non_local(self) -> Result<RawVc> {
-        Ok(match self.unpack() {
-            RawVcUnpacked::LocalOutput(execution_id, local_task_id, ..) => {
-                let tt = turbo_tasks();
-                let local_output = read_local_output(&*tt, execution_id, local_task_id).await?;
-                debug_assert!(
-                    !local_output.is_local(),
-                    "a LocalOutput cannot point at other LocalOutputs"
-                );
-                local_output
-            }
-            _ => self,
-        })
+        let Some((execution_id, local_task_id, ..)) = self.as_local_output() else {
+            return Ok(self);
+        };
+        let tt = turbo_tasks();
+        let local_output = read_local_output(&*tt, execution_id, local_task_id).await?;
+        debug_assert!(
+            !local_output.is_local(),
+            "a LocalOutput cannot point at other LocalOutputs"
+        );
+        Ok(local_output)
     }
 
     /// Convert a potentially local `RawVc` into a non-local `RawVc`. This is a subset of resolution
@@ -397,20 +415,18 @@ impl RawVc {
     /// 'unchecked' because the caller must have already confirmed that the local tasks were already
     /// completed
     pub(crate) fn to_non_local_unchecked_sync(self, tt: &dyn TurboTasksApi) -> Result<RawVc> {
-        Ok(match self.unpack() {
-            RawVcUnpacked::LocalOutput(execution_id, local_task_id, ..) => {
-                let local_output = match tt.try_read_local_output(execution_id, local_task_id)? {
-                    Ok(raw_vc) => raw_vc,
-                    Err(_event_listener) => unreachable!("local output is not ready yet"),
-                };
-                debug_assert!(
-                    !local_output.is_local(),
-                    "a LocalOutput cannot point at other LocalOutputs"
-                );
-                local_output
-            }
-            _ => self,
-        })
+        let Some((execution_id, local_task_id, ..)) = self.as_local_output() else {
+            return Ok(self);
+        };
+        let local_output = match tt.try_read_local_output(execution_id, local_task_id)? {
+            Ok(raw_vc) => raw_vc,
+            Err(_event_listener) => unreachable!("local output is not ready yet"),
+        };
+        debug_assert!(
+            !local_output.is_local(),
+            "a LocalOutput cannot point at other LocalOutputs"
+        );
+        Ok(local_output)
     }
 
     pub(crate) fn connect(&self) {
@@ -843,6 +859,7 @@ mod tests {
             // single-arm accessors
             assert_eq!(vc.as_task_output(), Some(task));
             assert_eq!(vc.as_task_cell(), None);
+            assert_eq!(vc.as_local_output(), None);
 
             // TaskCell, across CellId boundaries
             for cell in [
@@ -860,6 +877,7 @@ mod tests {
                 // single-arm accessors
                 assert_eq!(vc.as_task_cell(), Some((task, cell)));
                 assert_eq!(vc.as_task_output(), None);
+                assert_eq!(vc.as_local_output(), None);
             }
         }
 
@@ -876,7 +894,8 @@ mod tests {
                 assert!(vc.is_local());
                 assert_eq!(vc.is_transient(), persistence == TaskPersistence::Transient);
                 assert_eq!(vc.try_get_task_id(), None);
-                // single-arm accessors reject local outputs
+                // single-arm accessors
+                assert_eq!(vc.as_local_output(), Some((exec, local, persistence)));
                 assert_eq!(vc.as_task_output(), None);
                 assert_eq!(vc.as_task_cell(), None);
             }
