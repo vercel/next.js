@@ -24,6 +24,7 @@ import {
 import { getCards } from '../components/instant/instant-guidance-data'
 import {
   getBlockingRouteErrorDetails,
+  getLinkPrefetchPartialErrorDetails,
   getUnrenderedSegmentErrorDetails,
   isInstantNavigationError,
   isRuntimeVariant,
@@ -380,6 +381,16 @@ describe('card sets for all error families', () => {
     ).toEqual(['render-the-dropped-segment', 'skip-validation-on-the-segment'])
   })
 
+  it('link-prefetch-partial', () => {
+    expect(
+      getCards('link-prefetch-partial', 'runtime').map((card) => card.id)
+    ).toEqual([
+      'opt-into-partial-prefetching',
+      'prefetch-only-the-static-shell',
+      'disable-validation-on-this-route',
+    ])
+  })
+
   it('sync-io math', () => {
     expect(
       getCards('sync-io', 'runtime', 'Math.random()').map((card) => card.id)
@@ -512,6 +523,42 @@ describe('getUnrenderedSegmentErrorDetails', () => {
   })
 })
 
+describe('getLinkPrefetchPartialErrorDetails', () => {
+  function createLinkPrefetchPartialError(pathname: string): Error {
+    return new Error(
+      `A <Link prefetch={true}> navigated to "${pathname}", but Partial Prefetching is not enabled for that route.\n\n` +
+        `This makes the prefetch a legacy "full" prefetch that includes the route's dynamic data, defeating the static/dynamic split that Cache Components provides.`
+    )
+  }
+
+  it('parses the pathname', () => {
+    expect(
+      getLinkPrefetchPartialErrorDetails(
+        createLinkPrefetchPartialError('/dashboard')
+      )
+    ).toEqual({
+      type: 'link-prefetch-partial',
+      pathname: '/dashboard',
+    })
+  })
+
+  it('returns null for an unrelated error', () => {
+    expect(getLinkPrefetchPartialErrorDetails(new Error('regular bug'))).toBe(
+      null
+    )
+  })
+
+  it('returns null when the headline matches but the prefix is wrong', () => {
+    expect(
+      getLinkPrefetchPartialErrorDetails(
+        new Error(
+          'Some preamble: A <Link prefetch={true}> navigated to "/x", but Partial Prefetching is not enabled for that route.'
+        )
+      )
+    ).toBe(null)
+  })
+})
+
 describe('isInstantNavigationError', () => {
   function createUnrenderedSegmentError(route: string): Error {
     return new Error(
@@ -532,6 +579,13 @@ describe('isInstantNavigationError', () => {
     expect(isInstantNavigationError(createUnrenderedSegmentError(ROUTE))).toBe(
       true
     )
+  })
+
+  it('returns true for link-prefetch-partial warnings', () => {
+    const error = new Error(
+      `A <Link prefetch={true}> navigated to "/dashboard", but Partial Prefetching is not enabled for that route.`
+    )
+    expect(isInstantNavigationError(error)).toBe(true)
   })
 
   it('returns false for prerender-phase blocking-route errors', () => {

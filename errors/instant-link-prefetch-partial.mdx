@@ -1,0 +1,137 @@
+---
+title: A Link with prefetch=true navigated to a route that has not enabled Partial Prefetching
+kind: insight
+---
+
+With [Cache Components](/docs/app/api-reference/config/next-config-js/cacheComponents) enabled, [`<Link prefetch={true}>`](/docs/app/api-reference/components/link) is a legacy "full" prefetch that pulls down the route's dynamic data instead of just the [static shell](/docs/app/guides/instant-navigation). Routes that opt into [Partial Prefetching](/docs/app/guides/adopting-partial-prefetching) only prefetch the shell, deferring dynamic data to navigation time — that's what makes navigation feel instant. When a `<Link prefetch={true}>` navigates to a route that has not opted into Partial Prefetching, the prefetch defeats the static/dynamic split that Cache Components provides.
+
+The check runs at navigation time (not prefetch time) so existing apps that have just enabled Cache Components aren't flooded with warnings for every `<Link prefetch={true}>` on the page — you only hear about a route when you actually navigate to it.
+
+> **Good to know**: In [`next dev`](/docs/app/api-reference/cli/next#next-dev-options), the dev overlay associates the warning with the JSX that rendered the [`<Link>`](/docs/app/api-reference/components/link). This warning is dev-only and does not affect production builds.
+
+## Ways to fix this
+
+<FixOption
+  group="upgrade"
+  href="#opt-into-partial-prefetching"
+  title="Opt into Partial Prefetching"
+>
+  Mark the target route as partially prefetchable so its static shell can be
+  prefetched without pulling in dynamic data.
+</FixOption>
+
+<FixOption
+  group="remove"
+  href="#prefetch-only-the-static-shell"
+  title="Prefetch only the static shell"
+>
+  Drop the `prefetch={true}` prop so the link falls back to the default prefetch
+  behavior — the static shell only.
+</FixOption>
+
+<FixOption
+  group="ignore"
+  href="#disable-validation-on-this-route"
+  title="Disable validation on this route"
+>
+  Opt the target route out of instant-navigation validation and keep the legacy
+  full prefetch.
+</FixOption>
+
+## Opt into Partial Prefetching
+
+Choose this fix when the target route is a good candidate for Partial Prefetching — most pages with a static shell and dynamic content below it are. Adding [`prefetch = 'partial'`](/docs/app/api-reference/file-conventions/route-segment-config/prefetch) to the page or layout tells Next.js to prefetch only the route's static shell and defer the dynamic data to navigation.
+
+### Patterns
+
+#### Per-route opt-in
+
+Export `prefetch` from the page or layout of the route the link points at.
+
+```jsx filename="app/dashboard/page.js"
+export const prefetch = 'partial'
+
+export default function DashboardPage() {
+  return <Dashboard />
+}
+```
+
+#### App-wide opt-in
+
+Set [`partialPrefetching`](/docs/app/api-reference/config/next-config-js/partialPrefetching) to `true` in `next.config` to opt the whole app in.
+
+```js filename="next.config.js"
+module.exports = {
+  partialPrefetching: true,
+}
+```
+
+Learn more: [Adopting Partial Prefetching](/docs/app/guides/adopting-partial-prefetching).
+
+### Trade-off
+
+The route's dynamic data isn't included in the prefetch. The user sees the static shell instantly and the dynamic content streams in after navigation. For most routes this is the right trade-off; the shell appears immediately and the dynamic content arrives only marginally later than it would with a full prefetch.
+
+### Gotchas
+
+- Partial Prefetching only works with [Cache Components](/docs/app/api-reference/config/next-config-js/cacheComponents) enabled.
+- If the route doesn't have a clear static shell (everything below the layout reads dynamic data), Partial Prefetching has nothing to prefetch and behaves the same as no prefetch. Move static content above the dynamic boundary first.
+
+## Prefetch only the static shell
+
+Choose this fix when you don't need the dynamic data prefetched and the default `<Link>` behavior is fine. Removing `prefetch={true}` lets the link use Next.js's default prefetch strategy, which under Cache Components prefetches the static shell only.
+
+### Patterns
+
+#### Remove the `prefetch` prop
+
+```jsx filename="app/nav.js"
+import Link from 'next/link'
+
+export default function Nav() {
+  return <Link href="/dashboard">Dashboard</Link>
+}
+```
+
+### Trade-off
+
+The link no longer forces a full prefetch. The user gets the static shell on hover/visible-in-viewport and the dynamic data is fetched at navigation time. This is the default behavior under Cache Components and is the right choice for most links.
+
+### Gotchas
+
+- Removing `prefetch={true}` doesn't disable prefetching — it just falls back to the default. To disable prefetching entirely, use `prefetch={false}`.
+
+## Disable validation on this route
+
+Choose this fix when you genuinely need the legacy full prefetch behavior (for example a route where prefetching the dynamic data has a measurable user-experience benefit and the cost is acceptable). Setting [`instant`](/docs/app/api-reference/file-conventions/route-segment-config/instant) to `false` on the target route opts it out of instant-navigation validation and silences the warning.
+
+### Patterns
+
+#### Opt the route out
+
+Add the export to the page or layout file of the target route.
+
+```jsx filename="app/dashboard/page.js"
+export const instant = false
+
+export default function DashboardPage() {
+  return <Dashboard />
+}
+```
+
+### Trade-off
+
+The link continues to do a full prefetch — including dynamic data — and the warning is silenced. The route no longer participates in instant-navigation validation, so other instant-navigation issues on the route won't surface either.
+
+### Gotchas
+
+- `instant = false` also disables other instant-navigation checks for the route (blocking-route warnings, unrendered-segment warnings, etc.). Use it sparingly.
+
+## Useful links
+
+- [Cache Components](/docs/app/api-reference/config/next-config-js/cacheComponents)
+- [Adopting Partial Prefetching](/docs/app/guides/adopting-partial-prefetching)
+- [`<Link>` component](/docs/app/api-reference/components/link)
+- [`prefetch` route segment config](/docs/app/api-reference/file-conventions/route-segment-config/prefetch)
+- [`partialPrefetching` config](/docs/app/api-reference/config/next-config-js/partialPrefetching)
+- [`instant` route segment config](/docs/app/api-reference/file-conventions/route-segment-config/instant)

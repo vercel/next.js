@@ -264,11 +264,15 @@ export function navigateToKnownRoute(
         0
     ) {
       const error = new Error(
-        `A <Link prefetch={true}> navigated to "${url.pathname}", but Partial ` +
-          `Prefetching is not enabled for that route, so its dynamic data was ` +
-          `included in the prefetch. Enable Partial Prefetching app-wide by ` +
-          `setting \`partialPrefetching: true\` in next.config, or per-route by ` +
-          `exporting \`const prefetch = 'partial'\` from the page or layout.`
+        `A <Link prefetch={true}> navigated to "${url.pathname}", but Partial Prefetching is not enabled for that route.\n\n` +
+          `This makes the prefetch a legacy "full" prefetch that includes the route's dynamic data, defeating the static/dynamic split that Cache Components provides.\n\n` +
+          `Ways to fix this:\n` +
+          `  - [upgrade] Opt the route into Partial Prefetching by exporting \`const prefetch = 'partial'\` from the page or layout\n` +
+          `    https://nextjs.org/docs/messages/instant-link-prefetch-partial#opt-into-partial-prefetching\n` +
+          `  - [remove] Remove \`prefetch={true}\` from the <Link> so it prefetches only the static shell\n` +
+          `    https://nextjs.org/docs/messages/instant-link-prefetch-partial#prefetch-only-the-static-shell\n` +
+          `  - [ignore] Set \`export const instant = false\` on the route to disable validation\n` +
+          `    https://nextjs.org/docs/messages/instant-link-prefetch-partial#disable-validation-on-this-route`
       )
       const ownerStack = 'ownerStack' in link ? link.ownerStack : undefined
       if (ownerStack === undefined) {
