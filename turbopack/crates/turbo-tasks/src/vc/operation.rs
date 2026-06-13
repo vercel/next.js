@@ -13,9 +13,8 @@ use serde::{Deserialize, Serialize};
 pub use turbo_tasks_macros::OperationValue;
 
 use crate::{
-    CollectiblesSource, RawVc, RawVcUnpacked, ReadVcFuture, ResolvedVc, TaskInput, UpcastStrict,
-    Vc, VcValueTrait, VcValueTraitCast, VcValueType, marker_trait::impl_auto_marker_trait,
-    trace::TraceRawVcs,
+    CollectiblesSource, RawVc, ReadVcFuture, ResolvedVc, TaskInput, UpcastStrict, Vc, VcValueTrait,
+    VcValueTraitCast, VcValueType, marker_trait::impl_auto_marker_trait, trace::TraceRawVcs,
 };
 
 /// A future returned by [`OperationVc::resolve`] that connects an [`OperationVc<T>`] and resolves
@@ -110,7 +109,7 @@ impl<T: ?Sized> OperationVc<T> {
     #[deprecated = "This is an internal function. Use #[turbo_tasks::function(operation)] instead."]
     pub fn cell_private(node: Vc<T>) -> Self {
         debug_assert!(
-            matches!(node.node.unpack(), RawVcUnpacked::TaskOutput(..)),
+            node.node.as_task_output().is_some(),
             "OperationVc::cell_private must be called on the immediate return value of a task \
              function"
         );
@@ -247,7 +246,7 @@ where
     type Error = anyhow::Error;
 
     fn try_from(raw: RawVc) -> Result<Self> {
-        if !matches!(raw.unpack(), RawVcUnpacked::TaskOutput(..)) {
+        if raw.as_task_output().is_none() {
             anyhow::bail!("Given RawVc {raw:?} is not a TaskOutput");
         }
         Ok(Self {

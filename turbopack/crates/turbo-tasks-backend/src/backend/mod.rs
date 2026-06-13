@@ -3086,7 +3086,7 @@ impl TurboTasksBackend {
     ) {
         self.assert_valid_collectible(task_id, collectible);
 
-        let RawVcUnpacked::TaskCell(collectible_task, cell) = collectible.unpack() else {
+        let Some((collectible_task, cell)) = collectible.as_task_cell() else {
             panic!("Collectibles need to be resolved");
         };
         let cell = CellRef {
@@ -3114,7 +3114,7 @@ impl TurboTasksBackend {
     ) {
         self.assert_valid_collectible(task_id, collectible);
 
-        let RawVcUnpacked::TaskCell(collectible_task, cell) = collectible.unpack() else {
+        let Some((collectible_task, cell)) = collectible.as_task_cell() else {
             panic!("Collectibles need to be resolved");
         };
         let cell = CellRef {
@@ -3438,7 +3438,7 @@ impl TurboTasksBackend {
 
     fn assert_valid_collectible(&self, task_id: TaskId, collectible: RawVc) {
         // these checks occur in a potentially hot codepath, but they're cheap
-        let RawVcUnpacked::TaskCell(col_task_id, col_cell_id) = collectible.unpack() else {
+        let Some((col_task_id, col_cell_id)) = collectible.as_task_cell() else {
             // This should never happen: The collectible APIs use ResolvedVc
             let task_info = if let Some(col_task_ty) = collectible
                 .try_get_task_id()

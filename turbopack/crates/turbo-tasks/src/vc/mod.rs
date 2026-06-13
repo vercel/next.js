@@ -355,7 +355,7 @@ where
     pub async fn debug_identifier(vc: Self) -> Result<String> {
         let resolved = vc.to_resolved().await?;
         let raw_vc: RawVc = resolved.node.node;
-        if let RawVcUnpacked::TaskCell(task_id, cell_id) = raw_vc.unpack() {
+        if let Some((task_id, cell_id)) = raw_vc.as_task_cell() {
             let value_name = registry::get_value_type(cell_id.type_id()).ty.name;
             Ok(format!(
                 "{value_name}#{index}: {task_id}",

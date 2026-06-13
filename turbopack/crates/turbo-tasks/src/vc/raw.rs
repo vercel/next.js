@@ -285,6 +285,24 @@ impl RawVc {
             _ => unreachable!("invalid RawVc tag"),
         }
     }
+
+    /// Returns the [`TaskId`] if this is a `TaskOutput`, otherwise `None`.
+    ///
+    /// Prefer this over [`unpack`][Self::unpack] when a caller only cares about
+    /// the `TaskOutput` case: it reads just the tag and the task bits.
+    pub fn as_task_output(self) -> Option<TaskId> {
+        (self.tag() == RAW_VC_TAG_OUTPUT).then(|| self.read_task_id())
+    }
+
+    /// Returns the `(TaskId, CellId)` pair if this is a `TaskCell`, otherwise
+    /// `None`.
+    ///
+    /// Prefer this over [`unpack`][Self::unpack] when a caller only cares about
+    /// the `TaskCell` case: it reads just the tag, the task bits, and the cell
+    /// bits.
+    pub fn as_task_cell(self) -> Option<(TaskId, CellId)> {
+        (self.tag() == RAW_VC_TAG_CELL).then(|| (self.read_task_id(), self.read_cell()))
+    }
 }
 
 impl Debug for RawVc {
@@ -396,7 +414,7 @@ impl RawVc {
     }
 
     pub(crate) fn connect(&self) {
-        let RawVcUnpacked::TaskOutput(task_id) = self.unpack() else {
+        let Some(task_id) = self.as_task_output() else {
             panic!("RawVc::connect() must only be called on a RawVc::TaskOutput");
         };
         let tt = turbo_tasks();
@@ -437,7 +455,7 @@ impl RawVc {
 /// This implementation of `CollectiblesSource` assumes that `self` is a `RawVc::TaskOutput`.
 impl CollectiblesSource for RawVc {
     fn peek_collectibles<T: VcValueTrait + ?Sized>(self) -> AutoSet<ResolvedVc<T>> {
-        let RawVcUnpacked::TaskOutput(task_id) = self.unpack() else {
+        let Some(task_id) = self.as_task_output() else {
             panic!(
                 "<RawVc as CollectiblesSource>::peek_collectibles() must only be called on a \
                  RawVc::TaskOutput"
@@ -451,7 +469,7 @@ impl CollectiblesSource for RawVc {
     }
 
     fn take_collectibles<T: VcValueTrait + ?Sized>(self) -> AutoSet<ResolvedVc<T>> {
-        let RawVcUnpacked::TaskOutput(task_id) = self.unpack() else {
+        let Some(task_id) = self.as_task_output() else {
             panic!(
                 "<RawVc as CollectiblesSource>::take_collectibles() must only be called on a \
                  RawVc::TaskOutput"
@@ -466,7 +484,7 @@ impl CollectiblesSource for RawVc {
     }
 
     fn drop_collectibles<T: VcValueTrait + ?Sized>(self) {
-        let RawVcUnpacked::TaskOutput(task_id) = self.unpack() else {
+        let Some(task_id) = self.as_task_output() else {
             panic!(
                 "<RawVc as CollectiblesSource>::drop_collectibles() must only be called on a \
                  RawVc::TaskOutput"
@@ -700,17 +718,17 @@ impl Future for ReadRawVcFuture {
             let strongly_consistent = resolve.strongly_consistent;
             match ready!(Pin::new(resolve).poll(cx)) {
                 Err(err) => return Poll::Ready(Err(err)),
-                Ok(resolved) => match resolved.unpack() {
-                    RawVcUnpacked::TaskCell(task, index) => {
-                        this.state = ReadRawVcState::Reading {
-                            task,
-                            index,
-                            strongly_consistent,
-                            listener: None,
-                        };
-                    }
-                    _ => unreachable!("ResolveRawVcFuture always resolves to a TaskCell"),
-                },
+                Ok(resolved) => {
+                    let Some((task, index)) = resolved.as_task_cell() else {
+                        unreachable!("ResolveRawVcFuture always resolves to a TaskCell")
+                    };
+                    this.state = ReadRawVcState::Reading {
+                        task,
+                        index,
+                        strongly_consistent,
+                        listener: None,
+                    };
+                }
             }
         }
 
@@ -822,6 +840,9 @@ mod tests {
             assert!(!vc.is_resolved() && !vc.is_local());
             assert_eq!(vc.is_transient(), task.is_transient());
             assert_eq!(vc.try_get_task_id(), Some(task));
+            // single-arm accessors
+            assert_eq!(vc.as_task_output(), Some(task));
+            assert_eq!(vc.as_task_cell(), None);
 
             // TaskCell, across CellId boundaries
             for cell in [
@@ -836,6 +857,9 @@ mod tests {
                 assert!(vc.is_resolved());
                 assert_eq!(vc.try_get_task_id(), Some(task));
                 assert_eq!(vc.try_get_type_id(), Some(cell.type_id()));
+                // single-arm accessors
+                assert_eq!(vc.as_task_cell(), Some((task, cell)));
+                assert_eq!(vc.as_task_output(), None);
             }
         }
 
@@ -852,6 +876,9 @@ mod tests {
                 assert!(vc.is_local());
                 assert_eq!(vc.is_transient(), persistence == TaskPersistence::Transient);
                 assert_eq!(vc.try_get_task_id(), None);
+                // single-arm accessors reject local outputs
+                assert_eq!(vc.as_task_output(), None);
+                assert_eq!(vc.as_task_cell(), None);
             }
         }
     }

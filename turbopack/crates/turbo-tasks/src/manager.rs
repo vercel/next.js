@@ -28,8 +28,8 @@ use turbo_tasks_hash::{DeterministicHash, hash_xxh3_hash128};
 
 use crate::{
     CellId, Completion, InvalidationReason, InvalidationReasonSet, OutputContent, RawVc,
-    RawVcUnpacked, ReadCellOptions, ReadOutputOptions, ResolvedVc, SharedReference, TaskId,
-    TraitMethod, ValueTypeId, Vc, VcRead, VcValueTrait, VcValueType,
+    ReadCellOptions, ReadOutputOptions, ResolvedVc, SharedReference, TaskId, TraitMethod,
+    ValueTypeId, Vc, VcRead, VcValueTrait, VcValueType,
     backend::{
         Backend, CellContent, CellHash, TaskCollectiblesMap, TaskExecutionSpec, TransientTaskType,
         TurboTasksExecutionError, TypedCellContent, VerificationMode,
@@ -789,7 +789,7 @@ impl<B: Backend + 'static> TurboTasks<B> {
         // avoid creating a wrapper task if self is already resolved
         // for resolved cells we already know the value type so we can lookup the
         // function
-        if let RawVcUnpacked::TaskCell(_, cell_id) = this.unpack() {
+        if let Some((_, cell_id)) = this.as_task_cell() {
             match registry::get_value_type(cell_id.type_id()).get_trait_method(trait_method) {
                 Some(native_fn) => {
                     if let Some(filter) = native_fn.arg_meta.filter_owned {

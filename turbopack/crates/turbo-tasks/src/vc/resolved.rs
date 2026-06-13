@@ -15,8 +15,7 @@ use serde::{Deserialize, Serialize};
 #[cfg(debug_assertions)]
 use crate::debug::{ValueDebug, ValueDebugFormat, ValueDebugFormatString};
 use crate::{
-    RawVc, RawVcUnpacked, Upcast, UpcastStrict, VcRead, VcTransparentRead, VcValueTrait,
-    VcValueType,
+    RawVc, Upcast, UpcastStrict, VcRead, VcTransparentRead, VcValueTrait, VcValueType,
     trace::{TraceRawVcs, TraceRawVcsContext},
     vc::Vc,
 };
@@ -369,7 +368,7 @@ where
     type Error = anyhow::Error;
 
     fn try_from(raw: RawVc) -> Result<Self> {
-        if !matches!(raw.unpack(), RawVcUnpacked::TaskCell(..)) {
+        if raw.as_task_cell().is_none() {
             anyhow::bail!("Given RawVc {raw:?} is not a TaskCell");
         }
         Ok(Self {
