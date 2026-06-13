@@ -1,4 +1,5 @@
 import { FileRef, nextTestSetup } from 'e2e-utils'
+import type * as Playwright from 'playwright'
 import { waitFor, retry } from 'next-test-utils'
 import { NEXT_RSC_UNION_QUERY } from 'next/dist/client/components/app-router-headers'
 import { computeCacheBustingSearchParam } from 'next/dist/shared/lib/router/utils/cache-busting-search-param'
@@ -157,6 +158,46 @@ describe('app dir - prefetching', () => {
       await browser.elementByCss('#to-static-page').click()
       await browser.waitForElementByCss('#static-page')
     }, 'no-requests')
+  })
+
+  it('should prefetch visible links after reconnecting', async () => {
+    let page: Playwright.Page
+    let recordRequests = false
+    const requests: string[] = []
+
+    const browser = await next.browser('/', {
+      beforePageLoad(p: Playwright.Page) {
+        page = p
+        p.on('request', (req) => {
+          if (!recordRequests) {
+            return
+          }
+          if (req.headers()['rsc'] === '1') {
+            requests.push(new URL(req.url()).pathname)
+          }
+        })
+      },
+    })
+
+    await page!.context().setOffline(true)
+
+    const failedPrefetch = page!.waitForEvent('requestfailed', (req) => {
+      return (
+        new URL(req.url()).pathname === '/static-page' &&
+        req.headers()['rsc'] === '1'
+      )
+    })
+
+    await browser.elementByCss('#accordion-to-static-page').click()
+    await browser.waitForElementByCss('#to-static-page')
+    await failedPrefetch
+
+    recordRequests = true
+    await page!.context().setOffline(false)
+
+    await retry(async () => {
+      expect(requests).toContain('/static-page')
+    })
   })
 
   it('should not prefetch for a bot user agent', async () => {
