@@ -58,11 +58,11 @@ impl MergeRestore for CellData {
                     // value is more authoritative than the decoded one.
                     debug_assert!(
                         !matches!(
-                            registry::get_value_type(k.type_id).evictability,
+                            registry::get_value_type(k.type_id()).evictability,
                             Evictability::Always,
                         ),
                         "Found an evictable cell in a task we are restoring into: {}",
-                        registry::get_value_type(k.type_id).ty.name,
+                        registry::get_value_type(k.type_id()).ty.name,
                     );
                 }
             }
@@ -84,12 +84,12 @@ impl DropPartial for CellData {
     /// - `Evictability::Never` — value type holds session-scoped state that must not leave memory
     ///   (`State<>` cells, file watchers, worker pools).
     fn drop_partial(&mut self) -> DropPartialOutcome {
-        self.0.retain(
-            |cell_id, _| match registry::get_value_type(cell_id.type_id).evictability {
+        self.0.retain(|cell_id, _| {
+            match registry::get_value_type(cell_id.type_id()).evictability {
                 Evictability::Always => false,
                 Evictability::Expensive | Evictability::Never => true,
-            },
-        );
+            }
+        });
         if self.0.is_empty() {
             return DropPartialOutcome::Empty;
         }
@@ -141,7 +141,7 @@ impl TurboBincodeEncode for CellData {
             .iter()
             .filter(|(cell, _)| {
                 matches!(
-                    registry::get_value_type(cell.type_id).persistence,
+                    registry::get_value_type(cell.type_id()).persistence,
                     ValueTypePersistence::Persistable(_, _),
                 )
             })
@@ -149,7 +149,7 @@ impl TurboBincodeEncode for CellData {
         count.encode(encoder)?;
         // TODO: consider sorting by type_id and delta encoding indices to reduce serialized size
         for (cell_id, reference) in self.0.iter() {
-            let value_type = registry::get_value_type(cell_id.type_id);
+            let value_type = registry::get_value_type(cell_id.type_id());
             let ValueTypePersistence::Persistable(encode_fn, _) = value_type.persistence else {
                 continue;
             };
@@ -173,7 +173,7 @@ impl<Context> TurboBincodeDecode<Context> for CellData {
         let mut map = InnerMap::with_capacity_and_hasher(count, BuildHasherDefault::default());
         for _ in 0..count {
             let cell = CellId::decode(decoder)?;
-            let value_type = registry::get_value_type(cell.type_id);
+            let value_type = registry::get_value_type(cell.type_id());
             let ValueTypePersistence::Persistable(_, decode_fn) = value_type.persistence else {
                 return Err(DecodeError::OtherString(format!(
                     "cell of type {} has no bincode decoder",
@@ -227,10 +227,7 @@ mod tests {
     struct HashOnlyV(#[allow(dead_code)] u32);
 
     fn cell_of<V: VcValueType>(index: u32) -> CellId {
-        CellId {
-            type_id: V::get_value_type_id(),
-            index,
-        }
+        CellId::new(V::get_value_type_id(), index)
     }
 
     fn dummy_ref() -> SharedReference {

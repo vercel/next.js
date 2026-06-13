@@ -22,6 +22,7 @@ use crate::{
 macro_rules! define_id {
     (
         $name:ident : $primitive:ty
+        $(,max = $max:expr)?
         $(,derive($($derive:ty),*))?
         $(,serde($serde:tt))?
         $(,doc = $doc:literal)*
@@ -36,7 +37,15 @@ macro_rules! define_id {
 
         impl $name {
             pub const MIN: Self = Self { id: NonZero::<$primitive>::MIN };
-            pub const MAX: Self = Self { id: NonZero::<$primitive>::MAX };
+            // `max` defaults to the primitive's max; types packed into a smaller
+            // bit field (e.g. `TaskId` in `RawVc`) override it.
+            pub const MAX: Self = {
+                let _max: $primitive = NonZero::<$primitive>::MAX.get();
+                $( let _max: $primitive = $max; )?
+                // SAFETY: `_max` is either `NonZero::MAX` or a caller-provided
+                // positive constant; both are non-zero.
+                Self { id: unsafe { NonZero::<$primitive>::new_unchecked(_max) } }
+            };
 
             /// Constructs a wrapper type from the numeric identifier.
             ///
@@ -126,7 +135,12 @@ macro_rules! define_id {
     };
 }
 
-define_id!(TaskId: u32, derive(Serialize, Deserialize, Encode, Decode), serde(transparent));
+define_id!(
+    TaskId: u32,
+    max = TASK_ID_MAX,
+    derive(Serialize, Deserialize, Encode, Decode),
+    serde(transparent),
+);
 define_id!(FunctionId: u16);
 define_id!(ValueTypeId: u16);
 define_id!(TraitTypeId: u16);
@@ -152,7 +166,19 @@ impl Debug for TaskId {
 
 unsafe impl crate::NonLocalValue for TaskId {}
 
-pub const TRANSIENT_TASK_BIT: u32 = 0x8000_0000;
+/// `TaskId` values are constrained to 30 bits so the id fits alongside a
+/// [`crate::CellId`] (32 bits) and a 2-bit tag inside the 64-bit packed
+/// [`crate::RawVc`]. Bit 29 marks transient tasks; bits 30 and 31 are always
+/// zero. The transient flag is intentionally a property of the *value* (not of
+/// any `RawVc` wrapper) because transience is computed from a bare `TaskId` in
+/// many places (storage, aggregation, child connection).
+///
+/// This splits the id space into ~536M persistent ids (`1..=0x1FFF_FFFF`) and
+/// ~536M transient ids (`0x2000_0000..=0x3FFF_FFFF`).
+pub const TRANSIENT_TASK_BIT: u32 = 0x2000_0000;
+
+/// The largest value a [`TaskId`] may hold (30 bits set).
+pub const TASK_ID_MAX: u32 = 0x3FFF_FFFF;
 
 impl TaskId {
     pub fn is_transient(&self) -> bool {
@@ -263,3 +289,20 @@ make_registered_serializable!(
     registry::get_native_function,
     registry::validate_function_id,
 );
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// The `max` override on `define_id!` must actually take effect for
+    /// `TaskId` (capped to 30 bits) without affecting the transient-bit math:
+    /// the largest id is still transient and uses only the low 30 bits, so it
+    /// round-trips through `RawVc`'s packed representation.
+    #[test]
+    fn task_id_max_is_capped_and_transient() {
+        assert_eq!(*TaskId::MAX & !TASK_ID_MAX, 0, "MAX must fit in 30 bits");
+        assert!(TaskId::MAX.is_transient());
+        assert!(!TaskId::new(TRANSIENT_TASK_BIT - 1).unwrap().is_transient());
+        assert!(TaskId::new(TRANSIENT_TASK_BIT).unwrap().is_transient());
+    }
+}

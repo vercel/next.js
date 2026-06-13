@@ -789,8 +789,8 @@ impl<B: Backend + 'static> TurboTasks<B> {
         // avoid creating a wrapper task if self is already resolved
         // for resolved cells we already know the value type so we can lookup the
         // function
-        if let RawVc::TaskCell(_, CellId { type_id, .. }) = this {
-            match registry::get_value_type(type_id).get_trait_method(trait_method) {
+        if let RawVc::TaskCell(_, cell_id) = this {
+            match registry::get_value_type(cell_id.type_id()).get_trait_method(trait_method) {
                 Some(native_fn) => {
                     if let Some(filter) = native_fn.arg_meta.filter_owned {
                         let (resolved, mut arg) = (filter)(arg);
@@ -2222,10 +2222,15 @@ pub fn find_cell_by_id(ty: ValueTypeId) -> CurrentCellRef {
         let map = ts.cell_counters.as_mut().unwrap();
         let current_index = map.entry(ty).or_default();
         let index = *current_index;
+        assert!(
+            index <= CellId::MAX_CELL_INDEX,
+            "task allocated more than {} cells of a single type",
+            CellId::MAX_CELL_INDEX as u64 + 1,
+        );
         *current_index += 1;
         CurrentCellRef {
             current_task,
-            index: CellId { type_id: ty, index },
+            index: CellId::new(ty, index),
         }
     })
 }

@@ -1,6 +1,7 @@
 use std::{
     fmt::{Debug, Display},
     future::Future,
+    num::NonZeroU32,
     pin::Pin,
     sync::Arc,
     task::{Poll, ready},
@@ -25,15 +26,83 @@ use crate::{
     turbo_tasks,
 };
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Encode, Decode)]
-pub struct CellId {
-    pub type_id: ValueTypeId,
-    pub index: u32,
+/// Identifies a specific cell within a task: a [`ValueTypeId`] paired with a
+/// sequentially-allocated index within that type.
+///
+/// Packed into a single [`NonZeroU32`] to keep [`RawVc`] small:
+/// ```text
+/// bits 31..=22 (10 bits): ValueTypeId logical value, 1..=1023
+/// bits 21..=0  (22 bits): cell index, 0..=4_194_303
+/// ```
+/// Because the `ValueTypeId` is always `>= 1`, the packed word is always
+/// `>= (1 << CELL_INDEX_BITS)` and therefore never zero, which gives the type a
+/// niche (`Option<CellId>` is still 4 bytes).
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Encode, Decode)]
+pub struct CellId(NonZeroU32);
+
+/// Number of low bits used for the cell index.
+const CELL_INDEX_BITS: u32 = 22;
+/// Mask selecting the cell index bits.
+const CELL_INDEX_MASK: u32 = (1 << CELL_INDEX_BITS) - 1;
+
+impl CellId {
+    /// Maximum `ValueTypeId` logical value that fits in the 10-bit type field.
+    pub const MAX_VALUE_TYPE_ID: u16 = (1 << (u32::BITS - CELL_INDEX_BITS)) as u16 - 1;
+    /// Maximum cell index that fits in the 22-bit index field.
+    pub const MAX_CELL_INDEX: u32 = CELL_INDEX_MASK;
+
+    /// Packs a `type_id` and `index` into a single word.
+    ///
+    /// Panics in debug builds if `type_id` exceeds the 10-bit cap or `index`
+    /// exceeds the 22-bit cap. Those caps are enforced at the allocation sites
+    /// (`init_registry` for type ids, `find_cell_by_id` for indices).
+    pub fn new(type_id: ValueTypeId, index: u32) -> Self {
+        let type_id = *type_id;
+        debug_assert!(
+            type_id <= Self::MAX_VALUE_TYPE_ID,
+            "ValueTypeId {} exceeds the {} cap packed into CellId",
+            type_id,
+            Self::MAX_VALUE_TYPE_ID,
+        );
+        debug_assert!(
+            index <= Self::MAX_CELL_INDEX,
+            "cell index {} exceeds the {} cap packed into CellId",
+            index,
+            Self::MAX_CELL_INDEX,
+        );
+        let packed = ((type_id as u32) << CELL_INDEX_BITS) | (index & CELL_INDEX_MASK);
+        // SAFETY: `type_id >= 1`, so `packed >= (1 << CELL_INDEX_BITS) > 0`.
+        CellId(unsafe { NonZeroU32::new_unchecked(packed) })
+    }
+
+    pub fn type_id(self) -> ValueTypeId {
+        let type_id = (self.0.get() >> CELL_INDEX_BITS) as u16;
+        // SAFETY: the high bits always hold a `ValueTypeId` of `1..=1023` by construction.
+        unsafe { ValueTypeId::new_unchecked(type_id) }
+    }
+
+    pub fn index(self) -> u32 {
+        self.0.get() & CELL_INDEX_MASK
+    }
+}
+
+impl Debug for CellId {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("CellId")
+            .field("type_id", &self.type_id())
+            .field("index", &self.index())
+            .finish()
+    }
 }
 
 impl Display for CellId {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}#{}", get_value_type(self.type_id).ty.name, self.index)
+        write!(
+            f,
+            "{}#{}",
+            get_value_type(self.type_id()).ty.name,
+            self.index()
+        )
     }
 }
 
@@ -202,7 +271,7 @@ impl RawVc {
 
     pub fn try_get_type_id(&self) -> Option<ValueTypeId> {
         match self {
-            RawVc::TaskCell(_, CellId { type_id, .. }) => Some(*type_id),
+            RawVc::TaskCell(_, cell_id) => Some(cell_id.type_id()),
             RawVc::TaskOutput(..) | RawVc::LocalOutput(..) => None,
         }
     }
@@ -212,7 +281,7 @@ impl RawVc {
     pub(crate) fn resolved_has_trait(&self, trait_id: TraitTypeId) -> bool {
         match self {
             RawVc::TaskCell(_task_id, cell_id) => {
-                get_value_type(cell_id.type_id).has_trait(&trait_id)
+                get_value_type(cell_id.type_id()).has_trait(&trait_id)
             }
             _ => unreachable!("resolved_has_trait must be called with a RawVc::TaskCell"),
         }
@@ -222,7 +291,7 @@ impl RawVc {
     /// information in `RawVc::TaskCell` (we don't actually need to read the cell!).
     pub(crate) fn resolved_is_type(&self, type_id: ValueTypeId) -> bool {
         match self {
-            RawVc::TaskCell(_task_id, cell_id) => cell_id.type_id == type_id,
+            RawVc::TaskCell(_task_id, cell_id) => cell_id.type_id() == type_id,
             _ => unreachable!("resolved_is_type must be called with a RawVc::TaskCell"),
         }
     }
@@ -541,3 +610,46 @@ impl Future for ReadRawVcFuture {
 }
 
 impl Unpin for ReadRawVcFuture {}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// `CellId` must pack into 4 bytes and keep its niche so `Option<CellId>`
+    /// stays 4 bytes — this is the whole point of [`RawVc`] shrinking.
+    #[test]
+    fn cell_id_is_four_bytes() {
+        assert_eq!(size_of::<CellId>(), 4);
+        assert_eq!(size_of::<Option<CellId>>(), 4);
+    }
+
+    /// Packing and unpacking a `(type_id, index)` pair must round-trip across
+    /// the full range of both fields, including the boundary values.
+    #[test]
+    fn cell_id_pack_unpack_round_trip() {
+        let type_ids = [1u16, 2, 100, CellId::MAX_VALUE_TYPE_ID];
+        let indices = [0u32, 1, 12345, CellId::MAX_CELL_INDEX];
+        for &raw_ty in &type_ids {
+            // SAFETY: all test values are >= 1.
+            let type_id = unsafe { ValueTypeId::new_unchecked(raw_ty) };
+            for &index in &indices {
+                let cell = CellId::new(type_id, index);
+                assert_eq!(cell.type_id(), type_id, "type_id round-trip for {raw_ty}");
+                assert_eq!(cell.index(), index, "index round-trip for {index}");
+            }
+        }
+    }
+
+    /// Distinct `(type_id, index)` pairs must pack to distinct words — the
+    /// packing is a bijection, which is what lets us derive `Eq`/`Hash`.
+    #[test]
+    fn cell_id_packing_is_bijective() {
+        // SAFETY: ids are >= 1.
+        let a = CellId::new(unsafe { ValueTypeId::new_unchecked(1) }, 0);
+        let b = CellId::new(unsafe { ValueTypeId::new_unchecked(1) }, 1);
+        let c = CellId::new(unsafe { ValueTypeId::new_unchecked(2) }, 0);
+        assert_ne!(a, b);
+        assert_ne!(a, c);
+        assert_ne!(b, c);
+    }
+}

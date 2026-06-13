@@ -851,7 +851,7 @@ impl TurboTasksBackend {
                 add_cell_dependency(task_id, task, reader, reader_task, cell, tracking.key());
             }
             return Ok(Ok(TypedCellContent(
-                cell.type_id,
+                cell.type_id(),
                 CellContent(Some(content)),
             )));
         }
@@ -868,7 +868,7 @@ impl TurboTasksBackend {
         let is_cancelled = matches!(in_progress, Some(InProgressState::Canceled));
 
         // Check cell index range (cell might not exist at all)
-        let max_id = task.get_cell_type_max_index(&cell.type_id).copied();
+        let max_id = task.get_cell_type_max_index(&cell.type_id()).copied();
         let Some(max_id) = max_id else {
             let task_desc = task.get_task_description();
             if tracking.should_track(true) {
@@ -878,7 +878,7 @@ impl TurboTasksBackend {
                 "Cell {cell:?} no longer exists in task {task_desc} (no cell of this type exists)",
             );
         };
-        if cell.index >= max_id {
+        if cell.index() >= max_id {
             let task_desc = task.get_task_description();
             if tracking.should_track(true) {
                 add_cell_dependency(task_id, task, reader, reader_task, cell, tracking.key());
@@ -904,8 +904,8 @@ impl TurboTasksBackend {
 
         let _span = tracing::trace_span!(
             "recomputation",
-            cell_type = get_value_type(cell.type_id).ty.global_name,
-            cell_index = cell.index
+            cell_type = get_value_type(cell.type_id()).ty.global_name,
+            cell_index = cell.index()
         )
         .entered();
 
@@ -1712,7 +1712,7 @@ impl TurboTasksBackend {
         inner_cached(
             self,
             task_type,
-            cell_id.map(|c| c.type_id),
+            cell_id.map(|c| c.type_id()),
             &mut FxHashSet::default(),
         )
     }
@@ -2771,8 +2771,8 @@ impl TurboTasksBackend {
                 .iter_cell_data()
                 .filter_map(|(cell, _)| {
                     cell_counters
-                        .get(&cell.type_id)
-                        .is_none_or(|start_index| cell.index >= *start_index)
+                        .get(&cell.type_id())
+                        .is_none_or(|start_index| cell.index() >= *start_index)
                         .then_some(*cell)
                 })
                 .collect();
@@ -2787,8 +2787,8 @@ impl TurboTasksBackend {
                 .iter_cell_data_hash()
                 .filter_map(|(cell, _)| {
                     cell_counters
-                        .get(&cell.type_id)
-                        .is_none_or(|start_index| cell.index >= *start_index)
+                        .get(&cell.type_id())
+                        .is_none_or(|start_index| cell.index() >= *start_index)
                         .then_some(*cell)
                 })
                 .collect();
@@ -3008,9 +3008,9 @@ impl TurboTasksBackend {
         let mut ctx = self.execute_context(turbo_tasks);
         let task = ctx.task(task_id, TaskDataCategory::Data);
         if let Some(content) = task.get_cell_data(&cell).cloned() {
-            Ok(CellContent(Some(content)).into_typed(cell.type_id))
+            Ok(CellContent(Some(content)).into_typed(cell.type_id()))
         } else {
-            Ok(CellContent(None).into_typed(cell.type_id))
+            Ok(CellContent(None).into_typed(cell.type_id()))
         }
     }
 
