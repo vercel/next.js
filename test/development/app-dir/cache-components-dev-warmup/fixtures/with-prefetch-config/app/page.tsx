@@ -15,6 +15,9 @@ export default function Page() {
           <Link href="/short-lived-cache">/short-lived-cache</Link>
         </li>
         <li>
+          <Link href="/short-stale-cache">/short-stale-cache</Link>
+        </li>
+        <li>
           <Link href="/successive-caches">/successive-caches</Link>
         </li>
         <li>

@@ -309,8 +309,6 @@ export interface NapiDefineEnv {
   nodejs: Array<NapiOptionEnvVar>
 }
 export interface NapiTurboEngineOptions {
-  /** An upper bound of memory that turbopack will attempt to stay under. */
-  memoryLimit?: number
   /** Track dependencies between tasks. If false, any change during build will error. */
   dependencyTracking?: boolean
   /** Whether the project is running in a CI environment. */
@@ -319,6 +317,8 @@ export interface NapiTurboEngineOptions {
   isShortSession?: boolean
   /** Whether to skip database compaction during shutdown. */
   skipCompaction?: boolean
+  /** Turbopack memory eviction mode for the persistent cache. */
+  turbopackMemoryEviction: MemoryEvictionMode
 }
 export declare function projectNew(
   options: NapiProjectOptions,
@@ -533,6 +533,19 @@ export interface TurbopackInternalErrorOpts {
   message: string
   anonymizedLocation?: string
 }
+/**
+ * Turbopack's memory eviction strategy for the persistent cache, mirroring the
+ * `experimental.turbopackMemoryEviction` config option.
+ */
+export const enum MemoryEvictionMode {
+  /** Never evict. */
+  Off = 'off',
+  /**
+   * After every snapshot, evict all evictable tasks from memory, reloading
+   * them from disk on demand.
+   */
+  Full = 'full',
+}
 export declare function rootTaskDispose(rootTask: {
   __napiType: 'RootTask'
 }): void
@@ -670,6 +683,16 @@ export interface TraceSpanInfo {
   avgCorrectedDuration?: number
   /** Raw span ID for aggregated groups (the index of the first span). */
   firstSpanId?: string
+  /**
+   * TurboMalloc memory-usage samples recorded while this span
+   * (or its example span, for aggregated groups) was live.
+   *
+   * Each entry is `[ts_offset_from_span_start_in_ticks, bytes, pressure]`,
+   * where `pressure` is the memory-pressure byte (0 = no pressure, higher
+   * = more pressure). `100 ticks = 1 µs`. The offset is always `>= 0` and
+   * `<= span_duration`. Capped and downsampled by the store.
+   */
+  memorySamples: Array<Array<number>>
 }
 /** The result of a `query_trace_spans` call. */
 export interface TraceQueryResult {

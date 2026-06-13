@@ -240,6 +240,7 @@ chromiumoxide = { version = "0.5.4", features = [
 # sync with chromiumoxide's tungstenite requirement.
 tungstenite = "0.20.1"
 
+allocator-api2 = "0.2.21"
 # flate2_zlib requires zlib, use flate2_rust
 allsorts = { version = "0.14.0", default-features = false, features = [
   "flate2_rust",
@@ -248,6 +249,7 @@ anyhow = "1.0.100"
 async-trait = "0.1.64"
 bincode = { version = "2.0.1", features = ["serde"] }
 bitfield = "0.19.4"
+bumpalo = { version = "3.19.0", features = ["boxed", "collections", "allocator-api2"] }
 byteorder = "1.5.0"
 bytes = "1.11.1"
 bytes-str = "0.2.7"
@@ -258,7 +260,7 @@ console-subscriber = "0.4.1"
 const_format = "0.2.30"
 crc32fast = "1.5.0"
 criterion = { package = "codspeed-criterion-compat", version = "4.3.0" }
-ctor = "0.10"
+ctor = "1.0.7"
 crossbeam-channel = "0.5.8"
 crossbeam-utils = "0.8"
 dashmap = "6.1.0"
@@ -275,7 +277,6 @@ hashbrown = "0.14.5"
 image = { version = "0.25.8", default-features = false }
 indexmap = "2.13.0"
 indoc = "2.0.0"
-inventory = "0.3.21"
 itertools = "0.10.5"
 lightningcss = { version = "1.0.0-alpha.70", features = [
   "serde",
@@ -325,6 +326,7 @@ ringmap = "0.2.5"
 roaring = "0.11.4"
 rstest = "0.16.0"
 rustc-hash = "2.1.1"
+scattered-collect = "0.10.0"
 semver = "1.0.16"
 serde = { version = "1.0.228", features = ["derive"] }
 serde_json = "1.0.149"

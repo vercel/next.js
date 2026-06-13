@@ -6,8 +6,7 @@ use bincode::{Decode, Encode};
 use smallvec::SmallVec;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
-    NonLocalValue, PrettyPrintError, ResolvedVc, TaskInput, Upcast, ValueToString, Vc,
-    trace::TraceRawVcs,
+    NonLocalValue, PrettyPrintError, ResolvedVc, Upcast, ValueToString, Vc, trace::TraceRawVcs,
 };
 use turbo_tasks_fs::{FileSystemPath, rope::Rope};
 use turbopack_core::{
@@ -32,19 +31,8 @@ use crate::{
     utils::StringifyJs,
 };
 
-#[derive(
-    Debug,
-    Clone,
-    PartialEq,
-    Eq,
-    Hash,
-    TraceRawVcs,
-    TaskInput,
-    NonLocalValue,
-    Default,
-    Encode,
-    Decode,
-)]
+#[turbo_tasks::task_input]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, TraceRawVcs, Default, Encode, Decode)]
 pub enum RewriteSourcePath {
     AbsoluteFilePath(FileSystemPath),
     RelativeFilePath(FileSystemPath, RcStr),
@@ -227,9 +215,8 @@ pub struct EcmascriptChunkItemOptions {
     pub placeholder_for_future_extensions: (),
 }
 
-#[derive(
-    Debug, Clone, PartialEq, Eq, Hash, TraceRawVcs, TaskInput, NonLocalValue, Encode, Decode,
-)]
+#[turbo_tasks::task_input]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, TraceRawVcs, Encode, Decode)]
 pub struct EcmascriptChunkItemWithAsyncInfo {
     pub chunk_item: ResolvedVc<Box<dyn EcmascriptChunkItem>>,
     pub async_info: Option<ResolvedVc<AsyncModuleInfo>>,
@@ -328,7 +315,7 @@ async fn module_factory_with_code_generation_issue(
             .emit();
             let mut code = CodeBuilder::default();
             code += "(() => {{\n\n";
-            writeln!(code, "throw new Error({error});", error = &js_error_message)?;
+            writeln!(code, "throw new Error({error});", error = js_error_message)?;
             code += "\n}})";
             *code.build().cell_persisted()
         }

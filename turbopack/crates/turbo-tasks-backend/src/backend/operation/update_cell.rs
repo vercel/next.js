@@ -3,14 +3,14 @@ use std::{cell::LazyCell, mem::take};
 use bincode::{Decode, Encode};
 use rustc_hash::FxHashSet;
 use smallvec::SmallVec;
+#[cfg(feature = "task_dirty_cause")]
+use turbo_tasks::TaskDirtyCause;
 use turbo_tasks::{
     CellId, FxIndexMap, TaskId, TypedSharedReference, ValueTypePersistence,
     backend::{CellContent, CellHash, VerificationMode},
     registry,
 };
 
-#[cfg(feature = "trace_task_dirty")]
-use crate::backend::operation::invalidate::TaskDirtyCause;
 use crate::{
     backend::{
         TaskDataCategory,
@@ -30,7 +30,7 @@ pub enum UpdateCellOperation {
         cell_ref: CellRef,
         #[bincode(with = "turbo_bincode::indexmap")]
         dependent_tasks: FxIndexMap<TaskId, SmallVec<[Option<u64>; 2]>>,
-        #[cfg(feature = "trace_task_dirty")]
+        #[cfg(feature = "task_dirty_cause")]
         has_updated_key_hashes: bool,
         content: Option<TypedSharedReference>,
         queue: AggregationUpdateQueue,
@@ -125,31 +125,50 @@ impl UpdateCellOperation {
                     }
                 };
 
-            #[cfg(feature = "trace_task_dirty")]
+            #[cfg(feature = "task_dirty_cause")]
             let has_updated_key_hashes = updated_key_hashes.is_some();
             let updated_key_hashes_set = updated_key_hashes.map(|updated_key_hashes| {
                 LazyCell::new(|| updated_key_hashes.into_iter().collect::<FxHashSet<u64>>())
             });
 
             // Collect dependent tasks only when not skipping invalidation.
-            // The iterator borrows from `task`, so it must be scoped to drop before
+            // The iterators borrow from `task`, so they must be scoped to drop before
             // we mutably borrow `task` again in the fast path.
             let mut dependent_tasks: FxIndexMap<TaskId, SmallVec<[Option<u64>; 2]>> =
                 FxIndexMap::default();
             if !skip_invalidation {
-                let tasks_with_keys =
-                    task.iter_cell_dependents()
-                        .filter_map(|(dependent_cell, key, task)| {
-                            (dependent_cell == cell
-                                && key.is_none_or(|key_hash| {
-                                    updated_key_hashes_set
-                                        .as_ref()
-                                        .is_none_or(|set| set.contains(&key_hash))
-                                }))
-                            .then_some((task, key))
-                        });
-                for (task, key) in tasks_with_keys {
-                    dependent_tasks.entry(task).or_default().push(key);
+                // Keyless dependents: always invalidate when the cell matches.
+                for CellRef {
+                    task: dependent_task,
+                    cell: dependent_cell,
+                } in task.iter_cell_dependents()
+                {
+                    if dependent_cell == cell {
+                        dependent_tasks
+                            .entry(dependent_task)
+                            .or_default()
+                            .push(None);
+                    }
+                }
+                // Keyed dependents: invalidate only when the changed sub-value (key) matches.
+                for (
+                    CellRef {
+                        task: dependent_task,
+                        cell: dependent_cell,
+                    },
+                    key_hash,
+                ) in task.iter_cell_dependents_hashed()
+                {
+                    if dependent_cell == cell
+                        && updated_key_hashes_set
+                            .as_ref()
+                            .is_none_or(|set| set.contains(&key_hash))
+                    {
+                        dependent_tasks
+                            .entry(dependent_task)
+                            .or_default()
+                            .push(Some(key_hash));
+                    }
                 }
             }
 
@@ -190,7 +209,7 @@ impl UpdateCellOperation {
                         cell,
                     },
                     dependent_tasks,
-                    #[cfg(feature = "trace_task_dirty")]
+                    #[cfg(feature = "task_dirty_cause")]
                     has_updated_key_hashes,
                     content: content.map(|r| r.into_typed(cell.type_id)),
                     queue: AggregationUpdateQueue::new(),
@@ -267,7 +286,7 @@ impl Operation for UpdateCellOperation {
                 UpdateCellOperation::InvalidateWhenCellDependency {
                     cell_ref,
                     ref mut dependent_tasks,
-                    #[cfg(feature = "trace_task_dirty")]
+                    #[cfg(feature = "task_dirty_cause")]
                     has_updated_key_hashes,
                     ref mut content,
                     ref mut queue,
@@ -276,14 +295,27 @@ impl Operation for UpdateCellOperation {
                         let mut make_stale = false;
                         let dependent = ctx.task(dependent_task_id, TaskDataCategory::All);
                         for key in keys.iter().copied() {
-                            if dependent.outdated_cell_dependencies_contains(&(cell_ref, key)) {
+                            let (in_outdated, in_current) = if let Some(k) = key {
+                                let in_outdated = dependent
+                                    .outdated_cell_dependencies_hashed_contains(&(cell_ref, k));
+                                let in_current = !in_outdated
+                                    && dependent.cell_dependencies_hashed_contains(&(cell_ref, k));
+                                (in_outdated, in_current)
+                            } else {
+                                let in_outdated =
+                                    dependent.outdated_cell_dependencies_contains(&cell_ref);
+                                let in_current =
+                                    !in_outdated && dependent.cell_dependencies_contains(&cell_ref);
+                                (in_outdated, in_current)
+                            };
+                            if in_outdated {
                                 // cell dependency is outdated, so it hasn't read the cell yet
                                 // and doesn't need to be invalidated.
                                 // We do not need to make the task stale in this case.
                                 // But importantly we still need to make the task dirty as it should
                                 // no longer be considered as
                                 // "recomputation".
-                            } else if !dependent.cell_dependencies_contains(&(cell_ref, key)) {
+                            } else if !in_current {
                                 // cell dependency has been removed, so the task doesn't depend on
                                 // the cell anymore and doesn't need
                                 // to be invalidated
@@ -296,7 +328,7 @@ impl Operation for UpdateCellOperation {
                             dependent,
                             dependent_task_id,
                             make_stale,
-                            #[cfg(feature = "trace_task_dirty")]
+                            #[cfg(feature = "task_dirty_cause")]
                             TaskDirtyCause::CellChange {
                                 value_type: cell_ref.cell.type_id,
                                 keys: has_updated_key_hashes.then_some(keys).unwrap_or_default(),

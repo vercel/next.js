@@ -28,14 +28,16 @@ jobs:
         with:
           node-version: ${{ env.NODE_LTS_VERSION }}
           check-latest: true
+          package-manager-cache: false
 
       # Checkout from the default branch (canary) -- workflow_run always uses
       # the default branch's version of the workflow file and this checkout
       # matches that, ensuring the upload script is trusted.
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
-          ref: ${{ github.event.repository.default_branch }}
+          ref: canary
           fetch-depth: 1
+          persist-credentials: false
 
       - name: Enable corepack
         run: corepack enable
@@ -44,7 +46,7 @@ jobs:
         run: corepack prepare
 
       - name: Cache dependencies
-        uses: actions/cache@6f8efc29b200d32929f49075959781ed54ec270c # v3.5.0
+        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
         with:
           path: ~/.pnpm-store
           key: ${{ runner.os }}-${{ runner.arch }}-pnpm-v2-${{

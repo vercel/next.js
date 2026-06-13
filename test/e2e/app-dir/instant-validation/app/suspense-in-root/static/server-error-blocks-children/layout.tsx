@@ -1,7 +1,7 @@
 import { Suspense, type ReactNode } from 'react'
 import { connection } from 'next/server'
 
-export const unstable_instant = false
+export const instant = false
 
 function ServerError() {
   throw new Error('Server component error')

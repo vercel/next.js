@@ -52,6 +52,7 @@ import type { NextAdapter } from '../build/adapter/build-complete'
 import { HardDeprecatedConfigError } from '../shared/lib/errors/hard-deprecated-config-error'
 import { NextInstanceErrorState } from './mcp/tools/next-instance-error-state'
 import { Bundler } from '../lib/bundler'
+import type { MemoryEvictionMode } from '../build/swc/types'
 
 export { normalizeConfig } from './config-shared'
 export type { DomainLocale, NextConfig } from './config-shared'
@@ -422,6 +423,23 @@ function assignDefaultsAndValidate(
     result.experimental.trustHostHeader = true
   }
 
+  // Normalize the user-facing `turbopackMemoryEviction` (`false | 'full' |
+  // undefined`) into the `turbopackMemoryEvictionMode` enum expected by napi
+  // (`'off' | 'full'`).
+  let turbopackMemoryEvictionMode: 'off' | 'full'
+  if (result.experimental.turbopackMemoryEviction === false) {
+    turbopackMemoryEvictionMode = 'off'
+  } else if (result.experimental.turbopackMemoryEviction === 'full') {
+    turbopackMemoryEvictionMode = 'full'
+  } else {
+    // Not set by the user: fall back to the env var if present, otherwise 'off'.
+    const rawEnv = process.env.TURBO_ENGINE_EVICT_AFTER_SNAPSHOT
+    turbopackMemoryEvictionMode =
+      rawEnv == null || rawEnv === '1' || rawEnv === 'true' ? 'full' : 'off'
+  }
+  ;(result as NextConfigComplete).experimental.turbopackMemoryEvictionMode =
+    turbopackMemoryEvictionMode as MemoryEvictionMode
+
   // Normalize experimental.browserDebugInfoInTerminal to logging.browserToTerminal
   if (
     result.logging !== false &&
@@ -500,6 +518,41 @@ function assignDefaultsAndValidate(
     throw new Error(
       `\`experimental.cachedNavigations\` requires \`cacheComponents\` to be enabled. Please update your ${configFileName} accordingly.`
     )
+  }
+
+  if (result.partialPrefetching && !result.cacheComponents) {
+    throw new Error(
+      `\`partialPrefetching\` requires \`cacheComponents\` to be enabled. Please update your ${configFileName} accordingly.`
+    )
+  }
+
+  if (result.experimental.appShells) {
+    // App Shells is tested in combination with the experimental flags it
+    // expects to ship alongside. All of these are on track to become
+    // defaults, so we don't support enabling App Shells against arbitrary
+    // subsets of them — the validation goes away once each becomes a
+    // default.
+    // Note: `prefetchInlining` is intentionally NOT required. App Shells works
+    // correctly whether or not prefetch inlining is enabled, so disabling it
+    // (e.g. to exercise non-inlined prefetch paths) must not force App Shells off.
+    const missing: string[] = []
+    if (!result.cacheComponents) {
+      missing.push('`cacheComponents`')
+    }
+    if (!result.experimental.varyParams) {
+      missing.push('`experimental.varyParams`')
+    }
+    if (!result.experimental.optimisticRouting) {
+      missing.push('`experimental.optimisticRouting`')
+    }
+    if (!result.experimental.cachedNavigations) {
+      missing.push('`experimental.cachedNavigations`')
+    }
+    if (missing.length > 0) {
+      throw new Error(
+        `\`experimental.appShells\` requires the following to also be enabled: ${missing.join(', ')}. Please update your ${configFileName} accordingly.`
+      )
+    }
   }
 
   if (result.experimental.ppr) {
@@ -1589,7 +1642,7 @@ function assignDefaultsAndValidate(
 function finalizeConfig(config: NextConfigComplete): NextConfigComplete {
   config.experimental.instantInsights = {
     validationLevel:
-      config.experimental.instantInsights?.validationLevel ?? 'manual-warning',
+      config.experimental.instantInsights?.validationLevel ?? 'warning',
   }
   return config
 }
@@ -2155,6 +2208,49 @@ function enforceExperimentalFeatures(
     }
   }
 
+  // Enable cachedNavigations by default when cacheComponents is enabled.
+  // cachedNavigations relies on Cache Components rendering to do anything
+  // useful, so the two features are tied together: we only flip the default
+  // for projects that are already using Cache Components. Done silently —
+  // we don't report this through `configuredExperimentalFeatures` because
+  // (a) the existing `cacheComponents` env-var auto-enable above is also
+  // silent, and (b) reporting it would force every snapshot test that has
+  // `cacheComponents: true` to take on a new line.
+  // TODO: Remove this once cachedNavigations is unconditionally the default.
+  if (
+    config.cacheComponents &&
+    (config.experimental.cachedNavigations === undefined ||
+      (isDefaultConfig && !config.experimental.cachedNavigations))
+  ) {
+    config.experimental.cachedNavigations = true
+  }
+
+  // Enable appShells by default when cacheComponents is enabled, unless
+  // explicitly disabled. App Shells builds on Cache Components rendering, so
+  // the two features are tied together: we only flip the default for projects
+  // that are already using Cache Components. Done silently for the same reasons
+  // as the cachedNavigations default above.
+  //
+  // We only auto-enable when App Shells's required dependencies are satisfied.
+  // If a project has explicitly disabled one of them, we leave App Shells off
+  // rather than force it on — otherwise the validation in
+  // `assignDefaultsAndValidate` would turn a previously-valid config into a
+  // hard error. Users who want App Shells in that situation can still enable it
+  // explicitly and get the actionable validation message. `prefetchInlining` is
+  // intentionally not part of this gate (App Shells works without it). This runs
+  // after the cachedNavigations default above so that dependency is already set.
+  // TODO: Remove this once appShells is unconditionally the default.
+  if (
+    config.cacheComponents &&
+    config.experimental.varyParams !== false &&
+    config.experimental.optimisticRouting !== false &&
+    config.experimental.cachedNavigations !== false &&
+    (config.experimental.appShells === undefined ||
+      (isDefaultConfig && !config.experimental.appShells))
+  ) {
+    config.experimental.appShells = true
+  }
+
   // TODO: Remove this once appNewScrollHandler is the default.
   if (
     process.env.__NEXT_EXPERIMENTAL_APP_NEW_SCROLL_HANDLER === 'true' &&
@@ -2172,25 +2268,6 @@ function enforceExperimentalFeatures(
         'enabled by `__NEXT_EXPERIMENTAL_APP_NEW_SCROLL_HANDLER`'
       )
     }
-  }
-
-  // Enable node streams via env var (for CI testing).
-  if (
-    process.env.__NEXT_USE_NODE_STREAMS === 'true' &&
-    (config.experimental.useNodeStreams === undefined ||
-      (isDefaultConfig && !config.experimental.useNodeStreams))
-  ) {
-    config.experimental.useNodeStreams = true
-  }
-
-  // Keep runtime bundle selection env in sync with the resolved config.
-  // Explicit user config (e.g. useNodeStreams: false) should win over an
-  // inherited shell env var to avoid selecting nodestream runtime bundles
-  // while define-env compiled user bundles with node streams disabled.
-  if (config.experimental.useNodeStreams) {
-    process.env.__NEXT_USE_NODE_STREAMS = 'true'
-  } else {
-    delete process.env.__NEXT_USE_NODE_STREAMS
   }
 
   // TODO: Remove this once strictRouteTypes is the default.

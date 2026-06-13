@@ -21,10 +21,12 @@ harness = false
 workspace = true
 
 [dependencies]
+allocator-api2 = { workspace = true }
 anyhow = { workspace = true }
 async-trait = { workspace = true }
 auto-hash-map = { workspace = true }
 bincode = { workspace = true }
+bumpalo = { workspace = true }
 bytes-str = { workspace = true }
 data-encoding = { workspace = true }
 either = { workspace = true }
@@ -44,6 +46,7 @@ serde_json = { workspace = true, features = ["raw_value"] }
 swc_sourcemap = { workspace = true }
 smallvec = { workspace = true }
 strsim = { workspace = true }
+thread_local = { workspace = true }
 tokio = { workspace = true }
 tracing = { workspace = true }
 turbo-bincode = { workspace = true }
@@ -88,7 +91,8 @@ swc_core = { workspace = true, features = [
 
 [dev-dependencies]
 criterion = { workspace = true, features = ["async_tokio"] }
+rstest = { workspace = true }
 turbo-tasks-backend = { workspace = true }
-turbo-tasks-malloc = { workspace = true }
+turbo-tasks-malloc = { workspace = true, features  = ["custom_allocator"] }
 turbo-tasks-testing = { workspace = true }
 turbopack-test-utils = { workspace = true }

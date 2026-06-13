@@ -9,7 +9,11 @@ use turbopack_core::{
     source_map::{GenerateSourceMap, SourceMapAsset},
     version::{Update, Version, VersionedContent},
 };
-use turbopack_ecmascript::{chunk::EcmascriptChunkContent, minify::minify, utils::StringifyJs};
+use turbopack_ecmascript::{
+    chunk::{EcmascriptChunkContent, EcmascriptChunkContentEntries},
+    minify::minify,
+    utils::StringifyJs,
+};
 
 use super::{
     chunk::EcmascriptBuildNodeChunk, update::update_node_chunk,
@@ -42,6 +46,11 @@ impl EcmascriptBuildNodeChunkContent {
         }
         .cell()
     }
+
+    #[turbo_tasks::function]
+    pub(crate) fn entries(&self) -> Vc<EcmascriptChunkContentEntries> {
+        EcmascriptChunkContentEntries::new(*self.content)
+    }
 }
 
 #[turbo_tasks::value_impl]
@@ -60,9 +69,9 @@ impl EcmascriptBuildNodeChunkContent {
 
         let content = self.content.await?;
         let chunk_items = content.chunk_item_code_and_ids().await?;
-        for item in chunk_items {
-            for (id, item_code) in item {
-                write!(code, "\n{}, ", StringifyJs(&id))?;
+        for item in &chunk_items {
+            for (id, item_code) in &**item {
+                write!(code, "\n{}, ", StringifyJs(id))?;
                 code.push_code(item_code);
                 write!(code, ",")?;
             }

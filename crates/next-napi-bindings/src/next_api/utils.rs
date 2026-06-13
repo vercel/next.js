@@ -107,7 +107,7 @@ pub fn root_task_dispose(
 /// [consume]: turbo_tasks::CollectiblesSource::take_collectibles
 pub async fn get_issues<T: Send>(
     source: OperationVc<T>,
-    filter: Vc<IssueFilter>,
+    filter: &IssueFilter,
 ) -> Result<Arc<Vec<ReadRef<PlainIssue>>>> {
     Ok(Arc::new(
         source.peek_issues().get_plain_issues(filter).await?,
@@ -447,13 +447,13 @@ pub fn subscribe<T: 'static + Send + Sync, F: Future<Output = Result<T>> + Send,
 // propagate any actual error results.
 pub async fn strongly_consistent_catch_collectables<R: VcValueType + Send>(
     source_op: OperationVc<R>,
-    filter: Vc<IssueFilter>,
+    filter: &IssueFilter,
 ) -> Result<(
     Option<ReadRef<R>>,
     Arc<Vec<ReadRef<PlainIssue>>>,
     Arc<Effects>,
 )> {
-    let result = source_op.read_strongly_consistent().await;
+    let result = source_op.read_strongly_consistent().final_read_hint().await;
     let issues = get_issues(source_op, filter).await?;
     let effects = Arc::new(take_effects(source_op).await?);
 
