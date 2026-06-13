@@ -70,8 +70,8 @@ use crate::{
     },
     backing_storage::{SnapshotItem, SnapshotMeta, compute_task_type_hash},
     data::{
-        ActivenessState, CellDependency, CellRef, CollectibleRef, CollectiblesRef, Dirtyness,
-        InProgressCellState, InProgressState, InProgressStateInner, OutputValue, TransientTask,
+        ActivenessState, CellRef, CollectibleRef, CollectiblesRef, Dirtyness, InProgressCellState,
+        InProgressState, InProgressStateInner, OutputValue, TransientTask,
     },
     error::TaskError,
     kv_backing_storage::TurboBackingStorage,
@@ -453,7 +453,6 @@ impl TurboTasksBackend {
         let mut ctx = self.execute_context(turbo_tasks);
         let need_reader_task = if self.should_track_dependencies()
             && !matches!(options.tracking, ReadTracking::Untracked)
-            && reader.is_some_and(|reader_id| reader_id != task_id)
             && let Some(reader_id) = reader
             && reader_id != task_id
         {
@@ -794,8 +793,12 @@ impl TurboTasksBackend {
                 && (!task.immutable() || cfg!(feature = "verify_immutable"))
             {
                 let reader = reader.unwrap();
-                let _ = task
-                    .add_cell_dependents(CellDependency::new(CellRef { task: reader, cell }, key));
+                let reverse = CellRef { task: reader, cell };
+                if let Some(k) = key {
+                    let _ = task.add_cell_dependents_hashed((reverse, k));
+                } else {
+                    let _ = task.add_cell_dependents(reverse);
+                }
                 drop(task);
 
                 // Note: We use `task_pair` earlier to lock the task and its reader at the same
@@ -807,9 +810,12 @@ impl TurboTasksBackend {
                     task: task_id,
                     cell,
                 };
-                let dep = CellDependency::new(target, key);
-                if !reader_task.remove_outdated_cell_dependencies(&dep) {
-                    let _ = reader_task.add_cell_dependencies(dep);
+                if let Some(k) = key {
+                    if !reader_task.remove_outdated_cell_dependencies_hashed(&(target, k)) {
+                        let _ = reader_task.add_cell_dependencies_hashed((target, k));
+                    }
+                } else if !reader_task.remove_outdated_cell_dependencies(&target) {
+                    let _ = reader_task.add_cell_dependencies(target);
                 }
                 drop(reader_task);
             }
@@ -1922,8 +1928,13 @@ impl TurboTasksBackend {
 
             if self.should_track_dependencies() {
                 // Make all dependencies outdated
+                // We copy to outdated which allows us to detect when we drop a dependency, but we
+                // keep existing dependencies in place to avoid redoing the
+                // dependency registration work if we re-read them
                 let cell_dependencies = task.iter_cell_dependencies().collect();
                 task.set_outdated_cell_dependencies(cell_dependencies);
+                let cell_dependencies_hashed = task.iter_cell_dependencies_hashed().collect();
+                task.set_outdated_cell_dependencies_hashed(cell_dependencies_hashed);
 
                 let outdated_output_dependencies = task.iter_output_dependencies().collect();
                 task.set_outdated_output_dependencies(outdated_output_dependencies);
@@ -2259,9 +2270,10 @@ impl TurboTasksBackend {
             && task.is_collectibles_dependencies_empty()
         {
             Some(
-                // Collect all dependencies on tasks to check if all dependencies are immutable
+                // Collect all dependencies on tasks to check if all dependencies are immutable.
                 task.iter_output_dependencies()
-                    .chain(task.iter_cell_dependencies().map(|dep| dep.cell_ref().task))
+                    .chain(task.iter_cell_dependencies().map(|r| r.task))
+                    .chain(task.iter_cell_dependencies_hashed().map(|(r, _)| r.task))
                     .collect::<FxHashSet<_>>(),
             )
         } else {
@@ -2301,6 +2313,10 @@ impl TurboTasksBackend {
             old_edges.extend(
                 task.iter_outdated_cell_dependencies()
                     .map(OutdatedEdge::CellDependency),
+            );
+            old_edges.extend(
+                task.iter_outdated_cell_dependencies_hashed()
+                    .map(|(r, k)| OutdatedEdge::HashedCellDependency(r, k)),
             );
             old_edges.extend(
                 task.iter_outdated_output_dependencies()

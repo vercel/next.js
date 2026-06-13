@@ -194,8 +194,10 @@ export const enum PrefetchHint {
   // A descendant segment (but not this one) has a loading.tsx boundary.
   // Propagates upward so the root reflects the entire subtree.
   SubtreeHasLoadingBoundary = 0b01000,
-  // This segment is the root layout of the application.
-  IsRootLayout = 0b10000,
+  // This segment is at or above the application's root layout — the root layout
+  // segment itself and all of its ancestors. A dynamic param in one of these
+  // segments is a "root param".
+  IsRootLayoutOrAbove = 0b10000,
   // This segment's response includes its parent's data inlined into it.
   // Set at build time by the segment size measurement pass.
   ParentInlinedIntoSelf = 0b100000,
@@ -245,7 +247,7 @@ export const StaticPrefetchDisabled =
 /**
  * The subset of PrefetchHint bits that propagate upward from a child segment to
  * its ancestors (as opposed to segment-local bits like SegmentHasLoadingBoundary
- * or IsRootLayout). Used to clear stale propagated bits before re-deriving them
+ * or IsRootLayoutOrAbove). Used to clear stale propagated bits before re-deriving them
  * from a node's children.
  */
 export const SubtreePrefetchHints =
@@ -426,6 +428,18 @@ export type InitialRSCPayload = {
    * staleness.
    */
   d?: number
+  /**
+   * revealAfter (dev only). Resolves once the server has flushed the
+   * shell-stage content to the stream (static shell, or runtime-prefetchable
+   * shell for runtime-prefetch routes), or earlier on a cache miss. The client
+   * decodes this from the payload and defers resolving the response's deferred
+   * RSCs on it, so a boundary's children aren't revealed before their row has
+   * been decoded (which would flush a premature Suspense fallback). Its
+   * resolution row follows the children's row in the payload, so the children
+   * are decoded by the time the client unblocks. The HTML render gates on the
+   * same signal server-side instead of reading this field.
+   */
+  _revealAfter?: Promise<void>
 }
 
 // Response from `createFromFetch` for normal rendering
@@ -468,6 +482,18 @@ export type NavigationFlightResponse = {
    * staleness.
    */
   d?: number
+  /**
+   * revealAfter (dev only). Resolves once the server has flushed the
+   * shell-stage content to the stream (static shell, or runtime-prefetchable
+   * shell for runtime-prefetch routes), or earlier on a cache miss. The client
+   * decodes this from the payload and defers resolving the response's deferred
+   * RSCs on it, so a boundary's children aren't revealed before their row has
+   * been decoded (which would flush a premature Suspense fallback). Its
+   * resolution row follows the children's row in the payload, so the children
+   * are decoded by the time the client unblocks. The HTML render gates on the
+   * same signal server-side instead of reading this field.
+   */
+  _revealAfter?: Promise<void>
 }
 
 // Response from `createFromFetch` for server actions. Action's flight data can be null

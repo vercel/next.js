@@ -28,7 +28,7 @@ describe('computeChangedPath', () => {
           },
           undefined,
           undefined,
-          PrefetchHint.IsRootLayout,
+          PrefetchHint.IsRootLayoutOrAbove,
         ],
         [
           '',
@@ -53,7 +53,7 @@ describe('computeChangedPath', () => {
           },
           undefined,
           undefined,
-          PrefetchHint.IsRootLayout,
+          PrefetchHint.IsRootLayoutOrAbove,
         ]
       )
     ).toBe('/')

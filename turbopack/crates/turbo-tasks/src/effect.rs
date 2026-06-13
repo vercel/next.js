@@ -566,7 +566,13 @@ where
 {
     let mut attempts = 0usize;
     loop {
-        let value = op.read_strongly_consistent().await?;
+        // final_read_hint because
+        // 1. in the retry case we have just invalidated the operation so we need to recompute
+        //    anyway (not wasteful)
+        // 2. the callers are in top level tasks and the value type inside T is holding a
+        //    non-serializable effects value.  This strongly implies the rest of the data is
+        //    ephemeral often just readrefs on other cells.  So we don't need to keep it.
+        let value = op.read_strongly_consistent().final_read_hint().await?;
         // Deref the `ReadRef<T>` to the read target (`T` for non-transparent types).
         let effects = get_effects(&*value);
         match effects.apply().await {
