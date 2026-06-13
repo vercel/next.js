@@ -578,6 +578,21 @@ async function navigateToUnknownRoute(
     }
   }
 
+  // In the streaming dev render, this single response's seed content may still
+  // be streaming when we build the tree below. An unknown-route navigation
+  // places that content inline (it has no prior cache entry, so the server
+  // sends a full seed rather than the dynamic-only delta a known route gets),
+  // and that inline content is not gated like a known route's deferred RSCs. So
+  // React could read a still-pending chunk and flash a Suspense fallback
+  // (wanted on a cold cache, but not on a warm one). Wait for the shell to
+  // flush (`revealAfter`) first, so the inline seed content is decoded by the
+  // time React reads it, the same way the known-route path gates its deferred
+  // RSCs. `revealAfter` is null outside the streaming dev render. On a cache
+  // miss it resolves early, so the cold-cache fallback is still shown.
+  if (result.revealAfter !== null) {
+    await result.revealAfter
+  }
+
   return navigateToKnownRoute(
     now,
     state,
