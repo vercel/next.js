@@ -1,23 +1,29 @@
 abstract class ResourceManager<T, Args> {
-  private resources: T[] = []
+  private resources = new Set<T>()
 
   abstract create(resourceArgs: Args): T
   abstract destroy(resource: T): void
 
   add(resourceArgs: Args) {
     const resource = this.create(resourceArgs)
-    this.resources.push(resource)
+    this.resources.add(resource)
     return resource
   }
 
   remove(resource: T) {
-    this.resources = this.resources.filter((r) => r !== resource)
+    this.release(resource)
     this.destroy(resource)
   }
 
   removeAll() {
-    this.resources.forEach(this.destroy)
-    this.resources = []
+    for (const resource of this.resources) {
+      this.destroy(resource)
+    }
+    this.resources.clear()
+  }
+
+  protected release(resource: T) {
+    this.resources.delete(resource)
   }
 }
 
@@ -40,8 +46,24 @@ class TimeoutsManager extends ResourceManager<
   Parameters<typeof webSetTimeoutPolyfill>
 > {
   create(args: Parameters<typeof webSetTimeoutPolyfill>) {
+    const [globalObject, callback, ms, ...timerArgs] = args
+    const manager = this
+    let timeout: number
+
     // TODO: use the edge runtime provided `setTimeout` instead
-    return webSetTimeoutPolyfill(...args)
+    timeout = webSetTimeoutPolyfill(
+      globalObject,
+      function (this: GlobalObject, ...callbackArgs) {
+        try {
+          return callback.apply(this, callbackArgs)
+        } finally {
+          manager.release(timeout)
+        }
+      },
+      ms,
+      ...timerArgs
+    )
+    return timeout
   }
 
   destroy(timeout: number) {
