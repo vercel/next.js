@@ -28,8 +28,8 @@ use turbo_tasks_hash::{DeterministicHash, hash_xxh3_hash128};
 
 use crate::{
     CellId, Completion, InvalidationReason, InvalidationReasonSet, OutputContent, RawVc,
-    ReadCellOptions, ReadOutputOptions, ResolvedVc, SharedReference, TaskId, TraitMethod,
-    ValueTypeId, Vc, VcRead, VcValueTrait, VcValueType,
+    RawVcUnpacked, ReadCellOptions, ReadOutputOptions, ResolvedVc, SharedReference, TaskId,
+    TraitMethod, ValueTypeId, Vc, VcRead, VcValueTrait, VcValueType,
     backend::{
         Backend, CellContent, CellHash, TaskCollectiblesMap, TaskExecutionSpec, TransientTaskType,
         TurboTasksExecutionError, TypedCellContent, VerificationMode,
@@ -747,7 +747,7 @@ impl<B: Backend + 'static> TurboTasks<B> {
         arg: &mut dyn DynTaskInputsStorage,
         persistence: TaskPersistence,
     ) -> RawVc {
-        RawVc::TaskOutput(self.backend.get_or_create_task(
+        RawVc::task_output(self.backend.get_or_create_task(
             native_fn,
             this,
             arg,
@@ -789,7 +789,7 @@ impl<B: Backend + 'static> TurboTasks<B> {
         // avoid creating a wrapper task if self is already resolved
         // for resolved cells we already know the value type so we can lookup the
         // function
-        if let RawVc::TaskCell(_, cell_id) = this {
+        if let RawVcUnpacked::TaskCell(_, cell_id) = this.unpack() {
             match registry::get_value_type(cell_id.type_id()).get_trait_method(trait_method) {
                 Some(native_fn) => {
                     if let Some(filter) = native_fn.arg_meta.filter_owned {
@@ -875,7 +875,7 @@ impl<B: Backend + 'static> TurboTasks<B> {
             priority,
         );
 
-        RawVc::LocalOutput(execution_id, local_task_id, persistence)
+        RawVc::local_output(execution_id, local_task_id, persistence)
     }
 
     fn begin_foreground_job(&self) {
@@ -2202,7 +2202,7 @@ impl CurrentCellRef {
 
 impl From<CurrentCellRef> for RawVc {
     fn from(cell: CurrentCellRef) -> Self {
-        RawVc::TaskCell(cell.current_task, cell.index)
+        RawVc::task_cell(cell.current_task, cell.index)
     }
 }
 

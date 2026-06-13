@@ -33,7 +33,7 @@ pub use self::{
     default::ValueDefault,
     local::NonLocalValue,
     operation::{OperationValue, OperationVc, ResolveOperationVcFuture},
-    raw::{CellId, RawVc, ReadRawVcFuture, ResolveRawVcFuture},
+    raw::{CellId, RawVc, RawVcUnpacked, ReadRawVcFuture, ResolveRawVcFuture},
     read::{ReadOwnedVcFuture, ReadVcFuture, VcDefaultRead, VcRead, VcTransparentRead},
     resolved::ResolvedVc,
     traits::{Dynamic, Upcast, UpcastStrict, VcValueTrait, VcValueType},
@@ -355,7 +355,7 @@ where
     pub async fn debug_identifier(vc: Self) -> Result<String> {
         let resolved = vc.to_resolved().await?;
         let raw_vc: RawVc = resolved.node.node;
-        if let RawVc::TaskCell(task_id, cell_id) = raw_vc {
+        if let RawVcUnpacked::TaskCell(task_id, cell_id) = raw_vc.unpack() {
             let value_name = registry::get_value_type(cell_id.type_id()).ty.name;
             Ok(format!(
                 "{value_name}#{index}: {task_id}",

@@ -1,7 +1,7 @@
 use std::{
     fmt::{Debug, Display},
     future::Future,
-    num::NonZeroU32,
+    num::{NonZeroU32, NonZeroU64},
     pin::Pin,
     sync::Arc,
     task::{Poll, ready},
@@ -17,7 +17,7 @@ use crate::{
     TaskPersistence, TraitTypeId, ValueTypeId, VcValueTrait,
     backend::TypedCellContent,
     event::EventListener,
-    id::{ExecutionId, LocalTaskId},
+    id::{ExecutionId, LocalTaskId, TASK_ID_MAX},
     manager::{
         ReadCellTracking, ReadTracking, SUPPRESS_EVENTUAL_CONSISTENCY_TOP_LEVEL_TASK_CHECK,
         TurboTasksApi, read_local_output, with_turbo_tasks,
@@ -84,6 +84,23 @@ impl CellId {
     pub fn index(self) -> u32 {
         self.0.get() & CELL_INDEX_MASK
     }
+
+    /// The raw packed word, used by [`RawVc`] to pack a `TaskCell` into its u64.
+    pub(crate) fn raw(self) -> u32 {
+        self.0.get()
+    }
+
+    /// Reconstructs a `CellId` from a raw packed word produced by [`Self::raw`].
+    ///
+    /// # Safety
+    ///
+    /// `raw` must be a value previously returned by [`Self::raw`] (in
+    /// particular, non-zero with a valid 10-bit type id in the high bits).
+    pub(crate) unsafe fn from_raw(raw: u32) -> Self {
+        debug_assert!(raw != 0);
+        // SAFETY: the caller guarantees `raw` came from a valid `CellId`.
+        CellId(unsafe { NonZeroU32::new_unchecked(raw) })
+    }
 }
 
 impl Debug for CellId {
@@ -114,10 +131,34 @@ impl Display for CellId {
 /// This type is heavily used within the [`Backend`][crate::backend::Backend] trait, but should
 /// otherwise be treated as an internal implementation detail of `turbo-tasks`.
 ///
+/// # Representation
+///
+/// `RawVc` is one of three logical variants (see [`RawVcUnpacked`]) bit-packed
+/// into a single [`NonZeroU64`] so that `RawVc` is 8 bytes (and `Option<RawVc>`
+/// stays 8 bytes via the niche). A 2-bit tag lives in the low bits:
+///
+/// ```text
+/// tag 0b00  TaskOutput:  tag | TaskId(30) << 2
+/// tag 0b01  TaskCell:    tag | TaskId(30) << 2 | CellId(32) << 32
+/// tag 0b10  LocalOutput: tag | transient(1) << 2 | ExecutionId(16) << 3 | LocalTaskId(32) << 19
+/// ```
+///
+/// The word is never zero: `TaskOutput`/`TaskCell` carry a `TaskId >= 1` shifted
+/// left by 2 (so `>= 4`), and `LocalOutput` always has the `0b10` tag bit set.
+///
+/// Construct values with [`RawVc::task_output`], [`RawVc::task_cell`], and
+/// [`RawVc::local_output`]; read them back with [`RawVc::unpack`].
+///
 /// [`Vc`]: crate::Vc
 /// [monomorphization]: https://doc.rust-lang.org/book/ch10-01-syntax.html#performance-of-code-using-generics
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Encode, Decode)]
-pub enum RawVc {
+pub struct RawVc(NonZeroU64);
+
+/// The unpacked form of [`RawVc`], produced by [`RawVc::unpack`]. This mirrors
+/// the logical variants for ergonomic matching; the in-memory form is the
+/// packed [`RawVc`].
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum RawVcUnpacked {
     /// The synchronous return value of a task (after argument resolution). This is the
     /// representation used by [`OperationVc`][crate::OperationVc].
     TaskOutput(TaskId),
@@ -138,23 +179,130 @@ pub enum RawVc {
     LocalOutput(ExecutionId, LocalTaskId, TaskPersistence),
 }
 
+/// 2-bit tag mask.
+const RAW_VC_TAG_MASK: u64 = 0b11;
+const RAW_VC_TAG_OUTPUT: u64 = 0b00;
+const RAW_VC_TAG_CELL: u64 = 0b01;
+const RAW_VC_TAG_LOCAL: u64 = 0b10;
+
+/// Bit width / shift of the `TaskId` value inside `TaskOutput` / `TaskCell`.
+const RAW_VC_TASK_SHIFT: u64 = 2;
+const RAW_VC_TASK_MASK: u64 = TASK_ID_MAX as u64;
+/// Shift of the packed `CellId` word inside `TaskCell`.
+const RAW_VC_CELL_SHIFT: u64 = 32;
+/// `LocalOutput` field shifts.
+const RAW_VC_LOCAL_TRANSIENT_SHIFT: u64 = 2;
+const RAW_VC_LOCAL_EXECUTION_SHIFT: u64 = 3;
+const RAW_VC_LOCAL_TASK_SHIFT: u64 = 19;
+
+impl RawVc {
+    /// Packs the synchronous return value of a task.
+    pub fn task_output(task: TaskId) -> Self {
+        let task = *task as u64;
+        debug_assert!(task <= RAW_VC_TASK_MASK, "TaskId exceeds 30 bits");
+        Self::from_bits(RAW_VC_TAG_OUTPUT | (task << RAW_VC_TASK_SHIFT))
+    }
+
+    /// Packs a pointer to a specific cell within a task.
+    pub fn task_cell(task: TaskId, cell: CellId) -> Self {
+        let task = *task as u64;
+        debug_assert!(task <= RAW_VC_TASK_MASK, "TaskId exceeds 30 bits");
+        let cell = cell.raw() as u64;
+        Self::from_bits(RAW_VC_TAG_CELL | (task << RAW_VC_TASK_SHIFT) | (cell << RAW_VC_CELL_SHIFT))
+    }
+
+    /// Packs the synchronous return value of a local task.
+    pub fn local_output(
+        execution_id: ExecutionId,
+        local_task_id: LocalTaskId,
+        persistence: TaskPersistence,
+    ) -> Self {
+        let transient = (persistence == TaskPersistence::Transient) as u64;
+        let execution_id = *execution_id as u64;
+        let local_task_id = *local_task_id as u64;
+        Self::from_bits(
+            RAW_VC_TAG_LOCAL
+                | (transient << RAW_VC_LOCAL_TRANSIENT_SHIFT)
+                | (execution_id << RAW_VC_LOCAL_EXECUTION_SHIFT)
+                | (local_task_id << RAW_VC_LOCAL_TASK_SHIFT),
+        )
+    }
+
+    #[inline]
+    fn from_bits(bits: u64) -> Self {
+        // SAFETY: every constructor sets a non-zero bit — `TaskId << 2 >= 4` for
+        // the task variants, and the `0b10` tag for local outputs.
+        RawVc(unsafe { NonZeroU64::new_unchecked(bits) })
+    }
+
+    #[inline]
+    fn bits(self) -> u64 {
+        self.0.get()
+    }
+
+    #[inline]
+    fn tag(self) -> u64 {
+        self.bits() & RAW_VC_TAG_MASK
+    }
+
+    /// Reads the `TaskId` from a `TaskOutput` / `TaskCell` word.
+    #[inline]
+    fn read_task_id(self) -> TaskId {
+        let id = ((self.bits() >> RAW_VC_TASK_SHIFT) & RAW_VC_TASK_MASK) as u32;
+        // SAFETY: a non-zero `TaskId` was packed in by construction.
+        unsafe { TaskId::new_unchecked(id) }
+    }
+
+    /// Reads the [`CellId`] from a `TaskCell` word.
+    #[inline]
+    fn read_cell(self) -> CellId {
+        let raw = (self.bits() >> RAW_VC_CELL_SHIFT) as u32;
+        // SAFETY: a valid packed `CellId` was stored in the high 32 bits.
+        unsafe { CellId::from_raw(raw) }
+    }
+
+    /// Unpacks into the logical [`RawVcUnpacked`] enum for matching.
+    pub fn unpack(self) -> RawVcUnpacked {
+        let bits = self.bits();
+        match bits & RAW_VC_TAG_MASK {
+            RAW_VC_TAG_OUTPUT => RawVcUnpacked::TaskOutput(self.read_task_id()),
+            RAW_VC_TAG_CELL => RawVcUnpacked::TaskCell(self.read_task_id(), self.read_cell()),
+            RAW_VC_TAG_LOCAL => {
+                let persistence = if (bits >> RAW_VC_LOCAL_TRANSIENT_SHIFT) & 1 == 1 {
+                    TaskPersistence::Transient
+                } else {
+                    TaskPersistence::Persistent
+                };
+                let execution_id = ((bits >> RAW_VC_LOCAL_EXECUTION_SHIFT) & 0xFFFF) as u16;
+                let local_task_id = ((bits >> RAW_VC_LOCAL_TASK_SHIFT) & 0xFFFF_FFFF) as u32;
+                // SAFETY: non-zero `ExecutionId`/`LocalTaskId` were packed in.
+                RawVcUnpacked::LocalOutput(
+                    unsafe { ExecutionId::new_unchecked(execution_id) },
+                    unsafe { LocalTaskId::new_unchecked(local_task_id) },
+                    persistence,
+                )
+            }
+            _ => unreachable!("invalid RawVc tag"),
+        }
+    }
+}
+
 impl Debug for RawVc {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            RawVc::TaskOutput(task_id) => f
-                .debug_tuple("RawVc::TaskOutput")
-                .field(&**task_id)
-                .finish(),
-            RawVc::TaskCell(task_id, cell_id) => f
+        match self.unpack() {
+            RawVcUnpacked::TaskOutput(task_id) => {
+                f.debug_tuple("RawVc::TaskOutput").field(&*task_id).finish()
+            }
+            RawVcUnpacked::TaskCell(task_id, cell_id) => f
                 .debug_tuple("RawVc::TaskCell")
-                .field(&**task_id)
+                .field(&*task_id)
                 .field(&cell_id.to_string())
                 .finish(),
-            RawVc::LocalOutput(execution_id, local_task_id, task_persistence) => f
+            RawVcUnpacked::LocalOutput(execution_id, local_task_id, task_persistence) => f
                 .debug_tuple("RawVc::LocalOutput")
-                .field(&**execution_id)
-                .field(&**local_task_id)
-                .field(task_persistence)
+                .field(&*execution_id)
+                .field(&*local_task_id)
+                .field(&task_persistence)
                 .finish(),
         }
     }
@@ -162,15 +310,15 @@ impl Debug for RawVc {
 
 impl Display for RawVc {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            RawVc::TaskOutput(task_id) => write!(f, "output of task {}", **task_id),
-            RawVc::TaskCell(task_id, cell_id) => {
-                write!(f, "{} of task {}", cell_id, **task_id)
+        match self.unpack() {
+            RawVcUnpacked::TaskOutput(task_id) => write!(f, "output of task {}", *task_id),
+            RawVcUnpacked::TaskCell(task_id, cell_id) => {
+                write!(f, "{} of task {}", cell_id, *task_id)
             }
-            RawVc::LocalOutput(execution_id, local_task_id, task_persistence) => write!(
+            RawVcUnpacked::LocalOutput(execution_id, local_task_id, task_persistence) => write!(
                 f,
                 "output of local task {} ({}, {})",
-                **local_task_id, **execution_id, task_persistence
+                *local_task_id, *execution_id, task_persistence
             ),
         }
     }
@@ -178,19 +326,11 @@ impl Display for RawVc {
 
 impl RawVc {
     pub fn is_resolved(&self) -> bool {
-        match self {
-            RawVc::TaskOutput(..) => false,
-            RawVc::TaskCell(..) => true,
-            RawVc::LocalOutput(..) => false,
-        }
+        self.tag() == RAW_VC_TAG_CELL
     }
 
     pub fn is_local(&self) -> bool {
-        match self {
-            RawVc::TaskOutput(..) => false,
-            RawVc::TaskCell(..) => false,
-            RawVc::LocalOutput(..) => true,
-        }
+        self.tag() == RAW_VC_TAG_LOCAL
     }
 
     /// Returns `true` if the task this `RawVc` reads from cannot be serialized and will not be
@@ -198,9 +338,10 @@ impl RawVc {
     ///
     /// See [`TaskPersistence`] for more details.
     pub fn is_transient(&self) -> bool {
-        match self {
-            RawVc::TaskOutput(task) | RawVc::TaskCell(task, ..) => task.is_transient(),
-            RawVc::LocalOutput(_, _, persistence) => *persistence == TaskPersistence::Transient,
+        match self.tag() {
+            RAW_VC_TAG_OUTPUT | RAW_VC_TAG_CELL => self.read_task_id().is_transient(),
+            // LocalOutput: the transient flag is stored as a bit.
+            _ => (self.bits() >> RAW_VC_LOCAL_TRANSIENT_SHIFT) & 1 == 1,
         }
     }
 
@@ -218,17 +359,17 @@ impl RawVc {
     /// Convert a potentially local `RawVc` into a non-local `RawVc`. This is a subset of resolution
     /// resolution, because the returned `RawVc` can be a `TaskOutput`.
     pub async fn to_non_local(self) -> Result<RawVc> {
-        Ok(match self {
-            RawVc::LocalOutput(execution_id, local_task_id, ..) => {
+        Ok(match self.unpack() {
+            RawVcUnpacked::LocalOutput(execution_id, local_task_id, ..) => {
                 let tt = turbo_tasks();
                 let local_output = read_local_output(&*tt, execution_id, local_task_id).await?;
                 debug_assert!(
-                    !matches!(local_output, RawVc::LocalOutput(_, _, _)),
+                    !local_output.is_local(),
                     "a LocalOutput cannot point at other LocalOutputs"
                 );
                 local_output
             }
-            non_local => non_local,
+            _ => self,
         })
     }
 
@@ -238,69 +379,65 @@ impl RawVc {
     /// 'unchecked' because the caller must have already confirmed that the local tasks were already
     /// completed
     pub(crate) fn to_non_local_unchecked_sync(self, tt: &dyn TurboTasksApi) -> Result<RawVc> {
-        Ok(match self {
-            RawVc::LocalOutput(execution_id, local_task_id, ..) => {
+        Ok(match self.unpack() {
+            RawVcUnpacked::LocalOutput(execution_id, local_task_id, ..) => {
                 let local_output = match tt.try_read_local_output(execution_id, local_task_id)? {
                     Ok(raw_vc) => raw_vc,
                     Err(_event_listener) => unreachable!("local output is not ready yet"),
                 };
                 debug_assert!(
-                    !matches!(local_output, RawVc::LocalOutput(_, _, _)),
+                    !local_output.is_local(),
                     "a LocalOutput cannot point at other LocalOutputs"
                 );
                 local_output
             }
-            non_local => non_local,
+            _ => self,
         })
     }
 
     pub(crate) fn connect(&self) {
-        let RawVc::TaskOutput(task_id) = self else {
+        let RawVcUnpacked::TaskOutput(task_id) = self.unpack() else {
             panic!("RawVc::connect() must only be called on a RawVc::TaskOutput");
         };
         let tt = turbo_tasks();
-        tt.connect_task(*task_id);
+        tt.connect_task(task_id);
     }
 
     pub fn try_get_task_id(&self) -> Option<TaskId> {
-        match self {
-            RawVc::TaskOutput(t) | RawVc::TaskCell(t, ..) => Some(*t),
-            RawVc::LocalOutput(..) => None,
-        }
+        matches!(self.tag(), RAW_VC_TAG_OUTPUT | RAW_VC_TAG_CELL).then(|| self.read_task_id())
     }
 
     pub fn try_get_type_id(&self) -> Option<ValueTypeId> {
-        match self {
-            RawVc::TaskCell(_, cell_id) => Some(cell_id.type_id()),
-            RawVc::TaskOutput(..) | RawVc::LocalOutput(..) => None,
-        }
+        (self.tag() == RAW_VC_TAG_CELL).then(|| self.read_cell().type_id())
     }
 
     /// For a cell that's already resolved, synchronously check if it implements a trait using the
     /// type information in `RawVc::TaskCell` (we don't actually need to read the cell!).
     pub(crate) fn resolved_has_trait(&self, trait_id: TraitTypeId) -> bool {
-        match self {
-            RawVc::TaskCell(_task_id, cell_id) => {
-                get_value_type(cell_id.type_id()).has_trait(&trait_id)
-            }
-            _ => unreachable!("resolved_has_trait must be called with a RawVc::TaskCell"),
-        }
+        debug_assert_eq!(
+            self.tag(),
+            RAW_VC_TAG_CELL,
+            "resolved_has_trait must be called with a RawVc::TaskCell"
+        );
+        get_value_type(self.read_cell().type_id()).has_trait(&trait_id)
     }
 
     /// For a cell that's already resolved, synchronously check if it is a given type using the type
     /// information in `RawVc::TaskCell` (we don't actually need to read the cell!).
     pub(crate) fn resolved_is_type(&self, type_id: ValueTypeId) -> bool {
-        match self {
-            RawVc::TaskCell(_task_id, cell_id) => cell_id.type_id() == type_id,
-            _ => unreachable!("resolved_is_type must be called with a RawVc::TaskCell"),
-        }
+        debug_assert_eq!(
+            self.tag(),
+            RAW_VC_TAG_CELL,
+            "resolved_is_type must be called with a RawVc::TaskCell"
+        );
+        self.read_cell().type_id() == type_id
     }
 }
 
 /// This implementation of `CollectiblesSource` assumes that `self` is a `RawVc::TaskOutput`.
 impl CollectiblesSource for RawVc {
     fn peek_collectibles<T: VcValueTrait + ?Sized>(self) -> AutoSet<ResolvedVc<T>> {
-        let RawVc::TaskOutput(task_id) = self else {
+        let RawVcUnpacked::TaskOutput(task_id) = self.unpack() else {
             panic!(
                 "<RawVc as CollectiblesSource>::peek_collectibles() must only be called on a \
                  RawVc::TaskOutput"
@@ -314,7 +451,7 @@ impl CollectiblesSource for RawVc {
     }
 
     fn take_collectibles<T: VcValueTrait + ?Sized>(self) -> AutoSet<ResolvedVc<T>> {
-        let RawVc::TaskOutput(task_id) = self else {
+        let RawVcUnpacked::TaskOutput(task_id) = self.unpack() else {
             panic!(
                 "<RawVc as CollectiblesSource>::take_collectibles() must only be called on a \
                  RawVc::TaskOutput"
@@ -329,7 +466,7 @@ impl CollectiblesSource for RawVc {
     }
 
     fn drop_collectibles<T: VcValueTrait + ?Sized>(self) {
-        let RawVc::TaskOutput(task_id) = self else {
+        let RawVcUnpacked::TaskOutput(task_id) = self.unpack() else {
             panic!(
                 "<RawVc as CollectiblesSource>::drop_collectibles() must only be called on a \
                  RawVc::TaskOutput"
@@ -421,8 +558,8 @@ impl Future for ResolveRawVcFuture {
         let poll_fn = |tt: &Arc<dyn TurboTasksApi>| -> Poll<Self::Output> {
             'outer: loop {
                 ready!(poll_listener(&mut this.listener, cx));
-                let listener = match this.current {
-                    RawVc::TaskOutput(task) => {
+                let listener = match this.current.unpack() {
+                    RawVcUnpacked::TaskOutput(task) => {
                         let read_result = tt.try_read_task_output(task, this.read_output_options);
                         match read_result {
                             Ok(Ok(vc)) => {
@@ -442,8 +579,8 @@ impl Future for ResolveRawVcFuture {
                             Err(err) => return Poll::Ready(Err(err)),
                         }
                     }
-                    RawVc::TaskCell(_, _) => return Poll::Ready(Ok(this.current)),
-                    RawVc::LocalOutput(execution_id, local_task_id, ..) => {
+                    RawVcUnpacked::TaskCell(_, _) => return Poll::Ready(Ok(this.current)),
+                    RawVcUnpacked::LocalOutput(execution_id, local_task_id, ..) => {
                         debug_assert_eq!(
                             this.read_output_options.consistency,
                             ReadConsistency::Eventual
@@ -563,15 +700,17 @@ impl Future for ReadRawVcFuture {
             let strongly_consistent = resolve.strongly_consistent;
             match ready!(Pin::new(resolve).poll(cx)) {
                 Err(err) => return Poll::Ready(Err(err)),
-                Ok(RawVc::TaskCell(task, index)) => {
-                    this.state = ReadRawVcState::Reading {
-                        task,
-                        index,
-                        strongly_consistent,
-                        listener: None,
-                    };
-                }
-                Ok(_) => unreachable!("ResolveRawVcFuture always resolves to a TaskCell"),
+                Ok(resolved) => match resolved.unpack() {
+                    RawVcUnpacked::TaskCell(task, index) => {
+                        this.state = ReadRawVcState::Reading {
+                            task,
+                            index,
+                            strongly_consistent,
+                            listener: None,
+                        };
+                    }
+                    _ => unreachable!("ResolveRawVcFuture always resolves to a TaskCell"),
+                },
             }
         }
 
@@ -651,5 +790,69 @@ mod tests {
         assert_ne!(a, b);
         assert_ne!(a, c);
         assert_ne!(b, c);
+    }
+
+    /// `RawVc` must pack into 8 bytes and keep its niche.
+    #[test]
+    fn raw_vc_is_eight_bytes() {
+        assert_eq!(size_of::<RawVc>(), 8);
+        assert_eq!(size_of::<Option<RawVc>>(), 8);
+    }
+
+    /// Every variant must round-trip through pack → `unpack()` across the full
+    /// range of each packed field, including boundary values and both
+    /// persistence states. This is the core correctness property of the
+    /// bit-packing.
+    #[test]
+    fn raw_vc_pack_unpack_round_trip() {
+        // SAFETY: all ids below are >= 1 and within their bit budgets.
+        let tasks = [
+            1u32,
+            2,
+            crate::TRANSIENT_TASK_BIT - 1,
+            crate::TRANSIENT_TASK_BIT,
+            TASK_ID_MAX,
+        ];
+        for &t in &tasks {
+            let task = unsafe { TaskId::new_unchecked(t) };
+
+            // TaskOutput
+            let vc = RawVc::task_output(task);
+            assert_eq!(vc.unpack(), RawVcUnpacked::TaskOutput(task));
+            assert!(!vc.is_resolved() && !vc.is_local());
+            assert_eq!(vc.is_transient(), task.is_transient());
+            assert_eq!(vc.try_get_task_id(), Some(task));
+
+            // TaskCell, across CellId boundaries
+            for cell in [
+                CellId::new(unsafe { ValueTypeId::new_unchecked(1) }, 0),
+                CellId::new(
+                    unsafe { ValueTypeId::new_unchecked(CellId::MAX_VALUE_TYPE_ID) },
+                    CellId::MAX_CELL_INDEX,
+                ),
+            ] {
+                let vc = RawVc::task_cell(task, cell);
+                assert_eq!(vc.unpack(), RawVcUnpacked::TaskCell(task, cell));
+                assert!(vc.is_resolved());
+                assert_eq!(vc.try_get_task_id(), Some(task));
+                assert_eq!(vc.try_get_type_id(), Some(cell.type_id()));
+            }
+        }
+
+        // LocalOutput, both persistence states and boundary ids
+        for persistence in [TaskPersistence::Persistent, TaskPersistence::Transient] {
+            for (e, l) in [(1u16, 1u32), (u16::MAX, u32::MAX)] {
+                let exec = unsafe { ExecutionId::new_unchecked(e) };
+                let local = unsafe { LocalTaskId::new_unchecked(l) };
+                let vc = RawVc::local_output(exec, local, persistence);
+                assert_eq!(
+                    vc.unpack(),
+                    RawVcUnpacked::LocalOutput(exec, local, persistence)
+                );
+                assert!(vc.is_local());
+                assert_eq!(vc.is_transient(), persistence == TaskPersistence::Transient);
+                assert_eq!(vc.try_get_task_id(), None);
+            }
+        }
     }
 }
