@@ -137,12 +137,17 @@ macro_rules! define_id {
 
 define_id!(
     TaskId: u32,
+    // Capped below `u32::MAX` so the id fits in 30 bits when packed into `RawVc`.
     max = TASK_ID_MAX,
     derive(Serialize, Deserialize, Encode, Decode),
     serde(transparent),
 );
+define_id!(
+    ValueTypeId: u16,
+    // Capped below `u16::MAX` so the id fits in 10 bits when packed into `CellId`.
+    max = crate::CellId::MAX_VALUE_TYPE_ID,
+);
 define_id!(FunctionId: u16);
-define_id!(ValueTypeId: u16);
 define_id!(TraitTypeId: u16);
 define_id!(
     LocalTaskId: u32,
@@ -304,5 +309,13 @@ mod tests {
         assert!(TaskId::MAX.is_transient());
         assert!(!TaskId::new(TRANSIENT_TASK_BIT - 1).unwrap().is_transient());
         assert!(TaskId::new(TRANSIENT_TASK_BIT).unwrap().is_transient());
+    }
+
+    /// `ValueTypeId::MAX` is capped to the 10-bit field it occupies in `CellId`,
+    /// not the full `u16::MAX`.
+    #[test]
+    fn value_type_id_max_is_capped() {
+        assert_eq!(*ValueTypeId::MAX, crate::CellId::MAX_VALUE_TYPE_ID);
+        assert!(*ValueTypeId::MAX < u16::MAX);
     }
 }
