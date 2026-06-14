@@ -265,7 +265,7 @@ export function navigateToKnownRoute(
     ) {
       const error = new Error(
         `A <Link prefetch={true}> navigated to "${url.pathname}", but Partial Prefetching is not enabled for that route.\n\n` +
-          `This makes the prefetch a legacy "full" prefetch that includes the route's dynamic data, defeating the static/dynamic split that Cache Components provides.\n\n` +
+          `This prevents the prefetch from being partial, leading to the route's dynamic data being included in the prefetch.\n\n` +
           `Ways to fix this:\n` +
           `  - [upgrade] Opt the route into Partial Prefetching by exporting \`const prefetch = 'partial'\` from the page or layout\n` +
           `    https://nextjs.org/docs/messages/instant-link-prefetch-partial#opt-into-partial-prefetching\n` +
