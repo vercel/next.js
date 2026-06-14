@@ -42,16 +42,17 @@ export default async function patchPackageJson(
     const packageJsonValue = await readJsonValue(packageJsonPath)
     const overrides = await patchWorkspacePackageJsonMap(
       paths,
-      packageJsonValue,
-      await isPnpmProject(workspaceRoot)
+      packageJsonValue
     )
     await writeJsonValue(packageJsonPath, packageJsonValue)
-    if (await isPnpmProject(workspaceRoot)) {
-      // pnpm v11+ reads `overrides` from `pnpm-workspace.yaml`, not from
-      // `package.json#pnpm.overrides`. See https://pnpm.io/settings and
-      // https://github.com/pnpm/pnpm/issues/11536. We also keep writing to
-      // `package.json#pnpm.overrides` (in patchWorkspacePackageJsonMap) for
-      // pnpm v10 and below.
+    // Also mirror overrides into pnpm-workspace.yaml so pnpm v11+ picks them
+    // up. We don't try to detect the pnpm version — pnpm v10 reads
+    // `pnpm.overrides` (written above) and pnpm v11+ reads
+    // `pnpm-workspace.yaml#overrides`. To avoid dropping a pnpm-workspace.yaml
+    // into non-pnpm projects, we only write the file if it already exists or
+    // if a `pnpm-lock.yaml` indicates this is a pnpm project. See
+    // https://pnpm.io/settings and https://github.com/pnpm/pnpm/issues/11536.
+    if (await shouldWritePnpmWorkspace(workspaceRoot)) {
       await mergePnpmWorkspaceOverrides(
         workspaceRoot,
         Object.fromEntries(overrides)
@@ -96,8 +97,7 @@ async function writeJsonValue(
 
 async function patchWorkspacePackageJsonMap(
   paths: DependencyPaths,
-  packageJsonMap: PackageJson,
-  isPnpm: boolean
+  packageJsonMap: PackageJson
 ): Promise<[string, string][]> {
   const nextPeerDeps = await getNextPeerDeps()
 
@@ -121,11 +121,9 @@ async function patchWorkspacePackageJsonMap(
 
   // pnpm v10 and below read `pnpm.overrides` from package.json.
   // pnpm v11+ reads `pnpm-workspace.yaml#overrides` (written separately).
-  if (isPnpm) {
-    packageJsonMap.pnpm = packageJsonMap.pnpm || {}
-    packageJsonMap.pnpm.overrides = packageJsonMap.pnpm.overrides || {}
-    insertMapEntries(packageJsonMap.pnpm.overrides, overrides)
-  }
+  packageJsonMap.pnpm = packageJsonMap.pnpm || {}
+  packageJsonMap.pnpm.overrides = packageJsonMap.pnpm.overrides || {}
+  insertMapEntries(packageJsonMap.pnpm.overrides, overrides)
 
   // Add @next/swc to dependencies
   packageJsonMap.dependencies = packageJsonMap.dependencies || {}
@@ -168,10 +166,12 @@ async function getNextPeerDeps(): Promise<NextPeerDeps> {
   }
 }
 
-async function isPnpmProject(workspaceRoot: string): Promise<boolean> {
+async function shouldWritePnpmWorkspace(
+  workspaceRoot: string
+): Promise<boolean> {
   return (
-    (await fileExists(path.join(workspaceRoot, 'pnpm-lock.yaml'))) ||
-    (await fileExists(path.join(workspaceRoot, 'pnpm-workspace.yaml')))
+    (await fileExists(path.join(workspaceRoot, 'pnpm-workspace.yaml'))) ||
+    (await fileExists(path.join(workspaceRoot, 'pnpm-lock.yaml')))
   )
 }
 

@@ -174,7 +174,6 @@ async function patchPackageJson(projectPath, tarballUrls) {
   const pkg = JSON.parse(content)
 
   const entries = Array.from(tarballUrls.entries())
-  const isPnpm = await isPnpmProject(workspaceRoot)
 
   // npm uses top-level `overrides`
   pkg.overrides = pkg.overrides || {}
@@ -191,12 +190,10 @@ async function patchPackageJson(projectPath, tarballUrls) {
   // pnpm v10 and below read `pnpm.overrides` from package.json.
   // pnpm v11+ reads `pnpm-workspace.yaml#overrides` (handled below). See
   // https://pnpm.io/settings and https://github.com/pnpm/pnpm/issues/11536.
-  if (isPnpm) {
-    pkg.pnpm = pkg.pnpm || {}
-    pkg.pnpm.overrides = pkg.pnpm.overrides || {}
-    for (const [name, url] of entries) {
-      pkg.pnpm.overrides[name] = url
-    }
+  pkg.pnpm = pkg.pnpm || {}
+  pkg.pnpm.overrides = pkg.pnpm.overrides || {}
+  for (const [name, url] of entries) {
+    pkg.pnpm.overrides[name] = url
   }
 
   // Add @next/swc-linux-x64-gnu to dependencies
@@ -207,7 +204,10 @@ async function patchPackageJson(projectPath, tarballUrls) {
 
   await fs.writeFile(packageJsonPath, JSON.stringify(pkg, null, 2) + '\n')
 
-  if (isPnpm) {
+  // Only touch pnpm-workspace.yaml if it already exists (merge into it) or if
+  // a pnpm-lock.yaml indicates this is a pnpm project — avoids dropping a
+  // pnpm-workspace.yaml into non-pnpm projects.
+  if (await shouldWritePnpmWorkspace(workspaceRoot)) {
     await mergePnpmWorkspaceOverrides(
       workspaceRoot,
       Object.fromEntries(entries)
@@ -223,10 +223,10 @@ async function patchPackageJson(projectPath, tarballUrls) {
   return packageJsonPath
 }
 
-async function isPnpmProject(workspaceRoot) {
+async function shouldWritePnpmWorkspace(workspaceRoot) {
   return (
-    (await fileExists(path.join(workspaceRoot, 'pnpm-lock.yaml'))) ||
-    (await fileExists(path.join(workspaceRoot, 'pnpm-workspace.yaml')))
+    (await fileExists(path.join(workspaceRoot, 'pnpm-workspace.yaml'))) ||
+    (await fileExists(path.join(workspaceRoot, 'pnpm-lock.yaml')))
   )
 }
 
