@@ -242,12 +242,7 @@ describe.each([
           }
         })
 
-        // TODO: Skipped until private caches are persisted in dev. They aren't
-        // persisted yet, so a warm reload re-runs them as a cache miss that
-        // resolves in the dynamic stage rather than the runtime stage.
-        // Re-enable once private caches are persisted, after which a warm
-        // reload is a hit that resolves in the runtime stage.
-        it.skip('cached data + private cache', async () => {
+        it('cached data + private cache', async () => {
           const path = '/private-cache'
 
           const assertLogs = async (browser: Playwright) => {
@@ -307,32 +302,16 @@ describe.each([
         it('cached data + short-stale cached data', async () => {
           const path = '/short-stale-cache'
 
-          // A short stale time excludes the entry from the runtime prefetch
-          // shell, but not from the static shell. So an initial load resolves
-          // it in the static stage (Prerender), and so does a navigation into a
-          // route without runtime prefetch. Only a navigation into a
-          // runtime-prefetch route excludes it, resolving it in the dynamic
-          // stage (Server). This asymmetry mirrors the build-time behavior,
-          // where a short stale time is omitted from the runtime prefetch but
-          // not from the static shell.
-          const shortStaleEnv =
-            !isInitialLoad && hasRuntimePrefetch ? 'Server' : 'Prerender'
+          // A short stale time excludes the entry from both the runtime prefetch
+          // shell and the static shell.
 
           const assertLogs = async (browser: Playwright) => {
             const logs = await browser.log()
             assertLog(logs, 'after cache read - layout', 'Prerender')
             assertLog(logs, 'after cache read - page', 'Prerender')
 
-            assertLog(
-              logs,
-              'after short-stale cache read - page',
-              shortStaleEnv
-            )
-            assertLog(
-              logs,
-              'after short-stale cache read - layout',
-              shortStaleEnv
-            )
+            assertLog(logs, 'after short-stale cache read - page', 'Server')
+            assertLog(logs, 'after short-stale cache read - layout', 'Server')
 
             assertLog(logs, 'after uncached fetch - layout', 'Server')
             assertLog(logs, 'after uncached fetch - page', 'Server')

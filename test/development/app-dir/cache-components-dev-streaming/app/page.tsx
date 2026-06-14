@@ -9,6 +9,11 @@ export default function Page() {
       <li>
         <Link href="/runtime-prefetch">/runtime-prefetch</Link>
       </li>
+      <li>
+        <Link href="/use-cache-private-runtime-prefetch">
+          /use-cache-private-runtime-prefetch
+        </Link>
+      </li>
     </ul>
   )
 }

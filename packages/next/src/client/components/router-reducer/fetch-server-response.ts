@@ -89,6 +89,15 @@ type SpaFetchServerResponseResult = {
   runtimePrefetchStream: ReadableStream<Uint8Array> | null
   responseHeaders: Headers
   debugInfo: Array<any> | null
+  /**
+   * Dev only: resolves once the server has flushed the shell-stage content to
+   * the stream (or earlier, on a cache miss). The navigation defers revealing
+   * the response (resolving its deferred RSCs) until this settles, so React
+   * doesn't render a boundary's children before their row has been decoded and
+   * commit a premature Suspense fallback. `null` outside the streaming dev
+   * render.
+   */
+  revealAfter: Promise<void> | null
 }
 
 type MpaFetchServerResponseResult = string
@@ -301,6 +310,7 @@ export async function fetchServerResponse(
       runtimePrefetchStream: flightResponse.p ?? null,
       responseHeaders: res.headers,
       debugInfo: flightResponsePromise._debugInfo ?? null,
+      revealAfter: flightResponse._revealAfter ?? null,
     }
   } catch (err) {
     // If the fetch rejected due to a network error, wait for connectivity
