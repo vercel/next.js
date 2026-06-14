@@ -88,6 +88,12 @@ const nextConfig: NextConfig = {
 export default nextConfig
 ```
 
+## Auditing existing `<Link prefetch={true}>` calls
+
+After enabling Cache Components, `<Link prefetch={true}>` becomes a legacy "full" prefetch that pulls down the route's dynamic data along with its App Shell, bypassing the static/dynamic split. In development, navigating via one of these links to a route that has not opted into Partial Prefetching surfaces an [Insight](/docs/messages/instant-link-prefetch-partial) in the dev overlay so you can find and fix them as you adopt.
+
+The Insight ships with three options: opt the target route into Partial Prefetching, remove the `prefetch={true}` prop, or silence the warning per-route with `instant = false`. See [the Insight page](/docs/messages/instant-link-prefetch-partial) for the trade-offs and code patterns.
+
 ## Next steps
 
 - [Runtime prefetching](/docs/app/guides/runtime-prefetching) for per-link runtime prefetches and App Shells in depth.
