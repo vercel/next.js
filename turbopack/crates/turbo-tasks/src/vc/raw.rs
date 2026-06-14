@@ -29,14 +29,12 @@ use crate::{
 /// Identifies a specific cell within a task: a [`ValueTypeId`] paired with a
 /// sequentially-allocated index within that type.
 ///
-/// Packed into a single [`NonZeroU32`] to keep [`RawVc`] small:
+/// Packed into a single [`NonZeroU32`]:
 /// ```text
-/// bits 31..=22 (10 bits): ValueTypeId logical value, 1..=1023
-/// bits 21..=0  (22 bits): cell index, 0..=4_194_303
+/// bits 31..=22 (10 bits): ValueTypeId logical value
+/// bits 21..=0  (22 bits): cell index
 /// ```
-/// Because the `ValueTypeId` is always `>= 1`, the packed word is always
-/// `>= (1 << CELL_INDEX_BITS)` and therefore never zero, which gives the type a
-/// niche (`Option<CellId>` is still 4 bytes).
+/// Because the `ValueTypeId` is always `>= 1`, the type is trivially non-zero
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Encode, Decode)]
 pub struct CellId(NonZeroU32);
 
@@ -52,10 +50,6 @@ impl CellId {
     pub const MAX_CELL_INDEX: u32 = CELL_INDEX_MASK;
 
     /// Packs a `type_id` and `index` into a single word.
-    ///
-    /// Panics in debug builds if `type_id` exceeds the 10-bit cap or `index`
-    /// exceeds the 22-bit cap. Those caps are enforced at the allocation sites
-    /// (`init_registry` for type ids, `find_cell_by_id` for indices).
     pub fn new(type_id: ValueTypeId, index: u32) -> Self {
         let type_id = *type_id;
         debug_assert!(
@@ -134,36 +128,24 @@ impl Display for CellId {
 /// # Representation
 ///
 /// `RawVc` is one of three logical variants (see [`RawVcUnpacked`]) bit-packed
-/// into a single [`NonZeroU64`] so that `RawVc` is 8 bytes (and `Option<RawVc>`
-/// stays 8 bytes via the niche).
+/// into a single [`NonZeroU64`].
 ///
 /// Bit 31 is the discriminator between a local output and a task variant; the
 /// two task variants are then told apart by whether the [`CellId`] field (the
 /// high 32 bits) is zero — which is unambiguous because every `CellId` is
-/// non-zero (its `ValueTypeId` is `>= 1`):
+/// non-zero.
 ///
 /// ```text
 /// bit31 = 1                  LocalOutput: 1<<31 | transient(1) | ExecutionId(16) << 1 | LocalTaskId(32) << 32
 /// bit31 = 0, bits32..63 == 0 TaskOutput:  TaskId(31)
 /// bit31 = 0, bits32..63 != 0 TaskCell:    TaskId(31) | CellId(32) << 32
 /// ```
-///
-/// The `TaskId` occupies bits `0..=30` (31 bits) unshifted, so a task variant's
-/// word equals its `TaskId` value (plus the cell field for `TaskCell`). The word
-/// is never zero: `TaskOutput`/`TaskCell` carry a `TaskId >= 1`, and
-/// `LocalOutput` always has bit 31 set.
-///
-/// Construct values with [`RawVc::task_output`], [`RawVc::task_cell`], and
-/// [`RawVc::local_output`]; read them back with [`RawVc::unpack`].
-///
 /// [`Vc`]: crate::Vc
 /// [monomorphization]: https://doc.rust-lang.org/book/ch10-01-syntax.html#performance-of-code-using-generics
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Encode, Decode)]
 pub struct RawVc(NonZeroU64);
 
-/// The unpacked form of [`RawVc`], produced by [`RawVc::unpack`]. This mirrors
-/// the logical variants for ergonomic matching; the in-memory form is the
-/// packed [`RawVc`].
+/// The unpacked form of [`RawVc`], produced by [`RawVc::unpack`].
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum RawVcUnpacked {
     /// The synchronous return value of a task (after argument resolution). This is the
@@ -261,15 +243,15 @@ impl RawVc {
     /// True for `TaskCell`: a task variant (bit 31 clear) whose cell field is
     /// non-zero.
     #[inline]
-    fn is_cell(self) -> bool {
-        !self.is_local() && self.cell_word() != 0
+    fn is_task_cell(self) -> bool {
+        !self.is_local_output() && self.cell_word() != 0
     }
 
     /// True for `TaskOutput`: a task variant (bit 31 clear) whose cell field is
     /// zero.
     #[inline]
-    fn is_output(self) -> bool {
-        !self.is_local() && self.cell_word() == 0
+    fn is_task_output(self) -> bool {
+        !self.is_local_output() && self.cell_word() == 0
     }
 
     /// Reads the `TaskId` from a `TaskOutput` / `TaskCell` word.
@@ -293,13 +275,17 @@ impl RawVc {
 
     /// Unpacks into the logical [`RawVcUnpacked`] enum for matching.
     pub fn unpack(self) -> RawVcUnpacked {
-        if self.is_local() {
+        if self.is_local_output() {
             let (execution_id, local_task_id, persistence) = self.decode_local_output();
             RawVcUnpacked::LocalOutput(execution_id, local_task_id, persistence)
-        } else if self.cell_word() != 0 {
-            RawVcUnpacked::TaskCell(self.read_task_id(), self.read_cell())
         } else {
-            RawVcUnpacked::TaskOutput(self.read_task_id())
+            let task_id = self.read_task_id();
+            let cell_word = self.cell_word();
+            if cell_word != 0 {
+                RawVcUnpacked::TaskCell(task_id, unsafe { CellId::from_raw(self.cell_word()) })
+            } else {
+                RawVcUnpacked::TaskOutput(task_id)
+            }
         }
     }
 
@@ -308,7 +294,7 @@ impl RawVc {
     /// Prefer this over [`unpack`][Self::unpack] when a caller only cares about
     /// the `TaskOutput` case: it reads just the discriminator and the task bits.
     pub fn as_task_output(self) -> Option<TaskId> {
-        self.is_output().then(|| self.read_task_id())
+        self.is_task_output().then(|| self.read_task_id())
     }
 
     /// Returns the `(TaskId, CellId)` pair if this is a `TaskCell`, otherwise
@@ -318,7 +304,7 @@ impl RawVc {
     /// the `TaskCell` case: it reads just the discriminator, the task bits, and
     /// the cell bits.
     pub fn as_task_cell(self) -> Option<(TaskId, CellId)> {
-        self.is_cell()
+        self.is_task_cell()
             .then(|| (self.read_task_id(), self.read_cell()))
     }
 
@@ -328,7 +314,7 @@ impl RawVc {
     /// Prefer this over [`unpack`][Self::unpack] when a caller only cares about
     /// the `LocalOutput` case.
     pub fn as_local_output(self) -> Option<(ExecutionId, LocalTaskId, TaskPersistence)> {
-        self.is_local().then(|| self.decode_local_output())
+        self.is_local_output().then(|| self.decode_local_output())
     }
 
     /// Decodes the fields of a `LocalOutput` word. Only valid when
@@ -390,10 +376,10 @@ impl Display for RawVc {
 
 impl RawVc {
     pub fn is_resolved(&self) -> bool {
-        self.is_cell()
+        self.is_task_cell()
     }
 
-    pub fn is_local(&self) -> bool {
+    pub fn is_local_output(&self) -> bool {
         self.bits() & RAW_VC_LOCAL_FLAG != 0
     }
 
@@ -402,7 +388,7 @@ impl RawVc {
     ///
     /// See [`TaskPersistence`] for more details.
     pub fn is_transient(&self) -> bool {
-        if self.is_local() {
+        if self.is_local_output() {
             // LocalOutput: the transient flag is stored as a bit.
             (self.bits() >> RAW_VC_LOCAL_TRANSIENT_SHIFT) & 1 == 1
         } else {
@@ -431,7 +417,7 @@ impl RawVc {
         let tt = turbo_tasks();
         let local_output = read_local_output(&*tt, execution_id, local_task_id).await?;
         debug_assert!(
-            !local_output.is_local(),
+            !local_output.is_local_output(),
             "a LocalOutput cannot point at other LocalOutputs"
         );
         Ok(local_output)
@@ -451,7 +437,7 @@ impl RawVc {
             Err(_event_listener) => unreachable!("local output is not ready yet"),
         };
         debug_assert!(
-            !local_output.is_local(),
+            !local_output.is_local_output(),
             "a LocalOutput cannot point at other LocalOutputs"
         );
         Ok(local_output)
@@ -466,18 +452,18 @@ impl RawVc {
     }
 
     pub fn try_get_task_id(&self) -> Option<TaskId> {
-        (!self.is_local()).then(|| self.read_task_id())
+        (!self.is_local_output()).then(|| self.read_task_id())
     }
 
     pub fn try_get_type_id(&self) -> Option<ValueTypeId> {
-        self.is_cell().then(|| self.read_cell().type_id())
+        self.is_task_cell().then(|| self.read_cell().type_id())
     }
 
     /// For a cell that's already resolved, synchronously check if it implements a trait using the
     /// type information in `RawVc::TaskCell` (we don't actually need to read the cell!).
     pub(crate) fn resolved_has_trait(&self, trait_id: TraitTypeId) -> bool {
         debug_assert!(
-            self.is_cell(),
+            self.is_task_cell(),
             "resolved_has_trait must be called with a RawVc::TaskCell"
         );
         get_value_type(self.read_cell().type_id()).has_trait(&trait_id)
@@ -487,7 +473,7 @@ impl RawVc {
     /// information in `RawVc::TaskCell` (we don't actually need to read the cell!).
     pub(crate) fn resolved_is_type(&self, type_id: ValueTypeId) -> bool {
         debug_assert!(
-            self.is_cell(),
+            self.is_task_cell(),
             "resolved_is_type must be called with a RawVc::TaskCell"
         );
         self.read_cell().type_id() == type_id
@@ -879,7 +865,7 @@ mod tests {
             // TaskOutput
             let vc = RawVc::task_output(task);
             assert_eq!(vc.unpack(), RawVcUnpacked::TaskOutput(task));
-            assert!(!vc.is_resolved() && !vc.is_local());
+            assert!(!vc.is_resolved() && !vc.is_local_output());
             assert_eq!(vc.is_transient(), task.is_transient());
             assert_eq!(vc.try_get_task_id(), Some(task));
             // single-arm accessors
@@ -917,7 +903,7 @@ mod tests {
                     vc.unpack(),
                     RawVcUnpacked::LocalOutput(exec, local, persistence)
                 );
-                assert!(vc.is_local());
+                assert!(vc.is_local_output());
                 assert_eq!(vc.is_transient(), persistence == TaskPersistence::Transient);
                 assert_eq!(vc.try_get_task_id(), None);
                 // single-arm accessors
@@ -941,8 +927,10 @@ mod tests {
 
         let output = RawVc::task_output(task);
         let task_cell = RawVc::task_cell(task, cell);
-        assert!(output.is_output() && !output.is_cell() && !output.is_local());
-        assert!(task_cell.is_cell() && !task_cell.is_output() && !task_cell.is_local());
+        assert!(output.is_task_output() && !output.is_task_cell() && !output.is_local_output());
+        assert!(
+            task_cell.is_task_cell() && !task_cell.is_task_output() && !task_cell.is_local_output()
+        );
         // Same TaskId, different variants, distinct words.
         assert_ne!(output, task_cell);
         assert_eq!(output.read_task_id(), task_cell.read_task_id());
@@ -954,6 +942,6 @@ mod tests {
             unsafe { LocalTaskId::new_unchecked(u32::MAX) },
             TaskPersistence::Persistent,
         );
-        assert!(local.is_local() && !local.is_cell() && !local.is_output());
+        assert!(local.is_local_output() && !local.is_task_cell() && !local.is_task_output());
     }
 }

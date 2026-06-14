@@ -456,7 +456,7 @@ where
     /// local or non-local cells, so this function is mostly useful inside tests and internally in
     /// turbo-tasks.
     pub fn is_local(self) -> bool {
-        self.node.is_local()
+        self.node.is_local_output()
     }
 }
 

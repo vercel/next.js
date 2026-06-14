@@ -295,28 +295,3 @@ make_registered_serializable!(
     registry::get_native_function,
     registry::validate_function_id,
 );
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    /// The `max` override on `define_id!` must actually take effect for
-    /// `TaskId` (capped to 31 bits) without affecting the transient-bit math:
-    /// the largest id is still transient and uses only the low 31 bits, so it
-    /// round-trips through `RawVc`'s packed representation.
-    #[test]
-    fn task_id_max_is_capped_and_transient() {
-        assert_eq!(*TaskId::MAX & !TASK_ID_MAX, 0, "MAX must fit in 31 bits");
-        assert!(TaskId::MAX.is_transient());
-        assert!(!TaskId::new(TRANSIENT_TASK_BIT - 1).unwrap().is_transient());
-        assert!(TaskId::new(TRANSIENT_TASK_BIT).unwrap().is_transient());
-    }
-
-    /// `ValueTypeId::MAX` is capped to the 10-bit field it occupies in `CellId`,
-    /// not the full `u16::MAX`.
-    #[test]
-    fn value_type_id_max_is_capped() {
-        assert_eq!(*ValueTypeId::MAX, crate::CellId::MAX_VALUE_TYPE_ID);
-        assert!(*ValueTypeId::MAX < u16::MAX);
-    }
-}

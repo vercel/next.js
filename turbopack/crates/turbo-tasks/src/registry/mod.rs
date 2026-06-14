@@ -118,11 +118,7 @@ trait Registerable: 'static + Eq + std::hash::Hash {
     type Id: Copy + From<NonZeroU16> + std::ops::Deref<Target = u16> + std::fmt::Display;
     const TYPE_NAME: &'static str;
 
-    /// The largest id that may be assigned to this registry item. Ids are
-    /// assigned sequentially from 1, so this also bounds the number of items.
-    ///
-    /// `ValueType` is capped tighter than `u16::MAX` because [`ValueTypeId`] is
-    /// packed into 10 bits of [`crate::CellId`].
+    /// The largest id that may be assigned to this registry item.
     const MAX_ID: u16 = u16::MAX;
 
     /// Get the global registry type used for sorting and uniqueness validation
