@@ -5,9 +5,7 @@ kind: insight
 
 During a client-side navigation, a [`<Link prefetch={true}>`](/docs/app/api-reference/components/link) navigated to a route that has not enabled [Partial Prefetching](/docs/app/glossary#partial-prefetching). With [Cache Components](/docs/app/api-reference/config/next-config-js/cacheComponents) enabled, `prefetch={true}` is a legacy "full" prefetch that pulls down the route's dynamic data along with its [App Shell](/docs/app/glossary#app-shell), defeating the static/dynamic split that Cache Components provides.
 
-Routes that opt into Partial Prefetching skip the dynamic data at prefetch time, leaving you free to choose when it loads — at navigation via streaming, ahead of time via [runtime prefetching](/docs/app/guides/runtime-prefetching), or not at all. The check fires at navigation time, not prefetch time, so existing apps that have just enabled Cache Components are not flooded with warnings for every `<Link prefetch={true}>` on the page.
-
-> **Good to know**: In [`next dev`](/docs/app/api-reference/cli/next#next-dev-options), the error overlay points at the failing component. Run `next build --debug-prerender` to get the full list of blocking routes with stack traces. When iterating on specific routes, use `next build --debug-build-paths /dashboard /settings` to rebuild only those pages.
+Routes that opt into Partial Prefetching skip the dynamic data at prefetch time, leaving you free to choose when it loads: at navigation via streaming, ahead of time via [runtime prefetching](/docs/app/guides/runtime-prefetching), or not at all. The check fires at navigation time, not prefetch time, so existing apps that have just enabled Cache Components are not flooded with warnings for every `<Link prefetch={true}>` on the page.
 
 > **Good to know**: In [`next dev`](/docs/app/api-reference/cli/next#next-dev-options), the error overlay points at the failing component. Run `next build --debug-prerender` to get the full list of blocking routes with stack traces. When iterating on specific routes, use `next build --debug-build-paths /dashboard /settings` to rebuild only those pages.
 
@@ -28,7 +26,7 @@ Routes that opt into Partial Prefetching skip the dynamic data at prefetch time,
   title="Prefetch only the App Shell"
 >
   Drop the `prefetch={true}` prop so the link falls back to the default prefetch
-  behavior — the App Shell only.
+  behavior, which loads only the App Shell.
 </FixOption>
 
 <FixOption
