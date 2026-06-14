@@ -77,9 +77,9 @@ The route's dynamic data isn't included in the prefetch. The user sees the App S
 - Partial Prefetching only works with [Cache Components](/docs/app/api-reference/config/next-config-js/cacheComponents) enabled.
 - If the route doesn't have a clear App Shell (everything below the layout reads dynamic data), Partial Prefetching has nothing to prefetch and behaves the same as no prefetch. Move static content above the dynamic boundary first.
 
-### Warm up the dynamic data too
+### Next steps
 
-Opting in stops at the App Shell. To also warm up the dynamic data, follow these two steps after opting in:
+Opting in stops at the App Shell. To also prefetch the dynamic data, follow these two steps after opting in:
 
 1. Make the dynamic data cacheable with [`"use cache"`](/docs/app/api-reference/directives/use-cache). For request-bound reads like `cookies()` or `headers()`, apply the [extract-and-pass pattern](/docs/app/guides/runtime-prefetching#extract-and-pass) so the read happens outside the cache scope. For per-user reads, use [`"use cache: private"`](/docs/app/api-reference/directives/use-cache#use-cache-private).
 2. Opt the route into [runtime prefetching](/docs/app/guides/runtime-prefetching) with [`prefetch = 'allow-runtime'`](/docs/app/api-reference/file-conventions/route-segment-config/prefetch). The prerender advances past the App Shell into the newly-cached content before the click.
