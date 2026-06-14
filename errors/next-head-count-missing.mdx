@@ -4,10 +4,36 @@ title: '`next-head-count` is missing'
 
 ## Why This Error Occurred
 
-You have a custom `pages/_document.js` that doesn't have the components required for Next.js to render correctly.
+This error can happen for one of two reasons:
+
+1. You have a custom `pages/_document.js` that doesn't include the required `<Head>` component from `next/document`.
+
+2. You are using an invalid HTML element inside the `<Head>` component from `next/head`. Only valid `<head>` child elements are allowed: `<title>`, `<base>`, `<meta>`, `<link>`, `<style>`, `<script>`, and `<noscript>`. Elements like `<html>`, `<body>`, `<div>`, `<p>`, or other non-head elements will cause the head content to be misplaced into the document body, resulting in this error.
 
 ## Possible Ways to Fix It
 
-Ensure that your `_document.js` is importing and rendering all of the [required components](/docs/pages/building-your-application/routing/custom-document).
+### Missing `<Head>` in `_document.js`
 
-In this case you are most likely not rendering the `<Head>` component imported from `next/document`.
+Ensure that your `_document.js` is importing and rendering all of the [required components](/docs/pages/building-your-application/routing/custom-document), including the `<Head>` component imported from `next/document`.
+
+### Invalid elements in `<Head>`
+
+Check the children of your `<Head>` component (from `next/head`) and remove any elements that are not valid inside `<head>`. For example:
+
+```jsx
+import Head from 'next/head'
+
+// ❌ Wrong — <html> is not a valid child of <head>
+<Head>
+  <html lang="en" />
+  <title>My Page</title>
+</Head>
+
+// ✅ Correct — only valid head elements
+<Head>
+  <title>My Page</title>
+  <meta name="description" content="My page description" />
+</Head>
+```
+
+To set the `lang` attribute on the `<html>` element, use a [custom `_document.js`](/docs/pages/building-your-application/routing/custom-document) instead.
