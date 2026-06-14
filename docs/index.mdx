@@ -1,67 +1,335 @@
----
-title: Next.js Docs
-description: Welcome to the Next.js Documentation.
-related:
-  title: Next Steps
-  description: Create your first application and learn the core Next.js features.
-  links:
-    - app/getting-started
----
+'use client';
 
-Welcome to the Next.js documentation!
+import React, { useState, useEffect } from 'react';
+import { Calendar, Send, AlertCircle, Briefcase, Clock } from 'lucide-react';
 
-## What is Next.js?
+export default function YuheApp() {
+  const [data, setData] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState('dashboard');
+  const [selectedProject, setSelectedProject] = useState(null);
 
-Next.js is a React framework for building full-stack web applications. You use React Components to build user interfaces, and Next.js for additional features and optimizations.
+  const SHEET_ID = "14dd8JCc6SViumnSVSWzJM15OqlF5ugsP";
+  const API_KEY = "AQ.Ab8RN6K2htax0mP6KXzX5wdQT_qwFFedVy7RcK9uCq1xv7I1gw";
 
-It also automatically configures lower-level tools like bundlers and compilers. You can instead focus on building your product and shipping quickly.
+  useEffect(() => {
+    fetchSheetsData();
+  }, []);
 
-Whether you're an individual developer or part of a larger team, Next.js can help you build interactive, dynamic, and fast React applications.
+  const fetchSheetsData = async () => {
+    try {
+      setLoading(true);
+      
+      const customerRes = await fetch(
+        `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/02_客戶收款明細?key=${API_KEY}`
+      );
+      const customerData = await customerRes.json();
 
-## How to use the docs
+      const vendorRes = await fetch(
+        `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/03_工班付款追蹤?key=${API_KEY}`
+      );
+      const vendorData = await vendorRes.json();
 
-The docs are organized into 3 sections:
+      const projectRes = await fetch(
+        `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/01_案件總控?key=${API_KEY}`
+      );
+      const projectData = await projectRes.json();
 
-- [Getting Started](/docs/app/getting-started): Step-by-step tutorials to help you create a new application and learn the core Next.js features.
-- [Guides](/docs/app/guides): Tutorials on specific use cases, choose what's relevant to you.
-- [API Reference](/docs/app/api-reference): Detailed technical reference for every feature.
+      const processedData = {
+        projects: projectData.values ? projectData.values.slice(1).map(row => ({
+          name: row[0] || '',
+          status: row[2] || '',
+          targetDate: row[3] || '',
+          progress: Math.min(Math.max(parseFloat(row[10]) || 0, 0), 100),
+          daysLeft: calculateDaysLeft(row[3]),
+          designFee: {
+            total: parseFloat(row[4]) || 0,
+            received: parseFloat(row[5]) || 0,
+            pending: parseFloat(row[6]) || 0,
+          },
+          constructionFee: {
+            total: parseFloat(row[7]) || 0,
+            received: parseFloat(row[8]) || 0,
+            pending: parseFloat(row[9]) || 0,
+          },
+        })).filter(p => p.name) : [],
+        
+        customerPayments: customerData.values ? customerData.values.slice(1).map(row => ({
+          project: row[0] || '',
+          item: row[2] || '',
+          amount: parseFloat(row[3]) || 0,
+          dueDate: row[4] || '',
+          status: row[5] || '',
+          daysLeft: calculateDaysLeft(row[4]),
+        })).filter(p => p.project && p.status !== '已收') : [],
+        
+        vendorPayments: vendorData.values ? vendorData.values.slice(1).map(row => ({
+          project: row[0] || '',
+          vendor: row[1] || '',
+          remaining: parseFloat(row[4]) || 0,
+        })).filter(v => v.project && v.remaining > 0) : [],
+      };
 
-Use the sidebar to navigate through the sections, or search (`Ctrl+K` or `Cmd+K`) to quickly find a page.
+      setData(processedData);
+      setLoading(false);
+    } catch (err) {
+      console.error('Error fetching sheets:', err);
+      setLoading(false);
+    }
+  };
 
-## App Router and Pages Router
+  const calculateDaysLeft = (dateStr) => {
+    if (!dateStr) return 0;
+    try {
+      const dueDate = new Date(dateStr);
+      const today = new Date();
+      const diff = Math.ceil((dueDate - today) / (1000 * 60 * 60 * 24));
+      return diff;
+    } catch {
+      return 0;
+    }
+  };
 
-Next.js has two different routers:
+  const sendToLine = (message) => {
+    const text = `【禹合工地回報】\n\n${message}\n\n時間：${new Date().toLocaleString('zh-TW')}`;
+    alert(`準備發送到 LINE：\n\n${text}`);
+  };
 
-- **App Router**: The newer router that supports new React features like Server Components.
-- **Pages Router**: The original router, still supported and being improved.
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-screen bg-gradient-to-b from-amber-50 to-stone-100">
+        <div className="text-center">
+          <div className="animate-spin mb-4 text-3xl">🏗️</div>
+          <p className="text-stone-600 font-semibold">禹合系統載入中...</p>
+          <p className="text-xs text-stone-400 mt-2">正在連接 Google Sheets</p>
+        </div>
+      </div>
+    );
+  }
 
-At the top of the sidebar, you'll notice a dropdown menu that allows you to switch between the [App Router](/docs/app) and the [Pages Router](/docs/pages) docs.
+  return (
+    <div className="min-h-screen bg-gradient-to-b from-amber-50 to-stone-100">
+      {/* Header */}
+      <div className="sticky top-0 z-50 bg-white shadow-sm border-b border-amber-100">
+        <div className="max-w-2xl mx-auto px-4 py-3">
+          <h1 className="text-2xl font-serif font-bold text-stone-900">禹合制所</h1>
+          <p className="text-xs text-stone-500">工程管理系統 • Google Sheets 即時連動</p>
+        </div>
+      </div>
 
-### React version handling
+      {/* Main Content */}
+      <div className="max-w-2xl mx-auto px-4 py-6 pb-24">
+        {activeTab === 'dashboard' && data && (
+          <>
+            {/* 案場進度 */}
+            {data.projects && data.projects.length > 0 && (
+              <div className="bg-white rounded-lg p-4 border border-amber-100 shadow-sm mb-6">
+                <div className="flex items-center gap-2 mb-3">
+                  <Briefcase className="w-4 h-4 text-amber-700" />
+                  <h3 className="font-bold text-stone-900">{data.projects.length} 個案場</h3>
+                </div>
+                <div className="space-y-2">
+                  {data.projects.map((project, i) => (
+                    <div
+                      key={i}
+                      className="p-3 bg-stone-50 rounded cursor-pointer hover:bg-stone-100 transition"
+                      onClick={() => {
+                        setSelectedProject(project);
+                        setActiveTab('project');
+                      }}
+                    >
+                      <div className="flex justify-between items-start mb-1">
+                        <div className="flex-1">
+                          <div className="font-semibold text-stone-900">{project.name}</div>
+                          <div className="text-xs text-stone-500">{project.status}</div>
+                        </div>
+                        <div className="text-right">
+                          <div className="text-sm font-bold text-stone-700">{Math.round(project.progress)}%</div>
+                          <div className="text-xs text-stone-500">{project.daysLeft} 天</div>
+                        </div>
+                      </div>
+                      <div className="w-full bg-stone-200 rounded-full h-2">
+                        <div
+                          className="bg-amber-700 h-2 rounded-full transition-all"
+                          style={{ width: `${project.progress}%` }}
+                        ></div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
 
-The App Router and Pages Router handle React versions differently:
+            {/* 即將請款 */}
+            {data.customerPayments && data.customerPayments.length > 0 && (
+              <div className="bg-white rounded-lg p-4 border border-amber-100 shadow-sm mb-6">
+                <div className="flex items-center gap-2 mb-3">
+                  <Calendar className="w-4 h-4 text-amber-700" />
+                  <h3 className="font-bold text-stone-900">即將請款</h3>
+                  <span className="text-xs bg-red-100 text-red-700 px-2 py-1 rounded">
+                    {data.customerPayments.filter(p => p.daysLeft >= -10 && p.daysLeft <= 3).length} 件
+                  </span>
+                </div>
+                <div className="space-y-2">
+                  {data.customerPayments
+                    .filter(p => p.daysLeft >= -10 && p.daysLeft <= 3)
+                    .map((payment, i) => (
+                      <div key={i} className="flex justify-between items-start p-2 bg-amber-50 rounded">
+                        <div className="flex-1">
+                          <div className="font-semibold text-stone-900 text-sm">{payment.project}</div>
+                          <div className="text-xs text-stone-500">{payment.item}</div>
+                        </div>
+                        <div className="text-right">
+                          <div className="font-bold text-amber-900">NT$ {payment.amount.toLocaleString()}</div>
+                          <div className="text-xs text-red-600">
+                            {payment.daysLeft <= 0 ? '逾期' : `${payment.daysLeft}天`}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                </div>
+              </div>
+            )}
 
-- **App Router**: Uses [React canary releases](https://react.dev/blog/2023/05/03/react-canaries) built-in, which include all the stable React 19 changes, as well as newer features being validated in frameworks, prior to a new React release.
+            {/* 廠商待付 */}
+            {data.vendorPayments && data.vendorPayments.length > 0 && (
+              <div className="bg-white rounded-lg p-4 border border-red-100 shadow-sm">
+                <div className="flex items-center gap-2 mb-3">
+                  <AlertCircle className="w-4 h-4 text-red-700" />
+                  <h3 className="font-bold text-stone-900">廠商待付</h3>
+                  <span className="text-xs bg-red-100 text-red-700 px-2 py-1 rounded">
+                    NT$ {(data.vendorPayments.reduce((sum, v) => sum + v.remaining, 0) / 1000000).toFixed(2)}M
+                  </span>
+                </div>
+                <div className="space-y-2">
+                  {data.vendorPayments.slice(0, 3).map((vendor, i) => (
+                    <div key={i} className="flex justify-between items-start p-2 bg-red-50 rounded">
+                      <div className="flex-1">
+                        <div className="font-semibold text-stone-900 text-sm">{vendor.project}</div>
+                        <div className="text-xs text-stone-500">{vendor.vendor}</div>
+                      </div>
+                      <div className="text-right">
+                        <div className="font-bold text-red-700">NT$ {vendor.remaining.toLocaleString()}</div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </>
+        )}
 
-- **Pages Router**: Uses the React version installed in your project's `package.json`.
+        {activeTab === 'project' && selectedProject && (
+          <div className="bg-white rounded-lg p-4 border border-amber-100 shadow-sm">
+            <button
+              onClick={() => setActiveTab('dashboard')}
+              className="text-xs text-amber-700 mb-4 hover:underline"
+            >
+              ← 返回總覽
+            </button>
 
-This approach ensures new React features work reliably in the App Router while maintaining backwards compatibility for existing Pages Router applications.
+            <h2 className="text-2xl font-serif font-bold text-stone-900 mb-4">
+              {selectedProject.name}
+            </h2>
 
-## Pre-requisite knowledge
+            <div className="space-y-4">
+              {/* 進度 */}
+              <div>
+                <div className="flex justify-between mb-2">
+                  <span className="text-sm font-semibold text-stone-700">施工進度</span>
+                  <span className="text-sm font-bold text-amber-900">{Math.round(selectedProject.progress)}%</span>
+                </div>
+                <div className="w-full bg-stone-200 rounded-full h-3">
+                  <div
+                    className="bg-amber-700 h-3 rounded-full transition-all"
+                    style={{ width: `${selectedProject.progress}%` }}
+                  ></div>
+                </div>
+              </div>
 
-Our documentation assumes some familiarity with web development. Before getting started, it'll help if you're comfortable with:
+              {/* 完工日期 */}
+              <div className="p-3 bg-amber-50 rounded">
+                <div className="flex items-center gap-2 mb-1">
+                  <Clock className="w-4 h-4 text-amber-700" />
+                  <span className="text-sm font-semibold text-stone-900">完工目標</span>
+                </div>
+                <div className="text-base font-bold text-amber-900">{selectedProject.targetDate}</div>
+                <div className="text-xs text-stone-500">還有 {selectedProject.daysLeft} 天</div>
+              </div>
 
-- HTML
-- CSS
-- JavaScript
-- React
+              {/* 設計費 */}
+              <div className="p-3 bg-stone-50 rounded">
+                <div className="text-sm font-semibold text-stone-900 mb-2">設計費</div>
+                <div className="flex justify-between text-sm mb-1">
+                  <span className="text-stone-600">已收</span>
+                  <span className="font-bold text-green-700">NT$ {selectedProject.designFee.received.toLocaleString()}</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-stone-600">待收</span>
+                  <span className="font-bold text-red-700">NT$ {selectedProject.designFee.pending.toLocaleString()}</span>
+                </div>
+              </div>
 
-If you're new to React or need a refresher, we recommend starting with our [React Foundations course](/learn/react-foundations), and the [Next.js Foundations course](/learn/dashboard-app) that has you building an application as you learn.
+              {/* 工程費 */}
+              <div className="p-3 bg-stone-50 rounded">
+                <div className="text-sm font-semibold text-stone-900 mb-2">工程費</div>
+                <div className="flex justify-between text-sm mb-1">
+                  <span className="text-stone-600">已收</span>
+                  <span className="font-bold text-green-700">NT$ {(selectedProject.constructionFee.received / 1000000).toFixed(2)}M</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-stone-600">待收</span>
+                  <span className="font-bold text-red-700">NT$ {(selectedProject.constructionFee.pending / 1000).toFixed(0)}K</span>
+                </div>
+              </div>
 
-## Accessibility
+              {/* 發送 LINE 按鈕 */}
+              <button
+                onClick={() =>
+                  sendToLine(
+                    `【${selectedProject.name}】\n進度：${Math.round(selectedProject.progress)}%\n完工目標：${selectedProject.targetDate}\n待收：NT$ ${(selectedProject.constructionFee.pending / 1000).toFixed(0)}K`
+                  )
+                }
+                className="w-full bg-green-700 text-white rounded-lg p-3 font-semibold flex items-center justify-center gap-2 hover:bg-green-800 transition"
+              >
+                <Send className="w-4 h-4" />
+                發送進度到 LINE
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
 
-For the best experience when using a screen reader, we recommend using Firefox and NVDA, or Safari and VoiceOver.
-
-## Join our Community
-
-If you have questions about anything related to Next.js, you're always welcome to ask our community on [GitHub Discussions](https://github.com/vercel/next.js/discussions), [Discord](https://discord.com/invite/bUG2bvbtHy), [X (Twitter)](https://x.com/nextjs), and [Reddit](https://www.reddit.com/r/nextjs).
+      {/* Bottom Navigation */}
+      <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-amber-100 shadow-lg">
+        <div className="max-w-2xl mx-auto px-4 py-2 flex gap-2">
+          <button
+            onClick={() => setActiveTab('dashboard')}
+            className={`flex-1 py-3 text-center text-xs font-semibold rounded transition ${
+              activeTab === 'dashboard'
+                ? 'bg-amber-100 text-amber-900'
+                : 'text-stone-500 hover:text-stone-700'
+            }`}
+          >
+            📊 總覽
+          </button>
+          <button
+            className="flex-1 py-3 text-center text-xs font-semibold text-stone-500 hover:text-stone-700 rounded transition"
+          >
+            💰 收付
+          </button>
+          <button
+            className="flex-1 py-3 text-center text-xs font-semibold text-stone-500 hover:text-stone-700 rounded transition"
+          >
+            📸 照片
+          </button>
+          <button
+            className="flex-1 py-3 text-center text-xs font-semibold text-stone-500 hover:text-stone-700 rounded transition"
+          >
+            ⚙️ 設置
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
