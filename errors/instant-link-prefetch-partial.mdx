@@ -3,7 +3,7 @@ title: 'A `<Link prefetch={true}>` navigated to a route that has not enabled Par
 kind: insight
 ---
 
-With [Cache Components](/docs/app/api-reference/config/next-config-js/cacheComponents) enabled, [`<Link prefetch={true}>`](/docs/app/api-reference/components/link) is a legacy "full" prefetch that pulls down the route's dynamic data instead of only the [static shell](/docs/app/guides/instant-navigation). Routes that opt into [Partial Prefetching](/docs/app/guides/adopting-partial-prefetching) prefetch only the shell and defer dynamic data to navigation time, which is what makes navigation feel instant. When a `<Link prefetch={true}>` navigates to a route that has not opted into Partial Prefetching, the prefetch defeats the static/dynamic split that Cache Components provides.
+With [Cache Components](/docs/app/api-reference/config/next-config-js/cacheComponents) enabled, [`<Link prefetch={true}>`](/docs/app/api-reference/components/link) is a legacy "full" prefetch that pulls down the route's dynamic data instead of only the [App Shell](/docs/app/glossary#app-shell). Routes that opt into [Partial Prefetching](/docs/app/glossary#partial-prefetching) prefetch only the App Shell and defer dynamic data to navigation time, which is what makes navigation feel instant. When a `<Link prefetch={true}>` navigates to a route that has not opted into Partial Prefetching, the prefetch defeats the static/dynamic split that Cache Components provides.
 
 The check runs at navigation time (not prefetch time) so existing apps that have recently enabled Cache Components are not flooded with warnings for every `<Link prefetch={true}>` on the page. You only hear about a route when you actually navigate to it.
 
@@ -16,17 +16,17 @@ The check runs at navigation time (not prefetch time) so existing apps that have
   href="#opt-into-partial-prefetching"
   title="Opt into Partial Prefetching"
 >
-  Mark the target route as partially prefetchable so its static shell can be
+  Mark the target route as partially prefetchable so its App Shell can be
   prefetched without pulling in dynamic data.
 </FixOption>
 
 <FixOption
   group="remove"
-  href="#prefetch-only-the-static-shell"
-  title="Prefetch only the static shell"
+  href="#prefetch-only-the-app-shell"
+  title="Prefetch only the App Shell"
 >
   Drop the `prefetch={true}` prop so the link falls back to the default prefetch
-  behavior — the static shell only.
+  behavior — the App Shell only.
 </FixOption>
 
 <FixOption
@@ -40,7 +40,7 @@ The check runs at navigation time (not prefetch time) so existing apps that have
 
 ## Opt into Partial Prefetching
 
-Choose this fix when the target route is a good candidate for Partial Prefetching. Most pages with a static shell and dynamic content below it are. Adding [`prefetch = 'partial'`](/docs/app/api-reference/file-conventions/route-segment-config/prefetch) to the page or layout tells Next.js to prefetch only the route's static shell and defer the dynamic data to navigation.
+Choose this fix when the target route is a good candidate for Partial Prefetching. Most pages with an [App Shell](/docs/app/glossary#app-shell) and dynamic content below it are. Adding [`prefetch = 'partial'`](/docs/app/api-reference/file-conventions/route-segment-config/prefetch) to the page or layout tells Next.js to prefetch only the route's App Shell and defer the dynamic data to navigation.
 
 ### Patterns
 
@@ -70,16 +70,16 @@ Learn more: [Adopting Partial Prefetching](/docs/app/guides/adopting-partial-pre
 
 ### Trade-off
 
-The route's dynamic data isn't included in the prefetch. The user sees the static shell instantly and the dynamic content streams in after navigation. For most routes this is the right trade-off; the shell appears immediately and the dynamic content arrives only marginally later than it would with a full prefetch.
+The route's dynamic data isn't included in the prefetch. The user sees the App Shell instantly and the dynamic content streams in after navigation. For most routes this is the right trade-off; the shell appears immediately and the dynamic content arrives only marginally later than it would with a full prefetch.
 
 ### Gotchas
 
 - Partial Prefetching only works with [Cache Components](/docs/app/api-reference/config/next-config-js/cacheComponents) enabled.
-- If the route doesn't have a clear static shell (everything below the layout reads dynamic data), Partial Prefetching has nothing to prefetch and behaves the same as no prefetch. Move static content above the dynamic boundary first.
+- If the route doesn't have a clear App Shell (everything below the layout reads dynamic data), Partial Prefetching has nothing to prefetch and behaves the same as no prefetch. Move static content above the dynamic boundary first.
 
-## Prefetch only the static shell
+## Prefetch only the App Shell
 
-Choose this fix when you don't need the dynamic data prefetched and the default `<Link>` behavior is fine. Removing `prefetch={true}` lets the link use Next.js's default prefetch strategy, which under Cache Components prefetches the static shell only.
+Choose this fix when you don't need the dynamic data prefetched and the default `<Link>` behavior is fine. Removing `prefetch={true}` lets the link use Next.js's default prefetch strategy, which under Cache Components prefetches the [App Shell](/docs/app/glossary#app-shell) only.
 
 ### Patterns
 
@@ -95,7 +95,7 @@ export default function Nav() {
 
 ### Trade-off
 
-The link no longer forces a full prefetch. The user gets the static shell on hover or when the link becomes visible, and the dynamic data is fetched at navigation time. This is the default behavior under Cache Components and is the right choice for most links.
+The link no longer forces a full prefetch. The user gets the App Shell on hover or when the link becomes visible, and the dynamic data is fetched at navigation time. This is the default behavior under Cache Components and is the right choice for most links.
 
 ### Gotchas
 

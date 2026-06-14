@@ -291,10 +291,10 @@ const linkPrefetchPartialCards: FixCard[] = [
     copyable: true,
   },
   {
-    id: 'prefetch-only-the-static-shell',
-    title: 'Prefetch only the static shell',
+    id: 'prefetch-only-the-app-shell',
+    title: 'Prefetch only the App Shell',
     group: 'remove',
-    link: 'https://nextjs.org/docs/messages/instant-link-prefetch-partial#prefetch-only-the-static-shell',
+    link: 'https://nextjs.org/docs/messages/instant-link-prefetch-partial#prefetch-only-the-app-shell',
     snippets: [
       { text: '<Link href="/dashboard">', highlight: true },
       { text: '  Dashboard' },

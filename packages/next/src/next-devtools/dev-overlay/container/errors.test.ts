@@ -386,7 +386,7 @@ describe('card sets for all error families', () => {
       getCards('link-prefetch-partial', 'runtime').map((card) => card.id)
     ).toEqual([
       'opt-into-partial-prefetching',
-      'prefetch-only-the-static-shell',
+      'prefetch-only-the-app-shell',
       'disable-validation-on-this-route',
     ])
   })

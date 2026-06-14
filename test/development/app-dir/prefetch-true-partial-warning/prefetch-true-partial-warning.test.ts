@@ -42,8 +42,8 @@ This prevents the prefetch from being partial, leading to the route's dynamic da
 Ways to fix this:
   - [upgrade] Opt the route into Partial Prefetching by exporting \`const prefetch = 'partial'\` from the page or layout
     https://nextjs.org/docs/messages/instant-link-prefetch-partial#opt-into-partial-prefetching
-  - [remove] Remove \`prefetch={true}\` from the <Link> so it prefetches only the static shell
-    https://nextjs.org/docs/messages/instant-link-prefetch-partial#prefetch-only-the-static-shell
+  - [remove] Remove \`prefetch={true}\` from the <Link> so it prefetches only the App Shell
+    https://nextjs.org/docs/messages/instant-link-prefetch-partial#prefetch-only-the-app-shell
   - [ignore] Set \`export const instant = false\` on the route to disable validation
     https://nextjs.org/docs/messages/instant-link-prefetch-partial#disable-validation-on-this-route",
        "environmentLabel": null,

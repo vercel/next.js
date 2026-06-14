@@ -46,6 +46,7 @@ import { ScrollBehavior } from '../router-reducer/router-reducer-types'
 import { computeChangedPath } from '../router-reducer/compute-changed-path'
 import { isJavaScriptURLString } from '../../lib/javascript-url'
 import { UnknownDynamicStaleTime, computeDynamicStaleAt } from './bfcache'
+import { createLinkPrefetchPartialError } from '../../../server/app-render/instant-messages'
 
 /**
  * Navigate to a new URL, using the Segment Cache to construct a response.
@@ -263,17 +264,7 @@ export function navigateToKnownRoute(
         PrefetchHint.SubtreeHasPartialPrefetching) ===
         0
     ) {
-      const error = new Error(
-        `A <Link prefetch={true}> navigated to "${url.pathname}", but Partial Prefetching is not enabled for that route.\n\n` +
-          `This prevents the prefetch from being partial, leading to the route's dynamic data being included in the prefetch.\n\n` +
-          `Ways to fix this:\n` +
-          `  - [upgrade] Opt the route into Partial Prefetching by exporting \`const prefetch = 'partial'\` from the page or layout\n` +
-          `    https://nextjs.org/docs/messages/instant-link-prefetch-partial#opt-into-partial-prefetching\n` +
-          `  - [remove] Remove \`prefetch={true}\` from the <Link> so it prefetches only the static shell\n` +
-          `    https://nextjs.org/docs/messages/instant-link-prefetch-partial#prefetch-only-the-static-shell\n` +
-          `  - [ignore] Set \`export const instant = false\` on the route to disable validation\n` +
-          `    https://nextjs.org/docs/messages/instant-link-prefetch-partial#disable-validation-on-this-route`
-      )
+      const error = createLinkPrefetchPartialError(url.pathname)
       const ownerStack = 'ownerStack' in link ? link.ownerStack : undefined
       if (ownerStack === undefined) {
         console.error(
