@@ -40,7 +40,7 @@ Routes that opt into Partial Prefetching skip the dynamic data at prefetch time,
 
 ## Opt into Partial Prefetching
 
-Choose this fix when the target route is a good candidate for Partial Prefetching. Most pages with an [App Shell](/docs/app/glossary#app-shell) and dynamic content below it are. Adding [`prefetch = 'partial'`](/docs/app/api-reference/file-conventions/route-segment-config/prefetch) to the page or layout tells Next.js to prefetch only the route's App Shell and defer the dynamic data to navigation.
+Choose this fix when the target route has an [App Shell](/docs/app/glossary#app-shell) with dynamic content below it. Add [`prefetch = 'partial'`](/docs/app/api-reference/file-conventions/route-segment-config/prefetch) to the page or layout to prefetch only the App Shell and defer the dynamic data to navigation.
 
 ### Patterns
 
@@ -70,7 +70,7 @@ Learn more: [Adopting Partial Prefetching](/docs/app/guides/adopting-partial-pre
 
 ### Trade-off
 
-The route's dynamic data isn't included in the prefetch. The user sees the App Shell as soon as the link is hovered or visible, and the dynamic content streams in after navigation. The dynamic content arrives later than it would with a full prefetch; how much later depends on how long the dynamic data takes to fetch.
+The route's dynamic data isn't included in the prefetch. The user sees the App Shell as soon as the link is hovered or visible, and the dynamic content streams in after navigation. The dynamic content arrives later than it would with a full prefetch. How much later depends on how long the dynamic data takes to fetch.
 
 ### Gotchas
 
@@ -79,12 +79,12 @@ The route's dynamic data isn't included in the prefetch. The user sees the App S
 
 ## Prefetch only the App Shell
 
-Choose this fix when you set `prefetch={true}` to warm up a frequently-visited route and you can accept fetching the dynamic data on navigation instead of ahead of time. Removing the prop lets the link use Next.js's default prefetch strategy, which under Cache Components prefetches the [App Shell](/docs/app/glossary#app-shell) only.
+Choose this fix when you set `prefetch={true}` to warm up a frequently-visited route and you can accept fetching the dynamic data on navigation. Remove the prop and the link uses the default prefetch strategy, which under Cache Components prefetches the [App Shell](/docs/app/glossary#app-shell) only.
 
-If you specifically want the dynamic data warmed up too, the setup is two steps:
+To warm up the dynamic data without the legacy full prefetch, follow these two steps:
 
-1. Make the dynamic data cacheable with [`"use cache"`](/docs/app/api-reference/directives/use-cache). For request-bound reads like `cookies()` or `headers()`, use the [extract-and-pass pattern](/docs/app/guides/runtime-prefetching#extract-and-pass) (or [`"use cache: private"`](/docs/app/api-reference/directives/use-cache#use-cache-private) for per-user reads) so the read stays outside the cache scope.
-2. Opt the route into [runtime prefetching](/docs/app/guides/runtime-prefetching) with [`prefetch = 'allow-runtime'`](/docs/app/api-reference/file-conventions/route-segment-config/prefetch). The prerender then advances past the App Shell into your newly-cached content before the click.
+1. Make the dynamic data cacheable with [`"use cache"`](/docs/app/api-reference/directives/use-cache). For request-bound reads like `cookies()` or `headers()`, apply the [extract-and-pass pattern](/docs/app/guides/runtime-prefetching#extract-and-pass) so the read happens outside the cache scope. For per-user reads, use [`"use cache: private"`](/docs/app/api-reference/directives/use-cache#use-cache-private).
+2. Opt the route into [runtime prefetching](/docs/app/guides/runtime-prefetching) with [`prefetch = 'allow-runtime'`](/docs/app/api-reference/file-conventions/route-segment-config/prefetch). The prerender advances past the App Shell into the newly-cached content before the click.
 
 Anything still uncached after step 1 keeps streaming in behind a [`<Suspense>`](https://react.dev/reference/react/Suspense) boundary on navigation.
 
@@ -102,7 +102,7 @@ export default function Nav() {
 
 ### Trade-off
 
-The link no longer forces a full prefetch. The user gets the App Shell on hover or when the link becomes visible, and the dynamic data is fetched at navigation time. This is the default behavior under Cache Components. If the per-visit fetch cost is unacceptable, use the two-step setup above to make the dynamic data prefetchable.
+The link no longer forces a full prefetch. The user gets the App Shell on hover or when the link becomes visible, and the dynamic data is fetched at navigation time. This is the default behavior under Cache Components. To make the dynamic data prefetchable instead, follow the two-step setup above.
 
 ### Gotchas
 
@@ -137,7 +137,7 @@ The link continues to do a full prefetch, including dynamic data, and the warnin
 
 ## Don't want this validation?
 
-Instant-navigation validation runs by default in [Cache Components](/docs/app/api-reference/config/next-config-js/cacheComponents) apps and is what surfaces this error.
+Instant-navigation validation runs by default in [Cache Components](/docs/app/api-reference/config/next-config-js/cacheComponents) apps and surfaces this error.
 
 - **One segment**: add [`export const instant = false`](/docs/app/api-reference/file-conventions/route-segment-config/instant) to the page or layout file. This opts out the segment itself. Child segments are still validated during client navigations.
 - **Entire app**: set [`experimental.instantInsights.validationLevel`](/docs/app/api-reference/file-conventions/route-segment-config/instant#configuring-validation-defaults) to `'manual-warning'` in `next.config`. This limits validation to segments that explicitly export `instant`.
