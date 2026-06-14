@@ -16,8 +16,8 @@ Routes that opt into Partial Prefetching skip the dynamic data at prefetch time,
   href="#opt-into-partial-prefetching"
   title="Opt into Partial Prefetching"
 >
-  Mark the target route as partially prefetchable so its App Shell can be
-  prefetched without pulling in dynamic data.
+  Adopt Partial Prefetching for the target route so the link prefetches only the
+  App Shell. After adopting, layer on further prefetch optimizations.
 </FixOption>
 
 <FixOption
@@ -40,7 +40,7 @@ Routes that opt into Partial Prefetching skip the dynamic data at prefetch time,
 
 ## Opt into Partial Prefetching
 
-Choose this fix when the target route has an [App Shell](/docs/app/glossary#app-shell) with dynamic content below it. Add [`prefetch = 'partial'`](/docs/app/api-reference/file-conventions/route-segment-config/prefetch) to the page or layout to prefetch only the App Shell and defer the dynamic data to navigation.
+Choose this fix when the target route has an [App Shell](/docs/app/glossary#app-shell) with dynamic content below it. Opting into Partial Prefetching tells Next.js to prefetch only the App Shell and defer the dynamic data to navigation. Opt in per-route or app-wide, and from there layer on further prefetch optimizations.
 
 ### Patterns
 
