@@ -1802,8 +1802,7 @@ async function fetchMissingDynamicData(
       seed.data,
       seed.head,
       dynamicStaleAt,
-      result.debugInfo,
-      result.revealAfter
+      result.debugInfo
     )
 
     return {
@@ -1831,18 +1830,11 @@ function writeDynamicDataIntoNavigationTask(
   dynamicData: CacheNodeSeedData | null,
   dynamicHead: HeadData,
   dynamicStaleAt: number,
-  debugInfo: Array<any> | null,
-  revealAfter: Promise<void> | null
+  debugInfo: Array<any> | null
 ): boolean {
   if (task.status === NavigationTaskStatus.Pending && dynamicData !== null) {
     task.status = NavigationTaskStatus.Fulfilled
-    finishPendingCacheNode(
-      task.node,
-      dynamicData,
-      dynamicHead,
-      debugInfo,
-      revealAfter
-    )
+    finishPendingCacheNode(task.node, dynamicData, dynamicHead, debugInfo)
 
     // Update the BFCache entry's staleAt for this segment with the value
     // from the dynamic response. This applies the per-page
@@ -1901,8 +1893,7 @@ function writeDynamicDataIntoNavigationTask(
                 dynamicDataChild,
                 dynamicHead,
                 dynamicStaleAt,
-                debugInfo,
-                revealAfter
+                debugInfo
               )
             if (childDidReceiveUnknownParallelRoute) {
               didReceiveUnknownParallelRoute = true
@@ -1925,8 +1916,7 @@ function finishPendingCacheNode(
   cacheNode: CacheNode,
   dynamicData: CacheNodeSeedData,
   dynamicHead: HeadData,
-  debugInfo: Array<any> | null,
-  revealAfter: Promise<void> | null
+  debugInfo: Array<any> | null
 ): void {
   // Writes a dynamic response into an existing Cache Node tree. This does _not_
   // create a new tree, it updates the existing tree in-place. So it must follow
@@ -1959,21 +1949,7 @@ function finishPendingCacheNode(
     // This is a deferred RSC promise. We can fulfill it with the data we just
     // received from the server. If it was already resolved by a different
     // navigation, then this does nothing because we can't overwrite data.
-    //
-    // In the streaming dev render, defer the fill until `revealAfter` settles,
-    // so React doesn't render the boundary's children before their row has been
-    // decoded (otherwise it suspends on the still-pending children and commits
-    // a premature fallback). Outside that render `revealAfter` is null and we
-    // resolve immediately.
-    if (revealAfter !== null) {
-      const resolveRsc = () => rsc.resolve(dynamicSegmentData, debugInfo)
-      // Use the same callback for both outcomes: we don't expect `revealAfter`
-      // to reject, but if it ever did (e.g. a connection drop mid-stream) we'd
-      // still want to resolve the RSC.
-      revealAfter.then(resolveRsc, resolveRsc)
-    } else {
-      rsc.resolve(dynamicSegmentData, debugInfo)
-    }
+    rsc.resolve(dynamicSegmentData, debugInfo)
   } else {
     // This is not a deferred RSC promise, nor is it empty, so it must have
     // been populated by a different navigation. We must not overwrite it.
