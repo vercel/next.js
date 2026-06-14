@@ -79,12 +79,7 @@ The route's dynamic data isn't included in the prefetch. The user sees the App S
 
 ### Next steps
 
-Opting in stops at the App Shell. To also prefetch the dynamic data, follow these two steps after opting in:
-
-1. Make the dynamic data cacheable with [`"use cache"`](/docs/app/api-reference/directives/use-cache). For request-bound reads like `cookies()` or `headers()`, apply the [extract-and-pass pattern](/docs/app/guides/runtime-prefetching#extract-and-pass) so the read happens outside the cache scope. For per-user reads, use [`"use cache: private"`](/docs/app/api-reference/directives/use-cache#use-cache-private).
-2. Opt the route into [runtime prefetching](/docs/app/guides/runtime-prefetching) with [`prefetch = 'allow-runtime'`](/docs/app/api-reference/file-conventions/route-segment-config/prefetch). The prerender advances past the App Shell into the newly-cached content before the click.
-
-Anything still uncached after step 1 keeps streaming in behind a [`<Suspense>`](https://react.dev/reference/react/Suspense) boundary on navigation.
+Opting in stops at the App Shell. To also prefetch cached parts of the route, see [Going further: prefetch the dynamic data](/docs/app/guides/adopting-partial-prefetching#going-further-prefetch-the-dynamic-data) in the adoption guide. The recipe layers [`"use cache"`](/docs/app/api-reference/directives/use-cache) on the data access, `prefetch={true}` on the link, and [`prefetch = 'allow-runtime'`](/docs/app/api-reference/file-conventions/route-segment-config/prefetch) on the route when the cached content depends on request data.
 
 ## Prefetch only the App Shell
 

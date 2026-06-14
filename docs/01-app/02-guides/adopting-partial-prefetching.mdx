@@ -90,9 +90,43 @@ export default nextConfig
 
 ## Auditing existing `<Link prefetch={true}>` calls
 
-After enabling Cache Components, `<Link prefetch={true}>` becomes a legacy "full" prefetch that pulls down the route's dynamic data along with its App Shell, bypassing the static/dynamic split. In development, navigating via one of these links to a route that has not opted into Partial Prefetching surfaces an [Insight](/docs/messages/instant-link-prefetch-partial) in the dev overlay so you can find and fix them as you adopt.
+After enabling Cache Components, every `<Link prefetch={true}>` to a route that has not opted into Partial Prefetching surfaces an [Insight](/docs/messages/instant-link-prefetch-partial) in the dev overlay. The Insight names the offending link and walks through the three fix options (opt the route in, drop the prop, or silence per-route).
 
-The Insight ships with three options: opt the target route into Partial Prefetching, remove the `prefetch={true}` prop, or silence the warning per-route with `instant = false`. See [the Insight page](/docs/messages/instant-link-prefetch-partial) for the trade-offs and code patterns.
+## Going further: prefetch the dynamic data
+
+Opting into Partial Prefetching stops at the App Shell. To bring more of the route's content into the prefetch, layer these on top:
+
+1. **Make the data cacheable with [`"use cache"`](/docs/app/api-reference/directives/use-cache).** Wrap the data access (a `fetch`, a database call, a derived computation) in a cached function so it has a cache key and a lifetime instead of being recomputed per request.
+
+   For request-bound reads like `cookies()` or `headers()`, prefer the [extract-and-pass pattern](/docs/app/guides/runtime-prefetching#extract-and-pass): read the value outside the cached function and pass it in as an argument so the cache key is deterministic and users with the same value share the entry. Reach for [`"use cache: private"`](/docs/app/guides/runtime-prefetching#use-cache-private) only when extract-and-pass isn't feasible. Common cases: the cache entry shouldn't be shared across users, or the runtime data is read deep inside a helper you can't refactor to take it as an argument.
+
+2. **Set `prefetch={true}` on the link** to pull the route's cached content along with the App Shell. Under Partial Prefetching this is safe: the link only fetches the cached parts of the page, not the dynamic ones.
+
+   ```tsx filename="app/nav.tsx" highlight={6}
+   import Link from 'next/link'
+
+   export default function Nav() {
+     return (
+       <nav>
+         <Link href="/dashboard" prefetch>
+           Dashboard
+         </Link>
+       </nav>
+     )
+   }
+   ```
+
+3. **Opt the route into [runtime prefetching](/docs/app/guides/runtime-prefetching) with [`prefetch = 'allow-runtime'`](/docs/app/api-reference/file-conventions/route-segment-config/prefetch)** if the cached content depends on request data (cookies, headers, search params). `allow-runtime` extends the prefetch's prerender so the router can evaluate request-bound cached functions before the click.
+
+   ```tsx filename="app/dashboard/page.tsx" highlight={1}
+   export const prefetch = 'allow-runtime'
+
+   export default function Dashboard() {
+     return <DashboardLayout />
+   }
+   ```
+
+Anything still uncached after step 1 keeps streaming in behind a [`<Suspense>`](https://react.dev/reference/react/Suspense) boundary on navigation. Runtime prefetching costs a per-link server invocation, so apply it where the cached content meaningfully outweighs the cost.
 
 ## Next steps
 
