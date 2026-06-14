@@ -70,23 +70,25 @@ Learn more: [Adopting Partial Prefetching](/docs/app/guides/adopting-partial-pre
 
 ### Trade-off
 
-The route's dynamic data isn't included in the prefetch. The user sees the App Shell as soon as the link is hovered or visible, and the dynamic content streams in after navigation. The dynamic content arrives later than it would with a full prefetch. How much later depends on how long the dynamic data takes to fetch.
+The route's dynamic data isn't included in the prefetch. The user sees the App Shell as soon as the link enters the viewport, and the dynamic content streams in after navigation. The dynamic content arrives later than it would with a full prefetch. How much later depends on how long the dynamic data takes to fetch.
 
 ### Gotchas
 
 - Partial Prefetching only works with [Cache Components](/docs/app/api-reference/config/next-config-js/cacheComponents) enabled.
 - If the route doesn't have a clear App Shell (everything below the layout reads dynamic data), Partial Prefetching has nothing to prefetch and behaves the same as no prefetch. Move static content above the dynamic boundary first.
 
-## Prefetch only the App Shell
+### Warm up the dynamic data too
 
-Choose this fix when you set `prefetch={true}` to warm up a frequently-visited route and you can accept fetching the dynamic data on navigation. Remove the prop and the link uses the default prefetch strategy, which under Cache Components prefetches the [App Shell](/docs/app/glossary#app-shell) only.
-
-To warm up the dynamic data without the legacy full prefetch, follow these two steps:
+Opting in stops at the App Shell. To also warm up the dynamic data, follow these two steps after opting in:
 
 1. Make the dynamic data cacheable with [`"use cache"`](/docs/app/api-reference/directives/use-cache). For request-bound reads like `cookies()` or `headers()`, apply the [extract-and-pass pattern](/docs/app/guides/runtime-prefetching#extract-and-pass) so the read happens outside the cache scope. For per-user reads, use [`"use cache: private"`](/docs/app/api-reference/directives/use-cache#use-cache-private).
 2. Opt the route into [runtime prefetching](/docs/app/guides/runtime-prefetching) with [`prefetch = 'allow-runtime'`](/docs/app/api-reference/file-conventions/route-segment-config/prefetch). The prerender advances past the App Shell into the newly-cached content before the click.
 
 Anything still uncached after step 1 keeps streaming in behind a [`<Suspense>`](https://react.dev/reference/react/Suspense) boundary on navigation.
+
+## Prefetch only the App Shell
+
+Choose this fix when you set `prefetch={true}` to warm up a frequently-visited route and you can accept fetching the dynamic data on navigation. Remove the prop and the link uses the default prefetch strategy, which under Cache Components prefetches the [App Shell](/docs/app/glossary#app-shell) only.
 
 ### Patterns
 
@@ -102,7 +104,7 @@ export default function Nav() {
 
 ### Trade-off
 
-The link no longer forces a full prefetch. The user gets the App Shell on hover or when the link becomes visible, and the dynamic data is fetched at navigation time. This is the default behavior under Cache Components. To make the dynamic data prefetchable instead, follow the two-step setup above.
+The link no longer forces a full prefetch. The user gets the App Shell when the link enters the viewport, and the dynamic data is fetched at navigation time. This is the default behavior under Cache Components.
 
 ### Gotchas
 
