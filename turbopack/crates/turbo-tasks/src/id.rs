@@ -171,16 +171,8 @@ impl Debug for TaskId {
 
 unsafe impl crate::NonLocalValue for TaskId {}
 
-/// `TaskId` values are constrained to 31 bits so the id fits alongside a
-/// [`crate::CellId`] (32 bits) inside the 64-bit packed [`crate::RawVc`], which
-/// reserves bit 31 of its word as the `LocalOutput` discriminator. Bit 30 marks
-/// transient tasks; bit 31 is always zero. The transient flag is intentionally
-/// a property of the *value* (not of any `RawVc` wrapper) because transience is
-/// computed from a bare `TaskId` in many places (storage, aggregation, child
-/// connection).
-///
-/// This splits the id space into ~1.07B persistent ids (`1..=0x3FFF_FFFF`) and
-/// ~1.07B transient ids (`0x4000_0000..=0x7FFF_FFFF`).
+/// `TaskId` values are constrained to 31 bits to preserve a niche for [`crate::RawVc`]. Bit 30
+/// marks transient tasks; bit 31 is always zero.
 pub const TRANSIENT_TASK_BIT: u32 = 0x4000_0000;
 
 /// The largest value a [`TaskId`] may hold (31 bits set).
