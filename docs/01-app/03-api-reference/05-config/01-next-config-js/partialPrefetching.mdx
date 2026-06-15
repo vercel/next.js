@@ -57,6 +57,8 @@ With `partialPrefetching` enabled, three tiers of prefetch payload are available
 
 See the [runtime prefetching guide](/docs/app/guides/runtime-prefetching) for the per-link behavior in detail.
 
+> **Good to know**: If you use `<Link prefetch={true}>` without Partial Prefetching enabled for the destination route, a dev console error explains that the prefetch included dynamic data and suggests enabling `partialPrefetching` app-wide or `prefetch = 'partial'` on the segment.
+
 ## Per-segment overrides
 
 A segment that exports an explicit [`prefetch`](/docs/app/api-reference/file-conventions/route-segment-config/prefetch) value overrides the app-level default for that route.

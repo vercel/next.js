@@ -9,7 +9,7 @@ related:
     - app/api-reference/file-conventions/route-segment-config/instant
 ---
 
-The `prefetch` route segment config controls how a segment is prefetched during client-side navigation. The default (`'auto'`) lets Next.js manage the strategy on your behalf — today that always means a static prefetch. The other options let you declare which prefetch behavior is appropriate for the segment. Use them with care, since they can affect both navigation latency and prefetch cost.
+The `prefetch` route segment config controls how a segment is prefetched during client-side navigation. The default (`'auto'`) lets the framework manage the strategy based on the app's [`partialPrefetching`](/docs/app/api-reference/config/next-config-js/partialPrefetching) setting. The other options let you override the strategy per segment. Use them with care, since they can affect both navigation latency and prefetch cost.
 
 When you do set this export, consider pairing it with [`instant`](/docs/app/api-reference/file-conventions/route-segment-config/instant) so validation can confirm that navigations to this segment actually produce an instant UI from the prefetched data. This is especially important for runtime prefetching.
 
@@ -38,11 +38,11 @@ export default function Page() {
 
 ### `'auto'` (default)
 
-Lets Next.js manage prefetching for this segment. Today this always means a static prefetch — to permit runtime prefetching, opt in explicitly with [`'allow-runtime'`](#allow-runtime).
+Lets the framework manage prefetching for this segment based on the app's [`partialPrefetching`](/docs/app/api-reference/config/next-config-js/partialPrefetching) setting. To override per route, use [`'partial'`](#partial), [`'allow-runtime'`](#allow-runtime), or [`'force-disabled'`](#force-disabled).
 
 A future release will use [`instant`](/docs/app/api-reference/file-conventions/route-segment-config/instant) validation to choose between static and runtime prefetching automatically. Leaving the default in place means your app will pick up that improvement without code changes.
 
-You typically don't need to set this explicitly — omitting the export has the same effect.
+You typically don't need to set this explicitly. Omitting the export has the same effect.
 
 ### `'partial'`
 
@@ -53,6 +53,8 @@ This is the per-segment equivalent of enabling [`partialPrefetching`](/docs/app/
 ```tsx filename="page.tsx"
 export const prefetch = 'partial'
 ```
+
+> **Good to know**: When `<Link prefetch={true}>` navigates to a route that hasn't opted into Partial Prefetching, a dev console error suggests enabling it. Setting `prefetch = 'partial'` here is the per-route fix; `partialPrefetching: true` is the app-wide alternative.
 
 ### `'allow-runtime'`
 
