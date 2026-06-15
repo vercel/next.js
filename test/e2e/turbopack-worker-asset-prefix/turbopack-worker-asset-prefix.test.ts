@@ -2,7 +2,7 @@ import { isNextDeploy, nextTestSetup } from 'e2e-utils'
 import { retry } from 'next-test-utils'
 
 // `experimental.turbopackWorkerAssetPrefix` is turbopack-only.
-const isTurbopack = !process.env.IS_WEBPACK_TEST
+const isTurbopack = !process.env.IS_WEBPACK_TEST && !process.env.NEXT_RSPACK
 const describeTurbopack =
   isTurbopack && !isNextDeploy ? describe : describe.skip
 

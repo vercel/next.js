@@ -189,7 +189,9 @@ module.exports = ({ dev, turbo, bundleType, experimental, ...rest }) => {
       filename: `[name]${turbo ? '-turbo' : ''}${
         experimental ? '-experimental' : ''
       }.runtime.${dev ? 'dev' : 'prod'}.js`,
-      libraryTarget: 'commonjs2',
+      library: {
+        type: 'commonjs2',
+      },
     },
     devtool: 'source-map',
     optimization:

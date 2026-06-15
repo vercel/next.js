@@ -141,7 +141,10 @@ function webToReadable(
     if (process.env.TURBOPACK) {
       Readable = (require('node:stream') as typeof import('node:stream'))
         .Readable
-    } else if (process.env.__NEXT_BUNDLER === 'Webpack') {
+    } else if (
+      process.env.__NEXT_BUNDLER === 'Webpack' ||
+      process.env.__NEXT_BUNDLER === 'Rspack'
+    ) {
       Readable = (
         __non_webpack_require__('node:stream') as typeof import('node:stream')
       ).Readable
@@ -175,7 +178,10 @@ export async function streamToUint8Array(stream: AnyStream) {
     if (process.env.TURBOPACK) {
       Readable = (require('node:stream') as typeof import('node:stream'))
         .Readable
-    } else if (process.env.__NEXT_BUNDLER === 'Webpack') {
+    } else if (
+      process.env.__NEXT_BUNDLER === 'Webpack' ||
+      process.env.__NEXT_BUNDLER === 'Rspack'
+    ) {
       Readable = (
         __non_webpack_require__('node:stream') as typeof import('node:stream')
       ).Readable

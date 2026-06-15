@@ -6,10 +6,10 @@
     "directory": "packages/next-rspack"
   },
   "types": "index.d.ts",
-  "dependencies": {
-    "@next/rspack-core": "1.0.2"
-  },
   "scripts": {
     "pack-for-isolated-tests": "pnpm pack --out ./packed.tgz"
+  },
+  "dependencies": {
+    "@next/rspack-core": "1.0.3"
   }
 }

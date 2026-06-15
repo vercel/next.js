@@ -36,6 +36,10 @@ on:
       num_retries:
         type: number
         default: 2
+      nodeVersion:
+        description: 'version of Node.js to use'
+        type: string
+        default: 20.9.0
 
 jobs:
   # First, build Next.js to execute across tests.
@@ -43,6 +47,7 @@ jobs:
     name: build-next
     uses: ./.github/workflows/build_reusable.yml
     with:
+      nodeVersion: ${{ inputs.nodeVersion }}
       skipNativeBuild: yes
       stepName: build-next
     secrets: inherit
@@ -51,6 +56,7 @@ jobs:
     name: build-native
     uses: ./.github/workflows/build_reusable.yml
     with:
+      nodeVersion: ${{ inputs.nodeVersion }}
       skipInstallBuild: yes
       stepName: build-native
     secrets: inherit
@@ -88,6 +94,7 @@ jobs:
         group: ${{ fromJSON(needs.generate-matrices.outputs.e2e) }}
     uses: ./.github/workflows/build_reusable.yml
     with:
+      nodeVersion: ${{ inputs.nodeVersion }}
       afterBuild: |
         # e2e and ${{ inputs.test_type }} tests with `node run-tests.js`
 
@@ -119,7 +126,7 @@ jobs:
         group: ${{ fromJSON(needs.generate-matrices.outputs.integration) }}
     uses: ./.github/workflows/build_reusable.yml
     with:
-      nodeVersion: 20.9.0
+      nodeVersion: ${{ inputs.nodeVersion }}
       afterBuild: |
         # legacy integration tests with `node run-tests.js`
 
