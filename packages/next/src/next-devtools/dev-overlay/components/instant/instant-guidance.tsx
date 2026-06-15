@@ -12,7 +12,7 @@ import {
 } from '../../icons/fix-card-icons'
 import { CopyButton } from '../copy-button'
 import { ExternalIcon } from '../../icons/external'
-import { SparkleIcon } from '../../icons/sparkle'
+import { CopyPromptIcon } from '../../icons/copy-prompt'
 import { css } from '../../utils/css'
 import {
   DOCS_URLS,
@@ -93,7 +93,7 @@ function CopyPromptButton({
       }}
       actionLabel="Copy as prompt"
       successLabel="Copied"
-      icon={<SparkleIcon />}
+      icon={<CopyPromptIcon />}
       showLabel
       data-nextjs-fix-card-copy-button
     />
@@ -102,7 +102,7 @@ function CopyPromptButton({
       content={fixHeader}
       actionLabel="Copy as prompt"
       successLabel="Copied"
-      icon={<SparkleIcon />}
+      icon={<CopyPromptIcon />}
       showLabel
       data-nextjs-fix-card-copy-button
     />
