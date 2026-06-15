@@ -1827,14 +1827,11 @@ async function finalRuntimeServerPrerender(
 
         // FIXME(NAR-810): If we're already aborted due to Sync IO, there should be no need to
         // finish the accumulators. However, it seems like in `--debug-prerender`
-        // the stream will stay open if we don't close the iterables here. This
-        // applies to the vary params iterables too — there's now one per segment
-        // (plus head and root) embedded in the stream.
-        if (
-          process.env.NODE_ENV === 'development' &&
-          staleTimeIterable !== undefined
-        ) {
-          staleTimeIterable.close()
+        // the stream will stay open if we don't close the iterables here.
+        if (process.env.NODE_ENV === 'development') {
+          if (staleTimeIterable !== undefined) {
+            staleTimeIterable.close()
+          }
           finishAccumulatingVaryParams(varyParamsAccumulator)
         }
 
@@ -1870,13 +1867,10 @@ async function finalRuntimeServerPrerender(
       }
 
       staleTimeIterable.close()
+      finishAccumulatingVaryParams(varyParamsAccumulator)
 
-      // Wait for the vary params iterables to finish flushing into the stream
-      // (see finishAccumulatingVaryParams), then one more task for the stale
-      // time iterable and the stream's terminating chunk to flush. Sampling
-      // before the vary params have drained would race their flush and
-      // mis-report a fully-static prerender as partial.
-      await finishAccumulatingVaryParams(varyParamsAccumulator)
+      // We're using a render, not a prerender, so React schedules rendering work in fast immediates,
+      // and we need to wait a fast immediate for the stale time/vary params chunks to flush.
       await waitAtLeastOneReactRenderTask()
 
       if (streamState.isPending) {
@@ -7713,13 +7707,10 @@ async function prerenderToStream(
             // FIXME(NAR-810): If we're already aborted due to Sync IO, there should be no need to
             // finish the accumulators. However, it seems like in `--debug-prerender`
             // the stream will stay open if we don't close the iterables here.
-            // This applies to the vary params iterables too — there's now one
-            // per segment (plus head and root) embedded in the stream.
-            if (
-              process.env.NODE_ENV === 'development' &&
-              staleTimeIterable !== undefined
-            ) {
-              staleTimeIterable.close()
+            if (process.env.NODE_ENV === 'development') {
+              if (staleTimeIterable !== undefined) {
+                staleTimeIterable.close()
+              }
               finishAccumulatingVaryParams(varyParamsAccumulator)
             }
             return

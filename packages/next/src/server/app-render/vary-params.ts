@@ -35,23 +35,6 @@ export class VaryParamsAccumulator implements AsyncIterable<string> {
   // same name is never emitted twice.
   private _seen: Set<string> = new Set()
 
-  // Resolves once Flight has pulled this iterable's terminating `done` result —
-  // i.e. it has fully consumed the iterable and serialized its rows. The
-  // prerender awaits this (see finishAccumulatingVaryParams) to know the vary
-  // params have finished flushing before it decides whether the stream is still
-  // pending on dynamic data.
-  private _flushedResolve: (() => void) | null = null
-  readonly flushed: Promise<void> = new Promise((resolve) => {
-    this._flushedResolve = resolve
-  })
-
-  private _markFlushed(): void {
-    if (this._flushedResolve !== null) {
-      this._flushedResolve()
-      this._flushedResolve = null
-    }
-  }
-
   /**
    * Records that a param was accessed. Yields the name into the stream the
    * first time it's seen; subsequent accesses of the same name are no-ops.
@@ -79,7 +62,6 @@ export class VaryParamsAccumulator implements AsyncIterable<string> {
     if (this._resolve !== null) {
       this._resolve({ value: undefined, done: true })
       this._resolve = null
-      this._markFlushed()
     }
   }
 
@@ -90,7 +72,6 @@ export class VaryParamsAccumulator implements AsyncIterable<string> {
           return Promise.resolve({ value: this._buffer.shift()!, done: false })
         }
         if (this._done) {
-          this._markFlushed()
           return Promise.resolve({ value: undefined, done: true })
         }
         return new Promise<IteratorResult<string>>((resolve) => {
@@ -380,30 +361,13 @@ export function createVaryingSearchParams(
  * If we can't track vary params (e.g., legacy prerender), simply don't call
  * this function - the client treats a missing iterable as "unknown" vary
  * params.
- *
- * Returns a promise that resolves once Flight has pulled the terminating `done`
- * from every closed iterable, i.e. the vary params have finished flushing into
- * the stream. A prerender awaits this before sampling whether the stream is
- * still pending: each iterable's `done` row flushes asynchronously and there's
- * one per segment (plus head and root), so a fixed single-task wait would race
- * the flush and mis-report a fully-static prerender as partial. (In the static
- * case every iterable is reached and resolves; in a partial prerender they
- * still resolve — the seed-data tree, and so each segment's iterable, is
- * serialized either way — and `isPending` then distinguishes the two.)
  */
 export function finishAccumulatingVaryParams(
   responseAccumulator: ResponseVaryParamsAccumulator
-): Promise<void> {
+): void {
   responseAccumulator.head.close()
   responseAccumulator.rootParams.close()
   for (const segmentAccumulator of responseAccumulator.segments) {
     segmentAccumulator.close()
   }
-  return Promise.all([
-    responseAccumulator.head.flushed,
-    responseAccumulator.rootParams.flushed,
-    ...Array.from(responseAccumulator.segments, (s) => s.flushed),
-  ]).then(noop)
 }
-
-const noop = (): void => {}
