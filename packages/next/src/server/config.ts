@@ -53,6 +53,7 @@ import { HardDeprecatedConfigError } from '../shared/lib/errors/hard-deprecated-
 import { NextInstanceErrorState } from './mcp/tools/next-instance-error-state'
 import { Bundler } from '../lib/bundler'
 import type { MemoryEvictionMode } from '../build/swc/types'
+import { hrtimeBigIntDurationToString } from 'next/src/build/duration-to-string'
 
 export { normalizeConfig } from './config-shared'
 export type { DomainLocale, NextConfig } from './config-shared'
@@ -1774,12 +1775,13 @@ export default async function loadConfig(
   dir: string,
   opts: LoadConfigOptions = {}
 ): Promise<NextConfigComplete> {
-  const start = performance.now()
+  const startTimeNanos = process.hrtime.bigint()
   // Intentionally not in a `finally`: if evaluation throws, the user already
   // gets a "Failed to load" error, so reporting how long the failed attempt
   // took on top of that is just noise.
   const [config, meta] = await loadConfigImpl(phase, dir, opts)
-  const durationMs = performance.now() - start
+
+  const durationNanos = process.hrtime.bigint() - startTimeNanos
   // Skip the cache-hit fast path: it returns in ~0ms and doesn't re-evaluate
   // the user's config, so its timing is meaningless noise.
   if (
@@ -1788,7 +1790,7 @@ export default async function loadConfig(
     durationMs > SLOW_CONFIG_EVAL_THRESHOLD_MS
   ) {
     Log.event(
-      `Evaluating ${meta.configFileName ?? 'next.config'} took ${Math.round(durationMs)}ms`
+      `Evaluating ${meta.configFileName ?? 'next.config'} took ${hrtimeBigIntDurationToString(durationNanos)}`
     )
   }
   return config
