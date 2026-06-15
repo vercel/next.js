@@ -10,6 +10,7 @@ const withCustomPagesDir = path.join(__dirname, 'with-custom-pages-dir')
 const withNestedPagesDir = path.join(__dirname, 'with-nested-pages-dir')
 const withoutPagesDir = path.join(__dirname, 'without-pages-dir')
 const withAppDir = path.join(__dirname, 'with-app-dir')
+const withPageExtensions = path.join(__dirname, 'with-page-extensions')
 
 const linters = {
   withoutPages: new Linter({
@@ -26,6 +27,10 @@ const linters = {
   }),
   withCustomPages: new Linter({
     cwd: withCustomPagesDir,
+    configType: 'eslintrc',
+  }),
+  withPageExtensions: new Linter({
+    cwd: withPageExtensions,
     configType: 'eslintrc',
   }),
 }
@@ -494,5 +499,31 @@ describe('no-html-link-for-pages', function () {
       report.message,
       'Do not use an `<a>` element to navigate to `/photo/1/`. Use `<Link />` from `next/link` instead. See: https://nextjs.org/docs/messages/no-html-link-for-pages'
     )
+  })
+  it('detects pages with custom pageExtensions from next.config.js', function () {
+    // With custom pageExtensions: ['page.tsx', 'page.ts'],
+    // regular .js/.tsx files should NOT be treated as pages
+    const report = linters.withPageExtensions.verify(
+      invalidStaticCode,
+      linterConfig,
+      { filename: 'foo.js' }
+    )
+    // index.page.tsx is a page, so / should be flagged
+    assert.notEqual(report, undefined, 'No lint errors found.')
+  })
+  it('detects about page with custom pageExtensions', function () {
+    const [report] = linters.withPageExtensions.verify(
+      `
+export class Blah {
+  render() {
+    return <a href='/about/'>About</a>
+  }
+}
+`,
+      linterConfig,
+      { filename: 'foo.js' }
+    )
+    assert.notEqual(report, undefined, 'No lint errors found.')
+    assert.ok(report.message.includes('/about/'))
   })
 })

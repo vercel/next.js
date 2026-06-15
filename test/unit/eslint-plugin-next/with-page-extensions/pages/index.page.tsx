@@ -1,0 +1,1 @@
+// page with custom extension
