@@ -1324,6 +1324,9 @@ function diffRouteTreeAgainstCurrent(
     null,
     null,
   ]
+  if (newTree.prefetchHints !== 0) {
+    requestTree[4] = newTree.prefetchHints
+  }
   return requestTree
 }
 
@@ -1431,6 +1434,9 @@ function pingPPRDisabledRouteTreeUpToLoadingBoundary(
     null,
     refetchMarker,
   ]
+  if (tree.prefetchHints !== 0) {
+    requestTree[4] = tree.prefetchHints
+  }
   return requestTree
 }
 
@@ -1564,6 +1570,9 @@ function pingRouteTreeAndIncludeDynamicData(
     null,
     refetchMarker,
   ]
+  if (tree.prefetchHints !== 0) {
+    requestTree[4] = tree.prefetchHints
+  }
   return requestTree
 }
 
@@ -1618,6 +1627,9 @@ function pingRuntimePrefetches(
     null,
     null,
   ]
+  if (tree.prefetchHints !== 0) {
+    requestTree[4] = tree.prefetchHints
+  }
   return requestTree
 }
 

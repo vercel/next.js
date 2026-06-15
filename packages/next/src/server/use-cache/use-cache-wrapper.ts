@@ -62,7 +62,7 @@ import {
 } from '../app-render/create-error-handler'
 import { createDigestWithErrorCode } from '../../lib/error-telemetry-utils'
 import stringHash from 'next/dist/compiled/string-hash'
-import { DYNAMIC_EXPIRE, RUNTIME_PREFETCH_DYNAMIC_STALE } from './constants'
+import { DYNAMIC_EXPIRE, DYNAMIC_STALE } from './constants'
 import { NEXT_CACHE_ROOT_PARAM_TAG_ID } from '../../lib/constants'
 import type { CacheHandler } from '../lib/cache-handlers/types'
 import { getCacheHandler, getPrivateCacheHandler } from './handlers'
@@ -2358,17 +2358,18 @@ export async function cache(
           }
         }
 
-        if (rdcResult.entry.stale < RUNTIME_PREFETCH_DYNAMIC_STALE) {
+        if (rdcResult.entry.stale < DYNAMIC_STALE) {
           switch (workUnitStore.type) {
+            case 'prerender':
             case 'prerender-runtime':
-              // In a runtime prerender, if the cache entry will become
+              // If the cache entry will become
               // stale in less then 30 seconds, we consider this cache entry
               // dynamic as it's not worth prefetching. It's better to leave
               // a dynamic hole that can be filled during the navigation.
               debug?.(
                 'omitting entry',
                 serializedCacheKey,
-                'from runtime shell due to short stale value:',
+                'from shell due to short stale value:',
                 rdcResult.entry.stale
               )
               if (cacheSignal) {
@@ -2380,17 +2381,9 @@ export async function cache(
                 'dynamic "use cache"'
               )
             case 'request': {
-              // A short stale time excludes the entry from the runtime prefetch
-              // shell, but not from the static shell. We only replicate that
-              // exclusion (the `prerender-runtime` behavior) when this render
-              // produces the runtime prefetch shell: a client navigation into a
-              // runtime-prefetch route. An initial load, a plain navigation,
-              // and an HMR refresh produce the static shell, where the entry
-              // stays and resolves like the static prerender.
-              if (
-                process.env.NODE_ENV === 'development' &&
-                workUnitStore.shellStage === RenderStage.Runtime
-              ) {
+              // A short stale time excludes the entry from prerenders.
+              // We delay it here to match that.
+              if (process.env.NODE_ENV === 'development') {
                 // End the cache signal read (once, in case the expire block
                 // above already did) so the deferred value isn't counted as a
                 // pending read at a staged rendering boundary, then defer it to
@@ -2407,7 +2400,6 @@ export async function cache(
               }
               break
             }
-            case 'prerender':
             case 'prerender-ppr':
             case 'prerender-legacy':
             case 'cache':
@@ -2936,23 +2928,12 @@ export async function cache(
           }
         }
 
-        if (
-          entry !== undefined &&
-          entry.stale < RUNTIME_PREFETCH_DYNAMIC_STALE
-        ) {
+        if (entry !== undefined && entry.stale < DYNAMIC_STALE) {
           switch (workUnitStore.type) {
             case 'request': {
-              // A short stale time excludes the entry from the runtime prefetch
-              // shell, but not from the static shell. We only replicate that
-              // exclusion (the `prerender-runtime` behavior) when this render
-              // produces the runtime prefetch shell: a client navigation into a
-              // runtime-prefetch route. An initial load, a plain navigation,
-              // and an HMR refresh produce the static shell, where the entry
-              // stays and resolves like the static prerender.
-              if (
-                process.env.NODE_ENV === 'development' &&
-                workUnitStore.shellStage === RenderStage.Runtime
-              ) {
+              // A short stale time excludes the entry from prerenders.
+              // We delay it here to match that.
+              if (process.env.NODE_ENV === 'development') {
                 // End the cache signal read (once, in case the expire block
                 // above already did) so the deferred value isn't counted as a
                 // pending read at a staged rendering boundary, then defer it to
