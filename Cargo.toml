@@ -260,7 +260,7 @@ console-subscriber = "0.4.1"
 const_format = "0.2.30"
 crc32fast = "1.5.0"
 criterion = { package = "codspeed-criterion-compat", version = "4.3.0" }
-ctor = "1.0.6"
+ctor = "1.0.7"
 crossbeam-channel = "0.5.8"
 crossbeam-utils = "0.8"
 dashmap = "6.1.0"
@@ -277,7 +277,6 @@ hashbrown = "0.14.5"
 image = { version = "0.25.8", default-features = false }
 indexmap = "2.13.0"
 indoc = "2.0.0"
-inventory = "0.3.21"
 itertools = "0.10.5"
 lightningcss = { version = "1.0.0-alpha.70", features = [
   "serde",
@@ -327,6 +326,7 @@ ringmap = "0.2.5"
 roaring = "0.11.4"
 rstest = "0.16.0"
 rustc-hash = "2.1.1"
+scattered-collect = "0.10.0"
 semver = "1.0.16"
 serde = { version = "1.0.228", features = ["derive"] }
 serde_json = "1.0.149"

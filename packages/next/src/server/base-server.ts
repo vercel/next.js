@@ -1131,7 +1131,7 @@ export default abstract class Server<
           // we should error, as it represents an unprocessable request.
           if (
             getRequestMeta(req, 'isNextDataReq') &&
-            getRequestMeta(req, 'postponed')
+            typeof getRequestMeta(req, 'postponed') === 'string'
           ) {
             // The server understood that this is a PPR resume request, as the
             // headers were included to correctly indicate a resume request, but
@@ -2266,6 +2266,7 @@ export default abstract class Server<
     const minimalPostponed = isRoutePPREnabled
       ? getRequestMeta(req, 'postponed')
       : undefined
+    const hasPostponedState = typeof minimalPostponed === 'string'
 
     // we need to ensure the status code if /404 is visited directly
     if (is404Page && !isNextDataRequest && !isRSCRequest) {
@@ -2282,7 +2283,7 @@ export default abstract class Server<
       // Server actions can use non-GET/HEAD methods.
       !isPossibleServerAction &&
       // Resume can use non-GET/HEAD methods.
-      !minimalPostponed &&
+      !hasPostponedState &&
       !is404Page &&
       !is500Page &&
       pathname !== '/_error' &&

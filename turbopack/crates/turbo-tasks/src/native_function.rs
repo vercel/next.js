@@ -16,7 +16,7 @@ use crate::{
         any_as_encode,
     },
     macro_helpers::into_task_fn,
-    registry::{RegistryType, turbo_registry},
+    registry::{RegistryType, impl_ptr_identity},
     task::{TaskFn, TaskFnInputs, function::NativeTaskFuture},
 };
 
@@ -218,6 +218,7 @@ pub struct NativeFunction {
     /// (filesystem, environment, network) that may change between sessions.
     pub is_session_dependent: bool,
 }
+impl_ptr_identity!(NativeFunction);
 
 impl Debug for NativeFunction {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -315,5 +316,3 @@ impl NativeFunction {
         tracing::trace_span!("turbo_tasks::resolve_call", name = self.ty.name, priority = %priority)
     }
 }
-
-turbo_registry!("Function", NativeFunction);

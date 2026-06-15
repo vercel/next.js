@@ -1382,7 +1382,11 @@ impl TaskGuard for TaskGuardImpl<'_> {
             .map(|target| (target, TaskDataCategory::Meta))
             .chain(
                 self.iter_cell_dependencies()
-                    .map(|dep| (dep.cell_ref().task, TaskDataCategory::All)),
+                    .map(|r| (r.task, TaskDataCategory::All)),
+            )
+            .chain(
+                self.iter_cell_dependencies_hashed()
+                    .map(|(r, _)| (r.task, TaskDataCategory::All)),
             )
             .chain(
                 self.iter_collectibles_dependencies()

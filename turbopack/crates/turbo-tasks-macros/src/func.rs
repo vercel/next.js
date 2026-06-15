@@ -1119,10 +1119,6 @@ pub struct NativeFn {
 }
 
 impl NativeFn {
-    pub fn ty(&self) -> TokenStream {
-        quote! { turbo_tasks::macro_helpers::NativeFunction }
-    }
-
     pub fn definition(&self) -> TokenStream {
         let Self {
             function_global_name,
