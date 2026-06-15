@@ -212,12 +212,12 @@ export class PatchedFileRef {
   }
 }
 
-let nextInstance: NextInstance | undefined = undefined
+let currentNextInstance: NextInstance | undefined = undefined
 
 if (typeof afterAll === 'function') {
   afterAll(async () => {
-    if (nextInstance) {
-      await nextInstance.destroy()
+    if (currentNextInstance) {
+      await currentNextInstance.destroy()
       throw new Error(
         `next instance not destroyed before exiting, make sure to call .destroy() after the tests after finished`
       )
@@ -245,17 +245,18 @@ const setupTracing = () => {
 async function createNext(
   opts: NextInstanceOpts & { skipStart?: boolean; patchFileDelay?: number }
 ): Promise<NextInstance> {
-  try {
-    if (nextInstance) {
-      throw new Error(`createNext called without destroying previous instance`)
-    }
+  if (currentNextInstance) {
+    throw new Error(`createNext called without destroying previous instance`)
+  }
 
+  try {
     setupTracing()
     return await trace('createNext').traceAsyncFn(async (rootSpan) => {
       const useTurbo = isNextTestWasm
         ? false
         : (opts?.turbo ?? shouldUseTurbopack())
 
+      let nextInstance: NextInstance | undefined = undefined
       if (testMode === 'dev') {
         // next dev
         rootSpan.traceChild('init next dev instance').traceFn(() => {
@@ -279,32 +280,33 @@ async function createNext(
           })
         })
       }
-
       nextInstance = nextInstance!
 
       nextInstance.on('destroy', () => {
-        nextInstance = undefined
+        currentNextInstance = undefined
       })
 
-      await nextInstance.setup(rootSpan)
+      try {
+        await nextInstance.setup(rootSpan)
 
-      if (!opts.skipStart) {
-        await rootSpan
-          .traceChild('start next instance')
-          .traceAsyncFn(async () => {
-            await nextInstance!.start()
-          })
+        if (!opts.skipStart) {
+          await rootSpan
+            .traceChild('start next instance')
+            .traceAsyncFn(async () => {
+              await nextInstance!.start()
+            })
+        }
+      } catch (err) {
+        try {
+          await nextInstance.destroy()
+        } catch (_) {}
       }
 
-      return nextInstance!
+      currentNextInstance = nextInstance
+      return nextInstance
     })
   } catch (err) {
     require('console').error('Failed to create next instance', err)
-    try {
-      await nextInstance?.destroy()
-    } catch (_) {}
-
-    nextInstance = undefined
     // Throw instead of process exit to ensure that Jest reports the tests as failed.
     throw err
   } finally {
