@@ -16,7 +16,7 @@ use std::{
 };
 
 use allocator_api2::alloc::Allocator;
-use bumpalo::Bump;
+use bumpalo::{Bump, boxed::Box as BumpBox};
 
 /// A minimal growable vector for the list children of a `JsValue` that grow or are rebuilt after
 /// construction (e.g. `Array.items`, `Object.parts`, `Alternatives.values`, `Add` operands, and the
@@ -43,6 +43,19 @@ unsafe impl<T: Sync> Sync for BumpVec<'_, T> {}
 impl<T> Default for BumpVec<'_, T> {
     fn default() -> Self {
         Self::new()
+    }
+}
+
+impl<'a, T> From<BumpBox<'a, [T]>> for BumpVec<'a, T> {
+    fn from(boxed: BumpBox<'a, [T]>) -> Self {
+        let len = boxed.len();
+        let ptr = BumpBox::into_raw(boxed) as *mut T;
+        Self {
+            ptr: NonNull::new(ptr).unwrap_or(NonNull::dangling()),
+            cap: len,
+            len,
+            _marker: PhantomData,
+        }
     }
 }
 
@@ -84,6 +97,15 @@ impl<'a, T> BumpVec<'a, T> {
             Self::with_capacity_in(bump, iter.size_hint().1.unwrap_or(iter.size_hint().0));
         vec.extend(bump, iter);
         vec
+    }
+
+    /// Freeze into an arena-allocated boxed slice, handing the existing allocation to the box.
+    pub fn into_boxed_slice(self) -> BumpBox<'a, [T]> {
+        let me = ManuallyDrop::new(self);
+        let slice = ptr::slice_from_raw_parts_mut(me.ptr.as_ptr(), me.len);
+        // SAFETY: `ptr`/`len` describe an initialized arena slice we exclusively own, exactly the
+        // representation `BumpBox<[T]>` expects.
+        unsafe { BumpBox::from_raw(slice) }
     }
 
     /// Reallocate the buffer to `new_cap` elements (`new_cap >= len`), moving the live prefix into

@@ -24,7 +24,7 @@ pub mod worker;
 
 use std::{
     future::Future,
-    mem::take,
+    mem::{replace, take},
     ops::Deref,
     sync::{Arc, LazyLock},
 };
@@ -935,9 +935,12 @@ async fn analyze_ecmascript_module_internal(
                     }
                     macro_rules! active {
                         ($block:ident) => {
-                            queue_stack
-                                .get_mut()
-                                .extend($block.effects.into_iter().map(Action::Effect).rev())
+                            queue_stack.get_mut().extend(
+                                BumpVec::from($block.effects)
+                                    .into_iter()
+                                    .map(Action::Effect)
+                                    .rev(),
+                            )
                         };
                     }
                     match BumpBox::into_inner(kind) {
@@ -990,27 +993,27 @@ async fn analyze_ecmascript_module_internal(
                             match condition.is_truthy() {
                                 Some(true) => {
                                     condition!(ConstantConditionValue::Truthy);
-                                    for then in then {
+                                    for then in BumpVec::from(then) {
                                         active!(then);
                                     }
-                                    for r#else in r#else {
+                                    for r#else in BumpVec::from(r#else) {
                                         inactive!(r#else);
                                     }
                                 }
                                 Some(false) => {
                                     condition!(ConstantConditionValue::Falsy);
-                                    for then in then {
+                                    for then in BumpVec::from(then) {
                                         inactive!(then);
                                     }
-                                    for r#else in r#else {
+                                    for r#else in BumpVec::from(r#else) {
                                         active!(r#else);
                                     }
                                 }
                                 None => {
-                                    for then in then {
+                                    for then in BumpVec::from(then) {
                                         active!(then);
                                     }
-                                    for r#else in r#else {
+                                    for r#else in BumpVec::from(r#else) {
                                         active!(r#else);
                                     }
                                 }
@@ -1159,10 +1162,13 @@ async fn analyze_ecmascript_module_internal(
                             );
                             queue_stack.get_mut().push(Action::LeaveScope(*func_ident));
                             queue_stack.get_mut().extend(
-                                take(&mut block.effects)
-                                    .into_iter()
-                                    .map(Action::Effect)
-                                    .rev(),
+                                BumpVec::from(replace(
+                                    &mut block.effects,
+                                    BumpVec::new().into_boxed_slice(),
+                                ))
+                                .into_iter()
+                                .map(Action::Effect)
+                                .rev(),
                             );
                             continue;
                         }
@@ -1521,7 +1527,7 @@ async fn handle_call<'a, G: Fn(BumpVec<'a, Effect<'a>>) + Send + Sync>(
         .map(|effect_arg| match effect_arg {
             EffectArg::Value(value) => value,
             EffectArg::Closure(value, block) => {
-                add_effects(BumpBox::into_inner(block).effects);
+                add_effects(BumpVec::from(BumpBox::into_inner(block).effects));
                 value
             }
             EffectArg::Spread => {
@@ -1645,7 +1651,7 @@ async fn handle_dynamic_import<'a, G: Fn(BumpVec<'a, Effect<'a>>) + Send + Sync>
         .map(|effect_arg| match effect_arg {
             EffectArg::Value(value) => value,
             EffectArg::Closure(value, block) => {
-                add_effects(BumpBox::into_inner(block).effects);
+                add_effects(BumpVec::from(BumpBox::into_inner(block).effects));
                 value
             }
             EffectArg::Spread => {

@@ -10,7 +10,7 @@ use crate::{
 
 #[derive(Debug)]
 pub struct EffectsBlock<'a> {
-    pub effects: BumpVec<'a, Effect<'a>>,
+    pub effects: BumpBox<'a, [Effect<'a>]>,
     pub range: AstPathRange,
 }
 
@@ -34,8 +34,8 @@ pub enum ConditionalKind<'a> {
     /// The blocks of an `if { ... return ... } else { ... } ...` or `if { ... }
     /// else { ... return ... } ...` statement.
     IfElseMultiple {
-        then: Box<[EffectsBlock<'a>]>,
-        r#else: Box<[EffectsBlock<'a>]>,
+        then: BumpBox<'a, [EffectsBlock<'a>]>,
+        r#else: BumpBox<'a, [EffectsBlock<'a>]>,
     },
     /// The expressions on the right side of the `?:` operator.
     Ternary {
@@ -61,28 +61,28 @@ impl<'a> ConditionalKind<'a> {
             | ConditionalKind::And { expr: block, .. }
             | ConditionalKind::Or { expr: block, .. }
             | ConditionalKind::NullishCoalescing { expr: block, .. } => {
-                for effect in &mut block.effects {
+                for effect in block.effects.iter_mut() {
                     effect.normalize(arena);
                 }
             }
             ConditionalKind::IfElse { then, r#else, .. }
             | ConditionalKind::Ternary { then, r#else, .. } => {
-                for effect in &mut then.effects {
+                for effect in then.effects.iter_mut() {
                     effect.normalize(arena);
                 }
-                for effect in &mut r#else.effects {
+                for effect in r#else.effects.iter_mut() {
                     effect.normalize(arena);
                 }
             }
             ConditionalKind::IfElseMultiple { then, r#else, .. } => {
                 for block in then.iter_mut().chain(r#else.iter_mut()) {
-                    for effect in &mut block.effects {
+                    for effect in block.effects.iter_mut() {
                         effect.normalize(arena);
                     }
                 }
             }
             ConditionalKind::Labeled { body } => {
-                for effect in &mut body.effects {
+                for effect in body.effects.iter_mut() {
                     effect.normalize(arena);
                 }
             }
@@ -104,7 +104,7 @@ impl<'a> EffectArg<'a> {
             EffectArg::Value(value) => value.normalize(arena),
             EffectArg::Closure(value, effects) => {
                 value.normalize(arena);
-                for effect in &mut effects.effects {
+                for effect in effects.effects.iter_mut() {
                     effect.normalize(arena);
                 }
             }

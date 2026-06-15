@@ -419,39 +419,64 @@ mod analyzer_state {
                         early_return_condition_value,
                     } => {
                         let block = EffectsBlock {
-                            effects: take(&mut self.effects),
+                            effects: take(&mut self.effects).into_boxed_slice(),
                             range: AstPathRange::StartAfter(start_ast_path),
                         };
                         self.effects = prev_effects;
                         let kind = match (then, r#else, early_return_condition_value) {
                             (None, None, false) => ConditionalKind::If { then: block },
                             (None, None, true) => ConditionalKind::IfElseMultiple {
-                                then: Box::from([block]),
-                                r#else: Box::from([]),
+                                then: bumpalo::collections::Vec::from_iter_in([block], self.arena)
+                                    .into_boxed_slice(),
+                                r#else: bumpalo::collections::Vec::new_in(self.arena)
+                                    .into_boxed_slice(),
                             },
                             (Some(then), None, false) => ConditionalKind::IfElseMultiple {
-                                then: Box::from([then, block]),
-                                r#else: Box::from([]),
+                                then: bumpalo::collections::Vec::from_iter_in(
+                                    [then, block],
+                                    self.arena,
+                                )
+                                .into_boxed_slice(),
+                                r#else: bumpalo::collections::Vec::new_in(self.arena)
+                                    .into_boxed_slice(),
                             },
                             (Some(then), None, true) => ConditionalKind::IfElse {
                                 then,
                                 r#else: block,
                             },
                             (Some(then), Some(r#else), false) => ConditionalKind::IfElseMultiple {
-                                then: Box::from([then, block]),
-                                r#else: Box::from([r#else]),
+                                then: bumpalo::collections::Vec::from_iter_in(
+                                    [then, block],
+                                    self.arena,
+                                )
+                                .into_boxed_slice(),
+                                r#else: bumpalo::collections::Vec::from_iter_in(
+                                    [r#else],
+                                    self.arena,
+                                )
+                                .into_boxed_slice(),
                             },
                             (Some(then), Some(r#else), true) => ConditionalKind::IfElseMultiple {
-                                then: Box::from([then]),
-                                r#else: Box::from([r#else, block]),
+                                then: bumpalo::collections::Vec::from_iter_in([then], self.arena)
+                                    .into_boxed_slice(),
+                                r#else: bumpalo::collections::Vec::from_iter_in(
+                                    [r#else, block],
+                                    self.arena,
+                                )
+                                .into_boxed_slice(),
                             },
                             (None, Some(r#else), false) => ConditionalKind::IfElse {
                                 then: block,
                                 r#else,
                             },
                             (None, Some(r#else), true) => ConditionalKind::IfElseMultiple {
-                                then: Box::from([]),
-                                r#else: Box::from([r#else, block]),
+                                then: bumpalo::collections::Vec::new_in(self.arena)
+                                    .into_boxed_slice(),
+                                r#else: bumpalo::collections::Vec::from_iter_in(
+                                    [r#else, block],
+                                    self.arena,
+                                )
+                                .into_boxed_slice(),
                             },
                         };
                         self.effects.push(
@@ -936,7 +961,7 @@ impl<'a> Analyzer<'a, '_> {
                             value,
                             BumpBox::new_in(
                                 EffectsBlock {
-                                    effects,
+                                    effects: effects.into_boxed_slice(),
                                     range: AstPathRange::Exact(path),
                                 },
                                 self.arena,
@@ -1872,7 +1897,7 @@ impl VisitAstPath for Analyzer<'_, '_> {
                 ast_path.with_guard(AstParentNodeRef::CondExpr(expr, CondExprField::Cons));
             expr.cons.visit_with_ast_path(self, &mut ast_path);
             EffectsBlock {
-                effects: take(&mut self.effects),
+                effects: take(&mut self.effects).into_boxed_slice(),
                 range: AstPathRange::Exact(as_parent_path(&ast_path)),
             }
         };
@@ -1881,7 +1906,7 @@ impl VisitAstPath for Analyzer<'_, '_> {
                 ast_path.with_guard(AstParentNodeRef::CondExpr(expr, CondExprField::Alt));
             expr.alt.visit_with_ast_path(self, &mut ast_path);
             EffectsBlock {
-                effects: take(&mut self.effects),
+                effects: take(&mut self.effects).into_boxed_slice(),
                 range: AstPathRange::Exact(as_parent_path(&ast_path)),
             }
         };
@@ -1918,7 +1943,7 @@ impl VisitAstPath for Analyzer<'_, '_> {
                 .1;
 
             EffectsBlock {
-                effects: take(&mut self.effects),
+                effects: take(&mut self.effects).into_boxed_slice(),
                 range: AstPathRange::Exact(as_parent_path(&ast_path)),
             }
         };
@@ -1933,7 +1958,7 @@ impl VisitAstPath for Analyzer<'_, '_> {
                 .1;
 
             EffectsBlock {
-                effects: take(&mut self.effects),
+                effects: take(&mut self.effects).into_boxed_slice(),
                 range: AstPathRange::Exact(as_parent_path(&ast_path)),
             }
         });
@@ -2100,7 +2125,7 @@ impl VisitAstPath for Analyzer<'_, '_> {
                 kind: BumpBox::new_in(
                     ConditionalKind::Labeled {
                         body: EffectsBlock {
-                            effects,
+                            effects: effects.into_boxed_slice(),
                             range: AstPathRange::Exact(as_parent_path_with(
                                 ast_path,
                                 AstParentKind::LabeledStmt(LabeledStmtField::Body),
@@ -2198,11 +2223,12 @@ impl<'a> Analyzer<'a, '_> {
         }
         let condition = BumpBox::new_in(self.eval_context.eval(self.arena, test), self.arena);
         if condition.is_unknown() {
-            if let Some(mut then) = then {
-                self.effects.extend(self.arena, take(&mut then.effects));
+            if let Some(then) = then {
+                self.effects.extend(self.arena, BumpVec::from(then.effects));
             }
-            if let Some(mut r#else) = r#else {
-                self.effects.extend(self.arena, take(&mut r#else.effects));
+            if let Some(r#else) = r#else {
+                self.effects
+                    .extend(self.arena, BumpVec::from(r#else.effects));
             }
             return;
         }
@@ -2266,37 +2292,41 @@ impl<'a> Analyzer<'a, '_> {
         ast_path: &AstNodePath<AstParentNodeRef<'_>>,
         ast_kind: AstParentKind,
         span: Span,
-        mut cond_kind: ConditionalKind<'a>,
+        cond_kind: ConditionalKind<'a>,
     ) {
         let condition = BumpBox::new_in(self.eval_context.eval(self.arena, test), self.arena);
         if condition.is_unknown() {
-            match &mut cond_kind {
+            match cond_kind {
                 ConditionalKind::If { then } => {
-                    self.effects.extend(self.arena, take(&mut then.effects));
+                    self.effects.extend(self.arena, BumpVec::from(then.effects));
                 }
                 ConditionalKind::Else { r#else } => {
-                    self.effects.extend(self.arena, take(&mut r#else.effects));
+                    self.effects
+                        .extend(self.arena, BumpVec::from(r#else.effects));
                 }
                 ConditionalKind::IfElse { then, r#else }
                 | ConditionalKind::Ternary { then, r#else } => {
-                    self.effects.extend(self.arena, take(&mut then.effects));
-                    self.effects.extend(self.arena, take(&mut r#else.effects));
+                    self.effects.extend(self.arena, BumpVec::from(then.effects));
+                    self.effects
+                        .extend(self.arena, BumpVec::from(r#else.effects));
                 }
                 ConditionalKind::IfElseMultiple { then, r#else } => {
-                    for block in then {
-                        self.effects.extend(self.arena, take(&mut block.effects));
+                    for block in BumpVec::from(then) {
+                        self.effects
+                            .extend(self.arena, BumpVec::from(block.effects));
                     }
-                    for block in r#else {
-                        self.effects.extend(self.arena, take(&mut block.effects));
+                    for block in BumpVec::from(r#else) {
+                        self.effects
+                            .extend(self.arena, BumpVec::from(block.effects));
                     }
                 }
                 ConditionalKind::And { expr }
                 | ConditionalKind::Or { expr }
                 | ConditionalKind::NullishCoalescing { expr } => {
-                    self.effects.extend(self.arena, take(&mut expr.effects));
+                    self.effects.extend(self.arena, BumpVec::from(expr.effects));
                 }
                 ConditionalKind::Labeled { body } => {
-                    self.effects.extend(self.arena, take(&mut body.effects));
+                    self.effects.extend(self.arena, BumpVec::from(body.effects));
                 }
             }
         } else {

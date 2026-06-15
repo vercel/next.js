@@ -504,8 +504,7 @@ mod tests {
                                     .0,
                                 );
                                 queue.extend(
-                                    BumpBox::into_inner(effects)
-                                        .effects
+                                    BumpVec::from(BumpBox::into_inner(effects).effects)
                                         .into_iter()
                                         .rev()
                                         .map(|e| (i, e)),
@@ -535,29 +534,64 @@ mod tests {
                         resolved.push((format!("{parent} -> {i} conditional"), condition));
                         match BumpBox::into_inner(kind) {
                             ConditionalKind::If { then } => {
-                                queue.extend(then.effects.into_iter().rev().map(|e| (i, e)));
+                                queue.extend(
+                                    BumpVec::from(then.effects)
+                                        .into_iter()
+                                        .rev()
+                                        .map(|e| (i, e)),
+                                );
                             }
                             ConditionalKind::Else { r#else } => {
-                                queue.extend(r#else.effects.into_iter().rev().map(|e| (i, e)));
+                                queue.extend(
+                                    BumpVec::from(r#else.effects)
+                                        .into_iter()
+                                        .rev()
+                                        .map(|e| (i, e)),
+                                );
                             }
                             ConditionalKind::IfElse { then, r#else }
                             | ConditionalKind::Ternary { then, r#else } => {
-                                queue.extend(r#else.effects.into_iter().rev().map(|e| (i, e)));
-                                queue.extend(then.effects.into_iter().rev().map(|e| (i, e)));
+                                queue.extend(
+                                    BumpVec::from(r#else.effects)
+                                        .into_iter()
+                                        .rev()
+                                        .map(|e| (i, e)),
+                                );
+                                queue.extend(
+                                    BumpVec::from(then.effects)
+                                        .into_iter()
+                                        .rev()
+                                        .map(|e| (i, e)),
+                                );
                             }
                             ConditionalKind::IfElseMultiple { then, r#else } => {
-                                for then in then {
-                                    queue.extend(then.effects.into_iter().rev().map(|e| (i, e)));
+                                for then in BumpVec::from(then) {
+                                    queue.extend(
+                                        BumpVec::from(then.effects)
+                                            .into_iter()
+                                            .rev()
+                                            .map(|e| (i, e)),
+                                    );
                                 }
-                                for r#else in r#else {
-                                    queue.extend(r#else.effects.into_iter().rev().map(|e| (i, e)));
+                                for r#else in BumpVec::from(r#else) {
+                                    queue.extend(
+                                        BumpVec::from(r#else.effects)
+                                            .into_iter()
+                                            .rev()
+                                            .map(|e| (i, e)),
+                                    );
                                 }
                             }
                             ConditionalKind::And { expr }
                             | ConditionalKind::Or { expr }
                             | ConditionalKind::NullishCoalescing { expr }
                             | ConditionalKind::Labeled { body: expr } => {
-                                queue.extend(expr.effects.into_iter().rev().map(|e| (i, e)));
+                                queue.extend(
+                                    BumpVec::from(expr.effects)
+                                        .into_iter()
+                                        .rev()
+                                        .map(|e| (i, e)),
+                                );
                             }
                         };
                         steps
