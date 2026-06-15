@@ -12,7 +12,7 @@ related:
 
 When the App Router prefetches a route, it can bundle small segment responses into a single response instead of requesting each one separately. This reduces the number of prefetch requests at the cost of duplicating some shared segment data across routes. This behavior is on by default, and most apps should leave it that way.
 
-`experimental.prefetchInlining` is the configuration surface for that behavior. It exists so you can override the defaults or turn inlining off while debugging navigation or measuring request volume. **You generally shouldn't set this option.**
+The `experimental.prefetchInlining` option lets you override this behavior or disable inlining while debugging navigation issues or measuring request volume. For most applications, there is no need to change the default behavior.
 
 > **Good to know**: The inlining behavior is a permanent part of the App Router. Only the `experimental.prefetchInlining` configuration is experimental, so its options may still change.
 
