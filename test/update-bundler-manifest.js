@@ -8,7 +8,7 @@ const { bold } = require('kleur')
 const yargs = require('yargs/yargs')
 const { hideBin } = require('yargs/helpers')
 
-const WORKING_PATH = '/root/actions-runner/_work/next.js/next.js/'
+const WORKING_PATH = process.env.GITHUB_WORKSPACE
 
 const INITIALIZING_TEST_CASES = [
   'compile successfully',
