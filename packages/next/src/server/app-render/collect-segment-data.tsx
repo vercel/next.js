@@ -11,7 +11,10 @@ import {
   PrefetchHint,
   StaticPrefetchDisabled,
 } from '../../shared/lib/app-router-types'
-import { readVaryParams } from '../../shared/lib/segment-cache/vary-params-decoding'
+import {
+  readVaryParams,
+  type VaryParamsIterable,
+} from '../../shared/lib/segment-cache/vary-params-decoding'
 import type { ManifestNode } from '../../build/webpack/plugins/flight-manifest-plugin'
 
 // eslint-disable-next-line import/no-extraneous-dependencies
@@ -321,13 +324,17 @@ export async function collectPrefetchHints(
   }
   const { buildId, flightRouterState, seedData, head } = flightData
 
+  // Root params are emitted once at the top level; readVaryParams unions them
+  // into the head, and the iterable is threaded down so every segment below
+  // unions it too.
+  const rootVaryParamsIterable = initialRSCPayload.r ?? null
+
   // Measure the head (metadata/viewport) gzip size so the main traversal
   // can decide whether to inline it into a page's bundle.
-  const headVaryParamsThenable = initialRSCPayload.h
-  const headVaryParams =
-    headVaryParamsThenable !== null
-      ? readVaryParams(headVaryParamsThenable)
-      : null
+  const headVaryParams = readVaryParams(
+    initialRSCPayload.h,
+    rootVaryParamsIterable
+  )
 
   const [, headBuffer] = await renderSegmentPrefetch(
     buildId,
@@ -364,7 +371,8 @@ export async function collectPrefetchHints(
     maxBundleSize,
     headGzipSize,
     headInlineState,
-    subtreeHasRuntimePrefetch
+    subtreeHasRuntimePrefetch,
+    rootVaryParamsIterable
   )
 
   if (!headInlineState.inlined) {
@@ -417,7 +425,8 @@ async function collectPrefetchHintsImpl(
   maxBundleSize: number,
   headGzipSize: number,
   headInlineState: { inlined: boolean },
-  routeHasRuntimePrefetch: boolean
+  routeHasRuntimePrefetch: boolean,
+  rootVaryParamsIterable: VaryParamsIterable | null
 ): Promise<{
   node: PrefetchHints
   // Total inlined bytes accumulated along the deepest accepting path in this
@@ -438,9 +447,7 @@ async function collectPrefetchHintsImpl(
   // segments with static prefetching disabled since they contribute nothing.
   let currentGzipSize: number | null = null
   if (!isStaticPrefetchDisabled && seedData !== null) {
-    const varyParamsThenable = seedData[4]
-    const varyParams =
-      varyParamsThenable !== null ? readVaryParams(varyParamsThenable) : null
+    const varyParams = readVaryParams(seedData[4], rootVaryParamsIterable)
 
     const [, buffer] = await renderSegmentPrefetch(
       buildId,
@@ -519,7 +526,8 @@ async function collectPrefetchHintsImpl(
       maxBundleSize,
       headGzipSize,
       headInlineState,
-      routeHasRuntimePrefetch
+      routeHasRuntimePrefetch,
+      rootVaryParamsIterable
     )
 
     if (slots === null) {
@@ -695,14 +703,17 @@ async function PrefetchTreeData({
   }
   const { buildId, flightRouterState, seedData, head } = flightData
 
+  // Root params are emitted once at the top level; readVaryParams unions them
+  // into the head, and the iterable is threaded down so every segment below
+  // unions it too. The iterables should be drained to completion by now (the
+  // stream is buffered); a hanging one reads as the params yielded so far.
+  const rootVaryParamsIterable = initialRSCPayload.r ?? null
+
   // Extract the head vary params from the decoded response.
-  // The head vary params thenable should be fulfilled by now; if not, treat
-  // as unknown (null).
-  const headVaryParamsThenable = initialRSCPayload.h
-  const headVaryParams =
-    headVaryParamsThenable !== null
-      ? readVaryParams(headVaryParamsThenable)
-      : null
+  const headVaryParams = readVaryParams(
+    initialRSCPayload.h,
+    rootVaryParamsIterable
+  )
 
   // Only applies when prefetch inlining is enabled — the client doesn't
   // know to look for the head inside a page's response otherwise.
@@ -730,7 +741,8 @@ async function PrefetchTreeData({
     prefetchInlining,
     hints,
     null,
-    headBundle
+    headBundle,
+    rootVaryParamsIterable
   )
 
   // Spawn a task to produce a prefetch response for the "head" segment,
@@ -779,7 +791,8 @@ function collectSegmentDataImpl(
   prefetchInlining: boolean,
   hintTree: PrefetchHints | null,
   parentBundle: SegmentBundleNode | null,
-  headBundle: SegmentBundleNode | null
+  headBundle: SegmentBundleNode | null,
+  rootVaryParamsIterable: VaryParamsIterable | null
 ): TreePrefetch {
   // Union the hints already embedded in the FlightRouterState with the
   // separately-computed build-time hints. During the initial build, the
@@ -796,10 +809,12 @@ function collectSegmentDataImpl(
     ((route[4] ?? 0) | (hintTree !== null ? hintTree.hints : 0)) &
     ~PrefetchHint.InliningHintsStale
 
-  // Determine which params this segment varies on.
-  const varyParamsThenable = seedData !== null ? seedData[4] : null
-  const varyParams =
-    varyParamsThenable !== null ? readVaryParams(varyParamsThenable) : null
+  // Determine which params this segment varies on, unioning in the
+  // response-level root params.
+  const varyParams = readVaryParams(
+    seedData !== null ? seedData[4] : null,
+    rootVaryParamsIterable
+  )
 
   // If static prefetching is disabled for this segment (runtime prefetch or
   // instant = false), it still participates in the bundle chain but with
@@ -897,7 +912,8 @@ function collectSegmentDataImpl(
       prefetchInlining,
       childHintTree,
       childBundle,
-      headBundle
+      headBundle,
+      rootVaryParamsIterable
     )
     if (slotMetadata === null) {
       slotMetadata = {}
