@@ -33,7 +33,7 @@ describe('use-cache-search-params', () => {
         if (isCacheComponentsEnabled) {
           await expect(browser).toDisplayRedbox(`
            {
-             "code": "E1306",
+             "code": "E1373",
              "description": "Route "/search-params-used": \`searchParams\` can't be read inside \`"use cache"\`. Await it outside the cached function and pass what you need as an argument.
            Learn more: https://nextjs.org/docs/messages/next-request-in-use-cache",
              "environmentLabel": "Prerender",
@@ -49,7 +49,7 @@ describe('use-cache-search-params', () => {
         } else {
           await expect(browser).toDisplayRedbox(`
            {
-             "code": "E1306",
+             "code": "E1373",
              "description": "Route "/search-params-used": \`searchParams\` can't be read inside \`"use cache"\`. Await it outside the cached function and pass what you need as an argument.
            Learn more: https://nextjs.org/docs/messages/next-request-in-use-cache",
              "environmentLabel": "Cache",
@@ -83,7 +83,7 @@ describe('use-cache-search-params', () => {
         if (isCacheComponentsEnabled) {
           await expect(browser).toDisplayRedbox(`
            {
-             "code": "E1306",
+             "code": "E1373",
              "description": "Route "/search-params-caught": \`searchParams\` can't be read inside \`"use cache"\`. Await it outside the cached function and pass what you need as an argument.
            Learn more: https://nextjs.org/docs/messages/next-request-in-use-cache",
              "environmentLabel": "Prerender",
@@ -99,7 +99,7 @@ describe('use-cache-search-params', () => {
         } else {
           await expect(browser).toDisplayCollapsedRedbox(`
            {
-             "code": "E1306",
+             "code": "E1373",
              "description": "Route "/search-params-caught": \`searchParams\` can't be read inside \`"use cache"\`. Await it outside the cached function and pass what you need as an argument.
            Learn more: https://nextjs.org/docs/messages/next-request-in-use-cache",
              "environmentLabel": "Server",
@@ -131,7 +131,7 @@ describe('use-cache-search-params', () => {
         if (isCacheComponentsEnabled) {
           await expect(browser).toDisplayRedbox(`
            {
-             "code": "E1306",
+             "code": "E1373",
              "description": "Route "/search-params-caught": \`searchParams\` can't be read inside \`"use cache"\`. Await it outside the cached function and pass what you need as an argument.
            Learn more: https://nextjs.org/docs/messages/next-request-in-use-cache",
              "environmentLabel": "Prerender",
@@ -147,7 +147,7 @@ describe('use-cache-search-params', () => {
         } else {
           await expect(browser).toDisplayCollapsedRedbox(`
            {
-             "code": "E1306",
+             "code": "E1373",
              "description": "Route "/search-params-caught": \`searchParams\` can't be read inside \`"use cache"\`. Await it outside the cached function and pass what you need as an argument.
            Learn more: https://nextjs.org/docs/messages/next-request-in-use-cache",
              "environmentLabel": "Server",
@@ -189,7 +189,7 @@ describe('use-cache-search-params', () => {
       if (isCacheComponentsEnabled) {
         await expect(browser).toDisplayRedbox(`
          {
-           "code": "E1306",
+           "code": "E1373",
            "description": "Route "/search-params-used-generate-metadata": \`searchParams\` can't be read inside \`"use cache"\`. Await it outside the cached function and pass what you need as an argument.
          Learn more: https://nextjs.org/docs/messages/next-request-in-use-cache",
            "environmentLabel": "Prerender",
@@ -205,7 +205,7 @@ describe('use-cache-search-params', () => {
       } else {
         await expect(browser).toDisplayRedbox(`
          {
-           "code": "E1306",
+           "code": "E1373",
            "description": "Route "/search-params-used-generate-metadata": \`searchParams\` can't be read inside \`"use cache"\`. Await it outside the cached function and pass what you need as an argument.
          Learn more: https://nextjs.org/docs/messages/next-request-in-use-cache",
            "environmentLabel": "Cache",
@@ -229,7 +229,7 @@ describe('use-cache-search-params', () => {
       if (isCacheComponentsEnabled) {
         await expect(browser).toDisplayRedbox(`
          {
-           "code": "E1306",
+           "code": "E1373",
            "description": "Route "/search-params-used-generate-viewport": \`searchParams\` can't be read inside \`"use cache"\`. Await it outside the cached function and pass what you need as an argument.
          Learn more: https://nextjs.org/docs/messages/next-request-in-use-cache",
            "environmentLabel": "Prerender",
@@ -245,7 +245,7 @@ describe('use-cache-search-params', () => {
       } else {
         await expect(browser).toDisplayRedbox(`
          {
-           "code": "E1306",
+           "code": "E1373",
            "description": "Route "/search-params-used-generate-viewport": \`searchParams\` can't be read inside \`"use cache"\`. Await it outside the cached function and pass what you need as an argument.
          Learn more: https://nextjs.org/docs/messages/next-request-in-use-cache",
            "environmentLabel": "Cache",
