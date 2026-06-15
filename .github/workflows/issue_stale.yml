@@ -71,3 +71,7 @@ jobs:
           stale-issue-label: 'stale'
           labels-to-add-when-unstale: 'not stale'
           operations-per-run: 300 # 1 operation per 100 issues, the rest is to label/comment/close
+
+
+permissions:
+  contents: read

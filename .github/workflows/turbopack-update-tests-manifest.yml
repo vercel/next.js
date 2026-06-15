@@ -126,3 +126,7 @@ jobs:
           SCRIPT: test/update-bundler-manifest.js --bundler turbopack --test-suite build
           PR_TITLE: Update Turbopack production test manifest
           PR_BODY: This auto-generated PR updates the production integration test manifest used when testing Turbopack.
+
+
+permissions:
+  contents: read

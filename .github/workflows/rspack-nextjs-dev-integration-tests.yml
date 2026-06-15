@@ -23,3 +23,7 @@ jobs:
       e2e_timeout_minutes: 90
       integration_timeout_minutes: 90
     secrets: inherit
+
+
+permissions:
+  contents: read

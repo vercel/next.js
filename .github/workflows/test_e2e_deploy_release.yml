@@ -316,3 +316,7 @@ jobs:
             --commit-sha "${{ github.sha }}"
         env:
           ADAPTER_TEST_RESULTS_SECRET: ${{ secrets.ADAPTER_TEST_RESULTS_SECRET }}
+
+
+permissions:
+  contents: read

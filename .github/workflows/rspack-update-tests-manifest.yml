@@ -130,3 +130,7 @@ jobs:
           SCRIPT: test/update-bundler-manifest.js --bundler rspack --test-suite build --override
           PR_TITLE: Update Rspack production test manifest
           PR_BODY: This auto-generated PR updates the production integration test manifest used when testing Rspack.
+
+
+permissions:
+  contents: read

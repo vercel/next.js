@@ -13,6 +13,10 @@ on:
         description: 'The version to update to. Uses latest Canary if omitted.'
         required: false
 
+
+permissions:
+  contents: read
+
 env:
   NODE_LTS_VERSION: 20
   PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: 1
