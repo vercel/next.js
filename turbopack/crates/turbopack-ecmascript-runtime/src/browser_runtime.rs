@@ -5,7 +5,7 @@ use indoc::writedoc;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{ResolvedVc, Vc};
 use turbopack_core::{
-    chunk::AssetSuffix,
+    chunk::{AssetSuffix, CrossOrigin},
     code_builder::{Code, CodeBuilder},
     context::AssetContext,
     environment::ChunkLoading,
@@ -20,11 +20,12 @@ pub async fn get_browser_runtime_code(
     asset_context: ResolvedVc<Box<dyn AssetContext>>,
     chunk_base_path: Vc<Option<RcStr>>,
     asset_suffix: Vc<AssetSuffix>,
-    worker_forwarded_globals: Vc<Vec<RcStr>>,
     runtime_type: RuntimeType,
     output_root_to_root_path: RcStr,
     generate_source_map: bool,
     chunk_loading_global: Vc<RcStr>,
+    cross_origin: Vc<CrossOrigin>,
+    has_async_modules: bool,
 ) -> Result<Vc<Code>> {
     let asset_context = *asset_context;
     let environment = asset_context.compile_time_info().environment();
@@ -87,7 +88,8 @@ pub async fn get_browser_runtime_code(
     let chunk_base_path = chunk_base_path.as_ref().map_or_else(|| "", |f| f.as_str());
     let asset_suffix = asset_suffix.await?;
     let chunk_loading_global = chunk_loading_global.await?;
-    let chunk_lists_global = format!("{}_CHUNK_LISTS", &*chunk_loading_global);
+    let cross_origin = *cross_origin.await?;
+    let chunk_lists_global = format!("{}_CHUNK_LISTS", chunk_loading_global);
 
     if *environment
         .runtime_versions()
@@ -156,17 +158,27 @@ pub async fn get_browser_runtime_code(
         }
     }
 
-    // Output the list of global variable names to forward to workers
-    let worker_forwarded_globals = worker_forwarded_globals.await?;
+    let cross_origin = cross_origin.as_str();
     writedoc!(
         code,
         r#"
-            var WORKER_FORWARDED_GLOBALS = {};
+            var CROSS_ORIGIN = {};
         "#,
-        StringifyJs(&*worker_forwarded_globals)
+        StringifyJs(&cross_origin)
     )?;
 
     code.push_code(&*shared_runtime_utils_code.await?);
+    // Only include the async-module (top-level await) machinery when the app uses it.
+    if has_async_modules {
+        code.push_code(
+            &*embed_static_code(
+                asset_context,
+                rcstr!("shared/runtime/async-module.ts"),
+                generate_source_map,
+            )
+            .await?,
+        );
+    }
     for runtime_code in runtime_base_code {
         code.push_code(
             &*embed_static_code(asset_context, runtime_code.into(), generate_source_map).await?,
@@ -193,17 +205,6 @@ pub async fn get_browser_runtime_code(
             .await?,
         );
     }
-    if *environment.supports_wasm().await? {
-        code.push_code(
-            &*embed_static_code(
-                asset_context,
-                rcstr!("shared-node/node-wasm-utils.ts"),
-                generate_source_map,
-            )
-            .await?,
-        );
-    }
-
     for backend_code in runtime_backend_code {
         code.push_code(
             &*embed_static_code(asset_context, backend_code.into(), generate_source_map).await?,

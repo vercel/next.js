@@ -142,6 +142,7 @@ export default function nextJest(options: { dir?: string } = {}) {
         isEsmProject,
         pagesDir,
         imageConfig,
+        configDir: options.dir,
       }
 
       return {

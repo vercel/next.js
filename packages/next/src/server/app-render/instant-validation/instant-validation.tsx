@@ -41,7 +41,7 @@ import {
   createNodeStreamWithLateRelease,
   createNodeStreamFromChunks,
 } from './stream-utils'
-import { createWebDebugChannel } from '../debug-channel-server'
+import type { DebugChannelPair } from '../debug-channel-server'
 import type { FlightComponentMod } from '../stream-ops'
 
 // eslint-disable-next-line import/no-extraneous-dependencies
@@ -53,6 +53,10 @@ import {
   DEFAULT_SEGMENT_KEY,
   NOT_FOUND_SEGMENT_KEY,
 } from '../../../shared/lib/segment'
+import {
+  isFrameworkErrorRoute,
+  isImplicitValidationSegment,
+} from './instant-config'
 import type { NextParsedUrlQuery } from '../../request-meta'
 
 const filterStackFrame =
@@ -192,17 +196,19 @@ export type SegmentStage =
   | RenderStage.Runtime
   | RenderStage.Dynamic
 
+/** The stages that a prefetched segment can be in. */
+type PrefetchedSegmentStage = Exclude<SegmentStage, RenderStage.Dynamic>
+
+const SEGMENT_STAGE_ORDER = [
+  RenderStage.Static,
+  RenderStage.Runtime,
+  RenderStage.Dynamic,
+] as const satisfies readonly SegmentStage[]
+
 export type StageChunks = Record<SegmentStage, Uint8Array[]>
 
-export type StageEndTimes = {
-  [RenderStage.Static]: number
-  [RenderStage.Runtime]: number
-}
+export type StageEndTimes = Record<PrefetchedSegmentStage, number>
 
-/**
- * Splits an existing staged stream (represented as arrays of chunks)
- * into separate staged streams (also in arrays-of-chunks form), one for each segment.
- * */
 type RenderToFlightStream = (
   ComponentMod: FlightComponentMod,
   payload: any,
@@ -210,6 +216,10 @@ type RenderToFlightStream = (
   opts: any
 ) => AsyncIterable<Uint8Array>
 
+/**
+ * Splits an existing staged stream (represented as arrays of chunks)
+ * into separate staged streams (also in arrays-of-chunks form), one for each segment.
+ * */
 export async function collectStagedSegmentData(
   ComponentMod: FlightComponentMod,
   renderFlightStream: RenderToFlightStream,
@@ -217,7 +227,8 @@ export async function collectStagedSegmentData(
   fullPageDebugChunks: Uint8Array[] | null,
   startTime: number,
   hasRuntimePrefetch: boolean,
-  clientReferenceManifest: ClientReferenceManifest
+  clientReferenceManifest: ClientReferenceManifest,
+  createDebugChannel: () => DebugChannelPair | undefined
 ) {
   const debugChannelAbortController = new AbortController()
   const debugStream = fullPageDebugChunks
@@ -288,8 +299,8 @@ export async function collectStagedSegmentData(
 
   /** Track when we advance stages so we can pass them as `endTime` later. */
   const stageEndTimes: StageEndTimes = {
-    [RenderStage.Static]: -1,
-    [RenderStage.Runtime]: -1,
+    [RenderStage.Static]: Infinity,
+    [RenderStage.Runtime]: Infinity,
   }
 
   const renderIntoCacheItem = async (
@@ -297,7 +308,7 @@ export async function collectStagedSegmentData(
     cacheEntry: SegmentCacheItem
   ): Promise<void> => {
     const segmentDebugChannel = cacheEntry.debugChunks
-      ? createWebDebugChannel()
+      ? createDebugChannel()
       : undefined
 
     const itemStream = renderFlightStream(
@@ -359,6 +370,16 @@ export async function collectStagedSegmentData(
     ])
   }
 
+  const advanceStage = (
+    targetStage: Exclude<SegmentStage, RenderStage.Static>
+  ) => {
+    const { currentStage } = controller
+    if (currentStage !== RenderStage.Dynamic) {
+      stageEndTimes[currentStage] = performance.now() + performance.timeOrigin
+    }
+    controller.advanceStage(targetStage)
+  }
+
   await runInSequentialTasks(
     () => {
       {
@@ -373,18 +394,8 @@ export async function collectStagedSegmentData(
         pendingTasks.push(renderIntoCacheItem(segmentData, segmentCacheItem))
       }
     },
-    () => {
-      stageEndTimes[RenderStage.Static] =
-        performance.now() + performance.timeOrigin
-
-      controller.advanceStage(RenderStage.Runtime)
-    },
-    () => {
-      stageEndTimes[RenderStage.Runtime] =
-        performance.now() + performance.timeOrigin
-
-      controller.advanceStage(RenderStage.Dynamic)
-    }
+    () => advanceStage(RenderStage.Runtime),
+    () => advanceStage(RenderStage.Dynamic)
   )
   await Promise.all(pendingTasks)
 
@@ -404,19 +415,14 @@ function createStagedStreamFromChunks(stageChunks: StageChunks) {
   // and just look at the lengths of the Static/Runtime arrays
   const allChunks = stageChunks[RenderStage.Dynamic]
 
-  const numStaticChunks = stageChunks[RenderStage.Static].length
-  const numRuntimeChunks = stageChunks[RenderStage.Runtime].length
-  const numDynamicChunks = stageChunks[RenderStage.Dynamic].length
-
   let chunkIx = 0
-  let currentStage:
-    | RenderStage.Static
-    | RenderStage.Runtime
-    | RenderStage.Dynamic = RenderStage.Static
+  let currentStage: SegmentStage = RenderStage.Static
   let closed = false
 
-  function push(chunk: Uint8Array) {
-    stream.push(chunk)
+  function emitNewChunks(chunks: Uint8Array[]) {
+    for (; chunkIx < chunks.length; chunkIx++) {
+      stream.push(allChunks[chunkIx])
+    }
   }
 
   function close() {
@@ -427,9 +433,7 @@ function createStagedStreamFromChunks(stageChunks: StageChunks) {
   const stream = new Readable({
     read() {
       // Emit static chunks
-      for (; chunkIx < numStaticChunks; chunkIx++) {
-        push(allChunks[chunkIx])
-      }
+      emitNewChunks(stageChunks[RenderStage.Static])
 
       // If there's no more chunks after this stage, finish the stream.
       if (chunkIx >= allChunks.length) {
@@ -440,31 +444,14 @@ function createStagedStreamFromChunks(stageChunks: StageChunks) {
   })
 
   function advanceStage(
-    stage: RenderStage.Runtime | RenderStage.Dynamic
+    stage: Exclude<SegmentStage, RenderStage.Static>
   ): boolean {
     if (closed) return true
 
-    switch (stage) {
-      case RenderStage.Runtime: {
-        currentStage = RenderStage.Runtime
-        for (; chunkIx < numRuntimeChunks; chunkIx++) {
-          push(allChunks[chunkIx])
-        }
-        break
-      }
-
-      case RenderStage.Dynamic: {
-        currentStage = RenderStage.Dynamic
-        for (; chunkIx < numDynamicChunks; chunkIx++) {
-          push(allChunks[chunkIx])
-        }
-        break
-      }
-
-      default: {
-        stage satisfies never
-      }
-    }
+    // NOTE: we don't special handling for skipping stages,
+    // emitNewChunks will emit anything that hasn't been emitted before.
+    currentStage = stage
+    emitNewChunks(stageChunks[stage])
 
     // If there's no more chunks after this stage, finish the stream.
     if (chunkIx >= allChunks.length) {
@@ -488,24 +475,21 @@ function createStagedStreamFromChunks(stageChunks: StageChunks) {
 
 function writeChunk(
   stageChunks: StageChunks,
-  stage: SegmentStage,
+  currentStage: SegmentStage,
   chunk: Uint8Array
 ) {
-  switch (stage) {
-    case RenderStage.Static: {
-      stageChunks[RenderStage.Static].push(chunk)
-      // fallthrough
-    }
-    case RenderStage.Runtime: {
-      stageChunks[RenderStage.Runtime].push(chunk)
-      // fallthrough
-    }
-    case RenderStage.Dynamic: {
-      stageChunks[RenderStage.Dynamic].push(chunk)
+  // Add the chunk to every stage that's greater or equal to the current stage.
+  // Iterate in reverse (descending order) so that we can easily skip the stages
+  // that are already completed.
+  for (let i = SEGMENT_STAGE_ORDER.length - 1; i >= 0; i--) {
+    const stage = SEGMENT_STAGE_ORDER[i]
+    if (stage >= currentStage) {
+      stageChunks[stage].push(chunk)
+    } else {
+      // Found the first stage that's less than the current stage
+      // (i.e. one that ended and shouldn't get this chunk).
+      // Skip it and the rest.
       break
-    }
-    default: {
-      stage satisfies never
     }
   }
 }
@@ -527,7 +511,8 @@ export async function createCombinedPayloadStream(
   renderSignal: AbortSignal,
   clientReferenceManifest: ClientReferenceManifest,
   startTime: number,
-  isDebugChannelEnabled: boolean
+  isDebugChannelEnabled: boolean,
+  createDebugChannel: () => DebugChannelPair | undefined
 ) {
   // Collect all the chunks so that we're not dependent on timing of the render.
 
@@ -536,7 +521,7 @@ export async function createCombinedPayloadStream(
   const allChunks: Uint8Array[] = []
 
   const debugChunks: Uint8Array[] | null = isDebugChannelEnabled ? [] : null
-  const debugChannel = isDebugChannelEnabled ? createWebDebugChannel() : null
+  const debugChannel = isDebugChannelEnabled ? createDebugChannel() : null
 
   let streamFinished: Promise<any>
 
@@ -643,7 +628,7 @@ async function createValidationHead(
   releaseSignal: AbortSignal,
   clientReferenceManifest: ClientReferenceManifest,
   stageEndTimes: StageEndTimes,
-  stage: RenderStage.Static | RenderStage.Runtime
+  stage: PrefetchedSegmentStage
 ): Promise<HeadData> {
   const segmentCacheItem = cache.head
   if (!segmentCacheItem) {
@@ -776,6 +761,13 @@ type TreeResult = {
   seedData: CacheNodeSeedData
   requiresInstantUI: boolean
   createInstantStack: (() => Error) | null
+  /** First module file path encountered (DFS) inside this subtree,
+   * or null if unavailable. The boundary's own segment may not own a
+   * layout/page module (e.g. a directory whose page lives in a
+   * __PAGE__ child), so we propagate the first one we find upward.
+   * Surfaced in the missing-boundary fallback message as a pointer
+   * to "something inside the subtree that didn't render". */
+  firstModFilePath: string | null
   /** How deep in the tree the config was found. Higher = more specific.
    * Used to prefer deeper configs over shallower ones when multiple
    * slots have configs. */
@@ -928,6 +920,14 @@ export async function createCombinedPayloadAtDepth(
   stageEndTimes: StageEndTimes,
   useRuntimeStageForPartialSegments: boolean
 ): Promise<ValidationPayloadResult | null> {
+  const workStore = workAsyncStorage.getStore()
+  if (!workStore) {
+    throw new InvariantError(
+      'createCombinedPayloadAtDepth must run inside a WorkStore'
+    )
+  }
+  const { validationLevel, route } = workStore
+
   let hasStaticSegments = false
   let hasRuntimeSegments = false
   // Index 0 is reserved for the root config. Slot markers start at 1.
@@ -1049,6 +1049,12 @@ export async function createCombinedPayloadAtDepth(
       let requiresInstantUI = false
       let createInstantStack: (() => Error) | null = null
       let bestConfigDepth = -1
+      // Collect the first mod file path from each slot's subtree.
+      // Don't include the boundary segment's own layout/page — that
+      // file DID render (it wraps the boundary). What didn't render
+      // is the content inside the children slots.
+      const slotModFilePaths: string[] = []
+      let firstModFilePath: string | null = null
 
       for (const parallelRouteKey in parallelRoutes) {
         const result = await buildNewTreeSeedData(
@@ -1060,6 +1066,12 @@ export async function createCombinedPayloadAtDepth(
         )
         slotResults.set(parallelRouteKey, result)
         slots[parallelRouteKey] = result.seedData
+        if (result.firstModFilePath !== null) {
+          slotModFilePaths.push(result.firstModFilePath)
+          if (firstModFilePath === null) {
+            firstModFilePath = result.firstModFilePath
+          }
+        }
         if (result.requiresInstantUI) {
           requiresInstantUI = true
           if (
@@ -1077,7 +1089,7 @@ export async function createCombinedPayloadAtDepth(
       // instant config. Unconfigured slot subtrees are allowed to not
       // render (e.g. conditionally excluded by a layout).
       if (requiresInstantUI) {
-        boundaryState.requiredIds.add(path)
+        boundaryState.requiredIds.set(path, slotModFilePaths)
       }
 
       wrapSlotsWithMarkers(slots, slotResults)
@@ -1086,6 +1098,7 @@ export async function createCombinedPayloadAtDepth(
         seedData: getCacheNodeSeedDataFromSegment(finalSegmentData, slots),
         requiresInstantUI,
         createInstantStack,
+        firstModFilePath,
         configDepth: bestConfigDepth,
       }
     }
@@ -1096,6 +1109,7 @@ export async function createCombinedPayloadAtDepth(
     let requiresInstantUI = false
     let createInstantStack: (() => Error) | null = null
     let bestConfigDepth = -1
+    let firstModFilePath: string | null = null
     for (const parallelRouteKey in parallelRoutes) {
       const result = await buildSharedTreeSeedData(
         parallelRoutes[parallelRouteKey],
@@ -1106,6 +1120,9 @@ export async function createCombinedPayloadAtDepth(
       )
       slotResults.set(parallelRouteKey, result)
       slots[parallelRouteKey] = result.seedData
+      if (firstModFilePath === null) {
+        firstModFilePath = result.firstModFilePath
+      }
       if (result.requiresInstantUI) {
         requiresInstantUI = true
         if (
@@ -1125,6 +1142,7 @@ export async function createCombinedPayloadAtDepth(
       seedData: getCacheNodeSeedDataFromSegment(segmentData, slots),
       requiresInstantUI,
       createInstantStack,
+      firstModFilePath,
       configDepth: bestConfigDepth,
     }
   }
@@ -1137,7 +1155,9 @@ export async function createCombinedPayloadAtDepth(
     segmentDepth: number
   ): Promise<TreeResult> {
     const { parallelRoutes } = parseLoaderTree(lt)
-    const { mod: layoutOrPageMod } = await getLayoutOrPageModule(lt)
+    const { mod: layoutOrPageMod, filePath: layoutOrPageFilePath } =
+      await getLayoutOrPageModule(lt)
+    const localModFilePath: string | null = layoutOrPageFilePath ?? null
 
     const segment = getSegment(lt)
     const path: SegmentPath =
@@ -1146,11 +1166,30 @@ export async function createCombinedPayloadAtDepth(
         : createChildSegmentPath(parentPath, key!, segment)
 
     let instantConfig: Instant | null = null
+    let prefetchConfig: AppSegmentConfig['prefetch'] | null = null
     let localCreateInstantStack: (() => Error) | null = null
     if (layoutOrPageMod !== undefined) {
-      instantConfig =
-        (layoutOrPageMod as AppSegmentConfig).unstable_instant ?? null
-      if (instantConfig && typeof instantConfig === 'object') {
+      instantConfig = (layoutOrPageMod as AppSegmentConfig).instant ?? null
+      prefetchConfig = (layoutOrPageMod as AppSegmentConfig).prefetch ?? null
+
+      // When the default validation level is active and this is a page or
+      // default segment without an explicit config, treat it as if
+      // instant = true was exported. Framework-synthesized error
+      // routes are excluded — see isFrameworkErrorRoute.
+      if (
+        instantConfig === null &&
+        validationLevel !== 'manual-warning' &&
+        validationLevel !== 'experimental-manual-error' &&
+        isImplicitValidationSegment(segment) &&
+        !isFrameworkErrorRoute(route)
+      ) {
+        instantConfig = true
+      }
+
+      if (
+        instantConfig === true ||
+        (typeof instantConfig === 'object' && instantConfig !== null)
+      ) {
         const rawFactory: unknown = (layoutOrPageMod as any)
           .__debugCreateInstantConfigStack
         localCreateInstantStack =
@@ -1158,14 +1197,12 @@ export async function createCombinedPayloadAtDepth(
       }
     }
 
+    const segmentHasRuntimePrefetch = prefetchConfig === 'allow-runtime'
+
     let childIsInsideRuntimePrefetch = isInsideRuntimePrefetch
     let stage: SegmentStage
     if (!isInsideRuntimePrefetch) {
-      if (
-        instantConfig &&
-        typeof instantConfig === 'object' &&
-        instantConfig.prefetch === 'runtime'
-      ) {
+      if (segmentHasRuntimePrefetch) {
         stage = RenderStage.Runtime
         childIsInsideRuntimePrefetch = true
         hasRuntimeSegments = true
@@ -1204,6 +1241,7 @@ export async function createCombinedPayloadAtDepth(
     let childrenRequireInstantUI = false
     let childCreateInstantStack: (() => Error) | null = null
     let bestChildConfigDepth = -1
+    let childFirstModFilePath: string | null = null
     for (const parallelRouteKey in parallelRoutes) {
       const childSegmentDepth = segmentConsumesURLDepth(segment)
         ? segmentDepth + 1
@@ -1217,6 +1255,9 @@ export async function createCombinedPayloadAtDepth(
       )
       slotResults.set(parallelRouteKey, result)
       slots[parallelRouteKey] = result.seedData
+      if (childFirstModFilePath === null) {
+        childFirstModFilePath = result.firstModFilePath
+      }
       if (result.requiresInstantUI) {
         childrenRequireInstantUI = true
         if (
@@ -1240,7 +1281,10 @@ export async function createCombinedPayloadAtDepth(
       requiresInstantUI = false
       createInstantStack = null
       configDepth = -1
-    } else if (instantConfig && typeof instantConfig === 'object') {
+    } else if (
+      instantConfig === true ||
+      (typeof instantConfig === 'object' && instantConfig !== null)
+    ) {
       requiresInstantUI = true
       createInstantStack = localCreateInstantStack
       configDepth = segmentDepth
@@ -1250,10 +1294,15 @@ export async function createCombinedPayloadAtDepth(
       configDepth = bestChildConfigDepth
     }
 
+    // First mod we find in DFS order: this segment's own layout/page if
+    // any, otherwise the first non-null we got from a child.
+    const firstModFilePath = localModFilePath ?? childFirstModFilePath
+
     return {
       seedData: getCacheNodeSeedDataFromSegment(segmentData, slots),
       requiresInstantUI,
       createInstantStack,
+      firstModFilePath,
       configDepth,
     }
   }

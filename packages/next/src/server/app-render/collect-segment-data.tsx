@@ -425,7 +425,7 @@ async function collectPrefetchHintsImpl(
   inlinedBytes: number
 }> {
   // Check if static prefetching is disabled for this segment (runtime
-  // prefetch or unstable_instant = false). Such segments act as transparent
+  // prefetch or instant = false). Such segments act as transparent
   // pass-throughs in the bundle chain: they contribute zero bytes of their
   // own and pass parent data through to children. However, they cannot be
   // the terminal of a chain — if no child accepts the parent data, the
@@ -487,7 +487,9 @@ async function collectPrefetchHintsImpl(
     const childRoute = children[parallelRouteKey]
     const childSegment = childRoute[0]
     const childSeedData =
-      seedDataChildren !== null ? seedDataChildren[parallelRouteKey] : null
+      seedDataChildren !== null
+        ? (seedDataChildren[parallelRouteKey] ?? null)
+        : null
 
     const childRequestKey = appendSegmentRequestKeyPart(
       requestKey,
@@ -870,7 +872,9 @@ function collectSegmentDataImpl(
     const childRoute = children[parallelRouteKey]
     const childSegment = childRoute[0]
     const childSeedData =
-      seedDataChildren !== null ? seedDataChildren[parallelRouteKey] : null
+      seedDataChildren !== null
+        ? (seedDataChildren[parallelRouteKey] ?? null)
+        : null
 
     const childRequestKey = appendSegmentRequestKeyPart(
       requestKey,

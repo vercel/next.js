@@ -8,15 +8,15 @@ pub(crate) mod chunking_context;
 pub(crate) mod data;
 pub(crate) mod evaluate;
 
-use std::fmt::Display;
+use std::{fmt::Display, hash::Hash};
 
-use anyhow::Result;
+use anyhow::{Result, bail};
 use auto_hash_map::AutoSet;
 use bincode::{Decode, Encode};
 use serde::{Deserialize, Serialize};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    FxIndexSet, NonLocalValue, ResolvedVc, TaskInput, Upcast, ValueToString, Vc,
+    FxIndexSet, NonLocalValue, ReadRef, ResolvedVc, Upcast, ValueToString, Vc,
     debug::ValueDebugFormat, trace::TraceRawVcs,
 };
 use turbo_tasks_hash::DeterministicHash;
@@ -30,13 +30,14 @@ pub use crate::chunk::{
         AssetSuffix, ChunkGroupResult, ChunkGroupType, ChunkingConfig, ChunkingConfigs,
         ChunkingContext, ChunkingContextExt, EntryChunkGroupResult, MangleType, MinifyType,
         SourceMapSourceType, SourceMapsType, UnusedReferences, UrlBehavior,
+        WorkerConfigurationOptions,
     },
     data::{ChunkData, ChunkDataOption, ChunksData},
     evaluate::{EvaluatableAsset, EvaluatableAssetExt, EvaluatableAssets},
 };
 use crate::{
     asset::Asset,
-    chunk::availability_info::AvailabilityInfo,
+    chunk::{availability_info::AvailabilityInfo, available_modules::AvailableModulesSet},
     ident::AssetIdent,
     module::Module,
     module_graph::{
@@ -46,19 +47,9 @@ use crate::{
     output::{OutputAssets, OutputAssetsReference},
 };
 
+#[turbo_tasks::task_input]
 #[derive(
-    Debug,
-    TaskInput,
-    Clone,
-    Copy,
-    PartialEq,
-    Eq,
-    Hash,
-    TraceRawVcs,
-    DeterministicHash,
-    NonLocalValue,
-    Encode,
-    Decode,
+    Debug, Clone, Copy, PartialEq, Eq, Hash, TraceRawVcs, DeterministicHash, Encode, Decode,
 )]
 pub enum ContentHashing {
     /// Direct content hashing: Embeds the chunk content hash directly into the referencing chunk.
@@ -69,6 +60,42 @@ pub enum ContentHashing {
         /// recommended due to the high risk of collisions.
         length: u8,
     },
+}
+
+#[turbo_tasks::value(shared)]
+#[derive(Debug, Default, Clone, Copy, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum CrossOrigin {
+    #[default]
+    None,
+    Anonymous,
+    UseCredentials,
+}
+
+impl CrossOrigin {
+    pub fn as_str(self) -> Option<&'static str> {
+        match self {
+            Self::None => None,
+            Self::Anonymous => Some("anonymous"),
+            Self::UseCredentials => Some("use-credentials"),
+        }
+    }
+}
+
+impl TryFrom<Option<&str>> for CrossOrigin {
+    type Error = anyhow::Error;
+
+    fn try_from(value: Option<&str>) -> Result<Self> {
+        match value {
+            None => Ok(Self::None),
+            Some("anonymous") => Ok(Self::Anonymous),
+            Some("use-credentials") => Ok(Self::UseCredentials),
+            Some(value) => bail!(
+                "invalid crossOrigin value `{value}`; supported values are `anonymous` and \
+                 `use-credentials`"
+            ),
+        }
+    }
 }
 
 /// A module id, which can be a number or string
@@ -150,9 +177,8 @@ impl MergeableModules {
 }
 
 /// Whether a given module needs to be exposed (depending on how it is imported by other modules)
-#[derive(
-    Copy, Clone, Debug, PartialEq, Eq, TraceRawVcs, NonLocalValue, TaskInput, Hash, Encode, Decode,
-)]
+#[turbo_tasks::task_input]
+#[derive(Copy, Clone, Debug, PartialEq, Eq, TraceRawVcs, Hash, Encode, Decode)]
 pub enum MergeableModuleExposure {
     // This module is only used from within the current group, and only individual exports are
     // used (and no namespace object is required).
@@ -245,6 +271,39 @@ pub trait OutputChunk: Asset {
     fn runtime_info(self: Vc<Self>) -> Vc<OutputChunkRuntimeInfo>;
 }
 
+/// Whether this reference is an entry point for a traced subgraph.
+#[derive(
+    Debug,
+    Clone,
+    Copy,
+    Hash,
+    TraceRawVcs,
+    Serialize,
+    Deserialize,
+    Eq,
+    PartialEq,
+    ValueDebugFormat,
+    Encode,
+    Decode,
+)]
+#[turbo_tasks::task_input]
+pub enum TracedMode {
+    /// Going from bundled to unbundled code, i.e. an external dependency or readFile static assets.
+    Entry,
+    /// This reference should only be respected from unbundled code (e.g. for package.json needed by
+    /// externals (sort of affecting_sources)
+    Transitive,
+}
+
+impl Display for TracedMode {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            TracedMode::Entry => write!(f, "Entry"),
+            TracedMode::Transitive => write!(f, "Transitive"),
+        }
+    }
+}
+
 /// Specifies how a chunk interacts with other chunks when building a chunk
 /// group
 #[derive(
@@ -288,8 +347,13 @@ pub enum ChunkingType {
         inherit_async: bool,
         merge_tag: Option<RcStr>,
     },
-    // Module not placed in chunk group, but its references are still followed.
-    Traced,
+    /// The module not placed in chunk group, but its references are still followed. This is used
+    /// for NFT, to list all unbundled files that are still needed at runtime (some static assets,
+    /// or externals and their transitive dependencies).
+    Traced {
+        /// Whether this reference is an entry point for a traced subgraph.
+        mode: TracedMode,
+    },
 }
 
 impl Display for ChunkingType {
@@ -332,7 +396,7 @@ impl Display for ChunkingType {
             } => {
                 write!(f, "Shared(inherit_async: {inherit_async})")
             }
-            ChunkingType::Traced => write!(f, "Traced"),
+            ChunkingType::Traced { mode } => write!(f, "Traced(mode: {mode})"),
         }
     }
 }
@@ -353,6 +417,10 @@ impl ChunkingType {
 
     pub fn is_parallel(&self) -> bool {
         matches!(self, ChunkingType::Parallel { .. })
+    }
+
+    pub fn is_traced(&self) -> bool {
+        matches!(self, ChunkingType::Traced { .. })
     }
 
     pub fn is_merged(&self) -> bool {
@@ -386,16 +454,22 @@ impl ChunkingType {
                 inherit_async: false,
                 merge_tag: merge_tag.clone(),
             },
-            ChunkingType::Traced => ChunkingType::Traced,
+            ChunkingType::Traced { mode } => ChunkingType::Traced { mode: *mode },
         }
     }
 }
 
-pub struct ChunkGroupContent {
+#[turbo_tasks::value(cell = "new")]
+pub struct ChunkGroupContentInner {
     pub chunkable_items: Vec<ChunkableModuleOrBatch>,
     pub batch_groups: Vec<ResolvedVc<ModuleBatchGroup>>,
+    #[bincode(with = "turbo_bincode::indexset")]
     pub async_modules: FxIndexSet<ResolvedVc<Box<dyn ChunkableModule>>>,
-    pub traced_modules: FxIndexSet<ResolvedVc<Box<dyn Module>>>,
+    pub available_modules: ResolvedVc<AvailableModulesSet>,
+}
+
+pub struct ChunkGroupContent {
+    pub inner: ReadRef<ChunkGroupContentInner>,
     pub availability_info: AvailabilityInfo,
 }
 
@@ -417,16 +491,14 @@ pub trait ChunkItem: OutputAssetsReference {
     }
 
     /// The type of chunk this item should be assembled into.
-    #[turbo_tasks::function]
-    fn ty(self: Vc<Self>) -> Vc<Box<dyn ChunkType>>;
+    fn ty(&self) -> Vc<Box<dyn ChunkType>>;
 
     /// A temporary method to retrieve the module associated with this
     /// ChunkItem. TODO: Remove this as part of the chunk refactoring.
     #[turbo_tasks::function]
     fn module(self: Vc<Self>) -> Vc<Box<dyn Module>>;
 
-    #[turbo_tasks::function]
-    fn chunking_context(self: Vc<Self>) -> Vc<Box<dyn ChunkingContext>>;
+    fn chunking_context(&self) -> Vc<Box<dyn ChunkingContext>>;
 }
 
 #[turbo_tasks::value_trait]
@@ -477,11 +549,11 @@ impl AsyncModuleInfo {
     }
 }
 
-#[derive(
-    Debug, Clone, PartialEq, Eq, Hash, TraceRawVcs, TaskInput, NonLocalValue, Encode, Decode,
-)]
+#[turbo_tasks::task_input]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, TraceRawVcs, Encode, Decode)]
 pub struct ChunkItemWithAsyncModuleInfo {
     pub chunk_item: ResolvedVc<Box<dyn ChunkItem>>,
+    pub chunk_type: ResolvedVc<Box<dyn ChunkType>>,
     pub module: Option<ResolvedVc<Box<dyn ChunkableModule>>>,
     pub async_info: Option<ResolvedVc<AsyncModuleInfo>>,
 }
@@ -499,6 +571,8 @@ where
     async fn id(self: Vc<Self>) -> Result<ModuleId> {
         let chunk_item = Vc::upcast_non_strict(self);
         chunk_item
+            .into_trait_ref()
+            .await?
             .chunking_context()
             .chunk_item_id_strategy()
             .await?

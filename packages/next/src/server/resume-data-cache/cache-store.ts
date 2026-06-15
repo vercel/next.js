@@ -11,7 +11,7 @@ import type { CollectedCacheResult } from '../use-cache/use-cache-wrapper'
  */
 type CacheStore<T> = Pick<
   Map<string, T>,
-  'entries' | 'keys' | 'size' | 'get' | 'set' | typeof Symbol.iterator
+  'entries' | 'keys' | 'size' | 'get' | 'set' | 'has' | typeof Symbol.iterator
 >
 
 /**
@@ -92,6 +92,11 @@ export function parseUseCacheCacheStore(
         readRootParamNames: readRootParamNames
           ? new Set(readRootParamNames)
           : undefined,
+        // Serialized RDC entries are non-dynamic by construction (the
+        // serializer drops dynamic entries), so this is never produced from the
+        // wire — the throw path that consumes it is only reachable for dynamic
+        // entries, which only exist in the in-memory RDC.
+        dynamicNestedCacheError: undefined,
       })
     )
   }

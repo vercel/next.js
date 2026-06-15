@@ -433,8 +433,7 @@ export function assignStaticShellMetadata(
   pathnameSegments: ReadonlyArray<{
     readonly paramName: string
     readonly hasGenerateStaticParams: boolean
-  }>,
-  computeRemainingPrerenderableParams: boolean
+  }>
 ): void {
   // If there are no routes to process, exit early.
   if (prerenderedRoutes.length === 0) {
@@ -554,11 +553,7 @@ export function assignStaticShellMetadata(
           route.throwOnEmptyStaticShell = true // Should throw on empty static shell.
         }
 
-        if (
-          computeRemainingPrerenderableParams &&
-          route.fallbackRouteParams &&
-          route.fallbackRouteParams.length > 0
-        ) {
+        if (route.fallbackRouteParams && route.fallbackRouteParams.length > 0) {
           const fallbackRouteParamsByName = new Map(
             route.fallbackRouteParams.map((param) => [param.paramName, param])
           )
@@ -782,6 +777,8 @@ export async function buildAppStaticPaths({
   distDir,
   cacheComponents,
   authInterrupts,
+  useCacheTimeout,
+  staticPageGenerationTimeout,
   segments,
   isrFlushToDisk,
   cacheHandler,
@@ -793,8 +790,8 @@ export async function buildAppStaticPaths({
   nextConfigOutput,
   ComponentMod,
   isRoutePPREnabled = false,
-  partialFallbacksEnabled = false,
   buildId,
+  deploymentId,
   rootParamKeys,
 }: {
   dir: string
@@ -802,6 +799,8 @@ export async function buildAppStaticPaths({
   route: NormalizedAppRoute
   cacheComponents: boolean
   authInterrupts: boolean
+  useCacheTimeout: number
+  staticPageGenerationTimeout: number
   segments: readonly Readonly<AppSegment>[]
   distDir: string
   isrFlushToDisk?: boolean
@@ -816,8 +815,8 @@ export async function buildAppStaticPaths({
   nextConfigOutput: 'standalone' | 'export' | undefined
   ComponentMod: AppPageModule | AppRouteModule
   isRoutePPREnabled: boolean
-  partialFallbacksEnabled?: boolean
   buildId: string
+  deploymentId: string
   rootParamKeys: readonly string[]
 }): Promise<StaticPathsResult> {
   if (
@@ -859,16 +858,23 @@ export async function buildAppStaticPaths({
     renderOpts: {
       incrementalCache,
       cacheLifeProfiles,
+      staticPageGenerationTimeout,
       supportsDynamicResponse: true,
       cacheComponents,
+      // generateStaticParams evaluation doesn't render pages, so instant
+      // validation never runs here. The level value is irrelevant.
+      // TODO: remove validationLevel and other global config out of renderOpts
+      validationLevel: 'warning',
       experimental: {
         authInterrupts,
+        useCacheTimeout,
       },
       waitUntil: afterRunner.context.waitUntil,
       onClose: afterRunner.context.onClose,
       onAfterTaskError: afterRunner.context.onTaskError,
     },
     buildId,
+    deploymentId,
     previouslyRevalidatedTags: [],
   })
 
@@ -1112,11 +1118,7 @@ export async function buildAppStaticPaths({
 
   // Now we have to set the throwOnEmptyStaticShell for each of the routes.
   if (prerenderedRoutes && cacheComponents) {
-    assignStaticShellMetadata(
-      prerenderedRoutes,
-      prerenderablePathSegments,
-      partialFallbacksEnabled
-    )
+    assignStaticShellMetadata(prerenderedRoutes, prerenderablePathSegments)
   }
 
   return { fallbackMode, prerenderedRoutes }

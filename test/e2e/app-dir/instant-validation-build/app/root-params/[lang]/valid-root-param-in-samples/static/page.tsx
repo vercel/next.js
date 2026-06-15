@@ -2,9 +2,9 @@ import { Instant } from 'next'
 import { lang } from 'next/root-params'
 import assert from 'node:assert/strict'
 
-export const unstable_instant: Instant = {
-  prefetch: 'static',
-  samples: [{ params: { lang: 'en' } }],
+export const instant: Instant = {
+  level: 'experimental-error',
+  unstable_samples: [{ params: { lang: 'en' } }],
 }
 
 export default async function Page() {

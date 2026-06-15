@@ -30,26 +30,20 @@ use crate::{
 
 pub async fn insert_next_root_params_mapping(
     import_map: &mut ImportMap,
-    is_root_params_enabled: Vc<bool>,
     ty: Either<ServerContextType, ClientContextType>,
     collected_root_params: Option<Vc<CollectedRootParams>>,
 ) -> Result<()> {
     import_map.insert_exact_alias(
         "next/root-params",
-        get_next_root_params_mapping(
-            is_root_params_enabled,
-            EitherTaskInput(ty),
-            collected_root_params,
-        )
-        .to_resolved()
-        .await?,
+        get_next_root_params_mapping(EitherTaskInput(ty), collected_root_params)
+            .to_resolved()
+            .await?,
     );
     Ok(())
 }
 
 #[turbo_tasks::function]
 async fn get_next_root_params_mapping(
-    is_root_params_enabled: Vc<bool>,
     ty: EitherTaskInput<ServerContextType, ClientContextType>,
     collected_root_params: Option<Vc<CollectedRootParams>>,
 ) -> Result<Vc<ImportMapping>> {
@@ -61,7 +55,7 @@ async fn get_next_root_params_mapping(
     // `collected_root_params` changes, the resolve options will remain the same, and
     // only the mapping result will be invalidated.
     let mapping = ImportMapping::Dynamic(ResolvedVc::upcast(
-        NextRootParamsMapper::new(is_root_params_enabled, ty, collected_root_params)
+        NextRootParamsMapper::new(ty, collected_root_params)
             .to_resolved()
             .await?,
     ));
@@ -70,7 +64,6 @@ async fn get_next_root_params_mapping(
 
 #[turbo_tasks::value]
 struct NextRootParamsMapper {
-    is_root_params_enabled: ResolvedVc<bool>,
     #[bincode(with = "turbo_bincode::either")]
     context_type: Either<ServerContextType, ClientContextType>,
     collected_root_params: Option<ResolvedVc<CollectedRootParams>>,
@@ -80,12 +73,10 @@ struct NextRootParamsMapper {
 impl NextRootParamsMapper {
     #[turbo_tasks::function]
     pub fn new(
-        is_root_params_enabled: ResolvedVc<bool>,
         context_type: EitherTaskInput<ServerContextType, ClientContextType>,
         collected_root_params: Option<ResolvedVc<CollectedRootParams>>,
     ) -> Vc<Self> {
         NextRootParamsMapper {
-            is_root_params_enabled,
             context_type: context_type.0,
             collected_root_params,
         }
@@ -95,61 +86,47 @@ impl NextRootParamsMapper {
     #[turbo_tasks::function]
     async fn import_map_result(self: Vc<Self>) -> Result<Vc<ImportMapResult>> {
         let this = self.await?;
-        Ok({
-            if !(*this.is_root_params_enabled.await?) {
+        Ok(match &this.context_type {
+            Either::Left(server_ty) => match &server_ty {
+                ServerContextType::AppRSC { .. } | ServerContextType::AppRoute { .. } => {
+                    let collected_root_params = *this.collected_root_params.ok_or_else(|| {
+                        anyhow!(
+                            "Invariant: Root params should have been collected for context {:?}. \
+                             This is a bug in Next.js.",
+                            server_ty.clone()
+                        )
+                    })?;
+                    Self::valid_import_map_result(collected_root_params)
+                }
+                ServerContextType::PagesApi { .. }
+                | ServerContextType::Instrumentation { .. }
+                | ServerContextType::Middleware { .. } => {
+                    // There's no sensible way to use root params outside of the app
+                    // directory. TODO: make sure this error is consistent with webpack
+                    Self::invalid_import_map_result(
+                        "'next/root-params' can only be used inside the App Directory.".into(),
+                    )
+                }
+                _ => {
+                    // In general, the compiler should prevent importing 'next/root-params'
+                    // from client modules, but it doesn't catch everything. If an import
+                    // slips through our validation, make it error.
+                    Self::invalid_import_map_result(
+                        "'next/root-params' cannot be imported from a Client Component module. It \
+                         should only be used from a Server Component."
+                            .into(),
+                    )
+                }
+            },
+            Either::Right(_) => {
+                // In general, the compiler should prevent importing 'next/root-params' from
+                // client modules, but it doesn't catch everything. If an import slips
+                // through our validation, make it error.
                 Self::invalid_import_map_result(
-                    "'next/root-params' can only be imported when `experimental.rootParams` is \
-                     enabled."
+                    "'next/root-params' cannot be imported from a Client Component module. It \
+                     should only be used from a Server Component."
                         .into(),
                 )
-            } else {
-                match &this.context_type {
-                    Either::Left(server_ty) => match &server_ty {
-                        ServerContextType::AppRSC { .. } | ServerContextType::AppRoute { .. } => {
-                            let collected_root_params =
-                                *this.collected_root_params.ok_or_else(|| {
-                                    anyhow!(
-                                        "Invariant: Root params should have been collected for \
-                                         context {:?}. This is a bug in Next.js.",
-                                        server_ty.clone()
-                                    )
-                                })?;
-                            Self::valid_import_map_result(collected_root_params)
-                        }
-                        ServerContextType::PagesApi { .. }
-                        | ServerContextType::Instrumentation { .. }
-                        | ServerContextType::Middleware { .. } => {
-                            // There's no sensible way to use root params outside of the app
-                            // directory. TODO: make sure this error is
-                            // consistent with webpack
-                            Self::invalid_import_map_result(
-                                "'next/root-params' can only be used inside the App Directory."
-                                    .into(),
-                            )
-                        }
-                        _ => {
-                            // In general, the compiler should prevent importing 'next/root-params'
-                            // from client modules, but it doesn't catch
-                            // everything. If an import slips through
-                            // our validation, make it error.
-                            Self::invalid_import_map_result(
-                                "'next/root-params' cannot be imported from a Client Component \
-                                 module. It should only be used from a Server Component."
-                                    .into(),
-                            )
-                        }
-                    },
-                    Either::Right(_) => {
-                        // In general, the compiler should prevent importing 'next/root-params' from
-                        // client modules, but it doesn't catch everything. If an
-                        // import slips through our validation, make it error.
-                        Self::invalid_import_map_result(
-                            "'next/root-params' cannot be imported from a Client Component \
-                             module. It should only be used from a Server Component."
-                                .into(),
-                        )
-                    }
-                }
             }
         })
     }

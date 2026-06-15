@@ -196,7 +196,10 @@ impl VersionedContent for EcmascriptDevChunkListContent {
     }
 
     #[turbo_tasks::function]
-    fn update(self: Vc<Self>, from_version: Vc<Box<dyn Version>>) -> Vc<Update> {
-        update_chunk_list(self, from_version)
+    async fn update(
+        self: ResolvedVc<Self>,
+        from_version: ResolvedVc<Box<dyn Version>>,
+    ) -> Result<Vc<Update>> {
+        update_chunk_list(self, from_version).await
     }
 }

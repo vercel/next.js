@@ -8,7 +8,6 @@ const nextConfig = {
     varyParams: true,
     optimisticRouting: true,
     cachedNavigations: true,
-    prefetchInlining: true,
   },
 }
 

@@ -256,14 +256,14 @@ describe('Error overlay - RSC build errors', () => {
     })
   }
 
-  it('should error when unstable_catchError from next/error is used in a server component', async () => {
+  it('should error when catchError from next/error is used in a server component', async () => {
     await using sandbox = await createSandbox(
       next,
       new Map([
         [
           'app/page.js',
           outdent`
-            import { unstable_catchError } from 'next/error'
+            import { catchError } from 'next/error'
 
             export default function Page() {
               return 'Hello world'
@@ -276,7 +276,7 @@ describe('Error overlay - RSC build errors', () => {
     const { session } = sandbox
     await session.waitForRedbox()
     expect(await session.getRedboxSource()).toInclude(
-      'You\'re importing a module that depends on `unstable_catchError` into a React Server Component module. This API is only available in Client Components. To fix, mark the file (or its parent) with the `"use client"` directive.'
+      'You\'re importing a module that depends on `catchError` into a React Server Component module. This API is only available in Client Components. To fix, mark the file (or its parent) with the `"use client"` directive.'
     )
   })
 
@@ -285,7 +285,7 @@ describe('Error overlay - RSC build errors', () => {
     ['proxy.js', 'export function proxy() {}'],
     ['instrumentation.js', 'export function register() {}'],
   ])(
-    'should error when unstable_catchError from next/error is imported in %s',
+    'should error when catchError from next/error is imported in %s',
     async (entryFile, exportCode) => {
       await using sandbox = await createSandbox(
         next,
@@ -301,7 +301,7 @@ describe('Error overlay - RSC build errors', () => {
           [
             entryFile,
             outdent`
-              import { unstable_catchError } from 'next/error'
+              import { catchError } from 'next/error'
               ${exportCode}
             `,
           ],
@@ -311,7 +311,7 @@ describe('Error overlay - RSC build errors', () => {
       const { session } = sandbox
       await session.waitForRedbox()
       expect(await session.getRedboxSource()).toInclude(
-        'You\'re importing a module that depends on `unstable_catchError` into a React Server Component module. This API is only available in Client Components. To fix, mark the file (or its parent) with the `"use client"` directive.'
+        'You\'re importing a module that depends on `catchError` into a React Server Component module. This API is only available in Client Components. To fix, mark the file (or its parent) with the `"use client"` directive.'
       )
     }
   )
@@ -371,9 +371,7 @@ describe('Error overlay - RSC build errors', () => {
   })
 
   describe('next/root-params', () => {
-    const isCacheComponentsEnabled =
-      process.env.__NEXT_CACHE_COMPONENTS === 'true'
-    it("importing 'next/root-params' when experimental.rootParams is not enabled", async () => {
+    it("importing a non-existent getter from 'next/root-params'", async () => {
       await using sandbox = await createSandbox(
         next,
         undefined,
@@ -381,16 +379,13 @@ describe('Error overlay - RSC build errors', () => {
       )
       const { session } = sandbox
       await session.waitForRedbox()
-      if (!isCacheComponentsEnabled) {
+      if (isTurbopack) {
         expect(await session.getRedboxSource()).toInclude(
-          `'next/root-params' can only be imported when \`experimental.rootParams\` is enabled.`
+          `Export whatever doesn't exist in target module`
         )
       } else {
-        // in cacheComponents we auto-enable 'next/root-params', so we should get an error about using a non-existent getter instead.
-        expect(await session.getRedboxSource()).toInclude(
-          isTurbopack
-            ? `Export whatever doesn't exist in target module`
-            : `Attempted import error: 'whatever' is not exported from 'next/root-params' (imported as 'whatever').`
+        expect(await session.getRedboxDescription()).toInclude(
+          `whatever) is not a function`
         )
       }
     })
@@ -398,17 +393,7 @@ describe('Error overlay - RSC build errors', () => {
     it("importing 'next/root-params' in a client component", async () => {
       await using sandbox = await createSandbox(
         next,
-        // if cacheComponents is not enabled, the import is guarded behind an experimental flag
-        isCacheComponentsEnabled
-          ? new Map()
-          : new Map([
-              [
-                'next.config.js',
-                outdent`
-                  module.exports = { experimental: { rootParams: true } }
-                `,
-              ],
-            ]),
+        undefined,
         `/server-with-errors/next-root-params/in-client`
       )
       const { session } = sandbox
@@ -421,17 +406,7 @@ describe('Error overlay - RSC build errors', () => {
     it("importing 'next/root-params' in a client component in a way that bypasses import analysis", async () => {
       await using sandbox = await createSandbox(
         next,
-        // if cacheComponents is not enabled, the import is guarded behind an experimental flag
-        isCacheComponentsEnabled
-          ? new Map()
-          : new Map([
-              [
-                'next.config.js',
-                outdent`
-                  module.exports = { experimental: { rootParams: true } }
-                `,
-              ],
-            ]),
+        undefined,
         `/server-with-errors/next-root-params/in-client-await-import`
       )
       const { session } = sandbox

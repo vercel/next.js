@@ -1,10 +1,11 @@
 import type { Instant } from 'next'
 import { ClientChild } from './client'
 
-export const unstable_instant: Instant = {
-  prefetch: 'runtime',
-  samples: [{ params: { slug: 'hello' } }],
+export const instant: Instant = {
+  level: 'experimental-error',
+  unstable_samples: [{ params: { slug: 'hello' } }],
 }
+export const prefetch = 'allow-runtime'
 
 export default async function Page({
   params,

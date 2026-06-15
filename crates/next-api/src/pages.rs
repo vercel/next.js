@@ -2,7 +2,9 @@ use anyhow::{Context, Result, bail};
 use bincode::{Decode, Encode};
 use futures::future::BoxFuture;
 use next_core::{
-    PageLoaderAsset, create_page_loader_entry_module, get_asset_path_from_pathname,
+    PageLoaderAsset,
+    app_structure::FileSystemPathVec,
+    create_page_loader_entry_module, get_asset_path_from_pathname,
     get_edge_resolve_options_context,
     hmr_entry::HmrEntryModule,
     mode::NextMode,
@@ -30,8 +32,8 @@ use next_core::{
 use tracing::Instrument;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
-    Completion, FxIndexMap, NonLocalValue, ResolvedVc, TaskInput, ValueToString, Vc, fxindexmap,
-    fxindexset, trace::TraceRawVcs,
+    Completion, FxIndexMap, ResolvedVc, ValueToString, Vc, fxindexmap, fxindexset,
+    trace::TraceRawVcs,
 };
 use turbo_tasks_fs::{
     self, File, FileContent, FileSystem, FileSystemPath, FileSystemPathOption, VirtualFileSystem,
@@ -73,6 +75,7 @@ use crate::{
     font::FontManifest,
     loadable_manifest::create_react_loadable_manifest,
     module_graph::{NextDynamicGraphs, validate_pages_css_imports},
+    nft::{EndpointTraceResult, trace_endpoint},
     nft_json::NftJsonAsset,
     paths::{
         all_asset_paths, all_paths_in_root, get_asset_paths_from_root, get_js_paths_from_root,
@@ -566,6 +569,7 @@ impl PagesProject {
             None,
         )
         .await?
+        .await?
         .first_module()
         .await?
         .context("expected Next.js client runtime to resolve to a module")?;
@@ -584,9 +588,8 @@ struct PageEndpoint {
     pages_structure: ResolvedVc<PagesStructure>,
 }
 
-#[derive(
-    Copy, Clone, PartialEq, Eq, Hash, Debug, TaskInput, TraceRawVcs, NonLocalValue, Encode, Decode,
-)]
+#[turbo_tasks::task_input]
+#[derive(Copy, Clone, PartialEq, Eq, Hash, Debug, TraceRawVcs, Encode, Decode)]
 enum PageEndpointType {
     Api,
     Html,
@@ -597,14 +600,16 @@ enum PageEndpointType {
     SsrOnly,
 }
 
-#[derive(Copy, Clone, PartialEq, Eq, Hash, Debug, TaskInput, TraceRawVcs, Encode, Decode)]
+#[turbo_tasks::task_input]
+#[derive(Copy, Clone, PartialEq, Eq, Hash, Debug, TraceRawVcs, Encode, Decode)]
 enum SsrChunkType {
     Page,
     Data,
     Api,
 }
 
-#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash, TaskInput, TraceRawVcs, Encode, Decode)]
+#[turbo_tasks::task_input]
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash, TraceRawVcs, Encode, Decode)]
 enum EmitManifests {
     /// Don't emit any manifests
     None,
@@ -664,7 +669,7 @@ impl PageEndpoint {
         ) && let Some(chunkable) = ResolvedVc::try_downcast(page_loader.to_resolved().await?)
         {
             return Ok(Vc::upcast(HmrEntryModule::new(
-                AssetIdent::from_path(this.page.await?.base_path.clone()),
+                AssetIdent::from_path(this.page.await?.base_path.clone()).into_vc(),
                 *chunkable,
             )));
         }
@@ -730,7 +735,7 @@ impl PageEndpoint {
             .flatten()
             {
                 let graph = SingleModuleGraph::new_with_entries_visited_intern(
-                    vec![ChunkGroupEntry::Shared(module)],
+                    GraphEntries::from_chunk_groups(vec![ChunkGroupEntry::Shared(module)]),
                     visited_modules,
                     should_trace,
                     should_read_binding_usage,
@@ -740,7 +745,9 @@ impl PageEndpoint {
             }
 
             let graph = SingleModuleGraph::new_with_entries_visited_intern(
-                vec![ChunkGroupEntry::Entry(vec![ssr_chunk_module.ssr_module])],
+                GraphEntries::from_chunk_groups(vec![ChunkGroupEntry::Entry(vec![
+                    ssr_chunk_module.ssr_module,
+                ])]),
                 visited_modules,
                 should_trace,
                 should_read_binding_usage,
@@ -753,11 +760,11 @@ impl PageEndpoint {
                 .await?;
 
             let graph = if remove_unused_imports {
-                let graph = ModuleGraph::from_graphs(graphs.clone());
+                let graph = ModuleGraph::from_graphs(graphs.clone(), None);
                 let binding_usage_info = compute_binding_usage_info(graph, true);
-                ModuleGraph::from_graphs_without_unused_references(graphs, binding_usage_info)
+                ModuleGraph::from_graphs(graphs, Some(binding_usage_info))
             } else {
-                ModuleGraph::from_graphs(graphs)
+                ModuleGraph::from_graphs(graphs, None)
             };
 
             Ok(graph.connect())
@@ -783,9 +790,10 @@ impl PageEndpoint {
                 .map(|m| ResolvedVc::upcast(*m))
                 .collect();
             let client_chunk_group = client_chunking_context.evaluated_chunk_group(
-                AssetIdent::from_path(this.page.await?.base_path.clone()),
+                AssetIdent::from_path(this.page.await?.base_path.clone()).into_vc(),
                 ChunkGroup::Entry(evaluatable_assets),
                 module_graph,
+                OutputAssets::empty(),
                 AvailabilityInfo::root(),
             );
 
@@ -1024,6 +1032,7 @@ impl PageEndpoint {
                     ssr_module.ident(),
                     ChunkGroup::Entry(vec![ssr_module]),
                     ssr_module_graph,
+                    OutputAssets::empty(),
                     current_chunk_group.await?.availability_info,
                 );
 
@@ -1086,6 +1095,7 @@ impl PageEndpoint {
                             Some(pages_function_name(&this.original_name).into()),
                             *ssr_entry_chunk,
                             additional_assets,
+                            self.trace_result(),
                         )
                         .to_resolved()
                         .await?,
@@ -1251,6 +1261,7 @@ impl PageEndpoint {
             pages,
             polyfill_files: Default::default(),
             root_main_files: Default::default(),
+            root_main_files_per_page: Default::default(),
         };
         Ok(Vc::upcast(build_manifest.cell()))
     }
@@ -1429,8 +1440,9 @@ impl PageEndpoint {
                     let pages_structure = this.pages_structure.await?;
                     if pages_structure.should_create_pages_entries {
                         server_assets.extend(assets_ref.iter().copied());
-                        file_paths_from_root
-                            .extend(get_js_paths_from_root(&node_root, &assets_ref).await?);
+                        file_paths_from_root.extend(
+                            get_js_paths_from_root(&node_root, assets_ref.iter().copied()).await?,
+                        );
                     }
 
                     if emit_manifests == EmitManifests::Full {
@@ -1444,28 +1456,30 @@ impl PageEndpoint {
                         if pages_structure.should_create_pages_entries {
                             server_assets.extend(loadable_manifest_output.iter().copied());
                             file_paths_from_root.extend(
-                                get_js_paths_from_root(&node_root, &loadable_manifest_output)
+                                get_js_paths_from_root(&node_root, loadable_manifest_output)
                                     .await?,
                             );
                         }
                     }
 
-                    let (wasm_paths_from_root, all_assets) =
-                        if pages_structure.should_create_pages_entries {
-                            let all_output_assets = all_assets_from_entries(all_assets).await?;
+                    let (wasm_paths_from_root, all_assets) = if pages_structure
+                        .should_create_pages_entries
+                    {
+                        let all_output_assets = all_assets_from_entries(all_assets).await?;
 
-                            let mut wasm_paths_from_root = fxindexset![];
-                            wasm_paths_from_root.extend(
-                                get_wasm_paths_from_root(&node_root, &all_output_assets).await?,
-                            );
+                        let mut wasm_paths_from_root = fxindexset![];
+                        wasm_paths_from_root.extend(
+                            get_wasm_paths_from_root(&node_root, all_output_assets.iter().copied())
+                                .await?,
+                        );
 
-                            let all_assets =
-                                get_asset_paths_from_root(&node_root, &all_output_assets).await?;
+                        let all_assets =
+                            get_asset_paths_from_root(&node_root, all_output_assets).await?;
 
-                            (wasm_paths_from_root, all_assets)
-                        } else {
-                            (fxindexset![], vec![])
-                        };
+                        (wasm_paths_from_root, all_assets)
+                    } else {
+                        (fxindexset![], vec![])
+                    };
 
                     let named_regex = get_named_middleware_regex(&this.pathname).into();
                     let matchers = ProxyMatcher {
@@ -1547,6 +1561,19 @@ impl PageEndpoint {
                 .owned()
                 .await?,
         )))
+    }
+
+    #[turbo_tasks::function]
+    async fn trace_result(self: Vc<Self>) -> Result<Vc<EndpointTraceResult>> {
+        let this = self.await?;
+        let ssr_module_graph = self.ssr_module_graph();
+        let InternalSsrChunkModule { ssr_module, .. } = *self.internal_ssr_chunk_module().await?;
+        Ok(trace_endpoint(
+            this.pages_project.project(),
+            Some(pages_function_name(&this.original_name).into()),
+            ssr_module_graph,
+            *ssr_module,
+        ))
     }
 }
 
@@ -1707,7 +1734,7 @@ impl Endpoint for PageEndpoint {
             })
             .collect::<Vec<_>>();
 
-        Ok(Vc::cell(modules))
+        Ok(GraphEntries::from_chunk_groups(modules).cell())
     }
 
     #[turbo_tasks::function]
@@ -1724,6 +1751,11 @@ impl Endpoint for PageEndpoint {
     #[turbo_tasks::function]
     async fn project(self: Vc<Self>) -> Result<Vc<Project>> {
         Ok(self.await?.pages_project.project())
+    }
+
+    #[turbo_tasks::function]
+    fn traced_files(self: Vc<Self>) -> Vc<FileSystemPathVec> {
+        self.trace_result().all_files()
     }
 }
 

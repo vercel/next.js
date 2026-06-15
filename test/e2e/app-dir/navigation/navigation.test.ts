@@ -85,9 +85,7 @@ describe('app dir - navigation', () => {
           router: 'app',
           pathname: '/search-params/foo',
           // App Router doesn't re-render on initial load (the params are baked
-          // server side). In development, effects will render twice.
-
-          // TODO: modern StrictMode does not double invoke effects during hydration: https://github.com/facebook/react/pull/28951
+          // server side).
           waitForNEffects: 1,
         },
         {

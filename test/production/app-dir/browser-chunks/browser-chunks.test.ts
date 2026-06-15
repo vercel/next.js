@@ -64,6 +64,21 @@ describe('browser-chunks', () => {
     }
   })
 
+  it('must not bundle the HMR refresh reducer into browser chunks', () => {
+    const hmrReducerSources = sources.filter((source) => {
+      return source.includes('hmr-refresh-reducer')
+    })
+
+    if (hmrReducerSources.length > 0) {
+      const message = `Found the following HMR reducer modules:\n  ${hmrReducerSources.join('\n  ')}`
+
+      throw new Error(
+        'Did not expect the HMR refresh reducer in production browser chunks.\n' +
+          message
+      )
+    }
+  })
+
   it('must not include heavy dependencies into browser chunks', () => {
     const heavyDependencies = sources.filter((source) => {
       return source.includes('next/dist/compiled/safe-stable-stringify')

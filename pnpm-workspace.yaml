@@ -29,6 +29,8 @@ ignoredBuiltDependencies:
   - ssh2
   - unrs-resolver
   - wasm-pack
+# Keep security related settings in sync with pnpm-workspace.yaml written to
+# temporary fixture dirs in file://./scripts/install-native.mjs
 blockExoticSubdeps: true
 minimumReleaseAge: 2880 # 48 hrs
 minimumReleaseAgeExclude:

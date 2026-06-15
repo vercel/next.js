@@ -349,7 +349,7 @@ impl SeenIssues {
 ///
 /// The ConsoleUi can be shared and capture issues from multiple sources, with deduplication
 /// operating across all issues.
-#[turbo_tasks::value(shared, serialization = "none", eq = "manual")]
+#[turbo_tasks::value(shared, serialization = "skip", evict = "never", eq = "manual")]
 #[derive(Clone)]
 pub struct ConsoleUi {
     options: LogOptions,
@@ -395,7 +395,7 @@ impl IssueReporter for ConsoleUi {
         } = self.options;
         let mut grouped_issues: GroupedIssues = FxHashMap::default();
 
-        let plain_issues = issues.get_plain_issues(IssueFilter::everything()).await?;
+        let plain_issues = issues.get_plain_issues(&IssueFilter::everything()).await?;
         let issues = plain_issues
             .iter()
             .map(|plain_issue| {

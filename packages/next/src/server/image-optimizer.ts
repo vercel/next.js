@@ -7,7 +7,6 @@ import imageSizeOf from 'next/dist/compiled/image-size'
 import { detector } from 'next/dist/compiled/image-detector/detector.js'
 import isAnimated from 'next/dist/compiled/is-animated'
 import { join } from 'path'
-import nodeUrl, { type UrlWithParsedQuery } from 'url'
 
 import { getImageBlurSvg } from '../shared/lib/image-blur-svg'
 import type { ImageConfigComplete } from '../shared/lib/image-config'
@@ -31,7 +30,7 @@ import * as Log from '../build/output/log'
 import isError from '../lib/is-error'
 import { isPrivateIp } from './is-private-ip'
 import { getOrInitDiskLRU } from './lib/disk-lru-cache.external'
-import { parseUrl } from '../lib/url'
+import { parseUrl, parseReqUrl } from '../lib/url'
 import type { CacheControl } from './lib/cache-control'
 import { InvariantError } from '../shared/lib/invariant-error'
 import { lookup } from 'dns/promises'
@@ -85,13 +84,19 @@ async function initCacheEntries(
   return entries.sort((a, b) => a.expireAt - b.expireAt)
 }
 
-export function getSharp(concurrency: number | null | undefined) {
+export function getSharp(
+  concurrency: number | null | undefined,
+  operationCache: boolean | null | undefined
+) {
   if (_sharp) {
     return _sharp
   }
   try {
     _sharp = require('sharp') as typeof import('sharp')
-    if (_sharp && _sharp.concurrency() > 1) {
+    if (typeof operationCache === 'boolean') {
+      _sharp.cache(operationCache)
+    }
+    if (_sharp.concurrency() > 1) {
       // Reducing concurrency should reduce the memory usage too.
       // We more aggressively reduce in dev but also reduce in prod.
       // https://sharp.pixelplumbing.com/api-utility#concurrency
@@ -224,7 +229,8 @@ async function deleteFromCacheDir(cacheDir: string, cacheKey: string) {
 export async function detectContentType(
   buffer: Buffer,
   skipMetadata: boolean | null | undefined,
-  concurrency?: number | null | undefined
+  concurrency?: number | null | undefined,
+  operationCache?: boolean | null | undefined
 ): Promise<string | null> {
   if (buffer.byteLength === 0) {
     return null
@@ -309,7 +315,7 @@ export async function detectContentType(
   format = detector(buffer)
 
   if (!format && !skipMetadata) {
-    const sharp = getSharp(concurrency)
+    const sharp = getSharp(concurrency, operationCache)
     const meta = await sharp(buffer)
       .metadata()
       .catch((_) => null)
@@ -380,7 +386,7 @@ export class ImageOptimizerCache {
 
   static validateParams(
     req: IncomingMessage,
-    query: UrlWithParsedQuery['query'],
+    query: NextUrlWithParsedQuery['query'],
     nextConfig: NextConfigRuntime,
     isDev: boolean
   ): ImageParamsResult | { errorMessage: string } {
@@ -807,6 +813,7 @@ export async function optimizeImage({
   width,
   height,
   concurrency,
+  operationCache,
   limitInputPixels,
   sequentialRead,
   timeoutInSeconds,
@@ -817,11 +824,12 @@ export async function optimizeImage({
   width: number
   height?: number
   concurrency?: number | null
+  operationCache?: boolean | null | undefined
   limitInputPixels?: number
   sequentialRead?: boolean | null
   timeoutInSeconds?: number
 }): Promise<Buffer> {
-  const sharp = getSharp(concurrency)
+  const sharp = getSharp(concurrency, operationCache)
   const transformer = sharp(buffer, {
     limitInputPixels,
     sequentialRead: sequentialRead ?? undefined,
@@ -883,8 +891,9 @@ export async function fetchExternalImage(
       Log.error(
         'upstream image',
         href,
-        'resolved to private ip',
-        JSON.stringify(privateIps)
+        'hostname resolved to private IP',
+        JSON.stringify(privateIps),
+        'If this is expected and you understand SSRF risk, use images.dangerouslyAllowLocalIP = true to continue.'
       )
       throw new ImageError(400, '"url" parameter is not allowed')
     }
@@ -975,6 +984,7 @@ export async function fetchInternalImage(
   href: string,
   _req: IncomingMessage,
   _res: ServerResponse,
+  maximumResponseBody: number,
   handleRequest: (
     newReq: IncomingMessage,
     newRes: ServerResponse,
@@ -989,15 +999,24 @@ export async function fetchInternalImage(
       url: href,
       method,
       socket: _req.socket,
+      maximumResponseBody,
     })
 
-    await handleRequest(mocked.req, mocked.res, nodeUrl.parse(href, true))
+    await handleRequest(mocked.req, mocked.res, parseReqUrl(href))
     await mocked.res.hasStreamed
 
     if (!mocked.res.statusCode) {
       Log.error('image response failed for', href, mocked.res.statusCode)
       throw new ImageError(
         mocked.res.statusCode,
+        '"url" parameter is valid but internal response is invalid'
+      )
+    }
+
+    if (mocked.res.buffers.length === 0) {
+      Log.error('internal image response is empty for', href)
+      throw new ImageError(
+        400,
         '"url" parameter is valid but internal response is invalid'
       )
     }
@@ -1009,6 +1028,23 @@ export async function fetchInternalImage(
 
     return { buffer, contentType, cacheControl, etag }
   } catch (err) {
+    if (err instanceof ImageError) {
+      throw err
+    }
+
+    if (
+      err &&
+      typeof err === 'object' &&
+      'code' in err &&
+      err.code === 'ERR_MAX_BODY_SIZE_EXCEEDED'
+    ) {
+      Log.error('internal image response exceeded maximum size for', href)
+      throw new ImageError(
+        413,
+        '"url" parameter is valid but internal response is invalid'
+      )
+    }
+
     Log.error('upstream image response failed for', href, err)
     throw new ImageError(
       500,
@@ -1027,6 +1063,7 @@ export async function imageOptimizer(
     experimental: Pick<
       NextConfigComplete['experimental'],
       | 'imgOptConcurrency'
+      | 'imgOptOperationCache'
       | 'imgOptMaxInputPixels'
       | 'imgOptSequentialRead'
       | 'imgOptSkipMetadata'
@@ -1060,7 +1097,8 @@ export async function imageOptimizer(
   const upstreamType = await detectContentType(
     upstreamBuffer,
     nextConfig.experimental.imgOptSkipMetadata,
-    nextConfig.experimental.imgOptConcurrency
+    nextConfig.experimental.imgOptConcurrency,
+    nextConfig.experimental.imgOptOperationCache
   )
 
   if (
@@ -1150,6 +1188,7 @@ export async function imageOptimizer(
       quality,
       width,
       concurrency: nextConfig.experimental.imgOptConcurrency,
+      operationCache: nextConfig.experimental.imgOptOperationCache,
       limitInputPixels: nextConfig.experimental.imgOptMaxInputPixels,
       sequentialRead: nextConfig.experimental.imgOptSequentialRead,
       timeoutInSeconds: nextConfig.experimental.imgOptTimeoutInSeconds,

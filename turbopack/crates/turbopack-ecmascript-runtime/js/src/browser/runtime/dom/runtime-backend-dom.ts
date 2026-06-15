@@ -74,34 +74,6 @@ const chunkResolvers: Map<ChunkUrl, ChunkResolver> = new Map()
     loadChunkCached(sourceType: SourceType, chunkUrl: ChunkUrl) {
       return doLoadChunk(sourceType, chunkUrl)
     },
-
-    async loadWebAssembly(
-      _sourceType: SourceType,
-      _sourceData: SourceData,
-      wasmChunkPath: ChunkPath,
-      _edgeModule: () => WebAssembly.Module,
-      importsObj: WebAssembly.Imports
-    ): Promise<Exports> {
-      const req = fetchWebAssembly(wasmChunkPath)
-
-      const { instance } = await WebAssembly.instantiateStreaming(
-        req,
-        importsObj
-      )
-
-      return instance.exports
-    },
-
-    async loadWebAssemblyModule(
-      _sourceType: SourceType,
-      _sourceData: SourceData,
-      wasmChunkPath: ChunkPath,
-      _edgeModule: () => WebAssembly.Module
-    ): Promise<WebAssembly.Module> {
-      const req = fetchWebAssembly(wasmChunkPath)
-
-      return await WebAssembly.compileStreaming(req)
-    },
   }
 
   function getOrCreateResolver(chunkUrl: ChunkUrl): ChunkResolver {
@@ -183,6 +155,7 @@ const chunkResolvers: Map<ChunkUrl, ChunkResolver> = new Map()
         } else {
           const link = document.createElement('link')
           link.rel = 'stylesheet'
+          link.crossOrigin = CROSS_ORIGIN
           link.href = chunkUrl
           link.onerror = () => {
             resolver.reject()
@@ -209,6 +182,7 @@ const chunkResolvers: Map<ChunkUrl, ChunkResolver> = new Map()
           }
         } else {
           const script = document.createElement('script')
+          script.crossOrigin = CROSS_ORIGIN
           script.src = chunkUrl
           // We'll only mark the chunk as loaded once the script has been executed,
           // which happens in `registerChunk`. Hence the absence of `resolve()` in
@@ -226,9 +200,5 @@ const chunkResolvers: Map<ChunkUrl, ChunkResolver> = new Map()
 
     resolver.loadingStarted = true
     return resolver.promise
-  }
-
-  function fetchWebAssembly(wasmChunkPath: ChunkPath) {
-    return fetch(getChunkRelativeUrl(wasmChunkPath))
   }
 })()

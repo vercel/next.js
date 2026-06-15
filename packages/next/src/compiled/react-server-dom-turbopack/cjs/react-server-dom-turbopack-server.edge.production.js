@@ -48,7 +48,7 @@ var LocalPromise = Promise,
         },
   currentView = null,
   writtenBytes = 0;
-function writeChunkAndReturn(destination, chunk) {
+function writeChunk(destination, chunk) {
   if (0 !== chunk.byteLength)
     if (4096 < chunk.byteLength)
       0 < writtenBytes &&
@@ -71,6 +71,9 @@ function writeChunkAndReturn(destination, chunk) {
       currentView.set(chunk, writtenBytes);
       writtenBytes += chunk.byteLength;
     }
+}
+function writeChunkAndReturn(destination, chunk) {
+  writeChunk(destination, chunk);
   return !0;
 }
 var textEncoder = new TextEncoder();
@@ -559,7 +562,12 @@ function trackUsedThenable(thenableState, thenable, index) {
     case "fulfilled":
       return thenable.value;
     case "rejected":
-      throw thenable.reason;
+      thenableState = thenable.reason;
+      if (void 0 === thenableState && !("reason" in thenable))
+        throw Error(
+          "A rejected Promise was passed to React without a `reason` property. React threw a generic error from where the Promise was used to assist in identifying the problematic Promise. Make sure that instrumented Promises correctly set the `reason` property when setting `status` to `'rejected'`."
+        );
+      throw thenableState;
     default:
       "string" === typeof thenable.status
         ? thenable.then(noop, noop)
@@ -815,7 +823,8 @@ function describeObjectForErrorMessage(objectOrArray, expandedName) {
 }
 var hasOwnProperty = Object.prototype.hasOwnProperty,
   ObjectPrototype$1 = Object.prototype,
-  stringify = JSON.stringify;
+  stringify = JSON.stringify,
+  NEXT_TWO_CHUNKS_ARE_ATOMIC = Symbol();
 function defaultErrorHandler(error) {
   console.error(error);
 }
@@ -1875,7 +1884,11 @@ function emitTypedArrayChunk(request, id, tag, typedArray, debug) {
   debug = typedArray.byteLength;
   id = id.toString(16) + ":" + tag + debug.toString(16) + ",";
   id = stringToChunk(id);
-  request.completedRegularChunks.push(id, typedArray);
+  request.completedRegularChunks.push(
+    NEXT_TWO_CHUNKS_ARE_ATOMIC,
+    id,
+    typedArray
+  );
 }
 function emitTextChunk(request, id, text, debug) {
   if (null === byteLengthOfChunk)
@@ -1887,7 +1900,7 @@ function emitTextChunk(request, id, text, debug) {
   debug = text.byteLength;
   id = id.toString(16) + ":T" + debug.toString(16) + ",";
   id = stringToChunk(id);
-  request.completedRegularChunks.push(id, text);
+  request.completedRegularChunks.push(NEXT_TWO_CHUNKS_ARE_ATOMIC, id, text);
 }
 function emitChunk(request, task, value) {
   var id = task.id;
@@ -2051,9 +2064,28 @@ function flushCompletedChunks(request) {
         writeChunkAndReturn(destination, hintChunks[i]);
       hintChunks.splice(0, i);
       var regularChunks = request.completedRegularChunks;
-      for (i = 0; i < regularChunks.length; i++)
-        request.pendingChunks--,
-          writeChunkAndReturn(destination, regularChunks[i]);
+      for (i = 0; i < regularChunks.length; i++) {
+        var item = regularChunks[i];
+        importsChunks = void 0;
+        if (item === NEXT_TWO_CHUNKS_ARE_ATOMIC) {
+          if (i + 2 >= regularChunks.length)
+            throw Error("A chunk pair is incomplete. This is a bug in React.");
+          request.pendingChunks -= 2;
+          writeChunk(destination, regularChunks[i + 1]);
+          importsChunks = writeChunkAndReturn(
+            destination,
+            regularChunks[i + 2]
+          );
+          i += 2;
+        } else
+          request.pendingChunks--,
+            (importsChunks = writeChunkAndReturn(destination, item));
+        if (!importsChunks) {
+          request.destination = null;
+          i++;
+          break;
+        }
+      }
       regularChunks.splice(0, i);
       var errorChunks = request.completedErrorChunks;
       for (i = 0; i < errorChunks.length; i++)
@@ -2190,9 +2222,9 @@ function abort(request, reason) {
         onAllReady();
         flushCompletedChunks(request);
       }
-    } catch (error$26) {
-      logRecoverableError(request, error$26, null),
-        fatalError(request, error$26);
+    } catch (error$25) {
+      logRecoverableError(request, error$25, null),
+        fatalError(request, error$25);
     }
 }
 function resolveServerReference(bundlerConfig, id) {
@@ -2265,6 +2297,14 @@ function requireModule(metadata) {
     return moduleExports.__esModule ? moduleExports.default : moduleExports;
   if (hasOwnProperty.call(moduleExports, metadata[2]))
     return moduleExports[metadata[2]];
+}
+function appendBackingEntry(backingStore, key, value) {
+  backingStore.data.append(key, value);
+  value = backingStore.keys;
+  null === value
+    ? ((backingStore.keys = Array.from(backingStore.data.keys())),
+      (backingStore.keyPointer = 0))
+    : value.push(key);
 }
 var RESPONSE_SYMBOL = Symbol();
 function ReactPromise(status, value, reason) {
@@ -2640,7 +2680,7 @@ function getChunk(response, id) {
   var chunks = response._chunks,
     chunk = chunks.get(id);
   chunk ||
-    ((chunk = response._formData.get(response._prefix + id)),
+    ((chunk = response._formData.data.get(response._prefix + id)),
     (chunk =
       "string" === typeof chunk
         ? createResolvedModelChunk(response, chunk, id)
@@ -2741,6 +2781,10 @@ function getOutlinedModel(
     case "fulfilled":
       id = chunk.value;
       chunk = chunk.reason;
+      if (null !== chunk && "error" in chunk)
+        throw Error(
+          "Expected an initialized chunk but got an initialized stream chunk instead. This payload may have been submitted by an older version of React."
+        );
       for (
         var localLength = 0,
           rootArrayContexts = response._rootArrayContexts,
@@ -2874,7 +2918,7 @@ function parseTypedArray(
       Error("Already initialized typed array.")
     )
   );
-  reference = response._formData.get(key).arrayBuffer();
+  reference = response._formData.data.get(key).arrayBuffer();
   if (initializingHandler) {
     var handler = initializingHandler;
     handler.deps++;
@@ -2918,7 +2962,7 @@ function resolveStream(response, id, stream, controller) {
   var chunks = response._chunks;
   stream = new ReactPromise("fulfilled", stream, controller);
   chunks.set(id, stream);
-  response = response._formData.getAll(response._prefix + id);
+  response = response._formData.data.getAll(response._prefix + id);
   for (id = 0; id < response.length; id++)
     (chunks = response[id]),
       "string" === typeof chunks &&
@@ -2955,12 +2999,12 @@ function parseReadableStream(response, reference, type) {
               (previousBlockedChunk = chunk));
         } else {
           chunk = previousBlockedChunk;
-          var chunk$31 = new ReactPromise("pending", null, null);
-          chunk$31.then(enqueue, flightController.error);
-          previousBlockedChunk = chunk$31;
+          var chunk$30 = new ReactPromise("pending", null, null);
+          chunk$30.then(enqueue, flightController.error);
+          previousBlockedChunk = chunk$30;
           chunk.then(function () {
-            previousBlockedChunk === chunk$31 && (previousBlockedChunk = null);
-            resolveModelChunk(response, chunk$31, json, -1);
+            previousBlockedChunk === chunk$30 && (previousBlockedChunk = null);
+            resolveModelChunk(response, chunk$30, json, -1);
           });
         }
       },
@@ -3133,24 +3177,31 @@ function parseModelString(response, obj, key, value, reference, arrayRoot) {
           getOutlinedModel(response, arrayRoot, obj, key, null, createSet)
         );
       case "K":
-        obj = value.slice(2);
-        obj = response._prefix + obj + "_";
-        key = new FormData();
-        response = response._formData;
-        arrayRoot = Array.from(response.keys());
-        for (value = 0; value < arrayRoot.length; value++)
-          if (((reference = arrayRoot[value]), reference.startsWith(obj))) {
+        key = value.slice(2);
+        obj = response._prefix + "_";
+        key = obj + key + "_";
+        arrayRoot = new FormData();
+        for (response = response._formData; ; ) {
+          value = response.keys;
+          null === value &&
+            ((value = response.keys = Array.from(response.data.keys())),
+            (response.keyPointer = 0));
+          value = value[response.keyPointer];
+          if (void 0 === value) break;
+          if (value.startsWith(key)) {
+            reference = response.data.getAll(value);
             for (
-              var entries = response.getAll(reference),
-                newKey = reference.slice(obj.length),
-                j = 0;
-              j < entries.length;
-              j++
+              var referencedFormDataKey = value.slice(key.length), i = 0;
+              i < reference.length;
+              i++
             )
-              key.append(newKey, entries[j]);
-            response.delete(reference);
-          }
-        return key;
+              arrayRoot.append(referencedFormDataKey, reference[i]);
+            response.data.delete(value);
+            response.keyPointer++;
+          } else if (value.startsWith(obj)) break;
+          else response.keyPointer++;
+        }
+        return arrayRoot;
       case "i":
         return (
           (arrayRoot = value.slice(2)),
@@ -3308,7 +3359,7 @@ function parseModelString(response, obj, key, value, reference, arrayRoot) {
         );
       case "B":
         obj = parseInt(value.slice(2), 16);
-        response = response._formData.get(response._prefix + obj);
+        response = response._formData.data.get(response._prefix + obj);
         if (!(response instanceof Blob))
           throw Error("Referenced Blob is not a Blob.");
         return response;
@@ -3338,7 +3389,7 @@ function createResponse(bundlerConfig, formFieldPrefix, temporaryReferences) {
   return {
     _bundlerConfig: bundlerConfig,
     _prefix: formFieldPrefix,
-    _formData: backingFormData,
+    _formData: { data: backingFormData, keyPointer: -1, keys: null },
     _chunks: chunks,
     _closed: !1,
     _closedReason: null,
@@ -3474,7 +3525,7 @@ exports.decodeReplyFromAsyncIterable = function (
       var name = entry[0];
       entry = entry[1];
       if ("string" === typeof entry) {
-        response._formData.append(name, entry);
+        appendBackingEntry(response._formData, name, entry);
         var prefix = response._prefix;
         if (name.startsWith(prefix)) {
           var chunks = response._chunks;
@@ -3482,7 +3533,7 @@ exports.decodeReplyFromAsyncIterable = function (
           (chunks = chunks.get(name)) &&
             resolveModelChunk(response, chunks, entry, name);
         }
-      } else response._formData.append(name, entry);
+      } else appendBackingEntry(response._formData, name, entry);
       iterator.next().then(progress, error);
     }
   }

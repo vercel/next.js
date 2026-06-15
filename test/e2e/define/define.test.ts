@@ -31,6 +31,16 @@ describe('compiler.define', () => {
       expect(loadedText).toContain('Server expr: barbaz')
       expect(loadedText).toContain('Client expr: barbaz')
     })
+
+    it('should render a number variable on server and client side', async () => {
+      expect(loadedText).toContain('Server number: 42')
+      expect(loadedText).toContain('Client number: 42')
+    })
+
+    it('should render a boolean variable on server and client side', async () => {
+      expect(loadedText).toContain('Server boolean: true')
+      expect(loadedText).toContain('Client boolean: true')
+    })
   })
 
   describe('compiler.defineServer', () => {

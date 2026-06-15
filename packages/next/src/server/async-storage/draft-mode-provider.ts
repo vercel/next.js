@@ -1,8 +1,6 @@
-import type { IncomingMessage } from 'http'
+import type { IncomingHttpHeaders } from 'http'
 import type { ReadonlyRequestCookies } from '../web/spec-extension/adapters/request-cookies'
 import type { ResponseCookies } from '../web/spec-extension/cookies'
-import type { BaseNextRequest } from '../base-http'
-import type { NextRequest } from '../web/spec-extension/request'
 
 import {
   COOKIE_NAME_PRERENDER_BYPASS,
@@ -19,13 +17,13 @@ export class DraftModeProvider {
 
   constructor(
     previewProps: __ApiPreviewProps | undefined,
-    req: IncomingMessage | BaseNextRequest<unknown> | NextRequest,
+    headers: Headers | IncomingHttpHeaders,
     cookies: ReadonlyRequestCookies,
     mutableCookies: ResponseCookies
   ) {
     const isOnDemandRevalidate =
       previewProps &&
-      checkIsOnDemandRevalidate(req, previewProps).isOnDemandRevalidate
+      checkIsOnDemandRevalidate(headers, previewProps).isOnDemandRevalidate
 
     const cookieValue = cookies.get(COOKIE_NAME_PRERENDER_BYPASS)?.value
     const dataCookie = cookies.get(COOKIE_NAME_PRERENDER_DATA)?.value

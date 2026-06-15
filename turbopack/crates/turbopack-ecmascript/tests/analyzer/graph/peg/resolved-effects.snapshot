@@ -41,14 +41,12 @@
 0 -> 23 call = (...) => (
   | descriptions[0]
   | `${descriptions[0]} or ${descriptions[1]}`
-  | `${descriptions["slice"](0, ???*0*)["join"](", ")}, or ${descriptions[???*1*]}`
+  | `${descriptions["slice"](0, -1)["join"](", ")}, or ${descriptions[???*0*]}`
   | undefined
-)(???*2*)
+)(???*1*)
 - *0* unsupported expression
   ⚠️  This value might have side effects
-- *1* unsupported expression
-  ⚠️  This value might have side effects
-- *2* arguments[0]
+- *1* arguments[0]
   ⚠️  function calls are not analyzed yet
 
 0 -> 24 call = (...) => (found ? `"${literalEscape(found)}"` : "end of input")(???*0*)
@@ -443,7 +441,7 @@
 - *0* unreachable
   ⚠️  This value might have side effects
 
-0 -> 134 member call = new ???*0*(???*1*)["slice"](0, ???*3*)
+0 -> 134 member call = new ???*0*(???*1*)["slice"](0, -1)
 - *0* FreeVar(Array)
   ⚠️  unknown global
   ⚠️  This value might have side effects
@@ -451,13 +449,10 @@
   ⚠️  unknown object
 - *2* arguments[0]
   ⚠️  function calls are not analyzed yet
-- *3* unsupported expression
-  ⚠️  This value might have side effects
 
 0 -> 135 member call = ???*0*["join"](", ")
-- *0* ???*1*(0, ???*6*)
+- *0* ???*1*(0, -1)
   ⚠️  unknown callee
-  ⚠️  This value might have side effects
 - *1* ???*2*["slice"]
   ⚠️  unknown object
 - *2* new ???*3*(???*4*)
@@ -469,8 +464,6 @@
   ⚠️  unknown object
 - *5* arguments[0]
   ⚠️  function calls are not analyzed yet
-- *6* unsupported expression
-  ⚠️  This value might have side effects
 
 0 -> 138 unreachable = ???*0*
 - *0* unreachable

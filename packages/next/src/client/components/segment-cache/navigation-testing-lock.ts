@@ -11,30 +11,26 @@
  * captured = self-write (ignored).
  */
 
-import type { FlightRouterState } from '../../../shared/lib/app-router-types'
+import type {
+  FlightRouterState,
+  InstantCookie,
+} from '../../../shared/lib/app-router-types'
 import { NEXT_INSTANT_TEST_COOKIE } from '../app-router-headers'
 import { refreshOnInstantNavigationUnlock } from '../use-action-queue'
 
-type InstantNavCookieState = 'pending' | 'mpa' | 'spa'
-
-type InstantCookie =
-  // pending (waiting to capture)
-  | [captured: 0, id: string]
-  // captured MPA page load
-  | [captured: 1, id: string, state: null]
-  // captured SPA navigation (from/to route trees)
-  | [
-      captured: 1,
-      id: string,
-      state: { from: FlightRouterState; to: FlightRouterState | null },
-    ]
+type InstantNavCookieState = 'empty' | 'pending' | 'mpa' | 'spa'
 
 function parseCookieValue(raw: string): InstantNavCookieState {
+  if (raw === '') {
+    return 'empty'
+  }
   try {
     const parsed = JSON.parse(raw)
-    if (Array.isArray(parsed) && parsed.length >= 3) {
-      const rawState = parsed[2]
-      return rawState === null ? 'mpa' : 'spa'
+    if (Array.isArray(parsed)) {
+      if (parsed.length >= 3) {
+        const rawState = parsed[2]
+        return rawState === null ? 'mpa' : 'spa'
+      }
     }
   } catch {}
   return 'pending'
@@ -48,8 +44,17 @@ function writeCookieValue(value: InstantCookie): void {
   // then write back with the new value. This updates the same cookie
   // entry that the external actor created, regardless of how it was
   // scoped.
+  //
+  // Capture the current lockState and compare it in the callback so we
+  // only write if the lock we observed at call time is still held. This
+  // guards against two races: (a) the scope ended between get and set
+  // (lockState is now null), and (b) the scope ended and a new one was
+  // acquired in the same gap (lockState is a different object). In
+  // either case we must not write — doing so would leak stale state
+  // into the next scope or outlive the current one.
+  const lockAtCall = lockState
   cookieStore.get(NEXT_INSTANT_TEST_COOKIE).then((existing: any) => {
-    if (existing) {
+    if (existing && lockState === lockAtCall && lockAtCall !== null) {
       const options: any = {
         name: NEXT_INSTANT_TEST_COOKIE,
         value: JSON.stringify(value),
@@ -66,9 +71,18 @@ function writeCookieValue(value: InstantCookie): void {
 type NavigationLockState = {
   promise: Promise<void>
   resolve: () => void
+  // The pre-lock `window.fetch`, captured at `acquireLock` time and
+  // restored at `releaseLock`. Internal Next.js code reads this via
+  // `getPreLockFetch` to bypass the override we install on `window.fetch`
+  // during a lock scope.
+  fetch: typeof fetch
 }
 
 let lockState: NavigationLockState | null = null
+
+export function getPreLockFetch(): typeof fetch | null {
+  return lockState !== null ? lockState.fetch : null
+}
 
 function acquireLock(): void {
   if (lockState !== null) {
@@ -78,14 +92,61 @@ function acquireLock(): void {
   const promise = new Promise<void>((r) => {
     resolve = r
   })
-  lockState = { promise, resolve: resolve! }
+  lockState = { promise, resolve: resolve!, fetch: window.fetch }
+
+  // Install the fetch blocker. We only intercept `window.fetch` for the
+  // duration of the lock so that — outside of a testing scope — user-
+  // installed overrides of `window.fetch` are untouched.
+  if (process.env.__NEXT_EXPOSE_TESTING_API) {
+    window.fetch = globalFetchOverride
+  }
 }
 
 function releaseLock(): void {
-  if (lockState !== null) {
-    lockState.resolve()
-    lockState = null
+  if (lockState === null) {
+    return
   }
+  // Restore the pre-lock `window.fetch` before resolving the lock promise
+  // so any fetches queued on the promise see the restored fetch.
+  if (process.env.__NEXT_EXPOSE_TESTING_API) {
+    window.fetch = lockState.fetch
+  }
+  const { resolve } = lockState
+  lockState = null
+  resolve()
+}
+
+/**
+ * Global fetch override
+ *
+ * While the navigation lock is active, we install this as `window.fetch` so
+ * out-of-band client-side fetches (e.g. `fetch('/api/data')` inside a
+ * useEffect) are blocked until the lock is released. Next.js internals
+ * bypass the override by importing `fetch` from `./fetch`, which reads the
+ * captured pre-lock fetch via `getPreLockFetch`.
+ *
+ * NOTE: This override only affects environments where the Instant Navigation
+ * Testing API is enabled. It has no impact on live production behavior.
+ */
+export function globalFetchOverride(
+  input: RequestInfo | URL,
+  init?: RequestInit
+): Promise<Response> {
+  if (lockState === null) {
+    // Lock is not active. Fall through to the global fetch — we reach this
+    // only if a caller captured a reference to this function during a lock
+    // scope and invoked it after release.
+    return fetch(input, init)
+  }
+  // Block user-initiated fetches until the lock is released, then dispatch
+  // through the fetch captured at acquire time. Reading from `lockState`
+  // (rather than `window.fetch`) pins to the capture even if `window.fetch`
+  // is reassigned after release.
+  const currentLock = lockState
+  return currentLock.promise.then(() => {
+    const preLockFetch = currentLock.fetch
+    return preLockFetch(input, init)
+  })
 }
 
 /**
@@ -109,8 +170,13 @@ export function startListeningForInstantNavigationCookie(): void {
         })
       }
 
-      writeCookieValue([1, `c${Math.random()}`, null])
+      // Acquire the lock before writing the cookie. writeCookieValue's
+      // guard requires lockState to be non-null at call time (so a stale
+      // write can't outlive its scope). On a fresh page load that scope
+      // is the one we're about to establish, so we have to establish it
+      // first.
       acquireLock()
+      writeCookieValue([1, `c${Math.random()}`, null])
     }
 
     if (typeof cookieStore === 'undefined') {
@@ -122,16 +188,18 @@ export function startListeningForInstantNavigationCookie(): void {
         if (cookie.name === NEXT_INSTANT_TEST_COOKIE) {
           const state = parseCookieValue(cookie.value ?? '')
 
-          if (state !== 'pending') {
-            // Captured value — our own transition. Ignore.
-            return
+          if (state === 'pending') {
+            // External actor starting a new lock scope.
+            if (lockState !== null) {
+              // This can be the delayed CookieStore event for the pending
+              // cookie that was already observed synchronously from
+              // document.cookie. Keep the existing lock identity so work that
+              // captured it keeps waiting on the same promise.
+              return
+            }
+            acquireLock()
           }
-
-          // Pending value — external actor starting a new lock scope.
-          if (lockState !== null) {
-            releaseLock()
-          }
-          acquireLock()
+          // Captured value (our own transition) or empty. Ignore.
           return
         }
       }
@@ -148,24 +216,8 @@ export function startListeningForInstantNavigationCookie(): void {
 }
 
 /**
- * Transitions the cookie from pending to captured-SPA. Called when a
- * client-side navigation is captured by the lock.
- *
- * @param fromTree - The flight router state of the from-route
- * @param toTree - The flight router state of the to-route (null if not yet known)
- */
-export function transitionToCapturedSPA(
-  fromTree: FlightRouterState,
-  toTree: FlightRouterState | null
-): void {
-  if (process.env.__NEXT_EXPOSE_TESTING_API) {
-    writeCookieValue([1, `c${Math.random()}`, { from: fromTree, to: toTree }])
-  }
-}
-
-/**
- * Updates the captured-SPA cookie with the resolved route trees.
- * Called after the prefetch resolves and the target route tree is known.
+ * Transitions the cookie from pending to captured-SPA once the prefetch resolves
+ * and the navigation is known to be an SPA.
  */
 export function updateCapturedSPAToTree(
   fromTree: FlightRouterState,
@@ -181,19 +233,58 @@ export function updateCapturedSPAToTree(
  */
 export function isNavigationLocked(): boolean {
   if (process.env.__NEXT_EXPOSE_TESTING_API) {
-    return lockState !== null
+    if (lockState !== null) {
+      return true
+    }
+
+    // If `lockState` is null, fall back to reading the test cookie
+    // synchronously from `document.cookie`. This accounts for a small race
+    // between `cookieStore.set(...)` and its corresponding `change` event.
+    // During that gap `lockState` is still null even though the cookie
+    // indicates a new lock scope is starting.
+    if (typeof document === 'undefined') {
+      return false
+    }
+    const allCookies = document.cookie
+    if (!allCookies.includes(NEXT_INSTANT_TEST_COOKIE)) {
+      // Fast bail-out: in almost every navigation the test cookie is not
+      // set at all.
+      return false
+    }
+    const target = NEXT_INSTANT_TEST_COOKIE + '='
+    for (const segment of allCookies.split(';')) {
+      const trimmed = segment.trim()
+      if (
+        trimmed.startsWith(target) &&
+        parseCookieValue(trimmed.slice(target.length)) === 'pending'
+      ) {
+        // The cookie was set by an external actor but the change event was not
+        // yet dispatched. Acquire the lock synchronously.
+        acquireLock()
+        return true
+      }
+    }
   }
   return false
+}
+
+export function getCurrentNavigationLock(): Promise<void> | null {
+  if (process.env.__NEXT_EXPOSE_TESTING_API) {
+    return lockState !== null ? lockState.promise : null
+  }
+  return null
 }
 
 /**
  * Waits for the navigation lock to be released, if it's currently held.
  * No-op if the lock is not acquired.
  */
-export async function waitForNavigationLockIfActive(): Promise<void> {
+export async function waitForNavigationLockIfActive(
+  lock: Promise<void> | null = getCurrentNavigationLock()
+): Promise<void> {
   if (process.env.__NEXT_EXPOSE_TESTING_API) {
-    if (lockState !== null) {
-      await lockState.promise
+    if (lock !== null) {
+      await lock
     }
   }
 }

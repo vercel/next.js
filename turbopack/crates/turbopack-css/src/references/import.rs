@@ -21,7 +21,7 @@ use crate::{
     references::css_resolve,
 };
 
-#[turbo_tasks::value(eq = "manual", serialization = "none", shared)]
+#[turbo_tasks::value(eq = "manual", serialization = "skip", shared)]
 #[derive(PartialEq)]
 pub enum ImportAttributes {
     LightningCss {
@@ -147,6 +147,10 @@ impl ModuleReference for ImportAssetReference {
             inherit_async: false,
             hoisted: false,
         })
+    }
+
+    fn source(&self) -> Option<IssueSource> {
+        Some(self.issue_source)
     }
 }
 

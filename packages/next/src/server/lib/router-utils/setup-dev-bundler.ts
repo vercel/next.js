@@ -65,7 +65,7 @@ import {
   isStaticMetadataFile,
 } from '../../../lib/metadata/is-metadata-route'
 import {
-  fillMetadataSegment,
+  fillStaticMetadataSegment,
   normalizeMetadataPageToRoute,
 } from '../../../lib/metadata/get-metadata-route'
 import { JsConfigPathsPlugin } from '../../../build/webpack/plugins/jsconfig-paths-plugin'
@@ -165,9 +165,6 @@ async function verifyTypeScript(opts: SetupOpts) {
     hasPagesDir: !!opts.pagesDir,
     appDir: opts.appDir,
     pagesDir: opts.pagesDir,
-    rootParams:
-      !!opts.nextConfig.experimental.rootParams ||
-      !!opts.nextConfig.cacheComponents,
   })
 
   if (verifyResult.version) {
@@ -695,11 +692,9 @@ async function startWatcher(
             if (appDir && isStaticMetadataFile(fileName.replace(appDir, ''))) {
               const segment = path.posix.dirname(pageName)
               const lastSegment = path.posix.basename(pageName)
-              const normalizedPath = fillMetadataSegment(
+              const normalizedPath = fillStaticMetadataSegment(
                 segment,
-                {},
-                lastSegment,
-                true
+                lastSegment
               )
               staticMetadataFiles.set(normalizedPath, fileName)
             } else {
@@ -1202,8 +1197,7 @@ async function startWatcher(
 
           await writeRootParamsTypes(
             routeTypesManifest,
-            path.join(distTypesDir, 'root-params.d.ts'),
-            opts.nextConfig
+            path.join(distTypesDir, 'root-params.d.ts')
           )
         }
 

@@ -2,7 +2,6 @@ export default {
   experimental: {
     serverActions: true,
     typedRoutes: false,
-    turbopackMemoryLimit: 4096,
     turbopackMinify: true,
     turbopackTreeShaking: false,
     turbopackSourceMaps: true

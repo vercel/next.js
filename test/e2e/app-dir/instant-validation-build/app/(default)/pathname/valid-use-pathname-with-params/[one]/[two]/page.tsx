@@ -2,9 +2,9 @@ import type { Instant } from 'next'
 import { Suspense } from 'react'
 import { PathnameReader } from './pathname-reader'
 
-export const unstable_instant: Instant = {
-  prefetch: 'static',
-  samples: [
+export const instant: Instant = {
+  level: 'experimental-error',
+  unstable_samples: [
     {
       params: {
         one: '123',

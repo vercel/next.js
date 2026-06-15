@@ -117,6 +117,14 @@ export function computeModuleDepthMap(
       }
     }
 
+    // Process traced dependencies
+    const tracedDependencies = modulesData.tracedModuleDependencies(moduleIndex)
+    for (const depIndex of tracedDependencies) {
+      if (!depthMap.has(depIndex)) {
+        depthMap.set(depIndex, newDepth)
+      }
+    }
+
     i++
 
     // Check if we need to process the next delayed queue to insert its items into the depth map

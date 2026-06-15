@@ -44,7 +44,7 @@ describe('assignStaticShellMetadata', () => {
       },
     ]
 
-    assignStaticShellMetadata(prerenderedRoutes, [], true)
+    assignStaticShellMetadata(prerenderedRoutes, [])
 
     expect(prerenderedRoutes[0].throwOnEmptyStaticShell).toBe(true)
   })
@@ -76,7 +76,7 @@ describe('assignStaticShellMetadata', () => {
       },
     ]
 
-    assignStaticShellMetadata(prerenderedRoutes, pathnameSegments('id'), true)
+    assignStaticShellMetadata(prerenderedRoutes, pathnameSegments('id'))
 
     expect(prerenderedRoutes[0].throwOnEmptyStaticShell).toBe(false)
     expect(prerenderedRoutes[1].throwOnEmptyStaticShell).toBe(true)
@@ -150,11 +150,7 @@ describe('assignStaticShellMetadata', () => {
       },
     ]
 
-    assignStaticShellMetadata(
-      prerenderedRoutes,
-      pathnameSegments('id', 'name'),
-      true
-    )
+    assignStaticShellMetadata(prerenderedRoutes, pathnameSegments('id', 'name'))
 
     expect(prerenderedRoutes[0].throwOnEmptyStaticShell).toBe(false)
     expect(prerenderedRoutes[1].throwOnEmptyStaticShell).toBe(false)
@@ -210,8 +206,7 @@ describe('assignStaticShellMetadata', () => {
 
     assignStaticShellMetadata(
       prerenderedRoutes,
-      pathnameSegments('id', ['name', true], 'extra'),
-      true
+      pathnameSegments('id', ['name', true], 'extra')
     )
 
     expect(prerenderedRoutes[0].throwOnEmptyStaticShell).toBe(false)
@@ -234,43 +229,8 @@ describe('assignStaticShellMetadata', () => {
 
   it('should handle empty input', () => {
     const prerenderedRoutes: PrerenderedRoute[] = []
-    assignStaticShellMetadata(prerenderedRoutes, [], true)
+    assignStaticShellMetadata(prerenderedRoutes, [])
     expect(prerenderedRoutes).toEqual([])
-  })
-
-  it('should skip remaining prerenderable params when partial fallbacks are disabled', () => {
-    const prerenderedRoutes: PrerenderedRoute[] = [
-      {
-        params: {},
-        pathname: '/[id]',
-        encodedPathname: '/[id]',
-        fallbackRouteParams: [
-          {
-            paramName: 'id',
-            paramType: 'dynamic',
-          },
-        ],
-        fallbackMode: FallbackMode.NOT_FOUND,
-        fallbackRootParams: [],
-        throwOnEmptyStaticShell: true,
-      },
-      {
-        params: { id: '1' },
-        pathname: '/1',
-        encodedPathname: '/1',
-        fallbackRouteParams: [],
-        fallbackMode: FallbackMode.NOT_FOUND,
-        fallbackRootParams: [],
-        throwOnEmptyStaticShell: true,
-      },
-    ]
-
-    assignStaticShellMetadata(prerenderedRoutes, pathnameSegments('id'), false)
-
-    expect(prerenderedRoutes[0].throwOnEmptyStaticShell).toBe(false)
-    expect(prerenderedRoutes[1].throwOnEmptyStaticShell).toBe(true)
-    expect(prerenderedRoutes[0].remainingPrerenderableParams).toBeUndefined()
-    expect(prerenderedRoutes[1].remainingPrerenderableParams).toBeUndefined()
   })
 
   it('should handle blog/[slug] not throwing when concrete routes exist (from docs example)', () => {
@@ -309,7 +269,7 @@ describe('assignStaticShellMetadata', () => {
       },
     ]
 
-    assignStaticShellMetadata(prerenderedRoutes, pathnameSegments('slug'), true)
+    assignStaticShellMetadata(prerenderedRoutes, pathnameSegments('slug'))
 
     expect(prerenderedRoutes[0].throwOnEmptyStaticShell).toBe(false) // Should not throw - has concrete children
     expect(prerenderedRoutes[1].throwOnEmptyStaticShell).toBe(true) // Should throw - concrete route
@@ -361,11 +321,7 @@ describe('assignStaticShellMetadata', () => {
       },
     ]
 
-    assignStaticShellMetadata(
-      prerenderedRoutes,
-      pathnameSegments('id', 'slug'),
-      true
-    )
+    assignStaticShellMetadata(prerenderedRoutes, pathnameSegments('id', 'slug'))
 
     expect(prerenderedRoutes[0].throwOnEmptyStaticShell).toBe(false) // Should not throw - has children
     expect(prerenderedRoutes[1].throwOnEmptyStaticShell).toBe(false) // Should not throw - has children
@@ -445,8 +401,7 @@ describe('assignStaticShellMetadata', () => {
 
     assignStaticShellMetadata(
       prerenderedRoutes,
-      pathnameSegments('category', 'subcategory', 'item'),
-      true
+      pathnameSegments('category', 'subcategory', 'item')
     )
 
     // All except the last one should not throw on empty static shell
@@ -485,8 +440,7 @@ describe('assignStaticShellMetadata', () => {
 
     assignStaticShellMetadata(
       prerenderedRoutes,
-      pathnameSegments('locale', 'segments'),
-      true
+      pathnameSegments('locale', 'segments')
     )
 
     // The route with more fallback params should not throw on empty static shell
@@ -532,8 +486,7 @@ describe('assignStaticShellMetadata', () => {
 
     assignStaticShellMetadata(
       prerenderedRoutes,
-      pathnameSegments(['one', true], 'two'),
-      true
+      pathnameSegments(['one', true], 'two')
     )
 
     expect(prerenderedRoutes[0].remainingPrerenderableParams).toEqual([
@@ -591,8 +544,7 @@ describe('assignStaticShellMetadata', () => {
 
     assignStaticShellMetadata(
       prerenderedRoutes,
-      pathnameSegments(['one', true], 'two', ['three', true]),
-      true
+      pathnameSegments(['one', true], 'two', ['three', true])
     )
 
     expect(prerenderedRoutes[0].remainingPrerenderableParams).toEqual([

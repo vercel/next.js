@@ -6,8 +6,8 @@ const withMDX = require('@next/mdx')()
 const nextConfig = {
   pageExtensions: ['js', 'jsx', 'ts', 'tsx', 'md', 'mdx'],
   modularizeImports: {
-    'design-system/icons': {
-      transform: 'design-system/icons/{{ kebabCase member }}',
+    '#/design-system/icons': {
+      transform: '#/design-system/icons/{{ kebabCase member }}',
       skipDefaultConversion: true,
     },
   },
