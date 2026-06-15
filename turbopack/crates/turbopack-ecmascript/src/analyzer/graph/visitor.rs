@@ -1285,7 +1285,8 @@ impl VisitAstPath for Analyzer<'_, '_> {
         // This accounts for the fact that even with `if (true) { return f} function f() {} ` `f` is
         // hoisted earlier of the condition. so we still need to process effects for it.
         // TODO(lukesandberg): shouldn't this just be the effects associated with the function.
-        self.hoisted_effects.append(self.arena, &mut self.effects);
+        self.hoisted_effects
+            .extend(self.arena, take(&mut self.effects));
 
         self.add_value(decl.ident.to_id(), fn_value);
     }
@@ -1844,12 +1845,13 @@ impl VisitAstPath for Analyzer<'_, '_> {
         program: &'ast Program,
         ast_path: &mut AstNodePath<AstParentNodeRef<'r>>,
     ) {
-        self.effects = take(&mut self.data.effects);
+        self.effects = BumpVec::from_iter_in(self.arena, take(&mut self.data.effects));
         self.enter_block(LexicalContext::Block, |this| {
             program.visit_children_with_ast_path(this, ast_path);
         });
-        self.effects.append(self.arena, &mut self.hoisted_effects);
-        self.data.effects = take(&mut self.effects);
+        self.effects
+            .extend(self.arena, take(&mut self.hoisted_effects));
+        self.data.effects = take(&mut self.effects).into_iter().collect();
         self.data.code_gens = take(&mut self.code_gens);
     }
 
@@ -1976,8 +1978,8 @@ impl VisitAstPath for Analyzer<'_, '_> {
             BumpVec::new()
         };
         self.effects = prev_effects;
-        self.effects.append(self.arena, &mut block);
-        self.effects.append(self.arena, &mut handler);
+        self.effects.extend(self.arena, take(&mut block));
+        self.effects.extend(self.arena, take(&mut handler));
         if let Some(finalizer) = stmt.finalizer.as_ref() {
             let finally_returns_unconditionally = {
                 let mut ast_path =
@@ -2005,7 +2007,7 @@ impl VisitAstPath for Analyzer<'_, '_> {
         });
         let mut effects = take(&mut self.effects);
         self.effects = prev_effects;
-        self.effects.append(self.arena, &mut effects);
+        self.effects.extend(self.arena, take(&mut effects));
     }
 
     fn visit_block_stmt<'ast: 'r, 'r>(
@@ -2028,8 +2030,9 @@ impl VisitAstPath for Analyzer<'_, '_> {
                 if !returns_unconditionally {
                     self.add_return_value(JsValue::Constant(ConstantValue::Undefined));
                 }
-                self.effects.append(self.arena, &mut self.hoisted_effects);
-                effects.append(self.arena, &mut self.effects);
+                self.effects
+                    .extend(self.arena, take(&mut self.hoisted_effects));
+                effects.extend(self.arena, take(&mut self.effects));
                 self.hoisted_effects = hoisted_effects;
                 self.effects = effects;
             }
@@ -2196,10 +2199,10 @@ impl<'a> Analyzer<'a, '_> {
         let condition = BumpBox::new_in(self.eval_context.eval(self.arena, test), self.arena);
         if condition.is_unknown() {
             if let Some(mut then) = then {
-                self.effects.append(self.arena, &mut then.effects);
+                self.effects.extend(self.arena, take(&mut then.effects));
             }
             if let Some(mut r#else) = r#else {
-                self.effects.append(self.arena, &mut r#else.effects);
+                self.effects.extend(self.arena, take(&mut r#else.effects));
             }
             return;
         }
@@ -2269,31 +2272,31 @@ impl<'a> Analyzer<'a, '_> {
         if condition.is_unknown() {
             match &mut cond_kind {
                 ConditionalKind::If { then } => {
-                    self.effects.append(self.arena, &mut then.effects);
+                    self.effects.extend(self.arena, take(&mut then.effects));
                 }
                 ConditionalKind::Else { r#else } => {
-                    self.effects.append(self.arena, &mut r#else.effects);
+                    self.effects.extend(self.arena, take(&mut r#else.effects));
                 }
                 ConditionalKind::IfElse { then, r#else }
                 | ConditionalKind::Ternary { then, r#else } => {
-                    self.effects.append(self.arena, &mut then.effects);
-                    self.effects.append(self.arena, &mut r#else.effects);
+                    self.effects.extend(self.arena, take(&mut then.effects));
+                    self.effects.extend(self.arena, take(&mut r#else.effects));
                 }
                 ConditionalKind::IfElseMultiple { then, r#else } => {
                     for block in then {
-                        self.effects.append(self.arena, &mut block.effects);
+                        self.effects.extend(self.arena, take(&mut block.effects));
                     }
                     for block in r#else {
-                        self.effects.append(self.arena, &mut block.effects);
+                        self.effects.extend(self.arena, take(&mut block.effects));
                     }
                 }
                 ConditionalKind::And { expr }
                 | ConditionalKind::Or { expr }
                 | ConditionalKind::NullishCoalescing { expr } => {
-                    self.effects.append(self.arena, &mut expr.effects);
+                    self.effects.extend(self.arena, take(&mut expr.effects));
                 }
                 ConditionalKind::Labeled { body } => {
-                    self.effects.append(self.arena, &mut body.effects);
+                    self.effects.extend(self.arena, take(&mut body.effects));
                 }
             }
         } else {

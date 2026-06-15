@@ -159,12 +159,6 @@ impl<'a, T> BumpVec<'a, T> {
         }
     }
 
-    /// Move every element out of `other` into `self`, leaving `other` empty. Mirrors
-    /// [`Vec::append`], but takes the `&'a Bump` since growth may reallocate into the arena.
-    pub fn append(&mut self, bump: &'a Bump, other: &mut Self) {
-        self.extend(bump, std::mem::take(other));
-    }
-
     pub fn pop(&mut self) -> Option<T> {
         if self.len == 0 {
             return None;
@@ -517,16 +511,6 @@ mod tests {
 
         let collected: Vec<i32> = v.into_iter().collect();
         assert_eq!(collected, vec![2, 4, 6]);
-    }
-
-    #[test]
-    fn append_moves_and_empties_other() {
-        let bump = Bump::new();
-        let mut a = BumpVec::from_iter_in(&bump, [1, 2]);
-        let mut b = BumpVec::from_iter_in(&bump, [3, 4, 5]);
-        a.append(&bump, &mut b);
-        assert_eq!(&*a, &[1, 2, 3, 4, 5][..]);
-        assert!(b.is_empty());
     }
 
     #[test]
