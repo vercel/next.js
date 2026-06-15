@@ -79,7 +79,7 @@ The route's dynamic data isn't included in the prefetch. The user sees the App S
 
 ### Next steps
 
-Opting in stops at the App Shell. To also prefetch cached parts of the route, see [Going further: prefetch the dynamic data](/docs/app/guides/adopting-partial-prefetching#going-further-prefetch-the-dynamic-data) in the adoption guide. The recipe layers [`"use cache"`](/docs/app/api-reference/directives/use-cache) on the data access, `prefetch={true}` on the link, and [`prefetch = 'allow-runtime'`](/docs/app/api-reference/file-conventions/route-segment-config/prefetch) on the route when the cached content depends on request data.
+Opting in stops at the App Shell. To also prefetch cached parts of the route, set `prefetch={true}` on the link. If the cached content depends on request data (cookies, headers, search params), opt the route into [runtime prefetching](/docs/app/guides/runtime-prefetching). The [prefetching guide](/docs/app/guides/prefetching) covers the link-level options end to end.
 
 ## Use the default prefetch
 
