@@ -90,7 +90,7 @@ export default nextConfig
 
 ## Auditing existing `<Link prefetch={true}>` calls
 
-When you flip `partialPrefetching: true`, every existing `<Link prefetch={true}>` switches semantics. Before the flag, it prefetched the destination's cached page render and its dynamic data. After the flag, it prefetches the App Shell plus the destination's cached content — never dynamic data. Walk through each existing usage and decide whether the prop still earns its keep.
+When you flip `partialPrefetching: true`, every existing `<Link prefetch={true}>` switches semantics. Before the flag, it prefetched the destination's cached page render and its dynamic data. After the flag, it prefetches the App Shell plus the destination's cached content, without the dynamic data. Walk through each existing usage and decide whether the prop is still adding value.
 
 | Destination                                                                                 | Recommendation                                                                                                                               |
 | ------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
