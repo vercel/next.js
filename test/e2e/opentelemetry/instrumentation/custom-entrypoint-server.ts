@@ -8,7 +8,9 @@ import { register } from './instrumentation-custom-server'
 
 const withoutParentSpan = process.argv.includes('--without-parent-span')
 
-register()
+if (!withoutParentSpan) {
+  register()
+}
 
 type EntrypointHandler = (
   req: IncomingMessage,
