@@ -143,6 +143,29 @@ interface ScrollAndMaybeFocusHandlerProps {
   children: React.ReactNode
   cacheNode: CacheNode
 }
+
+// Get sticky block height - helper function
+function getTopBlockingHeight(): number {
+  const elements = Array.from(document.body.children) as HTMLElement[]
+
+  let maxHeight = 0
+
+  for (const el of elements) {
+    const style = getComputedStyle(el)
+
+    if (style.position === 'sticky' || style.position === 'fixed') {
+      const rect = el.getBoundingClientRect()
+
+      // Slight tolerance instead of strict === 0
+      if (rect.top <= 1 && rect.height > 0) {
+        maxHeight = Math.max(maxHeight, rect.height)
+      }
+    }
+  }
+
+  return maxHeight
+}
+
 class InnerScrollAndFocusHandlerOld extends React.Component<ScrollAndMaybeFocusHandlerProps> {
   handlePotentialScroll = () => {
     // Handle scroll and focus, it's only applied once.
@@ -207,8 +230,15 @@ class InnerScrollAndFocusHandlerOld extends React.Component<ScrollAndMaybeFocusH
         const htmlElement = document.documentElement
         const viewportHeight = htmlElement.clientHeight
 
-        // If the element's top edge is already in the viewport, exit early.
-        if (topOfElementInViewport(domNode, viewportHeight)) {
+        // Conditional scroll reset sticky header
+        const rect = domNode.getBoundingClientRect()
+
+        const isInViewport = rect.top >= 0 && rect.top <= viewportHeight
+
+        const topBlockingHeight = getTopBlockingHeight()
+        const isHiddenUnderTopUI = rect.top < topBlockingHeight
+
+        if (isInViewport && !isHiddenUnderTopUI) {
           return
         }
 
@@ -316,8 +346,20 @@ function InnerScrollHandlerNew(props: ScrollAndMaybeFocusHandlerProps) {
           const htmlElement = document.documentElement
           const viewportHeight = htmlElement.clientHeight
 
-          // If the element's top edge is already in the viewport, exit early.
-          if (topOfElementInViewport(instance, viewportHeight)) {
+          // Conditional scroll reset sticky header
+          const rect =
+            instance instanceof HTMLElement
+              ? instance.getBoundingClientRect()
+              : instance.getClientRects()[0]
+
+          if (!rect) return
+
+          const isInViewport = rect.top >= 0 && rect.top <= viewportHeight
+
+          const topBlockingHeight = getTopBlockingHeight()
+          const isHiddenUnderTopUI = rect.top < topBlockingHeight
+
+          if (isInViewport && !isHiddenUnderTopUI) {
             return
           }
 

@@ -4,6 +4,7 @@
     "rootDir": "src"
   },
   // Copied from tsconfig.json to not overwrite.
+  "include": ["src", "types"],
   "exclude": [
     "dist",
     "./*.d.ts",

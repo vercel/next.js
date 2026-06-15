@@ -5,13 +5,19 @@ import next from '@next/eslint-plugin-next'
 import react from 'eslint-plugin-react'
 import reactHooks from 'eslint-plugin-react-hooks'
 import tsEslint from 'typescript-eslint'
+
 // import * as ... for plugins without default export
 import * as importPlugin from 'eslint-plugin-import'
 import * as jsxA11yPlugin from 'eslint-plugin-jsx-a11y'
 
-// utils
-import globals from 'globals'
-import eslintParser from './parser'
+import * as globals from 'globals'
+import * as eslintParser from './parser'
+
+const reactPlugin = react as any
+const reactHooksPlugin = reactHooks as any
+const importPluginTyped = importPlugin as any
+const jsxA11yPluginTyped = jsxA11yPlugin as any
+const nextPlugin = next as any
 
 const config: Linter.Config[] = [
   {
@@ -19,14 +25,14 @@ const config: Linter.Config[] = [
     // Default files, users can overwrite this.
     files: ['**/*.{js,jsx,mjs,ts,tsx,mts,cts}'],
     plugins: {
-      react,
-      'react-hooks': reactHooks,
-      import: importPlugin,
-      'jsx-a11y': jsxA11yPlugin,
-      '@next/next': next,
+      react: reactPlugin,
+      'react-hooks': reactHooksPlugin,
+      import: importPluginTyped,
+      'jsx-a11y': jsxA11yPluginTyped,
+      '@next/next': nextPlugin,
     },
     languageOptions: {
-      parser: eslintParser,
+      parser: eslintParser as any,
       parserOptions: {
         requireConfigFile: false,
         sourceType: 'module',
