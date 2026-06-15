@@ -245,7 +245,7 @@ jobs:
 
       - name: Install nextest
         if: ${{ inputs.needsNextest == 'yes' }}
-        run: cargo binstall --no-confirm cargo-nextest@0.9.133
+        run: cargo binstall --no-confirm --locked cargo-nextest@0.9.133
 
       - run: rustc --version
         if: ${{ (inputs.uploadNativeArtifact != '') || inputs.needsNextest == 'yes' || inputs.needsRust == 'yes' }}
