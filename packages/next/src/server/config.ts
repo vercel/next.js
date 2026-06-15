@@ -1784,7 +1784,7 @@ export default async function loadConfig(
   // the user's config, so its timing is meaningless noise.
   if (
     !meta.cacheHit &&
-    !opts.silent &&
+    opts.silent === false &&
     durationMs > SLOW_CONFIG_EVAL_THRESHOLD_MS
   ) {
     Log.event(
