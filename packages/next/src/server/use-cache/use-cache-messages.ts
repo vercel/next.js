@@ -28,8 +28,6 @@ const CACHE_LIFE_API_DOCS =
 const USE_CACHE_PRIVATE_DIRECTIVE_DOCS =
   'https://nextjs.org/docs/app/api-reference/directives/use-cache-private'
 
-// ── Request APIs inside `"use cache"` ─────────────────────────────
-
 export function createCookiesInUseCacheError(route: string): Error {
   return new Error(
     `Route "${route}": \`cookies()\` can't be read inside \`"use cache"\`. Read it outside the cached function and pass what you need as an argument.\nLearn more: ${NEXT_REQUEST_IN_USE_CACHE}`
@@ -101,8 +99,6 @@ export function createDraftModeMutationInUnstableCacheError(
   )
 }
 
-// ── App Route handler — request data inside `"use cache"` ─────────
-
 export function createRouteHandlerRequestInUseCacheError(
   route: string,
   expression: string
@@ -120,8 +116,6 @@ export function createRouteHandlerRequestInUnstableCacheError(
     `Route "${route}": \`${expression}\` can't be read inside \`unstable_cache()\`. Read it outside the cached function and pass what you need as an argument.\nLearn more: ${UNSTABLE_CACHE_API_DOCS}`
   )
 }
-
-// ── Revalidation inside `"use cache"` ─────────────────────────────
 
 /**
  * Only reachable via Server Action → `"use cache"` → revalidate.
@@ -145,8 +139,6 @@ export function createRevalidateInUnstableCacheError(
   )
 }
 
-// ── Cache helpers called outside `"use cache"` ────────────────────
-
 export function createCacheTagOutsideUseCacheError(): Error {
   return new Error(
     `\`cacheTag()\` can only be called inside a \`"use cache"\` function.\nLearn more: ${CACHE_TAG_API_DOCS}`
@@ -158,8 +150,6 @@ export function createCacheLifeOutsideUseCacheError(): Error {
     `\`cacheLife()\` can only be called inside a \`"use cache"\` function.\nLearn more: ${CACHE_LIFE_API_DOCS}`
   )
 }
-
-// ── Nested `"use cache"` without outer `cacheLife()` ──────────────
 
 /**
  * Factories (not exported strings) so the error-code tool can statically
@@ -185,8 +175,6 @@ export function createNestedCacheShortExpireError(
   )
 }
 
-// ── `"use cache: private"` placement errors ───────────────────────
-
 export function createUseCachePrivateInsidePublicUseCacheError(): Error {
   return new Error(
     `\`"use cache: private"\` can't be nested inside \`"use cache"\`. It can only be nested inside another \`"use cache: private"\`.\nLearn more: ${USE_CACHE_PRIVATE_DIRECTIVE_DOCS}`
@@ -202,5 +190,17 @@ export function createUseCachePrivateInsideUnstableCacheError(): Error {
 export function createUseCachePrivateOutsideRequestContextError(): Error {
   return new Error(
     `\`"use cache: private"\` needs an active request. It can't be used during \`generateStaticParams\` or other build-time contexts.\nLearn more: ${USE_CACHE_PRIVATE_DIRECTIVE_DOCS}`
+  )
+}
+
+export function createUseCacheTimeoutError(): Error {
+  return new Error(
+    `Filling a \`"use cache"\` entry took too long. The most common cause is reading request data (\`params\`, \`searchParams\`, \`cookies()\`, \`headers()\`) inside the cached function. Read it outside and pass what you need as an argument.\nLearn more: ${NEXT_REQUEST_IN_USE_CACHE}`
+  )
+}
+
+export function createUseCacheDeadlockError(): Error {
+  return new Error(
+    `A \`"use cache"\` entry is awaiting a promise created outside the cached function. The same call completed when run in isolation, so a module-scoped value (often a top-level \`Map\` used to dedupe fetches) is most likely blocking it. \`"use cache"\` already dedupes calls with the same arguments. Remove the surrounding dedupe layer.\nLearn more: ${NEXT_REQUEST_IN_USE_CACHE}`
   )
 }
