@@ -72,6 +72,12 @@ pub enum Evictability {
     /// compile, spawning a Node process pool). Eviction policy may prefer
     /// evicting cheaper cells first. Maps to `evict = "last"`.
     Expensive,
+    /// Cells are retained on the normal (snapshot) eviction sweep, but opt in
+    /// to the hand-curated "emergency" set dropped under memory pressure (see
+    /// the backend's `maybe_shrink`). Re-derivation is via recompute on the
+    /// next read, so no snapshot/scratch memory is required to drop them.
+    /// Maps to `evict = "pressure"`.
+    PressureEvictable,
     /// Cells must stay in memory across the session. Required for value
     /// types holding interior-mutable state (`State<>` cells,
     /// `Arc<Mutex<_>>` dedup histories) or session-scoped handles (file
@@ -475,6 +481,9 @@ mod tests {
     #[turbo_tasks::value(serialization = "skip", evict = "last")]
     struct SkipExpensiveValue(#[turbo_tasks(trace_ignore)] u32);
 
+    #[turbo_tasks::value(serialization = "skip", evict = "pressure")]
+    struct SkipPressureValue(#[turbo_tasks(trace_ignore)] u32);
+
     #[turbo_tasks::value(serialization = "skip", evict = "never", cell = "new", eq = "manual")]
     struct SessionStatefulValue;
 
@@ -515,6 +524,18 @@ mod tests {
             "`serialization = \"skip\", evict = \"last\"` must map to Evictability::Expensive"
         );
         assert!(!SkipExpensiveValue::has_serialization());
+    }
+
+    #[test]
+    fn skip_pressure_maps_to_skip_pressure_evictable() {
+        let vt = registry::get_value_type(SkipPressureValue::get_value_type_id());
+        assert!(matches!(vt.persistence, ValueTypePersistence::Skip));
+        assert!(
+            matches!(vt.evictability, Evictability::PressureEvictable),
+            "`serialization = \"skip\", evict = \"pressure\"` must map to \
+             Evictability::PressureEvictable"
+        );
+        assert!(!SkipPressureValue::has_serialization());
     }
 
     #[test]

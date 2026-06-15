@@ -607,6 +607,17 @@ pub trait Backend: Sized + Sync + Send {
     #[allow(unused_variables)]
     fn idle_end(&self, turbo_tasks: &TurboTasks<Self>) {}
 
+    /// Hint that now is a good moment to release memory if the process is under
+    /// memory pressure. Called by orchestration code at lifecycle boundaries
+    /// where a lot of memory was just churned (e.g. after the module graph is
+    /// built and the worker pool is scaled down).
+    ///
+    /// Backends that support pressure-driven eviction check the current memory
+    /// pressure and, if it is high, drop a curated set of recomputable cells.
+    /// The default is a no-op.
+    #[allow(unused_variables)]
+    fn maybe_shrink(&self, turbo_tasks: &TurboTasks<Self>) {}
+
     fn invalidate_task(&self, task: TaskId, turbo_tasks: &TurboTasks<Self>);
 
     fn invalidate_tasks(&self, tasks: &[TaskId], turbo_tasks: &TurboTasks<Self>);

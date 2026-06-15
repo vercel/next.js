@@ -232,14 +232,27 @@ pub enum MemoryEvictionMode {
     /// After every snapshot, evict all evictable tasks from memory, reloading
     /// them from disk on demand.
     Full,
+    /// Don't evict on snapshots, but when the process is under memory pressure
+    /// (checked at lifecycle boundaries, e.g. after the module graph is built),
+    /// drop a curated set of recomputable cells. Reconstructs via recompute, so
+    /// it needs neither a snapshot nor an fs cache.
+    Pressure,
 }
 
 impl MemoryEvictionMode {
     /// Whether this mode evicts evictable tasks after each snapshot.
     fn evicts_after_snapshot(self) -> bool {
         match self {
-            Self::Off => false,
+            Self::Off | Self::Pressure => false,
             Self::Full => true,
+        }
+    }
+
+    /// Whether this mode drops curated cells under memory pressure.
+    fn evicts_under_pressure(self) -> bool {
+        match self {
+            Self::Off | Self::Full => false,
+            Self::Pressure => true,
         }
     }
 }
@@ -277,6 +290,7 @@ pub fn create_turbo_tasks(
                 dependency_tracking,
                 num_workers: Some(tokio::runtime::Handle::current().metrics().num_workers()),
                 evict_after_snapshot,
+                evict_under_pressure,
                 ..Default::default()
             },
             backing_storage,
@@ -290,6 +304,7 @@ pub fn create_turbo_tasks(
             BackendOptions {
                 storage_mode: None,
                 dependency_tracking,
+                evict_under_pressure,
                 ..Default::default()
             },
             noop_backing_storage(),
