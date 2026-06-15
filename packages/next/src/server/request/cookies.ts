@@ -19,6 +19,7 @@ import {
   postponeWithTracking,
   throwToInterruptStaticGeneration,
   trackDynamicDataInDynamicRender,
+  trackSessionDataAccessWhenChained,
 } from '../app-render/dynamic-rendering'
 import { StaticGenBailoutError } from '../../client/components/static-generation-bailout'
 import {
@@ -80,8 +81,17 @@ export function cookies(): Promise<ReadonlyRequestCookies> {
           throw new Error(
             `Route ${workStore.route} used \`cookies()\` inside \`generateStaticParams\`. This is not supported because \`generateStaticParams\` runs at build time without an HTTP request. Read more: https://nextjs.org/docs/messages/next-dynamic-api-wrong-context`
           )
-        case 'prerender':
+        case 'prerender': {
+          const { sessionDataTracking } = workUnitStore
+          if (sessionDataTracking) {
+            return trackSessionDataAccessWhenChained(
+              sessionDataTracking,
+              makeHangingCookies(workStore, workUnitStore)
+            )
+          }
+
           return makeHangingCookies(workStore, workUnitStore)
+        }
         case 'prerender-client':
         case 'validation-client':
           const exportName = '`cookies`'
@@ -119,6 +129,8 @@ export function cookies(): Promise<ReadonlyRequestCookies> {
         case 'private-cache':
           // Private caches are delayed until the runtime stage in use-cache-wrapper,
           // so we don't need an additional delay here.
+          // We consider accessing a private cache itself to be a session data access,
+          // so we don't need to further track cookies() here.
           return makeUntrackedCookies(workUnitStore.cookies)
         case 'request':
           trackDynamicDataInDynamicRender(workUnitStore)

@@ -5,7 +5,10 @@ import type { ReadonlyHeaders } from '../web/spec-extension/adapters/headers'
 import type { ReadonlyRequestCookies } from '../web/spec-extension/adapters/request-cookies'
 import type { CacheSignal } from './cache-signal'
 import type { ResponseVaryParamsAccumulator } from './vary-params'
-import type { DynamicTrackingState } from './dynamic-rendering'
+import type {
+  DynamicTrackingState,
+  SessionDataTrackingState,
+} from './dynamic-rendering'
 import type { OpaqueFallbackRouteParams } from '../request/fallback-params'
 
 // Share the instance module in the next-shared layer
@@ -184,6 +187,7 @@ export interface PrerenderStoreModernServer
   readonly type: 'prerender'
 
   readonly stagedRendering: StagedRenderingController | null
+  readonly sessionDataTracking: SessionDataTrackingState | null
 }
 
 export interface PrerenderStoreModernRuntime

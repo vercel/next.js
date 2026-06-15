@@ -1627,6 +1627,9 @@ function dispatchRetryDueToTreeMismatch(
     // route prediction, but still needs to mark the pattern.
     const metadataVaryPath = seed.metadataVaryPath
     if (metadataVaryPath !== null) {
+      // TODO(app-shells): track shell kind for dynamic responses
+      const shellKind = null
+
       const now = Date.now()
       discoverKnownRoute(
         now,
@@ -1639,7 +1642,8 @@ function dispatchRetryDueToTreeMismatch(
         false, // couldBeIntercepted - doesn't matter, we're just marking hasDynamicRewrite
         createHrefFromUrl(retryUrl),
         false, // supportsPerSegmentPrefetching - doesn't matter, we're just marking hasDynamicRewrite
-        true // hasDynamicRewrite
+        true, // hasDynamicRewrite
+        shellKind
       )
     }
   }

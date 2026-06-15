@@ -105,7 +105,7 @@ import {
 import { STATIC_STALETIME_MS } from '../router-reducer/reducers/navigate-reducer'
 import { pingVisibleLinks } from '../links'
 import { PAGE_SEGMENT_KEY } from '../../../shared/lib/segment'
-import { FetchStrategy } from './types'
+import { FetchStrategy, ShellKind } from './types'
 import { createPromiseWithResolvers } from '../../../shared/lib/promise-with-resolvers'
 import { readFromBFCache, UnknownDynamicStaleTime } from './bfcache'
 import { discoverKnownRoute, matchKnownRoute } from './optimistic-routes'
@@ -220,6 +220,7 @@ export type FulfilledRouteCacheEntry = RouteCacheEntryShared & {
   tree: RouteTree
   metadata: RouteTree
   supportsPerSegmentPrefetching: boolean
+  shellKind: ShellKind | null
   // When true, this entry should not be used as a template for route
   // prediction. Set when we discover that the URL was rewritten by middleware
   // to a different route structure (e.g., /foo was rewritten to /bar). Since
@@ -721,6 +722,7 @@ export function deprecated_requestOptimisticRouteCacheEntry(
     supportsPerSegmentPrefetching:
       routeWithNoSearchParams.supportsPerSegmentPrefetching,
     hasDynamicRewrite: routeWithNoSearchParams.hasDynamicRewrite,
+    shellKind: routeWithNoSearchParams.shellKind,
 
     // Override the rendered search with the optimistic value.
     renderedSearch: optimisticRenderedSearch,
@@ -1117,7 +1119,8 @@ export function fulfillRouteCacheEntry(
   metadataVaryPath: PageVaryPath,
   couldBeIntercepted: boolean,
   canonicalUrl: string,
-  supportsPerSegmentPrefetching: boolean
+  supportsPerSegmentPrefetching: boolean,
+  shellKind: ShellKind | null
 ): FulfilledRouteCacheEntry {
   // Get the rendered search from the vary path
   const renderedSearch =
@@ -1146,6 +1149,7 @@ export function fulfillRouteCacheEntry(
   fulfilledEntry.renderedSearch = renderedSearch
   fulfilledEntry.supportsPerSegmentPrefetching = supportsPerSegmentPrefetching
   fulfilledEntry.hasDynamicRewrite = false
+  fulfilledEntry.shellKind = shellKind
   pingBlockedTasks(entry)
   return fulfilledEntry
 }
@@ -1159,7 +1163,8 @@ export function writeRouteIntoCache(
   metadataVaryPath: PageVaryPath,
   couldBeIntercepted: boolean,
   canonicalUrl: string,
-  supportsPerSegmentPrefetching: boolean
+  supportsPerSegmentPrefetching: boolean,
+  shellKind: ShellKind | null
 ): FulfilledRouteCacheEntry {
   const pendingEntry = createDetachedRouteCacheEntry()
   const fulfilledEntry = fulfillRouteCacheEntry(
@@ -1169,7 +1174,8 @@ export function writeRouteIntoCache(
     metadataVaryPath,
     couldBeIntercepted,
     canonicalUrl,
-    supportsPerSegmentPrefetching
+    supportsPerSegmentPrefetching,
+    shellKind
   )
   const varyPath = getFulfilledRouteVaryPath(
     pathname,
@@ -1819,6 +1825,12 @@ export async function fetchRouteOnCacheMiss(
         rejectRouteCacheEntry(entry, Date.now() + 10 * 1000)
         return null
       }
+      const shellKind =
+        serverData.sessionShell === undefined
+          ? null
+          : serverData.sessionShell
+            ? ShellKind.SessionShell
+            : ShellKind.StaticShell
 
       discoverKnownRoute(
         Date.now(),
@@ -1831,7 +1843,8 @@ export async function fetchRouteOnCacheMiss(
         couldBeIntercepted,
         canonicalUrl,
         routeIsPPREnabled,
-        false // hasDynamicRewrite
+        false, // hasDynamicRewrite,
+        shellKind
       )
     } else {
       // PPR is not enabled for this route. The server responds with a
@@ -2514,6 +2527,9 @@ function writeDynamicTreeResponseIntoCache(
     return
   }
 
+  // TODO(app-shells): track shell kind for dynamic responses
+  const shellKind = null
+
   discoverKnownRoute(
     now,
     originalPathname,
@@ -2525,7 +2541,8 @@ function writeDynamicTreeResponseIntoCache(
     couldBeIntercepted,
     canonicalUrl,
     routeIsPPREnabled,
-    false // hasDynamicRewrite
+    false, // hasDynamicRewrite
+    shellKind
   )
 
   // If the server sent segment data as part of the response, we should write

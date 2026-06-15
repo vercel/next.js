@@ -102,6 +102,9 @@ export function createInitialRouterState({
   // The following only applies in the browser (location !== null) since neither
   // route learning nor segment cache state persists from SSR to client.
   if (location !== null && metadataVaryPath !== null) {
+    // TODO(app-shells): track shell kind for dynamic responses
+    const shellKind = null
+
     // Learn the route pattern so we can predict it for future navigations.
     discoverKnownRoute(
       Date.now(),
@@ -114,7 +117,8 @@ export function createInitialRouterState({
       initialCouldBeIntercepted,
       canonicalUrl,
       initialSupportsPerSegmentPrefetching,
-      false // hasDynamicRewrite
+      false, // hasDynamicRewrite,
+      shellKind
     )
 
     // TODO: Implement Shell extraction as part of Cached Navigations.

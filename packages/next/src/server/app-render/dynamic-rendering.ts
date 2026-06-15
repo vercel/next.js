@@ -78,6 +78,7 @@ import {
   allRequiredBoundariesRendered,
 } from './instant-validation/boundary-tracking'
 import type { InstantValidationSampleTracking } from './instant-validation/instant-samples'
+import { ReflectAdapter } from '../web/spec-extension/adapters/reflect'
 
 const hasPostpone = typeof React.unstable_postpone === 'function'
 
@@ -1575,4 +1576,67 @@ export function getNavigationDisallowedDynamicReasons(
 
   // We had a non-empty prelude and there are no dynamic holes
   return []
+}
+
+export type SessionDataTrackingState = {
+  isEnabled: boolean
+  didAccessSessionData: boolean
+}
+
+export function createSessionDataTrackingState(): SessionDataTrackingState {
+  return {
+    isEnabled: true,
+    didAccessSessionData: false,
+  }
+}
+
+export function trackSessionDataAccessWhenChained<T>(
+  state: SessionDataTrackingState,
+  promise: Promise<T>
+): Promise<T> {
+  // If we already accessed session data, we can skip the wrapper --
+  // we only need to know *if* any session data was accessed, so
+  // it won't provide us any new information.
+  if (!state.isEnabled || state.didAccessSessionData) {
+    return promise
+  }
+
+  type AnyFunction = (...args: any[]) => any
+  const methodCache: Record<string, AnyFunction> = {}
+
+  // Whenever then/catch/finally is called on the promise, we consider that an access of session data
+  // and track it on the state object.
+  // Note that this is imperfect, e.g. `Promise.resolve(cookies())` will trigger this too
+  // even if the promise ultimately wasn't awaited
+  return new Proxy(promise, {
+    get: function get(target, prop, receiver) {
+      if (prop === 'then' || prop === 'catch' || prop === 'finally') {
+        // No need for ReflectAdapter's bind logic, we pass the receiver manually
+        const originalMethod = Reflect.get(
+          target,
+          prop,
+          receiver
+        ) as AnyFunction
+
+        let patchedMethod = methodCache[prop]
+        if (patchedMethod !== undefined) {
+          return patchedMethod
+        }
+
+        patchedMethod = {
+          [prop]: (...args: unknown[]) => {
+            state.didAccessSessionData = true
+            // There is no need to instrument the resulting promise --
+            // we already know that session data was accessed, so it won't tell us anything new.
+            return originalMethod.apply(target, args)
+          },
+        }[prop]
+        methodCache[prop] = patchedMethod
+
+        return patchedMethod
+      }
+
+      return ReflectAdapter.get(target, prop, receiver)
+    },
+  })
 }

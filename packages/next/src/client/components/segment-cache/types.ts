@@ -42,6 +42,11 @@ export const enum FetchStrategy {
   Full = 4,
 }
 
+export const enum ShellKind {
+  StaticShell = 1,
+  SessionShell = 2,
+}
+
 /**
  * A subset of fetch strategies used for prefetch tasks.
  * A prefetch task can't know if it should use `PPR` or `LoadingBoundary`
