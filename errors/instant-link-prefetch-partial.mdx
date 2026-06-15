@@ -1,9 +1,9 @@
 ---
-title: 'A `<Link prefetch={true}>` navigated to a route that has not enabled Partial Prefetching'
+title: Next.js encountered dynamic data during prefetching
 kind: insight
 ---
 
-During a [client-side navigation](/docs/app/glossary#client-side-navigation), a [`<Link prefetch={true}>`](/docs/app/api-reference/components/link) navigated to a route that has not enabled [Partial Prefetching](/docs/app/glossary#partial-prefetching). With [Cache Components](/docs/app/api-reference/config/next-config-js/cacheComponents) enabled, `prefetch={true}` is a legacy "full" prefetch that pulls down the route's dynamic data along with its [App Shell](/docs/app/glossary#app-shell), defeating the static/dynamic split that Cache Components provides.
+During a [client-side navigation](/docs/app/glossary#client-side-navigation), a [`<Link prefetch={true}>`](/docs/app/api-reference/components/link) navigated to a route that has not enabled [Partial Prefetching](/docs/app/glossary#partial-prefetching). With [Cache Components](/docs/app/api-reference/config/next-config-js/cacheComponents) enabled, `prefetch={true}` is a legacy "full" prefetch that pulls down the route's dynamic data along with its [App Shell](/docs/app/glossary#app-shell). This will lead to slower, more expensive prefetches.
 
 Routes that opt into Partial Prefetching skip the dynamic data at prefetch time, leaving you free to choose when it loads: at navigation via [streaming](/docs/app/glossary#streaming), ahead of time via [runtime prefetching](/docs/app/guides/runtime-prefetching), or not at all. The check fires at navigation time, not prefetch time, so existing apps that have just enabled Cache Components are not flooded with warnings for every `<Link prefetch={true}>` on the page.
 
@@ -21,12 +21,12 @@ Routes that opt into Partial Prefetching skip the dynamic data at prefetch time,
 </FixOption>
 
 <FixOption
-  group="remove"
-  href="#prefetch-only-the-app-shell"
-  title="Prefetch only the App Shell"
+  group="disable"
+  href="#use-the-default-prefetch"
+  title="Use the default prefetch"
 >
   Drop the prefetch prop from the link so it falls back to the default prefetch
-  behavior, which loads only the App Shell.
+  behavior, which does not include dynamic data.
 </FixOption>
 
 <FixOption
@@ -81,9 +81,9 @@ The route's dynamic data isn't included in the prefetch. The user sees the App S
 
 Opting in stops at the App Shell. To also prefetch cached parts of the route, see [Going further: prefetch the dynamic data](/docs/app/guides/adopting-partial-prefetching#going-further-prefetch-the-dynamic-data) in the adoption guide. The recipe layers [`"use cache"`](/docs/app/api-reference/directives/use-cache) on the data access, `prefetch={true}` on the link, and [`prefetch = 'allow-runtime'`](/docs/app/api-reference/file-conventions/route-segment-config/prefetch) on the route when the cached content depends on request data.
 
-## Prefetch only the App Shell
+## Use the default prefetch
 
-Choose this fix when you set `prefetch={true}` to warm up a frequently-visited route and you can accept fetching the dynamic data on navigation. Remove the prop and the link uses the default prefetch strategy, which under Cache Components prefetches the [App Shell](/docs/app/glossary#app-shell) only.
+Choose this fix when you set `prefetch={true}` to warm up a frequently-visited route and you can accept fetching the dynamic data on navigation. Remove the prop and the link uses the default prefetch strategy, which under Cache Components prefetches the cached page render and skips the dynamic data.
 
 ### Patterns
 
@@ -99,7 +99,7 @@ export default function Nav() {
 
 ### Trade-off
 
-The link no longer forces a full prefetch. The user gets the App Shell when the link enters the viewport, and the dynamic data is fetched at navigation time. This is the default behavior under Cache Components.
+The link no longer forces a full prefetch. The user gets the cached parts of the route when the link enters the viewport, and the dynamic data is fetched at navigation time. This is the default behavior under Cache Components.
 
 ### Gotchas
 

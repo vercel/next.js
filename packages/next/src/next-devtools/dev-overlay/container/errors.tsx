@@ -491,7 +491,7 @@ export function getLinkPrefetchPartialErrorDetails(
   const message = error.message
   if (typeof message !== 'string') return null
   const match =
-    /^A <Link prefetch=\{true\}> navigated to "([^"]+)", but Partial Prefetching is not enabled for that route/.exec(
+    /^Next\.js encountered dynamic data during prefetching for "([^"]+)"\./.exec(
       message
     )
   if (!match) return null
@@ -1151,12 +1151,7 @@ export function Errors({
         <ErrorOverlayLayout
           errorCode={errorCode}
           errorType={errorType}
-          errorMessage={
-            <>
-              Next.js encountered a <code>{'<Link prefetch={true}>'}</code> to a
-              route that has not enabled Partial Prefetching.
-            </>
-          }
+          errorMessage="Next.js encountered dynamic data during prefetching."
           headerChildren={
             <InstantHeaderExplanation kind="link-prefetch-partial" />
           }

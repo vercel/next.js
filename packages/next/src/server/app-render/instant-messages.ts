@@ -12,7 +12,7 @@ export function createUnrenderedSegmentError(
       `\n\nWays to fix this:` +
       `\n  - [render] Render the dropped segment` +
       `\n    https://nextjs.org/docs/messages/instant-unrendered-segment#render-the-dropped-segment` +
-      `\n  - [ignore] Set \`export const instant = false\` on the dropped segment to skip validation` +
+      `\n  - [ignore] Set \`export const instant = false\` to silence this warning and opt the dropped segment out of instant-navigation validation` +
       `\n    https://nextjs.org/docs/messages/instant-unrendered-segment#skip-validation-on-the-segment`
   }
   return new Error(message)
@@ -20,14 +20,14 @@ export function createUnrenderedSegmentError(
 
 export function createLinkPrefetchPartialError(pathname: string): Error {
   return new Error(
-    `A <Link prefetch={true}> navigated to "${pathname}", but Partial Prefetching is not enabled for that route.\n\n` +
-      `This prevents the prefetch from being partial, leading to the route's dynamic data being included in the prefetch.\n\n` +
+    `Next.js encountered dynamic data during prefetching for "${pathname}".\n\n` +
+      `This will lead to slower, more expensive prefetches.\n\n` +
       `Ways to fix this:\n` +
-      `  - [upgrade] Opt the route into Partial Prefetching by exporting \`const prefetch = 'partial'\` from the page or layout\n` +
+      `  - [upgrade] Opt into Partial Prefetching by exporting \`const prefetch = 'partial'\` from the page or layout, or by setting \`partialPrefetching: true\` in next.config to opt the whole app in\n` +
       `    https://nextjs.org/docs/messages/instant-link-prefetch-partial#opt-into-partial-prefetching\n` +
-      `  - [remove] Remove \`prefetch={true}\` from the <Link> so it prefetches only the App Shell\n` +
-      `    https://nextjs.org/docs/messages/instant-link-prefetch-partial#prefetch-only-the-app-shell\n` +
-      `  - [ignore] Set \`export const instant = false\` on the route to disable validation\n` +
+      `  - [disable] Remove \`prefetch={true}\` from the <Link> to use the default prefetch\n` +
+      `    https://nextjs.org/docs/messages/instant-link-prefetch-partial#use-the-default-prefetch\n` +
+      `  - [ignore] Set \`export const instant = false\` to silence this warning and opt the route out of instant-navigation validation\n` +
       `    https://nextjs.org/docs/messages/instant-link-prefetch-partial#disable-validation-on-this-route`
   )
 }

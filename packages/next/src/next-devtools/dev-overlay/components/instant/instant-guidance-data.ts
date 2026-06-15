@@ -12,7 +12,7 @@ export type FixCardGroup =
   | 'ignore'
   | 'render'
   | 'upgrade'
-  | 'remove'
+  | 'disable'
 
 export type FixCardIcon =
   | 'align-left'
@@ -43,7 +43,7 @@ export const FIX_CARD_GROUPS: Record<
   ignore: { label: 'Ignore', color: 'red', icon: 'minus-circle' },
   render: { label: 'Render', color: 'gray', icon: 'layout' },
   upgrade: { label: 'Upgrade', color: 'amber', icon: 'arrow-up' },
-  remove: { label: 'Remove', color: 'gray', icon: 'minus' },
+  disable: { label: 'Disable', color: 'gray', icon: 'minus' },
 }
 
 export type FixCard = {
@@ -291,10 +291,10 @@ const linkPrefetchPartialCards: FixCard[] = [
     copyable: true,
   },
   {
-    id: 'prefetch-only-the-app-shell',
-    title: 'Prefetch only the App Shell',
-    group: 'remove',
-    link: 'https://nextjs.org/docs/messages/instant-link-prefetch-partial#prefetch-only-the-app-shell',
+    id: 'use-the-default-prefetch',
+    title: 'Use the default prefetch',
+    group: 'disable',
+    link: 'https://nextjs.org/docs/messages/instant-link-prefetch-partial#use-the-default-prefetch',
     snippets: [
       { text: '<Link href="/dashboard">', highlight: true },
       { text: '  Dashboard' },
@@ -750,7 +750,7 @@ export const EXPLANATIONS: Record<GuidanceKind, string> = {
   'unrendered-segment':
     'This segment was dropped from rendering. Issues that would prevent instant navigation will go undetected.',
   'link-prefetch-partial':
-    "This prevents the prefetch from being partial, leading to the route's dynamic data being included in the prefetch.",
+    'This will lead to slower, more expensive prefetches.',
 }
 
 export const BLOCKING_ROUTE_NAVIGATION_EXPLANATION =

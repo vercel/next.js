@@ -386,7 +386,7 @@ describe('card sets for all error families', () => {
       getCards('link-prefetch-partial', 'runtime').map((card) => card.id)
     ).toEqual([
       'opt-into-partial-prefetching',
-      'prefetch-only-the-app-shell',
+      'use-the-default-prefetch',
       'disable-validation-on-this-route',
     ])
   })
@@ -526,8 +526,8 @@ describe('getUnrenderedSegmentErrorDetails', () => {
 describe('getLinkPrefetchPartialErrorDetails', () => {
   function createLinkPrefetchPartialError(pathname: string): Error {
     return new Error(
-      `A <Link prefetch={true}> navigated to "${pathname}", but Partial Prefetching is not enabled for that route.\n\n` +
-        `This makes the prefetch a legacy "full" prefetch that includes the route's dynamic data, defeating the static/dynamic split that Cache Components provides.`
+      `Next.js encountered dynamic data during prefetching for "${pathname}".\n\n` +
+        `This will lead to slower, more expensive prefetches.`
     )
   }
 
@@ -552,7 +552,7 @@ describe('getLinkPrefetchPartialErrorDetails', () => {
     expect(
       getLinkPrefetchPartialErrorDetails(
         new Error(
-          'Some preamble: A <Link prefetch={true}> navigated to "/x", but Partial Prefetching is not enabled for that route.'
+          'Some preamble: Next.js encountered dynamic data during prefetching for "/x".'
         )
       )
     ).toBe(null)
@@ -583,7 +583,7 @@ describe('isInstantNavigationError', () => {
 
   it('returns true for link-prefetch-partial warnings', () => {
     const error = new Error(
-      `A <Link prefetch={true}> navigated to "/dashboard", but Partial Prefetching is not enabled for that route.`
+      `Next.js encountered dynamic data during prefetching for "/dashboard".`
     )
     expect(isInstantNavigationError(error)).toBe(true)
   })
