@@ -1085,19 +1085,20 @@ describe.each(
                         },
                       ],
                     },
-                    {
-                      name: 'render route (pages) /_error',
-                      attributes: {
-                        'next.route': '/_error',
-                        'next.span_name': 'render route (pages) /_error',
-                        'next.span_type': 'Render.renderDocument',
-                      },
-                      kind: 0,
-                      status: { code: 0 },
-                    },
                     ...(useDirectEntrypointHandler
                       ? []
                       : [
+                          {
+                            name: 'render route (pages) /_error',
+                            attributes: {
+                              'next.route': '/_error',
+                              'next.span_name': 'render route (pages) /_error',
+                              'next.span_type': 'Render.renderDocument',
+                            },
+                            kind: 0,
+                            status: { code: 0 },
+                          },
+
                           {
                             name: 'resolve page components',
                             attributes: {
