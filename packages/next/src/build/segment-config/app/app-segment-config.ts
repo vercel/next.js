@@ -41,7 +41,7 @@ const PrefetchSchema = z.enum([
   'partial',
   'unstable_eager',
   'force-disabled',
-  'force-runtime',
+  'allow-runtime',
 ])
 
 export type Instant = InstantConfig | true | false
@@ -51,7 +51,7 @@ export type Prefetch =
   | 'partial'
   | 'unstable_eager'
   | 'force-disabled'
-  | 'force-runtime'
+  | 'allow-runtime'
 
 export type InstantConfigForTypeCheckInternal = __GenericInstantConfig | Instant
 // the __GenericInstantConfig type is used to avoid type widening issues with
@@ -136,7 +136,7 @@ const AppSegmentConfigSchema = z.object({
   /**
    * How this segment should be prefetched.
    */
-  unstable_instant: InstantConfigSchema.optional(),
+  instant: InstantConfigSchema.optional(),
 
   /**
    * Controls prefetching for this segment.
@@ -146,11 +146,11 @@ const AppSegmentConfigSchema = z.object({
    * - 'unstable_eager' behaves like 'partial' but, when App Shells are enabled,
    *   keeps eagerly prefetching the route's segments instead of relying on the
    *   shared app shell. Internal migration aid; not part of the public API.
-   * - 'force-runtime' is a superset of 'partial' and prefetches using a
-   *   runtime request, instead of a static one.
+   * - 'allow-runtime' is a superset of 'partial' and permits prefetching with
+   *   a runtime request instead of a static one.
    * - 'force-disabled' disables prefetching for the segment.
    */
-  unstable_prefetch: PrefetchSchema.optional(),
+  prefetch: PrefetchSchema.optional(),
 
   /**
    * The stale time for dynamic responses in seconds.
@@ -196,15 +196,15 @@ export function parseAppSegmentConfig(
               )} on "${route}", must be a non-negative number or false`,
             }
           }
-          case 'unstable_instant': {
+          case 'instant': {
             return {
               // @TODO replace this link with a link to the docs when they are written
-              message: `Invalid unstable_instant value ${JSON.stringify(ctx.data)} on "${route}", must be \`true\`, \`false\`, or an object. Read more at https://nextjs.org/docs/messages/invalid-instant-configuration`,
+              message: `Invalid instant value ${JSON.stringify(ctx.data)} on "${route}", must be \`true\`, \`false\`, or an object. Read more at https://nextjs.org/docs/messages/invalid-instant-configuration`,
             }
           }
-          case 'unstable_prefetch': {
+          case 'prefetch': {
             return {
-              message: `Invalid unstable_prefetch value ${JSON.stringify(ctx.data)} on "${route}", must be "auto", "partial", "unstable_eager", "force-disabled", or "force-runtime".`,
+              message: `Invalid prefetch value ${JSON.stringify(ctx.data)} on "${route}", must be "auto", "partial", "unstable_eager", "force-disabled", or "allow-runtime".`,
             }
           }
           case 'unstable_dynamicStaleTime': {
@@ -264,7 +264,7 @@ export type AppSegmentConfig = {
   /**
    * How this segment should be prefetched.
    */
-  unstable_instant?: Instant
+  instant?: Instant
 
   /**
    * Controls prefetching for this segment.
@@ -274,11 +274,11 @@ export type AppSegmentConfig = {
    * - 'unstable_eager' behaves like 'partial' but, when App Shells are enabled,
    *   keeps eagerly prefetching the route's segments instead of relying on the
    *   shared app shell. Internal migration aid; not part of the public API.
-   * - 'force-runtime' is a superset of 'partial' and prefetches using a
-   *   runtime request, instead of a static one.
+   * - 'allow-runtime' is a superset of 'partial' and permits prefetching with
+   *   a runtime request instead of a static one.
    * - 'force-disabled' disables prefetching for the segment.
    */
-  unstable_prefetch?: Prefetch
+  prefetch?: Prefetch
 
   /**
    * The stale time for dynamic responses in seconds.

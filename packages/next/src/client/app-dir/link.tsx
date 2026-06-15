@@ -7,7 +7,6 @@ import { AppRouterContext } from '../../shared/lib/app-router-context.shared-run
 import { useMergedRef } from '../use-merged-ref'
 import { isAbsoluteUrl } from '../../shared/lib/utils'
 import { addBasePath } from '../add-base-path'
-import { warnOnce } from '../../shared/lib/utils/warn-once'
 import { ScrollBehavior } from '../components/router-reducer/router-reducer-types'
 import type { PENDING_LINK_STATUS } from '../components/links'
 import {
@@ -513,6 +512,8 @@ export default function LinkComponent(
   const formattedHref = formatStringOrUrl(resolvedHref)
 
   if (process.env.NODE_ENV !== 'production') {
+    const { warnOnce } =
+      require('../../shared/lib/utils/warn-once') as typeof import('../../shared/lib/utils/warn-once')
     if (props.locale) {
       warnOnce(
         'The `locale` prop is not supported in `next/link` while using the `app` router. Read more about app router internalization: https://nextjs.org/docs/app/building-your-application/routing/internationalization'
@@ -595,6 +596,23 @@ export default function LinkComponent(
     ? child && typeof child === 'object' && child.ref
     : forwardedRef
 
+  // Capture the Owner Stack during render so dev-only warnings emitted later
+  // at navigation time can be associated with the JSX that created
+  // this <Link>.
+  const ownerStack =
+    process.env.NODE_ENV !== 'production' && process.env.__NEXT_CACHE_COMPONENTS
+      ? // eslint-disable-next-line react-hooks/rules-of-hooks -- build time variables
+        React.useMemo(() => {
+          // Only capture when a warning might actually need it. Otherwise leave
+          // it `undefined` so consumers can detect the opt-out and degrade
+          // gracefully.
+          if (fetchStrategy === FetchStrategy.Full) {
+            return React.captureOwnerStack()
+          }
+          return undefined
+        }, [fetchStrategy])
+      : undefined
+
   // Use a callback ref to attach an IntersectionObserver to the anchor tag on
   // mount. In the future we will also use this to keep track of all the
   // currently mounted <Link> instances, e.g. so we can re-prefetch them after
@@ -608,7 +626,8 @@ export default function LinkComponent(
           router,
           fetchStrategy,
           prefetchEnabled,
-          setOptimisticLinkStatus
+          setOptimisticLinkStatus,
+          ownerStack
         )
       }
 
@@ -626,6 +645,7 @@ export default function LinkComponent(
       router,
       fetchStrategy,
       setOptimisticLinkStatus,
+      ownerStack,
     ]
   )
 

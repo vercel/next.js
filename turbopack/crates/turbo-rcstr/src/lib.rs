@@ -25,6 +25,8 @@ use bincode::{
 use bytes_str::BytesStr;
 use debug_unreachable::debug_unreachable;
 use rustc_hash::FxBuildHasher;
+#[cfg(not(target_family = "wasm"))]
+use scattered_collect::slice::ScatteredSlice;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use shrink_to_fit::ShrinkToFit;
 use smallvec::SmallVec;
@@ -520,45 +522,59 @@ pub const fn make_const_prehashed_string(text: &'static str) -> StaticPrehashedS
     }
 }
 
-// Re-export inventory so the rcstr! macro can reference it via $crate::inventory
+// Re-export scattered-collect so the `rcstr!` macro can reference it via
+// `$crate::scattered_collect`.
+#[cfg(not(target_family = "wasm"))]
 #[doc(hidden)]
-pub use inventory;
+pub use scattered_collect;
 
-/// Wrapper for collecting `rcstr!` static constants via `inventory`.
+/// Wrapper for collecting `rcstr!` static constants at link time.
 #[doc(hidden)]
 pub struct StaticRcStr(pub &'static StaticPrehashedString);
 
-inventory::collect!(StaticRcStr);
+// Link-time collection of every `rcstr!` static.
+//
+// Disabled under wasm because scattered-collect relies on a environment provided function
+// described in <https://docs.rs/link-section/latest/link_section/#wasm> and installing it is tricky
+// using wasm-bindgen. Also this is only here to support deserialization of rcstrs which shouldn't
+// happen under wasm anyway.
+#[cfg(not(target_family = "wasm"))]
+#[doc(hidden)]
+#[scattered_collect::gather]
+pub static STATIC_RCSTRS: ScatteredSlice<StaticRcStr>;
+// stubbed out for wasm
+#[cfg(target_family = "wasm")]
+const STATIC_RCSTRS: [StaticRcStr; 0] = [];
 
-/// Forwarder around [`inventory::submit!`] that lets the `rcstr!` proc macro
-/// emit a single path it can rely on, without depending on whether
-/// `turbo_rcstr::inventory` is reachable as a macro path in the call site
-/// crate. Macros emitted from a proc macro lose access to the proc macro
-/// crate's deps, so the submission has to bounce through this declarative
-/// macro defined where `inventory::submit!` is in scope.
+/// Submits a `StaticRcStr` into [`STATIC_RCSTRS`] at link time.
 #[doc(hidden)]
 #[macro_export]
-macro_rules! __rcstr_inventory_submit {
+macro_rules! __rcstr_static_submit {
     ($value:expr) => {
-        $crate::inventory::submit!($value);
+        #[cfg(not(target_family = "wasm"))]
+        $crate::scattered_collect::declarative::scatter! {
+            #[scatter($crate::STATIC_RCSTRS)]
+            const _: $crate::StaticRcStr = $value;
+        }
     };
 }
 
 /// Read-only lookup table mapping precomputed hash -> static StaticPrehashedString.
-/// Built once on first access from all `rcstr!` constants collected by `inventory`.
+/// Built once on first access from all `rcstr!` constants gathered at link time into
+/// [`STATIC_RCSTRS`].
 ///
-/// Multiple `rcstr!` calls with the same string content will each submit to
-/// inventory, but we deduplicate by content here so only one entry per unique
-/// string is stored.
+/// Multiple `rcstr!` calls with the same string content will each scatter an entry, but we
+/// deduplicate by content here so only one entry per unique string is stored.
 static STATIC_TABLE: LazyLock<
     HashMap<u64, SmallVec<[&'static StaticPrehashedString; 1]>, FxBuildHasher>,
 > = LazyLock::new(|| {
     let mut map: HashMap<u64, SmallVec<[&'static StaticPrehashedString; 1]>, FxBuildHasher> =
         HashMap::with_hasher(FxBuildHasher);
-    for StaticRcStr(phs) in inventory::iter::<StaticRcStr> {
+    for &StaticRcStr(phs) in STATIC_RCSTRS.iter() {
         if phs.value.len() <= MAX_INLINE_LEN {
             // This is rare, but possible if our macro cannot determine the length of the string at
-            // macro time we may end up with a wasted StaticPrehashedString submitted to inventory.
+            // macro time we may end up with a wasted StaticPrehashedString scattered into the
+            // collection.
 
             // Just skip it
             continue;

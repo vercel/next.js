@@ -46,6 +46,11 @@ use crate::{
     util::relativize_glob,
 };
 
+/// Name of the directory at the project root where CPU profiles are written when profiling is
+/// enabled (see the `--cpu-prof` CLI flag). It is a fixed-name sibling of `distDir`, not
+/// configurable. Kept here so the bundler and the napi bindings agree on the path.
+pub const DIST_PROFILES_DIR_NAME: &str = ".next-profiles";
+
 #[turbo_tasks::value(transparent)]
 pub struct ModularizeImports(
     #[bincode(with = "turbo_bincode::indexmap")] FxIndexMap<String, ModularizeImportPackageConfig>,

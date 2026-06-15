@@ -1,10 +1,12 @@
 use anyhow::{Result, bail};
 use turbo_rcstr::rcstr;
 use turbo_tasks::{ResolvedVc, Vc, fxindexmap};
-use turbo_tasks_fs::FileSystemPath;
+use turbo_tasks_fs::{FileSystem, FileSystemPath};
 use turbopack_core::{
     chunk::{AsyncModuleInfo, ChunkableModule, ChunkingContext},
     context::AssetContext,
+    environment::ChunkLoading,
+    file_source::FileSource,
     ident::AssetIdent,
     module::{Module, ModuleSideEffects},
     module_graph::ModuleGraph,
@@ -23,6 +25,7 @@ use turbopack_ecmascript::{
 };
 
 use crate::{
+    embed,
     loader::{compiling_loader_source, instantiating_loader_source},
     output_asset::WebAssemblyAsset,
     raw::RawWebAssemblyModuleAsset,
@@ -63,16 +66,48 @@ impl WebAssemblyModuleAsset {
     async fn loader_as_module(&self) -> Result<Vc<Box<dyn Module>>> {
         let query = &self.source.ident().await?.query;
 
+        let chunk_loading = self
+            .asset_context
+            .compile_time_info()
+            .environment()
+            .chunk_loading()
+            .await?;
+        let is_edge = matches!(*chunk_loading, ChunkLoading::Edge);
+
         let loader_source = if query == "?module" {
-            compiling_loader_source(*self.source)
+            compiling_loader_source(*self.source, is_edge)
         } else {
-            instantiating_loader_source(*self.source)
+            instantiating_loader_source(*self.source, is_edge)
         };
+
+        let helper_path = match *chunk_loading {
+            ChunkLoading::Edge => rcstr!("edge/loadWasm.ts"),
+            ChunkLoading::NodeJs => rcstr!("node/loadWasm.ts"),
+            ChunkLoading::Dom => rcstr!("browser/loadWasm.ts"),
+        };
+
+        let helper = self
+            .asset_context
+            .process(
+                Vc::upcast(FileSource::new(
+                    embed::embed_fs().root().await?.join(&helper_path)?,
+                )),
+                /*
+                   TODO (@sampoder): ideally, we would have some sort of hint
+                   here that suggests whether we are using `compileModule()` or
+                   `instantiate()` to avoid loading the other unused function.
+                */
+                ReferenceType::Runtime,
+            )
+            .module()
+            .to_resolved()
+            .await?;
 
         let module = self.asset_context.process(
             loader_source,
             ReferenceType::Internal(ResolvedVc::cell(fxindexmap! {
                 rcstr!("WASM_PATH") => ResolvedVc::upcast(RawWebAssemblyModuleAsset::new(*self.source, *self.asset_context).to_resolved().await?),
+                rcstr!("WASM_HELPER") => helper,
             })),
         ).module();
 

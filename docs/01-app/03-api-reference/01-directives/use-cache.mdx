@@ -75,7 +75,7 @@ export async function getData() {
 
 A cache entry's key is generated using a serialized version of its inputs, which includes:
 
-1. **Build ID** - Unique per build, changing this invalidates all cache entries
+1. **Build ID** - Unique per build, changing this invalidates all cache entries. If [`deploymentId`](/docs/app/api-reference/config/next-config-js/deploymentId) is configured, it overrides the build ID for cache key purposes.
 2. **Function ID** - A secure hash of the function's location and signature in the codebase
 3. **Serializable arguments** - Props (for components) or function arguments
 4. **HMR refresh hash** (development only) - Invalidates cache on hot module replacement
@@ -199,7 +199,7 @@ Cached functions and components **cannot** directly access runtime APIs like `co
 
 While `use cache` is designed primarily to include uncached data in the static shell, it can also cache data at runtime using in-memory LRU (Least Recently Used) storage.
 
-Runtime cache behavior depends on your hosting environment:
+With the default in-memory handler, runtime cache behavior depends on your hosting environment:
 
 | Environment     | Runtime Caching Behavior                                                                                                                                          |
 | --------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -209,6 +209,11 @@ Runtime cache behavior depends on your hosting environment:
 For example, in a serverless environment, a cached function shared by two pages executes on each static shell revalidation, whereas in self-hosted or environments with persistent memory, the cached output is reused if it's still fresh.
 
 If the default in-memory cache isn't enough, consider **[`use cache: remote`](/docs/app/api-reference/directives/use-cache-remote)** which allows platforms to provide a dedicated cache handler (like Redis or KV database). This helps reduce hits against data sources not scaled to your total traffic, though it comes with costs (storage, network latency, platform fees).
+
+> [!NOTE]
+> With the default in-memory handler, serverless instances are ephemeral, so entries may not be reused between requests, unlike with `use cache: remote`. Neither caching directive carries over to a new deploy, because the [cache key](#cache-keys) includes the build (or `deploymentId`) ID.
+>
+> For data that needs to persist across deploys, use [`unstable_cache`](/docs/app/api-reference/functions/unstable_cache) for non-`fetch` functions or the [`fetch`](/docs/app/api-reference/functions/fetch) cache.
 
 Very rarely, for compliance requirements or when you can't refactor your code to pass runtime data as arguments to a `use cache` scope, you might need [`use cache: private`](/docs/app/api-reference/directives/use-cache-private).
 
