@@ -343,6 +343,8 @@ pub async fn get_client_module_options_context(
             .resolved_cell()
         });
 
+    let enable_rust_react_compiler = *next_config.rust_react_compiler().await?;
+
     let module_options_context = ModuleOptionsContext {
         ecmascript: EcmascriptOptionsContext {
             esm_url_rewrite_behavior: Some(UrlRewriteBehavior::Relative),
@@ -423,6 +425,7 @@ pub async fn get_client_module_options_context(
             enable_jsx: Some(jsx_runtime_options),
             enable_typescript_transform: Some(tsconfig),
             enable_decorators: Some(decorators_options.to_resolved().await?),
+            enable_rust_react_compiler,
             ..module_options_context.ecmascript.clone()
         },
         enable_webpack_loaders,

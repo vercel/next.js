@@ -2,6 +2,7 @@ use std::{fmt::Debug, hash::Hash, sync::Arc};
 
 use anyhow::{Result, bail};
 use async_trait::async_trait;
+use serde::{Deserialize, Serialize};
 use swc_core::{
     atoms::{Atom, atom},
     base::SwcComments,
@@ -21,10 +22,14 @@ use swc_core::{
     },
     quote,
 };
-use turbo_rcstr::RcStr;
+use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{ResolvedVc, Vc};
 use turbo_tasks_fs::FileSystemPath;
-use turbopack_core::{environment::Environment, source::Source};
+use turbopack_core::{
+    environment::Environment,
+    issue::{Issue, IssueExt, IssueSeverity, IssueSource, IssueStage, StyledString},
+    source::Source,
+};
 
 use crate::runtime_functions::{TURBOPACK_MODULE, TURBOPACK_REFRESH};
 
@@ -82,7 +87,33 @@ pub enum EcmascriptInputTransform {
         emit_decorators_metadata: bool,
         use_define_for_class_fields: bool,
     },
+    ReactCompilerRust {
+        compilation_mode: ReactCompilerCompilationMode,
+    },
 }
+
+#[turbo_tasks::value(shared, operation)]
+#[derive(Default, Debug, Clone, Copy, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub enum ReactCompilerCompilationMode {
+    #[default]
+    Infer,
+    Annotation,
+    All,
+}
+
+impl ReactCompilerCompilationMode {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            ReactCompilerCompilationMode::Infer => "infer",
+            ReactCompilerCompilationMode::Annotation => "annotation",
+            ReactCompilerCompilationMode::All => "all",
+        }
+    }
+}
+
+#[turbo_tasks::value(transparent)]
+pub struct OptionReactCompilerCompilationMode(Option<ReactCompilerCompilationMode>);
 
 /// The CustomTransformer trait allows you to implement your own custom SWC
 /// transformer to run over all ECMAScript files imported in the graph.
@@ -134,6 +165,9 @@ pub struct TransformContext<'a> {
     pub query_str: RcStr,
     pub file_path: FileSystemPath,
     pub source: ResolvedVc<Box<dyn Source>>,
+    /// Original source text; used by transforms that need the raw text (e.g.
+    /// `react_compiler_swc`).
+    pub source_text: &'a str,
     /// The value of `process.env.NODE_ENV` for this compilation
     /// (e.g. `"development"` or `"production"`).
     pub node_env: RcStr,
@@ -343,12 +377,127 @@ impl EcmascriptInputTransform {
 
                 apply_transform(program, helpers, decorators(config))
             }
+            EcmascriptInputTransform::ReactCompilerRust { compilation_mode } => {
+                apply_rust_react_compiler(program, ctx, helpers, *compilation_mode).await?
+            }
             EcmascriptInputTransform::Plugin(transform) => {
                 // We cannot pass helpers to plugins, so we return them as is
                 transform.await?.transform(program, ctx).await?;
                 helpers
             }
         })
+    }
+}
+
+#[turbo_tasks::value]
+struct ReactCompilerIssue {
+    source: IssueSource,
+    message: RcStr,
+    severity: IssueSeverity,
+}
+
+#[async_trait]
+#[turbo_tasks::value_impl]
+impl Issue for ReactCompilerIssue {
+    fn severity(&self) -> IssueSeverity {
+        self.severity
+    }
+
+    async fn file_path(&self) -> anyhow::Result<FileSystemPath> {
+        self.source.file_path().await
+    }
+
+    fn source(&self) -> Option<IssueSource> {
+        Some(self.source)
+    }
+
+    fn stage(&self) -> IssueStage {
+        IssueStage::Transform
+    }
+
+    async fn title(&self) -> anyhow::Result<StyledString> {
+        Ok(StyledString::Text(rcstr!("React Compiler")))
+    }
+
+    async fn description(&self) -> anyhow::Result<Option<StyledString>> {
+        Ok(Some(StyledString::Text(self.message.clone())))
+    }
+}
+
+async fn apply_rust_react_compiler(
+    program: &mut Program,
+    ctx: &TransformContext<'_>,
+    helpers: HelperData,
+    compilation_mode: ReactCompilerCompilationMode,
+) -> Result<HelperData> {
+    let Program::Module(module) = program else {
+        return Ok(helpers);
+    };
+
+    let options = react_compiler_swc_options(ctx, compilation_mode);
+    let result = react_compiler_swc::transform(module, ctx.source_text, options);
+
+    for diag in &result.diagnostics {
+        let issue_source = match diag.span {
+            Some((start, end)) => IssueSource::from_swc_offsets(ctx.source, start, end),
+            None => IssueSource::from_source_only(ctx.source),
+        };
+
+        // React Compiler errors are non-fatal; downgrade to Warning.
+        let severity = IssueSeverity::Warning;
+        ReactCompilerIssue {
+            source: issue_source,
+            message: RcStr::from(diag.message.as_str()),
+            severity,
+        }
+        .resolved_cell()
+        .emit();
+    }
+
+    if let Some(compiled_module) = result.module {
+        *program = Program::Module(compiled_module);
+
+        // TODO(react-compiler-swc): The Rust React Compiler emits every identifier with
+        // `SyntaxContext::empty()` in `convert_ast_reverse.rs`.
+        //
+        // Remove this once `nextjs_react_compiler_swc`
+        // preserves/assigns contexts on the converted AST.
+        program.mutate(swc_core::ecma::transforms::base::resolver(
+            ctx.unresolved_mark,
+            ctx.top_level_mark,
+            true,
+        ));
+    }
+
+    Ok(helpers)
+}
+
+fn react_compiler_swc_options(
+    ctx: &TransformContext<'_>,
+    compilation_mode: ReactCompilerCompilationMode,
+) -> react_compiler::entrypoint::plugin_options::PluginOptions {
+    use react_compiler::entrypoint::plugin_options::{CompilerTarget, PluginOptions};
+
+    PluginOptions {
+        should_compile: true,
+        enable_reanimated: false,
+        is_dev: ctx.node_env != "production",
+        filename: Some(ctx.file_name_str.to_string()),
+        compilation_mode: compilation_mode.as_str().to_string(),
+        panic_threshold: "none".to_string(),
+        target: CompilerTarget::Version("19".to_string()),
+        gating: None,
+        dynamic_gating: None,
+        no_emit: false,
+        output_mode: None,
+        eslint_suppression_rules: None,
+        flow_suppressions: false,
+        ignore_use_no_forget: false,
+        custom_opt_out_directives: None,
+        environment: Default::default(),
+        source_code: None,
+        profiling: false,
+        debug: false,
     }
 }
 
