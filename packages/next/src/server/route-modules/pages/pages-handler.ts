@@ -740,6 +740,7 @@ export const getHandler = ({
         // rethrow so that we can handle serving error page
         throw err
       } finally {
+        // An IIFE to make early returns easier.
         ;(() => {
           if (!span) return
 

@@ -408,6 +408,7 @@ export async function handler(
           }
           throw err
         } finally {
+          // An IIFE to make early returns easier.
           ;(() => {
             if (!currentSpan) {
               return
