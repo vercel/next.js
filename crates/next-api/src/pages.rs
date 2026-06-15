@@ -56,7 +56,7 @@ use turbopack_core::{
     module_graph::{
         GraphEntries, ModuleGraph, SingleModuleGraph, VisitedModules,
         binding_usage_info::compute_binding_usage_info,
-        chunk_group_info::{ChunkGroup, ChunkGroupEntry},
+        chunk_group_info::{ChunkGroup, ChunkGroupEntry, ChunkGroupPriority},
     },
     output::{OptionOutputAsset, OutputAsset, OutputAssets},
     reference::all_assets_from_entries,
@@ -745,9 +745,10 @@ impl PageEndpoint {
             }
 
             let graph = SingleModuleGraph::new_with_entries_visited_intern(
-                GraphEntries::from_chunk_groups(vec![ChunkGroupEntry::Entry(vec![
-                    ssr_chunk_module.ssr_module,
-                ])]),
+                GraphEntries::from_chunk_groups(vec![ChunkGroupEntry::Entry {
+                    modules: vec![ssr_chunk_module.ssr_module],
+                    priority: ChunkGroupPriority::default(),
+                }]),
                 visited_modules,
                 should_trace,
                 should_read_binding_usage,
@@ -1708,6 +1709,17 @@ impl Endpoint for PageEndpoint {
 
         let ssr_chunk_module = self.internal_ssr_chunk_module().await?;
 
+        // The route's traffic priority from `experimental.turbopackChunkingPriorities`.
+        let priority = this
+            .pages_project
+            .project()
+            .next_config()
+            .turbopack_chunking_priorities()
+            .await?
+            .get(&this.pathname)
+            .copied()
+            .unwrap_or_default();
+
         let shared_entries = [
             ssr_chunk_module.document_module,
             ssr_chunk_module.app_module,
@@ -1717,17 +1729,20 @@ impl Endpoint for PageEndpoint {
             .into_iter()
             .flatten()
             .map(ChunkGroupEntry::Shared)
-            .chain(std::iter::once(ChunkGroupEntry::Entry(vec![
-                ssr_chunk_module.ssr_module,
-            ])))
+            .chain(std::iter::once(ChunkGroupEntry::Entry {
+                modules: vec![ssr_chunk_module.ssr_module],
+                priority,
+            }))
             .chain(if this.ty == PageEndpointType::Html {
-                Some(ChunkGroupEntry::Entry(
-                    self.client_evaluatable_assets()
+                Some(ChunkGroupEntry::Entry {
+                    modules: self
+                        .client_evaluatable_assets()
                         .await?
                         .iter()
                         .map(|m| ResolvedVc::upcast(*m))
                         .collect(),
-                ))
+                    priority,
+                })
                 .into_iter()
             } else {
                 None.into_iter()

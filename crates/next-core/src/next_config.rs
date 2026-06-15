@@ -26,7 +26,7 @@ use turbopack_core::{
     issue::{
         IgnoreIssue, IgnoreIssuePattern, Issue, IssueExt, IssueSeverity, IssueStage, StyledString,
     },
-    module_graph::style_groups::StyleGroupsAlgorithm,
+    module_graph::{chunk_group_info::ChunkGroupPriority, style_groups::StyleGroupsAlgorithm},
     resolve::ResolveAliasMap,
 };
 use turbopack_ecmascript::{
@@ -82,6 +82,13 @@ impl Default for CacheKinds {
 
 #[turbo_tasks::value(transparent)]
 pub struct CacheHandlersMap(#[bincode(with = "turbo_bincode::indexmap")] FxIndexMap<RcStr, RcStr>);
+
+/// Map of route path → [`ChunkGroupPriority`] from
+/// `experimental.turbopackChunkingPriorities`.
+#[turbo_tasks::value(transparent)]
+pub struct ChunkingPriorities(
+    #[bincode(with = "turbo_bincode::indexmap")] FxIndexMap<RcStr, ChunkGroupPriority>,
+);
 
 #[turbo_tasks::value(eq = "manual")]
 #[derive(Clone, Debug, Default, PartialEq, Deserialize)]
@@ -1284,6 +1291,10 @@ pub struct ExperimentalConfig {
     webpack_build_worker: Option<bool>,
     worker_threads: Option<bool>,
 
+    /// Per-route traffic priorities. Keys are route paths (e.g.
+    /// `/products/[id]`); unlisted routes default to `medium`.
+    #[bincode(with_serde)]
+    turbopack_chunking_priorities: Option<FxIndexMap<RcStr, ChunkGroupPriority>>,
     turbopack_minify: Option<bool>,
     turbopack_module_ids: Option<ModuleIds>,
     turbopack_plugin_runtime_strategy: Option<TurbopackPluginRuntimeStrategy>,
@@ -2011,6 +2022,18 @@ impl NextConfig {
     #[turbo_tasks::function]
     pub fn css_chunking(&self) -> Result<Vc<StyleGroupsAlgorithm>> {
         Ok(resolve_css_chunking_algorithm(self.experimental.css_chunking.as_ref())?.cell())
+    }
+
+    /// `experimental.turbopackChunkingPriorities`: per-route traffic priorities. Keys are
+    /// route paths; unlisted routes default to [`ChunkGroupPriority::Medium`].
+    #[turbo_tasks::function]
+    pub fn turbopack_chunking_priorities(&self) -> Vc<ChunkingPriorities> {
+        Vc::cell(
+            self.experimental
+                .turbopack_chunking_priorities
+                .clone()
+                .unwrap_or_default(),
+        )
     }
 
     #[turbo_tasks::function]

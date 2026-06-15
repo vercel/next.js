@@ -60,7 +60,7 @@ use turbopack_core::{
     module_graph::{
         GraphEntries, ModuleGraph, SingleModuleGraph, VisitedModules,
         binding_usage_info::compute_binding_usage_info,
-        chunk_group_info::{ChunkGroup, ChunkGroupEntry},
+        chunk_group_info::{ChunkGroup, ChunkGroupEntry, ChunkGroupPriority},
     },
     output::{OutputAsset, OutputAssets, OutputAssetsWithReferenced},
     reference::all_assets_from_entries,
@@ -886,7 +886,10 @@ impl AppProject {
             let span = tracing::info_span!("module graph for endpoint", modules = Empty);
             let span_clone = span.clone();
             async move {
-                let rsc_entry_chunk_group = ChunkGroupEntry::Entry(vec![rsc_entry]);
+                let rsc_entry_chunk_group = ChunkGroupEntry::Entry {
+                    modules: vec![rsc_entry],
+                    priority: ChunkGroupPriority::default(),
+                };
 
                 let mut graphs = vec![];
                 let mut visited_modules = VisitedModules::empty();
@@ -909,7 +912,10 @@ impl AppProject {
                     // and the page
                     let graph = SingleModuleGraph::new_with_entries_visited_intern(
                         GraphEntries::from_chunk_groups(vec![
-                            ChunkGroupEntry::Entry(client_shared_entries),
+                            ChunkGroupEntry::Entry {
+                                modules: client_shared_entries,
+                                priority: ChunkGroupPriority::default(),
+                            },
                             ChunkGroupEntry::SharedMultiple(
                                 server_utils
                                     .iter()
@@ -2128,17 +2134,35 @@ impl Endpoint for AppEndpoint {
     #[turbo_tasks::function]
     async fn entries(self: Vc<Self>) -> Result<Vc<GraphEntries>> {
         let this = self.await?;
+        let app_entry = self.app_endpoint_entry().await?;
+        // The route's traffic priority from `experimental.turbopackChunkingPriorities`. The
+        // client chunk group of the route is an IsolatedMerged chunk group below this entry
+        // chunk group and inherits its priority.
+        let priority = this
+            .app_project
+            .project()
+            .next_config()
+            .turbopack_chunking_priorities()
+            .await?
+            .get(&app_entry.pathname)
+            .copied()
+            .unwrap_or_default();
         Ok(GraphEntries::from_chunk_groups(vec![
-            ChunkGroupEntry::Entry(vec![self.app_endpoint_entry().await?.rsc_entry]),
-            ChunkGroupEntry::Entry(
-                this.app_project
+            ChunkGroupEntry::Entry {
+                modules: vec![app_entry.rsc_entry],
+                priority,
+            },
+            ChunkGroupEntry::Entry {
+                modules: this
+                    .app_project
                     .client_runtime_entries()
                     .await?
                     .iter()
                     .copied()
                     .map(ResolvedVc::upcast)
                     .collect(),
-            ),
+                priority: ChunkGroupPriority::default(),
+            },
         ])
         .cell())
     }

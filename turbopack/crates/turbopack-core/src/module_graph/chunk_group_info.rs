@@ -8,12 +8,13 @@ use bincode::{Decode, Encode};
 use either::Either;
 use indexmap::map::Entry;
 use roaring::RoaringBitmap;
-use rustc_hash::FxHashMap;
+use rustc_hash::{FxHashMap, FxHashSet};
+use serde::{Deserialize, Serialize};
 use tracing::Instrument;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    FxIndexMap, FxIndexSet, NonLocalValue, ResolvedVc, TaskInput, TryJoinIterExt, ValueToString,
-    Vc, debug::ValueDebugFormat, trace::TraceRawVcs, turbofmt,
+    FxIndexMap, FxIndexSet, NonLocalValue, OperationValue, ResolvedVc, TaskInput, TryJoinIterExt,
+    ValueToString, Vc, debug::ValueDebugFormat, trace::TraceRawVcs, turbofmt,
 };
 
 use crate::{
@@ -94,6 +95,10 @@ pub struct ChunkGroupInfo {
     #[turbo_tasks(trace_ignore)]
     #[bincode(with = "turbo_bincode::indexset")]
     pub chunk_group_keys: FxIndexSet<ChunkGroupKey>,
+    /// Traffic priority of each chunk group, parallel to `chunk_groups`. Entry chunk groups
+    /// carry the priority of their [`ChunkGroupEntry::Entry`]; all other chunk groups default
+    /// to [`ChunkGroupPriority::Medium`].
+    pub chunk_group_priorities: Vec<ChunkGroupPriority>,
 }
 
 #[turbo_tasks::value_impl]
@@ -126,11 +131,48 @@ impl ChunkGroupInfo {
     }
 }
 
+/// Relative traffic priority of a chunk group, configured per entry (e.g. via
+/// `experimental.turbopackChunkingPriorities`). Currently informational only —
+/// it does not affect chunking behavior.
+///
+/// The variant order defines the priority order (`Low < Medium < High`).
+#[turbo_tasks::task_input]
+#[derive(
+    Debug,
+    Default,
+    Copy,
+    Clone,
+    PartialEq,
+    Eq,
+    PartialOrd,
+    Ord,
+    Hash,
+    Serialize,
+    Deserialize,
+    TraceRawVcs,
+    OperationValue,
+    Encode,
+    Decode,
+)]
+#[serde(rename_all = "camelCase")]
+pub enum ChunkGroupPriority {
+    Low,
+    #[default]
+    Medium,
+    High,
+}
+
 /// See [ChunkGroup] for documentation
 #[turbo_tasks::task_input]
 #[derive(Debug, Clone, Hash, PartialEq, Eq, TraceRawVcs, Encode, Decode)]
 pub enum ChunkGroupEntry {
-    Entry(Vec<ResolvedVc<Box<dyn Module>>>),
+    /// An entry chunk group with an explicit traffic priority (e.g. from
+    /// `experimental.turbopackChunkingPriorities`). The priority does not affect chunk group
+    /// identity — it is dropped when building the [`ChunkGroupKey`].
+    Entry {
+        modules: Vec<ResolvedVc<Box<dyn Module>>>,
+        priority: ChunkGroupPriority,
+    },
     Async(ResolvedVc<Box<dyn Module>>),
     Isolated(ResolvedVc<Box<dyn Module>>),
     IsolatedMerged {
@@ -152,7 +194,9 @@ impl ChunkGroupEntry {
             Self::Async(e) | Self::Isolated(e) | Self::Shared(e) => {
                 Either::Left(std::iter::once(*e))
             }
-            Self::Entry(entries)
+            Self::Entry {
+                modules: entries, ..
+            }
             | Self::IsolatedMerged { entries, .. }
             | Self::SharedMultiple(entries)
             | Self::SharedMerged { entries, .. } => Either::Right(entries.iter().copied()),
@@ -465,7 +509,7 @@ pub async fn compute_chunk_group_info(graph: &ModuleGraph) -> Result<Vc<ChunkGro
             >,
         ) -> ChunkGroupKey {
             match entry {
-                ChunkGroupEntry::Entry(entries) => ChunkGroupKey::Entry(entries),
+                ChunkGroupEntry::Entry { modules, .. } => ChunkGroupKey::Entry(modules),
                 ChunkGroupEntry::Async(entry) => ChunkGroupKey::Async(entry),
                 ChunkGroupEntry::Isolated(entry) => ChunkGroupKey::Isolated(entry),
                 ChunkGroupEntry::Shared(entry) => ChunkGroupKey::Shared(entry),
@@ -507,11 +551,27 @@ pub async fn compute_chunk_group_info(graph: &ModuleGraph) -> Result<Vc<ChunkGro
             }
         }
 
+        // Traffic priorities of entry chunk groups, keyed by their chunk group key. Only
+        // non-default priorities are recorded; every other chunk group (including derived
+        // Async/Isolated/Shared groups) defaults to `Medium`.
+        let mut entry_priorities: FxHashMap<ChunkGroupKey, ChunkGroupPriority> =
+            FxHashMap::default();
         let entry_chunk_group_keys = entries
             .iter()
             .flat_map(|&chunk_group| {
                 let chunk_group_key =
                     entry_to_chunk_group_id(chunk_group.clone(), &mut chunk_groups_map);
+                if let ChunkGroupEntry::Entry { priority, .. } = chunk_group
+                    && *priority != ChunkGroupPriority::default()
+                {
+                    // If the same module set is used by multiple entries, the highest
+                    // priority wins (the key is deduplicated by modules only; `max` keeps
+                    // this independent of entry iteration order).
+                    entry_priorities
+                        .entry(chunk_group_key.clone())
+                        .and_modify(|p| *p = (*p).max(*priority))
+                        .or_insert(*priority);
+                }
                 chunk_group
                     .entries()
                     .map(move |e| (e, chunk_group_key.clone()))
@@ -757,9 +817,99 @@ pub async fn compute_chunk_group_info(graph: &ModuleGraph) -> Result<Vc<ChunkGro
             }
         }
 
+        // Compute per-chunk-group priorities. Entry chunk groups carry the priority of their
+        // [`ChunkGroupEntry::Entry`]; derived chunk groups inherit the maximum priority of
+        // the chunk groups that create them.
+        let chunk_group_priorities: Vec<ChunkGroupPriority> = if entry_priorities.is_empty() {
+            vec![ChunkGroupPriority::default(); chunk_groups_map.len()]
+        } else {
+            // `None` means "no information yet"; unconfigured entry chunk groups explicitly
+            // start at the default priority so that e.g. a chunk group shared between a
+            // `low` route and an unconfigured route resolves to `Medium`.
+            let mut priorities: Vec<Option<ChunkGroupPriority>> = chunk_groups_map
+                .keys()
+                .map(|k| {
+                    entry_priorities.get(k).copied().or(match k {
+                        ChunkGroupKey::Entry(..) => Some(ChunkGroupPriority::default()),
+                        _ => None,
+                    })
+                })
+                .collect();
+
+            // For priority, inheritance happens as follows:
+            //   - merged groups (IsolatedMerged/SharedMerged) inherit from their parent group, and
+            //   - groups created by non-parallel edges (Async/Isolated/Shared) inherit from the
+            //     chunk groups of the referencing module.
+            let mut inherits_from: Vec<Vec<usize>> = vec![Vec::new(); chunk_groups_map.len()];
+            let mut seen_edges: FxHashSet<(usize, usize)> = FxHashSet::default();
+
+            for (index, key) in chunk_groups_map.keys().enumerate() {
+                if let ChunkGroupKey::IsolatedMerged { parent, .. }
+                | ChunkGroupKey::SharedMerged { parent, .. } = key
+                {
+                    let parent = parent.0 as usize;
+                    if parent != index && seen_edges.insert((parent, index)) {
+                        inherits_from[parent].push(index);
+                    }
+                }
+            }
+
+            graph.traverse_edges_unordered(|parent, target| {
+                let Some((parent_module, ref_data)) = parent else {
+                    return Ok(());
+                };
+                let target_key = match &ref_data.chunking_type {
+                    ChunkingType::Async => ChunkGroupKey::Async(target),
+                    ChunkingType::Isolated {
+                        merge_tag: None, ..
+                    } => ChunkGroupKey::Isolated(target),
+                    ChunkingType::Shared {
+                        merge_tag: None, ..
+                    } => ChunkGroupKey::Shared(target),
+                    _ => return Ok(()),
+                };
+                let Some(target_index) = chunk_groups_map.get_index_of(&target_key) else {
+                    return Ok(());
+                };
+                if let Some(parent_groups) = module_chunk_groups.get(&parent_module) {
+                    for group in parent_groups.iter() {
+                        let group = group as usize;
+                        if group != target_index && seen_edges.insert((group, target_index)) {
+                            inherits_from[group].push(target_index);
+                        }
+                    }
+                }
+                Ok(())
+            })?;
+
+            // Propagate along the inheritance graph. Priorities only ever increase and `High` is
+            // the maximum, so a group that has reached `High` is final.
+            let mut worklist: Vec<usize> = (0..chunk_groups_map.len())
+                .filter(|&index| priorities[index].is_some())
+                .collect();
+            while let Some(source_index) = worklist.pop() {
+                let source = priorities[source_index];
+                for &target_index in &inherits_from[source_index] {
+                    if priorities[target_index] == Some(ChunkGroupPriority::High) {
+                        continue;
+                    }
+                    if source > priorities[target_index] {
+                        priorities[target_index] = source;
+                        worklist.push(target_index);
+                    }
+                }
+            }
+
+            priorities
+                .into_iter()
+                .map(|p| p.unwrap_or_default())
+                .collect()
+        };
+
         Ok(ChunkGroupInfo {
             module_chunk_groups: ResolvedVc::cell(module_chunk_groups),
             chunk_group_keys: chunk_groups_map.keys().cloned().collect(),
+            chunk_group_priorities,
             chunk_groups: chunk_groups_map
                 .into_iter()
                 .map(|(k, (_, merged_entries))| match k {
