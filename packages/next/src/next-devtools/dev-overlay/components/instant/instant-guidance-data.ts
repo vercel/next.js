@@ -72,8 +72,6 @@ export type Snippet = {
   parts?: SnippetPart[]
 }
 
-// ── Blocking-route cards ──────────────────────────
-
 const runtimeCards: FixCard[] = [
   {
     id: 'wrap-in-or-move-into-suspense',
@@ -233,8 +231,6 @@ const dynamicCards: FixCard[] = [
   },
 ]
 
-// ── Unrendered-segment cards ──────────────────────
-
 const unrenderedSegmentCards: FixCard[] = [
   {
     id: 'render-the-dropped-segment',
@@ -276,8 +272,6 @@ const unrenderedSegmentCards: FixCard[] = [
   },
 ]
 
-// ── Link prefetch (Partial Prefetching) cards ─────
-
 const linkPrefetchPartialCards: FixCard[] = [
   {
     id: 'opt-into-partial-prefetching',
@@ -314,8 +308,6 @@ const linkPrefetchPartialCards: FixCard[] = [
     copyable: true,
   },
 ]
-
-// ── Metadata cards ────────────────────────────────
 
 const metadataRuntimeCards: FixCard[] = [
   {
@@ -369,8 +361,6 @@ const metadataDynamicCards: FixCard[] = [
   },
 ]
 
-// ── Viewport cards ────────────────────────────────
-
 const viewportRuntimeCards: FixCard[] = [
   {
     id: 'use-static-viewport',
@@ -422,8 +412,6 @@ const viewportDynamicCards: FixCard[] = [
     copyable: true,
   },
 ]
-
-// ── Sync IO cards (per API) ───────────────────────
 
 const syncMathCards: FixCard[] = [
   {
@@ -554,8 +542,6 @@ const syncCryptoCards: FixCard[] = [
   },
 ]
 
-// ── Client sync IO cards (no Suspense above) ──────
-
 const syncClientDateCards: FixCard[] = [
   {
     id: 'wrap-in-or-move-into-suspense',
@@ -648,8 +634,6 @@ const syncClientCryptoCards: FixCard[] = [
     copyable: true,
   },
 ]
-
-// ── Card lookup ───────────────────────────────────
 
 export type GuidanceKind =
   | 'blocking-route'
