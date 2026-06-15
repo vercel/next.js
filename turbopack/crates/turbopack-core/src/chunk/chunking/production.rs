@@ -15,7 +15,7 @@ use crate::{
     },
     module_graph::{
         ModuleGraph,
-        chunk_group_info::{ModuleToChunkGroups, RoaringBitmapWrapper},
+        chunk_group_info::{ChunkGroupPriority, ModuleToChunkGroups, RoaringBitmapWrapper},
     },
 };
 
@@ -38,6 +38,8 @@ pub async fn make_production_chunks(
     async move {
         let module_chunk_groups = module_graph.chunk_group_info().module_chunk_groups();
         let merged_modules = module_graph.merged_modules().await?;
+        let chunk_group_info = module_graph.chunk_group_info().await?;
+        let chunk_group_priorities = chunk_group_info.chunk_group_priorities.as_slice();
 
         #[derive(Default)]
         struct GroupedChunkItems<'l> {
@@ -409,6 +411,42 @@ pub async fn make_production_chunks(
                             */
 
                             /*
+                                PER-ROUTE OVER-SHIP WEIGHTING
+
+                                The derivation above counts every over-shipped route equally — the
+                                bare counts `a_rem` and `b_rem` in `d_size`. We want to protect
+                                high-traffic routes from over-fetching code while being more flexible
+                                for low-traffic routes. Each route gets weighted with `w(g)`
+                                (`overship_penalty_weight`, keyed by its `ChunkGroupPriority`).
+
+                                Over-shipping happens in the X+Z and Y+Z cases, where the extra
+                                bytes land on the `a_rem` A-only routes (`candidate \ other`, which
+                                over-ship code from the other chunk (b_size)) and the `b_rem` B-only
+                                routes (`other \ candidate`, over-ship `a_size`). Weighting those bytes by
+                                their recipients creates a weighted route count `W_a` / `W_b`:
+
+                                d_size(N = 2) = -2 * (W_a * b_size + W_b * a_size) * o_groups / (groups * rem_g)
+
+                                We take the highest-priority weight on each side:
+                                    W_a = w_a_rem * a_rem,  w_a_rem = max(w over the a_rem routes)
+                                    W_b = w_b_rem * b_rem,  w_b_rem = max(w over the b_rem routes)
+                                so one high-priority route makes the whole side expensive to
+                                over-ship to.
+
+                                `OVERSHIP_WEIGHT_DEFAULT` is set to 2 so that `ChunkGroupPriority::Low`'s
+                                weight can be an integer (1). However, this means that the size penalty
+                                of an all-medium build doubles. As a balance, we therefore scale
+                                the request benefit by `OVERSHIP_WEIGHT_DEFAULT` as well to keep the
+                                two competing factors balanced. This leaves you an equation that is
+                                equal to `m * 3d` (`3d` is equal to above):
+
+                                m * 3d = (m * c_req * (2 * rem_g + (5 * o_groups - 2 * a_groups - 2 * b_groups - 1)) - 2 * (w_a_rem * a_rem * b_size + w_b_rem * b_rem * a_size)) * o_groups / (rem_g * groups)
+
+                                Therefore, with every route `Medium` (w = m everywhere), chunks
+                                are produced per the above formulas.
+                            */
+
+                            /*
                                Note that d_size < 0. So we can make a quick check if d_req is positive.
 
                                c_req * (o_groups / groups + o_groups * (5 * o_groups - 2 * a_groups - 2 * b_groups - 1) / (groups * rem_g)) > 0
@@ -431,16 +469,39 @@ pub async fn make_production_chunks(
                             }
                             let rem_g = groups - 1;
                             let c_req = 200000;
-                            // d3 = 3 * d
-                            let pre_d3 = c_req
+
+                            // Per-route over-ship weighting (see "PER-ROUTE OVER-SHIP WEIGHTING"
+                            // above): `w_a_rem` / `w_b_rem` are the highest-priority over-ship
+                            // weights on each side, so one high-priority route protects the whole
+                            // side from over-fetching code.
+                            // `overlap > 1` above guarantees both sides intersect, so both
+                            // `chunk_groups` are `Some` here (`overlap` is 0 when either is
+                            // `None`).
+                            let (Some(a), Some(b)) = (&candidate.chunk_groups, &other.chunk_groups)
+                            else {
+                                unreachable!("overlap > 1 guarantees both chunk_groups are Some");
+                            };
+                            let w_a_rem =
+                                max_overship_weight_in_difference(a, b, chunk_group_priorities);
+                            let w_b_rem =
+                                max_overship_weight_in_difference(b, a, chunk_group_priorities);
+
+                            // `pre_d` is the bracketed factor of `m * 3d` from the derivation
+                            // above: the merge benefit `d` scaled by `m
+                            // = OVERSHIP_WEIGHT_DEFAULT` and without the
+                            // common positive divisor `o_groups / (rem_g * groups)`.
+                            // Since that divisor is positive, `sign(d) == sign(pre_d)`, so we gate
+                            // on `pre_d` before computing `d`.
+                            let pre_d = OVERSHIP_WEIGHT_DEFAULT
+                                * c_req
                                 * (2 * rem_g + (5 * o_groups - 2 * a_groups - 2 * b_groups - 1))
-                                - 2 * (a_rem * b_size + b_rem * a_size);
+                                - 2 * (w_a_rem * a_rem * b_size + w_b_rem * b_rem * a_size);
                             // It need to have some runtime benefit of merging the chunks
-                            if pre_d3 < 0 {
+                            if pre_d < 0 {
                                 continue;
                             }
-                            let d3 = pre_d3 * o_groups / (rem_g * groups);
-                            let value = d3;
+                            let d = pre_d * o_groups / (rem_g * groups);
+                            let value = d;
 
                             if let Some((best_i1, best_i2, best_overlap, best_value)) =
                                 best_combination.as_mut()
@@ -646,6 +707,34 @@ impl PartialEq for MergeCandidate<'_> {
     fn eq(&self, other: &Self) -> bool {
         self.size == other.size
     }
+}
+
+/// Per-route over-ship penalty weight for a chunk group, keyed by its [`ChunkGroupPriority`].
+fn overship_penalty_weight(priority: ChunkGroupPriority) -> i64 {
+    match priority {
+        ChunkGroupPriority::Low => 1,
+        ChunkGroupPriority::Medium => OVERSHIP_WEIGHT_DEFAULT,
+        ChunkGroupPriority::High => 4,
+    }
+}
+
+/// Per-route over-ship penalty weight of a default (`Medium`) chunk group. Also used to scale the
+/// request-benefit term so an all-`Medium` build reproduces the original merge behavior.
+const OVERSHIP_WEIGHT_DEFAULT: i64 = 2;
+
+/// Over-ship weight inherited from the highest-priority route in the set difference `a \ b` (the
+/// routes in `a` that are not also in `b`). These are the routes that over-ship when the two chunks
+/// merge.
+fn max_overship_weight_in_difference(
+    a: &RoaringBitmapWrapper,
+    b: &RoaringBitmapWrapper,
+    priorities: &[ChunkGroupPriority],
+) -> i64 {
+    a.iter()
+        .filter(|&i| !b.contains(i))
+        .map(|i| priorities[i as usize])
+        .max()
+        .map_or(OVERSHIP_WEIGHT_DEFAULT, overship_penalty_weight)
 }
 
 fn overlap(
