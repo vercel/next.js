@@ -78,7 +78,7 @@ import {
   allRequiredBoundariesRendered,
 } from './instant-validation/boundary-tracking'
 import type { InstantValidationSampleTracking } from './instant-validation/instant-samples'
-import { createUnrenderedSegmentError } from './instant-messages'
+import { createUnrenderedSegmentError } from '../../shared/lib/instant-messages'
 
 const hasPostpone = typeof React.unstable_postpone === 'function'
 

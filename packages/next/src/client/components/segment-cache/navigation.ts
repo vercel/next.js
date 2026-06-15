@@ -46,7 +46,7 @@ import { ScrollBehavior } from '../router-reducer/router-reducer-types'
 import { computeChangedPath } from '../router-reducer/compute-changed-path'
 import { isJavaScriptURLString } from '../../lib/javascript-url'
 import { UnknownDynamicStaleTime, computeDynamicStaleAt } from './bfcache'
-import { createLinkPrefetchPartialError } from '../../../server/app-render/instant-messages'
+import { createLinkPrefetchPartialError } from '../../../shared/lib/instant-messages'
 
 /**
  * Navigate to a new URL, using the Segment Cache to construct a response.
