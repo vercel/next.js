@@ -11,9 +11,11 @@ related:
     - app/api-reference/functions/updateTag
 ---
 
-When a user interaction triggers server-side work, the result isn't available immediately. Network requests take an unknown amount of time and can succeed or fail. Without feedback during that wait, users see stale data and can't tell whether anything is happening.
+When a user interaction requires server-side work, the result is not available immediately. Network requests take an unknown amount of time to complete and may succeed or fail. While waiting, the client should provide feedback and respond to those states. Otherwise, users are left looking at stale data and may wonder whether anything is happening.
 
 This guide adds responsive feedback to a task management app called _Taskboard_. Each step handles a different kind of pending work, from streaming slow reads to confirming mutations before the server responds.
+
+> **Good to know:** The patterns in this guide also improve [Core Web Vitals](https://web.dev/articles/vitals). Streaming with [`<Suspense>`](https://react.dev/reference/react/Suspense) lowers [FCP](https://web.dev/articles/fcp) and [LCP](https://web.dev/articles/lcp) by letting the shell paint while slow reads finish. Optimistic UI and transitions lower [INP](https://web.dev/articles/inp) by keeping the click frame fast. Prefetching the next route makes [FCP](https://web.dev/articles/fcp), [LCP](https://web.dev/articles/lcp), and [INP](https://web.dev/articles/inp) on the destination page near-instant.
 
 ## Example
 
@@ -136,7 +138,7 @@ export function TaskCard({ id, priority }) {
 
 If you click the dot, the Server Function runs, but the button keeps rendering the old `priority` prop until the next server render arrives.
 
-Replace the direct call with [`useOptimistic`](https://react.dev/reference/react/useOptimistic) and [`useTransition`](https://react.dev/reference/react/useTransition). `useOptimistic` provides a value to render in place of the stale prop, and `startTransition` runs the Server Function as part of a transition. The optimistic value applies for as long as that transition stays pending:
+Replace the direct call with [`useOptimistic`](https://react.dev/reference/react/useOptimistic) and [`useTransition`](https://react.dev/reference/react/useTransition). `useOptimistic` provides a value to render in place of the stale prop, and `useTransition` runs the Server Function as part of a transition. The optimistic value applies for as long as that transition is pending:
 
 ```tsx filename="features/task/components/task-card.tsx"
 'use client'
@@ -169,7 +171,7 @@ export function TaskCard({ id, priority }) {
 
 The `setOptimisticPriority` call updates the UI on the current frame with the next value in the cycle. Reading from `optimisticPriority` instead of the prop means rapid double-clicks cycle correctly rather than reading a stale closure value.
 
-If the transition ends without revalidating to new data, the optimistic value reverts. `useTransition` catches errors thrown inside the async callback and bubbles them to the nearest [error boundary](/docs/app/api-reference/file-conventions/error), so a failed Server Function surfaces automatically without a manual `try`/`catch`.
+When the transition ends and fresh data arrives, the optimistic value reverts to the new server-rendered prop. If the Server Function inside `useTransition` throws, the error is forwarded to the nearest [error boundary](/docs/app/api-reference/file-conventions/error) without a manual `try`/`catch`.
 
 The color now changes the moment the mouse lifts. Clicking again cycles to the next value without waiting for the first mutation to finish.
 
@@ -744,11 +746,15 @@ Prefetch only sticks when the destination reads are cached. The tags from the pr
 
 The patterns in this guide combine a handful of primitives:
 
-- [`<Suspense>`](https://react.dev/reference/react/Suspense) reveals streamed UI when data arrives.
-- [`useOptimistic`](https://react.dev/reference/react/useOptimistic) renders a temporary value while the server works.
-- [`useTransition`](https://react.dev/reference/react/useTransition) and [`startTransition`](https://react.dev/reference/react/startTransition) mark async updates as transitions and expose `isPending`. `useTransition` also catches errors thrown inside the async callback and bubbles them to the nearest error boundary.
-- [`useActionState`](https://react.dev/reference/react/useActionState) wraps a form action with pending state, reset behavior, and result handling.
-- [`'use cache'`](/docs/app/api-reference/directives/use-cache) with [`cacheTag`](/docs/app/api-reference/functions/cacheTag) and [`updateTag`](/docs/app/api-reference/functions/updateTag) keeps reusable reads warm across navigations, and [runtime prefetching](/docs/app/guides/prefetching) fills the next destination before the click.
+| Situation                                                                 | Use                                                                                                                                                                                                                                                                          |
+| ------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Slow data should stream in without blocking the page                      | [`<Suspense>`](https://react.dev/reference/react/Suspense)                                                                                                                                                                                                                   |
+| A value should update while async work runs                               | [`useOptimistic`](https://react.dev/reference/react/useOptimistic)                                                                                                                                                                                                           |
+| Async work needs pending state, error handling, or coordinated UI updates | [`useTransition`](https://react.dev/reference/react/useTransition)                                                                                                                                                                                                           |
+| A form needs pending, reset, and result state                             | [`useActionState`](https://react.dev/reference/react/useActionState)                                                                                                                                                                                                         |
+| An ancestor should show pending state for work happening elsewhere        | [`data-pending`](https://react.dev/reference/react-dom/components/form#props) attribute styled with CSS                                                                                                                                                                      |
+| Reusable reads should survive across requests and stay fresh after writes | [`'use cache'`](/docs/app/api-reference/directives/use-cache) with [`cacheTag`](/docs/app/api-reference/functions/cacheTag), revalidated by [`updateTag`](/docs/app/api-reference/functions/updateTag) or [`revalidateTag`](/docs/app/api-reference/functions/revalidateTag) |
+| Navigation between pages of an interactive app should feel instant        | [Runtime prefetching](/docs/app/guides/runtime-prefetching)                                                                                                                                                                                                                  |
 
 Most patterns mix two or more of these. Reach for whichever primitive fits the constraint you're solving.
 
