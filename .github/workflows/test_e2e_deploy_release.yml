@@ -104,7 +104,8 @@ jobs:
         with:
           name: test-timings
           path: test-timings.json
-          retention-days: 1
+          # Allows "rerun failed jobs" for N days
+          retention-days: 5
           if-no-files-found: error
 
   test-deploy-webpack:
