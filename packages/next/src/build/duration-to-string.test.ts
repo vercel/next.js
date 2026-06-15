@@ -22,17 +22,17 @@ describe('durationToString', () => {
 
 describe('hrtimeBigIntDurationToString', () => {
   it.each([
-    [0n, '0.0ms'],
-    [500_000n, '0.5ms'],
-    [1_500_000n, '1.5ms'],
-    [2_000_000n, '2ms'],
-    [1_500_000_000n, '1500ms'],
-    [2_000_000_000n, '2.0s'],
-    [2_500_000_000n, '2.5s'],
-    [40_000_000_000n, '40s'],
-    [45_400_000_000n, '45s'],
-    [120_000_000_000n, '2.0min'],
-    [150_000_000_000n, '2.5min'],
+    [BigInt(0), '0.0ms'],
+    [BigInt(500_000), '0.5ms'],
+    [BigInt(1_500_000), '1.5ms'],
+    [BigInt(2_000_000), '2ms'],
+    [BigInt(1_500_000_000), '1500ms'],
+    [BigInt(2_000_000_000), '2.0s'],
+    [BigInt(2_500_000_000), '2.5s'],
+    [BigInt(40_000_000_000), '40s'],
+    [BigInt(45_400_000_000), '45s'],
+    [BigInt(120_000_000_000), '2.0min'],
+    [BigInt(150_000_000_000), '2.5min'],
   ])('formats %s nanoseconds as %s', (duration, expected) => {
     expect(hrtimeBigIntDurationToString(duration)).toBe(expected)
   })
