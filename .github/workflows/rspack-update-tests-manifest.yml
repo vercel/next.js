@@ -62,6 +62,10 @@ jobs:
           RELEASE_GITHUB_TOKEN: ${{ steps.release-app-token.outputs.token }}
           RELEASE_GITHUB_APP_SLUG: ${{ steps.release-app-token.outputs.app-slug }}
           RELEASE_GITHUB_APP_USER_ID: ${{ steps.release-app-user.outputs.user-id }}
+          # this token is used for `gh api` calls in update-bundler-manifest
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # this app token is used for creating the PR, GH_TOKEN would instead
+          # create a PR that doesn't run any CI jobs
           PR_GITHUB_TOKEN: ${{ secrets.GH_TOKEN_PULL_REQUESTS }}
           BRANCH_NAME: rspack-manifest
           # We need to use `--override` for rspack (but not for turbopack).
@@ -125,6 +129,7 @@ jobs:
           RELEASE_GITHUB_TOKEN: ${{ steps.release-app-token.outputs.token }}
           RELEASE_GITHUB_APP_SLUG: ${{ steps.release-app-token.outputs.app-slug }}
           RELEASE_GITHUB_APP_USER_ID: ${{ steps.release-app-user.outputs.user-id }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PR_GITHUB_TOKEN: ${{ secrets.GH_TOKEN_PULL_REQUESTS }}
           BRANCH_NAME: rspack-manifest
           SCRIPT: test/update-bundler-manifest.js --bundler rspack --test-suite build --override
