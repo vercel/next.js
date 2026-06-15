@@ -7,7 +7,6 @@ import { AppRouterContext } from '../../shared/lib/app-router-context.shared-run
 import { useMergedRef } from '../use-merged-ref'
 import { isAbsoluteUrl } from '../../shared/lib/utils'
 import { addBasePath } from '../add-base-path'
-import { warnOnce } from '../../shared/lib/utils/warn-once'
 import { ScrollBehavior } from '../components/router-reducer/router-reducer-types'
 import type { PENDING_LINK_STATUS } from '../components/links'
 import {
@@ -513,6 +512,8 @@ export default function LinkComponent(
   const formattedHref = formatStringOrUrl(resolvedHref)
 
   if (process.env.NODE_ENV !== 'production') {
+    const { warnOnce } =
+      require('../../shared/lib/utils/warn-once') as typeof import('../../shared/lib/utils/warn-once')
     if (props.locale) {
       warnOnce(
         'The `locale` prop is not supported in `next/link` while using the `app` router. Read more about app router internalization: https://nextjs.org/docs/app/building-your-application/routing/internationalization'

@@ -1,4 +1,3 @@
-import { warnOnce } from './utils/warn-once'
 import { getAssetToken, getDeploymentId } from './deployment-id'
 import { getImageBlurSvg } from './image-blur-svg'
 import { imageConfigDefault } from './image-config'
@@ -462,6 +461,8 @@ export function getImgProps(
   const qualityInt = getInt(quality)
 
   if (process.env.NODE_ENV !== 'production') {
+    const { warnOnce } =
+      require('./utils/warn-once') as typeof import('./utils/warn-once')
     if (config.output === 'export' && isDefaultLoader && !unoptimized) {
       throw new Error(
         `Image Optimization using the default loader is not compatible with \`{ output: 'export' }\`.
