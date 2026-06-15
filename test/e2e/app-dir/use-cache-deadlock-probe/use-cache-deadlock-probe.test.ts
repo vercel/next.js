@@ -33,11 +33,11 @@ describe('use-cache-deadlock-probe', () => {
 
       await expect(browser).toDisplayCollapsedRedbox(`
        {
-         "code": "E1181",
+         "code": "E1364",
          "description": "A \`"use cache"\` entry is awaiting a promise created outside the cached function. The same call completed when run in isolation, so a module-scoped value (often a top-level \`Map\` used to dedupe fetches) is most likely blocking it. \`"use cache"\` already dedupes calls with the same arguments. Remove the surrounding dedupe layer.
            Learn more: https://nextjs.org/docs/messages/next-request-in-use-cache",
-         "environmentLabel": "Server",
-         "label": "Console Error",
+         "environmentLabel": "Cache",
+         "label": "Runtime Error",
          "source": "app/static/page.tsx (6:1) @ getCachedData
        > 6 | async function getCachedData(): Promise<string> {
            | ^",
@@ -62,11 +62,11 @@ describe('use-cache-deadlock-probe', () => {
 
       await expect(browser).toDisplayCollapsedRedbox(`
        {
-         "code": "E1181",
+         "code": "E1364",
          "description": "A \`"use cache"\` entry is awaiting a promise created outside the cached function. The same call completed when run in isolation, so a module-scoped value (often a top-level \`Map\` used to dedupe fetches) is most likely blocking it. \`"use cache"\` already dedupes calls with the same arguments. Remove the surrounding dedupe layer.
            Learn more: https://nextjs.org/docs/messages/next-request-in-use-cache",
-         "environmentLabel": "Server",
-         "label": "Console Error",
+         "environmentLabel": "Cache",
+         "label": "Runtime Error",
          "source": "app/runtime/page.tsx (8:1) @ getCachedData
        >  8 | async function getCachedData(): Promise<string> {
             | ^",
@@ -99,11 +99,11 @@ describe('use-cache-deadlock-probe', () => {
 
       await expect(browser).toDisplayCollapsedRedbox(`
        {
-         "code": "E1181",
+         "code": "E1364",
          "description": "A \`"use cache"\` entry is awaiting a promise created outside the cached function. The same call completed when run in isolation, so a module-scoped value (often a top-level \`Map\` used to dedupe fetches) is most likely blocking it. \`"use cache"\` already dedupes calls with the same arguments. Remove the surrounding dedupe layer.
            Learn more: https://nextjs.org/docs/messages/next-request-in-use-cache",
-         "environmentLabel": "Server",
-         "label": "Console Error",
+         "environmentLabel": "Cache",
+         "label": "Runtime Error",
          "source": "app/static/page.tsx (6:1) @ getCachedData
        > 6 | async function getCachedData(): Promise<string> {
            | ^",
@@ -132,11 +132,11 @@ describe('use-cache-deadlock-probe', () => {
 
       await expect(browser).toDisplayCollapsedRedbox(`
        {
-         "code": "E1181",
+         "code": "E1364",
          "description": "A \`"use cache"\` entry is awaiting a promise created outside the cached function. The same call completed when run in isolation, so a module-scoped value (often a top-level \`Map\` used to dedupe fetches) is most likely blocking it. \`"use cache"\` already dedupes calls with the same arguments. Remove the surrounding dedupe layer.
            Learn more: https://nextjs.org/docs/messages/next-request-in-use-cache",
-         "environmentLabel": "Server",
-         "label": "Console Error",
+         "environmentLabel": "Cache",
+         "label": "Runtime Error",
          "source": "app/runtime/page.tsx (8:1) @ getCachedData
        >  8 | async function getCachedData(): Promise<string> {
             | ^",
@@ -176,11 +176,11 @@ describe('use-cache-deadlock-probe', () => {
 
       await expect(browser).toDisplayCollapsedRedbox(`
        {
-         "code": "E236",
+         "code": "E1378",
          "description": "Filling a \`"use cache"\` entry took too long. The most common cause is reading request data (\`params\`, \`searchParams\`, \`cookies()\`, \`headers()\`) inside the cached function. Read it outside and pass what you need as an argument.
            Learn more: https://nextjs.org/docs/messages/next-request-in-use-cache",
-         "environmentLabel": "Server",
-         "label": "Console Error",
+         "environmentLabel": "Cache",
+         "label": "Runtime Error",
          "source": "app/also-hangs/page.tsx (5:1) @ getCachedData
        > 5 | async function getCachedData(): Promise<string> {
            | ^",
@@ -235,11 +235,11 @@ describe('use-cache-deadlock-probe', () => {
 
       await expect(browser).toDisplayCollapsedRedbox(`
        {
-         "code": "E1181",
+         "code": "E1364",
          "description": "A \`"use cache"\` entry is awaiting a promise created outside the cached function. The same call completed when run in isolation, so a module-scoped value (often a top-level \`Map\` used to dedupe fetches) is most likely blocking it. \`"use cache"\` already dedupes calls with the same arguments. Remove the surrounding dedupe layer.
            Learn more: https://nextjs.org/docs/messages/next-request-in-use-cache",
-         "environmentLabel": "Server",
-         "label": "Console Error",
+         "environmentLabel": "Cache",
+         "label": "Runtime Error",
          "source": "app/recovery-stuck/page.tsx (24:1) @ getCachedData
        > 24 | async function getCachedData() {
             | ^",
@@ -265,11 +265,11 @@ describe('use-cache-deadlock-probe', () => {
 
       await expect(browser).toDisplayCollapsedRedbox(`
        {
-         "code": "E1181",
+         "code": "E1364",
          "description": "A \`"use cache"\` entry is awaiting a promise created outside the cached function. The same call completed when run in isolation, so a module-scoped value (often a top-level \`Map\` used to dedupe fetches) is most likely blocking it. \`"use cache"\` already dedupes calls with the same arguments. Remove the surrounding dedupe layer.
            Learn more: https://nextjs.org/docs/messages/next-request-in-use-cache",
-         "environmentLabel": "Server",
-         "label": "Console Error",
+         "environmentLabel": "Cache",
+         "label": "Runtime Error",
          "source": "app/private-cookies/page.tsx (20:1) @ getCachedData
        > 20 | async function getCachedData(): Promise<string> {
             | ^",

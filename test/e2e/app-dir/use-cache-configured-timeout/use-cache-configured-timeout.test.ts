@@ -38,10 +38,10 @@ describe('use-cache-configured-timeout', () => {
 
         await expect(browser).toDisplayRedbox(`
          {
-           "code": "E236",
+           "code": "E1378",
            "description": "Filling a \`"use cache"\` entry took too long. The most common cause is reading request data (\`params\`, \`searchParams\`, \`cookies()\`, \`headers()\`) inside the cached function. Read it outside and pass what you need as an argument.
            Learn more: https://nextjs.org/docs/messages/next-request-in-use-cache",
-           "environmentLabel": "Prerender",
+           "environmentLabel": "Cache",
            "label": "Runtime Error",
            "source": "app/above-dev-timeout/page.tsx (4:1) @ getCachedData
          > 4 | async function getCachedData(): Promise<string> {
