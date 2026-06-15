@@ -537,6 +537,7 @@ async function navigateToUnknownRoute(
             staticStageResponse.f,
             buildId,
             staticStageResponse.h,
+            staticStageResponse.r ?? null,
             staleAt,
             currentFlightRouterState,
             renderedSearch,
@@ -565,6 +566,7 @@ async function navigateToUnknownRoute(
               processed.buildId,
               processed.isResponsePartial,
               processed.headVaryParams,
+              processed.rootVaryParamsIterable,
               processed.staleAt,
               processed.navigationSeed,
               null

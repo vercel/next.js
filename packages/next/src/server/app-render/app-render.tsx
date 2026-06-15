@@ -212,7 +212,8 @@ import { CacheSignal } from './cache-signal'
 import {
   createResponseVaryParamsAccumulator,
   finishAccumulatingVaryParams,
-  getMetadataVaryParamsThenable,
+  getMetadataVaryParamsIterable,
+  getRootParamsVaryParamsIterable,
 } from './vary-params'
 import { getTracedMetadata } from '../lib/trace/utils'
 import { InvariantError } from '../../shared/lib/invariant-error'
@@ -739,7 +740,8 @@ async function generateDynamicRSCPayload(
       q: getRenderedSearch(query),
       i: !!couldBeIntercepted,
       S: workStore.isStaticGeneration,
-      h: getMetadataVaryParamsThenable(),
+      h: getMetadataVaryParamsIterable(),
+      r: getRootParamsVaryParamsIterable() ?? undefined,
     }
   )
 
@@ -1825,12 +1827,15 @@ async function finalRuntimeServerPrerender(
 
         // FIXME(NAR-810): If we're already aborted due to Sync IO, there should be no need to
         // finish the accumulators. However, it seems like in `--debug-prerender`
-        // the stream will stay open if we don't close the iterable here.
+        // the stream will stay open if we don't close the iterables here. This
+        // applies to the vary params iterables too — there's now one per segment
+        // (plus head and root) embedded in the stream.
         if (
           process.env.NODE_ENV === 'development' &&
           staleTimeIterable !== undefined
         ) {
           staleTimeIterable.close()
+          finishAccumulatingVaryParams(varyParamsAccumulator)
         }
 
         return
@@ -1865,10 +1870,13 @@ async function finalRuntimeServerPrerender(
       }
 
       staleTimeIterable.close()
-      finishAccumulatingVaryParams(varyParamsAccumulator)
 
-      // We're using a render, not a prerender, so React schedules rendering work in fast immediates,
-      // and we need to wait a fast immediate for the stale time/vary params chunks to flush.
+      // Wait for the vary params iterables to finish flushing into the stream
+      // (see finishAccumulatingVaryParams), then one more task for the stale
+      // time iterable and the stream's terminating chunk to flush. Sampling
+      // before the vary params have drained would race their flush and
+      // mis-report a fully-static prerender as partial.
+      await finishAccumulatingVaryParams(varyParamsAccumulator)
       await waitAtLeastOneReactRenderTask()
 
       if (streamState.isPending) {
@@ -2110,7 +2118,8 @@ async function getRSCPayload(
     // static pages do, because their per-segment prefetch responses are
     // generated during static generation (build or ISR).
     S: workStore.isStaticGeneration || ctx.renderOpts.cacheComponents,
-    h: getMetadataVaryParamsThenable(),
+    h: getMetadataVaryParamsIterable(),
+    r: getRootParamsVaryParamsIterable() ?? undefined,
     s: staleTimeIterable,
     a: shellByteLengthPromise,
     l: staticStageByteLengthPromise,
@@ -2269,7 +2278,8 @@ async function getErrorRSCPayload(
     // static pages do, because their per-segment prefetch responses are
     // generated during static generation (build or ISR).
     S: workStore.isStaticGeneration || ctx.renderOpts.cacheComponents,
-    h: getMetadataVaryParamsThenable(),
+    h: getMetadataVaryParamsIterable(),
+    r: getRootParamsVaryParamsIterable() ?? undefined,
   } satisfies InitialRSCPayload)
 }
 
@@ -7702,12 +7712,15 @@ async function prerenderToStream(
 
             // FIXME(NAR-810): If we're already aborted due to Sync IO, there should be no need to
             // finish the accumulators. However, it seems like in `--debug-prerender`
-            // the stream will stay open if we don't close the iterable here.
+            // the stream will stay open if we don't close the iterables here.
+            // This applies to the vary params iterables too — there's now one
+            // per segment (plus head and root) embedded in the stream.
             if (
               process.env.NODE_ENV === 'development' &&
               staleTimeIterable !== undefined
             ) {
               staleTimeIterable.close()
+              finishAccumulatingVaryParams(varyParamsAccumulator)
             }
             return
           }
@@ -7729,7 +7742,9 @@ async function prerenderToStream(
           // into the stream. The timing here is important: both were
           // included in the Flight payload, but they can only be serialized
           // at the very end, after all the components have finished.
-          finishAccumulatingVaryParams(varyParamsAccumulator)
+          const varyParamsFlushed = finishAccumulatingVaryParams(
+            varyParamsAccumulator
+          )
           if (staleTimeIterable !== undefined) {
             staleTimeIterable.close()
           }
@@ -7745,8 +7760,12 @@ async function prerenderToStream(
             )
           }
 
-          // We're using a render, not a prerender, so React schedules rendering work in fast immediates,
-          // and we need to wait a fast immediate for the above accumulators to flush.
+          // Wait for the vary params iterables to finish flushing into the
+          // stream (see finishAccumulatingVaryParams), then one more task for
+          // the stale time iterable and the stream's terminating chunk to
+          // flush. Sampling before the vary params have drained would race
+          // their flush and mis-report a fully-static prerender as partial.
+          await varyParamsFlushed
           await waitAtLeastOneReactRenderTask()
 
           if (streamState.isPending) {
