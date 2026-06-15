@@ -746,6 +746,15 @@ export interface ExperimentalConfig {
   turbopackScopeHoisting?: boolean
 
   /**
+   * (`next --turbopack` only) Per-route traffic priorities. Keys are route
+   * paths (e.g. `/products/[id]`), values are `'low' | 'medium' | 'high'`.
+   * Routes not listed default to `'medium'`. Turbopack will avoid
+   * over-shipping code to `high` priority routes to reduce page-load times
+   * on them.
+   */
+  turbopackChunkingPriorities?: Record<string, 'low' | 'medium' | 'high'>
+
+  /**
    * (`next --turbopack` only) A custom URL prefix for Web Worker URLs
    * produced by `new Worker(new URL(..., import.meta.url))` — both the
    * entrypoint URL and the module chunks loaded inside the worker —
