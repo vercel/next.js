@@ -119,6 +119,109 @@ Disallow: /
 Sitemap: https://acme.com/sitemap.xml
 ```
 
+### Content Signals
+
+You can declare AI content usage preferences with [`Content Signals`](https://contentsignals.org/) by passing the `contentSignal` field on a rule.
+
+```ts filename="app/robots.ts" switcher
+import type { MetadataRoute } from 'next'
+
+export default function robots(): MetadataRoute.Robots {
+  return {
+    rules: {
+      userAgent: '*',
+      allow: '/',
+      contentSignal: {
+        aiTrain: false,
+        search: true,
+        aiInput: false,
+      },
+    },
+  }
+}
+```
+
+```js filename="app/robots.js" switcher
+export default function robots() {
+  return {
+    rules: {
+      userAgent: '*',
+      allow: '/',
+      contentSignal: {
+        aiTrain: false,
+        search: true,
+        aiInput: false,
+      },
+    },
+  }
+}
+```
+
+Output:
+
+```txt
+User-Agent: *
+Allow: /
+Content-Signal: ai-train=no, search=yes, ai-input=no
+```
+
+You can also scope signals to one or more paths:
+
+```ts filename="app/robots.ts" switcher
+import type { MetadataRoute } from 'next'
+
+export default function robots(): MetadataRoute.Robots {
+  return {
+    rules: {
+      userAgent: '*',
+      contentSignal: [
+        {
+          path: ['/blog', '/about'],
+          search: true,
+        },
+        {
+          path: '/projects',
+          aiTrain: false,
+          search: true,
+          aiInput: false,
+        },
+      ],
+    },
+  }
+}
+```
+
+```js filename="app/robots.js" switcher
+export default function robots() {
+  return {
+    rules: {
+      userAgent: '*',
+      contentSignal: [
+        {
+          path: ['/blog', '/about'],
+          search: true,
+        },
+        {
+          path: '/projects',
+          aiTrain: false,
+          search: true,
+          aiInput: false,
+        },
+      ],
+    },
+  }
+}
+```
+
+Output:
+
+```txt
+User-Agent: *
+Content-Signal: /blog search=yes
+Content-Signal: /about search=yes
+Content-Signal: /projects ai-train=no, search=yes, ai-input=no
+```
+
 ### Non-standard directives
 
 Some search engines support directives that aren't part of the [Robots Exclusion Standard](https://en.wikipedia.org/wiki/Robots.txt#Standard), such as `Request-Rate` (Seznam) or `Clean-param` (Yandex). Pass these through the `other` field on a rule. Keys preserve their casing and array values emit one line per entry, scoped to the rule's `User-Agent` block.
@@ -182,6 +285,19 @@ type Robots = {
         allow?: string | string[]
         disallow?: string | string[]
         crawlDelay?: number
+        contentSignal?:
+          | {
+              path?: string | string[]
+              aiTrain?: boolean
+              search?: boolean
+              aiInput?: boolean
+            }
+          | Array<{
+              path?: string | string[]
+              aiTrain?: boolean
+              search?: boolean
+              aiInput?: boolean
+            }>
         other?: Record<string, string | number | Array<string | number>>
       }
     | Array<{
@@ -189,6 +305,19 @@ type Robots = {
         allow?: string | string[]
         disallow?: string | string[]
         crawlDelay?: number
+        contentSignal?:
+          | {
+              path?: string | string[]
+              aiTrain?: boolean
+              search?: boolean
+              aiInput?: boolean
+            }
+          | Array<{
+              path?: string | string[]
+              aiTrain?: boolean
+              search?: boolean
+              aiInput?: boolean
+            }>
         other?: Record<string, string | number | Array<string | number>>
       }>
   sitemap?: string | string[]
@@ -200,5 +329,6 @@ type Robots = {
 
 | Version   | Changes                                                    |
 | --------- | ---------------------------------------------------------- |
+| `v16.3.0` | Added `contentSignal` field for Content Signals.           |
 | `v16.3.0` | Added `other` field for non-standard per-agent directives. |
 | `v13.3.0` | `robots` introduced.                                       |
