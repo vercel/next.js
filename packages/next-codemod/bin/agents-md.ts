@@ -10,6 +10,8 @@ import pc from 'picocolors'
 import { BadInput } from './shared'
 import {
   getNextjsVersion,
+  getBundledDocsInfo,
+  getBundledDocsLinkPath,
   pullDocs,
   collectDocFiles,
   buildDocTree,
@@ -74,8 +76,20 @@ export async function runAgentsMd(options: AgentsMdOptions): Promise<void> {
   }
 
   const claudeMdPath = path.join(cwd, targetFile)
-  const docsPath = path.join(cwd, DOCS_DIR_NAME)
-  const docsLinkPath = `./${DOCS_DIR_NAME}`
+
+  // Next.js >= 16.2.0 ships its docs inside the published package. When the
+  // installed version matches the requested one, index the bundled docs
+  // directly instead of downloading a copy into .next-docs.
+  const bundledDocs = getBundledDocsInfo(cwd)
+  const useBundledDocs =
+    bundledDocs !== null && bundledDocs.version === nextjsVersion
+
+  const docsPath = useBundledDocs
+    ? bundledDocs.docsPath
+    : path.join(cwd, DOCS_DIR_NAME)
+  const docsLinkPath = useBundledDocs
+    ? getBundledDocsLinkPath(cwd, bundledDocs.docsPath)
+    : `./${DOCS_DIR_NAME}`
 
   let sizeBefore = 0
   let isNewFile = true
@@ -87,18 +101,24 @@ export async function runAgentsMd(options: AgentsMdOptions): Promise<void> {
     isNewFile = false
   }
 
-  console.log(
-    `\nDownloading Next.js ${pc.cyan(nextjsVersion)} documentation to ${pc.cyan(DOCS_DIR_NAME)}...`
-  )
+  if (useBundledDocs) {
+    console.log(
+      `\nUsing the docs bundled with Next.js ${pc.cyan(nextjsVersion)} at ${pc.cyan(docsLinkPath)} (no download needed).`
+    )
+  } else {
+    console.log(
+      `\nDownloading Next.js ${pc.cyan(nextjsVersion)} documentation to ${pc.cyan(DOCS_DIR_NAME)}...`
+    )
 
-  const pullResult = await pullDocs({
-    cwd,
-    version: nextjsVersion,
-    docsDir: docsPath,
-  })
+    const pullResult = await pullDocs({
+      cwd,
+      version: nextjsVersion,
+      docsDir: docsPath,
+    })
 
-  if (!pullResult.success) {
-    throw new BadInput(`Failed to pull docs: ${pullResult.error}`)
+    if (!pullResult.success) {
+      throw new BadInput(`Failed to pull docs: ${pullResult.error}`)
+    }
   }
 
   const docFiles = collectDocFiles(docsPath)
@@ -115,7 +135,9 @@ export async function runAgentsMd(options: AgentsMdOptions): Promise<void> {
 
   const sizeAfter = Buffer.byteLength(newContent, 'utf-8')
 
-  const gitignoreResult = ensureGitignoreEntry(cwd)
+  // .next-docs only exists on the download path; bundled docs live in
+  // node_modules, which is already ignored.
+  const gitignoreResult = useBundledDocs ? null : ensureGitignoreEntry(cwd)
 
   const action = isNewFile ? 'Created' : 'Updated'
   const sizeInfo = isNewFile
@@ -123,7 +145,7 @@ export async function runAgentsMd(options: AgentsMdOptions): Promise<void> {
     : `${formatSize(sizeBefore)} → ${formatSize(sizeAfter)}`
 
   console.log(`${pc.green('✓')} ${action} ${pc.bold(targetFile)} (${sizeInfo})`)
-  if (gitignoreResult.updated) {
+  if (gitignoreResult?.updated) {
     console.log(
       `${pc.green('✓')} Added ${pc.bold(DOCS_DIR_NAME)} to .gitignore`
     )
