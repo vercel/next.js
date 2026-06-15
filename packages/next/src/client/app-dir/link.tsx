@@ -22,7 +22,6 @@ import {
   FetchStrategy,
   type PrefetchTaskFetchStrategy,
 } from '../components/segment-cache/types'
-import { errorOnce } from '../../shared/lib/utils/error-once'
 
 type Url = string | UrlObject
 type RequiredKeys<T> = {
@@ -767,6 +766,8 @@ export default function LinkComponent(
 
   if (legacyBehavior) {
     if (process.env.NODE_ENV === 'development') {
+      const { errorOnce } =
+        require('../../shared/lib/utils/error-once') as typeof import('../../shared/lib/utils/error-once')
       errorOnce(
         '`legacyBehavior` is deprecated and will be removed in a future ' +
           'release. A codemod is available to upgrade your components:\n\n' +
