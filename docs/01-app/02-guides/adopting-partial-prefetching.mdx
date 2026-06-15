@@ -92,10 +92,6 @@ export default nextConfig
 
 Under Cache Components, `<Link prefetch={true}>` to a route that has not opted into Partial Prefetching pulls the route's dynamic data along with the cached page render. This leads to slower, more expensive prefetches. Each one surfaces as an [Insight](/docs/messages/instant-link-prefetch-partial) in the dev overlay so you can find them as you adopt. The Insight covers three options: opt the route in, use the default prefetch, or disable validation for the route.
 
-## Going further: prefetch more than the App Shell
-
-Opting into Partial Prefetching stops at the App Shell. To pull more of the route's cached content into the prefetch, set `prefetch={true}` on the link. To pull cached content that depends on request data (cookies, headers, search params), opt the route into [runtime prefetching](/docs/app/guides/runtime-prefetching). The [prefetching guide](/docs/app/guides/prefetching) covers the link-level options and the [`"use cache"`](/docs/app/api-reference/directives/use-cache) directive for making data cacheable in the first place.
-
 ## Next steps
 
 - [Runtime prefetching](/docs/app/guides/runtime-prefetching) for per-link runtime prefetches and App Shells in depth.
