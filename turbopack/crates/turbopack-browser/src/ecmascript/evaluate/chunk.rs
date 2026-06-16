@@ -31,7 +31,7 @@ use crate::{
 };
 
 /// An Ecmascript chunk that registers an entrypoint's chunks and runtime module
-/// IDs onto the `globalThis[TURBOPACK]` queue, which the shared
+/// IDs onto the `globalThis["TURBOPACK"]` queue, which the shared
 /// [`crate::ecmascript::evaluate::runtime::EcmascriptBrowserRuntimeChunk`] drains.
 #[turbo_tasks::value(shared)]
 #[derive(ValueToString)]
