@@ -304,7 +304,11 @@ fn test_cases() {}
 fn node_file_trace_noop_backing_storage(#[case] input: CaseInput) {
     node_file_trace(input, "noop_backing_storage", 1, 120, |_| {
         TurboTasks::new(TurboTasksBackend::new(
-            turbo_tasks_backend::BackendOptions::default(),
+            turbo_tasks_backend::BackendOptions {
+                storage_mode: None,
+                dependency_tracking: false,
+                ..Default::default()
+            },
             turbo_tasks_backend::noop_backing_storage(),
         ))
     });
