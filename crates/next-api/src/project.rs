@@ -16,7 +16,7 @@ use next_core::{
         ClientChunkingContextOptions, get_client_chunking_context, get_client_compile_time_info,
     },
     next_config::{
-        DIST_PROFILES_DIR_NAME, ModuleIds as ModuleIdStrategyConfig, NextConfig,
+        DIST_PROFILES_DIR_NAME, ModuleIds as ModuleIdStrategyConfig, NextConfig, OutputType,
         TurbopackPluginRuntimeStrategy,
     },
     next_edge::context::EdgeChunkingContextOptions,
@@ -1220,6 +1220,14 @@ impl Project {
     }
 
     #[turbo_tasks::function]
+    pub(super) async fn should_write_nft_manifests(&self) -> Result<Vc<bool>> {
+        Ok(Vc::cell(
+            self.mode.await?.is_production()
+                && *self.next_config.output().await? != Some(OutputType::Export),
+        ))
+    }
+
+    #[turbo_tasks::function]
     pub fn deferred_entries(&self) -> Vc<Vec<RcStr>> {
         Vc::cell(self.deferred_entries.clone())
     }
@@ -1471,12 +1479,11 @@ impl Project {
         entry: ResolvedVc<Box<dyn Module>>,
     ) -> Result<Vc<ModuleGraph>> {
         Ok(if *self.per_page_module_graph().await? {
-            let is_production = self.next_mode().await?.is_production();
             ModuleGraph::from_graphs(
                 vec![SingleModuleGraph::new_with_entry(
                     ChunkGroupEntry::Entry(vec![entry]),
-                    is_production,
-                    is_production,
+                    /* include_traced */ *self.should_write_nft_manifests().await?,
+                    /* include_binding_usage */ self.next_mode().await?.is_production(),
                 )],
                 None,
             )
@@ -1492,7 +1499,6 @@ impl Project {
         evaluatable_assets: Vc<EvaluatableAssets>,
     ) -> Result<Vc<ModuleGraph>> {
         Ok(if *self.per_page_module_graph().await? {
-            let is_production = self.next_mode().await?.is_production();
             let entries = evaluatable_assets
                 .await?
                 .iter()
@@ -1503,8 +1509,8 @@ impl Project {
                 vec![SingleModuleGraph::new_with_entries(
                     GraphEntries::from_chunk_groups(vec![ChunkGroupEntry::Entry(entries)])
                         .resolved_cell(),
-                    is_production,
-                    is_production,
+                    /* include_traced */ *self.should_write_nft_manifests().await?,
+                    /* include_binding_usage */ self.next_mode().await?.is_production(),
                 )],
                 None,
             )
@@ -2052,6 +2058,8 @@ impl Project {
                 self.encryption_key(),
                 self.edge_compile_time_info().environment(),
                 self.client_compile_time_info().environment(),
+                // There is no NFT on edge
+                false,
             ),
             get_edge_resolve_options_context(
                 self.project_path().owned().await?,
@@ -2115,6 +2123,7 @@ impl Project {
                 self.encryption_key(),
                 self.server_compile_time_info().environment(),
                 self.client_compile_time_info().environment(),
+                *self.should_write_nft_manifests().await?,
             ),
             get_server_resolve_options_context(
                 self.project_path().owned().await?,
@@ -2230,6 +2239,7 @@ impl Project {
                 self.encryption_key(),
                 self.server_compile_time_info().environment(),
                 self.client_compile_time_info().environment(),
+                *self.should_write_nft_manifests().await?,
             ),
             get_server_resolve_options_context(
                 self.project_path().owned().await?,
@@ -2293,6 +2303,8 @@ impl Project {
                 self.encryption_key(),
                 self.edge_compile_time_info().environment(),
                 self.client_compile_time_info().environment(),
+                // There is no NFT on edge
+                false,
             ),
             get_edge_resolve_options_context(
                 self.project_path().owned().await?,
@@ -2654,9 +2666,8 @@ async fn whole_app_module_graph_operation(
     let span_clone = span.clone();
     async move {
         let next_mode = project.next_mode();
-        let next_mode_ref = next_mode.await?;
-        let should_trace = next_mode_ref.is_production();
-        let should_read_binding_usage = next_mode_ref.is_production();
+        let should_trace = *project.should_write_nft_manifests().await?;
+        let should_read_binding_usage = next_mode.await?.is_production();
         let base_single_module_graph = SingleModuleGraph::new_with_entries(
             project.get_all_entries().to_resolved().await?,
             should_trace,
