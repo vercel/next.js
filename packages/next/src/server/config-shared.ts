@@ -750,7 +750,7 @@ export interface ExperimentalConfig {
    * paths (e.g. `/products/[id]`), values are `'low' | 'medium' | 'high'`.
    * Routes not listed default to `'medium'`. Turbopack will avoid
    * over-shipping code to `high` priority routes to reduce page-load times
-   * on them.
+   * on them, at the cost of making other pages slower to load.
    */
   turbopackChunkingPriorities?: Record<string, 'low' | 'medium' | 'high'>
 
