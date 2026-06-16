@@ -18,7 +18,7 @@ The page to optimize is whatever route the user is currently on (per shared pref
 
 3. **Rank by rendered area.** Per candidate, take max(fallback rect on shell-only, rendered subtree rect on full). Fallback rect alone misleads when developers used an undersized spinner.
 
-4. **Gauge the gap.** Same capture as verify — the shell-only render. If the top-ranked candidate is sub-viewport (thin fallback bar, sidebar widget), the shell is already in good shape; surface that and offer to audit other routes for better targets, rather than forcing a marginal refactor.
+4. **Gauge the gap.** Same capture as verify — the shell-only render. If the top-ranked candidate is sub-viewport (thin fallback bar, sidebar widget), the shell already covers the meaningful content; surface that and offer to audit other routes for better targets, rather than forcing a marginal refactor.
 
 5. **One boundary dominates →** that wrapper is the shell. Read inside, enumerate the awaits, recurse with those.
 
@@ -28,4 +28,4 @@ Apply the shared lever rules from dev-loop.md.
 
 ### verify
 
-Re-take the shell-only render and compare against the baseline screenshot. The targeted gap must shrink or vanish; identical captures fail per the shared visible-delta rule. Re-check the no-shell bailout; a botched extract can break the shell.
+The production-build test is the verdict (dev-loop.md). Re-take the shell-only render and compare against the baseline screenshot. The targeted gap must shrink or vanish; identical captures fail per the shared visible-delta rule. Re-check the no-shell bailout; a botched extract can break the shell.

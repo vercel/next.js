@@ -21,21 +21,21 @@ Instant validation treats every parallel-route slot below the shared layout as a
 
 A common pattern: a stable shared layout renders `@header`/`@sidebar` through a **client** component that swaps slot content based on `usePathname()`. On a soft navigation, Next.js only re-renders the **server** segments that changed below the shared layout — a client-component subtree is not part of that re-render. So that navigation UI neither blocks the navigation nor needs a server `<Suspense>` for it; only the server segments that actually change (e.g. `@content`) matter. It does participate in an initial load — see the caveat below.
 
-## "Instant" is not "useful shell" — the blank-shell trap
+## "Instant" is not "useful shell" — the empty-shell failure mode
 
-Validation checks that a dynamic read is **guarded by a boundary**, not that the fallback is non-empty. A `<Suspense>` with no `fallback` (or `fallback={null}`) passes validation and commits instantly — but renders a **blank** shell. If a layout and its page both `await getServerSession()` at the top under one empty-fallback boundary, the whole frame collapses to nothing while the user waits. "Validates as instant" and "good loading experience" are different goals.
+Validation checks that a dynamic read is **guarded by a boundary**, not that the fallback is non-empty. A `<Suspense>` with no `fallback` (or `fallback={null}`) passes validation and commits instantly — but renders a **blank** shell. If a layout and its page both `await getSession()` (your auth library's request-time read) at the top under one empty-fallback boundary, the whole frame collapses to nothing while the user waits. "Validates as instant" and "good loading experience" are different goals.
 
 > Give every boundary a real loading skeleton, and place it low so the most real content stays in the shell. A `fallback={null}` directly above `<body>` is a deliberate empty-shell opt-out; an empty fallback lower in the tree is almost always a bug.
 
-## The responsive-skeleton trap — the shell must match every breakpoint
+## The responsive-skeleton mismatch — the shell must match every breakpoint
 
 A loading skeleton that misaligns with the loaded UI is its own bug, and it usually appears on mobile. A hand-built skeleton encodes one layout; the real component is responsive and changes shape at breakpoints, so a desktop-shaped skeleton no longer lines up once the viewport is small.
 
 A concrete shape: a master–detail view renders a list or tree in a side panel on desktop, but collapses that panel into a single dropdown or drawer on mobile (with its own loading state). A row skeleton built for the desktop panel has nothing to align with on mobile.
 
-The fix is the same push-down as everywhere else: **share the real responsive layout between the live render and the shell render.** One responsive component renders both — its data slots show the reused `*Skeleton` in the shell and real data after the stream — so the breakpoint switch happens once, for both renders, and there is no second desktop-only skeleton to drift. A hand-built fallback that duplicates the layout must be maintained at every breakpoint, and one of them will be wrong.
+The fix is the same push-down as everywhere else: **share the real responsive layout between the live render and the shell render.** One responsive component renders both — its data slots show the reused `*Skeleton` in the shell and real data after the stream — so the breakpoint switch happens once, for both renders, and there is no second desktop-only skeleton to drift.
 
-This is the same rule as "if an element renders in both the fallback and the resolved tree, hoist it above the boundary" — responsive layout included. Verify the shell at both desktop and mobile widths against the real render at the same width.
+(Same hoist rule, responsive layout included.) Verify the shell at both desktop and mobile widths against the real render at the same width.
 
 ## Deferring an auth gate / top-level `await` in a layout
 
@@ -44,9 +44,9 @@ A top-level `await` in a layout blocks everything below it (the most common bloc
 ```tsx
 // ❌ Before — the await + redirect at the top blocks the whole settings frame
 export default async function SettingsLayout({ children }) {
-  const s = await getServerSession() // suspends during prerender → frame can't build
-  if (!s?.user) redirect(getLoginUrl())
-  return <TooltipProvider>{children}</TooltipProvider>
+  const session = await getSession() // your auth library's request-time read; suspends during prerender → frame can't build
+  if (!session?.user) redirect(getLoginUrl())
+  return <Shell>{children}</Shell>
 }
 ```
 
@@ -56,18 +56,18 @@ import { Suspense } from 'react'
 
 export default function SettingsLayout({ children }) {
   return (
-    <TooltipProvider>
+    <Shell>
       <Suspense fallback={null}>
         <AuthGate />
       </Suspense>
       {children}
-    </TooltipProvider>
+    </Shell>
   )
 }
 
 async function AuthGate() {
-  const s = await getServerSession() // the session read suspends during prerender…
-  if (!s?.user) redirect(getLoginUrl()) // …so redirect() never runs at build time
+  const session = await getSession() // the session read suspends during prerender…
+  if (!session?.user) redirect(getLoginUrl()) // …so redirect() never runs at build time
   return null
 }
 ```
@@ -78,10 +78,10 @@ The shell prerenders as if authorized — the session read suspends before `redi
 
 Trustworthy measurement uses the production-build rig (SKILL.md phase A; `next dev`'s `instant()` is unreliable for blocking routes). As an additional observation channel while authoring, the dev overlay can shorten iteration:
 
-1. `export const unstable_instant = true` on the target route (safe — see "Edge cases").
-2. Run `next dev` with `experimental.instantInsights.validationLevel: 'warning'` (or higher) and `experimental.instantNavigationDevToolsToggle: true`.
-3. Navigate to the route and read the **Insights / Instant tab** in the dev overlay — each entry is an uncovered dynamic read with its source frame. Fix and repeat.
-4. Use DevTools → **Instant Navigation Mode** to freeze the shell and inspect what is blank.
+1. `export const instant = true` on the target route (safe — see "Edge cases").
+2. Run `next dev`. The Navigation Inspector is available automatically when `cacheComponents` is enabled — no extra flag. (`instantInsights.validationLevel` defaults to `'warning'`, dev-only; it need not be raised to use the inspector.)
+3. Open Next.js DevTools → **Navigation Inspector** → **Start Capturing**, then refresh to freeze the initial static UI, or click a link to freeze the destination's prefetched UI. Each suspended boundary is an uncovered dynamic read with its source frame. Fix and repeat.
+4. **Continue Rendering** lets the stream finish so you can compare the shell against the resolved UI.
 
 ## Initial-load shell vs soft-navigation shell
 
@@ -93,6 +93,6 @@ To assert the soft-navigation shell, drive a real `<Link>` click (through menus 
 
 ## Edge cases
 
-- **`unstable_instant = true` does not fail the build under a `warning` level.** `true` opts in at the default level; only a per-route `{ level: 'experimental-error' }` or a global `experimental-*-error` level fails builds. So `true` is a safe permanent regression marker.
+- **`instant = true` does not fail the build under a `warning` level.** `true` opts in at the default level; only a per-route `{ level: 'experimental-error' }` or a global `experimental-*-error` level fails builds. So `true` is a safe permanent regression marker.
 - **A `React.cache` (or custom memoization) wrapper around `cookies()`/`headers()` still suspends.** Memoizing the call does not make it shell-safe — the underlying request read still returns a pending promise during prerender. Only the **`use cache`** directive, keyed on static or param inputs, puts data in the shell.
 - **Playwright cannot see a `display: contents` or fragment fallback.** Such a fallback reads as hidden, so `instant()` assertions cannot `toBeVisible()` it. Give fallbacks a real wrapper element with a `data-testid`.
