@@ -1,6 +1,7 @@
 use std::{
     collections::{BinaryHeap, VecDeque},
     future::Future,
+    hash::{Hash, Hasher},
     iter::FusedIterator,
     ops::Deref,
 };
@@ -26,9 +27,10 @@ use turbo_tasks::{
 use turbo_tasks_fs::FileSystemPath;
 
 use crate::{
-    chunk::{AsyncModuleInfo, ChunkingContext, ChunkingType, TracedMode},
+    chunk::{AsyncModuleInfo, ChunkingContext, ChunkingType, MergeableModule, TracedMode},
+    ident::AssetIdent,
     issue::{ImportTracer, ImportTraces, Issue},
-    module::Module,
+    module::{Module, ModuleSideEffects},
     module_graph::{
         async_module_info::{AsyncModulesInfo, compute_async_module_info},
         binding_usage_info::BindingUsageInfo,
@@ -153,7 +155,7 @@ impl VisitedModules {
                 .await?
                 .enumerate_nodes()
                 .flat_map(|(node_idx, module)| match module {
-                    SingleModuleGraphNode::Module(module) => Some((
+                    SingleModuleGraphNode::Module { module, .. } => Some((
                         *module,
                         GraphNodeIndex {
                             graph_idx: 0,
@@ -193,7 +195,7 @@ impl VisitedModules {
                 graph
                     .enumerate_nodes()
                     .flat_map(|(node_idx, module)| match module {
-                        SingleModuleGraphNode::Module(module) => Some((
+                        SingleModuleGraphNode::Module { module, .. } => Some((
                             *module,
                             GraphNodeIndex {
                                 graph_idx: this.next_graph_idx,
@@ -291,6 +293,48 @@ impl GraphEntries {
     }
 }
 
+/// Options controlling what data [`SingleModuleGraph`] collects while walking module references.
+/// Passed by value to the graph constructors.
+#[turbo_tasks::task_input]
+#[derive(Debug, Copy, Clone, Default, PartialEq, Eq, Hash, TraceRawVcs, Encode, Decode)]
+pub struct ModuleGraphOptions {
+    /// Eagerly resolve and store each module's `ident_string()` `Vc` in its graph node, so the
+    /// module-id strategy reads it from the in-memory graph instead of fanning out a
+    /// `module.ident_string()` (i.e. `ident().to_string()`) turbo-task launch per module. Only the
+    /// whole-app/CLI-build graphs that run [`get_global_module_id_strategy`] need it; other graphs
+    /// leave it off to avoid the per-module `to_string` resolve.
+    ///
+    /// (`ident()` itself is always collected — see [`SingleModuleGraphNode::Module::ident`].)
+    ///
+    /// [`get_global_module_id_strategy`]: (crate `turbopack`) `global_module_ids`
+    pub include_ident_strings: bool,
+    /// Eagerly resolve and store each module's `side_effects()` `Vc` in its graph node, so the
+    /// side-effect-free aggregation reads it from the in-memory graph instead of fanning out a
+    /// `module.side_effects()` turbo-task launch per module. Required by
+    /// [`compute_side_effect_free_module_info`]: that pass `bail!`s on graphs built without this.
+    ///
+    /// [`compute_side_effect_free_module_info`]:
+    /// crate::module_graph::side_effect_module_info::compute_side_effect_free_module_info
+    pub include_side_effects: bool,
+    /// Eagerly resolve and store each module's `MergeableModule::is_mergeable()` `Vc` in its graph
+    /// node, so module merging (scope hoisting) reads it from the in-memory graph instead of
+    /// fanning out a `module.is_mergeable()` turbo-task launch per module. Required by
+    /// [`compute_merged_modules`]: that pass `bail!`s on graphs built without this. Should be
+    /// enabled wherever the chunking context has module merging enabled (`turbo_scope_hoisting`).
+    ///
+    /// When set, every `Module` node stores `Some`: the module's real `is_mergeable()` for types
+    /// that implement [`MergeableModule`], or a resolved `false` for types that don't (so `None`
+    /// unambiguously means "this graph wasn't built with `include_mergeable`").
+    ///
+    /// [`compute_merged_modules`]: crate::module_graph::merged_modules::compute_merged_modules
+    /// [`MergeableModule`]: crate::chunk::MergeableModule
+    pub include_mergeable: bool,
+    /// Whether to walk `ChunkingType::Traced` references.
+    pub include_traced: bool,
+    /// Whether to read `ModuleReference::binding_usage()`.
+    pub include_binding_usage: bool,
+}
+
 #[turbo_tasks::value(cell = "new", eq = "manual")]
 #[derive(Clone, Default)]
 pub struct SingleModuleGraph {
@@ -340,14 +384,20 @@ impl SingleModuleGraph {
     async fn new_inner(
         entries: &GraphEntries,
         visited_modules: &FxIndexMap<ResolvedVc<Box<dyn Module>>, GraphNodeIndex>,
-        include_traced: bool,
-        include_binding_usage: bool,
+        options: ModuleGraphOptions,
     ) -> Result<Vc<Self>> {
         let emit_spans = tracing::enabled!(Level::INFO);
         let root_nodes = entries
             .all_modules_with_is_traced()
             .map(|(e, is_traced)| {
-                SingleModuleGraphBuilderNode::new_module(emit_spans, e, is_traced)
+                SingleModuleGraphBuilderNode::new_module(
+                    emit_spans,
+                    options.include_ident_strings,
+                    options.include_side_effects,
+                    options.include_mergeable,
+                    e,
+                    is_traced,
+                )
             })
             .try_join()
             .await?;
@@ -358,13 +408,43 @@ impl SingleModuleGraph {
                 SingleModuleGraphBuilder {
                     visited_modules,
                     emit_spans,
-                    include_traced,
-                    include_binding_usage,
+                    options,
                 },
             )
             .await
             .completed()?;
         let node_count = children_nodes_iter.len();
+
+        // Materialize the breadth-first edges into an owned `Vec`. This drops the `AdjacencyMap`
+        // iterator (and lets us `.await` below without holding it across a suspension point — the
+        // build loop itself must stay synchronous, see the `node_data` read note below).
+        let edges = children_nodes_iter
+            .into_breadth_first_edges()
+            .collect::<Vec<_>>();
+
+        // Read each unique module's `node_data` cell exactly once, off the synchronous build loop.
+        // `new_module` resolved (but didn't read) the cell, distributing the data-dependency edges
+        // onto per-module tasks; reading here once per module (rather than once per incoming edge)
+        // lets us pass `final_read_hint` so the backend can drop the now-unneeded cell content.
+        let node_data = {
+            let mut seen = FxHashSet::default();
+            edges
+                .iter()
+                .filter_map(|(_, current)| match current {
+                    SingleModuleGraphBuilderNode::Module {
+                        module, node_data, ..
+                    } => seen.insert(*module).then_some((*module, *node_data)),
+                    SingleModuleGraphBuilderNode::VisitedModule { .. } => None,
+                })
+                .map(async |(module, node_data)| Ok((module, node_data.final_read_hint().await?)))
+                .try_join()
+                // `.instrument(...)` rather than an entered guard: an `Entered` span guard is
+                // `!Send` and would poison this future when held across the `.await`.
+                .instrument(tracing::info_span!("read module graph node data"))
+                .await?
+                .into_iter()
+                .collect::<FxHashMap<_, _>>()
+        };
 
         let mut graph: DiGraph<SingleModuleGraphNode, RefData> = DiGraph::with_capacity(
             node_count,
@@ -378,24 +458,33 @@ impl SingleModuleGraph {
             FxHashMap::with_capacity_and_hasher(node_count, Default::default());
         {
             let _span = tracing::info_span!("build module graph").entered();
-            for (parent, current) in children_nodes_iter.into_breadth_first_edges() {
-                let (module, graph_node, count) = match current {
-                    SingleModuleGraphBuilderNode::Module {
-                        module,
-                        is_traced: _,
-                        ident: _,
-                    } => (module, SingleModuleGraphNode::Module(module), 1),
-                    SingleModuleGraphBuilderNode::VisitedModule { module, idx } => (
-                        module,
-                        SingleModuleGraphNode::VisitedModule { idx, module },
-                        0,
-                    ),
-                };
-
-                // Find the current node, if it was already added
+            // Synchronous: no `.await` here (the loop holds the `tracing` span guard and many
+            // mutable locals across iterations; the per-module `node_data` was already read above).
+            for (parent, current) in edges {
+                let module = current.module();
+                // Find the current node, if it was already added.
                 let current_idx = if let Some(current_idx) = modules.get(&module) {
                     *current_idx
                 } else {
+                    let (graph_node, count) = match current {
+                        SingleModuleGraphBuilderNode::Module { module, .. } => {
+                            let data = &node_data[&module];
+                            (
+                                SingleModuleGraphNode::Module {
+                                    module,
+                                    ident: data.ident,
+                                    ident_string: data.ident_string,
+                                    is_self_async: data.is_self_async,
+                                    side_effects: data.side_effects,
+                                    is_mergeable: data.is_mergeable,
+                                },
+                                1,
+                            )
+                        }
+                        SingleModuleGraphBuilderNode::VisitedModule { module, idx } => {
+                            (SingleModuleGraphNode::VisitedModule { idx, module }, 0)
+                        }
+                    };
                     let idx = graph.add_node(graph_node);
                     number_of_modules += count;
                     modules.insert(module, idx);
@@ -449,7 +538,9 @@ impl SingleModuleGraph {
                                 let parent_modules: Vec<_> = graph
                                     .edges_directed(idx, petgraph::Direction::Incoming)
                                     .filter_map(|edge| match graph.node_weight(edge.source()) {
-                                        Some(SingleModuleGraphNode::Module(m)) => Some(*m),
+                                        Some(SingleModuleGraphNode::Module {
+                                            module: m, ..
+                                        }) => Some(*m),
                                         Some(SingleModuleGraphNode::VisitedModule {
                                             module,
                                             ..
@@ -515,7 +606,7 @@ impl SingleModuleGraph {
     /// Use iter_reachable_modules or one of the .traverse_* functions instead.
     pub fn iter_nodes(&self) -> impl Iterator<Item = ResolvedVc<Box<dyn Module>>> + '_ {
         self.graph.node_weights().filter_map(|n| match n {
-            SingleModuleGraphNode::Module(node) => Some(*node),
+            SingleModuleGraphNode::Module { module, .. } => Some(*module),
             SingleModuleGraphNode::VisitedModule { .. } => None,
         })
     }
@@ -640,7 +731,7 @@ impl SingleModuleGraph {
                                 let poppped = stack.pop().unwrap();
                                 let popped_state = node_states[poppped.index()].as_mut().unwrap();
                                 popped_state.on_stack = false;
-                                if let SingleModuleGraphNode::Module(module) =
+                                if let SingleModuleGraphNode::Module { module, .. } =
                                     self.graph.node_weight(poppped).unwrap()
                                 {
                                     scc.push(module);
@@ -685,9 +776,17 @@ impl ModuleGraphImportTracer {
         let path_and_modules = self
             .graph
             .await?
-            .modules
-            .iter()
-            .map(async |(&module, _)| Ok((module.ident().await?.path.clone(), module)))
+            .graph
+            .node_weights()
+            .map(async |n| {
+                let (module, ident) = match n {
+                    SingleModuleGraphNode::Module { module, ident, .. } => (*module, *ident),
+                    SingleModuleGraphNode::VisitedModule { module, .. } => {
+                        (*module, module.ident().to_resolved().await?)
+                    }
+                };
+                Ok((ident.await?.path.clone(), module))
+            })
             .try_join()
             .await?;
         let mut map: FxHashMap<FileSystemPath, Vec<ResolvedVc<Box<dyn Module>>>> =
@@ -1134,6 +1233,36 @@ impl ModuleGraphSnapshot {
             .await?
             .into_iter()
             .collect::<FxHashMap<_, _>>())
+    }
+
+    /// Returns a module's eagerly-resolved `AssetIdent` `Vc`, read from its graph node. Idents are
+    /// always collected for `Module` nodes, and `get_entry` only resolves a module to its `Module`
+    /// node, so this always finds an ident. The returned `ResolvedVc` is read tracked by callers.
+    pub fn module_ident_resolved(
+        &self,
+        module: ResolvedVc<Box<dyn Module>>,
+    ) -> Result<ResolvedVc<AssetIdent>> {
+        let idx = self.get_entry(module)?;
+        self.get_node(idx)?
+            .ident_resolved()
+            .context("a Module node always carries its eagerly-resolved ident")
+    }
+
+    /// Returns a module's eagerly-resolved `ident_string()` `Vc`, read from its graph node.
+    ///
+    /// Requires the graph to have been built with [`ModuleGraphOptions::include_ident_strings`];
+    /// `bail!`s otherwise. Asking a graph for an ident string it never collected is a programming
+    /// error — only the whole-app/CLI-build graphs that run the module-id strategy set the bit, and
+    /// those are exactly the graphs this is called on.
+    pub fn module_ident_string_resolved(
+        &self,
+        module: ResolvedVc<Box<dyn Module>>,
+    ) -> Result<ResolvedVc<RcStr>> {
+        let idx = self.get_entry(module)?;
+        self.get_node(idx)?.ident_string_resolved().context(
+            "module_ident_string_resolved() requires the module graph to be built with \
+             `ModuleGraphOptions::include_ident_strings`",
+        )
     }
 
     /// Traverses all reachable nodes exactly once and calls the visitor.
@@ -1586,7 +1715,7 @@ impl ModuleGraphSnapshot {
         &self,
     ) -> Result<impl Iterator<Item = ResolvedVc<Box<dyn Module>>>> {
         Ok(self.iter_reachable_nodes()?.filter_map(|n| match n {
-            SingleModuleGraphNode::Module(m) => Some(*m),
+            SingleModuleGraphNode::Module { module: m, .. } => Some(*m),
             SingleModuleGraphNode::VisitedModule { .. } => None,
         }))
     }
@@ -1656,14 +1785,12 @@ impl SingleModuleGraph {
     #[turbo_tasks::function(operation)]
     pub async fn new_with_entry(
         entry: ChunkGroupEntry,
-        include_traced: bool,
-        include_binding_usage: bool,
+        options: ModuleGraphOptions,
     ) -> Result<Vc<Self>> {
         SingleModuleGraph::new_inner(
             &GraphEntries::from_chunk_groups(vec![entry]),
             &Default::default(),
-            include_traced,
-            include_binding_usage,
+            options,
         )
         .await
     }
@@ -1671,30 +1798,21 @@ impl SingleModuleGraph {
     #[turbo_tasks::function(operation)]
     pub async fn new_with_entries(
         entries: ResolvedVc<GraphEntries>,
-        include_traced: bool,
-        include_binding_usage: bool,
+        options: ModuleGraphOptions,
     ) -> Result<Vc<Self>> {
-        SingleModuleGraph::new_inner(
-            &*entries.await?,
-            &Default::default(),
-            include_traced,
-            include_binding_usage,
-        )
-        .await
+        SingleModuleGraph::new_inner(&*entries.await?, &Default::default(), options).await
     }
 
     #[turbo_tasks::function(operation)]
     pub async fn new_with_entries_visited(
         entries: ResolvedVc<GraphEntries>,
         visited_modules: OperationVc<VisitedModules>,
-        include_traced: bool,
-        include_binding_usage: bool,
+        options: ModuleGraphOptions,
     ) -> Result<Vc<Self>> {
         SingleModuleGraph::new_inner(
             &*entries.await?,
             &visited_modules.connect().await?.modules,
-            include_traced,
-            include_binding_usage,
+            options,
         )
         .await
     }
@@ -1704,16 +1822,10 @@ impl SingleModuleGraph {
         // This must not be a Vc<Vec<_>> to ensure layout segment optimization hits the cache
         entries: GraphEntries,
         visited_modules: OperationVc<VisitedModules>,
-        include_traced: bool,
-        include_binding_usage: bool,
+        options: ModuleGraphOptions,
     ) -> Result<Vc<Self>> {
-        SingleModuleGraph::new_inner(
-            &entries,
-            &visited_modules.connect().await?.modules,
-            include_traced,
-            include_binding_usage,
-        )
-        .await
+        SingleModuleGraph::new_inner(&entries, &visited_modules.connect().await?.modules, options)
+            .await
     }
 
     #[turbo_tasks::function]
@@ -1729,28 +1841,130 @@ impl SingleModuleGraph {
 
 #[derive(Clone, Debug, Serialize, Deserialize, TraceRawVcs, NonLocalValue)]
 pub enum SingleModuleGraphNode {
-    Module(ResolvedVc<Box<dyn Module>>),
+    Module {
+        module: ResolvedVc<Box<dyn Module>>,
+        /// The module's resolved identifier, eagerly resolved at graph construction for every
+        /// `Module` node. Lets consumers that need idents for many modules read them from the
+        /// in-memory graph instead of each fanning out a `module.ident()` turbo-task launch per
+        /// module.
+        ///
+        /// Stored as a `ResolvedVc`, which serializes to just a cell id (so it survives a
+        /// persistent-cache hit, unlike the previous `ReadRef`) and is `Copy`. Consumers read it
+        /// with a *tracked* `.await?`: the producing task is already resolved by construction
+        /// time, so the read is cheap, while the consumer still correctly depends on the
+        /// value.
+        ident: ResolvedVc<AssetIdent>,
+        /// The module's resolved `ident_string()` (`ident().to_string()`) `Vc`, eagerly resolved
+        /// when the graph was built with `include_ident_strings`. The module-id strategy reads it
+        /// tracked and only runs on graphs built with the bit; `None` otherwise. Separate from
+        /// `ident` because the string is real work (recursive stringify) and only that one
+        /// consumer needs it.
+        ident_string: Option<ResolvedVc<RcStr>>,
+        /// The module's resolved `is_self_async()` `Vc`. Always present: `async_module_info()`
+        /// runs during chunking for every module graph, so this is unconditionally
+        /// collected (it is cheap — the trait default is `Vc::cell(false)` and the ecma
+        /// impl reads already-cached `references()`). Read tracked at consumption, like
+        /// `ident`.
+        is_self_async: ResolvedVc<bool>,
+        /// The module's resolved `side_effects()` `Vc`, eagerly resolved when the graph was built
+        /// with `include_side_effects`. `compute_side_effect_free_module_info` reads it tracked
+        /// and `bail!`s when it is `None`; that pass only runs under
+        /// `turbopack_remove_unused_imports`, where we set the bit.
+        side_effects: Option<ResolvedVc<ModuleSideEffects>>,
+        /// The module's resolved `MergeableModule::is_mergeable()` `Vc`, eagerly resolved when the
+        /// graph was built with `include_mergeable`. When the bit is set this is `Some` for
+        /// *every* `Module` node — the real `is_mergeable()` for types implementing
+        /// `MergeableModule`, or a resolved `false` for types that don't — so `None`
+        /// unambiguously means the graph wasn't built with `include_mergeable`.
+        /// `compute_merged_modules` reads it tracked and `bail!`s on `None`; that pass
+        /// only runs when the chunking context enables module merging.
+        is_mergeable: Option<ResolvedVc<bool>>,
+    },
     // Models a module that is referenced but has already been visited by an earlier graph.
     VisitedModule {
         idx: GraphNodeIndex,
         module: ResolvedVc<Box<dyn Module>>,
     },
 }
+#[cfg(test)]
+mod size_test {
+    use crate::module_graph::SingleModuleGraphNode;
+
+    /// Guards the per-module node size — there is one of these per module in the graph, so growth
+    /// here is multiplied across the whole app. The cached `ident_string` (`Option<ResolvedVc>`,
+    /// +8 bytes) is the cost of removing the per-module `ident().to_string()` fan-out from the
+    /// module-id strategy; bump deliberately if you add another field.
+    #[test]
+    pub fn test_size() {
+        assert_eq!(48, size_of::<SingleModuleGraphNode>());
+    }
+}
 
 impl SingleModuleGraphNode {
     pub fn module(&self) -> ResolvedVc<Box<dyn Module>> {
         match self {
-            SingleModuleGraphNode::Module(module) => *module,
+            SingleModuleGraphNode::Module { module, .. } => *module,
             SingleModuleGraphNode::VisitedModule { module, .. } => *module,
         }
     }
+
+    /// The eagerly-resolved ident for `Module` nodes (always collected). `Copy`. Returns `None`
+    /// only for `VisitedModule` nodes (whose ident lives on their owning graph's node); callers
+    /// handling those should fall back to `module().ident()`.
+    pub fn ident_resolved(&self) -> Option<ResolvedVc<AssetIdent>> {
+        match self {
+            SingleModuleGraphNode::Module { ident, .. } => Some(*ident),
+            SingleModuleGraphNode::VisitedModule { .. } => None,
+        }
+    }
+
+    /// The eagerly-resolved `ident_string()` `Vc`, if this is a `Module` node from a graph built
+    /// with `include_ident_strings`. `Copy`. `None` for `VisitedModule` nodes and for graphs built
+    /// without ident-string storage.
+    pub fn ident_string_resolved(&self) -> Option<ResolvedVc<RcStr>> {
+        match self {
+            SingleModuleGraphNode::Module { ident_string, .. } => *ident_string,
+            SingleModuleGraphNode::VisitedModule { .. } => None,
+        }
+    }
+
+    /// The eagerly-resolved `is_self_async()` `Vc` for `Module` nodes (always collected). `Copy`.
+    /// Returns `None` for `VisitedModule` nodes (their async-ness comes from the parent graph).
+    pub fn is_self_async_resolved(&self) -> Option<ResolvedVc<bool>> {
+        match self {
+            SingleModuleGraphNode::Module { is_self_async, .. } => Some(*is_self_async),
+            SingleModuleGraphNode::VisitedModule { .. } => None,
+        }
+    }
+
+    /// The eagerly-resolved `side_effects()` `Vc`, if this is a `Module` node from a graph built
+    /// with `include_side_effects`. `Copy`. `None` for `VisitedModule` nodes and for graphs built
+    /// without side-effect storage.
+    pub fn side_effects_resolved(&self) -> Option<ResolvedVc<ModuleSideEffects>> {
+        match self {
+            SingleModuleGraphNode::Module { side_effects, .. } => *side_effects,
+            SingleModuleGraphNode::VisitedModule { .. } => None,
+        }
+    }
+
+    /// The eagerly-resolved `is_mergeable()` `Vc`, if this is a `Module` node from a graph built
+    /// with `include_mergeable`. `Copy`. When the graph collected mergeability this is `Some` for
+    /// every `Module` node (a resolved `false` for non-`MergeableModule` types). `None` for
+    /// `VisitedModule` nodes and for graphs built without mergeable storage.
+    pub fn is_mergeable_resolved(&self) -> Option<ResolvedVc<bool>> {
+        match self {
+            SingleModuleGraphNode::Module { is_mergeable, .. } => *is_mergeable,
+            SingleModuleGraphNode::VisitedModule { .. } => None,
+        }
+    }
+
     pub fn target_idx(&self, direction: Direction) -> Option<GraphNodeIndex> {
         match self {
             SingleModuleGraphNode::VisitedModule { idx, .. } => match direction {
                 Direction::Outgoing => Some(*idx),
                 Direction::Incoming => None,
             },
-            SingleModuleGraphNode::Module(_) => None,
+            SingleModuleGraphNode::Module { .. } => None,
         }
     }
 }
@@ -1767,13 +1981,23 @@ pub enum GraphTraversalAction {
 
 // These nodes are created while walking the Turbopack modules references, and are used to then
 // afterwards build the SingleModuleGraph.
-#[derive(Clone, Hash, PartialEq, Eq)]
+#[derive(Clone)]
 enum SingleModuleGraphBuilderNode {
     /// A regular module
     Module {
         module: ResolvedVc<Box<dyn Module>>,
-        /// module.ident().to_string(), eagerly computed for tracing, otherwise None
-        ident: Option<ReadRef<RcStr>>,
+        /// The module's resolved `module_graph_node_data` cell — *resolved* (pointer only, not
+        /// read) in `new_module`, so the per-module task owns the data-dependency edges. The cell
+        /// content is read exactly once, at dedup time in `new_inner` (with `final_read_hint`),
+        /// since `new_module` runs once per incoming edge. Excluded from `Hash`/`Eq` (see below)
+        /// since it is fully determined by `module`.
+        node_data: ResolvedVc<ModuleGraphNodeData>,
+        /// The module's `ident().to_string()`, read (untracked) only when `emit_spans` so [`span`]
+        /// can use it as the span name synchronously. Transient (never reaches the graph node) and
+        /// excluded from `Hash`/`Eq`.
+        ///
+        /// [`span`]: SingleModuleGraphBuilder::span
+        span_name: Option<ReadRef<RcStr>>,
         /// whether this module is a tracing context
         is_traced: bool,
     },
@@ -1784,17 +2008,163 @@ enum SingleModuleGraphBuilderNode {
     },
 }
 
+// `Hash`/`Eq` are implemented manually over the identity-determining fields only (`module` +
+// `is_traced` / `idx`), deliberately excluding `ident`. This node is the `AdjacencyMap` visit dedup
+// key; `ident` is fully determined by `module`, so including it would only waste cycles hashing a
+// full `AssetIdent` per insert.
+impl PartialEq for SingleModuleGraphBuilderNode {
+    fn eq(&self, other: &Self) -> bool {
+        match (self, other) {
+            (
+                SingleModuleGraphBuilderNode::Module {
+                    module: l_module,
+                    is_traced: l_is_traced,
+                    ..
+                },
+                SingleModuleGraphBuilderNode::Module {
+                    module: r_module,
+                    is_traced: r_is_traced,
+                    ..
+                },
+            ) => l_module == r_module && l_is_traced == r_is_traced,
+            (
+                SingleModuleGraphBuilderNode::VisitedModule {
+                    module: l_module,
+                    idx: l_idx,
+                },
+                SingleModuleGraphBuilderNode::VisitedModule {
+                    module: r_module,
+                    idx: r_idx,
+                },
+            ) => l_module == r_module && l_idx == r_idx,
+            _ => false,
+        }
+    }
+}
+impl Eq for SingleModuleGraphBuilderNode {}
+impl Hash for SingleModuleGraphBuilderNode {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        core::mem::discriminant(self).hash(state);
+        match self {
+            SingleModuleGraphBuilderNode::Module {
+                module, is_traced, ..
+            } => {
+                module.hash(state);
+                is_traced.hash(state);
+            }
+            SingleModuleGraphBuilderNode::VisitedModule { module, idx } => {
+                module.hash(state);
+                idx.hash(state);
+            }
+        }
+    }
+}
+
+/// The eagerly-resolved per-module data stored on a [`SingleModuleGraphNode::Module`]. Computed by
+/// [`module_graph_node_data`] so the `to_resolved()` dependency edges are owned by a per-module
+/// task instead of the single graph-construction task.
+#[turbo_tasks::value]
+struct ModuleGraphNodeData {
+    ident: ResolvedVc<AssetIdent>,
+    ident_string: Option<ResolvedVc<RcStr>>,
+    is_self_async: ResolvedVc<bool>,
+    side_effects: Option<ResolvedVc<ModuleSideEffects>>,
+    is_mergeable: Option<ResolvedVc<bool>>,
+}
+
+/// Resolves a module's graph-node data. Each `to_resolved()` (resolving the pointer chain,
+/// executing the producing task — the same work `references()` already triggers via `analyze()`,
+/// without reading the cell content) installs its dependency edge on *this* per-module task, which
+/// is cached and shared across graphs built with the same options. The graph builder *resolves*
+/// (but does not read) this cell in `new_module`, then reads it exactly once at dedup time in
+/// `new_inner` with `final_read_hint`, so the backend can drop the content afterward. The
+/// `include_*` flags are part of the task key but are constant within a graph build.
+#[turbo_tasks::function]
+async fn module_graph_node_data(
+    module: Vc<Box<dyn Module>>,
+    include_ident_strings: bool,
+    include_side_effects: bool,
+    include_mergeable: bool,
+) -> Result<Vc<ModuleGraphNodeData>> {
+    let ident = module.ident().to_resolved().await?;
+    Ok(ModuleGraphNodeData {
+        // Always collected: idents have many consumers (NFT, feature usage, module-id strategy,
+        // import tracer).
+        ident,
+        // Only the module-id strategy needs the stringified ident, and only on the graphs that set
+        // this bit. `ident_string()` is real work (recursive stringify), so it's gated.
+        ident_string: if include_ident_strings {
+            Some(ident.to_string().to_resolved().await?)
+        } else {
+            None
+        },
+        // Always collected: `async_module_info()` runs during chunking for every graph. Cheap to
+        // resolve (trait default `Vc::cell(false)`; ecma reads already-cached `references()`).
+        is_self_async: module.is_self_async().to_resolved().await?,
+        side_effects: if include_side_effects {
+            Some(module.side_effects().to_resolved().await?)
+        } else {
+            None
+        },
+        // When collecting mergeability, store `Some` for *every* module so that `None` at the node
+        // level unambiguously means "graph not built with `include_mergeable`". Types that
+        // implement `MergeableModule` get their real `is_mergeable()`; others get a
+        // resolved `false` (the interned `false` cell, so this is cheap and deduped).
+        is_mergeable: if include_mergeable {
+            Some(
+                match ResolvedVc::try_downcast::<Box<dyn MergeableModule>>(
+                    module.to_resolved().await?,
+                ) {
+                    Some(mergeable) => mergeable.is_mergeable().to_resolved().await?,
+                    None => Vc::<bool>::default().to_resolved().await?,
+                },
+            )
+        } else {
+            None
+        },
+    }
+    .cell())
+}
+
 impl SingleModuleGraphBuilderNode {
+    fn module(&self) -> ResolvedVc<Box<dyn Module>> {
+        match self {
+            SingleModuleGraphBuilderNode::Module { module, .. } => *module,
+            SingleModuleGraphBuilderNode::VisitedModule { module, .. } => *module,
+        }
+    }
+
     async fn new_module(
         emit_spans: bool,
+        include_ident_strings: bool,
+        include_side_effects: bool,
+        include_mergeable: bool,
         module: ResolvedVc<Box<dyn Module>>,
         is_traced: bool,
     ) -> Result<Self> {
+        // The per-module `to_resolved()` calls happen inside `module_graph_node_data`, a
+        // `#[turbo_tasks::function]` keyed on the module — so those data-dependency edges are owned
+        // by that per-module task (and shared/cached across graphs) rather than concentrated in the
+        // single graph-construction task. We only *resolve* the cell here (pointer only, no content
+        // read); it is read once at dedup time in `new_inner`. `new_module` runs once per incoming
+        // edge, so reading here would read the same cell once per importer — deferring the read to
+        // the single dedup point lets that read use `final_read_hint`.
+        let node_data = module_graph_node_data(
+            *module,
+            include_ident_strings,
+            include_side_effects,
+            include_mergeable,
+        )
+        .to_resolved()
+        .await?;
         Ok(Self::Module {
             module,
-            ident: if emit_spans {
-                // INVALIDATION: we don't need to invalidate when the span name changes
-                Some(module.ident_string().untracked().await?)
+            node_data,
+            // The span name needs the ident string synchronously. Read it (untracked — its value is
+            // non-load-bearing for correctness) only when spans are enabled. Stays on the builder
+            // node; never reaches the graph node.
+            span_name: if emit_spans {
+                Some(module.ident().to_string().untracked().await?)
             } else {
                 None
             },
@@ -1811,11 +2181,7 @@ struct SingleModuleGraphBuilder<'a> {
 
     emit_spans: bool,
 
-    /// Whether to walk ChunkingType::Traced references
-    include_traced: bool,
-
-    /// Whether to read ModuleReference::binding_usage()
-    include_binding_usage: bool,
+    options: ModuleGraphOptions,
 }
 impl Visit<SingleModuleGraphBuilderNode, RefData> for SingleModuleGraphBuilder<'_> {
     type EdgesIntoIter = Vec<(SingleModuleGraphBuilderNode, RefData)>;
@@ -1844,8 +2210,13 @@ impl Visit<SingleModuleGraphBuilderNode, RefData> for SingleModuleGraphBuilder<'
         };
         let visited_modules = self.visited_modules;
         let emit_spans = self.emit_spans;
-        let include_traced = self.include_traced;
-        let include_binding_usage = self.include_binding_usage;
+        let ModuleGraphOptions {
+            include_ident_strings,
+            include_side_effects,
+            include_mergeable,
+            include_traced,
+            include_binding_usage,
+        } = self.options;
         async move {
             let refs_cell = if !is_traced {
                 primary_chunkable_referenced_modules(*module, include_traced, include_binding_usage)
@@ -1893,6 +2264,9 @@ impl Visit<SingleModuleGraphBuilderNode, RefData> for SingleModuleGraphBuilder<'
                     } else {
                         SingleModuleGraphBuilderNode::new_module(
                             emit_spans,
+                            include_ident_strings,
+                            include_side_effects,
+                            include_mergeable,
                             target,
                             is_traced || ty.is_traced(),
                         )
@@ -1923,14 +2297,22 @@ impl Visit<SingleModuleGraphBuilderNode, RefData> for SingleModuleGraphBuilder<'
 
         let mut span = match node {
             SingleModuleGraphBuilderNode::Module {
-                ident: Some(ident), ..
+                span_name: Some(span_name),
+                ..
             } => {
-                tracing::info_span!("module", name = display(ident))
+                // Use the precomputed `ident().to_string()` (read untracked in `new_module`).
+                // `span_name` is populated whenever `emit_spans`, so this arm is taken for every
+                // `Module` node here.
+                tracing::info_span!("module", name = display(span_name))
+            }
+            SingleModuleGraphBuilderNode::Module {
+                span_name: None, ..
+            } => {
+                tracing::info_span!("module")
             }
             SingleModuleGraphBuilderNode::VisitedModule { .. } => {
                 tracing::info_span!("visited module")
             }
-            _ => unreachable!(),
         };
 
         if let Some(edge) = edge {
@@ -2323,8 +2705,7 @@ pub mod tests {
                         heuristics: EntryHeuristics::default(),
                     }])
                     .resolved_cell(),
-                    false,
-                    false,
+                    ModuleGraphOptions::default(),
                 );
 
                 let module_graph = ModuleGraph::from_graphs(
@@ -2337,8 +2718,7 @@ pub mod tests {
                             }])
                             .resolved_cell(),
                             VisitedModules::from_graph(parent_graph),
-                            false,
-                            false,
+                            ModuleGraphOptions::default(),
                         ),
                     ],
                     None,
@@ -2375,7 +2755,9 @@ pub mod tests {
                     .enumerate_nodes()
                     .map(async |(_index, module)| {
                         Ok(match module {
-                            crate::module_graph::SingleModuleGraphNode::Module(module) => {
+                            crate::module_graph::SingleModuleGraphNode::Module {
+                                module, ..
+                            } => {
                                 if module.ident().to_string().owned().await? == "[test]/d.js" {
                                     Some(*module)
                                 } else {
@@ -2504,8 +2886,10 @@ pub mod tests {
                         heuristics: EntryHeuristics::default(),
                     }])
                     .resolved_cell(),
-                    true,
-                    false,
+                    ModuleGraphOptions {
+                        include_traced: true,
+                        ..Default::default()
+                    },
                 );
 
                 let module_graph = ModuleGraph::from_graphs(
@@ -2518,8 +2902,10 @@ pub mod tests {
                             }])
                             .resolved_cell(),
                             VisitedModules::from_graph(parent_graph),
-                            true,
-                            false,
+                            ModuleGraphOptions {
+                                include_traced: true,
+                                ..Default::default()
+                            },
                         ),
                     ],
                     None,
@@ -2533,7 +2919,7 @@ pub mod tests {
                         .iter_reachable_nodes()?
                         .map(async |node| {
                             Ok(match node {
-                                SingleModuleGraphNode::Module(module) => {
+                                SingleModuleGraphNode::Module { module, .. } => {
                                     module.ident_string().owned().await?
                                 }
                                 SingleModuleGraphNode::VisitedModule { module, .. } => {
@@ -2559,7 +2945,7 @@ pub mod tests {
                                 .iter_reachable_nodes()?
                                 .map(async |node| {
                                     Ok(match node {
-                                        SingleModuleGraphNode::Module(module) => {
+                                        SingleModuleGraphNode::Module { module, .. } => {
                                             module.ident_string().owned().await?
                                         }
                                         SingleModuleGraphNode::VisitedModule { module, .. } => {
@@ -2871,8 +3257,7 @@ pub mod tests {
                     }],
                     vec![],
                 )),
-                false,
-                false,
+                ModuleGraphOptions::default(),
             );
 
             // Create a simple name mapping to make analyzing the visitors easier.

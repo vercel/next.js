@@ -34,7 +34,7 @@ use turbopack_core::{
     issue::{IssueReporter, IssueSeverity, handle_issues},
     module::Module,
     module_graph::{
-        GraphEntries, ModuleGraph, SingleModuleGraph,
+        GraphEntries, ModuleGraph, ModuleGraphOptions, SingleModuleGraph,
         binding_usage_info::compute_binding_usage_info,
         chunk_group_info::{ChunkGroup, ChunkGroupEntry, EntryHeuristics},
     },
@@ -316,8 +316,20 @@ async fn build_internal(
             heuristics: EntryHeuristics::default(),
         }])
         .resolved_cell(),
-        false,
-        true,
+        ModuleGraphOptions {
+            include_binding_usage: true,
+            // `compute_binding_usage_info(_, true)` below runs
+            // `compute_side_effect_free_module_info`, which reads `side_effects` from
+            // the graph node.
+            include_side_effects: true,
+            // Module merging (driven by `scope_hoist` in the chunking context below) reads
+            // `is_mergeable` from the graph node and bails if absent.
+            include_mergeable: scope_hoist,
+            // `get_global_module_id_strategy` below reads each module's `ident_string` from the
+            // graph node; collect it so it doesn't fan out a `to_string()` per module.
+            include_ident_strings: true,
+            ..Default::default()
+        },
     );
     let mut module_graph = ModuleGraph::from_graphs(vec![single_graph], None);
     let binding_usage = compute_binding_usage_info(module_graph, true);

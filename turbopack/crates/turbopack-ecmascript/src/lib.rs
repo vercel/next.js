@@ -901,7 +901,7 @@ impl Module for EcmascriptModuleAsset {
         // Check package.json first, so that we can skip parsing the module if it's marked that way.
         // We need to respect package.json configuration over any static analysis we might do.
         Ok((match *get_side_effect_free_declaration(
-            self.ident().await?.path.clone(),
+            this.source.ident().await?.path.clone(),
             this.side_effect_free_packages.map(|g| *g),
         )
         .await?

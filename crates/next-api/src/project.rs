@@ -70,7 +70,7 @@ use turbopack_core::{
     },
     module::{Module, Modules},
     module_graph::{
-        GraphEntries, ModuleGraph, SingleModuleGraph, VisitedModules,
+        GraphEntries, ModuleGraph, ModuleGraphOptions, SingleModuleGraph, VisitedModules,
         binding_usage_info::{
             BindingUsageInfo, OptionBindingUsageInfo, compute_binding_usage_info,
         },
@@ -1018,6 +1018,43 @@ impl Issue for ConflictIssue {
     }
 }
 
+impl Project {
+    /// Whether the project uses the deterministic module-id strategy, i.e. whether
+    /// `get_global_module_id_strategy` runs (and therefore whether the module graph needs each
+    /// module's stringified ident). `Named` (the dev default, and an opt-in build config) does not.
+    ///
+    /// The strategy only ever runs on the whole-app graph, which is only built when *not* using
+    /// per-page graphs — so this also requires `!per_page_module_graph`. Encoding that here means
+    /// every graph (per-page or whole-app) can derive `include_ident_strings` from this single
+    /// query without the caller having to know which graph it's building.
+    pub(super) async fn uses_deterministic_module_ids(self: Vc<Self>) -> Result<bool> {
+        Ok(!*self.per_page_module_graph().await?
+            && matches!(
+                *self.next_config().module_ids(self.next_mode()).await?,
+                ModuleIdStrategyConfig::Deterministic
+            ))
+    }
+
+    /// Builds the [`ModuleGraphOptions`] shared by all project-config-derived module graphs, so the
+    /// per-page and whole-app graphs can't drift. Every field is derived from project config;
+    /// `include_ident_strings` follows [`Self::uses_deterministic_module_ids`] (the only consumer
+    /// of the stringified idents is `get_global_module_id_strategy`, which runs only on the
+    /// whole-app graph).
+    pub(super) async fn module_graph_options(self: Vc<Self>) -> Result<ModuleGraphOptions> {
+        let next_mode = self.next_mode();
+        Ok(ModuleGraphOptions {
+            include_ident_strings: self.uses_deterministic_module_ids().await?,
+            include_side_effects: *self
+                .next_config()
+                .turbopack_remove_unused_imports(next_mode)
+                .await?,
+            include_mergeable: *self.next_config().turbo_scope_hoisting(next_mode).await?,
+            include_traced: *self.should_write_nft_manifests().await?,
+            include_binding_usage: self.next_mode().await?.is_production(),
+        })
+    }
+}
+
 #[turbo_tasks::value_impl]
 impl Project {
     #[turbo_tasks::function]
@@ -1470,8 +1507,7 @@ impl Project {
                         modules: vec![entry],
                         heuristics: EntryHeuristics::default(),
                     },
-                    /* include_traced */ *self.should_write_nft_manifests().await?,
-                    /* include_binding_usage */ self.next_mode().await?.is_production(),
+                    self.module_graph_options().await?,
                 )],
                 None,
             )
@@ -1500,8 +1536,7 @@ impl Project {
                         heuristics: EntryHeuristics::default(),
                     }])
                     .resolved_cell(),
-                    /* include_traced */ *self.should_write_nft_manifests().await?,
-                    /* include_binding_usage */ self.next_mode().await?.is_production(),
+                    self.module_graph_options().await?,
                 )],
                 None,
             )
@@ -1810,16 +1845,16 @@ impl Project {
         // appears in the module graph, but the synthesized `target.css` module's path suffix does.
         // `ident.path.path` does not include the query string (that lives on `ident.query`), so
         // `ends_with` is the correct matcher here.
-        static FEATURE_MODULE_PATH_SUFFIXES: &[(&str, &str)] = &[
-            ("next/image", "/next/image.js"),
-            ("next/future/image", "/next/future/image.js"),
-            ("next/legacy/image", "/next/legacy/image.js"),
-            ("next/script", "/next/script.js"),
-            ("next/dynamic", "/next/dynamic.js"),
-            ("next/font/google", "/next/font/google/target.css"),
-            ("next/font/local", "/next/font/local/target.css"),
-            ("@next/font/google", "/@next/font/google/target.css"),
-            ("@next/font/local", "/@next/font/local/target.css"),
+        static FEATURE_MODULE_PATH_SUFFIXES: &[(RcStr, &str)] = &[
+            (rcstr!("next/image"), "/next/image.js"),
+            (rcstr!("next/future/image"), "/next/future/image.js"),
+            (rcstr!("next/legacy/image"), "/next/legacy/image.js"),
+            (rcstr!("next/script"), "/next/script.js"),
+            (rcstr!("next/dynamic"), "/next/dynamic.js"),
+            (rcstr!("next/font/google"), "/next/font/google/target.css"),
+            (rcstr!("next/font/local"), "/next/font/local/target.css"),
+            (rcstr!("@next/font/google"), "/@next/font/google/target.css"),
+            (rcstr!("@next/font/local"), "/@next/font/local/target.css"),
         ];
 
         // TODO: useSwcLoader is not being reported as it is not directly corresponds (it checks
@@ -1886,12 +1921,12 @@ impl Project {
         //     to that feature's unique-importer set.
         let module_graph = self.whole_app_module_graphs().await?.full.await?;
 
-        let matching: FxHashMap<ResolvedVc<Box<dyn Module>>, &'static str> = module_graph
+        let matching: FxHashMap<ResolvedVc<Box<dyn Module>>, &'static RcStr> = module_graph
             .iter_nodes()
             .map(async |node| {
-                let ident = node.ident().await?;
+                let ident = module_graph.module_ident_resolved(node)?.await?;
                 let path = &ident.path.path;
-                for &(feature, suffix) in FEATURE_MODULE_PATH_SUFFIXES {
+                for (feature, suffix) in FEATURE_MODULE_PATH_SUFFIXES {
                     if path.ends_with(suffix) {
                         return Ok(Some((node, feature)));
                     }
@@ -1910,13 +1945,13 @@ impl Project {
         // We could filter via `BindingUsageInfo` to only count edges that survive tree-shaking,
         // but staying parallel to webpack lets dashboards compare counts across the two bundlers
         // directly.
-        let mut pairs: FxHashSet<(&'static str, ResolvedVc<Box<dyn Module>>)> =
-            FxHashSet::default();
+        let mut pairs: Vec<(&'static RcStr, ResolvedVc<Box<dyn Module>>)> =
+            Vec::with_capacity(matching.len() * 2);
         module_graph.traverse_edges_unordered(|parent, node| {
             if let Some((parent_node, _)) = parent
                 && let Some(&feature) = matching.get(&node)
             {
-                pairs.insert((feature, parent_node));
+                pairs.push((feature, parent_node));
             }
             Ok(())
         })?;
@@ -1928,7 +1963,7 @@ impl Project {
         let parent_source_keys = pairs
             .into_iter()
             .map(async |(feature, parent)| {
-                let ident = parent.ident().await?;
+                let ident = module_graph.module_ident_resolved(parent)?.await?;
                 let key = (
                     ident.path.path.clone(),
                     ident.query.clone(),
@@ -1939,13 +1974,13 @@ impl Project {
             .try_join()
             .await?;
 
-        let mut importers: FxHashMap<&'static str, FxHashSet<(RcStr, RcStr, RcStr)>> =
+        let mut importers: FxHashMap<&'static RcStr, FxHashSet<(RcStr, RcStr, RcStr)>> =
             FxHashMap::default();
         for (feature, key) in parent_source_keys {
             importers.entry(feature).or_default().insert(key);
         }
         for (feature, unique_sources) in importers {
-            features.push((RcStr::from(feature), unique_sources.len() as u32));
+            features.push((feature.clone(), unique_sources.len() as u32));
         }
 
         features.sort_by(|a, b| a.0.cmp(&b.0));
@@ -2822,21 +2857,18 @@ async fn whole_app_module_graph_operation(
     let span_clone = span.clone();
     async move {
         let next_mode = project.next_mode();
-        let should_trace = *project.should_write_nft_manifests().await?;
-        let should_read_binding_usage = next_mode.await?.is_production();
-        let base_single_module_graph = SingleModuleGraph::new_with_entries(
-            project.get_all_entries().to_resolved().await?,
-            should_trace,
-            should_read_binding_usage,
-        );
-        let base_visited_modules = VisitedModules::from_graph(base_single_module_graph);
-
-        let base = ModuleGraph::from_graphs(vec![base_single_module_graph], None);
-
         let turbopack_remove_unused_imports = *project
             .next_config()
             .turbopack_remove_unused_imports(next_mode)
             .await?;
+        let graph_options = project.module_graph_options().await?;
+        let base_single_module_graph = SingleModuleGraph::new_with_entries(
+            project.get_all_entries().to_resolved().await?,
+            graph_options,
+        );
+        let base_visited_modules = VisitedModules::from_graph(base_single_module_graph);
+
+        let base = ModuleGraph::from_graphs(vec![base_single_module_graph], None);
 
         let base = if turbopack_remove_unused_imports {
             // TODO suboptimal that we do compute_binding_usage_info twice (once for the base
@@ -2855,8 +2887,7 @@ async fn whole_app_module_graph_operation(
         let additional_module_graph = SingleModuleGraph::new_with_entries_visited(
             additional_entries,
             base_visited_modules,
-            should_trace,
-            should_read_binding_usage,
+            graph_options,
         );
 
         if !span.is_disabled() {

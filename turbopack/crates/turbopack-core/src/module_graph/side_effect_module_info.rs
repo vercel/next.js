@@ -1,4 +1,4 @@
-use anyhow::Result;
+use anyhow::{Context, Result};
 use rustc_hash::{FxHashMap, FxHashSet};
 use turbo_tasks::{ResolvedVc, TryJoinIterExt, Vc};
 
@@ -46,11 +46,21 @@ async fn compute_side_effect_free_module_info_single(
         .iter_reachable_nodes()?
         .map(async |node| {
             Ok(match node {
-                SingleModuleGraphNode::Module(module) => {
-                    // This turbo task always has a cache hit since it is called when building the
-                    // module graph. we could consider moving this information
-                    // into to the module graph, but then changes would invalidate the whole graph.
-                    (*module, *module.side_effects().await?)
+                SingleModuleGraphNode::Module {
+                    module,
+                    side_effects,
+                    ..
+                } => {
+                    // Read the eagerly-resolved `side_effects` from the node. This pass only runs
+                    // under `turbopack_remove_unused_imports`, and we build those graphs with
+                    // `ModuleGraphOptions::include_side_effects`, so the value is always present;
+                    // bail otherwise. Tracked read: the producing task was resolved at graph
+                    // construction, so this is cheap while still depending on the value correctly.
+                    let side_effects = (*side_effects).context(
+                        "compute_side_effect_free_module_info requires the module graph to be \
+                         built with `ModuleGraphOptions::include_side_effects`",
+                    )?;
+                    (*module, *side_effects.await?)
                 }
                 SingleModuleGraphNode::VisitedModule { idx: _, module } => (
                     *module,
