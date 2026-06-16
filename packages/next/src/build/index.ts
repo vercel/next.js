@@ -231,6 +231,7 @@ import {
 } from '../server/lib/router-utils/build-prefetch-segment-data-route'
 import { generateRoutesManifest } from './generate-routes-manifest'
 import { validateAppPaths } from './validate-app-paths'
+import { findInvalidChunkingPriorities } from './validate-chunking-priorities'
 
 type Fallback = null | boolean | string
 
@@ -1380,6 +1381,37 @@ export default async function build(
       // but is instead specifically focused on code that can be shared
       // eventually with the development code.
       validateAppPaths(appPaths)
+
+      // Validate that every `experimental.turbopackChunkingPriorities` key
+      // refers to a real route.
+      if (bundler === Bundler.Turbopack) {
+        const validChunkingPriorityRoutes = new Set([
+          ...pagesPageKeys,
+          ...appPaths,
+        ])
+
+        const invalidChunkingPriorities = findInvalidChunkingPriorities(
+          config.experimental.turbopackChunkingPriorities,
+          validChunkingPriorityRoutes
+        )
+        if (invalidChunkingPriorities.length > 0) {
+          Log.error(
+            `Invalid route ${
+              invalidChunkingPriorities.length > 1 ? 'keys' : 'key'
+            } in \`experimental.turbopackChunkingPriorities\`:`
+          )
+          for (const { key, suggestion } of invalidChunkingPriorities) {
+            Log.error(
+              `  - "${key}"${
+                suggestion ? ` (did you mean "${suggestion}"?)` : ''
+              }`
+            )
+          }
+          throw new Error(
+            'Invalid `experimental.turbopackChunkingPriorities` configuration.'
+          )
+        }
+      }
 
       // Interception routes are modelled as beforeFiles rewrites
       rewrites.beforeFiles.push(
