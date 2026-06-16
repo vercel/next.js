@@ -1,4 +1,4 @@
-# dev-nav-loop (sub-reference of the next-instant dev loop)
+# dev-nav-loop (sub-reference of dev-loop.md)
 
 In-app navigation optimization: when the user clicks a link from A to B, show B's static layout immediately — chrome, structure, content-shaped fallbacks — instead of holding A's UI until B's data resolves.
 

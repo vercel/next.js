@@ -52,20 +52,21 @@ Any of these makes a RED untrustworthy. None of them is "the navigation isn't in
 
 ## Worked cases
 
-Each of these shipped during a real burn-down in the app this skill was extracted from; each failed
-for a wrong reason, and none was an instancy problem. That app's drift surface was dominated by
-feature flags and plans — in another app it may be auth state, an empty database, or locale. The
-taxonomy is the menu; the rig file's DRIFT list says which rows apply.
+These are illustrative failures from real burn-downs; each was red for a wrong reason, and none
+was an instancy problem. One app's drift surface might be dominated by feature flags and plans;
+another's by auth state, an empty database, or locale. The taxonomy is the menu; the rig file's
+DRIFT list says which rows apply to your app.
 
-- **Flag-gated redirect** — marker `h1 "Design Systems"`. The page redirects to a legacy route when
-  a feature flag is off; the CI user has it off, so that heading is never the destination.
-  → checks 7, 8. Fix: pin the flag for the test user, or assert at the real destination.
-- **Guessed selector + empty state** — marker `button "Folder"`. No element with that accessible
-  name exists in the page's layout, and the CI account's library is empty. → checks 7, 9. Fix: a
+- **Flag-gated redirect** — the marker was a heading that only renders when a feature flag is on;
+  with the flag off the page redirects elsewhere, and the CI user had it off, so that heading was
+  never the destination. → checks 7, 8. Fix: pin the flag for the test user, or assert at the real
+  destination.
+- **Guessed selector + empty state** — the marker was a button picked by a guessed accessible name
+  that no element actually had, on a list page whose CI account had no rows. → checks 7, 9. Fix: a
   `data-testid` on a real static-shell node.
-- **Plan-gated navigation** — the setup could not reach the target link for the test user's plan,
-  amid transient infrastructure errors. → checks 7, 9, plus ruling out flake by re-running. Fix: a
-  stable link/testid present for that account.
+- **Plan-gated navigation** — the setup could not reach the target link under the test user's plan
+  or entitlement, amid transient infrastructure errors. → checks 7, 9, plus ruling out flake by
+  re-running. Fix: a stable link/testid present for that account.
 - **Stale deployment** — a new test ran against the previous preview build (the alias had not
   repointed), so the old marker location was served. → check 11. Fix: verify the build under test
   is live before trusting a verdict.
