@@ -505,7 +505,7 @@ describe('middleware - development errors', () => {
            "environmentLabel": null,
            "label": "Build Error",
            "source": "./middleware.js (1:28)
-         Expected '{', got '}'
+         Error: Expected '{', got '}'
          > 1 | export default function () }
              |                            ^",
            "stack": [],
@@ -590,7 +590,7 @@ describe('middleware - development errors', () => {
            "environmentLabel": null,
            "label": "Build Error",
            "source": "./middleware.js (1:28)
-         Expected '{', got '}'
+         Error: Expected '{', got '}'
          > 1 | export default function () }
              |                            ^",
            "stack": [],

@@ -30,9 +30,9 @@ describe('use-cache-unknown-cache-kind', () => {
 
       if (isTurbopack) {
         expect(buildOutput).toMatchInlineSnapshot(`
-         "Error: Turbopack build failed with 1 errors:
+         "Error: Turbopack build failed with 1 error:
          ./app/page.tsx:1:1
-         Unknown cache kind "custom". Please configure a cache handler for this kind in the \`cacheHandlers\` object in your Next.js config.
+         Error: Unknown cache kind "custom". Please configure a cache handler for this kind in the \`cacheHandlers\` object in your Next.js config.
          > 1 | 'use cache: custom'
              | ^^^^^^^^^^^^^^^^^^^
            2 |
@@ -127,7 +127,7 @@ describe('use-cache-unknown-cache-kind', () => {
       if (isTurbopack) {
         expect(errorSource).toMatchInlineSnapshot(`
          "./app/page.tsx (1:1)
-         Unknown cache kind "custom". Please configure a cache handler for this kind in the \`cacheHandlers\` object in your Next.js config.
+         Error: Unknown cache kind "custom". Please configure a cache handler for this kind in the \`cacheHandlers\` object in your Next.js config.
          > 1 | 'use cache: custom'
              | ^^^^^^^^^^^^^^^^^^^
            2 |

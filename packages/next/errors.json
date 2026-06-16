@@ -1363,5 +1363,6 @@
   "1362": "A <Link prefetch={true}> navigated to \"%s\", but Partial Prefetching is not enabled for that route, so its dynamic data was included in the prefetch. Enable Partial Prefetching app-wide by setting \\`partialPrefetching: true\\` in next.config, or per-route by exporting \\`const prefetch = 'partial'\\` from the page or layout.",
   "1363": "\\`experimental.turbopackRustReactCompiler\\` is only supported with Turbopack. Please remove the option or run Next.js with Turbopack in %s.",
   "1364": "\\`experimental.turbopackRustReactCompiler\\` requires \\`reactCompiler\\` to be enabled. Please add \\`reactCompiler: true\\` in %s.",
-  "1365": "Expected a dev tiered cache handler for kind \"%s\"."
+  "1365": "Expected a dev tiered cache handler for kind \"%s\".",
+  "1366": "Turbopack build failed with %s %s:\\n%s"
 }

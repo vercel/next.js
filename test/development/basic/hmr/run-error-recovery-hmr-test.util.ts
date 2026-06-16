@@ -164,7 +164,7 @@ export function runErrorRecoveryHmrTest(nextConfig: {
         if (process.env.IS_TURBOPACK_TEST) {
           expect(source).toMatchInlineSnapshot(`
                   "./pages/hmr/about2.js (7:1)
-                  Unexpected token. Did you mean \`{'}'}\` or \`&rbrace;\`?
+                  Error: Unexpected token. Did you mean \`{'}'}\` or \`&rbrace;\`?
                     5 |     div
                     6 |   )
                   > 7 | }
@@ -434,7 +434,7 @@ export function runErrorRecoveryHmrTest(nextConfig: {
         if (process.env.IS_TURBOPACK_TEST) {
           expect(await getRedboxSource(browser)).toMatchInlineSnapshot(`
               "./components/parse-error.xyz
-              Unknown module type
+              Error: Unknown module type
               This module doesn't have an associated type. Use a known file extension, or register a loader for it.
 
               Read more: https://nextjs.org/docs/app/api-reference/next-config-js/turbo#webpack-loaders"
@@ -514,7 +514,7 @@ export function runErrorRecoveryHmrTest(nextConfig: {
           expect(next.normalizeTestDirContent(redboxSource))
             .toMatchInlineSnapshot(`
                     "./components/parse-error.js (3:1)
-                    Expression expected
+                    Error: Expression expected
                       1 | This
                       2 | is
                     > 3 | }}}

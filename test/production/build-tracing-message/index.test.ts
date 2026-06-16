@@ -22,9 +22,9 @@ import stripAnsi from 'strip-ansi'
         .trim()
 
       expect(stripAnsi(output)).toMatchInlineSnapshot(`
-       "Turbopack build encountered 1 warnings:
+       "Turbopack build encountered 1 warning:
        ./app/join-cwd.js:4:10
-       Dynamic filesystem access causes tracing of the whole project
+       Warning: Dynamic filesystem access causes tracing of the whole project
          2 |
          3 | export default function (f) {
        > 4 |   return path.join(process.cwd(), f)

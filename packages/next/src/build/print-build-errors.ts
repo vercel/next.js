@@ -64,7 +64,7 @@ export function printBuildErrors(
     console.warn(
       `Turbopack build encountered ${
         topLevelWarnings.length
-      } warnings:\n${topLevelWarnings.join('\n')}`
+      } ${topLevelWarnings.length === 1 ? 'warning' : 'warnings'}:\n${topLevelWarnings.join('\n')}`
     )
   }
 
@@ -72,7 +72,7 @@ export function printBuildErrors(
     console.error(
       `Turbopack build encountered ${
         topLevelErrors.length
-      } errors:\n${topLevelErrors.join('\n')}`
+      } ${topLevelErrors.length === 1 ? 'error' : 'errors'}:\n${topLevelErrors.join('\n')}`
     )
   }
 
@@ -80,7 +80,7 @@ export function printBuildErrors(
     throw new Error(
       `Turbopack build failed with ${
         topLevelFatalIssues.length
-      } errors:\n${topLevelFatalIssues.join('\n')}`
+      } ${topLevelFatalIssues.length === 1 ? 'error' : 'errors'}:\n${topLevelFatalIssues.join('\n')}`
     )
   }
 }

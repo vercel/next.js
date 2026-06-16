@@ -285,7 +285,7 @@ describe('ReactRefreshLogBox app', () => {
          "environmentLabel": null,
          "label": "Build Error",
          "source": "./index.js (7:1)
-       Unexpected token. Did you mean \`{'}'}\` or \`&rbrace;\`?
+       Error: Unexpected token. Did you mean \`{'}'}\` or \`&rbrace;\`?
        > 7 | }
            | ^",
          "stack": [],
@@ -485,7 +485,7 @@ describe('ReactRefreshLogBox app', () => {
          "environmentLabel": null,
          "label": "Build Error",
          "source": "./index.module.css (1:8)
-       Parsing CSS source code failed
+       Error: Parsing CSS source code failed
        > 1 | .button
            |        ^",
          "stack": [],
@@ -538,7 +538,7 @@ describe('ReactRefreshLogBox app', () => {
          "environmentLabel": null,
          "label": "Build Error",
          "source": "./index.module.css
-       Transforming CSS failed
+       Error: Transforming CSS failed
        Selector "button" is not pure. Pure selectors must contain at least one local class or id.
        Import traces:
          Client Component Browser:
@@ -1436,7 +1436,7 @@ describe('ReactRefreshLogBox app', () => {
          "environmentLabel": null,
          "label": "Build Error",
          "source": "./app/module.js (1:1)
-       Module not found: Can't resolve 'non-existing-module'
+       Error: Module not found: Can't resolve 'non-existing-module'
        > 1 | import "non-existing-module"
            | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^",
          "stack": [],
@@ -1509,7 +1509,7 @@ describe('ReactRefreshLogBox app', () => {
          "environmentLabel": null,
          "label": "Build Error",
          "source": "./app/styles2.css (1:1)
-       Module not found: Can't resolve './boom.css'
+       Error: Module not found: Can't resolve './boom.css'
        > 1 | @import "./boom.css"
            | ^",
          "stack": [],
