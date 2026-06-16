@@ -115,11 +115,11 @@ export function formatIssue(issue: Issue) {
   )
 
   if (severity === 'bug' || severity === 'error' || severity === 'fatal') {
-    formattedTitle = `Error: ${red(bold(formattedTitle))}`
+    formattedTitle = bold(`${red('Error')}: ${bold(formattedTitle)}`)
   } else if (severity === 'warning') {
-    formattedTitle = `Warning: ${yellow(bold(formattedTitle))}`
+    formattedTitle = bold(`${yellow('Warning')}: ${bold(formattedTitle)}`)
   } else {
-    formattedTitle = `Info: ${bold(formattedTitle)}`
+    formattedTitle = bold(`Info: ${bold(formattedTitle)}`)
   }
 
   // TODO: Use error codes to identify these
