@@ -52,7 +52,7 @@ impl Module for NodeAddonModule {
     #[turbo_tasks::function]
     async fn references(&self) -> Result<Vc<ModuleReferences>> {
         static SHARP_BINARY_REGEX: LazyLock<Regex> =
-            LazyLock::new(|| Regex::new("/sharp-(\\w+-\\w+).node$").unwrap());
+            LazyLock::new(|| Regex::new(r"/@img/sharp-([\w-]+)/.*/sharp-.*\.node$").unwrap());
         let ident = self.source.ident().await?;
         let module_path = &ident.path;
 
@@ -63,9 +63,9 @@ impl Module for NodeAddonModule {
         // For sharp, that is not the case:
         // 1. `node_modules/sharp/lib/sharp.js` does `require("@img/sharp-${arch}/sharp.node")`
         //    which ends up resolving to ...
-        // 2. @img/sharp-darwin-arm64/lib/sharp-darwin-arm64.node. That is however a dynamic library
-        //    that uses the OS loader to load yet another binary (you can view these via `otool -L`
-        //    on macOS or `ldd` on Linux):
+        // 2. @img/sharp-darwin-arm64/lib/sharp-darwin-arm64-0.35.1.node. That is however a dynamic
+        //    library that uses the OS loader to load yet another binary (you can view these via
+        //    `otool -L` on macOS or `ldd` on Linux):
         // 3. @img/sharp-libvips-darwin-arm64/libvips.dylib
         //
         // We could either try to parse the binary and read these dependencies, or (as we do in the
@@ -75,7 +75,7 @@ impl Module for NodeAddonModule {
         // https://github.com/vercel/nft/blob/7e915aa02073ec57dc0d6528c419a4baa0f03d40/src/utils/special-cases.ts#L151-L181
         if SHARP_BINARY_REGEX.is_match(&module_path.path) {
             // module_path might be something like
-            // node_modules/@img/sharp-darwin-arm64/lib/sharp-darwin-arm64.node
+            // node_modules/@img/sharp-darwin-arm64/lib/sharp-darwin-arm64-0.35.1.node
             let arch = SHARP_BINARY_REGEX
                 .captures(&module_path.path)
                 .unwrap()
