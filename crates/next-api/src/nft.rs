@@ -479,7 +479,7 @@ impl Issue for ForbiddenTracedFileIssue {
 
     async fn title(&self) -> Result<StyledString> {
         Ok(StyledString::Text(rcstr!(
-            "Dynamic filesystem access causes unintentional tracing of the whole project"
+            "Dynamic filesystem access causes tracing of the whole project"
         )))
     }
 
@@ -492,6 +492,9 @@ impl Issue for ForbiddenTracedFileIssue {
             StyledString::Text(rcstr!(
                 "This is usually unintentional and leads to all source files (including the \
                  public folder) to be deployed as part of the server code."
+            )),
+            StyledString::Text(rcstr!(
+                "This can slow down deployments or lead to failures when size limits are exceeded."
             )),
             StyledString::Text(rcstr!("To resolve this, you can")),
             StyledString::Line(vec![

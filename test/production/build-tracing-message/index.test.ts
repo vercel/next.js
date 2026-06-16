@@ -24,7 +24,7 @@ import stripAnsi from 'strip-ansi'
       expect(stripAnsi(output)).toMatchInlineSnapshot(`
        "Turbopack build encountered 1 warnings:
        ./app/join-cwd.js:4:10
-       Dynamic filesystem access causes unintentional tracing of the whole project
+       Dynamic filesystem access causes tracing of the whole project
          2 |
          3 | export default function (f) {
        > 4 |   return path.join(process.cwd(), f)
@@ -34,6 +34,7 @@ import stripAnsi from 'strip-ansi'
 
        Static analysis determined that this filesystem access causes the whole project to be traced and included in the output.
        This is usually unintentional and leads to all source files (including the public folder) to be deployed as part of the server code.
+       This can slow down deployments or lead to failures when size limits are exceeded.
        To resolve this, you can
        - make sure they are statically scoped to some subfolder: path.join(process.cwd(), 'data', bar), or
        - only use them in development, or
