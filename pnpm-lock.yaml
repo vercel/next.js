@@ -481,11 +481,11 @@ importers:
         specifier: 5.0.0
         version: 5.0.0
       playwright:
-        specifier: 1.58.2
-        version: 1.58.2
+        specifier: 1.61.0
+        version: 1.61.0
       playwright-chromium:
-        specifier: 1.58.2
-        version: 1.58.2
+        specifier: 1.61.0
+        version: 1.61.0
       postcss:
         specifier: 8.5.10
         version: 8.5.10
@@ -1380,7 +1380,7 @@ importers:
         version: 3.0.0
       axe-playwright:
         specifier: 2.0.3
-        version: 2.0.3(playwright@1.58.2)
+        version: 2.0.3(playwright@1.61.0)
       babel-loader:
         specifier: 10.0.0
         version: 10.0.0(@babel/core@7.26.10)(webpack@5.98.0(@swc/core@1.11.24(@swc/helpers@0.5.15))(esbuild@0.25.9))
@@ -14571,8 +14571,8 @@ packages:
     engines: {node: '>=18'}
     hasBin: true
 
-  playwright-core@1.51.1:
-    resolution: {integrity: sha512-/crRMj8+j/Nq5s8QcvegseuyeZPxpQCZb6HNk3Sos3BlZyAknRjoyJPFWkpNn8v0+P3WiwqFF8P+zQo4eqiNuw==}
+  playwright-chromium@1.61.0:
+    resolution: {integrity: sha512-7gZbsqqLT4WSeK/DUrsAFFvPdzP3Bh3kn9sK+YLZ9Q2e6CB+vd0TeqHvmkPQKK2IyXhPNGx5DV0YbEP6sTFBHA==}
     engines: {node: '>=18'}
     hasBin: true
 
@@ -14581,8 +14581,18 @@ packages:
     engines: {node: '>=18'}
     hasBin: true
 
+  playwright-core@1.61.0:
+    resolution: {integrity: sha512-caX7TrY3Ml6egyDX0WUcTHDxodl/b51y5wJOdCEA36QviK/s2g081hvmGs8eaE3DWb6NYZQ6BjO/QkNRPenoPA==}
+    engines: {node: '>=18'}
+    hasBin: true
+
   playwright@1.58.2:
     resolution: {integrity: sha512-vA30H8Nvkq/cPBnNw4Q8TWz1EJyqgpuinBcHET0YVJVFldr8JDNiU9LaWAE1KqSkRYazuaBhTpB5ZzShOezQ6A==}
+    engines: {node: '>=18'}
+    hasBin: true
+
+  playwright@1.61.0:
+    resolution: {integrity: sha512-Z+7BeeqQPRRzklHsVFP4KTGIyMxKUmfeRA4WisM6G3/XW6nwGeX6fX9qYaDa+CiUqpOkb2f6X3nar05R3kSuJQ==}
     engines: {node: '>=18'}
     hasBin: true
 
@@ -24752,14 +24762,14 @@ snapshots:
       axe-core: 4.10.0
       mustache: 4.2.0
 
-  axe-playwright@2.0.3(playwright@1.58.2):
+  axe-playwright@2.0.3(playwright@1.61.0):
     dependencies:
       '@types/junit-report-builder': 3.0.2
       axe-core: 4.10.0
       axe-html-reporter: 2.2.11(axe-core@4.10.0)
       junit-report-builder: 5.1.1
       picocolors: 1.1.1
-      playwright: 1.58.2
+      playwright: 1.61.0
 
   axios@0.26.1:
     dependencies:
@@ -30515,7 +30525,7 @@ snapshots:
       jest-process-manager: 0.4.0(debug@4.1.1)
       jest-runner: 29.7.0
       nyc: 15.1.0
-      playwright-core: 1.51.1
+      playwright-core: 1.58.2(patch_hash=064d5ffec38700c624b4c1a08fa7a1833aecdf196702f97d61f655385d18f886)
       rimraf: 3.0.2
       uuid: 8.3.2
     transitivePeerDependencies:
@@ -33797,13 +33807,23 @@ snapshots:
     dependencies:
       playwright-core: 1.58.2(patch_hash=064d5ffec38700c624b4c1a08fa7a1833aecdf196702f97d61f655385d18f886)
 
-  playwright-core@1.51.1: {}
+  playwright-chromium@1.61.0:
+    dependencies:
+      playwright-core: 1.61.0
 
   playwright-core@1.58.2(patch_hash=064d5ffec38700c624b4c1a08fa7a1833aecdf196702f97d61f655385d18f886): {}
+
+  playwright-core@1.61.0: {}
 
   playwright@1.58.2:
     dependencies:
       playwright-core: 1.58.2(patch_hash=064d5ffec38700c624b4c1a08fa7a1833aecdf196702f97d61f655385d18f886)
+    optionalDependencies:
+      fsevents: 2.3.2
+
+  playwright@1.61.0:
+    dependencies:
+      playwright-core: 1.61.0
     optionalDependencies:
       fsevents: 2.3.2
 
