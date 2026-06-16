@@ -89,6 +89,7 @@ pub enum EcmascriptInputTransform {
     },
     ReactCompilerRust {
         compilation_mode: ReactCompilerCompilationMode,
+        target: ReactCompilerTarget,
     },
 }
 
@@ -114,6 +115,25 @@ impl ReactCompilerCompilationMode {
 
 #[turbo_tasks::value(transparent)]
 pub struct OptionReactCompilerCompilationMode(Option<ReactCompilerCompilationMode>);
+
+#[turbo_tasks::value(shared, operation)]
+#[derive(Default, Debug, Clone, Copy, Hash, Serialize, Deserialize)]
+pub enum ReactCompilerTarget {
+    #[default]
+    #[serde(rename = "19")]
+    React19,
+    #[serde(rename = "18")]
+    React18,
+}
+
+impl ReactCompilerTarget {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            ReactCompilerTarget::React19 => "19",
+            ReactCompilerTarget::React18 => "18",
+        }
+    }
+}
 
 /// The CustomTransformer trait allows you to implement your own custom SWC
 /// transformer to run over all ECMAScript files imported in the graph.
@@ -377,8 +397,11 @@ impl EcmascriptInputTransform {
 
                 apply_transform(program, helpers, decorators(config))
             }
-            EcmascriptInputTransform::ReactCompilerRust { compilation_mode } => {
-                apply_rust_react_compiler(program, ctx, helpers, *compilation_mode).await?
+            EcmascriptInputTransform::ReactCompilerRust {
+                compilation_mode,
+                target,
+            } => {
+                apply_rust_react_compiler(program, ctx, helpers, *compilation_mode, *target).await?
             }
             EcmascriptInputTransform::Plugin(transform) => {
                 // We cannot pass helpers to plugins, so we return them as is
@@ -429,12 +452,13 @@ async fn apply_rust_react_compiler(
     ctx: &TransformContext<'_>,
     helpers: HelperData,
     compilation_mode: ReactCompilerCompilationMode,
+    target: ReactCompilerTarget,
 ) -> Result<HelperData> {
     let Program::Module(module) = program else {
         return Ok(helpers);
     };
 
-    let options = react_compiler_swc_options(ctx, compilation_mode);
+    let options = react_compiler_swc_options(ctx, compilation_mode, target);
     let result = react_compiler_swc::transform(module, ctx.source_text, options);
 
     for diag in &result.diagnostics {
@@ -475,6 +499,7 @@ async fn apply_rust_react_compiler(
 fn react_compiler_swc_options(
     ctx: &TransformContext<'_>,
     compilation_mode: ReactCompilerCompilationMode,
+    target: ReactCompilerTarget,
 ) -> react_compiler::entrypoint::plugin_options::PluginOptions {
     use react_compiler::entrypoint::plugin_options::{CompilerTarget, PluginOptions};
 
@@ -485,7 +510,7 @@ fn react_compiler_swc_options(
         filename: Some(ctx.file_name_str.to_string()),
         compilation_mode: compilation_mode.as_str().to_string(),
         panic_threshold: "none".to_string(),
-        target: CompilerTarget::Version("19".to_string()),
+        target: CompilerTarget::Version(target.as_str().to_string()),
         gating: None,
         dynamic_gating: None,
         no_emit: false,

@@ -15,11 +15,11 @@ use turbopack_core::{
     resolve::{node::node_cjs_resolve_options, parse::Request, pattern::Pattern, resolve},
     source::Source,
 };
-use turbopack_ecmascript::transform::ReactCompilerCompilationMode;
+use turbopack_ecmascript::transform::{ReactCompilerCompilationMode, ReactCompilerTarget};
 use turbopack_node::transforms::webpack::WebpackLoaderItem;
 
 use crate::{
-    next_config::{NextConfig, ReactCompilerOptions, ReactCompilerTarget},
+    next_config::{NextConfig, ReactCompilerOptions},
     next_import_map::try_get_next_package,
     next_shared::webpack_rules::{
         ManuallyConfiguredBuiltinLoaderIssue, WebpackLoaderBuiltinCondition,
@@ -248,7 +248,7 @@ pub async fn get_babel_loader_rules(
     )])
 }
 
-async fn detect_react_compiler_target(
+pub async fn detect_react_compiler_target(
     project_path: &FileSystemPath,
 ) -> Result<Option<ReactCompilerTarget>> {
     #[derive(Deserialize)]

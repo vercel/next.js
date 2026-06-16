@@ -31,7 +31,9 @@ use turbopack_core::{
 };
 use turbopack_ecmascript::{
     OptionTreeShaking, TreeShakingMode,
-    transform::{OptionReactCompilerCompilationMode, ReactCompilerCompilationMode},
+    transform::{
+        OptionReactCompilerCompilationMode, ReactCompilerCompilationMode, ReactCompilerTarget,
+    },
 };
 use turbopack_ecmascript_plugins::transform::{
     emotion::EmotionTransformConfig, relay::RelayConfig,
@@ -938,13 +940,6 @@ pub enum ReactCompilerPanicThreshold {
     None,
     CriticalErrors,
     AllErrors,
-}
-
-#[turbo_tasks::value(shared, operation)]
-#[derive(Clone, Debug, Serialize, Deserialize)]
-pub enum ReactCompilerTarget {
-    #[serde(rename = "18")]
-    React18,
 }
 
 /// Subset of react compiler options, we pass these options through to the webpack loader, so it

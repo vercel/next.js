@@ -233,6 +233,7 @@ impl ModuleOptions {
                 EcmascriptOptionsContext {
                     enable_jsx,
                     enable_rust_react_compiler,
+                    rust_react_compiler_target,
                     enable_types,
                     ref enable_typescript_transform,
                     ref enable_decorators,
@@ -305,7 +306,10 @@ impl ModuleOptions {
         // Runs first so it sees the original source text (text-bridge re-parses after
         // react_compiler_swc).
         if let Some(compilation_mode) = enable_rust_react_compiler {
-            ecma_preprocess.push(EcmascriptInputTransform::ReactCompilerRust { compilation_mode });
+            ecma_preprocess.push(EcmascriptInputTransform::ReactCompilerRust {
+                compilation_mode,
+                target: rust_react_compiler_target,
+            });
         }
 
         // Order of transforms is important. e.g. if the React transform occurs before

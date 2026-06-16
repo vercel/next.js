@@ -16,7 +16,7 @@ use turbopack_core::{
 use turbopack_ecmascript::{
     AnalyzeMode, TreeShakingMode, TypeofWindow,
     references::esm::UrlRewriteBehavior,
-    transform::{PresetEnvConfig, ReactCompilerCompilationMode},
+    transform::{PresetEnvConfig, ReactCompilerCompilationMode, ReactCompilerTarget},
 };
 pub use turbopack_mdx::MdxTransformOptions;
 use turbopack_node::{
@@ -252,6 +252,7 @@ pub struct EcmascriptOptionsContext {
     pub enable_typeof_window_inlining: Option<TypeofWindow>,
     pub enable_jsx: Option<ResolvedVc<JsxTransformOptions>>,
     pub enable_rust_react_compiler: Option<ReactCompilerCompilationMode>,
+    pub rust_react_compiler_target: ReactCompilerTarget,
     /// Follow type references and resolve declaration files in additional to
     /// normal resolution.
     pub enable_types: bool,
