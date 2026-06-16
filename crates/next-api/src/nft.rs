@@ -479,34 +479,24 @@ impl Issue for ForbiddenTracedFileIssue {
 
     async fn title(&self) -> Result<StyledString> {
         Ok(StyledString::Text(rcstr!(
-            "Encountered unexpected file in NFT list"
+            "Dynamic filesystem access causes tracing of the whole project"
         )))
     }
 
     async fn description(&self) -> Result<Option<StyledString>> {
         let stack = vec![
             StyledString::Text(rcstr!(
-                "This import traced the next.config.js file which indicates that the whole \
-                 project was traced unintentionally. Somewhere in the import trace below, there \
-                 are:"
+                "Static analysis determined that this filesystem access causes the whole project \
+                 to be traced and included in the output."
             )),
-            StyledString::Line(vec![
-                StyledString::Text(rcstr!("- filesystem operations (like ")),
-                StyledString::Code(rcstr!("path.join")),
-                StyledString::Text(rcstr!(", ")),
-                StyledString::Code(rcstr!("path.resolve")),
-                StyledString::Text(rcstr!(" or ")),
-                StyledString::Code(rcstr!("fs.readFile")),
-                StyledString::Text(rcstr!("), or")),
-            ]),
-            StyledString::Line(vec![
-                StyledString::Text(rcstr!("- very dynamic requires (like ")),
-                StyledString::Code(rcstr!("require('./' + foo)")),
-                StyledString::Text(rcstr!(").")),
-            ]),
+            StyledString::Text(rcstr!(
+                "This is usually unintentional and leads to all source files (including the \
+                 public folder) to be deployed as part of the server code."
+            )),
+            StyledString::Text(rcstr!(
+                "This can slow down deployments or lead to failures when size limits are exceeded."
+            )),
             StyledString::Text(rcstr!("To resolve this, you can")),
-            StyledString::Text(rcstr!("- remove them if possible, or")),
-            StyledString::Text(rcstr!("- only use them in development, or")),
             StyledString::Line(vec![
                 StyledString::Text(rcstr!(
                     "- make sure they are statically scoped to some subfolder: "
@@ -514,12 +504,15 @@ impl Issue for ForbiddenTracedFileIssue {
                 StyledString::Code(rcstr!("path.join(process.cwd(), 'data', bar)")),
                 StyledString::Text(rcstr!(", or")),
             ]),
+            StyledString::Text(rcstr!("- only use them in development, or")),
             StyledString::Line(vec![
                 StyledString::Text(rcstr!("- add ignore comments: ")),
                 StyledString::Code(rcstr!(
                     "path.join(/*turbopackIgnore: true*/ process.cwd(), bar)"
                 )),
+                StyledString::Text(rcstr!(", or")),
             ]),
+            StyledString::Text(rcstr!("- remove them.")),
         ];
         Ok(Some(StyledString::Stack(stack)))
     }
