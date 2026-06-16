@@ -122,14 +122,14 @@ pub enum Effect<'a> {
         condition: BumpBox<'a, JsValue<'a>>,
         kind: BumpBox<'a, ConditionalKind<'a>>,
         /// The ast path to the condition.
-        ast_path: Vec<AstParentKind>,
+        ast_path: BumpBox<'a, [AstParentKind]>,
         span: Span,
     },
     /// A function call or a new call of a function.
     Call {
         func: BumpBox<'a, JsValue<'a>>,
         args: BumpVec<'a, EffectArg<'a>>,
-        ast_path: Vec<AstParentKind>,
+        ast_path: BumpBox<'a, [AstParentKind]>,
         span: Span,
         in_try: bool,
         new: bool,
@@ -139,7 +139,7 @@ pub enum Effect<'a> {
         obj: BumpBox<'a, JsValue<'a>>,
         prop: BumpBox<'a, JsValue<'a>>,
         args: BumpVec<'a, EffectArg<'a>>,
-        ast_path: Vec<AstParentKind>,
+        ast_path: BumpBox<'a, [AstParentKind]>,
         span: Span,
         in_try: bool,
         new: bool,
@@ -148,32 +148,32 @@ pub enum Effect<'a> {
     Member {
         obj: BumpBox<'a, JsValue<'a>>,
         prop: BumpBox<'a, JsValue<'a>>,
-        ast_path: Vec<AstParentKind>,
+        ast_path: BumpBox<'a, [AstParentKind]>,
         span: Span,
     },
     /// A reference to an imported binding.
     ImportedBinding {
         esm_reference_index: usize,
         export: Option<RcStr>,
-        ast_path: Vec<AstParentKind>,
+        ast_path: BumpBox<'a, [AstParentKind]>,
         span: Span,
     },
     /// A reference to a free var access.
     FreeVar {
         var: Atom,
-        ast_path: Vec<AstParentKind>,
+        ast_path: BumpBox<'a, [AstParentKind]>,
         span: Span,
     },
     /// A typeof expression
     TypeOf {
         arg: BumpBox<'a, JsValue<'a>>,
-        ast_path: Vec<AstParentKind>,
+        ast_path: BumpBox<'a, [AstParentKind]>,
         span: Span,
     },
     // TODO ImportMeta should be replaced with Member
     /// A reference to `import.meta`.
     ImportMeta {
-        ast_path: Vec<AstParentKind>,
+        ast_path: BumpBox<'a, [AstParentKind]>,
         span: Span,
     },
     /// A dynamic import() call, potentially with export usage extracted from
@@ -187,14 +187,16 @@ pub enum Effect<'a> {
     /// - `import(/* turbopackExports: ["a"] */ './lib')` (magic comment)
     DynamicImport {
         args: BumpVec<'a, EffectArg<'a>>,
-        ast_path: Vec<AstParentKind>,
+        ast_path: BumpBox<'a, [AstParentKind]>,
         span: Span,
         in_try: bool,
         /// The export usage extracted from the usage pattern.
         export_usage: ExportUsage,
     },
     /// Unreachable code, e.g. after a `return` statement.
-    Unreachable { start_ast_path: Vec<AstParentKind> },
+    Unreachable {
+        start_ast_path: BumpBox<'a, [AstParentKind]>,
+    },
 }
 
 impl<'a> Effect<'a> {

@@ -899,8 +899,9 @@ async fn analyze_ecmascript_module_internal(
                         "unexpected Effect::Unreachable in tracing mode"
                     );
 
-                    analysis
-                        .add_code_gen(Unreachable::new(AstPathRange::StartAfter(start_ast_path)));
+                    analysis.add_code_gen(Unreachable::new(AstPathRange::StartAfter(
+                        start_ast_path.to_vec(),
+                    )));
                 }
                 Effect::Conditional {
                     mut condition,
@@ -1210,7 +1211,7 @@ async fn analyze_ecmascript_module_internal(
                     if let Some(placeholder) = worker_placeholder {
                         analysis.add_code_gen(WorkerGlobalsReplacementCodeGen::new(
                             placeholder,
-                            ast_path.into(),
+                            ast_path.to_vec().into(),
                         ));
                         continue;
                     }
@@ -1220,7 +1221,7 @@ async fn analyze_ecmascript_module_internal(
                             analysis_state.first_webpack_exports_info = false;
                             analysis.add_code_gen(ExportsInfoBinding::new());
                         }
-                        analysis.add_code_gen(ExportsInfoRef::new(ast_path.into()));
+                        analysis.add_code_gen(ExportsInfoRef::new(ast_path.to_vec().into()));
                         continue;
                     }
 
@@ -1280,7 +1281,7 @@ async fn analyze_ecmascript_module_internal(
                         let chunking_type = r.await?.chunking_type();
                         analysis.add_reference_code_gen(
                             EsmModuleIdAssetReference::new(*r, chunking_type),
-                            ast_path.into(),
+                            ast_path.to_vec().into(),
                         )
                     } else {
                         if matches!(
@@ -1311,14 +1312,18 @@ async fn analyze_ecmascript_module_internal(
                                 analysis.add_code_gen(EsmBinding::new_keep_this(
                                     named_reference,
                                     Some(export),
-                                    ast_path.into(),
+                                    ast_path.to_vec().into(),
                                 ));
                                 continue;
                             }
                         }
 
                         analysis.add_esm_reference(esm_reference_index);
-                        analysis.add_code_gen(EsmBinding::new(*r, export, ast_path.into()));
+                        analysis.add_code_gen(EsmBinding::new(
+                            *r,
+                            export,
+                            ast_path.to_vec().into(),
+                        ));
                     }
                 }
                 Effect::TypeOf {
@@ -1350,7 +1355,7 @@ async fn analyze_ecmascript_module_internal(
                         ));
                     }
 
-                    analysis.add_code_gen(ImportMetaRef::new(ast_path.into()));
+                    analysis.add_code_gen(ImportMetaRef::new(ast_path.to_vec().into()));
                 }
             }
         }
