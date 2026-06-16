@@ -37,7 +37,7 @@ describe('swcPlugins', () => {
            "environmentLabel": null,
            "label": "Build Error",
            "source": "./app/layout.js
-         Failed to execute SWC plugin
+         Error: Failed to execute SWC plugin
          An unexpected error occurred when executing an SWC EcmaScript transform plugin.
          This might be due to a version mismatch between the plugin and Next.js. https://plugins.swc.rs/ can help you find the correct plugin version to use.
          Failed to execute @swc/plugin-react-remove-properties
@@ -81,7 +81,7 @@ module.exports = {
            "environmentLabel": null,
            "label": "Build Error",
            "source": "./
-         Module not found: Can't resolve '@swc/plugin-nonexistent'
+         Error: Module not found: Can't resolve '@swc/plugin-nonexistent'
          https://nextjs.org/docs/messages/module-not-found",
            "stack": [],
          }

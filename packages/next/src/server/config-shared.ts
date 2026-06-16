@@ -975,6 +975,22 @@ export interface ExperimentalConfig {
   taint?: boolean
 
   /**
+   * Opt into React's experimental release channel for the `app` directory
+   * without enabling a specific experimental API (such as `taint`).
+   *
+   * The experimental React build emits a `<link rel="expect">` tag that holds
+   * the browser's first paint until the streamed shell is coherent, avoiding
+   * the layout shift / flicker that can occur while a partially-streamed HTML
+   * document is painted. Note that `rel="expect"` is currently only
+   * implemented by Chromium-based browsers.
+   *
+   * This is an opt-in only. Setting it to `false` does not disable the
+   * experimental channel when another feature (such as `taint`,
+   * `transitionIndicator`, or `gestureTransition`) requires it.
+   */
+  useExperimentalReact?: boolean
+
+  /**
    * Uninstalls all "unhandledRejection" and "uncaughtException" listeners from
    * the global process so that we can override the behavior, which in some
    * runtimes is to exit the process.
