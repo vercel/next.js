@@ -93,10 +93,6 @@ The workflow depends on framework capabilities that ship with current Next.js:
   project's package manager) and align them if they differ. The matching
   testing API is in the `next` runtime, gated by the
   `experimental.exposeTestingApiInProductionBuild` config flag (phase A).
-- The optional dev-time inner loop is an accelerator, not a requirement (phases
-  D–G complete without it); it needs separate tooling and its own version
-  floors — see `reference/dev-loop.md`. An app that lacks that harness clears
-  this gate and optimizes with the production-build verdict alone.
 
 If the project does not meet these, upgrade first (`npx @next/codemod upgrade`
 automates most of it), then enable Cache Components in `next.config.ts`:
@@ -208,13 +204,6 @@ reused as-is.
 **Rule:** if an element renders in both the fallback and the resolved tree,
 hoist it above the boundary.
 
-For interactive diagnosis while fixing — ranking suspended boundaries by
-visible area, classifying blockers by `suspended_by[].name`, screenshot-delta
-verification against `next dev` — use the dev-time loop in
-`reference/dev-loop.md` (initial load: `reference/dev-ppr-loop.md`;
-navigation: `reference/dev-nav-loop.md`). The production-build test (phases
-A–C, F) remains the verdict.
-
 ### The most common blocker: a top-level `await` in a layout on a fallback route
 
 ```
@@ -278,7 +267,7 @@ would flash and then collapse.
 A skeleton frozen to one breakpoint misaligns on the others. Fix it the same
 way: one responsive component renders both the live UI and the shell (D1
 skeleton in its data slots), so the breakpoint switch happens once. Verify by
-re-asserting the shell marker (or capturing the verify screenshot) at two
+re-asserting the shell marker at two
 widths — `await page.setViewportSize({ width: 1280, height: 800 })` then
 `{ width: 390, height: 844 }` — or by adding a mobile Playwright project, so
 this gate is as machine-checkable as the others. Detail:
@@ -358,6 +347,3 @@ three hold, you are not done.
 - `reference/real-app-patterns.md` — parallel routes, deferring an auth gate,
   initial-load vs soft-navigation shells, the empty-shell failure mode, the
   responsive-skeleton mismatch, edge cases.
-- `reference/dev-loop.md` (+ `dev-ppr-loop.md`, `dev-nav-loop.md`) — the
-  dev-time diagnosis loop: suspended-boundary capture and ranking, blocker
-  classification, refactor levers, screenshot-delta verification.
