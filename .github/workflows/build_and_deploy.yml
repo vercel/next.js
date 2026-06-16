@@ -23,7 +23,6 @@ env:
   # --env-mode loose is a breaking change required with turbo 2.x since Strict mode is now the default
   # TODO: we should add the relevant envs later to to switch to strict mode
   TURBO_ARGS: '-v --env-mode loose --remote-cache-timeout 90 --summarize --log-order stream'
-  NODE_LTS_VERSION: 20
   TURBO_TEAM: 'vtest314-next-adapter-e2e-tests'
   # Prefer shared remote cache across runs, but keep local cache enabled so jobs
   # degrade gracefully if the remote cache or token is unavailable.
@@ -55,7 +54,7 @@ jobs:
       - name: Setup node
         uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
         with:
-          node-version: ${{ env.NODE_LTS_VERSION }}
+          node-version-file: .node-version
           check-latest: true
           package-manager-cache: false
       - name: Setup corepack
@@ -121,21 +120,21 @@ jobs:
       # canary next-swc binaries in the monorepo
       NEXT_SKIP_NATIVE_POSTINSTALL: 1
     steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          fetch-depth: 25
+          persist-credentials: false
+
       - name: Setup node
         uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
         with:
-          node-version: ${{ env.NODE_LTS_VERSION }}
+          node-version-file: .node-version
           check-latest: true
           package-manager-cache: false
       - name: Setup corepack
         run: |
           npm i -g corepack@0.31
           corepack enable
-
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
-        with:
-          fetch-depth: 25
-          persist-credentials: false
 
       - id: get-store-path
         run: echo STORE_PATH=$(pnpm store path) >> $GITHUB_OUTPUT
@@ -251,7 +250,7 @@ jobs:
         uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
         if: ${{ !matrix.docker }}
         with:
-          node-version: ${{ env.NODE_LTS_VERSION }}
+          node-version-file: .node-version
           check-latest: true
           package-manager-cache: false
 
@@ -472,7 +471,7 @@ jobs:
       - name: Setup node
         uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
         with:
-          node-version: ${{ env.NODE_LTS_VERSION }}
+          node-version-file: .node-version
           check-latest: true
           package-manager-cache: false
       - run: corepack enable
@@ -516,17 +515,6 @@ jobs:
       - build-wasm
       - build-native
     steps:
-      - name: Setup node
-        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
-        with:
-          node-version: ${{ env.NODE_LTS_VERSION }}
-          check-latest: true
-          package-manager-cache: false
-      - name: Setup corepack
-        run: |
-          npm i -g corepack@0.31
-          corepack enable
-
       # https://github.com/actions/virtual-environments/issues/1187
       - name: tune linux network
         run: sudo ethtool -K eth0 tx off rx off
@@ -542,6 +530,17 @@ jobs:
           restore-keys: |
             build-and-deploy-${{ github.sha }}-${{ github.run_number }}
             build-and-deploy-${{ github.sha }}-${{ github.run_number }}-${{ github.run_attempt}}
+
+      - name: Setup node
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+        with:
+          node-version-file: .node-version
+          check-latest: true
+          package-manager-cache: false
+      - name: Setup corepack
+        run: |
+          npm i -g corepack@0.31
+          corepack enable
 
       - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:

@@ -29,10 +29,10 @@ use tokio::time::{Duration, Instant};
 use tracing::{Span, trace_span};
 use turbo_bincode::{TurboBincodeBuffer, new_turbo_bincode_decoder, new_turbo_bincode_encoder};
 use turbo_tasks::{
-    CellId, DynTaskInputsStorage, RawVc, ReadCellOptions, ReadCellTracking, ReadConsistency,
-    ReadOutputOptions, ReadTracking, SharedReference, TRANSIENT_TASK_BIT, TaskExecutionReason,
-    TaskId, TaskPersistence, TaskPriority, TraitTypeId, TurboTasks, TurboTasksCallApi,
-    TurboTasksPanic, ValueTypeId,
+    CellId, DynTaskInputsStorage, RawVc, RawVcUnpacked, ReadCellOptions, ReadCellTracking,
+    ReadConsistency, ReadOutputOptions, ReadTracking, SharedReference, TRANSIENT_TASK_BIT,
+    TaskExecutionReason, TaskId, TaskPersistence, TaskPriority, TraitTypeId, TurboTasks,
+    TurboTasksCallApi, TurboTasksPanic, ValueTypeId,
     backend::{
         Backend, CachedTaskType, CachedTaskTypeArc, CellContent, CellHash, TaskExecutionSpec,
         TransientTaskType, TurboTaskContextError, TurboTaskLocalContextError, TurboTasksError,
@@ -70,8 +70,8 @@ use crate::{
     },
     backing_storage::{SnapshotItem, SnapshotMeta, compute_task_type_hash},
     data::{
-        ActivenessState, CellDependency, CellRef, CollectibleRef, CollectiblesRef, Dirtyness,
-        InProgressCellState, InProgressState, InProgressStateInner, OutputValue, TransientTask,
+        ActivenessState, CellRef, CollectibleRef, CollectiblesRef, Dirtyness, InProgressCellState,
+        InProgressState, InProgressStateInner, OutputValue, TransientTask,
     },
     error::TaskError,
     kv_backing_storage::TurboBackingStorage,
@@ -168,6 +168,35 @@ impl Default for BackendOptions {
 
 pub enum TurboTasksBackendJob {
     Snapshot,
+}
+
+/// Why a snapshot/persist is being performed.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum SnapshotReason {
+    Test,
+    Stop,
+    InitialSnapshotTimeout,
+    RegularSnapshotInterval,
+    IdleTimeout,
+}
+
+impl SnapshotReason {
+    fn as_str(self) -> &'static str {
+        match self {
+            SnapshotReason::Test => "test",
+            SnapshotReason::Stop => "stop",
+            SnapshotReason::InitialSnapshotTimeout => "initial snapshot timeout",
+            SnapshotReason::RegularSnapshotInterval => "regular snapshot interval",
+            SnapshotReason::IdleTimeout => "idle timeout",
+        }
+    }
+
+    /// True only for `Stop`: at shutdown the whole map is dropped right after, so each task
+    /// entry can be drained from the map and freed as it is serialized instead of after the
+    /// whole batch is written. This reduces peak memory during `next build` shutdown.
+    fn drain_entries(self) -> bool {
+        matches!(self, SnapshotReason::Stop)
+    }
 }
 
 pub struct TurboTasksBackend {
@@ -296,7 +325,7 @@ impl TurboTasksBackend {
             self.should_persist(),
             "snapshot_and_evict requires persistence"
         );
-        let snapshot_result = self.snapshot_and_persist(None, "test", turbo_tasks);
+        let snapshot_result = self.snapshot_and_persist(None, SnapshotReason::Test, turbo_tasks);
         let had_new_data = match snapshot_result {
             Ok((_, new_data)) => new_data,
             Err(_) => {
@@ -424,7 +453,6 @@ impl TurboTasksBackend {
         let mut ctx = self.execute_context(turbo_tasks);
         let need_reader_task = if self.should_track_dependencies()
             && !matches!(options.tracking, ReadTracking::Untracked)
-            && reader.is_some_and(|reader_id| reader_id != task_id)
             && let Some(reader_id) = reader
             && reader_id != task_id
         {
@@ -661,8 +689,8 @@ impl TurboTasksBackend {
 
         if let Some(output) = task.get_output() {
             let result = match output {
-                OutputValue::Cell(cell) => Ok(Ok(RawVc::TaskCell(cell.task, cell.cell))),
-                OutputValue::Output(task) => Ok(Ok(RawVc::TaskOutput(*task))),
+                OutputValue::Cell(cell) => Ok(Ok(RawVc::task_cell(cell.task, cell.cell))),
+                OutputValue::Output(task) => Ok(Ok(RawVc::task_output(*task))),
                 OutputValue::Error(error) => Err(error.clone()),
             };
             if let Some(mut reader_task) = reader_task.take()
@@ -765,8 +793,12 @@ impl TurboTasksBackend {
                 && (!task.immutable() || cfg!(feature = "verify_immutable"))
             {
                 let reader = reader.unwrap();
-                let _ = task
-                    .add_cell_dependents(CellDependency::new(CellRef { task: reader, cell }, key));
+                let reverse = CellRef { task: reader, cell };
+                if let Some(k) = key {
+                    let _ = task.add_cell_dependents_hashed((reverse, k));
+                } else {
+                    let _ = task.add_cell_dependents(reverse);
+                }
                 drop(task);
 
                 // Note: We use `task_pair` earlier to lock the task and its reader at the same
@@ -778,9 +810,12 @@ impl TurboTasksBackend {
                     task: task_id,
                     cell,
                 };
-                let dep = CellDependency::new(target, key);
-                if !reader_task.remove_outdated_cell_dependencies(&dep) {
-                    let _ = reader_task.add_cell_dependencies(dep);
+                if let Some(k) = key {
+                    if !reader_task.remove_outdated_cell_dependencies_hashed(&(target, k)) {
+                        let _ = reader_task.add_cell_dependencies_hashed((target, k));
+                    }
+                } else if !reader_task.remove_outdated_cell_dependencies(&target) {
+                    let _ = reader_task.add_cell_dependencies(target);
                 }
                 drop(reader_task);
             }
@@ -816,7 +851,7 @@ impl TurboTasksBackend {
                 add_cell_dependency(task_id, task, reader, reader_task, cell, tracking.key());
             }
             return Ok(Ok(TypedCellContent(
-                cell.type_id,
+                cell.type_id(),
                 CellContent(Some(content)),
             )));
         }
@@ -833,7 +868,7 @@ impl TurboTasksBackend {
         let is_cancelled = matches!(in_progress, Some(InProgressState::Canceled));
 
         // Check cell index range (cell might not exist at all)
-        let max_id = task.get_cell_type_max_index(&cell.type_id).copied();
+        let max_id = task.get_cell_type_max_index(&cell.type_id()).copied();
         let Some(max_id) = max_id else {
             let task_desc = task.get_task_description();
             if tracking.should_track(true) {
@@ -843,7 +878,7 @@ impl TurboTasksBackend {
                 "Cell {cell:?} no longer exists in task {task_desc} (no cell of this type exists)",
             );
         };
-        if cell.index >= max_id {
+        if cell.index() >= max_id {
             let task_desc = task.get_task_description();
             if tracking.should_track(true) {
                 add_cell_dependency(task_id, task, reader, reader_task, cell, tracking.key());
@@ -869,8 +904,8 @@ impl TurboTasksBackend {
 
         let _span = tracing::trace_span!(
             "recomputation",
-            cell_type = get_value_type(cell.type_id).ty.global_name,
-            cell_index = cell.index
+            cell_type = get_value_type(cell.type_id()).ty.global_name,
+            cell_index = cell.index()
         )
         .entered();
 
@@ -915,11 +950,11 @@ impl TurboTasksBackend {
     fn snapshot_and_persist(
         &self,
         parent_span: Option<tracing::Id>,
-        reason: &str,
+        reason: SnapshotReason,
         turbo_tasks: &TurboTasks<TurboTasksBackend>,
     ) -> Result<(Instant, bool), anyhow::Error> {
         let snapshot_span =
-            tracing::trace_span!(parent: parent_span.clone(), "snapshot", reason = reason)
+            tracing::trace_span!(parent: parent_span.clone(), "snapshot", reason = reason.as_str())
                 .entered();
         // Serialize snapshots. The internal protocol (snapshot_mode, snapshot
         // request bit, suspended_operations) assumes only one snapshot runs at
@@ -1201,7 +1236,9 @@ impl TurboTasksBackend {
             }
         };
 
-        let task_snapshots = self.storage.take_snapshot(snapshot_guard, &process);
+        let task_snapshots =
+            self.storage
+                .take_snapshot(snapshot_guard, &process, reason.drain_entries());
 
         drop(snapshot_span);
         let snapshot_duration = start.elapsed();
@@ -1218,7 +1255,7 @@ impl TurboTasksBackend {
         let span = tracing::info_span!(
             parent: parent_span,
             "persist",
-            reason = reason,
+            reason = reason.as_str(),
             data_items= tracing::field::Empty,
             meta_items= tracing::field::Empty,
             task_cache_items= tracing::field::Empty,
@@ -1338,7 +1375,7 @@ impl TurboTasksBackend {
             wall_start_ms,
             wall_end_ms,
             vec![
-                ("reason", serde_json::Value::from(reason)),
+                ("reason", serde_json::Value::from(reason.as_str())),
                 (
                     "snapshot_duration_ms",
                     serde_json::Value::from(snapshot_duration.as_secs_f64() * 1000.0),
@@ -1393,10 +1430,17 @@ impl TurboTasksBackend {
             self.is_idle.store(false, Ordering::Release);
             self.verify_aggregation_graph(turbo_tasks, false);
         }
-        if self.should_persist()
-            && let Err(err) = self.snapshot_and_persist(Span::current().into(), "stop", turbo_tasks)
-        {
-            eprintln!("Persisting failed during shutdown: {err:?}");
+        // eagerly drop the task cache before persisting
+        self.storage.drop_task_cache();
+        if self.should_persist() {
+            // The task_cache is a pure perf cache backed by the DB and isn't read during the
+            // stop snapshot (no task creation runs concurrently with stop). Drop it before
+            // persisting to lower peak memory during the serialization/write.
+            if let Err(err) =
+                self.snapshot_and_persist(Span::current().into(), SnapshotReason::Stop, turbo_tasks)
+            {
+                eprintln!("Persisting failed during shutdown: {err:?}");
+            }
         }
         self.storage.drop_contents();
         if let Err(err) = self.backing_storage.shutdown() {
@@ -1668,7 +1712,7 @@ impl TurboTasksBackend {
         inner_cached(
             self,
             task_type,
-            cell_id.map(|c| c.type_id),
+            cell_id.map(|c| c.type_id()),
             &mut FxHashSet::default(),
         )
     }
@@ -1884,8 +1928,13 @@ impl TurboTasksBackend {
 
             if self.should_track_dependencies() {
                 // Make all dependencies outdated
+                // We copy to outdated which allows us to detect when we drop a dependency, but we
+                // keep existing dependencies in place to avoid redoing the
+                // dependency registration work if we re-read them
                 let cell_dependencies = task.iter_cell_dependencies().collect();
                 task.set_outdated_cell_dependencies(cell_dependencies);
+                let cell_dependencies_hashed = task.iter_cell_dependencies_hashed().collect();
+                task.set_outdated_cell_dependencies_hashed(cell_dependencies_hashed);
 
                 let outdated_output_dependencies = task.iter_output_dependencies().collect();
                 task.set_outdated_output_dependencies(outdated_output_dependencies);
@@ -2221,9 +2270,10 @@ impl TurboTasksBackend {
             && task.is_collectibles_dependencies_empty()
         {
             Some(
-                // Collect all dependencies on tasks to check if all dependencies are immutable
+                // Collect all dependencies on tasks to check if all dependencies are immutable.
                 task.iter_output_dependencies()
-                    .chain(task.iter_cell_dependencies().map(|dep| dep.cell_ref().task))
+                    .chain(task.iter_cell_dependencies().map(|r| r.task))
+                    .chain(task.iter_cell_dependencies_hashed().map(|(r, _)| r.task))
                     .collect::<FxHashSet<_>>(),
             )
         } else {
@@ -2265,6 +2315,10 @@ impl TurboTasksBackend {
                     .map(OutdatedEdge::CellDependency),
             );
             old_edges.extend(
+                task.iter_outdated_cell_dependencies_hashed()
+                    .map(|(r, k)| OutdatedEdge::HashedCellDependency(r, k)),
+            );
+            old_edges.extend(
                 task.iter_outdated_output_dependencies()
                     .map(OutdatedEdge::OutputDependency),
             );
@@ -2274,8 +2328,8 @@ impl TurboTasksBackend {
         let current_output = task.get_output();
         #[cfg(feature = "verify_determinism")]
         let no_output_set = current_output.is_none();
-        let new_output = match result {
-            Ok(RawVc::TaskOutput(output_task_id)) => {
+        let new_output = match result.map(RawVc::unpack) {
+            Ok(RawVcUnpacked::TaskOutput(output_task_id)) => {
                 if let Some(OutputValue::Output(current_task_id)) = current_output
                     && *current_task_id == output_task_id
                 {
@@ -2284,7 +2338,7 @@ impl TurboTasksBackend {
                     Some(OutputValue::Output(output_task_id))
                 }
             }
-            Ok(RawVc::TaskCell(output_task_id, cell)) => {
+            Ok(RawVcUnpacked::TaskCell(output_task_id, cell)) => {
                 if let Some(OutputValue::Cell(CellRef {
                     task: current_task_id,
                     cell: current_cell,
@@ -2300,7 +2354,7 @@ impl TurboTasksBackend {
                     }))
                 }
             }
-            Ok(RawVc::LocalOutput(..)) => {
+            Ok(RawVcUnpacked::LocalOutput(..)) => {
                 panic!("Non-local tasks must not return a local Vc");
             }
             Err(err) => {
@@ -2717,8 +2771,8 @@ impl TurboTasksBackend {
                 .iter_cell_data()
                 .filter_map(|(cell, _)| {
                     cell_counters
-                        .get(&cell.type_id)
-                        .is_none_or(|start_index| cell.index >= *start_index)
+                        .get(&cell.type_id())
+                        .is_none_or(|start_index| cell.index() >= *start_index)
                         .then_some(*cell)
                 })
                 .collect();
@@ -2733,8 +2787,8 @@ impl TurboTasksBackend {
                 .iter_cell_data_hash()
                 .filter_map(|(cell, _)| {
                     cell_counters
-                        .get(&cell.type_id)
-                        .is_none_or(|start_index| cell.index >= *start_index)
+                        .get(&cell.type_id())
+                        .is_none_or(|start_index| cell.index() >= *start_index)
                         .then_some(*cell)
                 })
                 .collect();
@@ -2786,9 +2840,9 @@ impl TurboTasksBackend {
                         const SNAPSHOT_INTERVAL: Duration = Duration::from_secs(120);
                         let idle_timeout = *IDLE_TIMEOUT;
                         let (time, mut reason) = if is_first {
-                            (FIRST_SNAPSHOT_WAIT, "initial snapshot timeout")
+                            (FIRST_SNAPSHOT_WAIT, SnapshotReason::InitialSnapshotTimeout)
                         } else {
-                            (SNAPSHOT_INTERVAL, "regular snapshot interval")
+                            (SNAPSHOT_INTERVAL, SnapshotReason::RegularSnapshotInterval)
                         };
 
                         let until = last_snapshot + time;
@@ -2820,7 +2874,7 @@ impl TurboTasksBackend {
                                     },
                                     _ = tokio::time::sleep_until(idle_time) => {
                                         if turbo_tasks.is_idle() {
-                                            reason = "idle timeout";
+                                            reason = SnapshotReason::IdleTimeout;
                                             break;
                                         }
                                     },
@@ -2954,9 +3008,9 @@ impl TurboTasksBackend {
         let mut ctx = self.execute_context(turbo_tasks);
         let task = ctx.task(task_id, TaskDataCategory::Data);
         if let Some(content) = task.get_cell_data(&cell).cloned() {
-            Ok(CellContent(Some(content)).into_typed(cell.type_id))
+            Ok(CellContent(Some(content)).into_typed(cell.type_id()))
         } else {
-            Ok(CellContent(None).into_typed(cell.type_id))
+            Ok(CellContent(None).into_typed(cell.type_id()))
         }
     }
 
@@ -2989,7 +3043,7 @@ impl TurboTasksBackend {
             for (collectible, count) in task.iter_aggregated_collectibles() {
                 if *count > 0 && collectible.collectible_type == collectible_type {
                     *collectibles
-                        .entry(RawVc::TaskCell(
+                        .entry(RawVc::task_cell(
                             collectible.cell.task,
                             collectible.cell.cell,
                         ))
@@ -2999,7 +3053,7 @@ impl TurboTasksBackend {
             for (&collectible, &count) in task.iter_collectibles() {
                 if collectible.collectible_type == collectible_type {
                     *collectibles
-                        .entry(RawVc::TaskCell(
+                        .entry(RawVc::task_cell(
                             collectible.cell.task,
                             collectible.cell.cell,
                         ))
@@ -3032,7 +3086,7 @@ impl TurboTasksBackend {
     ) {
         self.assert_valid_collectible(task_id, collectible);
 
-        let RawVc::TaskCell(collectible_task, cell) = collectible else {
+        let Some((collectible_task, cell)) = collectible.as_task_cell() else {
             panic!("Collectibles need to be resolved");
         };
         let cell = CellRef {
@@ -3060,7 +3114,7 @@ impl TurboTasksBackend {
     ) {
         self.assert_valid_collectible(task_id, collectible);
 
-        let RawVc::TaskCell(collectible_task, cell) = collectible else {
+        let Some((collectible_task, cell)) = collectible.as_task_cell() else {
             panic!("Collectibles need to be resolved");
         };
         let cell = CellRef {
@@ -3384,7 +3438,7 @@ impl TurboTasksBackend {
 
     fn assert_valid_collectible(&self, task_id: TaskId, collectible: RawVc) {
         // these checks occur in a potentially hot codepath, but they're cheap
-        let RawVc::TaskCell(col_task_id, col_cell_id) = collectible else {
+        let Some((col_task_id, col_cell_id)) = collectible.as_task_cell() else {
             // This should never happen: The collectible APIs use ResolvedVc
             let task_info = if let Some(col_task_ty) = collectible
                 .try_get_task_id()

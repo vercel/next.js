@@ -368,7 +368,7 @@ where
     type Error = anyhow::Error;
 
     fn try_from(raw: RawVc) -> Result<Self> {
-        if !matches!(raw, RawVc::TaskCell(..)) {
+        if raw.as_task_cell().is_none() {
             anyhow::bail!("Given RawVc {raw:?} is not a TaskCell");
         }
         Ok(Self {

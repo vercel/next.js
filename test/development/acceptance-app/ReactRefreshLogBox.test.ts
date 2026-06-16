@@ -500,7 +500,7 @@ describe('ReactRefreshLogBox app', () => {
          "source": "./index.module.css
          ╰─▶   × SyntaxError
                │
-               │ (1:1) <FIXME-project-root>/index.module.css Unknown word
+               │ (1:1) <FIXME-project-root>/index.module.css Unknown word .button
                │
                │ > 1 | .button
                │     | ^

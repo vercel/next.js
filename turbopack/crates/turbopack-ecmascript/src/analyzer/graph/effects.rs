@@ -4,13 +4,13 @@ use turbo_rcstr::RcStr;
 use turbopack_core::resolve::ExportUsage;
 
 use crate::{
-    analyzer::{Bump, JsValue},
+    analyzer::{Bump, BumpVec, JsValue},
     utils::AstPathRange,
 };
 
 #[derive(Debug)]
 pub struct EffectsBlock<'a> {
-    pub effects: Vec<Effect<'a>>,
+    pub effects: BumpBox<'a, [Effect<'a>]>,
     pub range: AstPathRange,
 }
 
@@ -23,33 +23,33 @@ impl EffectsBlock<'_> {
 #[derive(Debug)]
 pub enum ConditionalKind<'a> {
     /// The blocks of an `if` statement without an `else` block.
-    If { then: Box<EffectsBlock<'a>> },
+    If { then: EffectsBlock<'a> },
     /// The blocks of an `if ... else` or `if { ... return ... } ...` statement.
     IfElse {
-        then: Box<EffectsBlock<'a>>,
-        r#else: Box<EffectsBlock<'a>>,
+        then: EffectsBlock<'a>,
+        r#else: EffectsBlock<'a>,
     },
     /// The blocks of an `if ... else` statement.
-    Else { r#else: Box<EffectsBlock<'a>> },
+    Else { r#else: EffectsBlock<'a> },
     /// The blocks of an `if { ... return ... } else { ... } ...` or `if { ... }
     /// else { ... return ... } ...` statement.
     IfElseMultiple {
-        then: Vec<Box<EffectsBlock<'a>>>,
-        r#else: Vec<Box<EffectsBlock<'a>>>,
+        then: BumpBox<'a, [EffectsBlock<'a>]>,
+        r#else: BumpBox<'a, [EffectsBlock<'a>]>,
     },
     /// The expressions on the right side of the `?:` operator.
     Ternary {
-        then: Box<EffectsBlock<'a>>,
-        r#else: Box<EffectsBlock<'a>>,
+        then: EffectsBlock<'a>,
+        r#else: EffectsBlock<'a>,
     },
     /// The expression on the right side of the `&&` operator.
-    And { expr: Box<EffectsBlock<'a>> },
+    And { expr: EffectsBlock<'a> },
     /// The expression on the right side of the `||` operator.
-    Or { expr: Box<EffectsBlock<'a>> },
+    Or { expr: EffectsBlock<'a> },
     /// The expression on the right side of the `??` operator.
-    NullishCoalescing { expr: Box<EffectsBlock<'a>> },
+    NullishCoalescing { expr: EffectsBlock<'a> },
     /// The expression on the right side of a labeled statement.
-    Labeled { body: Box<EffectsBlock<'a>> },
+    Labeled { body: EffectsBlock<'a> },
 }
 
 impl<'a> ConditionalKind<'a> {
@@ -61,28 +61,28 @@ impl<'a> ConditionalKind<'a> {
             | ConditionalKind::And { expr: block, .. }
             | ConditionalKind::Or { expr: block, .. }
             | ConditionalKind::NullishCoalescing { expr: block, .. } => {
-                for effect in &mut block.effects {
+                for effect in block.effects.iter_mut() {
                     effect.normalize(arena);
                 }
             }
             ConditionalKind::IfElse { then, r#else, .. }
             | ConditionalKind::Ternary { then, r#else, .. } => {
-                for effect in &mut then.effects {
+                for effect in then.effects.iter_mut() {
                     effect.normalize(arena);
                 }
-                for effect in &mut r#else.effects {
+                for effect in r#else.effects.iter_mut() {
                     effect.normalize(arena);
                 }
             }
             ConditionalKind::IfElseMultiple { then, r#else, .. } => {
                 for block in then.iter_mut().chain(r#else.iter_mut()) {
-                    for effect in &mut block.effects {
+                    for effect in block.effects.iter_mut() {
                         effect.normalize(arena);
                     }
                 }
             }
             ConditionalKind::Labeled { body } => {
-                for effect in &mut body.effects {
+                for effect in body.effects.iter_mut() {
                     effect.normalize(arena);
                 }
             }
@@ -93,7 +93,7 @@ impl<'a> ConditionalKind<'a> {
 #[derive(Debug)]
 pub enum EffectArg<'a> {
     Value(JsValue<'a>),
-    Closure(JsValue<'a>, Box<EffectsBlock<'a>>),
+    Closure(JsValue<'a>, BumpBox<'a, EffectsBlock<'a>>),
     Spread,
 }
 
@@ -104,7 +104,7 @@ impl<'a> EffectArg<'a> {
             EffectArg::Value(value) => value.normalize(arena),
             EffectArg::Closure(value, effects) => {
                 value.normalize(arena);
-                for effect in &mut effects.effects {
+                for effect in effects.effects.iter_mut() {
                     effect.normalize(arena);
                 }
             }
@@ -120,16 +120,16 @@ pub enum Effect<'a> {
     /// to determine which effects are executed and remove the others.
     Conditional {
         condition: BumpBox<'a, JsValue<'a>>,
-        kind: Box<ConditionalKind<'a>>,
+        kind: BumpBox<'a, ConditionalKind<'a>>,
         /// The ast path to the condition.
-        ast_path: Vec<AstParentKind>,
+        ast_path: BumpBox<'a, [AstParentKind]>,
         span: Span,
     },
     /// A function call or a new call of a function.
     Call {
         func: BumpBox<'a, JsValue<'a>>,
-        args: Vec<EffectArg<'a>>,
-        ast_path: Vec<AstParentKind>,
+        args: BumpVec<'a, EffectArg<'a>>,
+        ast_path: BumpBox<'a, [AstParentKind]>,
         span: Span,
         in_try: bool,
         new: bool,
@@ -138,8 +138,8 @@ pub enum Effect<'a> {
     MemberCall {
         obj: BumpBox<'a, JsValue<'a>>,
         prop: BumpBox<'a, JsValue<'a>>,
-        args: Vec<EffectArg<'a>>,
-        ast_path: Vec<AstParentKind>,
+        args: BumpVec<'a, EffectArg<'a>>,
+        ast_path: BumpBox<'a, [AstParentKind]>,
         span: Span,
         in_try: bool,
         new: bool,
@@ -148,32 +148,32 @@ pub enum Effect<'a> {
     Member {
         obj: BumpBox<'a, JsValue<'a>>,
         prop: BumpBox<'a, JsValue<'a>>,
-        ast_path: Vec<AstParentKind>,
+        ast_path: BumpBox<'a, [AstParentKind]>,
         span: Span,
     },
     /// A reference to an imported binding.
     ImportedBinding {
         esm_reference_index: usize,
         export: Option<RcStr>,
-        ast_path: Vec<AstParentKind>,
+        ast_path: BumpBox<'a, [AstParentKind]>,
         span: Span,
     },
     /// A reference to a free var access.
     FreeVar {
         var: Atom,
-        ast_path: Vec<AstParentKind>,
+        ast_path: BumpBox<'a, [AstParentKind]>,
         span: Span,
     },
     /// A typeof expression
     TypeOf {
         arg: BumpBox<'a, JsValue<'a>>,
-        ast_path: Vec<AstParentKind>,
+        ast_path: BumpBox<'a, [AstParentKind]>,
         span: Span,
     },
     // TODO ImportMeta should be replaced with Member
     /// A reference to `import.meta`.
     ImportMeta {
-        ast_path: Vec<AstParentKind>,
+        ast_path: BumpBox<'a, [AstParentKind]>,
         span: Span,
     },
     /// A dynamic import() call, potentially with export usage extracted from
@@ -186,15 +186,17 @@ pub enum Effect<'a> {
     /// - `import(/* webpackExports: ["a"] */ './lib')` (magic comment)
     /// - `import(/* turbopackExports: ["a"] */ './lib')` (magic comment)
     DynamicImport {
-        args: Vec<EffectArg<'a>>,
-        ast_path: Vec<AstParentKind>,
+        args: BumpVec<'a, EffectArg<'a>>,
+        ast_path: BumpBox<'a, [AstParentKind]>,
         span: Span,
         in_try: bool,
         /// The export usage extracted from the usage pattern.
         export_usage: ExportUsage,
     },
     /// Unreachable code, e.g. after a `return` statement.
-    Unreachable { start_ast_path: Vec<AstParentKind> },
+    Unreachable {
+        start_ast_path: BumpBox<'a, [AstParentKind]>,
+    },
 }
 
 impl<'a> Effect<'a> {

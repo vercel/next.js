@@ -435,6 +435,7 @@ export const experimentalSchema = {
     })
     .optional(),
   globalNotFound: z.boolean().optional(),
+  turbopackRustReactCompiler: z.boolean().optional(),
   browserDebugInfoInTerminal: z
     .union([
       z.boolean(),

@@ -2328,6 +2328,7 @@ checksum = "9ed9a281f7bc9b7576e61468ba615a66a5c8cfdff42420a70aa82701a3b1e292"
 dependencies = [
  "block-buffer",
  "crypto-common",
+ "subtle",
 ]
 
 [[package]]
@@ -3101,6 +3102,15 @@ name = "hex"
 version = "0.4.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7f24254aa9a54b5c858eaee2f5bccdb46aaf0e486a595ed5fd8f86ba55232a70"
+
+[[package]]
+name = "hmac"
+version = "0.12.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6c49c37c09c17a53d937dfbb742eb3a961d65a994e6bcdcf37e7399d0cc8ab5e"
+dependencies = [
+ "digest",
+]
 
 [[package]]
 name = "home"
@@ -4965,6 +4975,180 @@ dependencies = [
  "regex",
  "serde_json",
  "turbo-unix-path",
+]
+
+[[package]]
+name = "nextjs_react_compiler"
+version = "0.1.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "16b22b5a98bd2b715d54384ca378d8451e7961c5c16e970bdaff0b5358ab7551"
+dependencies = [
+ "indexmap 2.13.0",
+ "nextjs_react_compiler_ast",
+ "nextjs_react_compiler_diagnostics",
+ "nextjs_react_compiler_hir",
+ "nextjs_react_compiler_inference",
+ "nextjs_react_compiler_lowering",
+ "nextjs_react_compiler_optimization",
+ "nextjs_react_compiler_reactive_scopes",
+ "nextjs_react_compiler_ssa",
+ "nextjs_react_compiler_typeinference",
+ "nextjs_react_compiler_validation",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
+name = "nextjs_react_compiler_ast"
+version = "0.1.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a801871be2129e520a2f12139f88db11c67000c24fe3ef33a39a951e3a7ee8f4"
+dependencies = [
+ "indexmap 2.13.0",
+ "serde",
+ "serde-transcode",
+ "serde_json",
+]
+
+[[package]]
+name = "nextjs_react_compiler_diagnostics"
+version = "0.1.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ad98f822369142a319e223fa7828b55908f2ff5e66d6055386c9c6220fcec8d4"
+dependencies = [
+ "serde",
+]
+
+[[package]]
+name = "nextjs_react_compiler_hir"
+version = "0.1.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9781a9729984e1fbe1e7910a4b8b1a1085105c27e9977b9a8fd7de987f6f45c1"
+dependencies = [
+ "indexmap 2.13.0",
+ "nextjs_react_compiler_diagnostics",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
+name = "nextjs_react_compiler_inference"
+version = "0.1.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "32ad078392098a3eef51a40eb2ff01fc6ba30e83f8ddb81b1a9c6aa1aefb0888"
+dependencies = [
+ "indexmap 2.13.0",
+ "nextjs_react_compiler_diagnostics",
+ "nextjs_react_compiler_hir",
+ "nextjs_react_compiler_lowering",
+ "nextjs_react_compiler_optimization",
+ "nextjs_react_compiler_ssa",
+ "nextjs_react_compiler_utils",
+]
+
+[[package]]
+name = "nextjs_react_compiler_lowering"
+version = "0.1.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2f4f7aa0de73b7371b17b8a4bc8293dfc014a815443cf4f189bdc04ff292728e"
+dependencies = [
+ "indexmap 2.13.0",
+ "nextjs_react_compiler_ast",
+ "nextjs_react_compiler_diagnostics",
+ "nextjs_react_compiler_hir",
+ "serde_json",
+]
+
+[[package]]
+name = "nextjs_react_compiler_optimization"
+version = "0.1.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3ed5edc18e4b472c022f7ffa8ccee53ddfb47d176cf1e883b4ed7949721ac585"
+dependencies = [
+ "indexmap 2.13.0",
+ "nextjs_react_compiler_diagnostics",
+ "nextjs_react_compiler_hir",
+ "nextjs_react_compiler_lowering",
+ "nextjs_react_compiler_ssa",
+]
+
+[[package]]
+name = "nextjs_react_compiler_reactive_scopes"
+version = "0.1.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0bd347140ecfc25f5aae2aacf777bbd73df510bc4d78d974e56e8817265f4e22"
+dependencies = [
+ "hmac",
+ "indexmap 2.13.0",
+ "nextjs_react_compiler_ast",
+ "nextjs_react_compiler_diagnostics",
+ "nextjs_react_compiler_hir",
+ "serde_json",
+ "sha2",
+]
+
+[[package]]
+name = "nextjs_react_compiler_ssa"
+version = "0.1.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a837a1efcea17cfd695e00d72fb5e3c31ad60dcbc9362aa9a5ae26c086dba373"
+dependencies = [
+ "indexmap 2.13.0",
+ "nextjs_react_compiler_diagnostics",
+ "nextjs_react_compiler_hir",
+ "nextjs_react_compiler_lowering",
+]
+
+[[package]]
+name = "nextjs_react_compiler_swc"
+version = "0.1.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "bfe86fd086bd939c6ff101af9b0afbdd2c094f63116ea364c3a8e53ccf40afc5"
+dependencies = [
+ "indexmap 2.13.0",
+ "nextjs_react_compiler",
+ "nextjs_react_compiler_ast",
+ "nextjs_react_compiler_diagnostics",
+ "nextjs_react_compiler_hir",
+ "serde",
+ "serde_json",
+ "swc_atoms",
+ "swc_common",
+ "swc_ecma_ast",
+ "swc_ecma_codegen",
+ "swc_ecma_parser",
+ "swc_ecma_visit",
+]
+
+[[package]]
+name = "nextjs_react_compiler_typeinference"
+version = "0.1.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4513a9d17b98adb088a070764a7e438b28333e244f0d93fac1c5994282dd6f4b"
+dependencies = [
+ "nextjs_react_compiler_diagnostics",
+ "nextjs_react_compiler_hir",
+ "nextjs_react_compiler_ssa",
+]
+
+[[package]]
+name = "nextjs_react_compiler_utils"
+version = "0.1.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3ae4bbd3dea223b62e1a53176c17520b5c6564a0949a39e1abd9fe9a3acc2237"
+dependencies = [
+ "indexmap 2.13.0",
+]
+
+[[package]]
+name = "nextjs_react_compiler_validation"
+version = "0.1.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5110ff50d5e8898d0d1515694e8a388e048eb5bd0bfdedd1d6f9cefad4eb32f3"
+dependencies = [
+ "indexmap 2.13.0",
+ "nextjs_react_compiler_diagnostics",
+ "nextjs_react_compiler_hir",
 ]
 
 [[package]]
@@ -6992,6 +7176,15 @@ checksum = "c621150da442b6a854bb63c431347bcd4de19219a3e1f06fd744208ded057288"
 dependencies = [
  "serde",
  "wyz 0.2.0",
+]
+
+[[package]]
+name = "serde-transcode"
+version = "1.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "590c0e25c2a5bb6e85bf5c1bce768ceb86b316e7a01bdf07d2cb4ec2271990e2"
+dependencies = [
+ "serde",
 ]
 
 [[package]]
@@ -10417,6 +10610,9 @@ dependencies = [
  "indexmap 2.13.0",
  "indoc",
  "itertools 0.10.5",
+ "next-custom-transforms",
+ "nextjs_react_compiler",
+ "nextjs_react_compiler_swc",
  "num-bigint",
  "num-traits",
  "parking_lot",
