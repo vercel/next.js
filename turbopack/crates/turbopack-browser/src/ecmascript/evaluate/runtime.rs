@@ -31,7 +31,6 @@ pub(crate) struct EcmascriptBrowserRuntimeChunk {
 
 #[turbo_tasks::value_impl]
 impl EcmascriptBrowserRuntimeChunk {
-    /// Creates a new [`Vc<EcmascriptBrowserRuntimeChunk>`].
     #[turbo_tasks::function]
     pub fn new(
         chunking_context: ResolvedVc<BrowserChunkingContext>,
