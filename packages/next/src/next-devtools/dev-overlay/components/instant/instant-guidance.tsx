@@ -12,6 +12,7 @@ import {
 } from '../../icons/fix-card-icons'
 import { CopyButton } from '../copy-button'
 import { ExternalIcon } from '../../icons/external'
+import { CopyPromptIcon } from '../../icons/copy-prompt'
 import { css } from '../../utils/css'
 import {
   DOCS_URLS,
@@ -90,15 +91,19 @@ function CopyPromptButton({
         const info = await generateErrorInfo()
         return info ? `${fixHeader}\n\n${info}` : fixHeader
       }}
-      actionLabel="Copy AI prompt"
-      successLabel="Prompt copied"
+      actionLabel="Copy as prompt"
+      successLabel="Copied"
+      icon={<CopyPromptIcon />}
+      showLabel
       data-nextjs-fix-card-copy-button
     />
   ) : (
     <CopyButton
       content={fixHeader}
-      actionLabel="Copy AI prompt"
-      successLabel="Prompt copied"
+      actionLabel="Copy as prompt"
+      successLabel="Copied"
+      icon={<CopyPromptIcon />}
+      showLabel
       data-nextjs-fix-card-copy-button
     />
   )
@@ -394,18 +399,19 @@ export const INSTANT_GUIDANCE_STYLES = css`
   }
 
   [data-nextjs-fix-card-icon] {
-    width: var(--size-36);
-    height: var(--size-36);
+    width: var(--size-28);
+    height: var(--size-28);
     border-radius: var(--rounded-full);
     flex-shrink: 0;
     display: flex;
     align-items: center;
     justify-content: center;
+    opacity: 0.85;
   }
 
   [data-nextjs-fix-card-icon] svg {
-    width: var(--size-16);
-    height: var(--size-16);
+    width: var(--size-14);
+    height: var(--size-14);
   }
 
   [data-nextjs-fix-card-header-text] {
@@ -532,13 +538,13 @@ export const INSTANT_GUIDANCE_STYLES = css`
 
   [data-nextjs-fix-card-title-link-icon] {
     align-items: center;
-    color: var(--color-gray-800);
+    color: inherit;
     display: inline-flex;
     flex-shrink: 0;
   }
 
   [data-nextjs-fix-card]:hover [data-nextjs-fix-card-title-link-icon] {
-    color: var(--color-gray-1000);
+    color: inherit;
   }
 
   [data-nextjs-fix-card-wrapper] {
@@ -552,32 +558,41 @@ export const INSTANT_GUIDANCE_STYLES = css`
 
   [data-nextjs-fix-card-copy-button] {
     align-items: center;
-    background: transparent;
-    border: none;
-    border-radius: var(--rounded-md);
-    color: var(--color-gray-800);
+    background: var(--color-background-100);
+    border: 1px solid var(--color-gray-alpha-300);
+    border-radius: 9999px;
+    color: var(--color-gray-900);
     cursor: pointer;
     display: inline-flex;
-    height: 24px;
-    justify-content: center;
-    padding: 0;
+    font-family: var(--font-stack-sans);
+    font-size: var(--size-11);
+    font-weight: 500;
+    gap: 4px;
+    height: auto;
+    padding: 3px 8px 3px 7px;
     position: absolute;
     right: 10px;
-    top: 10px;
+    top: -10px;
     transition:
       background 120ms ease,
+      border-color 120ms ease,
       color 120ms ease;
-    width: 24px;
-    z-index: 1;
+    z-index: 2;
   }
 
   [data-nextjs-fix-card-copy-button] svg {
     width: var(--size-12);
     height: var(--size-12);
+    flex-shrink: 0;
+  }
+
+  [data-nextjs-fix-card-copy-button] span {
+    line-height: 1;
   }
 
   [data-nextjs-fix-card-copy-button]:hover {
     background: var(--color-background-200);
+    border-color: var(--color-gray-alpha-500);
     color: var(--color-gray-1000);
   }
 
