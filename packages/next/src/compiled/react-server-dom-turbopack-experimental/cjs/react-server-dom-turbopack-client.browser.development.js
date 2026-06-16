@@ -1665,6 +1665,20 @@
         }
         chunk.status = "rejected";
         chunk.reason = error;
+        a: if (null !== response._debugEndTime)
+          for (
+            prevHandler = response._debugEndTime - performance.timeOrigin,
+              chunk = chunk._debugInfo,
+              prevChunk = 0;
+            prevChunk < chunk.length;
+            prevChunk++
+          ) {
+            var info = chunk[prevChunk];
+            if ("number" === typeof info.time && info.time > prevHandler) {
+              chunk.length = prevChunk;
+              break a;
+            }
+          }
         null !== listeners && rejectChunk(response, listeners, error);
       }
     }
@@ -2839,7 +2853,7 @@
         null == debugStartTime ? performance.now() : debugStartTime;
       this._debugIOStarted = !1;
       setTimeout(markIOStarted.bind(this), 0);
-      this._debugEndTime = null == debugEndTime ? null : debugEndTime;
+      this._debugEndTime = void 0 === debugEndTime ? null : debugEndTime;
       this._debugFindSourceMapURL = findSourceMapURL;
       this._debugChannel = debugChannel;
       this._blockedConsole = null;
@@ -5161,10 +5175,10 @@
       return hook.checkDCE ? !0 : !1;
     })({
       bundleType: 1,
-      version: "19.3.0-experimental-43bcbf80-20260603",
+      version: "19.3.0-experimental-d9158919-20260615",
       rendererPackageName: "react-server-dom-turbopack",
       currentDispatcherRef: ReactSharedInternals,
-      reconcilerVersion: "19.3.0-experimental-43bcbf80-20260603",
+      reconcilerVersion: "19.3.0-experimental-d9158919-20260615",
       getCurrentComponentInfo: function () {
         return currentOwnerInDEV;
       }

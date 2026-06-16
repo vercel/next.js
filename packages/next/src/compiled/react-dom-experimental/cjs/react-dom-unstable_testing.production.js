@@ -18664,11 +18664,11 @@ function releaseSingletonInstance(instance) {
 var preloadPropsMap = new Map(),
   preconnectsSet = new Set();
 function getHoistableRoot(container) {
-  return "function" === typeof container.getRootNode
-    ? container.getRootNode()
-    : 9 === container.nodeType
-      ? container
-      : container.ownerDocument;
+  if ("function" === typeof container.getRootNode) {
+    var rootNode = container.getRootNode();
+    if (9 === rootNode.nodeType || 11 === rootNode.nodeType) return rootNode;
+  }
+  return 9 === container.nodeType ? container : container.ownerDocument;
 }
 var previousDispatcher = ReactDOMSharedInternals.d;
 ReactDOMSharedInternals.d = {
@@ -20286,14 +20286,14 @@ ReactDOMHydrationRoot.prototype.unstable_scheduleHydration = function (target) {
 };
 var isomorphicReactPackageVersion$jscomp$inline_2270 = React.version;
 if (
-  "19.3.0-experimental-43bcbf80-20260603" !==
+  "19.3.0-experimental-d9158919-20260615" !==
   isomorphicReactPackageVersion$jscomp$inline_2270
 )
   throw Error(
     formatProdErrorMessage(
       527,
       isomorphicReactPackageVersion$jscomp$inline_2270,
-      "19.3.0-experimental-43bcbf80-20260603"
+      "19.3.0-experimental-d9158919-20260615"
     )
   );
 ReactDOMSharedInternals.findDOMNode = function (componentOrElement) {
@@ -20315,10 +20315,10 @@ ReactDOMSharedInternals.findDOMNode = function (componentOrElement) {
 };
 var internals$jscomp$inline_2960 = {
   bundleType: 0,
-  version: "19.3.0-experimental-43bcbf80-20260603",
+  version: "19.3.0-experimental-d9158919-20260615",
   rendererPackageName: "react-dom",
   currentDispatcherRef: ReactSharedInternals,
-  reconcilerVersion: "19.3.0-experimental-43bcbf80-20260603"
+  reconcilerVersion: "19.3.0-experimental-d9158919-20260615"
 };
 if ("undefined" !== typeof __REACT_DEVTOOLS_GLOBAL_HOOK__) {
   var hook$jscomp$inline_2961 = __REACT_DEVTOOLS_GLOBAL_HOOK__;
@@ -20576,4 +20576,4 @@ exports.observeVisibleRects = function (
     }
   };
 };
-exports.version = "19.3.0-experimental-43bcbf80-20260603";
+exports.version = "19.3.0-experimental-d9158919-20260615";

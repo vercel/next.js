@@ -24894,11 +24894,12 @@
       detachDeletedInstance(instance);
     }
     function getHoistableRoot(container) {
-      return "function" === typeof container.getRootNode
-        ? container.getRootNode()
-        : 9 === container.nodeType
-          ? container
-          : container.ownerDocument;
+      if ("function" === typeof container.getRootNode) {
+        var rootNode = container.getRootNode();
+        if (9 === rootNode.nodeType || 11 === rootNode.nodeType)
+          return rootNode;
+      }
+      return 9 === container.nodeType ? container : container.ownerDocument;
     }
     function preconnectAs(rel, href, crossOrigin) {
       var ownerDocument = globalDocument;
@@ -30669,11 +30670,11 @@
     };
     (function () {
       var isomorphicReactPackageVersion = React.version;
-      if ("19.3.0-canary-43bcbf80-20260603" !== isomorphicReactPackageVersion)
+      if ("19.3.0-canary-d9158919-20260615" !== isomorphicReactPackageVersion)
         throw Error(
           'Incompatible React versions: The "react" and "react-dom" packages must have the exact same version. Instead got:\n  - react:      ' +
             (isomorphicReactPackageVersion +
-              "\n  - react-dom:  19.3.0-canary-43bcbf80-20260603\nLearn more: https://react.dev/warnings/version-mismatch")
+              "\n  - react-dom:  19.3.0-canary-d9158919-20260615\nLearn more: https://react.dev/warnings/version-mismatch")
         );
     })();
     ("function" === typeof Map &&
@@ -30710,10 +30711,10 @@
       !(function () {
         var internals = {
           bundleType: 1,
-          version: "19.3.0-canary-43bcbf80-20260603",
+          version: "19.3.0-canary-d9158919-20260615",
           rendererPackageName: "react-dom",
           currentDispatcherRef: ReactSharedInternals,
-          reconcilerVersion: "19.3.0-canary-43bcbf80-20260603"
+          reconcilerVersion: "19.3.0-canary-d9158919-20260615"
         };
         internals.overrideHookState = overrideHookState;
         internals.overrideHookStateDeletePath = overrideHookStateDeletePath;
@@ -30851,7 +30852,7 @@
       listenToAllSupportedEvents(container);
       return new ReactDOMHydrationRoot(initialChildren);
     };
-    exports.version = "19.3.0-canary-43bcbf80-20260603";
+    exports.version = "19.3.0-canary-d9158919-20260615";
     "undefined" !== typeof __REACT_DEVTOOLS_GLOBAL_HOOK__ &&
       "function" ===
         typeof __REACT_DEVTOOLS_GLOBAL_HOOK__.registerInternalModuleStop &&
