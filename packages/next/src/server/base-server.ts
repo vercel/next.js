@@ -1175,22 +1175,33 @@ export default abstract class Server<
             hasValidParams: false,
           }
 
-          const match = this.getRouteMatch(srcPathname, localeAnalysisResult)
-          let routeParams: Params | undefined =
-            !pageIsDynamic && match?.params ? match.params : undefined
+          // A dynamic x-matched-path identifies the route pattern, not a
+          // concrete pathname. Match it by identity so a pattern such as
+          // `/[...path]` cannot be captured by the regex for `/[slug]`.
+          let routeDefinition: RouteDefinition | undefined
+          let routeParams: Params | undefined
+          if (pageIsDynamic) {
+            routeDefinition = this.getRoutePatternDefinition(
+              srcPathname,
+              localeAnalysisResult
+            )
+          } else {
+            const match = this.getRouteMatch(srcPathname, localeAnalysisResult)
+            if (match) {
+              routeDefinition = match.definition
 
-          if (!pageIsDynamic && match) {
-            // Update the source pathname to the matched page's pathname.
-            srcPathname = match.definition.pathname
+              // Update the source pathname to the matched page's pathname.
+              srcPathname = match.definition.pathname
 
-            // The page is dynamic if the params are defined. We know at this
-            // stage that the matched path is not a static page if the params
-            // were parsed from the matched path header.
-            if (typeof match.params !== 'undefined') {
-              pageIsDynamic = true
-              paramsResult.params = match.params
-              paramsResult.hasValidParams = true
-              routeParams = match.params
+              // The page is dynamic if the params are defined. We know at this
+              // stage that the matched path is not a static page if the params
+              // were parsed from the matched path header.
+              if (typeof match.params !== 'undefined') {
+                pageIsDynamic = true
+                paramsResult.params = match.params
+                paramsResult.hasValidParams = true
+                routeParams = match.params
+              }
             }
           }
 
@@ -1412,9 +1423,9 @@ export default abstract class Server<
             }
           }
 
-          if (match) {
+          if (routeDefinition) {
             addRequestMeta(req, 'match', {
-              definition: match.definition,
+              definition: routeDefinition,
               params: routeParams,
             })
           } else {
@@ -1445,8 +1456,8 @@ export default abstract class Server<
           // App Router routes should not include rewrite query params as they
           // affect RSC payload.
           if (
-            match?.definition.kind === RouteKind.PAGES ||
-            match?.definition.kind === RouteKind.PAGES_API
+            routeDefinition?.kind === RouteKind.PAGES ||
+            routeDefinition?.kind === RouteKind.PAGES_API
           ) {
             parsedUrl.query = rewrittenQueryParams
           }
@@ -1886,6 +1897,23 @@ export default abstract class Server<
     }
 
     return null
+  }
+
+  private getRoutePatternDefinition(
+    pathname: string,
+    localeAnalysisResult?: LocaleAnalysisResult
+  ): RouteDefinition | undefined {
+    for (const definition of this.getRouteDefinitions()) {
+      const matchPathname = this.getRouteMatchPathname(
+        pathname,
+        definition,
+        localeAnalysisResult
+      )
+
+      if (matchPathname === definition.pathname) {
+        return definition
+      }
+    }
   }
 
   protected getRouteMatch(
