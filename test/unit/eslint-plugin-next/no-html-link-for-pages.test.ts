@@ -10,6 +10,7 @@ const withCustomPagesDir = path.join(__dirname, 'with-custom-pages-dir')
 const withNestedPagesDir = path.join(__dirname, 'with-nested-pages-dir')
 const withoutPagesDir = path.join(__dirname, 'without-pages-dir')
 const withAppDir = path.join(__dirname, 'with-app-dir')
+const withPageExtensions = path.join(__dirname, 'with-page-extensions')
 
 const linters = {
   withoutPages: new Linter({
@@ -26,6 +27,10 @@ const linters = {
   }),
   withCustomPages: new Linter({
     cwd: withCustomPagesDir,
+    configType: 'eslintrc',
+  }),
+  withPageExtensions: new Linter({
+    cwd: withPageExtensions,
     configType: 'eslintrc',
   }),
 }
@@ -493,6 +498,88 @@ describe('no-html-link-for-pages', function () {
     assert.equal(
       report.message,
       'Do not use an `<a>` element to navigate to `/photo/1/`. Use `<Link />` from `next/link` instead. See: https://nextjs.org/docs/messages/no-html-link-for-pages'
+    )
+  })
+
+  // pageExtensions configured in next.config.js should be honored by the rule.
+  it('honors custom pageExtensions from next.config.js (pages dir)', function () {
+    const [report] = linters.withPageExtensions.verify(
+      invalidStaticCode,
+      linterConfig,
+      { filename: 'foo.js' }
+    )
+    assert.notEqual(report, undefined, 'No lint errors found.')
+    assert.equal(
+      report.message,
+      'Do not use an `<a>` element to navigate to `/`. Use `<Link />` from `next/link` instead. See: https://nextjs.org/docs/messages/no-html-link-for-pages'
+    )
+  })
+  it('honors custom pageExtensions for .md routes (pages dir)', function () {
+    // /blog is backed by pages/blog.md which is valid under
+    // pageExtensions: ['mdx', 'md', 'tsx', 'ts']
+    const code = `
+import Link from 'next/link';
+export class Blah extends Head {
+  render() {
+    return (
+      <div>
+        <a href='/blog'>Blog</a>
+      </div>
+    );
+  }
+}
+`
+    const [report] = linters.withPageExtensions.verify(code, linterConfig, {
+      filename: 'foo.js',
+    })
+    assert.notEqual(report, undefined, 'No lint errors found.')
+    assert.equal(
+      report.message,
+      'Do not use an `<a>` element to navigate to `/blog/`. Use `<Link />` from `next/link` instead. See: https://nextjs.org/docs/messages/no-html-link-for-pages'
+    )
+  })
+  it('ignores files whose extension is not in pageExtensions (pages dir)', function () {
+    // /notes is NOT a page because .notes is not in the configured
+    // pageExtensions, so the link should be considered external/internal
+    // but not a page navigation.
+    const code = `
+import Link from 'next/link';
+export class Blah extends Head {
+  render() {
+    return (
+      <div>
+        <a href='/notes'>Notes</a>
+      </div>
+    );
+  }
+}
+`
+    const report = linters.withPageExtensions.verify(code, linterConfig, {
+      filename: 'foo.js',
+    })
+    assert.deepEqual(report, [])
+  })
+  it('honors custom pageExtensions for app dir (about.mdx)', function () {
+    // /about is backed by app/about.mdx
+    const code = `
+import Link from 'next/link';
+export class Blah extends Head {
+  render() {
+    return (
+      <div>
+        <a href='/about'>About</a>
+      </div>
+    );
+  }
+}
+`
+    const [report] = linters.withPageExtensions.verify(code, linterConfig, {
+      filename: 'foo.js',
+    })
+    assert.notEqual(report, undefined, 'No lint errors found.')
+    assert.equal(
+      report.message,
+      'Do not use an `<a>` element to navigate to `/about/`. Use `<Link />` from `next/link` instead. See: https://nextjs.org/docs/messages/no-html-link-for-pages'
     )
   })
 })
