@@ -61,7 +61,10 @@ import { PagesNormalizers } from '../../normalizers/built/pages'
 import { AppNormalizers } from '../../normalizers/built/app'
 import { RouteKind } from '../../route-kind'
 import { isAppPageRouteDefinition } from '../../route-definitions/app-page-route-definition'
-import { compareAppPaths } from '../../../shared/lib/router/utils/app-paths'
+import {
+  compareAppPaths,
+  getAppPageRouteDefinitionPage,
+} from '../../../shared/lib/router/utils/app-paths'
 import { normalizeCatchAllRoutes } from './normalize-catchall-routes'
 
 export type FsOutput = {
@@ -294,21 +297,6 @@ export async function setupFsCheck(opts: {
 
   const pagesNormalizers = new PagesNormalizers(distDir)
   const appNormalizers = new AppNormalizers(distDir)
-  const getAppPathDefinitionPage = (
-    pathname: string,
-    appPaths: readonly string[]
-  ): string => {
-    // Prefer the app path that normalizes to the pathname. Keep the final app
-    // path as the fallback because sorted parallel routes place the root last.
-    for (let i = appPaths.length - 1; i >= 0; i--) {
-      const appPath = appPaths[i]
-      if (appNormalizers.pathname.normalize(appPath) === pathname) {
-        return appPath
-      }
-    }
-
-    return appPaths[appPaths.length - 1]
-  }
 
   if (!opts.dev) {
     const buildIdPath = path.join(opts.dir, opts.config.distDir, BUILD_ID_FILE)
@@ -465,7 +453,7 @@ export async function setupFsCheck(opts: {
     normalizeCatchAllRoutes(allAppPaths, appNormalizers.pathname)
     for (const [pathname, appPaths] of Object.entries(allAppPaths)) {
       appPaths.sort(compareAppPaths)
-      const page = getAppPathDefinitionPage(pathname, appPaths)
+      const page = getAppPageRouteDefinitionPage(appPaths)
       setRouteDefinition('appFile', pathname, {
         kind: RouteKind.APP_PAGE,
         pathname,

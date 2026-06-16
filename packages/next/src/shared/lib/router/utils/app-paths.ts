@@ -53,9 +53,9 @@ export function normalizeAppPath(route: string) {
 
 /**
  * Comparator for sorting app paths so that parallel slot paths (containing
- * `/@`) come before the children/root page path. This ensures the last item
- * is always the children page, which is what `renderPageComponent` reads via
- * `appPaths[appPaths.length - 1]`.
+ * `/@`) come before the children/root page path. The first item owns the
+ * compiled route entry, while the last item remains the children page used
+ * when rendering without a route definition.
  *
  * Without this, route group prefixes like `(group)` (char code 0x28) sort
  * before `@` (0x40), causing the children page to sort first instead of last
@@ -67,6 +67,17 @@ export function compareAppPaths(a: string, b: string): number {
   if (aHasSlot && !bHasSlot) return -1
   if (!aHasSlot && bHasSlot) return 1
   return a.localeCompare(b)
+}
+
+/**
+ * Returns the app path that owns the compiled entry for a normalized route.
+ * This is distinct from the children page at the end of the array: parallel
+ * route deployments may only include the module for this owning entry.
+ */
+export function getAppPageRouteDefinitionPage(
+  appPaths: readonly string[]
+): string {
+  return appPaths[0]
 }
 
 /**

@@ -165,12 +165,13 @@ export type ServerFields = {
   resetFetch?: () => void
 }
 
-function getAppPathDefinitionPage(
+function getDevAppPathDefinitionPage(
   pathname: string,
   appPaths: readonly string[]
 ): string {
-  // Prefer the app path that normalizes to the pathname. Keep the final app
-  // path as the fallback because sorted parallel routes place the root last.
+  // Dev has a source module for every app path, so select the children/root
+  // module that directly normalizes to the route. Production definitions use
+  // the first app path instead because it owns the packaged route function.
   for (let i = appPaths.length - 1; i >= 0; i--) {
     const appPath = appPaths[i]
     if (normalizeAppPath(appPath) === pathname) {
@@ -1097,7 +1098,7 @@ async function startWatcher(
 
       const appRouteDefinitions = [
         ...Object.entries(appPaths).map(([route, routeAppPaths]) => {
-          const page = getAppPathDefinitionPage(route, routeAppPaths)
+          const page = getDevAppPathDefinitionPage(route, routeAppPaths)
           const filePath = appRouteFilePaths.get(page)!
           return {
             kind: RouteKind.APP_PAGE,
