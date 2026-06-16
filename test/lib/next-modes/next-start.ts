@@ -13,6 +13,11 @@ export class NextStartInstance extends NextInstance {
   private _supportsImmutableAssets: boolean = false
   private _cliOutput: string = ''
 
+  // Tracks which phase of `start()` currently owns `childProcess`, so a retry
+  // can tell a leftover `next build` from an interrupted attempt apart from an
+  // already-running server.
+  private _phase: 'building' | 'serving' | undefined = undefined
+
   private _prerenderFinishedTimeMS: number | null = null
 
   constructor(opts: NextInstanceOpts) {
@@ -64,7 +69,19 @@ export class NextStartInstance extends NextInstance {
     options: { skipBuild?: boolean; env?: Record<string, string> } = {}
   ) {
     if (this.childProcess) {
-      throw new Error('next already started')
+      if (this._phase === 'building') {
+        // A previous test attempt was interrupted (typically by exceeding the
+        // per-test timeout) while `next build` was still running, so the build
+        // process is still tracked here. Since `jest.retryTimes` re-runs the
+        // test body in the same process, stop the orphaned build and continue
+        // instead of failing the retry with `next already started`.
+        require('console').warn(
+          'Found a leftover `next build` process from an interrupted test attempt; stopping it before starting again.'
+        )
+        await this.stop()
+      } else {
+        throw new Error('next already started')
+      }
     }
 
     this._cliOutput = ''
@@ -88,6 +105,7 @@ export class NextStartInstance extends NextInstance {
     }
 
     if (!options.skipBuild) {
+      this._phase = 'building'
       const buildArgs = this.getBuildArgs()
       console.log('running', shellQuote(buildArgs))
       await new Promise<void>((resolve, reject) => {
@@ -155,6 +173,7 @@ export class NextStartInstance extends NextInstance {
       } catch {}
     }
 
+    this._phase = 'serving'
     console.log('running', shellQuote(startArgs))
     await new Promise<void>((resolve, reject) => {
       try {
@@ -261,6 +280,7 @@ export class NextStartInstance extends NextInstance {
       exitCode: NodeJS.Signals | number | null
       cliOutput: string
     }>((resolve) => {
+      this._phase = 'building'
       const curOutput = this._cliOutput.length
       const spawnOpts = this.getSpawnOpts(options.env)
       const buildArgs = this.getBuildArgs(options.args)
