@@ -1043,13 +1043,23 @@ describe.each(
                 attributes: {
                   'http.method': 'GET',
                   'http.route': '/pages/[param]/getServerSidePropsError',
-                  'http.status_code': 500,
                   'http.target': '/pages/param/getServerSidePropsError',
                   'next.route': '/pages/[param]/getServerSidePropsError',
                   'next.span_name':
                     'GET /pages/[param]/getServerSidePropsError',
                   'next.span_type': 'BaseServer.handleRequest',
-                  'error.type': '500',
+                  ...(useDirectEntrypointHandler
+                    ? {
+                        // With direct entrypoints, this 500 error has to be handled by whatever is
+                        // invoking the handler. And that same invoker is then also responsible for
+                        // setting OTEL correctly.
+                        'error.type': 'Error',
+                        'http.status_code': 200,
+                      }
+                    : {
+                        'error.type': '500',
+                        'http.status_code': 500,
+                      }),
                 },
                 kind: 1,
                 status: { code: 2 },
