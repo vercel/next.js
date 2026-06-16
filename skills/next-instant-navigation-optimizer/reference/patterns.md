@@ -128,6 +128,8 @@ async function getProduct(slug: string) {
 </Suspense>
 ```
 
+> A bare `'use cache'` applies the `default` `cacheLife` profile. Choose freshness explicitly with `cacheLife('<profile>')` (`default` / `seconds` / `minutes` / `hours` / `days` / `weeks` / `max`, the same list as `reference/dev-loop.md`) rather than shipping the default lifetime by omission.
+>
 > Serverless note: `use cache` is in-memory and does not persist across instances — use [`use cache: remote`](https://nextjs.org/docs/app/api-reference/directives/use-cache-remote) for a durable shell.
 
 ---
@@ -209,7 +211,7 @@ async function buildId() {
 
 ---
 
-## 7. Dynamic `generateMetadata` → static export or `use cache` (not Suspense)
+## 7. Dynamic `generateMetadata` → static export, `use cache`, or a dynamic-marker for runtime data
 
 ```tsx
 // ❌ before — reading request data blocks the route's metadata
@@ -223,14 +225,44 @@ export async function generateMetadata() {
 // ✅ option A — static
 export const metadata = { title: 'Store' }
 
-// ✅ option B — cache the metadata
+// ✅ option B — cache the metadata (depends on external data, not runtime data)
 export async function generateMetadata() {
   'use cache'
   return { title: await getTitle() }
 }
 ```
 
-`generateViewport` is the same, except dynamic viewport blocks the **whole page** — fix with a static `viewport` export, `use cache`, `export const unstable_instant = false`, or a `<Suspense>` above the document `<body>` (makes the whole route dynamic). The error text prints `export const instant = false`, but the real export is `unstable_instant`.
+```tsx
+// ✅ option C — metadata genuinely needs runtime data (cookies/headers):
+// keep generateMetadata dynamic, and add a dynamic-marker component to the
+// page so the rest of the page still prerenders into the shell.
+import { Suspense } from 'react'
+import { connection } from 'next/server'
+import { cookies } from 'next/headers'
+
+export async function generateMetadata() {
+  const token = (await cookies()).get('token')?.value
+  return { title: token ? 'Personalized' : 'Store' }
+}
+
+async function DynamicMarker() {
+  await connection() // signals intentional dynamic content
+  return null
+}
+
+export default function Page() {
+  return (
+    <>
+      <article>{/* static content — stays in the shell */}</article>
+      <Suspense>
+        <DynamicMarker />
+      </Suspense>
+    </>
+  )
+}
+```
+
+`generateViewport` is the same, except dynamic viewport blocks the **whole page**. Genuine instant fixes: a static `viewport` export, or `use cache`. The other two are dynamic-acceptance opt-outs, not instant fixes — do not treat them as a way to reach GREEN: `export const instant = false` opts the segment out of validation while the navigation still blocks, and a `<Suspense>` above the document `<body>` makes the whole route dynamic.
 
 ---
 
