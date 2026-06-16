@@ -1,13 +1,16 @@
 ---
-name: next-instant
-description: Make a Next.js route render instantly under Cache Components / PPR — on initial load (hard navigation) and on client-side navigation (soft navigation) — by formulating the goal as a failing @next/playwright instant() e2e and working it to green; the shipped test then guards against regression. Use when asked to make a navigation instant, fix a route whose static shell isn't served or prefetched, or write the instant() e2e guard for one. Requires Next.js 16+ with cacheComponents enabled — when the project is older, the skill directs an upgrade first. A setup phase discovers the project's build/deploy/test infrastructure (Vercel, generic CI, or local-only) and records it in a project-local rig file. Includes the dev-time diagnosis loop (suspended-boundary ranking against next dev) that previously shipped as next-cache-components-optimizer. Covers the RED-test trustworthiness gate, the Suspense push-down fix patterns, and the parity check that the refactor changed only the instancy.
+name: next-instant-navigation-optimizer
+description: Set up an agentic loop that drives a Next.js route to instant navigation under Cache Components / PPR — on initial load (hard navigation) and on client-side navigation (soft navigation) — by formulating the goal as a failing @next/playwright instant() e2e and working it to green, one verified route at a time; the shipped test then guards against regression. Use when asked to make a navigation instant, fix a route whose static shell isn't served or prefetched, or write the instant() e2e guard for one. Requires Next.js 16+ with cacheComponents enabled — when the project is older, the skill directs an upgrade first. A setup phase discovers the project's build/deploy/test infrastructure (Vercel, generic CI, or local-only) and records it in a project-local rig file. Includes the dev-time diagnosis loop (suspended-boundary ranking against next dev) that previously shipped as next-cache-components-optimizer. Covers the RED-test trustworthiness gate, the Suspense push-down fix patterns, and the parity check that the refactor changed only the instancy.
 ---
 
-# next-instant
+# next-instant-navigation-optimizer
 
-Take one route from "not instant" to "instant" with a test-driven loop:
-encode the goal as a failing `@next/playwright` `instant()` test, make it
-green, and ship the test as the regression guard. Work the phases 0 → G in
+Set up an agentic optimization loop that drives a Next.js route from "not
+instant" to "instant" and keeps it there. The loop is test-driven: encode the
+goal as a failing `@next/playwright` `instant()` test, work it to green, and
+ship the test as the regression guard. Run it once per target route — and again
+whenever another route needs to go instant — so an app reaches instant
+navigation gradually, one verified route at a time. Work the phases 0 → G in
 order; each ends in a gate. Fix recipes live in two lazily-read references —
 `reference/patterns.md` (before→after for each blocker type) and
 `reference/real-app-patterns.md` (parallel routes, auth gates, the blank-shell
@@ -64,7 +67,7 @@ project's actual build/deploy/test flow rather than assuming a platform.
 
 ```
 - [ ] P  PREREQS      Next.js 16+ with cacheComponents: true; upgrade first  → below
-- [ ] 0  SETUP        once per repo: discover + write next-instant.rig.md    → rig-template.md
+- [ ] 0  SETUP        once per repo: discover + write instant-nav.rig.md     → rig-template.md
 - [ ] A  RIG          production build with the testing API exposed          → below
 - [ ] B  BASELINE     unlocked: the marker renders for the CI test user      → test-template.md
 - [ ] C  RED          locked instant(): the shell does not commit            → test-template.md
@@ -104,14 +107,14 @@ The principles in this skill are fixed; the infrastructure they run on is
 yours. On first use in a repository, discover how the project builds, deploys,
 authenticates, and tests — inspect the repository first, and ask the user only
 what it cannot answer — then write the answers to a committed
-`next-instant.rig.md`. Every later run reads that file instead of
+`instant-nav.rig.md`. Every later run reads that file instead of
 rediscovering. The six questions (BUILD / EXPOSE / RUN / TEST USER / DRIFT /
 LOOP), the file template, and filled examples (Vercel previews, generic CI +
 container, local-only) are in **`rig-template.md`**.
 
 ## A — RIG: a production build with the testing API exposed
 
-Stand up the rig described by `next-instant.rig.md`. Two invariants hold on
+Stand up the rig described by `instant-nav.rig.md`. Two invariants hold on
 every platform:
 
 1. **Never measure on `next dev`.** Its lock is unreliable for blocking routes
@@ -352,7 +355,7 @@ A green final state means nothing if the RED was never trustworthy. Require:
 ## Files
 
 - `rig-template.md` — phase 0: the six-question rig discovery, the
-  `next-instant.rig.md` template, and filled examples (Vercel, generic CI,
+  `instant-nav.rig.md` template, and filled examples (Vercel, generic CI,
   local-only).
 - `test-template.md` — the shipped `instant()` specs for both navigation
   types (phase C), and the delete-before-PR baseline scaffold (phase B).

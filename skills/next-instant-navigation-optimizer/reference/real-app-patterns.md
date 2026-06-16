@@ -13,7 +13,7 @@ Instant validation treats every parallel-route slot below the shared layout as a
 ```
 [tenant]/layout.tsx         (shared — already mounted on a soft navigation; not re-rendered)
   ├ @content  → settings/layout → billing/page     ← guard each slot's dynamic reads…
-  ├ @sidebar  → settings sidebar                    ← …here too (independent boundary)
+  ├ @sidebar  → side nav                            ← …here too (independent boundary)
   └ @header   → default.tsx → null                  ← free
 ```
 
@@ -31,7 +31,7 @@ Validation checks that a dynamic read is **guarded by a boundary**, not that the
 
 A loading skeleton that misaligns with the loaded UI is its own bug, and it usually appears on mobile. A hand-built skeleton encodes one layout; the real component is responsive and changes shape at breakpoints, so a desktop-shaped skeleton no longer lines up once the viewport is small.
 
-A concrete shape: a settings editor renders a sidebar tree of rows on desktop, but replaces the entire tree with a single `<Select>` element on mobile (with its own loading state). A row skeleton built for the desktop tree has nothing to align with on mobile.
+A concrete shape: a master–detail view renders a list or tree in a side panel on desktop, but collapses that panel into a single dropdown or drawer on mobile (with its own loading state). A row skeleton built for the desktop panel has nothing to align with on mobile.
 
 The fix is the same push-down as everywhere else: **share the real responsive layout between the live render and the shell render.** One responsive component renders both — its data slots show the reused `*Skeleton` in the shell and real data after the stream — so the breakpoint switch happens once, for both renders, and there is no second desktop-only skeleton to drift. A hand-built fallback that duplicates the layout must be maintained at every breakpoint, and one of them will be wrong.
 

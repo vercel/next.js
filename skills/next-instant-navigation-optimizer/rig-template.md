@@ -1,10 +1,10 @@
-# Rig discovery — generate this project's `next-instant.rig.md`
+# Rig discovery — generate this project's `instant-nav.rig.md`
 
 The skill's principles are environment-independent. Your build, deploy, auth,
 and test infrastructure are not. This phase converts the principles into THIS
 project's concrete workflow: run discovery once per repo, write the answers to
-a committed `next-instant.rig.md` (repo root, or next to your e2e config), and
-every later next-instant run reads that file instead of rediscovering.
+a committed `instant-nav.rig.md` (repo root, or next to your e2e config), and
+every later run reads that file instead of rediscovering.
 
 The skill is deliberately opinionated about **what** the rig must provide, and
 deliberately unopinionated about **how** your stack provides it.
@@ -49,10 +49,10 @@ agent is allowed to push and wait on CI unattended.
    local build → start → test. Note anything an agent cannot do alone
    (deploy approvals, secrets, protected branches).
 
-## The file — copy, fill, commit as `next-instant.rig.md`
+## The file — copy, fill, commit as `instant-nav.rig.md`
 
 ```md
-# next-instant rig — <project>
+# instant-nav rig — <project>
 
 - BUILD: <command / platform that produces the measured production build>
 - EXPOSE: <the condition wired to exposeTestingApiInProductionBuild>
@@ -66,10 +66,11 @@ agent is allowed to push and wait on CI unattended.
 `WALLS` matters more than it looks. Real apps rarely build for production cleanly
 outside CI — missing secrets, server-only imports that fail prerender, ports
 held by respawning servers. Record each wall and its workaround the first time
-you hit it; that accumulated knowledge is most of the file's value. (The app
-this skill was extracted from needed a dummy JWT secret, lazy imports for two
-Node-only modules, and a kill command for a respawning dev server. Yours will
-differ. That's the point of the file.)
+you hit it; that accumulated knowledge is most of the file's value. (Common
+examples: a throwaway value for a secret the build asserts at startup, a
+lazy-import of a server-only module that otherwise fails during prerender, or a
+command to free a port held by a respawning server. Every project's walls
+differ — recording them is the point of the file.)
 
 ## Filled examples
 

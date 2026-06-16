@@ -1,4 +1,4 @@
-# dev-ppr-loop (sub-reference of the next-instant dev loop)
+# dev-ppr-loop (sub-reference of dev-loop.md)
 
 Page-render optimization: grow the static shell of a single `cacheComponents` page.
 
