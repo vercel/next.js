@@ -1,6 +1,6 @@
-window.addEventListener('error', (event) => {
-  const error = event.error
+window.addEventListener('unhandledrejection', (event) => {
+  const error = event.reason
   console.log(
-    `report error, digest: ${error.digest}, message: "${error.message}"`
+    `report rejection, digest: ${error?.digest}, message: "${error?.message}"`
   )
 })
