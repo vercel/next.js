@@ -956,7 +956,7 @@ mod tests {
     use crate::backing_storage::SnapshotItem;
 
     fn non_transient_task(id: u32) -> TaskId {
-        // TRANSIENT_TASK_BIT is 0x8000_0000; any id without that bit is non-transient.
+        // TRANSIENT_TASK_BIT is 0x2000_0000; any id without that bit is non-transient.
         TaskId::new(id).expect("id must be non-zero")
     }
 

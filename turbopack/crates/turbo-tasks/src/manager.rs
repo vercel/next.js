@@ -747,7 +747,7 @@ impl<B: Backend + 'static> TurboTasks<B> {
         arg: &mut dyn DynTaskInputsStorage,
         persistence: TaskPersistence,
     ) -> RawVc {
-        RawVc::TaskOutput(self.backend.get_or_create_task(
+        RawVc::task_output(self.backend.get_or_create_task(
             native_fn,
             this,
             arg,
@@ -789,8 +789,8 @@ impl<B: Backend + 'static> TurboTasks<B> {
         // avoid creating a wrapper task if self is already resolved
         // for resolved cells we already know the value type so we can lookup the
         // function
-        if let RawVc::TaskCell(_, CellId { type_id, .. }) = this {
-            match registry::get_value_type(type_id).get_trait_method(trait_method) {
+        if let Some((_, cell_id)) = this.as_task_cell() {
+            match registry::get_value_type(cell_id.type_id()).get_trait_method(trait_method) {
                 Some(native_fn) => {
                     if let Some(filter) = native_fn.arg_meta.filter_owned {
                         let (resolved, mut arg) = (filter)(arg);
@@ -875,7 +875,7 @@ impl<B: Backend + 'static> TurboTasks<B> {
             priority,
         );
 
-        RawVc::LocalOutput(execution_id, local_task_id, persistence)
+        RawVc::local_output(execution_id, local_task_id, persistence)
     }
 
     fn begin_foreground_job(&self) {
@@ -2202,7 +2202,7 @@ impl CurrentCellRef {
 
 impl From<CurrentCellRef> for RawVc {
     fn from(cell: CurrentCellRef) -> Self {
-        RawVc::TaskCell(cell.current_task, cell.index)
+        RawVc::task_cell(cell.current_task, cell.index)
     }
 }
 
@@ -2222,10 +2222,15 @@ pub fn find_cell_by_id(ty: ValueTypeId) -> CurrentCellRef {
         let map = ts.cell_counters.as_mut().unwrap();
         let current_index = map.entry(ty).or_default();
         let index = *current_index;
+        assert!(
+            index <= CellId::MAX_CELL_INDEX,
+            "task allocated more than {} cells of a single type",
+            CellId::MAX_CELL_INDEX as u64 + 1,
+        );
         *current_index += 1;
         CurrentCellRef {
             current_task,
-            index: CellId { type_id: ty, index },
+            index: CellId::new(ty, index),
         }
     })
 }
