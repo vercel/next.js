@@ -464,11 +464,8 @@ impl BrowserChunkingContext {
         // Detect async modules from the whole-app graph in production. In development, the graph
         // is per-page. To keep the shared `runtime.js` stable, always include the machinery.
         let runtime_type = self.await?.runtime_type;
-        let has_async_modules = if matches!(runtime_type, RuntimeType::Production) {
-            !module_graph.async_module_info().await?.is_empty()
-        } else {
-            true
-        };
+        let has_async_modules = matches!(runtime_type, RuntimeType::Development)
+            || !module_graph.async_module_info().await?.is_empty();
         Ok(EcmascriptBrowserRuntimeChunk::new(self, has_async_modules))
     }
 
