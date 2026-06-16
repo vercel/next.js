@@ -489,7 +489,7 @@ describe('pages/ error recovery', () => {
          "environmentLabel": null,
          "label": "Build Error",
          "source": "./index.js (5:5)
-       Expected '{', got 'throw'
+       Error: Expected '{', got 'throw'
        > 5 |     throw new Error('nooo');
            |     ^^^^^",
          "stack": [],
