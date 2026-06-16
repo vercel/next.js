@@ -1269,6 +1269,7 @@ pub struct ExperimentalConfig {
     swc_trace_profiling: Option<bool>,
     transition_indicator: Option<bool>,
     gesture_transition: Option<bool>,
+    use_experimental_react: Option<bool>,
     /// @internal Used by the Next.js internals only.
     trust_host_header: Option<bool>,
 
@@ -2221,6 +2222,11 @@ impl NextConfig {
     #[turbo_tasks::function]
     pub fn enable_gesture_transition(&self) -> Vc<bool> {
         Vc::cell(self.experimental.gesture_transition.unwrap_or(false))
+    }
+
+    #[turbo_tasks::function]
+    pub fn enable_use_experimental_react(&self) -> Vc<bool> {
+        Vc::cell(self.experimental.use_experimental_react.unwrap_or(false))
     }
 
     #[turbo_tasks::function]
