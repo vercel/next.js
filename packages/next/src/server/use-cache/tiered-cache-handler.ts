@@ -23,15 +23,15 @@ export type CacheReadWriteHandler = Pick<CacheHandler, 'get' | 'set'>
  * writes through.
  *
  * The handler is a per-kind singleton (the front and backing are both shared),
- * so its in-flight map can coalesce background front syncs across concurrent
- * reads of the same key.
+ * so its in-flight map can serialize background front syncs for a key across
+ * concurrent reads, running them one at a time instead of in parallel.
  */
 export function createTieredCacheHandler(
   front: CacheHandler,
   backing: CacheHandler
 ): CacheReadWriteHandler {
-  // While a reconcile or mirror is in flight for a key, concurrent reads reuse
-  // it instead of each starting another (which would hit the backing again).
+  // Holds the in-flight (or chained) background sync per key, so a sync for a
+  // key runs after any earlier one for that key rather than in parallel.
   const inFlightSyncs = new Map<string, Promise<void>>()
 
   function scheduleBackgroundSync(
@@ -77,9 +77,9 @@ export function createTieredCacheHandler(
 
       if (frontEntry) {
         // Warm hit: serve immediately (in a microtask). A background reconcile
-        // keeps the front in sync with the backing for the next read; it is
-        // coalesced per key, so concurrent warm reads don't each hit the
-        // backing.
+        // keeps the front in sync with the backing for the next read;
+        // reconciles for the same key are serialized, so concurrent warm reads
+        // don't hit the backing in parallel.
         scheduleBackgroundSync(cacheKey, () =>
           reconcileFrontFromBacking(
             front,
@@ -103,13 +103,10 @@ export function createTieredCacheHandler(
         return undefined
       }
 
-      // If a sync is already populating the front for this key, just serve the
-      // backing entry; the in-flight sync will warm the front. Otherwise mirror
-      // it in so the next read is warm.
-      if (inFlightSyncs.has(cacheKey)) {
-        return backingEntry
-      }
-
+      // Mirror this freshly read backing entry into the front so the next read
+      // is warm. The mirror is serialized per key: if a sync is already
+      // running, this chains after it, so the front converges to this read even
+      // if the backing changed since that sync started.
       const [servedEntry, mirroredEntry] = cloneCacheEntry(backingEntry)
       scheduleBackgroundSync(cacheKey, () =>
         mirrorIntoFront(front, cacheKey, mirroredEntry)
