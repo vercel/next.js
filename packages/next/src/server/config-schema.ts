@@ -299,6 +299,7 @@ export const experimentalSchema = {
     .readonly()
     .optional(),
   taint: z.boolean().optional(),
+  useExperimentalReact: z.boolean().optional(),
   prerenderEarlyExit: z.boolean().optional(),
   proxyTimeout: z.number().gte(0).optional(),
   rootParams: z.boolean().optional(),
