@@ -70,7 +70,7 @@ export const prefetch = 'allow-runtime'
 
 Always prefetch this segment statically, even if it has not been validated with `instant`. Use this when you know the segment produces a valid static shell but do not want to set up instant validation.
 
-> **Good to know**: `prefetch = 'force-static'` is distinct from [`dynamic = 'force-static'`](/docs/app/api-reference/file-conventions/route-segment-config/dynamic). The `dynamic` config controls how a segment renders at request time; the `prefetch` config controls how it's prefetched ahead of navigation. They're independent.
+> **Good to know**: `prefetch = 'force-static'` is distinct from [`dynamic = 'force-static'`](/docs/app/guides/caching-without-cache-components#dynamic). The `dynamic` config controls how a segment renders at request time; the `prefetch` config controls how it's prefetched ahead of navigation. They're independent.
 
 ### `'force-disabled'`
 
