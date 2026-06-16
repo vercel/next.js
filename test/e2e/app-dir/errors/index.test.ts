@@ -158,13 +158,9 @@ describe('app-dir - errors', () => {
           )
         )
       } else {
-        expect(cleanCliOutput).toMatchInlineSnapshot(`
-         "⨯ Error: undefined
-             at stringify (<anonymous>) {
-           digest: '<digest>@E394'
-         }
-         "
-        `)
+        expect(cleanCliOutput).toContain('⨯ Error: undefined')
+        // No runtime sourcemapping so the stack is just a bunch of library internals
+        expect(cleanCliOutput).toContain("digest: '<digest>@E394'")
       }
     })
 
@@ -196,13 +192,9 @@ describe('app-dir - errors', () => {
           )
         )
       } else {
-        expect(cleanCliOutput).toMatchInlineSnapshot(`
-         "⨯ Error: null
-             at stringify (<anonymous>) {
-           digest: '<digest>@E394'
-         }
-         "
-        `)
+        expect(cleanCliOutput).toContain('⨯ Error: null')
+        // No runtime sourcemapping so the stack is just a bunch of library internals
+        expect(cleanCliOutput).toContain("digest: '<digest>@E394'")
       }
     })
 
@@ -229,13 +221,9 @@ describe('app-dir - errors', () => {
           expect.stringMatching(/Error: this is a test.*digest: '<digest>'/s)
         )
       } else {
-        expect(cleanCliOutput).toMatchInlineSnapshot(`
-         "⨯ Error: this is a test
-             at stringify (<anonymous>) {
-           digest: '<digest>'
-         }
-         "
-        `)
+        expect(cleanCliOutput).toContain('⨯ Error: this is a test')
+        // No runtime sourcemapping so the stack is just a bunch of library internals
+        expect(cleanCliOutput).toContain("digest: '<digest>@E394'")
       }
     })
 

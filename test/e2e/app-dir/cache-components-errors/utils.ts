@@ -109,7 +109,7 @@ export function getDeterministicOutput(
       }
 
       line = line
-        .replace(/at (.+?) \(.next[^)]+\)/, replaceNextDistStackFrame)
+        .replace(/at (.+?) \((.*?\/)?.next[^)]+\)/, replaceNextDistStackFrame)
         .replace(
           // Single-letter lower-case names are likely minified.
           /at [a-z] \((?!(<next-dist-dir>|<anonymous>))/,
