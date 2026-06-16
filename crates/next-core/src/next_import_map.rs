@@ -86,12 +86,12 @@ pub async fn get_next_client_import_map(
         }
         ClientContextType::App { app_dir } => {
             // Keep in sync with file:///./../../../packages/next/src/lib/needs-experimental-react.ts
-            let use_experimental_react = *next_config.enable_use_experimental_react().await?;
+            let blocking_ssr = *next_config.enable_blocking_ssr().await?;
             let taint = *next_config.enable_taint().await?;
             let transition_indicator = *next_config.enable_transition_indicator().await?;
             let gesture_transition = *next_config.enable_gesture_transition().await?;
             let react_channel =
-                if use_experimental_react || taint || transition_indicator || gesture_transition {
+                if blocking_ssr || taint || transition_indicator || gesture_transition {
                     "-experimental"
                 } else {
                     ""
@@ -784,16 +784,15 @@ async fn apply_vendored_react_aliases_server(
     runtime: NextRuntime,
     next_config: Vc<NextConfig>,
 ) -> Result<()> {
-    let use_experimental_react = *next_config.enable_use_experimental_react().await?;
+    let blocking_ssr = *next_config.enable_blocking_ssr().await?;
     let taint = *next_config.enable_taint().await?;
     let transition_indicator = *next_config.enable_transition_indicator().await?;
     let gesture_transition = *next_config.enable_gesture_transition().await?;
-    let react_channel =
-        if use_experimental_react || taint || transition_indicator || gesture_transition {
-            "-experimental"
-        } else {
-            ""
-        };
+    let react_channel = if blocking_ssr || taint || transition_indicator || gesture_transition {
+        "-experimental"
+    } else {
+        ""
+    };
     let react_condition = if ty.should_use_react_server_condition() {
         "server"
     } else {

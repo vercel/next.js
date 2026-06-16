@@ -546,11 +546,11 @@ function assignDefaultsAndValidate(
     )
   }
 
-  // `useExperimentalReact` only opts *into* React's experimental channel; it
-  // cannot opt out of it when another feature (e.g. `taint`) structurally
-  // requires it — those APIs only exist in the experimental React build. Warn
-  // so an explicit `false` here doesn't look like it was silently ignored.
-  if (result.experimental.useExperimentalReact === false) {
+  // `blockingSSR` only opts *into* React's experimental channel; it cannot opt
+  // out of it when another feature (e.g. `taint`) structurally requires it —
+  // those APIs only exist in the experimental React build. Warn so an explicit
+  // `false` here doesn't look like it was silently ignored.
+  if (result.experimental.blockingSSR === false) {
     const dependents: string[] = []
     if (result.experimental.taint) {
       dependents.push('`experimental.taint`')
@@ -563,7 +563,7 @@ function assignDefaultsAndValidate(
     }
     if (dependents.length > 0) {
       Log.warn(
-        `\`experimental.useExperimentalReact\` is set to \`false\`, but ${dependents.join(
+        `\`experimental.blockingSSR\` is set to \`false\`, but ${dependents.join(
           ', '
         )} require React's experimental channel, so it remains enabled.`
       )
