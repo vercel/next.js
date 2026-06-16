@@ -1750,6 +1750,39 @@ async function finalRuntimeServerPrerender(
     }
   }
 
+  let didHandleUnexpectedAbort = false
+  /**
+   * @returns - whether or not the task should be skipped
+   * because the render was already aborted.
+   * */
+  const checkUnexpectedAbort = (): boolean => {
+    if (finalServerController.signal.aborted) {
+      // If the server controller is already aborted, then we must have encountered sync IO
+      if (!didHandleUnexpectedAbort) {
+        didHandleUnexpectedAbort = true
+        onUnexpectedAbort()
+      }
+      return true
+    }
+
+    // Not aborted.
+    return false
+  }
+
+  const onUnexpectedAbort = () => {
+    resultIsPartial = true
+
+    // FIXME(NAR-810): If we're already aborted due to Sync IO, there should be no need to
+    // finish the accumulators. However, it seems like in `--debug-prerender`
+    // the stream will stay open if we don't close the iterable here.
+    if (
+      process.env.NODE_ENV === 'development' &&
+      staleTimeIterable !== undefined
+    ) {
+      staleTimeIterable.close()
+    }
+  }
+
   await runInSequentialTasks(
     async () => {
       // Runtime-prefetchable segments render immediately in the early stage.
@@ -1778,26 +1811,33 @@ async function finalRuntimeServerPrerender(
       )
     },
     () => {
+      if (checkUnexpectedAbort()) return
       // Resolve the promise holding back non-prefetchable segments so they can begin rendering.
       finalStageController.advanceStage(RenderStage.ShellStatic)
     },
     () => {
+      if (checkUnexpectedAbort()) return
       finalStageController.advanceStage(RenderStage.EarlyStatic)
     },
     () => {
+      if (checkUnexpectedAbort()) return
       finalStageController.advanceStage(RenderStage.Static)
     },
     () => {
+      if (checkUnexpectedAbort()) return
       // Resolve session data for runtime-prefetchable segments.
       // Sync IO is NOT allowed here.
       finalStageController.advanceStage(RenderStage.ShellEarlyRuntime)
     },
     () => {
+      if (checkUnexpectedAbort()) return
       // Resolve session data for non-prefetchable segments.
       // Sync IO is allowed here.
       finalStageController.advanceStage(RenderStage.ShellRuntime)
     },
     () => {
+      if (checkUnexpectedAbort()) return
+
       if (mode.type === 'session-shell-only') {
         // We're only rendering a shell, so we do not advance to stages where link data is resolved.
         return
@@ -1807,6 +1847,8 @@ async function finalRuntimeServerPrerender(
       finalStageController.advanceStage(RenderStage.EarlyRuntime)
     },
     () => {
+      if (checkUnexpectedAbort()) return
+
       if (mode.type === 'session-shell-only') {
         // We're only rendering a shell, so we do not advance to stages where link data is resolved.
         return
@@ -1816,25 +1858,12 @@ async function finalRuntimeServerPrerender(
       // TODO(app-shells): This is strange: we allow sync IO here, but we don't want sync IO in a fallback.
       finalStageController.advanceStage(RenderStage.Runtime)
     },
-    async () => {
-      if (finalServerController.signal.aborted) {
-        // If the server controller is already aborted we must have called
-        // something that required aborting the prerender synchronously such
-        // as with new Date()
-        resultIsPartial = true
+    () => {
+      if (checkUnexpectedAbort()) return
 
-        // FIXME(NAR-810): If we're already aborted due to Sync IO, there should be no need to
-        // finish the accumulators. However, it seems like in `--debug-prerender`
-        // the stream will stay open if we don't close the iterable here.
-        if (
-          process.env.NODE_ENV === 'development' &&
-          staleTimeIterable !== undefined
-        ) {
-          staleTimeIterable.close()
-        }
-
-        return
-      }
+      // Finish the accumulators. We need to wait for Flight to flush the result into the stream,
+      // which is scheduled in a (fast) immediate, so we do this in a separate task
+      // (fast immediates will be drained at the end of the task, so in the next task we know we're done flushing)
 
       // Check if session data unblocked new content in the shell.
       if (
@@ -1866,16 +1895,16 @@ async function finalRuntimeServerPrerender(
 
       staleTimeIterable.close()
       finishAccumulatingVaryParams(varyParamsAccumulator)
-
-      // We're using a render, not a prerender, so React schedules rendering work in fast immediates,
-      // and we need to wait a fast immediate for the stale time/vary params chunks to flush.
-      await waitAtLeastOneReactRenderTask()
+    },
+    () => {
+      if (checkUnexpectedAbort()) return
 
       if (streamState.isPending) {
         // If the prerender is still pending then it must depend on dynamic data
         // (or, if this is a shell prefetch, link data)
         resultIsPartial = true
       }
+
       workUnitAsyncStorage.run(
         finalServerPrerenderStore,
         finalServerController.abort.bind(finalServerController)
@@ -7637,6 +7666,39 @@ async function prerenderToStream(
         }
       }
 
+      let didHandleUnexpectedAbort = false
+      /**
+       * @returns - whether or not the task should be skipped
+       * because the render was already aborted.
+       * */
+      const checkUnexpectedAbort = (): boolean => {
+        if (finalServerReactController.signal.aborted) {
+          // If the server controller is already aborted, then we must have encountered sync IO
+          if (!didHandleUnexpectedAbort) {
+            didHandleUnexpectedAbort = true
+            onUnexpectedAbort()
+          }
+          return true
+        }
+
+        // Not aborted.
+        return false
+      }
+
+      const onUnexpectedAbort = () => {
+        resultIsPartial = true
+
+        // FIXME(NAR-810): If we're already aborted due to Sync IO, there should be no need to
+        // finish the accumulators. However, it seems like in `--debug-prerender`
+        // the stream will stay open if we don't close the iterable here.
+        if (
+          process.env.NODE_ENV === 'development' &&
+          staleTimeIterable !== undefined
+        ) {
+          staleTimeIterable.close()
+        }
+      }
+
       let debugEndTime: number | undefined = undefined
       let didLinkDataUnblockNewContent = false
 
@@ -7692,25 +7754,15 @@ async function prerenderToStream(
           )
         },
         () => {
+          if (checkUnexpectedAbort()) return
           finalStageController.advanceStage(RenderStage.Static)
         },
-        async () => {
-          if (finalServerReactController.signal.aborted) {
-            // If the server controller is already aborted we must have called something
-            // that required aborting the prerender synchronously such as with new Date()
-            resultIsPartial = true
+        () => {
+          if (checkUnexpectedAbort()) return
 
-            // FIXME(NAR-810): If we're already aborted due to Sync IO, there should be no need to
-            // finish the accumulators. However, it seems like in `--debug-prerender`
-            // the stream will stay open if we don't close the iterable here.
-            if (
-              process.env.NODE_ENV === 'development' &&
-              staleTimeIterable !== undefined
-            ) {
-              staleTimeIterable.close()
-            }
-            return
-          }
+          // Finish the accumulators. We need to wait for Flight to flush the result into the stream,
+          // which is scheduled in a (fast) immediate, so we do this in a separate task
+          // (fast immediates will be drained at the end of the task, so in the next task we know we're done flushing)
 
           // If new chunks were emitted in the static stage
           // (after unblocking link data, i.e. static params)
@@ -7744,10 +7796,9 @@ async function prerenderToStream(
                 : null
             )
           }
-
-          // We're using a render, not a prerender, so React schedules rendering work in fast immediates,
-          // and we need to wait a fast immediate for the above accumulators to flush.
-          await waitAtLeastOneReactRenderTask()
+        },
+        () => {
+          if (checkUnexpectedAbort()) return
 
           if (streamState.isPending) {
             // If prerenderIsPending then we have blocked for longer than a Task and we assume
