@@ -280,6 +280,7 @@ export class NextStartInstance extends NextInstance {
       exitCode: NodeJS.Signals | number | null
       cliOutput: string
     }>((resolve) => {
+      this._phase = 'building'
       const curOutput = this._cliOutput.length
       const spawnOpts = this.getSpawnOpts(options.env)
       const buildArgs = this.getBuildArgs(options.args)
