@@ -383,10 +383,10 @@ export class Playwright<TCurrent = undefined> {
       await page.goForward(options)
     })
   }
-  refresh() {
+  refresh(opts?: { waitUntil?: PlaywrightNavigationWaitUntil }) {
     // do not preserve the previous chained value, it's likely to be invalid after a reload.
     return this.startChain(async () => {
-      await page.reload()
+      await page.reload({ waitUntil: opts?.waitUntil ?? 'load' })
     })
   }
   /**

@@ -14,18 +14,25 @@ describe('cache-components-dev-streaming', () => {
     })
 
     // The loading boundary should be streamed immediately, without waiting for
-    // the cache to be filled.
-    expect(await browser.elementByCss('p').text()).toBe('Loading...')
+    // the cache to be filled. Read it at commit so we don't wait for "load"
+    // (which only fires once the cache has filled).
+    expect(await browser.elementByCss('p', { waitUntil: false }).text()).toBe(
+      'Loading...'
+    )
 
     // Eventually, the cache content should be streamed in.
     await retry(async () => {
-      expect(await browser.elementByCss('p').text()).toBeDateString()
+      expect(
+        await browser.elementByCss('p', { waitUntil: false }).text()
+      ).toBeDateString()
     })
 
-    // Now that the cache is filled, it should be served immediately on the next
-    // page load.
-    await browser.refresh()
-    expect(await browser.elementByCss('p').text()).toBeDateString()
+    // Now that the cache is filled, it should be served immediately with the
+    // shell on the next page load, without going through the loading boundary.
+    await browser.refresh({ waitUntil: 'commit' })
+    expect(
+      await browser.elementByCss('p', { waitUntil: false }).text()
+    ).toBeDateString()
   })
 
   it('streams a Suspense fallback above a private cache while filling it in the background', async () => {
@@ -36,10 +43,13 @@ describe('cache-components-dev-streaming', () => {
     })
 
     // The loading boundary should be streamed immediately, without waiting for
-    // the private cache to be filled.
-    expect(await browser.elementByCss('#private-fallback').text()).toBe(
-      'Loading...'
-    )
+    // the private cache to be filled. Read it at commit (`waitUntil: false`) so
+    // we don't wait for "load" (which only fires once the cache has filled).
+    expect(
+      await browser
+        .elementByCss('#private-fallback', { waitUntil: false })
+        .text()
+    ).toBe('Loading...')
 
     // Eventually, the private cache content should be streamed in.
     await retry(async () => {
