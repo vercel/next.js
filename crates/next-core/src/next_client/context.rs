@@ -29,8 +29,10 @@ use turbopack_core::{
 };
 use turbopack_css::chunk::CssChunkType;
 use turbopack_ecmascript::{
-    AnalyzeMode, TypeofWindow, chunk::EcmascriptChunkType, references::esm::UrlRewriteBehavior,
-    transform::PresetEnvConfig,
+    AnalyzeMode, TypeofWindow,
+    chunk::EcmascriptChunkType,
+    references::esm::UrlRewriteBehavior,
+    transform::{PresetEnvConfig, ReactCompilerTarget},
 };
 use turbopack_node::{
     execution_context::ExecutionContext,
@@ -53,7 +55,10 @@ use crate::{
     },
     next_shared::{
         resolve::NextSharedRuntimeResolvePlugin,
-        webpack_rules::{WebpackLoaderBuiltinCondition, webpack_loader_options},
+        webpack_rules::{
+            WebpackLoaderBuiltinCondition, babel::detect_react_compiler_target,
+            webpack_loader_options,
+        },
     },
     transform_options::{
         get_decorators_transform_options, get_jsx_transform_options,
@@ -344,6 +349,14 @@ pub async fn get_client_module_options_context(
         });
 
     let enable_rust_react_compiler = *next_config.rust_react_compiler().await?;
+    let rust_react_compiler_target = if enable_rust_react_compiler.is_some() {
+        match detect_react_compiler_target(&project_path).await? {
+            Some(ReactCompilerTarget::React18) => ReactCompilerTarget::React18,
+            _ => ReactCompilerTarget::React19,
+        }
+    } else {
+        ReactCompilerTarget::React19
+    };
 
     let module_options_context = ModuleOptionsContext {
         ecmascript: EcmascriptOptionsContext {
@@ -426,6 +439,7 @@ pub async fn get_client_module_options_context(
             enable_typescript_transform: Some(tsconfig),
             enable_decorators: Some(decorators_options.to_resolved().await?),
             enable_rust_react_compiler,
+            rust_react_compiler_target,
             ..module_options_context.ecmascript.clone()
         },
         enable_webpack_loaders,
