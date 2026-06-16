@@ -12,7 +12,7 @@ This causes **all pages** that do not use [`getStaticProps`](/docs/pages/buildin
 
 Verify if you need to use `getInitialProps` in `pages/_app`. There are some valid use cases for this, but it's often better to use `getInitialProps` in individual pages.
 
-- Check for any [higher-order components](https://reactjs.org/docs/higher-order-components.html) that may have added `getInitialProps` to your [Custom `<App>`](/docs/pages/building-your-application/routing/custom-app).
+- Check for any [higher-order components](https://react.dev/reference/react/Component) that may have added `getInitialProps` to your [Custom `<App>`](/docs/pages/building-your-application/routing/custom-app).
 - If you previously copied the [Custom `<App>`](/docs/pages/building-your-application/routing/custom-app) example from the old docs, you can remove `getInitialProps`.
 
 The following `getInitialProps` can be removed:
