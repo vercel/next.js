@@ -182,6 +182,12 @@ static ALLOC: turbo_tasks_malloc::TurboMalloc = turbo_tasks_malloc::TurboMalloc;
 #[cfg_attr(
     target_os = "windows",
     should_panic(expected = "Something went wrong installing the \"sharp\" module"),
+    case::sharp034("integration/sharp034.js")
+)]
+#[cfg_attr(not(target_os = "windows"), case::sharp034("integration/sharp034.js"))]
+#[cfg_attr(
+    target_os = "windows",
+    should_panic(expected = "Something went wrong installing the \"sharp\" module"),
     case::sharp("integration/sharp.js")
 )]
 #[cfg_attr(not(target_os = "windows"), case::sharp("integration/sharp.js"))]
