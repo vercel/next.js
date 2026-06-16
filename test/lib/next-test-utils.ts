@@ -33,6 +33,7 @@ import { recursiveReadDir } from 'next/dist/lib/recursive-readdir'
 import { shouldUseTurbopack } from './turbo'
 import stripAnsi from 'strip-ansi'
 import escapeRegex from 'escape-string-regexp'
+import { parse as shellParse } from 'shell-quote'
 
 // TODO: Create dedicated Jest environment that sets up these matchers
 // Edge Runtime unit tests fail with "EvalError: Code generation from strings disallowed for this context" if these matchers are imported in those tests.
@@ -422,6 +423,105 @@ export interface NextDevOptions {
   onStderr?: (data: any) => void
 }
 
+function shouldStartWithVercelDev(opts: NextDevOptions) {
+  return process.env.NEXT_TEST_WITH_VERCEL_DEV === '1' && !opts.nextStart
+}
+
+function parseCommand(command: string) {
+  return shellParse(command).map((part) => {
+    if (typeof part !== 'string') {
+      throw new Error(
+        `NEXT_TEST_VERCEL_CLI must be a plain command without shell operators: ${command}`
+      )
+    }
+
+    return part
+  })
+}
+
+function getVercelDevArgs(port: string, cwd: string) {
+  return [
+    ...parseCommand(process.env.NEXT_TEST_VERCEL_CLI || 'vercel'),
+    '--cwd',
+    cwd,
+    'dev',
+    '--yes',
+    '--local',
+    '--listen',
+    `127.0.0.1:${port}`,
+  ]
+}
+
+function getNextDevArgValue(argv: string[], names: string[]) {
+  for (let index = 0; index < argv.length; index++) {
+    const arg = argv[index]
+
+    for (const name of names) {
+      if (arg === name) {
+        return argv[index + 1]
+      }
+
+      if (arg.startsWith(`${name}=`)) {
+        return arg.slice(name.length + 1)
+      }
+    }
+  }
+}
+
+function getNextDevDir(argv: string[], fallbackDir: string) {
+  const flagsWithValues = new Set([
+    '-H',
+    '--hostname',
+    '-p',
+    '--port',
+    '--experimental-https-key',
+    '--experimental-https-cert',
+    '--experimental-https-ca',
+  ])
+
+  for (let index = 0; index < argv.length; index++) {
+    const arg = argv[index]
+
+    if (flagsWithValues.has(arg)) {
+      index++
+      continue
+    }
+
+    if (arg.startsWith('-')) {
+      continue
+    }
+
+    return path.resolve(fallbackDir, arg)
+  }
+
+  return fallbackDir
+}
+
+function getVercelReadyUrl(message: string) {
+  return message.match(/Ready! Available at\s+(https?:\/\/\S+)/)?.[1]
+}
+
+function ensureVercelDevLocalScripts(cwd: string) {
+  if (process.env.NEXT_TEST_WITH_VERCEL_DEV !== '1') return
+
+  const packageJsonPath = path.join(cwd, 'package.json')
+  const packageJson = JSON.parse(readFileSync(packageJsonPath, 'utf8'))
+  packageJson.scripts = {
+    ...packageJson.scripts,
+    build: packageJson.scripts?.build || 'next build',
+    dev: packageJson.scripts?.dev || 'next dev',
+  }
+  writeFileSync(packageJsonPath, JSON.stringify(packageJson, null, 2))
+
+  const vercelConfigPath = path.join(cwd, 'vercel.json')
+  if (!existsSync(vercelConfigPath)) {
+    writeFileSync(
+      vercelConfigPath,
+      JSON.stringify({ framework: 'nextjs' }, null, 2)
+    )
+  }
+}
+
 export function runNextCommandDev(
   argv: string[],
   stdOut?: boolean,
@@ -439,15 +539,29 @@ export function runNextCommandDev(
   }
 
   const nodeArgs = opts.nodeArgs || []
+  const useVercelDev = shouldStartWithVercelDev(opts)
+  const port = getNextDevArgValue(argv, ['-p', '--port']) || '0'
+  const nextDevCwd = getNextDevDir(argv, cwd)
+  const spawnCommand = useVercelDev
+    ? getVercelDevArgs(port, nextDevCwd)
+    : undefined
+  if (useVercelDev) {
+    ensureVercelDevLocalScripts(nextDevCwd)
+  }
+  const spawnCwd = useVercelDev
+    ? process.env.NEXT_TEST_VERCEL_CLI_CWD || nextDevCwd
+    : cwd
+
   return new Promise((resolve, reject) => {
-    const instance = spawn(
-      'node',
-      [...nodeArgs, '--no-deprecation', nextBin, ...argv],
-      {
-        cwd,
-        env,
-      }
-    )
+    const instance = useVercelDev
+      ? spawn(spawnCommand![0], spawnCommand!.slice(1), {
+          cwd: spawnCwd,
+          env,
+        })
+      : spawn('node', [...nodeArgs, '--no-deprecation', nextBin, ...argv], {
+          cwd,
+          env,
+        })
     let didResolve = false
 
     const bootType =
@@ -462,10 +576,12 @@ export function runNextCommandDev(
       }
 
       const strippedMessage = stripAnsi(message) as any
+      const vercelReadyUrl = getVercelReadyUrl(strippedMessage)
 
       if (
         (opts.bootupMarker && opts.bootupMarker.test(strippedMessage)) ||
-        bootupMarkers[bootType].test(strippedMessage)
+        bootupMarkers[bootType].test(strippedMessage) ||
+        (useVercelDev && vercelReadyUrl)
       ) {
         if (!didResolve) {
           didResolve = true

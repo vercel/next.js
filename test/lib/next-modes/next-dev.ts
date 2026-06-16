@@ -1,9 +1,69 @@
 import spawn from 'cross-spawn'
+import { existsSync, readFileSync, writeFileSync } from 'fs'
+import path from 'path'
 import { Span } from 'next/dist/trace'
 import { NextInstance } from './base'
 import { retry, waitFor } from 'next-test-utils'
 import stripAnsi from 'strip-ansi'
-import { quote as shellQuote } from 'shell-quote'
+import { parse as shellParse, quote as shellQuote } from 'shell-quote'
+
+function shouldStartWithVercelDev(startCommand?: string, startArgs?: string[]) {
+  return (
+    process.env.NEXT_TEST_WITH_VERCEL_DEV === '1' &&
+    !startCommand &&
+    !startArgs?.length
+  )
+}
+
+function parseCommand(command: string) {
+  return shellParse(command).map((part) => {
+    if (typeof part !== 'string') {
+      throw new Error(
+        `NEXT_TEST_VERCEL_CLI must be a plain command without shell operators: ${command}`
+      )
+    }
+
+    return part
+  })
+}
+
+function getVercelDevArgs(port: string, cwd: string) {
+  return [
+    ...parseCommand(process.env.NEXT_TEST_VERCEL_CLI || 'vercel'),
+    '--cwd',
+    cwd,
+    'dev',
+    '--yes',
+    '--local',
+    '--listen',
+    `127.0.0.1:${port}`,
+  ]
+}
+
+function getVercelReadyUrl(message: string) {
+  return message.match(/Ready! Available at\s+(https?:\/\/\S+)/)?.[1]
+}
+
+function ensureVercelDevLocalScripts(cwd: string) {
+  if (process.env.NEXT_TEST_WITH_VERCEL_DEV !== '1') return
+
+  const packageJsonPath = path.join(cwd, 'package.json')
+  const packageJson = JSON.parse(readFileSync(packageJsonPath, 'utf8'))
+  packageJson.scripts = {
+    ...packageJson.scripts,
+    build: packageJson.scripts?.build || 'next build',
+    dev: packageJson.scripts?.dev || 'next dev',
+  }
+  writeFileSync(packageJsonPath, JSON.stringify(packageJson, null, 2))
+
+  const vercelConfigPath = path.join(cwd, 'vercel.json')
+  if (!existsSync(vercelConfigPath)) {
+    writeFileSync(
+      vercelConfigPath,
+      JSON.stringify({ framework: 'nextjs' }, null, 2)
+    )
+  }
+}
 
 export class NextDevInstance extends NextInstance {
   private _cliOutput: string = ''
@@ -130,11 +190,18 @@ export class NextDevInstance extends NextInstance {
       !process.env.NEXT_TEST_WASM_AFTER_JEST &&
       ((this as any).turbo || (this as any).experimentalTurbo)
 
-    let startArgs = [
-      'pnpm',
-      'next',
-      useTurbo ? '--turbopack' : undefined,
-    ].filter(Boolean) as string[]
+    const useVercelDev = shouldStartWithVercelDev(
+      this.startCommand,
+      this.startArgs
+    )
+    if (useVercelDev) {
+      ensureVercelDevLocalScripts(this.testDir)
+    }
+    let startArgs = useVercelDev
+      ? getVercelDevArgs(this.forcedPort || '0', this.testDir)
+      : (['pnpm', 'next', useTurbo ? '--turbopack' : undefined].filter(
+          Boolean
+        ) as string[])
 
     if (this.startCommand) {
       startArgs = this.startCommand.split(' ')
@@ -155,7 +222,9 @@ export class NextDevInstance extends NextInstance {
     await new Promise<void>((resolve, reject) => {
       try {
         this.childProcess = spawn(startArgs[0], startArgs.slice(1), {
-          cwd: this.testDir,
+          cwd: useVercelDev
+            ? process.env.NEXT_TEST_VERCEL_CLI_CWD || this.testDir
+            : this.testDir,
           stdio: ['ignore', 'pipe', 'pipe'],
           shell: false,
           env: {
@@ -217,6 +286,8 @@ export class NextDevInstance extends NextInstance {
           }
 
           const colorStrippedMsg = stripAnsi(msg)
+          const vercelReadyUrl = getVercelReadyUrl(colorStrippedMsg)
+
           if (colorStrippedMsg.includes('- Local:')) {
             this._url = msg
               .split('\n')
@@ -226,7 +297,14 @@ export class NextDevInstance extends NextInstance {
               .trim()
           }
 
-          if (this.serverReadyPattern.test(colorStrippedMsg)) {
+          if (vercelReadyUrl) {
+            this._url = vercelReadyUrl
+          }
+
+          if (
+            this.serverReadyPattern.test(colorStrippedMsg) ||
+            (useVercelDev && vercelReadyUrl)
+          ) {
             resolveServer()
           }
         }
