@@ -1,4 +1,5 @@
 import { isReact18, nextTestSetup, type Playwright } from 'e2e-utils'
+import { retry } from 'next-test-utils'
 
 // These tests are defined here and used in `app-dir.test.ts` and
 // `pages-dir.test.ts` so that both test suites can be run in parallel.
@@ -285,6 +286,35 @@ export function runSharedTests(type: 'app' | 'pages') {
         ['file', 'hello.txt'],
       ])
     })
+
+    if (isAppDir) {
+      it('should show updated content when form is submitted with changed query params on the same page', async () => {
+        // Regression test: when a <Form> submits to the same pathname with
+        // different search params (a SearchParamOnlyChange navigation), the
+        // segment cache could return a stale Fallback entry with isPartial=false,
+        // suppressing the dynamic server request and showing old content.
+        const session = await next.browser('/search-with-form?query=first')
+
+        const result1 = await session
+          .waitForElementByCss('#search-results')
+          .text()
+        expect(result1).toMatch(/query: "first"/)
+
+        // Clear the input and submit a new query from the same page.
+        // This is a SearchParamOnlyChange navigation (/search-with-form?query=first
+        // → /search-with-form?query=second).
+        const searchInput = await session.elementByCss('input[name="query"]')
+        await searchInput.fill('second')
+
+        const submitButton = await session.elementByCss('[type="submit"]')
+        await submitButton.click()
+
+        await retry(async () => {
+          const result2 = await session.elementByCss('#search-results').text()
+          expect(result2).toMatch(/query: "second"/)
+        })
+      })
+    }
   })
 
   async function trackMpaNavs(session: Playwright) {
