@@ -66,6 +66,12 @@ Allows Next.js to prefetch this segment at runtime. Today, setting this option c
 export const prefetch = 'allow-runtime'
 ```
 
+### `'force-static'`
+
+Always prefetch this segment statically, even if it has not been validated with `instant`. Use this when you know the segment produces a valid static shell but do not want to set up instant validation.
+
+> **Good to know**: `prefetch = 'force-static'` is distinct from [`dynamic = 'force-static'`](/docs/app/api-reference/file-conventions/route-segment-config/dynamic). The `dynamic` config controls how a segment renders at request time; the `prefetch` config controls how it's prefetched ahead of navigation. They're independent.
+
 ### `'force-disabled'`
 
 Never prefetch this segment. The client will not request segment data ahead of navigation. Use this for segments where prefetching would be wasteful, for example pages behind authentication that are rarely visited.
@@ -84,7 +90,12 @@ In general, both of these are special circumstances. The default behavior — wh
 ## TypeScript
 
 ```tsx
-type Prefetch = 'auto' | 'partial' | 'allow-runtime' | 'force-disabled'
+type Prefetch =
+  | 'auto'
+  | 'partial'
+  | 'allow-runtime'
+  | 'force-static'
+  | 'force-disabled'
 
 export const prefetch: Prefetch = 'allow-runtime'
 ```
