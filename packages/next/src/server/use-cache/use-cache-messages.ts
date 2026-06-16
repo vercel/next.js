@@ -2,12 +2,6 @@
  * Centralised error factories for `"use cache"` / `"use cache: private"`
  * misuse. Wording goal: name the constraint and the fix in one sentence,
  * then link to the docs page that explains why.
- *
- * Importers: `request/cookies.ts`, `request/headers.ts`,
- * `request/connection.ts`, `request/draft-mode.ts`, `request/utils.ts`,
- * `route-modules/app-route/module.ts`, `use-cache/cache-tag.ts`,
- * `use-cache/cache-life.ts`, `use-cache/use-cache-wrapper.ts`,
- * `web/spec-extension/revalidate.ts`.
  */
 
 const NEXT_REQUEST_IN_USE_CACHE =
@@ -79,7 +73,7 @@ export function createConnectionInUnstableCacheError(route: string): Error {
 /**
  * Used when `draftMode().enable()` or `.disable()` is called inside
  * `"use cache"` or `"use cache: private"`. Reading `draftMode()` is fine
- * inside a cache — toggling it is not.
+ * inside a cache, but toggling it is not.
  */
 export function createDraftModeMutationInUseCacheError(
   route: string,
@@ -117,10 +111,6 @@ export function createRouteHandlerRequestInUnstableCacheError(
   )
 }
 
-/**
- * Only reachable via Server Action → `"use cache"` → revalidate.
- * Render-phase revalidate calls are caught earlier with a different message.
- */
 export function createRevalidateInUseCacheError(
   route: string,
   expression: string
@@ -152,10 +142,9 @@ export function createCacheLifeOutsideUseCacheError(): Error {
 }
 
 /**
- * Factories (not exported strings) so the error-code tool can statically
- * match the message at the `new Error("…")` call site and keep the stable
- * E1244 / E1245 entries in `errors.json`. The chained `NestedDynamicUseCacheError`
- * captured at the inner `"use cache"` is passed as `cause`.
+ * Factories rather than exported strings so the error-code tool can
+ * statically match the message at the `new Error(…)` call site. The
+ * chained `NestedDynamicUseCacheError` is passed as `cause`.
  */
 export function createNestedCacheZeroRevalidateError(
   cause: Error | undefined
