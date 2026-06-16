@@ -265,7 +265,7 @@ pub async fn make_production_chunks(
                             let b_groups = other.chunk_groups_len() as i64;
                             let b_size = other.size as i64;
                             let o_groups = overlap as i64;
-                            let groups = a_groups.max(b_groups);
+                            let groups = a_groups + b_groups - o_groups;
                             let a_rem = a_groups - o_groups;
                             let b_rem = b_groups - o_groups;
 
