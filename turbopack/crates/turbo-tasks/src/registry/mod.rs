@@ -137,7 +137,7 @@ impl Registerable for NativeFunction {
 impl Registerable for ValueType {
     type Id = ValueTypeId;
     const TYPE_NAME: &'static str = "Value";
-    const MAX_ID: u16 = crate::CellId::MAX_VALUE_TYPE_ID;
+    const MAX_ID: u16 = ValueTypeId::MAX.to_primitive();
     fn ty(&self) -> &RegistryType {
         &self.ty
     }

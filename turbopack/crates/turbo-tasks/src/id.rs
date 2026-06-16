@@ -70,6 +70,13 @@ macro_rules! define_id {
                 }
                 unsafe { NonZeroU64::new_unchecked(self.id.get() as u64) }
             }
+            /// Allows `const` conversion to [`NonZero<$primitive>`]
+            pub const fn to_non_zero_primitive(self) -> NonZero<$primitive> {
+                self.id
+            }
+            pub const fn to_primitive(self) -> $primitive {
+                self.id.get()
+            }
         }
 
         impl Display for $name {

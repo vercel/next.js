@@ -174,6 +174,9 @@ pub enum RawVcUnpacked {
 const RAW_VC_LOCAL_FLAG: u64 = 1 << 31;
 
 /// Mask of the `TaskId` value inside `TaskOutput` / `TaskCell` (bits `0..=30`).
+///
+/// This equals `TASK_ID_MAX` because a `TaskId` is `2^31 - 1`, so its max value
+/// is also the mask of its bits. TaskId is a u32 so this cast is safe.
 const RAW_VC_TASK_MASK: u64 = TASK_ID_MAX as u64;
 /// Shift of the packed `CellId` word inside `TaskCell`. A zero high word means
 /// `TaskOutput`; a non-zero one means `TaskCell`.
@@ -943,5 +946,41 @@ mod tests {
             TaskPersistence::Persistent,
         );
         assert!(local.is_local_output() && !local.is_task_cell() && !local.is_task_output());
+    }
+
+    #[test]
+    #[cfg(debug_assertions)]
+    #[should_panic(expected = "TaskId exceeds 31 bits")]
+    fn task_output_panics_on_out_of_range_task_id() {
+        // `TASK_ID_MAX + 1` is the first value that sets bit 31.
+        // SAFETY: non-zero.
+        let task = unsafe { TaskId::new_unchecked(TASK_ID_MAX + 1) };
+        let _ = RawVc::task_output(task);
+    }
+
+    #[test]
+    #[cfg(debug_assertions)]
+    #[should_panic(expected = "TaskId exceeds 31 bits")]
+    fn task_cell_panics_on_out_of_range_task_id() {
+        // SAFETY: non-zero.
+        let task = unsafe { TaskId::new_unchecked(TASK_ID_MAX + 1) };
+        let cell = CellId::new(unsafe { ValueTypeId::new_unchecked(1) }, 0);
+        let _ = RawVc::task_cell(task, cell);
+    }
+
+    #[test]
+    #[cfg(debug_assertions)]
+    #[should_panic(expected = "exceeds")]
+    fn cell_id_panics_on_out_of_range_type_id() {
+        // SAFETY: `MAX_VALUE_TYPE_ID + 1` is non-zero.
+        let type_id = unsafe { ValueTypeId::new_unchecked(CellId::MAX_VALUE_TYPE_ID + 1) };
+        let _ = CellId::new(type_id, 0);
+    }
+    #[test]
+    #[cfg(debug_assertions)]
+    #[should_panic(expected = "exceeds")]
+    fn cell_id_panics_on_out_of_range_index() {
+        let type_id = unsafe { ValueTypeId::new_unchecked(1) };
+        let _ = CellId::new(type_id, CellId::MAX_CELL_INDEX + 1);
     }
 }
