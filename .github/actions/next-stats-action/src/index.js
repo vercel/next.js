@@ -129,10 +129,9 @@ if (!allowedActions.has(actionInfo.actionName) && !actionInfo.isRelease) {
             'pnpm install ' +
             // tolerate lockfile changes from merging latest changes
             '--no-frozen-lockfile ' +
-            // avoid hardlink issues on self-hosted runners,
-            '--package-import-method=clone-or-copy ' +
-            // the store is colocated with the workdir to avoid EXDEV copy
-            // failures on overlayfs runners.
+            // colocate the store with the workdir to avoid EXDEV hardlink or
+            // reflink failures across the container's bind-mounted workdir and
+            // overlayfs root.
             `--store-dir=${pnpmStoreDir}`
           await exec.spawnPromise(command, {
             env: { PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: '1' },
