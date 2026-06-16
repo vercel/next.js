@@ -1,25 +1,23 @@
-import { FilterLinks } from './filter-links'
+import Link from 'next/link'
+import { Suspense } from 'react'
 
-type SearchParams = { [key: string]: string | string[] | undefined }
-
-function parseSelected(raw: string | string[] | undefined): string[] {
-  if (raw === undefined) return []
-  return Array.isArray(raw) ? raw : [raw]
-}
-
-export default async function Page({
-  searchParams,
-}: {
-  searchParams: Promise<SearchParams>
-}) {
-  const params = await searchParams
-  const selected = parseSelected(params.f)
-
+export default function Page({ searchParams }: PageProps<'/'>) {
   return (
     <main>
-      <FilterLinks selected={selected} />
-      <p id="server-count">server count: {selected.length}</p>
-      <p id="server-values">server values: {JSON.stringify(selected)}</p>
+      <Link id="to-bar" href="/?foo=bar">
+        foo=bar
+      </Link>
+      <Link id="to-bar-baz" href="/?foo=bar&foo=baz">
+        foo=bar&foo=baz
+      </Link>
+      <Link id="to-baz" href="/?foo=baz">
+        foo=baz
+      </Link>
+      <Suspense fallback={null}>
+        {searchParams.then((params) => (
+          <pre id="search-params">{JSON.stringify(params, null, 2)}</pre>
+        ))}
+      </Suspense>
     </main>
   )
 }

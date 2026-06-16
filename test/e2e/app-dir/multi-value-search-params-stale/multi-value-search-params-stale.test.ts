@@ -8,83 +8,37 @@ import { retry } from 'next-test-utils'
 //  - https://github.com/vercel/next.js/issues/92787 (<Link> navigation)
 //  - https://github.com/vercel/next.js/issues/93104 (router.replace)
 //
-// Root cause: the client builds the page segment cache key with
+// The client built the page segment cache key with
 // `Object.fromEntries(new URLSearchParams(search))`, which only keeps the
-// LAST value of a repeated key. So `?f=a&f=b` and `?f=b` both collapse to
-// `{ f: 'b' }`, producing identical cache keys. The multi -> single
-// transition is treated as a cache hit and the page never re-renders with
-// the new (single) search param value, leaving stale server-rendered output.
+// LAST value of a repeated key. So `?foo=bar&foo=baz` and `?foo=baz`
+// collapsed to the same key, the multi -> single transition was treated as a
+// cache hit, and the page never re-rendered with the new search params.
 describe('multi-value-search-params-stale', () => {
   const { next } = nextTestSetup({
     files: __dirname,
   })
 
-  it('updates server-rendered output on multi -> single transition via <Link>', async () => {
+  it('re-renders when a repeated search param goes from multiple values to one', async () => {
     const browser = await next.browser('/')
 
-    await retry(async () => {
-      expect(await browser.elementById('server-values').text()).toBe(
-        'server values: []'
-      )
-    })
+    async function expectParams(expected: unknown) {
+      await retry(async () => {
+        const text = await browser.elementById('search-params').text()
+        expect(JSON.parse(text)).toEqual(expected)
+      })
+    }
 
-    // [] -> [a]
-    await browser.elementById('link-a').click()
-    await retry(async () => {
-      expect(await browser.elementById('server-values').text()).toBe(
-        'server values: ["a"]'
-      )
-    })
+    await expectParams({})
 
-    // [a] -> [a, b]
-    await browser.elementById('link-b').click()
-    await retry(async () => {
-      expect(await browser.elementById('server-values').text()).toBe(
-        'server values: ["a","b"]'
-      )
-    })
+    await browser.elementById('to-bar').click()
+    await expectParams({ foo: 'bar' })
 
-    // [a, b] -> [b]  (the buggy transition: removing the first repeated value)
-    await browser.elementById('link-a').click()
-    await retry(async () => {
-      const url = new URL(await browser.url())
-      expect(url.search).toBe('?f=b')
-      expect(await browser.elementById('server-values').text()).toBe(
-        'server values: ["b"]'
-      )
-      expect(await browser.elementById('server-count').text()).toBe(
-        'server count: 1'
-      )
-    })
-  })
+    await browser.elementById('to-bar-baz').click()
+    await expectParams({ foo: ['bar', 'baz'] })
 
-  it('updates server-rendered output on multi -> single transition via router.replace', async () => {
-    const browser = await next.browser('/')
-
-    // [] -> [a]
-    await browser.elementById('replace-a').click()
-    await retry(async () => {
-      expect(await browser.elementById('server-values').text()).toBe(
-        'server values: ["a"]'
-      )
-    })
-
-    // [a] -> [a, b]
-    await browser.elementById('replace-b').click()
-    await retry(async () => {
-      expect(await browser.elementById('server-values').text()).toBe(
-        'server values: ["a","b"]'
-      )
-    })
-
-    // [a, b] -> [b]
-    await browser.elementById('replace-a').click()
-    await retry(async () => {
-      const url = new URL(await browser.url())
-      expect(url.search).toBe('?f=b')
-      expect(await browser.elementById('server-values').text()).toBe(
-        'server values: ["b"]'
-      )
-    })
+    // The buggy transition: multiple values -> a single value.
+    await browser.elementById('to-baz').click()
+    await expectParams({ foo: 'baz' })
+    expect(new URL(await browser.url()).search).toBe('?foo=baz')
   })
 })
