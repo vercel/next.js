@@ -29,6 +29,7 @@ rustc-hash = { workspace = true }
 turbo-rcstr = { workspace = true }
 turbo-tasks = { workspace = true }
 turbo-tasks-fs = { workspace = true }
+turbo-tasks-hash = { workspace = true }
 turbopack-core = { workspace = true }
 turbopack-ecmascript = { workspace = true }
 
@@ -44,4 +45,3 @@ swc_core = { workspace = true, features = [
 swc_plugin_backend_wasmtime = { workspace = true }
 swc_emotion = { workspace = true }
 swc_relay = { workspace = true }
-

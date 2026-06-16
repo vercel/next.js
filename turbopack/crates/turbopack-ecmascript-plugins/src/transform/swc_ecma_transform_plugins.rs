@@ -1,12 +1,18 @@
+use std::path::Path;
+
 use anyhow::Result;
 use async_trait::async_trait;
 use swc_core::{
     ecma::ast::Program,
-    plugin_runner::plugin_module_bytes::{CompiledPluginModuleBytes, RawPluginModuleBytes},
+    plugin_runner::{
+        plugin_module_bytes::{CompiledPluginModuleBytes, RawPluginModuleBytes},
+        runtime::Runtime,
+    },
 };
 use swc_plugin_backend_wasmtime::WasmtimeRuntime;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks_fs::FileSystemPath;
+use turbo_tasks_hash::{encode_hex, hash_xxh3_hash64};
 use turbopack_core::issue::{Issue, IssueSeverity, IssueStage, StyledString};
 use turbopack_ecmascript::{CustomTransformer, TransformContext};
 
@@ -42,6 +48,76 @@ impl SwcPluginModule {
             name: plugin_name,
         }
     }
+
+    /// Like [`Self::new`], but caches the compiled wasm artifact on disk so
+    /// that future builds skip the expensive WASM cold start.
+    ///
+    /// Cache layout: `<cache_dir>/<runtime_id>/<safe_plugin_name>-<hash>.cwasm`
+    /// where `<cache_dir>` comes from the caller/framework,
+    /// `<runtime_identifier>` is the wasmtime serialization ID,
+    /// and the plugin name and hash provide a safe, unique identifier.
+    /// Collectively, these should be enough to bump the cache path if the
+    /// runtime version or plugin content changes.
+    ///
+    /// Cache load failures (missing file, corruption, version skew) fall back
+    /// to a fresh compile. Cache write failures never fail the build, this is
+    /// only an optimization.
+    pub fn new_with_fs_cache(plugin_name: RcStr, plugin_bytes: Vec<u8>, cache_dir: &Path) -> Self {
+        let rt = WasmtimeRuntime;
+        let cache_path = cache_path_for(cache_dir, &rt, &plugin_name, &plugin_bytes);
+        if cache_path.exists() {
+            // UNSAFE: load_cache deserializes wasmtime AOT compiled bytes.
+            // The file was produced by store_cache below using the same
+            // runtime version, guaranteed by embedding the version in the file
+            // path.
+            if let Some(cache) = unsafe { rt.load_cache(&cache_path) } {
+                return Self {
+                    plugin: CompiledPluginModuleBytes::new(plugin_name.to_string(), cache),
+                    name: plugin_name,
+                };
+            }
+
+            // Fall through to compilation on failure
+        }
+
+        let cache = rt
+            .prepare_module(&plugin_bytes)
+            .expect("Failed to compile SWC WASM plugin");
+        if let Some(parent) = cache_path.parent() {
+            let _ = std::fs::create_dir_all(parent);
+        }
+        let _ = rt.store_cache(&cache_path, &cache);
+
+        Self {
+            plugin: CompiledPluginModuleBytes::new(plugin_name.to_string(), cache),
+            name: plugin_name,
+        }
+    }
+}
+
+fn cache_path_for(
+    cache_dir: &Path,
+    rt: &WasmtimeRuntime,
+    plugin_name: &str,
+    plugin_bytes: &[u8],
+) -> std::path::PathBuf {
+    let content_hash = encode_hex(hash_xxh3_hash64(plugin_bytes));
+    // Plugin names frequently contain '@' and '/' (thanks, npm scoped packages)
+    // which are not safe filename characters. Sanitize to something friendlier
+    // using only the POSIX portable character set.
+    let safe_name: String = plugin_name
+        .chars()
+        .map(|c| {
+            if c.is_ascii_alphanumeric() || c == '-' || c == '_' || c == '.' {
+                c
+            } else {
+                '_'
+            }
+        })
+        .collect();
+    cache_dir
+        .join(rt.identifier())
+        .join(format!("{safe_name}-{content_hash}.cwasm"))
 }
 
 #[turbo_tasks::value(shared)]

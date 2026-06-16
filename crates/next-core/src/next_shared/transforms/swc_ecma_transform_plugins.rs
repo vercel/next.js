@@ -1,9 +1,11 @@
+use std::path::PathBuf;
+
 use anyhow::Result;
 use bincode::{Decode, Encode};
 use serde::{Deserialize, Serialize};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{ResolvedVc, Vc, trace::TraceRawVcs};
-use turbo_tasks_fs::FileSystemPath;
+use turbo_tasks_fs::{FileSystemPath, to_sys_path};
 use turbopack::module_options::ModuleRule;
 use turbopack_ecmascript::{CustomTransformer, TransformPlugin};
 
@@ -39,16 +41,28 @@ pub async fn get_swc_ecma_transform_plugin_rule(
     let plugin_configs = next_config.experimental_swc_plugins().await?;
     if !plugin_configs.is_empty() {
         let enable_mdx_rs = next_config.mdx_rs().await?.is_some();
-        get_swc_ecma_transform_rule_impl(project_path, &plugin_configs, enable_mdx_rs).await
+        let cache_dir = resolve_plugin_cache_dir(next_config, &project_path).await?;
+        get_swc_ecma_transform_rule_impl(project_path, &plugin_configs, enable_mdx_rs, cache_dir)
+            .await
     } else {
         Ok(None)
     }
+}
+
+async fn resolve_plugin_cache_dir(
+    next_config: Vc<NextConfig>,
+    project_path: &FileSystemPath,
+) -> Result<Option<PathBuf>> {
+    let dist_dir = next_config.dist_dir().await?;
+    let cache_root = project_path.join(&dist_dir)?.join("cache/swc-plugins")?;
+    to_sys_path(cache_root.clone()).await
 }
 
 pub async fn get_swc_ecma_transform_rule_impl(
     project_path: FileSystemPath,
     plugin_configs: &[(RcStr, serde_json::Value)],
     enable_mdx_rs: bool,
+    cache_dir: Option<PathBuf>,
 ) -> Result<Option<ModuleRule>> {
     use anyhow::bail;
     use turbo_tasks::TryFlatJoinIterExt;
@@ -70,6 +84,7 @@ pub async fn get_swc_ecma_transform_rule_impl(
         .iter()
         .map(|(name, config)| {
             let project_path = project_path.clone();
+            let cache_dir = cache_dir.clone();
 
             async move {
                 // [TODO]: SWC's current experimental config supports
@@ -129,11 +144,15 @@ pub async fn get_swc_ecma_transform_rule_impl(
                     bail!("Expected file content for plugin module");
                 };
 
-                Ok(Some((
-                    SwcPluginModule::new(name.clone(), file.content().to_bytes().to_vec())
-                        .resolved_cell(),
-                    JsonValue(config.clone()),
-                )))
+                let plugin_bytes = file.content().to_bytes().to_vec();
+                let module = match cache_dir.as_deref() {
+                    Some(dir) => {
+                        SwcPluginModule::new_with_fs_cache(name.clone(), plugin_bytes, dir)
+                    }
+                    None => SwcPluginModule::new(name.clone(), plugin_bytes),
+                };
+
+                Ok(Some((module.resolved_cell(), JsonValue(config.clone()))))
             }
         })
         .try_flat_join()
