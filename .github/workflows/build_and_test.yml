@@ -336,7 +336,7 @@ jobs:
     with:
       afterBuild: |
         ./node_modules/.bin/devlow-bench ./scripts/devlow-bench.mjs \
-          --datadog=ubuntu-latest-16-core \
+          --datadog=ubuntu-latest-16-core-arm-oss \
           ${{ matrix.mode }} \
           ${{ matrix.selector }}
       stepName: 'devlow-bench-${{ matrix.mode }}-${{ matrix.selector }}'
