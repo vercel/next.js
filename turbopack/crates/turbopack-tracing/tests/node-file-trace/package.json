@@ -37,7 +37,7 @@
     "bull": "^4.16.5",
     "bullmq": "^5.48.0",
     "camaro": "^6.1.0",
-    "canvas": "^2.11.2",
+    "canvas": "^3.2.3",
     "chromeless": "^1.5.2",
     "codecov": "^3.8.1",
     "consolidate": "^1.0.4",
