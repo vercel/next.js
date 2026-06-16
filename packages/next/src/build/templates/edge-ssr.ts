@@ -25,7 +25,12 @@ import { WebNextRequest, WebNextResponse } from '../../server/base-http/web'
 import type { NextFetchEvent } from '../../server/web/spec-extension/fetch-event'
 import type RenderResult from '../../server/render-result'
 import type { RenderResultMetadata } from '../../server/render-result'
-import { getTracer, SpanKind, type Span } from '../../server/lib/trace/tracer'
+import {
+  getTracer,
+  SpanKind,
+  SpanStatusCode,
+  type Span,
+} from '../../server/lib/trace/tracer'
 import { BaseServerSpan } from '../../server/lib/trace/constants'
 import { HTML_CONTENT_TYPE_HEADER } from '../../lib/constants'
 import type { RequestMeta } from '../../server/request-meta'
@@ -266,6 +271,16 @@ async function requestHandler(
             'http.status_code': finalStatus,
             'next.rsc': false,
           })
+
+          if (finalStatus && finalStatus >= 500) {
+            // For 5xx status codes: SHOULD be set to 'Error' span status.
+            // x-ref: https://opentelemetry.io/docs/specs/semconv/http/http-spans/#status
+            span.setStatus({
+              code: SpanStatusCode.ERROR,
+            })
+            // For span status 'Error', SHOULD set 'error.type' attribute.
+            span.setAttribute('error.type', finalStatus.toString())
+          }
 
           const rootSpanAttributes = tracer.getRootSpanAttributes()
           // We were unable to get attributes, probably OTEL is not enabled
