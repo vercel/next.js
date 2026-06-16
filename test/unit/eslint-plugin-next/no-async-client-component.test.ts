@@ -51,7 +51,7 @@ const tests = {
     export default myFunction
     `,
     `
-    // named export inline capitalization
+    // named export inline, lowercase name is not a component
     "use client"
 
     export async function myFunction() {
@@ -59,7 +59,7 @@ const tests = {
     }
     `,
     `
-    // named export specifier capitalization
+    // named export specifier, lowercase name is not a component
     "use client"
 
     async function myFunction() {
@@ -73,6 +73,14 @@ const tests = {
     "use client"
 
     export function MyComponent() {
+      return <></>
+    }
+    `,
+    `
+    // anonymous default async export (no name to flag, must not crash)
+    "use client"
+
+    export default async function () {
       return <></>
     }
     `,
@@ -184,6 +192,19 @@ const tests = {
       }
 
       export { MyComponent }
+      `,
+      errors: [{ message }],
+    },
+    {
+      code: `
+      // named export specifier aliased to a capitalized component name
+      "use client"
+
+      async function foo() {
+        return <></>
+      }
+
+      export { foo as MyComponent }
       `,
       errors: [{ message }],
     },

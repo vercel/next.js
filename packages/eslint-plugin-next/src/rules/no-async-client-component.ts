@@ -31,7 +31,9 @@ export default defineRule({
           if (
             declaration?.type === 'FunctionDeclaration' &&
             declaration.async &&
-            isCapitalized(declaration.id.name)
+            // `id` is null for anonymous default exports
+            // (`export default async function () {}`), which we skip.
+            isCapitalized(declaration.id?.name)
           ) {
             context.report({ node: reportNode, message })
             return
@@ -54,15 +56,23 @@ export default defineRule({
         // Resolves an exported identifier (e.g. `export default MyComponent` or
         // `export { MyComponent }`) to its top-level declaration and reports
         // when it is an async, capitalized function/arrow.
-        function checkExportedIdentifier(targetName: string) {
-          if (!isCapitalized(targetName)) {
+        //
+        // `localName` is the name the declaration is resolved by; `exportedName`
+        // is the (possibly aliased) name it is exported as. Either being
+        // capitalized marks it as a component, so aliased exports such as
+        // `export { foo as MyComponent }` are not missed.
+        function checkExportedIdentifier(
+          localName: string,
+          exportedName: string = localName
+        ) {
+          if (!isCapitalized(localName) && !isCapitalized(exportedName)) {
             return
           }
 
           const functionDeclaration = node.body.find((localBlock) => {
             if (
               localBlock.type === 'FunctionDeclaration' &&
-              localBlock.id.name === targetName
+              localBlock.id.name === localName
             )
               return true
 
@@ -71,7 +81,7 @@ export default defineRule({
               localBlock.declarations.find(
                 (declaration) =>
                   declaration.id?.type === 'Identifier' &&
-                  declaration.id.name === targetName
+                  declaration.id.name === localName
               )
             )
               return true
@@ -93,7 +103,7 @@ export default defineRule({
             const varDeclarator = functionDeclaration.declarations.find(
               (declaration) =>
                 declaration.id?.type === 'Identifier' &&
-                declaration.id.name === targetName
+                declaration.id.name === localName
             )
 
             if (
@@ -139,9 +149,15 @@ export default defineRule({
             }
 
             // async function MyComponent() {...}; export { MyComponent };
+            // also handles aliases, e.g. `export { foo as MyComponent }`.
             for (const specifier of block.specifiers) {
               if (specifier.local.type === 'Identifier') {
-                checkExportedIdentifier(specifier.local.name)
+                checkExportedIdentifier(
+                  specifier.local.name,
+                  specifier.exported.type === 'Identifier'
+                    ? specifier.exported.name
+                    : undefined
+                )
               }
             }
           }
