@@ -171,12 +171,10 @@ jobs:
       # Match the reusable workflow's pnpm-store cache path so this setup-only
       # job does not bottleneck the larger test matrix.
       - name: Get pnpm store directory
-        if: ${{ runner.environment == 'github-hosted' }}
         id: get-store-path
         run: echo STORE_PATH="$(pnpm store path)" >> "$GITHUB_OUTPUT"
 
       - name: Cache pnpm store
-        if: ${{ runner.environment == 'github-hosted' }}
         uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
         timeout-minutes: 5
         id: cache-pnpm-store

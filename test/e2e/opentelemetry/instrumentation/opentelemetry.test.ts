@@ -69,7 +69,6 @@ describe.each(
 
   // Edge runtime is currently not implemented in custom-entrypoint-server.ts
   const itEdge = useDirectEntrypointHandler ? it.skip : it
-  const itNoDirect = useDirectEntrypointHandler ? it.skip : it
 
   for (const env of [
     {
@@ -371,8 +370,7 @@ describe.each(
             )
           })
 
-          // TODO why is this failing
-          itNoDirect('should handle RSC with fetch in RSC mode', async () => {
+          it('should handle RSC with fetch in RSC mode', async () => {
             await next.fetch(`/app/param/rsc-fetch?${NEXT_RSC_UNION_QUERY}`, {
               ...env.fetchInit,
               headers: {
@@ -1033,131 +1031,137 @@ describe.each(
             )
           })
 
-          // TODO why is this failing
-          itNoDirect(
-            'should handle getServerSideProps exceptions',
-            async () => {
-              await next.fetch(
-                '/pages/param/getServerSidePropsError',
-                env.fetchInit
-              )
+          it('should handle getServerSideProps exceptions', async () => {
+            await next.fetch(
+              '/pages/param/getServerSidePropsError',
+              env.fetchInit
+            )
 
-              await expectTrace(getCollector(), [
-                {
-                  name: 'GET /pages/[param]/getServerSidePropsError',
-                  attributes: {
-                    'http.method': 'GET',
-                    'http.route': '/pages/[param]/getServerSidePropsError',
-                    'http.status_code': 500,
-                    'http.target': '/pages/param/getServerSidePropsError',
-                    'next.route': '/pages/[param]/getServerSidePropsError',
-                    'next.span_name':
-                      'GET /pages/[param]/getServerSidePropsError',
-                    'next.span_type': 'BaseServer.handleRequest',
-                    'error.type': '500',
-                  },
-                  kind: 1,
-                  status: { code: 2 },
-                  traceId: env.span.traceId,
-                  parentId: env.span.rootParentId,
-                  spans: [
-                    {
-                      name: 'getServerSideProps /pages/[param]/getServerSidePropsError',
-                      attributes: {
-                        'next.route': '/pages/[param]/getServerSidePropsError',
-                        'next.span_name':
-                          'getServerSideProps /pages/[param]/getServerSidePropsError',
-                        'next.span_type': 'Render.getServerSideProps',
+            await expectTrace(getCollector(), [
+              {
+                name: 'GET /pages/[param]/getServerSidePropsError',
+                attributes: {
+                  'http.method': 'GET',
+                  'http.route': '/pages/[param]/getServerSidePropsError',
+                  'http.target': '/pages/param/getServerSidePropsError',
+                  'next.route': '/pages/[param]/getServerSidePropsError',
+                  'next.span_name':
+                    'GET /pages/[param]/getServerSidePropsError',
+                  'next.span_type': 'BaseServer.handleRequest',
+                  ...(useDirectEntrypointHandler
+                    ? {
+                        // With direct entrypoints, this 500 error has to be handled by whatever is
+                        // invoking the handler. And that same invoker is then also responsible for
+                        // setting OTEL correctly.
                         'error.type': 'Error',
-                      },
-                      kind: 0,
-                      status: {
-                        code: 2,
-                        message: 'ServerSideProps error',
-                      },
-                      events: [
-                        {
-                          name: 'exception',
-                          attributes: {
-                            'exception.type': 'Error',
-                            'exception.message': 'ServerSideProps error',
-                          },
-                        },
-                      ],
-                    },
-                    ...(useDirectEntrypointHandler
-                      ? []
-                      : [
-                          {
-                            name: 'render route (pages) /_error',
-                            attributes: {
-                              'next.route': '/_error',
-                              'next.span_name': 'render route (pages) /_error',
-                              'next.span_type': 'Render.renderDocument',
-                            },
-                            kind: 0,
-                            status: { code: 0 },
-                          },
-
-                          {
-                            name: 'resolve page components',
-                            attributes: {
-                              'next.route': '/_error',
-                              'next.span_name': 'resolve page components',
-                              'next.span_type':
-                                'NextNodeServer.findPageComponents',
-                            },
-                            kind: 0,
-                            status: { code: 0 },
-                          },
-                        ]),
-                    ...(isNextDev || useDirectEntrypointHandler
-                      ? []
-                      : [
-                          {
-                            name: 'resolve page components',
-                            attributes: {
-                              'next.route': '/500',
-                              'next.span_name': 'resolve page components',
-                              'next.span_type':
-                                'NextNodeServer.findPageComponents',
-                            },
-                            kind: 0,
-                            status: { code: 0 },
-                          },
-                          {
-                            name: 'resolve page components',
-                            attributes: {
-                              'next.route': '/500',
-                              'next.span_name': 'resolve page components',
-                              'next.span_type':
-                                'NextNodeServer.findPageComponents',
-                            },
-                            kind: 0,
-                            status: { code: 0 },
-                          },
-                        ]),
-                    ...(useDirectEntrypointHandler
-                      ? []
-                      : [
-                          {
-                            name: 'resolve page components',
-                            attributes: {
-                              'next.route':
-                                '/pages/[param]/getServerSidePropsError',
-                              'next.span_name': 'resolve page components',
-                              'next.span_type':
-                                'NextNodeServer.findPageComponents',
-                            },
-                            kind: 0,
-                            status: { code: 0 },
-                          },
-                        ]),
-                  ],
+                        'http.status_code': 200,
+                      }
+                    : {
+                        'error.type': '500',
+                        'http.status_code': 500,
+                      }),
                 },
-              ])
-            }
-          )
+                kind: 1,
+                status: { code: 2 },
+                traceId: env.span.traceId,
+                parentId: env.span.rootParentId,
+                spans: [
+                  {
+                    name: 'getServerSideProps /pages/[param]/getServerSidePropsError',
+                    attributes: {
+                      'next.route': '/pages/[param]/getServerSidePropsError',
+                      'next.span_name':
+                        'getServerSideProps /pages/[param]/getServerSidePropsError',
+                      'next.span_type': 'Render.getServerSideProps',
+                      'error.type': 'Error',
+                    },
+                    kind: 0,
+                    status: {
+                      code: 2,
+                      message: 'ServerSideProps error',
+                    },
+                    events: [
+                      {
+                        name: 'exception',
+                        attributes: {
+                          'exception.type': 'Error',
+                          'exception.message': 'ServerSideProps error',
+                        },
+                      },
+                    ],
+                  },
+                  ...(useDirectEntrypointHandler
+                    ? []
+                    : [
+                        {
+                          name: 'render route (pages) /_error',
+                          attributes: {
+                            'next.route': '/_error',
+                            'next.span_name': 'render route (pages) /_error',
+                            'next.span_type': 'Render.renderDocument',
+                          },
+                          kind: 0,
+                          status: { code: 0 },
+                        },
+
+                        {
+                          name: 'resolve page components',
+                          attributes: {
+                            'next.route': '/_error',
+                            'next.span_name': 'resolve page components',
+                            'next.span_type':
+                              'NextNodeServer.findPageComponents',
+                          },
+                          kind: 0,
+                          status: { code: 0 },
+                        },
+                      ]),
+                  ...(isNextDev || useDirectEntrypointHandler
+                    ? []
+                    : [
+                        {
+                          name: 'resolve page components',
+                          attributes: {
+                            'next.route': '/500',
+                            'next.span_name': 'resolve page components',
+                            'next.span_type':
+                              'NextNodeServer.findPageComponents',
+                          },
+                          kind: 0,
+                          status: { code: 0 },
+                        },
+                        {
+                          name: 'resolve page components',
+                          attributes: {
+                            'next.route': '/500',
+                            'next.span_name': 'resolve page components',
+                            'next.span_type':
+                              'NextNodeServer.findPageComponents',
+                          },
+                          kind: 0,
+                          status: { code: 0 },
+                        },
+                      ]),
+                  ...(useDirectEntrypointHandler
+                    ? []
+                    : [
+                        {
+                          name: 'resolve page components',
+                          attributes: {
+                            'next.route':
+                              '/pages/[param]/getServerSidePropsError',
+                            'next.span_name': 'resolve page components',
+                            'next.span_type':
+                              'NextNodeServer.findPageComponents',
+                          },
+                          kind: 0,
+                          status: { code: 0 },
+                        },
+                      ]),
+                ],
+              },
+            ])
+          })
 
           it('should handle getServerSideProps returning notFound', async () => {
             await next.fetch(
