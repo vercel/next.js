@@ -119,7 +119,7 @@ env:
   TURBO_TEAM: 'vtest314-next-adapter-e2e-tests'
   # Prefer shared remote cache across runs, but keep local cache enabled so jobs
   # degrade gracefully if the remote cache or token is unavailable.
-  TURBO_CACHE: 'local:rw,remote:rw'
+  TURBO_CACHE: ${{ secrets.TURBO_TOKEN != '' && 'local:rw,remote:rw' || 'local:rw' }}
   TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
 
   NEXT_TELEMETRY_DISABLED: 1

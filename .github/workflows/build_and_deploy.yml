@@ -26,7 +26,7 @@ env:
   TURBO_TEAM: 'vtest314-next-adapter-e2e-tests'
   # Prefer shared remote cache across runs, but keep local cache enabled so jobs
   # degrade gracefully if the remote cache or token is unavailable.
-  TURBO_CACHE: 'local:rw,remote:rw'
+  TURBO_CACHE: ${{ secrets.TURBO_TOKEN != '' && 'local:rw,remote:rw' || 'local:rw' }}
   TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
   # Without this environment variable, rust-lld will fail because some dependencies defaults to newer version of macOS by default.
   #
@@ -361,7 +361,7 @@ jobs:
               -e TURBO_TEAM
               -e TURBO_TOKEN
               -e TURBO_VERSION
-              -e TURBO_CACHE=local:rw,remote:rw
+              -e "TURBO_CACHE=${TURBO_CACHE}"
             )
           fi
           docker run --rm \
