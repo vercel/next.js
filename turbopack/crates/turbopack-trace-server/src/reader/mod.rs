@@ -6,7 +6,7 @@ use std::{
     any::Any,
     env,
     fs::File,
-    io::{self, BufReader, IsTerminal, Read, Seek, SeekFrom, Write},
+    io::{self, BufReader, Read, Seek, SeekFrom, Write},
     path::PathBuf,
     sync::Arc,
     thread::{self, JoinHandle},
@@ -131,19 +131,11 @@ impl TraceFile {
 pub struct TraceReader {
     store: Arc<StoreContainer>,
     path: PathBuf,
-    /// Whether stdout is a terminal. When true, progress is rendered in place
-    /// on a single line; when piped to a file/CI it falls back to one line per
-    /// update so the logs stay readable.
-    stdout_is_terminal: bool,
 }
 
 impl TraceReader {
     pub fn spawn(store: Arc<StoreContainer>, path: PathBuf) -> JoinHandle<()> {
-        let mut reader = Self {
-            store,
-            path,
-            stdout_is_terminal: io::stdout().is_terminal(),
-        };
+        let mut reader = Self { store, path };
         std::thread::spawn(move || reader.run())
     }
 
@@ -302,20 +294,9 @@ impl TraceReader {
                                     if !stats.is_empty() {
                                         line += &format!(" - {stats}");
                                     }
-                                    if self.stdout_is_terminal {
-                                        // Overwrite the same line so the progress
-                                        // updates don't scroll the port/URL info
-                                        // off the screen. `\r` returns to the
-                                        // start of the line and the trailing
-                                        // spaces clear any leftover characters
-                                        // from a previous, longer line.
-                                        print!("\r{line:<width$}", width = LINE_CLEAR_WIDTH);
-                                        let _ = io::stdout().flush();
-                                    } else {
-                                        // Piped to a file/CI: keep one line per
-                                        // update so the log stays readable.
-                                        println!("{line}");
-                                    }
+
+                                    print!("\r{line:<width$}", width = LINE_CLEAR_WIDTH);
+                                    let _ = io::stdout().flush();
                                 }
                             }
                             if current_read >= stop_at {
@@ -361,12 +342,10 @@ impl TraceReader {
             return Some(true);
         };
         if let Some((total, start)) = initial_read.take() {
-            // In terminal mode the last progress line was printed with a leading
+            // The last progress line was printed with a leading
             // `\r` and no newline, so emit a newline first to keep the final
             // messages on their own line instead of overwriting it.
-            if self.stdout_is_terminal {
-                println!();
-            }
+            println!();
             if let Some(format) = format {
                 let stats = format.stats();
                 println!("{stats}");
