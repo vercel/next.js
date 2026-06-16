@@ -222,6 +222,12 @@ export async function handler(
   }
   const isMinimalMode = Boolean(getRequestMeta(req, 'minimalMode'))
 
+  // Capture the request target before `prepare()` runs, since route
+  // normalization (e.g. `normalizeCdnUrl`) rewrites `req.url` and would
+  // otherwise change the `http.target` span attribute. This mirrors
+  // `BaseServer.handleRequest`, which records the target before normalization.
+  const httpTarget = req.url
+
   const multiZoneDraftMode = process.env
     .__NEXT_MULTI_ZONE_DRAFT_MODE as any as boolean
 
@@ -722,7 +728,7 @@ export async function handler(
 
         span.setAttributes({
           'http.status_code': res.statusCode,
-          'next.rsc': false,
+          'next.rsc': isRSCRequest,
         })
 
         if (res.statusCode && res.statusCode >= 500) {
@@ -754,7 +760,9 @@ export async function handler(
         }
 
         const route = rootSpanAttributes.get('next.route') || normalizedSrcPage
-        const name = `${method} ${route}`
+        const name = isRSCRequest
+          ? `RSC ${method} ${route}`
+          : `${method} ${route}`
 
         span.setAttributes({
           'next.route': route,
@@ -2009,7 +2017,7 @@ export async function handler(
               kind: SpanKind.SERVER,
               attributes: {
                 'http.method': method,
-                'http.target': req.url,
+                'http.target': httpTarget,
               },
             },
             handleResponse
