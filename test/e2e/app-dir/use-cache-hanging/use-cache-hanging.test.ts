@@ -24,7 +24,7 @@ describe('use-cache-hanging', () => {
 
         await expect(browser).toDisplayCollapsedRedbox(`
          {
-           "code": "E1378",
+           "code": "E1380",
            "description": "Filling a \`"use cache"\` entry took too long. The most common cause is reading request data (\`params\`, \`searchParams\`, \`cookies()\`, \`headers()\`) inside the cached function. Read it outside and pass what you need as an argument.
            Learn more: https://nextjs.org/docs/messages/next-request-in-use-cache",
            "environmentLabel": "Cache",
@@ -54,7 +54,7 @@ describe('use-cache-hanging', () => {
 
         await expect(browser).toDisplayCollapsedRedbox(`
          {
-           "code": "E1378",
+           "code": "E1380",
            "description": "Filling a \`"use cache"\` entry took too long. The most common cause is reading request data (\`params\`, \`searchParams\`, \`cookies()\`, \`headers()\`) inside the cached function. Read it outside and pass what you need as an argument.
            Learn more: https://nextjs.org/docs/messages/next-request-in-use-cache",
            "environmentLabel": "Cache",
@@ -93,7 +93,7 @@ describe('use-cache-hanging', () => {
 
         await expect(browser).toDisplayCollapsedRedbox(`
          {
-           "code": "E1378",
+           "code": "E1380",
            "description": "Filling a \`"use cache"\` entry took too long. The most common cause is reading request data (\`params\`, \`searchParams\`, \`cookies()\`, \`headers()\`) inside the cached function. Read it outside and pass what you need as an argument.
            Learn more: https://nextjs.org/docs/messages/next-request-in-use-cache",
            "environmentLabel": "Cache",
@@ -127,7 +127,7 @@ describe('use-cache-hanging', () => {
 
         await expect(browser).toDisplayCollapsedRedbox(`
          {
-           "code": "E1378",
+           "code": "E1380",
            "description": "Filling a \`"use cache"\` entry took too long. The most common cause is reading request data (\`params\`, \`searchParams\`, \`cookies()\`, \`headers()\`) inside the cached function. Read it outside and pass what you need as an argument.
            Learn more: https://nextjs.org/docs/messages/next-request-in-use-cache",
            "environmentLabel": "Cache",

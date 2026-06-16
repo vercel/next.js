@@ -2714,7 +2714,7 @@ describe('Cache Components Errors', () => {
 
             await expect(browser).toDisplayRedbox(`
              {
-               "code": "E1376",
+               "code": "E1378",
                "description": "Route "/use-cache-cookies": \`cookies()\` can't be read inside \`"use cache"\`. Read it outside the cached function and pass what you need as an argument.
              Learn more: https://nextjs.org/docs/messages/next-request-in-use-cache",
                "environmentLabel": "Server",
@@ -2828,7 +2828,7 @@ describe('Cache Components Errors', () => {
 
             await expect(browser).toDisplayRedbox(`
              {
-               "code": "E1382",
+               "code": "E1384",
                "description": "Route "/use-cache-draft-mode": \`draftMode().enable()\` can't be called inside \`"use cache"\`. Draft mode can be read from a cached function, but enabling or disabling it must happen outside.
              Learn more: https://nextjs.org/docs/messages/next-request-in-use-cache",
                "environmentLabel": "Server",
@@ -2941,7 +2941,7 @@ describe('Cache Components Errors', () => {
 
             await expect(browser).toDisplayRedbox(`
              {
-               "code": "E1370",
+               "code": "E1372",
                "description": "Route "/use-cache-headers": \`headers()\` can't be read inside \`"use cache"\`. Read it outside the cached function and pass what you need as an argument.
              Learn more: https://nextjs.org/docs/messages/next-request-in-use-cache",
                "environmentLabel": "Server",
@@ -3053,7 +3053,7 @@ describe('Cache Components Errors', () => {
 
             await expect(browser).toDisplayRedbox(`
              {
-               "code": "E1385",
+               "code": "E1387",
                "description": "Route "/use-cache-connection": \`connection()\` can't be used inside \`"use cache"\`. A cache entry can be built before any request exists, so it can't depend on one.
              Learn more: https://nextjs.org/docs/messages/next-request-in-use-cache",
                "environmentLabel": "Server",
@@ -3440,7 +3440,7 @@ Ways to fix this:
                      ],
                    },
                  ],
-                 "code": "E1363",
+                 "code": "E1365",
                  "description": "A nested \`"use cache"\` with a short \`expire\` (under 5 minutes) is inside an outer \`"use cache"\` that has no \`cacheLife()\`. Add \`cacheLife()\` to the outer one to choose: a longer \`expire\` to prerender it, or a short \`expire\` to keep it dynamic.
                Learn more: https://nextjs.org/docs/messages/nested-use-cache-no-explicit-cachelife",
                  "environmentLabel": "Server",
@@ -3866,7 +3866,7 @@ Ways to fix this:
                      ],
                    },
                  ],
-                 "code": "E1381",
+                 "code": "E1383",
                  "description": "A nested \`"use cache"\` with \`revalidate: 0\` is inside an outer \`"use cache"\` that has no \`cacheLife()\`. Add \`cacheLife()\` to the outer one to choose: a non-zero \`revalidate\` to prerender it, or \`revalidate: 0\` to keep it dynamic.
                Learn more: https://nextjs.org/docs/messages/nested-use-cache-no-explicit-cachelife",
                  "environmentLabel": "Server",
@@ -4261,7 +4261,7 @@ Ways to fix this:
 
               await expect(browser).toDisplayRedbox(`
                {
-                 "code": "E1376",
+                 "code": "E1378",
                  "description": "Route "/use-cache-cookies-third-party": \`cookies()\` can't be read inside \`"use cache"\`. Read it outside the cached function and pass what you need as an argument.
                Learn more: https://nextjs.org/docs/messages/next-request-in-use-cache",
                  "environmentLabel": "Server",
@@ -4365,7 +4365,7 @@ Ways to fix this:
 
               await expect(browser).toDisplayRedbox(`
                {
-                 "code": "E1382",
+                 "code": "E1384",
                  "description": "Route "/use-cache-draft-mode-third-party": \`draftMode().enable()\` can't be called inside \`"use cache"\`. Draft mode can be read from a cached function, but enabling or disabling it must happen outside.
                Learn more: https://nextjs.org/docs/messages/next-request-in-use-cache",
                  "environmentLabel": "Server",
@@ -4468,7 +4468,7 @@ Ways to fix this:
 
               await expect(browser).toDisplayRedbox(`
                {
-                 "code": "E1370",
+                 "code": "E1372",
                  "description": "Route "/use-cache-headers-third-party": \`headers()\` can't be read inside \`"use cache"\`. Read it outside the cached function and pass what you need as an argument.
                Learn more: https://nextjs.org/docs/messages/next-request-in-use-cache",
                  "environmentLabel": "Server",
@@ -4572,7 +4572,7 @@ Ways to fix this:
 
               await expect(browser).toDisplayRedbox(`
                {
-                 "code": "E1385",
+                 "code": "E1387",
                  "description": "Route "/use-cache-connection-third-party": \`connection()\` can't be used inside \`"use cache"\`. A cache entry can be built before any request exists, so it can't depend on one.
                Learn more: https://nextjs.org/docs/messages/next-request-in-use-cache",
                  "environmentLabel": "Server",
@@ -4680,7 +4680,7 @@ Ways to fix this:
             if (isTurbopack) {
               await expect(browser).toDisplayRedbox(`
                {
-                 "code": "E1373",
+                 "code": "E1375",
                  "description": "\`"use cache: private"\` can't be used inside \`unstable_cache()\`.
                Learn more: https://nextjs.org/docs/app/api-reference/directives/use-cache-private",
                  "environmentLabel": "Server",
@@ -4697,7 +4697,7 @@ Ways to fix this:
             } else {
               await expect(browser).toDisplayRedbox(`
                {
-                 "code": "E1373",
+                 "code": "E1375",
                  "description": "\`"use cache: private"\` can't be used inside \`unstable_cache()\`.
                Learn more: https://nextjs.org/docs/app/api-reference/directives/use-cache-private",
                  "environmentLabel": "Server",
@@ -4814,7 +4814,7 @@ Ways to fix this:
 
             await expect(browser).toDisplayRedbox(`
              {
-               "code": "E1371",
+               "code": "E1373",
                "description": "\`"use cache: private"\` can't be nested inside \`"use cache"\`. It can only be nested inside another \`"use cache: private"\`.
              Learn more: https://nextjs.org/docs/app/api-reference/directives/use-cache-private",
                "environmentLabel": "Server",
