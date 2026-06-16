@@ -1748,12 +1748,6 @@ type LoadConfigOptions = {
   bundler?: Bundler
 }
 
-// If loading and evaluating the user's config (including any config plugins
-// such as `withMDX` or `withBundleAnalyzer`) takes longer than this, emit a
-// line reporting how long it took. Fast configs stay silent; slow plugin
-// chains get surfaced so they can be investigated.
-const SLOW_CONFIG_EVAL_THRESHOLD_MS = 500
-
 export default async function loadConfig(
   phase: typeof PHASE_DEVELOPMENT_SERVER,
   dir: string,
@@ -1782,13 +1776,8 @@ export default async function loadConfig(
   const [config, meta] = await loadConfigImpl(phase, dir, opts)
 
   const durationNanos = process.hrtime.bigint() - startTimeNanos
-  // Skip the cache-hit fast path: it returns in ~0ms and doesn't re-evaluate
-  // the user's config, so its timing is meaningless noise.
-  if (
-    !meta.cacheHit &&
-    opts.silent === false &&
-    durationMs > SLOW_CONFIG_EVAL_THRESHOLD_MS
-  ) {
+  // Test for an explicit `silent == false` since the deffault in loadConfig is true
+  if (!meta.cacheHit && opts.silent === false) {
     Log.event(
       `Evaluating ${meta.configFileName ?? 'next.config'} took ${hrtimeBigIntDurationToString(durationNanos)}`
     )
