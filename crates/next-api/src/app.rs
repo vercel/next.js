@@ -585,6 +585,18 @@ impl AppProject {
                 rcstr!("next-edge-rsc"),
                 self.rsc_transition(NextRuntime::Edge).to_resolved().await?,
             ),
+            (
+                rcstr!("next-app-route"),
+                self.route_transition(NextRuntime::NodeJs)
+                    .to_resolved()
+                    .await?,
+            ),
+            (
+                rcstr!("next-app-edge-route"),
+                self.route_transition(NextRuntime::Edge)
+                    .to_resolved()
+                    .await?,
+            ),
         ]
         .into_iter()
         .collect();
@@ -645,6 +657,18 @@ impl AppProject {
             (
                 rcstr!("next-edge-rsc"),
                 self.rsc_transition(NextRuntime::Edge).to_resolved().await?,
+            ),
+            (
+                rcstr!("next-app-route"),
+                self.route_transition(NextRuntime::NodeJs)
+                    .to_resolved()
+                    .await?,
+            ),
+            (
+                rcstr!("next-app-edge-route"),
+                self.route_transition(NextRuntime::Edge)
+                    .to_resolved()
+                    .await?,
             ),
         ]
         .into_iter()
