@@ -112,7 +112,7 @@ deferred content identically for both: on a soft navigation the client lock gate
 writes; on an initial load the server honors the cookie on the document request (set via
 `addCookies()` before navigation, scoped by `baseURL`) and suspends dynamic data — independent of
 whether the route was previously rendered or cached. So the initial-load `toHaveCount(0)` gated
-half is just as valid as the soft-nav one; it needs no fresh browser context and no cache-busting
+half is as valid as the soft-nav one; it needs no fresh browser context and no cache-busting
 query param. The mechanism is in `reference/red-test-robustness.md`.
 
 ## Baseline scaffold — do not ship

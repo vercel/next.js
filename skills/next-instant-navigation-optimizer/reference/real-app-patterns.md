@@ -31,7 +31,7 @@ Validation checks that a dynamic read is **guarded by a boundary**, not that the
 
 A loading skeleton that misaligns with the loaded UI is its own bug, and it usually appears on mobile. A hand-built skeleton encodes one layout; the real component is responsive and changes shape at breakpoints, so a desktop-shaped skeleton no longer lines up once the viewport is small.
 
-A concrete shape: a master–detail view renders a list or tree in a side panel on desktop, but collapses that panel into a single dropdown or drawer on mobile (with its own loading state). A row skeleton built for the desktop panel has nothing to align with on mobile.
+A concrete shape: a list–detail view renders a list or tree in a side panel on desktop, but collapses that panel into a single dropdown or drawer on mobile (with its own loading state). A row skeleton built for the desktop panel has nothing to align with on mobile.
 
 The fix is the same push-down as everywhere else: **share the real responsive layout between the live render and the shell render.** One responsive component renders both — its data slots show the reused `*Skeleton` in the shell and real data after the stream — so the breakpoint switch happens once, for both renders, and there is no second desktop-only skeleton to drift.
 

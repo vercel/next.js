@@ -153,7 +153,7 @@ export default async function Page({ params }: PageProps<'/store/[slug]'>) {
 // ✅ option B — not enumerable → params is request-time; await it inside a boundary (pattern #1)
 ```
 
-Root params (the dynamic segments the root layout sits inside, e.g. `app/[lang]/layout.tsx`) are readable from any Server Component via `next/root-params` without prop-drilling — but under Cache Components they must still be enumerated by `generateStaticParams` (at least one value per root param) to land in the shell, just like any other dynamic param.
+Root params (the dynamic segments the root layout sits inside, e.g. `app/[lang]/layout.tsx`) are readable from any Server Component via `next/root-params` without prop-drilling — but under Cache Components they must still be enumerated by `generateStaticParams` (at least one value per root param) to land in the shell, the same as any other dynamic param.
 
 ---
 
@@ -268,7 +268,7 @@ export default function Page() {
 
 ## 8. Keep the LCP element in the shell
 
-Don't bury the hero / main heading inside a boundary — it can't paint until the boundary resolves.
+Don't bury the main heading (the LCP element) inside a boundary — it can't paint until the boundary resolves.
 
 ```tsx
 // ✅ LCP outside the boundary → paints in the shell
