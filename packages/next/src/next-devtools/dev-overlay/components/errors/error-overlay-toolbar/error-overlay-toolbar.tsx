@@ -1,17 +1,13 @@
-import type { VersionInfo } from '../../../../../server/dev/parse-version-info'
 import type { DebugInfo } from '../../../../shared/types'
 import { NodejsInspectorButton } from './nodejs-inspector-button'
 import { CopyErrorButton } from './copy-error-button'
 import { DocsLinkButton } from './docs-link-button'
-import { VersionStalenessInfo } from '../../version-staleness-info/version-staleness-info'
 
 type ErrorOverlayToolbarProps = {
   error: Error
   debugInfo: DebugInfo | undefined
   feedbackButton?: React.ReactNode
   generateErrorInfo: () => Promise<string>
-  versionInfo?: VersionInfo
-  bundlerName?: 'Turbopack' | 'Webpack' | 'Rspack'
 }
 
 export function ErrorOverlayToolbar({
@@ -19,8 +15,6 @@ export function ErrorOverlayToolbar({
   debugInfo,
   feedbackButton,
   generateErrorInfo,
-  versionInfo,
-  bundlerName,
 }: ErrorOverlayToolbarProps) {
   return (
     <span className="error-overlay-toolbar">
@@ -32,12 +26,6 @@ export function ErrorOverlayToolbar({
         key={debugInfo?.devtoolsFrontendUrl}
         defaultDevtoolsFrontendUrl={debugInfo?.devtoolsFrontendUrl}
       />
-      {versionInfo && bundlerName && (
-        <VersionStalenessInfo
-          versionInfo={versionInfo}
-          bundlerName={bundlerName}
-        />
-      )}
     </span>
   )
 }

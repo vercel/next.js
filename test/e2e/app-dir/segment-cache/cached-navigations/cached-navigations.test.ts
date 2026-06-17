@@ -445,7 +445,7 @@ describe('cached navigations', () => {
     // Second navigation — no time has passed, so both the static cache
     // (stale: 120s) and the runtime cache (stale: 30s from the
     // short-lived cache entry in CookiesContent) should still be fresh.
-    // With unstable_instant { prefetch: 'runtime' }, runtime-prefetchable
+    // With instant { prefetch: 'runtime' }, runtime-prefetchable
     // content (cookies, headers, searchParams) should be cached from the
     // first navigation and show instantly alongside the static content.
     // Only truly dynamic content (connection()) needs a server request.
@@ -934,5 +934,59 @@ describe('cached navigations', () => {
     expect(await browser.elementById('connection-boundary').text()).toContain(
       'Dynamic content'
     )
+  })
+
+  it('does not leak resolved param-specific content across params when using prefetch={true}', async () => {
+    let page: Playwright.Page
+    const browser = await next.browser('/with-fallback-params', {
+      beforePageLoad(p: Playwright.Page) {
+        page = p
+      },
+    })
+    const act = createRouterAct(page)
+
+    // 1. Unveil the foo link. With prefetch={true} this triggers a Full
+    //    dynamic prefetch that returns the fully rendered page.
+    await act(async () => {
+      await browser
+        .elementByCss('input[data-link-accordion="/with-fallback-params/foo"]')
+        .click()
+    })
+
+    // 2. Navigate to /with-fallback-params/foo using the prefetched data.
+    await act(async () => {
+      await browser.elementByCss('a[href="/with-fallback-params/foo"]').click()
+    }, 'no-requests')
+    await retry(async () => {
+      expect(await browser.elementById('params-boundary').text()).toBe(
+        'Param: foo'
+      )
+    })
+
+    // 3. Return to the hub via the layout's back link.
+    await browser.elementByCss('a[href="/with-fallback-params"]')?.click()
+    await retry(async () => {
+      expect(await browser.elementByCss('h1').text()).toBe(
+        'Fallback Params Hub'
+      )
+    })
+
+    // 4. Unveil the bar link.
+    await act(async () => {
+      await browser
+        .elementByCss('input[data-link-accordion="/with-fallback-params/bar"]')
+        .click()
+    })
+
+    // 5. Navigate to /with-fallback-params/bar; should render bar's content
+    //    (sourced from the bar prefetch in step 4), not foo's.
+    await act(async () => {
+      await browser.elementByCss('a[href="/with-fallback-params/bar"]').click()
+    }, 'no-requests')
+    await retry(async () => {
+      const barContent = await browser.elementById('params-boundary').text()
+      expect(barContent).toBe('Param: bar')
+      expect(barContent).not.toContain('foo')
+    })
   })
 })

@@ -729,7 +729,30 @@
                   } catch (x$0) {
                     control = x$0;
                   }
-                  fn.call(Fake.prototype);
+                  Fake = !1;
+                  try {
+                    var prevProps = Object.getOwnPropertyDescriptor(
+                      fn.prototype,
+                      "props"
+                    );
+                    Object.defineProperty(fn.prototype, "props", {
+                      configurable: !0,
+                      set: function () {
+                        throw Error();
+                      }
+                    });
+                    Fake = !0;
+                    new fn();
+                  } finally {
+                    Fake &&
+                      (void 0 !== prevProps
+                        ? Object.defineProperty(
+                            fn.prototype,
+                            "props",
+                            prevProps
+                          )
+                        : delete fn.prototype.props);
+                  }
                 }
               } else {
                 try {
@@ -4153,7 +4176,11 @@
           break;
         case "string":
           value =
-            value === OMITTED_PROP_ERROR ? "\u2026" : JSON.stringify(value);
+            value === OMITTED_PROP_ERROR
+              ? "\u2026"
+              : JSON.stringify(
+                  1024 <= value.length ? value.slice(0, 1023) + "\u2026" : value
+                );
           break;
         case "undefined":
           value = "undefined";
@@ -6395,11 +6422,13 @@
         case "fulfilled":
           return thenable.value;
         case "rejected":
-          throw (
-            ((thenableState = thenable.reason),
-            checkIfUseWrappedInAsyncCatch(thenableState),
-            thenableState)
-          );
+          thenableState = thenable.reason;
+          checkIfUseWrappedInAsyncCatch(thenableState);
+          if (void 0 === thenableState && !("reason" in thenable))
+            throw Error(
+              "A rejected Promise was passed to React without a `reason` property. React threw a generic error from where the Promise was used to assist in identifying the problematic Promise. Make sure that instrumented Promises correctly set the `reason` property when setting `status` to `'rejected'`."
+            );
+          throw thenableState;
         default:
           if ("string" === typeof thenable.status)
             thenable.then(noop$1, noop$1);
@@ -27336,11 +27365,12 @@
       detachDeletedInstance(instance);
     }
     function getHoistableRoot(container) {
-      return "function" === typeof container.getRootNode
-        ? container.getRootNode()
-        : 9 === container.nodeType
-          ? container
-          : container.ownerDocument;
+      if ("function" === typeof container.getRootNode) {
+        var rootNode = container.getRootNode();
+        if (9 === rootNode.nodeType || 11 === rootNode.nodeType)
+          return rootNode;
+      }
+      return 9 === container.nodeType ? container : container.ownerDocument;
     }
     function preconnectAs(rel, href, crossOrigin) {
       var ownerDocument = globalDocument;
@@ -33206,11 +33236,11 @@
     };
     (function () {
       var isomorphicReactPackageVersion = React.version;
-      if ("19.3.0-experimental-d5736f09-20260507" !== isomorphicReactPackageVersion)
+      if ("19.3.0-experimental-ad78e251-20260616" !== isomorphicReactPackageVersion)
         throw Error(
           'Incompatible React versions: The "react" and "react-dom" packages must have the exact same version. Instead got:\n  - react:      ' +
             (isomorphicReactPackageVersion +
-              "\n  - react-dom:  19.3.0-experimental-d5736f09-20260507\nLearn more: https://react.dev/warnings/version-mismatch")
+              "\n  - react-dom:  19.3.0-experimental-ad78e251-20260616\nLearn more: https://react.dev/warnings/version-mismatch")
         );
     })();
     ("function" === typeof Map &&
@@ -33247,10 +33277,10 @@
       !(function () {
         var internals = {
           bundleType: 1,
-          version: "19.3.0-experimental-d5736f09-20260507",
+          version: "19.3.0-experimental-ad78e251-20260616",
           rendererPackageName: "react-dom",
           currentDispatcherRef: ReactSharedInternals,
-          reconcilerVersion: "19.3.0-experimental-d5736f09-20260507"
+          reconcilerVersion: "19.3.0-experimental-ad78e251-20260616"
         };
         internals.overrideHookState = overrideHookState;
         internals.overrideHookStateDeletePath = overrideHookStateDeletePath;
@@ -33564,5 +33594,5 @@
         }
       };
     };
-    exports.version = "19.3.0-experimental-d5736f09-20260507";
+    exports.version = "19.3.0-experimental-ad78e251-20260616";
   })();

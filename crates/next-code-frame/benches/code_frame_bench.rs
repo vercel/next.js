@@ -1,5 +1,7 @@
 use criterion::{Criterion, black_box, criterion_group, criterion_main};
-use next_code_frame::{CodeFrameLocation, CodeFrameOptions, Language, Location, render_code_frame};
+use next_code_frame::{
+    CodeFrameColorMode, CodeFrameLocation, CodeFrameOptions, Language, Location, render_code_frame,
+};
 
 /// Generate a realistic small TypeScript/React file (~300 lines).
 fn generate_small_file() -> String {
@@ -120,7 +122,7 @@ fn bench_small_file(c: &mut Criterion) {
 
     let options = CodeFrameOptions {
         highlight_code: true,
-        color: true,
+        color: CodeFrameColorMode::Error,
         max_width: 100,
         language: Language::JavaScript,
         ..Default::default()
@@ -149,7 +151,7 @@ fn bench_large_file(c: &mut Criterion) {
 
     let options = CodeFrameOptions {
         highlight_code: true,
-        color: true,
+        color: CodeFrameColorMode::Error,
         max_width: 100,
         language: Language::JavaScript,
         ..Default::default()
@@ -181,7 +183,7 @@ fn bench_minified_file(c: &mut Criterion) {
 
     let options = CodeFrameOptions {
         highlight_code: true,
-        color: true,
+        color: CodeFrameColorMode::Error,
         max_width: 100,
         language: Language::JavaScript,
         ..Default::default()

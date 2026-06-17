@@ -1,11 +1,11 @@
 import { ReactNode } from 'react'
 
-export const unstable_instant = { level: 'experimental-error' }
+export const instant = { level: 'experimental-error' }
 
 export default function SlotLayout({ children }: { children: ReactNode }) {
   return (
     <div>
-      <em>This is a layout inside the slot with unstable_instant (static)</em>
+      <em>This is a layout inside the slot with instant (static)</em>
       <hr />
       {children}
     </div>

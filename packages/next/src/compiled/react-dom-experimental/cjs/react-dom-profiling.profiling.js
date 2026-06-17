@@ -544,7 +544,26 @@ function describeNativeComponentFrame(fn, construct) {
               } catch (x$1) {
                 control = x$1;
               }
-              fn.call(Fake.prototype);
+              Fake = !1;
+              try {
+                var prevProps = Object.getOwnPropertyDescriptor(
+                  fn.prototype,
+                  "props"
+                );
+                Object.defineProperty(fn.prototype, "props", {
+                  configurable: !0,
+                  set: function () {
+                    throw Error();
+                  }
+                });
+                Fake = !0;
+                new fn();
+              } finally {
+                Fake &&
+                  (void 0 !== prevProps
+                    ? Object.defineProperty(fn.prototype, "props", prevProps)
+                    : delete fn.prototype.props);
+              }
             }
           } else {
             try {
@@ -4072,11 +4091,11 @@ function trackUsedThenable(thenableState, thenable, index) {
     case "fulfilled":
       return thenable.value;
     case "rejected":
-      throw (
-        ((thenableState = thenable.reason),
-        checkIfUseWrappedInAsyncCatch(thenableState),
-        thenableState)
-      );
+      thenableState = thenable.reason;
+      checkIfUseWrappedInAsyncCatch(thenableState);
+      if (void 0 === thenableState && !("reason" in thenable))
+        throw Error(formatProdErrorMessage(600));
+      throw thenableState;
     default:
       if ("string" === typeof thenable.status) thenable.then(noop$1, noop$1);
       else {
@@ -20390,11 +20409,11 @@ function releaseSingletonInstance(instance) {
 var preloadPropsMap = new Map(),
   preconnectsSet = new Set();
 function getHoistableRoot(container) {
-  return "function" === typeof container.getRootNode
-    ? container.getRootNode()
-    : 9 === container.nodeType
-      ? container
-      : container.ownerDocument;
+  if ("function" === typeof container.getRootNode) {
+    var rootNode = container.getRootNode();
+    if (9 === rootNode.nodeType || 11 === rootNode.nodeType) return rootNode;
+  }
+  return 9 === container.nodeType ? container : container.ownerDocument;
 }
 var previousDispatcher = ReactDOMSharedInternals.d;
 ReactDOMSharedInternals.d = {
@@ -22034,14 +22053,14 @@ ReactDOMHydrationRoot.prototype.unstable_scheduleHydration = function (target) {
 };
 var isomorphicReactPackageVersion$jscomp$inline_2545 = React.version;
 if (
-  "19.3.0-experimental-d5736f09-20260507" !==
+  "19.3.0-experimental-ad78e251-20260616" !==
   isomorphicReactPackageVersion$jscomp$inline_2545
 )
   throw Error(
     formatProdErrorMessage(
       527,
       isomorphicReactPackageVersion$jscomp$inline_2545,
-      "19.3.0-experimental-d5736f09-20260507"
+      "19.3.0-experimental-ad78e251-20260616"
     )
   );
 ReactDOMSharedInternals.findDOMNode = function (componentOrElement) {
@@ -22063,10 +22082,10 @@ ReactDOMSharedInternals.findDOMNode = function (componentOrElement) {
 };
 var internals$jscomp$inline_3247 = {
   bundleType: 0,
-  version: "19.3.0-experimental-d5736f09-20260507",
+  version: "19.3.0-experimental-ad78e251-20260616",
   rendererPackageName: "react-dom",
   currentDispatcherRef: ReactSharedInternals,
-  reconcilerVersion: "19.3.0-experimental-d5736f09-20260507"
+  reconcilerVersion: "19.3.0-experimental-ad78e251-20260616"
 };
 if ("undefined" !== typeof __REACT_DEVTOOLS_GLOBAL_HOOK__) {
   var hook$jscomp$inline_3248 = __REACT_DEVTOOLS_GLOBAL_HOOK__;
@@ -22334,7 +22353,7 @@ exports.useFormState = function (action, initialState, permalink) {
 exports.useFormStatus = function () {
   return ReactSharedInternals.H.useHostTransitionStatus();
 };
-exports.version = "19.3.0-experimental-d5736f09-20260507";
+exports.version = "19.3.0-experimental-ad78e251-20260616";
 "undefined" !== typeof __REACT_DEVTOOLS_GLOBAL_HOOK__ &&
   "function" ===
     typeof __REACT_DEVTOOLS_GLOBAL_HOOK__.registerInternalModuleStop &&

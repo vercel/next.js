@@ -3,7 +3,9 @@
 mod frame;
 mod highlight;
 
-pub use frame::{CodeFrameLocation, CodeFrameOptions, Location, render_code_frame};
+pub use frame::{
+    CodeFrameColorMode, CodeFrameLocation, CodeFrameOptions, Location, render_code_frame,
+};
 pub use highlight::Language;
 
 #[cfg(test)]

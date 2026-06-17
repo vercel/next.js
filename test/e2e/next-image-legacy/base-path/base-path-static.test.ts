@@ -1,4 +1,4 @@
-import { nextTestSetup, isNextDev } from 'e2e-utils'
+import { nextTestSetup, isNextDev, type Playwright } from 'e2e-utils'
 
 describe('Build Error Tests for basePath', () => {
   const { next } = nextTestSetup({
@@ -38,7 +38,7 @@ describe('Static Image Component Tests for basePath', () => {
   })
   if (skipped) return
 
-  let browser: Awaited<ReturnType<typeof next.browser>>
+  let browser: Playwright
   let html: string
 
   beforeAll(async () => {

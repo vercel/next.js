@@ -3,7 +3,9 @@ import { join } from 'path'
 import cheerio from 'cheerio'
 import { runTests, locales } from '../i18n-support/shared'
 import { findPort, fetchViaHTTP } from 'next-test-utils'
-import { nextTestSetup, isNextDev } from 'e2e-utils'
+import { nextTestSetup, isNextDev, type NextInstance } from 'e2e-utils'
+
+type BrowserOptions = Parameters<NextInstance['browser']>[1]
 
 describe('i18n Support basePath', () => {
   const { next, skipped } = nextTestSetup({
@@ -16,6 +18,8 @@ describe('i18n Support basePath', () => {
   const ctx: Record<string, any> = {
     basePath: '/docs',
     isDev: isNextDev,
+    browser: (pathname: string, options?: BrowserOptions) =>
+      next.browser(pathname, options),
   }
 
   let externalServer: http.Server

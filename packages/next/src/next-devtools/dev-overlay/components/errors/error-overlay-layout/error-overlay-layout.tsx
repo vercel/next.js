@@ -4,7 +4,10 @@ import type { ErrorMessageType } from '../error-message/error-message'
 import type { ErrorType } from '../error-type-label/error-type-label'
 
 import { DialogContent } from '../../dialog'
-import { styles as toolbarStyles } from '../error-overlay-toolbar/error-overlay-toolbar'
+import {
+  ErrorOverlayToolbar,
+  styles as toolbarStyles,
+} from '../error-overlay-toolbar/error-overlay-toolbar'
 import { ErrorOverlayFooter } from '../error-overlay-footer/error-overlay-footer'
 import {
   ErrorMessage,
@@ -18,6 +21,7 @@ import {
   ErrorOverlayNav,
   styles as floatingHeaderStyles,
 } from '../error-overlay-nav/error-overlay-nav'
+import type { ErrorOverlayTabBarRenderer } from '../error-overlay-pagination/error-overlay-pagination'
 
 import { ErrorOverlayDialog, DIALOG_STYLES } from '../dialog/dialog'
 import {
@@ -38,6 +42,11 @@ export interface ErrorOverlayLayoutProps extends ErrorBaseProps {
   errorType: ErrorType
   children?: React.ReactNode
   headerChildren?: React.ReactNode
+  renderTabBar?: ErrorOverlayTabBarRenderer
+  canGoPrevious?: boolean
+  canGoNext?: boolean
+  onPrevious?: () => void
+  onNext?: () => void
   errorCode?: string
   error: ReadyRuntimeError['error']
   debugInfo?: DebugInfo
@@ -56,6 +65,11 @@ export function ErrorOverlayLayout({
   errorType,
   children,
   headerChildren,
+  renderTabBar,
+  canGoPrevious,
+  canGoNext,
+  onPrevious,
+  onNext,
   errorCode,
   errorCount: _errorCount,
   error,
@@ -111,10 +125,12 @@ export function ErrorOverlayLayout({
           runtimeErrors={runtimeErrors}
           activeIdx={activeIdx}
           setActiveIndex={setActiveIndex}
+          canGoPrevious={canGoPrevious}
+          canGoNext={canGoNext}
+          onPrevious={onPrevious}
+          onNext={onNext}
           versionInfo={versionInfo}
-          error={error}
-          debugInfo={debugInfo}
-          generateErrorInfo={generateErrorInfo}
+          renderTabBar={renderTabBar}
         />
         <ErrorOverlayDialog onClose={onClose} data-has-footer={hasFooter}>
           <Resizer
@@ -129,18 +145,25 @@ export function ErrorOverlayLayout({
                   // allow assertion in tests before error rating is implemented
                   data-nextjs-error-code={errorCode}
                 >
+                  <div className="nextjs__container_errors__error_title__row">
+                    <span data-nextjs-error-label-group>
+                      <ErrorTypeLabel errorType={errorType} />
+                      {error.environmentName && (
+                        <EnvironmentNameLabel
+                          environmentName={error.environmentName}
+                        />
+                      )}
+                    </span>
+                    <ErrorOverlayToolbar
+                      error={error}
+                      debugInfo={debugInfo}
+                      generateErrorInfo={generateErrorInfo}
+                    />
+                  </div>
                   <ErrorMessage
                     errorMessage={errorMessage}
                     errorType={errorType}
                   />
-                  <span data-nextjs-error-label-group>
-                    <ErrorTypeLabel errorType={errorType} />
-                    {error.environmentName && (
-                      <EnvironmentNameLabel
-                        environmentName={error.environmentName}
-                      />
-                    )}
-                  </span>
                 </div>
                 {headerChildren}
               </ErrorOverlayDialogHeader>

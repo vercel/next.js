@@ -383,10 +383,25 @@ export class Playwright<TCurrent = undefined> {
       await page.goForward(options)
     })
   }
-  refresh() {
+  refresh(opts?: { waitUntil?: PlaywrightNavigationWaitUntil }) {
     // do not preserve the previous chained value, it's likely to be invalid after a reload.
     return this.startChain(async () => {
-      await page.reload()
+      await page.reload({ waitUntil: opts?.waitUntil ?? 'load' })
+    })
+  }
+  /**
+   * Evict the browser HTTP cache via CDP (`Network.clearBrowserCache`). This is
+   * only supported in Chromium; gate the calling test on `global.browserName
+   * === 'chrome'` (Playwright's Firefox and WebKit don't expose CDP).
+   */
+  clearBrowserCache() {
+    return this.startChain(async () => {
+      const session = await context!.newCDPSession(page)
+      try {
+        await session.send('Network.clearBrowserCache')
+      } finally {
+        await session.detach()
+      }
     })
   }
   setDimensions({ width, height }: { height: number; width: number }) {
