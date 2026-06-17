@@ -44,6 +44,7 @@ export function createInitialRouterState({
     s: initialStaleTime,
     l: initialStaticStageByteLength,
     h: initialHeadVaryParams,
+    r: initialRootVaryParams,
     p: initialRuntimePrefetchStream,
     d: initialDynamicStaleTimeSeconds,
   } = initialRSCPayload
@@ -149,6 +150,7 @@ export function createInitialRouterState({
               staticStageResponse.f,
               undefined, // no build ID mismatch check for initial HTML
               staticStageResponse.h,
+              staticStageResponse.r ?? null,
               staleAt,
               initialTree,
               initialRenderedSearch,
@@ -175,6 +177,7 @@ export function createInitialRouterState({
               initialFlightData,
               undefined, // buildId — not applicable for initial HTML
               initialHeadVaryParams,
+              initialRootVaryParams ?? null,
               staleAt,
               initialTree,
               initialRenderedSearch,
@@ -214,6 +217,7 @@ export function createInitialRouterState({
               processed.buildId,
               processed.isResponsePartial,
               processed.headVaryParams,
+              processed.rootVaryParamsIterable,
               processed.staleAt,
               processed.navigationSeed,
               null

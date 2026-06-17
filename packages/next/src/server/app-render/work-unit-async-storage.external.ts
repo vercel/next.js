@@ -617,3 +617,27 @@ export function getCacheSignal(
       return workUnitStore satisfies never
   }
 }
+
+export function getVaryParamsAccumulator(
+  workUnitStore: WorkUnitStore
+): ResponseVaryParamsAccumulator | null {
+  switch (workUnitStore.type) {
+    case 'prerender':
+    case 'prerender-runtime':
+    case 'request': {
+      return workUnitStore.varyParamsAccumulator ?? null
+    }
+    case 'prerender-ppr':
+    case 'prerender-legacy':
+    case 'cache':
+    case 'private-cache':
+    case 'prerender-client':
+    case 'validation-client':
+    case 'unstable-cache':
+    case 'generate-static-params':
+      return null
+    default:
+      workUnitStore satisfies never
+      return null
+  }
+}

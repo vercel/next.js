@@ -11,7 +11,7 @@ export type LoadingModuleData =
   | [React.JSX.Element, React.ReactNode, React.ReactNode]
   | null
 
-import type { VaryParamsThenable } from './segment-cache/vary-params-decoding'
+import type { VaryParamsIterable } from './segment-cache/vary-params-decoding'
 
 /** viewport metadata node */
 export type HeadData = React.ReactNode
@@ -330,20 +330,23 @@ export type CacheNodeSeedData = [
   loading: null,
   isPartial: boolean,
   /**
-   * A thenable that resolves to the set of route params this segment accessed
-   * during server rendering. Used by the client router to determine cache key
-   * specificity - segments that only access certain params can be reused across
-   * navigations where unaccessed params change.
+   * An AsyncIterable that yields the route params this segment accessed during
+   * server rendering (one name per yield, deduped). Used by the client router
+   * to determine cache key specificity - segments that only access certain
+   * params can be reused across navigations where unaccessed params change.
    *
-   * - null thenable: tracking was not enabled for this render (e.g., not a
-   *   prerender). Treat conservatively - assume all params vary.
-   * - Thenable resolves to empty Set: segment accesses no params (e.g., client
-   *   components, or server components that don't read params). Can be shared
-   *   across all param values.
-   * - Thenable resolves to non-empty Set: segment depends on those params.
-   *   Can only reuse when those specific params match.
+   * Does NOT include root params; those are emitted once at the top level of
+   * the response (see `r` on the payload) and unioned in by the consumer.
+   *
+   * - null: tracking was not enabled for this render (e.g., not a prerender).
+   *   Treat conservatively - assume all params vary.
+   * - Drains to empty Set: segment accesses no params (e.g., client components,
+   *   or server components that don't read params). Can be shared across all
+   *   param values.
+   * - Drains to non-empty Set: segment depends on those params. Can only reuse
+   *   when those specific params match.
    */
-  varyParams: VaryParamsThenable | null,
+  varyParams: VaryParamsIterable | null,
 ]
 
 export type FlightDataSegment = [
@@ -407,8 +410,15 @@ export type InitialRSCPayload = {
   S: boolean
   /**
    * headVaryParams - vary params for the head (metadata) of the response.
+   * Does not include root params (see `r`).
    */
-  h: VaryParamsThenable | null
+  h: VaryParamsIterable | null
+  /**
+   * rootVaryParams - the root params accessed anywhere in the response, emitted
+   * once. The client unions these into the head and every segment's vary
+   * params, rather than the server folding them into each set.
+   */
+  r?: VaryParamsIterable
   /** staleTime in seconds - Only present when Cache Components is enabled. */
   s?: AsyncIterable<number>
   /** staticStageByteLength - Resolves when the static stage ends. */
@@ -470,8 +480,14 @@ export type NavigationFlightResponse = {
    * where we have a proper session shell.
    * */
   u?: Promise<boolean>
-  /** headVaryParams */
-  h: VaryParamsThenable | null
+  /** headVaryParams. Does not include root params (see `r`). */
+  h: VaryParamsIterable | null
+  /**
+   * rootVaryParams - the root params accessed anywhere in the response, emitted
+   * once. The client unions these into the head and every segment's vary
+   * params.
+   */
+  r?: VaryParamsIterable
   /** runtimePrefetchStream — Embedded runtime prefetch Flight stream. */
   p?: ReadableStream<Uint8Array>
   /**

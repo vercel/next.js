@@ -5,7 +5,7 @@ import type {
   InitialRSCPayload,
   Segment,
 } from '../../../shared/lib/app-router-types'
-import type { VaryParamsThenable } from '../../../shared/lib/segment-cache/vary-params-decoding'
+import type { VaryParamsIterable } from '../../../shared/lib/segment-cache/vary-params-decoding'
 import { InvariantError } from '../../../shared/lib/invariant-error'
 import { RenderStage } from '../staged-rendering'
 import { getServerModuleMap } from '../manifests-singleton'
@@ -706,7 +706,7 @@ function deserializeFromChunks<T>(
 type SegmentData = {
   node: React.ReactNode | null
   isPartial: boolean
-  varyParams: VaryParamsThenable | null
+  varyParams: VaryParamsIterable | null
 }
 
 function createSegmentData(seedData: CacheNodeSeedData): SegmentData {
