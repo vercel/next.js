@@ -3,6 +3,7 @@ mod cell_mode;
 pub(crate) mod default;
 mod local;
 pub(crate) mod operation;
+mod ord;
 mod raw;
 mod read;
 pub(crate) mod resolved;
@@ -11,7 +12,7 @@ mod traits;
 use std::{
     any::Any,
     fmt::Debug,
-    future::{Future, IntoFuture},
+    future::Future,
     hash::{Hash, Hasher},
     marker::PhantomData,
     ops::Deref,
@@ -24,7 +25,9 @@ use bincode::{Decode, Encode};
 use serde::{Deserialize, Serialize};
 use shrink_to_fit::ShrinkToFit;
 
-pub use self::{
+#[cfg(debug_assertions)]
+use crate::debug::{ValueDebug, ValueDebugFormat, ValueDebugFormatString};
+pub use crate::vc::{
     cast::{VcCast, VcValueTraitCast, VcValueTypeCast},
     cell_mode::{
         VcCellCompareMode, VcCellHashedCompareMode, VcCellKeyedCompareMode, VcCellMode,
@@ -33,13 +36,12 @@ pub use self::{
     default::ValueDefault,
     local::NonLocalValue,
     operation::{OperationValue, OperationVc, ResolveOperationVcFuture},
+    ord::OrdResolvedVc,
     raw::{CellId, RawVc, RawVcUnpacked, ReadRawVcFuture, ResolveRawVcFuture},
     read::{ReadOwnedVcFuture, ReadVcFuture, VcDefaultRead, VcRead, VcTransparentRead},
     resolved::ResolvedVc,
     traits::{Dynamic, Upcast, UpcastStrict, VcValueTrait, VcValueType},
 };
-#[cfg(debug_assertions)]
-use crate::debug::{ValueDebug, ValueDebugFormat, ValueDebugFormatString};
 use crate::{
     keyed::{KeyedAccess, KeyedEq},
     registry,
@@ -496,23 +498,25 @@ where
 }
 
 macro_rules! into_future {
-    ($ty:ty) => {
-        impl<T> IntoFuture for $ty
+    ($ty:ty, |$this:ident| $into_future:expr $(,)?) => {
+        impl<T> ::std::future::IntoFuture for $ty
         where
-            T: VcValueType,
+            T: $crate::VcValueType,
         {
-            type Output = <ReadVcFuture<T> as Future>::Output;
-            type IntoFuture = ReadVcFuture<T>;
+            type Output = <$crate::ReadVcFuture<T> as ::std::future::Future>::Output;
+            type IntoFuture = $crate::ReadVcFuture<T>;
             fn into_future(self) -> Self::IntoFuture {
-                self.node.into_read().into()
+                let $this = self;
+                $into_future
             }
         }
     };
 }
+pub(crate) use into_future;
 
-into_future!(Vc<T>);
-into_future!(&Vc<T>);
-into_future!(&mut Vc<T>);
+into_future!(Vc<T>, |this| this.node.into_read().into());
+into_future!(&Vc<T>, |this| this.node.into_read().into());
+into_future!(&mut Vc<T>, |this| this.node.into_read().into());
 
 impl<T> Vc<T>
 where

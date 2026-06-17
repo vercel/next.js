@@ -232,7 +232,7 @@ impl RawVc {
     }
 
     #[inline]
-    fn bits(self) -> u64 {
+    pub(crate) fn bits(self) -> u64 {
         self.0.get()
     }
 
