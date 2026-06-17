@@ -186,10 +186,23 @@ const publishRetryDelaySeconds = 15
     })
   )
 
-  const results = [...nativeResults, ...wasmResults]
-  if (results.some((item) => item.status === 'rejected')) {
-    console.error(`Not all packages published successfully`, results)
+  if (nativeResults.some((item) => item.status === 'rejected')) {
+    console.error(
+      `Not all native packages published successfully`,
+      nativeResults
+    )
     process.exit(1)
+  }
+
+  if (wasmResults.some((item) => item.status === 'rejected')) {
+    console.error(`Not all wasm packages published successfully`, wasmResults)
+    if (process.env.BAIL_ON_NATIVE_WASM_PUBLISH_FAILURE === 'true') {
+      process.exit(1)
+    } else {
+      console.warn(
+        'Continuing with release even though some wasm packages failed to publish because BAIL_ON_NATIVE_WASM_PUBLISH_FAILURE is not set to true'
+      )
+    }
   }
 
   // Update optional dependencies versions
