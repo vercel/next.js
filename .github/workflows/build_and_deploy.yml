@@ -632,7 +632,6 @@ jobs:
           repositories: next.js
           permission-contents: write
 
-      - run: ./scripts/publish-native.js
       - run: ./scripts/publish-release.js
         env:
           RELEASE_GITHUB_TOKEN: ${{ steps.release-app-token.outputs.token }}
