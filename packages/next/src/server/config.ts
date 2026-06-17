@@ -1779,7 +1779,7 @@ export default async function loadConfig(
   // Test for an explicit `silent == false` since the deffault in loadConfig is true
   if (!meta.cacheHit && opts.silent === false) {
     Log.event(
-      `Evaluating ${meta.configFileName ?? 'next.config'} took ${hrtimeBigIntDurationToString(durationNanos)}`
+      `Running ${meta.configFileName ?? 'next.config'} took ${hrtimeBigIntDurationToString(durationNanos)}`
     )
   }
   return config
