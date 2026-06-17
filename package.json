@@ -77,7 +77,6 @@
     "types": "lerna run types --stream",
     "types:test-lib": "tsc --project test/lib/tsconfig.json",
     "check-precompiled": "./scripts/check-pre-compiled.sh",
-    "prepublishOnly": "turbo run build",
     "lint-staged": "lint-staged",
     "next-with-deps": "./scripts/next-with-deps.sh",
     "next": "cross-env NEXT_PRIVATE_LOCAL_DEV=1 NEXT_TELEMETRY_DISABLED=1 NODE_OPTIONS=\"--trace-deprecation --enable-source-maps\" next",
