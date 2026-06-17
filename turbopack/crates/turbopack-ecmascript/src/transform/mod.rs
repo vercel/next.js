@@ -27,7 +27,7 @@ use turbo_tasks::{ResolvedVc, Vc};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
     environment::Environment,
-    issue::{Issue, IssueExt, IssueSeverity, IssueSource, IssueStage, StyledString},
+    issue::{Issue, IssueSeverity, IssueSource, IssueStage, StyledString},
     source::Source,
 };
 
@@ -461,22 +461,9 @@ async fn apply_rust_react_compiler(
     let options = react_compiler_swc_options(ctx, compilation_mode, target);
     let result = react_compiler_swc::transform(module, ctx.source_text, options);
 
-    for diag in &result.diagnostics {
-        let issue_source = match diag.span {
-            Some((start, end)) => IssueSource::from_swc_offsets(ctx.source, start, end),
-            None => IssueSource::from_source_only(ctx.source),
-        };
-
-        // React Compiler errors are non-fatal; downgrade to Warning.
-        let severity = IssueSeverity::Warning;
-        ReactCompilerIssue {
-            source: issue_source,
-            message: RcStr::from(diag.message.as_str()),
-            severity,
-        }
-        .resolved_cell()
-        .emit();
-    }
+    // TODO: Emit these diagnostics with an Info level once there's a way of adjusting log levels in
+    //       general. By default React Compiler is silent, as de-opts align closely with feedback
+    //       rom tools like React's lint rules.
 
     if let Some(compiled_module) = result.module {
         *program = Program::Module(compiled_module);
