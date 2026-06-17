@@ -397,20 +397,23 @@ function parseRequestHeaders(
   headers: IncomingHttpHeaders,
   options: ParseRequestHeadersOptions
 ): ParsedRequestHeaders {
+  const isRSCRequest = isRSCRequestHeader(headers[RSC_HEADER])
+
   // runtime prefetch requests are *not* treated as prefetch requests
   // (TODO: this is confusing, we should refactor this to express this better)
-  const isPrefetchRequest = headers[NEXT_ROUTER_PREFETCH_HEADER] === '1'
+  const isPrefetchRequest =
+    isRSCRequest && headers[NEXT_ROUTER_PREFETCH_HEADER] === '1'
 
-  const isAppShellPrefetchRequest = headers[NEXT_ROUTER_PREFETCH_HEADER] === '3'
+  const isAppShellPrefetchRequest =
+    isRSCRequest && headers[NEXT_ROUTER_PREFETCH_HEADER] === '3'
 
   // App Shell prefetches are a subtype of runtime prefetch — same code path,
   // but with less resolved content (omitting link data)
   const isRuntimePrefetchRequest =
-    headers[NEXT_ROUTER_PREFETCH_HEADER] === '2' || isAppShellPrefetchRequest
+    isRSCRequest &&
+    (headers[NEXT_ROUTER_PREFETCH_HEADER] === '2' || isAppShellPrefetchRequest)
 
   const isHmrRefresh = headers[NEXT_HMR_REFRESH_HEADER] !== undefined
-
-  const isRSCRequest = isRSCRequestHeader(headers[RSC_HEADER])
 
   const shouldProvideFlightRouterState =
     isRSCRequest && (!isPrefetchRequest || !options.isRoutePPREnabled)
@@ -421,7 +424,7 @@ function parseRequestHeaders(
 
   // Checks if this is a prefetch of the Route Tree by the Segment Cache
   const isRouteTreePrefetchRequest =
-    headers[NEXT_ROUTER_SEGMENT_PREFETCH_HEADER] === '/_tree'
+    isRSCRequest && headers[NEXT_ROUTER_SEGMENT_PREFETCH_HEADER] === '/_tree'
 
   const csp =
     headers['content-security-policy'] ||
