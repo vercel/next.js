@@ -88,6 +88,34 @@ const nextConfig: NextConfig = {
 export default nextConfig
 ```
 
+## Auditing existing `<Link prefetch={true}>` calls
+
+When `partialPrefetching` is enabled, `<Link prefetch={true}>` now prefetches the App Shell plus cached content, but not dynamic data. Review each existing usage and decide whether the prop is still providing value.
+
+Previously, `<Link prefetch={true}>` also prefetched dynamic data.
+
+| Destination                                                                                 | Recommendation                                                                                                                               |
+| ------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
+| Fully static (no `"use cache"`, no Suspense)                                                | Drop `prefetch={true}`. The default `<Link>` already loads the full page because the App Shell is the page.                                  |
+| Has cached content worth shipping ahead of the click                                        | Keep `prefetch={true}`. The cached parts come with the App Shell.                                                                            |
+| Reads request data (`cookies()`, `headers()`, `searchParams`) the user will need on arrival | Keep `prefetch={true}` and opt the route into [runtime prefetching](/docs/app/guides/runtime-prefetching) with `prefetch = 'allow-runtime'`. |
+
+Before:
+
+```tsx filename="app/nav.tsx"
+<Link href="/about" prefetch={true}>About</Link>           {/* static page */}
+<Link href="/products" prefetch={true}>Products</Link>      {/* cached list */}
+<Link href="/dashboard" prefetch={true}>Dashboard</Link>    {/* reads cookies */}
+```
+
+After:
+
+```tsx filename="app/nav.tsx"
+<Link href="/about">About</Link>                            {/* default is enough */}
+<Link href="/products" prefetch={true}>Products</Link>       {/* unchanged */}
+<Link href="/dashboard" prefetch={true}>Dashboard</Link>     {/* and add `prefetch = 'allow-runtime'` to /dashboard */}
+```
+
 ## Next steps
 
 - [Runtime prefetching](/docs/app/guides/runtime-prefetching) for per-link runtime prefetches and App Shells in depth.

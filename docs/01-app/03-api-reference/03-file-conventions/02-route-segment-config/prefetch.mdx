@@ -54,6 +54,16 @@ Allows Next.js to prefetch this segment at runtime. Today, setting this option c
 export const prefetch = 'allow-runtime'
 ```
 
+### `'partial'`
+
+Opts the segment into [Partial Prefetching](/docs/app/guides/adopting-partial-prefetching) without enabling the global [`partialPrefetching`](/docs/app/api-reference/config/next-config-js/partialPrefetching) flag. A `<Link>` pointing at a segment with `prefetch = 'partial'` loads the per-route [App Shell](/docs/app/glossary#app-shell) instead of the legacy full prefetch. Set this on the destination, not the link.
+
+Use this for incremental adoption when you can't enable `partialPrefetching` for the entire app at once. Once every route in scope has `prefetch = 'partial'`, enable the global flag and remove the per-route exports.
+
+```tsx filename="page.tsx"
+export const prefetch = 'partial'
+```
+
 ### `'force-static'`
 
 Always prefetch this segment statically, even if it has not been validated with `instant`. Use this when you know the segment produces a valid static shell but do not want to set up instant validation.
@@ -76,7 +86,12 @@ In general, both of these are special circumstances. The default behavior — wh
 ## TypeScript
 
 ```tsx
-type Prefetch = 'auto' | 'force-disabled' | 'force-static' | 'allow-runtime'
+type Prefetch =
+  | 'auto'
+  | 'allow-runtime'
+  | 'partial'
+  | 'force-static'
+  | 'force-disabled'
 
 export const prefetch: Prefetch = 'allow-runtime'
 ```
