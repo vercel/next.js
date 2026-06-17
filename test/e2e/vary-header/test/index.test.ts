@@ -1,4 +1,5 @@
 import { nextTestSetup } from 'e2e-utils'
+import { expectVaryHeaderToContain } from 'next-test-utils'
 import path from 'path'
 
 describe('Vary Header Tests', () => {
@@ -9,19 +10,26 @@ describe('Vary Header Tests', () => {
 
   it('should preserve custom vary header in API routes', async () => {
     const res = await next.fetch('/api/custom-vary')
-    expect(res.headers.get('vary')).toContain('Custom-Header')
+    expectVaryHeaderToContain(res.headers.get('vary'), ['custom-header'])
   })
 
-  it('should preserve custom vary header', async () => {
+  it('should preserve custom vary header and append RSC headers in app route handlers', async () => {
     const res = await next.fetch('/normal')
     const varyHeader = res.headers.get('vary')
 
     // Custom header is preserved
-    expect(varyHeader).toContain('User-Agent')
+    expectVaryHeaderToContain(varyHeader, ['user-agent'])
     expect(res.headers.get('cache-control')).toBe('s-maxage=3600')
+
+    // Next.js internal headers are appended
+    expectVaryHeaderToContain(varyHeader, [
+      'rsc',
+      'next-router-state-tree',
+      'next-router-prefetch',
+    ])
   })
 
-  it('should preserve middleware vary header', async () => {
+  it('should preserve middleware vary header in combination with route handlers', async () => {
     const res = await next.fetch('/normal')
     const varyHeader = res.headers.get('vary')
     const customHeader = res.headers.get('my-custom-header')
@@ -30,7 +38,13 @@ describe('Vary Header Tests', () => {
     expect(customHeader).toBe('test')
 
     // Both middleware and route handler vary headers are preserved
-    expect(varyHeader).toContain('my-custom-header')
-    expect(varyHeader).toContain('User-Agent')
+    expectVaryHeaderToContain(varyHeader, ['my-custom-header', 'user-agent'])
+
+    // Next.js internal headers are still present
+    expectVaryHeaderToContain(varyHeader, [
+      'rsc',
+      'next-router-state-tree',
+      'next-router-prefetch',
+    ])
   })
 })

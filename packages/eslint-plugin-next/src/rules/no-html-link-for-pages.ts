@@ -37,7 +37,7 @@ const cachedGetUrlFromAppDirectory = memoize(getUrlFromAppDirectory)
 
 const url = 'https://nextjs.org/docs/messages/no-html-link-for-pages'
 
-export = defineRule({
+export default defineRule({
   meta: {
     docs: {
       description:

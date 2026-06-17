@@ -1,12 +1,12 @@
 import { nextTestSetup } from 'e2e-utils'
-import { assertHasRedbox, getRedboxHeader, retry } from 'next-test-utils'
+import { waitForRedbox, getRedboxHeader, retry } from 'next-test-utils'
 
-describe('unstable_expireTag-rsc', () => {
+describe('revalidateTag-rsc', () => {
   const { next, isNextDev, isNextDeploy } = nextTestSetup({
     files: __dirname,
   })
 
-  it('should revalidate fetch cache if unstable_expireTag invoked via server action', async () => {
+  it('should revalidate fetch cache if revalidateTag invoked via server action', async () => {
     const browser = await next.browser('/')
     const randomNumber = await browser.elementById('data').text()
     await browser.refresh()
@@ -23,25 +23,25 @@ describe('unstable_expireTag-rsc', () => {
 
   if (!isNextDeploy) {
     // skipped in deploy because it uses `next.cliOutput`
-    it('should error if unstable_expireTag is called during render', async () => {
+    it('should error if revalidateTag is called during render', async () => {
       const browser = await next.browser('/')
       await browser.elementByCss('#revalidate-via-page').click()
 
       if (isNextDev) {
-        await assertHasRedbox(browser)
+        await waitForRedbox(browser)
         await expect(getRedboxHeader(browser)).resolves.toContain(
-          'Route /revalidate_via_page used "unstable_expireTag data"'
+          'Route /revalidate_via_page used "revalidateTag data"'
         )
       } else {
         await retry(async () => {
           expect(
             await browser.eval('document.documentElement.innerHTML')
-          ).toContain('Application error: a server-side exception has occurred')
+          ).toContain('This page couldn\u2019t load')
         })
       }
 
       expect(next.cliOutput).toContain(
-        'Route /revalidate_via_page used "unstable_expireTag data"'
+        'Route /revalidate_via_page used "revalidateTag data"'
       )
     })
   }

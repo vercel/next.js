@@ -1,20 +1,20 @@
-const ReactRefreshWebpackPlugin = require("@pmmmwh/react-refresh-webpack-plugin");
+const ReactRefreshWebpackPlugin = require('@pmmmwh/react-refresh-webpack-plugin')
 
 module.exports = {
-  mode: "development",
+  mode: 'development',
   resolve: {
-    extensions: [".jsx", "..."],
+    extensions: ['.jsx', '...'],
   },
   module: {
     unsafeCache: true,
     rules: [
       {
         test: /\.jsx$/,
-        loader: "swc-loader",
+        loader: 'swc-loader',
         options: {
           jsc: {
             parser: {
-              syntax: "ecmascript",
+              syntax: 'ecmascript',
               jsx: true,
               dynamicImport: true,
               privateMethod: true,
@@ -29,7 +29,7 @@ module.exports = {
             externalHelpers: true,
             transform: {
               react: {
-                runtime: "automatic",
+                runtime: 'automatic',
                 refresh: true,
               },
             },
@@ -42,7 +42,7 @@ module.exports = {
     hot: true,
   },
   cache: {
-    type: "filesystem",
+    type: 'filesystem',
   },
   node: {
     global: true,
@@ -51,4 +51,4 @@ module.exports = {
     futureDefaults: true,
   },
   plugins: [new ReactRefreshWebpackPlugin()],
-};
+}

@@ -1,14 +1,14 @@
 pub(crate) mod data;
 
 use std::{
-    collections::{hash_map::Entry, BTreeMap},
+    collections::{BTreeMap, hash_map::Entry},
     fs::File,
     hash::BuildHasherDefault,
     path::{Path, PathBuf},
     time::{Duration, UNIX_EPOCH},
 };
 
-use anyhow::{anyhow, Context};
+use anyhow::Context;
 use chrono::{DateTime, Utc};
 use indexmap::IndexSet;
 use rustc_hash::{FxHashMap, FxHasher};
@@ -84,7 +84,7 @@ pub fn process_all(path: PathBuf) {
                     let file = File::open(&data_file.path).unwrap();
                     let reader = std::io::BufReader::new(file);
                     let data: BaseBenchmarks = serde_json::from_reader(reader)
-                        .with_context(|| anyhow!("unable to read {}", data_file.path.display()))
+                        .with_context(|| format!("unable to read {}", data_file.path.display()))
                         .unwrap();
                     data
                 })

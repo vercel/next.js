@@ -1,0 +1,6 @@
+{
+  "version": 3,
+  "sources": [],
+  "sections": [
+    {"offset": {"line": 1, "column": 0}, "map": {"version":3,"sources":["turbopack:///[project]/turbopack/crates/turbopack-tests/tests/snapshot/css/css-modules/input/style.module.css"],"sourcesContent":[".module-style {\n  grid-template-areas: 'checkbox avatar content actions menu';\n}\n"],"names":[],"mappings":"AAAA"}}]
+}

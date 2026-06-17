@@ -18,17 +18,18 @@ export default function transformer(file: FileInfo, _api: API) {
   })
 
   if (metadataExport.size() !== 1) {
-    return
+    return file.source
   }
 
   const metadataObject = metadataExport.find(j.ObjectExpression).get(0).node
   if (!metadataObject) {
     console.error('Could not find metadata object')
-    return
+    return file.source
   }
 
   let metadataProperties = metadataObject.properties
   let viewportProperties
+  let hasChanges = false
 
   const viewport = metadataProperties.find(
     (prop) => prop.key.name === 'viewport'
@@ -38,6 +39,7 @@ export default function transformer(file: FileInfo, _api: API) {
     metadataProperties = metadataProperties.filter(
       (prop) => prop.key.name !== 'viewport'
     )
+    hasChanges = true
   } else {
     viewportProperties = []
   }
@@ -50,6 +52,7 @@ export default function transformer(file: FileInfo, _api: API) {
     metadataProperties = metadataProperties.filter(
       (prop) => prop.key.name !== 'colorScheme'
     )
+    hasChanges = true
   }
 
   const themeColor = metadataProperties.find(
@@ -60,6 +63,12 @@ export default function transformer(file: FileInfo, _api: API) {
     metadataProperties = metadataProperties.filter(
       (prop) => prop.key.name !== 'themeColor'
     )
+    hasChanges = true
+  }
+
+  // Only apply changes if there were actual modifications
+  if (!hasChanges) {
+    return file.source
   }
 
   // Update the metadata export

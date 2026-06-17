@@ -1,6 +1,6 @@
 import { TutorialStep } from "./tutorial-step";
 
-export default function ConnectSupabaseSteps() {
+export function ConnectSupabaseSteps() {
   return (
     <ol className="flex flex-col gap-6">
       <TutorialStep title="Create Supabase project">
@@ -35,7 +35,7 @@ export default function ConnectSupabaseSteps() {
             className="font-bold hover:underline text-foreground/80"
             rel="noreferrer"
           >
-            your Supabase project's API Settings
+            your Supabase project&apos;s API Settings
           </a>
           .
         </p>

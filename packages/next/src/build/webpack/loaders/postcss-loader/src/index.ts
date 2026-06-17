@@ -83,7 +83,6 @@ export default async function loader(
       }
 
       for (const message of result.messages) {
-        // eslint-disable-next-line default-case
         switch (message.type) {
           case 'dependency':
             this.addDependency(message.file)
@@ -109,10 +108,12 @@ export default async function loader(
                 message.info
               )
             }
+            break
+          default:
+            break
         }
       }
 
-      // eslint-disable-next-line no-undefined
       let map = result.map ? result.map.toJSON() : undefined
 
       if (map && useSourceMap) {

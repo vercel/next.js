@@ -1,11 +1,9 @@
 'use client'
 import { useSelectedLayoutSegments } from 'next/navigation'
-import { Suspense, use } from 'react'
+import { Suspense } from 'react'
 
 function Dynamic() {
   const segments = useSelectedLayoutSegments()
-
-  use(new Promise((resolve) => setTimeout(resolve, 1000)))
 
   return <div data-slug={segments.join('/')}>{segments.join('/')}</div>
 }

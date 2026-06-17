@@ -1,8 +1,8 @@
-import { bar } from "bar";
-import "./shared";
+import { bar } from 'bar'
+import './shared'
 
-bar(true);
+bar(true)
 
-import("./import").then(({ foo }) => {
-  foo(true);
-});
+import('./import').then(({ foo }) => {
+  foo(true)
+})

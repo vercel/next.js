@@ -54,7 +54,7 @@ describe('app edge middleware', () => {
         `,
         'middleware.js': `
           import { NextResponse } from 'next/server';
-          import { parse } from 'url';
+          import { URL } from 'url';
           export async function middleware() { 
             return NextResponse.next() 
           }

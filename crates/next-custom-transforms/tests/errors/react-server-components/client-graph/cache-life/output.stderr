@@ -1,0 +1,8 @@
+  x You're importing a module that depends on "cacheLife". This API is only available in Server Components in the App Router, but you are using it in the Pages Router.
+  | Learn more: https://nextjs.org/docs/app/building-your-application/rendering/server-components
+  | 
+  | 
+   ,-[input.js:1:1]
+ 1 | import { cacheLife } from 'next/cache'
+   :          ^^^^^^^^^
+   `----

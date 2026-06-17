@@ -1,13 +1,11 @@
 import { nextTestSetup } from 'e2e-utils'
 import https from 'https'
-import { renderViaHTTP, shouldRunTurboDevTest } from 'next-test-utils'
+import { renderViaHTTP } from 'next-test-utils'
 
 describe('experimental-https-server (provided certificate)', () => {
   const { next } = nextTestSetup({
     files: __dirname,
-    startCommand: `pnpm next ${
-      shouldRunTurboDevTest() ? 'dev --turbo' : 'dev'
-    } --experimental-https --experimental-https-key ./certificates/localhost-key.pem --experimental-https-cert ./certificates/localhost.pem`,
+    startCommand: `pnpm next dev --experimental-https --experimental-https-key ./certificates/localhost-key.pem --experimental-https-cert ./certificates/localhost.pem`,
   })
   const agent = new https.Agent({
     rejectUnauthorized: false,

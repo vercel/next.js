@@ -24,7 +24,7 @@ export default function () {
     // browser context before continuing.
     if (
       typeof self !== 'undefined' &&
-      // AMP / No-JS mode does not inject these helpers:
+      // No-JS mode does not inject these helpers:
       '$RefreshHelpers$' in self
     ) {
       // @ts-ignore __webpack_module__ is global

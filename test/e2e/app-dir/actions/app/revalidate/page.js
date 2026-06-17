@@ -1,4 +1,4 @@
-import { unstable_expirePath, unstable_expireTag } from 'next/cache'
+import { revalidatePath, updateTag } from 'next/cache'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 
@@ -6,6 +6,7 @@ import { cookies } from 'next/headers'
 import RedirectClientComponent from './client'
 
 export default async function Page() {
+  const cookie = (await cookies()).get('random')
   const data = await fetch(
     'https://next-data-api-endpoint.vercel.app/api/random?page',
     {
@@ -22,7 +23,7 @@ export default async function Page() {
 
   return (
     <>
-      <p>/revalidate</p>
+      <h1 id="title">revalidate</h1>
       <p>
         {' '}
         revalidate (tags: thankyounext): <span id="thankyounext">
@@ -40,9 +41,7 @@ export default async function Page() {
       </p>
       <p>
         random cookie:{' '}
-        <span id="random-cookie">
-          {JSON.stringify((await cookies()).get('random'))}
-        </span>
+        <span id="random-cookie">{JSON.stringify({ cookie })}</span>
       </p>
       <form>
         <button
@@ -60,7 +59,7 @@ export default async function Page() {
           id="revalidate-thankyounext"
           formAction={async () => {
             'use server'
-            unstable_expireTag('thankyounext')
+            updateTag('thankyounext')
           }}
         >
           revalidate thankyounext
@@ -71,7 +70,7 @@ export default async function Page() {
           id="revalidate-justputit"
           formAction={async () => {
             'use server'
-            unstable_expireTag('justputit')
+            updateTag('justputit')
           }}
         >
           revalidate justputit
@@ -82,7 +81,7 @@ export default async function Page() {
           id="revalidate-path"
           formAction={async () => {
             'use server'
-            unstable_expirePath('/revalidate')
+            revalidatePath('/revalidate')
           }}
         >
           revalidate path
@@ -93,7 +92,7 @@ export default async function Page() {
           id="revalidate-path-redirect"
           formAction={async () => {
             'use server'
-            unstable_expireTag('justputit')
+            updateTag('justputit')
             redirect('/revalidate')
           }}
         >
@@ -116,7 +115,7 @@ export default async function Page() {
           id="redirect-revalidate"
           formAction={async () => {
             'use server'
-            unstable_expireTag('justputit')
+            updateTag('justputit')
             redirect('/revalidate?foo=bar')
           }}
         >
@@ -126,7 +125,7 @@ export default async function Page() {
       <RedirectClientComponent
         action={async () => {
           'use server'
-          unstable_expireTag('justputit')
+          updateTag('justputit')
         }}
       />
     </>

@@ -1,4 +1,5 @@
 {
   "minifyType": "NoMinify",
-  "runtime": "NodeJs"
+  "runtime": "NodeJs",
+  "productionChunking": true
 }

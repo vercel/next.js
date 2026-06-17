@@ -1,8 +1,9 @@
 use proc_macro::TokenStream;
 use proc_macro2::TokenStream as TokenStream2;
 use quote::quote;
-use syn::{parse_macro_input, Data, DeriveInput, FieldsNamed, FieldsUnnamed};
-use turbo_tasks_macros_shared::{generate_exhaustive_destructuring, match_expansion};
+use syn::{Data, DeriveInput, FieldsNamed, FieldsUnnamed, parse_macro_input};
+
+use crate::expand::{generate_exhaustive_destructuring, match_expansion};
 
 /// This macro generates the implementation of the `DeterministicHash` trait for
 /// a given type.
@@ -12,7 +13,13 @@ pub fn derive_deterministic_hash(input: TokenStream) -> TokenStream {
     let derive_input = parse_macro_input!(input as DeriveInput);
 
     let ident = &derive_input.ident;
-    let match_hash = match_expansion(&derive_input, &hash_named, &hash_unnamed, &hash_unit);
+    let match_hash = match_expansion(
+        ident,
+        &derive_input.data,
+        &hash_named,
+        &hash_unnamed,
+        &hash_unit,
+    );
     let discriminant = match derive_input.data {
         Data::Enum(_) => {
             quote! {
@@ -23,6 +30,7 @@ pub fn derive_deterministic_hash(input: TokenStream) -> TokenStream {
     };
 
     quote! {
+        #[automatically_derived]
         impl turbo_tasks_hash::DeterministicHash for #ident {
             fn deterministic_hash<H: turbo_tasks_hash::DeterministicHasher>(&self, __state__: &mut H) {
                 #discriminant

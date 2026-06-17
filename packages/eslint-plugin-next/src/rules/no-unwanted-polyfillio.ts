@@ -73,7 +73,7 @@ const url = 'https://nextjs.org/docs/messages/no-unwanted-polyfillio'
 //------------------------------------------------------------------------------
 // Rule Definition
 //------------------------------------------------------------------------------
-export = defineRule({
+export default defineRule({
   meta: {
     docs: {
       description: 'Prevent duplicate polyfills from Polyfill.io.',

@@ -1,17 +1,26 @@
 'use client'
 
-import React, { type JSX } from 'react'
+import React, { startTransition, type JSX } from 'react'
 import { useUntrackedPathname } from './navigation-untracked'
 import { isNextRouterError } from './is-next-router-error'
 import { handleHardNavError } from './nav-failure-handler'
-import { HandleISRError } from './handle-isr-error'
+import { handleISRError } from './handle-isr-error'
+import { isBot } from '../../shared/lib/router/utils/is-bot'
+import {
+  AppRouterContext,
+  type AppRouterInstance,
+} from '../../shared/lib/app-router-context.shared-runtime'
 
-export type ErrorComponent = React.ComponentType<{
-  error: Error
-  // global-error, there's no `reset` function;
-  // regular error boundary, there's a `reset` function.
-  reset?: () => void
-}>
+const isBotUserAgent =
+  typeof window !== 'undefined' && isBot(window.navigator.userAgent)
+
+export type ErrorInfo = {
+  error: unknown
+  reset: () => void
+  retry: () => void
+}
+
+export type ErrorComponent = React.ComponentType<ErrorInfo>
 
 export interface ErrorBoundaryProps {
   children?: React.ReactNode
@@ -26,7 +35,7 @@ interface ErrorBoundaryHandlerProps extends ErrorBoundaryProps {
 }
 
 interface ErrorBoundaryHandlerState {
-  error: Error | null
+  error: null | { thrownValue: unknown }
   previousPathname: string | null
 }
 
@@ -34,19 +43,27 @@ export class ErrorBoundaryHandler extends React.Component<
   ErrorBoundaryHandlerProps,
   ErrorBoundaryHandlerState
 > {
+  static contextType = AppRouterContext
+  declare context: AppRouterInstance | null
+
   constructor(props: ErrorBoundaryHandlerProps) {
     super(props)
-    this.state = { error: null, previousPathname: this.props.pathname }
+    this.state = {
+      error: null,
+      previousPathname: this.props.pathname,
+    }
   }
 
-  static getDerivedStateFromError(error: Error) {
-    if (isNextRouterError(error)) {
+  static getDerivedStateFromError(
+    thrownValue: unknown
+  ): Partial<ErrorBoundaryHandlerState> {
+    if (isNextRouterError(thrownValue)) {
       // Re-throw if an expected internal Next.js router error occurs
       // this means it should be handled by a different boundary (such as a NotFound boundary in a parent segment)
-      throw error
+      throw thrownValue
     }
 
-    return { error }
+    return { error: { thrownValue } }
   }
 
   static getDerivedStateFromProps(
@@ -60,7 +77,7 @@ export class ErrorBoundaryHandler extends React.Component<
     // the error boundary and instead should fallback
     // to a hard navigation to attempt recovering
     if (process.env.__NEXT_APP_NAV_FAIL_HANDLING) {
-      if (error && handleHardNavError(error)) {
+      if (error && handleHardNavError(error.thrownValue)) {
         // clear error so we don't render anything
         return {
           error: null,
@@ -91,17 +108,30 @@ export class ErrorBoundaryHandler extends React.Component<
     this.setState({ error: null })
   }
 
+  retry = () => {
+    startTransition(() => {
+      this.context?.refresh()
+      this.reset()
+    })
+  }
+
   // Explicit type is needed to avoid the generated `.d.ts` having a wide return type that could be specific to the `@types/react` version.
   render(): React.ReactNode {
-    if (this.state.error) {
+    //When it's bot request, segment level error boundary will keep rendering the children,
+    // the final error will be caught by the root error boundary and determine wether need to apply graceful degrade.
+    if (this.state.error && !isBotUserAgent) {
+      const thrownValue = this.state.error.thrownValue
+      handleISRError({ error: thrownValue })
+
       return (
         <>
-          <HandleISRError error={this.state.error} />
           {this.props.errorStyles}
           {this.props.errorScripts}
           <this.props.errorComponent
-            error={this.state.error}
+            // TODO(NAR-804): Docs say this is an Error object, but we don't guarantee that
+            error={thrownValue}
             reset={this.reset}
+            retry={this.retry}
           />
         </>
       )
@@ -133,6 +163,7 @@ export function ErrorBoundary({
   // boundaries for the missing params shell. When this runs on the client
   // (where these errors can occur), we will get the correct pathname.
   const pathname = useUntrackedPathname()
+
   if (errorComponent) {
     return (
       <ErrorBoundaryHandler

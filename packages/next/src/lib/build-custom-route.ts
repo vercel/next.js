@@ -37,15 +37,27 @@ export function buildCustomRoute(
     delimiter: '/', // default is `/#?`, but Next does not pass query info
   })
 
-  let source = compiled.source
-  if (!route.internal) {
-    source = modifyRouteRegex(
-      source,
-      type === 'redirect' ? restrictedRedirectPaths : undefined
-    )
-  }
+  // If this is an internal rewrite and it already provides a regex, use it
+  // otherwise, normalize the source to a regex.
+  let regex: string
+  if (
+    !route.internal ||
+    type !== 'rewrite' ||
+    !('regex' in route) ||
+    typeof route.regex !== 'string'
+  ) {
+    let source = compiled.source
+    if (!route.internal) {
+      source = modifyRouteRegex(
+        source,
+        type === 'redirect' ? restrictedRedirectPaths : undefined
+      )
+    }
 
-  const regex = normalizeRouteRegex(source)
+    regex = normalizeRouteRegex(source)
+  } else {
+    regex = route.regex
+  }
 
   if (type !== 'redirect') {
     return { ...route, regex }

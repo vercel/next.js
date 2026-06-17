@@ -1,15 +1,15 @@
-a = ("" | `${a}x`)
+a (const after eval) = ("" | `${a}x`)
 
-b = (0 | ???*0*)
+b (const after eval) = (0 | ???*0*)
 - *0* unsupported assign operation
   ⚠️  This value might have side effects
 
-c = (0 | ???*0*)
+c (const after eval) = (0 | ???*0*)
 - *0* updated with update expression
   ⚠️  This value might have side effects
 
-d = (0 | 1)
+d (const after eval) = (0 | 1)
 
-e = (1 | 2)
+e (const after eval) = (1 | 2)
 
-f = (1 | 2)
+f (const after eval) = (1 | 2)

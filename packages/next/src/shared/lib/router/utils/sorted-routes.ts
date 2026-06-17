@@ -201,6 +201,9 @@ class UrlNode {
   }
 }
 
+/**
+ * @deprecated Use `sortSortableRoutes` or `sortPages` instead.
+ */
 export function getSortedRoutes(
   normalizedPages: ReadonlyArray<string>
 ): string[] {
@@ -208,7 +211,7 @@ export function getSortedRoutes(
   // Eg you can't have pages/[post]/abc.js and pages/[hello]/something-else.js
   // Only 1 dynamic segment per nesting level
 
-  // So in the case that is test/integration/dynamic-routing it'll be this:
+  // So in the case that is test/e2e/dynamic-routing it'll be this:
   // pages/[post]/comments.js
   // pages/blog/[post]/comment/[id].js
   // Both are fine because `pages/[post]` and `pages/blog` are on the same level
@@ -223,6 +226,9 @@ export function getSortedRoutes(
   return root.smoosh()
 }
 
+/**
+ * @deprecated Use `sortSortableRouteObjects` or `sortPageObjects` instead.
+ */
 export function getSortedRouteObjects<T>(
   objects: T[],
   getter: (obj: T) => string

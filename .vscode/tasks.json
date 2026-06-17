@@ -1,0 +1,31 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "types",
+      "command": "pnpm",
+      "args": ["typescript", "--watch"],
+      "isBackground": true,
+      "group": {
+        "kind": "build"
+      },
+      "problemMatcher": ["$tsc-watch"]
+    },
+    {
+      "label": "types-next",
+      "command": "pnpm",
+      "args": ["types", "--watch"],
+      "options": {
+        "cwd": "${workspaceFolder}/packages/next"
+      },
+      "isBackground": true,
+      "group": {
+        "kind": "build"
+      },
+      "problemMatcher": {
+        "base": "$tsc-watch",
+        "fileLocation": ["relative", "${workspaceFolder}/packages/next"]
+      }
+    }
+  ]
+}

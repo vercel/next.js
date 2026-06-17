@@ -1,6 +1,6 @@
 import { redirect } from 'next/navigation'
 
-export default async function Page() {
+export default async function Page(): Promise<never> {
   // fake delay 1s to trigger loading state
   await new Promise((res) => setTimeout(res, 1000))
 

@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use anyhow::Result;
 use serde::Serialize;
-use turbo_tasks::{FxIndexMap, IntoTraitRef, ResolvedVc, TraitRef, Vc};
+use turbo_tasks::{FxIndexMap, ResolvedVc, TraitRef, Vc};
 use turbopack_core::version::{
     MergeableVersionedContent, PartialUpdate, TotalUpdate, Update, Version, VersionedContent,
     VersionedContentMerger,
@@ -47,14 +47,13 @@ impl ChunkListUpdate<'_> {
 }
 
 /// Computes the update of a chunk list from one version to another.
-#[turbo_tasks::function]
 pub(super) async fn update_chunk_list(
-    content: Vc<EcmascriptDevChunkListContent>,
-    from_version: Vc<Box<dyn Version>>,
+    content: ResolvedVc<EcmascriptDevChunkListContent>,
+    from_version: ResolvedVc<Box<dyn Version>>,
 ) -> Result<Vc<Update>> {
     let to_version = content.version();
     let from_version = if let Some(from) =
-        Vc::try_resolve_downcast_type::<EcmascriptDevChunkListVersion>(from_version).await?
+        ResolvedVc::try_downcast_type::<EcmascriptDevChunkListVersion>(from_version)
     {
         from
     } else {
@@ -171,5 +170,5 @@ pub(super) async fn update_chunk_list(
         })
     };
 
-    Ok(update.into())
+    Ok(update.cell())
 }

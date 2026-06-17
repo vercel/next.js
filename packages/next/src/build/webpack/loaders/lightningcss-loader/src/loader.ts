@@ -19,6 +19,8 @@ import {
 } from '../../css-loader/src/utils'
 import { stringifyRequest } from '../../../stringify-request'
 import { ECacheKey } from './interface'
+import { getBindingsSync } from '../../../../../build/swc'
+import { installBindings } from '../../../../../build/swc/install-bindings'
 
 const encoder = new TextEncoder()
 
@@ -266,6 +268,10 @@ export async function LightningCssLoader(
 ): Promise<void> {
   const done = this.async()
   const options = this.getOptions()
+  // Install bindings early so they are definitely available to the loader.
+  // When run by webpack in next this is already done with correct configuration so this is a no-op.
+  // In turbopack loaders are run in a subprocess so it may or may not be done.
+  await installBindings()
   const { implementation, targets: userTargets, ...opts } = options
 
   options.modules ??= {}
@@ -305,11 +311,8 @@ export async function LightningCssLoader(
       ),
     })
   }
-  const { loadBindings } = require('next/dist/build/swc')
-
   const transform =
-    implementation?.transformCss ??
-    (await loadBindings()).css.lightning.transform
+    implementation?.transformCss ?? getBindingsSync().css.lightning.transform
 
   const replacedUrls = new Map<number, string>()
   const icssReplacedUrls = new Map<number, string>()
@@ -354,6 +357,18 @@ export async function LightningCssLoader(
     ...icssVisitor,
   }
 
+  // Compute feature include/exclude masks from user config.
+  // Default: always transpile nesting (bit 0). User `include` adds flags,
+  // user `exclude` removes them from both include and exclude masks.
+  const featureNamesToMask = getBindingsSync().css.lightning.featureNamesToMask
+  const userIncludeMask = options.lightningCssFeatures?.include
+    ? featureNamesToMask(options.lightningCssFeatures.include)
+    : 0
+  const userExcludeMask = options.lightningCssFeatures?.exclude
+    ? featureNamesToMask(options.lightningCssFeatures.exclude)
+    : 0
+  const includeMask = (1 | userIncludeMask) & ~userExcludeMask // 1 = Features.Nesting
+
   try {
     const {
       code,
@@ -375,7 +390,8 @@ export async function LightningCssLoader(
       targets: getTargets({ targets: userTargets, key: ECacheKey.loader }),
       inputSourceMap:
         this.sourceMap && prevMap ? JSON.stringify(prevMap) : undefined,
-      include: 1, // Features.Nesting
+      include: includeMask,
+      exclude: userExcludeMask,
     })
     let cssCodeAsString = code.toString()
 

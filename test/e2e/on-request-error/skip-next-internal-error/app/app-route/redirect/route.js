@@ -1,7 +1,7 @@
+import { connection } from 'next/server'
 import { redirect } from 'next/navigation'
 
-export function GET() {
+export async function GET() {
+  await connection()
   redirect('/another')
 }
-
-export const dynamic = 'force-dynamic'

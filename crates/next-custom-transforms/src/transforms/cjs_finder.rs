@@ -56,33 +56,22 @@ impl Visit for CjsFinder {
     // Note that `Object.defineProperty(module.exports, ...)` will be handled by
     // `visit_member_expr`.
     fn visit_call_expr(&mut self, e: &CallExpr) {
-        if !self.ignore_exports {
-            if let Callee::Expr(expr) = &e.callee {
-                if let Expr::Member(member_expr) = &**expr {
-                    if let (Expr::Ident(obj), MemberProp::Ident(prop)) =
-                        (&*member_expr.obj, &member_expr.prop)
-                    {
-                        if &*obj.sym == "Object" && &*prop.sym == "defineProperty" {
-                            if let Some(ExprOrSpread { expr: expr0, .. }) = e.args.first() {
-                                if let Expr::Ident(arg0) = &**expr0 {
-                                    if &*arg0.sym == "exports" {
-                                        if let Some(ExprOrSpread { expr: expr1, .. }) =
-                                            e.args.get(1)
-                                        {
-                                            if let Expr::Lit(Lit::Str(arg1)) = &**expr1 {
-                                                if &*arg1.value == "__esModule" {
-                                                    self.found = true;
-                                                    return;
-                                                }
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
+        if !self.ignore_exports
+            && let Callee::Expr(expr) = &e.callee
+            && let Expr::Member(member_expr) = &**expr
+            && let (Expr::Ident(obj), MemberProp::Ident(prop)) =
+                (&*member_expr.obj, &member_expr.prop)
+            && &*obj.sym == "Object"
+            && &*prop.sym == "defineProperty"
+            && let Some(ExprOrSpread { expr: expr0, .. }) = e.args.first()
+            && let Expr::Ident(arg0) = &**expr0
+            && &*arg0.sym == "exports"
+            && let Some(ExprOrSpread { expr: expr1, .. }) = e.args.get(1)
+            && let Expr::Lit(Lit::Str(arg1)) = &**expr1
+            && &*arg1.value == "__esModule"
+        {
+            self.found = true;
+            return;
         }
 
         e.callee.visit_with(self);
@@ -113,15 +102,15 @@ impl Visit for CjsFinder {
     }
 
     fn visit_member_expr(&mut self, e: &MemberExpr) {
-        if let Expr::Ident(obj) = &*e.obj {
-            if let MemberProp::Ident(prop) = &e.prop {
-                // Detect `module.exports` and `exports.__esModule`
-                if (!self.ignore_module && &*obj.sym == "module" && &*prop.sym == "exports")
-                    || (!self.ignore_exports && &*obj.sym == "exports")
-                {
-                    self.found = true;
-                    return;
-                }
+        if let Expr::Ident(obj) = &*e.obj
+            && let MemberProp::Ident(prop) = &e.prop
+        {
+            // Detect `module.exports` and `exports.__esModule`
+            if (!self.ignore_module && &*obj.sym == "module" && &*prop.sym == "exports")
+                || (!self.ignore_exports && &*obj.sym == "exports")
+            {
+                self.found = true;
+                return;
             }
         }
 

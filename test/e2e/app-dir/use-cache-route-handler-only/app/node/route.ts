@@ -1,13 +1,19 @@
-async function getCachedRandom() {
+import { setTimeout } from 'timers/promises'
+
+async function getCachedDate() {
   'use cache'
-  return Math.random()
+
+  // Simulate I/O latency.
+  await setTimeout(200)
+
+  return new Date().toISOString()
 }
 
 export async function GET() {
-  const rand1 = await getCachedRandom()
-  const rand2 = await getCachedRandom()
+  const date1 = await getCachedDate()
+  const date2 = await getCachedDate()
 
-  const response = JSON.stringify({ rand1, rand2 })
+  const response = JSON.stringify({ date1, date2 })
 
   return new Response(response, {
     headers: { 'content-type': 'application/json' },

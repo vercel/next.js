@@ -1,5 +1,5 @@
-aa = module<x2, {}>["a"]
+aa (const after eval) = module<x2, {}>["a"]
 
-xx = module<x1, {}>["default"]
+xx (const after eval) = module<x1, {}>["default"]
 
-yy = module<x3, {}>
+yy (const after eval) = module<x3, {}>

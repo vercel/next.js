@@ -1,5 +1,8 @@
-#![feature(iter_intersperse)]
 #![feature(box_patterns)]
+#![feature(bufreader_peek)]
+
+#[global_allocator]
+static ALLOC: turbo_tasks_malloc::TurboMalloc = turbo_tasks_malloc::TurboMalloc;
 
 use std::{hash::BuildHasherDefault, sync::Arc};
 
@@ -9,6 +12,8 @@ use rustc_hash::FxHasher;
 use self::{reader::TraceReader, server::serve, store_container::StoreContainer};
 
 mod bottom_up;
+mod chunked_vec;
+mod lazy_sorted_vec;
 mod reader;
 mod self_time_tree;
 mod server;
@@ -18,6 +23,7 @@ mod span_graph_ref;
 mod span_ref;
 mod store;
 mod store_container;
+mod string_tuple_ref;
 mod timestamp;
 mod u64_empty_string;
 mod u64_string;
@@ -30,7 +36,9 @@ fn main() {
     let args: FxIndexSet<String> = std::env::args().skip(1).collect();
 
     let mut iter = args.iter();
-    let arg = iter.next().expect("missing argument: trace file path");
+    let arg = iter
+        .next()
+        .expect("missing positional argument for the trace file path");
     let port = iter.next().map_or(5747, |s| s.parse().unwrap());
 
     let store = Arc::new(StoreContainer::new());

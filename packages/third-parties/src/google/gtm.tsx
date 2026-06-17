@@ -10,7 +10,7 @@ let currDataLayerName = 'dataLayer'
 export function GoogleTagManager(props: GTMParams) {
   const {
     gtmId,
-    gtmScriptUrl = 'https://www.googletagmanager.com/gtm.js',
+    gtmScriptUrl,
     dataLayerName = 'dataLayer',
     auth,
     preview,
@@ -20,9 +20,22 @@ export function GoogleTagManager(props: GTMParams) {
 
   currDataLayerName = dataLayerName
 
-  const gtmLayer = dataLayerName !== 'dataLayer' ? `&l=${dataLayerName}` : ''
-  const gtmAuth = auth ? `&gtm_auth=${auth}` : ''
-  const gtmPreview = preview ? `&gtm_preview=${preview}&gtm_cookies_win=x` : ''
+  const scriptUrl = new URL(
+    gtmScriptUrl || 'https://www.googletagmanager.com/gtm.js'
+  )
+  if (gtmId) {
+    scriptUrl.searchParams.set('id', gtmId)
+  }
+  if (dataLayerName !== 'dataLayer') {
+    scriptUrl.searchParams.set('l', dataLayerName)
+  }
+  if (auth) {
+    scriptUrl.searchParams.set('gtm_auth', auth)
+  }
+  if (preview) {
+    scriptUrl.searchParams.set('gtm_preview', preview)
+    scriptUrl.searchParams.set('gtm_cookies_win', 'x')
+  }
 
   useEffect(() => {
     // performance.mark is being used as a feature use signal. While it is traditionally used for performance
@@ -54,7 +67,7 @@ export function GoogleTagManager(props: GTMParams) {
       <Script
         id="_next-gtm"
         data-ntpc="GTM"
-        src={`${gtmScriptUrl}?id=${gtmId}${gtmLayer}${gtmAuth}${gtmPreview}`}
+        src={scriptUrl.href}
         nonce={nonce}
       />
     </>

@@ -11,8 +11,8 @@ describe('graceful-degrade - non bot', () => {
   })
 
   // Delete client chunks to simulate chunk loading failure
-  beforeAll(() => {
-    deleteBrowserDynamicChunks(next)
+  beforeAll(async () => {
+    await deleteBrowserDynamicChunks(next)
   })
 
   it('should not degrade to graceful error when chunk loading fails in ssr for non-bot user agents', async () => {
@@ -32,9 +32,8 @@ describe('graceful-degrade - non bot', () => {
     expect(await body.getAttribute('class')).not.toBe('body-cls')
 
     const bodyText = await body.text()
-    expect(bodyText).toMatch(
-      /Application error: a client-side exception has occurred while loading/
-    )
+    // Client errors show "This page couldn\u2019t load"
+    expect(bodyText).toMatch(/This page couldn\u2019t load/)
   })
 
   it('should show error boundary when browser errors when error boundary is defined', async () => {

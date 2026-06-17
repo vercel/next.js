@@ -1,24 +1,60 @@
 import type { FallbackMode } from '../../lib/fallback'
+import type { Params } from '../../server/request/params'
+import type { DynamicParamTypes } from '../../shared/lib/app-router-types'
 
 type StaticPrerenderedRoute = {
-  pathname: string
-  encodedPathname: string
-  fallbackRouteParams: undefined
-  fallbackMode: FallbackMode | undefined
-  fallbackRootParams: undefined
+  readonly params: Params
+  readonly pathname: string
+  readonly encodedPathname: string
+  readonly fallbackRouteParams: undefined
+  readonly fallbackMode: FallbackMode | undefined
+  readonly fallbackRootParams: undefined
+  remainingPrerenderableParams?: undefined
+
+  /**
+   * When enabled, the route will be rendered with diagnostics enabled which
+   * will error the build if the route that is generated is empty.
+   */
+  throwOnEmptyStaticShell: undefined
+}
+
+export type FallbackRouteParam = {
+  /**
+   * The name of the param.
+   */
+  readonly paramName: string
+
+  /**
+   * The type of the param.
+   */
+  readonly paramType: DynamicParamTypes
 }
 
 type FallbackPrerenderedRoute = {
-  pathname: string
-  encodedPathname: string
-  fallbackRouteParams: readonly string[]
-  fallbackMode: FallbackMode | undefined
-  fallbackRootParams: readonly string[]
+  readonly params: Params
+  readonly pathname: string
+  readonly encodedPathname: string
+
+  /**
+   * The fallback route params for the route. This includes all route parameters
+   * that are unknown at build time, from both the main children route and any
+   * parallel routes.
+   */
+  readonly fallbackRouteParams: readonly FallbackRouteParam[]
+  readonly fallbackMode: FallbackMode | undefined
+  readonly fallbackRootParams: readonly string[]
+  remainingPrerenderableParams?: readonly FallbackRouteParam[]
+
+  /**
+   * When enabled, the route will be rendered with diagnostics enabled which
+   * will error the build if the route that is generated is empty.
+   */
+  throwOnEmptyStaticShell: boolean
 }
 
 export type PrerenderedRoute = StaticPrerenderedRoute | FallbackPrerenderedRoute
 
 export type StaticPathsResult = {
-  fallbackMode: FallbackMode
-  prerenderedRoutes: PrerenderedRoute[]
+  fallbackMode: FallbackMode | undefined
+  prerenderedRoutes: PrerenderedRoute[] | undefined
 }

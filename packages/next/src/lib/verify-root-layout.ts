@@ -63,7 +63,7 @@ export async function verifyRootLayout({
 }: {
   dir: string
   appDir: string
-  tsconfigPath: string
+  tsconfigPath: string | undefined
   pagePath: string
   pageExtensions: PageExtensions
 }): Promise<[boolean, string | undefined]> {
@@ -112,7 +112,8 @@ export async function verifyRootLayout({
     }
 
     if (typeof availableDir === 'string') {
-      const resolvedTsConfigPath = path.join(dir, tsconfigPath)
+      const tsConfigFileName = tsconfigPath || 'tsconfig.json'
+      const resolvedTsConfigPath = path.join(dir, tsConfigFileName)
       const hasTsConfig = await fs.access(resolvedTsConfigPath).then(
         () => true,
         () => false

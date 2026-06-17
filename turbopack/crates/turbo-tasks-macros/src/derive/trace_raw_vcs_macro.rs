@@ -1,10 +1,10 @@
 use proc_macro::TokenStream;
 use proc_macro2::TokenStream as TokenStream2;
 use quote::quote;
-use syn::{parse_macro_input, DeriveInput, Field, FieldsNamed, FieldsUnnamed};
-use turbo_tasks_macros_shared::{generate_destructuring, match_expansion};
+use syn::{DeriveInput, Field, FieldsNamed, FieldsUnnamed, parse_macro_input};
 
 use super::FieldAttributes;
+use crate::expand::{generate_destructuring, match_expansion};
 
 pub fn filter_field(field: &Field) -> bool {
     !FieldAttributes::from(field.attrs.as_slice()).trace_ignore
@@ -21,8 +21,15 @@ pub fn derive_trace_raw_vcs(input: TokenStream) -> TokenStream {
     }
     let (impl_generics, ty_generics, where_clause) = derive_input.generics.split_for_impl();
 
-    let trace_items = match_expansion(&derive_input, &trace_named, &trace_unnamed, &trace_unit);
+    let trace_items = match_expansion(
+        ident,
+        &derive_input.data,
+        &trace_named,
+        &trace_unnamed,
+        &trace_unit,
+    );
     quote! {
+        #[automatically_derived]
         impl #impl_generics turbo_tasks::trace::TraceRawVcs for #ident #ty_generics #where_clause {
             fn trace_raw_vcs(&self, __context__: &mut turbo_tasks::trace::TraceRawVcsContext) {
                 #trace_items

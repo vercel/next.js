@@ -1,20 +1,12 @@
-/* eslint-disable jest/no-identical-title */
-import { createNext, FileRef } from 'e2e-utils'
-import { NextInstance } from 'e2e-utils'
+import { FileRef, nextTestSetup } from 'e2e-utils'
 import { check, fetchViaHTTP } from 'next-test-utils'
 import { join } from 'path'
-import webdriver from 'next-webdriver'
 
 describe('Middleware can set the matcher in its config', () => {
-  let next: NextInstance
-
-  beforeAll(async () => {
-    next = await createNext({
-      files: new FileRef(join(__dirname, 'app')),
-      dependencies: {},
-    })
+  const { next } = nextTestSetup({
+    files: new FileRef(join(__dirname, 'app')),
+    dependencies: {},
   })
-  afterAll(() => next.destroy())
 
   it('does add the header for root request', async () => {
     const response = await fetchViaHTTP(next.url, '/')
@@ -95,7 +87,7 @@ describe('Middleware can set the matcher in its config', () => {
   })
 
   it('should load matches in client matchers correctly', async () => {
-    const browser = await webdriver(next.url, '/')
+    const browser = await next.browser('/')
 
     await check(async () => {
       const matchers = await browser.eval(
@@ -112,8 +104,85 @@ describe('Middleware can set the matcher in its config', () => {
     }, 'success')
   })
 
+  if ((global as any).isNextStart) {
+    it('produces the expected middleware manifest', async () => {
+      const manifest = JSON.parse(
+        await next.readFile('.next/server/middleware-manifest.json')
+      )
+
+      // Redact volatile fields so the snapshot is stable across builds:
+      // - `env` values are randomly generated per build (encryption keys,
+      //   preview mode ids, build id).
+      // - `files` and `entrypoint` paths contain content hashes and may
+      //   differ between webpack and Turbopack.
+      const normalize = (value: unknown, key?: string): unknown => {
+        if (key === 'env' && value && typeof value === 'object') {
+          return Object.fromEntries(
+            Object.keys(value)
+              .sort()
+              .map((k) => [k, '<redacted>'])
+          )
+        }
+        if (key === 'files') return '<files>'
+        if (key === 'entrypoint') return '<entrypoint>'
+        if (Array.isArray(value)) return value.map((v) => normalize(v))
+        if (value && typeof value === 'object') {
+          return Object.fromEntries(
+            Object.entries(value).map(([k, v]) => [k, normalize(v, k)])
+          )
+        }
+        return value
+      }
+
+      expect(normalize(manifest)).toMatchInlineSnapshot(`
+       {
+         "functions": {},
+         "middleware": {
+           "/": {
+             "assets": [],
+             "entrypoint": "<entrypoint>",
+             "env": {
+               "NEXT_SERVER_ACTIONS_ENCRYPTION_KEY": "<redacted>",
+               "__NEXT_BUILD_ID": "<redacted>",
+               "__NEXT_PREVIEW_MODE_ENCRYPTION_KEY": "<redacted>",
+               "__NEXT_PREVIEW_MODE_ID": "<redacted>",
+               "__NEXT_PREVIEW_MODE_SIGNING_KEY": "<redacted>",
+             },
+             "files": "<files>",
+             "matchers": [
+               {
+                 "originalSource": "/",
+                 "regexp": "^(?:\\/(_next\\/data\\/[^/]{1,}))?(?:\\/(\\/?index|\\/?index\\.json|\\/?index(?:\\.rsc|\\.segments\\/.+\\.segment\\.rsc)))?[\\/#\\?]?$",
+               },
+               {
+                 "originalSource": "/with-middleware/:path*",
+                 "regexp": "^(?:\\/(_next\\/data\\/[^/]{1,}))?\\/with-middleware(?:\\/((?:[^\\/#\\?]+?)(?:\\/(?:[^\\/#\\?]+?))*))?(\\.json|\\.rsc|\\.segments\\/.+\\.segment\\.rsc)?[\\/#\\?]?$",
+               },
+               {
+                 "originalSource": "/another-middleware/:path*",
+                 "regexp": "^(?:\\/(_next\\/data\\/[^/]{1,}))?\\/another-middleware(?:\\/((?:[^\\/#\\?]+?)(?:\\/(?:[^\\/#\\?]+?))*))?(\\.json|\\.rsc|\\.segments\\/.+\\.segment\\.rsc)?[\\/#\\?]?$",
+               },
+               {
+                 "originalSource": "/_sites/:path((?![^/]*\\.json$)[^/]+$)",
+                 "regexp": "^(?:\\/(_next\\/data\\/[^/]{1,}))?\\/_sites(?:\\/((?![^/]*\\.json$)[^/]+$))(\\.json|\\.rsc|\\.segments\\/.+\\.segment\\.rsc)?[\\/#\\?]?$",
+               },
+             ],
+             "name": "middleware",
+             "page": "/",
+             "wasm": [],
+           },
+         },
+         "sortedMiddleware": [
+           "/",
+         ],
+         "version": 3,
+       }
+      `)
+    })
+  }
+
   it('should navigate correctly with matchers', async () => {
-    const browser = await webdriver(next.url, '/')
+    const browser = await next.browser('/')
     await browser.eval('window.beforeNav = 1')
 
     await browser.elementByCss('#to-another-middleware').click()
@@ -150,42 +219,38 @@ describe('Middleware can set the matcher in its config', () => {
 })
 
 describe('using a single matcher', () => {
-  let next: NextInstance
-  beforeAll(async () => {
-    next = await createNext({
-      files: {
-        'pages/[...route].js': `
-          export default function Page({ message }) {
-            return <div>
-              <p>root page</p>
-              <p>{message}</p>
-            </div>
-          }
+  const { next } = nextTestSetup({
+    files: {
+      'pages/[...route].js': `
+        export default function Page({ message }) {
+          return <div>
+            <p>root page</p>
+            <p>{message}</p>
+          </div>
+        }
 
-          export const getServerSideProps = ({ params }) => {
-            return {
-              props: {
-                message: "Hello from /" + params.route.join("/")
-              }
+        export const getServerSideProps = ({ params }) => {
+          return {
+            props: {
+              message: "Hello from /" + params.route.join("/")
             }
           }
-        `,
-        'middleware.js': `
-          import { NextResponse } from 'next/server'
-          export const config = {
-            matcher: '/middleware/works'
-          };
-          export default (req) => {
-            const res = NextResponse.next();
-            res.headers.set('X-From-Middleware', 'true');
-            return res;
-          }
-        `,
-      },
-      dependencies: {},
-    })
+        }
+      `,
+      'middleware.js': `
+        import { NextResponse } from 'next/server'
+        export const config = {
+          matcher: '/middleware/works'
+        };
+        export default (req) => {
+          const res = NextResponse.next();
+          res.headers.set('X-From-Middleware', 'true');
+          return res;
+        }
+      `,
+    },
+    dependencies: {},
   })
-  afterAll(() => next.destroy())
 
   it('does not add the header for root request', async () => {
     const response = await fetchViaHTTP(next.url, '/')
@@ -243,39 +308,137 @@ describe('using a single matcher', () => {
   })
 })
 
-describe('using root matcher', () => {
-  let next: NextInstance
-  beforeAll(async () => {
-    next = await createNext({
+describe.each([
+  { title: '' },
+  { title: ' and trailingSlash', trailingSlash: true },
+])(
+  'using a single matcher with i18n for a non-root route$title',
+  ({ trailingSlash }) => {
+    const { next } = nextTestSetup({
       files: {
-        'pages/index.js': `
-          export function getStaticProps() {
-            return {
-              props: {
-                message: 'hello world'
-              }
+        'pages/[...route].js': `
+          export default function Page({ message }) {
+            return <div>
+              <p>catchall page</p>
+              <p>{message}</p>
+            </div>
+          }
+
+          export const getServerSideProps = ({ params, locale }) => ({
+            props: {
+              message: \`(\${locale}) Hello from /\${params.route.join("/")}\`
             }
-          }
-          
-          export default function Home({ message }) {
-            return <div>Hi there!</div>
-          }
+          })
         `,
         'middleware.js': `
           import { NextResponse } from 'next/server'
+          export const config = {
+            matcher: '/middleware/works'
+          };
           export default (req) => {
             const res = NextResponse.next();
             res.headers.set('X-From-Middleware', 'true');
             return res;
           }
-
-          export const config = { matcher: '/' };
+        `,
+        'next.config.js': `
+          module.exports = {
+            ${trailingSlash ? 'trailingSlash: true,' : ''}
+            i18n: {
+              localeDetection: false,
+              locales: ['es', 'en'],
+              defaultLocale: 'en',
+            }
+          }
         `,
       },
       dependencies: {},
     })
+
+    it('adds the header for matched paths', async () => {
+      const res1 = await fetchViaHTTP(next.url, '/middleware/works')
+      expect(await res1.text()).toContain(`(en) Hello from /middleware/works`)
+      expect(res1.headers.get('X-From-Middleware')).toBe('true')
+
+      const res2 = await fetchViaHTTP(next.url, '/es/middleware/works')
+      expect(await res2.text()).toContain(`(es) Hello from /middleware/works`)
+      expect(res2.headers.get('X-From-Middleware')).toBe('true')
+    })
+
+    it('adds the header for matched data paths, including the default locale without a prefix', async () => {
+      const res1 = await fetchViaHTTP(
+        next.url,
+        `/_next/data/${next.buildId}/en/middleware/works.json`,
+        undefined,
+        { headers: { 'x-nextjs-data': '1' } }
+      )
+      expect(await res1.json()).toMatchObject({
+        pageProps: {
+          message: '(en) Hello from /middleware/works',
+        },
+      })
+      expect(res1.headers.get('X-From-Middleware')).toBe('true')
+
+      const res2 = await fetchViaHTTP(
+        next.url,
+        `/_next/data/${next.buildId}/es/middleware/works.json`
+      )
+      expect(await res2.json()).toMatchObject({
+        pageProps: {
+          message: '(es) Hello from /middleware/works',
+        },
+      })
+      expect(res2.headers.get('X-From-Middleware')).toBe('true')
+
+      const res3 = await fetchViaHTTP(
+        next.url,
+        `/_next/data/${next.buildId}/middleware/works.json`
+      )
+      expect(await res3.json()).toMatchObject({
+        pageProps: {
+          message: '(en) Hello from /middleware/works',
+        },
+      })
+      expect(res3.headers.get('X-From-Middleware')).toBe('true')
+    })
+
+    it('does not add the header for an unmatched path', async () => {
+      const response = await fetchViaHTTP(next.url, '/about/me')
+      expect(await response.text()).toContain('(en) Hello from /about/me')
+      expect(response.headers.get('X-From-Middleware')).toBeNull()
+    })
+  }
+)
+
+describe('using root matcher', () => {
+  const { next } = nextTestSetup({
+    files: {
+      'pages/index.js': `
+        export function getStaticProps() {
+          return {
+            props: {
+              message: 'hello world'
+            }
+          }
+        }
+
+        export default function Home({ message }) {
+          return <div>Hi there!</div>
+        }
+      `,
+      'middleware.js': `
+        import { NextResponse } from 'next/server'
+        export default (req) => {
+          const res = NextResponse.next();
+          res.headers.set('X-From-Middleware', 'true');
+          return res;
+        }
+
+        export const config = { matcher: '/' };
+      `,
+    },
+    dependencies: {},
   })
-  afterAll(() => next.destroy())
 
   it('adds the header to the /', async () => {
     const response = await fetchViaHTTP(next.url, '/')
@@ -325,55 +488,51 @@ describe.each([
   { title: '' },
   { title: ' and trailingSlash', trailingSlash: true },
 ])('using a single matcher with i18n$title', ({ trailingSlash }) => {
-  let next: NextInstance
-  beforeAll(async () => {
-    next = await createNext({
-      files: {
-        'pages/index.js': `
-          export default function Page({ message }) {
-            return <div>
-              <p>{message}</p>
-            </div>
+  const { next } = nextTestSetup({
+    files: {
+      'pages/index.js': `
+        export default function Page({ message }) {
+          return <div>
+            <p>{message}</p>
+          </div>
+        }
+        export const getServerSideProps = ({ params, locale }) => ({
+          props: { message: \`(\${locale}) Hello from /\` }
+        })
+      `,
+      'pages/[...route].js': `
+        export default function Page({ message }) {
+          return <div>
+            <p>catchall page</p>
+            <p>{message}</p>
+          </div>
+        }
+        export const getServerSideProps = ({ params, locale }) => ({
+          props: { message: \`(\${locale}) Hello from /\` + params.route.join("/") }
+        })
+      `,
+      'middleware.js': `
+        import { NextResponse } from 'next/server'
+        export const config = { matcher: '/' };
+        export default (req) => {
+          const res = NextResponse.next();
+          res.headers.set('X-From-Middleware', 'true');
+          return res;
+        }
+      `,
+      'next.config.js': `
+        module.exports = {
+          ${trailingSlash ? 'trailingSlash: true,' : ''}
+          i18n: {
+            localeDetection: false,
+            locales: ['es', 'en'],
+            defaultLocale: 'en',
           }
-          export const getServerSideProps = ({ params, locale }) => ({
-            props: { message: \`(\${locale}) Hello from /\` }
-          })
-        `,
-        'pages/[...route].js': `
-          export default function Page({ message }) {
-            return <div>
-              <p>catchall page</p>
-              <p>{message}</p>
-            </div>
-          }
-          export const getServerSideProps = ({ params, locale }) => ({
-            props: { message: \`(\${locale}) Hello from /\` + params.route.join("/") }
-          })
-        `,
-        'middleware.js': `
-          import { NextResponse } from 'next/server'
-          export const config = { matcher: '/' };
-          export default (req) => {
-            const res = NextResponse.next();
-            res.headers.set('X-From-Middleware', 'true');
-            return res;
-          }
-        `,
-        'next.config.js': `
-          module.exports = {
-            ${trailingSlash ? 'trailingSlash: true,' : ''}
-            i18n: {
-              localeDetection: false,
-              locales: ['es', 'en'],
-              defaultLocale: 'en',
-            }
-          }
-        `,
-      },
-      dependencies: {},
-    })
+        }
+      `,
+    },
+    dependencies: {},
   })
-  afterAll(() => next.destroy())
 
   it(`adds the header for a matched path`, async () => {
     const res1 = await fetchViaHTTP(next.url, `/`)
@@ -428,11 +587,9 @@ describe.each([
 ])(
   'using a single matcher with i18n and basePath$title',
   ({ trailingSlash }) => {
-    let next: NextInstance
-    beforeAll(async () => {
-      next = await createNext({
-        files: {
-          'pages/index.js': `
+    const { next } = nextTestSetup({
+      files: {
+        'pages/index.js': `
           export default function Page({ message }) {
             return <div>
               <p>root page</p>
@@ -443,7 +600,7 @@ describe.each([
             props: { message: \`(\${locale}) Hello from /\` }
           })
         `,
-          'pages/[...route].js': `
+        'pages/[...route].js': `
           export default function Page({ message }) {
             return <div>
               <p>catchall page</p>
@@ -454,7 +611,7 @@ describe.each([
             props: { message: \`(\${locale}) Hello from /\` + params.route.join("/") }
           })
         `,
-          'middleware.js': `
+        'middleware.js': `
           import { NextResponse } from 'next/server'
           export const config = { matcher: '/' };
           export default (req) => {
@@ -463,7 +620,7 @@ describe.each([
             return res;
           }
         `,
-          'next.config.js': `
+        'next.config.js': `
           module.exports = {
             ${trailingSlash ? 'trailingSlash: true,' : ''}
             basePath: '/root',
@@ -474,11 +631,9 @@ describe.each([
             }
           }
         `,
-        },
-        dependencies: {},
-      })
+      },
+      dependencies: {},
     })
-    afterAll(() => next.destroy())
 
     it(`adds the header for a matched path`, async () => {
       const res1 = await fetchViaHTTP(next.url, `/root`)

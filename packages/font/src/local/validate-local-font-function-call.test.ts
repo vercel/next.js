@@ -44,6 +44,15 @@ describe('validateLocalFontFunctionCall', () => {
     ).toThrowErrorMatchingInlineSnapshot(`"Invalid declaration prop: \`src\`"`)
   })
 
+  test('Valid font-family declaration', async () => {
+    expect(() =>
+      validateLocalFontFunctionCall('', {
+        src: './font-file.woff2',
+        declarations: [{ prop: 'font-family', value: 'MyCustomFont' }],
+      })
+    ).not.toThrow()
+  })
+
   test('Empty src array', async () => {
     expect(() =>
       validateLocalFontFunctionCall('', {

@@ -1,8 +1,10 @@
+use std::sync::LazyLock;
+
 use anyhow::Result;
-use once_cell::sync::Lazy;
-use serde::{Deserialize, Serialize};
-use turbo_rcstr::RcStr;
-use turbo_tasks::{trace::TraceRawVcs, NonLocalValue, ResolvedVc, Vc};
+use bincode::{Decode, Encode};
+use serde::Deserialize;
+use turbo_rcstr::{RcStr, rcstr};
+use turbo_tasks::{NonLocalValue, ResolvedVc, Vc, trace::TraceRawVcs};
 
 pub(crate) struct DefaultFallbackFont {
     pub name: RcStr,
@@ -12,18 +14,18 @@ pub(crate) struct DefaultFallbackFont {
 }
 
 // From https://github.com/vercel/next.js/blob/a3893bf69c83fb08e88c87bf8a21d987a0448c8e/packages/font/src/utils.ts#L4
-pub(crate) static DEFAULT_SANS_SERIF_FONT: Lazy<DefaultFallbackFont> =
-    Lazy::new(|| DefaultFallbackFont {
-        name: "Arial".into(),
-        capsize_key: "arial".into(),
+pub(crate) static DEFAULT_SANS_SERIF_FONT: LazyLock<DefaultFallbackFont> =
+    LazyLock::new(|| DefaultFallbackFont {
+        name: rcstr!("Arial"),
+        capsize_key: rcstr!("arial"),
         az_avg_width: 934.5116279069767,
         units_per_em: 2048,
     });
 
-pub(crate) static DEFAULT_SERIF_FONT: Lazy<DefaultFallbackFont> =
-    Lazy::new(|| DefaultFallbackFont {
-        name: "Times New Roman".into(),
-        capsize_key: "timesNewRoman".into(),
+pub(crate) static DEFAULT_SERIF_FONT: LazyLock<DefaultFallbackFont> =
+    LazyLock::new(|| DefaultFallbackFont {
+        name: rcstr!("Times New Roman"),
+        capsize_key: rcstr!("timesNewRoman"),
         az_avg_width: 854.3953488372093,
         units_per_em: 2048,
     });
@@ -32,9 +34,9 @@ pub(crate) static DEFAULT_SERIF_FONT: Lazy<DefaultFallbackFont> =
 #[turbo_tasks::value(shared)]
 pub(crate) struct AutomaticFontFallback {
     /// e.g. `__Roboto_Fallback_c123b8`
-    pub scoped_font_family: ResolvedVc<RcStr>,
+    pub scoped_font_family: RcStr,
     /// The name of font locally, used in `src: local("{}")`
-    pub local_font_family: ResolvedVc<RcStr>,
+    pub local_font_family: RcStr,
     pub adjustment: Option<FontAdjustment>,
 }
 
@@ -60,7 +62,7 @@ impl FontFallback {
 }
 
 #[turbo_tasks::value(transparent)]
-pub(crate) struct FontFallbacks(Vec<ResolvedVc<FontFallback>>);
+pub(crate) struct FontFallbacks(pub Vec<ResolvedVc<FontFallback>>);
 
 #[turbo_tasks::value_impl]
 impl FontFallbacks {
@@ -79,7 +81,7 @@ impl FontFallbacks {
 /// An adjustment to be made to a fallback font to approximate the geometry of
 /// the main webfont. Rendered as e.g. `ascent-override: 56.8%;` in the
 /// stylesheet
-#[derive(Debug, PartialEq, Serialize, Deserialize, TraceRawVcs, NonLocalValue)]
+#[derive(Debug, PartialEq, Deserialize, TraceRawVcs, NonLocalValue, Encode, Decode)]
 pub(crate) struct FontAdjustment {
     pub ascent: f64,
     pub descent: f64,

@@ -8,6 +8,8 @@ export const INTERCEPTION_ROUTE_MARKERS = [
   '(...)',
 ] as const
 
+export type InterceptionMarker = (typeof INTERCEPTION_ROUTE_MARKERS)[number]
+
 export function isInterceptionRouteAppPath(path: string): boolean {
   // TODO-APP: add more serious validation
   return (
@@ -19,10 +21,27 @@ export function isInterceptionRouteAppPath(path: string): boolean {
   )
 }
 
-export function extractInterceptionRouteInformation(path: string) {
-  let interceptingRoute: string | undefined,
-    marker: (typeof INTERCEPTION_ROUTE_MARKERS)[number] | undefined,
-    interceptedRoute: string | undefined
+type InterceptionRouteInformation = {
+  /**
+   * The intercepting route. This is the route that is being intercepted or the
+   * route that the user was coming from. This is matched by the Next-Url
+   * header.
+   */
+  interceptingRoute: string
+
+  /**
+   * The intercepted route. This is the route that is being intercepted or the
+   * route that the user is going to. This is matched by the request pathname.
+   */
+  interceptedRoute: string
+}
+
+export function extractInterceptionRouteInformation(
+  path: string
+): InterceptionRouteInformation {
+  let interceptingRoute: string | undefined
+  let marker: (typeof INTERCEPTION_ROUTE_MARKERS)[number] | undefined
+  let interceptedRoute: string | undefined
 
   for (const segment of path.split('/')) {
     marker = INTERCEPTION_ROUTE_MARKERS.find((m) => segment.startsWith(m))

@@ -2,27 +2,28 @@
 
 import { join } from 'path'
 import cheerio from 'cheerio'
-import webdriver from 'next-webdriver'
 import { check, fetchViaHTTP } from 'next-test-utils'
-import { NextInstance } from 'e2e-utils'
-import { createNext, FileRef } from 'e2e-utils'
+import { FileRef, nextTestSetup } from 'e2e-utils'
 
 describe('Middleware Redirect', () => {
-  let next: NextInstance
-
-  afterAll(() => next.destroy())
-  beforeAll(async () => {
-    next = await createNext({
-      files: {
-        pages: new FileRef(join(__dirname, '../app/pages')),
-        'middleware.js': new FileRef(join(__dirname, '../app/middleware.js')),
-        'next.config.js': new FileRef(join(__dirname, '../app/next.config.js')),
-      },
-    })
+  const { next } = nextTestSetup({
+    files: {
+      pages: new FileRef(join(__dirname, '../app/pages')),
+      ...(process.env.TEST_NODE_MIDDLEWARE
+        ? {
+            'proxy.js': new FileRef(join(__dirname, '../app/middleware.js')),
+          }
+        : {
+            'middleware.js': new FileRef(
+              join(__dirname, '../app/middleware.js')
+            ),
+          }),
+      'next.config.js': new FileRef(join(__dirname, '../app/next.config.js')),
+    },
   })
   function tests() {
     it('should redirect correctly with redirect in next.config.js', async () => {
-      const browser = await webdriver(next.url, '/')
+      const browser = await next.browser('/')
       await browser.eval('window.next.router.push("/to-new")')
       await browser.waitForElementByCss('#dynamic')
       expect(await browser.elementByCss('#dynamic').text()).toBe(
@@ -37,6 +38,15 @@ describe('Middleware Redirect', () => {
       expect(res.headers.get('location')?.endsWith('/default/about')).toEqual(
         false
       )
+    })
+
+    it('should have relative path for same host redirect', async () => {
+      const res = await next.fetch('/to?pathname=/another', {
+        // workaround for https://github.com/node-fetch/node-fetch/issues/417
+        redirect: 'manual-dont-change' as any,
+      })
+      expect(res.status).toBe(302)
+      expect(res.headers.get('Location')).toBe('/another')
     })
 
     it(`should redirect to data urls with data requests and internal redirects`, async () => {
@@ -68,7 +78,7 @@ describe('Middleware Redirect', () => {
       )
       expect(res.headers.get('location')).toEqual(null)
 
-      const browser = await webdriver(next.url, '/')
+      const browser = await next.browser('/')
       await browser.elementByCss('#old-home-external').click()
       await check(async () => {
         expect(await browser.elementByCss('h1').text()).toEqual(
@@ -86,7 +96,7 @@ describe('Middleware Redirect', () => {
       const res = await fetchViaHTTP(next.url, `${locale}/old-home`)
       const html = await res.text()
       const $ = cheerio.load(html)
-      const browser = await webdriver(next.url, `${locale}/old-home`)
+      const browser = await next.browser(`${locale}/old-home`)
       try {
         expect(await browser.eval(`window.location.pathname`)).toBe(
           `${locale}/new-home`
@@ -98,7 +108,7 @@ describe('Middleware Redirect', () => {
     })
 
     it(`${label}should implement internal redirects`, async () => {
-      const browser = await webdriver(next.url, `${locale}`)
+      const browser = await next.browser(`${locale}`)
       await browser.eval('window.__SAME_PAGE = true')
       await browser.elementByCss('#old-home').click()
       await browser.waitForElementByCss('#new-home-title')
@@ -113,7 +123,7 @@ describe('Middleware Redirect', () => {
     })
 
     it(`${label}should redirect cleanly with the original url param`, async () => {
-      const browser = await webdriver(next.url, `${locale}/blank-page?foo=bar`)
+      const browser = await next.browser(`${locale}/blank-page?foo=bar`)
       try {
         expect(
           await browser.eval(
@@ -127,7 +137,7 @@ describe('Middleware Redirect', () => {
 
     it(`${label}should redirect multiple times`, async () => {
       const res = await fetchViaHTTP(next.url, `${locale}/redirect-me-alot`)
-      const browser = await webdriver(next.url, `${locale}/redirect-me-alot`)
+      const browser = await next.browser(`${locale}/redirect-me-alot`)
       try {
         expect(await browser.eval(`window.location.pathname`)).toBe(
           `${locale}/new-home`
@@ -147,7 +157,7 @@ describe('Middleware Redirect', () => {
     })
 
     it(`${label}should redirect to api route with locale`, async () => {
-      const browser = await webdriver(next.url, `${locale}`)
+      const browser = await next.browser(`${locale}`)
       await browser.elementByCss('#link-to-api-with-locale').click()
       await browser.waitForCondition('window.location.pathname === "/api/ok"')
       await check(() => browser.elementByCss('body').text(), 'ok')
@@ -164,7 +174,7 @@ describe('Middleware Redirect', () => {
       const res = await fetchViaHTTP(next.url, `${locale}/with-fragment`)
       const html = await res.text()
       const $ = cheerio.load(html)
-      const browser = await webdriver(next.url, `${locale}/with-fragment`)
+      const browser = await next.browser(`${locale}/with-fragment`)
       try {
         expect(await browser.eval(`window.location.hash`)).toBe(`#fragment`)
       } finally {

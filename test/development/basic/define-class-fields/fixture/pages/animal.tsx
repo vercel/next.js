@@ -46,7 +46,7 @@ export default function AnimalView() {
   })
   return (
     <>
-      <div id={'dog'}>{dog.resident}</div>
+      <div id={'dog'}>{String(dog.resident)}</div>
       <div id={'dogDecl'}>{dogDeclare.resident?.dogStuff}</div>
     </>
   )

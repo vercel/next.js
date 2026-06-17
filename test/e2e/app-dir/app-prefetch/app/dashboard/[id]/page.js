@@ -14,8 +14,7 @@ export function generateStaticParams() {
 
 export default function IdPage(props) {
   const params = use(props.params)
-  const data = use(getData())
-  console.log(data)
+  use(getData())
 
   if (params.id === '123') {
     return (

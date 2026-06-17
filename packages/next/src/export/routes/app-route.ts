@@ -20,7 +20,6 @@ import type {
   MockedResponse,
 } from '../../server/lib/mock-request'
 import { isDynamicUsageError } from '../helpers/is-dynamic-usage-error'
-import { hasNextSupport } from '../../server/ci-info'
 import { isStaticGenEnabled } from '../../server/route-modules/app-route/helpers/is-static-gen-enabled'
 import type { ExperimentalConfig } from '../../server/config-shared'
 import { isMetadataRoute } from '../../lib/metadata/is-metadata-route'
@@ -48,10 +47,13 @@ export async function exportAppRoute(
       },
   htmlFilepath: string,
   fileWriter: MultiFileWriter,
+  cacheComponents: boolean,
+  staticPageGenerationTimeout: number,
   experimental: Required<
-    Pick<ExperimentalConfig, 'dynamicIO' | 'authInterrupts'>
+    Pick<ExperimentalConfig, 'authInterrupts' | 'useCacheTimeout'>
   >,
-  buildId: string
+  buildId: string,
+  deploymentId: string
 ): Promise<ExportRouteResult> {
   // Ensure that the URL is absolute.
   req.url = `http://localhost:3000${req.url}`
@@ -68,37 +70,39 @@ export async function exportAppRoute(
   // the route and the context for the request.
   const context: AppRouteRouteHandlerContext = {
     params,
-    prerenderManifest: {
-      version: 4,
-      routes: {},
-      dynamicRoutes: {},
-      preview: {
-        previewModeEncryptionKey: '',
-        previewModeId: '',
-        previewModeSigningKey: '',
-      },
-      notFoundRoutes: [],
+    previewProps: {
+      previewModeEncryptionKey: '',
+      previewModeId: '',
+      previewModeSigningKey: '',
     },
     renderOpts: {
+      cacheComponents,
+      // app-route handlers don't run instant validation, so the level
+      // value is irrelevant here.
+      // TODO: move validationLevel and other global config out of renderOpts
+      validationLevel: 'warning',
       experimental,
-      nextExport: true,
+      isBuildTimePrerendering: true,
       supportsDynamicResponse: false,
       incrementalCache,
       waitUntil: afterRunner.context.waitUntil,
       onClose: afterRunner.context.onClose,
       onAfterTaskError: afterRunner.context.onTaskError,
       cacheLifeProfiles,
+      staticPageGenerationTimeout,
     },
     sharedContext: {
       buildId,
+      deploymentId,
     },
   }
 
-  if (hasNextSupport) {
-    context.renderOpts.isRevalidate = true
-  }
-
   try {
+    // Ensure the userland module is fully loaded before accessing it. This is
+    // required for route files that use top-level await: require() returns a
+    // Promise for async modules, so module.userland would be undefined until
+    // the Promise resolves.
+    await module.ensureUserland()
     const userland = module.userland
     // we don't bail from the static optimization for
     // metadata routes, since it's app-route we can always append /route suffix.
@@ -108,11 +112,11 @@ export async function exportAppRoute(
     if (
       !isStaticGenEnabled(userland) &&
       !isPageMetadataRoute &&
-      // We don't disable static gen when dynamicIO is enabled because we
+      // We don't disable static gen when cacheComponents is enabled because we
       // expect that anything dynamic in the GET handler will make it dynamic
       // and thus avoid the cache surprises that led to us removing static gen
       // unless specifically opted into
-      experimental.dynamicIO !== true
+      cacheComponents !== true
     ) {
       return { cacheControl: { revalidate: 0, expire: undefined } }
     }

@@ -24,15 +24,13 @@ import {
 } from './../index'
 import { getCookieParser } from './../get-cookie-parser'
 import {
+  JSON_CONTENT_TYPE_HEADER,
   PRERENDER_REVALIDATE_HEADER,
   PRERENDER_REVALIDATE_ONLY_GENERATED_HEADER,
 } from '../../../lib/constants'
 import { tryGetPreviewData } from './try-get-preview-data'
 import { parseBody } from './parse-body'
-import {
-  RouterServerContextSymbol,
-  routerServerGlobal,
-} from '../../lib/router-utils/router-server-context'
+import type { RevalidateFn } from '../../lib/router-utils/router-server-context'
 import type { InstrumentationOnRequestError } from '../../instrumentation/types'
 
 type ApiContext = __ApiPreviewProps & {
@@ -41,6 +39,7 @@ type ApiContext = __ApiPreviewProps & {
   hostname?: string
   multiZoneDraftMode?: boolean
   dev: boolean
+  internalRevalidate?: RevalidateFn
 }
 
 function getMaxContentLength(responseLimit?: ResponseLimit) {
@@ -105,7 +104,7 @@ function sendData(req: NextApiRequest, res: NextApiResponse, body: any): void {
   }
 
   if (isJSONLike) {
-    res.setHeader('Content-Type', 'application/json; charset=utf-8')
+    res.setHeader('Content-Type', JSON_CONTENT_TYPE_HEADER)
   }
 
   res.setHeader('Content-Length', Buffer.byteLength(stringifiedBody))
@@ -119,7 +118,7 @@ function sendData(req: NextApiRequest, res: NextApiResponse, body: any): void {
  */
 function sendJson(res: NextApiResponse, jsonBody: any): void {
   // Set header to application/json
-  res.setHeader('Content-Type', 'application/json; charset=utf-8')
+  res.setHeader('Content-Type', JSON_CONTENT_TYPE_HEADER)
 
   // Use send to handle request
   res.send(JSON.stringify(jsonBody))
@@ -144,7 +143,7 @@ function setDraftMode<T>(
   // https://tools.ietf.org/html/rfc6265#section-4.1.1
   // `Max-Age: 0` is not valid, thus ignored, and the cookie is persisted.
   const { serialize } =
-    require('next/dist/compiled/cookie') as typeof import('cookie')
+    require('next/dist/compiled/cookie') as typeof import('next/dist/compiled/cookie')
   const previous = res.getHeader('Set-Cookie')
   res.setHeader(`Set-Cookie`, [
     ...(typeof previous === 'string'
@@ -210,7 +209,7 @@ function setPreviewData<T>(
   }
 
   const { serialize } =
-    require('next/dist/compiled/cookie') as typeof import('cookie')
+    require('next/dist/compiled/cookie') as typeof import('next/dist/compiled/cookie')
   const previous = res.getHeader('Set-Cookie')
   res.setHeader(`Set-Cookie`, [
     ...(typeof previous === 'string'
@@ -259,7 +258,7 @@ async function revalidate(
       `Invalid urlPath provided to revalidate(), must be a path e.g. /blog/post-1, received ${urlPath}`
     )
   }
-  const revalidateHeaders: HeadersInit = {
+  const headers: HeadersInit = {
     [PRERENDER_REVALIDATE_HEADER]: context.previewModeId,
     ...(opts.unstable_onlyGenerated
       ? {
@@ -281,12 +280,11 @@ async function revalidate(
 
   for (const key of Object.keys(req.headers)) {
     if (allowedRevalidateHeaderKeys.includes(key)) {
-      revalidateHeaders[key] = req.headers[key] as string
+      headers[key] = req.headers[key] as string
     }
   }
 
-  const internalRevalidate =
-    routerServerGlobal[RouterServerContextSymbol]?.revalidate
+  const internalRevalidate = context.internalRevalidate
 
   try {
     // We use the revalidate in router-server if available.
@@ -295,7 +293,7 @@ async function revalidate(
     if (internalRevalidate) {
       return await internalRevalidate({
         urlPath,
-        revalidateHeaders,
+        headers,
         opts,
       })
     }
@@ -303,7 +301,7 @@ async function revalidate(
     if (context.trustHostHeader) {
       const res = await fetch(`https://${req.headers.host}${urlPath}`, {
         method: 'HEAD',
-        headers: revalidateHeaders,
+        headers,
       })
       // we use the cache header to determine successful revalidate as
       // a non-200 status code can be returned from a successful revalidate
@@ -357,8 +355,14 @@ export async function apiResolver(
 
     // Parsing of cookies
     setLazyProp({ req: apiReq }, 'cookies', getCookieParser(req.headers))
-    // Parsing query string
-    apiReq.query = query
+    // Ensure req.query is a writable, enumerable property by using Object.defineProperty.
+    // This addresses Express 5.x, which defines query as a getter only (read-only).
+    Object.defineProperty(apiReq, 'query', {
+      value: { ...query },
+      writable: true,
+      enumerable: true,
+      configurable: true,
+    })
     // Parsing preview data
     setLazyProp({ req: apiReq }, 'previewData', () =>
       tryGetPreviewData(req, res, apiContext, !!apiContext.multiZoneDraftMode)

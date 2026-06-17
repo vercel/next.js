@@ -3,7 +3,7 @@ import { CMS_LANG, CMS_CHANNEL } from "./constants";
 import { asyncForEach } from "./utils";
 export { validatePreview } from "./preview";
 import { normalizePosts } from "./normalize";
-import { requireComponentDependancyByName } from "./dependancies";
+import { requireComponentDependencyByName } from "./dependencies";
 
 // Our LIVE API client
 const liveClient = agility.getApi({
@@ -155,7 +155,7 @@ export async function getAgilityPageProps({ params, preview }) {
 
     //loop through the zone's modules
     await asyncForEach(modulesForThisContentZone, async (moduleItem) => {
-      let ModuleComponentToRender = requireComponentDependancyByName(
+      let ModuleComponentToRender = requireComponentDependencyByName(
         moduleItem.module,
       );
 

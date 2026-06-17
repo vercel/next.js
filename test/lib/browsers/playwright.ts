@@ -1,4 +1,5 @@
 import fs from 'fs-extra'
+import { debugPrint } from 'next-test-utils'
 import {
   chromium,
   webkit,
@@ -11,6 +12,7 @@ import {
   Locator,
   Request as PlaywrightRequest,
   Response as PlaywrightResponse,
+  BrowserContextOptions,
 } from 'playwright'
 import path from 'path'
 
@@ -18,10 +20,13 @@ type EventType = 'request' | 'response'
 
 type PageLog = { source: string; message: string; args: unknown[] }
 
+export type Permissions = BrowserContextOptions['permissions']
+
 let page: Page
 let browser: Browser | undefined
 let context: BrowserContext | undefined
 let contextHasJSEnabled: boolean = true
+let contextPermissions: Permissions = undefined
 let pageLogs: Array<Promise<PageLog> | PageLog> = []
 let websocketFrames: Array<{ payload: string | Buffer }> = []
 
@@ -56,6 +61,26 @@ interface ElementHandleExt extends ElementHandle {
   getComputedCss(prop: string): Promise<string>
   text(): Promise<string>
 }
+
+export type ElementByCssOpts = {
+  timeout?: number
+  /**
+   * The state of the DOM element.
+   * @default 'visible'
+   */
+  state?: 'attached' | 'visible' | 'hidden'
+  /**
+   * The state of the page.
+   * @default 'load'
+   */
+  waitUntil?: false | 'load' | 'domcontentloaded' | 'networkidle'
+}
+
+export type PlaywrightNavigationWaitUntil =
+  | 'load'
+  | 'domcontentloaded'
+  | 'networkidle'
+  | 'commit'
 
 export class Playwright<TCurrent = undefined> {
   private activeTrace?: string
@@ -146,7 +171,8 @@ export class Playwright<TCurrent = undefined> {
     javaScriptEnabled: boolean,
     ignoreHTTPSErrors: boolean,
     headless: boolean,
-    userAgent: string | undefined
+    userAgent: string | undefined,
+    permissions: Permissions
   ) {
     let device
 
@@ -161,7 +187,13 @@ export class Playwright<TCurrent = undefined> {
     }
 
     if (browser) {
-      if (contextHasJSEnabled !== javaScriptEnabled) {
+      if (
+        contextHasJSEnabled !== javaScriptEnabled ||
+        // Even triggers on same set of permissions, but we don't want to deal
+        // with the complexity of diffing them, so we just always recreate the
+        // context when permissions are set.
+        contextPermissions !== permissions
+      ) {
         // If we have switched from having JS enable/disabled we need to recreate the context.
         await teardown(this.teardownTracing.bind(this))
         await context?.close()
@@ -171,8 +203,10 @@ export class Playwright<TCurrent = undefined> {
           ignoreHTTPSErrors,
           ...(userAgent ? { userAgent } : {}),
           ...device,
+          permissions,
         })
         contextHasJSEnabled = javaScriptEnabled
+        contextPermissions = permissions
       }
       return
     }
@@ -184,6 +218,7 @@ export class Playwright<TCurrent = undefined> {
       ignoreHTTPSErrors,
       ...(userAgent ? { userAgent } : {}),
       ...device,
+      permissions,
     })
     contextHasJSEnabled = javaScriptEnabled
   }
@@ -193,14 +228,16 @@ export class Playwright<TCurrent = undefined> {
     await page?.close()
   }
 
-  async launchBrowser(browserName: string, launchOptions: Record<string, any>) {
+  async launchBrowser(
+    browserName: string,
+    launchOptions: { headless: boolean }
+  ) {
     if (browserName === 'safari') {
       return await webkit.launch(launchOptions)
     } else if (browserName === 'firefox') {
       return await firefox.launch({
         ...launchOptions,
         firefoxUserPrefs: {
-          ...launchOptions.firefoxUserPrefs,
           // The "fission.webContentIsolationStrategy" pref must be
           // set to 1 on Firefox due to the bug where a new history
           // state is pushed on a page reload.
@@ -210,9 +247,13 @@ export class Playwright<TCurrent = undefined> {
         },
       })
     } else {
+      let launchArgs: string[] = []
+      if (!launchOptions.headless) {
+        launchArgs.push('--auto-open-devtools-for-tabs')
+      }
       return await chromium.launch({
-        devtools: !launchOptions.headless,
         ...launchOptions,
+        args: launchArgs,
         ignoreDefaultArgs: ['--disable-back-forward-cache'],
       })
     }
@@ -228,7 +269,19 @@ export class Playwright<TCurrent = undefined> {
       disableCache?: boolean
       cpuThrottleRate?: number
       pushErrorAsConsoleLog?: boolean
-      beforePageLoad?: (page: Page) => void
+      /**
+       * Suppress the harness from echoing the browser's console output to the
+       * test's terminal (the `Browser Log:` lines). Browser logs are still
+       * collected and available via `browser.log()`. Useful when a test
+       * captures and asserts on terminal output, where the echo would be noise.
+       */
+      disableBrowserLog?: boolean
+      beforePageLoad?: (page: Page) => void | Promise<void>
+      /**
+       * @see {@link https://playwright.dev/docs/api/class-page#page-set-extra-http-headers Playwright.Page.setExtraHTTPHeaders}
+       */
+      extraHTTPHeaders?: Record<string, string>
+      waitUntil?: PlaywrightNavigationWaitUntil
     }
   ) {
     await this.close()
@@ -243,12 +296,18 @@ export class Playwright<TCurrent = undefined> {
 
     page.setDefaultTimeout(defaultTimeout)
     page.setDefaultNavigationTimeout(defaultTimeout)
+    const extraHTTPHeaders = opts?.extraHTTPHeaders
+    if (extraHTTPHeaders !== undefined) {
+      page.setExtraHTTPHeaders(extraHTTPHeaders)
+    }
 
     pageLogs = []
     websocketFrames = []
 
     page.on('console', (msg) => {
-      console.log('browser log:', msg)
+      if (!opts?.disableBrowserLog) {
+        debugPrint('Browser Log:', msg)
+      }
 
       pageLogs.push(
         Promise.all(
@@ -288,31 +347,37 @@ export class Playwright<TCurrent = undefined> {
     }
 
     page.on('websocket', (ws) => {
+      const decoder = tracePlaywright ? new TextDecoder() : null
       if (tracePlaywright) {
-        page
-          .evaluate(`console.log('connected to ws at ${ws.url()}')`)
-          .catch(() => {})
+        // We're just evaluating a string here so that it appears in Playwright
+        // traces.
+        // console.log spams CI logs. If you already have a browser open, you can
+        // see WebSocket messages in the network tab of dev tools.
+        // TODO: Revisit once https://github.com/microsoft/playwright/issues/10996 is resolved.
+        page.evaluate(`'connected to ws at ${ws.url()}'`).catch(() => {})
 
         ws.on('close', () =>
-          page
-            .evaluate(`console.log('closed websocket ${ws.url()}')`)
-            .catch(() => {})
+          page.evaluate(`'closed websocket ${ws.url()}'`).catch(() => {})
         )
       }
       ws.on('framereceived', (frame) => {
         websocketFrames.push({ payload: frame.payload })
 
         if (tracePlaywright) {
+          const { payload } = frame
           page
-            .evaluate(`console.log('received ws message ${frame.payload}')`)
+            // Note that passing the payload as a an argument is 2 orders of magnitude more expensive in Playwright.
+            .evaluate(
+              `'received ws message ${JSON.stringify(typeof payload === 'string' ? payload : decoder!.decode(payload))}'`
+            )
             .catch(() => {})
         }
       })
     })
 
-    opts?.beforePageLoad?.(page)
+    await opts?.beforePageLoad?.(page)
 
-    await page.goto(url, { waitUntil: 'load' })
+    await page.goto(url, { waitUntil: opts?.waitUntil ?? 'load' })
   }
 
   back(options?: Parameters<Page['goBack']>[0]) {
@@ -327,10 +392,25 @@ export class Playwright<TCurrent = undefined> {
       await page.goForward(options)
     })
   }
-  refresh() {
+  refresh(opts?: { waitUntil?: PlaywrightNavigationWaitUntil }) {
     // do not preserve the previous chained value, it's likely to be invalid after a reload.
     return this.startChain(async () => {
-      await page.reload()
+      await page.reload({ waitUntil: opts?.waitUntil ?? 'load' })
+    })
+  }
+  /**
+   * Evict the browser HTTP cache via CDP (`Network.clearBrowserCache`). This is
+   * only supported in Chromium; gate the calling test on `global.browserName
+   * === 'chrome'` (Playwright's Firefox and WebKit don't expose CDP).
+   */
+  clearBrowserCache() {
+    return this.startChain(async () => {
+      const session = await context!.newCDPSession(page)
+      try {
+        await session.send('Network.clearBrowserCache')
+      } finally {
+        await session.detach()
+      }
     })
   }
   setDimensions({ width, height }: { height: number; width: number }) {
@@ -371,8 +451,24 @@ export class Playwright<TCurrent = undefined> {
     })
   }
 
-  elementByCss(selector: string) {
-    return this.waitForElementByCss(selector, 5_000)
+  elementByCss(selector: string, opts?: ElementByCssOpts) {
+    return this.waitForElementByCss(selector, {
+      timeout: 5_000,
+      ...opts,
+    })
+  }
+
+  /** A replacement for the default `browser.elementByCss` that doesn't wait for the page to fire "load". */
+  elementByCssInstant(selector: string, opts?: ElementByCssOpts) {
+    return this.waitForElementByCss(selector, {
+      timeout: 10,
+      waitUntil: false,
+      ...opts,
+    })
+  }
+
+  hasElementByCss(selector: string) {
+    return this.startChain(() => page.locator(selector).isVisible())
   }
 
   elementById(id: string) {
@@ -451,16 +547,42 @@ export class Playwright<TCurrent = undefined> {
     )
   }
 
-  waitForElementByCss(selector: string, timeout = 10_000) {
+  waitForElementByCss(selector: string, opts: number | ElementByCssOpts = {}) {
+    const {
+      timeout = 10_000,
+      waitUntil = 'load', // TODO: we should get rid of this and fix the tests that implicitly rely on it
+      // Selected elements may be in a completed boundary that React hasn't revealed yet.
+      // We almost always want to wait for the reveal.
+      // This matches Playwright's default behavior.
+      // We don't care about visibility of metadata tags.
+      // Can hopefully be dropped if https://github.com/microsoft/playwright/pull/37265 is accepted
+      state = selector.startsWith('base') ||
+      selector.startsWith('link') ||
+      selector.startsWith('meta') ||
+      selector.startsWith('script') ||
+      selector.startsWith('source') ||
+      selector.startsWith('style') ||
+      selector.startsWith('title')
+        ? 'attached'
+        : 'visible',
+    } = typeof opts === 'number' ? { timeout: opts } : opts
+
     return this.startChain(async () => {
       const el = await page.waitForSelector(selector, {
         timeout,
-        state: 'attached',
+        state,
       })
-      // it seems selenium waits longer and tests rely on this behavior
-      // so we wait for the load event fire before returning
-      await page.waitForLoadState()
-      return this.wrapElement(el, selector)
+      if (waitUntil !== false) {
+        // it seems selenium waits longer and tests rely on this behavior
+        // so we wait for the load event fire before returning
+        await page.waitForLoadState(waitUntil)
+      }
+      return this.wrapElement(
+        // Playwright has `null` as a possible return type in case `state` is `detached`,
+        // but we don't allow passing that here, so we can assume it's non-null
+        el!,
+        selector
+      )
     })
   }
 
@@ -529,6 +651,13 @@ export class Playwright<TCurrent = undefined> {
     })
   }
 
+  getByRole(
+    role: Parameters<(typeof page)['getByRole']>[0],
+    options?: Parameters<(typeof page)['getByRole']>[1]
+  ) {
+    return page.getByRole(role, options)
+  }
+
   locateRedbox(): Locator {
     return page.locator(
       'nextjs-portal [aria-labelledby="nextjs__container_errors_label"]'
@@ -536,7 +665,11 @@ export class Playwright<TCurrent = undefined> {
   }
 
   locateDevToolsIndicator(): Locator {
-    return page.locator('nextjs-portal [data-nextjs-dev-tools-button]')
+    return page.locator('nextjs-portal [data-nextjs-dev-tools-button]:visible')
+  }
+
+  locator(selector: string, options?: Parameters<(typeof page)['locator']>[1]) {
+    return page.locator(selector, options)
   }
 
   /** A call that expects to be chained after a previous call, because it needs its value. */

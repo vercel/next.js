@@ -5,7 +5,8 @@ import { PHASE_TEST } from '../../shared/lib/constants'
 import loadJsConfig from '../load-jsconfig'
 import * as Log from '../output/log'
 import { findPagesDir } from '../../lib/find-pages-dir'
-import { loadBindings, lockfilePatchPromise } from '../swc'
+import { lockfilePatchPromise } from '../swc'
+import { installBindings } from '../swc/install-bindings'
 import type { JestTransformerConfig } from '../swc/jest-transformer'
 import type { Config } from '@jest/types'
 
@@ -96,15 +97,40 @@ export default function nextJest(options: { dir?: string } = {}) {
           : customJestConfig) ?? {}
 
       // eagerly load swc bindings instead of waiting for transform calls
-      await loadBindings(nextConfig?.experimental?.useWasmBinary)
+      await installBindings(nextConfig?.experimental?.useWasmBinary)
 
       if (lockfilePatchPromise.cur) {
         await lockfilePatchPromise.cur
       }
 
+      const imageConfig = nextConfig?.images
+        ? {
+            deviceSizes: nextConfig.images.deviceSizes,
+            imageSizes: nextConfig.images.imageSizes,
+            qualities: nextConfig.images.qualities,
+            path: nextConfig.images.path,
+            loader: nextConfig.images.loader,
+            dangerouslyAllowSVG: nextConfig.images.dangerouslyAllowSVG,
+            unoptimized: nextConfig.images.unoptimized,
+          }
+        : undefined
+
       const transpiled = (nextConfig?.transpilePackages ?? [])
         .concat(DEFAULT_TRANSPILED_PACKAGES)
+        .concat(
+          imageConfig
+            ? [
+                // Dist paths for normal package resolution.
+                'next/dist/client',
+                'next/dist/shared/lib',
+                // Source paths can appear under pnpm file: installs.
+                'next/src/client',
+                'next/src/shared/lib',
+              ]
+            : []
+        )
         .join('|')
+      const transpiledPathRegex = transpiled.replace(/\//g, '[\\\\/]')
 
       const jestTransformerConfig: JestTransformerConfig = {
         modularizeImports: nextConfig?.modularizeImports,
@@ -115,7 +141,10 @@ export default function nextJest(options: { dir?: string } = {}) {
         serverComponents,
         isEsmProject,
         pagesDir,
+        imageConfig,
+        configDir: options.dir,
       }
+
       return {
         ...resolvedJestConfig,
 
@@ -173,10 +202,13 @@ export default function nextJest(options: { dir?: string } = {}) {
           ...(transpiled
             ? [
                 `/node_modules/(?!.pnpm)(?!(${transpiled})/)`,
-                `/node_modules/.pnpm/(?!(${transpiled.replace(
+                // For pnpm: standard packages use "next@version", but file: refs
+                // use "file+..+next-repo-...". Don't ignore when the path leads
+                // to a transpiled package (e.g. .../node_modules/next/).
+                `/node_modules[\\\\/]\\.pnpm[\\\\/](?!(${transpiled.replace(
                   /\//g,
                   '\\+'
-                )})@)`,
+                )})@)(?!.*node_modules[\\\\/](${transpiledPathRegex})[\\\\/])`,
               ]
             : ['/node_modules/']),
           // CSS modules are mocked so they don't need to be transformed

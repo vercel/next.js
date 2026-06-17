@@ -1,6 +1,6 @@
 'use client'
 
-import Link from 'next/link'
+import Link, { type LinkProps } from 'next/link'
 import Form from 'next/form'
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
@@ -12,7 +12,7 @@ export function LinkAccordion({
 }: {
   href: string
   children: React.ReactNode
-  prefetch?: boolean
+  prefetch?: LinkProps['prefetch']
 }) {
   const [isVisible, setIsVisible] = useState(false)
   return (
@@ -92,6 +92,9 @@ export function ManualPrefetchLinkAccordion({
   )
 }
 
+type Router = ReturnType<typeof useRouter>
+type PrefetchOptions = Parameters<Router['prefetch']>[1]
+
 function ManualPrefetchLink({
   href,
   children,
@@ -109,8 +112,8 @@ function ManualPrefetchLink({
       let didUnmount = false
       const pollPrefetch = () => {
         if (!didUnmount) {
-          // @ts-expect-error: onInvalidate is not yet part of public types
           router.prefetch(href, {
+            kind: 'auto' as PrefetchOptions['kind'],
             onInvalidate: pollPrefetch,
           })
         }

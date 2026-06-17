@@ -1,10 +1,7 @@
 var classApplyDescriptorSet = require("./classApplyDescriptorSet.js");
-var classCheckPrivateStaticAccess = require("./classCheckPrivateStaticAccess.js");
+var assertClassBrand = require("./assertClassBrand.js");
 var classCheckPrivateStaticFieldDescriptor = require("./classCheckPrivateStaticFieldDescriptor.js");
-function _classStaticPrivateFieldSpecSet(receiver, classConstructor, descriptor, value) {
-  classCheckPrivateStaticAccess(receiver, classConstructor);
-  classCheckPrivateStaticFieldDescriptor(descriptor, "set");
-  classApplyDescriptorSet(receiver, descriptor, value);
-  return value;
+function _classStaticPrivateFieldSpecSet(s, t, r, e) {
+  return assertClassBrand(t, s), classCheckPrivateStaticFieldDescriptor(r, "set"), classApplyDescriptorSet(s, r, e), e;
 }
 module.exports = _classStaticPrivateFieldSpecSet, module.exports.__esModule = true, module.exports["default"] = module.exports;

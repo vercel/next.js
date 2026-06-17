@@ -39,12 +39,9 @@
             ),
         ],
         span: 1622..1636,
-        in_try: false,
     },
     FreeVar {
-        var: FreeVar(
-            "module",
-        ),
+        var: "module",
         ast_path: [
             Program(
                 Script,
@@ -80,12 +77,9 @@
             ),
         ],
         span: 1622..1628,
-        in_try: false,
     },
     FreeVar {
-        var: FreeVar(
-            "md5",
-        ),
+        var: "md5",
         ast_path: [
             Program(
                 Script,
@@ -112,7 +106,6 @@
             ),
         ],
         span: 1639..1642,
-        in_try: false,
     },
     Member {
         obj: Variable(
@@ -172,7 +165,6 @@
             ),
         ],
         span: 138..149,
-        in_try: false,
     },
     Member {
         obj: Variable(
@@ -244,7 +236,6 @@
             ),
         ],
         span: 173..206,
-        in_try: false,
     },
     Member {
         obj: Variable(
@@ -303,7 +294,6 @@
             ),
         ],
         span: 380..388,
-        in_try: false,
     },
     Member {
         obj: Variable(
@@ -386,7 +376,6 @@
             ),
         ],
         span: 484..488,
-        in_try: false,
     },
     Call {
         func: Variable(
@@ -455,11 +444,13 @@
                 ),
             ),
             Value(
-                Unknown {
-                    original_value: None,
-                    reason: "unsupported expression",
-                    has_side_effects: true,
-                },
+                Constant(
+                    Num(
+                        ConstantNumber(
+                            -680876936.0,
+                        ),
+                    ),
+                ),
             ),
         ],
         ast_path: [
@@ -615,7 +606,6 @@
             ),
         ],
         span: 532..540,
-        in_try: false,
     },
     Call {
         func: Variable(
@@ -696,11 +686,13 @@
                 ),
             ),
             Value(
-                Unknown {
-                    original_value: None,
-                    reason: "unsupported expression",
-                    has_side_effects: true,
-                },
+                Constant(
+                    Num(
+                        ConstantNumber(
+                            -389564586.0,
+                        ),
+                    ),
+                ),
             ),
         ],
         ast_path: [
@@ -856,7 +848,6 @@
             ),
         ],
         span: 585..593,
-        in_try: false,
     },
     Call {
         func: Variable(
@@ -1099,7 +1090,6 @@
             ),
         ],
         span: 637..645,
-        in_try: false,
     },
     Call {
         func: Variable(
@@ -1180,11 +1170,13 @@
                 ),
             ),
             Value(
-                Unknown {
-                    original_value: None,
-                    reason: "unsupported expression",
-                    has_side_effects: true,
-                },
+                Constant(
+                    Num(
+                        ConstantNumber(
+                            -1044525330.0,
+                        ),
+                    ),
+                ),
             ),
         ],
         ast_path: [
@@ -1340,7 +1332,6 @@
             ),
         ],
         span: 691..699,
-        in_try: false,
     },
     Call {
         func: Variable(
@@ -1421,11 +1412,13 @@
                 ),
             ),
             Value(
-                Unknown {
-                    original_value: None,
-                    reason: "unsupported expression",
-                    has_side_effects: true,
-                },
+                Constant(
+                    Num(
+                        ConstantNumber(
+                            -176418897.0,
+                        ),
+                    ),
+                ),
             ),
         ],
         ast_path: [
@@ -1581,7 +1574,6 @@
             ),
         ],
         span: 743..751,
-        in_try: false,
     },
     Call {
         func: Variable(
@@ -1824,7 +1816,6 @@
             ),
         ],
         span: 796..804,
-        in_try: false,
     },
     Call {
         func: Variable(
@@ -1905,11 +1896,13 @@
                 ),
             ),
             Value(
-                Unknown {
-                    original_value: None,
-                    reason: "unsupported expression",
-                    has_side_effects: true,
-                },
+                Constant(
+                    Num(
+                        ConstantNumber(
+                            -1473231341.0,
+                        ),
+                    ),
+                ),
             ),
         ],
         ast_path: [
@@ -2065,7 +2058,6 @@
             ),
         ],
         span: 850..858,
-        in_try: false,
     },
     Call {
         func: Variable(
@@ -2146,11 +2138,13 @@
                 ),
             ),
             Value(
-                Unknown {
-                    original_value: None,
-                    reason: "unsupported expression",
-                    has_side_effects: true,
-                },
+                Constant(
+                    Num(
+                        ConstantNumber(
+                            -45705983.0,
+                        ),
+                    ),
+                ),
             ),
         ],
         ast_path: [
@@ -2306,7 +2300,6 @@
             ),
         ],
         span: 902..910,
-        in_try: false,
     },
     Call {
         func: Variable(
@@ -2549,7 +2542,6 @@
             ),
         ],
         span: 954..962,
-        in_try: false,
     },
     Call {
         func: Variable(
@@ -2630,11 +2622,13 @@
                 ),
             ),
             Value(
-                Unknown {
-                    original_value: None,
-                    reason: "unsupported expression",
-                    has_side_effects: true,
-                },
+                Constant(
+                    Num(
+                        ConstantNumber(
+                            -1958414417.0,
+                        ),
+                    ),
+                ),
             ),
         ],
         ast_path: [
@@ -2790,7 +2784,6 @@
             ),
         ],
         span: 1008..1017,
-        in_try: false,
     },
     Call {
         func: Variable(
@@ -2871,11 +2864,13 @@
                 ),
             ),
             Value(
-                Unknown {
-                    original_value: None,
-                    reason: "unsupported expression",
-                    has_side_effects: true,
-                },
+                Constant(
+                    Num(
+                        ConstantNumber(
+                            -42063.0,
+                        ),
+                    ),
+                ),
             ),
         ],
         ast_path: [
@@ -3031,7 +3026,6 @@
             ),
         ],
         span: 1058..1067,
-        in_try: false,
     },
     Call {
         func: Variable(
@@ -3112,11 +3106,13 @@
                 ),
             ),
             Value(
-                Unknown {
-                    original_value: None,
-                    reason: "unsupported expression",
-                    has_side_effects: true,
-                },
+                Constant(
+                    Num(
+                        ConstantNumber(
+                            -1990404162.0,
+                        ),
+                    ),
+                ),
             ),
         ],
         ast_path: [
@@ -3272,7 +3268,6 @@
             ),
         ],
         span: 1113..1122,
-        in_try: false,
     },
     Call {
         func: Variable(
@@ -3515,7 +3510,6 @@
             ),
         ],
         span: 1166..1175,
-        in_try: false,
     },
     Call {
         func: Variable(
@@ -3596,11 +3590,13 @@
                 ),
             ),
             Value(
-                Unknown {
-                    original_value: None,
-                    reason: "unsupported expression",
-                    has_side_effects: true,
-                },
+                Constant(
+                    Num(
+                        ConstantNumber(
+                            -40341101.0,
+                        ),
+                    ),
+                ),
             ),
         ],
         ast_path: [
@@ -3756,7 +3752,6 @@
             ),
         ],
         span: 1219..1228,
-        in_try: false,
     },
     Call {
         func: Variable(
@@ -3837,11 +3832,13 @@
                 ),
             ),
             Value(
-                Unknown {
-                    original_value: None,
-                    reason: "unsupported expression",
-                    has_side_effects: true,
-                },
+                Constant(
+                    Num(
+                        ConstantNumber(
+                            -1502002290.0,
+                        ),
+                    ),
+                ),
             ),
         ],
         ast_path: [
@@ -3997,7 +3994,6 @@
             ),
         ],
         span: 1274..1283,
-        in_try: false,
     },
     Call {
         func: Variable(
@@ -4180,9 +4176,7 @@
         ],
     },
     FreeVar {
-        var: FreeVar(
-            "safeAdd",
-        ),
+        var: "safeAdd",
         ast_path: [
             Program(
                 Script,
@@ -4229,12 +4223,9 @@
             ),
         ],
         span: 1459..1466,
-        in_try: false,
     },
     FreeVar {
-        var: FreeVar(
-            "bitRotateLeft",
-        ),
+        var: "bitRotateLeft",
         ast_path: [
             Program(
                 Script,
@@ -4292,12 +4283,9 @@
             ),
         ],
         span: 1467..1480,
-        in_try: false,
     },
     FreeVar {
-        var: FreeVar(
-            "safeAdd",
-        ),
+        var: "safeAdd",
         ast_path: [
             Program(
                 Script,
@@ -4366,12 +4354,9 @@
             ),
         ],
         span: 1481..1488,
-        in_try: false,
     },
     FreeVar {
-        var: FreeVar(
-            "safeAdd",
-        ),
+        var: "safeAdd",
         ast_path: [
             Program(
                 Script,
@@ -4451,7 +4436,6 @@
             ),
         ],
         span: 1489..1496,
-        in_try: false,
     },
     Call {
         func: FreeVar(
@@ -4549,9 +4533,7 @@
         new: false,
     },
     FreeVar {
-        var: FreeVar(
-            "safeAdd",
-        ),
+        var: "safeAdd",
         ast_path: [
             Program(
                 Script,
@@ -4631,7 +4613,6 @@
             ),
         ],
         span: 1504..1511,
-        in_try: false,
     },
     Call {
         func: FreeVar(

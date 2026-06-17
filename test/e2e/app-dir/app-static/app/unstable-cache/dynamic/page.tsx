@@ -1,5 +1,5 @@
 import { draftMode } from 'next/headers'
-import { unstable_expireTag, unstable_cache } from 'next/cache'
+import { updateTag, unstable_cache } from 'next/cache'
 import { RevalidateButton } from '../revalidate-button'
 
 export const dynamic = 'force-dynamic'
@@ -7,7 +7,7 @@ export const dynamic = 'force-dynamic'
 export default async function Page() {
   async function revalidate() {
     'use server'
-    await unstable_expireTag('random-value-data')
+    await updateTag('random-value-data')
   }
 
   const cachedData = await unstable_cache(

@@ -1,5 +1,6 @@
 use std::mem::Discriminant;
 
+use smallvec::SmallVec;
 pub use turbo_tasks_macros::DeterministicHash;
 
 macro_rules! deterministic_hash_number {
@@ -28,10 +29,10 @@ macro_rules! impl_write_number {
 /// runs.
 ///
 /// Note that the default [`std::hash::Hash`] trait used by Rust allows for hashing that differs
-/// across process runs, so it is not suitable for persistent caching with turbo-tasks.
+/// across process runs, so it is not suitable for filesystem cache with turbo-tasks.
 ///
-/// It's very important that `Vc`s never implement this, since they cannot be deterministic. The
-/// value that they wrap, however, can implement the trait.
+/// It's very important that `Vc`s never implement this, since they are not consistent from run to
+/// run. The value that they wrap, however, can implement the trait.
 pub trait DeterministicHash {
     /// Adds `self`'s bytes to the [`DeterministicHasher`]'s state, in a way that is replicatable on
     /// any platform or process run.
@@ -41,7 +42,7 @@ pub trait DeterministicHash {
 /// Signals the implementor can safely hash in a replicatable way across platforms and process runs.
 ///
 /// Note that the default [`std::hash::Hash`] trait used by Rust allows for hashing that differs
-/// across process runs, so it is not suitable for persistent caching with turbo-tasks.
+/// across process runs, so it is not suitable for filesystem cache with turbo-tasks.
 pub trait DeterministicHasher {
     fn finish(&self) -> u64;
     fn write_bytes(&mut self, bytes: &[u8]);
@@ -150,6 +151,19 @@ impl<T: DeterministicHash> DeterministicHash for Vec<T> {
             v.deterministic_hash(state);
         }
     }
+}
+
+impl<T: DeterministicHash, const N: usize> DeterministicHash for SmallVec<[T; N]> {
+    fn deterministic_hash<H: DeterministicHasher>(&self, state: &mut H) {
+        state.write_usize(self.len());
+        for v in self {
+            v.deterministic_hash(state);
+        }
+    }
+}
+
+impl DeterministicHash for () {
+    fn deterministic_hash<H: DeterministicHasher>(&self, _state: &mut H) {}
 }
 
 macro_rules! tuple_impls {

@@ -1,10 +1,10 @@
 use std::ops::Index;
 
-use petgraph::{visit::EdgeRef, Direction, Graph};
+use petgraph::{Direction, Graph, visit::EdgeRef};
 use rustc_hash::{FxHashMap, FxHashSet};
 use turbo_tasks::FxIndexSet;
 
-use crate::tree_shake::graph::{Dependency, ItemId, ItemIdItemKind};
+use crate::tree_shake::graph::{Dependency, ItemId};
 
 pub(super) struct GraphOptimizer<'a> {
     pub graph_ix: &'a FxIndexSet<ItemId>,
@@ -26,19 +26,9 @@ impl GraphOptimizer<'_> {
     {
         let item_id = &self[*item];
 
-        // Currently we don't merge import bindings because of workarounds we are using.
-        //
-        // See graph.rs for actual workarounds. ImportBinding workaround is about using direct
-        // imports for import bindings so the static code analysis pass can detect imports like
-        // 'next/dynamic'.
+        // Currently we don't merge import bindings because those node are phantom nodes.
 
-        matches!(
-            item_id,
-            ItemId::Item {
-                kind: ItemIdItemKind::ImportBinding(..),
-                ..
-            }
-        )
+        item_id.is_phantom()
     }
 
     fn should_not_merge_iter<N>(&self, items: &[N]) -> bool
@@ -183,18 +173,17 @@ impl GraphOptimizer<'_> {
             }
 
             // If this node is reachable from exactly one starting node, add it to that group
-            if let Some(reachable_from) = reachability.get(&node) {
-                if reachable_from.len() == 1 {
-                    let start = *reachable_from.iter().next().unwrap();
+            if let Some(reachable_from) = reachability.get(&node)
+                && reachable_from.len() == 1
+            {
+                let start = *reachable_from.iter().next().unwrap();
 
-                    // Don't merge if the starting node should not be merged
-                    if self.should_not_merge_iter(g.node_weight(start).expect("Node should exist"))
-                    {
-                        continue;
-                    }
-
-                    merge_groups.entry(start).or_default().push(node);
+                // Don't merge if the starting node should not be merged
+                if self.should_not_merge_iter(g.node_weight(start).expect("Node should exist")) {
+                    continue;
                 }
+
+                merge_groups.entry(start).or_default().push(node);
             }
         }
 

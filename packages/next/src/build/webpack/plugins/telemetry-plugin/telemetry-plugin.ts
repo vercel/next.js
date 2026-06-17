@@ -43,7 +43,7 @@ export type Feature =
   | `swc/target/${SWC_TARGET_TRIPLE}`
   | 'turbotrace'
   | 'transpilePackages'
-  | 'skipMiddlewareUrlNormalize'
+  | 'skipProxyUrlNormalize'
   | 'skipTrailingSlashRedirect'
   | 'modularizeImports'
   | 'esmExternals'
@@ -70,10 +70,10 @@ const FEATURE_MODULE_MAP: ReadonlyMap<Feature, string> = new Map([
   ['next/dynamic', '/next/dynamic.js'],
 ])
 const FEATURE_MODULE_REGEXP_MAP: ReadonlyMap<Feature, RegExp> = new Map([
-  ['@next/font/google', /\/@next\/font\/google\/target.css?.+$/],
-  ['@next/font/local', /\/@next\/font\/local\/target.css?.+$/],
-  ['next/font/google', /\/next\/font\/google\/target.css?.+$/],
-  ['next/font/local', /\/next\/font\/local\/target.css?.+$/],
+  ['@next/font/google', /\/@next\/font\/google\/target\.css\?.+$/],
+  ['@next/font/local', /\/@next\/font\/local\/target\.css\?.+$/],
+  ['next/font/google', /\/next\/font\/google\/target\.css\?.+$/],
+  ['next/font/local', /\/next\/font\/local\/target\.css\?.+$/],
 ])
 
 // List of build features used in webpack configuration
@@ -101,7 +101,7 @@ const BUILD_FEATURES: Array<Feature> = [
   'swc/target/aarch64-pc-windows-msvc',
   'turbotrace',
   'transpilePackages',
-  'skipMiddlewareUrlNormalize',
+  'skipProxyUrlNormalize',
   'skipTrailingSlashRedirect',
   'modularizeImports',
   'esmExternals',

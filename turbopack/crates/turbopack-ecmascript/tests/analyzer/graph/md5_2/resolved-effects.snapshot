@@ -24,7 +24,7 @@
 - *0* ???*1*["constructor"]
   ⚠️  unknown object
 - *1* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *2* ???*3*["constructor"]
   ⚠️  unknown object
   ⚠️  This value might have side effects
@@ -46,11 +46,11 @@
 
 13 -> 15 conditional = (???*0* | (???*1* === "binary"))
 - *0* arguments[1]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *1* ???*2*["encoding"]
   ⚠️  unknown object
 - *2* arguments[1]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 15 -> 17 member call = module<charenc, {}>["bin"]["stringToBytes"](
     (
@@ -62,7 +62,7 @@
     )
 )
 - *0* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *1* message
   ⚠️  circular variable reference
 - *2* message
@@ -94,7 +94,7 @@
     )
 )
 - *0* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *1* message
   ⚠️  circular variable reference
 - *2* message
@@ -126,7 +126,7 @@
     )
 )
 - *0* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *1* message
   ⚠️  circular variable reference
 - *2* message
@@ -150,7 +150,7 @@
 
 13 -> 21 conditional = module<is-buffer, {}>((???*0* | ???*1* | ???*3*))
 - *0* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *1* module<charenc, {}>["bin"]["stringToBytes"](???*2*)
   ⚠️  nested operation
 - *2* message
@@ -190,7 +190,7 @@
   ⚠️  unknown global
   ⚠️  This value might have side effects
 - *3* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *4* message
   ⚠️  circular variable reference
 - *5* message
@@ -227,7 +227,7 @@
   ⚠️  unknown global
   ⚠️  This value might have side effects
 - *1* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *2* message
   ⚠️  circular variable reference
 - *3* message
@@ -265,7 +265,7 @@
   | ???*7*()
 )["toString"]()
 - *0* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *1* message
   ⚠️  circular variable reference
 - *2* message
@@ -297,7 +297,7 @@
     )
 )
 - *0* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *1* message
   ⚠️  circular variable reference
 - *2* message
@@ -326,7 +326,7 @@
     ???*3*,
     module<crypt, {}>["bytesToWords"]((???*4* | ???*5* | ???*7*))[((0 | ???*11* | ???*12*) + 0)],
     7,
-    ???*14*
+    -680876936
 )
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
@@ -337,7 +337,7 @@
 - *3* max number of linking steps reached
   ⚠️  This value might have side effects
 - *4* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *5* module<charenc, {}>["bin"]["stringToBytes"](???*6*)
   ⚠️  nested operation
 - *6* message
@@ -360,8 +360,6 @@
   ⚠️  nested operation
 - *13* i
   ⚠️  circular variable reference
-- *14* unsupported expression
-  ⚠️  This value might have side effects
 
 0 -> 52 call = (...) => crypt["endian"]([a, b, c, d])["_ff"](
     ???*0*,
@@ -370,7 +368,7 @@
     ???*3*,
     module<crypt, {}>["bytesToWords"]((???*4* | ???*5* | ???*7*))[((0 | ???*11* | ???*12*) + 1)],
     12,
-    ???*14*
+    -389564586
 )
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
@@ -381,7 +379,7 @@
 - *3* max number of linking steps reached
   ⚠️  This value might have side effects
 - *4* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *5* module<charenc, {}>["bin"]["stringToBytes"](???*6*)
   ⚠️  nested operation
 - *6* message
@@ -404,8 +402,6 @@
   ⚠️  nested operation
 - *13* i
   ⚠️  circular variable reference
-- *14* unsupported expression
-  ⚠️  This value might have side effects
 
 0 -> 54 call = (...) => crypt["endian"]([a, b, c, d])["_ff"](
     ???*0*,
@@ -425,7 +421,7 @@
 - *3* max number of linking steps reached
   ⚠️  This value might have side effects
 - *4* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *5* module<charenc, {}>["bin"]["stringToBytes"](???*6*)
   ⚠️  nested operation
 - *6* message
@@ -456,7 +452,7 @@
     ???*3*,
     module<crypt, {}>["bytesToWords"]((???*4* | ???*5* | ???*7*))[((0 | ???*11* | ???*12*) + 3)],
     22,
-    ???*14*
+    -1044525330
 )
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
@@ -467,7 +463,7 @@
 - *3* max number of linking steps reached
   ⚠️  This value might have side effects
 - *4* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *5* module<charenc, {}>["bin"]["stringToBytes"](???*6*)
   ⚠️  nested operation
 - *6* message
@@ -490,8 +486,6 @@
   ⚠️  nested operation
 - *13* i
   ⚠️  circular variable reference
-- *14* unsupported expression
-  ⚠️  This value might have side effects
 
 0 -> 58 call = (...) => crypt["endian"]([a, b, c, d])["_ff"](
     ???*0*,
@@ -500,7 +494,7 @@
     ???*3*,
     module<crypt, {}>["bytesToWords"]((???*4* | ???*5* | ???*7*))[((0 | ???*11* | ???*12*) + 4)],
     7,
-    ???*14*
+    -176418897
 )
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
@@ -511,7 +505,7 @@
 - *3* max number of linking steps reached
   ⚠️  This value might have side effects
 - *4* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *5* module<charenc, {}>["bin"]["stringToBytes"](???*6*)
   ⚠️  nested operation
 - *6* message
@@ -534,8 +528,6 @@
   ⚠️  nested operation
 - *13* i
   ⚠️  circular variable reference
-- *14* unsupported expression
-  ⚠️  This value might have side effects
 
 0 -> 60 call = (...) => crypt["endian"]([a, b, c, d])["_ff"](
     ???*0*,
@@ -555,7 +547,7 @@
 - *3* max number of linking steps reached
   ⚠️  This value might have side effects
 - *4* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *5* module<charenc, {}>["bin"]["stringToBytes"](???*6*)
   ⚠️  nested operation
 - *6* message
@@ -586,7 +578,7 @@
     ???*3*,
     module<crypt, {}>["bytesToWords"]((???*4* | ???*5* | ???*7*))[((0 | ???*11* | ???*12*) + 6)],
     17,
-    ???*14*
+    -1473231341
 )
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
@@ -597,7 +589,7 @@
 - *3* max number of linking steps reached
   ⚠️  This value might have side effects
 - *4* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *5* module<charenc, {}>["bin"]["stringToBytes"](???*6*)
   ⚠️  nested operation
 - *6* message
@@ -620,8 +612,6 @@
   ⚠️  nested operation
 - *13* i
   ⚠️  circular variable reference
-- *14* unsupported expression
-  ⚠️  This value might have side effects
 
 0 -> 64 call = (...) => crypt["endian"]([a, b, c, d])["_ff"](
     ???*0*,
@@ -630,7 +620,7 @@
     ???*3*,
     module<crypt, {}>["bytesToWords"]((???*4* | ???*5* | ???*7*))[((0 | ???*11* | ???*12*) + 7)],
     22,
-    ???*14*
+    -45705983
 )
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
@@ -641,7 +631,7 @@
 - *3* max number of linking steps reached
   ⚠️  This value might have side effects
 - *4* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *5* module<charenc, {}>["bin"]["stringToBytes"](???*6*)
   ⚠️  nested operation
 - *6* message
@@ -664,8 +654,6 @@
   ⚠️  nested operation
 - *13* i
   ⚠️  circular variable reference
-- *14* unsupported expression
-  ⚠️  This value might have side effects
 
 0 -> 66 call = (...) => crypt["endian"]([a, b, c, d])["_ff"](
     ???*0*,
@@ -685,7 +673,7 @@
 - *3* max number of linking steps reached
   ⚠️  This value might have side effects
 - *4* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *5* module<charenc, {}>["bin"]["stringToBytes"](???*6*)
   ⚠️  nested operation
 - *6* message
@@ -716,7 +704,7 @@
     ???*3*,
     module<crypt, {}>["bytesToWords"]((???*4* | ???*5* | ???*7*))[((0 | ???*11* | ???*12*) + 9)],
     12,
-    ???*14*
+    -1958414417
 )
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
@@ -727,7 +715,7 @@
 - *3* max number of linking steps reached
   ⚠️  This value might have side effects
 - *4* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *5* module<charenc, {}>["bin"]["stringToBytes"](???*6*)
   ⚠️  nested operation
 - *6* message
@@ -750,8 +738,6 @@
   ⚠️  nested operation
 - *13* i
   ⚠️  circular variable reference
-- *14* unsupported expression
-  ⚠️  This value might have side effects
 
 0 -> 70 call = (...) => crypt["endian"]([a, b, c, d])["_ff"](
     ???*0*,
@@ -760,7 +746,7 @@
     ???*3*,
     module<crypt, {}>["bytesToWords"]((???*4* | ???*5* | ???*7*))[((0 | ???*11* | ???*12*) + 10)],
     17,
-    ???*14*
+    -42063
 )
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
@@ -771,7 +757,7 @@
 - *3* max number of linking steps reached
   ⚠️  This value might have side effects
 - *4* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *5* module<charenc, {}>["bin"]["stringToBytes"](???*6*)
   ⚠️  nested operation
 - *6* message
@@ -794,8 +780,6 @@
   ⚠️  nested operation
 - *13* i
   ⚠️  circular variable reference
-- *14* unsupported expression
-  ⚠️  This value might have side effects
 
 0 -> 72 call = (...) => crypt["endian"]([a, b, c, d])["_ff"](
     ???*0*,
@@ -804,7 +788,7 @@
     ???*3*,
     module<crypt, {}>["bytesToWords"]((???*4* | ???*5* | ???*7*))[((0 | ???*11* | ???*12*) + 11)],
     22,
-    ???*14*
+    -1990404162
 )
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
@@ -815,7 +799,7 @@
 - *3* max number of linking steps reached
   ⚠️  This value might have side effects
 - *4* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *5* module<charenc, {}>["bin"]["stringToBytes"](???*6*)
   ⚠️  nested operation
 - *6* message
@@ -838,8 +822,6 @@
   ⚠️  nested operation
 - *13* i
   ⚠️  circular variable reference
-- *14* unsupported expression
-  ⚠️  This value might have side effects
 
 0 -> 74 call = (...) => crypt["endian"]([a, b, c, d])["_ff"](
     ???*0*,
@@ -859,7 +841,7 @@
 - *3* max number of linking steps reached
   ⚠️  This value might have side effects
 - *4* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *5* module<charenc, {}>["bin"]["stringToBytes"](???*6*)
   ⚠️  nested operation
 - *6* message
@@ -890,7 +872,7 @@
     ???*3*,
     module<crypt, {}>["bytesToWords"]((???*4* | ???*5* | ???*7*))[((0 | ???*11* | ???*12*) + 13)],
     12,
-    ???*14*
+    -40341101
 )
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
@@ -901,7 +883,7 @@
 - *3* max number of linking steps reached
   ⚠️  This value might have side effects
 - *4* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *5* module<charenc, {}>["bin"]["stringToBytes"](???*6*)
   ⚠️  nested operation
 - *6* message
@@ -924,8 +906,6 @@
   ⚠️  nested operation
 - *13* i
   ⚠️  circular variable reference
-- *14* unsupported expression
-  ⚠️  This value might have side effects
 
 0 -> 78 call = (...) => crypt["endian"]([a, b, c, d])["_ff"](
     ???*0*,
@@ -934,7 +914,7 @@
     ???*3*,
     module<crypt, {}>["bytesToWords"]((???*4* | ???*5* | ???*7*))[((0 | ???*11* | ???*12*) + 14)],
     17,
-    ???*14*
+    -1502002290
 )
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
@@ -945,7 +925,7 @@
 - *3* max number of linking steps reached
   ⚠️  This value might have side effects
 - *4* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *5* module<charenc, {}>["bin"]["stringToBytes"](???*6*)
   ⚠️  nested operation
 - *6* message
@@ -968,8 +948,6 @@
   ⚠️  nested operation
 - *13* i
   ⚠️  circular variable reference
-- *14* unsupported expression
-  ⚠️  This value might have side effects
 
 0 -> 80 call = (...) => crypt["endian"]([a, b, c, d])["_ff"](
     ???*0*,
@@ -989,7 +967,7 @@
 - *3* max number of linking steps reached
   ⚠️  This value might have side effects
 - *4* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *5* module<charenc, {}>["bin"]["stringToBytes"](???*6*)
   ⚠️  nested operation
 - *6* message
@@ -1020,7 +998,7 @@
     ???*3*,
     module<crypt, {}>["bytesToWords"]((???*4* | ???*5* | ???*7*))[((0 | ???*11* | ???*12*) + 1)],
     5,
-    ???*14*
+    -165796510
 )
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
@@ -1031,7 +1009,7 @@
 - *3* max number of linking steps reached
   ⚠️  This value might have side effects
 - *4* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *5* module<charenc, {}>["bin"]["stringToBytes"](???*6*)
   ⚠️  nested operation
 - *6* message
@@ -1054,8 +1032,6 @@
   ⚠️  nested operation
 - *13* i
   ⚠️  circular variable reference
-- *14* unsupported expression
-  ⚠️  This value might have side effects
 
 0 -> 84 call = (...) => crypt["endian"]([a, b, c, d])["_gg"](
     ???*0*,
@@ -1064,7 +1040,7 @@
     ???*3*,
     module<crypt, {}>["bytesToWords"]((???*4* | ???*5* | ???*7*))[((0 | ???*11* | ???*12*) + 6)],
     9,
-    ???*14*
+    -1069501632
 )
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
@@ -1075,7 +1051,7 @@
 - *3* max number of linking steps reached
   ⚠️  This value might have side effects
 - *4* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *5* module<charenc, {}>["bin"]["stringToBytes"](???*6*)
   ⚠️  nested operation
 - *6* message
@@ -1098,8 +1074,6 @@
   ⚠️  nested operation
 - *13* i
   ⚠️  circular variable reference
-- *14* unsupported expression
-  ⚠️  This value might have side effects
 
 0 -> 86 call = (...) => crypt["endian"]([a, b, c, d])["_gg"](
     ???*0*,
@@ -1119,7 +1093,7 @@
 - *3* max number of linking steps reached
   ⚠️  This value might have side effects
 - *4* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *5* module<charenc, {}>["bin"]["stringToBytes"](???*6*)
   ⚠️  nested operation
 - *6* message
@@ -1150,7 +1124,7 @@
     ???*3*,
     module<crypt, {}>["bytesToWords"]((???*4* | ???*5* | ???*7*))[((0 | ???*11* | ???*12*) + 0)],
     20,
-    ???*14*
+    -373897302
 )
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
@@ -1161,7 +1135,7 @@
 - *3* max number of linking steps reached
   ⚠️  This value might have side effects
 - *4* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *5* module<charenc, {}>["bin"]["stringToBytes"](???*6*)
   ⚠️  nested operation
 - *6* message
@@ -1184,8 +1158,6 @@
   ⚠️  nested operation
 - *13* i
   ⚠️  circular variable reference
-- *14* unsupported expression
-  ⚠️  This value might have side effects
 
 0 -> 90 call = (...) => crypt["endian"]([a, b, c, d])["_gg"](
     ???*0*,
@@ -1194,7 +1166,7 @@
     ???*3*,
     module<crypt, {}>["bytesToWords"]((???*4* | ???*5* | ???*7*))[((0 | ???*11* | ???*12*) + 5)],
     5,
-    ???*14*
+    -701558691
 )
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
@@ -1205,7 +1177,7 @@
 - *3* max number of linking steps reached
   ⚠️  This value might have side effects
 - *4* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *5* module<charenc, {}>["bin"]["stringToBytes"](???*6*)
   ⚠️  nested operation
 - *6* message
@@ -1228,8 +1200,6 @@
   ⚠️  nested operation
 - *13* i
   ⚠️  circular variable reference
-- *14* unsupported expression
-  ⚠️  This value might have side effects
 
 0 -> 92 call = (...) => crypt["endian"]([a, b, c, d])["_gg"](
     ???*0*,
@@ -1249,7 +1219,7 @@
 - *3* max number of linking steps reached
   ⚠️  This value might have side effects
 - *4* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *5* module<charenc, {}>["bin"]["stringToBytes"](???*6*)
   ⚠️  nested operation
 - *6* message
@@ -1280,7 +1250,7 @@
     ???*3*,
     module<crypt, {}>["bytesToWords"]((???*4* | ???*5* | ???*7*))[((0 | ???*11* | ???*12*) + 15)],
     14,
-    ???*14*
+    -660478335
 )
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
@@ -1291,7 +1261,7 @@
 - *3* max number of linking steps reached
   ⚠️  This value might have side effects
 - *4* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *5* module<charenc, {}>["bin"]["stringToBytes"](???*6*)
   ⚠️  nested operation
 - *6* message
@@ -1314,8 +1284,6 @@
   ⚠️  nested operation
 - *13* i
   ⚠️  circular variable reference
-- *14* unsupported expression
-  ⚠️  This value might have side effects
 
 0 -> 96 call = (...) => crypt["endian"]([a, b, c, d])["_gg"](
     ???*0*,
@@ -1324,7 +1292,7 @@
     ???*3*,
     module<crypt, {}>["bytesToWords"]((???*4* | ???*5* | ???*7*))[((0 | ???*11* | ???*12*) + 4)],
     20,
-    ???*14*
+    -405537848
 )
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
@@ -1335,7 +1303,7 @@
 - *3* max number of linking steps reached
   ⚠️  This value might have side effects
 - *4* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *5* module<charenc, {}>["bin"]["stringToBytes"](???*6*)
   ⚠️  nested operation
 - *6* message
@@ -1358,8 +1326,6 @@
   ⚠️  nested operation
 - *13* i
   ⚠️  circular variable reference
-- *14* unsupported expression
-  ⚠️  This value might have side effects
 
 0 -> 98 call = (...) => crypt["endian"]([a, b, c, d])["_gg"](
     ???*0*,
@@ -1379,7 +1345,7 @@
 - *3* max number of linking steps reached
   ⚠️  This value might have side effects
 - *4* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *5* module<charenc, {}>["bin"]["stringToBytes"](???*6*)
   ⚠️  nested operation
 - *6* message
@@ -1410,7 +1376,7 @@
     ???*3*,
     module<crypt, {}>["bytesToWords"]((???*4* | ???*5* | ???*7*))[((0 | ???*11* | ???*12*) + 14)],
     9,
-    ???*14*
+    -1019803690
 )
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
@@ -1421,7 +1387,7 @@
 - *3* max number of linking steps reached
   ⚠️  This value might have side effects
 - *4* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *5* module<charenc, {}>["bin"]["stringToBytes"](???*6*)
   ⚠️  nested operation
 - *6* message
@@ -1444,8 +1410,6 @@
   ⚠️  nested operation
 - *13* i
   ⚠️  circular variable reference
-- *14* unsupported expression
-  ⚠️  This value might have side effects
 
 0 -> 102 call = (...) => crypt["endian"]([a, b, c, d])["_gg"](
     ???*0*,
@@ -1454,7 +1418,7 @@
     ???*3*,
     module<crypt, {}>["bytesToWords"]((???*4* | ???*5* | ???*7*))[((0 | ???*11* | ???*12*) + 3)],
     14,
-    ???*14*
+    -187363961
 )
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
@@ -1465,7 +1429,7 @@
 - *3* max number of linking steps reached
   ⚠️  This value might have side effects
 - *4* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *5* module<charenc, {}>["bin"]["stringToBytes"](???*6*)
   ⚠️  nested operation
 - *6* message
@@ -1488,8 +1452,6 @@
   ⚠️  nested operation
 - *13* i
   ⚠️  circular variable reference
-- *14* unsupported expression
-  ⚠️  This value might have side effects
 
 0 -> 104 call = (...) => crypt["endian"]([a, b, c, d])["_gg"](
     ???*0*,
@@ -1509,7 +1471,7 @@
 - *3* max number of linking steps reached
   ⚠️  This value might have side effects
 - *4* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *5* module<charenc, {}>["bin"]["stringToBytes"](???*6*)
   ⚠️  nested operation
 - *6* message
@@ -1540,7 +1502,7 @@
     ???*3*,
     module<crypt, {}>["bytesToWords"]((???*4* | ???*5* | ???*7*))[((0 | ???*11* | ???*12*) + 13)],
     5,
-    ???*14*
+    -1444681467
 )
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
@@ -1551,7 +1513,7 @@
 - *3* max number of linking steps reached
   ⚠️  This value might have side effects
 - *4* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *5* module<charenc, {}>["bin"]["stringToBytes"](???*6*)
   ⚠️  nested operation
 - *6* message
@@ -1574,8 +1536,6 @@
   ⚠️  nested operation
 - *13* i
   ⚠️  circular variable reference
-- *14* unsupported expression
-  ⚠️  This value might have side effects
 
 0 -> 108 call = (...) => crypt["endian"]([a, b, c, d])["_gg"](
     ???*0*,
@@ -1584,7 +1544,7 @@
     ???*3*,
     module<crypt, {}>["bytesToWords"]((???*4* | ???*5* | ???*7*))[((0 | ???*11* | ???*12*) + 2)],
     9,
-    ???*14*
+    -51403784
 )
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
@@ -1595,7 +1555,7 @@
 - *3* max number of linking steps reached
   ⚠️  This value might have side effects
 - *4* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *5* module<charenc, {}>["bin"]["stringToBytes"](???*6*)
   ⚠️  nested operation
 - *6* message
@@ -1618,8 +1578,6 @@
   ⚠️  nested operation
 - *13* i
   ⚠️  circular variable reference
-- *14* unsupported expression
-  ⚠️  This value might have side effects
 
 0 -> 110 call = (...) => crypt["endian"]([a, b, c, d])["_gg"](
     ???*0*,
@@ -1639,7 +1597,7 @@
 - *3* max number of linking steps reached
   ⚠️  This value might have side effects
 - *4* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *5* module<charenc, {}>["bin"]["stringToBytes"](???*6*)
   ⚠️  nested operation
 - *6* message
@@ -1670,7 +1628,7 @@
     ???*3*,
     module<crypt, {}>["bytesToWords"]((???*4* | ???*5* | ???*7*))[((0 | ???*11* | ???*12*) + 12)],
     20,
-    ???*14*
+    -1926607734
 )
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
@@ -1681,7 +1639,7 @@
 - *3* max number of linking steps reached
   ⚠️  This value might have side effects
 - *4* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *5* module<charenc, {}>["bin"]["stringToBytes"](???*6*)
   ⚠️  nested operation
 - *6* message
@@ -1704,8 +1662,6 @@
   ⚠️  nested operation
 - *13* i
   ⚠️  circular variable reference
-- *14* unsupported expression
-  ⚠️  This value might have side effects
 
 0 -> 114 call = (...) => crypt["endian"]([a, b, c, d])["_hh"](
     ???*0*,
@@ -1714,7 +1670,7 @@
     ???*3*,
     module<crypt, {}>["bytesToWords"]((???*4* | ???*5* | ???*7*))[((0 | ???*11* | ???*12*) + 5)],
     4,
-    ???*14*
+    -378558
 )
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
@@ -1725,7 +1681,7 @@
 - *3* max number of linking steps reached
   ⚠️  This value might have side effects
 - *4* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *5* module<charenc, {}>["bin"]["stringToBytes"](???*6*)
   ⚠️  nested operation
 - *6* message
@@ -1748,8 +1704,6 @@
   ⚠️  nested operation
 - *13* i
   ⚠️  circular variable reference
-- *14* unsupported expression
-  ⚠️  This value might have side effects
 
 0 -> 116 call = (...) => crypt["endian"]([a, b, c, d])["_hh"](
     ???*0*,
@@ -1758,7 +1712,7 @@
     ???*3*,
     module<crypt, {}>["bytesToWords"]((???*4* | ???*5* | ???*7*))[((0 | ???*11* | ???*12*) + 8)],
     11,
-    ???*14*
+    -2022574463
 )
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
@@ -1769,7 +1723,7 @@
 - *3* max number of linking steps reached
   ⚠️  This value might have side effects
 - *4* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *5* module<charenc, {}>["bin"]["stringToBytes"](???*6*)
   ⚠️  nested operation
 - *6* message
@@ -1792,8 +1746,6 @@
   ⚠️  nested operation
 - *13* i
   ⚠️  circular variable reference
-- *14* unsupported expression
-  ⚠️  This value might have side effects
 
 0 -> 118 call = (...) => crypt["endian"]([a, b, c, d])["_hh"](
     ???*0*,
@@ -1813,7 +1765,7 @@
 - *3* max number of linking steps reached
   ⚠️  This value might have side effects
 - *4* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *5* module<charenc, {}>["bin"]["stringToBytes"](???*6*)
   ⚠️  nested operation
 - *6* message
@@ -1844,7 +1796,7 @@
     ???*3*,
     module<crypt, {}>["bytesToWords"]((???*4* | ???*5* | ???*7*))[((0 | ???*11* | ???*12*) + 14)],
     23,
-    ???*14*
+    -35309556
 )
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
@@ -1855,7 +1807,7 @@
 - *3* max number of linking steps reached
   ⚠️  This value might have side effects
 - *4* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *5* module<charenc, {}>["bin"]["stringToBytes"](???*6*)
   ⚠️  nested operation
 - *6* message
@@ -1878,8 +1830,6 @@
   ⚠️  nested operation
 - *13* i
   ⚠️  circular variable reference
-- *14* unsupported expression
-  ⚠️  This value might have side effects
 
 0 -> 122 call = (...) => crypt["endian"]([a, b, c, d])["_hh"](
     ???*0*,
@@ -1888,7 +1838,7 @@
     ???*3*,
     module<crypt, {}>["bytesToWords"]((???*4* | ???*5* | ???*7*))[((0 | ???*11* | ???*12*) + 1)],
     4,
-    ???*14*
+    -1530992060
 )
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
@@ -1899,7 +1849,7 @@
 - *3* max number of linking steps reached
   ⚠️  This value might have side effects
 - *4* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *5* module<charenc, {}>["bin"]["stringToBytes"](???*6*)
   ⚠️  nested operation
 - *6* message
@@ -1922,8 +1872,6 @@
   ⚠️  nested operation
 - *13* i
   ⚠️  circular variable reference
-- *14* unsupported expression
-  ⚠️  This value might have side effects
 
 0 -> 124 call = (...) => crypt["endian"]([a, b, c, d])["_hh"](
     ???*0*,
@@ -1943,7 +1891,7 @@
 - *3* max number of linking steps reached
   ⚠️  This value might have side effects
 - *4* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *5* module<charenc, {}>["bin"]["stringToBytes"](???*6*)
   ⚠️  nested operation
 - *6* message
@@ -1974,7 +1922,7 @@
     ???*3*,
     module<crypt, {}>["bytesToWords"]((???*4* | ???*5* | ???*7*))[((0 | ???*11* | ???*12*) + 7)],
     16,
-    ???*14*
+    -155497632
 )
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
@@ -1985,7 +1933,7 @@
 - *3* max number of linking steps reached
   ⚠️  This value might have side effects
 - *4* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *5* module<charenc, {}>["bin"]["stringToBytes"](???*6*)
   ⚠️  nested operation
 - *6* message
@@ -2008,8 +1956,6 @@
   ⚠️  nested operation
 - *13* i
   ⚠️  circular variable reference
-- *14* unsupported expression
-  ⚠️  This value might have side effects
 
 0 -> 128 call = (...) => crypt["endian"]([a, b, c, d])["_hh"](
     ???*0*,
@@ -2018,7 +1964,7 @@
     ???*3*,
     module<crypt, {}>["bytesToWords"]((???*4* | ???*5* | ???*7*))[((0 | ???*11* | ???*12*) + 10)],
     23,
-    ???*14*
+    -1094730640
 )
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
@@ -2029,7 +1975,7 @@
 - *3* max number of linking steps reached
   ⚠️  This value might have side effects
 - *4* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *5* module<charenc, {}>["bin"]["stringToBytes"](???*6*)
   ⚠️  nested operation
 - *6* message
@@ -2052,8 +1998,6 @@
   ⚠️  nested operation
 - *13* i
   ⚠️  circular variable reference
-- *14* unsupported expression
-  ⚠️  This value might have side effects
 
 0 -> 130 call = (...) => crypt["endian"]([a, b, c, d])["_hh"](
     ???*0*,
@@ -2073,7 +2017,7 @@
 - *3* max number of linking steps reached
   ⚠️  This value might have side effects
 - *4* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *5* module<charenc, {}>["bin"]["stringToBytes"](???*6*)
   ⚠️  nested operation
 - *6* message
@@ -2104,7 +2048,7 @@
     ???*3*,
     module<crypt, {}>["bytesToWords"]((???*4* | ???*5* | ???*7*))[((0 | ???*11* | ???*12*) + 0)],
     11,
-    ???*14*
+    -358537222
 )
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
@@ -2115,7 +2059,7 @@
 - *3* max number of linking steps reached
   ⚠️  This value might have side effects
 - *4* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *5* module<charenc, {}>["bin"]["stringToBytes"](???*6*)
   ⚠️  nested operation
 - *6* message
@@ -2138,8 +2082,6 @@
   ⚠️  nested operation
 - *13* i
   ⚠️  circular variable reference
-- *14* unsupported expression
-  ⚠️  This value might have side effects
 
 0 -> 134 call = (...) => crypt["endian"]([a, b, c, d])["_hh"](
     ???*0*,
@@ -2148,7 +2090,7 @@
     ???*3*,
     module<crypt, {}>["bytesToWords"]((???*4* | ???*5* | ???*7*))[((0 | ???*11* | ???*12*) + 3)],
     16,
-    ???*14*
+    -722521979
 )
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
@@ -2159,7 +2101,7 @@
 - *3* max number of linking steps reached
   ⚠️  This value might have side effects
 - *4* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *5* module<charenc, {}>["bin"]["stringToBytes"](???*6*)
   ⚠️  nested operation
 - *6* message
@@ -2182,8 +2124,6 @@
   ⚠️  nested operation
 - *13* i
   ⚠️  circular variable reference
-- *14* unsupported expression
-  ⚠️  This value might have side effects
 
 0 -> 136 call = (...) => crypt["endian"]([a, b, c, d])["_hh"](
     ???*0*,
@@ -2203,7 +2143,7 @@
 - *3* max number of linking steps reached
   ⚠️  This value might have side effects
 - *4* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *5* module<charenc, {}>["bin"]["stringToBytes"](???*6*)
   ⚠️  nested operation
 - *6* message
@@ -2234,7 +2174,7 @@
     ???*3*,
     module<crypt, {}>["bytesToWords"]((???*4* | ???*5* | ???*7*))[((0 | ???*11* | ???*12*) + 9)],
     4,
-    ???*14*
+    -640364487
 )
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
@@ -2245,7 +2185,7 @@
 - *3* max number of linking steps reached
   ⚠️  This value might have side effects
 - *4* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *5* module<charenc, {}>["bin"]["stringToBytes"](???*6*)
   ⚠️  nested operation
 - *6* message
@@ -2268,8 +2208,6 @@
   ⚠️  nested operation
 - *13* i
   ⚠️  circular variable reference
-- *14* unsupported expression
-  ⚠️  This value might have side effects
 
 0 -> 140 call = (...) => crypt["endian"]([a, b, c, d])["_hh"](
     ???*0*,
@@ -2278,7 +2216,7 @@
     ???*3*,
     module<crypt, {}>["bytesToWords"]((???*4* | ???*5* | ???*7*))[((0 | ???*11* | ???*12*) + 12)],
     11,
-    ???*14*
+    -421815835
 )
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
@@ -2289,7 +2227,7 @@
 - *3* max number of linking steps reached
   ⚠️  This value might have side effects
 - *4* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *5* module<charenc, {}>["bin"]["stringToBytes"](???*6*)
   ⚠️  nested operation
 - *6* message
@@ -2312,8 +2250,6 @@
   ⚠️  nested operation
 - *13* i
   ⚠️  circular variable reference
-- *14* unsupported expression
-  ⚠️  This value might have side effects
 
 0 -> 142 call = (...) => crypt["endian"]([a, b, c, d])["_hh"](
     ???*0*,
@@ -2333,7 +2269,7 @@
 - *3* max number of linking steps reached
   ⚠️  This value might have side effects
 - *4* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *5* module<charenc, {}>["bin"]["stringToBytes"](???*6*)
   ⚠️  nested operation
 - *6* message
@@ -2364,7 +2300,7 @@
     ???*3*,
     module<crypt, {}>["bytesToWords"]((???*4* | ???*5* | ???*7*))[((0 | ???*11* | ???*12*) + 2)],
     23,
-    ???*14*
+    -995338651
 )
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
@@ -2375,7 +2311,7 @@
 - *3* max number of linking steps reached
   ⚠️  This value might have side effects
 - *4* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *5* module<charenc, {}>["bin"]["stringToBytes"](???*6*)
   ⚠️  nested operation
 - *6* message
@@ -2398,8 +2334,6 @@
   ⚠️  nested operation
 - *13* i
   ⚠️  circular variable reference
-- *14* unsupported expression
-  ⚠️  This value might have side effects
 
 0 -> 146 call = (...) => crypt["endian"]([a, b, c, d])["_ii"](
     ???*0*,
@@ -2408,7 +2342,7 @@
     ???*3*,
     module<crypt, {}>["bytesToWords"]((???*4* | ???*5* | ???*7*))[((0 | ???*11* | ???*12*) + 0)],
     6,
-    ???*14*
+    -198630844
 )
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
@@ -2419,7 +2353,7 @@
 - *3* max number of linking steps reached
   ⚠️  This value might have side effects
 - *4* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *5* module<charenc, {}>["bin"]["stringToBytes"](???*6*)
   ⚠️  nested operation
 - *6* message
@@ -2442,8 +2376,6 @@
   ⚠️  nested operation
 - *13* i
   ⚠️  circular variable reference
-- *14* unsupported expression
-  ⚠️  This value might have side effects
 
 0 -> 148 call = (...) => crypt["endian"]([a, b, c, d])["_ii"](
     ???*0*,
@@ -2463,7 +2395,7 @@
 - *3* max number of linking steps reached
   ⚠️  This value might have side effects
 - *4* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *5* module<charenc, {}>["bin"]["stringToBytes"](???*6*)
   ⚠️  nested operation
 - *6* message
@@ -2494,7 +2426,7 @@
     ???*3*,
     module<crypt, {}>["bytesToWords"]((???*4* | ???*5* | ???*7*))[((0 | ???*11* | ???*12*) + 14)],
     15,
-    ???*14*
+    -1416354905
 )
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
@@ -2505,7 +2437,7 @@
 - *3* max number of linking steps reached
   ⚠️  This value might have side effects
 - *4* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *5* module<charenc, {}>["bin"]["stringToBytes"](???*6*)
   ⚠️  nested operation
 - *6* message
@@ -2528,8 +2460,6 @@
   ⚠️  nested operation
 - *13* i
   ⚠️  circular variable reference
-- *14* unsupported expression
-  ⚠️  This value might have side effects
 
 0 -> 152 call = (...) => crypt["endian"]([a, b, c, d])["_ii"](
     ???*0*,
@@ -2538,7 +2468,7 @@
     ???*3*,
     module<crypt, {}>["bytesToWords"]((???*4* | ???*5* | ???*7*))[((0 | ???*11* | ???*12*) + 5)],
     21,
-    ???*14*
+    -57434055
 )
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
@@ -2549,7 +2479,7 @@
 - *3* max number of linking steps reached
   ⚠️  This value might have side effects
 - *4* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *5* module<charenc, {}>["bin"]["stringToBytes"](???*6*)
   ⚠️  nested operation
 - *6* message
@@ -2572,8 +2502,6 @@
   ⚠️  nested operation
 - *13* i
   ⚠️  circular variable reference
-- *14* unsupported expression
-  ⚠️  This value might have side effects
 
 0 -> 154 call = (...) => crypt["endian"]([a, b, c, d])["_ii"](
     ???*0*,
@@ -2593,7 +2521,7 @@
 - *3* max number of linking steps reached
   ⚠️  This value might have side effects
 - *4* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *5* module<charenc, {}>["bin"]["stringToBytes"](???*6*)
   ⚠️  nested operation
 - *6* message
@@ -2624,7 +2552,7 @@
     ???*3*,
     module<crypt, {}>["bytesToWords"]((???*4* | ???*5* | ???*7*))[((0 | ???*11* | ???*12*) + 3)],
     10,
-    ???*14*
+    -1894986606
 )
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
@@ -2635,7 +2563,7 @@
 - *3* max number of linking steps reached
   ⚠️  This value might have side effects
 - *4* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *5* module<charenc, {}>["bin"]["stringToBytes"](???*6*)
   ⚠️  nested operation
 - *6* message
@@ -2658,8 +2586,6 @@
   ⚠️  nested operation
 - *13* i
   ⚠️  circular variable reference
-- *14* unsupported expression
-  ⚠️  This value might have side effects
 
 0 -> 158 call = (...) => crypt["endian"]([a, b, c, d])["_ii"](
     ???*0*,
@@ -2668,7 +2594,7 @@
     ???*3*,
     module<crypt, {}>["bytesToWords"]((???*4* | ???*5* | ???*7*))[((0 | ???*11* | ???*12*) + 10)],
     15,
-    ???*14*
+    -1051523
 )
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
@@ -2679,7 +2605,7 @@
 - *3* max number of linking steps reached
   ⚠️  This value might have side effects
 - *4* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *5* module<charenc, {}>["bin"]["stringToBytes"](???*6*)
   ⚠️  nested operation
 - *6* message
@@ -2702,8 +2628,6 @@
   ⚠️  nested operation
 - *13* i
   ⚠️  circular variable reference
-- *14* unsupported expression
-  ⚠️  This value might have side effects
 
 0 -> 160 call = (...) => crypt["endian"]([a, b, c, d])["_ii"](
     ???*0*,
@@ -2712,7 +2636,7 @@
     ???*3*,
     module<crypt, {}>["bytesToWords"]((???*4* | ???*5* | ???*7*))[((0 | ???*11* | ???*12*) + 1)],
     21,
-    ???*14*
+    -2054922799
 )
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
@@ -2723,7 +2647,7 @@
 - *3* max number of linking steps reached
   ⚠️  This value might have side effects
 - *4* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *5* module<charenc, {}>["bin"]["stringToBytes"](???*6*)
   ⚠️  nested operation
 - *6* message
@@ -2746,8 +2670,6 @@
   ⚠️  nested operation
 - *13* i
   ⚠️  circular variable reference
-- *14* unsupported expression
-  ⚠️  This value might have side effects
 
 0 -> 162 call = (...) => crypt["endian"]([a, b, c, d])["_ii"](
     ???*0*,
@@ -2767,7 +2689,7 @@
 - *3* max number of linking steps reached
   ⚠️  This value might have side effects
 - *4* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *5* module<charenc, {}>["bin"]["stringToBytes"](???*6*)
   ⚠️  nested operation
 - *6* message
@@ -2798,7 +2720,7 @@
     ???*3*,
     module<crypt, {}>["bytesToWords"]((???*4* | ???*5* | ???*7*))[((0 | ???*11* | ???*12*) + 15)],
     10,
-    ???*14*
+    -30611744
 )
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
@@ -2809,7 +2731,7 @@
 - *3* max number of linking steps reached
   ⚠️  This value might have side effects
 - *4* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *5* module<charenc, {}>["bin"]["stringToBytes"](???*6*)
   ⚠️  nested operation
 - *6* message
@@ -2832,8 +2754,6 @@
   ⚠️  nested operation
 - *13* i
   ⚠️  circular variable reference
-- *14* unsupported expression
-  ⚠️  This value might have side effects
 
 0 -> 166 call = (...) => crypt["endian"]([a, b, c, d])["_ii"](
     ???*0*,
@@ -2842,7 +2762,7 @@
     ???*3*,
     module<crypt, {}>["bytesToWords"]((???*4* | ???*5* | ???*7*))[((0 | ???*11* | ???*12*) + 6)],
     15,
-    ???*14*
+    -1560198380
 )
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
@@ -2853,7 +2773,7 @@
 - *3* max number of linking steps reached
   ⚠️  This value might have side effects
 - *4* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *5* module<charenc, {}>["bin"]["stringToBytes"](???*6*)
   ⚠️  nested operation
 - *6* message
@@ -2876,8 +2796,6 @@
   ⚠️  nested operation
 - *13* i
   ⚠️  circular variable reference
-- *14* unsupported expression
-  ⚠️  This value might have side effects
 
 0 -> 168 call = (...) => crypt["endian"]([a, b, c, d])["_ii"](
     ???*0*,
@@ -2897,7 +2815,7 @@
 - *3* max number of linking steps reached
   ⚠️  This value might have side effects
 - *4* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *5* module<charenc, {}>["bin"]["stringToBytes"](???*6*)
   ⚠️  nested operation
 - *6* message
@@ -2928,7 +2846,7 @@
     ???*3*,
     module<crypt, {}>["bytesToWords"]((???*4* | ???*5* | ???*7*))[((0 | ???*11* | ???*12*) + 4)],
     6,
-    ???*14*
+    -145523070
 )
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
@@ -2939,7 +2857,7 @@
 - *3* max number of linking steps reached
   ⚠️  This value might have side effects
 - *4* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *5* module<charenc, {}>["bin"]["stringToBytes"](???*6*)
   ⚠️  nested operation
 - *6* message
@@ -2962,8 +2880,6 @@
   ⚠️  nested operation
 - *13* i
   ⚠️  circular variable reference
-- *14* unsupported expression
-  ⚠️  This value might have side effects
 
 0 -> 172 call = (...) => crypt["endian"]([a, b, c, d])["_ii"](
     ???*0*,
@@ -2972,7 +2888,7 @@
     ???*3*,
     module<crypt, {}>["bytesToWords"]((???*4* | ???*5* | ???*7*))[((0 | ???*11* | ???*12*) + 11)],
     10,
-    ???*14*
+    -1120210379
 )
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
@@ -2983,7 +2899,7 @@
 - *3* max number of linking steps reached
   ⚠️  This value might have side effects
 - *4* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *5* module<charenc, {}>["bin"]["stringToBytes"](???*6*)
   ⚠️  nested operation
 - *6* message
@@ -3006,8 +2922,6 @@
   ⚠️  nested operation
 - *13* i
   ⚠️  circular variable reference
-- *14* unsupported expression
-  ⚠️  This value might have side effects
 
 0 -> 174 call = (...) => crypt["endian"]([a, b, c, d])["_ii"](
     ???*0*,
@@ -3027,7 +2941,7 @@
 - *3* max number of linking steps reached
   ⚠️  This value might have side effects
 - *4* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *5* module<charenc, {}>["bin"]["stringToBytes"](???*6*)
   ⚠️  nested operation
 - *6* message
@@ -3058,7 +2972,7 @@
     ???*3*,
     module<crypt, {}>["bytesToWords"]((???*4* | ???*5* | ???*7*))[((0 | ???*11* | ???*12*) + 9)],
     21,
-    ???*14*
+    -343485551
 )
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
@@ -3069,7 +2983,7 @@
 - *3* max number of linking steps reached
   ⚠️  This value might have side effects
 - *4* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *5* module<charenc, {}>["bin"]["stringToBytes"](???*6*)
   ⚠️  nested operation
 - *6* message
@@ -3092,8 +3006,6 @@
   ⚠️  nested operation
 - *13* i
   ⚠️  circular variable reference
-- *14* unsupported expression
-  ⚠️  This value might have side effects
 
 0 -> 178 member call = module<crypt, {}>["endian"]([???*0*, ???*1*, ???*2*, ???*3*])
 - *0* max number of linking steps reached
@@ -3127,60 +3039,55 @@
 
 0 -> 191 free var = FreeVar(module)
 
-0 -> 192 free var = FreeVar(undefined)
-
-0 -> 193 conditional = ((???*0* === ???*1*) | (???*2* === null))
+0 -> 192 conditional = ((???*0* === undefined) | (???*1* === null))
 - *0* arguments[0]
-  ⚠️  function calls are not analysed yet
-- *1* FreeVar(undefined)
-  ⚠️  unknown global
-  ⚠️  This value might have side effects
-- *2* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
+- *1* arguments[0]
+  ⚠️  function calls are not analyzed yet
 
-193 -> 194 free var = FreeVar(Error)
+192 -> 193 free var = FreeVar(Error)
 
-193 -> 195 call = new ???*0*(`Illegal argument ${???*1*}`)
+192 -> 194 call = new ???*0*(`Illegal argument ${???*1*}`)
 - *0* FreeVar(Error)
   ⚠️  unknown global
   ⚠️  This value might have side effects
 - *1* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
-0 -> 197 call = (...) => crypt["endian"]([a, b, c, d])(???*0*, ???*1*)
+0 -> 196 call = (...) => crypt["endian"]([a, b, c, d])(???*0*, ???*1*)
 - *0* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *1* arguments[1]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
-0 -> 198 member call = module<crypt, {}>["wordsToBytes"](???*0*)
+0 -> 197 member call = module<crypt, {}>["wordsToBytes"](???*0*)
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
-0 -> 200 conditional = (???*0* | ???*1*)
+0 -> 199 conditional = (???*0* | ???*1*)
 - *0* arguments[1]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *1* ???*2*["asBytes"]
   ⚠️  unknown object
 - *2* arguments[1]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
-200 -> 202 conditional = (???*0* | ???*1*)
+199 -> 201 conditional = (???*0* | ???*1*)
 - *0* arguments[1]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 - *1* ???*2*["asString"]
   ⚠️  unknown object
 - *2* arguments[1]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
-202 -> 204 member call = module<charenc, {}>["bin"]["bytesToString"](???*0*)
+201 -> 203 member call = module<charenc, {}>["bin"]["bytesToString"](???*0*)
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
-202 -> 206 member call = module<crypt, {}>["bytesToHex"](???*0*)
+201 -> 205 member call = module<crypt, {}>["bytesToHex"](???*0*)
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
-0 -> 207 unreachable = ???*0*
+0 -> 206 unreachable = ???*0*
 - *0* unreachable
   ⚠️  This value might have side effects

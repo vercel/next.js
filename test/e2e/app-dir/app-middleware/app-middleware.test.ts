@@ -1,13 +1,20 @@
 /* eslint-env jest */
-import path from 'path'
 import cheerio from 'cheerio'
 import { check, retry, withQuery } from 'next-test-utils'
-import { nextTestSetup, FileRef } from 'e2e-utils'
+import { nextTestSetup } from 'e2e-utils'
 import type { Response } from 'node-fetch'
 
 describe('app-dir with middleware', () => {
-  const { next } = nextTestSetup({
+  const { next, isNextDeploy } = nextTestSetup({
     files: __dirname,
+  })
+
+  it('should warn when deprecated middleware file is used', async () => {
+    await retry(async () => {
+      expect(next.cliOutput).toContain(
+        'The "middleware" file convention is deprecated. Please use "proxy" instead.'
+      )
+    })
   })
 
   it('should filter correctly after middleware rewrite', async () => {
@@ -130,6 +137,14 @@ describe('app-dir with middleware', () => {
     )
   })
 
+  it('should support unstable_cache in middleware', async () => {
+    const res = await next.fetch('/unstable-cache')
+    expect(res.status).toBe(200)
+    expect(await res.json()).toEqual({
+      value: expect.any(String),
+    })
+  })
+
   it('should be possible to modify cookies & read them in an RSC in a single request', async () => {
     const browser = await next.browser('/rsc-cookies')
 
@@ -248,62 +263,27 @@ describe('app-dir with middleware', () => {
 
     await browser.deleteCookies()
   })
-})
 
-describe('app dir - middleware without pages dir', () => {
-  const { next } = nextTestSetup({
-    files: {
-      app: new FileRef(path.join(__dirname, 'app')),
-      'next.config.js': new FileRef(path.join(__dirname, 'next.config.js')),
-      'middleware.js': `
-      import { NextResponse } from 'next/server'
+  // TODO: This consistently 404s on Vercel deployments. It technically
+  // doesn't repro the bug we're trying to fix but we need to figure out
+  // why the handling is different.
+  if (!isNextDeploy) {
+    it('should not incorrectly treat a Location header as a rewrite', async () => {
+      const res = await next.fetch('/test-location-header')
 
-      export async function middleware(request) {
-        return new NextResponse('redirected')
-      }
+      // Should get status 200 (not a redirect status)
+      expect(res.status).toBe(200)
 
-      export const config = {
-        matcher: '/headers'
-      }
-    `,
-    },
-  })
+      // Should get the JSON response associated with the route,
+      // and not follow the redirect
+      const json = await res.json()
+      expect(json).toEqual({ foo: 'bar' })
 
-  // eslint-disable-next-line jest/no-identical-title
-  it('Updates headers', async () => {
-    const html = await next.render('/headers')
-
-    expect(html).toContain('redirected')
-  })
-})
-
-describe('app dir - middleware with middleware in src dir', () => {
-  const { next } = nextTestSetup({
-    files: {
-      'src/app': new FileRef(path.join(__dirname, 'app')),
-      'next.config.js': new FileRef(path.join(__dirname, 'next.config.js')),
-      'src/middleware.js': `
-      import { NextResponse } from 'next/server'
-      import { cookies } from 'next/headers'
-
-      export async function middleware(request) {
-        const cookie = (await cookies()).get('test-cookie')
-        return NextResponse.json({ cookie })
-      }
-    `,
-    },
-  })
-
-  it('works without crashing when using RequestStore', async () => {
-    const browser = await next.browser('/')
-    await browser.addCookie({
-      name: 'test-cookie',
-      value: 'test-cookie-response',
+      // Ensure the provided location is still on the response
+      const locationHeader = res.headers.get('location')
+      expect(locationHeader).toBe(
+        'https://next-data-api-endpoint.vercel.app/api/random'
+      )
     })
-    await browser.refresh()
-
-    const html = await browser.eval('document.documentElement.innerHTML')
-
-    expect(html).toContain('test-cookie-response')
-  })
+  }
 })

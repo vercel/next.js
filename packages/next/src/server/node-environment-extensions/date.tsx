@@ -1,6 +1,6 @@
 /**
  * We extend `Date` during builds and revalidates to ensure that prerenders don't observe the clock as a source of IO
- * When dynamicIO is enabled. The current time is a form of IO even though it resolves synchronously. When dyanmicIO is
+ * When cacheComponents is enabled. The current time is a form of IO even though it resolves synchronously. When cacheComponents is
  * enabled we need to ensure that clock time is excluded from prerenders unless it is cached.
  *
  * There is tension here because time is used for both output and introspection. While arbitrary we intend to reserve
@@ -9,7 +9,7 @@
  *
  * The extensions here never error nor alter the underlying Date objects, strings, and numbers created and thus should be transparent to callers.
  */
-import { io } from './utils'
+import { io } from './io-utils'
 
 function createNow(originalNow: typeof Date.now) {
   return {
@@ -52,6 +52,6 @@ try {
   Date = createDate(Date)
 } catch {
   console.error(
-    'Failed to install `Date` class extension. When using `experimental.dynamicIO`, APIs that read the current time will not correctly trigger dynamic behavior.'
+    'Failed to install `Date` class extension. When using `cacheComponents`, APIs that read the current time will not correctly trigger dynamic behavior.'
   )
 }

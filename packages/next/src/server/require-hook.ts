@@ -3,10 +3,12 @@
 // Individually compiled modules are as defined for the compilation in bundles/webpack/packages/*.
 
 // This module will only be loaded once per process.
-const path = require('path')
-const mod = require('module')
+const path = require('path') as typeof import('path')
+const mod = require('module') as typeof import('module')
 const originalRequire = mod.prototype.require
-const resolveFilename = mod._resolveFilename
+const resolveFilename =
+  // @ts-expect-error
+  mod._resolveFilename
 
 let resolve: typeof require.resolve = process.env.NEXT_MINIMAL
   ? // @ts-ignore
@@ -15,14 +17,25 @@ let resolve: typeof require.resolve = process.env.NEXT_MINIMAL
 
 export const hookPropertyMap = new Map()
 
-export const defaultOverrides = {
-  'styled-jsx': path.dirname(resolve('styled-jsx/package.json')),
-  'styled-jsx/style': resolve('styled-jsx/style'),
-  'styled-jsx/style.js': resolve('styled-jsx/style'),
-}
+export const defaultOverrides: Record<string, string> = {}
 
-const toResolveMap = (map: Record<string, string>): [string, string][] =>
-  Object.entries(map).map(([key, value]) => [key, resolve(value)])
+try {
+  Object.assign(defaultOverrides, {
+    'styled-jsx': path.dirname(resolve('styled-jsx/package.json')),
+    'styled-jsx/style': resolve('styled-jsx/style'),
+    'styled-jsx/style.js': resolve('styled-jsx/style'),
+  })
+} catch (_) {}
+
+const toResolveMap = (map: Record<string, string>): [string, string][] => {
+  const resolveMap: [string, string][] = []
+  for (const [key, value] of Object.entries(map)) {
+    try {
+      resolveMap.push([key, resolve(value)])
+    } catch {}
+  }
+  return resolveMap
+}
 
 export function addHookAliases(aliases: [string, string][] = []) {
   for (const [key, value] of aliases) {
@@ -32,6 +45,7 @@ export function addHookAliases(aliases: [string, string][] = []) {
 
 addHookAliases(toResolveMap(defaultOverrides))
 
+// @ts-expect-error
 mod._resolveFilename = function (
   originalResolveFilename: (
     request: string,
@@ -53,6 +67,7 @@ mod._resolveFilename = function (
   // We use `bind` here to avoid referencing outside variables to create potential memory leaks.
 }.bind(null, resolveFilename, hookPropertyMap)
 
+// @ts-expect-error
 // This is a hack to make sure that if a user requires a Next.js module that wasn't bundled
 // that needs to point to the rendering runtime version, it will point to the correct one.
 // This can happen on `pages` when a user requires a dependency that uses next/image for example.

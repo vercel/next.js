@@ -1,9 +1,5 @@
 import { nextTestSetup } from 'e2e-utils'
-import {
-  assertHasRedbox,
-  assertNoRedbox,
-  getRedboxDescription,
-} from 'next-test-utils'
+import { waitForNoRedbox } from 'next-test-utils'
 
 describe('app dir - not found with default 404 page', () => {
   const { next, isNextDev, skipped } = nextTestSetup({
@@ -21,10 +17,17 @@ describe('app dir - not found with default 404 page', () => {
     await browser.elementByCss('#trigger-not-found').click()
 
     if (isNextDev) {
-      await assertHasRedbox(browser)
-      expect(await getRedboxDescription(browser)).toMatch(
-        /notFound\(\) is not allowed to use in root layout/
-      )
+      // TODO: Either allow or include original stack
+      await expect(browser).toDisplayRedbox(`
+       {
+         "code": "E192",
+         "description": "notFound() is not allowed to use in root layout",
+         "environmentLabel": null,
+         "label": "Runtime Error",
+         "source": null,
+         "stack": [],
+       }
+      `)
     }
   })
 
@@ -46,10 +49,17 @@ describe('app dir - not found with default 404 page', () => {
     const browser = await next.browser('/?root-not-found=1')
 
     if (isNextDev) {
-      await assertHasRedbox(browser)
-      expect(await getRedboxDescription(browser)).toBe(
-        'Error: notFound() is not allowed to use in root layout'
-      )
+      // TODO: Either allow or include original stack
+      await expect(browser).toDisplayRedbox(`
+       {
+         "code": "E192",
+         "description": "notFound() is not allowed to use in root layout",
+         "environmentLabel": null,
+         "label": "Runtime Error",
+         "source": null,
+         "stack": [],
+       }
+      `)
     }
   })
 
@@ -84,7 +94,7 @@ describe('app dir - not found with default 404 page', () => {
     )
 
     await browser.loadPage(next.url + '/group-dynamic/404')
-    await assertNoRedbox(browser)
+    await waitForNoRedbox(browser)
     await browser.waitForElementByCss('.group-root-layout')
     expect(await browser.elementByCss('.next-error-h1').text()).toBe('404')
   })

@@ -2,7 +2,7 @@ use turbo_rcstr::RcStr;
 use turbo_tasks::ResolvedVc;
 use turbopack_core::module::Module;
 
-use crate::app_segment_config::NextSegmentConfig;
+use crate::segment_config::NextSegmentConfig;
 
 /// The entry module asset for a Next.js app route or page.
 #[turbo_tasks::value(shared)]

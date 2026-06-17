@@ -21,8 +21,13 @@ describe('missing-suspense-with-csr-bailout', () => {
     await next.clean()
   })
 
+  const isCacheComponentsEnabled =
+    process.env.__NEXT_CACHE_COMPONENTS === 'true'
+
   describe('useSearchParams', () => {
-    const message = `useSearchParams() should be wrapped in a suspense boundary at page "/".`
+    const message = isCacheComponentsEnabled
+      ? 'https://nextjs.org/docs/messages/blocking-prerender-client-hook#wrap-in-or-move-into-suspense'
+      : `useSearchParams() should be wrapped in a suspense boundary at page "/".`
 
     it('should fail build if useSearchParams is not wrapped in a suspense boundary', async () => {
       const { exitCode } = await next.build()

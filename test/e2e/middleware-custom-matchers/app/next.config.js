@@ -1,5 +1,1 @@
-module.exports = {
-  experimental: {
-    nodeMiddleware: true,
-  },
-}
+module.exports = {}

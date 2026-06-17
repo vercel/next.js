@@ -7,7 +7,6 @@ function isEqualLocals(a: any, b: any, isNamedExport: any) {
 
   for (p in a) {
     if (isNamedExport && p === 'default') {
-      // eslint-disable-next-line no-continue
       continue
     }
 
@@ -18,7 +17,6 @@ function isEqualLocals(a: any, b: any, isNamedExport: any) {
 
   for (p in b) {
     if (isNamedExport && p === 'default') {
-      // eslint-disable-next-line no-continue
       continue
     }
 

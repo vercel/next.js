@@ -56,7 +56,8 @@ describe('Edge Compiler can import asset assets', () => {
     it('extracts all the assets from the bundle', async () => {
       const manifestPath = path.join(
         next.testDir,
-        '.next/server/middleware-manifest.json'
+        next.distDir,
+        'server/middleware-manifest.json'
       )
       const manifest = await readJson(manifestPath)
       const orderedAssets = manifest.functions['/api/edge'].assets.sort(
@@ -69,19 +70,19 @@ describe('Edge Compiler can import asset assets', () => {
         expect(orderedAssets).toMatchObject([
           {
             name: expect.stringMatching(
-              /server\/edge\/assets\/text-file\.[0-9a-f]{8}\.txt$/
+              /server\/edge\/assets\/text-file\.[0-9a-z_-]+\.txt$/
             ),
             filePath: expect.stringMatching(/^server\/edge\/assets\/text-file/),
           },
           {
             name: expect.stringMatching(
-              /^server\/edge\/assets\/vercel\.[0-9a-f]{8}\.png$/
+              /^server\/edge\/assets\/vercel\.[0-9a-z_-]+\.png$/
             ),
             filePath: expect.stringMatching(/^server\/edge\/assets\/vercel/),
           },
           {
             name: expect.stringMatching(
-              /^server\/edge\/assets\/world\.[0-9a-f]{8}\.json/
+              /^server\/edge\/assets\/world\.[0-9a-z_-]+\.json/
             ),
             filePath: expect.stringMatching(/^server\/edge\/assets\/world/),
           },

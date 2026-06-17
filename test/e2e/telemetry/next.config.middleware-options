@@ -1,0 +1,4 @@
+module.exports = {
+  skipProxyUrlNormalize: true,
+  skipTrailingSlashRedirect: true,
+}

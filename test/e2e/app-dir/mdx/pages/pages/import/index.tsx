@@ -1,8 +1,9 @@
-import MDXContent from './mdx-file.mdx'
+import MDContent from './md-file.md'
+
 export default function Page() {
   return (
     <>
-      <MDXContent />
+      <MDContent />
     </>
   )
 }

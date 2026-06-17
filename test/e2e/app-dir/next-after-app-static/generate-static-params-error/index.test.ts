@@ -1,7 +1,7 @@
 /* eslint-env jest */
 import { nextTestSetup } from 'e2e-utils'
 import {
-  assertHasRedbox,
+  waitForRedbox,
   getRedboxDescription,
 } from '../../../../lib/next-test-utils'
 
@@ -18,7 +18,7 @@ describe('after() in generateStaticParams - thrown errors', () => {
     it('shows the error overlay if an error is thrown inside after', async () => {
       await next.start()
       const browser = await next.browser('/callback/1')
-      await assertHasRedbox(browser)
+      await waitForRedbox(browser)
       const route = '/callback/[myParam]'
       expect(await getRedboxDescription(browser)).toContain(
         `My cool error thrown inside after on route "${route}"`

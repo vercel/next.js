@@ -13,7 +13,7 @@ export default async function DashboardPage(props) {
 
   return (
     <>
-      <p id="dashboard-page">{message}</p>
+      <p id="dashboard-page">{message} [dashboard-prefetch-sentinel]</p>
       <Link href="/static-page" id="to-static-page">
         To Static Page
       </Link>

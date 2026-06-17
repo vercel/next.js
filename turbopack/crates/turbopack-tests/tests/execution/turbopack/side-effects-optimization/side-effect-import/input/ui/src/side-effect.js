@@ -1,1 +1,1 @@
-globalThis.sideEffectExecuted = true;
+globalThis.sideEffectExecuted = true

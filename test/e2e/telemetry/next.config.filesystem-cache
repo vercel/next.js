@@ -1,0 +1,6 @@
+module.exports = {
+  experimental: {
+    turbopackFileSystemCacheForDev: true,
+    turbopackFileSystemCacheForBuild: true,
+  }
+}

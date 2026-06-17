@@ -1,8 +1,6 @@
 [
     FreeVar {
-        var: FreeVar(
-            "require",
-        ),
+        var: "require",
         ast_path: [
             Program(
                 Module,
@@ -55,7 +53,6 @@
             ),
         ],
         span: 54..61,
-        in_try: false,
     },
     Call {
         func: FreeVar(

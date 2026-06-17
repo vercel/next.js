@@ -32,7 +32,6 @@ function getModulesOptions(rawOptions: any, loaderContext: any) {
     localIdentName: '[hash:base64]',
     localIdentContext: loaderContext.rootContext,
     localIdentHashPrefix: '',
-    // eslint-disable-next-line no-undefined
     localIdentRegExp: undefined,
     namedExport: false,
     exportLocalsConvention: 'asIs',
@@ -169,9 +168,10 @@ export default async function loader(
         getModulesPlugins,
         normalizeSourceMap,
         sort,
-      } = require('./utils')
+      } = require('./utils') as typeof import('./utils')
 
-      const { icssParser, importParser, urlParser } = require('./plugins')
+      const { icssParser, importParser, urlParser } =
+        require('./plugins') as typeof import('./plugins')
 
       const replacements: any[] = []
       // if it's a font loader next-font-loader will have exports that should be exported as is
@@ -229,6 +229,7 @@ export default async function loader(
             filter: getFilter(options.url, this.resourcePath),
             resolver: urlResolver,
             urlHandler: (url: string) => stringifyRequest(this, url),
+            deploymentId: rawOptions.deploymentId,
           })
         )
       }
@@ -267,7 +268,6 @@ export default async function loader(
         const { ast } = meta
 
         if (ast && ast.type === 'postcss') {
-          // eslint-disable-next-line no-param-reassign
           content = ast.root
           loaderSpan.setAttribute('astUsed', 'true')
         }

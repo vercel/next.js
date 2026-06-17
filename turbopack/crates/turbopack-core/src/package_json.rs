@@ -1,15 +1,20 @@
-use std::{fmt::Write, ops::Deref};
+use std::ops::Deref;
 
 use anyhow::Result;
+use async_trait::async_trait;
 use serde_json::Value as JsonValue;
-use turbo_rcstr::RcStr;
+use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
-    debug::ValueDebugFormat, trace::TraceRawVcs, NonLocalValue, ReadRef, ResolvedVc, Vc,
+    NonLocalValue, ReadRef, ResolvedVc, Vc, debug::ValueDebugFormat, trace::TraceRawVcs,
 };
-use turbo_tasks_fs::{FileContent, FileJsonContent, FileSystemPath};
+use turbo_tasks_fs::{FileJsonContent, FileSystemPath};
 
 use super::issue::Issue;
-use crate::issue::{IssueExt, IssueStage, OptionStyledString, StyledString};
+use crate::{
+    asset::Asset,
+    issue::{IssueExt, IssueSource, IssueStage, StyledString},
+    source::Source,
+};
 
 /// PackageJson wraps the parsed JSON content of a `package.json` file. The
 /// wrapper is necessary so that we can reference the [FileJsonContent]'s inner
@@ -27,28 +32,27 @@ impl Deref for PackageJson {
     }
 }
 
-#[turbo_tasks::value(transparent, serialization = "none")]
+#[turbo_tasks::value(transparent, serialization = "skip")]
 pub struct OptionPackageJson(Option<PackageJson>);
 
-/// Reads a package.json file (if it exists). If the file is unparseable, it
+/// Reads a package.json file (if it exists). If the file is unparsable, it
 /// emits a useful [Issue] pointing to the invalid location.
 #[turbo_tasks::function]
-pub async fn read_package_json(path: ResolvedVc<FileSystemPath>) -> Result<Vc<OptionPackageJson>> {
-    let read = path.read_json().await?;
+pub async fn read_package_json(path: ResolvedVc<Box<dyn Source>>) -> Result<Vc<OptionPackageJson>> {
+    let read = path.content().parse_json().await?;
     match &*read {
         FileJsonContent::Content(_) => Ok(OptionPackageJson(Some(PackageJson(read))).cell()),
         FileJsonContent::NotFound => Ok(OptionPackageJson(None).cell()),
-        FileJsonContent::Unparseable(e) => {
-            let mut message = "package.json is not parseable: invalid JSON: ".to_string();
-            if let FileContent::Content(content) = &*path.read().await? {
-                let text = content.content().to_str()?;
-                e.write_with_content(&mut message, &text)?;
-            } else {
-                write!(message, "{}", e)?;
-            }
+        FileJsonContent::Unparsable(e) => {
+            let error_message = RcStr::from(format!(
+                "package.json is not parseable: invalid JSON: {}",
+                e.message
+            ));
+
+            let source = IssueSource::from_unparsable_json(path, e);
             PackageJsonIssue {
-                error_message: message.into(),
-                path,
+                error_message,
+                source,
             }
             .resolved_cell()
             .emit();
@@ -60,31 +64,32 @@ pub async fn read_package_json(path: ResolvedVc<FileSystemPath>) -> Result<Vc<Op
 /// Reusable Issue struct representing any problem with a `package.json`
 #[turbo_tasks::value(shared)]
 pub struct PackageJsonIssue {
-    pub path: ResolvedVc<FileSystemPath>,
     pub error_message: RcStr,
+    pub source: IssueSource,
 }
 
+#[async_trait]
 #[turbo_tasks::value_impl]
 impl Issue for PackageJsonIssue {
-    #[turbo_tasks::function]
-    fn title(&self) -> Vc<StyledString> {
-        StyledString::Text("Error parsing package.json file".into()).cell()
+    async fn title(&self) -> Result<StyledString> {
+        Ok(StyledString::Text(rcstr!(
+            "Error parsing package.json file"
+        )))
     }
 
-    #[turbo_tasks::function]
-    fn stage(&self) -> Vc<IssueStage> {
-        IssueStage::Parse.cell()
+    fn stage(&self) -> IssueStage {
+        IssueStage::Parse
     }
 
-    #[turbo_tasks::function]
-    fn file_path(&self) -> Vc<FileSystemPath> {
-        *self.path
+    async fn file_path(&self) -> Result<FileSystemPath> {
+        self.source.file_path().await
     }
 
-    #[turbo_tasks::function]
-    fn description(&self) -> Vc<OptionStyledString> {
-        Vc::cell(Some(
-            StyledString::Text(self.error_message.clone()).resolved_cell(),
-        ))
+    async fn description(&self) -> Result<Option<StyledString>> {
+        Ok(Some(StyledString::Text(self.error_message.clone())))
+    }
+
+    fn source(&self) -> Option<IssueSource> {
+        Some(self.source)
     }
 }

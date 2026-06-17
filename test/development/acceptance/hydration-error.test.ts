@@ -1,10 +1,9 @@
 import { createSandbox } from 'development-sandbox'
-import { FileRef, nextTestSetup } from 'e2e-utils'
+import { FileRef, isReact18, nextTestSetup } from 'e2e-utils'
 import path from 'path'
 import { outdent } from 'outdent'
 import { getRedboxTotalErrorCount, retry } from 'next-test-utils'
 
-const isReact18 = parseInt(process.env.NEXT_TEST_REACT_VERSION) === 18
 // https://github.com/facebook/react/blob/main/packages/react-dom/src/__tests__/ReactDOMHydrationDiff-test.js used as a reference
 
 describe('Error overlay for hydration errors in Pages router', () => {
@@ -90,7 +89,7 @@ describe('Error overlay for hydration errors in Pages router', () => {
            "stack": [],
          },
          {
-           "description": "Error: There was an error while hydrating. Because the error happened outside of a Suspense boundary, the entire root will switch to client rendering.",
+           "description": "There was an error while hydrating. Because the error happened outside of a Suspense boundary, the entire root will switch to client rendering.",
            "environmentLabel": null,
            "label": "Recoverable Error",
            "source": null,
@@ -102,27 +101,26 @@ describe('Error overlay for hydration errors in Pages router', () => {
       await expect(browser).toDisplayRedbox(`
        {
          "componentStack": "...
-           <AppContainer>
-             <Container fn={function fn}>
-               <PagesDevOverlay>
-                 <PagesDevOverlayErrorBoundary onError={function usePagesDevOverlay.useCallback[onComponentError]}>
-                   <PathnameContextProviderAdapter router={{sdc:{},sbc:{}, ...}} isAutoExport={true}>
-                     <App pageProps={{}} Component={function Mismatch} err={undefined} router={{sdc:{},sbc:{}, ...}}>
+           <Next.js Internal Component>
+             <Next.js Internal Component>
+               <Next.js Internal Component>
+                 <Next.js Internal Component>
+                   <Next.js Internal Component>
+                     <Next.js Internal Component>
                        <Mismatch>
                          <div className="parent">
                            <main className="child">
        +                     client
        -                     server
-                     ...
-                 ...",
-         "description": "Hydration failed because the server rendered HTML didn't match the client. As a result this tree will be regenerated on the client. This can happen if a SSR-ed Client Component used:",
+                     ...",
+         "description": "Hydration failed because the server rendered text didn't match the client. As a result this tree will be regenerated on the client. This can happen if a SSR-ed Client Component used:",
          "environmentLabel": null,
          "label": "Recoverable Error",
          "source": "index.js (5:9) @ Mismatch
        > 5 |         <main className="child">{isClient ? "client" : "server"}</main>
            |         ^",
          "stack": [
-           "main <anonymous> (0:0)",
+           "main <anonymous>",
            "Mismatch index.js (5:9)",
          ],
        }
@@ -142,7 +140,7 @@ describe('Error overlay for hydration errors in Pages router', () => {
     `
     )
 
-    await session.assertNoRedbox()
+    await session.waitForNoRedbox()
 
     expect(await browser.elementByCss('.child').text()).toBe('Value')
   })
@@ -196,7 +194,7 @@ describe('Error overlay for hydration errors in Pages router', () => {
            "stack": [],
          },
          {
-           "description": "Error: There was an error while hydrating. Because the error happened outside of a Suspense boundary, the entire root will switch to client rendering.",
+           "description": "There was an error while hydrating. Because the error happened outside of a Suspense boundary, the entire root will switch to client rendering.",
            "environmentLabel": null,
            "label": "Recoverable Error",
            "source": null,
@@ -208,17 +206,16 @@ describe('Error overlay for hydration errors in Pages router', () => {
       await expect(browser).toDisplayRedbox(`
        {
          "componentStack": "...
-           <AppContainer>
-             <Container fn={function fn}>
-               <PagesDevOverlay>
-                 <PagesDevOverlayErrorBoundary onError={function usePagesDevOverlay.useCallback[onComponentError]}>
-                   <PathnameContextProviderAdapter router={{sdc:{},sbc:{}, ...}} isAutoExport={true}>
-                     <App pageProps={{}} Component={function Mismatch} err={undefined} router={{sdc:{},sbc:{}, ...}}>
+           <Next.js Internal Component>
+             <Next.js Internal Component>
+               <Next.js Internal Component>
+                 <Next.js Internal Component>
+                   <Next.js Internal Component>
+                     <Next.js Internal Component>
                        <Mismatch>
                          <div className="parent">
        +                   <main className="only">
-                     ...
-                 ...",
+                     ...",
          "description": "Hydration failed because the server rendered HTML didn't match the client. As a result this tree will be regenerated on the client. This can happen if a SSR-ed Client Component used:",
          "environmentLabel": null,
          "label": "Recoverable Error",
@@ -226,7 +223,7 @@ describe('Error overlay for hydration errors in Pages router', () => {
        > 5 |       {isClient && <main className="only" />}
            |                    ^",
          "stack": [
-           "main <anonymous> (0:0)",
+           "main <anonymous>",
            "Mismatch index.js (5:20)",
          ],
        }
@@ -287,7 +284,7 @@ describe('Error overlay for hydration errors in Pages router', () => {
            "stack": [],
          },
          {
-           "description": "Error: There was an error while hydrating. Because the error happened outside of a Suspense boundary, the entire root will switch to client rendering.",
+           "description": "There was an error while hydrating. Because the error happened outside of a Suspense boundary, the entire root will switch to client rendering.",
            "environmentLabel": null,
            "label": "Recoverable Error",
            "source": null,
@@ -299,20 +296,19 @@ describe('Error overlay for hydration errors in Pages router', () => {
       await expect(browser).toDisplayRedbox(`
        {
          "componentStack": "...
-           <AppContainer>
-             <Container fn={function fn}>
-               <PagesDevOverlay>
-                 <PagesDevOverlayErrorBoundary onError={function usePagesDevOverlay.useCallback[onComponentError]}>
-                   <PathnameContextProviderAdapter router={{sdc:{},sbc:{}, ...}} isAutoExport={true}>
-                     <App pageProps={{}} Component={function Mismatch} err={undefined} router={{sdc:{},sbc:{}, ...}}>
+           <Next.js Internal Component>
+             <Next.js Internal Component>
+               <Next.js Internal Component>
+                 <Next.js Internal Component>
+                   <Next.js Internal Component>
+                     <Next.js Internal Component>
                        <Mismatch>
                          <div className="parent">
                            <header>
        +                   second
        -                   <footer className="3">
                            ...
-                     ...
-                 ...",
+                     ...",
          "description": "Hydration failed because the server rendered HTML didn't match the client. As a result this tree will be regenerated on the client. This can happen if a SSR-ed Client Component used:",
          "environmentLabel": null,
          "label": "Recoverable Error",
@@ -320,7 +316,7 @@ describe('Error overlay for hydration errors in Pages router', () => {
        > 4 |     <div className="parent">
            |     ^",
          "stack": [
-           "div <anonymous> (0:0)",
+           "div <anonymous>",
            "Mismatch index.js (4:5)",
          ],
        }
@@ -362,7 +358,7 @@ describe('Error overlay for hydration errors in Pages router', () => {
            "stack": [],
          },
          {
-           "description": "Error: There was an error while hydrating. Because the error happened outside of a Suspense boundary, the entire root will switch to client rendering.",
+           "description": "There was an error while hydrating. Because the error happened outside of a Suspense boundary, the entire root will switch to client rendering.",
            "environmentLabel": null,
            "label": "Recoverable Error",
            "source": null,
@@ -373,19 +369,18 @@ describe('Error overlay for hydration errors in Pages router', () => {
     } else {
       await expect(browser).toDisplayRedbox(`
        {
-         "componentStack": "<Root callbacks={[...]}>
-           <Head>
-           <AppContainer>
-             <Container fn={function fn}>
-               <PagesDevOverlay>
-                 <PagesDevOverlayErrorBoundary onError={function usePagesDevOverlay.useCallback[onComponentError]}>
-                   <PathnameContextProviderAdapter router={{sdc:{},sbc:{}, ...}} isAutoExport={true}>
-                     <App pageProps={{}} Component={function Mismatch} err={undefined} router={{sdc:{},sbc:{}, ...}}>
+         "componentStack": "<Next.js Internal Component>
+           <Next.js Internal Component>
+           <Next.js Internal Component>
+             <Next.js Internal Component>
+               <Next.js Internal Component>
+                 <Next.js Internal Component>
+                   <Next.js Internal Component>
+                     <Next.js Internal Component>
                        <Mismatch>
                          <div className="parent">
        -                   <main className="only">
-                     ...
-                 ...",
+                     ...",
          "description": "Hydration failed because the server rendered HTML didn't match the client. As a result this tree will be regenerated on the client. This can happen if a SSR-ed Client Component used:",
          "environmentLabel": null,
          "label": "Recoverable Error",
@@ -393,7 +388,7 @@ describe('Error overlay for hydration errors in Pages router', () => {
        > 4 |     <div className="parent">
            |     ^",
          "stack": [
-           "div <anonymous> (0:0)",
+           "div <anonymous>",
            "Mismatch index.js (4:5)",
          ],
        }
@@ -433,7 +428,7 @@ describe('Error overlay for hydration errors in Pages router', () => {
            "stack": [],
          },
          {
-           "description": "Error: There was an error while hydrating. Because the error happened outside of a Suspense boundary, the entire root will switch to client rendering.",
+           "description": "There was an error while hydrating. Because the error happened outside of a Suspense boundary, the entire root will switch to client rendering.",
            "environmentLabel": null,
            "label": "Recoverable Error",
            "source": null,
@@ -444,19 +439,18 @@ describe('Error overlay for hydration errors in Pages router', () => {
     } else {
       await expect(browser).toDisplayRedbox(`
        {
-         "componentStack": "<Root callbacks={[...]}>
-           <Head>
-           <AppContainer>
-             <Container fn={function fn}>
-               <PagesDevOverlay>
-                 <PagesDevOverlayErrorBoundary onError={function usePagesDevOverlay.useCallback[onComponentError]}>
-                   <PathnameContextProviderAdapter router={{sdc:{},sbc:{}, ...}} isAutoExport={true}>
-                     <App pageProps={{}} Component={function Mismatch} err={undefined} router={{sdc:{},sbc:{}, ...}}>
+         "componentStack": "<Next.js Internal Component>
+           <Next.js Internal Component>
+           <Next.js Internal Component>
+             <Next.js Internal Component>
+               <Next.js Internal Component>
+                 <Next.js Internal Component>
+                   <Next.js Internal Component>
+                     <Next.js Internal Component>
                        <Mismatch>
                          <div className="parent">
        -                   only
-                     ...
-                 ...",
+                     ...",
          "description": "Hydration failed because the server rendered HTML didn't match the client. As a result this tree will be regenerated on the client. This can happen if a SSR-ed Client Component used:",
          "environmentLabel": null,
          "label": "Recoverable Error",
@@ -464,7 +458,7 @@ describe('Error overlay for hydration errors in Pages router', () => {
        > 3 |   return <div className="parent">{!isClient && "only"}</div>;
            |          ^",
          "stack": [
-           "div <anonymous> (0:0)",
+           "div <anonymous>",
            "Mismatch index.js (3:10)",
          ],
        }
@@ -525,7 +519,7 @@ describe('Error overlay for hydration errors in Pages router', () => {
            "stack": [],
          },
          {
-           "description": "Error: There was an error while hydrating. Because the error happened outside of a Suspense boundary, the entire root will switch to client rendering.",
+           "description": "There was an error while hydrating. Because the error happened outside of a Suspense boundary, the entire root will switch to client rendering.",
            "environmentLabel": null,
            "label": "Recoverable Error",
            "source": null,
@@ -537,18 +531,17 @@ describe('Error overlay for hydration errors in Pages router', () => {
       await expect(browser).toDisplayRedbox(`
        {
          "componentStack": "...
-           <Container fn={function fn}>
-             <PagesDevOverlay>
-               <PagesDevOverlayErrorBoundary onError={function usePagesDevOverlay.useCallback[onComponentError]}>
-                 <PathnameContextProviderAdapter router={{sdc:{},sbc:{}, ...}} isAutoExport={true}>
-                   <App pageProps={{}} Component={function Page} err={undefined} router={{sdc:{},sbc:{}, ...}}>
+           <Next.js Internal Component>
+             <Next.js Internal Component>
+               <Next.js Internal Component>
+                 <Next.js Internal Component>
+                   <Next.js Internal Component>
                      <Page>
                        <table>
                          <tbody>
                            <tr>
        >                     test
-                   ...
-               ...",
+                   ...",
          "description": "In HTML, text nodes cannot be a child of <tr>.
        This will cause a hydration error.",
          "environmentLabel": null,
@@ -557,7 +550,7 @@ describe('Error overlay for hydration errors in Pages router', () => {
        > 3 |     <table>
            |     ^",
          "stack": [
-           "table <anonymous> (0:0)",
+           "table <anonymous>",
            "Page index.js (3:5)",
          ],
        }
@@ -612,7 +605,7 @@ describe('Error overlay for hydration errors in Pages router', () => {
            "stack": [],
          },
          {
-           "description": "Error: There was an error while hydrating. Because the error happened outside of a Suspense boundary, the entire root will switch to client rendering.",
+           "description": "There was an error while hydrating. Because the error happened outside of a Suspense boundary, the entire root will switch to client rendering.",
            "environmentLabel": null,
            "label": "Recoverable Error",
            "source": null,
@@ -623,20 +616,19 @@ describe('Error overlay for hydration errors in Pages router', () => {
     } else {
       await expect(browser).toDisplayRedbox(`
        {
-         "componentStack": "<Root callbacks={[...]}>
-           <Head>
-           <AppContainer>
-             <Container fn={function fn}>
-               <PagesDevOverlay>
-                 <PagesDevOverlayErrorBoundary onError={function usePagesDevOverlay.useCallback[onComponentError]}>
-                   <PathnameContextProviderAdapter router={{sdc:{},sbc:{}, ...}} isAutoExport={true}>
-                     <App pageProps={{}} Component={function Page} err={undefined} router={{sdc:{},sbc:{}, ...}}>
+         "componentStack": "<Next.js Internal Component>
+           <Next.js Internal Component>
+           <Next.js Internal Component>
+             <Next.js Internal Component>
+               <Next.js Internal Component>
+                 <Next.js Internal Component>
+                   <Next.js Internal Component>
+                     <Next.js Internal Component>
                        <Page>
        >                 <table>
        >                   {" 123"}
                            ...
-                     ...
-                 ...",
+                     ...",
          "description": "In HTML, text nodes cannot be a child of <table>.
        This will cause a hydration error.",
          "environmentLabel": null,
@@ -645,7 +637,7 @@ describe('Error overlay for hydration errors in Pages router', () => {
        > 3 |     <table>
            |     ^",
          "stack": [
-           "table <anonymous> (0:0)",
+           "table <anonymous>",
            "Page index.js (3:5)",
          ],
        }
@@ -709,7 +701,7 @@ describe('Error overlay for hydration errors in Pages router', () => {
            "stack": [],
          },
          {
-           "description": "Error: There was an error while hydrating this Suspense boundary. Switched to client rendering.",
+           "description": "There was an error while hydrating this Suspense boundary. Switched to client rendering.",
            "environmentLabel": null,
            "label": "Recoverable Error",
            "source": null,
@@ -721,10 +713,10 @@ describe('Error overlay for hydration errors in Pages router', () => {
       await expect(browser).toDisplayRedbox(`
        {
          "componentStack": "...
-           <PagesDevOverlay>
-             <PagesDevOverlayErrorBoundary onError={function usePagesDevOverlay.useCallback[onComponentError]}>
-               <PathnameContextProviderAdapter router={{sdc:{},sbc:{}, ...}} isAutoExport={true}>
-                 <App pageProps={{}} Component={function Mismatch} err={undefined} router={{sdc:{},sbc:{}, ...}}>
+           <Next.js Internal Component>
+             <Next.js Internal Component>
+               <Next.js Internal Component>
+                 <Next.js Internal Component>
                    <Mismatch>
                      <div className="parent">
                        <Suspense fallback={<p>}>
@@ -732,8 +724,7 @@ describe('Error overlay for hydration errors in Pages router', () => {
        +                 <main className="second">
        -                 <footer className="3">
                          ...
-                 ...
-             ...",
+                 ...",
          "description": "Hydration failed because the server rendered HTML didn't match the client. As a result this tree will be regenerated on the client. This can happen if a SSR-ed Client Component used:",
          "environmentLabel": null,
          "label": "Recoverable Error",
@@ -741,7 +732,7 @@ describe('Error overlay for hydration errors in Pages router', () => {
        >  8 |         {isClient && <main className="second" />}
             |                      ^",
          "stack": [
-           "main <anonymous> (0:0)",
+           "main <anonymous>",
            "Mismatch index.js (8:22)",
          ],
        }
@@ -830,7 +821,7 @@ describe('Error overlay for hydration errors in Pages router', () => {
            "stack": [],
          },
          {
-           "description": "Error: There was an error while hydrating. Because the error happened outside of a Suspense boundary, the entire root will switch to client rendering.",
+           "description": "There was an error while hydrating. Because the error happened outside of a Suspense boundary, the entire root will switch to client rendering.",
            "environmentLabel": null,
            "label": "Recoverable Error",
            "source": null,
@@ -841,19 +832,18 @@ describe('Error overlay for hydration errors in Pages router', () => {
     } else {
       await expect(browser).toDisplayRedbox(`
        {
-         "componentStack": "<Root callbacks={[...]}>
-           <Head>
-           <AppContainer>
-             <Container fn={function fn}>
-               <PagesDevOverlay>
-                 <PagesDevOverlayErrorBoundary onError={function usePagesDevOverlay.useCallback[onComponentError]}>
-                   <PathnameContextProviderAdapter router={{sdc:{},sbc:{}, ...}} isAutoExport={true}>
-                     <App pageProps={{}} Component={function Page} err={undefined} router={{sdc:{},sbc:{}, ...}}>
+         "componentStack": "<Next.js Internal Component>
+           <Next.js Internal Component>
+           <Next.js Internal Component>
+             <Next.js Internal Component>
+               <Next.js Internal Component>
+                 <Next.js Internal Component>
+                   <Next.js Internal Component>
+                     <Next.js Internal Component>
                        <Page>
        >                 <p>
        >                   <p>
-                     ...
-                 ...",
+                     ...",
          "description": "In HTML, <p> cannot be a descendant of <p>.
        This will cause a hydration error.",
          "environmentLabel": null,
@@ -862,7 +852,7 @@ describe('Error overlay for hydration errors in Pages router', () => {
        > 4 |       <p>Nested p tags</p>
            |       ^",
          "stack": [
-           "p <anonymous> (0:0)",
+           "p <anonymous>",
            "Page index.js (4:7)",
          ],
        }
@@ -926,7 +916,7 @@ describe('Error overlay for hydration errors in Pages router', () => {
            "stack": [],
          },
          {
-           "description": "Error: There was an error while hydrating. Because the error happened outside of a Suspense boundary, the entire root will switch to client rendering.",
+           "description": "There was an error while hydrating. Because the error happened outside of a Suspense boundary, the entire root will switch to client rendering.",
            "environmentLabel": null,
            "label": "Recoverable Error",
            "source": null,
@@ -938,18 +928,17 @@ describe('Error overlay for hydration errors in Pages router', () => {
       await expect(browser).toDisplayRedbox(`
        {
          "componentStack": "...
-           <Container fn={function fn}>
-             <PagesDevOverlay>
-               <PagesDevOverlayErrorBoundary onError={function usePagesDevOverlay.useCallback[onComponentError]}>
-                 <PathnameContextProviderAdapter router={{sdc:{},sbc:{}, ...}} isAutoExport={true}>
-                   <App pageProps={{}} Component={function Page} err={undefined} router={{sdc:{},sbc:{}, ...}}>
+           <Next.js Internal Component>
+             <Next.js Internal Component>
+               <Next.js Internal Component>
+                 <Next.js Internal Component>
+                   <Next.js Internal Component>
                      <Page>
                        <div>
                          <div>
        >                   <p>
        >                     <div>
-                   ...
-               ...",
+                   ...",
          "description": "In HTML, <div> cannot be a descendant of <p>.
        This will cause a hydration error.",
          "environmentLabel": null,
@@ -958,7 +947,7 @@ describe('Error overlay for hydration errors in Pages router', () => {
        > 6 |           <div>Nested div under p tag</div>
            |           ^",
          "stack": [
-           "div <anonymous> (0:0)",
+           "div <anonymous>",
            "Page index.js (6:11)",
          ],
        }
@@ -1010,7 +999,7 @@ describe('Error overlay for hydration errors in Pages router', () => {
            "stack": [],
          },
          {
-           "description": "Error: There was an error while hydrating. Because the error happened outside of a Suspense boundary, the entire root will switch to client rendering.",
+           "description": "There was an error while hydrating. Because the error happened outside of a Suspense boundary, the entire root will switch to client rendering.",
            "environmentLabel": null,
            "label": "Recoverable Error",
            "source": null,
@@ -1021,19 +1010,18 @@ describe('Error overlay for hydration errors in Pages router', () => {
     } else {
       await expect(browser).toDisplayRedbox(`
        {
-         "componentStack": "<Root callbacks={[...]}>
-           <Head>
-           <AppContainer>
-             <Container fn={function fn}>
-               <PagesDevOverlay>
-                 <PagesDevOverlayErrorBoundary onError={function usePagesDevOverlay.useCallback[onComponentError]}>
-                   <PathnameContextProviderAdapter router={{sdc:{},sbc:{}, ...}} isAutoExport={true}>
-                     <App pageProps={{}} Component={function Page} err={undefined} router={{sdc:{},sbc:{}, ...}}>
+         "componentStack": "<Next.js Internal Component>
+           <Next.js Internal Component>
+           <Next.js Internal Component>
+             <Next.js Internal Component>
+               <Next.js Internal Component>
+                 <Next.js Internal Component>
+                   <Next.js Internal Component>
+                     <Next.js Internal Component>
                        <Page>
        >                 <div>
        >                   <tr>
-                     ...
-                 ...",
+                     ...",
          "description": "In HTML, <tr> cannot be a child of <div>.
        This will cause a hydration error.",
          "environmentLabel": null,
@@ -1042,7 +1030,7 @@ describe('Error overlay for hydration errors in Pages router', () => {
        > 2 |   return <div><tr></tr></div>
            |               ^",
          "stack": [
-           "tr <anonymous> (0:0)",
+           "tr <anonymous>",
            "Page index.js (2:15)",
          ],
        }
@@ -1104,7 +1092,7 @@ describe('Error overlay for hydration errors in Pages router', () => {
            "stack": [],
          },
          {
-           "description": "Error: There was an error while hydrating. Because the error happened outside of a Suspense boundary, the entire root will switch to client rendering.",
+           "description": "There was an error while hydrating. Because the error happened outside of a Suspense boundary, the entire root will switch to client rendering.",
            "environmentLabel": null,
            "label": "Recoverable Error",
            "source": null,
@@ -1115,14 +1103,14 @@ describe('Error overlay for hydration errors in Pages router', () => {
     } else {
       await expect(browser).toDisplayRedbox(`
        {
-         "componentStack": "<Root callbacks={[...]}>
-           <Head>
-           <AppContainer>
-             <Container fn={function fn}>
-               <PagesDevOverlay>
-                 <PagesDevOverlayErrorBoundary onError={function usePagesDevOverlay.useCallback[onComponentError]}>
-                   <PathnameContextProviderAdapter router={{sdc:{},sbc:{}, ...}} isAutoExport={true}>
-                     <App pageProps={{}} Component={function Page} err={undefined} router={{sdc:{},sbc:{}, ...}}>
+         "componentStack": "<Next.js Internal Component>
+           <Next.js Internal Component>
+           <Next.js Internal Component>
+             <Next.js Internal Component>
+               <Next.js Internal Component>
+                 <Next.js Internal Component>
+                   <Next.js Internal Component>
+                     <Next.js Internal Component>
                        <Page>
        >                 <p>
                            <span>
@@ -1130,8 +1118,7 @@ describe('Error overlay for hydration errors in Pages router', () => {
                                <span>
                                  <span>
        >                           <p>
-                     ...
-                 ...",
+                     ...",
          "description": "In HTML, <p> cannot be a descendant of <p>.
        This will cause a hydration error.",
          "environmentLabel": null,
@@ -1140,7 +1127,7 @@ describe('Error overlay for hydration errors in Pages router', () => {
        > 3 |     <p><span><span><span><span><p>hello world</p></span></span></span></span></p>
            |                                ^",
          "stack": [
-           "p <anonymous> (0:0)",
+           "p <anonymous>",
            "Page index.js (3:32)",
          ],
        }
@@ -1187,6 +1174,6 @@ describe('Error overlay for hydration errors in Pages router', () => {
     )
     const { session } = sandbox
     // FIXME: Should have a redbox just like with App router
-    await session.assertNoRedbox()
+    await session.waitForNoRedbox()
   })
 })

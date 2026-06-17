@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import React, { useEffect } from 'react'
+import React, { Suspense, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 
 export default function Layout({ children }: { children: React.ReactNode }) {
@@ -16,24 +16,32 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   }, [router])
 
   return (
-    <html>
-      <head></head>
-      <body
-        style={{
-          margin: 0,
-        }}
-      >
-        <div
+    <Suspense
+      fallback={
+        <html>
+          <body />
+        </html>
+      }
+    >
+      <html>
+        <head></head>
+        <body
           style={{
-            position: 'fixed',
-            top: 0,
-            left: 0,
+            margin: 0,
           }}
         >
-          <Link id="to-vertical-page" href="1" />
-        </div>
-        {children}
-      </body>
-    </html>
+          <div
+            style={{
+              position: 'fixed',
+              top: 0,
+              left: 0,
+            }}
+          >
+            <Link id="to-vertical-page" href="1" />
+          </div>
+          {children}
+        </body>
+      </html>
+    </Suspense>
   )
 }

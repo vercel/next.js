@@ -3,12 +3,12 @@
 import React, {
   useRef,
   useEffect,
-  useCallback,
   useContext,
   useMemo,
   useState,
   forwardRef,
   use,
+  useLayoutEffect,
 } from 'react'
 import ReactDOM from 'react-dom'
 import Head from '../shared/lib/head'
@@ -26,10 +26,9 @@ import type {
 } from '../shared/lib/image-config'
 import { imageConfigDefault } from '../shared/lib/image-config'
 import { ImageConfigContext } from '../shared/lib/image-config-context.shared-runtime'
-import { warnOnce } from '../shared/lib/utils/warn-once'
 import { RouterContext } from '../shared/lib/router-context.shared-runtime'
 
-// @ts-ignore - This is replaced by webpack alias
+// This is replaced by webpack alias
 import defaultLoader from 'next/dist/shared/lib/image-loader'
 import { useMergedRef } from './use-merged-ref'
 
@@ -44,7 +43,7 @@ export type { ImageLoaderProps }
 export type ImageLoader = (p: ImageLoaderProps) => string
 
 type ImgElementWithDataProp = HTMLImageElement & {
-  'data-loaded-src': string | undefined
+  'data-loaded-src'?: string | undefined
 }
 
 type ImageElementProps = ImgProps & {
@@ -116,6 +115,8 @@ function handleLoading(
       onLoadingCompleteRef.current(img)
     }
     if (process.env.NODE_ENV !== 'production') {
+      const { warnOnce } =
+        require('../shared/lib/utils/warn-once') as typeof import('../shared/lib/utils/warn-once')
       const origSrc = new URL(src, 'http://n').searchParams.get('url') || src
       if (img.getAttribute('data-nimg') === 'fill') {
         if (!unoptimized && (!sizesInput || sizesInput === '100vw')) {
@@ -180,6 +181,15 @@ function getDynamicProps(
   return { fetchpriority: fetchPriority }
 }
 
+/**
+ * A version of useLayoutEffect that doesn't warn during SSR.
+ * TODO: Just useLayoutEffect once support for React 18 is dropped.
+ * Do not rename this to "isomorphic layout effect". There is no such thing as
+ * an isomorphic Layout Effect since there is no Layout on the server
+ */
+const useNonWarningLayoutEffect =
+  typeof window === 'undefined' ? useEffect : useLayoutEffect
+
 const ImageElement = forwardRef<HTMLImageElement | null, ImageElementProps>(
   (
     {
@@ -207,18 +217,25 @@ const ImageElement = forwardRef<HTMLImageElement | null, ImageElementProps>(
     },
     forwardedRef
   ) => {
-    const ownRef = useCallback(
-      (img: ImgElementWithDataProp | null) => {
-        if (!img) {
-          return
-        }
+    const didInsertRef = useRef(false)
+    const insertedImgRef = useRef<HTMLImageElement>(null)
+
+    useNonWarningLayoutEffect(() => {
+      const { current: didInsert } = didInsertRef
+      const { current: img } = insertedImgRef
+
+      if (!didInsert && img !== null) {
+        // Replay events from during hydration that React doesn't replay.
         if (onError) {
           // If the image has an error before react hydrates, then the error is lost.
           // The workaround is to wait until the image is mounted which is after hydration,
           // then we set the src again to trigger the error handler (if there was an error).
+          // This doesn't just trigger the error handler but retries the whole request.
+          // TODO: Consider dispatching a synthetic event instead.
           // eslint-disable-next-line no-self-assign
           img.src = img.src
         }
+
         if (process.env.NODE_ENV !== 'production') {
           if (!src) {
             console.error(`Image is missing required "src" property:`, img)
@@ -240,22 +257,24 @@ const ImageElement = forwardRef<HTMLImageElement | null, ImageElementProps>(
             sizesInput
           )
         }
-      },
-      [
-        src,
-        placeholder,
-        onLoadRef,
-        onLoadingCompleteRef,
-        setBlurComplete,
-        onError,
-        unoptimized,
-        sizesInput,
-      ]
-    )
+        didInsertRef.current = true
+      }
+    }, [
+      src,
+      placeholder,
+      onLoadRef,
+      onLoadingCompleteRef,
+      onError,
+      unoptimized,
+      sizesInput,
+    ])
 
-    const ref = useMergedRef(forwardedRef, ownRef)
+    const ref = useMergedRef(forwardedRef, insertedImgRef)
 
     return (
+      // If you move this element creation, also move the Layout Effect above
+      // reading from the ref. Otherwise we might run the Layout Effect when
+      // the current value isn't set to the HTMLImageElement instance.
       <img
         {...rest}
         {...getDynamicProps(fetchPriority)}
@@ -280,9 +299,9 @@ const ImageElement = forwardRef<HTMLImageElement | null, ImageElementProps>(
         src={src}
         ref={ref}
         onLoad={(event) => {
-          const img = event.currentTarget as ImgElementWithDataProp
+          const currentImage = event.currentTarget
           handleLoading(
-            img,
+            currentImage,
             placeholder,
             onLoadRef,
             onLoadingCompleteRef,
@@ -314,7 +333,7 @@ function ImagePreload({
   isAppRouter: boolean
   imgAttributes: ImgProps
 }) {
-  const opts = {
+  const opts: ReactDOM.PreloadOptions = {
     as: 'image',
     imageSrcSet: imgAttributes.srcSet,
     imageSizes: imgAttributes.sizes,
@@ -324,12 +343,7 @@ function ImagePreload({
   }
 
   if (isAppRouter && ReactDOM.preload) {
-    // See https://github.com/facebook/react/pull/26940
-    ReactDOM.preload(
-      imgAttributes.src,
-      // @ts-expect-error TODO: upgrade to `@types/react-dom@18.3.x`
-      opts
-    )
+    ReactDOM.preload(imgAttributes.src, opts)
     return null
   }
 
@@ -369,10 +383,24 @@ export const Image = forwardRef<HTMLImageElement | null, ImageProps>(
     const configContext = useContext(ImageConfigContext)
     const config = useMemo(() => {
       const c = configEnv || configContext || imageConfigDefault
+
       const allSizes = [...c.deviceSizes, ...c.imageSizes].sort((a, b) => a - b)
       const deviceSizes = c.deviceSizes.sort((a, b) => a - b)
       const qualities = c.qualities?.sort((a, b) => a - b)
-      return { ...c, allSizes, deviceSizes, qualities }
+      return {
+        ...c,
+        allSizes,
+        deviceSizes,
+        qualities,
+        // During the SSR, configEnv (__NEXT_IMAGE_OPTS) does not include
+        // security sensitive configs like `localPatterns`, which is needed
+        // during the server render to ensure it's validated. Therefore use
+        // configContext, which holds the config from the server for validation.
+        localPatterns:
+          typeof window === 'undefined'
+            ? configContext?.localPatterns
+            : c.localPatterns,
+      }
     }, [configContext])
 
     const { onLoad, onLoadingComplete } = props
@@ -390,7 +418,6 @@ export const Image = forwardRef<HTMLImageElement | null, ImageProps>(
 
     const [blurComplete, setBlurComplete] = useState(false)
     const [showAltText, setShowAltText] = useState(false)
-
     const { props: imgAttributes, meta: imgMeta } = getImgProps(props, {
       defaultLoader,
       imgConf: config,
@@ -414,7 +441,7 @@ export const Image = forwardRef<HTMLImageElement | null, ImageProps>(
             ref={forwardedRef}
           />
         }
-        {imgMeta.priority ? (
+        {imgMeta.preload ? (
           <ImagePreload
             isAppRouter={isAppRouter}
             imgAttributes={imgAttributes}

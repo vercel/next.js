@@ -1,21 +1,21 @@
 use std::pin::Pin;
 
 use anyhow::Result;
+use async_trait::async_trait;
 use futures::prelude::*;
 use tokio::sync::mpsc::Sender;
 use tokio_stream::wrappers::ReceiverStream;
 use tracing::Instrument;
-use turbo_rcstr::RcStr;
+use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
+    NonLocalValue, OperationVc, PrettyPrintError, ReadRef, ResolvedVc, TransientInstance, Vc,
     trace::{TraceRawVcs, TraceRawVcsContext},
-    IntoTraitRef, NonLocalValue, OperationVc, ReadRef, ResolvedVc, TransientInstance, Vc,
 };
 use turbo_tasks_fs::{FileSystem, FileSystemPath};
 use turbopack_core::{
-    error::PrettyPrintError,
     issue::{
-        Issue, IssueDescriptionExt, IssueSeverity, IssueStage, OptionIssueProcessingPathItems,
-        OptionStyledString, PlainIssue, StyledString,
+        CollectibleIssuesExt, Issue, IssueFilter, IssueSeverity, IssueStage, PlainIssue,
+        StyledString,
     },
     server_fs::ServerFileSystem,
     version::{
@@ -24,7 +24,7 @@ use turbopack_core::{
     },
 };
 
-use crate::source::{resolve::ResolveSourceRequestResult, ProxyResult};
+use crate::source::{ProxyResult, resolve::ResolveSourceRequestResult};
 
 struct TypedGetContentFn<C> {
     capture: C,
@@ -88,9 +88,9 @@ impl GetContentFn {
 }
 
 async fn peek_issues<T: Send>(source: OperationVc<T>) -> Result<Vec<ReadRef<PlainIssue>>> {
-    let captured = source.peek_issues_with_path().await?;
+    let captured = source.peek_issues();
 
-    captured.get_plain_issues().await
+    captured.get_plain_issues(&IssueFilter::everything()).await
 }
 
 fn extend_issues(issues: &mut Vec<ReadRef<PlainIssue>>, new_issues: Vec<ReadRef<PlainIssue>>) {
@@ -103,7 +103,7 @@ fn extend_issues(issues: &mut Vec<ReadRef<PlainIssue>>, new_issues: Vec<ReadRef<
     }
 }
 
-#[turbo_tasks::function(operation)]
+#[turbo_tasks::function(operation, root)]
 fn versioned_content_update_operation(
     content: ResolvedVc<Box<dyn VersionedContent>>,
     from: ResolvedVc<Box<dyn Version>>,
@@ -111,7 +111,23 @@ fn versioned_content_update_operation(
     content.update(*from)
 }
 
-#[turbo_tasks::function(operation)]
+/// Computes the initial [`Version`] for an update stream from a resolved source request. Runs as
+/// an `operation` so [`UpdateStream::new`] can read it strongly consistently from its top-level
+/// task without performing an eventually-consistent read.
+#[turbo_tasks::function(operation, root)]
+async fn initial_version_operation(
+    content: OperationVc<ResolveSourceRequestResult>,
+) -> Result<Vc<Box<dyn Version>>> {
+    Ok(match *content.read_strongly_consistent().await? {
+        ResolveSourceRequestResult::Static(static_content, _) => {
+            static_content.await?.content.version()
+        }
+        ResolveSourceRequestResult::HttpProxy(proxy_result) => Vc::upcast(proxy_result.connect()),
+        _ => Vc::upcast(NotFoundVersion::new()),
+    })
+}
+
+#[turbo_tasks::function(operation, root)]
 async fn get_update_stream_item_operation(
     resource: RcStr,
     from: ResolvedVc<VersionState>,
@@ -125,13 +141,19 @@ async fn get_update_stream_item_operation(
         Ok(content) => content,
         Err(e) => {
             plain_issues.push(
-                FatalStreamIssue {
-                    resource,
-                    description: StyledString::Text(format!("{}", PrettyPrintError(&e)).into())
-                        .resolved_cell(),
-                }
-                .cell()
-                .into_plain(OptionIssueProcessingPathItems::none())
+                PlainIssue::from_issue(
+                    Vc::upcast(
+                        FatalStreamIssue {
+                            resource,
+                            description: StyledString::Text(
+                                format!("{}", PrettyPrintError(&e)).into(),
+                            )
+                            .resolved_cell(),
+                        }
+                        .cell(),
+                    ),
+                    None,
+                )
                 .await?,
             );
 
@@ -181,14 +203,15 @@ async fn get_update_stream_item_operation(
             extend_issues(&mut plain_issues, peek_issues(proxy_result_op).await?);
 
             let from = from.get();
-            if let Some(from) = Vc::try_resolve_downcast_type::<ProxyResult>(from).await? {
-                if from.await? == proxy_result_value {
-                    return Ok(UpdateStreamItem::Found {
-                        update: Update::None.cell().await?,
-                        issues: plain_issues,
-                    }
-                    .cell());
+            if let Some(from) =
+                ResolvedVc::try_downcast_type::<ProxyResult>(from.to_resolved().await?)
+                && from.await? == proxy_result_value
+            {
+                return Ok(UpdateStreamItem::Found {
+                    update: Update::None.cell().await?,
+                    issues: plain_issues,
                 }
+                .cell());
             }
 
             Ok(UpdateStreamItem::Found {
@@ -247,15 +270,13 @@ async fn compute_update_stream(
     from: ResolvedVc<VersionState>,
     get_content: TransientInstance<GetContentFn>,
     sender: TransientInstance<ComputeUpdateStreamSender>,
-) -> Vc<()> {
+) -> () {
     let item = get_update_stream_item_operation(resource, from, get_content)
         .read_strongly_consistent()
         .await;
 
     // Send update. Ignore channel closed error.
     let _ = sender.0.send(item).await;
-
-    Default::default()
 }
 
 pub(super) struct UpdateStream(
@@ -272,17 +293,13 @@ impl UpdateStream {
 
         let content = get_content.call();
         // We can ignore issues reported in content here since [compute_update_stream]
-        // will handle them
-        let version = match *content.connect().await? {
-            ResolveSourceRequestResult::Static(static_content, _) => {
-                static_content.await?.content.version()
-            }
-            ResolveSourceRequestResult::HttpProxy(proxy_result) => {
-                Vc::upcast(proxy_result.connect())
-            }
-            _ => Vc::upcast(NotFoundVersion::new()),
-        };
-        let version_state = VersionState::new(version.into_trait_ref().await?).await?;
+        // will handle them. This runs in a top-level task (`UpdateServer::run`'s
+        // `start_once_process`), so the initial version is computed in a dedicated `operation`
+        // task (where the per-content reads are legal) and read strongly consistently.
+        let version = initial_version_operation(content)
+            .read_trait_strongly_consistent()
+            .await?;
+        let version_state = VersionState::new(version).await?;
 
         let _ = compute_update_stream(
             resource,
@@ -354,7 +371,7 @@ impl Stream for UpdateStream {
     }
 }
 
-#[turbo_tasks::value(serialization = "none")]
+#[turbo_tasks::value(serialization = "skip")]
 #[derive(Debug)]
 pub enum UpdateStreamItem {
     NotFound,
@@ -364,60 +381,57 @@ pub enum UpdateStreamItem {
     },
 }
 
-#[turbo_tasks::value(serialization = "none")]
+#[turbo_tasks::value(serialization = "skip")]
 struct FatalStreamIssue {
     description: ResolvedVc<StyledString>,
     resource: RcStr,
 }
 
+#[async_trait]
 #[turbo_tasks::value_impl]
 impl Issue for FatalStreamIssue {
-    #[turbo_tasks::function]
-    fn severity(&self) -> Vc<IssueSeverity> {
-        IssueSeverity::Fatal.into()
+    fn severity(&self) -> IssueSeverity {
+        IssueSeverity::Fatal
     }
 
-    #[turbo_tasks::function]
-    fn stage(&self) -> Vc<IssueStage> {
-        IssueStage::Other("websocket".into()).cell()
+    fn stage(&self) -> IssueStage {
+        IssueStage::Other(rcstr!("websocket"))
     }
 
-    #[turbo_tasks::function]
-    fn file_path(&self) -> Vc<FileSystemPath> {
-        ServerFileSystem::new().root().join(self.resource.clone())
+    async fn file_path(&self) -> Result<FileSystemPath> {
+        ServerFileSystem::new().root().await?.join(&self.resource)
     }
 
-    #[turbo_tasks::function]
-    fn title(&self) -> Vc<StyledString> {
-        StyledString::Text("Fatal error while getting content to stream".into()).cell()
+    async fn title(&self) -> Result<StyledString> {
+        Ok(StyledString::Text(rcstr!(
+            "Fatal error while getting content to stream"
+        )))
     }
 
-    #[turbo_tasks::function]
-    fn description(&self) -> Vc<OptionStyledString> {
-        Vc::cell(Some(self.description))
+    async fn description(&self) -> Result<Option<StyledString>> {
+        Ok(Some((*self.description.await?).clone()))
     }
 }
 
 #[cfg(test)]
 pub mod test {
     use std::sync::{
-        atomic::{AtomicI32, Ordering},
         Arc,
+        atomic::{AtomicI32, Ordering},
     };
 
     use turbo_tasks::TurboTasks;
-    use turbo_tasks_backend::{noop_backing_storage, BackendOptions, TurboTasksBackend};
+    use turbo_tasks_backend::{BackendOptions, TurboTasksBackend, noop_backing_storage};
 
     use super::*;
 
-    #[turbo_tasks::function(operation)]
+    #[turbo_tasks::function(operation, root)]
     pub fn noop_operation() -> Vc<ResolveSourceRequestResult> {
         ResolveSourceRequestResult::NotFound.cell()
     }
 
-    #[tokio::test]
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
     async fn test_get_content_fn() {
-        crate::register();
         let tt = TurboTasks::new(TurboTasksBackend::new(
             BackendOptions::default(),
             noop_backing_storage(),

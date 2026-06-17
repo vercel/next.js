@@ -22,7 +22,7 @@ describe('typescript-version-warning', () => {
   it('should print warning when old typescript version is used with next build', async () => {
     await next.start().catch(() => {})
     expect(next.cliOutput).toContain(
-      'Minimum recommended TypeScript version is v4.5.2, older versions can potentially be incompatible with Next.js. Detected: 4.0.6'
+      'Minimum recommended TypeScript version is v5.1.0, older versions can potentially be incompatible with Next.js. Detected: 4.0.6'
     )
   })
 })

@@ -2,8 +2,13 @@ error[E0277]: the trait bound `UnresolvedValue: NonLocalValue` is not satisfied
   --> tests/derive_non_local_value/fail_simple_enum.rs:10:13
    |
 10 |     Unnamed(UnresolvedValue),
-   |             ^^^^^^^^^^^^^^^ the trait `NonLocalValue` is not implemented for `UnresolvedValue`
+   |             ^^^^^^^^^^^^^^^ unsatisfied trait bound
    |
+help: the trait `NonLocalValue` is not implemented for `UnresolvedValue`
+  --> tests/derive_non_local_value/fail_simple_enum.rs:5:1
+   |
+ 5 | struct UnresolvedValue;
+   | ^^^^^^^^^^^^^^^^^^^^^^
    = help: the following other types implement trait `NonLocalValue`:
              &T
              &mut T
@@ -17,7 +22,7 @@ error[E0277]: the trait bound `UnresolvedValue: NonLocalValue` is not satisfied
 note: required by a bound in `DeriveNonLocalValueAssertion::assert_impl_NonLocalValue`
   --> tests/derive_non_local_value/fail_simple_enum.rs:7:10
    |
-7  | #[derive(NonLocalValue)]
+ 7 | #[derive(NonLocalValue)]
    |          ^^^^^^^^^^^^^ required by this bound in `DeriveNonLocalValueAssertion::assert_impl_NonLocalValue`
    = note: this error originates in the derive macro `NonLocalValue` (in Nightly builds, run with -Z macro-backtrace for more info)
 
@@ -25,8 +30,13 @@ error[E0277]: the trait bound `UnresolvedValue: NonLocalValue` is not satisfied
   --> tests/derive_non_local_value/fail_simple_enum.rs:11:16
    |
 11 |     Named { a: UnresolvedValue },
-   |                ^^^^^^^^^^^^^^^ the trait `NonLocalValue` is not implemented for `UnresolvedValue`
+   |                ^^^^^^^^^^^^^^^ unsatisfied trait bound
    |
+help: the trait `NonLocalValue` is not implemented for `UnresolvedValue`
+  --> tests/derive_non_local_value/fail_simple_enum.rs:5:1
+   |
+ 5 | struct UnresolvedValue;
+   | ^^^^^^^^^^^^^^^^^^^^^^
    = help: the following other types implement trait `NonLocalValue`:
              &T
              &mut T
@@ -40,6 +50,6 @@ error[E0277]: the trait bound `UnresolvedValue: NonLocalValue` is not satisfied
 note: required by a bound in `DeriveNonLocalValueAssertion::assert_impl_NonLocalValue`
   --> tests/derive_non_local_value/fail_simple_enum.rs:7:10
    |
-7  | #[derive(NonLocalValue)]
+ 7 | #[derive(NonLocalValue)]
    |          ^^^^^^^^^^^^^ required by this bound in `DeriveNonLocalValueAssertion::assert_impl_NonLocalValue`
    = note: this error originates in the derive macro `NonLocalValue` (in Nightly builds, run with -Z macro-backtrace for more info)

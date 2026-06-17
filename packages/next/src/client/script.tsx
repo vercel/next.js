@@ -6,6 +6,7 @@ import type { ScriptHTMLAttributes } from 'react'
 import { HeadManagerContext } from '../shared/lib/head-manager-context.shared-runtime'
 import { setAttributesFromProps } from './set-attributes-from-props'
 import { requestIdleCallback } from './request-idle-callback'
+import { htmlEscapeJsonString } from '../shared/lib/htmlescape'
 
 const ScriptCache = new Map()
 const LoadCache = new Set()
@@ -209,8 +210,11 @@ function Script(props: ScriptProps): JSX.Element | null {
   } = props
 
   // Context is available only during SSR
-  const { updateScripts, scripts, getIsSsr, appDir, nonce } =
+  let { updateScripts, scripts, getIsSsr, appDir, nonce } =
     useContext(HeadManagerContext)
+
+  // if a nonce is explicitly passed to the script tag, favor that over the automatic handling
+  nonce = restProps.nonce || nonce
 
   /**
    * - First mount:
@@ -276,6 +280,7 @@ function Script(props: ScriptProps): JSX.Element | null {
           onReady,
           onError,
           ...restProps,
+          nonce,
         },
       ])
       updateScripts(scripts)
@@ -283,7 +288,10 @@ function Script(props: ScriptProps): JSX.Element | null {
       // Script has already loaded during SSR
       LoadCache.add(id || src)
     } else if (getIsSsr && !getIsSsr()) {
-      loadScript(props)
+      loadScript({
+        ...props,
+        nonce,
+      })
     }
   }
 
@@ -320,10 +328,9 @@ function Script(props: ScriptProps): JSX.Element | null {
           <script
             nonce={nonce}
             dangerouslySetInnerHTML={{
-              __html: `(self.__next_s=self.__next_s||[]).push(${JSON.stringify([
-                0,
-                { ...restProps, id },
-              ])})`,
+              __html: `(self.__next_s=self.__next_s||[]).push(${htmlEscapeJsonString(
+                JSON.stringify([0, { ...restProps, id }])
+              )})`,
             }}
           />
         )
@@ -344,10 +351,9 @@ function Script(props: ScriptProps): JSX.Element | null {
           <script
             nonce={nonce}
             dangerouslySetInnerHTML={{
-              __html: `(self.__next_s=self.__next_s||[]).push(${JSON.stringify([
-                src,
-                { ...restProps, id },
-              ])})`,
+              __html: `(self.__next_s=self.__next_s||[]).push(${htmlEscapeJsonString(
+                JSON.stringify([src, { ...restProps, id }])
+              )})`,
             }}
           />
         )

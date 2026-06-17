@@ -4,9 +4,10 @@ import {
   RSC_SEGMENT_SUFFIX,
   RSC_SEGMENTS_DIR_SUFFIX,
 } from '../../../lib/constants'
+import { escapeStringRegexp } from '../../../shared/lib/escape-regexp'
 
 const PATTERN = new RegExp(
-  `^(/.*)${RSC_SEGMENTS_DIR_SUFFIX}(/.*)${RSC_SEGMENT_SUFFIX}$`
+  `^(/.*)${escapeStringRegexp(RSC_SEGMENTS_DIR_SUFFIX)}(/.*)${escapeStringRegexp(RSC_SEGMENT_SUFFIX)}$`
 )
 
 export class SegmentPrefixRSCPathnameNormalizer implements PathnameNormalizer {

@@ -95,7 +95,7 @@ interface Metadata extends DeprecatedMetadataFields {
    * When relative URLs (for Open Graph images, alternates, etc.) are used, they are composed with this base.
    * If not provided, Next.js will populate a default value based on environment variables.
    */
-  metadataBase?: null | URL | undefined
+  metadataBase?: null | string | URL | undefined
 
   /**
    * The document title.
@@ -557,20 +557,20 @@ interface Metadata extends DeprecatedMetadataFields {
    * ```
    */
   other?:
-    | ({
+    | {
         [name: string]: string | number | Array<string | number>
-      } & DeprecatedMetadataFields)
+      }
     | undefined
 }
 
 /**
- * ResolvedMetadata represents the fully processed metadata after defaults are applied
- * and relative URLs are composed with `metadataBase`.
+ * ResolvedMetadataWithURLs represents the fully processed metadata after
+ * defaults are applied and relative URLs are composed with `metadataBase`.
  */
-interface ResolvedMetadata extends DeprecatedMetadataFields {
+interface ResolvedMetadataWithURLs {
   // origin and base path for absolute urls for various metadata links such as
   // opengraph-image
-  metadataBase: null | URL
+  metadataBase: string | null | URL
 
   // The Document title and template if defined
   title: null | AbsoluteTemplateString
@@ -657,29 +657,57 @@ interface ResolvedMetadata extends DeprecatedMetadataFields {
   // meta name properties
   category: null | string
   classification: null | string
-  other:
-    | null
-    | ({
-        [name: string]: string | number | Array<string | number>
-      } & DeprecatedMetadataFields)
+  other: null | {
+    [name: string]: string | number | Array<string | number>
+  }
+}
+
+export type WithStringifiedURLs<T> = T extends URL
+  ? string
+  : T extends object
+    ? { [K in keyof T]: WithStringifiedURLs<T[K]> }
+    : T
+
+/**
+ * ResolvedMetadata represents the fully processed metadata after defaults are
+ * applied and relative URLs are composed with `metadataBase`.
+ */
+type ResolvedMetadata = WithStringifiedURLs<ResolvedMetadataWithURLs>
+
+type RobotsRuleBase = {
+  allow?: string | string[] | undefined
+  disallow?: string | string[] | undefined
+  crawlDelay?: number | undefined
+  /**
+   * Non-standard per-user-agent directives passed through verbatim to the
+   * generated `robots.txt`. Keys preserve their casing and array values emit
+   * one line per entry.
+   *
+   * @example
+   * ```ts
+   * // Seznam rate-limiting
+   * // https://o-seznam.cz/napoveda/vyhledavani/en/crawling-control/
+   * other: { 'Request-Rate': '10/1m' }
+   *
+   * // Yandex Clean-param (multiple values)
+   * other: { 'Clean-param': ['ref /articles/', 'utm_source /'] }
+   * ```
+   */
+  other?: Record<string, string | number | Array<string | number>> | undefined
 }
 
 type RobotsFile = {
   // Apply rules for all
   rules:
-    | {
+    | (RobotsRuleBase & {
         userAgent?: string | string[] | undefined
-        allow?: string | string[] | undefined
-        disallow?: string | string[] | undefined
-        crawlDelay?: number | undefined
-      }
+      })
     // Apply rules for specific user agents
-    | Array<{
-        userAgent: string | string[]
-        allow?: string | string[] | undefined
-        disallow?: string | string[] | undefined
-        crawlDelay?: number | undefined
-      }>
+    | Array<
+        RobotsRuleBase & {
+          userAgent: string | string[]
+        }
+      >
   sitemap?: string | string[] | undefined
   host?: string | undefined
 }
@@ -773,16 +801,17 @@ interface Viewport extends ViewportLayout {
   colorScheme?: null | ColorSchemeEnum | undefined
 }
 
-type ResolvingViewport = Promise<Viewport>
-
 interface ResolvedViewport extends ViewportLayout {
   themeColor: null | ThemeColorDescriptor[]
   colorScheme: null | ColorSchemeEnum
 }
 
+type ResolvingViewport = Promise<ResolvedViewport>
+
 export type {
   Metadata,
   ResolvedMetadata,
+  ResolvedMetadataWithURLs,
   ResolvingMetadata,
   MetadataRoute,
   Viewport,

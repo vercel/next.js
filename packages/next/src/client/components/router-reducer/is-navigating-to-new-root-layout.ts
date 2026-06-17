@@ -1,19 +1,46 @@
-import type { FlightRouterState } from '../../../server/app-render/types'
+import type { FlightRouterState } from '../../../shared/lib/app-router-types'
+import { PrefetchHint } from '../../../shared/lib/app-router-types'
+import type { RouteTree } from '../segment-cache/cache'
 
 export function isNavigatingToNewRootLayout(
   currentTree: FlightRouterState,
-  nextTree: FlightRouterState
+  nextTree: RouteTree
 ): boolean {
-  // Compare segments
-  const currentTreeSegment = currentTree[0]
-  const nextTreeSegment = nextTree[0]
+  // Decides whether navigating from currentTree to nextTree crosses into a
+  // different root layout, which requires a full-page (MPA-style) navigation.
+  //
+  // The "root layout" is the highest-level layout in the tree. The segments at
+  // or above it form the "root layout prefix", which the server marks with the
+  // IsRootLayoutOrAbove hint. Two routes share a root layout iff their root
+  // layout prefixes are structurally identical — same segments (ignoring
+  // dynamic param *values*) for the same depth. So we walk the prefix in
+  // lockstep and report a change as soon as the prefixes diverge.
+  const currentInPrefix =
+    ((currentTree[4] ?? 0) & PrefetchHint.IsRootLayoutOrAbove) !== 0
+  const nextInPrefix =
+    (nextTree.prefetchHints & PrefetchHint.IsRootLayoutOrAbove) !== 0
 
-  // If any segment is different before we find the root layout, the root layout has changed.
-  // E.g. /same/(group1)/layout.js -> /same/(group2)/layout.js
-  // First segment is 'same' for both, keep looking. (group1) changed to (group2) before the root layout was found, it must have changed.
+  // Both trees have descended past the root layout with everything above
+  // matching — same root layout.
+  if (!currentInPrefix && !nextInPrefix) {
+    return false
+  }
+
+  // One tree's root layout prefix is deeper than the other's, so the root
+  // layout boundary moved — it must have changed.
+  // E.g. /[lang]/layout.js -> /[lang]/[region]/layout.js
+  if (currentInPrefix !== nextInPrefix) {
+    return true
+  }
+
+  // Both segments are still inside the root layout prefix. They must match.
+  // Compare dynamic param name and type but ignore the value: different values
+  // (e.g. /[name] for slug1 vs slug2) still resolve to the same /[name]/layout.
+  // E.g. /same/(group1)/layout.js -> /same/(group2)/layout.js: (group1) changed
+  // to (group2) inside the prefix, so the root layout changed.
+  const currentTreeSegment = currentTree[0]
+  const nextTreeSegment = nextTree.segment
   if (Array.isArray(currentTreeSegment) && Array.isArray(nextTreeSegment)) {
-    // Compare dynamic param name and type but ignore the value, different values would not affect the current root layout
-    // /[name] - /slug1 and /slug2, both values (slug1 & slug2) still has the same layout /[name]/layout.js
     if (
       currentTreeSegment[0] !== nextTreeSegment[0] ||
       currentTreeSegment[2] !== nextTreeSegment[2]
@@ -24,20 +51,21 @@ export function isNavigatingToNewRootLayout(
     return true
   }
 
-  // Current tree root layout found
-  if (currentTree[4]) {
-    // If the next tree doesn't have the root layout flag, it must have changed.
-    return !nextTree[4]
+  // Keep walking the prefix. (Above the root layout there is only a `children`
+  // slot, but we traverse all slots defensively.)
+  const slots = nextTree.slots
+  const currentTreeChildren = currentTree[1]
+  if (slots !== null) {
+    for (const slot in slots) {
+      const nextTreeChild = slots[slot]
+      const currentTreeChild = currentTreeChildren[slot]
+      if (
+        currentTreeChild === undefined ||
+        isNavigatingToNewRootLayout(currentTreeChild, nextTreeChild)
+      ) {
+        return true
+      }
+    }
   }
-  // Current tree didn't have its root layout here, must have changed.
-  if (nextTree[4]) {
-    return true
-  }
-  // We can't assume it's `parallelRoutes.children` here in case the root layout is `app/@something/layout.js`
-  // But it's not possible to be more than one parallelRoutes before the root layout is found
-  // TODO-APP: change to traverse all parallel routes
-  const currentTreeChild = Object.values(currentTree[1])[0]
-  const nextTreeChild = Object.values(nextTree[1])[0]
-  if (!currentTreeChild || !nextTreeChild) return true
-  return isNavigatingToNewRootLayout(currentTreeChild, nextTreeChild)
+  return false
 }

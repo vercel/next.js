@@ -1,11 +1,11 @@
-import { unstable_cacheLife } from 'next/cache'
+import { cacheLife } from 'next/cache'
 
-type CacheLife = Parameters<typeof unstable_cacheLife>[0]
+type CacheLife = Parameters<typeof cacheLife>[0]
 
 async function getCachedValue(cacheLife: CacheLife) {
   'use cache'
 
-  unstable_cacheLife(cacheLife)
+  cacheLife(cacheLife)
 
   return Math.random()
 }

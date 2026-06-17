@@ -1,5 +1,8 @@
 {
   "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "rootDir": "src"
+  },
   // Copied from tsconfig.json to not overwrite.
   "exclude": [
     "dist",
@@ -15,6 +18,7 @@
     // Don't generate types for internal files.
     "./**/*.test.ts",
     "./**/*.test.tsx",
-    "./**/*.stories.tsx"
+    "./**/*.stories.tsx",
+    "./**/storybook/**/*"
   ]
 }

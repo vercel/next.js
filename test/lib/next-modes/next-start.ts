@@ -1,17 +1,44 @@
 import path from 'path'
 import fs from 'fs-extra'
-import { NextInstance } from './base'
+import { NextInstance, type NextInstanceOpts } from './base'
 import spawn from 'cross-spawn'
 import { Span } from 'next/dist/trace'
 import stripAnsi from 'strip-ansi'
+import { quote as shellQuote } from 'shell-quote'
+import { shouldUseTurbopack } from 'next-test-utils'
 
 export class NextStartInstance extends NextInstance {
   private _buildId: string
+  private _deploymentId: string | undefined
+  private _supportsImmutableAssets: boolean = false
   private _cliOutput: string = ''
-  private spawnOpts: import('child_process').SpawnOptions
+
+  // Tracks which phase of `start()` currently owns `childProcess`, so a retry
+  // can tell a leftover `next build` from an interrupted attempt apart from an
+  // already-running server.
+  private _phase: 'building' | 'serving' | undefined = undefined
+
+  private _prerenderFinishedTimeMS: number | null = null
+
+  constructor(opts: NextInstanceOpts) {
+    super(opts)
+
+    if (!opts.disableAutoSkewProtection && shouldUseTurbopack()) {
+      this.env.NEXT_DEPLOYMENT_ID = 'test-dpl-id-1234'
+      this.env.__NEXT_SUPPORTS_IMMUTABLE_ASSETS = '1'
+    }
+  }
 
   public get buildId() {
     return this._buildId
+  }
+
+  public get deploymentId() {
+    return this._deploymentId
+  }
+
+  public get supportsImmutableAssets() {
+    return process.env.IS_TURBOPACK_TEST ? this._supportsImmutableAssets : false
   }
 
   public get cliOutput() {
@@ -26,130 +53,150 @@ export class NextStartInstance extends NextInstance {
   private handleStdio = (childProcess) => {
     childProcess.stdout.on('data', (chunk) => {
       const msg = chunk.toString()
-      if (!process.env.CI) process.stdout.write(chunk)
+      process.stdout.write(chunk)
       this._cliOutput += msg
       this.emit('stdout', [msg])
     })
     childProcess.stderr.on('data', (chunk) => {
       const msg = chunk.toString()
-      if (!process.env.CI) process.stderr.write(chunk)
+      process.stderr.write(chunk)
       this._cliOutput += msg
       this.emit('stderr', [msg])
     })
   }
 
-  public async start() {
+  public async start(
+    options: { skipBuild?: boolean; env?: Record<string, string> } = {}
+  ) {
     if (this.childProcess) {
-      throw new Error('next already started')
+      if (this._phase === 'building') {
+        // A previous test attempt was interrupted (typically by exceeding the
+        // per-test timeout) while `next build` was still running, so the build
+        // process is still tracked here. Since `jest.retryTimes` re-runs the
+        // test body in the same process, stop the orphaned build and continue
+        // instead of failing the retry with `next already started`.
+        require('console').warn(
+          'Found a leftover `next build` process from an interrupted test attempt; stopping it before starting again.'
+        )
+        await this.stop()
+      } else {
+        throw new Error('next already started')
+      }
     }
 
     this._cliOutput = ''
-    this.spawnOpts = {
-      cwd: this.testDir,
-      stdio: ['ignore', 'pipe', 'pipe'],
-      shell: false,
-      env: {
-        ...process.env,
-        ...this.env,
-        NODE_ENV: this.env.NODE_ENV || ('' as any),
-        ...(this.forcedPort
-          ? {
-              PORT: this.forcedPort,
-            }
-          : {
-              PORT: '0',
-            }),
-        __NEXT_TEST_MODE: 'e2e',
-      },
-    }
+    const spawnOpts = this.getSpawnOpts(options.env)
 
-    let buildArgs = ['pnpm', 'next', 'build']
     let startArgs = ['pnpm', 'next', 'start']
-
-    if (this.buildCommand) {
-      buildArgs = this.buildCommand.split(' ')
-    }
-
-    if (this.buildOptions) {
-      buildArgs.push(...this.buildOptions)
-    }
 
     if (this.startCommand) {
       startArgs = this.startCommand.split(' ')
     }
 
-    if (this.startOptions) {
-      startArgs.push(...this.startOptions)
+    if (this.startArgs) {
+      startArgs.push(...this.startArgs)
     }
 
     if (process.env.NEXT_SKIP_ISOLATE) {
       // without isolation yarn can't be used and pnpm must be used instead
-      if (buildArgs[0] === 'yarn') {
-        buildArgs[0] = 'pnpm'
-      }
       if (startArgs[0] === 'yarn') {
         startArgs[0] = 'pnpm'
       }
     }
 
-    console.log('running', buildArgs.join(' '))
+    if (!options.skipBuild) {
+      this._phase = 'building'
+      const buildArgs = this.getBuildArgs()
+      console.log('running', shellQuote(buildArgs))
+      await new Promise<void>((resolve, reject) => {
+        try {
+          this.childProcess = spawn(buildArgs[0], buildArgs.slice(1), spawnOpts)
+          this.handleStdio(this.childProcess)
+          this.childProcess.on('exit', (code, signal) => {
+            this.childProcess = undefined
+            if (code || signal)
+              reject(
+                new Error(
+                  `next build failed with code/signal ${code || signal}`
+                )
+              )
+            else resolve()
+          })
+          const prerenderedCallback = (msg: string) => {
+            const colorStrippedMsg = stripAnsi(msg)
+            // This stage happens after all prerenders have finished.
+            const prerenderFinishedPattern = /Finalizing page optimization/
+            if (prerenderFinishedPattern.test(colorStrippedMsg)) {
+              this._prerenderFinishedTimeMS = performance.now()
+              this.off('stdout', prerenderedCallback)
+            }
+          }
+          this.on('stdout', prerenderedCallback)
+        } catch (err) {
+          require('console').error(
+            `Failed to run ${shellQuote(buildArgs)}`,
+            err
+          )
+          setTimeout(() => process.exit(1), 0)
+        }
+      })
+
+      this._buildId = (
+        await fs
+          .readFile(
+            path.join(
+              this.testDir,
+              this.nextConfig?.distDir || '.next',
+              'BUILD_ID'
+            ),
+            'utf8'
+          )
+          .catch(() => '')
+      ).trim()
+
+      try {
+        const requiredServerFiles = JSON.parse(
+          await fs.readFile(
+            path.join(
+              this.testDir,
+              this.nextConfig?.distDir || '.next',
+              'required-server-files.json'
+            ),
+            'utf8'
+          )
+        )
+        this._deploymentId =
+          requiredServerFiles.config?.deploymentId || undefined
+        this._supportsImmutableAssets =
+          requiredServerFiles.config?.experimental?.supportsImmutableAssets ||
+          false
+      } catch {}
+    }
+
+    this._phase = 'serving'
+    console.log('running', shellQuote(startArgs))
     await new Promise<void>((resolve, reject) => {
       try {
-        this.childProcess = spawn(
-          buildArgs[0],
-          buildArgs.slice(1),
-          this.spawnOpts
-        )
-        this.handleStdio(this.childProcess)
-        this.childProcess.on('exit', (code, signal) => {
-          this.childProcess = undefined
-          if (code || signal)
-            reject(
-              new Error(`next build failed with code/signal ${code || signal}`)
-            )
-          else resolve()
-        })
-      } catch (err) {
-        require('console').error(`Failed to run ${buildArgs.join(' ')}`, err)
-        setTimeout(() => process.exit(1), 0)
-      }
-    })
-
-    this._buildId = (
-      await fs
-        .readFile(
-          path.join(
-            this.testDir,
-            this.nextConfig?.distDir || '.next',
-            'BUILD_ID'
-          ),
-          'utf8'
-        )
-        .catch(() => '')
-    ).trim()
-
-    console.log('running', startArgs.join(' '))
-    await new Promise<void>((resolve, reject) => {
-      try {
-        this.childProcess = spawn(
-          startArgs[0],
-          startArgs.slice(1),
-          this.spawnOpts
-        )
+        this.childProcess = spawn(startArgs[0], startArgs.slice(1), spawnOpts)
         this.handleStdio(this.childProcess)
 
         this.childProcess.on('close', (code, signal) => {
-          if (this.isStopping) return
+          this.childProcess = undefined
           if (code || signal) {
-            require('console').error(
-              `next start exited unexpectedly with code/signal ${
-                code || signal
-              }`
-            )
+            let message = `next start exited unexpectedly with code/signal ${
+              code || signal
+            }`
+            if (!this.isStopping) {
+              require('console').error(message)
+            }
+            reject(new Error(message))
           }
         })
 
-        const serverReadyTimeoutId = this.setServerReadyTimeout(reject)
+        const serverReadyTimeoutId = this.setServerReadyTimeout(
+          reject,
+          this.startServerTimeout
+        )
 
         const readyCb = (msg) => {
           const colorStrippedMsg = stripAnsi(msg)
@@ -171,49 +218,76 @@ export class NextStartInstance extends NextInstance {
         }
         this.on('stdout', readyCb)
       } catch (err) {
-        require('console').error(`Failed to run ${startArgs.join(' ')}`, err)
+        require('console').error(`Failed to run ${shellQuote(startArgs)}`, err)
         setTimeout(() => process.exit(1), 0)
       }
     })
   }
 
-  public async build() {
-    this.spawnOpts = {
+  private getBuildArgs(args?: string[]) {
+    let buildArgs = ['pnpm', 'next', 'build']
+
+    if (this.buildCommand) {
+      buildArgs = this.buildCommand.split(' ')
+    }
+
+    if (this.buildArgs) {
+      buildArgs.push(...this.buildArgs)
+    }
+
+    if (args) {
+      buildArgs.push(...args)
+    }
+
+    if (process.env.NEXT_SKIP_ISOLATE) {
+      // without isolation yarn can't be used and pnpm must be used instead
+      if (buildArgs[0] === 'yarn') {
+        buildArgs[0] = 'pnpm'
+      }
+    }
+
+    return buildArgs
+  }
+
+  private getSpawnOpts(
+    env?: Record<string, string>
+  ): import('child_process').SpawnOptions {
+    return {
       cwd: this.testDir,
       stdio: ['ignore', 'pipe', 'pipe'],
       shell: false,
       env: {
         ...process.env,
         ...this.env,
-        NODE_ENV: '' as any,
-        PORT: this.forcedPort || '0',
+        ...env,
+        NODE_ENV: this.env.NODE_ENV || ('' as any),
+        PORT: this.forcedPort ?? '0',
         __NEXT_TEST_MODE: 'e2e',
       },
     }
-    return new Promise<{
+  }
+
+  public async build(
+    options: { env?: Record<string, string>; args?: string[] } = {}
+  ) {
+    if (this.childProcess) {
+      throw new Error(
+        `can not run export while server is running, use next.stop() first`
+      )
+    }
+
+    let result = await new Promise<{
       exitCode: NodeJS.Signals | number | null
       cliOutput: string
     }>((resolve) => {
+      this._phase = 'building'
       const curOutput = this._cliOutput.length
-      const exportArgs = ['pnpm', 'next', 'build']
+      const spawnOpts = this.getSpawnOpts(options.env)
+      const buildArgs = this.getBuildArgs(options.args)
 
-      if (this.buildOptions) {
-        exportArgs.push(...this.buildOptions)
-      }
+      console.log('running', shellQuote(buildArgs))
 
-      if (this.childProcess) {
-        throw new Error(
-          `can not run export while server is running, use next.stop() first`
-        )
-      }
-
-      console.log('running', exportArgs.join(' '))
-
-      this.childProcess = spawn(
-        exportArgs[0],
-        exportArgs.slice(1),
-        this.spawnOpts
-      )
+      this.childProcess = spawn(buildArgs[0], buildArgs.slice(1), spawnOpts)
       this.handleStdio(this.childProcess)
 
       this.childProcess.on('exit', (code, signal) => {
@@ -224,5 +298,59 @@ export class NextStartInstance extends NextInstance {
         })
       })
     })
+
+    this._buildId = (
+      await fs
+        .readFile(
+          path.join(
+            this.testDir,
+            this.nextConfig?.distDir || '.next',
+            'BUILD_ID'
+          ),
+          'utf8'
+        )
+        .catch(() => '')
+    ).trim()
+
+    try {
+      const requiredServerFiles = JSON.parse(
+        await fs.readFile(
+          path.join(
+            this.testDir,
+            this.nextConfig?.distDir || '.next',
+            'required-server-files.json'
+          ),
+          'utf8'
+        )
+      )
+      this._deploymentId = requiredServerFiles.config?.deploymentId || undefined
+      this._supportsImmutableAssets =
+        requiredServerFiles.config?.experimental?.supportsImmutableAssets ||
+        false
+    } catch {}
+
+    return result
+  }
+
+  public async waitForMinPrerenderAge(minAgeMS: number): Promise<void> {
+    if (this._prerenderFinishedTimeMS === null) {
+      throw new Error(
+        'Could not determine when prerender finished. ' +
+          `Cannot guarantee a minimum prerender age of ${minAgeMS}ms.`
+      )
+    }
+
+    const prerenderAge = performance.now() - this._prerenderFinishedTimeMS
+    const minWaitTime = minAgeMS - prerenderAge
+    if (minWaitTime > 0) {
+      console.log(
+        'Need to wait %dms to guarantee prerender age of %dms',
+        minWaitTime,
+        minAgeMS
+      )
+      await new Promise((resolve) => {
+        setTimeout(resolve, minWaitTime)
+      })
+    }
   }
 }

@@ -1,12 +1,11 @@
 #![feature(min_specialization)]
-#![feature(type_alias_impl_trait)]
-#![feature(assert_matches)]
 #![feature(arbitrary_self_types)]
 #![feature(arbitrary_self_types_pointers)]
 #![feature(impl_trait_in_assoc_type)]
-#![feature(iter_intersperse)]
 #![feature(map_try_insert)]
 #![feature(hash_set_entry)]
+
+use turbo_rcstr::{RcStr, rcstr};
 
 pub mod asset;
 pub mod changed;
@@ -16,15 +15,17 @@ pub mod compile_time_info;
 pub mod condition;
 pub mod context;
 pub mod data_uri_source;
-pub mod diagnostics;
+pub mod debug_id;
 pub mod environment;
-pub mod error;
 pub mod file_source;
+pub mod generated_code_source;
 pub mod ident;
 pub mod introspect;
 pub mod issue;
+pub mod loader;
 pub mod module;
 pub mod module_graph;
+pub mod node_addon_module;
 pub mod output;
 pub mod package_json;
 pub mod proxied_asset;
@@ -40,7 +41,6 @@ pub mod source_map;
 pub mod source_pos;
 pub mod source_transform;
 pub mod target;
-pub mod traced_asset;
 mod utils;
 pub mod version;
 pub mod virtual_output;
@@ -50,16 +50,18 @@ pub mod virtual_fs {
     pub use turbo_tasks_fs::VirtualFileSystem;
 }
 
-pub const PROJECT_FILESYSTEM_NAME: &str = "project";
-pub const SOURCE_URL_PROTOCOL: &str = "turbopack:";
+#[doc = include_str!("../chunking.md")]
+pub mod _chunking {}
+
+#[doc = include_str!("../layers.md")]
+pub mod _layers {}
+
+pub const PROJECT_FILESYSTEM_NAME_STR: &str = "project";
+pub const PROJECT_FILESYSTEM_NAME: RcStr = rcstr!(PROJECT_FILESYSTEM_NAME_STR);
+pub const SOURCE_URL_PROTOCOL_STR: &str = "turbopack:";
+pub const SOURCE_URL_PROTOCOL: RcStr = rcstr!(SOURCE_URL_PROTOCOL_STR);
 
 #[doc(hidden)]
 pub mod __private {
     pub use turbo_tasks::FxIndexMap;
-}
-
-pub fn register() {
-    turbo_tasks::register();
-    turbo_tasks_fs::register();
-    include!(concat!(env!("OUT_DIR"), "/register.rs"));
 }

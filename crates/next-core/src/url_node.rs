@@ -338,7 +338,7 @@ pub fn get_sorted_routes(normalized_pages: &[String]) -> Result<Vec<String>, Url
     // segment Eg you can't have pages/[post]/abc.js and
     // pages/[hello]/something-else.js Only 1 dynamic segment per nesting level
 
-    // So in the case that is test/integration/dynamic-routing it'll be this:
+    // So in the case that is test/e2e/dynamic-routing it'll be this:
     // pages/[post]/comments.js
     // pages/blog/[post]/comment/[id].js
     // Both are fine because `pages/[post]` and `pages/blog` are on the same level
@@ -454,10 +454,12 @@ mod tests {
             "/blog/[cid]".to_string(),
         ]);
         assert!(result.is_err());
-        assert!(result
-            .unwrap_err()
-            .to_string()
-            .contains("different slug names"));
+        assert!(
+            result
+                .unwrap_err()
+                .to_string()
+                .contains("different slug names")
+        );
     }
 
     #[test]
@@ -469,10 +471,12 @@ mod tests {
             "/blog/[id]".to_string(),
         ]);
         assert!(result.is_err());
-        assert!(result
-            .unwrap_err()
-            .to_string()
-            .contains("the same slug name"));
+        assert!(
+            result
+                .unwrap_err()
+                .to_string()
+                .contains("the same slug name")
+        );
     }
 
     #[test]
@@ -480,60 +484,72 @@ mod tests {
         let result =
             get_sorted_routes(&["/blog/[id]".to_string(), "/blog/[id]/[...id]".to_string()]);
         assert!(result.is_err());
-        assert!(result
-            .unwrap_err()
-            .to_string()
-            .contains("the same slug name"));
+        assert!(
+            result
+                .unwrap_err()
+                .to_string()
+                .contains("the same slug name")
+        );
     }
 
     #[test]
     fn catches_middle_catch_all_with_another_catch_all() {
         let result = get_sorted_routes(&["/blog/[...id]/[...id2]".to_string()]);
         assert!(result.is_err());
-        assert!(result
-            .unwrap_err()
-            .to_string()
-            .contains("Catch-all must be the last part of the URL."));
+        assert!(
+            result
+                .unwrap_err()
+                .to_string()
+                .contains("Catch-all must be the last part of the URL.")
+        );
     }
 
     #[test]
     fn catches_middle_catch_all_with_fixed_route() {
         let result = get_sorted_routes(&["/blog/[...id]/abc".to_string()]);
         assert!(result.is_err());
-        assert!(result
-            .unwrap_err()
-            .to_string()
-            .contains("Catch-all must be the last part of the URL."));
+        assert!(
+            result
+                .unwrap_err()
+                .to_string()
+                .contains("Catch-all must be the last part of the URL.")
+        );
     }
 
     #[test]
     fn catches_extra_dots_in_catch_all() {
         let result = get_sorted_routes(&["/blog/[....id]/abc".to_string()]);
         assert!(result.is_err());
-        assert!(result
-            .unwrap_err()
-            .to_string()
-            .contains("Segment names may not start with erroneous periods"));
+        assert!(
+            result
+                .unwrap_err()
+                .to_string()
+                .contains("Segment names may not start with erroneous periods")
+        );
     }
 
     #[test]
     fn catches_missing_dots_in_catch_all() {
         let result = get_sorted_routes(&["/blog/[..id]/abc".to_string()]);
         assert!(result.is_err());
-        assert!(result
-            .unwrap_err()
-            .to_string()
-            .contains("Segment names may not start with erroneous periods"));
+        assert!(
+            result
+                .unwrap_err()
+                .to_string()
+                .contains("Segment names may not start with erroneous periods")
+        );
     }
 
     #[test]
     fn catches_extra_brackets_for_optional_1() {
         let result = get_sorted_routes(&["/blog/[[...id]".to_string()]);
         assert!(result.is_err());
-        assert!(result
-            .unwrap_err()
-            .to_string()
-            .contains("Segment names may not start or end with extra brackets"));
+        assert!(
+            result
+                .unwrap_err()
+                .to_string()
+                .contains("Segment names may not start or end with extra brackets")
+        );
     }
 
     #[test]
@@ -679,9 +695,11 @@ mod tests {
             "/blog/[helloworld]/[hello-world]".to_string(),
         ]);
         assert!(result.is_err());
-        assert!(result
-            .unwrap_err()
-            .to_string()
-            .contains("differ only by non-word"));
+        assert!(
+            result
+                .unwrap_err()
+                .to_string()
+                .contains("differ only by non-word")
+        );
     }
 }

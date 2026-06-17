@@ -1,6 +1,7 @@
 use anyhow::Result;
-use serde::{Deserialize, Serialize};
-use turbo_tasks::{trace::TraceRawVcs, NonLocalValue, ResolvedVc, TaskInput, Vc};
+use bincode::{Decode, Encode};
+use turbo_rcstr::RcStr;
+use turbo_tasks::{ResolvedVc, Vc, trace::TraceRawVcs};
 use turbo_tasks_fs::{File, FileContent};
 use turbopack_core::{
     asset::{Asset, AssetContent},
@@ -8,21 +9,8 @@ use turbopack_core::{
     source::Source,
 };
 
-#[derive(
-    PartialOrd,
-    Ord,
-    Eq,
-    PartialEq,
-    Hash,
-    Debug,
-    Copy,
-    Clone,
-    Serialize,
-    Deserialize,
-    TaskInput,
-    TraceRawVcs,
-    NonLocalValue,
-)]
+#[turbo_tasks::task_input]
+#[derive(PartialOrd, Ord, Eq, PartialEq, Hash, Debug, Copy, Clone, TraceRawVcs, Encode, Decode)]
 pub enum WebAssemblySourceType {
     /// Binary WebAssembly files (.wasm).
     Binary,
@@ -50,14 +38,23 @@ impl WebAssemblySource {
 #[turbo_tasks::value_impl]
 impl Source for WebAssemblySource {
     #[turbo_tasks::function]
-    fn ident(&self) -> Vc<AssetIdent> {
-        match self.source_ty {
+    async fn ident(&self) -> Result<Vc<AssetIdent>> {
+        Ok(match self.source_ty {
             WebAssemblySourceType::Binary => self.source.ident(),
-            WebAssemblySourceType::Text => self
-                .source
-                .ident()
-                .with_path(self.source.ident().path().append("_.wasm".into())),
-        }
+            WebAssemblySourceType::Text => {
+                let ident = self.source.ident().owned().await?;
+                let new_path = ident.path.append("_.wasm")?;
+                ident.with_path(new_path).into_vc()
+            }
+        })
+    }
+
+    #[turbo_tasks::function]
+    async fn description(&self) -> Result<Vc<RcStr>> {
+        let inner = self.source.description().await?;
+        Ok(Vc::cell(
+            format!("WebAssembly transform of {}", inner).into(),
+        ))
     }
 }
 
@@ -76,9 +73,11 @@ impl Asset for WebAssemblySource {
             return Ok(AssetContent::file(FileContent::NotFound.cell()));
         };
 
-        let bytes = file.content().to_bytes()?;
+        let bytes = file.content().to_bytes();
         let parsed = wat::parse_bytes(&bytes)?;
 
-        Ok(AssetContent::file(File::from(&*parsed).into()))
+        Ok(AssetContent::file(
+            FileContent::Content(File::from(&*parsed)).cell(),
+        ))
     }
 }

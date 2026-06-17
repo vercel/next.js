@@ -3,13 +3,13 @@ import { getPkgManager } from './get-pkg-manager'
 
 export function getNpxCommand(baseDir: string) {
   const pkgManager = getPkgManager(baseDir)
-  let command = 'npx'
+  let command = 'npx --yes'
   if (pkgManager === 'pnpm') {
-    command = 'pnpm dlx'
+    command = 'pnpm --silent dlx'
   } else if (pkgManager === 'yarn') {
     try {
       execSync('yarn dlx --help', { stdio: 'ignore' })
-      command = 'yarn dlx'
+      command = 'yarn --quiet dlx'
     } catch {}
   }
 

@@ -1,1 +1,1 @@
-module.exports = "require.include";
+module.exports = 'require.include'

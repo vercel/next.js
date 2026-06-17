@@ -1,7 +1,11 @@
 {
   "compilerOptions": {
     "module": "commonjs",
-    "target": "es2019"
+    "target": "es2019",
+    "esModuleInterop": true,
+    "noImplicitAny": false,
+    "rootDir": "src",
+    "strictNullChecks": false
   },
   "include": ["src/**/*"],
   "exclude": ["node_modules"]

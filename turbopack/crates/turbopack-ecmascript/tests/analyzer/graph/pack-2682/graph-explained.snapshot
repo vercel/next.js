@@ -5,8 +5,8 @@
     }
 )
 
-BuggyArguments = *arrow function 24*
+BuggyArguments (const after eval) = *arrow function 24*
 
-res = BuggyArguments({"variable": "false"})
+res (const after eval) = BuggyArguments({"variable": "false"})
 
 variable = (arguments[0]["variable"] | "true")

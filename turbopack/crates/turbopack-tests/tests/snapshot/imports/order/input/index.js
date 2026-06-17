@@ -1,6 +1,6 @@
-import posts from "./posts";
+import posts from './posts'
 
-console.log(posts.js);
+console.log(posts.js)
 if (!posts.js) {
-  process.exit(1);
+  process.exit(1)
 }

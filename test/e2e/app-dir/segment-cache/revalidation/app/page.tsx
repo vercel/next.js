@@ -1,4 +1,4 @@
-import { revalidatePath, revalidateTag } from 'next/cache'
+import { revalidatePath, updateTag } from 'next/cache'
 import {
   LinkAccordion,
   FormAccordion,
@@ -23,7 +23,7 @@ export default async function Page() {
           id="revalidate-by-tag"
           formAction={async function () {
             'use server'
-            revalidateTag('random-greeting')
+            updateTag('random-greeting')
           }}
         >
           Revalidate by tag

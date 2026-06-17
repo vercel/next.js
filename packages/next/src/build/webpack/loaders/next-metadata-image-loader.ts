@@ -13,9 +13,11 @@ import loaderUtils from 'next/dist/compiled/loader-utils3'
 import { getImageSize } from '../../../server/image-optimizer'
 import { imageExtMimeTypeMap } from '../../../lib/mime-type'
 import { WEBPACK_RESOURCE_QUERIES } from '../../../lib/constants'
+import { fillStaticMetadataSegment } from '../../../lib/metadata/get-metadata-route'
 import { normalizePathSep } from '../../../shared/lib/page-path/normalize-path-sep'
 import type { PageExtensions } from '../../page-extensions-type'
 import { getLoaderModuleNamedExports } from './utils'
+import { installBindings } from '../../swc/install-bindings'
 
 interface Options {
   segment: string
@@ -30,6 +32,10 @@ async function nextMetadataImageLoader(
   this: webpack.LoaderContext<Options>,
   content: Buffer
 ) {
+  // Install bindings early so they are definitely available to the loader.
+  // When run by webpack in next this is already done with correct configuration so this is a no-op.
+  // In turbopack loaders are run in a subprocess so it may or may not be done.
+  await installBindings()
   const options: Options = this.getOptions()
   const { type, segment, pageExtensions, basePath } = options
   const { resourcePath, rootContext: context } = this
@@ -43,11 +49,7 @@ async function nextMetadataImageLoader(
 
   const opts = { context, content }
 
-  // No hash query for favicon.ico
-  const contentHash =
-    type === 'favicon'
-      ? ''
-      : loaderUtils.interpolateName(this, '[contenthash]', opts)
+  const contentHash = loaderUtils.interpolateName(this, '[contenthash]', opts)
 
   const interpolatedName = loaderUtils.interpolateName(
     this,
@@ -87,53 +89,55 @@ async function nextMetadataImageLoader(
         .join(',')}
     }
 
-    export default async function (props) {
-      const { __metadata_id__: _, ...params } = await props.params
+    function getImageMetadata(imageMetadata, idParam, resolvedParams) {
       const imageUrl = fillMetadataSegment(${JSON.stringify(
         pathnamePrefix
-      )}, params, ${JSON.stringify(pageSegment)})
-
-      const { generateImageMetadata } = imageModule
-
-      function getImageMetadata(imageMetadata, idParam) {
-        const data = {
-          alt: imageMetadata.alt,
-          type: imageMetadata.contentType || 'image/png',
-          url: imageUrl + (idParam ? ('/' + idParam) : '') + ${JSON.stringify(
-            hashQuery
-          )},
-        }
-        const { size } = imageMetadata
-        if (size) {
-          ${
-            type === 'twitter' || type === 'openGraph'
-              ? 'data.width = size.width; data.height = size.height;'
-              : 'data.sizes = size.width + "x" + size.height;'
-          }
-        }
-        return data
+      )}, resolvedParams, ${JSON.stringify(pageSegment)}, false)
+      const data = {
+        alt: imageMetadata.alt,
+        type: imageMetadata.contentType || 'image/png',
+      url: imageUrl + (idParam ? ('/' + idParam) : '') + ${JSON.stringify(
+        hashQuery
+      )},
       }
+      const { size } = imageMetadata
+      if (size) {
+        ${
+          type === 'twitter' || type === 'openGraph'
+            ? 'data.width = size.width; data.height = size.height;'
+            : 'data.sizes = size.width + "x" + size.height;'
+        }
+      }
+      return data
+    }
+
+    export default async function (props) {
+      const { generateImageMetadata } = imageModule
+      const resolvedParams = await props.params
 
       if (generateImageMetadata) {
-        const imageMetadataArray = await generateImageMetadata({ params })
+        const imageMetadataArray = await generateImageMetadata({ params: resolvedParams })
         return imageMetadataArray.map((imageMetadata, index) => {
-          const idParam = (imageMetadata.id || index) + ''
-          return getImageMetadata(imageMetadata, idParam)
+          const idParam = imageMetadata.id + ''
+          return getImageMetadata(imageMetadata, idParam, resolvedParams)
         })
       } else {
-        return [getImageMetadata(imageModule, '')]
+        return [getImageMetadata(imageModule, '', resolvedParams)]
       }
     }`
   }
 
+  let imageError
   const imageSize: { width?: number; height?: number } = await getImageSize(
     content
-  ).catch((err) => err)
+  ).catch((error) => {
+    const message = `Process image "${path.posix.join(segment || '/', interpolatedName)}" failed: ${error}`
+    imageError = new Error(message)
+    return {}
+  })
 
-  if (imageSize instanceof Error) {
-    const err = imageSize
-    err.name = 'InvalidImageFormatError'
-    throw err
+  if (imageError) {
+    throw imageError
   }
 
   const imageData: Omit<MetadataImageModule, 'url'> = {
@@ -165,18 +169,15 @@ async function nextMetadataImageLoader(
     }
   }
 
-  return `\
-  import { fillMetadataSegment } from 'next/dist/lib/metadata/get-metadata-route'
+  const imageUrl = fillStaticMetadataSegment(pathnamePrefix, pageSegment)
 
-  export default async (props) => {
+  return `\
+  export default function () {
     const imageData = ${JSON.stringify(imageData)}
-    const imageUrl = fillMetadataSegment(${JSON.stringify(
-      pathnamePrefix
-    )}, await props.params, ${JSON.stringify(pageSegment)})
 
     return [{
       ...imageData,
-      url: imageUrl + ${JSON.stringify(type === 'favicon' ? '' : hashQuery)},
+      url: ${JSON.stringify(imageUrl + hashQuery)},
     }]
   }`
 }

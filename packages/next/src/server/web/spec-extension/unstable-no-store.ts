@@ -30,10 +30,26 @@ export function unstable_noStore() {
     return
   } else {
     store.isUnstableNoStore = true
-    if (workUnitStore && workUnitStore.type === 'prerender') {
-      // unstable_noStore() is a noop in Dynamic I/O.
-    } else {
-      markCurrentScopeAsDynamic(store, workUnitStore, callingExpression)
+    if (workUnitStore) {
+      switch (workUnitStore.type) {
+        case 'prerender':
+        case 'prerender-client':
+        case 'validation-client':
+        case 'prerender-runtime':
+          // unstable_noStore() is a noop in Dynamic I/O.
+          return
+        case 'prerender-ppr':
+        case 'prerender-legacy':
+        case 'request':
+        case 'cache':
+        case 'private-cache':
+        case 'unstable-cache':
+        case 'generate-static-params':
+          break
+        default:
+          workUnitStore satisfies never
+      }
     }
+    markCurrentScopeAsDynamic(store, workUnitStore, callingExpression)
   }
 }

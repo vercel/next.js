@@ -1,12 +1,14 @@
+/* eslint-disable @next/internal/no-ambiguous-jsx -- whole module is used in React Client */
 // Provider for the `useServerInsertedHTML` API to register callbacks to insert
 // elements into the HTML stream.
 
-import React, { type JSX } from 'react'
+import type { JSX, ReactNode } from 'react'
+import * as ReactClient from 'react'
 import { ServerInsertedHTMLContext } from '../../shared/lib/server-inserted-html.shared-runtime'
 
 export function createServerInsertedHTML() {
-  const serverInsertedHTMLCallbacks: (() => React.ReactNode)[] = []
-  const addInsertedHtml = (handler: () => React.ReactNode) => {
+  const serverInsertedHTMLCallbacks: (() => ReactNode)[] = []
+  const addInsertedHtml = (handler: () => ReactNode) => {
     serverInsertedHTMLCallbacks.push(handler)
   }
 
@@ -20,9 +22,9 @@ export function createServerInsertedHTML() {
     },
     renderServerInsertedHTML() {
       return serverInsertedHTMLCallbacks.map((callback, index) => (
-        <React.Fragment key={'__next_server_inserted__' + index}>
+        <ReactClient.Fragment key={'__next_server_inserted__' + index}>
           {callback()}
-        </React.Fragment>
+        </ReactClient.Fragment>
       ))
     },
   }

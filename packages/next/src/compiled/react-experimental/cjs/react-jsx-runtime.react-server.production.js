@@ -11,15 +11,22 @@
 "use strict";
 var React = require("next/dist/compiled/react-experimental"),
   REACT_ELEMENT_TYPE = Symbol.for("react.transitional.element"),
-  REACT_FRAGMENT_TYPE = Symbol.for("react.fragment");
+  REACT_FRAGMENT_TYPE = Symbol.for("react.fragment"),
+  REACT_OPTIMISTIC_KEY = Symbol.for("react.optimistic_key");
 if (!React.__SERVER_INTERNALS_DO_NOT_USE_OR_WARN_USERS_THEY_CANNOT_UPGRADE)
   throw Error(
     'The "react" package in this environment is not configured correctly. The "react-server" condition must be enabled in any environment that runs React Server Components.'
   );
 function jsxProd(type, config, maybeKey) {
   var key = null;
-  void 0 !== maybeKey && (key = "" + maybeKey);
-  void 0 !== config.key && (key = "" + config.key);
+  void 0 !== maybeKey &&
+    (key =
+      maybeKey === REACT_OPTIMISTIC_KEY ? REACT_OPTIMISTIC_KEY : "" + maybeKey);
+  void 0 !== config.key &&
+    (key =
+      maybeKey === REACT_OPTIMISTIC_KEY
+        ? REACT_OPTIMISTIC_KEY
+        : "" + config.key);
   if ("key" in config) {
     maybeKey = {};
     for (var propName in config)

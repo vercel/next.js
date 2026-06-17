@@ -26,8 +26,11 @@ export type ConfigurationContext = {
 
   transpilePackages: NextConfigComplete['transpilePackages']
 
+  // @ts-expect-error TODO: remove any
   future: NextConfigComplete['future']
   experimental: NextConfigComplete['experimental']
+
+  deploymentId?: string
 }
 
 export type ConfigurationFn = (

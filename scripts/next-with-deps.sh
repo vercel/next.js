@@ -29,7 +29,7 @@ done
 
 if [ ! -z $HAS_CONFLICTING_DEP ] || [ ! -d "$PROJECT_DIR/node_modules" ];then
   cd $PROJECT_DIR
-  pnpm i --ignore-workspace
+  pnpm i --ignore-workspace --no-lockfile
   for dep in ${CONFLICTING_DEPS[@]};do 
     rm -rf node_modules/$dep
   done

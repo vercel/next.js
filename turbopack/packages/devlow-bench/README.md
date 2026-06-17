@@ -30,10 +30,10 @@ Usage: devlow-bench [options] <scenario files>
 A scenario file is similar to a test case file. It can contain one or multiple scenarios by using the `describe()` method to define them.
 
 ```js
-import { describe } from "devlow-bench";
+import { describe } from 'devlow-bench'
 
 describe(
-  "my scenario",
+  'my scenario',
   {
     /* property options */
   },
@@ -44,7 +44,7 @@ describe(
   ) => {
     // run the scenario
   }
-);
+)
 ```
 
 The `describe()` method takes three arguments:
@@ -58,18 +58,18 @@ The `props` object can contain any number of properties. The key is the name of 
 ### Example
 
 ```js
-import { describe } from "devlow-bench";
+import { describe } from 'devlow-bench'
 
 describe(
-  "my scenario",
+  'my scenario',
   {
     myProperty: [1, 2, 3],
     myOtherProperty: true,
   },
   async ({ myProperty, myOtherProperty }) => {
-    console.log(myProperty, myOtherProperty);
+    console.log(myProperty, myOtherProperty)
   }
-);
+)
 
 // will print:
 // 1 true
@@ -83,17 +83,17 @@ describe(
 ## Reporting measurements
 
 ```js
-import { measureTime, reportMeasurement } from "devlow-bench";
+import { measureTime, reportMeasurement } from 'devlow-bench'
 
 // Measure a time
-await measureTime("name of the timing", {
+await measureTime('name of the timing', {
   /* optional options */
-});
+})
 
 // Report some other measurement
-await reportMeasurement("name of the measurement", value, unit, {
+await reportMeasurement('name of the measurement', value, unit, {
   /* optional options */
-});
+})
 ```
 
 Options:
@@ -107,15 +107,15 @@ Options:
 The `devlow-bench` package provides a few helper functions to run operations in the browser.
 
 ```js
-import { newBrowserSession } from "devlow-bench/browser";
+import { newBrowserSession } from 'devlow-bench/browser'
 
 const session = await newBrowserSession({
   // options
-});
-await session.hardNavigation("metric name", "https://example.com");
-await session.reload("metric name");
-await session.softNavigationByClick("metric name", ".selector-to-click");
-await session.close();
+})
+await session.hardNavigation('metric name', 'https://example.com')
+await session.reload('metric name')
+await session.softNavigationByClick('metric name', '.selector-to-click')
+await session.close()
 ```
 
 Run with `BROWSER_OUTPUT=1` to show the output of the browser.
@@ -162,8 +162,8 @@ Run with `SHELL_OUTPUT=1` to show the output of the shell commands.
 The `devlow-bench` package provides a few helper functions to run operations on the file system.
 
 ```js
-import { waitForFile } from "devlow-bench/file";
+import { waitForFile } from 'devlow-bench/file'
 
 // wait for file to exist
-await waitForFile("/path/to/file", /* timeout = */ 30000);
+await waitForFile('/path/to/file', /* timeout = */ 30000)
 ```

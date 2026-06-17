@@ -19,9 +19,13 @@ OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
 WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWAR
 */
 // This file is https://github.com/jamiebuilds/react-loadable/blob/master/src/babel.js
-// Modified to also look for `next/dynamic`
-// Modified to put `webpack` and `modules` under `loadableGenerated` to be backwards compatible with next/dynamic which has a `modules` key
-// Modified to support `dynamic(import('something'))` and `dynamic(import('something'), options)
+// - Modified to also look for `next/dynamic`
+// - Modified to put `webpack` and `modules` under `loadableGenerated` to be
+//   backwards compatible with next/dynamic which has a `modules` key
+// - Modified to support `dynamic(import('something'))` and
+//   `dynamic(import('something'), options)
+// - Removed `Loadable.Map` support, `next/dynamic` uses overloaded arguments
+//   instead of a separate API
 
 import type {
   NodePath,
@@ -60,28 +64,11 @@ export default function ({
 
         binding.referencePaths.forEach((refPath) => {
           let callExpression = refPath.parentPath
+          if (!callExpression?.isCallExpression()) return
 
-          if (
-            callExpression.isMemberExpression() &&
-            callExpression.node.computed === false
-          ) {
-            const property = callExpression.get('property')
-            if (
-              !Array.isArray(property) &&
-              property.isIdentifier({ name: 'Map' })
-            ) {
-              callExpression = callExpression.parentPath
-            }
-          }
-
-          if (!callExpression.isCallExpression()) return
-
-          const callExpression_ =
-            callExpression as NodePath<BabelTypes.CallExpression>
-
-          let args = callExpression_.get('arguments')
+          let args = callExpression.get('arguments')
           if (args.length > 2) {
-            throw callExpression_.buildCodeFrameError(
+            throw callExpression.buildCodeFrameError(
               'next/dynamic only accepts 2 arguments'
             )
           }
@@ -97,10 +84,10 @@ export default function ({
             options = args[0]
           } else {
             if (!args[1]) {
-              callExpression_.node.arguments.push(t.objectExpression([]))
+              callExpression.node.arguments.push(t.objectExpression([]))
             }
             // This is needed as the code is modified above
-            args = callExpression_.get('arguments')
+            args = callExpression.get('arguments')
             loader = args[0]
             options = args[1]
           }

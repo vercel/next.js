@@ -2,20 +2,30 @@
  * @type {import('next').NextConfig}
  */
 const nextConfig = {
+  cacheHandlers: {
+    custom: require.resolve(
+      'next/dist/server/lib/cache-handlers/default.external'
+    ),
+    'no-store': require.resolve('./no-store-handler.js'),
+  },
   experimental: {
-    ppr: process.env.__NEXT_EXPERIMENTAL_PPR === 'true',
     useCache: true,
-    cacheLife: {
-      frequent: {
-        stale: 19,
-        revalidate: 100,
-        expire: 250,
-      },
+  },
+  cacheLife: {
+    frequent: {
+      // >= DYNAMIC_STALE (30s) so the cache is still eligible for the static
+      // shell. A shorter stale time would exclude it from static prerenders.
+      stale: 30,
+      revalidate: 100,
+      expire: 300,
     },
-    cacheHandlers: {
-      custom: require.resolve('next/dist/server/lib/cache-handlers/default'),
+    expireNow: {
+      stale: 0,
+      expire: 0,
+      revalidate: 0,
     },
   },
+  cacheHandler: require.resolve('./incremental-cache-handler'),
 }
 
 module.exports = nextConfig

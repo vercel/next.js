@@ -1,39 +1,29 @@
-use std::ops::Deref;
+use std::sync::LazyLock;
 
 use anyhow::Result;
-use once_cell::sync::Lazy;
-use rustc_hash::FxHashMap;
+use phf::phf_map;
+use regex::Regex;
 use turbo_rcstr::RcStr;
-use turbo_tasks::Vc;
 use turbo_tasks_fs::FileSystemPath;
 
-use crate::next_app::{AppPage, PageSegment, PageType};
+use crate::next_app::{AppPage, AppPath, PageSegment, PageType};
 
 pub mod image;
 pub mod route;
 
-pub static STATIC_LOCAL_METADATA: Lazy<FxHashMap<&'static str, &'static [&'static str]>> =
-    Lazy::new(|| {
-        FxHashMap::from_iter([
-            (
-                "icon",
-                &["ico", "jpg", "jpeg", "png", "svg"] as &'static [&'static str],
-            ),
-            ("apple-icon", &["jpg", "jpeg", "png"]),
-            ("opengraph-image", &["jpg", "jpeg", "png", "gif"]),
-            ("twitter-image", &["jpg", "jpeg", "png", "gif"]),
-            ("sitemap", &["xml"]),
-        ])
-    });
+pub static STATIC_LOCAL_METADATA: phf::Map<&'static str, &'static [&'static str]> = phf_map! {
+    "icon" => &["ico", "jpg", "jpeg", "png", "svg"],
+    "apple-icon" => &["jpg", "jpeg", "png"],
+    "opengraph-image" => &["jpg", "jpeg", "png", "gif"],
+    "twitter-image" => &["jpg", "jpeg", "png", "gif"],
+    "sitemap" => &["xml"],
+};
 
-pub static STATIC_GLOBAL_METADATA: Lazy<FxHashMap<&'static str, &'static [&'static str]>> =
-    Lazy::new(|| {
-        FxHashMap::from_iter([
-            ("favicon", &["ico"] as &'static [&'static str]),
-            ("manifest", &["webmanifest", "json"]),
-            ("robots", &["txt"]),
-        ])
-    });
+pub static STATIC_GLOBAL_METADATA: phf::Map<&'static str, &'static [&'static str]> = phf_map! {
+    "favicon" => &["ico"],
+    "manifest" => &["webmanifest", "json"],
+    "robots" => &["txt"],
+};
 
 pub struct MetadataFileMatch<'a> {
     pub metadata_type: &'a str,
@@ -42,18 +32,22 @@ pub struct MetadataFileMatch<'a> {
 }
 
 fn match_numbered_metadata(stem: &str) -> Option<(&str, &str)> {
-    let (_whole, stem, number) = lazy_regex::regex_captures!(
-        "^(icon|apple-icon|opengraph-image|twitter-image)(\\d+)$",
-        stem
-    )?;
-
+    static NUMBERED_METADATA_RE: LazyLock<Regex> = LazyLock::new(|| {
+        Regex::new("^(icon|apple-icon|opengraph-image|twitter-image)(\\d+)$").unwrap()
+    });
+    let captures = NUMBERED_METADATA_RE.captures(stem)?;
+    // these captures must be defined if `captures` is `Some(...)`.
+    let (stem, number) = (
+        captures.get(1).unwrap().as_str(),
+        captures.get(2).unwrap().as_str(),
+    );
     Some((stem, number))
 }
 
 fn match_metadata_file<'a>(
     filename: &'a str,
     page_extensions: &[RcStr],
-    metadata: &FxHashMap<&str, &[&str]>,
+    metadata: &phf::Map<&'static str, &'static [&'static str]>,
 ) -> Option<MetadataFileMatch<'a>> {
     let (stem, ext) = filename.split_once('.')?;
 
@@ -83,17 +77,16 @@ fn match_metadata_file<'a>(
     })
 }
 
-pub(crate) async fn get_content_type(path: Vc<FileSystemPath>) -> Result<String> {
-    let stem = &*path.file_stem().await?;
-    let ext = &*path.extension().await?;
+pub(crate) async fn get_content_type(path: FileSystemPath) -> Result<String> {
+    let stem = path.file_stem();
+    let mut ext = path.extension();
 
-    let name = stem.as_deref().unwrap_or_default();
-    let mut ext = ext.as_str();
-    if ext == "jpg" {
-        ext = "jpeg"
+    let name = stem.unwrap_or_default();
+    if ext == Some("jpg") {
+        ext = Some("jpeg");
     }
 
-    if name == "favicon" && ext == "ico" {
+    if name == "favicon" && ext == Some("ico") {
         return Ok("image/x-icon".to_string());
     }
     if name == "sitemap" {
@@ -106,7 +99,9 @@ pub(crate) async fn get_content_type(path: Vc<FileSystemPath>) -> Result<String>
         return Ok("application/manifest+json".to_string());
     }
 
-    if ext == "png" || ext == "jpeg" || ext == "ico" || ext == "svg" {
+    if let Some(ext) = ext
+        && matches!(ext, "png" | "jpeg" | "ico" | "svg")
+    {
         return Ok(mime_guess::from_ext(ext)
             .first_or_octet_stream()
             .to_string());
@@ -119,7 +114,7 @@ pub fn match_local_metadata_file<'a>(
     basename: &'a str,
     page_extensions: &[RcStr],
 ) -> Option<MetadataFileMatch<'a>> {
-    match_metadata_file(basename, page_extensions, STATIC_LOCAL_METADATA.deref())
+    match_metadata_file(basename, page_extensions, &STATIC_LOCAL_METADATA)
 }
 
 pub struct GlobalMetadataFileMatch<'a> {
@@ -131,13 +126,23 @@ pub fn match_global_metadata_file<'a>(
     basename: &'a str,
     page_extensions: &[RcStr],
 ) -> Option<GlobalMetadataFileMatch<'a>> {
-    match_metadata_file(basename, page_extensions, STATIC_GLOBAL_METADATA.deref()).map(|m| {
+    match_metadata_file(basename, page_extensions, &STATIC_GLOBAL_METADATA).map(|m| {
         GlobalMetadataFileMatch {
             metadata_type: m.metadata_type,
             dynamic: m.dynamic,
         }
     })
 }
+
+/// Regular expression pattern used to match route parameters.
+/// Matches both single parameters and parameter groups.
+/// Examples:
+///   - `[[...slug]]` matches parameter group with key 'slug', repeat: true, optional: true
+///   - `[...slug]` matches parameter group with key 'slug', repeat: true, optional: false
+///   - `[[foo]]` matches parameter with key 'foo', repeat: false, optional: true
+///   - `[bar]` matches parameter with key 'bar', repeat: false, optional: false
+static PARAMETER_PATTERN: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"^([^\[]*)\[((?:\[[^\]]*\])|[^\]]+)\](.*)$").unwrap());
 
 fn split_directory(path: &str) -> (Option<&str>, &str) {
     if let Some((dir, basename)) = path.rsplit_once('/') {
@@ -170,6 +175,42 @@ pub(crate) fn split_extension(path: &str) -> (&str, Option<&str>) {
 
 fn file_stem(path: &str) -> &str {
     split_extension(path).0
+}
+
+fn join_path(dir: &str, basename: &str) -> String {
+    if dir.is_empty() || dir == "/" {
+        format!("/{basename}")
+    } else {
+        format!("{}/{}", dir.trim_end_matches('/'), basename)
+    }
+}
+
+fn normalize_static_metadata_route_segment(segment: &str) -> String {
+    let mut normalized_segment = segment.to_string();
+
+    while let Some(captures) = PARAMETER_PATTERN.captures(&normalized_segment) {
+        let prefix = captures.get(1).map(|m| m.as_str()).unwrap_or_default();
+        let suffix = captures.get(3).map(|m| m.as_str()).unwrap_or_default();
+        normalized_segment = format!("{prefix}-{suffix}");
+    }
+
+    normalized_segment
+}
+
+fn get_static_metadata_route(segment: &str) -> String {
+    let pathname = AppPath::from(AppPage::parse(segment).unwrap_or_default()).to_string();
+    let mut route = String::new();
+
+    for segment in pathname.split('/').filter(|segment| !segment.is_empty()) {
+        route.push('/');
+        route.push_str(&normalize_static_metadata_route_segment(segment));
+    }
+
+    if route.is_empty() {
+        "/".to_string()
+    } else {
+        route
+    }
 }
 
 /// When you only pass the file extension as `[]`, it will only match the static
@@ -223,10 +264,6 @@ pub fn is_metadata_route_file(
     false
 }
 
-pub fn is_static_metadata_route_file(app_dir_relative_path: &str) -> bool {
-    is_metadata_route_file(app_dir_relative_path, &[], true)
-}
-
 /// Remove the 'app' prefix or '/route' suffix, only check the route name since
 /// they're only allowed in root app directory
 ///
@@ -247,7 +284,7 @@ pub fn is_metadata_route(mut route: &str) -> bool {
 
     let mut page = route.to_string();
     if !page.starts_with('/') {
-        page = format!("/{}", page);
+        page = format!("/{page}");
     }
 
     !page.ends_with("/page") && is_metadata_route_file(&page, &[], false)
@@ -276,7 +313,12 @@ fn format_radix(mut x: u32, radix: u32) -> String {
     }
 
     result.reverse();
-    result[..6].iter().collect()
+
+    // We only need the first 6 characters of the hash but sometimes the hash is too short.
+    // In JavaScript, we use `toString(36).slice(0, 6)` to get the first 6 characters of the hash,
+    // but it will automatically take the minimum of the length of the hash and 6. Rust will panic.
+    let len = result.len().min(6);
+    result[..len].iter().collect()
 }
 
 /// If there's special convention like (...) or @ in the page path,
@@ -294,7 +336,7 @@ fn format_radix(mut x: u32, radix: u32) -> String {
 /// /(post)/sitemap -> /sitemap
 fn get_metadata_route_suffix(page: &str) -> Option<String> {
     // skip sitemap
-    if page.ends_with("/sitemap") {
+    if page.ends_with("/sitemap") || page.ends_with("/sitemap.xml") {
         return None;
     }
 
@@ -313,6 +355,23 @@ fn get_metadata_route_suffix(page: &str) -> Option<String> {
     }
 }
 
+pub fn fill_static_metadata_segment(segment: &str, last_segment: &str) -> String {
+    let route = get_static_metadata_route(segment);
+    let (name, ext) = split_extension(last_segment);
+    let page_path = join_path(segment, name);
+    let route_suffix = get_metadata_route_suffix(&page_path)
+        .map(|suffix| format!("-{suffix}"))
+        .unwrap_or_default();
+    let filename = format!(
+        "{}{}{}",
+        name,
+        route_suffix,
+        ext.map(|ext| format!(".{ext}")).unwrap_or_default()
+    );
+
+    join_path(&route, &filename)
+}
+
 /// Map metadata page key to the corresponding route
 ///
 /// static file page key:    /app/robots.txt -> /robots.txt -> /robots.txt/route
@@ -328,6 +387,8 @@ pub fn normalize_metadata_route(mut page: AppPage) -> Result<AppPage> {
         route += ".txt"
     } else if route == "/manifest" {
         route += ".webmanifest"
+    } else if route.ends_with("/sitemap") {
+        route += ".xml"
     } else {
         suffix = get_metadata_route_suffix(&route);
     }
@@ -360,7 +421,7 @@ pub fn normalize_metadata_route(mut page: AppPage) -> Result<AppPage> {
 
 #[cfg(test)]
 mod test {
-    use super::normalize_metadata_route;
+    use super::{djb2_hash, fill_static_metadata_segment, format_radix, normalize_metadata_route};
     use crate::next_app::AppPage;
 
     #[test]
@@ -376,6 +437,9 @@ mod test {
             ],
             ["/robots.txt", "/robots.txt/route"],
             ["/manifest.webmanifest", "/manifest.webmanifest/route"],
+            ["/sitemap", "/sitemap.xml/route"],
+            ["/sitemap.xml", "/sitemap.xml/route"],
+            ["/blog/sitemap", "/blog/sitemap.xml/route"],
         ];
 
         for [input, expected] in cases {
@@ -384,5 +448,35 @@ mod test {
 
             assert_eq!(&normalized.to_string(), expected);
         }
+    }
+
+    #[test]
+    fn test_format_radix_doesnt_panic_with_result_less_than_6_characters() {
+        let hash = format_radix(djb2_hash("/lookup/[domain]/(dns)"), 36);
+        assert!(hash.len() < 6);
+    }
+
+    #[test]
+    fn test_fill_static_metadata_segment() {
+        assert_eq!(
+            fill_static_metadata_segment("/", "favicon.ico"),
+            "/favicon.ico"
+        );
+        assert_eq!(
+            fill_static_metadata_segment("/blog/[slug]", "favicon.ico"),
+            "/blog/-/favicon.ico"
+        );
+        assert_eq!(
+            fill_static_metadata_segment("/client/(meme)/more-route", "twitter-image.png"),
+            "/client/more-route/twitter-image-769mad.png"
+        );
+        assert_eq!(
+            fill_static_metadata_segment("/(group)/group", "icon.png"),
+            "/group/icon-131tc6.png"
+        );
+        assert_eq!(
+            fill_static_metadata_segment("/parallel/@parallel", "icon.png"),
+            "/parallel/icon-kzjltp.png"
+        );
     }
 }

@@ -6,8 +6,8 @@ use std::{
 
 use anyhow::Result;
 use futures::{
-    future::{join_all, JoinAll},
     FutureExt,
+    future::{JoinAll, join_all},
 };
 use pin_project_lite::pin_project;
 

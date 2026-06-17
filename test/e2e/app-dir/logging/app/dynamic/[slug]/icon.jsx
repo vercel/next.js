@@ -1,6 +1,8 @@
 import { ImageResponse } from 'next/og'
 
-export default function icon({ params, id }) {
+export default async function icon({ params, id }) {
+  const { size } = await params
+  const iconId = await id
   return new ImageResponse(
     (
       <div
@@ -15,7 +17,7 @@ export default function icon({ params, id }) {
           color: '#fafafa',
         }}
       >
-        Apple {params.size} {id}
+        Apple {size} {iconId}
       </div>
     )
   )

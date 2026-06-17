@@ -4,19 +4,19 @@
 
 *arrow function 229* = (...) => undefined
 
-a = (...) => undefined
+a (const after eval) = (...) => undefined
 
-b = *anonymous function 66*
+b (const after eval) = *anonymous function 66*
 
-c = *arrow function 118*
+c (const after eval) = *arrow function 118*
 
-d = ???*0*
+d (const after eval) = ???*0*
 - *0* unsupported expression
   ⚠️  This value might have side effects
 
-e = (...) => undefined
+e (const after eval) = (...) => undefined
 
-f = e
+f (const after eval) = e
 
 x#3 = 1
 

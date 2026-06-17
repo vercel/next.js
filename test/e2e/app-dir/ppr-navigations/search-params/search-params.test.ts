@@ -1,25 +1,20 @@
-import { createNext } from 'e2e-utils'
+import { nextTestSetup } from 'e2e-utils'
 
-describe('search-params', () => {
+// TODO(NAR-423): Migrate to Cache Components.
+describe.skip('search-params', () => {
   if ((global as any).isNextDev) {
     test('ppr is disabled in dev', () => {})
     return
   }
 
-  let server
-  let next
-  afterEach(async () => {
-    await next?.destroy()
-    server?.close()
+  const { next } = nextTestSetup({
+    files: __dirname,
   })
 
   test(
     'updates page data during a nav even if no shared layouts have changed ' +
       '(e.g. updating a search param on the current page)',
     async () => {
-      next = await createNext({
-        files: __dirname,
-      })
       const browser = await next.browser('/')
 
       // Click a link that updates the current page's search params.

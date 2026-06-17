@@ -1,7 +1,8 @@
 import { nextTestSetup } from 'e2e-utils'
 import { expectedParams as expected } from './expected'
 
-describe('ppr-middleware-rewrite-force-dynamic-generate-static-params', () => {
+// TODO(NAR-423): Migrate to Cache Components.
+describe.skip('ppr-middleware-rewrite-force-dynamic-generate-static-params', () => {
   const { next } = nextTestSetup({
     files: __dirname,
   })

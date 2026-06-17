@@ -1,13 +1,12 @@
 import { nextTestSetup } from 'e2e-utils'
 import type * as Playwright from 'playwright'
-import { createRouterAct } from '../router-act'
+import { createRouterAct } from 'router-act'
 
 describe('segment cache prefetch scheduling', () => {
-  const { next, isNextDev, skipped } = nextTestSetup({
+  const { next, isNextDev } = nextTestSetup({
     files: __dirname,
-    skipDeployment: true,
   })
-  if (isNextDev || skipped) {
+  if (isNextDev) {
     test('prefetching is disabled', () => {})
     return
   }
@@ -52,7 +51,11 @@ describe('segment cache prefetch scheduling', () => {
     )
   })
 
-  it('prioritizes prefetching the route trees before the segments', async () => {
+  // TODO: This test no longer works as-written because the metadata is now
+  // fetched separately from the route tree. Need to rewrite to assert on
+  // something that appears in the route tree and is relatively stable, like a
+  // static route name.
+  it.skip('prioritizes prefetching the route trees before the segments', async () => {
     let act: ReturnType<typeof createRouterAct>
     const browser = await next.browser('/cancellation', {
       beforePageLoad(p: Playwright.Page) {

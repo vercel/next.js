@@ -1,11 +1,11 @@
 /** @jsxImportSource @emotion/react */
 
-import { jsx } from "@emotion/react";
-import styled from "@emotion/styled";
+import { jsx } from '@emotion/react'
+import styled from '@emotion/styled'
 
 const StyledButton = styled.button`
   background: blue;
-`;
+`
 
 function ClassNameButton({ children }) {
   return (
@@ -16,7 +16,7 @@ function ClassNameButton({ children }) {
     >
       {children}
     </button>
-  );
+  )
 }
 
-console.log(StyledButton, ClassNameButton);
+console.log(StyledButton, ClassNameButton)

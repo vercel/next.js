@@ -6,7 +6,7 @@ import path from 'path'
 import { outdent } from 'outdent'
 
 describe('Error recovery app', () => {
-  const { next, isTurbopack } = nextTestSetup({
+  const { next, isTurbopack, isRspack } = nextTestSetup({
     files: new FileRef(path.join(__dirname, 'fixtures', 'default-template')),
     skipStart: true,
   })
@@ -33,7 +33,7 @@ describe('Error recovery app', () => {
       `
     )
 
-    await session.evaluate(() => document.querySelector('button').click())
+    await browser.elementByCss('button').click()
     expect(
       await session.evaluate(() => document.querySelector('p').textContent)
     ).toBe('1')
@@ -43,24 +43,45 @@ describe('Error recovery app', () => {
     if (isTurbopack) {
       await expect(browser).toDisplayRedbox(`
        {
-         "description": "Parsing ecmascript source code failed",
+         "description": "Expected '>', got '<eof>'",
          "environmentLabel": null,
          "label": "Build Error",
          "source": "./index.js (1:27)
-       Parsing ecmascript source code failed
+       Error: Expected '>', got '<eof>'
        > 1 | export default () => <div/
            |                           ^",
+         "stack": [],
+       }
+      `)
+    } else if (isRspack) {
+      await expect({ browser, next }).toDisplayRedbox(`
+       {
+         "description": "  ╰─▶   × Error:   x Expected '>', got '<eof>'",
+         "environmentLabel": null,
+         "label": "Build Error",
+         "source": "./index.js
+         ╰─▶   × Error:   x Expected '>', got '<eof>'
+               │    ,----
+               │  1 | export default () => <div/
+               │    \`----
+               │
+               │
+               │ Caused by:
+               │     Syntax Error
+       Import trace for requested module:
+       ./index.js
+       ./app/page.js",
          "stack": [],
        }
       `)
     } else {
       await expect(browser).toDisplayRedbox(`
        {
-         "description": "Error:   x Unexpected eof",
+         "description": "  x Expected '>', got '<eof>'",
          "environmentLabel": null,
          "label": "Build Error",
          "source": "./index.js
-       Error:   x Unexpected eof
+       Error:   x Expected '>', got '<eof>'
           ,----
         1 | export default () => <div/
           \`----
@@ -92,7 +113,7 @@ describe('Error recovery app', () => {
       `
     )
 
-    await session.assertNoRedbox()
+    await session.waitForNoRedbox()
 
     await check(
       () => session.evaluate(() => document.querySelector('p').textContent),
@@ -115,20 +136,41 @@ describe('Error recovery app', () => {
     if (isTurbopack) {
       await expect(browser).toDisplayRedbox(`
        {
-         "description": "Parsing ecmascript source code failed",
+         "description": "Expected '}', got '<eof>'",
          "environmentLabel": null,
          "label": "Build Error",
-         "source": "./app/server/page.js (2:27)
-       Parsing ecmascript source code failed
+         "source": "./app/server/page.js (2:28)
+       Error: Expected '}', got '<eof>'
        > 2 |   return <p>Hello world</p>
-           |                           ^",
+           |                            ^",
+         "stack": [],
+       }
+      `)
+    } else if (isRspack) {
+      await expect(browser).toDisplayRedbox(`
+       {
+         "description": "  ╰─▶   × Error:   x Expected '}', got '<eof>'",
+         "environmentLabel": null,
+         "label": "Build Error",
+         "source": "./app/server/page.js
+         ╰─▶   × Error:   x Expected '}', got '<eof>'
+               │    ,-[2:1]
+               │  1 | export default function Page() {
+               │  2 |   return <p>Hello world</p>
+               │    \`----
+               │
+               │
+               │ Caused by:
+               │     Syntax Error
+       Import trace for requested module:
+       ./app/server/page.js",
          "stack": [],
        }
       `)
     } else {
       await expect(browser).toDisplayRedbox(`
        {
-         "description": "Error:   x Expected '}', got '<eof>'",
+         "description": "  x Expected '}', got '<eof>'",
          "environmentLabel": null,
          "label": "Build Error",
          "source": "./app/server/page.js
@@ -136,7 +178,6 @@ describe('Error recovery app', () => {
           ,-[2:1]
         1 | export default function Page() {
         2 |   return <p>Hello world</p>
-          :                           ^
           \`----
        Caused by:
            Syntax Error
@@ -179,20 +220,41 @@ describe('Error recovery app', () => {
     if (isTurbopack) {
       await expect(browser).toDisplayRedbox(`
        {
-         "description": "Parsing ecmascript source code failed",
+         "description": "Expected '}', got '<eof>'",
          "environmentLabel": null,
          "label": "Build Error",
-         "source": "./app/client/page.js (2:27)
-       Parsing ecmascript source code failed
+         "source": "./app/client/page.js (2:28)
+       Error: Expected '}', got '<eof>'
        > 2 |   return <p>Hello world</p>
-           |                           ^",
+           |                            ^",
+         "stack": [],
+       }
+      `)
+    } else if (isRspack) {
+      await expect(browser).toDisplayRedbox(`
+       {
+         "description": "  ╰─▶   × Error:   x Expected '}', got '<eof>'",
+         "environmentLabel": null,
+         "label": "Build Error",
+         "source": "./app/client/page.js
+         ╰─▶   × Error:   x Expected '}', got '<eof>'
+               │    ,-[2:1]
+               │  1 | export default function Page() {
+               │  2 |   return <p>Hello world</p>
+               │    \`----
+               │
+               │
+               │ Caused by:
+               │     Syntax Error
+       Import trace for requested module:
+       ./app/client/page.js",
          "stack": [],
        }
       `)
     } else {
       await expect(browser).toDisplayRedbox(`
        {
-         "description": "Error:   x Expected '}', got '<eof>'",
+         "description": "  x Expected '}', got '<eof>'",
          "environmentLabel": null,
          "label": "Build Error",
          "source": "./app/client/page.js
@@ -200,7 +262,6 @@ describe('Error recovery app', () => {
           ,-[2:1]
         1 | export default function Page() {
         2 |   return <p>Hello world</p>
-          :                           ^
           \`----
        Caused by:
            Syntax Error
@@ -255,16 +316,20 @@ describe('Error recovery app', () => {
     expect(
       await session.evaluate(() => document.querySelector('p').textContent)
     ).toBe('0')
-    await session.evaluate(() => document.querySelector('button').click())
+    await browser.elementByCss('button').click()
     expect(
       await session.evaluate(() => document.querySelector('p').textContent)
     ).toBe('1')
 
     if (isTurbopack) {
       // TODO(veil): Location of Page should be app/page.js
+      // TODO(sokra): The location is wrong because of an bug with HMR and source maps.
+      // When the code `index.js` changes, this also moves the locations of `app/page.js` in the bundled file.
+      // So the SourceMap is updated to reflect that. But the browser still has the old bundled file loaded.
+      // So we look up locations from the old bundle in the new source maps, which leads to mismatched locations.
       await expect(browser).toDisplayCollapsedRedbox(`
        {
-         "description": "Error: oops",
+         "description": "oops",
          "environmentLabel": null,
          "label": "Runtime Error",
          "source": "index.js (7:11) @ Index.useCallback[increment]
@@ -272,18 +337,16 @@ describe('Error recovery app', () => {
             |           ^",
          "stack": [
            "Index.useCallback[increment] index.js (7:11)",
-           "UtilityScript.evaluate <anonymous> (236:17)",
-           "UtilityScript.<anonymous> <anonymous> (1:44)",
-           "button <anonymous> (0:0)",
+           "button <anonymous>",
            "Index index.js (12:7)",
-           "Page index.js (10:6)",
+           "Page index.js (10:5)",
          ],
        }
       `)
     } else {
       await expect(browser).toDisplayCollapsedRedbox(`
        {
-         "description": "Error: oops",
+         "description": "oops",
          "environmentLabel": null,
          "label": "Runtime Error",
          "source": "index.js (7:11) @ Index.useCallback[increment]
@@ -291,9 +354,7 @@ describe('Error recovery app', () => {
             |           ^",
          "stack": [
            "Index.useCallback[increment] index.js (7:11)",
-           "UtilityScript.evaluate <anonymous> (236:17)",
-           "UtilityScript.<anonymous> <anonymous> (1:44)",
-           "button <anonymous> (0:0)",
+           "button <anonymous>",
            "Index index.js (12:7)",
            "Page app/page.js (4:10)",
          ],
@@ -319,18 +380,18 @@ describe('Error recovery app', () => {
       `
     )
 
-    await session.assertNoRedbox()
+    await session.waitForNoRedbox()
     expect(await session.hasErrorToast()).toBe(false)
 
     expect(
       await session.evaluate(() => document.querySelector('p').textContent)
     ).toBe('Count: 1')
-    await session.evaluate(() => document.querySelector('button').click())
+    await browser.elementByCss('button').click()
     expect(
       await session.evaluate(() => document.querySelector('p').textContent)
     ).toBe('Count: 2')
 
-    await session.assertNoRedbox()
+    await session.waitForNoRedbox()
     expect(await session.hasErrorToast()).toBe(false)
   })
 
@@ -375,11 +436,12 @@ describe('Error recovery app', () => {
         `
     )
 
-    await expect(browser).toDisplayRedbox(`
+    await expect(browser).toDisplayRedbox(
+      `
      {
-       "description": "Error: oops",
+       "description": "oops",
        "environmentLabel": "Server",
-       "label": "Runtime Error",
+       "label": "<FIXME-excluded-label>",
        "source": "child.js (3:9) @ Child
      > 3 |   throw new Error('oops')
          |         ^",
@@ -388,7 +450,11 @@ describe('Error recovery app', () => {
          "Page app/server/page.js (3:10)",
        ],
      }
-    `)
+    `,
+
+      // FIXME: `label` is flaking between "Runtime Error" and "Recoverable Error"
+      { label: false }
+    )
 
     // TODO-APP: re-enable when error recovery doesn't reload the page.
     /* const didNotReload = */ await session.patch(
@@ -402,7 +468,7 @@ describe('Error recovery app', () => {
 
     // TODO-APP: re-enable when error recovery doesn't reload the page.
     // expect(didNotReload).toBe(true)
-    await session.assertNoRedbox()
+    await session.waitForNoRedbox()
     expect(
       await session.evaluate(() => document.querySelector('p').textContent)
     ).toBe('Hello')
@@ -450,11 +516,10 @@ describe('Error recovery app', () => {
     )
 
     if (isTurbopack) {
-      // Set.forEach: https://linear.app/vercel/issue/NDX-554/
-      // <FIXME-file-protocol>: https://linear.app/vercel/issue/NDX-920/
+      // TODO(veil): Possibly https://linear.app/vercel/issue/NDX-920/
       await expect(browser).toDisplayRedbox(`
        {
-         "description": "Error: oops",
+         "description": "oops",
          "environmentLabel": null,
          "label": "Runtime Error",
          "source": "child.js (3:9) @ Child
@@ -462,9 +527,6 @@ describe('Error recovery app', () => {
            |         ^",
          "stack": [
            "Child child.js (3:9)",
-           "Set.forEach <anonymous> (0:0)",
-           "<FIXME-file-protocol>",
-           "<FIXME-file-protocol>",
            "Index index.js (6:7)",
            "<FIXME-file-protocol>",
          ],
@@ -473,7 +535,7 @@ describe('Error recovery app', () => {
     } else {
       await expect(browser).toDisplayRedbox(`
        {
-         "description": "Error: oops",
+         "description": "oops",
          "environmentLabel": null,
          "label": "Runtime Error",
          "source": "child.js (3:9) @ Child
@@ -500,7 +562,7 @@ describe('Error recovery app', () => {
 
     // TODO-APP: re-enable when error recovery doesn't reload the page.
     // expect(didNotReload).toBe(true)
-    await session.assertNoRedbox()
+    await session.waitForNoRedbox()
     expect(
       await session.evaluate(() => document.querySelector('p').textContent)
     ).toBe('Hello')
@@ -542,19 +604,35 @@ describe('Error recovery app', () => {
     )
 
     await browser.eval('window.triggerError()')
-    await expect(browser).toDisplayCollapsedRedbox(`
-     {
-       "description": "Error: no 1",
-       "environmentLabel": null,
-       "label": "Runtime Error",
-       "source": "index.js (7:11) @ eval
-     >  7 |     throw Error('no ' + i)
-          |           ^",
-       "stack": [
-         "eval index.js (7:11)",
-       ],
-     }
-    `)
+    if (isRspack) {
+      await expect(browser).toDisplayCollapsedRedbox(`
+       {
+         "description": "no 1",
+         "environmentLabel": null,
+         "label": "Runtime Error",
+         "source": "index.js (7:11) @ eval
+       >  7 |     throw Error('no ' + i)
+            |           ^",
+         "stack": [
+           "eval index.js (7:11)",
+         ],
+       }
+      `)
+    } else {
+      await expect(browser).toDisplayCollapsedRedbox(`
+       {
+         "description": "no 1",
+         "environmentLabel": null,
+         "label": "Runtime Error",
+         "source": "index.js (7:11) @ eval
+       >  7 |     throw Error('no ' + i)
+            |           ^",
+         "stack": [
+           "eval index.js (7:11)",
+         ],
+       }
+      `)
+    }
 
     // Make a syntax error.
     await session.patch(
@@ -577,27 +655,50 @@ describe('Error recovery app', () => {
     if (isTurbopack) {
       await expect(browser).toDisplayRedbox(`
        {
-         "description": "Parsing ecmascript source code failed",
+         "description": "Expected '}', got '<eof>'",
          "environmentLabel": null,
          "label": "Build Error",
-         "source": "./index.js (7:41)
-       Parsing ecmascript source code failed
-       > 7 | export default function FunctionNamed() {
-           |                                         ^",
+         "source": "./index.js (10:42)
+       Error: Expected '}', got '<eof>'
+       > 10 | export default function FunctionNamed() {
+            |                                          ^",
+         "stack": [],
+       }
+      `)
+    } else if (isRspack) {
+      await expect(browser).toDisplayRedbox(`
+       {
+         "description": "  ╰─▶   × Error:   x Expected '}', got '<eof>'",
+         "environmentLabel": null,
+         "label": "Build Error",
+         "source": "./index.js
+         ╰─▶   × Error:   x Expected '}', got '<eof>'
+               │     ,-[10:1]
+               │   7 |     throw Error('no ' + i)
+               │   8 |   }, 0)
+               │   9 | }
+               │  10 | export default function FunctionNamed() {
+               │     \`----
+               │
+               │
+               │ Caused by:
+               │     Syntax Error
+       Import trace for requested module:
+       ./index.js
+       ./app/page.js",
          "stack": [],
        }
       `)
     } else {
       await expect(browser).toDisplayRedbox(`
        {
-         "description": "Error:   x Expected '}', got '<eof>'",
+         "description": "  x Expected '}', got '<eof>'",
          "environmentLabel": null,
          "label": "Build Error",
          "source": "./index.js
        Error:   x Expected '}', got '<eof>'
            ,-[10:1]
         10 | export default function FunctionNamed() {
-           :                                         ^
            \`----
        Caused by:
            Syntax Error
@@ -614,27 +715,50 @@ describe('Error recovery app', () => {
     if (isTurbopack) {
       await expect(browser).toDisplayRedbox(`
        {
-         "description": "Parsing ecmascript source code failed",
+         "description": "Expected '}', got '<eof>'",
          "environmentLabel": null,
          "label": "Build Error",
-         "source": "./index.js (7:41)
-       Parsing ecmascript source code failed
-       > 7 | export default function FunctionNamed() {
-           |                                         ^",
+         "source": "./index.js (10:42)
+       Error: Expected '}', got '<eof>'
+       > 10 | export default function FunctionNamed() {
+            |                                          ^",
+         "stack": [],
+       }
+      `)
+    } else if (isRspack) {
+      await expect(browser).toDisplayRedbox(`
+       {
+         "description": "  ╰─▶   × Error:   x Expected '}', got '<eof>'",
+         "environmentLabel": null,
+         "label": "Build Error",
+         "source": "./index.js
+         ╰─▶   × Error:   x Expected '}', got '<eof>'
+               │     ,-[10:1]
+               │   7 |     throw Error('no ' + i)
+               │   8 |   }, 0)
+               │   9 | }
+               │  10 | export default function FunctionNamed() {
+               │     \`----
+               │
+               │
+               │ Caused by:
+               │     Syntax Error
+       Import trace for requested module:
+       ./index.js
+       ./app/page.js",
          "stack": [],
        }
       `)
     } else {
       await expect(browser).toDisplayRedbox(`
        {
-         "description": "Error:   x Expected '}', got '<eof>'",
+         "description": "  x Expected '}', got '<eof>'",
          "environmentLabel": null,
          "label": "Build Error",
          "source": "./index.js
        Error:   x Expected '}', got '<eof>'
            ,-[10:1]
         10 | export default function FunctionNamed() {
-           :                                         ^
            \`----
        Caused by:
            Syntax Error
@@ -692,21 +816,17 @@ describe('Error recovery app', () => {
 
     // We get an error because Foo didn't import React. Fair.
     if (isTurbopack) {
-      // Set.forEach: https://linear.app/vercel/issue/NDX-554/
-      // <FIXME-file-protocol>: https://linear.app/vercel/issue/NDX-920/
+      // TODO(veil): Possibly https://linear.app/vercel/issue/NDX-920/
       await expect(browser).toDisplayRedbox(`
        {
-         "description": "ReferenceError: React is not defined",
+         "description": "React is not defined",
          "environmentLabel": null,
-         "label": "Runtime Error",
+         "label": "Runtime ReferenceError",
          "source": "Foo.js (3:3) @ Foo
        > 3 |   return React.createElement('h1', null, 'Foo');
            |   ^",
          "stack": [
            "Foo Foo.js (3:3)",
-           "Set.forEach <anonymous> (0:0)",
-           "<FIXME-file-protocol>",
-           "<FIXME-file-protocol>",
            "FunctionDefault index.js (4:10)",
            "<FIXME-file-protocol>",
          ],
@@ -715,9 +835,9 @@ describe('Error recovery app', () => {
     } else {
       await expect(browser).toDisplayRedbox(`
        {
-         "description": "ReferenceError: React is not defined",
+         "description": "React is not defined",
          "environmentLabel": null,
-         "label": "Runtime Error",
+         "label": "Runtime ReferenceError",
          "source": "Foo.js (3:3) @ Foo
        > 3 |   return React.createElement('h1', null, 'Foo');
            |   ^",
@@ -742,7 +862,7 @@ describe('Error recovery app', () => {
     )
 
     // Expected: this fixes the problem
-    await session.assertNoRedbox()
+    await session.waitForNoRedbox()
   })
 
   // https://github.com/pmmmwh/react-refresh-webpack-plugin/pull/3#issuecomment-554137262
@@ -787,20 +907,47 @@ describe('Error recovery app', () => {
     if (isTurbopack) {
       await expect(browser).toDisplayRedbox(`
        {
-         "description": "Parsing ecmascript source code failed",
+         "description": "Expected '{', got 'return'",
          "environmentLabel": null,
          "label": "Build Error",
          "source": "./index.js (5:5)
-       Parsing ecmascript source code failed
+       Error: Expected '{', got 'return'
        > 5 |     return <h1>Default Export</h1>;
            |     ^^^^^^",
+         "stack": [],
+       }
+      `)
+    } else if (isRspack) {
+      await expect({ browser, next }).toDisplayRedbox(`
+       {
+         "description": "  ╰─▶   × Error:   x Expected '{', got 'return'",
+         "environmentLabel": null,
+         "label": "Build Error",
+         "source": "./index.js
+         ╰─▶   × Error:   x Expected '{', got 'return'
+               │    ,-[5:1]
+               │  2 |
+               │  3 | class ClassDefault extends React.Component {
+               │  4 |   render()
+               │  5 |     return <h1>Default Export</h1>;
+               │    :     ^^^^^^
+               │  6 |   }
+               │  7 | }
+               │    \`----
+               │
+               │
+               │ Caused by:
+               │     Syntax Error
+       Import trace for requested module:
+       ./index.js
+       ./app/page.js",
          "stack": [],
        }
       `)
     } else {
       await expect(browser).toDisplayRedbox(`
        {
-         "description": "Error:   x Expected '{', got 'return'",
+         "description": "  x Expected '{', got 'return'",
          "environmentLabel": null,
          "label": "Build Error",
          "source": "./index.js
@@ -843,20 +990,48 @@ describe('Error recovery app', () => {
     if (isTurbopack) {
       await expect(browser).toDisplayRedbox(`
        {
-         "description": "Parsing ecmascript source code failed",
+         "description": "Expected '{', got 'throw'",
          "environmentLabel": null,
          "label": "Build Error",
          "source": "./index.js (5:5)
-       Parsing ecmascript source code failed
+       Error: Expected '{', got 'throw'
        > 5 |     throw new Error('nooo');
            |     ^^^^^",
+         "stack": [],
+       }
+      `)
+    } else if (isRspack) {
+      await expect(browser).toDisplayRedbox(`
+       {
+         "description": "  ╰─▶   × Error:   x Expected '{', got 'throw'",
+         "environmentLabel": null,
+         "label": "Build Error",
+         "source": "./index.js
+         ╰─▶   × Error:   x Expected '{', got 'throw'
+               │    ,-[5:1]
+               │  2 |
+               │  3 | class ClassDefault extends React.Component {
+               │  4 |   render()
+               │  5 |     throw new Error('nooo');
+               │    :     ^^^^^
+               │  6 |     return <h1>Default Export</h1>;
+               │  7 |   }
+               │  8 | }
+               │    \`----
+               │
+               │
+               │ Caused by:
+               │     Syntax Error
+       Import trace for requested module:
+       ./index.js
+       ./app/page.js",
          "stack": [],
        }
       `)
     } else {
       await expect(browser).toDisplayRedbox(`
        {
-         "description": "Error:   x Expected '{', got 'throw'",
+         "description": "  x Expected '{', got 'throw'",
          "environmentLabel": null,
          "label": "Build Error",
          "source": "./index.js
@@ -899,11 +1074,9 @@ describe('Error recovery app', () => {
     )
     if (isTurbopack) {
       // TODO(veil): Location of Page should be app/page.js
-      // Set.forEach: https://linear.app/vercel/issue/NDX-554/
-      // <FIXME-file-protocol>: https://linear.app/vercel/issue/NDX-920/
       await expect(browser).toDisplayRedbox(`
        {
-         "description": "Error: nooo",
+         "description": "nooo",
          "environmentLabel": null,
          "label": "Runtime Error",
          "source": "index.js (5:11) @ ClassDefault.render
@@ -911,9 +1084,6 @@ describe('Error recovery app', () => {
            |           ^",
          "stack": [
            "ClassDefault.render index.js (5:11)",
-           "Set.forEach <anonymous> (0:0)",
-           "<FIXME-file-protocol>",
-           "<FIXME-file-protocol>",
            "Page index.js (10:16)",
          ],
        }
@@ -921,7 +1091,7 @@ describe('Error recovery app', () => {
     } else {
       await expect(browser).toDisplayRedbox(`
        {
-         "description": "Error: nooo",
+         "description": "nooo",
          "environmentLabel": null,
          "label": "Runtime Error",
          "source": "index.js (5:11) @ ClassDefault.render
@@ -946,27 +1116,44 @@ describe('Error recovery app', () => {
     if (isTurbopack) {
       await expect(browser).toDisplayRedbox(`
        {
-         "description": "Parsing ecmascript source code failed",
+         "description": "Expected '}', got '<eof>'",
          "environmentLabel": null,
          "label": "Build Error",
-         "source": "./app/page.js (1:3)
-       Parsing ecmascript source code failed
+         "source": "./app/page.js (1:4)
+       Error: Expected '}', got '<eof>'
        > 1 | {{{
-           |   ^",
+           |    ^",
+         "stack": [],
+       }
+      `)
+    } else if (isRspack) {
+      await expect(browser).toDisplayRedbox(`
+       {
+         "description": "  ╰─▶   × Error:   x Expected '}', got '<eof>'",
+         "environmentLabel": null,
+         "label": "Build Error",
+         "source": "./app/page.js
+         ╰─▶   × Error:   x Expected '}', got '<eof>'
+               │    ,----
+               │  1 | {{{
+               │    \`----
+               │
+               │
+               │ Caused by:
+               │     Syntax Error",
          "stack": [],
        }
       `)
     } else {
       await expect(browser).toDisplayRedbox(`
        {
-         "description": "Error:   x Expected '}', got '<eof>'",
+         "description": "  x Expected '}', got '<eof>'",
          "environmentLabel": null,
          "label": "Build Error",
          "source": "./app/page.js
        Error:   x Expected '}', got '<eof>'
           ,----
         1 | {{{
-          :   ^
           \`----
        Caused by:
            Syntax Error",

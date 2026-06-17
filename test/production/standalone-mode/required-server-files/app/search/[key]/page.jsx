@@ -1,10 +1,10 @@
-export default function Page({ searchParams, params }) {
+export default async function Page({ searchParams, params }) {
   return (
     <dl>
       <dt>params.key</dt>
-      <dd data-params>{params.key}</dd>
+      <dd data-params>{(await params).key}</dd>
       <dt>searchParams.key</dt>
-      <dd data-searchParams>{searchParams.key}</dd>
+      <dd data-searchParams>{(await searchParams).key}</dd>
     </dl>
   )
 }

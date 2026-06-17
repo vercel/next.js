@@ -1,6 +1,8 @@
 import { nextTestSetup } from 'e2e-utils'
 import { retry } from 'next-test-utils'
 
+const isCacheComponentsEnabled = process.env.__NEXT_CACHE_COMPONENTS === 'true'
+
 describe('server-components-hmr-cache', () => {
   const { next } = nextTestSetup({ files: __dirname, patchFileDelay: 1000 })
   const loggedAfterValueRegexp = /After: (\d\.\d+)/
@@ -17,7 +19,14 @@ describe('server-components-hmr-cache', () => {
     return match[1]
   }
 
-  describe.each(['edge', 'node'])('%s runtime', (runtime) => {
+  // Edge runtime is not supported with Cache Components.
+  const runtimes = isCacheComponentsEnabled ? ['node'] : ['edge', 'node']
+
+  beforeEach(() => {
+    cliOutputLength = next.cliOutput.length
+  })
+
+  describe.each(runtimes)('%s runtime', (runtime) => {
     it('should use cached fetch calls for fast refresh requests', async () => {
       const browser = await next.browser(`/${runtime}`)
       const valueBeforePatch = await browser.elementById('value').text()
@@ -51,13 +60,9 @@ describe('server-components-hmr-cache', () => {
     })
 
     describe('in after()', () => {
-      beforeEach(() => {
-        cliOutputLength = next.cliOutput.length
-      })
-
       it('should use cached fetch calls for fast refresh requests', async () => {
         const browser = await next.browser(`/${runtime}`)
-        const valueBeforePatch = getLoggedAfterValue()
+        const valueBeforePatch = await retry(() => getLoggedAfterValue())
         cliOutputLength = next.cliOutput.length
 
         await next.patchFile(
@@ -70,7 +75,7 @@ describe('server-components-hmr-cache', () => {
               // TODO: remove custom duration in case we increase the default.
             }, 5000)
 
-            const valueAfterPatch = getLoggedAfterValue()
+            const valueAfterPatch = await retry(() => getLoggedAfterValue())
             expect(valueBeforePatch).toEqual(valueAfterPatch)
           }
         )
@@ -91,8 +96,65 @@ describe('server-components-hmr-cache', () => {
       })
     })
 
+    describe('with cacheMaxMemorySize set to 0', () => {
+      beforeAll(async () => {
+        await next.patchFile('next.config.js', (content) =>
+          content.replace('// cacheMaxMemorySize: 0,', 'cacheMaxMemorySize: 0,')
+        )
+      })
+
+      afterAll(async () => {
+        await next.patchFile('next.config.js', (content) =>
+          content.replace('cacheMaxMemorySize: 0,', '// cacheMaxMemorySize: 0,')
+        )
+      })
+
+      it('should not warn about "Single item size exceeds maxSize"', async () => {
+        const initialOutputLength = next.cliOutput.length
+        const browser = await next.browser(`/${runtime}`)
+        await browser.elementById('value').text()
+
+        await next.patchFile(
+          'components/shared-page.tsx',
+          (content) => content.replace('foo', 'bar'),
+          async () => {
+            await retry(async () => {
+              const updatedContent = await browser.elementById('content').text()
+              expect(updatedContent).toBe('bar')
+            }, 5000)
+
+            // Verify the warning does not appear
+            const newOutput = next.cliOutput.slice(initialOutputLength)
+            expect(newOutput).not.toContain('Single item size exceeds maxSize')
+          }
+        )
+      })
+
+      it('should still use cached fetch calls for fast refresh requests', async () => {
+        const browser = await next.browser(`/${runtime}`)
+        const valueBeforePatch = await browser.elementById('value').text()
+
+        await next.patchFile(
+          'components/shared-page.tsx',
+          (content) => content.replace('foo', 'bar'),
+          async () => {
+            await retry(async () => {
+              const updatedContent = await browser.elementById('content').text()
+              expect(updatedContent).toBe('bar')
+            }, 5000)
+
+            // HMR cache should still work even with cacheMaxMemorySize: 0
+            const valueAfterPatch = await browser.elementById('value').text()
+            expect(valueBeforePatch).toEqual(valueAfterPatch)
+          }
+        )
+      })
+    })
+
     describe('with experimental.serverComponentsHmrCache disabled', () => {
       beforeAll(async () => {
+        // Wait for server to be ready
+        await next.fetch('/404')
         await next.patchFile('next.config.js', (content) =>
           content.replace(
             '// serverComponentsHmrCache: false,',
@@ -159,5 +221,17 @@ describe('server-components-hmr-cache', () => {
         })
       })
     })
+  })
+
+  it('should support reading from an infinite streaming fetch', async () => {
+    const browser = await next.browser('/infinite-stream')
+    const text = await browser.elementByCss('p').text()
+    expect(text).toBe('data: chunk-1')
+
+    // The fetch is aborted after reading the first chunk, which is intentional,
+    // so we shouldn't warn about failing to cache it.
+    expect(next.cliOutput.slice(cliOutputLength)).not.toContain(
+      'Failed to set fetch cache'
+    )
   })
 })

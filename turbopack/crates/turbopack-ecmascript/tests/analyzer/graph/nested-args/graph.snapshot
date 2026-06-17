@@ -86,14 +86,11 @@
     (
         "r",
         Function(
-            11,
+            10,
             87,
             Alternatives {
-                total_nodes: 10,
+                total_nodes: 9,
                 values: [
-                    Constant(
-                        Undefined,
-                    ),
                     Variable(
                         (
                             "a",

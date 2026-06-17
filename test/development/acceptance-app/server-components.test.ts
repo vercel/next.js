@@ -520,12 +520,12 @@ describe('Error Overlay for server components', () => {
         ])
       )
       const { session } = sandbox
-      await session.assertHasRedbox()
+      await session.waitForRedbox()
       // In webpack when the message too long it gets truncated with `  | ` with new lines.
       // So we need to check for the first part of the message.
       const normalizedSource = await session.getRedboxSource()
       expect(normalizedSource).toContain(
-        `You're importing a component that needs \`${hook}\`. This React Hook only works in a Client Component. To fix, mark the file (or its parent) with the \`"use client"\` directive.`
+        `You're importing a module that depends on \`${hook}\` into a React Server Component module. This API is only available in Client Components. To fix, mark the file (or its parent) with the \`"use client"\` directive.`
       )
       expect(normalizedSource).toContain(
         `import { ${hook} } from 'next/navigation'`
@@ -552,12 +552,12 @@ describe('Error Overlay for server components', () => {
           ])
         )
         const { session } = sandbox
-        await session.assertHasRedbox()
+        await session.waitForRedbox()
         // In webpack when the message too long it gets truncated with `  | ` with new lines.
         // So we need to check for the first part of the message.
         const normalizedSource = await session.getRedboxSource()
         expect(normalizedSource).toContain(
-          `You're importing a component that needs \`${hook}\`. This React Hook only works in a Client Component. To fix, mark the file (or its parent) with the \`"use client"\` directive.`
+          `You're importing a module that depends on \`${hook}\` into a React Server Component module. This API is only available in Client Components. To fix, mark the file (or its parent) with the \`"use client"\` directive.`
         )
         expect(normalizedSource).toContain(
           `import { ${hook} } from 'next/link'`

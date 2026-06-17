@@ -75,7 +75,10 @@ describe.each([
           cssContent
         )[1]
 
-        const actualSourceMapUrl = stylesheetUrl.replace(/[^/]+$/, sourceMapUrl)
+        const actualSourceMapUrl = stylesheetUrl.replace(
+          /(?<=^|\/)[^/?]+(?=$|\?)/,
+          sourceMapUrl
+        )
         const sourceMapContent = await next
           .fetch(actualSourceMapUrl)
           .then((res) => res.text())
@@ -87,11 +90,65 @@ describe.each([
         if (process.env.IS_TURBOPACK_TEST) {
           if (dependencies.sass) {
             expect(sourceMapContentParsed).toMatchInlineSnapshot(`
+              {
+                "mappings": "AAEE,iCAKF",
+                "names": [],
+                "sourcesContent": [
+                  "$var: red;
+              .redText {
+                ::placeholder {
+                  color: $var;
+                }
+              }
+
+              .flex-parsing {
+                flex: 0 0 calc(50% - var(--vertical-gutter));
+              }
+              ",
+                ],
+                "version": 3,
+              }
+            `)
+          } else {
+            expect(sourceMapContentParsed).toMatchInlineSnapshot(`
+              {
+                "mappings": "AAEE,iCAKF",
+                "names": [],
+                "sourcesContent": [
+                  "$var: red;
+              .redText {
+                ::placeholder {
+                  color: $var;
+                }
+              }
+
+              .flex-parsing {
+                flex: 0 0 calc(50% - var(--vertical-gutter));
+              }
+              ",
+                ],
+                "version": 3,
+              }
+            `)
+          }
+        } else if (process.env.NEXT_RSPACK) {
+          if (dependencies.sass) {
+            expect(sourceMapContentParsed).toMatchInlineSnapshot(`
              {
-               "mappings": "AAAA,iCAAiC",
+               "mappings": "AAEE,uBACE,SAHE,CAON,cACE,2CAAA",
                "names": [],
                "sourcesContent": [
-                 ".redText ::placeholder{color:red}.flex-parsing{flex:0 0 calc(50% - var(--vertical-gutter))}",
+                 "$var: red;
+             .redText {
+               ::placeholder {
+                 color: $var;
+               }
+             }
+
+             .flex-parsing {
+               flex: 0 0 calc(50% - var(--vertical-gutter));
+             }
+             ",
                ],
                "version": 3,
              }
@@ -99,10 +156,20 @@ describe.each([
           } else {
             expect(sourceMapContentParsed).toMatchInlineSnapshot(`
              {
-               "mappings": "AAAA,iCAAiC",
+               "mappings": "AAEE,uBACE,SAHE,CAON,cACE,2CAAA",
                "names": [],
                "sourcesContent": [
-                 ".redText ::placeholder{color:red}.flex-parsing{flex:0 0 calc(50% - var(--vertical-gutter))}",
+                 "$var: red;
+             .redText {
+               ::placeholder {
+                 color: $var;
+               }
+             }
+
+             .flex-parsing {
+               flex: 0 0 calc(50% - var(--vertical-gutter));
+             }
+             ",
                ],
                "version": 3,
              }

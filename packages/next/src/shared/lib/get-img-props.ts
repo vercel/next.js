@@ -1,4 +1,4 @@
-import { warnOnce } from './utils/warn-once'
+import { getAssetToken, getDeploymentId } from './deployment-id'
 import { getImageBlurSvg } from './image-blur-svg'
 import { imageConfigDefault } from './image-config'
 import type {
@@ -35,6 +35,11 @@ export type ImageProps = Omit<
   fill?: boolean
   loader?: ImageLoader
   quality?: number | `${number}`
+  preload?: boolean
+  /**
+   * @deprecated Use `preload` prop instead.
+   * See https://nextjs.org/docs/app/api-reference/components/image#preload
+   */
   priority?: boolean
   loading?: LoadingValue
   placeholder?: PlaceholderValue
@@ -139,7 +144,7 @@ function isStaticImport(src: string | StaticImport): src is StaticImport {
 
 const allImgs = new Map<
   string,
-  { src: string; priority: boolean; placeholder: PlaceholderValue }
+  { src: string; loading: LoadingValue; placeholder: PlaceholderValue }
 >()
 let perfObserver: PerformanceObserver | undefined
 
@@ -225,6 +230,29 @@ function generateImgAttrs({
   loader,
 }: GenImgAttrsData): GenImgAttrsResult {
   if (unoptimized) {
+    if (src.startsWith('/') && !src.startsWith('//')) {
+      let deploymentId = getDeploymentId()
+      if (src.includes('/_next/static/immutable') && !getAssetToken()) {
+        // immutable static asset and supported by platform, don't add `?dpl=`
+        deploymentId = undefined
+      } else if (deploymentId) {
+        // We unfortunately can't easily use `new URL()` here, because it normalizes the URL which causes
+        // double-encoding with the `encodeURIComponent(src)` below
+        const qIndex = src.indexOf('?')
+        if (qIndex !== -1) {
+          const params = new URLSearchParams(src.slice(qIndex + 1))
+          const srcDpl = params.get('dpl')
+          if (!srcDpl) {
+            // src is missing the dpl parameter, but we have a deploymentId, so add it to the src URL
+            params.append('dpl', deploymentId)
+            src = src.slice(0, qIndex) + '?' + params.toString()
+          }
+        } else {
+          // src is missing the dpl parameter, but we have a deploymentId, so add it to the src URL
+          src = src + `?dpl=${deploymentId}`
+        }
+      }
+    }
     return { src, srcSet: undefined, sizes: undefined }
   }
 
@@ -261,6 +289,7 @@ export function getImgProps(
     sizes,
     unoptimized = false,
     priority = false,
+    preload = false,
     loading,
     className,
     quality,
@@ -292,7 +321,7 @@ export function getImgProps(
   props: ImgProps
   meta: {
     unoptimized: boolean
-    priority: boolean
+    preload: boolean
     placeholder: NonNullable<ImageProps['placeholder']>
     fill: boolean
   }
@@ -408,7 +437,9 @@ export function getImgProps(
   src = typeof src === 'string' ? src : staticSrc
 
   let isLazy =
-    !priority && (loading === 'lazy' || typeof loading === 'undefined')
+    !priority &&
+    !preload &&
+    (loading === 'lazy' || typeof loading === 'undefined')
   if (!src || src.startsWith('data:') || src.startsWith('blob:')) {
     // https://developer.mozilla.org/docs/Web/HTTP/Basics_of_HTTP/Data_URIs
     unoptimized = true
@@ -430,6 +461,8 @@ export function getImgProps(
   const qualityInt = getInt(quality)
 
   if (process.env.NODE_ENV !== 'production') {
+    const { warnOnce } =
+      require('./utils/warn-once') as typeof import('./utils/warn-once')
     if (config.output === 'export' && isDefaultLoader && !unoptimized) {
       throw new Error(
         `Image Optimization using the default loader is not compatible with \`{ output: 'export' }\`.
@@ -516,6 +549,16 @@ export function getImgProps(
         `Image with src "${src}" has both "priority" and "loading='lazy'" properties. Only one should be used.`
       )
     }
+    if (preload && loading === 'lazy') {
+      throw new Error(
+        `Image with src "${src}" has both "preload" and "loading='lazy'" properties. Only one should be used.`
+      )
+    }
+    if (preload && priority) {
+      throw new Error(
+        `Image with src "${src}" has both "preload" and "priority" properties. Only "preload" should be used.`
+      )
+    }
     if (
       placeholder !== 'empty' &&
       placeholder !== 'blur' &&
@@ -531,6 +574,16 @@ export function getImgProps(
           `Image with src "${src}" is smaller than 40x40. Consider removing the "placeholder" property to improve performance.`
         )
       }
+    }
+    if (
+      qualityInt &&
+      config.qualities &&
+      !config.qualities.includes(qualityInt)
+    ) {
+      warnOnce(
+        `Image with src "${src}" is using quality "${qualityInt}" which is not configured in images.qualities [${config.qualities.join(', ')}]. Please update your config to [${[...config.qualities, qualityInt].sort().join(', ')}].` +
+          `\nRead more: https://nextjs.org/docs/messages/next-image-unconfigured-qualities`
+      )
     }
     if (placeholder === 'blur' && !blurDataURL) {
       const VALID_BLUR_EXT = ['jpeg', 'png', 'webp', 'avif'] // should match next-image-loader
@@ -604,15 +657,15 @@ export function getImgProps(
           const lcpImage = allImgs.get(imgSrc)
           if (
             lcpImage &&
-            !lcpImage.priority &&
+            lcpImage.loading === 'lazy' &&
             lcpImage.placeholder === 'empty' &&
             !lcpImage.src.startsWith('data:') &&
             !lcpImage.src.startsWith('blob:')
           ) {
             // https://web.dev/lcp/#measure-lcp-in-javascript
             warnOnce(
-              `Image with src "${lcpImage.src}" was detected as the Largest Contentful Paint (LCP). Please add the "priority" property if this image is above the fold.` +
-                `\nRead more: https://nextjs.org/docs/api-reference/next/image#priority`
+              `Image with src "${lcpImage.src}" was detected as the Largest Contentful Paint (LCP). Please add the \`loading="eager"\` property if this image is above the fold.` +
+                `\nRead more: https://nextjs.org/docs/app/api-reference/components/image#loading`
             )
           }
         }
@@ -700,6 +753,8 @@ export function getImgProps(
     loader,
   })
 
+  const loadingFinal = isLazy ? 'lazy' : loading
+
   if (process.env.NODE_ENV !== 'production') {
     if (typeof window !== 'undefined') {
       let fullUrl: URL
@@ -708,13 +763,13 @@ export function getImgProps(
       } catch (e) {
         fullUrl = new URL(imgAttributes.src, window.location.href)
       }
-      allImgs.set(fullUrl.href, { src, priority, placeholder })
+      allImgs.set(fullUrl.href, { src, loading: loadingFinal, placeholder })
     }
   }
 
   const props: ImgProps = {
     ...rest,
-    loading: isLazy ? 'lazy' : loading,
+    loading: loadingFinal,
     fetchPriority,
     width: widthInt,
     height: heightInt,
@@ -725,6 +780,6 @@ export function getImgProps(
     srcSet: imgAttributes.srcSet,
     src: overrideSrc || imgAttributes.src,
   }
-  const meta = { unoptimized, priority, placeholder, fill }
+  const meta = { unoptimized, preload: preload || priority, placeholder, fill }
   return { props, meta }
 }

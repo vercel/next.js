@@ -1,10 +1,12 @@
-use once_cell::sync::Lazy;
+use std::sync::LazyLock;
 
-pub static TRACING_OVERVIEW_TARGETS: Lazy<Vec<&str>> = Lazy::new(|| {
+pub static TRACING_OVERVIEW_TARGETS: LazyLock<Vec<&str>> = LazyLock::new(|| {
     vec![
         "turbo_tasks=info",
         "turbo_tasks_fs=info",
         "turbo_tasks_fetch=info",
+        "turbo_tasks_backend=info",
+        "turbo_persistence=info",
         "turbopack=info",
         "turbopack_binding=info",
         "turbopack_browser=info",
@@ -28,7 +30,7 @@ pub static TRACING_OVERVIEW_TARGETS: Lazy<Vec<&str>> = Lazy::new(|| {
         "turbopack_wasm=info",
     ]
 });
-pub static TRACING_TURBOPACK_TARGETS: Lazy<Vec<&str>> = Lazy::new(|| {
+pub static TRACING_TURBOPACK_TARGETS: LazyLock<Vec<&str>> = LazyLock::new(|| {
     [
         &TRACING_OVERVIEW_TARGETS[..],
         &[
@@ -53,24 +55,24 @@ pub static TRACING_TURBOPACK_TARGETS: Lazy<Vec<&str>> = Lazy::new(|| {
             "turbopack_static=trace",
             "turbopack_swc_utils=trace",
             "turbopack_wasm=trace",
+            "swc_ecma_minifier=trace",
         ],
     ]
     .concat()
 });
-pub static TRACING_TURBO_TASKS_TARGETS: Lazy<Vec<&str>> = Lazy::new(|| {
+pub static TRACING_TURBO_TASKS_TARGETS: LazyLock<Vec<&str>> = LazyLock::new(|| {
     [
         &TRACING_TURBOPACK_TARGETS[..],
         &[
             "turbo_tasks=trace",
             "turbo_tasks_auto_hash_map=trace",
-            "turbo_tasks_build=trace",
             "turbo_tasks_bytes=trace",
             "turbo_tasks_env=trace",
             "turbo_tasks_fetch=trace",
             "turbo_tasks_fs=trace",
             "turbo_tasks_hash=trace",
-            "turbo_tasks_memory=trace",
             "turbo_tasks_backend=trace",
+            "turbo_persistence=trace",
         ],
     ]
     .concat()

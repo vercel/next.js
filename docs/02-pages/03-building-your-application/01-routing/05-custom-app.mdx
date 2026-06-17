@@ -7,7 +7,7 @@ Next.js uses the `App` component to initialize pages. You can override it and co
 
 - Create a shared layout between page changes
 - Inject additional data into pages
-- [Add global CSS](/docs/pages/building-your-application/styling)
+- [Add global CSS](/docs/app/getting-started/css)
 
 ## Usage
 
@@ -40,7 +40,7 @@ The `Component` prop is the active `page`, so whenever you navigate between rout
 
 Using [`getInitialProps`](/docs/pages/api-reference/functions/get-initial-props) in `App` will disable [Automatic Static Optimization](/docs/pages/building-your-application/rendering/automatic-static-optimization) for pages without [`getStaticProps`](/docs/pages/building-your-application/data-fetching/get-static-props).
 
-**We do not recommend using this pattern.** Instead, consider [incrementally adopting](/docs/app/guides/migrating/app-router-migration) the App Router, which allows you to more easily fetch data for [pages and layouts](/docs/app/building-your-application/routing/layouts-and-templates).
+**We do not recommend using this pattern.** Instead, consider [incrementally adopting](/docs/app/guides/migrating/app-router-migration) the App Router, which allows you to more easily fetch data for pages and layouts.
 
 ```tsx filename="pages/_app.tsx" switcher
 import App, { AppContext, AppInitialProps, AppProps } from 'next/app'

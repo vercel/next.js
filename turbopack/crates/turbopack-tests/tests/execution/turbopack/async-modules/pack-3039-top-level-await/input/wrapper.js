@@ -1,5 +1,5 @@
-import { x } from "./repro.js";
+import { x } from './repro.js'
 
 export function test() {
-  return x;
+  return x
 }

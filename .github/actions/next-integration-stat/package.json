@@ -9,7 +9,7 @@
   },
   "devDependencies": {
     "@types/node": "^18.11.18",
-    "@vercel/ncc": "0.34.0",
+    "@vercel/ncc": "0.38.4",
     "typescript": "^4.4.4"
   },
   "dependencies": {
@@ -21,7 +21,7 @@
     "strip-ansi": "^7.0.1"
   },
   "engines": {
-    "node": ">=18.18.0"
+    "node": ">=20.9.0"
   },
-  "packageManager": "pnpm@9.6.0"
+  "packageManager": "pnpm@10.33.0"
 }

@@ -1,13 +1,12 @@
 'use client'
 
-import { useCallback, type FormEvent, useContext } from 'react'
+import { useCallback, type SubmitEvent, useContext } from 'react'
 import { addBasePath } from '../add-base-path'
 import { useMergedRef } from '../use-merged-ref'
 import {
   AppRouterContext,
   type AppRouterInstance,
 } from '../../shared/lib/app-router-context.shared-runtime'
-import { PrefetchKind } from '../components/router-reducer/router-reducer-types'
 import {
   checkFormActionUrl,
   createFormSubmitDestinationUrl,
@@ -20,6 +19,7 @@ import {
   mountFormInstance,
   unmountPrefetchableInstance,
 } from '../components/links'
+import { FetchStrategy } from '../components/segment-cache/types'
 
 export type { FormProps }
 
@@ -61,6 +61,7 @@ export default function Form({
     }
   }
 
+  // TODO(runtime-ppr): allow runtime prefetches in Form
   const prefetch =
     prefetchProp === false || prefetchProp === null ? prefetchProp : null
 
@@ -99,7 +100,13 @@ export default function Form({
   const observeFormVisibilityOnMount = useCallback(
     (element: HTMLFormElement) => {
       if (isPrefetchEnabled && router !== null) {
-        mountFormInstance(element, actionProp, router, PrefetchKind.AUTO)
+        mountFormInstance(
+          element,
+          actionProp,
+          router,
+          // We default to PPR. We'll discover whether or not the route supports it with the initial prefetch.
+          FetchStrategy.PPR
+        )
       }
       return () => {
         unmountPrefetchableInstance(element)
@@ -138,7 +145,7 @@ export default function Form({
 }
 
 function onFormSubmit(
-  event: FormEvent<HTMLFormElement>,
+  event: SubmitEvent<HTMLFormElement>,
   {
     actionHref,
     onSubmit,
@@ -170,7 +177,7 @@ function onFormSubmit(
   }
 
   const formElement = event.currentTarget
-  const submitter = (event.nativeEvent as SubmitEvent).submitter
+  const submitter = event.nativeEvent.submitter
 
   let action = actionHref
 

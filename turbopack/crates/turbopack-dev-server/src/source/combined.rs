@@ -1,18 +1,14 @@
 use anyhow::Result;
-use turbo_rcstr::RcStr;
+use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{ResolvedVc, TryJoinIterExt, Vc};
 use turbopack_core::introspect::{Introspectable, IntrospectableChildren};
 
-use super::{
+use crate::source::{
+    ContentSource, ContentSources,
     route_tree::{RouteTree, RouteTrees},
-    ContentSource,
 };
-use crate::source::ContentSources;
 
-/// Combines multiple [ContentSource]s by trying all content sources in order.
-///
-/// The content source which responds with the most specific response (that is
-/// not a [ContentSourceContent::NotFound]) will be returned.
+/// Combines multiple [`ContentSource`]s by [merging][RouteTrees::merge] [`RouteTree`]s.
 #[turbo_tasks::value(shared)]
 pub struct CombinedContentSource {
     pub sources: Vec<ResolvedVc<Box<dyn ContentSource>>>,
@@ -47,7 +43,7 @@ impl ContentSource for CombinedContentSource {
 impl Introspectable for CombinedContentSource {
     #[turbo_tasks::function]
     fn ty(&self) -> Vc<RcStr> {
-        Vc::cell("combined content source".into())
+        Vc::cell(rcstr!("combined content source"))
     }
 
     #[turbo_tasks::function]
@@ -85,7 +81,6 @@ impl Introspectable for CombinedContentSource {
 
     #[turbo_tasks::function]
     async fn children(&self) -> Result<Vc<IntrospectableChildren>> {
-        let source = ResolvedVc::cell("source".into());
         Ok(Vc::cell(
             self.sources
                 .iter()
@@ -95,7 +90,7 @@ impl Introspectable for CombinedContentSource {
                 .await?
                 .into_iter()
                 .flatten()
-                .map(|i| (source, i))
+                .map(|i| (rcstr!("source"), i))
                 .collect(),
         ))
     }

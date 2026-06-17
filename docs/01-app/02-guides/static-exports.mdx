@@ -1,5 +1,5 @@
 ---
-title: How to create an static export of your Next.js application
+title: How to create a static export of your Next.js application
 nav_title: Static Exports
 description: Next.js enables starting as a static site or Single-Page Application (SPA), then later optionally upgrading to use features that require a server.
 ---
@@ -40,7 +40,7 @@ After running `next build`, Next.js will create an `out` folder with the HTML/CS
 
 <PagesOnly>
 
-You can utilize [`getStaticProps`](/docs/pages/building-your-application/data-fetching/get-static-props) and [`getStaticPaths`](/docs/pages/building-your-application/data-fetching/get-static-paths) to generate an HTML file for each page in your `pages` directory (or more for [dynamic routes](/docs/app/building-your-application/routing/dynamic-routes)).
+You can utilize [`getStaticProps`](/docs/pages/building-your-application/data-fetching/get-static-props) and [`getStaticPaths`](/docs/pages/building-your-application/data-fetching/get-static-paths) to generate an HTML file for each page in your `pages` directory (or more for [dynamic routes](/docs/app/api-reference/file-conventions/dynamic-routes)).
 
 </PagesOnly>
 
@@ -154,10 +154,10 @@ export default function Page() {
 
 The majority of core Next.js features needed to build a static site are supported, including:
 
-- [Dynamic Routes when using `getStaticPaths`](/docs/app/building-your-application/routing/dynamic-routes)
+- [Dynamic Routes when using `getStaticPaths`](/docs/app/api-reference/file-conventions/dynamic-routes)
 - Prefetching with `next/link`
 - Preloading JavaScript
-- [Dynamic Imports](/docs/pages/building-your-application/optimizing/lazy-loading)
+- [Dynamic Imports](/docs/pages/guides/lazy-loading)
 - Any styling options (e.g. CSS Modules, styled-jsx)
 - [Client-side data fetching](/docs/pages/building-your-application/data-fetching/client-side)
 - [`getStaticProps`](/docs/pages/building-your-application/data-fetching/get-static-props)
@@ -167,7 +167,7 @@ The majority of core Next.js features needed to build a static site are supporte
 
 ### Image Optimization
 
-[Image Optimization](/docs/app/building-your-application/optimizing/images) through `next/image` can be used with a static export by defining a custom image loader in `next.config.js`. For example, you can optimize images with a service like Cloudinary:
+[Image Optimization](/docs/app/api-reference/components/image) through `next/image` can be used with a static export by defining a custom image loader in `next.config.js`. For example, you can optimize images with a service like Cloudinary:
 
 ```js filename="next.config.js"
 /** @type {import('next').NextConfig} */
@@ -252,7 +252,7 @@ If you need to read dynamic values from the incoming request, you cannot use a s
 
 ### Browser APIs
 
-Client Components are pre-rendered to HTML during `next build`. Because [Web APIs](https://developer.mozilla.org/docs/Web/API) like `window`, `localStorage`, and `navigator` are not available on the server, you need to safely access these APIs only when running in the browser. For example:
+Client Components are prerendered to HTML during `next build`. Because [Web APIs](https://developer.mozilla.org/docs/Web/API) like `window`, `localStorage`, and `navigator` are not available on the server, you need to safely access these APIs only when running in the browser. For example:
 
 ```jsx
 'use client';
@@ -277,21 +277,21 @@ Features that require a Node.js server, or dynamic logic that cannot be computed
 
 <AppOnly>
 
-- [Dynamic Routes](/docs/app/building-your-application/routing/dynamic-routes) with `dynamicParams: true`
-- [Dynamic Routes](/docs/app/building-your-application/routing/dynamic-routes) without `generateStaticParams()`
-- [Route Handlers](/docs/app/building-your-application/routing/route-handlers) that rely on Request
+- [Dynamic Routes](/docs/app/api-reference/file-conventions/dynamic-routes) with `dynamicParams: true`
+- [Dynamic Routes](/docs/app/api-reference/file-conventions/dynamic-routes) without `generateStaticParams()`
+- [Route Handlers](/docs/app/api-reference/file-conventions/route) that rely on Request
 - [Cookies](/docs/app/api-reference/functions/cookies)
 - [Rewrites](/docs/app/api-reference/config/next-config-js/rewrites)
 - [Redirects](/docs/app/api-reference/config/next-config-js/redirects)
 - [Headers](/docs/app/api-reference/config/next-config-js/headers)
-- [Middleware](/docs/app/building-your-application/routing/middleware)
-- [Incremental Static Regeneration](/docs/app/building-your-application/data-fetching/incremental-static-regeneration)
-- [Image Optimization](/docs/app/building-your-application/optimizing/images) with the default `loader`
-- [Draft Mode](/docs/app/building-your-application/configuring/draft-mode)
-- [Server Actions](/docs/app/building-your-application/data-fetching/server-actions-and-mutations)
-- [Intercepting Routes](/docs/app/building-your-application/routing/intercepting-routes)
+- [Proxy](/docs/app/api-reference/file-conventions/proxy)
+- [Incremental Static Regeneration](/docs/app/guides/incremental-static-regeneration)
+- [Image Optimization](/docs/app/api-reference/components/image) with the default `loader`
+- [Draft Mode](/docs/app/guides/draft-mode)
+- [Server Actions](/docs/app/getting-started/mutating-data)
+- [Intercepting Routes](/docs/app/api-reference/file-conventions/intercepting-routes)
 
-Attempting to use any of these features with `next dev` will result in an error, similar to setting the [`dynamic`](/docs/app/api-reference/file-conventions/route-segment-config#dynamic) option to `error` in the root layout.
+Attempting to use any of these features with `next dev` will result in an error, similar to setting the [`dynamic`](/docs/app/guides/caching-without-cache-components#dynamic) option to `error` in the root layout.
 
 ```jsx
 export const dynamic = 'error'
@@ -301,15 +301,15 @@ export const dynamic = 'error'
 
 <PagesOnly>
 
-- [Internationalized Routing](/docs/pages/building-your-application/routing/internationalization)
+- [Internationalized Routing](/docs/pages/guides/internationalization)
 - [API Routes](/docs/pages/building-your-application/routing/api-routes)
 - [Rewrites](/docs/pages/api-reference/config/next-config-js/rewrites)
 - [Redirects](/docs/pages/api-reference/config/next-config-js/redirects)
 - [Headers](/docs/pages/api-reference/config/next-config-js/headers)
-- [Middleware](/docs/pages/building-your-application/routing/middleware)
-- [Incremental Static Regeneration](/docs/pages/building-your-application/data-fetching/incremental-static-regeneration)
-- [Image Optimization](/docs/pages/building-your-application/optimizing/images) with the default `loader`
-- [Draft Mode](/docs/pages/building-your-application/configuring/draft-mode)
+- [Proxy](/docs/pages/api-reference/file-conventions/proxy)
+- [Incremental Static Regeneration](/docs/pages/guides/incremental-static-regeneration)
+- [Image Optimization](/docs/pages/api-reference/components/image) with the default `loader`
+- [Draft Mode](/docs/pages/guides/draft-mode)
 - [`getStaticPaths` with `fallback: true`](/docs/pages/api-reference/functions/get-static-paths#fallback-true)
 - [`getStaticPaths` with `fallback: 'blocking'`](/docs/pages/api-reference/functions/get-static-paths#fallback-blocking)
 - [`getServerSideProps`](/docs/pages/building-your-application/data-fetching/get-server-side-props)

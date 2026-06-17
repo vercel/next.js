@@ -45,9 +45,7 @@ export default function Home() {
         <p className="description">
           Please press the link below after adding the user
         </p>
-        <Link href={`/profile/${profile.username}`} passHref legacyBehavior>
-          <a>Go to SSR Page</a>
-        </Link>
+        <Link href={`/profile/${profile.username}`}>Go to SSR Page</Link>
       </main>
 
       <style jsx>{`

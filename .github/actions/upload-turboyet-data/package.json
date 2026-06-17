@@ -9,10 +9,10 @@
     "@vercel/kv": "^0.2.3"
   },
   "devDependencies": {
-    "@vercel/ncc": "^0.36.0"
+    "@vercel/ncc": "0.38.4"
   },
   "engines": {
-    "node": ">=18.18.0"
+    "node": ">=20.9.0"
   },
-  "packageManager": "pnpm@9.6.0"
+  "packageManager": "pnpm@10.33.0"
 }

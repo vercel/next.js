@@ -1,9 +1,10 @@
 import Link from 'next/link'
 import './global.css'
+import { font } from './font'
 
 export default function RootLayout({ children }) {
   return (
-    <html>
+    <html className={font.variable}>
       <body>
         <nav>
           <Link href="/" prefetch={false}>

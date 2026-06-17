@@ -64,6 +64,16 @@ describe('app dir - next/dynamic', () => {
     expect($('#dynamic-component').text()).not.toContain('loading')
   })
 
+  it('should ignore next/dynamic in routes', async () => {
+    const response = await next.fetch('/api')
+    expect(await response.text()).toEqual('Hello function')
+  })
+
+  it('should ignore next/dynamic in sitemap', async () => {
+    const response = await next.fetch('/sitemap.xml')
+    expect(await response.text()).toInclude('<changefreq>yearly</changefreq>')
+  })
+
   if (isNextDev) {
     it('should directly raise error when dynamic component error on server', async () => {
       const pagePath = 'app/default-loading/dynamic-component.js'

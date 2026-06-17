@@ -8,7 +8,9 @@ describe('edge render - custom _document with edge runtime', () => {
       'pages/index.js': new FileRef(
         join(__dirname, 'app', 'pages', 'index.js')
       ),
+      'pages/[id].js': new FileRef(join(__dirname, 'app', 'pages', '[id].js')),
       'next.config.js': new FileRef(join(__dirname, 'app', 'next.config.js')),
+      'my-adapter.js': new FileRef(join(__dirname, 'app', 'my-adapter.js')),
       'pages/_document.js': `
         import Document, { Html, Head, Main, NextScript } from 'next/document'
         export default class MyDocument extends Document {

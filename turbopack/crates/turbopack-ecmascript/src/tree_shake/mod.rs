@@ -1,9 +1,9 @@
 use std::fmt::Write;
 
-use anyhow::{bail, Result};
+use anyhow::{Result, bail};
 use rustc_hash::FxHashMap;
 use swc_core::{
-    common::{comments::Comments, util::take::Take, SyntaxContext, DUMMY_SP, GLOBALS},
+    common::{DUMMY_SP, GLOBALS, SyntaxContext, comments::Comments, util::take::Take},
     ecma::{
         ast::{
             ExportAll, ExportNamedSpecifier, Expr, ExprStmt, Id, Ident, ImportDecl, Lit, Module,
@@ -13,21 +13,22 @@ use swc_core::{
     },
 };
 use turbo_rcstr::RcStr;
-use turbo_tasks::{FxIndexSet, ResolvedVc, ValueToString, Vc};
+use turbo_tasks::{FxIndexSet, ResolvedVc, ValueToString, Vc, turbobail};
 use turbopack_core::{ident::AssetIdent, resolve::ModulePart, source::Source};
 
-pub(crate) use self::graph::{
-    create_turbopack_part_id_assert, find_turbopack_part_id_in_asserts, PartId,
-};
 use self::graph::{DepGraph, ItemData, ItemId, ItemIdGroupKind, Mode, SplitModuleResult};
-use crate::{analyzer::graph::EvalContext, parse::ParseResult, EcmascriptModuleAsset};
+pub(crate) use self::graph::{
+    PartId, create_turbopack_part_id_assert, find_turbopack_part_id_in_asserts,
+};
+use crate::{
+    EcmascriptModuleAsset, EcmascriptParsable, analyzer::graph::EvalContext, parse::ParseResult,
+};
 
-pub mod asset;
-pub mod chunk_item;
 mod graph;
 pub mod merge;
 mod optimizations;
-pub mod side_effect_module;
+pub mod part;
+pub mod side_effects;
 #[cfg(test)]
 mod tests;
 mod util;
@@ -97,10 +98,10 @@ impl Analyzer<'_> {
 
     fn handle_explicit_deps(&mut self) {
         for item_id in self.item_ids.iter() {
-            if let Some(item) = self.items.get(item_id) {
-                if !item.explicit_deps.is_empty() {
-                    self.g.add_strong_deps(item_id, item.explicit_deps.iter());
-                }
+            if let Some(item) = self.items.get(item_id)
+                && !item.explicit_deps.is_empty()
+            {
+                self.g.add_strong_deps(item_id, item.explicit_deps.iter());
             }
         }
     }
@@ -170,12 +171,12 @@ impl Analyzer<'_> {
                     let state = self.vars.entry(id.clone()).or_default();
                     self.g.add_strong_deps(item_id, state.last_writes.iter());
 
-                    if let Some(declarator) = &state.declarator {
-                        if declarator != item_id {
-                            // A read also depends on the declaration.
-                            self.g
-                                .add_strong_deps(item_id, [declarator].iter().copied());
-                        }
+                    if let Some(declarator) = &state.declarator
+                        && declarator != item_id
+                    {
+                        // A read also depends on the declaration.
+                        self.g
+                            .add_strong_deps(item_id, [declarator].iter().copied());
                     }
 
                     if state.last_op == Some(VarOp::Write) && !item.write_vars.contains(id) {
@@ -194,11 +195,11 @@ impl Analyzer<'_> {
                     let state = self.vars.entry(id.clone()).or_default();
                     self.g.add_weak_deps(item_id, state.last_reads.iter());
 
-                    if let Some(declarator) = &state.declarator {
-                        if declarator != item_id {
-                            // A write also depends on the declaration.
-                            self.g.add_strong_deps(item_id, [declarator]);
-                        }
+                    if let Some(declarator) = &state.declarator
+                        && declarator != item_id
+                    {
+                        // A write also depends on the declaration.
+                        self.g.add_strong_deps(item_id, [declarator]);
                     }
 
                     if !item.read_vars.contains(id) {
@@ -317,11 +318,11 @@ impl Analyzer<'_> {
                     let state = self.vars.entry(id.clone()).or_default();
                     self.g.add_strong_deps(item_id, state.last_writes.iter());
 
-                    if let Some(declarator) = &state.declarator {
-                        if declarator != item_id {
-                            // A read also depends on the declaration.
-                            self.g.add_strong_deps(item_id, [declarator]);
-                        }
+                    if let Some(declarator) = &state.declarator
+                        && declarator != item_id
+                    {
+                        // A read also depends on the declaration.
+                        self.g.add_strong_deps(item_id, [declarator]);
                     }
                 }
 
@@ -334,11 +335,11 @@ impl Analyzer<'_> {
 
                     self.g.add_weak_deps(item_id, state.last_reads.iter());
 
-                    if let Some(declarator) = &state.declarator {
-                        if declarator != item_id {
-                            // A write also depends on the declaration.
-                            self.g.add_strong_deps(item_id, [declarator]);
-                        }
+                    if let Some(declarator) = &state.declarator
+                        && declarator != item_id
+                    {
+                        // A write also depends on the declaration.
+                        self.g.add_strong_deps(item_id, [declarator]);
                     }
                 }
 
@@ -351,10 +352,10 @@ impl Analyzer<'_> {
     /// Phase 4: Exports
     fn handle_exports(&mut self, _module: &Module) {
         // We use the last side effect as a module evaluation
-        if let Some(last) = self.last_side_effects.last() {
-            if let Some(item) = self.items.get_mut(last) {
-                item.is_module_evaluation = true;
-            }
+        if let Some(last) = self.last_side_effects.last()
+            && let Some(item) = self.items.get_mut(last)
+        {
+            item.is_module_evaluation = true;
         }
 
         for item_id in self.item_ids.iter() {
@@ -374,6 +375,7 @@ pub(crate) enum Key {
     ModuleEvaluation,
     Export(RcStr),
     Exports,
+    StarExports,
 }
 
 /// Converts [ModulePart] to the index.
@@ -406,10 +408,12 @@ async fn get_part_id(result: &SplitResult, part: &ModulePart) -> Result<u32> {
     }
 
     // This is required to handle `export * from 'foo'`
-    if let ModulePart::Export(..) = part {
-        if let Some(&v) = entrypoints.get(&Key::Exports) {
-            return Ok(v);
-        }
+    if let ModulePart::Export(..) = part
+        && let Some(&v) = entrypoints
+            .get(&Key::StarExports)
+            .or_else(|| entrypoints.get(&Key::Exports))
+    {
+        return Ok(v);
     }
 
     let mut dump = String::new();
@@ -433,7 +437,7 @@ async fn get_part_id(result: &SplitResult, part: &ModulePart) -> Result<u32> {
     )
 }
 
-#[turbo_tasks::value(shared, serialization = "none", eq = "manual")]
+#[turbo_tasks::value(shared, serialization = "skip", eq = "manual")]
 pub(crate) enum SplitResult {
     Ok {
         asset_ident: ResolvedVc<AssetIdent>,
@@ -467,15 +471,8 @@ impl PartialEq for SplitResult {
 
 #[turbo_tasks::function]
 pub(super) async fn split_module(asset: Vc<EcmascriptModuleAsset>) -> Result<Vc<SplitResult>> {
-    Ok(split(asset.source().ident(), asset.source(), asset.parse()))
-}
-
-#[turbo_tasks::function]
-pub(super) async fn split(
-    ident: ResolvedVc<AssetIdent>,
-    source: ResolvedVc<Box<dyn Source>>,
-    parsed: ResolvedVc<ParseResult>,
-) -> Result<Vc<SplitResult>> {
+    let parsed: ResolvedVc<ParseResult> = asset.failsafe_parse().to_resolved().await?;
+    let ident = asset.source().ident().to_resolved().await?;
     // Do not split already split module
     if !ident.await?.parts.is_empty() {
         return Ok(SplitResult::Failed {
@@ -503,6 +500,7 @@ pub(super) async fn split(
             eval_context,
             source_map,
             globals,
+            program_source,
             ..
         } => {
             // If the script file is a common js file, we cannot split the module
@@ -566,14 +564,16 @@ pub(super) async fn split(
                 .into_iter()
                 .map(|module| {
                     let program = Program::Module(module);
-                    let eval_context = EvalContext::new(
-                        &program,
-                        eval_context.unresolved_mark,
-                        eval_context.top_level_mark,
-                        eval_context.force_free_values.clone(),
-                        None,
-                        Some(source),
-                    );
+
+                    let eval_context = GLOBALS.set(globals, || {
+                        EvalContext::new(
+                            Some(&program),
+                            eval_context.unresolved_mark,
+                            eval_context.top_level_mark,
+                            eval_context.force_free_values.clone(),
+                            None,
+                        )
+                    });
 
                     ParseResult::resolved_cell(ParseResult::Ok {
                         program,
@@ -581,6 +581,8 @@ pub(super) async fn split(
                         comments: comments.clone(),
                         source_map: source_map.clone(),
                         eval_context,
+                        source_mapping_url: None,
+                        program_source: program_source.clone(),
                     })
                 })
                 .collect();
@@ -626,6 +628,7 @@ pub(crate) async fn part_of_module(
                     eval_context,
                     globals,
                     source_map,
+                    program_source,
                     ..
                 } = &*modules[0].await?
                 {
@@ -691,14 +694,15 @@ pub(crate) async fn part_of_module(
                     }));
 
                     let program = Program::Module(module);
-                    let eval_context = EvalContext::new(
-                        &program,
-                        eval_context.unresolved_mark,
-                        eval_context.top_level_mark,
-                        eval_context.force_free_values.clone(),
-                        None,
-                        None,
-                    );
+                    let eval_context = GLOBALS.set(globals, || {
+                        EvalContext::new(
+                            Some(&program),
+                            eval_context.unresolved_mark,
+                            eval_context.top_level_mark,
+                            eval_context.force_free_values.clone(),
+                            None,
+                        )
+                    });
 
                     return Ok(ParseResult::Ok {
                         program,
@@ -706,6 +710,8 @@ pub(crate) async fn part_of_module(
                         eval_context,
                         globals: globals.clone(),
                         source_map: source_map.clone(),
+                        source_mapping_url: None,
+                        program_source: program_source.clone(),
                     }
                     .cell());
                 } else {
@@ -716,11 +722,11 @@ pub(crate) async fn part_of_module(
             let part_id = get_part_id(&split_data, &part).await?;
 
             if part_id as usize >= modules.len() {
-                bail!(
+                turbobail!(
                     "part_id is out of range: {part_id} >= {}; asset = {}; entrypoints = \
                      {entrypoints:?}: part_deps = {deps:?}",
-                    asset_ident.to_string().await?,
                     modules.len(),
+                    *asset_ident
                 );
             }
 

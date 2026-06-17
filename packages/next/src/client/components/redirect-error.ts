@@ -2,10 +2,7 @@ import { RedirectStatusCode } from './redirect-status-code'
 
 export const REDIRECT_ERROR_CODE = 'NEXT_REDIRECT'
 
-export enum RedirectType {
-  push = 'push',
-  replace = 'replace',
-}
+export type RedirectType = 'push' | 'replace'
 
 export type RedirectError = Error & {
   digest: `${typeof REDIRECT_ERROR_CODE};${RedirectType};${string};${RedirectStatusCode};`

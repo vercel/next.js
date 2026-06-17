@@ -28,35 +28,4 @@ describe('babel plugin (next-page-config)', () => {
 
     expect(output).toMatch('export const config={};')
   })
-
-  test('amp enabled', () => {
-    jest.spyOn(Date, 'now').mockReturnValue(1234)
-    const output = babel(`
-      export const config = { amp: true }
-
-      function About(props) {
-        return <h3>My AMP About Page!</h3>
-      }
-      
-      export default About`)
-
-    expect(output).toMatch(
-      'const __NEXT_DROP_CLIENT_FILE__="__NEXT_DROP_CLIENT_FILE__ 1234";'
-    )
-  })
-
-  test('amp hybrid enabled', () => {
-    const output = babel(`
-      export const config = { amp: 'hybrid' }
-
-      function About(props) {
-        return <h3>My AMP About Page!</h3>
-      }
-      
-      export default About`)
-
-    expect(output).toMatch(
-      "export const config={amp:'hybrid'};function About(props){return<h3>My AMP About Page!</h3>;}export default About;"
-    )
-  })
 })

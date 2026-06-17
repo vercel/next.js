@@ -10,7 +10,7 @@ An `<img>` element was used to display an image instead of `<Image />` from `nex
 
 ## Possible Ways to Fix It
 
-1. Use [`next/image`](/docs/pages/api-reference/components/image) to improve performance with automatic [Image Optimization](/docs/pages/building-your-application/optimizing/images).
+1. Use [`next/image`](/docs/pages/api-reference/components/image) to improve performance with automatic [Image Optimization](/docs/pages/api-reference/components/image).
 
 > **Note**: If deploying to a [managed hosting provider](/docs/pages/getting-started/deploying), remember to check provider pricing since optimized images might be charged differently than the original images.
 >
@@ -68,7 +68,7 @@ function Home() {
 }
 ```
 
-4. You can use a [custom image loader](/docs/pages/building-your-application/optimizing/images#loaders) to optimize images. Set [loaderFile](/docs/pages/api-reference/components/image#loaderfile) to the path of your custom loader.
+4. You can use a [custom image loader](/docs/pages/api-reference/components/image#loader) to optimize images. Set [loaderFile](/docs/pages/api-reference/components/image#loaderfile) to the path of your custom loader.
 
 ```js filename="next.config.js"
 module.exports = {
@@ -81,7 +81,7 @@ module.exports = {
 
 ## Useful Links
 
-- [Image Component and Image Optimization](/docs/pages/building-your-application/optimizing/images)
+- [Image Component and Image Optimization](/docs/pages/api-reference/components/image)
 - [next/image API Reference](/docs/pages/api-reference/components/image)
 - [Largest Contentful Paint (LCP)](/learn/seo/web-performance/lcp)
 - [Next.js config loaderFile option](/docs/pages/api-reference/components/image#loaderfile)

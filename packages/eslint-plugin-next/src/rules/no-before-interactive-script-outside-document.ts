@@ -7,7 +7,7 @@ const url =
 const convertToCorrectSeparator = (str: string) =>
   str.replace(/[\\/]/g, path.sep)
 
-export = defineRule({
+export default defineRule({
   meta: {
     docs: {
       description:

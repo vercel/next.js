@@ -1,7 +1,4 @@
 #![feature(min_specialization)]
-#![feature(trait_alias)]
-#![feature(array_chunks)]
-#![feature(iter_intersperse)]
 #![feature(str_split_remainder)]
 #![feature(arbitrary_self_types)]
 #![feature(arbitrary_self_types_pointers)]
@@ -24,22 +21,20 @@ use std::{
 
 use anyhow::{Context, Result};
 use hyper::{
-    server::{conn::AddrIncoming, Builder},
-    service::{make_service_fn, service_fn},
     Request, Response, Server,
+    server::{Builder, conn::AddrIncoming},
+    service::{make_service_fn, service_fn},
 };
 use parking_lot::Mutex;
 use socket2::{Domain, Protocol, Socket, Type};
 use tokio::task::JoinHandle;
-use tracing::{event, info_span, Instrument, Level, Span};
+use tracing::{Instrument, Level, Span, event, info_span};
 use turbo_tasks::{
-    apply_effects, run_once_with_reason, trace::TraceRawVcs, util::FormatDuration, NonLocalValue,
-    OperationVc, TurboTasksApi, Vc,
+    Completion, Effects, NonLocalValue, OperationVc, PrettyPrintError, ResolvedVc, TurboTasksApi,
+    Vc, read_strongly_consistent_and_apply_effects, run_once_with_reason, take_effects,
+    trace::TraceRawVcs, util::FormatDuration,
 };
-use turbopack_core::{
-    error::PrettyPrintError,
-    issue::{handle_issues, IssueReporter, IssueSeverity},
-};
+use turbopack_core::issue::{IssueReporter, IssueSeverity, handle_issues};
 
 use self::{source::ContentSource, update::UpdateServer};
 use crate::{
@@ -59,6 +54,34 @@ where
     fn get_source(&self) -> OperationVc<Box<dyn ContentSource>> {
         self()
     }
+}
+
+#[turbo_tasks::value(serialization = "skip")]
+struct ContentSourceWithIssues {
+    source_op: OperationVc<Box<dyn ContentSource>>,
+    effects: Effects,
+}
+
+#[turbo_tasks::function(operation, root)]
+async fn get_source_with_issues_operation(
+    source_op: OperationVc<Box<dyn ContentSource>>,
+) -> Result<Vc<ContentSourceWithIssues>> {
+    let _ = source_op.resolve().strongly_consistent().await?;
+    let effects = take_effects(source_op).await?;
+    Ok(ContentSourceWithIssues { source_op, effects }.cell())
+}
+
+/// Applies all collected [`ContentSourceSideEffect`]s. The individual `apply()` reads happen
+/// *inside* this task (where eventually-consistent reads are legal); the caller reads the result
+/// strongly consistently so the work is finished before the response is observed.
+#[turbo_tasks::function(operation, root)]
+async fn apply_side_effects_operation(
+    side_effects: Vec<ResolvedVc<Box<dyn ContentSourceSideEffect>>>,
+) -> Result<Vc<Completion>> {
+    for side_effect in &side_effects {
+        side_effect.apply().await?;
+    }
+    Ok(Completion::new())
 }
 
 #[derive(TraceRawVcs, Debug, NonLocalValue)]
@@ -190,9 +213,9 @@ impl DevServerBuilder {
                                     return Ok(response);
                                 }
 
-                                println!("[404] {} (WebSocket)", path);
-                                if path == "/_next/webpack-hmr" {
-                                    // Special-case requests to webpack-hmr as these are made by
+                                println!("[404] {path} (WebSocket)");
+                                if path == "/_next/hmr" {
+                                    // Special-case requests to hmr as these are made by
                                     // Next.js clients built
                                     // without turbopack, which may be making requests in
                                     // development.
@@ -212,14 +235,18 @@ impl DevServerBuilder {
 
                             let uri = request.uri();
                             let path = uri.path().to_string();
-                            let source_op = source_provider.get_source();
-                            // HACK: Resolve `source` now so that we can get any issues on it
-                            let _ = source_op.resolve_strongly_consistent().await?;
-                            apply_effects(source_op).await?;
+                            let source_with_issues_op =
+                                get_source_with_issues_operation(source_provider.get_source());
+                            let read = read_strongly_consistent_and_apply_effects(
+                                source_with_issues_op,
+                                |v| &v.effects,
+                            )
+                            .await?;
+                            let ContentSourceWithIssues { source_op, .. } = &*read;
                             handle_issues(
-                                source_op,
+                                source_with_issues_op,
                                 issue_reporter,
-                                IssueSeverity::Fatal.cell(),
+                                IssueSeverity::Fatal,
                                 Some(&path),
                                 Some("get source"),
                             )
@@ -228,12 +255,12 @@ impl DevServerBuilder {
                                 http::process_request_with_content_source(
                                     // HACK: pass `source` here (instead of `resolved_source`
                                     // because the underlying API wants to do it's own
-                                    // `resolve_strongly_consistent` call.
+                                    // `.resolve().strongly_consistent()` call.
                                     //
                                     // It's unlikely (the calls happen one-after-another), but this
                                     // could cause inconsistency between the reported issues and
                                     // the generated HTTP response.
-                                    source_op,
+                                    *source_op,
                                     request,
                                     issue_reporter,
                                 )
@@ -252,13 +279,17 @@ impl DevServerBuilder {
                                 );
                             }
                             if !side_effects.is_empty() {
+                                let side_effects: Vec<_> = side_effects.into_iter().collect();
                                 let join_handle = tokio::spawn(run_once_with_reason(
                                     tt.clone(),
                                     side_effects_reason,
                                     async move {
-                                        for side_effect in side_effects {
-                                            side_effect.apply().await?;
-                                        }
+                                        // Apply the side effects inside a dedicated `operation`
+                                        // task and read its result strongly consistently, so this
+                                        // top-level task performs no eventually-consistent read.
+                                        apply_side_effects_operation(side_effects)
+                                            .read_strongly_consistent()
+                                            .await?;
                                         Ok(())
                                     },
                                 ));
@@ -300,14 +331,4 @@ impl DevServerBuilder {
             }),
         }
     }
-}
-
-pub fn register() {
-    turbo_tasks::register();
-    turbo_tasks_bytes::register();
-    turbo_tasks_fs::register();
-    turbopack_core::register();
-    turbopack_cli_utils::register();
-    turbopack_ecmascript::register();
-    include!(concat!(env!("OUT_DIR"), "/register.rs"));
 }

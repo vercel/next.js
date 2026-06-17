@@ -36,7 +36,6 @@ module.exports = (url: any, options: any) => {
 
   if (typeof options.attributes.nonce === 'undefined') {
     const nonce =
-      // eslint-disable-next-line no-undef
       typeof __webpack_nonce__ !== 'undefined' ? __webpack_nonce__ : null
 
     if (nonce) {

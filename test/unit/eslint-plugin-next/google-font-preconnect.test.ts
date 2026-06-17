@@ -1,5 +1,4 @@
-import { RuleTester as ESLintTesterV8 } from 'eslint-v8'
-import { RuleTester as ESLintTesterV9 } from 'eslint'
+import { RuleTester } from 'eslint'
 import { rules } from '@next/eslint-plugin-next'
 
 const NextESLintRule = rules['google-font-preconnect']
@@ -59,18 +58,7 @@ const tests = {
 }
 
 describe('google-font-preconnect', () => {
-  new ESLintTesterV8({
-    parserOptions: {
-      ecmaVersion: 2020,
-      sourceType: 'module',
-      ecmaFeatures: {
-        modules: true,
-        jsx: true,
-      },
-    },
-  }).run('eslint-v8', NextESLintRule, tests)
-
-  new ESLintTesterV9({
+  new RuleTester({
     languageOptions: {
       ecmaVersion: 2020,
       sourceType: 'module',
@@ -81,5 +69,5 @@ describe('google-font-preconnect', () => {
         },
       },
     },
-  }).run('eslint-v9', NextESLintRule, tests)
+  }).run('eslint', NextESLintRule, tests)
 })

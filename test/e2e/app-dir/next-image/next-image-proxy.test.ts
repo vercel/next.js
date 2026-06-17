@@ -1,9 +1,8 @@
 import { join } from 'path'
-import { findPort, check } from 'next-test-utils'
+import { findPort, retry } from 'next-test-utils'
 import https from 'https'
 import httpProxy from 'http-proxy'
 import fs from 'fs'
-import webdriver from 'next-webdriver'
 import { nextTestSetup } from 'e2e-utils'
 
 let proxyPort
@@ -55,7 +54,8 @@ describe('next-image-proxy', () => {
     let failCount = 0
     let fulfilledCount = 0
 
-    const browser = await webdriver(`https://localhost:${proxyPort}`, '/', {
+    const browser = await next.browser('/', {
+      baseUrl: `https://localhost:${proxyPort}`,
       ignoreHTTPSErrors: true,
       beforePageLoad(page) {
         page.on('response', (response) => {
@@ -77,32 +77,21 @@ describe('next-image-proxy', () => {
     })
 
     const local = await browser.elementByCss('#app-page').getAttribute('src')
-
-    if (process.env.IS_TURBOPACK_TEST) {
-      expect(local).toMatchInlineSnapshot(
-        `"/_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.308c602d.png&w=828&q=90"`
-      )
-    } else {
-      expect(local).toMatchInlineSnapshot(
-        `"/_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.3f1a293b.png&w=828&q=90"`
-      )
-    }
+    expect(normalizeURL(local)).toEqual(
+      `/_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.HASH.png&w=828&q=90${next.getAssetQuery(true)}`
+    )
 
     const remote = await browser
       .elementByCss('#remote-app-page')
       .getAttribute('src')
-    if (process.env.IS_TURBOPACK_TEST) {
-      expect(remote).toMatchInlineSnapshot(
-        `"/_next/image?url=https%3A%2F%2Fimage-optimization-test.vercel.app%2Ftest.jpg&w=640&q=90"`
-      )
-    } else {
-      expect(remote).toMatchInlineSnapshot(
-        `"/_next/image?url=https%3A%2F%2Fimage-optimization-test.vercel.app%2Ftest.jpg&w=640&q=90"`
-      )
-    }
+    expect(remote).toEqual(
+      `/_next/image?url=https%3A%2F%2Fimage-optimization-test.vercel.app%2Ftest.jpg&w=640&q=90`
+    )
 
-    const expected = JSON.stringify({ fulfilledCount: 4, failCount: 0 })
-    await check(() => JSON.stringify({ fulfilledCount, failCount }), expected)
+    await retry(() => {
+      expect(fulfilledCount).toBe(4)
+      expect(failCount).toBe(0)
+    })
     await browser.close()
   })
 
@@ -121,3 +110,9 @@ describe('next-image-proxy', () => {
     proxyServer.close()
   })
 })
+
+function normalizeURL(text: string) {
+  return text
+    .replace(/test\.[0-9a-z_-]{4,}\.(png|jpe?g)/g, 'test.HASH.$1')
+    .replace(/_next%2Fstatic%2Fimmutable%2F/g, '_next%2Fstatic%2F')
+}

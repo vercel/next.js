@@ -9,4 +9,4 @@ items = [module<[context: ./test]/a, {}>, module<[context: ./test]/b, {}>, modul
 
 r = ???*0*
 - *0* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet

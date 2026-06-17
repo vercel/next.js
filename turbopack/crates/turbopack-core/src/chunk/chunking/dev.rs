@@ -1,15 +1,14 @@
-use std::{borrow::Cow, mem::take};
+use std::{borrow::Cow, mem::take, sync::LazyLock};
 
-use anyhow::{bail, Result};
+use anyhow::{Result, bail};
 use either::Either;
-use once_cell::sync::Lazy;
 use regex::Regex;
 use tracing::Level;
 use turbo_tasks::{FxIndexMap, ResolvedVc, TryJoinIterExt, ValueToString};
 
 use crate::chunk::{
-    chunking::{make_chunk, ChunkItemOrBatchWithInfo, SplitContext},
     ChunkItem, ChunkItemWithAsyncModuleInfo, ChunkType, ChunkingContext,
+    chunking::{ChunkItemOrBatchWithInfo, SplitContext, make_chunk},
 };
 
 /// Handle chunk items based on their total size. If the total size is too
@@ -61,7 +60,7 @@ pub async fn expand_batches(
                             );
                             let asset_ident = item.chunk_item.asset_ident().to_string();
                             Ok(ChunkItemOrBatchWithInfo::ChunkItem {
-                                chunk_item: item.clone(),
+                                chunk_item: *item,
                                 size: *size.await?,
                                 asset_ident: asset_ident.owned().await?,
                             })
@@ -78,8 +77,8 @@ pub async fn expand_batches(
 /// Split chunk items into app code and vendor code. Continues splitting with
 /// [package_name_split] if necessary.
 #[tracing::instrument(level = Level::TRACE, skip_all, fields(name = display(&name)))]
-pub async fn app_vendors_split<'l>(
-    chunk_items: Vec<&'l ChunkItemOrBatchWithInfo>,
+pub async fn app_vendors_split(
+    chunk_items: Vec<&'_ ChunkItemOrBatchWithInfo>,
     mut name: String,
     split_context: &mut SplitContext<'_>,
 ) -> Result<()> {
@@ -106,7 +105,7 @@ pub async fn app_vendors_split<'l>(
         }
     }
     if !chunk_group_specific_chunk_items.is_empty() {
-        let mut name = format!("{}-specific", name);
+        let mut name = format!("{name}-specific");
         make_chunk(
             chunk_group_specific_chunk_items,
             Vec::new(),
@@ -116,7 +115,7 @@ pub async fn app_vendors_split<'l>(
         .await?;
     }
     let mut remaining = Vec::new();
-    let mut key = format!("{}-app", name);
+    let mut key = format!("{name}-app");
     if !handle_split_group(
         &mut app_chunk_items,
         &mut key,
@@ -127,7 +126,7 @@ pub async fn app_vendors_split<'l>(
     {
         folder_split(app_chunk_items, 0, key.into(), split_context).await?;
     }
-    let mut key = format!("{}-vendors", name);
+    let mut key = format!("{name}-vendors");
     if !handle_split_group(
         &mut vendors_chunk_items,
         &mut key,
@@ -149,8 +148,8 @@ pub async fn app_vendors_split<'l>(
 /// Split chunk items by node_modules package name. Continues splitting with
 /// [folder_split] if necessary.
 #[tracing::instrument(level = Level::TRACE, skip_all, fields(name = display(&name)))]
-async fn package_name_split<'l>(
-    chunk_items: Vec<&'l ChunkItemOrBatchWithInfo>,
+async fn package_name_split(
+    chunk_items: Vec<&'_ ChunkItemOrBatchWithInfo>,
     mut name: String,
     split_context: &mut SplitContext<'_>,
 ) -> Result<()> {
@@ -168,7 +167,7 @@ async fn package_name_split<'l>(
     }
     let mut remaining = Vec::new();
     for (package_name, mut list) in map {
-        let mut key = format!("{}-{}", name, package_name);
+        let mut key = format!("{name}-{package_name}");
         if !handle_split_group(&mut list, &mut key, split_context, Some(&mut remaining)).await? {
             folder_split(list, 0, key.into(), split_context).await?;
         }
@@ -216,7 +215,7 @@ async fn folder_split<'l>(
                 map = FxIndexMap::default();
                 continue;
             } else {
-                let mut key = format!("{}-{}", name, folder_name);
+                let mut key = format!("{name}-{folder_name}");
                 make_chunk(list, Vec::new(), &mut key, split_context).await?;
                 return Ok(());
             }
@@ -226,7 +225,7 @@ async fn folder_split<'l>(
     }
     let mut remaining = Vec::new();
     for (folder_name, (new_location, mut list)) in map {
-        let mut key = format!("{}-{}", name, folder_name);
+        let mut key = format!("{name}-{folder_name}");
         if !handle_split_group(&mut list, &mut key, split_context, Some(&mut remaining)).await? {
             if let Some(new_location) = new_location {
                 Box::pin(folder_split(
@@ -260,8 +259,8 @@ fn is_app_code(ident: &str) -> bool {
 
 /// Returns the package name of the given `ident`.
 fn package_name(ident: &str) -> &str {
-    static PACKAGE_NAME_REGEX: Lazy<Regex> =
-        Lazy::new(|| Regex::new(r"/node_modules/((?:@[^/]+/)?[^/]+)").unwrap());
+    static PACKAGE_NAME_REGEX: LazyLock<Regex> =
+        LazyLock::new(|| Regex::new(r"/node_modules/((?:@[^/]+/)?[^/]+)").unwrap());
     if let Some(result) = PACKAGE_NAME_REGEX.find_iter(ident).last() {
         &result.as_str()["/node_modules/".len()..]
     } else {
