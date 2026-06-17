@@ -247,7 +247,16 @@ export function unmountPrefetchableInstance(element: Element) {
 }
 
 function handleIntersect(entries: Array<IntersectionObserverEntry>) {
-  for (const entry of entries) {
+  // Process the entries in reverse order. The prefetch scheduler assigns the
+  // highest priority to the most recently scheduled task, so whichever link we
+  // schedule *last* wins. When multiple links enter the viewport at once (e.g.
+  // on initial load), the observer reports them in document order, so iterating
+  // in reverse means the link nearest the top of the document is scheduled last
+  // and therefore prioritized. The topmost link isn't guaranteed to be the most
+  // important, but as a default heuristic it's more reasonable than prioritizing
+  // whichever link happens to be lowest in the document.
+  for (let i = entries.length - 1; i >= 0; i--) {
+    const entry = entries[i]
     // Some extremely old browsers or polyfills don't reliably support
     // isIntersecting so we check intersectionRatio instead. (Do we care? Not
     // really. But whatever this is fine.)
