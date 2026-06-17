@@ -212,7 +212,8 @@ import { CacheSignal } from './cache-signal'
 import {
   createResponseVaryParamsAccumulator,
   finishAccumulatingVaryParams,
-  getMetadataVaryParamsThenable,
+  getMetadataVaryParamsAccumulator,
+  getRootParamsVaryParamsAccumulator,
 } from './vary-params'
 import { getTracedMetadata } from '../lib/trace/utils'
 import { InvariantError } from '../../shared/lib/invariant-error'
@@ -396,20 +397,23 @@ function parseRequestHeaders(
   headers: IncomingHttpHeaders,
   options: ParseRequestHeadersOptions
 ): ParsedRequestHeaders {
+  const isRSCRequest = isRSCRequestHeader(headers[RSC_HEADER])
+
   // runtime prefetch requests are *not* treated as prefetch requests
   // (TODO: this is confusing, we should refactor this to express this better)
-  const isPrefetchRequest = headers[NEXT_ROUTER_PREFETCH_HEADER] === '1'
+  const isPrefetchRequest =
+    isRSCRequest && headers[NEXT_ROUTER_PREFETCH_HEADER] === '1'
 
-  const isAppShellPrefetchRequest = headers[NEXT_ROUTER_PREFETCH_HEADER] === '3'
+  const isAppShellPrefetchRequest =
+    isRSCRequest && headers[NEXT_ROUTER_PREFETCH_HEADER] === '3'
 
   // App Shell prefetches are a subtype of runtime prefetch — same code path,
   // but with less resolved content (omitting link data)
   const isRuntimePrefetchRequest =
-    headers[NEXT_ROUTER_PREFETCH_HEADER] === '2' || isAppShellPrefetchRequest
+    isRSCRequest &&
+    (headers[NEXT_ROUTER_PREFETCH_HEADER] === '2' || isAppShellPrefetchRequest)
 
   const isHmrRefresh = headers[NEXT_HMR_REFRESH_HEADER] !== undefined
-
-  const isRSCRequest = isRSCRequestHeader(headers[RSC_HEADER])
 
   const shouldProvideFlightRouterState =
     isRSCRequest && (!isPrefetchRequest || !options.isRoutePPREnabled)
@@ -420,7 +424,7 @@ function parseRequestHeaders(
 
   // Checks if this is a prefetch of the Route Tree by the Segment Cache
   const isRouteTreePrefetchRequest =
-    headers[NEXT_ROUTER_SEGMENT_PREFETCH_HEADER] === '/_tree'
+    isRSCRequest && headers[NEXT_ROUTER_SEGMENT_PREFETCH_HEADER] === '/_tree'
 
   const csp =
     headers['content-security-policy'] ||
@@ -739,7 +743,8 @@ async function generateDynamicRSCPayload(
       q: getRenderedSearch(query),
       i: !!couldBeIntercepted,
       S: workStore.isStaticGeneration,
-      h: getMetadataVaryParamsThenable(),
+      h: getMetadataVaryParamsAccumulator(),
+      r: getRootParamsVaryParamsAccumulator() ?? undefined,
     }
   )
 
@@ -1750,6 +1755,39 @@ async function finalRuntimeServerPrerender(
     }
   }
 
+  let didHandleUnexpectedAbort = false
+  /**
+   * @returns - whether or not the task should be skipped
+   * because the render was already aborted.
+   * */
+  const checkUnexpectedAbort = (): boolean => {
+    if (finalServerController.signal.aborted) {
+      // If the server controller is already aborted, then we must have encountered sync IO
+      if (!didHandleUnexpectedAbort) {
+        didHandleUnexpectedAbort = true
+        onUnexpectedAbort()
+      }
+      return true
+    }
+
+    // Not aborted.
+    return false
+  }
+
+  const onUnexpectedAbort = () => {
+    resultIsPartial = true
+
+    // FIXME(NAR-810): If we're already aborted due to Sync IO, there should be no need to
+    // finish the accumulators. However, it seems like in `--debug-prerender`
+    // the stream will stay open if we don't close the iterable here.
+    if (process.env.NODE_ENV === 'development') {
+      if (staleTimeIterable !== undefined) {
+        staleTimeIterable.close()
+      }
+      finishAccumulatingVaryParams(varyParamsAccumulator)
+    }
+  }
+
   await runInSequentialTasks(
     async () => {
       // Runtime-prefetchable segments render immediately in the early stage.
@@ -1778,26 +1816,33 @@ async function finalRuntimeServerPrerender(
       )
     },
     () => {
+      if (checkUnexpectedAbort()) return
       // Resolve the promise holding back non-prefetchable segments so they can begin rendering.
       finalStageController.advanceStage(RenderStage.ShellStatic)
     },
     () => {
+      if (checkUnexpectedAbort()) return
       finalStageController.advanceStage(RenderStage.EarlyStatic)
     },
     () => {
+      if (checkUnexpectedAbort()) return
       finalStageController.advanceStage(RenderStage.Static)
     },
     () => {
+      if (checkUnexpectedAbort()) return
       // Resolve session data for runtime-prefetchable segments.
       // Sync IO is NOT allowed here.
       finalStageController.advanceStage(RenderStage.ShellEarlyRuntime)
     },
     () => {
+      if (checkUnexpectedAbort()) return
       // Resolve session data for non-prefetchable segments.
       // Sync IO is allowed here.
       finalStageController.advanceStage(RenderStage.ShellRuntime)
     },
     () => {
+      if (checkUnexpectedAbort()) return
+
       if (mode.type === 'session-shell-only') {
         // We're only rendering a shell, so we do not advance to stages where link data is resolved.
         return
@@ -1807,6 +1852,8 @@ async function finalRuntimeServerPrerender(
       finalStageController.advanceStage(RenderStage.EarlyRuntime)
     },
     () => {
+      if (checkUnexpectedAbort()) return
+
       if (mode.type === 'session-shell-only') {
         // We're only rendering a shell, so we do not advance to stages where link data is resolved.
         return
@@ -1816,25 +1863,12 @@ async function finalRuntimeServerPrerender(
       // TODO(app-shells): This is strange: we allow sync IO here, but we don't want sync IO in a fallback.
       finalStageController.advanceStage(RenderStage.Runtime)
     },
-    async () => {
-      if (finalServerController.signal.aborted) {
-        // If the server controller is already aborted we must have called
-        // something that required aborting the prerender synchronously such
-        // as with new Date()
-        resultIsPartial = true
+    () => {
+      if (checkUnexpectedAbort()) return
 
-        // FIXME(NAR-810): If we're already aborted due to Sync IO, there should be no need to
-        // finish the accumulators. However, it seems like in `--debug-prerender`
-        // the stream will stay open if we don't close the iterable here.
-        if (
-          process.env.NODE_ENV === 'development' &&
-          staleTimeIterable !== undefined
-        ) {
-          staleTimeIterable.close()
-        }
-
-        return
-      }
+      // Finish the accumulators. We need to wait for Flight to flush the result into the stream,
+      // which is scheduled in a (fast) immediate, so we do this in a separate task
+      // (fast immediates will be drained at the end of the task, so in the next task we know we're done flushing)
 
       // Check if session data unblocked new content in the shell.
       if (
@@ -1866,16 +1900,16 @@ async function finalRuntimeServerPrerender(
 
       staleTimeIterable.close()
       finishAccumulatingVaryParams(varyParamsAccumulator)
-
-      // We're using a render, not a prerender, so React schedules rendering work in fast immediates,
-      // and we need to wait a fast immediate for the stale time/vary params chunks to flush.
-      await waitAtLeastOneReactRenderTask()
+    },
+    () => {
+      if (checkUnexpectedAbort()) return
 
       if (streamState.isPending) {
         // If the prerender is still pending then it must depend on dynamic data
         // (or, if this is a shell prefetch, link data)
         resultIsPartial = true
       }
+
       workUnitAsyncStorage.run(
         finalServerPrerenderStore,
         finalServerController.abort.bind(finalServerController)
@@ -2110,7 +2144,8 @@ async function getRSCPayload(
     // static pages do, because their per-segment prefetch responses are
     // generated during static generation (build or ISR).
     S: workStore.isStaticGeneration || ctx.renderOpts.cacheComponents,
-    h: getMetadataVaryParamsThenable(),
+    h: getMetadataVaryParamsAccumulator(),
+    r: getRootParamsVaryParamsAccumulator() ?? undefined,
     s: staleTimeIterable,
     a: shellByteLengthPromise,
     l: staticStageByteLengthPromise,
@@ -2269,7 +2304,8 @@ async function getErrorRSCPayload(
     // static pages do, because their per-segment prefetch responses are
     // generated during static generation (build or ISR).
     S: workStore.isStaticGeneration || ctx.renderOpts.cacheComponents,
-    h: getMetadataVaryParamsThenable(),
+    h: getMetadataVaryParamsAccumulator(),
+    r: getRootParamsVaryParamsAccumulator() ?? undefined,
   } satisfies InitialRSCPayload)
 }
 
@@ -7637,6 +7673,39 @@ async function prerenderToStream(
         }
       }
 
+      let didHandleUnexpectedAbort = false
+      /**
+       * @returns - whether or not the task should be skipped
+       * because the render was already aborted.
+       * */
+      const checkUnexpectedAbort = (): boolean => {
+        if (finalServerReactController.signal.aborted) {
+          // If the server controller is already aborted, then we must have encountered sync IO
+          if (!didHandleUnexpectedAbort) {
+            didHandleUnexpectedAbort = true
+            onUnexpectedAbort()
+          }
+          return true
+        }
+
+        // Not aborted.
+        return false
+      }
+
+      const onUnexpectedAbort = () => {
+        resultIsPartial = true
+
+        // FIXME(NAR-810): If we're already aborted due to Sync IO, there should be no need to
+        // finish the accumulators. However, it seems like in `--debug-prerender`
+        // the stream will stay open if we don't close the iterables here.
+        if (process.env.NODE_ENV === 'development') {
+          if (staleTimeIterable !== undefined) {
+            staleTimeIterable.close()
+          }
+          finishAccumulatingVaryParams(varyParamsAccumulator)
+        }
+      }
+
       let debugEndTime: number | undefined = undefined
       let didLinkDataUnblockNewContent = false
 
@@ -7692,25 +7761,15 @@ async function prerenderToStream(
           )
         },
         () => {
+          if (checkUnexpectedAbort()) return
           finalStageController.advanceStage(RenderStage.Static)
         },
-        async () => {
-          if (finalServerReactController.signal.aborted) {
-            // If the server controller is already aborted we must have called something
-            // that required aborting the prerender synchronously such as with new Date()
-            resultIsPartial = true
+        () => {
+          if (checkUnexpectedAbort()) return
 
-            // FIXME(NAR-810): If we're already aborted due to Sync IO, there should be no need to
-            // finish the accumulators. However, it seems like in `--debug-prerender`
-            // the stream will stay open if we don't close the iterable here.
-            if (
-              process.env.NODE_ENV === 'development' &&
-              staleTimeIterable !== undefined
-            ) {
-              staleTimeIterable.close()
-            }
-            return
-          }
+          // Finish the accumulators. We need to wait for Flight to flush the result into the stream,
+          // which is scheduled in a (fast) immediate, so we do this in a separate task
+          // (fast immediates will be drained at the end of the task, so in the next task we know we're done flushing)
 
           // If new chunks were emitted in the static stage
           // (after unblocking link data, i.e. static params)
@@ -7729,10 +7788,10 @@ async function prerenderToStream(
           // into the stream. The timing here is important: both were
           // included in the Flight payload, but they can only be serialized
           // at the very end, after all the components have finished.
-          finishAccumulatingVaryParams(varyParamsAccumulator)
           if (staleTimeIterable !== undefined) {
             staleTimeIterable.close()
           }
+          finishAccumulatingVaryParams(varyParamsAccumulator)
 
           if (shellByteLengthDeferred && collectedChunksByStage) {
             shellByteLengthDeferred.resolve(
@@ -7744,10 +7803,9 @@ async function prerenderToStream(
                 : null
             )
           }
-
-          // We're using a render, not a prerender, so React schedules rendering work in fast immediates,
-          // and we need to wait a fast immediate for the above accumulators to flush.
-          await waitAtLeastOneReactRenderTask()
+        },
+        () => {
+          if (checkUnexpectedAbort()) return
 
           if (streamState.isPending) {
             // If prerenderIsPending then we have blocked for longer than a Task and we assume

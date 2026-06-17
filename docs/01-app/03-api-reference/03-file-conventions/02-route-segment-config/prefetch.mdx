@@ -44,18 +44,6 @@ A future release will use [`instant`](/docs/app/api-reference/file-conventions/r
 
 You typically don't need to set this explicitly. Omitting the export has the same effect.
 
-### `'partial'`
-
-Opts this segment into Partial Prefetching. The prefetch contains the route's cached content; uncached parts and link-specific data (such as `params` and `searchParams`) stream in after navigation.
-
-This is the per-segment equivalent of enabling [`partialPrefetching`](/docs/app/api-reference/config/next-config-js/partialPrefetching) at the app level. To include link data in the prefetch, use [`'allow-runtime'`](#allow-runtime), which is a superset of `'partial'`.
-
-```tsx filename="page.tsx"
-export const prefetch = 'partial'
-```
-
-> **Good to know**: When `<Link prefetch={true}>` navigates to a route that hasn't opted into Partial Prefetching, a dev console error suggests enabling it. Setting `prefetch = 'partial'` here is the per-route fix; `partialPrefetching: true` is the app-wide alternative.
-
 ### `'allow-runtime'`
 
 Allows Next.js to prefetch this segment at runtime. Today, setting this option causes Next.js to issue a runtime prefetch request, so the server can render a fresh response that includes runtime data like cookies, headers, and search params. Use this for personalized content when the latency and cost of runtime prefetching are appropriate for the segment.
@@ -64,6 +52,16 @@ Allows Next.js to prefetch this segment at runtime. Today, setting this option c
 
 ```tsx filename="page.tsx"
 export const prefetch = 'allow-runtime'
+```
+
+### `'partial'`
+
+Opts the segment into [Partial Prefetching](/docs/app/guides/adopting-partial-prefetching) without enabling the global [`partialPrefetching`](/docs/app/api-reference/config/next-config-js/partialPrefetching) flag. A `<Link>` pointing at a segment with `prefetch = 'partial'` loads the per-route [App Shell](/docs/app/glossary#app-shell) instead of the legacy full prefetch. Set this on the destination, not the link.
+
+Use this for incremental adoption when you can't enable `partialPrefetching` for the entire app at once. Once every route in scope has `prefetch = 'partial'`, enable the global flag and remove the per-route exports.
+
+```tsx filename="page.tsx"
+export const prefetch = 'partial'
 ```
 
 ### `'force-static'`
@@ -92,8 +90,8 @@ In general, both of these are special circumstances. The default behavior — wh
 ```tsx
 type Prefetch =
   | 'auto'
-  | 'partial'
   | 'allow-runtime'
+  | 'partial'
   | 'force-static'
   | 'force-disabled'
 

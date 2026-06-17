@@ -57,21 +57,21 @@ jobs:
       - name: Build benchmarks for tests
         timeout-minutes: 120
         run: |
-          cargo test --benches --workspace --release --no-fail-fast --exclude turbopack-bench --exclude next-napi-bindings --no-run
+          cargo test --benches --workspace --profile=release-with-assertions --no-fail-fast --exclude turbopack-bench --exclude next-napi-bindings --no-run
 
       - name: Run cargo test on benchmarks
         timeout-minutes: 120
         run: |
-          cargo test --benches --workspace --release --no-fail-fast --exclude turbopack-bench --exclude next-napi-bindings
+          cargo test --benches --workspace --profile=release-with-assertions --no-fail-fast --exclude turbopack-bench --exclude next-napi-bindings
 
       - name: Build benchmarks for tests for other bundlers
         if: inputs.all
         timeout-minutes: 120
         run: |
-          cargo test --benches --release -p turbopack-bench --no-run
+          cargo test --benches --profile=release-with-assertions -p turbopack-bench --no-run
 
       - name: Run cargo test on benchmarks for other bundlers
         if: inputs.all
         timeout-minutes: 120
         run: |
-          cargo test --benches --release -p turbopack-bench
+          cargo test --benches --profile=release-with-assertions -p turbopack-bench

@@ -10456,6 +10456,7 @@ name = "turbopack-cli-utils"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "async-trait",
  "crossterm 0.26.1",
  "owo-colors",
  "rustc-hash 2.1.1",

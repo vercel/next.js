@@ -27,7 +27,7 @@ describe('proxy-runtime', () => {
     // TODO: Investigate why in dev-turbo, the error is shown in the browser console, not CLI output.
     if (process.env.IS_TURBOPACK_TEST && !isNextDev) {
       expect(stripAnsi(cliOutput)).toContain(`proxy.ts:3:14
-Next.js can't recognize the exported \`config\` field in route. Proxy does not support Edge runtime.
+Error: Next.js can't recognize the exported \`config\` field in route. Proxy does not support Edge runtime.
   1 | export default function () {}
   2 |
 > 3 | export const config = { runtime: 'edge' }

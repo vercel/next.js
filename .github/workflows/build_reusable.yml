@@ -232,9 +232,7 @@ jobs:
           node --version
           pnpm --version
 
-      # Cache pnpm store on GitHub-hosted runners (self-hosted runners have their own persistent storage)
       - name: Get pnpm store directory
-        if: ${{ runner.environment == 'github-hosted' }}
         id: get-store-path
         run: echo STORE_PATH=$(pnpm store path) >> $GITHUB_OUTPUT
 
@@ -307,7 +305,7 @@ jobs:
         # risk caching an incomplete store
         # If keep conditions in sync breaks, we can split into restore and save
         # steps where saving runs based on the outcome of the install step
-        if: ${{ runner.environment == 'github-hosted' && (inputs.skipInstallBuild != 'yes' || inputs.needsNextest == 'yes') }}
+        if: ${{ inputs.skipInstallBuild != 'yes' || inputs.needsNextest == 'yes' }}
         uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
         timeout-minutes: 5
         id: cache-pnpm-store
@@ -329,27 +327,7 @@ jobs:
 
       - name: Install Playwright browsers
         if: ${{ inputs.skipInstallBuild != 'yes' && inputs.needsPlaywright != 'no' }}
-        run: |
-          PW_VERSION=$(pnpm playwright --version 2>/dev/null || echo "unknown")
-          CACHE_DIR="$HOME/.cache"
-          VERSION_FILE="$CACHE_DIR/playwright-version"
-          STAMP="$CACHE_DIR/playwright-deps-$(echo "${{ inputs.browser }}" | tr ' ' '-')"
-
-          # Clear stamp files when Playwright version changes
-          if [ -f "$VERSION_FILE" ] && [ "$(cat "$VERSION_FILE")" != "$PW_VERSION" ]; then
-            echo "Playwright version changed ($(cat "$VERSION_FILE") -> $PW_VERSION), clearing stamps"
-            rm -f "$CACHE_DIR"/playwright-deps-*
-          fi
-
-          mkdir -p "$CACHE_DIR"
-          echo "$PW_VERSION" > "$VERSION_FILE"
-
-          if [ -f "$STAMP" ]; then
-            pnpm playwright install ${{ inputs.browser }}
-          else
-            pnpm playwright install --with-deps ${{ inputs.browser }}
-            touch "$STAMP"
-          fi
+        run: pnpm playwright install --with-deps ${{ inputs.browser }}
 
       - name: Download pre-built test timings
         if: ${{ inputs.testTimingsArtifact != '' }}
@@ -380,7 +358,7 @@ jobs:
       # Restore the list of tests that already passed in an earlier
       # attempt of this same workflow run.
       - name: Restore passed-tests cache
-        if: ${{ inputs.afterBuild && runner.environment == 'github-hosted' }}
+        if: ${{ inputs.afterBuild }}
         uses: actions/cache/restore@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
         with:
           path: ${{ env.NEXT_TEST_PASSED_FILE }}
@@ -400,7 +378,7 @@ jobs:
       # Save the passed-tests file so the next attempt (if any) can skip
       # them. `always()` makes this run on success, failure, or cancellation.
       - name: Save passed-tests cache
-        if: ${{ always() && inputs.afterBuild && runner.environment == 'github-hosted' }}
+        if: ${{ always() && inputs.afterBuild }}
         uses: actions/cache/save@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
         with:
           path: ${{ env.NEXT_TEST_PASSED_FILE }}
