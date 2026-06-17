@@ -1654,7 +1654,6 @@ describe('Cache Components Errors', () => {
                  "Error occurred prerendering page "/sync-cookies". Read more: https://nextjs.org/docs/messages/prerender-error
                  TypeError: <module-function>().get is not a function
                      at a (app/sync-cookies/page.tsx:18:36)
-                     at b (<anonymous>)
                    16 | async function CookiesReadingComponent() {
                    17 |   // Cast to any as we removed UnsafeUnwrapped types, but still need to test with the sync...
                  > 18 |   const token = (cookies() as any).get('token')
@@ -1670,8 +1669,7 @@ describe('Cache Components Errors', () => {
                 expect(output).toMatchInlineSnapshot(`
                  "Error occurred prerendering page "/sync-cookies". Read more: https://nextjs.org/docs/messages/prerender-error
                  TypeError: <module-function>().get is not a function
-                     at a (<next-dist-dir>)
-                     at b (<anonymous>) {
+                     at a (<next-dist-dir>) {
                    digest: '<error-digest>'
                  }
                  Export encountered an error on /sync-cookies/page: /sync-cookies, exiting the build."
@@ -1988,7 +1986,6 @@ describe('Cache Components Errors', () => {
                  "Error occurred prerendering page "/sync-headers". Read more: https://nextjs.org/docs/messages/prerender-error
                  TypeError: <module-function>().get is not a function
                      at a (app/sync-headers/page.tsx:18:40)
-                     at b (<anonymous>)
                    16 | async function HeadersReadingComponent() {
                    17 |   // Cast to any as we removed UnsafeUnwrapped types, but still need to test with the sync...
                  > 18 |   const userAgent = (headers() as any).get('user-agent')
@@ -2004,8 +2001,7 @@ describe('Cache Components Errors', () => {
                 expect(output).toMatchInlineSnapshot(`
                  "Error occurred prerendering page "/sync-headers". Read more: https://nextjs.org/docs/messages/prerender-error
                  TypeError: <module-function>().get is not a function
-                     at a (<next-dist-dir>)
-                     at b (<anonymous>) {
+                     at a (<next-dist-dir>) {
                    digest: '<error-digest>'
                  }
                  Export encountered an error on /sync-headers/page: /sync-headers, exiting the build."
@@ -4829,7 +4825,6 @@ Ways to fix this:
                 expect(output).toMatchInlineSnapshot(`
                  "⨯ Error: "use cache: private" must not be used within "use cache". It can only be nested inside of another "use cache: private".
                      at <unknown> (app/use-cache-private-in-use-cache/page.tsx:15:1)
-                     at a (<anonymous>)
                    13 | }
                    14 |
                  > 15 | async function Private() {
@@ -4841,7 +4836,6 @@ Ways to fix this:
                  }
                  Error: "use cache: private" must not be used within "use cache". It can only be nested inside of another "use cache: private".
                      at <unknown> (app/use-cache-private-in-use-cache/page.tsx:15:1)
-                     at b (<anonymous>)
                    13 | }
                    14 |
                  > 15 | async function Private() {
@@ -4860,13 +4854,11 @@ Ways to fix this:
               } else {
                 expect(output).toMatchInlineSnapshot(`
                  "⨯ Error: "use cache: private" must not be used within "use cache". It can only be nested inside of another "use cache: private".
-                     at a (<next-dist-dir>)
-                     at b (<anonymous>) {
+                     at a (<next-dist-dir>) {
                    digest: '<error-digest>'
                  }
                  Error: "use cache: private" must not be used within "use cache". It can only be nested inside of another "use cache: private".
-                     at c (<next-dist-dir>)
-                     at d (<anonymous>) {
+                     at b (<next-dist-dir>) {
                    digest: '<error-digest>'
                  }
                  To get a more detailed stack trace and pinpoint the issue, try one of the following:

@@ -8,7 +8,7 @@ import cheerio from 'cheerio'
 ;(process.env.__NEXT_CACHE_COMPONENTS === 'true' ? describe.skip : describe)(
   'Build Error Tests',
   () => {
-    const { next, isTurbopack } = nextTestSetup({
+    const { next, isTurbopack, isRspack } = nextTestSetup({
       files: __dirname,
       skipStart: true,
       skipDeployment: true,
@@ -37,7 +37,9 @@ import cheerio from 'cheerio'
           } else {
             expect(cliOutput).toContain('./app/static-img/page.js')
           }
-          expect(cliOutput).not.toContain('Import trace for requested module')
+          if (!isRspack) {
+            expect(cliOutput).not.toContain('Import trace for requested module')
+          }
         }
       )
     })

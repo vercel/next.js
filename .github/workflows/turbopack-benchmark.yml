@@ -43,7 +43,7 @@ jobs:
         uses: ./.github/actions/setup-rust
 
       - name: Install cargo-codspeed
-        run: cargo binstall --no-confirm cargo-codspeed@3.0.5
+        run: cargo binstall --locked --no-confirm cargo-codspeed@3.0.5
 
       - name: Start sccache
         uses: ./.github/actions/sccache
@@ -80,7 +80,7 @@ jobs:
         uses: ./.github/actions/setup-rust
 
       - name: Install cargo-codspeed
-        run: cargo binstall --no-confirm cargo-codspeed@3.0.5
+        run: cargo binstall --locked --no-confirm cargo-codspeed@3.0.5
 
       - name: Start sccache
         uses: ./.github/actions/sccache
@@ -118,7 +118,7 @@ jobs:
         uses: ./.github/actions/setup-rust
 
       - name: Install cargo-codspeed
-        run: cargo binstall --no-confirm cargo-codspeed@3.0.5
+        run: cargo binstall --locked --no-confirm cargo-codspeed@3.0.5
 
       - name: Start sccache
         uses: ./.github/actions/sccache

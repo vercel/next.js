@@ -43,6 +43,9 @@ regex = { workspace = true }
 rustc-hash = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true, features = ["raw_value"] }
+react_compiler_swc = { workspace = true }
+react_compiler = { workspace = true }
+next-custom-transforms = { workspace = true, default-features = false }
 swc_sourcemap = { workspace = true }
 smallvec = { workspace = true }
 strsim = { workspace = true }
@@ -88,6 +91,9 @@ swc_core = { workspace = true, features = [
   "testing",
   "base",
 ] }
+
+[features]
+default = []
 
 [dev-dependencies]
 criterion = { workspace = true, features = ["async_tokio"] }

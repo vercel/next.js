@@ -29,10 +29,10 @@ use tokio::time::{Duration, Instant};
 use tracing::{Span, trace_span};
 use turbo_bincode::{TurboBincodeBuffer, new_turbo_bincode_decoder, new_turbo_bincode_encoder};
 use turbo_tasks::{
-    CellId, DynTaskInputsStorage, RawVc, ReadCellOptions, ReadCellTracking, ReadConsistency,
-    ReadOutputOptions, ReadTracking, SharedReference, TRANSIENT_TASK_BIT, TaskExecutionReason,
-    TaskId, TaskPersistence, TaskPriority, TraitTypeId, TurboTasks, TurboTasksCallApi,
-    TurboTasksPanic, ValueTypeId,
+    CellId, DynTaskInputsStorage, RawVc, RawVcUnpacked, ReadCellOptions, ReadCellTracking,
+    ReadConsistency, ReadOutputOptions, ReadTracking, SharedReference, TRANSIENT_TASK_BIT,
+    TaskExecutionReason, TaskId, TaskPersistence, TaskPriority, TraitTypeId, TurboTasks,
+    TurboTasksCallApi, TurboTasksPanic, ValueTypeId,
     backend::{
         Backend, CachedTaskType, CachedTaskTypeArc, CellContent, CellHash, TaskExecutionSpec,
         TransientTaskType, TurboTaskContextError, TurboTaskLocalContextError, TurboTasksError,
@@ -689,8 +689,8 @@ impl TurboTasksBackend {
 
         if let Some(output) = task.get_output() {
             let result = match output {
-                OutputValue::Cell(cell) => Ok(Ok(RawVc::TaskCell(cell.task, cell.cell))),
-                OutputValue::Output(task) => Ok(Ok(RawVc::TaskOutput(*task))),
+                OutputValue::Cell(cell) => Ok(Ok(RawVc::task_cell(cell.task, cell.cell))),
+                OutputValue::Output(task) => Ok(Ok(RawVc::task_output(*task))),
                 OutputValue::Error(error) => Err(error.clone()),
             };
             if let Some(mut reader_task) = reader_task.take()
@@ -851,7 +851,7 @@ impl TurboTasksBackend {
                 add_cell_dependency(task_id, task, reader, reader_task, cell, tracking.key());
             }
             return Ok(Ok(TypedCellContent(
-                cell.type_id,
+                cell.type_id(),
                 CellContent(Some(content)),
             )));
         }
@@ -868,7 +868,7 @@ impl TurboTasksBackend {
         let is_cancelled = matches!(in_progress, Some(InProgressState::Canceled));
 
         // Check cell index range (cell might not exist at all)
-        let max_id = task.get_cell_type_max_index(&cell.type_id).copied();
+        let max_id = task.get_cell_type_max_index(&cell.type_id()).copied();
         let Some(max_id) = max_id else {
             let task_desc = task.get_task_description();
             if tracking.should_track(true) {
@@ -878,7 +878,7 @@ impl TurboTasksBackend {
                 "Cell {cell:?} no longer exists in task {task_desc} (no cell of this type exists)",
             );
         };
-        if cell.index >= max_id {
+        if cell.index() >= max_id {
             let task_desc = task.get_task_description();
             if tracking.should_track(true) {
                 add_cell_dependency(task_id, task, reader, reader_task, cell, tracking.key());
@@ -904,8 +904,8 @@ impl TurboTasksBackend {
 
         let _span = tracing::trace_span!(
             "recomputation",
-            cell_type = get_value_type(cell.type_id).ty.global_name,
-            cell_index = cell.index
+            cell_type = get_value_type(cell.type_id()).ty.global_name,
+            cell_index = cell.index()
         )
         .entered();
 
@@ -1712,7 +1712,7 @@ impl TurboTasksBackend {
         inner_cached(
             self,
             task_type,
-            cell_id.map(|c| c.type_id),
+            cell_id.map(|c| c.type_id()),
             &mut FxHashSet::default(),
         )
     }
@@ -2328,8 +2328,8 @@ impl TurboTasksBackend {
         let current_output = task.get_output();
         #[cfg(feature = "verify_determinism")]
         let no_output_set = current_output.is_none();
-        let new_output = match result {
-            Ok(RawVc::TaskOutput(output_task_id)) => {
+        let new_output = match result.map(RawVc::unpack) {
+            Ok(RawVcUnpacked::TaskOutput(output_task_id)) => {
                 if let Some(OutputValue::Output(current_task_id)) = current_output
                     && *current_task_id == output_task_id
                 {
@@ -2338,7 +2338,7 @@ impl TurboTasksBackend {
                     Some(OutputValue::Output(output_task_id))
                 }
             }
-            Ok(RawVc::TaskCell(output_task_id, cell)) => {
+            Ok(RawVcUnpacked::TaskCell(output_task_id, cell)) => {
                 if let Some(OutputValue::Cell(CellRef {
                     task: current_task_id,
                     cell: current_cell,
@@ -2354,7 +2354,7 @@ impl TurboTasksBackend {
                     }))
                 }
             }
-            Ok(RawVc::LocalOutput(..)) => {
+            Ok(RawVcUnpacked::LocalOutput(..)) => {
                 panic!("Non-local tasks must not return a local Vc");
             }
             Err(err) => {
@@ -2771,8 +2771,8 @@ impl TurboTasksBackend {
                 .iter_cell_data()
                 .filter_map(|(cell, _)| {
                     cell_counters
-                        .get(&cell.type_id)
-                        .is_none_or(|start_index| cell.index >= *start_index)
+                        .get(&cell.type_id())
+                        .is_none_or(|start_index| cell.index() >= *start_index)
                         .then_some(*cell)
                 })
                 .collect();
@@ -2787,8 +2787,8 @@ impl TurboTasksBackend {
                 .iter_cell_data_hash()
                 .filter_map(|(cell, _)| {
                     cell_counters
-                        .get(&cell.type_id)
-                        .is_none_or(|start_index| cell.index >= *start_index)
+                        .get(&cell.type_id())
+                        .is_none_or(|start_index| cell.index() >= *start_index)
                         .then_some(*cell)
                 })
                 .collect();
@@ -3008,9 +3008,9 @@ impl TurboTasksBackend {
         let mut ctx = self.execute_context(turbo_tasks);
         let task = ctx.task(task_id, TaskDataCategory::Data);
         if let Some(content) = task.get_cell_data(&cell).cloned() {
-            Ok(CellContent(Some(content)).into_typed(cell.type_id))
+            Ok(CellContent(Some(content)).into_typed(cell.type_id()))
         } else {
-            Ok(CellContent(None).into_typed(cell.type_id))
+            Ok(CellContent(None).into_typed(cell.type_id()))
         }
     }
 
@@ -3043,7 +3043,7 @@ impl TurboTasksBackend {
             for (collectible, count) in task.iter_aggregated_collectibles() {
                 if *count > 0 && collectible.collectible_type == collectible_type {
                     *collectibles
-                        .entry(RawVc::TaskCell(
+                        .entry(RawVc::task_cell(
                             collectible.cell.task,
                             collectible.cell.cell,
                         ))
@@ -3053,7 +3053,7 @@ impl TurboTasksBackend {
             for (&collectible, &count) in task.iter_collectibles() {
                 if collectible.collectible_type == collectible_type {
                     *collectibles
-                        .entry(RawVc::TaskCell(
+                        .entry(RawVc::task_cell(
                             collectible.cell.task,
                             collectible.cell.cell,
                         ))
@@ -3086,7 +3086,7 @@ impl TurboTasksBackend {
     ) {
         self.assert_valid_collectible(task_id, collectible);
 
-        let RawVc::TaskCell(collectible_task, cell) = collectible else {
+        let Some((collectible_task, cell)) = collectible.as_task_cell() else {
             panic!("Collectibles need to be resolved");
         };
         let cell = CellRef {
@@ -3114,7 +3114,7 @@ impl TurboTasksBackend {
     ) {
         self.assert_valid_collectible(task_id, collectible);
 
-        let RawVc::TaskCell(collectible_task, cell) = collectible else {
+        let Some((collectible_task, cell)) = collectible.as_task_cell() else {
             panic!("Collectibles need to be resolved");
         };
         let cell = CellRef {
@@ -3438,7 +3438,7 @@ impl TurboTasksBackend {
 
     fn assert_valid_collectible(&self, task_id: TaskId, collectible: RawVc) {
         // these checks occur in a potentially hot codepath, but they're cheap
-        let RawVc::TaskCell(col_task_id, col_cell_id) = collectible else {
+        let Some((col_task_id, col_cell_id)) = collectible.as_task_cell() else {
             // This should never happen: The collectible APIs use ResolvedVc
             let task_info = if let Some(col_task_ty) = collectible
                 .try_get_task_id()

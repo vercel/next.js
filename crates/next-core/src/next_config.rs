@@ -29,7 +29,12 @@ use turbopack_core::{
     module_graph::style_groups::StyleGroupsAlgorithm,
     resolve::ResolveAliasMap,
 };
-use turbopack_ecmascript::{OptionTreeShaking, TreeShakingMode};
+use turbopack_ecmascript::{
+    OptionTreeShaking, TreeShakingMode,
+    transform::{
+        OptionReactCompilerCompilationMode, ReactCompilerCompilationMode, ReactCompilerTarget,
+    },
+};
 use turbopack_ecmascript_plugins::transform::{
     emotion::EmotionTransformConfig, relay::RelayConfig,
     styled_components::StyledComponentsTransformConfig,
@@ -929,29 +934,12 @@ pub enum MdxRsOptions {
 
 #[turbo_tasks::value(shared, operation)]
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub enum ReactCompilerCompilationMode {
-    #[default]
-    Infer,
-    Annotation,
-    All,
-}
-
-#[turbo_tasks::value(shared, operation)]
-#[derive(Clone, Debug, Default, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum ReactCompilerPanicThreshold {
     #[default]
     None,
     CriticalErrors,
     AllErrors,
-}
-
-#[turbo_tasks::value(shared, operation)]
-#[derive(Clone, Debug, Serialize, Deserialize)]
-pub enum ReactCompilerTarget {
-    #[serde(rename = "18")]
-    React18,
 }
 
 /// Subset of react compiler options, we pass these options through to the webpack loader, so it
@@ -1281,6 +1269,7 @@ pub struct ExperimentalConfig {
     swc_trace_profiling: Option<bool>,
     transition_indicator: Option<bool>,
     gesture_transition: Option<bool>,
+    use_experimental_react: Option<bool>,
     /// @internal Used by the Next.js internals only.
     trust_host_header: Option<bool>,
 
@@ -1327,6 +1316,8 @@ pub struct ExperimentalConfig {
     turbopack_local_postcss_config: Option<bool>,
     // Whether to enable the global-not-found convention
     global_not_found: Option<bool>,
+    /// Experimental Rust React compiler (Turbopack only); requires `reactCompiler`.
+    turbopack_rust_react_compiler: Option<bool>,
     /// Defaults to false in development mode, true in production mode.
     turbopack_remove_unused_imports: Option<bool>,
     /// Defaults to false in development mode, true in production mode.
@@ -2128,6 +2119,26 @@ impl NextConfig {
         options.cell()
     }
 
+    /// Returns compilation mode when both `reactCompiler` and `turbopackRustReactCompiler` are set;
+    /// `None` otherwise.
+    #[turbo_tasks::function]
+    pub fn rust_react_compiler(&self) -> Vc<OptionReactCompilerCompilationMode> {
+        let use_rust = self
+            .experimental
+            .turbopack_rust_react_compiler
+            .unwrap_or(false);
+        let mode = match (use_rust, &self.react_compiler) {
+            (true, Some(ReactCompilerOptionsOrBoolean::Boolean(true))) => {
+                Some(ReactCompilerCompilationMode::Infer)
+            }
+            (true, Some(ReactCompilerOptionsOrBoolean::Option(opts))) => {
+                Some(opts.compilation_mode)
+            }
+            _ => None,
+        };
+        Vc::cell(mode)
+    }
+
     #[turbo_tasks::function]
     pub fn sass_config(&self) -> Vc<JsonValue> {
         Vc::cell(self.sass_options.clone().unwrap_or_default())
@@ -2211,6 +2222,11 @@ impl NextConfig {
     #[turbo_tasks::function]
     pub fn enable_gesture_transition(&self) -> Vc<bool> {
         Vc::cell(self.experimental.gesture_transition.unwrap_or(false))
+    }
+
+    #[turbo_tasks::function]
+    pub fn enable_use_experimental_react(&self) -> Vc<bool> {
+        Vc::cell(self.experimental.use_experimental_react.unwrap_or(false))
     }
 
     #[turbo_tasks::function]

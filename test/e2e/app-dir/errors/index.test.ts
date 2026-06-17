@@ -160,7 +160,7 @@ describe('app-dir - errors', () => {
       } else {
         expect(cleanCliOutput).toMatchInlineSnapshot(`
          "⨯ Error: undefined
-             at stringify (<anonymous>) {
+             at ignore-listed frames {
            digest: '<digest>@E394'
          }
          "
@@ -198,7 +198,7 @@ describe('app-dir - errors', () => {
       } else {
         expect(cleanCliOutput).toMatchInlineSnapshot(`
          "⨯ Error: null
-             at stringify (<anonymous>) {
+             at ignore-listed frames {
            digest: '<digest>@E394'
          }
          "
@@ -231,7 +231,7 @@ describe('app-dir - errors', () => {
       } else {
         expect(cleanCliOutput).toMatchInlineSnapshot(`
          "⨯ Error: this is a test
-             at stringify (<anonymous>) {
+             at ignore-listed frames {
            digest: '<digest>'
          }
          "

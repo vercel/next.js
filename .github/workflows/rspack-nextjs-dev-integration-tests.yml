@@ -12,6 +12,7 @@ jobs:
     uses: ./.github/workflows/integration_tests_reusable.yml
     with:
       name: rspack-development
+      nodeVersion: 20.19.x
       test_type: development
       run_before_test: |
         export NEXT_RSPACK=1 NEXT_TEST_USE_RSPACK=1

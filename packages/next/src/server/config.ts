@@ -512,6 +512,26 @@ function assignDefaultsAndValidate(
           `Please remove the option or run Next.js with webpack in ${configFileName}.`
       )
     }
+
+    if (
+      result.experimental.turbopackRustReactCompiler &&
+      !process.env.TURBOPACK
+    ) {
+      throw new Error(
+        `\`experimental.turbopackRustReactCompiler\` is only supported with Turbopack. ` +
+          `Please remove the option or run Next.js with Turbopack in ${configFileName}.`
+      )
+    }
+
+    if (
+      result.experimental.turbopackRustReactCompiler &&
+      !result.reactCompiler
+    ) {
+      throw new Error(
+        `\`experimental.turbopackRustReactCompiler\` requires \`reactCompiler\` to be enabled. ` +
+          `Please add \`reactCompiler: true\` in ${configFileName}.`
+      )
+    }
   }
 
   if (result.experimental.cachedNavigations && !result.cacheComponents) {
@@ -524,6 +544,30 @@ function assignDefaultsAndValidate(
     throw new Error(
       `\`partialPrefetching\` requires \`cacheComponents\` to be enabled. Please update your ${configFileName} accordingly.`
     )
+  }
+
+  // `useExperimentalReact` only opts *into* React's experimental channel; it
+  // cannot opt out of it when another feature (e.g. `taint`) structurally
+  // requires it — those APIs only exist in the experimental React build. Warn
+  // so an explicit `false` here doesn't look like it was silently ignored.
+  if (result.experimental.useExperimentalReact === false) {
+    const dependents: string[] = []
+    if (result.experimental.taint) {
+      dependents.push('`experimental.taint`')
+    }
+    if (result.experimental.transitionIndicator) {
+      dependents.push('`experimental.transitionIndicator`')
+    }
+    if (result.experimental.gestureTransition) {
+      dependents.push('`experimental.gestureTransition`')
+    }
+    if (dependents.length > 0) {
+      Log.warn(
+        `\`experimental.useExperimentalReact\` is set to \`false\`, but ${dependents.join(
+          ', '
+        )} require React's experimental channel, so it remains enabled.`
+      )
+    }
   }
 
   if (result.experimental.appShells) {

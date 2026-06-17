@@ -4,7 +4,10 @@ use anyhow::{Result, bail};
 use serde::Deserialize;
 use unicode_width::UnicodeWidthChar;
 
-use crate::highlight::{ColorScheme, Language, Lines, apply_line_highlights, extract_highlights};
+use crate::highlight::{
+    ANSI_CODE_CYAN_BOLD, ANSI_CODE_RED_BOLD, ANSI_CODE_YELLOW_BOLD, ColorScheme, Language, Lines,
+    apply_line_highlights, extract_highlights,
+};
 
 /// Compute the display width of a string slice in terminal columns.
 ///
@@ -53,6 +56,15 @@ pub struct CodeFrameLocation {
     pub end: Option<Location>,
 }
 
+/// The severity of the message (default: "error"), influences the color mode.
+#[derive(Debug, Copy, Clone, Deserialize, PartialEq, Eq)]
+pub enum CodeFrameColorMode {
+    None,
+    Error,
+    Warning,
+    Info,
+}
+
 /// Options for rendering the code frame
 #[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase", default)]
@@ -62,7 +74,7 @@ pub struct CodeFrameOptions {
     /// Number of lines to show after the error
     pub lines_below: usize,
     /// Whether to use ANSI color output
-    pub color: bool,
+    pub color: CodeFrameColorMode,
     /// Whether to attempt syntax highlighting
     pub highlight_code: bool,
     /// Optional message to display with the error
@@ -81,7 +93,7 @@ impl Default for CodeFrameOptions {
         Self {
             lines_above: 2,
             lines_below: 3,
-            color: false,
+            color: CodeFrameColorMode::None,
             highlight_code: false,
             message: None,
             max_width: 100,
@@ -287,7 +299,7 @@ pub fn render_code_frame(
         available_code_width,
     );
 
-    let line_highlights = if options.color && options.highlight_code {
+    let line_highlights = if options.color != CodeFrameColorMode::None && options.highlight_code {
         Some(extract_highlights(
             &lines,
             first_line_idx..last_line_idx,
@@ -298,11 +310,13 @@ pub fn render_code_frame(
         None
     };
 
-    let color_scheme = if options.color {
-        ColorScheme::colored()
-    } else {
-        ColorScheme::plain()
+    let color_scheme = match options.color {
+        CodeFrameColorMode::None => ColorScheme::plain(),
+        CodeFrameColorMode::Error => ColorScheme::colored(ANSI_CODE_RED_BOLD),
+        CodeFrameColorMode::Warning => ColorScheme::colored(ANSI_CODE_YELLOW_BOLD),
+        CodeFrameColorMode::Info => ColorScheme::colored(ANSI_CODE_CYAN_BOLD),
     };
+
     let mut output = String::new();
     // Track whether we need a newline before the next section.
     // By prepending newlines instead of appending them we avoid a
