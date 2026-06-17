@@ -247,17 +247,7 @@ export class Playwright<TCurrent = undefined> {
         },
       })
     } else {
-      let launchArgs: string[] = [
-        // Chrome enables Local Network Access checks by default, which block
-        // connections from a public origin to a loopback/local dev server.
-        // Some tests (i.e. test/development/basic/allowed-dev-origins.test.ts)
-        // deliberately make cross-origin requests to the local dev server so
-        // Next.js's own allowedDevOrigins logic can decide whether to block
-        // them. Disable the browser-level check so those requests reach the
-        // server.
-        // https://developer.chrome.com/blog/local-network-access
-        '--disable-features=LocalNetworkAccessChecks',
-      ]
+      let launchArgs: string[] = []
       if (!launchOptions.headless) {
         launchArgs.push('--auto-open-devtools-for-tabs')
       }
