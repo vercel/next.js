@@ -368,14 +368,6 @@ jobs:
         run: ${{ matrix.settings.setup }}
         if: ${{ matrix.settings.setup }}
 
-      - name: Cache on ${{ github.ref_name }}
-        uses: ijjk/rust-cache@a34594c450817c9860143c79797a8770c4e587f5 # turbo-cache-v1.0.9
-        if: ${{ !env.NEXT_SKIP_BUILD_CACHE }}
-        with:
-          save-if: 'true'
-          cache-provider: 'turbo'
-          shared-key: build-${{ matrix.settings.target }}-${{ hashFiles('.cargo/config.toml') }}
-
       - name: Clear native build
         run: rm -rf packages/next-swc/native
 
