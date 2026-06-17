@@ -1,4 +1,4 @@
-use std::{borrow::Cow, collections::BTreeMap, io::Write};
+use std::{collections::BTreeMap, io::Write};
 
 use anyhow::{Context, Result, bail};
 use bincode::{Decode, Encode};
@@ -145,7 +145,6 @@ async fn collect_actions(
                         },
                         ActionMeta {
                             name: name.to_string(),
-                            source_path: "".to_string(), // TODO
                         },
                         *module,
                     ),
@@ -281,7 +280,7 @@ impl Asset for ServerActionManifestAsset {
 
         struct ActionMetadata<'a> {
             exported_name: &'a str,
-            filename: Cow<'a, str>,
+            filename: RcStr,
             module_id: ModuleId,
             is_async: bool,
         }
@@ -289,20 +288,11 @@ impl Asset for ServerActionManifestAsset {
         let action_metadata: Vec<(&str, ActionMetadata<'_>)> = actions_value
             .iter()
             .map(async |(hash_id, (_layer, meta, module))| {
-                // Use source_path from the action comment if available (contains original .ts/.tsx
-                // path), otherwise fall back to module.ident().path() (may be compiled .js
-                // path)
-                let filename = if !meta.source_path.is_empty() {
-                    Cow::Borrowed(&*meta.source_path)
-                } else {
-                    Cow::Owned(module.ident().await?.path.to_string())
-                };
-
                 Ok((
                     &**hash_id,
                     ActionMetadata {
                         exported_name: &meta.name,
-                        filename,
+                        filename: module.ident().await?.path.path.clone(),
                         module_id: chunk_item_id_strategy.get_id_from_module(**module).await?,
                         is_async: self.async_module_info.is_async(*module).await?,
                     },
@@ -320,22 +310,22 @@ impl Asset for ServerActionManifestAsset {
                 module_id,
                 is_async,
             },
-        ) in &action_metadata
+        ) in action_metadata
         {
             let entry = mapping.entry(hash_id).or_default();
             entry.workers.insert(
                 &key,
                 ActionManifestWorkerEntry {
                     module_id: module_id.into(),
-                    is_async: *is_async,
+                    is_async,
                     exported_name,
-                    filename,
+                    filename: filename.clone(),
                 },
             );
 
             // Hoist the filename and exported_name to the entry level
             entry.exported_name = exported_name;
-            entry.filename = filename.as_ref();
+            entry.filename = filename;
         }
 
         Ok(AssetContent::file(
@@ -562,8 +552,6 @@ fn is_turbopack_internal_var(with: &Option<Box<ObjectLit>>) -> bool {
 #[derive(Clone, Debug, PartialEq, Eq, TraceRawVcs, NonLocalValue, Encode, Decode)]
 pub struct ActionMeta {
     pub name: String,
-    /// The original source file path (from entry_path in the action comment)
-    pub source_path: String,
 }
 
 type HashToLayerNameModule = Vec<(
