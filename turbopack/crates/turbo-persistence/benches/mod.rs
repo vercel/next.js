@@ -29,23 +29,23 @@ const BATCH_READ_DATA_AMOUNT: usize = 128 * MB as usize;
 /// Maximum memory to use for storing keys during prefill (4 GiB)
 const MAX_KEY_MEMORY: usize = 4 * 1024 * MB as usize;
 
-/// When running under `cargo test --benches` / `cargo nextest run --benches`, criterion
-/// executes each benchmark for a single iteration to verify it doesn't panic.
-const TEST_MODE_MAX_ENTRIES: usize = 100 * 1024;
+/// Entry-count cap applied to prefill/setup work unless `LARGE_DB` is set, so the default
+/// `cargo bench` / `cargo test --benches` run stays fast.
+const SCALED_MAX_ENTRIES: usize = 100 * 1024;
 
-/// True when the benchmark harness is running in test mode, i.e. via `cargo test --benches` or
-/// `cargo nextest run --benches`, rather than a real `cargo bench`.
-static IS_TEST_MODE: LazyLock<bool> =
-    LazyLock::new(|| !std::env::args().any(|arg| arg == "--bench"));
+/// True when the `LARGE_DB` env var is set, unlocking the full (large) benchmark sizes.
+/// Defaults to false so both `cargo bench` and `cargo test --benches` run scaled-down; set
+/// `LARGE_DB=1` for a real benchmarking run.
+static LARGE_DB: LazyLock<bool> = LazyLock::new(|| std::env::var_os("LARGE_DB").is_some());
 
-/// Cap an entry count to [`TEST_MODE_MAX_ENTRIES`] when running in test mode; otherwise return
-/// it unchanged. Used only to bound prefill/setup work — benchmark `id` strings keep using the
+/// Cap an entry count to [`SCALED_MAX_ENTRIES`] unless `LARGE_DB` is set; otherwise return it
+/// unchanged. Used only to bound prefill/setup work — benchmark `id` strings keep using the
 /// configured (unscaled) sizes so real-run reports are unaffected.
 fn scaled(full: usize) -> usize {
-    if *IS_TEST_MODE {
-        full.min(TEST_MODE_MAX_ENTRIES)
-    } else {
+    if *LARGE_DB {
         full
+    } else {
+        full.min(SCALED_MAX_ENTRIES)
     }
 }
 
@@ -139,7 +139,7 @@ fn random_value(rng: &mut SmallRng, size: usize) -> Box<[u8]> {
 fn prefill_database(path: &Path, config: &DbConfig) -> Result<Vec<Box<[u8]>>> {
     let db = TurboPersistence::<SerialScheduler, 1>::open(path.to_path_buf())?;
     let mut rng = SmallRng::seed_from_u64(42);
-    // Bound prefill work in test mode; real `cargo bench` runs use the full count.
+    // Bound prefill work unless `LARGE_DB` is set; `LARGE_DB` runs use the full count.
     let entry_count = scaled(config.entry_count);
     let mut keys = Vec::with_capacity(
         entry_count.min(MAX_KEY_MEMORY / (config.key_size + size_of::<Box<[u8]>>())),
@@ -936,7 +936,7 @@ fn bench_write_multi_value(c: &mut Criterion) {
     for &(key_size, value_size) in &entry_sizes {
         for &(database_size, values_per_key) in configs {
             // `id` uses the configured size so real-run reports are unaffected; the scaled
-            // counts bound the actual work in test mode.
+            // counts bound the actual work unless `LARGE_DB` is set.
             let full_entry_count = database_size / (key_size + value_size);
             let entry_count = scaled(full_entry_count);
             let distinct_key_count = (entry_count / values_per_key).max(1);
