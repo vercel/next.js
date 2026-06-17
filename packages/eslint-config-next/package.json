@@ -40,8 +40,7 @@
     "dev": "pnpm build",
     "build": "swc -d dist src && pnpm types",
     "types": "tsc --skipLibCheck --declaration --emitDeclarationOnly --esModuleInterop --declarationDir dist --rootDir src",
-    "pack-for-isolated-tests": "pnpm pack --out ./packed.tgz",
-    "prepublishOnly": "cd ../../ && turbo run build"
+    "pack-for-isolated-tests": "pnpm pack --out ./packed.tgz"
   },
   "exports": {
     ".": {

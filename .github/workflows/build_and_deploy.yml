@@ -106,8 +106,10 @@ jobs:
           fi
         env:
           GIT_REF: ${{ github.ref }}
-      - name: Print deploy target
-        run: echo "Deploy target is '${{ steps.deploy-target.outputs.value }}'"
+      - name: Print deploy plan
+        run: |
+          echo "Deploy target is '${{ steps.deploy-target.outputs.value }}'"
+          echo "Release environment is '${{ steps.deploy-target.outputs.release_environment }}'"
 
   build:
     if: ${{ needs.deploy-target.outputs.value != 'skipped' }}
@@ -630,10 +632,17 @@ jobs:
           repositories: next.js
           permission-contents: write
 
-      - run: ./scripts/publish-native.js
       - run: ./scripts/publish-release.js
         env:
           RELEASE_GITHUB_TOKEN: ${{ steps.release-app-token.outputs.token }}
+
+      - name: Upload pnpm publish summary
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: pnpm-publish-summary
+          path: pnpm-publish-summary.json
+          if-no-files-found: ignore
 
   buildPassed:
     needs: ['deploy-target', 'build', 'build-wasm', 'build-native']

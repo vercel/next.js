@@ -19,6 +19,7 @@ async function main() {
   const isCanary = releaseType === 'canary'
   const isReleaseCandidate = releaseType === 'release-candidate'
   const isBeta = releaseType === 'beta'
+  const dryRun = args.includes('--dry-run')
 
   if (
     releaseType !== 'stable' &&
@@ -42,26 +43,32 @@ async function main() {
 
   const githubToken = getGitHubToken()
 
-  if (!githubToken) {
-    console.log(getGitHubTokenMissingMessage())
-    return
+  if (dryRun) {
+    console.log(
+      'Dry run: keeping commits locally, skipping git push and GitHub release creation'
+    )
+  } else {
+    if (!githubToken) {
+      console.log(getGitHubTokenMissingMessage())
+      return
+    }
+
+    const configStorePath = resolveFrom(
+      path.join(process.cwd(), 'node_modules/release'),
+      'configstore'
+    )
+    const ConfigStore = require(configStorePath)
+
+    const config = new ConfigStore('release')
+    config.set('token', githubToken)
+
+    await configureGitHubAuth(githubToken)
+    await verifyGitHubApiAccess(
+      githubToken,
+      '/repos/vercel/next.js/releases?per_page=1',
+      'release lookup'
+    )
   }
-
-  const configStorePath = resolveFrom(
-    path.join(process.cwd(), 'node_modules/release'),
-    'configstore'
-  )
-  const ConfigStore = require(configStorePath)
-
-  const config = new ConfigStore('release')
-  config.set('token', githubToken)
-
-  await configureGitHubAuth(githubToken)
-  await verifyGitHubApiAccess(
-    githubToken,
-    '/repos/vercel/next.js/releases?per_page=1',
-    'release lookup'
-  )
 
   console.log(`Running pnpm release-${isCanary ? 'canary' : 'stable'}...`)
   const preleaseType =
@@ -87,24 +94,36 @@ async function main() {
 
   lernaArgs.push('--force-publish', '-y', '--no-push')
 
+  if (dryRun) {
+    // So the dry-run can be exercised outside
+    // of the release branches lerna.json restricts in real publishes.
+    lernaArgs.push('--allow-branch', '**')
+  }
+
   const child = execa('pnpm', lernaArgs, {
     stdio: 'inherit',
   })
 
   await child
 
-  await createGitHubReleaseCommit(githubToken)
-
-  if (isCanary || isReleaseCandidate || isBeta) {
-    const releaseChild = execa(
-      'pnpm',
-      ['release', '--pre', '--skip-questions', '--show-url'],
-      {
-        stdio: 'inherit',
-      }
+  if (dryRun) {
+    console.log(
+      'Dry run: skipping GitHub-signed release commit and GitHub release creation'
     )
+  } else {
+    await createGitHubReleaseCommit(githubToken)
 
-    await releaseChild
+    if (isCanary || isReleaseCandidate || isBeta) {
+      const releaseChild = execa(
+        'pnpm',
+        ['release', '--pre', '--skip-questions', '--show-url'],
+        {
+          stdio: 'inherit',
+        }
+      )
+
+      await releaseChild
+    }
   }
 
   console.log('Release process is finished')

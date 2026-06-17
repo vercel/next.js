@@ -27,8 +27,7 @@
     "release": "ncc build ./src/index.ts -o ./dist/ --minify --no-cache --no-source-map-register",
     "build": "pnpm release && pnpm types",
     "test": "jest",
-    "test:watch": "jest --watch",
-    "prepublishOnly": "cd ../../ && turbo run build"
+    "test:watch": "jest --watch"
   },
   "devDependencies": {
     "@types/jest": "^29.5.0",
