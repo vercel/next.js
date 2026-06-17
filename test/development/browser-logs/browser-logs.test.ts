@@ -212,7 +212,7 @@ describe(`Terminal Logging (${bundlerName})`, () => {
     // browser-to-terminal log forwarding would otherwise replay back to the
     // CLI, duplicating the error. Only applies with Cache Components enabled.
     if (isCacheComponentsEnabled) {
-      it('logs the validation error on the server and forwards a duplicate from the browser', async () => {
+      it('logs the validation error on the server without re-logging the forwarded browser copy', async () => {
         const outputIndex = logs.length
 
         const browser = await next.browser('/cache-components-error', {
@@ -249,13 +249,13 @@ describe(`Terminal Logging (${bundlerName})`, () => {
 
         const output = logs.slice(outputIndex).join('')
 
-        // FIXME: The validation error appears twice in the terminal: once
-        // logged directly by the dev server, and once replayed from the browser
-        // via log forwarding. The forwarded copy should be suppressed so it
-        // only appears once.
+        // The validation error is logged directly by the dev server. It is also
+        // sent to the browser, which logs it to its own console, but the
+        // browser-to-terminal log forwarding skips it since it already
+        // originated on the server. It should therefore appear exactly once.
         const validationError =
           'Route "/cache-components-error": Next.js encountered the unstable value'
-        expect(output).toIncludeRepeated(validationError, 2)
+        expect(output).toIncludeRepeated(validationError, 1)
 
         await browser.close()
       })
