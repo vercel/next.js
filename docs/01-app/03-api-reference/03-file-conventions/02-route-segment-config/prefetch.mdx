@@ -9,7 +9,7 @@ related:
     - app/api-reference/file-conventions/route-segment-config/instant
 ---
 
-The `prefetch` route segment config controls how a segment is prefetched during client-side navigation. The default (`'auto'`) lets the framework manage the strategy based on the app's [`partialPrefetching`](/docs/app/api-reference/config/next-config-js/partialPrefetching) setting. The other options let you override the strategy per segment. Use them with care, since they can affect both navigation latency and prefetch cost.
+The `prefetch` route segment config controls how a segment is prefetched during client-side navigation. By default, the framework manages the strategy based on the app's [`partialPrefetching`](/docs/app/api-reference/config/next-config-js/partialPrefetching) setting. To override per segment, set this export to one of the values below.
 
 When you do set this export, consider pairing it with [`instant`](/docs/app/api-reference/file-conventions/route-segment-config/instant) so validation can confirm that navigations to this segment actually produce an instant UI from the prefetched data. This is especially important for runtime prefetching.
 
@@ -17,6 +17,7 @@ When you do set this export, consider pairing it with [`instant`](/docs/app/api-
 >
 > - The `prefetch` export only works when [`cacheComponents`](/docs/app/api-reference/config/next-config-js/cacheComponents) is enabled.
 > - `prefetch` cannot be used when the segment is a Client Component.
+> - The meaningful values to set are `'allow-runtime'`, `'partial'`, and `'force-disabled'`. `'auto'` is the default and is equivalent to omitting the export; don't write `prefetch = 'auto'` explicitly.
 
 ```tsx filename="layout.tsx | page.tsx" switcher
 export const prefetch = 'allow-runtime'
@@ -35,14 +36,6 @@ export default function Page() {
 ```
 
 ## Options
-
-### `'auto'` (default)
-
-Lets the framework manage prefetching for this segment based on the app's [`partialPrefetching`](/docs/app/api-reference/config/next-config-js/partialPrefetching) setting. To override per route, use [`'partial'`](#partial), [`'allow-runtime'`](#allow-runtime), or [`'force-disabled'`](#force-disabled).
-
-A future release will use [`instant`](/docs/app/api-reference/file-conventions/route-segment-config/instant) validation to choose between static and runtime prefetching automatically. Leaving the default in place means your app will pick up that improvement without code changes.
-
-You typically don't need to set this explicitly. Omitting the export has the same effect.
 
 ### `'allow-runtime'`
 
@@ -63,12 +56,6 @@ Use this for incremental adoption when you can't enable `partialPrefetching` for
 ```tsx filename="page.tsx"
 export const prefetch = 'partial'
 ```
-
-### `'force-static'`
-
-Always prefetch this segment statically, even if it has not been validated with `instant`. Use this when you know the segment produces a valid static shell but do not want to set up instant validation.
-
-> **Good to know**: `prefetch = 'force-static'` is distinct from [`dynamic = 'force-static'`](/docs/app/guides/caching-without-cache-components#dynamic). The `dynamic` config controls how a segment renders at request time; the `prefetch` config controls how it's prefetched ahead of navigation. They're independent.
 
 ### `'force-disabled'`
 
@@ -92,7 +79,6 @@ type Prefetch =
   | 'auto'
   | 'allow-runtime'
   | 'partial'
-  | 'force-static'
   | 'force-disabled'
 
 export const prefetch: Prefetch = 'allow-runtime'
