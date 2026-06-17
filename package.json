@@ -345,7 +345,7 @@
       "@modelcontextprotocol/sdk": "patches/@modelcontextprotocol__sdk.patch",
       "@vercel/blob": "patches/@vercel__blob.patch",
       "postcss-scss": "patches/postcss-scss.patch",
-      "playwright-core@1.58.2": "patches/playwright-core@1.58.2.patch"
+      "playwright-core@1.61.0": "patches/playwright-core@1.61.0.patch"
     }
   }
 }
