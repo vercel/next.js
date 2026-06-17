@@ -213,7 +213,7 @@ react_compiler_swc = { version = "0.1.5", package = "nextjs_react_compiler_swc" 
 react_compiler = { version = "0.1.5", package = "nextjs_react_compiler" }
 
 # SWC crates
-swc_core = { version = "68.1.0", default-features = false, features = [
+swc_core = { version = "69.0.0", default-features = false, features = [
   "ecma_loader_lru",
   "ecma_loader_parking_lot",
   "parallel_rayon",
@@ -225,13 +225,13 @@ testing = "24.0.0"
 # Keep consistent with preset_env_base through swc_core
 browserslist-rs = "0.19.0"
 mdxjs = "1.0.3"
-modularize_imports = "8.0.0"
-styled_components = "8.0.0"
-styled_jsx = "8.0.0"
-swc_emotion = "8.0.0"
-swc_relay = "8.0.0"
-react_remove_properties = "8.0.0"
-remove_console = "8.0.0"
+modularize_imports = "9.0.0"
+styled_components = "9.0.0"
+styled_jsx = "9.0.0"
+swc_emotion = "9.0.0"
+swc_relay = "9.0.0"
+react_remove_properties = "9.0.0"
+remove_console = "9.0.0"
 preset_env_base = "8.0.0"
 
 
