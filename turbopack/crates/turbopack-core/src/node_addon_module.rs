@@ -51,10 +51,19 @@ impl Module for NodeAddonModule {
 
     #[turbo_tasks::function]
     async fn references(&self) -> Result<Vc<ModuleReferences>> {
-        static SHARP_BINARY_REGEX: LazyLock<Regex> =
-            LazyLock::new(|| Regex::new("/sharp-(\\w+-\\w+).node$").unwrap());
+        static SHARP_PKG_REGEX: LazyLock<Regex> =
+            LazyLock::new(|| Regex::new(r"^@img/sharp-([\w-]+)/").unwrap());
         let ident = self.source.ident().await?;
         let module_path = &ident.path;
+
+        // Extract "darwin-arm64" from a path like
+        // node_modules/@img/sharp-darwin-arm64/lib/sharp-darwin-arm64-0.35.1.node
+        let sharp_package_arch = module_path
+            .path
+            .rsplit_once("node_modules/")
+            .and_then(|(.., p)| SHARP_PKG_REGEX.captures(p))
+            .and_then(|c| c.get(1))
+            .map(|m| m.as_str());
 
         // For most .node binaries, we usually assume that they are standalone dynamic library
         // binaries that get loaded by some `require` call. So the binary itself doesn't read any
@@ -63,9 +72,9 @@ impl Module for NodeAddonModule {
         // For sharp, that is not the case:
         // 1. `node_modules/sharp/lib/sharp.js` does `require("@img/sharp-${arch}/sharp.node")`
         //    which ends up resolving to ...
-        // 2. @img/sharp-darwin-arm64/lib/sharp-darwin-arm64.node. That is however a dynamic library
-        //    that uses the OS loader to load yet another binary (you can view these via `otool -L`
-        //    on macOS or `ldd` on Linux):
+        // 2. @img/sharp-darwin-arm64/lib/sharp-darwin-arm64-0.35.1.node. That is however a dynamic
+        //    library that uses the OS loader to load yet another binary (you can view these via
+        //    `otool -L` on macOS or `ldd` on Linux):
         // 3. @img/sharp-libvips-darwin-arm64/libvips.dylib
         //
         // We could either try to parse the binary and read these dependencies, or (as we do in the
@@ -73,16 +82,7 @@ impl Module for NodeAddonModule {
         //
         // The JS @vercel/nft implementation has a similar special case:
         // https://github.com/vercel/nft/blob/7e915aa02073ec57dc0d6528c419a4baa0f03d40/src/utils/special-cases.ts#L151-L181
-        if SHARP_BINARY_REGEX.is_match(&module_path.path) {
-            // module_path might be something like
-            // node_modules/@img/sharp-darwin-arm64/lib/sharp-darwin-arm64.node
-            let arch = SHARP_BINARY_REGEX
-                .captures(&module_path.path)
-                .unwrap()
-                .get(1)
-                .unwrap()
-                .as_str();
-
+        if let Some(arch) = sharp_package_arch {
             let package_name = format!("@img/sharp-libvips-{arch}");
             for folder in [
                 // This is the list of rpaths (lookup paths) of the shared library, at least on
