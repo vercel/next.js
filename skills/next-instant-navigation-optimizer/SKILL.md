@@ -25,6 +25,30 @@ references — `reference/patterns.md` (before→after for each blocker type) an
 and responsive-skeleton failure modes). Read one only when its phase points
 there.
 
+## What is invariant, and what is yours
+
+One thing here is fixed. The rest is yours. Read this before treating any
+command, platform, or env var below as a requirement.
+
+- **Invariant — the verification loop.** Maximizing the shell is worthless
+  unless you can prove it. The proof is an automated check: under a lock that
+  gates dynamic data, the static shell still commits. RED shows the gap, GREEN
+  shows it closed, the test ships as the regression guard. It must run on a
+  production-like build and must not be able to pass vacuously. Stand the loop
+  up once; every later optimization is then verifiable by construction. The
+  loop is the deliverable, not any one route.
+- **The mechanism — `@next/playwright` `instant()`.** This skill locks with
+  Next.js's own `instant()`: a ruler, not a stopwatch (phase A). It ships with
+  `next`, so it is not tied to any host. Keep it. Timing a navigation by hand
+  is too flaky to trust, and is the failure mode this skill exists to prevent.
+- **Yours — the rig.** How you build, deploy, authenticate, configure
+  Playwright, and loop belongs to your stack, not to this skill. A local
+  `next build && next start`, a CI/staging container, and a per-push preview
+  deploy are equally valid rigs; the verdict comes from the build, never the
+  platform. Phase 0 maps the invariant onto your repo. Read every platform
+  name, env-var spelling, and command below as an example to translate, not a
+  requirement.
+
 ## Two navigations, two loading states
 
 A route reaches the user in two ways. Both must be instant:
@@ -112,8 +136,12 @@ authenticates, and tests — inspect the repository first, and ask the user only
 what it cannot answer — then write the answers to a committed
 `instant-nav.rig.md`. Every later run reads that file instead of
 rediscovering. The six questions (BUILD / EXPOSE / RUN / TEST USER / DRIFT /
-LOOP), the file template, and filled examples (Vercel previews, generic CI +
-container, local-only) are in **`rig-template.md`**.
+LOOP), the file template, and filled examples (local-only, generic CI +
+container, preview deploy) are in **`rig-template.md`**.
+
+If the repo has no Playwright e2e harness yet, standing up a minimal one
+(`@next/playwright`, a config with `baseURL`, one authenticated path) is part
+of this step — the loop does not assume a pre-existing suite.
 
 ## A — RIG: a production build with the testing API exposed
 
@@ -333,8 +361,8 @@ three hold, you are not done.
 ## Files
 
 - `rig-template.md` — phase 0: the six-question rig discovery, the
-  `instant-nav.rig.md` template, and filled examples (Vercel, generic CI,
-  local-only).
+  `instant-nav.rig.md` template, and filled examples (local-only, generic CI,
+  preview deploy).
 - `test-template.md` — the shipped `instant()` specs for both navigation
   types (phase C), and the delete-before-PR baseline scaffold (phase B).
 - `reference/red-test-robustness.md` — the C-gate and phase F: the taxonomy of
