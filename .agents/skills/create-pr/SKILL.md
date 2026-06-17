@@ -70,9 +70,11 @@ Use this skill when turning local work into a GitHub pull request.
 Use this PR body format:
 
 ```markdown
+## Summary
+
 <what changed and why>
 
-### Verification
+## Verification
 
 - `<command that passed>`
 - Not run: `<command>` (`<reason>`)
