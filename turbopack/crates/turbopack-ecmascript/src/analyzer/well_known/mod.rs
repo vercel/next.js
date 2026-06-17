@@ -747,6 +747,28 @@ async fn well_known_object_member<'a>(
                 ));
             }
         },
+        WellKnownObjectKind::Navigator => match prop.as_str() {
+            Some("serviceWorker") => {
+                JsValue::WellKnownObject(WellKnownObjectKind::NavigatorServiceWorker)
+            }
+            _ => {
+                return Ok((
+                    JsValue::member(arena.get_or_default(), JsValue::WellKnownObject(kind), prop),
+                    false,
+                ));
+            }
+        },
+        WellKnownObjectKind::NavigatorServiceWorker => match prop.as_str() {
+            Some("register") => {
+                JsValue::WellKnownFunction(WellKnownFunctionKind::ServiceWorkerRegister)
+            }
+            _ => {
+                return Ok((
+                    JsValue::member(arena.get_or_default(), JsValue::WellKnownObject(kind), prop),
+                    false,
+                ));
+            }
+        },
         #[allow(unreachable_patterns)]
         _ => {
             return Ok((
