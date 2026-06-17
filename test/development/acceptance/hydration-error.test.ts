@@ -676,19 +676,9 @@ describe('Error overlay for hydration errors in Pages router', () => {
     })
 
     if (isReact18) {
-      await expect(browser).toDisplayRedbox(`
+      await expect(browser).toDisplayRedbox(
+        `
        [
-         {
-           "componentStack": "<Mismatch>
-       >   <div>
-             <Suspense>
-       >       <main>",
-           "description": "Expected server HTML to contain a matching <main> in <div>.",
-           "environmentLabel": null,
-           "label": "Runtime Error",
-           "source": null,
-           "stack": [],
-         },
          {
            "componentStack": "<Mismatch>
        >   <div>
@@ -707,8 +697,23 @@ describe('Error overlay for hydration errors in Pages router', () => {
            "source": null,
            "stack": [],
          },
+         {
+           "componentStack": "<Mismatch>
+       >   <div>
+             <Suspense>
+       >       <main>",
+           "description": "Expected server HTML to contain a matching <main> in <div>.",
+           "environmentLabel": null,
+           "label": "Runtime Error",
+           "source": null,
+           "stack": [],
+         },
        ]
-      `)
+      `,
+        // React can report these hydration errors in a non-deterministic order
+        // (the thrown error races `onRecoverableError`), so sort for stability.
+        { sortErrors: true }
+      )
     } else {
       await expect(browser).toDisplayRedbox(`
        {

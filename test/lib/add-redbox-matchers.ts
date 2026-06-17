@@ -73,6 +73,16 @@ declare global {
 
 interface ErrorSnapshotOptions {
   label?: boolean
+  /**
+   * When a Redbox shows multiple errors, React can surface them in a
+   * non-deterministic order. For example, during hydration a thrown
+   * "Runtime Error" races the `onRecoverableError` callbacks, so the same set
+   * of errors can appear in a different order between runs and flake the
+   * snapshot. Set this to sort the collected errors into a stable order (by
+   * their serialized content) before snapshotting. Only affects multi-error
+   * snapshots; single-error snapshots are unaffected.
+   */
+  sortErrors?: boolean
 }
 
 interface SanitizedCauseEntry {
@@ -322,6 +332,18 @@ export async function createRedboxSnapshot(
         `[data-nextjs-dialog-error-index="${errorIndex + 1}"]`
       )
     }
+  }
+
+  if (opts?.sortErrors) {
+    // The Redbox can surface multiple errors in a non-deterministic order
+    // (e.g. a thrown error racing `onRecoverableError` during hydration), which
+    // flakes order-sensitive snapshots. Sort by serialized content so the
+    // snapshot is stable regardless of the order React reports the errors in.
+    errorSnapshots.sort((a, b) => {
+      const aKey = JSON.stringify(a)
+      const bKey = JSON.stringify(b)
+      return aKey < bKey ? -1 : aKey > bKey ? 1 : 0
+    })
   }
 
   return errorSnapshots.length === 1
