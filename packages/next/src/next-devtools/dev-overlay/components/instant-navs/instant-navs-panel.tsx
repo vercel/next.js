@@ -87,7 +87,28 @@ function useInstantNavStatus(
   return getInstantNavStatus(cookieData, transientStatus)
 }
 
-const DURATION = 200
+const DURATION = 400
+
+function createPendingInstantNavCookie(): InstantCookie {
+  return [0, `p${Math.random()}`]
+}
+
+function setPendingInstantNavCookie(): void {
+  if (typeof cookieStore !== 'undefined') {
+    cookieStore.set({
+      name: COOKIE_NAME,
+      value: JSON.stringify(createPendingInstantNavCookie()),
+      path: '/',
+    })
+  }
+}
+
+function getCurrentLocationUrl(): string {
+  if (typeof window === 'undefined') {
+    return '/'
+  }
+  return window.location.pathname + window.location.search
+}
 
 function InstantNavContentTransition({
   status,
@@ -237,12 +258,11 @@ export function InstantNavsPanel() {
 
   // While we're waiting for a "Continue Rendering" -> restart to finish,
   // the cookie is briefly absent. Treat that window as pending so the
-  // panel keeps showing the "Awaiting navigation..." UI instead of
+  // panel keeps showing the "Waiting for navigation..." UI instead of
   // flickering back to idle.
   const status = useInstantNavStatus(cookieData)
   const contentStatus = getContentStatus(status)
   const isLocked = status !== 'idle'
-  const isPending = contentStatus === 'pending'
 
   const isClosing = panel !== 'instant-navs'
   const [displayStatus, setDisplayStatus] = useState(contentStatus)
@@ -251,57 +271,104 @@ export function InstantNavsPanel() {
     setDisplayStatus(contentStatus)
   }
 
-  const currentSpaSourceUrl =
+  const currentSpaFromUrl =
     cookieData?.state === 'spa' ? formatRoutePattern(cookieData.fromTree) : null
-  // Keep the most recent SPA source URL available while the outgoing card fades.
-  const [lastSpaSourceUrl, setLastSpaSourceUrl] = useState<string | null>(
-    currentSpaSourceUrl
+  const currentSpaToUrl =
+    cookieData?.state === 'spa' && cookieData.toTree !== null
+      ? formatRoutePattern(cookieData.toTree)
+      : null
+
+  // Keep the most recent SPA URLs available while the outgoing card fades.
+  const [lastSpaFromUrl, setLastSpaFromUrl] = useState<string | null>(
+    currentSpaFromUrl
+  )
+  const [lastSpaToUrl, setLastSpaToUrl] = useState<string | null>(
+    currentSpaToUrl
   )
 
-  if (
-    currentSpaSourceUrl !== null &&
-    currentSpaSourceUrl !== lastSpaSourceUrl
-  ) {
-    setLastSpaSourceUrl(currentSpaSourceUrl)
+  if (currentSpaFromUrl !== null && currentSpaFromUrl !== lastSpaFromUrl) {
+    setLastSpaFromUrl(currentSpaFromUrl)
   }
 
-  const spaSourceUrl = currentSpaSourceUrl ?? lastSpaSourceUrl
+  if (currentSpaToUrl !== null && currentSpaToUrl !== lastSpaToUrl) {
+    setLastSpaToUrl(currentSpaToUrl)
+  }
+
+  const spaFromUrl = currentSpaFromUrl ?? lastSpaFromUrl
+  const spaToUrl = currentSpaToUrl ?? lastSpaToUrl
+
+  async function continueRendering(): Promise<void> {
+    if (typeof cookieStore !== 'undefined') {
+      // Continue Rendering: delete the cookie (which releases the
+      // lock and triggers a soft refresh for real data via the lock
+      // listener), then restart capture for the next navigation by
+      // writing a fresh pending cookie. Chaining the writes keeps
+      // them as two ordered cookie events (delete -> refresh, then
+      // restart) rather than coalescing into one, so the refresh runs
+      // and snapshots the released lock before the restart re-acquires it.
+      setInstantNavTransientStatus('restarting')
+      const pendingCookie: InstantCookie = [0, `p${Math.random()}`]
+      await cookieStore.delete(COOKIE_NAME)
+      cookieStore.set({
+        name: COOKIE_NAME,
+        value: JSON.stringify(pendingCookie),
+        path: '/',
+      })
+    }
+  }
+
+  function togglePaused(): void {
+    if (isLocked) {
+      clearInstantNavCaptureCookie()
+    } else {
+      setPendingInstantNavCookie()
+    }
+  }
 
   const content: Record<InstantNavContentStatus, ReactNode> = {
-    idle: (
-      <p className="instant-nav-intro-description">
-        Inspect the UI that will show instantly to users as they navigate around
-        your app. Start capturing, then click any link or refresh the current
-        page.
-      </p>
-    ),
+    idle: null,
     pending: (
-      <div className="instant-nav-state-card instant-nav-state-card--awaiting">
-        <h3 className="instant-nav-state-title">Awaiting navigation...</h3>
-        <p className="instant-nav-state-description">
-          Click any link or refresh the page.
+      <div className="instant-nav-state instant-nav-state--pending">
+        <div className="instant-nav-waiting-status">
+          <span className="instant-nav-waiting-status-dot" />
+          <h3 className="instant-nav-waiting-status-title">
+            Waiting for navigation...
+          </h3>
+        </div>
+        <p className="instant-nav-waiting-description">
+          Click any link or refresh the page to inspect the shell.
         </p>
       </div>
     ),
     mpa: (
-      <div className="instant-nav-state-card">
-        <h3 className="instant-nav-state-title">Page load</h3>
-        <p className="instant-nav-state-description">
-          You're viewing the prerendered UI for the current page.
-        </p>
+      <div className="instant-nav-state">
+        <DebuggerPausedButton onClick={continueRendering} />
+        <div className="instant-nav-state-details">
+          <h3 className="instant-nav-state-title">Static shell</h3>
+          <p className="instant-nav-state-description">
+            You're viewing the shell for this page's initial load.
+          </p>
+          <UrlRow label="Target" value={getCurrentLocationUrl()} />
+        </div>
       </div>
     ),
     spa: (
-      <div className="instant-nav-state-card">
-        <h3 className="instant-nav-state-title">Navigation</h3>
-        <p className="instant-nav-state-description">
-          You're viewing the prefetched UI for the last navigation.
-        </p>
-        {spaSourceUrl !== null ? (
-          <p className="instant-nav-state-source-url" title={spaSourceUrl}>
-            Source URL: {spaSourceUrl}
+      <div className="instant-nav-state">
+        <DebuggerPausedButton onClick={continueRendering} />
+        <div className="instant-nav-state-details">
+          <h3 className="instant-nav-state-title">Client shell</h3>
+          <p className="instant-nav-state-description">
+            You're viewing the shell for the current navigation.
           </p>
-        ) : null}
+          <div className="instant-nav-state-url-list">
+            {spaFromUrl !== null ? (
+              <UrlRow label="Source" value={spaFromUrl} />
+            ) : null}
+            {spaToUrl !== null ? (
+              <UrlRow label="Target" value={spaToUrl} />
+            ) : null}
+          </div>
+        </div>
       </div>
     ),
   }
@@ -312,93 +379,87 @@ export function InstantNavsPanel() {
         <InstantNavContentTransition status={displayStatus}>
           {content}
         </InstantNavContentTransition>
-
-        <div className="instant-nav-capture-controls">
-          {isLocked ? (
-            <button
-              type="button"
-              className="instant-nav-capture-button instant-nav-capture-button--active"
-              onClick={() => {
-                // Delete the cookie to release the lock and end the capture session.
-                // The CookieStore change event triggers refreshOnInstantNavigationUnlock
-                // which does a soft refresh to fetch dynamic data.
-                clearInstantNavCaptureCookie()
-              }}
-            >
-              <StopIcon />
-              Stop Capturing
-            </button>
-          ) : (
-            <button
-              type="button"
-              className="instant-nav-capture-button"
-              onClick={() => {
-                if (typeof cookieStore !== 'undefined') {
-                  const cookie: InstantCookie = [0, `p${Math.random()}`]
-                  cookieStore.set({
-                    name: COOKIE_NAME,
-                    value: JSON.stringify(cookie),
-                    path: '/',
-                  })
-                }
-              }}
-            >
-              <RecordIcon />
-              Start Capturing
-            </button>
-          )}
-          <button
-            type="button"
-            className="instant-nav-capture-button instant-nav-capture-button--inline-icon"
-            onClick={() => {
-              if (typeof cookieStore !== 'undefined') {
-                // Continue Rendering: delete the cookie (which releases the
-                // lock and triggers a soft refresh for real data via the lock
-                // listener), then restart capture for the next navigation by
-                // writing a fresh pending cookie. Chaining the writes keeps
-                // them as two ordered cookie events (delete -> refresh, then
-                // restart) rather than coalescing into one, so the refresh runs
-                // and snapshots the released lock before the restart re-acquires it.
-                setInstantNavTransientStatus('restarting')
-                const pendingCookie: InstantCookie = [0, `p${Math.random()}`]
-                cookieStore.delete(COOKIE_NAME).then(() => {
-                  cookieStore.set({
-                    name: COOKIE_NAME,
-                    value: JSON.stringify(pendingCookie),
-                    path: '/',
-                  })
-                })
-              }
-            }}
-            disabled={!isLocked || isPending}
-          >
-            <PlayIcon />
-            Continue Rendering
-          </button>
-        </div>
       </div>
+      <PauseControl checked={isLocked} onClick={togglePaused} />
     </div>
   )
 }
 
-function RecordIcon() {
+function DebuggerPausedButton({ onClick }: { onClick: () => void }) {
+  return (
+    <div className="instant-nav-debugger-paused">
+      <InfoIcon />
+      <span>Debugger paused</span>
+      <button
+        type="button"
+        className="instant-nav-debugger-paused-button"
+        onClick={onClick}
+        aria-label="Continue rendering"
+      >
+        Resume
+        <PlayIcon />
+      </button>
+    </div>
+  )
+}
+
+function PauseControl({
+  checked,
+  onClick,
+}: {
+  checked: boolean
+  onClick: () => void
+}) {
+  return (
+    <div className="instant-nav-pause-control">
+      <div className="instant-nav-pause-copy">
+        <label htmlFor="instant-nav-pause-toggle">Pause on navigations</label>
+        <p>
+          When enabled, every navigation will pause so you can inspect the shell
+          before resuming.
+        </p>
+      </div>
+      <button
+        id="instant-nav-pause-toggle"
+        type="button"
+        role="switch"
+        aria-checked={checked}
+        aria-label="Pause on navigations"
+        className="instant-nav-pause-toggle"
+        onClick={onClick}
+      >
+        <span className="instant-nav-pause-toggle-thumb" />
+      </button>
+    </div>
+  )
+}
+
+function UrlRow({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="instant-nav-url-row">
+      <span className="instant-nav-url-label">{label}</span>
+      <span className="instant-nav-url-value" title={value}>
+        {value}
+      </span>
+    </div>
+  )
+}
+
+function InfoIcon() {
   return (
     <svg
-      width="20"
-      height="20"
       viewBox="0 0 16 16"
-      fill="none"
+      height="16"
+      width="16"
       aria-hidden="true"
+      style={{ color: 'currentcolor' }}
     >
-      <circle
-        cx="8"
-        cy="8"
-        r="6.25"
-        stroke="currentColor"
-        strokeWidth="1.5"
-        opacity="0.5"
-      />
-      <circle cx="8" cy="8" r="3.25" fill="currentColor" />
+      <path
+        fill="currentColor"
+        fillRule="evenodd"
+        d="M8 14.5a6.5 6.5 0 1 0 0-13 6.5 6.5 0 0 0 0 13M8 16A8 8 0 1 0 8 0a8 8 0 0 0 0 16M6.25 7h1.5a1 1 0 0 1 1 1v4.25h-1.5V8.5h-1zM8 6a1 1 0 1 0 0-2 1 1 0 0 0 0 2"
+        clipRule="evenodd"
+      ></path>
     </svg>
   )
 }
@@ -409,32 +470,11 @@ function PlayIcon() {
       xmlns="http://www.w3.org/2000/svg"
       viewBox="0 0 20 20"
       fill="currentColor"
-      width="14"
-      height="14"
-    >
-      <path d="M6.3 2.84A1.5 1.5 0 0 0 4 4.11v11.78a1.5 1.5 0 0 0 2.3 1.27l9.344-5.891a1.5 1.5 0 0 0 0-2.538L6.3 2.841Z" />
-    </svg>
-  )
-}
-
-function StopIcon() {
-  return (
-    <svg
-      width="20"
-      height="20"
-      viewBox="0 0 16 16"
-      fill="none"
+      width="12"
+      height="12"
       aria-hidden="true"
     >
-      <circle
-        cx="8"
-        cy="8"
-        r="6.25"
-        stroke="currentColor"
-        strokeWidth="1.5"
-        opacity="0.5"
-      />
-      <rect x="5.5" y="5.5" width="5" height="5" rx="1" fill="currentColor" />
+      <path d="M6.3 2.84A1.5 1.5 0 0 0 4 4.11v11.78a1.5 1.5 0 0 0 2.3 1.27l9.344-5.891a1.5 1.5 0 0 0 0-2.538L6.3 2.841Z" />
     </svg>
   )
 }
