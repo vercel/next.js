@@ -93,6 +93,22 @@ describe('Middleware Rewrite', () => {
       expect(json.headers['x-hello-from-middleware1']).toBe('hello')
     })
 
+    // Regression test for https://github.com/vercel/next.js/issues/94647.
+    it('should preserve rewrite query and dynamic params in Pages API routes', async () => {
+      const res = await next.fetch('/foo/bar?key=value')
+
+      expect(res.status).toBe(200)
+      expect(await res.json()).toEqual({
+        url: '/foo/bar?key=value',
+        query: {
+          key: 'value',
+          added: '1',
+          extra: '2',
+          slug: ['bar'],
+        },
+      })
+    })
+
     it('should handle static dynamic rewrite from middleware correctly', async () => {
       const browser = await next.browser('/rewrite-to-static')
 
