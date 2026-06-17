@@ -23,10 +23,6 @@ use crate::{
 
 const MIN_INITIAL_REPORT_SIZE: u64 = 100 * 1024 * 1024;
 
-/// Width to pad the in-place progress line to, so shorter updates fully
-/// overwrite the leftover characters of a previous, longer update.
-const LINE_CLEAR_WIDTH: usize = 100;
-
 trait TraceFormat {
     type Reused: Default;
     /// Create the initial reused buffer. Override to pre-allocate capacity.
@@ -265,39 +261,42 @@ impl TraceReader {
                             if self.store.want_to_read() {
                                 thread::yield_now();
                             }
-                            let prev_read = current_read;
                             current_read += bytes_read as u64;
                             if let Some((total, start)) = &mut initial_read {
-                                let old_mbs = prev_read / (97 * 1024 * 1024);
-                                let new_mbs = current_read / (97 * 1024 * 1024);
-                                if old_mbs != new_mbs {
-                                    let pos = file.stream_position().unwrap_or(current_read);
-                                    if pos > *total {
-                                        *total = file.size().unwrap_or(pos);
-                                    }
-                                    *total = (*total).max(pos);
-                                    let percentage = pos * 100 / *total;
-                                    let read = pos / (1024 * 1024);
-                                    let uncompressed = current_read / (1024 * 1024);
-                                    let total = *total / (1024 * 1024);
-                                    let stats = format.stats();
-                                    let mut line = format!(
-                                        "{}% read ({}/{} MB, {} MB/s)",
-                                        percentage,
-                                        read,
-                                        total,
-                                        read * 1000 / (start.elapsed().as_millis() + 1) as u64
-                                    );
-                                    if uncompressed != read {
-                                        line += &format!(" ({uncompressed} MB uncompressed)");
-                                    }
-                                    if !stats.is_empty() {
-                                        line += &format!(" - {stats}");
-                                    }
-
-                                    print!("\r{line:<width$}", width = LINE_CLEAR_WIDTH);
-                                    let _ = io::stdout().flush();
+                                let pos = file.stream_position().unwrap_or(current_read);
+                                if pos > *total {
+                                    *total = file.size().unwrap_or(pos);
                                 }
+                                *total = (*total).max(pos);
+                                let total_bytes = *total;
+                                let percentage = pos * 100 / total_bytes;
+                                let read = pos / (1024 * 1024);
+                                let uncompressed = current_read / (1024 * 1024);
+                                let total = total_bytes / (1024 * 1024);
+                                let elapsed_ms = start.elapsed().as_millis() as u64;
+                                let stats = format.stats();
+                                let rate_mbs = read * 1000 / (elapsed_ms + 1);
+                                let mut line = format!(
+                                    "{percentage}% read ({read}/{total} MB, {rate_mbs} MB/s)"
+                                );
+                                // Estimate remaining time by linearly extrapolating the
+                                // elapsed time over the bytes still to be read.
+                                if pos > 0 && pos < total_bytes {
+                                    let eta_s = elapsed_ms * (total_bytes - pos) / pos / 1000;
+                                    line += &format!(", ETA {eta_s}s");
+                                }
+                                if uncompressed != read {
+                                    line += &format!(" ({uncompressed} MB uncompressed)");
+                                }
+                                if !stats.is_empty() {
+                                    line += &format!(" - {stats}");
+                                }
+
+                                // `\r` returns to the start of the line and `\x1b[2K` erases
+                                // it, so a shorter update doesn't leave behind characters from
+                                // a longer previous one.
+                                print!("\r\x1b[2K{line}");
+                                let _ = io::stdout().flush();
                             }
                             if current_read >= stop_at {
                                 println!(
@@ -342,20 +341,22 @@ impl TraceReader {
             return Some(true);
         };
         if let Some((total, start)) = initial_read.take() {
-            // The last progress line was printed with a leading
-            // `\r` and no newline, so emit a newline first to keep the final
-            // messages on their own line instead of overwriting it.
-            println!();
-            if let Some(format) = format {
-                let stats = format.stats();
-                println!("{stats}");
-            }
+            // Erase the in-place progress line (printed with a leading `\r` and
+            // no newline); it's no longer useful once the read is complete.
+            print!("\r\x1b[2K");
+            let stats = format.map(|format| format.stats()).unwrap_or_default();
             if total > MIN_INITIAL_REPORT_SIZE {
-                println!(
-                    "Initial read completed ({} MB, {}s)",
+                let elapsed = (start.elapsed().as_millis() / 100) as f32 / 10.0;
+                print!(
+                    "Initial read completed ({} MB, {elapsed}s)",
                     total / (1024 * 1024),
-                    (start.elapsed().as_millis() / 100) as f32 / 10.0
                 );
+                if !stats.is_empty() {
+                    print!(" - {stats}");
+                }
+                println!();
+            } else if !stats.is_empty() {
+                println!("{stats}");
             }
         }
         loop {
