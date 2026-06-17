@@ -1053,6 +1053,25 @@ pub enum CssChunkingConfig {
     Object(CssChunkingObject),
 }
 
+#[derive(
+    Clone, Debug, PartialEq, Deserialize, TraceRawVcs, NonLocalValue, OperationValue, Encode, Decode,
+)]
+pub struct ContextConfig(
+    #[bincode(with = "turbo_bincode::indexmap")] FxIndexMap<RcStr, ContextConfigItem>,
+);
+
+#[derive(
+    Clone, Debug, PartialEq, Deserialize, TraceRawVcs, NonLocalValue, OperationValue, Encode, Decode,
+)]
+pub struct ContextConfigItem {
+    inherits: RcStr,
+    #[serde(default)]
+    resolve_conditions: Option<Vec<RcStr>>,
+    #[serde(default)]
+    #[bincode(with = "turbo_bincode::indexmap")]
+    rules: FxIndexMap<RcStr, RuleConfigCollection>,
+}
+
 /// String shorthand variants for [`CssChunkingConfig`].
 #[derive(
     Clone,
@@ -1215,6 +1234,8 @@ pub struct ExperimentalConfig {
     use_cache: Option<bool>,
     runtime_server_deployment_id: Option<bool>,
     supports_immutable_assets: Option<bool>,
+
+    turbopack_contexts: Option<ContextConfig>,
 
     /// A salt to mix into chunk and asset content hashes. Empty string means
     /// no salt.
