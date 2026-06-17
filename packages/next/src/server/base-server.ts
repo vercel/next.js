@@ -1720,7 +1720,7 @@ export default abstract class Server<
     const appPaths = this.appPathRoutes?.[pathname]
     if (!appPaths) return
 
-    const page = getAppPageRouteDefinitionPage(appPaths)
+    const page = getAppPageRouteDefinitionPage(pathname, appPaths)
     if (!isAppPageRoute(page)) return
 
     const filename = this.appPathsManifest?.[page]
@@ -2883,7 +2883,8 @@ export default abstract class Server<
 
     let page = pathname
     if (isAppPath) {
-      // the last item in the array is the root page, if there are parallel routes
+      // The definition identifies the app entry that owns this route. This can
+      // be a parallel slot when that slot defines the concrete pathname.
       page =
         match && isAppPageRouteDefinition(match.definition)
           ? match.definition.page

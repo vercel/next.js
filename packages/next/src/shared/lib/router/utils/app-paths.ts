@@ -71,13 +71,22 @@ export function compareAppPaths(a: string, b: string): number {
 
 /**
  * Returns the app path that owns the compiled entry for a normalized route.
- * This is distinct from the children page at the end of the array: parallel
- * route deployments may only include the module for this owning entry.
+ * Catch-all normalization can add app paths from other routes, so prefer the
+ * first path that directly normalizes to the requested pathname. When none do,
+ * fall back to the children/root path at the end of the array.
  */
 export function getAppPageRouteDefinitionPage(
-  appPaths: readonly string[]
+  pathname: string,
+  appPaths: readonly string[],
+  normalizePathname: (appPath: string) => string = normalizeAppPath
 ): string {
-  return appPaths[0]
+  for (const appPath of appPaths) {
+    if (normalizePathname(appPath) === pathname) {
+      return appPath
+    }
+  }
+
+  return appPaths[appPaths.length - 1]
 }
 
 /**

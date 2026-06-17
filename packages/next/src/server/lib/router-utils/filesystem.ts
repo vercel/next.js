@@ -453,7 +453,11 @@ export async function setupFsCheck(opts: {
     normalizeCatchAllRoutes(allAppPaths, appNormalizers.pathname)
     for (const [pathname, appPaths] of Object.entries(allAppPaths)) {
       appPaths.sort(compareAppPaths)
-      const page = getAppPageRouteDefinitionPage(appPaths)
+      const page = getAppPageRouteDefinitionPage(
+        pathname,
+        appPaths,
+        (appPath) => appNormalizers.pathname.normalize(appPath)
+      )
       setRouteDefinition('appFile', pathname, {
         kind: RouteKind.APP_PAGE,
         pathname,
