@@ -2,7 +2,17 @@ import { NEXT_REQUEST_ID_HEADER } from '../components/app-router-headers'
 import { InvariantError } from '../../shared/lib/invariant-error'
 
 export interface DebugChannelReadableWriterPair {
-  readonly readable: ReadableStream<Uint8Array>
+  /**
+   * The remaining, not-yet-handed-out copy of the request's debug stream. A
+   * request can be decoded more than once (the primary decode plus any stage
+   * extractions that re-parse a slice of the same response, see
+   * `decodeStageUntilBoundary`), and each decode needs its own reader. Every
+   * time a consumer asks for the readable we tee it and reassign this field to
+   * the remainder, so each consumer gets an independent branch. The remainder
+   * is only ever tee'd again, never read directly, so it retains every chunk
+   * from the start and replays the full stream into each new branch.
+   */
+  readable: ReadableStream<Uint8Array>
   readonly writer: WritableStreamDefaultWriter<Uint8Array>
 }
 
@@ -402,9 +412,13 @@ export function createDebugChannel(
     }
   }
 
-  const { readable } = getOrCreateDebugChannelReadableWriterPair(requestId)
+  const pair = getOrCreateDebugChannelReadableWriterPair(requestId)
+  // Hand out a fresh tee branch per consumer and keep the remainder for the
+  // next one (see the `readable` field doc above).
+  const [branch, rest] = pair.readable.tee()
+  pair.readable = rest
 
-  return { readable }
+  return { readable: branch }
 }
 
 /**
