@@ -20,6 +20,7 @@ function getAssetSuffixFromScriptSrc() {
 type ChunkResolver = {
   resolved: boolean
   loadingStarted: boolean
+  retryAttempts: number
   resolve: () => void
   reject: (error?: Error) => void
   promise: Promise<any>
@@ -88,6 +89,7 @@ const chunkResolvers: Map<ChunkUrl, ChunkResolver> = new Map()
       resolver = {
         resolved: false,
         loadingStarted: false,
+        retryAttempts: 0,
         promise,
         resolve: () => {
           resolver!.resolved = true
@@ -98,6 +100,56 @@ const chunkResolvers: Map<ChunkUrl, ChunkResolver> = new Map()
       chunkResolvers.set(chunkUrl, resolver)
     }
     return resolver
+  }
+
+  /**
+   * Rejects a chunk resolver and drops it from the cache.
+   * We don't want to cache failed chunk loads: a later
+   * request for the same chunk should try again.
+   */
+  function rejectChunkResolver(
+    chunkUrl: ChunkUrl,
+    resolver: ChunkResolver,
+    error?: Error
+  ) {
+    if (chunkResolvers.get(chunkUrl) === resolver) {
+      chunkResolvers.delete(chunkUrl)
+    }
+    resolver.reject(error)
+  }
+
+  function getChunkLoadRetryDelayMs() {
+    const jitter = Math.floor(
+      Math.random() * (CHUNK_LOAD_RETRY_MAX_JITTER_MS + 1)
+    )
+    return CHUNK_LOAD_RETRY_BASE_DELAY_MS + jitter
+  }
+
+  /**
+   * Handles a failed chunk load: retries the load once after a short delay.
+   */
+  function onChunkLoadError(
+    sourceType: SourceType,
+    chunkUrl: ChunkUrl,
+    resolver: ChunkResolver,
+    error?: Error
+  ) {
+    if (
+      resolver.retryAttempts >= CHUNK_LOAD_RETRY_MAX_ATTEMPTS ||
+      chunkResolvers.get(chunkUrl) !== resolver
+    ) {
+      rejectChunkResolver(chunkUrl, resolver, error)
+      return
+    }
+
+    resolver.retryAttempts++
+    setTimeout(() => {
+      if (resolver.resolved || chunkResolvers.get(chunkUrl) !== resolver) {
+        return
+      }
+      resolver.loadingStarted = false
+      doLoadChunk(sourceType, chunkUrl)
+    }, getChunkLoadRetryDelayMs())
   }
 
   /**
@@ -134,7 +186,11 @@ const chunkResolvers: Map<ChunkUrl, ChunkResolver> = new Map()
         // ignore
       } else if (isJs(chunkUrl)) {
         self.TURBOPACK_NEXT_CHUNK_URLS!.push(chunkUrl)
-        importScripts(chunkUrl)
+        try {
+          importScripts(chunkUrl)
+        } catch (error) {
+          onChunkLoadError(sourceType, chunkUrl, resolver, error as Error)
+        }
       } else {
         throw new Error(
           `can't infer type of chunk from URL ${chunkUrl} in worker`
@@ -158,7 +214,9 @@ const chunkResolvers: Map<ChunkUrl, ChunkResolver> = new Map()
           link.crossOrigin = CROSS_ORIGIN
           link.href = chunkUrl
           link.onerror = () => {
-            resolver.reject()
+            // Drop the failed tag so a retry can re-add it cleanly.
+            link.remove()
+            onChunkLoadError(sourceType, chunkUrl, resolver)
           }
           link.onload = () => {
             // CSS chunks do not register themselves, and as such must be marked as
@@ -176,9 +234,15 @@ const chunkResolvers: Map<ChunkUrl, ChunkResolver> = new Map()
           // There is this edge where the script already failed loading, but we
           // can't detect that. The Promise will never resolve in this case.
           for (const script of Array.from(previousScripts)) {
-            script.addEventListener('error', () => {
-              resolver.reject()
-            })
+            script.addEventListener(
+              'error',
+              () => {
+                // Drop the failed tag so a retry can re-add it cleanly.
+                script.remove()
+                onChunkLoadError(sourceType, chunkUrl, resolver)
+              },
+              { once: true }
+            )
           }
         } else {
           const script = document.createElement('script')
@@ -188,7 +252,9 @@ const chunkResolvers: Map<ChunkUrl, ChunkResolver> = new Map()
           // which happens in `registerChunk`. Hence the absence of `resolve()` in
           // this branch.
           script.onerror = () => {
-            resolver.reject()
+            // Drop the failed tag so a retry can re-add it cleanly.
+            script.remove()
+            onChunkLoadError(sourceType, chunkUrl, resolver)
           }
           // Append to the `head` for webpack compatibility.
           document.head.appendChild(script)
