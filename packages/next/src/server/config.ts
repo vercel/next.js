@@ -1769,15 +1769,13 @@ export default async function loadConfig(
   dir: string,
   opts: LoadConfigOptions = {}
 ): Promise<NextConfigComplete> {
-  const startTimeNanos = process.hrtime.bigint()
-  // Intentionally not in a `finally`: if evaluation throws, the user already
-  // gets a "Failed to load" error, so reporting how long the failed attempt
-  // took on top of that is just noise.
+  // Test for an explicit `silent == false` since the default in loadConfig is true
+  const logTiming = opts.silent === false
+  const startTimeNanos = logTiming ? process.hrtime.bigint() : undefined
   const [config, meta] = await loadConfigImpl(phase, dir, opts)
 
-  // Test for an explicit `silent == false` since the default in loadConfig is true
-  if (!meta.cacheHit && opts.silent === false) {
-    const durationNanos = process.hrtime.bigint() - startTimeNanos
+  if (!meta.cacheHit && logTiming) {
+    const durationNanos = process.hrtime.bigint() - startTimeNanos!
     Log.event(
       `Running ${meta.configFileName ?? 'next.config'} took ${hrtimeBigIntDurationToString(durationNanos)}`
     )
