@@ -5,23 +5,24 @@ import stripAnsi from 'strip-ansi'
 ;(process.env.IS_TURBOPACK_TEST ? describe : describe.skip)(
   'build-tracing-message',
   () => {
-    const { next } = nextTestSetup({
-      files: __dirname,
-      skipStart: true,
-    })
+    describe('default', () => {
+      const { next } = nextTestSetup({
+        files: __dirname,
+        skipStart: true,
+      })
 
-    it('should warn when tracing all files in the project', async () => {
-      const { exitCode } = await next.build()
-      expect(exitCode).toBe(0)
+      it('should warn when tracing all files in the project', async () => {
+        const { exitCode } = await next.build()
+        expect(exitCode).toBe(0)
 
-      let output = next.cliOutput
-        .slice(
-          next.cliOutput.indexOf('Turbopack build encountered'),
-          next.cliOutput.indexOf('✓ Compiled successfully')
-        )
-        .trim()
+        let output = next.cliOutput
+          .slice(
+            next.cliOutput.indexOf('Turbopack build encountered'),
+            next.cliOutput.indexOf('✓ Compiled successfully')
+          )
+          .trim()
 
-      expect(stripAnsi(output)).toMatchInlineSnapshot(`
+        expect(stripAnsi(output)).toMatchInlineSnapshot(`
        "Turbopack build encountered 1 warning:
        ./app/join-cwd.js:4:10
        Warning: Dynamic filesystem access causes tracing of the whole project
@@ -46,6 +47,26 @@ import stripAnsi from 'strip-ansi'
            ./app/join-cwd.js
            ./app/page.js"
       `)
+      })
+    })
+
+    describe('output: export', () => {
+      const { next } = nextTestSetup({
+        files: __dirname,
+        skipStart: true,
+        overrideFiles: {
+          'next.config.js': `module.exports = { output: 'export' }`,
+        },
+      })
+
+      it('should not warn', async () => {
+        const { exitCode } = await next.build()
+        expect(exitCode).toBe(0)
+
+        expect(next.cliOutput).not.toContain(
+          'Dynamic filesystem access causes tracing of the whole project'
+        )
+      })
     })
   }
 )

@@ -386,14 +386,7 @@ pub async fn get_client_module_options_context(
                 .await?,
         ),
         keep_last_successful_parse: next_mode.is_development(),
-        analyze_mode: if next_mode.is_development() {
-            AnalyzeMode::CodeGeneration
-        } else {
-            // Technically, this doesn't need to tracing for the client context. But this will
-            // result in more cache hits for the analysis for modules which are loaded for both ssr
-            // and client
-            AnalyzeMode::CodeGenerationAndTracing
-        },
+        analyze_mode: AnalyzeMode::CodeGeneration,
         ..Default::default()
     };
 
