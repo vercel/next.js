@@ -546,30 +546,6 @@ function assignDefaultsAndValidate(
     )
   }
 
-  // `useExperimentalReact` only opts *into* React's experimental channel; it
-  // cannot opt out of it when another feature (e.g. `taint`) structurally
-  // requires it — those APIs only exist in the experimental React build. Warn
-  // so an explicit `false` here doesn't look like it was silently ignored.
-  if (result.experimental.useExperimentalReact === false) {
-    const dependents: string[] = []
-    if (result.experimental.taint) {
-      dependents.push('`experimental.taint`')
-    }
-    if (result.experimental.transitionIndicator) {
-      dependents.push('`experimental.transitionIndicator`')
-    }
-    if (result.experimental.gestureTransition) {
-      dependents.push('`experimental.gestureTransition`')
-    }
-    if (dependents.length > 0) {
-      Log.warn(
-        `\`experimental.useExperimentalReact\` is set to \`false\`, but ${dependents.join(
-          ', '
-        )} require React's experimental channel, so it remains enabled.`
-      )
-    }
-  }
-
   if (result.experimental.appShells) {
     // App Shells is tested in combination with the experimental flags it
     // expects to ship alongside. All of these are on track to become

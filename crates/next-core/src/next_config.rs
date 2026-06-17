@@ -1269,7 +1269,10 @@ pub struct ExperimentalConfig {
     swc_trace_profiling: Option<bool>,
     transition_indicator: Option<bool>,
     gesture_transition: Option<bool>,
-    use_experimental_react: Option<bool>,
+    // `rename_all = "camelCase"` would lowercase the acronym to `blockingSsr`;
+    // rename explicitly so it deserializes from the public `blockingSSR` field.
+    #[serde(rename = "blockingSSR")]
+    blocking_ssr: Option<bool>,
     /// @internal Used by the Next.js internals only.
     trust_host_header: Option<bool>,
 
@@ -2225,8 +2228,8 @@ impl NextConfig {
     }
 
     #[turbo_tasks::function]
-    pub fn enable_use_experimental_react(&self) -> Vc<bool> {
-        Vc::cell(self.experimental.use_experimental_react.unwrap_or(false))
+    pub fn enable_blocking_ssr(&self) -> Vc<bool> {
+        Vc::cell(self.experimental.blocking_ssr.unwrap_or(false))
     }
 
     #[turbo_tasks::function]
