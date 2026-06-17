@@ -635,6 +635,7 @@ jobs:
       - run: ./scripts/publish-release.js
         env:
           RELEASE_GITHUB_TOKEN: ${{ steps.release-app-token.outputs.token }}
+          BAIL_ON_NATIVE_WASM_PUBLISH_FAILURE: ${{ vars.BAIL_ON_NATIVE_WASM_PUBLISH_FAILURE }}
 
       - name: Upload pnpm publish summary
         if: always()
