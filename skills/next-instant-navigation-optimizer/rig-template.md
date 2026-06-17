@@ -62,7 +62,7 @@ build/run obstacles, accumulated as you first hit them).
    `/healthz` route or a response header — or fall back to polling the deploy
    platform's API for the deployment whose `commitSha === HEAD`. Record the
    chosen mechanism. For a local `build && start` rig the artifact is the one
-   just built, so no probe is needed.
+   freshly built, so no probe is needed.
 
 ## The file — copy, fill, commit as `instant-nav.rig.md`
 
