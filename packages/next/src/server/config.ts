@@ -1775,9 +1775,9 @@ export default async function loadConfig(
   // took on top of that is just noise.
   const [config, meta] = await loadConfigImpl(phase, dir, opts)
 
-  const durationNanos = process.hrtime.bigint() - startTimeNanos
-  // Test for an explicit `silent == false` since the deffault in loadConfig is true
+  // Test for an explicit `silent == false` since the default in loadConfig is true
   if (!meta.cacheHit && opts.silent === false) {
+    const durationNanos = process.hrtime.bigint() - startTimeNanos
     Log.event(
       `Running ${meta.configFileName ?? 'next.config'} took ${hrtimeBigIntDurationToString(durationNanos)}`
     )
