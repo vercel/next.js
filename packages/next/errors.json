@@ -1364,5 +1364,6 @@
   "1363": "\\`experimental.turbopackRustReactCompiler\\` is only supported with Turbopack. Please remove the option or run Next.js with Turbopack in %s.",
   "1364": "\\`experimental.turbopackRustReactCompiler\\` requires \\`reactCompiler\\` to be enabled. Please add \\`reactCompiler: true\\` in %s.",
   "1365": "Expected a dev tiered cache handler for kind \"%s\".",
-  "1366": "Turbopack build failed with %s %s:\\n%s"
+  "1366": "Turbopack build failed with %s %s:\\n%s",
+  "1367": "createServerParamsForRoute should not be called in runtime prerenders."
 }

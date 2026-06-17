@@ -172,14 +172,8 @@ export function createServerParamsForRoute(
           'createServerParamsForRoute should not be called inside generateStaticParams.'
         )
       case 'prerender-runtime': {
-        // Route params are not runtime prefetchable
-        const isRuntimePrefetchable = false
-        return createRuntimePrerenderParams(
-          underlyingParams,
-          null,
-          workUnitStore,
-          varyParamsAccumulator,
-          isRuntimePrefetchable
+        throw new InvariantError(
+          'createServerParamsForRoute should not be called in runtime prerenders.'
         )
       }
       case 'request':
@@ -337,48 +331,47 @@ function createStaticPrerenderParams(
 ): Promise<Params> {
   switch (prerenderStore.type) {
     case 'prerender': {
+      let userspaceParams = underlyingParams
+      if (varyParamsAccumulator !== null) {
+        userspaceParams = createVaryingParams(
+          varyParamsAccumulator,
+          underlyingParams,
+          optionalCatchAllParamName
+        )
+      }
+
+      if (isEmptyParams(underlyingParams)) {
+        // This route has no params.
+        return makeUntrackedParams(userspaceParams)
+      }
+
       const fallbackParams = prerenderStore.fallbackRouteParams
-      if (fallbackParams) {
-        for (const key in underlyingParams) {
-          if (fallbackParams.has(key)) {
-            // This params object has one or more fallback params, so we need
-            // to consider the awaiting of this params object "dynamic". Since
-            // we are in cacheComponents mode we encode this as a promise that never
-            // resolves.
-            return makeHangingParams(
-              underlyingParams,
-              workStore,
-              prerenderStore
-            )
-          }
+      if (hasFallbackRouteParams(underlyingParams, fallbackParams)) {
+        // This params object has one or more fallback params, so we need
+        // to consider the awaiting of this params object dynamic.
+        return makeHangingParams(underlyingParams, workStore, prerenderStore)
+      }
+
+      // All params are static.
+
+      const { stagedRendering } = prerenderStore
+      if (process.env.__NEXT_APP_SHELLS && stagedRendering) {
+        // Even if all params are static, we need to exclude them from the app shell
+        // by delaying them to the static stage. However, root params are allowed in shells,
+        // so if all the params are root params, they can be included as well.
+        if (
+          !allParamsAreRootParams(underlyingParams, prerenderStore.rootParams)
+        ) {
+          return stagedRendering.delayUntilStage(
+            // static prerenders don't distinguish early/late, this is just for consistency.
+            RENDER_STAGES_BY_DATA_KIND.staticLinkData.late,
+            'params',
+            userspaceParams
+          )
         }
       }
 
-      // Even if all params are static, we need to exclude them from the shell
-      // by delaying them to the static stage. This includes root params.
-      const { stagedRendering } = prerenderStore
-      if (
-        process.env.__NEXT_APP_SHELLS &&
-        stagedRendering &&
-        !isEmptyParams(underlyingParams)
-      ) {
-        const underlyingParamsWithVarying =
-          varyParamsAccumulator !== null
-            ? createVaryingParams(
-                varyParamsAccumulator,
-                underlyingParams,
-                optionalCatchAllParamName
-              )
-            : underlyingParams
-
-        return stagedRendering.delayUntilStage(
-          // static prerenders don't distinguish early/late, this is just for consistency.
-          RENDER_STAGES_BY_DATA_KIND.staticLinkData.late,
-          'params',
-          underlyingParamsWithVarying
-        )
-      }
-      break
+      return makeUntrackedParams(userspaceParams)
     }
     case 'prerender-client': {
       const fallbackParams = prerenderStore.fallbackRouteParams
@@ -421,15 +414,15 @@ function createStaticPrerenderParams(
       prerenderStore satisfies never
   }
 
-  const underlyingParamsWithVarying =
-    varyParamsAccumulator !== null
-      ? createVaryingParams(
-          varyParamsAccumulator,
-          underlyingParams,
-          optionalCatchAllParamName
-        )
-      : underlyingParams
-  return makeUntrackedParams(underlyingParamsWithVarying)
+  let userspaceParams = underlyingParams
+  if (varyParamsAccumulator !== null) {
+    userspaceParams = createVaryingParams(
+      varyParamsAccumulator,
+      underlyingParams,
+      optionalCatchAllParamName
+    )
+  }
+  return makeUntrackedParams(userspaceParams)
 }
 
 function createRuntimePrerenderParams(
@@ -439,26 +432,34 @@ function createRuntimePrerenderParams(
   varyParamsAccumulator: VaryParamsAccumulator | null,
   isRuntimePrefetchable: boolean
 ): Promise<Params> {
-  const underlyingParamsWithVarying =
-    varyParamsAccumulator !== null
-      ? createVaryingParams(
-          varyParamsAccumulator,
-          underlyingParams,
-          optionalCatchAllParamName
-        )
-      : underlyingParams
+  let userspaceParams = underlyingParams
+  if (varyParamsAccumulator !== null) {
+    userspaceParams = createVaryingParams(
+      varyParamsAccumulator,
+      underlyingParams,
+      optionalCatchAllParamName
+    )
+  }
 
-  const result = makeUntrackedParams(underlyingParamsWithVarying)
+  if (isEmptyParams(underlyingParams)) {
+    // This route has no params.
+    return makeUntrackedParams(userspaceParams)
+  }
+
   const { stagedRendering } = workUnitStore
   if (!stagedRendering) {
     // If there's no staging, we're in a prospective runtime prerender,
     // and it doesn't matter when params resolve.
-    return result
+    return makeUntrackedParams(userspaceParams)
   }
 
-  // if the params are empty, there's nothing to delay
-  if (isEmptyParams(underlyingParams)) {
-    return result
+  // We don't have fallbackParams in runtime prerenders, so we don't know
+  // when params are static. However, root params are static by definition,
+  // so we can at least check for that.
+  // Note that resolving them without a delay is also valid in `appShells`,
+  // because root params are allowed in shells.
+  if (allParamsAreRootParams(underlyingParams, workUnitStore.rootParams)) {
+    return makeUntrackedParams(userspaceParams)
   }
 
   // Semantically, we should resolve static params in the static stage.
@@ -466,7 +467,7 @@ function createRuntimePrerenderParams(
   // so we delay all params until the runtime stage instead.
   const paramsStages = RENDER_STAGES_BY_DATA_KIND.runtimeLinkData
   const stage = isRuntimePrefetchable ? paramsStages.early : paramsStages.late
-  return stagedRendering.waitForStage(stage).then(() => result)
+  return stagedRendering.delayUntilStage(stage, 'params', userspaceParams)
 }
 
 function createRenderParamsForPage(
@@ -564,28 +565,14 @@ function createStagedRenderParamsImpl(
   userspaceParams: Params,
   isRuntimePrefetchable: boolean
 ) {
-  const hasFallbackParams = hasFallbackRouteParams(
-    underlyingParams,
-    workUnitStore.fallbackParams
-  )
-
-  // If we're rendering with shells, even static params must be delayed to exclude them from the shell.
-  // For a dynamic request we generally want a static shell (session shells come from a separate render).
-  if (
-    process.env.__NEXT_APP_SHELLS &&
-    // Params are non-empty, and there's no fallback params, so all params are static
-    !isEmptyParams(underlyingParams) &&
-    !hasFallbackParams
-  ) {
-    const staticParamsStages = RENDER_STAGES_BY_DATA_KIND.staticLinkData
-    const stage = isRuntimePrefetchable
-      ? staticParamsStages.early
-      : staticParamsStages.late
-    return stagedRendering.delayUntilStage(stage, 'params', userspaceParams)
+  // If the route has no params, they should resolve immediately.
+  if (isEmptyParams(underlyingParams)) {
+    return makeUntrackedParams(userspaceParams)
   }
 
-  // Otherwise, only delay if we have fallback params
-  if (hasFallbackParams) {
+  // If we have fallback params, then they should always resolve in the runtime link data stage.
+  // We do this indirectly via the shared params parent for better debug info.
+  if (hasFallbackRouteParams(underlyingParams, workUnitStore.fallbackParams)) {
     return createParamsPromiseFromTrigger(
       isRuntimePrefetchable
         ? asyncApiPromises.earlySharedParamsParent
@@ -594,7 +581,34 @@ function createStagedRenderParamsImpl(
     )
   }
 
+  // All params are static.
+
+  // If we're rendering with shells, even static params must be delayed to exclude them from the shell.
+  // However, root params are allowed in shells, so if all the params are root params, they can be included as well.
+  if (
+    process.env.__NEXT_APP_SHELLS &&
+    !allParamsAreRootParams(underlyingParams, workUnitStore.rootParams)
+  ) {
+    // For a dynamic request we generally want to recover a static shell,
+    // so static params can resolve in the static stage.
+    // Session shells are handled with a separate render.
+    const staticParamsStages = RENDER_STAGES_BY_DATA_KIND.staticLinkData
+    const stage = isRuntimePrefetchable
+      ? staticParamsStages.early
+      : staticParamsStages.late
+    return stagedRendering.delayUntilStage(stage, 'params', userspaceParams)
+  }
+
   return makeUntrackedParams(userspaceParams)
+}
+
+function allParamsAreRootParams(underlyingParams: Params, rootParams: Params) {
+  for (const paramName in underlyingParams) {
+    if (!Object.hasOwn(rootParams, paramName)) {
+      return false
+    }
+  }
+  return true
 }
 
 function createParamsPromiseFromTrigger(

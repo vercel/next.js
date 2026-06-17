@@ -34,7 +34,6 @@ import {
   getCacheSignal,
   isHmrRefresh,
   getServerComponentsHmrCache,
-  getStagedRenderingController,
 } from '../app-render/work-unit-async-storage.external'
 
 import {
@@ -42,8 +41,6 @@ import {
   makeDevtoolsIOAwarePromise,
   makeHangingPromise,
   getSessionDataStage,
-  getRuntimeLinkDataStage,
-  getStaticLinkDataStage,
 } from '../dynamic-rendering-utils'
 
 import type { ClientReferenceManifest } from '../../build/webpack/plugins/flight-manifest-plugin'
@@ -2434,51 +2431,6 @@ export async function cache(
               break
             default:
               workUnitStore satisfies never
-          }
-        }
-
-        // If we're doing staged rendering with shells and the cache accessed root params,
-        // we should exclude it from the shell, because root params are also excluded.
-        const stagedRendering = getStagedRenderingController(workUnitStore)
-        if (
-          process.env.__NEXT_APP_SHELLS &&
-          stagedRendering &&
-          rootParams &&
-          rdcResult.readRootParamNames &&
-          rdcResult.readRootParamNames.size > 0
-        ) {
-          switch (workUnitStore.type) {
-            case 'prerender': {
-              await stagedRendering.waitForStage(
-                getStaticLinkDataStage(stagedRendering)
-              )
-              break
-            }
-            case 'prerender-runtime': {
-              // If we're rendering with shells, this is when params should resolve
-              await stagedRendering.waitForStage(
-                getRuntimeLinkDataStage(stagedRendering)
-              )
-              break
-            }
-            case 'request': {
-              // For a staged dynamic request, assume we're recovering a static shell --
-              // If a session shell is needed, we do it in a separate render
-              await stagedRendering.waitForStage(
-                getStaticLinkDataStage(stagedRendering)
-              )
-              break
-            }
-            case 'cache':
-            case 'private-cache':
-            case 'prerender-legacy':
-            case 'prerender-ppr':
-            case 'generate-static-params': {
-              break
-            }
-            default: {
-              workUnitStore satisfies never
-            }
           }
         }
       }

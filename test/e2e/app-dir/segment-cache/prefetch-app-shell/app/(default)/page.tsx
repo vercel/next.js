@@ -1,5 +1,5 @@
 import Link from 'next/link'
-import { LinkAccordion } from '../components/link-accordion'
+import { LinkAccordion } from '../../components/link-accordion'
 
 export default function Page() {
   return (
