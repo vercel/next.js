@@ -905,6 +905,109 @@ pub enum LoaderItem {
     LoaderOptions(WebpackLoaderItem),
 }
 
+/// Convert a map of glob -> [`RuleConfigCollection`] (as used by both `turbopack.rules` and
+/// per-context `turbopackContexts.<name>.rules`) into Turbopack's [`WebpackRules`] representation.
+///
+/// `config` is only used to resolve the config file path for diagnostics emitted on invalid rules.
+pub(crate) async fn rule_collections_to_webpack_rules(
+    config: Vc<NextConfig>,
+    project_path: &FileSystemPath,
+    turbo_rules: &FxIndexMap<RcStr, RuleConfigCollection>,
+) -> Result<Vec<(RcStr, LoaderRuleItem)>> {
+    fn transform_loaders(
+        loaders: &mut dyn Iterator<Item = &LoaderItem>,
+    ) -> ResolvedVc<WebpackLoaderItems> {
+        ResolvedVc::cell(
+            loaders
+                .map(|item| match item {
+                    LoaderItem::LoaderName(name) => WebpackLoaderItem {
+                        loader: name.clone(),
+                        options: Default::default(),
+                    },
+                    LoaderItem::LoaderOptions(options) => options.clone(),
+                })
+                .collect(),
+        )
+    }
+
+    let mut rules = Vec::new();
+    for (glob, rule_collection) in turbo_rules.iter() {
+        for item in &rule_collection.0 {
+            match item {
+                RuleConfigCollectionItem::Shorthand(loaders) => {
+                    rules.push((
+                        glob.clone(),
+                        LoaderRuleItem {
+                            loaders: transform_loaders(&mut [loaders].into_iter()),
+                            rename_as: None,
+                            condition: None,
+                            module_type: None,
+                        },
+                    ));
+                }
+                RuleConfigCollectionItem::Full(RuleConfigItem {
+                    loaders,
+                    rename_as,
+                    condition,
+                    module_type,
+                }) => {
+                    // If the extension contains a wildcard, and the rename_as does not,
+                    // emit an issue to prevent users from encountering duplicate module
+                    // names.
+                    if glob.contains("*")
+                        && let Some(rename_as) = rename_as.as_ref()
+                        && !rename_as.contains("*")
+                    {
+                        InvalidLoaderRuleRenameAsIssue {
+                            glob: glob.clone(),
+                            config_file_path: config
+                                .config_file_path(project_path.clone())
+                                .owned()
+                                .await?,
+                            rename_as: rename_as.clone(),
+                        }
+                        .resolved_cell()
+                        .emit();
+                    }
+
+                    // convert from Next.js-specific condition type to internal Turbopack
+                    // condition type
+                    let condition = if let Some(condition) = condition {
+                        match ConditionItem::try_from(condition.clone()) {
+                            Ok(cond) => Some(cond),
+                            Err(err) => {
+                                InvalidLoaderRuleConditionIssue {
+                                    error_string: RcStr::from(err.to_string()),
+                                    condition: condition.clone(),
+                                    config_file_path: config
+                                        .config_file_path(project_path.clone())
+                                        .owned()
+                                        .await?,
+                                }
+                                .resolved_cell()
+                                .emit();
+                                None
+                            }
+                        }
+                    } else {
+                        None
+                    };
+                    rules.push((
+                        glob.clone(),
+                        LoaderRuleItem {
+                            loaders: transform_loaders(&mut loaders.iter()),
+                            rename_as: rename_as.clone(),
+                            condition,
+                            module_type: module_type.clone(),
+                        },
+                    ));
+                }
+            }
+        }
+    }
+    Ok(rules)
+}
+
 #[turbo_tasks::value(operation)]
 #[derive(Copy, Clone, Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -1054,15 +1157,34 @@ pub enum CssChunkingConfig {
 }
 
 #[derive(
-    Clone, Debug, PartialEq, Deserialize, TraceRawVcs, NonLocalValue, OperationValue, Encode, Decode,
+    Clone,
+    Debug,
+    PartialEq,
+    Eq,
+    Deserialize,
+    TraceRawVcs,
+    NonLocalValue,
+    OperationValue,
+    Encode,
+    Decode,
 )]
 pub struct ContextConfig(
     #[bincode(with = "turbo_bincode::indexmap")] FxIndexMap<RcStr, ContextConfigItem>,
 );
 
 #[derive(
-    Clone, Debug, PartialEq, Deserialize, TraceRawVcs, NonLocalValue, OperationValue, Encode, Decode,
+    Clone,
+    Debug,
+    PartialEq,
+    Eq,
+    Deserialize,
+    TraceRawVcs,
+    NonLocalValue,
+    OperationValue,
+    Encode,
+    Decode,
 )]
+#[serde(rename_all = "camelCase")]
 pub struct ContextConfigItem {
     inherits: RcStr,
     #[serde(default)]
@@ -1070,6 +1192,33 @@ pub struct ContextConfigItem {
     #[serde(default)]
     #[bincode(with = "turbo_bincode::indexmap")]
     rules: FxIndexMap<RcStr, RuleConfigCollection>,
+}
+
+#[turbo_tasks::value(transparent)]
+pub struct OptionContextConfig(Option<ContextConfig>);
+
+impl ContextConfig {
+    /// Iterate over the configured contexts as `(name, item)` pairs.
+    pub fn iter(&self) -> impl Iterator<Item = (&RcStr, &ContextConfigItem)> {
+        self.0.iter()
+    }
+}
+
+impl ContextConfigItem {
+    /// The name of the built-in context (named transition) this context inherits from.
+    pub fn inherits(&self) -> &RcStr {
+        &self.inherits
+    }
+
+    /// Extra resolve conditions appended to the inherited context.
+    pub fn resolve_conditions(&self) -> &[RcStr] {
+        self.resolve_conditions.as_deref().unwrap_or(&[])
+    }
+
+    /// Extra module rules (loaders) applied on top of the inherited context.
+    pub fn rules(&self) -> &FxIndexMap<RcStr, RuleConfigCollection> {
+        &self.rules
+    }
 }
 
 /// String shorthand variants for [`CssChunkingConfig`].
@@ -1894,97 +2043,16 @@ impl NextConfig {
         if turbo_rules.is_empty() {
             return Ok(Vc::cell(Vec::new()));
         }
-        let mut rules = Vec::new();
-        for (glob, rule_collection) in turbo_rules.iter() {
-            fn transform_loaders(
-                loaders: &mut dyn Iterator<Item = &LoaderItem>,
-            ) -> ResolvedVc<WebpackLoaderItems> {
-                ResolvedVc::cell(
-                    loaders
-                        .map(|item| match item {
-                            LoaderItem::LoaderName(name) => WebpackLoaderItem {
-                                loader: name.clone(),
-                                options: Default::default(),
-                            },
-                            LoaderItem::LoaderOptions(options) => options.clone(),
-                        })
-                        .collect(),
-                )
-            }
-            for item in &rule_collection.0 {
-                match item {
-                    RuleConfigCollectionItem::Shorthand(loaders) => {
-                        rules.push((
-                            glob.clone(),
-                            LoaderRuleItem {
-                                loaders: transform_loaders(&mut [loaders].into_iter()),
-                                rename_as: None,
-                                condition: None,
-                                module_type: None,
-                            },
-                        ));
-                    }
-                    RuleConfigCollectionItem::Full(RuleConfigItem {
-                        loaders,
-                        rename_as,
-                        condition,
-                        module_type,
-                    }) => {
-                        // If the extension contains a wildcard, and the rename_as does not,
-                        // emit an issue to prevent users from encountering duplicate module
-                        // names.
-                        if glob.contains("*")
-                            && let Some(rename_as) = rename_as.as_ref()
-                            && !rename_as.contains("*")
-                        {
-                            InvalidLoaderRuleRenameAsIssue {
-                                glob: glob.clone(),
-                                config_file_path: self
-                                    .config_file_path(project_path.clone())
-                                    .owned()
-                                    .await?,
-                                rename_as: rename_as.clone(),
-                            }
-                            .resolved_cell()
-                            .emit();
-                        }
-
-                        // convert from Next.js-specific condition type to internal Turbopack
-                        // condition type
-                        let condition = if let Some(condition) = condition {
-                            match ConditionItem::try_from(condition.clone()) {
-                                Ok(cond) => Some(cond),
-                                Err(err) => {
-                                    InvalidLoaderRuleConditionIssue {
-                                        error_string: RcStr::from(err.to_string()),
-                                        condition: condition.clone(),
-                                        config_file_path: self
-                                            .config_file_path(project_path.clone())
-                                            .owned()
-                                            .await?,
-                                    }
-                                    .resolved_cell()
-                                    .emit();
-                                    None
-                                }
-                            }
-                        } else {
-                            None
-                        };
-                        rules.push((
-                            glob.clone(),
-                            LoaderRuleItem {
-                                loaders: transform_loaders(&mut loaders.iter()),
-                                rename_as: rename_as.clone(),
-                                condition,
-                                module_type: module_type.clone(),
-                            },
-                        ));
-                    }
-                }
-            }
-        }
+        let rules = rule_collections_to_webpack_rules(self, &project_path, turbo_rules).await?;
         Ok(Vc::cell(rules))
+    }
+
+    /// The `experimental.turbopackContexts` config, exposed through a turbo-tasks function so that
+    /// reads only invalidate when the contexts themselves change (not on unrelated
+    /// `ExperimentalConfig` edits).
+    #[turbo_tasks::function]
+    pub fn turbopack_contexts(&self) -> Vc<OptionContextConfig> {
+        Vc::cell(self.experimental.turbopack_contexts.clone())
     }
 
     #[turbo_tasks::function]

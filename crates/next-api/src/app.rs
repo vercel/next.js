@@ -21,6 +21,7 @@ use next_core::{
         NextEcmascriptClientReferenceTransition, ServerEntries, find_server_entries,
     },
     next_config::NextConfig,
+    next_context_transition::get_context_transitions,
     next_dynamic::NextDynamicTransition,
     next_edge::route_regex::get_named_middleware_regex,
     next_manifests::{
@@ -36,6 +37,7 @@ use next_core::{
     segment_config::{NextSegmentConfig, ParseSegmentMode},
     util::{NextRuntime, app_function_name, module_styles_rule_condition, styles_rule_condition},
 };
+use rustc_hash::FxHashMap;
 use tracing::{Instrument, field::Empty};
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
@@ -103,6 +105,20 @@ impl AppProject {
     pub fn client_transition_name() -> RcStr {
         rcstr!("next-ecmascript-client-reference")
     }
+}
+
+/// Extend a built-in `named_transitions` map with the derived transitions configured via
+/// `experimental.turbopackContexts`. Each user context inherits from one of the built-in
+/// transitions already in the map.
+async fn extend_with_context_transitions(
+    project: Vc<Project>,
+    named_transitions: &mut FxHashMap<RcStr, ResolvedVc<Box<dyn Transition>>>,
+) -> Result<()> {
+    let project_path = project.project_path().owned().await?;
+    let derived =
+        get_context_transitions(project.next_config(), &project_path, named_transitions).await?;
+    named_transitions.extend(derived);
+    Ok(())
 }
 
 // This is equivalent to `FullContextTransition::new(app_project.rsc_module_context())`, but breaks
@@ -418,63 +434,67 @@ impl AppProject {
         ssr_transition: Vc<Box<dyn Transition>>,
         shared_transition: Vc<Box<dyn Transition>>,
     ) -> Result<Vc<TransitionOptions>> {
+        let mut named_transitions = [
+            (
+                AppProject::client_transition_name(),
+                ecmascript_client_reference_transition.to_resolved().await?,
+            ),
+            (
+                rcstr!("next-dynamic"),
+                ResolvedVc::upcast(NextDynamicTransition::new_marker().to_resolved().await?),
+            ),
+            (
+                rcstr!("next-dynamic-client"),
+                ResolvedVc::upcast(
+                    NextDynamicTransition::new_client(Vc::upcast(self.client_transition()))
+                        .to_resolved()
+                        .await?,
+                ),
+            ),
+            (rcstr!("next-ssr"), ssr_transition.to_resolved().await?),
+            (
+                rcstr!("next-shared"),
+                shared_transition.to_resolved().await?,
+            ),
+            (
+                rcstr!("next-server-utility"),
+                ResolvedVc::upcast(NextServerUtilityTransition::new().to_resolved().await?),
+            ),
+            (
+                rcstr!("next-server-component"),
+                ResolvedVc::upcast(NextServerComponentTransition::new().to_resolved().await?),
+            ),
+            (
+                rcstr!("next-app-route"),
+                self.route_transition(NextRuntime::NodeJs)
+                    .to_resolved()
+                    .await?,
+            ),
+            (
+                rcstr!("next-app-edge-route"),
+                self.route_transition(NextRuntime::Edge)
+                    .to_resolved()
+                    .await?,
+            ),
+            // noops, but keep here to always have the transitions defined
+            (
+                rcstr!("next-rsc"),
+                self.rsc_transition(NextRuntime::NodeJs)
+                    .to_resolved()
+                    .await?,
+            ),
+            (
+                rcstr!("next-edge-rsc"),
+                self.rsc_transition(NextRuntime::Edge).to_resolved().await?,
+            ),
+        ]
+        .into_iter()
+        .collect();
+
+        extend_with_context_transitions(self.project(), &mut named_transitions).await?;
+
         Ok(TransitionOptions {
-            named_transitions: [
-                (
-                    AppProject::client_transition_name(),
-                    ecmascript_client_reference_transition.to_resolved().await?,
-                ),
-                (
-                    rcstr!("next-dynamic"),
-                    ResolvedVc::upcast(NextDynamicTransition::new_marker().to_resolved().await?),
-                ),
-                (
-                    rcstr!("next-dynamic-client"),
-                    ResolvedVc::upcast(
-                        NextDynamicTransition::new_client(Vc::upcast(self.client_transition()))
-                            .to_resolved()
-                            .await?,
-                    ),
-                ),
-                (rcstr!("next-ssr"), ssr_transition.to_resolved().await?),
-                (
-                    rcstr!("next-shared"),
-                    shared_transition.to_resolved().await?,
-                ),
-                (
-                    rcstr!("next-server-utility"),
-                    ResolvedVc::upcast(NextServerUtilityTransition::new().to_resolved().await?),
-                ),
-                (
-                    rcstr!("next-server-component"),
-                    ResolvedVc::upcast(NextServerComponentTransition::new().to_resolved().await?),
-                ),
-                (
-                    rcstr!("next-app-route"),
-                    self.route_transition(NextRuntime::NodeJs)
-                        .to_resolved()
-                        .await?,
-                ),
-                (
-                    rcstr!("next-app-edge-route"),
-                    self.route_transition(NextRuntime::Edge)
-                        .to_resolved()
-                        .await?,
-                ),
-                // noops, but keep here to always have the transitions defined
-                (
-                    rcstr!("next-rsc"),
-                    self.rsc_transition(NextRuntime::NodeJs)
-                        .to_resolved()
-                        .await?,
-                ),
-                (
-                    rcstr!("next-edge-rsc"),
-                    self.rsc_transition(NextRuntime::Edge).to_resolved().await?,
-                ),
-            ]
-            .into_iter()
-            .collect(),
+            named_transitions,
             transition_rules: vec![
                 // Mark as client reference (and exclude from RSC chunking) the edge from the
                 // CSS Module to the actual CSS
@@ -544,7 +564,7 @@ impl AppProject {
 
     #[turbo_tasks::function]
     async fn route_module_context(self: Vc<Self>) -> Result<Vc<ModuleAssetContext>> {
-        let transitions = [
+        let mut transitions = [
             (
                 AppProject::client_transition_name(),
                 self.ecmascript_client_reference_transition()
@@ -601,6 +621,8 @@ impl AppProject {
         .into_iter()
         .collect();
 
+        extend_with_context_transitions(self.project(), &mut transitions).await?;
+
         Ok(ModuleAssetContext::new(
             TransitionOptions {
                 // TODO use get_rsc_transitions as well?
@@ -617,7 +639,7 @@ impl AppProject {
 
     #[turbo_tasks::function]
     async fn edge_route_module_context(self: Vc<Self>) -> Result<Vc<ModuleAssetContext>> {
-        let transitions = [
+        let mut transitions = [
             (
                 AppProject::client_transition_name(),
                 self.edge_ecmascript_client_reference_transition()
@@ -673,6 +695,9 @@ impl AppProject {
         ]
         .into_iter()
         .collect();
+
+        extend_with_context_transitions(self.project(), &mut transitions).await?;
+
         Ok(ModuleAssetContext::new(
             TransitionOptions {
                 // TODO use get_rsc_transitions as well?
