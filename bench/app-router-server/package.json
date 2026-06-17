@@ -3,10 +3,13 @@
   "private": true,
   "license": "MIT",
   "dependencies": {
+    "webpack-bundle-analyzer": "^4.6.1",
+    "webpack-stats-plugin": "^1.1.0",
     "next": "workspace:*",
-    "@vercel/otel": "2.1.3"
+    "next-minimal-server": "workspace:*"
   },
   "scripts": {
-    "dev": "NEXT_OTEL_VERBOSE=1 NEXT_TELEMETRY_DISABLED=1 pnpm next dev"
+    "build-application": "next build",
+    "start": "next-minimal-server"
   }
 }
