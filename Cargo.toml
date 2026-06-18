@@ -209,8 +209,8 @@ turbopack-trace-server = { path = "turbopack/crates/turbopack-trace-server" }
 turbopack-trace-utils = { path = "turbopack/crates/turbopack-trace-utils" }
 turbopack-wasm = { path = "turbopack/crates/turbopack-wasm" }
 
-react_compiler_swc = { version = "0.1.5", package = "nextjs_react_compiler_swc" }
-react_compiler = { version = "0.1.5", package = "nextjs_react_compiler" }
+swc_ecma_react_compiler = "19.1.2"
+react_compiler = { version = "0.1.5", package = "forked_react_compiler" }
 
 # SWC crates
 swc_core = { version = "69.0.0", default-features = false, features = [
