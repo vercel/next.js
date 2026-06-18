@@ -118,8 +118,3 @@ function getOrInstantiateRuntimeModule(
 
   return instantiateRuntimeModule(chunkPath, moduleId)
 }
-
-module.exports = (sourcePath: ChunkPath) => ({
-  m: (id: ModuleId) => getOrInstantiateRuntimeModule(sourcePath, id),
-  c: (chunkData: ChunkData) => loadRuntimeChunk(sourcePath, chunkData),
-})

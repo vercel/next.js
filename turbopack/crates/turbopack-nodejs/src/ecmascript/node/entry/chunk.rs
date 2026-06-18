@@ -6,7 +6,7 @@ use turbo_tasks::{ResolvedVc, ValueToString, Vc, turbobail};
 use turbo_tasks_fs::{File, FileContent, FileSystemPath};
 use turbopack_core::{
     asset::{Asset, AssetContent},
-    chunk::{ChunkingContext, EvaluatableAssets, ModuleChunkItemIdExt},
+    chunk::{ChunkGroupType, ChunkingContext, EvaluatableAssets, ModuleChunkItemIdExt},
     code_builder::{Code, CodeBuilder},
     module_graph::ModuleGraph,
     output::{
@@ -164,6 +164,7 @@ impl EcmascriptBuildNodeEntryChunk {
         Ok(EcmascriptBuildNodeRuntimeChunk::new(
             *self.chunking_context,
             has_async_modules,
+            ChunkGroupType::Entry,
         ))
     }
 

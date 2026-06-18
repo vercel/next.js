@@ -7,7 +7,7 @@ use turbo_tasks::{ResolvedVc, ValueToString, Vc, turbobail};
 use turbo_tasks_fs::{File, FileContent, FileSystem, FileSystemPath};
 use turbopack_core::{
     asset::{Asset, AssetContent},
-    chunk::ChunkingContext,
+    chunk::{ChunkGroupType, ChunkingContext},
     code_builder::{Code, CodeBuilder},
     ident::AssetIdent,
     output::{OutputAsset, OutputAssetsReference, OutputAssetsWithReferenced},
@@ -25,6 +25,7 @@ use crate::NodeJsChunkingContext;
 pub(crate) struct EcmascriptBuildNodeRuntimeChunk {
     chunking_context: ResolvedVc<NodeJsChunkingContext>,
     has_async_modules: bool,
+    ty: ChunkGroupType,
 }
 
 #[turbo_tasks::value_impl]
@@ -34,10 +35,12 @@ impl EcmascriptBuildNodeRuntimeChunk {
     pub fn new(
         chunking_context: ResolvedVc<NodeJsChunkingContext>,
         has_async_modules: bool,
+        ty: ChunkGroupType,
     ) -> Vc<Self> {
         EcmascriptBuildNodeRuntimeChunk {
             chunking_context,
             has_async_modules,
+            ty,
         }
         .cell()
     }
@@ -112,6 +115,7 @@ impl EcmascriptBuildNodeRuntimeChunk {
                     RuntimeType::Development,
                     this.has_async_modules,
                     generate_source_map,
+                    this.ty,
                 );
                 code.push_code(&*runtime_code.await?);
             }
@@ -121,6 +125,7 @@ impl EcmascriptBuildNodeRuntimeChunk {
                     RuntimeType::Production,
                     this.has_async_modules,
                     generate_source_map,
+                    this.ty,
                 );
                 code.push_code(&*runtime_code.await?);
             }
@@ -135,12 +140,18 @@ impl EcmascriptBuildNodeRuntimeChunk {
     }
 
     #[turbo_tasks::function]
-    async fn ident_for_path(self: Vc<Self>) -> Result<Vc<AssetIdent>> {
+    async fn ident_for_path(&self) -> Result<Vc<AssetIdent>> {
         Ok(AssetIdent::from_path(
             turbopack_ecmascript_runtime::embed_fs()
                 .root()
                 .await?
-                .join("runtime.js")?,
+                .join(&format!(
+                    "runtime{}.js",
+                    match self.ty {
+                        ChunkGroupType::Entry => "",
+                        ChunkGroupType::Evaluated => "-evaluated",
+                    }
+                ))?,
         )
         .into_vc())
     }
