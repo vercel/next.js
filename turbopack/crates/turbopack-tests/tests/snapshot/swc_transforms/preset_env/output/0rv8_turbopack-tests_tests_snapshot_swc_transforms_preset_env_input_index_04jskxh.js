@@ -1279,6 +1279,14 @@ function _async_to_generator(fn) {
         });
     };
 }
+function _instanceof(left, right) {
+    "@swc/helpers - instanceof";
+    if (right != null && typeof Symbol !== "undefined" && right[Symbol.hasInstance]) {
+        return !!right[Symbol.hasInstance](left);
+    } else {
+        return left instanceof right;
+    }
+}
 function _ts_generator(thisArg, body) {
     var f, y, t, _ = {
         label: 0,
@@ -1520,20 +1528,30 @@ var BACKEND;
         var jitter = Math.floor(Math.random() * (CHUNK_LOAD_RETRY_MAX_JITTER_MS + 1));
         return CHUNK_LOAD_RETRY_BASE_DELAY_MS + jitter;
     }
+    function isRetryableChunkLoadError(error) {
+        return error == null || _instanceof(error, DOMException) && error.name === 'NetworkError';
+    }
     /**
    * Handles a failed chunk load: retries the load once after a short delay.
-   */ function onChunkLoadError(sourceType, chunkUrl, resolver, error) {
-        if (resolver.retryAttempts >= CHUNK_LOAD_RETRY_MAX_ATTEMPTS || chunkResolvers.get(chunkUrl) !== resolver) {
+   */ function onChunkLoadError(sourceType, chunkUrl, resolver, error, reload) {
+        if (!isRetryableChunkLoadError(error) || resolver.retryAttempts >= CHUNK_LOAD_RETRY_MAX_ATTEMPTS || chunkResolvers.get(chunkUrl) !== resolver) {
             rejectChunkResolver(chunkUrl, resolver, error);
             return;
         }
         resolver.retryAttempts++;
         setTimeout(function() {
+            // if this chunk is being fetched multiple times, and one of those
+            // attempts succeeds. or, if this chunk has another resolver
+            // mapped to it - it's safe to skip retrying.
             if (resolver.resolved || chunkResolvers.get(chunkUrl) !== resolver) {
                 return;
             }
-            resolver.loadingStarted = false;
-            doLoadChunk(sourceType, chunkUrl);
+            if (reload) {
+                reload();
+            } else {
+                resolver.loadingStarted = false;
+                doLoadChunk(sourceType, chunkUrl);
+            }
         }, getChunkLoadRetryDelayMs());
     }
     /**
@@ -1582,22 +1600,29 @@ var BACKEND;
                     // loaded instantly.
                     resolver.resolve();
                 } else {
-                    var link = document.createElement('link');
-                    link.rel = 'stylesheet';
-                    link.crossOrigin = CROSS_ORIGIN;
-                    link.href = chunkUrl;
-                    link.onerror = function() {
-                        // Drop the failed tag so a retry can re-add it cleanly.
-                        link.remove();
-                        onChunkLoadError(sourceType, chunkUrl, resolver);
-                    };
-                    link.onload = function() {
-                        // CSS chunks do not register themselves, and as such must be marked as
-                        // loaded instantly.
-                        resolver.resolve();
+                    var createLink = function createLink1() {
+                        var link = document.createElement('link');
+                        link.rel = 'stylesheet';
+                        link.crossOrigin = CROSS_ORIGIN;
+                        link.href = chunkUrl;
+                        link.onerror = function() {
+                            // Re-insert a fresh tag at the same position on retry to preserve
+                            // cascade order.
+                            var anchor = document.createComment('');
+                            link.replaceWith(anchor);
+                            onChunkLoadError(sourceType, chunkUrl, resolver, undefined, function() {
+                                return anchor.replaceWith(createLink());
+                            });
+                        };
+                        link.onload = function() {
+                            // CSS chunks do not register themselves, and as such must be marked as
+                            // loaded instantly.
+                            resolver.resolve();
+                        };
+                        return link;
                     };
                     // Append to the `head` for webpack compatibility.
-                    document.head.appendChild(link);
+                    document.head.appendChild(createLink());
                 }
             } else if (isJs(chunkUrl)) {
                 var previousScripts = document.querySelectorAll(`script[src="${chunkUrl}"],script[src^="${chunkUrl}?"],script[src="${decodedChunkUrl}"],script[src^="${decodedChunkUrl}?"]`);
@@ -1614,8 +1639,6 @@ var BACKEND;
                                 once: true
                             });
                         };
-                        // There is this edge where the script already failed loading, but we
-                        // can't detect that. The Promise will never resolve in this case.
                         for(var _iterator = Array.from(previousScripts)[Symbol.iterator](), _step; !(_iteratorNormalCompletion = (_step = _iterator.next()).done); _iteratorNormalCompletion = true)_loop();
                     } catch (err) {
                         _didIteratorError = true;
