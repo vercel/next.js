@@ -12,6 +12,7 @@ import {
 import { middlewareResponse } from '../../next-devtools/server/middleware-response'
 import path from 'path'
 import { openFileInEditor } from '../../next-devtools/server/launch-editor'
+import { getAppRelativeEditorPath } from './open-editor-path'
 import {
   SourceMapConsumer,
   type NullableMappedPosition,
@@ -401,11 +402,7 @@ export function getOverlayMiddleware({
       let openEditorResult
       if (isAppRelativePath) {
         const relativeFilePath = searchParams.get('file') || ''
-        const appPath = path.join(
-          'app',
-          isSrcDir ? 'src' : '',
-          relativeFilePath
-        )
+        const appPath = getAppRelativeEditorPath(relativeFilePath, isSrcDir)
         openEditorResult = await openFileInEditor(appPath, 1, 1, projectPath)
       } else {
         const frame = createStackFrame(searchParams)
