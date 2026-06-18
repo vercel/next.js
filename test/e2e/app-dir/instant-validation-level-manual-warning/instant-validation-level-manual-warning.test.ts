@@ -81,6 +81,18 @@ describe('instant validation - level manual-warning', () => {
           )
           await expect(browser).toDisplayCollapsedRedbox(`
            {
+             "cause": [
+               {
+                 "label": "Caused by: Instant Validation",
+                 "source": "app/with-root-suspense/explicit-error/page.tsx (8:24) @ instant
+           >  8 | export const instant = { level: 'experimental-error' as const }
+                |                        ^",
+                 "stack": [
+                   "instant app/with-root-suspense/explicit-error/page.tsx (8:24)",
+                   "Set.forEach <anonymous>",
+                 ],
+               },
+             ],
              "code": "E1375",
              "description": "Next.js encountered uncached data during a navigation.",
              "environmentLabel": "Server",
@@ -101,6 +113,18 @@ describe('instant validation - level manual-warning', () => {
           )
           await expect(browser).toDisplayCollapsedRedbox(`
            {
+             "cause": [
+               {
+                 "label": "Caused by: Instant Validation",
+                 "source": "app/with-root-suspense/explicit-true/page.tsx (7:24) @ instant
+           >  7 | export const instant = true
+                |                        ^",
+                 "stack": [
+                   "instant app/with-root-suspense/explicit-true/page.tsx (7:24)",
+                   "Set.forEach <anonymous>",
+                 ],
+               },
+             ],
              "code": "E1375",
              "description": "Next.js encountered uncached data during a navigation.",
              "environmentLabel": "Server",
@@ -121,6 +145,18 @@ describe('instant validation - level manual-warning', () => {
           )
           await expect(browser).toDisplayCollapsedRedbox(`
            {
+             "cause": [
+               {
+                 "label": "Caused by: Instant Validation",
+                 "source": "app/with-root-suspense/explicit-warning/page.tsx (6:24) @ instant
+           > 6 | export const instant = { level: 'warning' as const }
+               |                        ^",
+                 "stack": [
+                   "instant app/with-root-suspense/explicit-warning/page.tsx (6:24)",
+                   "Set.forEach <anonymous>",
+                 ],
+               },
+             ],
              "code": "E1375",
              "description": "Next.js encountered uncached data during a navigation.",
              "environmentLabel": "Server",
@@ -304,6 +340,8 @@ describe('instant validation - level manual-warning', () => {
                https://nextjs.org/docs/messages/blocking-prerender-dynamic#wrap-in-or-move-into-suspense
              - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\` (does not apply to \`connection()\`)
                https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
+             - [cache] For \`params\`: if the params are known, prerender them with \`generateStaticParams\`
+               https://nextjs.org/docs/messages/blocking-prerender-runtime#for-known-params-prerender
              - [block] Set \`export const instant = false\` to silence this warning and allow a blocking route
                https://nextjs.org/docs/messages/blocking-prerender-dynamic#allow-blocking-route
                at body (<anonymous>)
@@ -330,6 +368,8 @@ describe('instant validation - level manual-warning', () => {
                https://nextjs.org/docs/messages/blocking-prerender-dynamic#wrap-in-or-move-into-suspense
              - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\` (does not apply to \`connection()\`)
                https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
+             - [cache] For \`params\`: if the params are known, prerender them with \`generateStaticParams\`
+               https://nextjs.org/docs/messages/blocking-prerender-runtime#for-known-params-prerender
              - [block] Set \`export const instant = false\` to silence this warning and allow a blocking route
                https://nextjs.org/docs/messages/blocking-prerender-dynamic#allow-blocking-route
                at body (<anonymous>)
@@ -358,6 +398,8 @@ describe('instant validation - level manual-warning', () => {
                https://nextjs.org/docs/messages/blocking-prerender-dynamic#wrap-in-or-move-into-suspense
              - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\` (does not apply to \`connection()\`)
                https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
+             - [cache] For \`params\`: if the params are known, prerender them with \`generateStaticParams\`
+               https://nextjs.org/docs/messages/blocking-prerender-runtime#for-known-params-prerender
              - [block] Set \`export const instant = false\` to silence this warning and allow a blocking route
                https://nextjs.org/docs/messages/blocking-prerender-dynamic#allow-blocking-route
                at body (<anonymous>)
@@ -390,6 +432,8 @@ describe('instant validation - level manual-warning', () => {
                https://nextjs.org/docs/messages/blocking-prerender-dynamic#wrap-in-or-move-into-suspense
              - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\` (does not apply to \`connection()\`)
                https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
+             - [cache] For \`params\`: if the params are known, prerender them with \`generateStaticParams\`
+               https://nextjs.org/docs/messages/blocking-prerender-runtime#for-known-params-prerender
              - [block] Set \`export const instant = false\` to silence this warning and allow a blocking route
                https://nextjs.org/docs/messages/blocking-prerender-dynamic#allow-blocking-route
                at body (<anonymous>)
