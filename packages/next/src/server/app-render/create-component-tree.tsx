@@ -119,7 +119,7 @@ async function createComponentTreeInternal(
   isRoot: boolean
 ): Promise<CacheNodeSeedData> {
   const {
-    renderOpts: { nextConfigOutput, experimental, cacheComponents },
+    renderOpts: { nextConfigOutput, cacheComponents },
     workStore,
     componentMod: {
       createElement,
@@ -264,6 +264,15 @@ async function createComponentTreeInternal(
       : []
 
   let dynamic = layoutOrPageMod?.dynamic
+  if (typeof dynamic === 'string') {
+    if (cacheComponents) {
+      // TODO: Remove this since this should be caught during compilation.
+      // Left as a guard in case usage of Postpone was attempted
+      throw new Error(
+        `Route segment config "dynamic" is not compatible with \`nextConfig.cacheComponents\`. Please remove it.`
+      )
+    }
+  }
 
   if (nextConfigOutput === 'export') {
     if (!dynamic || dynamic === 'auto') {
@@ -285,10 +294,7 @@ async function createComponentTreeInternal(
     } else if (dynamic === 'force-dynamic') {
       workStore.forceDynamic = true
 
-      // TODO: Is this even reachable? force-dynamic should be disallowed with Cache Components
-      if (workStore.isStaticGeneration && !cacheComponents) {
-        // If the postpone API isn't available, we can't postpone the render and
-        // therefore we can't use the dynamic API.
+      if (workStore.isStaticGeneration) {
         const err = new DynamicServerError(
           `Page with \`dynamic = "force-dynamic"\` won't be rendered statically.`
         )
