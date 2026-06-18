@@ -173,7 +173,6 @@ import {
   computeCacheBustingSearchParam,
   computeLegacyCacheBustingSearchParam,
 } from '../shared/lib/router/utils/cache-busting-search-param'
-import { normalizeCatchAllRoutes } from './lib/router-utils/normalize-catchall-routes'
 
 export type FindComponentsResult<
   NextModule extends GenericComponentMod = GenericComponentMod,
@@ -2032,8 +2031,11 @@ export default abstract class Server<
       }
       appPathRoutes[normalizedPath].push(entry)
     })
-    normalizeCatchAllRoutes(appPathRoutes)
 
+    // Keep this mapping limited to entries that directly normalize to each
+    // route. Catch-all expansion belongs to filesystem dispatch and build-time
+    // loader generation; expanded entries may not be traced into a deployed
+    // route's serverless function.
     for (const appPaths of Object.values(appPathRoutes)) {
       appPaths.sort(compareAppPaths)
     }
@@ -2883,12 +2885,10 @@ export default abstract class Server<
 
     let page = pathname
     if (isAppPath) {
-      // The definition identifies the app entry that owns this route. This can
-      // be a parallel slot when that slot defines the concrete pathname.
-      page =
-        match && isAppPageRouteDefinition(match.definition)
-          ? match.definition.page
-          : appPaths[appPaths.length - 1]
+      // Parallel slots sort before the children entry. Load the final direct
+      // app path because that is the entry traced into the route's serverless
+      // function. For slot-only routes, the slot itself is the final entry.
+      page = appPaths[appPaths.length - 1]
     } else if (match?.definition.kind === RouteKind.APP_ROUTE) {
       page = match.definition.page
     }
