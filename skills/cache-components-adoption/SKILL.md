@@ -110,6 +110,18 @@ Once the build is green, the app runs with `cacheComponents` on and behaves as
 before. This is a natural stopping point — ask the user whether to open a PR for
 it before starting goal 2, or keep going. Don't silently roll on.
 
+After running the codemod, **confirm the root layout got an opt-out** (`grep -n
+"export const instant" app/layout.*`). The root layout is the one segment that
+must be covered: it renders every route, including framework routes like
+`/_not-found`, so if it still reads `cookies()` without an opt-out the build
+fails on `/_not-found` even though no other route changed. If it was missed, add
+`export const instant = false` to it by hand.
+
+**Never add `instant = false` to a synthetic route** like `/_not-found` — there
+is no user file for it, and the directive wouldn't apply. When `/_not-found` (or
+another framework route) blocks, the cause is the **root layout** it renders
+through; fix the opt-out there.
+
 ### Direct
 
 Set `cacheComponents: true` and collect the errors (above). The reported routes
