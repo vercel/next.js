@@ -321,6 +321,12 @@ export interface Project {
     TurbopackResult<RawEntrypoints | {}>
   >
 
+  // Note: only the Server target is implemented in the native binding;
+  // add a Client overload once `all_hmr_update` supports it.
+  allHmrEvents(
+    target: import('./index').HmrTarget.Server
+  ): AsyncIterableIterator<TurbopackResult<NodeJsHmrUpdate>>
+
   hmrEvents(
     identifier: string,
     target: import('./index').HmrTarget.Client

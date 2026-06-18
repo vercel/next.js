@@ -126,9 +126,13 @@ const STATS_RELATIVE_PATH = '.next/warm-restart-task-stats.json'
            "<dyn turbopack_core::version::VersionedContent>::update",
            "<turbopack_browser::ecmascript::list::content::EcmascriptDevChunkListContent as dyn turbopack_core::version::VersionedContent>::update",
            "<turbopack_nodejs::ecmascript::node::content::EcmascriptBuildNodeChunkContent as dyn turbopack_core::version::VersionedContent>::update",
+           "next_api::project::Project::all_hmr_update",
+           "next_api::project::Project::all_hmr_version_state",
            "next_api::project::Project::hmr_update",
            "next_api::project::Project::hmr_version_state",
+           "next_napi_bindings::next_api::project::all_hmr_update_with_issues_operation",
            "next_napi_bindings::next_api::project::hmr_update_with_issues_operation",
+           "next_napi_bindings::next_api::project::project_all_hmr_update_operation",
            "next_napi_bindings::next_api::project::project_hmr_update_operation",
            "turbopack_core::version::VersionState::get",
          ]
