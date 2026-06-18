@@ -73,7 +73,13 @@ export class InMemorySpanStore {
   }
 
   getRecords(filter: SpanStoreFilter = {}): SpanStoreRecord[] {
-    return this.records.filter((record) => matchesFilter(record, filter))
+    return this.records.filter(
+      (record) =>
+        (filter.requestId === undefined ||
+          record.requestId === filter.requestId) &&
+        (filter.route === undefined || record.route === filter.route) &&
+        (filter.name === undefined || record.name === filter.name)
+    )
   }
 
   clear(): void {
@@ -98,6 +104,10 @@ export function clearSpanStoreForTest(): void {
 }
 
 export function isLocalSpanStoreEnabled(): boolean {
+  if (!process.env.__NEXT_DEV_SERVER) {
+    return false
+  }
+
   const value = process.env.NEXT_OTEL_LOCAL_SPANS
   return isEnabledEnvValue(value) || isRequestInsightsEnabled()
 }
@@ -117,15 +127,4 @@ function getLocalSpanStore(): InMemorySpanStore {
   }
 
   return (globalStore[LOCAL_SPAN_STORE_KEY] ??= new InMemorySpanStore())
-}
-
-function matchesFilter(
-  record: SpanStoreRecord,
-  filter: SpanStoreFilter
-): boolean {
-  return (
-    (filter.requestId === undefined || record.requestId === filter.requestId) &&
-    (filter.route === undefined || record.route === filter.route) &&
-    (filter.name === undefined || record.name === filter.name)
-  )
 }

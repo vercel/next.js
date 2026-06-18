@@ -3,6 +3,7 @@ import type {
   Span,
   SpanOptions,
 } from 'next/dist/compiled/@opentelemetry/api'
+import type { AsyncLocalStorage } from 'async_hooks'
 import { SpanStatusCode } from 'next/dist/compiled/@opentelemetry/api'
 import {
   recordSpan,
@@ -20,7 +21,7 @@ type LocalSpanAttributes = Partial<Record<string, AttributeValue | undefined>>
 
 let lastLocalTraceId = 0
 let lastLocalSpanId = 0
-const localTraceIdByStore = new WeakMap<object, string>()
+let localSpanAsyncStorage: AsyncLocalStorage<Span> | undefined
 
 const getLocalTraceId = () =>
   (++lastLocalTraceId).toString(16).padStart(TRACE_ID_HEX_LENGTH, '0')
@@ -28,7 +29,7 @@ const getLocalTraceId = () =>
 const getLocalSpanId = () =>
   (++lastLocalSpanId).toString(16).padStart(SPAN_ID_HEX_LENGTH, '0')
 
-export function createLocalSpanRecorder({
+export function createLocalSpan({
   name,
   attributes,
   links,
@@ -44,64 +45,60 @@ export function createLocalSpanRecorder({
   spanId?: string
   parentSpanId?: string
   delegateSpan?: Span
-}): {
-  span: Span
-  complete: (error?: Error) => void
-} {
-  const startTime = Date.now()
-  const startTimeMs = getCurrentTimeMs()
-  const requestIdentity = getCurrentRequestIdentity()
-  const span = new LocalRecordingSpan({
+}): Span {
+  return new LocalRecordingSpan({
     name,
     attributes,
+    links,
     delegateSpan,
-    traceId: traceId ?? getLocalTraceIdForCurrentStore(),
+    traceId: traceId ?? getLocalTraceId(),
     spanId: spanId ?? getLocalSpanId(),
+    parentSpanId,
+    requestIdentity: getCurrentRequestIdentity(),
   })
-  let recorded = false
+}
 
-  return {
-    span,
-    complete(error?: Error) {
-      if (recorded) {
-        return
-      }
-      recorded = true
-      const recordAttributes = span.getAttributes()
+export function getActiveLocalSpan(): Span | undefined {
+  return localSpanAsyncStorage?.getStore()
+}
 
-      recordSpan({
-        name: span.name,
-        startTime,
-        durationMs: getCurrentTimeMs() - startTimeMs,
-        status: span.getRecordStatus(error),
-        traceId: span.spanContext().traceId,
-        spanId: span.spanContext().spanId,
-        parentSpanId,
-        requestId: requestIdentity.requestId,
-        htmlRequestId: requestIdentity.htmlRequestId,
-        route:
-          getStringAttribute(recordAttributes, 'next.route') ??
-          getStringAttribute(recordAttributes, 'http.route') ??
-          requestIdentity.route,
-        url:
-          getStringAttribute(recordAttributes, 'http.url') ??
-          requestIdentity.url,
-        attributes: recordAttributes,
-        links: getSpanStoreLinks(links),
-        events: span.getEvents(),
-        error: span.getRecordError(error),
-      })
-    },
+export function isLocalRecordingSpan(span: Span): boolean {
+  return span instanceof LocalRecordingSpan
+}
+
+export function withLocalSpan<T>(span: Span, fn: () => T): T {
+  return getLocalSpanAsyncStorage().run(span, fn)
+}
+
+function getLocalSpanAsyncStorage(): AsyncLocalStorage<Span> {
+  if (!localSpanAsyncStorage) {
+    const { createAsyncLocalStorage } =
+      require('../../app-render/async-local-storage') as typeof import('../../app-render/async-local-storage')
+    localSpanAsyncStorage = createAsyncLocalStorage()
   }
+
+  return localSpanAsyncStorage
+}
+
+type RequestIdentity = {
+  requestId?: string
+  htmlRequestId?: string
+  route?: string
+  url?: string
 }
 
 class LocalRecordingSpan implements Span {
   public name: string
 
-  private readonly attributes: SpanStoreAttributes
-  private readonly events: SpanStoreEvent[] = []
+  private attributes: SpanStoreAttributes
+  private events: SpanStoreEvent[]
   private readonly spanContextValue: ReturnType<Span['spanContext']>
-  private readonly delegateSpan?: Span
+  private delegateSpan?: Span
+  private links?: SpanStoreLink[]
+  private readonly parentSpanId?: string
+  private requestIdentity: RequestIdentity
+  private readonly startTime: number
+  private readonly startTimeMs: number
   private statusCode: number | undefined
   private statusMessage: string | undefined
   private exception:
@@ -110,28 +107,45 @@ class LocalRecordingSpan implements Span {
         message?: string
       }
     | undefined
+  private ended: boolean
 
   constructor({
     name,
     attributes,
+    links,
     delegateSpan,
     traceId,
     spanId,
+    parentSpanId,
+    requestIdentity,
   }: {
     name: string
     attributes?: LocalSpanAttributes
+    links?: SpanOptions['links']
     delegateSpan?: Span
     traceId: string
     spanId: string
+    parentSpanId?: string
+    requestIdentity: RequestIdentity
   }) {
     this.name = name
     this.attributes = cleanSpanStoreAttributes(attributes)
+    this.events = []
     this.delegateSpan = delegateSpan
     this.spanContextValue = delegateSpan?.spanContext() ?? {
       traceId,
       spanId,
       traceFlags: 0,
     }
+    this.links = getSpanStoreLinks(links)
+    this.parentSpanId = parentSpanId
+    this.requestIdentity = requestIdentity
+    this.startTime = Date.now()
+    this.startTimeMs = getCurrentTimeMs()
+    this.statusCode = undefined
+    this.statusMessage = undefined
+    this.exception = undefined
+    this.ended = false
   }
 
   spanContext(): ReturnType<Span['spanContext']> {
@@ -139,13 +153,25 @@ class LocalRecordingSpan implements Span {
   }
 
   setAttribute(key: string, value: AttributeValue): this {
-    setSpanStoreAttribute(this.attributes, key, value)
+    if (this.ended) {
+      return this
+    }
+
+    this.attributes[key] = value
     this.delegateSpan?.setAttribute(key, value)
     return this
   }
 
   setAttributes(attributes: Parameters<Span['setAttributes']>[0]): this {
-    addSpanStoreAttributes(this.attributes, attributes)
+    if (this.ended) {
+      return this
+    }
+
+    for (const [key, value] of Object.entries(attributes)) {
+      if (value !== undefined) {
+        this.attributes[key] = value
+      }
+    }
     this.delegateSpan?.setAttributes(attributes)
     return this
   }
@@ -155,6 +181,10 @@ class LocalRecordingSpan implements Span {
     attributesOrStartTime?: Parameters<Span['addEvent']>[1],
     startTime?: Parameters<Span['addEvent']>[2]
   ): this {
+    if (this.ended) {
+      return this
+    }
+
     this.events.push({
       name,
       timestamp: Date.now(),
@@ -167,6 +197,10 @@ class LocalRecordingSpan implements Span {
   }
 
   setStatus(status: Parameters<Span['setStatus']>[0]): this {
+    if (this.ended) {
+      return this
+    }
+
     this.statusCode = status.code
     this.statusMessage = status.message
     this.delegateSpan?.setStatus(status)
@@ -174,23 +208,44 @@ class LocalRecordingSpan implements Span {
   }
 
   updateName(name: string): this {
+    if (this.ended) {
+      return this
+    }
+
     this.name = name
     this.delegateSpan?.updateName(name)
     return this
   }
 
   end(endTime?: Parameters<Span['end']>[0]): void {
-    this.delegateSpan?.end(endTime)
+    if (this.ended) {
+      return
+    }
+
+    this.ended = true
+    try {
+      this.delegateSpan?.end(endTime)
+    } finally {
+      try {
+        this.record()
+      } finally {
+        this.releaseReferences()
+      }
+    }
   }
 
   isRecording(): boolean {
-    return this.delegateSpan?.isRecording() ?? true
+    return !this.ended
   }
 
   recordException(
     exception: Parameters<Span['recordException']>[0],
     time?: Parameters<Span['recordException']>[1]
   ): void {
+    if (this.ended) {
+      return
+    }
+
     this.exception = getSpanStoreException(exception)
     this.events.push({
       name: 'exception',
@@ -200,31 +255,54 @@ class LocalRecordingSpan implements Span {
     this.delegateSpan?.recordException(exception, time)
   }
 
-  getAttributes(): SpanStoreAttributes | undefined {
-    return Object.keys(this.attributes).length > 0 ? this.attributes : undefined
+  private record(): void {
+    const recordAttributes =
+      Object.keys(this.attributes).length > 0 ? this.attributes : undefined
+
+    recordSpan({
+      name: this.name,
+      startTime: this.startTime,
+      durationMs: getCurrentTimeMs() - this.startTimeMs,
+      status: this.statusCode === SpanStatusCode.ERROR ? 'error' : 'ok',
+      traceId: this.spanContextValue.traceId,
+      spanId: this.spanContextValue.spanId,
+      parentSpanId: this.parentSpanId,
+      requestId: this.requestIdentity.requestId,
+      htmlRequestId: this.requestIdentity.htmlRequestId,
+      route:
+        getStringAttribute(recordAttributes, 'next.route') ??
+        getStringAttribute(recordAttributes, 'http.route') ??
+        this.requestIdentity.route,
+      url:
+        getStringAttribute(recordAttributes, 'http.url') ??
+        this.requestIdentity.url,
+      attributes: recordAttributes,
+      links: this.links,
+      events: this.events.length > 0 ? this.events : undefined,
+      error: this.getRecordError(),
+    })
   }
 
-  getEvents(): SpanStoreEvent[] | undefined {
-    return this.events.length > 0 ? this.events : undefined
+  private releaseReferences(): void {
+    // AsyncLocalStorage can keep an ended span reachable when work spawned
+    // inside the span outlives it. Keep only the immutable span context and
+    // primitive timing/identity fields needed by the Span API after end.
+    this.name = ''
+    this.attributes = {}
+    this.events = []
+    this.delegateSpan = undefined
+    this.links = undefined
+    this.requestIdentity = {}
+    this.statusMessage = undefined
+    this.exception = undefined
   }
 
-  getRecordStatus(error?: Error): 'ok' | 'error' {
-    return error || this.statusCode === SpanStatusCode.ERROR ? 'error' : 'ok'
-  }
-
-  getRecordError(error?: Error):
+  private getRecordError():
     | {
         type?: string
         message?: string
       }
     | undefined {
-    if (error) {
-      return {
-        type: error.name,
-        message: error.message,
-      }
-    }
-
     if (this.exception) {
       return this.exception
     }
@@ -258,24 +336,14 @@ function cleanSpanStoreAttributes(
     | undefined
 ): SpanStoreAttributes {
   const cleanedAttributes: SpanStoreAttributes = {}
-  addSpanStoreAttributes(cleanedAttributes, attributes)
+  if (attributes) {
+    for (const [key, value] of Object.entries(attributes)) {
+      if (value !== undefined) {
+        cleanedAttributes[key] = value
+      }
+    }
+  }
   return cleanedAttributes
-}
-
-function addSpanStoreAttributes(
-  target: SpanStoreAttributes,
-  attributes:
-    | Record<string, AttributeValue | undefined>
-    | SpanStoreAttributes
-    | undefined
-) {
-  if (!attributes) {
-    return
-  }
-
-  for (const [key, value] of Object.entries(attributes)) {
-    setSpanStoreAttribute(target, key, value)
-  }
 }
 
 function getCurrentTimeMs(): number {
@@ -345,94 +413,33 @@ function getSpanStoreExceptionAttributes(
   }
 
   const attributes: SpanStoreAttributes = {}
-  setSpanStoreAttribute(attributes, 'exception.type', exception.type)
-  setSpanStoreAttribute(attributes, 'exception.message', exception.message)
+  if (exception.type !== undefined) {
+    attributes['exception.type'] = exception.type
+  }
+  if (exception.message !== undefined) {
+    attributes['exception.message'] = exception.message
+  }
   return Object.keys(attributes).length > 0 ? attributes : undefined
 }
 
-function setSpanStoreAttribute(
-  attributes: SpanStoreAttributes,
-  key: string,
-  value: AttributeValue | undefined
-) {
-  if (value !== undefined) {
-    attributes[key] = value
-  }
-}
-
-function getLocalTraceIdForCurrentStore(): string {
-  const { workStore, workUnitStore } = getCurrentAsyncStorageStores()
-  return (
-    getLocalTraceIdForStore(workStore ?? workUnitStore) ?? getLocalTraceId()
-  )
-}
-
-function getCurrentAsyncStorageStores(): {
-  workStore?: {
-    requestId?: string
-    htmlRequestId?: string
-    route?: string
-  }
-  workUnitStore?: object
-} {
+function getCurrentRequestIdentity(): RequestIdentity {
   try {
     const { workAsyncStorage } =
       require('../../app-render/work-async-storage.external') as typeof import('../../app-render/work-async-storage.external')
     const { workUnitAsyncStorage } =
       require('../../app-render/work-unit-async-storage.external') as typeof import('../../app-render/work-unit-async-storage.external')
+    const workStore = workAsyncStorage.getStore()
+    const workUnitStore = workUnitAsyncStorage.getStore()
+    const url =
+      workUnitStore && 'url' in workUnitStore ? workUnitStore.url : undefined
 
     return {
-      workStore: workAsyncStorage.getStore(),
-      workUnitStore: workUnitAsyncStorage.getStore(),
+      requestId: workStore?.requestId,
+      htmlRequestId: workStore?.htmlRequestId,
+      route: workStore?.route,
+      url: url ? `${url.pathname}${url.search}` : undefined,
     }
   } catch {
     return {}
   }
-}
-
-function getLocalTraceIdForStore(
-  store: object | undefined
-): string | undefined {
-  if (!store) {
-    return undefined
-  }
-
-  let traceId = localTraceIdByStore.get(store)
-  if (!traceId) {
-    traceId = getLocalTraceId()
-    localTraceIdByStore.set(store, traceId)
-  }
-  return traceId
-}
-
-function getCurrentRequestIdentity(): {
-  requestId?: string
-  htmlRequestId?: string
-  route?: string
-  url?: string
-} {
-  const { workStore, workUnitStore } = getCurrentAsyncStorageStores()
-  const url =
-    workUnitStore && 'url' in workUnitStore && isRequestUrl(workUnitStore.url)
-      ? workUnitStore.url
-      : undefined
-  return {
-    requestId: workStore?.requestId,
-    htmlRequestId: workStore?.htmlRequestId,
-    route: workStore?.route,
-    url: url ? `${url.pathname}${url.search}` : undefined,
-  }
-}
-
-function isRequestUrl(
-  value: unknown
-): value is { pathname: string; search: string } {
-  return (
-    typeof value === 'object' &&
-    value !== null &&
-    'pathname' in value &&
-    'search' in value &&
-    typeof value.pathname === 'string' &&
-    typeof value.search === 'string'
-  )
 }

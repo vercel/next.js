@@ -24,6 +24,7 @@ import { SpanKind, SpanStatusCode, getTracer } from './tracer'
 
 const customContextKey = createContextKey('next.tracer.test.custom-context')
 const originalLocalSpans = process.env.NEXT_OTEL_LOCAL_SPANS
+const originalDevServer = process.env.__NEXT_DEV_SERVER
 
 const getter: TextMapGetter<Record<string, string | undefined>> = {
   keys: (carrier) => Object.keys(carrier),
@@ -143,12 +144,22 @@ describe('withPropagatedContext', () => {
 })
 
 describe('local span store sink', () => {
+  beforeEach(() => {
+    process.env.__NEXT_DEV_SERVER = '1'
+  })
+
   afterEach(() => {
     if (originalLocalSpans === undefined) {
       delete process.env.NEXT_OTEL_LOCAL_SPANS
     } else {
       process.env.NEXT_OTEL_LOCAL_SPANS = originalLocalSpans
     }
+    if (originalDevServer === undefined) {
+      delete process.env.__NEXT_DEV_SERVER
+    } else {
+      process.env.__NEXT_DEV_SERVER = originalDevServer
+    }
+    trace.disable()
     clearSpanStoreForTest()
   })
 
@@ -158,6 +169,21 @@ describe('local span store sink', () => {
     const result = getTracer().trace(NodeSpan.runHandler, () => 'result')
 
     expect(result).toBe('result')
+    expect(getSpanRecords()).toEqual([])
+  })
+
+  it('bypasses local span handling outside the dev server', () => {
+    delete process.env.__NEXT_DEV_SERVER
+    process.env.NEXT_OTEL_LOCAL_SPANS = '1'
+    let receivedSpan: unknown = 'not-called'
+
+    const result = getTracer().trace(NodeSpan.runHandler, (span) => {
+      receivedSpan = span
+      return 'result'
+    })
+
+    expect(result).toBe('result')
+    expect(receivedSpan).toBeUndefined()
     expect(getSpanRecords()).toEqual([])
   })
 
@@ -339,6 +365,92 @@ describe('local span store sink', () => {
     ])
   })
 
+  it('records callback trace calls consistently with an OTel provider', () => {
+    process.env.NEXT_OTEL_LOCAL_SPANS = '1'
+
+    const delegateSpan = trace.wrapSpanContext({
+      traceId: '0123456789abcdef0123456789abcdef',
+      spanId: '0123456789abcdef',
+      traceFlags: 1,
+    })
+    trace.setGlobalTracerProvider({
+      getTracer() {
+        return {
+          startSpan() {
+            return delegateSpan
+          },
+          startActiveSpan(...args: unknown[]) {
+            const callback = args.at(-1) as (
+              span: typeof delegateSpan
+            ) => unknown
+            return callback(delegateSpan)
+          },
+        }
+      },
+    })
+
+    const result = getTracer().trace(
+      NodeSpan.runHandler,
+      { spanName: 'test.callback.provider' },
+      (_span, done) => {
+        done?.()
+        return 'result'
+      }
+    )
+
+    expect(result).toBe('result')
+    expect(getSpanRecords({ name: 'test.callback.provider' })).toEqual([
+      expect.objectContaining({
+        status: 'ok',
+        traceId: '0123456789abcdef0123456789abcdef',
+        spanId: '0123456789abcdef',
+      }),
+    ])
+  })
+
+  it('records direct spans with active local parent identity', () => {
+    process.env.NEXT_OTEL_LOCAL_SPANS = '1'
+
+    const parentSpan = getTracer().startSpan(NodeSpan.runHandler, {
+      attributes: { 'next.test.name': 'parent' },
+    })
+    let childSpanId: string | undefined
+
+    getTracer().withSpan(parentSpan, () => {
+      expect(getTracer().getActiveScopeSpan()).toBe(parentSpan)
+
+      const childSpan = getTracer().startSpan(AppRenderSpan.fetch, {
+        attributes: { 'next.test.name': 'child' },
+      })
+      childSpanId = childSpan.spanContext().spanId
+      childSpan.end()
+    })
+    parentSpan.end()
+
+    const records = getSpanRecords()
+    const parentRecord = records.find(
+      (record) => record.attributes?.['next.test.name'] === 'parent'
+    )
+    const childRecord = records.find(
+      (record) => record.attributes?.['next.test.name'] === 'child'
+    )
+
+    expect(parentRecord).toEqual(
+      expect.objectContaining({
+        name: NodeSpan.runHandler,
+        parentSpanId: undefined,
+      })
+    )
+    expect(childRecord).toEqual(
+      expect.objectContaining({
+        name: AppRenderSpan.fetch,
+        spanId: childSpanId,
+        traceId: parentRecord?.traceId,
+        parentSpanId: parentRecord?.spanId,
+      })
+    )
+  })
+
   it('records thrown errors before rethrowing', () => {
     process.env.NEXT_OTEL_LOCAL_SPANS = '1'
 
@@ -396,11 +508,17 @@ describe('local span store sink', () => {
             getIsolatedTracer().trace(
               NodeSpan.runHandler,
               { spanName: 'test.als.outer' },
-              () => {
+              (outerSpan) => {
+                expect(getIsolatedTracer().getActiveScopeSpan()).toBe(outerSpan)
                 getIsolatedTracer().trace(
                   NodeSpan.runHandler,
                   { spanName: 'test.als.inner' },
-                  () => 'result'
+                  (innerSpan) => {
+                    expect(getIsolatedTracer().getActiveScopeSpan()).toBe(
+                      innerSpan
+                    )
+                    return 'result'
+                  }
                 )
               }
             )
@@ -409,9 +527,16 @@ describe('local span store sink', () => {
 
         const records = getIsolatedSpanRecords()
         const traceIds = new Set(records.map((record) => record.traceId))
+        const outerRecord = records.find(
+          (record) => record.name === 'test.als.outer'
+        )
+        const innerRecord = records.find(
+          (record) => record.name === 'test.als.inner'
+        )
 
         expect(records).toHaveLength(2)
         expect(traceIds.size).toBe(1)
+        expect(innerRecord?.parentSpanId).toBe(outerRecord?.spanId)
         expect(records).toEqual(
           expect.arrayContaining([
             expect.objectContaining({

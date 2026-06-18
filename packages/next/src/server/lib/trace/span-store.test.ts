@@ -1,13 +1,20 @@
+import { runInNewContext } from 'node:vm'
+import { setFlagsFromString } from 'node:v8'
 import {
   clearSpanStoreForTest,
   getSpanRecords,
   InMemorySpanStore,
+  isLocalSpanStoreEnabled,
   isRequestInsightsEnabled,
   recordSpan,
 } from './span-store'
 
 const originalLocalSpans = process.env.NEXT_OTEL_LOCAL_SPANS
 const originalRequestInsights = process.env.__NEXT_REQUEST_INSIGHTS
+const originalDevServer = process.env.__NEXT_DEV_SERVER
+
+setFlagsFromString('--expose-gc')
+const forceGarbageCollection = runInNewContext('gc') as () => void
 
 function restoreEnv(name: string, value: string | undefined) {
   if (value === undefined) {
@@ -18,9 +25,14 @@ function restoreEnv(name: string, value: string | undefined) {
 }
 
 describe('span store', () => {
+  beforeEach(() => {
+    process.env.__NEXT_DEV_SERVER = '1'
+  })
+
   afterEach(() => {
     restoreEnv('NEXT_OTEL_LOCAL_SPANS', originalLocalSpans)
     restoreEnv('__NEXT_REQUEST_INSIGHTS', originalRequestInsights)
+    restoreEnv('__NEXT_DEV_SERVER', originalDevServer)
     clearSpanStoreForTest()
   })
 
@@ -109,6 +121,16 @@ describe('span store', () => {
     ])
   })
 
+  it('releases attribute payloads from evicted records', async () => {
+    const { traceStore, attributeRef } = createStoreWithEvictedAttribute()
+
+    expect(traceStore.getRecords()).toEqual([
+      expect.objectContaining({ name: 'second' }),
+    ])
+
+    await expectCollected(attributeRef)
+  })
+
   it('records to the global in-memory store only when local span capture is enabled', () => {
     delete process.env.NEXT_OTEL_LOCAL_SPANS
 
@@ -137,6 +159,17 @@ describe('span store', () => {
         },
       }),
     ])
+  })
+
+  it('does not enable local span capture outside the dev server', () => {
+    delete process.env.__NEXT_DEV_SERVER
+    process.env.NEXT_OTEL_LOCAL_SPANS = '1'
+    process.env.__NEXT_REQUEST_INSIGHTS = 'true'
+
+    expect(isLocalSpanStoreEnabled()).toBe(false)
+
+    recordSpan({ name: 'test.production' })
+    expect(getSpanRecords()).toEqual([])
   })
 
   it('shares local records across separate module instances in the same process', () => {
@@ -176,3 +209,26 @@ describe('span store', () => {
     expect(isRequestInsightsEnabled()).toBe(true)
   })
 })
+
+function createStoreWithEvictedAttribute() {
+  const traceStore = new InMemorySpanStore({ maxRecords: 1 })
+  const attributeValue = ['retained-value']
+  const attributeRef = new WeakRef(attributeValue)
+
+  traceStore.record({
+    name: 'first',
+    attributes: { 'next.test.payload': attributeValue },
+  })
+  traceStore.record({ name: 'second' })
+
+  return { traceStore, attributeRef }
+}
+
+async function expectCollected(ref: WeakRef<object>): Promise<void> {
+  for (let attempt = 0; attempt < 10; attempt++) {
+    forceGarbageCollection()
+    await new Promise<void>((resolve) => setImmediate(resolve))
+  }
+
+  expect(ref.deref()).toBeUndefined()
+}
