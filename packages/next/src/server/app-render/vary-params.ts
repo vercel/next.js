@@ -1,5 +1,6 @@
 import type { Params } from '../request/params'
 import type { SearchParams } from '../request/search-params'
+import { StreamingValue } from './streaming-value'
 import {
   getVaryParamsAccumulator,
   workUnitAsyncStorage,
@@ -30,57 +31,30 @@ import {
  * "done", so concurrent iteration of it is safe.
  */
 export class VaryParamsAccumulator implements AsyncIterable<string> {
-  private _resolve: ((result: IteratorResult<string>) => void) | null = null
-  private _done = false
-  private _buffer: string[] = []
   // The set of param names already yielded. Doubles as the dedupe guard so the
   // same name is never emitted twice.
   private _seen: Set<string> = new Set()
-
+  private _stream = new StreamingValue<string>()
   /**
    * Records that a param was accessed. Yields the name into the stream the
    * first time it's seen; subsequent accesses of the same name are no-ops.
    */
   add(paramName: string): void {
-    if (this._done || this._seen.has(paramName)) {
+    if (this._seen.has(paramName)) {
       return
     }
     this._seen.add(paramName)
-    if (this._resolve !== null) {
-      this._resolve({ value: paramName, done: false })
-      this._resolve = null
-    } else {
-      this._buffer.push(paramName)
-    }
+    this._stream.emit(paramName)
   }
 
   /** Ends the iteration. Best-effort: if skipped (e.g. on a sync-I/O abort),
    * the consumer simply reads the params yielded so far. */
   close(): void {
-    if (this._done) {
-      return
-    }
-    this._done = true
-    if (this._resolve !== null) {
-      this._resolve({ value: undefined, done: true })
-      this._resolve = null
-    }
+    this._stream.close()
   }
 
   [Symbol.asyncIterator](): AsyncIterator<string> {
-    return {
-      next: () => {
-        if (this._buffer.length > 0) {
-          return Promise.resolve({ value: this._buffer.shift()!, done: false })
-        }
-        if (this._done) {
-          return Promise.resolve({ value: undefined, done: true })
-        }
-        return new Promise<IteratorResult<string>>((resolve) => {
-          this._resolve = resolve
-        })
-      },
-    }
+    return this._stream[Symbol.asyncIterator]()
   }
 }
 

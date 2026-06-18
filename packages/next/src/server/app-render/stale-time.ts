@@ -1,5 +1,6 @@
 import type { ExperimentalConfig } from '../config-shared'
 import { INFINITE_CACHE } from '../../lib/constants'
+import { StreamingValue } from './streaming-value'
 
 /**
  * An AsyncIterable<number> that yields staleTime values. Each call to
@@ -11,48 +12,26 @@ import { INFINITE_CACHE } from '../../lib/constants'
  * yielded value is already in the stream, allowing the prerender to be aborted
  * synchronously.
  */
-export class StaleTimeIterable {
-  private _resolve: ((result: IteratorResult<number>) => void) | null = null
-  private _done = false
-  private _buffer: number[] = []
-
+export class StaleTimeIterable implements AsyncIterable<number> {
   /** The last value passed to `update()`. */
-  public currentValue: number = 0
+  public currentValue: number | undefined = undefined
+
+  private _stream = new StreamingValue<number>()
 
   update(value: number): void {
-    if (this._done) return
-    this.currentValue = value
-    if (this._resolve) {
-      this._resolve({ value, done: false })
-      this._resolve = null
-    } else {
-      this._buffer.push(value)
+    if (value === this.currentValue) {
+      return
     }
+    this.currentValue = value
+    this._stream.emit(value)
   }
 
   close(): void {
-    if (this._done) return
-    this._done = true
-    if (this._resolve) {
-      this._resolve({ value: undefined, done: true })
-      this._resolve = null
-    }
+    return this._stream.close()
   }
 
-  [Symbol.asyncIterator](): AsyncIterator<number> {
-    return {
-      next: () => {
-        if (this._buffer.length > 0) {
-          return Promise.resolve({ value: this._buffer.shift()!, done: false })
-        }
-        if (this._done) {
-          return Promise.resolve({ value: undefined, done: true })
-        }
-        return new Promise<IteratorResult<number>>((resolve) => {
-          this._resolve = resolve
-        })
-      },
-    }
+  [Symbol.asyncIterator]() {
+    return this._stream[Symbol.asyncIterator]()
   }
 }
 
