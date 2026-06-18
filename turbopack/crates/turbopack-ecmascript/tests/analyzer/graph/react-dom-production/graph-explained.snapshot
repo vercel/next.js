@@ -399,9 +399,7 @@ Bj (const after eval) = (???*0* | *anonymous function 86340*)
 - *0* Bj
   ⚠️  pattern without value
 
-Bk = (???*0* | B())
-- *0* unsupported expression
-  ⚠️  This value might have side effects
+Bk = (-1 | B())
 
 C = (
   | 0
@@ -763,12 +761,10 @@ Kj = (!(1) | g | h)
 
 Kk (const after eval) = (...) => ((null === a) ? ai : a)
 
-L (const after eval) = (...) => ((0 !== ???*0*) ? B() : ((???*1* !== Bk) ? Bk : ???*2*))
+L (const after eval) = (...) => ((0 !== ???*0*) ? B() : ((-1 !== Bk) ? Bk : ???*1*))
 - *0* unsupported expression
   ⚠️  This value might have side effects
-- *1* unsupported expression
-  ⚠️  This value might have side effects
-- *2* assignment expression
+- *1* assignment expression
   ⚠️  This value might have side effects
 
 La = (???*0* | ((b && b[1]) || ""))
@@ -1153,10 +1149,8 @@ Td (const after eval) = rd(Sd)
 
 Te = (!(1) | !(0))
 
-Tf = (???*0* | ???*1*)
-- *0* unsupported expression
-  ⚠️  This value might have side effects
-- *1* updated with update expression
+Tf = (-1 | ???*0*)
+- *0* updated with update expression
   ⚠️  This value might have side effects
 
 Tg (const after eval) = (...) => undefined
@@ -3030,9 +3024,7 @@ b#587 = (
 - *0* b
   ⚠️  pattern without value
 
-b#589 = (arguments[1] | ch(???*0*, 1))
-- *0* unsupported expression
-  ⚠️  This value might have side effects
+b#589 = (arguments[1] | ch(-1, 1))
 
 b#590 = arguments[1]
 
@@ -3704,13 +3696,9 @@ c#576 = ???*0*
 - *0* c
   ⚠️  pattern without value
 
-c#578 = (arguments[2] | ch(???*0*, c))
-- *0* unsupported expression
-  ⚠️  This value might have side effects
+c#578 = (arguments[2] | ch(-1, c))
 
-c#580 = (arguments[2] | ch(???*0*, c))
-- *0* unsupported expression
-  ⚠️  This value might have side effects
+c#580 = (arguments[2] | ch(-1, c))
 
 c#584 = b["stack"]
 
@@ -3793,14 +3781,10 @@ c#673 = (
   | a["ownerDocument"]
   | d["anchorNode"]
   | null
-  | (((???*1* === h) || (???*2* === k)) ? null : {"start": h, "end": k})
+  | (((-1 === h) || (-1 === k)) ? null : {"start": h, "end": k})
   | (c || {"start": 0, "end": 0})
 )
 - *0* assignment expression
-  ⚠️  This value might have side effects
-- *1* unsupported expression
-  ⚠️  This value might have side effects
-- *2* unsupported expression
   ⚠️  This value might have side effects
 
 c#68 = b["checked"]
@@ -4763,9 +4747,7 @@ e#77 = (0 | undefined | ???*0* | b["hasOwnProperty"](`$${a[c]["value"]}`))
 
 e#785 = (b["return"] | undefined)
 
-e#807 = (K | undefined | xc(a) | a["current"]["alternate"] | a["suspendedLanes"] | ???*0* | g)
-- *0* unsupported expression
-  ⚠️  This value might have side effects
+e#807 = (K | undefined | xc(a) | a["current"]["alternate"] | a["suspendedLanes"] | -1 | g)
 
 e#819 = (c[d] | undefined | e["value"])
 
@@ -5312,9 +5294,7 @@ gc (const after eval) = ca["unstable_UserBlockingPriority"]
 
 gd (const after eval) = (...) => undefined
 
-ge (const after eval) = (...) => ((???*0* !== $d["indexOf"](b["keyCode"])) | (229 !== b["keyCode"]) | !(0) | !(1) | undefined)
-- *0* unsupported expression
-  ⚠️  This value might have side effects
+ge (const after eval) = (...) => ((-1 !== $d["indexOf"](b["keyCode"])) | (229 !== b["keyCode"]) | !(0) | !(1) | undefined)
 
 gf (const after eval) = (0 | ???*0*)
 - *0* updated with update expression
@@ -5424,9 +5404,7 @@ h#639 = (e[l] | undefined | ((null != e) ? e[l] : undefined) | (h ? h["__html"] 
 
 h#647 = (f[g] | undefined | e)
 
-h#673 = (???*0* | undefined | (g + e) | g)
-- *0* unsupported expression
-  ⚠️  This value might have side effects
+h#673 = (-1 | undefined | (g + e) | g)
 
 h#708 = ???*0*
 - *0* h
@@ -5626,9 +5604,7 @@ k#639 = (d[l] | undefined | (k ? k["__html"] : undefined))
 
 k#647 = (h[f] | undefined | (k ? k["__html"] : undefined))
 
-k#673 = (???*0* | undefined | (g + d) | g)
-- *0* unsupported expression
-  ⚠️  This value might have side effects
+k#673 = (-1 | undefined | (g + d) | g)
 
 k#716 = (e["alternate"] | undefined)
 
@@ -5672,10 +5648,8 @@ k#883 = (0 | undefined | ???*0*)
 - *0* updated with update expression
   ⚠️  This value might have side effects
 
-k#919 = (h["firstContext"] | undefined | ch(???*0*, ???*1*) | f["alternate"] | k["next"])
+k#919 = (h["firstContext"] | undefined | ch(-1, ???*0*) | f["alternate"] | k["next"])
 - *0* unsupported expression
-  ⚠️  This value might have side effects
-- *1* unsupported expression
   ⚠️  This value might have side effects
 
 k#953 = arguments[8]
@@ -6478,9 +6452,7 @@ va (const after eval) = FreeVar(Symbol)["for"]("react.element")
 
 vb (const after eval) = (...) => (("string" === typeof(b["is"])) | !(1) | !(0) | undefined)
 
-vc (const after eval) = (...) => ((b + 250) | (b + 5000) | ???*0* | undefined)
-- *0* unsupported expression
-  ⚠️  This value might have side effects
+vc (const after eval) = (...) => ((b + 250) | (b + 5000) | -1 | undefined)
 
 vd (const after eval) = rd(ud)
 

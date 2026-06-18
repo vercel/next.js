@@ -221,10 +221,10 @@ export const experimentalSchema = {
   caseSensitiveRoutes: z.boolean().optional(),
   clientParamParsingOrigins: z.array(z.string()).optional(),
   cachedNavigations: z.boolean().optional(),
-  partialFallbacks: z.boolean().optional(),
   dynamicOnHover: z.boolean().optional(),
   useOffline: z.boolean().optional(),
   optimisticRouting: z.boolean().optional(),
+  appShells: z.boolean().optional(),
   varyParams: z.boolean().optional(),
   prefetchInlining: z
     .union([
@@ -253,13 +253,13 @@ export const experimentalSchema = {
   externalMiddlewareRewritesResolve: z.boolean().optional(),
   externalProxyRewritesResolve: z.boolean().optional(),
   exposeTestingApiInProductionBuild: z.boolean().optional(),
-  instantNavigationDevToolsToggle: z.boolean().optional(),
   fallbackNodePolyfills: z.literal(false).optional(),
   fetchCacheKeyPrefix: z.string().optional(),
   forceSwcTransforms: z.boolean().optional(),
   fullySpecified: z.boolean().optional(),
   gzipSize: z.boolean().optional(),
   imgOptConcurrency: z.number().int().optional().nullable(),
+  imgOptOperationCache: z.boolean().optional().nullable(),
   imgOptTimeoutInSeconds: z.number().int().optional(),
   imgOptMaxInputPixels: z.number().int().optional(),
   imgOptSequentialRead: z.boolean().optional().nullable(),
@@ -273,7 +273,21 @@ export const experimentalSchema = {
   middlewareClientMaxBodySize: zSizeLimit.optional(),
   proxyClientMaxBodySize: zSizeLimit.optional(),
   multiZoneDraftMode: z.boolean().optional(),
-  cssChunking: z.union([z.boolean(), z.literal('strict')]).optional(),
+  cssChunking: z
+    .union([
+      z.boolean(),
+      z.literal('strict'),
+      z.literal('loose'),
+      z.literal('graph'),
+      z.strictObject({ type: z.literal('strict') }),
+      z.strictObject({ type: z.literal('loose') }),
+      z.strictObject({
+        type: z.literal('graph'),
+        requestCost: z.number().nonnegative().finite().optional(),
+        moduleFactorCost: z.number().nonnegative().finite().optional(),
+      }),
+    ])
+    .optional(),
   nextScriptWorkers: z.boolean().optional(),
   // The critter option is unknown, use z.any() here
   optimizeCss: z.union([z.boolean(), z.any()]).optional(),
@@ -285,6 +299,7 @@ export const experimentalSchema = {
     .readonly()
     .optional(),
   taint: z.boolean().optional(),
+  blockingSSR: z.boolean().optional(),
   prerenderEarlyExit: z.boolean().optional(),
   proxyTimeout: z.number().gte(0).optional(),
   rootParams: z.boolean().optional(),
@@ -350,7 +365,9 @@ export const experimentalSchema = {
   typedRoutes: z.boolean().optional(),
   webpackBuildWorker: z.boolean().optional(),
   webpackMemoryOptimizations: z.boolean().optional(),
-  turbopackMemoryLimit: z.number().optional(),
+  turbopackMemoryEviction: z
+    .union([z.literal(false), z.literal('full')])
+    .optional(),
   turbopackPluginRuntimeStrategy: z
     .enum(['workerThreads', 'childProcesses', 'forceWorkerThreads'])
     .optional(),
@@ -413,13 +430,13 @@ export const experimentalSchema = {
   authInterrupts: z.boolean().optional(),
   useCache: z.boolean().optional(),
   useCacheTimeout: z.number().positive().optional(),
-  useNodeStreams: z.boolean().optional(),
   slowModuleDetection: z
     .object({
       buildTimeThresholdMs: z.number().int(),
     })
     .optional(),
   globalNotFound: z.boolean().optional(),
+  turbopackRustReactCompiler: z.boolean().optional(),
   browserDebugInfoInTerminal: z
     .union([
       z.boolean(),
@@ -749,6 +766,10 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
       .record(z.string(), z.array(z.string()))
       .optional(),
     pageExtensions: z.array(z.string()).min(1).optional(),
+    instrumentationClientInject: z.array(z.string()).optional(),
+    partialPrefetching: z
+      .union([z.boolean(), z.literal('unstable_eager')])
+      .optional(),
     poweredByHeader: z.boolean().optional(),
     productionBrowserSourceMaps: z.boolean().optional(),
     reactCompiler: z.union([

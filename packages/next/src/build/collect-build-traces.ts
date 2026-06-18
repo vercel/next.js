@@ -305,6 +305,7 @@ export async function collectBuildTraces({
           base: outputFileTracingRoot,
           processCwd: dir,
           mixedModules: true,
+          moduleSyncCatchall: true,
           async readFile(p) {
             try {
               return await fs.readFile(p, 'utf8')

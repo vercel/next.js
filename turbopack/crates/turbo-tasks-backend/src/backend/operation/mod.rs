@@ -19,19 +19,18 @@ use tracing::info_span;
 use tracing::trace_span;
 use turbo_tasks::{
     CellId, DynTaskInputs, FxIndexMap, RawVc, SharedReference, TaskExecutionReason, TaskId,
-    TaskPriority, TurboTasksBackendApi, TurboTasksCallApi, backend::CachedTaskType,
+    TaskPriority, TurboTasks, TurboTasksCallApi, backend::CachedTaskTypeArc,
     macro_helpers::NativeFunction,
 };
 
-use self::aggregation_update::ComputeDirtyAndCleanUpdate;
+pub use self::aggregation_update::ComputeDirtyAndCleanUpdate;
 use crate::{
     backend::{
-        EventDescription, TaskDataCategory, TurboTasksBackend, TurboTasksBackendInner,
+        EventDescription, TaskDataCategory, TurboTasksBackend,
         snapshot_coordinator::OperationGuard,
         storage::{SpecificTaskDataCategory, StorageWriteGuard},
         storage_schema::{TaskStorage, TaskStorageAccessors},
     },
-    backing_storage::BackingStorage,
     data::{ActivenessState, CollectibleRef, Dirtyness, InProgressState, TransientTask},
 };
 
@@ -88,13 +87,11 @@ pub trait ExecuteContext<'e>: Sized {
         task_id2: TaskId,
         category: TaskDataCategory,
     ) -> (Self::TaskGuardImpl, Self::TaskGuardImpl);
-    fn schedule(&mut self, task_id: TaskId, parent_priority: TaskPriority);
     fn schedule_task(&self, task: Self::TaskGuardImpl, parent_priority: TaskPriority);
     fn get_current_task_priority(&self) -> TaskPriority;
     fn operation_suspend_point<T>(&mut self, op: &T)
     where
         T: Clone + Into<AnyOperation>;
-    fn suspending_requested(&self) -> bool;
     fn should_track_dependencies(&self) -> bool;
     fn should_track_activeness(&self) -> bool;
     fn turbo_tasks(&self) -> Arc<dyn TurboTasksCallApi>;
@@ -103,7 +100,8 @@ pub trait ExecuteContext<'e>: Sized {
     /// Uses hash-based lookup which may return multiple candidates due to hash collisions,
     /// then verifies each candidate by comparing the stored `persistent_task_type`.
     /// Returns `Some((task_id, task_type))` if a matching task is found, where `task_type` is
-    /// the existing `Arc<CachedTaskType>` from storage (avoiding a duplicate allocation).
+    /// the existing `CachedTaskTypeArc` from storage (avoiding a duplicate
+    /// allocation).
     ///
     /// Accepts exploded components so the caller does not need to box the argument before calling.
     fn task_by_type(
@@ -111,7 +109,7 @@ pub trait ExecuteContext<'e>: Sized {
         native_fn: &'static NativeFunction,
         this: Option<RawVc>,
         arg: &dyn DynTaskInputs,
-    ) -> Option<(TaskId, Arc<CachedTaskType>)>;
+    ) -> Option<(TaskId, CachedTaskTypeArc)>;
     fn debug_get_task_description(&self, task_id: TaskId) -> String;
 }
 
@@ -165,17 +163,17 @@ impl TaskLockCounter {
     }
 }
 
-pub struct ExecuteContextImpl<'e, B: BackingStorage> {
-    backend: &'e TurboTasksBackendInner<B>,
-    turbo_tasks: &'e dyn TurboTasksBackendApi<TurboTasksBackend<B>>,
+pub struct ExecuteContextImpl<'e> {
+    backend: &'e TurboTasksBackend,
+    turbo_tasks: &'e TurboTasks<TurboTasksBackend>,
     _operation_guard: Option<OperationGuard<'e, AnyOperation>>,
     task_lock_counter: TaskLockCounter,
 }
 
-impl<'e, B: BackingStorage> ExecuteContextImpl<'e, B> {
+impl<'e> ExecuteContextImpl<'e> {
     pub(super) fn new(
-        backend: &'e TurboTasksBackendInner<B>,
-        turbo_tasks: &'e dyn TurboTasksBackendApi<TurboTasksBackend<B>>,
+        backend: &'e TurboTasksBackend,
+        turbo_tasks: &'e TurboTasks<TurboTasksBackend>,
     ) -> Self {
         Self {
             backend,
@@ -562,6 +560,7 @@ impl<'e, B: BackingStorage> ExecuteContextImpl<'e, B> {
             if let Some(task_type) = entry.task_type.clone() {
                 // Insert into the task cache to avoid future lookups
                 self.backend
+                    .storage
                     .task_cache
                     .entry(task_type)
                     .or_insert(entry.task_id);
@@ -605,7 +604,7 @@ struct TaskRestoreEntry {
     /// Another thread claimed the meta restore; we must wait in Phase 3.
     wait_meta: bool,
     /// Task type discovered during Phase 1c data restore (used to update task cache in Phase 2).
-    task_type: Option<Arc<CachedTaskType>>,
+    task_type: Option<CachedTaskTypeArc>,
     /// This thread performed the restore for at least one category (set in Phase 1c).
     self_restored: bool,
 }
@@ -641,7 +640,7 @@ fn apply_restore_result(
                 task.flags.set_restoring(task_category, false);
                 return Ok(());
             }
-            task.restore_from(storage, task_category);
+            task.restore_from(storage, category);
             task.flags.set_restored(task_category);
             task.flags.set_restoring(task_category, false);
             Ok(())
@@ -653,10 +652,10 @@ fn apply_restore_result(
     }
 }
 
-impl<'e, B: BackingStorage> ExecuteContext<'e> for ExecuteContextImpl<'e, B> {
+impl<'e> ExecuteContext<'e> for ExecuteContextImpl<'e> {
     type TaskGuardImpl = TaskGuardImpl<'e>;
 
-    fn child_context<'l, 'r>(&'r self) -> impl ChildExecuteContext<'l> + use<'e, 'l, B>
+    fn child_context<'l, 'r>(&'r self) -> impl ChildExecuteContext<'l> + use<'e, 'l>
     where
         'e: 'l,
     {
@@ -935,11 +934,6 @@ impl<'e, B: BackingStorage> ExecuteContext<'e> for ExecuteContextImpl<'e, B> {
         )
     }
 
-    fn schedule(&mut self, task_id: TaskId, parent_priority: TaskPriority) {
-        let task = self.task(task_id, TaskDataCategory::All);
-        self.schedule_task(task, parent_priority);
-    }
-
     fn schedule_task(&self, task: Self::TaskGuardImpl, parent_priority: TaskPriority) {
         let priority = if task.has_output() {
             TaskPriority::invalidation(
@@ -963,10 +957,6 @@ impl<'e, B: BackingStorage> ExecuteContext<'e> for ExecuteContextImpl<'e, B> {
         self.backend.operation_suspend_point(|| op.clone().into());
     }
 
-    fn suspending_requested(&self) -> bool {
-        self.backend.suspending_requested()
-    }
-
     fn should_track_dependencies(&self) -> bool {
         self.backend.should_track_dependencies()
     }
@@ -984,7 +974,7 @@ impl<'e, B: BackingStorage> ExecuteContext<'e> for ExecuteContextImpl<'e, B> {
         native_fn: &'static NativeFunction,
         this: Option<RawVc>,
         arg: &dyn DynTaskInputs,
-    ) -> Option<(TaskId, Arc<CachedTaskType>)> {
+    ) -> Option<(TaskId, CachedTaskTypeArc)> {
         if !self.backend.should_restore() {
             return None;
         }
@@ -1014,12 +1004,12 @@ impl<'e, B: BackingStorage> ExecuteContext<'e> for ExecuteContextImpl<'e, B> {
     }
 }
 
-struct ChildExecuteContextImpl<'e, B: BackingStorage> {
-    backend: &'e TurboTasksBackendInner<B>,
-    turbo_tasks: &'e dyn TurboTasksBackendApi<TurboTasksBackend<B>>,
+struct ChildExecuteContextImpl<'e> {
+    backend: &'e TurboTasksBackend,
+    turbo_tasks: &'e TurboTasks<TurboTasksBackend>,
 }
 
-impl<'e, B: BackingStorage> ChildExecuteContext<'e> for ChildExecuteContextImpl<'e, B> {
+impl<'e> ChildExecuteContext<'e> for ChildExecuteContextImpl<'e> {
     fn create(self) -> impl ExecuteContext<'e> {
         ExecuteContextImpl {
             backend: self.backend,
@@ -1031,14 +1021,14 @@ impl<'e, B: BackingStorage> ChildExecuteContext<'e> for ChildExecuteContextImpl<
 }
 
 pub enum TaskTypeRef<'l> {
-    Cached(&'l Arc<CachedTaskType>),
+    Cached(&'l CachedTaskTypeArc),
     Transient(&'l Arc<TransientTask>),
 }
 
 impl TaskTypeRef<'_> {
     pub fn to_owned(&self) -> TaskType {
         match self {
-            TaskTypeRef::Cached(ty) => TaskType::Cached(Arc::clone(ty)),
+            TaskTypeRef::Cached(ty) => TaskType::Cached((*ty).clone()),
             TaskTypeRef::Transient(ty) => TaskType::Transient(Arc::clone(ty)),
         }
     }
@@ -1053,8 +1043,9 @@ impl Display for TaskTypeRef<'_> {
     }
 }
 
+#[derive(Debug)]
 pub enum TaskType {
-    Cached(Arc<CachedTaskType>),
+    Cached(CachedTaskTypeArc),
     Transient(Arc<TransientTask>),
 }
 
@@ -1121,7 +1112,9 @@ pub trait TaskGuard: Debug + TaskStorageAccessors {
 
     fn is_dirty(&self) -> Option<TaskPriority> {
         self.get_dirty().and_then(|dirtyness| match dirtyness {
-            Dirtyness::Dirty(priority) => Some(*priority),
+            Dirtyness::Dirty {
+                parent_priority, ..
+            } => Some(*parent_priority),
             Dirtyness::SessionDependent => {
                 if !self.current_session_clean() {
                     Some(TaskPriority::leaf())
@@ -1131,19 +1124,11 @@ pub trait TaskGuard: Debug + TaskStorageAccessors {
             }
         })
     }
-    fn dirtyness_and_session(&self) -> Option<(Dirtyness, bool)> {
-        match self.get_dirty()? {
-            Dirtyness::Dirty(priority) => Some((Dirtyness::Dirty(*priority), false)),
-            Dirtyness::SessionDependent => {
-                Some((Dirtyness::SessionDependent, self.current_session_clean()))
-            }
-        }
-    }
     /// Returns (is_dirty, is_clean_in_current_session)
     fn dirty_state(&self) -> (bool, bool) {
         match self.get_dirty() {
             None => (false, false),
-            Some(Dirtyness::Dirty(_)) => (true, false),
+            Some(Dirtyness::Dirty { .. }) => (true, false),
             Some(Dirtyness::SessionDependent) => (true, self.current_session_clean()),
         }
     }
@@ -1165,7 +1150,7 @@ pub trait TaskGuard: Debug + TaskStorageAccessors {
         let (old_self_dirty, old_current_session_self_clean) = self.dirty_state();
         let (new_self_dirty, new_current_session_self_clean) = match new_dirtyness {
             None => (false, false),
-            Some(Dirtyness::Dirty(_)) => (true, false),
+            Some(Dirtyness::Dirty { .. }) => (true, false),
             Some(Dirtyness::SessionDependent) => (true, true),
         };
         if old_dirtyness != new_dirtyness {
@@ -1297,6 +1282,7 @@ pub trait TaskGuard: Debug + TaskStorageAccessors {
             panic!("Every task must have a task type {self:?}");
         }
     }
+
     fn get_task_desc_fn(&self) -> impl Fn() -> String + Send + Sync + 'static {
         let task_type = self.get_task_type().to_owned();
         let task_id = self.id();
@@ -1307,6 +1293,7 @@ pub trait TaskGuard: Debug + TaskStorageAccessors {
         let task_id = self.id();
         format!("{task_id:?} {task_type}")
     }
+    #[cfg(feature = "trace_task_dirty")]
     fn get_task_name(&self) -> String {
         let task_type = self.get_task_type().to_owned();
         format!("{task_type}")
@@ -1395,7 +1382,11 @@ impl TaskGuard for TaskGuardImpl<'_> {
             .map(|target| (target, TaskDataCategory::Meta))
             .chain(
                 self.iter_cell_dependencies()
-                    .map(|(target, _key)| (target.task, TaskDataCategory::All)),
+                    .map(|r| (r.task, TaskDataCategory::All)),
+            )
+            .chain(
+                self.iter_cell_dependencies_hashed()
+                    .map(|(r, _)| (r.task, TaskDataCategory::All)),
             )
             .chain(
                 self.iter_collectibles_dependencies()
@@ -1505,8 +1496,6 @@ impl_operation!(CleanupOldEdges cleanup_old_edges::CleanupOldEdgesOperation);
 impl_operation!(AggregationUpdate aggregation_update::AggregationUpdateQueue);
 impl_operation!(LeafDistanceUpdate leaf_distance_update::LeafDistanceUpdateQueue);
 
-#[cfg(feature = "trace_task_dirty")]
-pub use self::invalidate::TaskDirtyCause;
 pub use self::{
     aggregation_update::{
         AggregatedDataUpdate, AggregationUpdateJob, get_aggregation_number, get_uppers,

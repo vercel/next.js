@@ -12,7 +12,7 @@ use hyper::{
 use mime::Mime;
 use turbo_tasks::{
     CollectiblesSource, Effects, OperationVc, ReadRef, ResolvedVc, TransientInstance, Vc,
-    take_effects, util::SharedError,
+    read_strongly_consistent_and_apply_effects, take_effects, util::SharedError,
 };
 use turbo_tasks_bytes::Bytes;
 use turbo_tasks_fs::FileContent;
@@ -42,7 +42,7 @@ enum GetFromSourceResult {
 
 /// Resolves a [SourceRequest] within a [super::ContentSource], returning the
 /// corresponding content as a
-#[turbo_tasks::function(operation)]
+#[turbo_tasks::function(operation, root)]
 async fn get_from_source_operation(
     source: OperationVc<Box<dyn ContentSource>>,
     request: TransientInstance<SourceRequest>,
@@ -78,7 +78,7 @@ struct GetFromSourceResultWithCollectibles {
     content_source_side_effects: AutoSet<ResolvedVc<Box<dyn ContentSourceSideEffect>>>,
 }
 
-#[turbo_tasks::function(operation)]
+#[turbo_tasks::function(operation, root)]
 async fn get_from_source_with_collectibles_operation(
     source_op: OperationVc<Box<dyn ContentSource>>,
     request: TransientInstance<SourceRequest>,
@@ -106,12 +106,12 @@ pub async fn process_request_with_content_source(
     let request = http_request_to_source_request(request).await?;
     let wrapper_op =
         get_from_source_with_collectibles_operation(source, TransientInstance::new(request));
+    let read = read_strongly_consistent_and_apply_effects(wrapper_op, |v| &v.effects).await?;
     let GetFromSourceResultWithCollectibles {
         result,
-        effects,
         content_source_side_effects,
-    } = &*wrapper_op.read_strongly_consistent().await?;
-    effects.apply().await?;
+        ..
+    } = &*read;
     handle_issues(
         wrapper_op,
         issue_reporter,

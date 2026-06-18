@@ -7,7 +7,7 @@ import {
   getRedboxTotalErrorCount,
 } from 'next-test-utils'
 import path from 'path'
-import { nextTestSetup } from 'e2e-utils'
+import { isReact18, nextTestSetup } from 'e2e-utils'
 
 describe('Client Navigation', () => {
   const { isTurbopack, next, isRspack } = nextTestSetup({
@@ -64,7 +64,7 @@ describe('Client Navigation', () => {
     it('should always replace the state', async () => {
       const browser = await next.browser('/nav')
 
-      const countAfterClicked = await browser
+      await browser
         .elementByCss('#self-reload-link')
         .click()
         .waitForElementByCss('#self-reload-page')
@@ -72,11 +72,12 @@ describe('Client Navigation', () => {
         .click()
         .elementByCss('#self-reload-link')
         .click()
-        .elementByCss('p')
-        .text()
 
-      // counts (page change + two clicks)
-      expect(countAfterClicked).toBe('COUNT: 3')
+      // counts (page change + two clicks). Use `retry()` because the third
+      // click's state update may not have flushed when we read the text.
+      await retry(async () => {
+        expect(await browser.elementByCss('p').text()).toBe('COUNT: 3')
+      })
 
       // Since we replace the state, back button would simply go us back to /nav
       await browser.back().waitForElementByCss('.nav-home')
@@ -258,7 +259,6 @@ describe('Client Navigation', () => {
 
   describe('runtime errors', () => {
     it('should show redbox when a client side error is thrown inside a component', async () => {
-      const isReact18 = process.env.NEXT_TEST_REACT_VERSION?.startsWith('18')
       const pageErrors: unknown[] = []
       const browser = await next.browser('/error-inside-browser-page', {
         beforePageLoad: (page) => {

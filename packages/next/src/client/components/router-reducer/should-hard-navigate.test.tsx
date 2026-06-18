@@ -20,7 +20,7 @@ describe('shouldHardNavigate', () => {
       },
       undefined,
       undefined,
-      PrefetchHint.IsRootLayout,
+      PrefetchHint.IsRootLayoutOrAbove,
     ]
     const initialRouterStateTree = getInitialRouterStateTree()
     const getFlightData = (): FlightData => {
@@ -79,7 +79,7 @@ describe('shouldHardNavigate', () => {
       },
       null,
       null,
-      PrefetchHint.IsRootLayout,
+      PrefetchHint.IsRootLayoutOrAbove,
     ]
     const initialRouterStateTree = getInitialRouterStateTree()
     const getFlightData = (): FlightData => {
@@ -136,7 +136,7 @@ describe('shouldHardNavigate', () => {
       },
       null,
       null,
-      PrefetchHint.IsRootLayout,
+      PrefetchHint.IsRootLayoutOrAbove,
     ]
     const initialRouterStateTree = getInitialRouterStateTree()
     const getFlightData = (): FlightData => {

@@ -93,9 +93,22 @@ export interface WebdriverOptions {
   pushErrorAsConsoleLog?: boolean
 
   /**
+   * Suppress the harness from echoing the browser's console output to the
+   * test's terminal (the `Browser Log:` lines). Browser logs are still
+   * collected and available via `browser.log()`.
+   */
+  disableBrowserLog?: boolean
+
+  /**
    * Override the user agent
    */
   userAgent?: string
+
+  /**
+   * Override the base URL/port that `url` is resolved against. Useful when the
+   * test needs to drive a proxy or a separate server in front of Next.js.
+   */
+  baseUrl?: string | number
 }
 
 /**
@@ -128,9 +141,14 @@ export default async function webdriver(
     headless,
     cpuThrottleRate,
     pushErrorAsConsoleLog,
+    disableBrowserLog,
     userAgent,
     waitUntil,
+    baseUrl,
   } = options
+  if (baseUrl !== undefined) {
+    appPortOrUrl = baseUrl
+  }
 
   const { Playwright, quit } = await import('./browsers/playwright')
   browserQuit = quit
@@ -163,6 +181,7 @@ export default async function webdriver(
     beforePageLoad,
     extraHTTPHeaders,
     pushErrorAsConsoleLog,
+    disableBrowserLog,
     waitUntil,
   })
   debugPrint(`Loaded browser with ${fullUrl}`)

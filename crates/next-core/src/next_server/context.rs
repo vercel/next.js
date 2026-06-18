@@ -3,7 +3,7 @@ use std::collections::BTreeSet;
 use anyhow::{Result, bail};
 use bincode::{Decode, Encode};
 use turbo_rcstr::{RcStr, rcstr};
-use turbo_tasks::{ResolvedVc, TaskInput, Vc, trace::TraceRawVcs};
+use turbo_tasks::{ResolvedVc, Vc, trace::TraceRawVcs};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack::{
     module_options::{
@@ -22,13 +22,15 @@ use turbopack_core::{
     compile_time_info::{CompileTimeDefines, CompileTimeInfo, FreeVarReferences},
     environment::{Environment, ExecutionEnvironment, NodeJsEnvironment, NodeJsVersion},
     issue::IssueSeverity,
-    module_graph::binding_usage_info::OptionBindingUsageInfo,
+    module_graph::{
+        binding_usage_info::OptionBindingUsageInfo, style_groups::StyleGroupsAlgorithm,
+    },
     target::CompileTarget,
 };
 use turbopack_css::chunk::CssChunkType;
 use turbopack_ecmascript::{
     AnalyzeMode, CustomTransformer, TransformPlugin, TypeofWindow, chunk::EcmascriptChunkType,
-    references::esm::UrlRewriteBehavior,
+    references::esm::UrlRewriteBehavior, transform::ReactCompilerTarget,
 };
 use turbopack_ecmascript_plugins::transform::directives::{
     client::ClientDirectiveTransformer, client_disallowed::ClientDisallowedDirectiveTransformer,
@@ -52,10 +54,7 @@ use crate::{
         transforms::{get_next_server_internal_transforms_rules, get_next_server_transforms_rules},
     },
     next_shared::{
-        resolve::{
-            ModuleFeatureReportResolvePlugin, NextExternalResolvePlugin,
-            NextNodeSharedRuntimeResolvePlugin,
-        },
+        resolve::{NextExternalResolvePlugin, NextNodeSharedRuntimeResolvePlugin},
         transforms::{
             EcmascriptTransformStage, emotion::get_emotion_transform_rule, get_ecma_transform_rule,
             next_react_server_components::get_next_react_server_components_transform_rule,
@@ -65,7 +64,10 @@ use crate::{
             styled_jsx::get_styled_jsx_transform_rule,
             swc_ecma_transform_plugins::get_swc_ecma_transform_plugin_rule,
         },
-        webpack_rules::{WebpackLoaderBuiltinCondition, webpack_loader_options},
+        webpack_rules::{
+            WebpackLoaderBuiltinCondition, babel::detect_react_compiler_target,
+            webpack_loader_options,
+        },
     },
     transform_options::{
         get_decorators_transform_options, get_jsx_transform_options,
@@ -79,8 +81,8 @@ use crate::{
     },
 };
 
-#[turbo_tasks::value(shared)]
-#[derive(Debug, Clone, Hash, TaskInput)]
+#[turbo_tasks::value(shared, task_input)]
+#[derive(Debug, Clone, Hash)]
 pub enum ServerContextType {
     Pages {
         pages_dir: FileSystemPath,
@@ -149,10 +151,6 @@ pub async fn get_server_resolve_options_context(
     let foreign_code_context_condition =
         foreign_code_context_condition(next_config, project_path.clone()).await?;
     let root_dir = project_path.root().owned().await?;
-    let module_feature_report_resolve_plugin =
-        ModuleFeatureReportResolvePlugin::new(project_path.clone())
-            .to_resolved()
-            .await?;
 
     // Always load these predefined packages as external.
     let mut external_packages: Vec<RcStr> = load_next_js_jsonc_file(
@@ -237,20 +235,17 @@ pub async fn get_server_resolve_options_context(
         ServerContextType::Pages { .. }
         | ServerContextType::AppSSR { .. }
         | ServerContextType::AppRSC { .. } => {
-            vec![
-                ResolvedVc::upcast(
-                    NextFontLocalResolvePlugin::new(project_path.clone())
-                        .to_resolved()
-                        .await?,
-                ),
-                ResolvedVc::upcast(module_feature_report_resolve_plugin),
-            ]
+            vec![ResolvedVc::upcast(
+                NextFontLocalResolvePlugin::new(project_path.clone())
+                    .to_resolved()
+                    .await?,
+            )]
         }
         ServerContextType::PagesApi { .. }
         | ServerContextType::AppRoute { .. }
         | ServerContextType::Middleware { .. }
         | ServerContextType::Instrumentation { .. } => {
-            vec![ResolvedVc::upcast(module_feature_report_resolve_plugin)]
+            vec![]
         }
     };
 
@@ -419,6 +414,7 @@ pub async fn get_server_module_options_context(
     encryption_key: ResolvedVc<RcStr>,
     environment: ResolvedVc<Environment>,
     client_environment: ResolvedVc<Environment>,
+    enable_tracing: bool,
 ) -> Result<Vc<ModuleOptionsContext>> {
     let next_mode = mode.await?;
     let mut next_server_rules = get_next_server_transforms_rules(
@@ -563,6 +559,16 @@ pub async fn get_server_module_options_context(
     .flatten()
     .collect();
 
+    let enable_rust_react_compiler = *next_config.rust_react_compiler().await?;
+    let rust_react_compiler_target = if enable_rust_react_compiler.is_some() {
+        match detect_react_compiler_target(&project_path).await? {
+            Some(ReactCompilerTarget::React18) => ReactCompilerTarget::React18,
+            _ => ReactCompilerTarget::React19,
+        }
+    } else {
+        ReactCompilerTarget::React19
+    };
+
     let source_maps = *next_config.server_source_maps().await?;
     let module_options_context = ModuleOptionsContext {
         ecmascript: EcmascriptOptionsContext {
@@ -589,12 +595,12 @@ pub async fn get_server_module_options_context(
                 .to_resolved()
                 .await?,
         ),
-        analyze_mode: if next_mode.is_development() {
-            AnalyzeMode::CodeGeneration
-        } else {
+        analyze_mode: if enable_tracing {
             AnalyzeMode::CodeGenerationAndTracing
+        } else {
+            AnalyzeMode::CodeGeneration
         },
-        enable_externals_tracing: if next_mode.is_production() {
+        enable_externals_tracing: if enable_tracing {
             Some(
                 ExternalsTracingOptions {
                     tracing_root: project_path,
@@ -667,6 +673,7 @@ pub async fn get_server_module_options_context(
                     enable_jsx: Some(jsx_runtime_options),
                     enable_typescript_transform: Some(tsconfig),
                     enable_decorators: Some(decorators_options.to_resolved().await?),
+                    enable_rust_react_compiler: None,
                     ..module_options_context.ecmascript
                 },
                 enable_webpack_loaders,
@@ -729,6 +736,8 @@ pub async fn get_server_module_options_context(
                     enable_jsx: Some(jsx_runtime_options),
                     enable_typescript_transform: Some(tsconfig),
                     enable_decorators: Some(decorators_options.to_resolved().await?),
+                    enable_rust_react_compiler,
+                    rust_react_compiler_target,
                     ..module_options_context.ecmascript
                 },
                 enable_webpack_loaders,
@@ -809,6 +818,7 @@ pub async fn get_server_module_options_context(
                     enable_jsx: Some(rsc_jsx_runtime_options),
                     enable_typescript_transform: Some(tsconfig),
                     enable_decorators: Some(decorators_options.to_resolved().await?),
+                    enable_rust_react_compiler: None,
                     ..module_options_context.ecmascript
                 },
                 enable_webpack_loaders,
@@ -885,6 +895,7 @@ pub async fn get_server_module_options_context(
                     enable_jsx: Some(rsc_jsx_runtime_options),
                     enable_typescript_transform: Some(tsconfig),
                     enable_decorators: Some(decorators_options.to_resolved().await?),
+                    enable_rust_react_compiler: None,
                     ..module_options_context.ecmascript
                 },
                 enable_webpack_loaders,
@@ -972,6 +983,7 @@ pub async fn get_server_module_options_context(
                     enable_jsx: Some(jsx_runtime_options),
                     enable_typescript_transform: Some(tsconfig),
                     enable_decorators: Some(decorators_options.to_resolved().await?),
+                    enable_rust_react_compiler: None,
                     ..module_options_context.ecmascript
                 },
                 enable_webpack_loaders,
@@ -1010,7 +1022,8 @@ fn client_disallowed_directive_transform_plugin(error_proxy_module: RcStr) -> Vc
     )) as Box<dyn CustomTransformer + Send + Sync>)
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, Hash, TaskInput, TraceRawVcs, Encode, Decode)]
+#[turbo_tasks::task_input(contains_unresolved_vcs)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash, TraceRawVcs, Encode, Decode)]
 pub struct ServerChunkingContextOptions {
     pub mode: Vc<NextMode>,
     pub root_path: FileSystemPath,
@@ -1031,6 +1044,7 @@ pub struct ServerChunkingContextOptions {
     pub asset_prefix: RcStr,
     pub css_url_suffix: Vc<Option<RcStr>>,
     pub hash_salt: ResolvedVc<RcStr>,
+    pub style_groups_algorithm: StyleGroupsAlgorithm,
 }
 
 /// Like `get_server_chunking_context` but all assets are emitted as client assets (so `/_next`)
@@ -1058,6 +1072,7 @@ pub async fn get_server_chunking_context_with_client_assets(
         asset_prefix,
         css_url_suffix,
         hash_salt,
+        style_groups_algorithm,
     } = options;
     let css_url_suffix = css_url_suffix.to_resolved().await?;
 
@@ -1101,7 +1116,6 @@ pub async fn get_server_chunking_context_with_client_assets(
     .module_id_strategy(module_id_strategy.to_resolved().await?)
     .export_usage(*export_usage.await?)
     .unused_references(unused_references.to_resolved().await?)
-    .file_tracing(next_mode.is_production())
     .debug_ids(*debug_ids.await?)
     .hash_salt(hash_salt)
     .nested_async_availability(*nested_async_chunking.await?)
@@ -1127,6 +1141,7 @@ pub async fn get_server_chunking_context_with_client_assets(
                 Vc::<CssChunkType>::default().to_resolved().await?,
                 ChunkingConfig {
                     max_merge_chunk_size: 100_000,
+                    style_groups_algorithm: style_groups_algorithm.clone(),
                     ..Default::default()
                 },
             )
@@ -1161,6 +1176,7 @@ pub async fn get_server_chunking_context(
         asset_prefix,
         css_url_suffix,
         hash_salt,
+        style_groups_algorithm,
     } = options;
     let css_url_suffix = css_url_suffix.to_resolved().await?;
     let next_mode = mode.await?;
@@ -1207,7 +1223,6 @@ pub async fn get_server_chunking_context(
     .module_id_strategy(module_id_strategy.to_resolved().await?)
     .export_usage(*export_usage.await?)
     .unused_references(unused_references.to_resolved().await?)
-    .file_tracing(next_mode.is_production())
     .debug_ids(*debug_ids.await?)
     .hash_salt(hash_salt)
     .nested_async_availability(*nested_async_chunking.await?)
@@ -1231,6 +1246,7 @@ pub async fn get_server_chunking_context(
                 Vc::<CssChunkType>::default().to_resolved().await?,
                 ChunkingConfig {
                     max_merge_chunk_size: 100_000,
+                    style_groups_algorithm: style_groups_algorithm.clone(),
                     ..Default::default()
                 },
             )

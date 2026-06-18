@@ -70,7 +70,7 @@ pnpm --filter=next exec taskr <task>
 
 ## Fast Local Development
 
-For iterative development, default to watch mode + skip-isolate for the inner loop (not full builds), with exceptions noted below.
+For iterative development, default to watch mode plus the explicit test script that matches the mode and bundler being verified.
 
 **Default agent rule:** If you are changing Next.js source or integration tests, start `pnpm --filter=next dev` in a separate terminal session before making edits (unless it is already running). If you skip this, explicitly state why (for example: docs-only, read-only investigation, or CI-only analysis).
 
@@ -82,13 +82,20 @@ For iterative development, default to watch mode + skip-isolate for the inner lo
 pnpm --filter=next dev
 ```
 
-**2. Run tests fast (no isolation, no packing):**
+**2. Run focused tests with the matching mode script:**
 
 ```bash
-# NEXT_SKIP_ISOLATE=1 - skip packing Next.js for each test (~100s faster)
-# NEXT_TEST_MODE=<mode> - run dev or start based on the context provided
-# testheadless - runs headless with --runInBand (no worker isolation overhead)
-NEXT_SKIP_ISOLATE=1 NEXT_TEST_MODE=<dev|start> pnpm testheadless test/path/to/test.ts
+# Development mode with Turbopack
+pnpm test-dev-turbo test/path/to/test.ts
+
+# Development mode with Webpack
+pnpm test-dev-webpack test/path/to/test.ts
+
+# Production build+start with Turbopack
+pnpm test-start-turbo test/path/to/test.ts
+
+# Production build+start with Webpack
+pnpm test-start-webpack test/path/to/test.ts
 ```
 
 **3. When done, kill the background watch process (if you started it).**
@@ -103,8 +110,6 @@ After the workspace is bootstrapped, prefer `pnpm --filter=next build` when edit
 git checkout <branch>
 pnpm build-all   # Sets up outputs for dependent packages (Turborepo dedupes if unchanged)
 ```
-
-**When NOT to use NEXT_SKIP_ISOLATE:** Drop it when testing module resolution changes (new require() paths, new exports from entry-base.ts, edge route imports). Without isolation, the test uses local dist/ directly, hiding resolution failures that occur when Next.js is packed as a real npm package.
 
 ## Bundler Selection
 
@@ -140,7 +145,6 @@ pnpm test-dev-turbo test/development/
 **Other test commands:**
 
 - `pnpm test-unit` - Run unit tests only (fast, no browser)
-- `pnpm testheadless <path>` - Run tests headless without rebuilding (faster iteration when build artifacts are already up to date)
 - `pnpm new-test` - Generate a new test file from template (interactive)
 
 **Generate tests non-interactively (for AI agents):**
@@ -245,7 +249,7 @@ General triage rules (always apply; `$pr-status-triage` skill expands on these):
 - Prioritize blocking failures first: build, lint, types, then tests.
 - Assume failures are real until disproven; use "Known Flaky Tests" as context, not auto-dismissal.
 - Reproduce with the same CI mode/env vars (especially `IS_WEBPACK_TEST=1` when present).
-- For module-resolution/build-graph fixes, verify without `NEXT_SKIP_ISOLATE=1`.
+- For module-resolution/build-graph fixes, use the normal mode-specific test command so package resolution is exercised.
 
 For full triage workflow (failure prioritization, mode selection, CI env reproduction, and common failure patterns), use the `$pr-status-triage` skill:
 
@@ -317,15 +321,39 @@ Always treat environment variable values as sensitive unless they are known test
 - Never commit local secret files; if documenting env setup, use placeholder-only examples.
 - When sharing command output, summarize and redact sensitive-looking values.
 
+### GitHub SSH Authentication
+
+GitHub SSH authentication may depend on a user-configured SSH agent or key
+provider, such as a password manager or hardware-backed key.
+
+If a Git fetch, push, or partial-clone hydration fails or hangs with an SSH
+signing error such as:
+
+- `sign_and_send_pubkey: signing failed`
+- `communication with agent failed`
+- `Permission denied (publickey)`
+
+stop immediately and ask the user to ensure their SSH agent or key provider is
+available and unlocked. Do not switch remotes to HTTPS, mutate remote URLs,
+retry repeatedly, or attempt another authentication workaround unless the user
+explicitly requests it.
+
+Before a force-push or stack rebase that may hydrate partial-clone objects,
+prefer a lightweight SSH preflight. If it fails due to the SSH agent or key
+provider, ask the user to make it available or unlock it before continuing.
+
 ## Specialized Skills
 
 Use skills for conditional, deep workflows. Keep baseline iteration/build/test policy in this file.
 
 - `$pr-status-triage` - CI failure and PR review triage with `scripts/pr-status.js`
+- `$create-pr` - branch, commit, push, and draft PR creation workflow
+- `$backport-pr` - cherry-pick merged PRs from `canary` to release branches
 - `$flags` - feature-flag wiring across config/schema/define-env/runtime env
 - `$dce-edge` - DCE-safe `require()` patterns and edge/runtime constraints
 - `$react-vendoring` - `entry-base.ts` boundaries and vendored React type/runtime rules
 - `$runtime-debug` - runtime-bundle/module-resolution regression reproduction and verification
+- `$next-rspack` - @next/rspack-core and @next/rspack-binding maintenance (rspack/ directory)
 - `$authoring-skills` - how to create and maintain skills in `.agents/skills/`
 
 ## Context-Efficient Workflows
@@ -392,7 +420,7 @@ For runtime internals, use focused skills:
 
 Keep these high-frequency guardrails in mind:
 
-- Reproduce module resolution and bundling issues without `NEXT_SKIP_ISOLATE=1`
+- Reproduce module resolution and bundling issues with the normal mode-specific test command so package resolution is exercised.
 - Validate edge bundling regressions with `pnpm test-start-webpack test/e2e/app-dir/app/standalone.test.ts`
 - Use `__NEXT_SHOW_IGNORE_LISTED=true` when you need full internal stack traces
 
@@ -413,7 +441,7 @@ Core runtime/bundling rules (always apply; skills above expand on these with ver
 - Don't rely on exact log messages - filter by content patterns, find sequences not positions
 - **Snapshot tests vary by env flags**: Tests with inline snapshots can produce different output depending on env flags. When updating snapshots, always run the test with the exact env flags the CI job uses (check `.github/workflows/build_and_test.yml` `afterBuild:` sections). Turbopack resolves `react-dom/server.edge` (no Node APIs like `renderToPipeableStream`), while webpack resolves the `.node` build (has them).
 - **`app-page.ts` is a build template compiled by the user's bundler**: Any `require()` in this file is traced by webpack/turbopack at `next build` time. You cannot require internal modules with relative paths because they won't be resolvable from the user's project. Instead, export new helpers from `entry-base.ts` and access them via `entryBase.*` in the template.
-- **Reproducing CI failures locally**: Always match the exact CI env vars (check `pr-status` output for "Job Environment Variables"). Key differences: `IS_WEBPACK_TEST=1` forces webpack (turbopack is default), `NEXT_SKIP_ISOLATE=1` skips packing next.js (hides module resolution failures). Always run without `NEXT_SKIP_ISOLATE` when verifying module resolution fixes.
+- **Reproducing CI failures locally**: Always match the exact CI env vars (check `pr-status` output for "Job Environment Variables"). Key differences such as `IS_WEBPACK_TEST=1` can change bundler selection and snapshot output, so use the CI command and mode when verifying module resolution fixes.
 - **Showing full stack traces**: Set `__NEXT_SHOW_IGNORE_LISTED=true` to disable the ignore-list filtering in dev server error output. By default, Next.js collapses internal frames to `at ignore-listed frames`, which hides useful context when debugging framework internals. Defined in `packages/next/src/server/patch-error-inspect.ts`.
 - **Router act tests must use LinkAccordion to control prefetches**: Always use `LinkAccordion` to control when prefetches happen inside `act` scopes. Never use `browser.back()` to return to a page where accordion links are already visible — BFCache restores state and triggers uncontrolled re-prefetches. See `$router-act` for full patterns.
 
@@ -421,6 +449,7 @@ Core runtime/bundling rules (always apply; skills above expand on these with ver
 
 - cargo fmt uses ASCII order (uppercase before lowercase) - just run `cargo fmt`
 - **Internal compiler error (ICE)?** Delete incremental compilation artifacts and retry. Remove `*/incremental` directories from your cargo target directory (default `target/`, or check `CARGO_TARGET_DIR` env var)
+- Avoid adding new `super::` imports except in inline `mod` blocks (e.g. `mod tests { ... }`) — prefer `crate::`-rooted paths. This makes imports consistent and easier to grep for.
 
 ### Node.js Source Maps
 

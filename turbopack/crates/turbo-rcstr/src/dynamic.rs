@@ -7,49 +7,41 @@ use crate::{
     is_atom_inlineable, tagged_value::TaggedValue,
 };
 
-pub enum Payload {
-    String(String),
-    Ref(&'static str),
-}
-
-impl Payload {
-    pub(crate) fn as_str(&self) -> &str {
-        match self {
-            Payload::String(s) => s,
-            Payload::Ref(s) => s,
-        }
-    }
-    pub(crate) fn into_string(self) -> String {
-        match self {
-            Payload::String(s) => s,
-            Payload::Ref(r) => r.to_string(),
-        }
-    }
-}
-impl PartialEq for Payload {
-    fn eq(&self, other: &Self) -> bool {
-        self.as_str() == other.as_str()
-    }
-}
-
-pub struct PrehashedString {
-    pub value: Payload,
+/// Read-only header for atoms allocated in static storage by the `rcstr!`
+/// macro. The value lives for `'static`, so we store a `&'static str` rather
+/// than owning the bytes.
+pub struct StaticPrehashedString {
+    pub value: &'static str,
     /// This is not the actual `fxhash`, but rather it's a value that passed to
     /// `write_u64` of [rustc_hash::FxHasher].
     pub hash: u64,
 }
 
-pub unsafe fn cast(ptr: TaggedValue) -> *const PrehashedString {
-    ptr.get_ptr().cast()
+/// Heap-owned header for atoms held in an [`Arc`]. `Box<str>` instead of
+/// `String` because the contents are immutable — we save the `capacity` field
+/// (and a tag/padding byte vs the old `Payload` enum) per atom.
+///
+/// TODO: collapse the two allocations (this header + the boxed bytes) into a
+/// single [`triomphe::ThinArc`] so the hash and bytes share one allocation and
+/// the inline pointer in [`crate::RcStr`] is one word. That change would make
+/// `RcStr::from(String)` copy the bytes, which would invalidate the current
+/// "cheap `String -> RcStr -> String`" property — worth a separate evaluation.
+pub struct DynamicPrehashedString {
+    pub value: Box<str>,
+    pub hash: u64,
 }
 
-pub(crate) unsafe fn deref_from<'i>(ptr: TaggedValue) -> &'i PrehashedString {
-    unsafe { &*cast(ptr) }
+pub(crate) unsafe fn deref_static<'i>(ptr: TaggedValue) -> &'i StaticPrehashedString {
+    unsafe { &*(ptr.get_ptr() as *const StaticPrehashedString) }
+}
+
+pub(crate) unsafe fn deref_dynamic<'i>(ptr: TaggedValue) -> &'i DynamicPrehashedString {
+    unsafe { &*(ptr.get_ptr() as *const DynamicPrehashedString) }
 }
 
 /// Caller should call `forget` (or `clone`) on the returned `Arc`
-pub unsafe fn restore_arc(v: TaggedValue) -> Arc<PrehashedString> {
-    let ptr = v.get_ptr() as *const PrehashedString;
+pub unsafe fn restore_arc(v: TaggedValue) -> Arc<DynamicPrehashedString> {
+    let ptr = v.get_ptr() as *const DynamicPrehashedString;
     unsafe { Arc::from_raw(ptr) }
 }
 
@@ -70,20 +62,22 @@ pub(crate) fn new_atom<T: AsRef<str> + Into<String>>(text: T) -> RcStr {
 
     let hash = hash_bytes(text.as_bytes());
 
-    let prehashed = PrehashedString {
-        value: Payload::String(text.into()),
+    let prehashed = DynamicPrehashedString {
+        // NOTE: This will capture as a Box<str> which will essentially
+        // `shrink_to_fit` the bytes.
+        value: text.into(),
         hash,
     };
     new_atom_from_prehashed(prehashed)
 }
 
-/// Construct a new dynamic RcStr from a PrehashedString
-pub(crate) fn new_atom_from_prehashed(prehashed: PrehashedString) -> RcStr {
-    let entry: Arc<PrehashedString> = Arc::new(prehashed);
+/// Construct a new dynamic RcStr from a DynamicPrehashedString
+pub(crate) fn new_atom_from_prehashed(prehashed: DynamicPrehashedString) -> RcStr {
+    let entry: Arc<DynamicPrehashedString> = Arc::new(prehashed);
     let mut entry = Arc::into_raw(entry);
     debug_assert!(0 == entry as u8 & TAG_MASK);
-    entry = ((entry as usize) | DYNAMIC_TAG as usize) as *mut PrehashedString;
-    let ptr: NonNull<PrehashedString> = unsafe {
+    entry = ((entry as usize) | DYNAMIC_TAG as usize) as *mut DynamicPrehashedString;
+    let ptr: NonNull<DynamicPrehashedString> = unsafe {
         // Safety: Arc::into_raw returns a non-null pointer
         NonNull::new_unchecked(entry as *mut _)
     };
@@ -94,15 +88,15 @@ pub(crate) fn new_atom_from_prehashed(prehashed: PrehashedString) -> RcStr {
 }
 
 #[inline(always)]
-pub(crate) const fn new_static_atom(string: &'static PrehashedString) -> RcStr {
-    let entry = string as *const PrehashedString;
+pub(crate) const fn new_static_atom(string: &'static StaticPrehashedString) -> RcStr {
+    let entry = string as *const StaticPrehashedString;
     const {
-        debug_assert!(align_of::<PrehashedString>() >= 4);
+        debug_assert!(align_of::<StaticPrehashedString>() >= 4);
         // This must be 00, so that we don't have to remove the tag, which we can't since it would
         // require pointer-integer casts in a const context.
         debug_assert!(STATIC_TAG == 0b_00);
     }
-    let ptr: NonNull<PrehashedString> = unsafe {
+    let ptr: NonNull<StaticPrehashedString> = unsafe {
         // Safety: references always return a non-null pointers
         NonNull::new_unchecked(entry as *mut _)
     };

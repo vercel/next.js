@@ -18,7 +18,6 @@ import type {
 import {
   type NEXT_ROUTER_PREFETCH_HEADER,
   type NEXT_ROUTER_SEGMENT_PREFETCH_HEADER,
-  type NEXT_INSTANT_PREFETCH_HEADER,
   NEXT_ROUTER_STATE_TREE_HEADER,
   NEXT_RSC_UNION_QUERY,
   NEXT_URL,
@@ -90,6 +89,15 @@ type SpaFetchServerResponseResult = {
   runtimePrefetchStream: ReadableStream<Uint8Array> | null
   responseHeaders: Headers
   debugInfo: Array<any> | null
+  /**
+   * Dev only: resolves once the server has flushed the shell-stage content to
+   * the stream (or earlier, on a cache miss). The navigation defers revealing
+   * the response (resolving its deferred RSCs) until this settles, so React
+   * doesn't render a boundary's children before their row has been decoded and
+   * commit a premature Suspense fallback. `null` outside the streaming dev
+   * render.
+   */
+  revealAfter: Promise<void> | null
 }
 
 type MpaFetchServerResponseResult = string
@@ -102,7 +110,7 @@ export type RequestHeaders = {
   [RSC_HEADER]?: '1'
   [NEXT_ROUTER_STATE_TREE_HEADER]?: string
   [NEXT_URL]?: string
-  [NEXT_ROUTER_PREFETCH_HEADER]?: '1' | '2'
+  [NEXT_ROUTER_PREFETCH_HEADER]?: '1' | '2' | '3'
   [NEXT_ROUTER_SEGMENT_PREFETCH_HEADER]?: string
   'x-deployment-id'?: string
   [NEXT_HMR_REFRESH_HEADER]?: '1'
@@ -110,7 +118,6 @@ export type RequestHeaders = {
   'Next-Test-Fetch-Priority'?: RequestInit['priority']
   [NEXT_HTML_REQUEST_ID_HEADER]?: string // dev-only
   [NEXT_REQUEST_ID_HEADER]?: string // dev-only
-  [NEXT_INSTANT_PREFETCH_HEADER]?: '1' // testing API only
 }
 
 function doMpaNavigation(url: string): FetchServerResponseResult {
@@ -303,6 +310,7 @@ export async function fetchServerResponse(
       runtimePrefetchStream: flightResponse.p ?? null,
       responseHeaders: res.headers,
       debugInfo: flightResponsePromise._debugInfo ?? null,
+      revealAfter: flightResponse._revealAfter ?? null,
     }
   } catch (err) {
     // If the fetch rejected due to a network error, wait for connectivity
@@ -359,7 +367,12 @@ export type RSCResponse<T> = {
 
 type FetchResponseCacheData = {
   isResponsePartial: boolean
-  responseBodyClone?: ReadableStream<Uint8Array>
+  // Separate clones of the response body for stage extraction. The static
+  // stage and shell stage are extracted from independent reads, so each
+  // needs its own ReadableStream. Both are derived from a chain of `tee()`
+  // calls in `processFetch`.
+  staticBodyClone?: ReadableStream<Uint8Array>
+  shellBodyClone?: ReadableStream<Uint8Array>
 }
 
 /**
@@ -391,9 +404,16 @@ export async function processFetch(response: Response): Promise<{
     let cacheData: FetchResponseCacheData
 
     if (process.env.__NEXT_EXPERIMENTAL_CACHED_NAVIGATIONS) {
-      const [stream1, stream2] = stream.tee()
+      // Three readers needed: the main Flight decoder, the static-stage
+      // extractor, and the shell-stage extractor. Tee twice.
+      const [stream1, rest] = stream.tee()
+      const [staticBodyClone, shellBodyClone] = rest.tee()
       responseStream = stream1
-      cacheData = { isResponsePartial: isPartial, responseBodyClone: stream2 }
+      cacheData = {
+        isResponsePartial: isPartial,
+        staticBodyClone,
+        shellBodyClone,
+      }
     } else {
       responseStream = stream
       cacheData = { isResponsePartial: isPartial }
@@ -435,12 +455,12 @@ export async function resolveStaticStageData<
   flightResponse: T,
   headers: RequestHeaders | undefined
 ): Promise<StaticStageData<T> | null> {
-  const { isResponsePartial, responseBodyClone } = cacheData
+  const { isResponsePartial, staticBodyClone } = cacheData
 
-  if (responseBodyClone) {
+  if (staticBodyClone) {
     if (!isResponsePartial) {
       // Fully static — cache the entire decoded response as-is.
-      responseBodyClone.cancel()
+      staticBodyClone.cancel()
 
       return { response: flightResponse, isResponsePartial: false }
     }
@@ -448,9 +468,10 @@ export async function resolveStaticStageData<
     if (flightResponse.l !== undefined) {
       // Partially static — truncate the body clone at the byte boundary and
       // decode it.
-      const response = await decodeStaticStage<T>(
-        responseBodyClone,
-        flightResponse.l,
+      const staticStageByteLength = await flightResponse.l
+      const response = await decodeStageUntilBoundary<T>(
+        staticBodyClone,
+        staticStageByteLength,
         headers
       )
 
@@ -458,30 +479,69 @@ export async function resolveStaticStageData<
     }
 
     // No caching — cancel the unused clone.
-    responseBodyClone.cancel()
+    staticBodyClone.cancel()
   }
 
   return null
 }
 
 /**
- * Truncates and buffers a Flight stream clone at the given byte boundary and
- * decodes the static stage prefix. Used by both the navigation path and the
- * initial HTML hydration path.
+ * Resolves the shell stage of a prerender response, performing a separate
+ * Flight decode of the byte prefix when the shell differs from the main
+ * response. Returns null when no separate decode is needed:
+ *
+ * - `a === undefined`: server didn't emit shell stage info.
+ * - `a` resolves to `null`: the shell IS the main response — the caller can
+ *   reuse the existing decoded `flightResponse` if it needs a shell payload.
+ *
+ * Returns the decoded shell payload when `a` resolves to a number, i.e.
+ * the shell is a strict prefix of the response and requires a separate
+ * decode at that byte boundary.
  */
-export async function decodeStaticStage<T>(
+export async function resolveShellStageData<
+  T extends NavigationFlightResponse | InitialRSCPayload,
+>(
+  cacheData: FetchResponseCacheData,
+  flightResponse: T,
+  headers: RequestHeaders | undefined
+): Promise<T | null> {
+  const { shellBodyClone } = cacheData
+
+  if (!shellBodyClone) {
+    return null
+  }
+
+  if (flightResponse.a === undefined) {
+    shellBodyClone.cancel()
+    return null
+  }
+
+  const shellByteLength = await flightResponse.a
+  if (shellByteLength === null) {
+    // Shell == main response — caller reuses the existing flightResponse.
+    shellBodyClone.cancel()
+    return null
+  }
+
+  return decodeStageUntilBoundary<T>(shellBodyClone, shellByteLength, headers)
+}
+
+/**
+ * Truncates and buffers a Flight stream clone at the given byte boundary and
+ * decodes the prefix as a Flight payload. Used by the static-stage and
+ * shell-stage extraction helpers.
+ */
+export async function decodeStageUntilBoundary<T>(
   responseBodyClone: ReadableStream<Uint8Array>,
-  staticStageByteLengthPromise: Promise<number>,
+  byteLength: number,
   headers: RequestHeaders | undefined
 ): Promise<T> {
-  const staticStageByteLength = await staticStageByteLengthPromise
-
   // Buffer the truncated stream into a single chunk before passing it to
   // Flight. This ensures all model data is available synchronously, which is
   // required for readVaryParams to synchronously read the thenable status.
   const { stream } = await createNonTaskyPrefetchResponseStream(
     responseBodyClone,
-    staticStageByteLength
+    byteLength
   )
 
   return createFromNextReadableStream<T>(stream, headers, {

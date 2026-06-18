@@ -565,17 +565,11 @@ fn collect_module_info(
                 }
                 finished_directives = true;
             }
-            ModuleItem::ModuleDecl(ModuleDecl::ExportDefaultDecl(ExportDefaultDecl {
-                decl: _,
-                ..
-            })) => {
+            ModuleItem::ModuleDecl(ModuleDecl::ExportDefaultDecl(ExportDefaultDecl { .. })) => {
                 export_names.push(atom!("default"));
                 finished_directives = true;
             }
-            ModuleItem::ModuleDecl(ModuleDecl::ExportDefaultExpr(ExportDefaultExpr {
-                expr: _,
-                ..
-            })) => {
+            ModuleItem::ModuleDecl(ModuleDecl::ExportDefaultExpr(ExportDefaultExpr { .. })) => {
                 export_names.push(atom!("default"));
                 finished_directives = true;
             }
@@ -677,7 +671,7 @@ impl ReactServerComponentValidator {
                         "useFormState",
                     ],
                 ),
-                (atom!("next/error").into(), vec!["unstable_catchError"]),
+                (atom!("next/error").into(), vec!["catchError"]),
                 (
                     atom!("next/navigation").into(),
                     vec![
@@ -962,7 +956,7 @@ impl ReactServerComponentValidator {
                             ),
                         );
                     }
-                    "unstable_instant" if !self.cache_components_enabled => {
+                    "instant" if !self.cache_components_enabled => {
                         possibly_invalid_exports.insert(
                             export_name.clone(),
                             (

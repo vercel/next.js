@@ -9,7 +9,6 @@ use std::{
     pin::Pin,
     sync::{Arc, LazyLock},
     task::{Context, Poll},
-    thread::available_parallelism,
     time::Duration,
 };
 
@@ -22,6 +21,7 @@ use bincode::{
 };
 use pin_project_lite::pin_project;
 
+use crate::parallel::available_parallelism;
 pub use crate::{
     id_factory::{IdFactory, IdFactoryWithReuse},
     once_map::*,

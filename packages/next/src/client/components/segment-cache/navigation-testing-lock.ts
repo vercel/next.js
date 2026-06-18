@@ -11,23 +11,14 @@
  * captured = self-write (ignored).
  */
 
-import type { FlightRouterState } from '../../../shared/lib/app-router-types'
+import type {
+  FlightRouterState,
+  InstantCookie,
+} from '../../../shared/lib/app-router-types'
 import { NEXT_INSTANT_TEST_COOKIE } from '../app-router-headers'
 import { refreshOnInstantNavigationUnlock } from '../use-action-queue'
 
 type InstantNavCookieState = 'empty' | 'pending' | 'mpa' | 'spa'
-
-type InstantCookie =
-  // pending (waiting to capture)
-  | [captured: 0, id: string]
-  // captured MPA page load
-  | [captured: 1, id: string, state: null]
-  // captured SPA navigation (from/to route trees)
-  | [
-      captured: 1,
-      id: string,
-      state: { from: FlightRouterState; to: FlightRouterState | null },
-    ]
 
 function parseCookieValue(raw: string): InstantNavCookieState {
   if (raw === '') {
@@ -35,9 +26,11 @@ function parseCookieValue(raw: string): InstantNavCookieState {
   }
   try {
     const parsed = JSON.parse(raw)
-    if (Array.isArray(parsed) && parsed.length >= 3) {
-      const rawState = parsed[2]
-      return rawState === null ? 'mpa' : 'spa'
+    if (Array.isArray(parsed)) {
+      if (parsed.length >= 3) {
+        const rawState = parsed[2]
+        return rawState === null ? 'mpa' : 'spa'
+      }
     }
   } catch {}
   return 'pending'
@@ -177,8 +170,13 @@ export function startListeningForInstantNavigationCookie(): void {
         })
       }
 
-      writeCookieValue([1, `c${Math.random()}`, null])
+      // Acquire the lock before writing the cookie. writeCookieValue's
+      // guard requires lockState to be non-null at call time (so a stale
+      // write can't outlive its scope). On a fresh page load that scope
+      // is the one we're about to establish, so we have to establish it
+      // first.
       acquireLock()
+      writeCookieValue([1, `c${Math.random()}`, null])
     }
 
     if (typeof cookieStore === 'undefined') {
@@ -193,7 +191,11 @@ export function startListeningForInstantNavigationCookie(): void {
           if (state === 'pending') {
             // External actor starting a new lock scope.
             if (lockState !== null) {
-              releaseLock()
+              // This can be the delayed CookieStore event for the pending
+              // cookie that was already observed synchronously from
+              // document.cookie. Keep the existing lock identity so work that
+              // captured it keeps waiting on the same promise.
+              return
             }
             acquireLock()
           }
@@ -214,24 +216,8 @@ export function startListeningForInstantNavigationCookie(): void {
 }
 
 /**
- * Transitions the cookie from pending to captured-SPA. Called when a
- * client-side navigation is captured by the lock.
- *
- * @param fromTree - The flight router state of the from-route
- * @param toTree - The flight router state of the to-route (null if not yet known)
- */
-export function transitionToCapturedSPA(
-  fromTree: FlightRouterState,
-  toTree: FlightRouterState | null
-): void {
-  if (process.env.__NEXT_EXPOSE_TESTING_API) {
-    writeCookieValue([1, `c${Math.random()}`, { from: fromTree, to: toTree }])
-  }
-}
-
-/**
- * Updates the captured-SPA cookie with the resolved route trees.
- * Called after the prefetch resolves and the target route tree is known.
+ * Transitions the cookie from pending to captured-SPA once the prefetch resolves
+ * and the navigation is known to be an SPA.
  */
 export function updateCapturedSPAToTree(
   fromTree: FlightRouterState,
@@ -282,14 +268,23 @@ export function isNavigationLocked(): boolean {
   return false
 }
 
+export function getCurrentNavigationLock(): Promise<void> | null {
+  if (process.env.__NEXT_EXPOSE_TESTING_API) {
+    return lockState !== null ? lockState.promise : null
+  }
+  return null
+}
+
 /**
  * Waits for the navigation lock to be released, if it's currently held.
  * No-op if the lock is not acquired.
  */
-export async function waitForNavigationLockIfActive(): Promise<void> {
+export async function waitForNavigationLockIfActive(
+  lock: Promise<void> | null = getCurrentNavigationLock()
+): Promise<void> {
   if (process.env.__NEXT_EXPOSE_TESTING_API) {
-    if (lockState !== null) {
-      await lockState.promise
+    if (lock !== null) {
+      await lock
     }
   }
 }

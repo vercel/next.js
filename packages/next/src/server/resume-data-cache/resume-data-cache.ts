@@ -15,6 +15,14 @@ import {
  */
 export interface RenderResumeDataCache {
   /**
+   * Discriminator. `false` means this cache is read-only and cannot be filled
+   * with new entries. Used by `ResumeDataCache` consumers to narrow the union
+   * via standard discriminated-union narrowing (e.g. `if
+   * (resumeDataCache.mutable)`).
+   */
+  readonly mutable: false
+
+  /**
    * A read-only Map store for values cached by the 'use cache' React hook.
    * The 'set' operation is omitted to enforce immutability.
    */
@@ -56,6 +64,14 @@ export interface RenderResumeDataCache {
  * This cache allows both reading and writing of cached values.
  */
 export interface PrerenderResumeDataCache {
+  /**
+   * Discriminator. `true` means this cache is mutable and can be filled with
+   * new entries during this prerender. Used by `ResumeDataCache` consumers to
+   * narrow the union via standard discriminated-union narrowing (e.g.
+   * `if (resumeDataCache.mutable)`).
+   */
+  readonly mutable: true
+
   /**
    * A mutable Map store for values cached by the 'use cache' React hook.
    * Supports both 'get' and 'set' operations to build the cache during
@@ -100,6 +116,13 @@ export interface PrerenderResumeDataCache {
   readonly dynamicCacheKeys: Set<string>
 }
 
+/**
+ * Discriminated union of the two resume data cache flavors. Consumers should
+ * narrow via `resumeDataCache.mutable` to access the mutable Map API (only
+ * available on `PrerenderResumeDataCache`).
+ */
+export type ResumeDataCache = RenderResumeDataCache | PrerenderResumeDataCache
+
 type ResumeStoreSerialized = {
   store: {
     cache: {
@@ -124,7 +147,7 @@ type ResumeStoreSerialized = {
  * 'null' if empty
  */
 export async function stringifyResumeDataCache(
-  resumeDataCache: RenderResumeDataCache | PrerenderResumeDataCache,
+  resumeDataCache: ResumeDataCache,
   isCacheComponentsEnabled: boolean
 ): Promise<string> {
   if (process.env.NEXT_RUNTIME === 'edge') {
@@ -172,10 +195,11 @@ export async function stringifyResumeDataCache(
  * @returns A new empty PrerenderResumeDataCache instance
  */
 export function createPrerenderResumeDataCache(
-  source?: PrerenderResumeDataCache | RenderResumeDataCache
+  source?: ResumeDataCache
 ): PrerenderResumeDataCache {
   if (source) {
     return {
+      mutable: true,
       cache: new Map(source.cache),
       fetch: new Map(source.fetch),
       encryptedBoundArgs: new Map(source.encryptedBoundArgs),
@@ -186,6 +210,7 @@ export function createPrerenderResumeDataCache(
     }
   } else {
     return {
+      mutable: true,
       cache: new Map(),
       fetch: new Map(),
       encryptedBoundArgs: new Map(),
@@ -207,20 +232,14 @@ export function createPrerenderResumeDataCache(
  * @returns An immutable RenderResumeDataCache instance
  */
 export function createRenderResumeDataCache(
-  renderResumeDataCache: RenderResumeDataCache
-): RenderResumeDataCache
-export function createRenderResumeDataCache(
-  prerenderResumeDataCache: PrerenderResumeDataCache
+  resumeDataCache: ResumeDataCache
 ): RenderResumeDataCache
 export function createRenderResumeDataCache(
   persistedCache: string,
   maxPostponedStateSizeBytes: number | undefined
 ): RenderResumeDataCache
 export function createRenderResumeDataCache(
-  resumeDataCacheOrPersistedCache:
-    | RenderResumeDataCache
-    | PrerenderResumeDataCache
-    | string,
+  resumeDataCacheOrPersistedCache: ResumeDataCache | string,
   maxPostponedStateSizeBytes?: number | undefined
 ): RenderResumeDataCache {
   if (process.env.NEXT_RUNTIME === 'edge') {
@@ -229,13 +248,19 @@ export function createRenderResumeDataCache(
     )
   } else {
     if (typeof resumeDataCacheOrPersistedCache !== 'string') {
-      // If the cache is already a prerender or render cache, we can return it
-      // directly. For the former, we're just performing a type change.
-      return resumeDataCacheOrPersistedCache
+      // If the cache is already read-only, return it directly. Otherwise we
+      // perform a type change by overriding the discriminator — the underlying
+      // Map references are still shared, but callers should treat the result
+      // as immutable.
+      if (!resumeDataCacheOrPersistedCache.mutable) {
+        return resumeDataCacheOrPersistedCache
+      }
+      return { ...resumeDataCacheOrPersistedCache, mutable: false }
     }
 
     if (resumeDataCacheOrPersistedCache === 'null') {
       return {
+        mutable: false,
         cache: new Map(),
         fetch: new Map(),
         encryptedBoundArgs: new Map(),
@@ -276,6 +301,7 @@ export function createRenderResumeDataCache(
     }
 
     return {
+      mutable: false,
       cache: parseUseCacheCacheStore(Object.entries(json.store.cache)),
       fetch: new Map(Object.entries(json.store.fetch)),
       encryptedBoundArgs: new Map(
