@@ -3022,7 +3022,7 @@
                 nonce: props.nonce,
                 type: props.type,
                 fetchPriority: props.fetchPriority,
-                referrerPolicy: props.refererPolicy
+                referrerPolicy: props.referrerPolicy
               })),
               0 <= (headers.remainingCapacity -= header.length + 2))
                 ? ((renderState.resets.image[key$jscomp$0] = PRELOAD_NO_CREDS),
@@ -4680,7 +4680,7 @@
       this.clientRenderedBoundaries = [];
       this.completedBoundaries = [];
       this.partialBoundaries = [];
-      this.trackedPostpones = null;
+      this.postponedState = this.trackedPostpones = null;
       this.onError = void 0 === onError ? defaultErrorHandler : onError;
       this.onAllReady = void 0 === onAllReady ? noop : onAllReady;
       this.onShellReady = void 0 === onShellReady ? noop : onShellReady;
@@ -8969,6 +8969,8 @@
         }
       } finally {
         (flushingPartialBoundaries = !1),
+          (i = request.postponedState),
+          null !== i && (i.nextSegmentId = request.nextSegmentId),
           0 === request.allPendingTasks &&
           0 === request.clientRenderedBoundaries.length &&
           0 === request.completedBoundaries.length
@@ -9091,11 +9093,11 @@
           null === trackedPostpones.rootSlots)
       )
         return (request.trackedPostpones = null);
-      if (
+      var hasFlushableShell =
         null === request.completedRootSegment ||
         (request.completedRootSegment.status !== POSTPONED &&
-          null !== request.completedPreambleSegments)
-      ) {
+          null !== request.completedPreambleSegments);
+      if (hasFlushableShell) {
         var nextSegmentId = request.nextSegmentId;
         var replaySlots = trackedPostpones.rootSlots;
         var resumableState = request.resumableState;
@@ -9120,7 +9122,7 @@
         resumableState.moduleScriptResources = {};
         resumableState.instructions = NothingSent;
       }
-      return {
+      trackedPostpones = {
         nextSegmentId: nextSegmentId,
         rootFormatContext: request.rootFormatContext,
         progressiveChunkSize: request.progressiveChunkSize,
@@ -9128,14 +9130,16 @@
         replayNodes: trackedPostpones.rootNodes,
         replaySlots: replaySlots
       };
+      hasFlushableShell && (request.postponedState = trackedPostpones);
+      return trackedPostpones;
     }
     function ensureCorrectIsomorphicReactVersion() {
       var isomorphicReactPackageVersion = React.version;
-      if ("19.3.0-canary-ad78e251-20260616" !== isomorphicReactPackageVersion)
+      if ("19.3.0-canary-b1786c31-20260618" !== isomorphicReactPackageVersion)
         throw Error(
           'Incompatible React versions: The "react" and "react-dom" packages must have the exact same version. Instead got:\n  - react:      ' +
             (isomorphicReactPackageVersion +
-              "\n  - react-dom:  19.3.0-canary-ad78e251-20260616\nLearn more: https://react.dev/warnings/version-mismatch")
+              "\n  - react-dom:  19.3.0-canary-b1786c31-20260618\nLearn more: https://react.dev/warnings/version-mismatch")
         );
     }
     function createDrainHandler(destination, request) {
@@ -11247,5 +11251,5 @@
         }
       };
     };
-    exports.version = "19.3.0-canary-ad78e251-20260616";
+    exports.version = "19.3.0-canary-b1786c31-20260618";
   })();
