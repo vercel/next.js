@@ -16,6 +16,19 @@ sequences the work; it does not teach how to fix individual errors — the dev
 overlay fix cards, the stack traces, and the `/docs/messages/blocking-prerender-*`
 pages do that.
 
+Adoption has three goals, in order. Each is shippable on its own; stop after any
+of them.
+
+1. **Green build.** Get `next build` passing with `cacheComponents` on —
+   blanket `instant = false` if needed. This is the baseline; everything builds
+   and behaves as before.
+2. **Remove `instant = false`.** Make routes genuinely prerenderable (Stream /
+   Cache) so the opt-outs come back off, feature by feature. This is where the
+   real adoption work is.
+3. **Address dev-only insights.** With the build clean, resolve the
+   instant-navigation validation warnings (dev-only, lower priority) to make
+   navigations actually instant.
+
 For everything that is not a blocking-route error (`dynamic`, `revalidate`,
 `fetchCache`, `unstable_cache` → `"use cache"`, `revalidateTag` / `updateTag`,
 `generateStaticParams`, async `cookies()` / `headers()`, route handlers,
@@ -34,15 +47,12 @@ there instead of guessing API shapes.
 reads request-time data outside `<Suspense>` is "blocking" and **fails the
 build**. `export const instant = false` marks a route as allowed to block, which
 clears it in both dev and build; on a layout it covers the whole subtree beneath
-it.
+it. Goals 1 and 2 are about getting these opt-outs in, then back out.
 
-Getting the build green is the adoption goal here. The separate
-instant-navigation validation — `experimental.instantInsights.validationLevel`,
-default `'warning'` — is dev-only and lower priority: it surfaces routes whose
-navigations wouldn't be instant, as warnings in the Insights tab. It does not
-block adoption. Leave it at the default and treat it as a follow-up; see the
-[instant navigation guide](https://nextjs.org/docs/app/guides/instant-navigation)
-once the build is green.
+Goal 3 is a separate, dev-only surface: instant-navigation validation warnings
+in the Insights tab. They don't block the build. Work them down once the build
+is clean — see the
+[instant navigation guide](https://nextjs.org/docs/app/guides/instant-navigation).
 
 ## How to surface the errors
 
@@ -63,10 +73,10 @@ full stack traces (the default build output is terser), and `--debug-build-paths
 Ask the user; don't assume.
 
 - **Blanket** — run the codemod to opt every page and layout out, get a clean
-  build immediately, then remove the opt-outs route by route. Use for large
-  apps, team repos (a long-lived failing branch blocks others), or when you
-  can't land every route in one PR.
-- **Direct** — enable the flag and fix routes in place in one pass. Use for
+  build immediately, **merge that**, then remove the opt-outs feature by feature
+  in follow-up PRs. Use for large apps, team repos (a long-lived failing branch
+  blocks others), or when you can't land every route in one PR.
+- **Direct** — enable the flag and fix every route in place in one pass. Use for
   small or solo apps where one PR is realistic.
 
 ### Blanket
@@ -77,24 +87,42 @@ npx @next/codemod@latest cache-components-instant-false ./app
 
 Inserts `export const instant = false` (with a `// TODO: Cache Components
 adoption` comment) into every `app/**/{page,layout}` file, skipping files that
-already export `instant`. Then set `cacheComponents: true`. The TODO comments
+already declare `instant`. Then set `cacheComponents: true`. The TODO comments
 are the work queue.
+
+The codemod opts **every** segment out, not just the root, on purpose.
+Resolution is top-down, first-explicit-config-wins: an `instant = false` on a
+segment shadows its whole subtree. If you only opted the root layout out, you
+couldn't make any single route instant without first removing the root opt-out —
+which re-arms validation for the entire app at once. With an opt-out on every
+segment, each one shadows only itself, so you remove exactly the leaf you're
+working on and everything else stays green. No pushing opt-outs down as you go.
+
+Once the build is green, the app runs with `cacheComponents` on and behaves as
+before. This is a natural stopping point — ask the user whether to open a PR for
+it before starting goal 2, or keep going. Don't silently roll on.
 
 ### Direct
 
 Set `cacheComponents: true` and collect the errors (above). The reported routes
 are the work queue; there are no opt-outs to remove.
 
-## Step 2 — Walk routes, layouts before pages
+## Step 2 — Remove opt-outs, one group at a time
 
-A layout's `instant = false` covers its whole subtree, so removing it re-arms
-validation for every descendant at once. Going top-down surfaces those
-descendant errors deliberately instead of as a surprise cascade.
+You're removing opt-outs route by route, but group the work by area — a feature
+subtree (`app/dashboard/**`), or a top-level app if the repo has several
+(marketing, app, docs). Finish one group before moving to the next; each is an
+independent, mergeable change.
 
-For each route in the queue:
+Within a group, remove opt-outs **leaf-up** (pages before the layouts above
+them) so a parent's `instant = false` doesn't shadow a child you're trying to
+validate. (Direct path: there are no opt-outs — just fix each failing route in
+the group; if a hand-written opt-out on an ancestor shadows it, push that down
+to the segments outside the group first.)
 
-1. **Blanket:** remove the route's `instant = false`. **Direct:** target the
-   failing route.
+For each route in the group:
+
+1. Remove its `instant = false` (blanket) or target the failing route (direct).
 2. Reload it in dev (or `next build --debug-build-paths /that/route`). If it's
    clean, the route was already prerenderable — move on.
 3. If it still blocks, read the logged error and its stack trace, then apply the
@@ -103,14 +131,16 @@ For each route in the queue:
    improvise.
 4. Re-check the route, then move to the next.
 
-Keep a todo list of the whole queue and work it to completion; don't truncate.
+Keep a todo list of the group's routes and work it to completion; don't
+truncate. When the group is done, **stop and ask the user**: open a PR and move
+to the next group, or stop here? Don't silently roll on.
 
-## Step 3 — Verify
+## Step 3 — Verify (per group)
 
 - Build: `next build` completes without blocking-route errors.
-- Blanket: no `// TODO: Cache Components adoption` opt-outs remain except
-  deliberate ones (`grep` to confirm). A route you intend to keep blocking keeps
-  its `instant = false`.
+- The group's routes no longer carry `// TODO: Cache Components adoption`
+  opt-outs, except deliberate Blocks (`grep` to confirm). A route you intend to
+  keep blocking keeps its `instant = false`.
 
 Then hand off to **`next-cache-components-optimizer`** to grow each route's
 static shell and make navigations feel instant.
