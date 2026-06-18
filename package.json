@@ -245,8 +245,8 @@
     "octokit": "3.1.0",
     "outdent": "0.8.0",
     "pixrem": "5.0.0",
-    "playwright": "1.58.2",
-    "playwright-chromium": "1.58.2",
+    "playwright": "1.61.0",
+    "playwright-chromium": "1.61.0",
     "postcss": "8.5.10",
     "postcss-nested": "4.2.1",
     "postcss-pseudoelements": "5.0.0",
@@ -345,7 +345,7 @@
       "@modelcontextprotocol/sdk": "patches/@modelcontextprotocol__sdk.patch",
       "@vercel/blob": "patches/@vercel__blob.patch",
       "postcss-scss": "patches/postcss-scss.patch",
-      "playwright-core@1.58.2": "patches/playwright-core@1.58.2.patch"
+      "playwright-core@1.61.0": "patches/playwright-core@1.61.0.patch"
     }
   }
 }
