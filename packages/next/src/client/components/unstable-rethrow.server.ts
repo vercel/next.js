@@ -1,10 +1,7 @@
 import { isHangingPromiseRejectionError } from '../../server/dynamic-rendering-utils'
 import { isBailoutToCSRError } from '../../shared/lib/lazy-dynamic/bailout-to-csr'
 import { isNextRouterError } from './is-next-router-error'
-import {
-  isDynamicPostpone,
-  isPrerenderInterruptedError,
-} from '../../server/app-render/dynamic-rendering'
+import { isPrerenderInterruptedError } from '../../server/app-render/dynamic-rendering'
 import { isDynamicServerError } from './hooks-server-context'
 
 export function unstable_rethrow(error: unknown): void {
@@ -12,7 +9,6 @@ export function unstable_rethrow(error: unknown): void {
     isNextRouterError(error) ||
     isBailoutToCSRError(error) ||
     isDynamicServerError(error) ||
-    isDynamicPostpone(error) ||
     isHangingPromiseRejectionError(error) ||
     isPrerenderInterruptedError(error)
   ) {
