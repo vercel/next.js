@@ -20,6 +20,7 @@ use crate::{
     references::{
         AstPath,
         amd::AmdDefineWithDependenciesCodeGen,
+        chunk::TurbopackChunksAssetReferenceCodeGen,
         cjs::{
             CjsRequireAssetReferenceCodeGen, CjsRequireCacheAccess,
             CjsRequireResolveAssetReferenceCodeGen,
@@ -206,6 +207,7 @@ pub enum CodeGen {
     WorkerAssetReferenceCodeGen(WorkerAssetReferenceCodeGen),
     ModuleHotReferenceCodeGen(ModuleHotReferenceCodeGen),
     WorkerGlobalsReplacementCodeGen(WorkerGlobalsReplacementCodeGen),
+    TurbopackChunksAssetReferenceCodeGen(TurbopackChunksAssetReferenceCodeGen),
 }
 
 impl CodeGen {
@@ -244,6 +246,7 @@ impl CodeGen {
                 v.code_generation(ctx, scope_hoisting_context).await
             }
             Self::WorkerGlobalsReplacementCodeGen(v) => v.code_generation(ctx).await,
+            Self::TurbopackChunksAssetReferenceCodeGen(v) => v.code_generation(ctx).await,
         }
     }
 }

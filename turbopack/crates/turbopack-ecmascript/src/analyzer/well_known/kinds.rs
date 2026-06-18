@@ -198,6 +198,8 @@ pub enum WellKnownFunctionKind<'a> {
     TurbopackEmit,
     /// `__turbopack_collect__` — Collect emitted data from the bundler.
     TurbopackCollect,
+    /// `__turbopack_chunks__` — Chunk modules in Turbopack.
+    TurbopackChunks,
 }
 
 impl WellKnownFunctionKind<'_> {
@@ -385,6 +387,10 @@ impl WellKnownFunctionKind<'_> {
             Self::TurbopackCollect => (
                 "__turbopack_collect__".to_string(),
                 "The __turbopack_collect__ function for collecting emitted data from the bundler"
+            ),
+            Self::TurbopackChunks => (
+                "__turbopack_chunks__".to_string(),
+                "The __turbopack_chunks__ function for chunking modules in Turbopack"
             )
         }
     }

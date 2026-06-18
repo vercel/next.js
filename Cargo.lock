@@ -10838,6 +10838,7 @@ dependencies = [
  "turbo-tasks-fs",
  "turbo-tasks-hash",
  "turbopack",
+ "turbopack-browser",
  "turbopack-core",
  "turbopack-ecmascript",
  "turbopack-ecmascript-runtime",

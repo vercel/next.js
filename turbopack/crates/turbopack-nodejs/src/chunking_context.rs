@@ -6,18 +6,19 @@ use turbo_tasks::{
 };
 use turbo_tasks_fs::FileSystemPath;
 use turbo_tasks_hash::HashAlgorithm;
+use turbopack_browser::BrowserChunkingContext;
 use turbopack_core::{
     asset::{Asset, AssetContent},
     chunk::{
-        AssetSuffix, Chunk, ChunkGroupResult, ChunkGroupType, ChunkItem, ChunkType,
-        ChunkableModule, ChunkingConfig, ChunkingConfigs, ChunkingContext, ContentHashing,
-        EntryChunkGroupResult, EvaluatableAsset, MinifyType, SourceMapSourceType, SourceMapsType,
-        UnusedReferences, UrlBehavior, WorkerConfigurationOptions,
+        AssetSuffix, Chunk, ChunkGroupResult, ChunkItem, ChunkType, ChunkableModule,
+        ChunkingConfig, ChunkingConfigs, ChunkingContext, ContentHashing, EntryChunkGroupResult,
+        EvaluatableAsset, MinifyType, SourceMapSourceType, SourceMapsType, UnusedReferences,
+        UrlBehavior, WorkerConfigurationOptions,
         availability_info::AvailabilityInfo,
         chunk_group::{MakeChunkGroupResult, make_chunk_group},
         chunk_id_strategy::ModuleIdStrategy,
     },
-    environment::Environment,
+    environment::{EdgeWorkerEnvironment, Environment, ExecutionEnvironment, NodeJsVersion},
     ident::AssetIdent,
     module::Module,
     module_graph::{
@@ -35,9 +36,7 @@ use turbopack_ecmascript::{
 use turbopack_ecmascript_runtime::RuntimeType;
 
 use crate::ecmascript::node::{
-    chunk::EcmascriptBuildNodeChunk,
-    entry::{chunk::EcmascriptBuildNodeEntryChunk, runtime::EcmascriptBuildNodeRuntimeChunk},
-    evaluated::chunk::EcmascriptBuildNodeEvaluatedChunk,
+    chunk::EcmascriptBuildNodeChunk, entry::chunk::EcmascriptBuildNodeEntryChunk,
 };
 
 /// A builder for [`Vc<NodeJsChunkingContext>`].
@@ -314,6 +313,47 @@ impl NodeJsChunkingContext {
     #[turbo_tasks::function]
     pub fn asset_prefix(&self) -> Vc<Option<RcStr>> {
         Vc::cell(self.asset_prefix.clone())
+    }
+
+    #[turbo_tasks::function]
+    pub async fn evaluated_context(&self) -> Result<Vc<Box<dyn ChunkingContext>>> {
+        let mut builder = BrowserChunkingContext::builder(
+            self.root_path.clone(),
+            self.output_root.clone(),
+            self.output_root_to_root_path.clone(),
+            self.client_root.clone(),
+            self.chunk_root_path.clone(),
+            self.asset_root_path.clone(),
+            Environment::new(ExecutionEnvironment::EdgeWorker(
+                EdgeWorkerEnvironment {
+                    node_version: NodeJsVersion::default().resolved_cell(),
+                }
+                .resolved_cell(),
+            ))
+            .to_resolved()
+            .await?,
+            self.runtime_type,
+        )
+        .minify_type(self.minify_type)
+        .source_maps(self.source_maps_type)
+        .export_usage(self.export_usage)
+        .hash_salt(self.hash_salt)
+        .module_merging(self.enable_module_merging)
+        .worker_forwarded_globals(self.worker_forwarded_globals.clone())
+        .dynamic_chunk_content_loading(false);
+
+        if let Some(module_id_strategy) = self.module_id_strategy {
+            builder = builder.module_id_strategy(module_id_strategy);
+        }
+        if let Some(unused_references) = self.unused_references {
+            builder = builder.unused_references(unused_references);
+        }
+
+        for (ty, config) in &self.chunking_configs {
+            builder = builder.chunking_config(*ty, config.clone());
+        }
+
+        Ok(Vc::upcast(builder.build()))
     }
 }
 
@@ -643,75 +683,20 @@ impl ChunkingContext for NodeJsChunkingContext {
         self: ResolvedVc<Self>,
         ident: Vc<AssetIdent>,
         chunk_group: ChunkGroup,
-        module_graph: ResolvedVc<ModuleGraph>,
-        _extra_chunks: Vc<OutputAssets>,
+        module_graph: Vc<ModuleGraph>,
+        extra_chunks: Vc<OutputAssets>,
         availability_info: AvailabilityInfo,
     ) -> Result<Vc<ChunkGroupResult>> {
-        let span = tracing::info_span!(
-            "chunking",
-            name = display(ident.to_string().await?),
-            chunking_type = "evaluated",
+        let context = self.evaluated_context();
+        let x = context.evaluated_chunk_group(
+            ident,
+            chunk_group.clone(),
+            module_graph,
+            extra_chunks,
+            availability_info,
         );
-        async move {
-            let MakeChunkGroupResult {
-                chunks,
-                references,
-                availability_info,
-            } = make_chunk_group(
-                chunk_group.clone(),
-                module_graph,
-                ResolvedVc::upcast(self),
-                availability_info,
-            )
-            .await?;
 
-            let chunks = chunks.await?;
-
-            let mut assets = chunks
-                .iter()
-                .map(|chunk| self.generate_chunk(*chunk))
-                .try_join()
-                .await?;
-            let other_assets = Vc::cell(assets.clone());
-
-            let entries = Vc::cell(
-                chunk_group
-                    .entries()
-                    .map(|m| {
-                        ResolvedVc::try_downcast::<Box<dyn EvaluatableAsset>>(m)
-                            .context("evaluated_chunk_group entries must be evaluatable assets")
-                    })
-                    .collect::<Result<Vec<_>>>()?,
-            );
-
-            assets.push(ResolvedVc::upcast(
-                EcmascriptBuildNodeRuntimeChunk::new(*self, true, ChunkGroupType::Evaluated)
-                    .to_resolved()
-                    .await?,
-            ));
-
-            assets.push(ResolvedVc::upcast(
-                EcmascriptBuildNodeEvaluatedChunk::new(
-                    *self,
-                    ident,
-                    other_assets,
-                    entries,
-                    *module_graph,
-                )
-                .to_resolved()
-                .await?,
-            ));
-
-            Ok(ChunkGroupResult {
-                assets: ResolvedVc::cell(assets),
-                referenced_assets: OutputAssets::empty_resolved(),
-                references: ResolvedVc::cell(references),
-                availability_info,
-            }
-            .cell())
-        }
-        .instrument(span)
-        .await
+        Ok(x)
     }
 
     #[turbo_tasks::function]

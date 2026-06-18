@@ -1,5 +1,6 @@
 pub mod amd;
 pub mod async_module;
+pub mod chunk;
 pub mod cjs;
 pub mod constant_condition;
 pub mod constant_value;
@@ -119,6 +120,7 @@ use crate::{
             AmdDefineWithDependenciesCodeGen,
         },
         async_module::{AsyncModule, OptionAsyncModule},
+        chunk::TurbopackChunksAssetReference,
         cjs::{
             CjsAssetReference, CjsRequireAssetReference, CjsRequireCacheAccess,
             CjsRequireResolveAssetReference,
@@ -3165,6 +3167,54 @@ where
                 ),
             )
         }
+        WellKnownFunctionKind::TurbopackChunks => {
+            let args = linked_args().await?;
+            if args.len() == 1 || args.len() == 2 {
+                let pat = js_value_to_pattern(&args[0]);
+                let options = args.get(1);
+                let import_annotations = options
+                    .and_then(|options| {
+                        if let JsValue::Object { parts, .. } = options {
+                            parts.iter().find_map(|part| {
+                                if let ObjectPart::KeyValue(
+                                    JsValue::Constant(super::analyzer::ConstantValue::Str(key)),
+                                    value,
+                                ) = part
+                                    && key.as_str() == "with"
+                                {
+                                    return Some(value);
+                                }
+                                None
+                            })
+                        } else {
+                            None
+                        }
+                    })
+                    .and_then(ImportAnnotations::parse_dynamic)
+                    .unwrap_or_default();
+
+                analysis.add_reference_code_gen(
+                    TurbopackChunksAssetReference::new(
+                        origin,
+                        Request::parse(pat).to_resolved().await?,
+                        issue_source(source, span),
+                        import_annotations,
+                        error_mode,
+                    )
+                    .await?,
+                    ast_path.to_vec().into(),
+                );
+                return Ok(());
+            }
+            let (args, hints) = JsValue::explain_args(args, 10, 2);
+            handler.span_warn_with_code(
+                span,
+                &format!("__turbopack_chunks__({args}) is not statically analyze-able{hints}",),
+                DiagnosticId::Error(
+                    errors::failed_to_analyze::ecmascript::DYNAMIC_IMPORT.to_string(),
+                ),
+            );
+        }
         _ => {}
     };
     Ok(())
@@ -3830,6 +3880,9 @@ async fn value_visitor_inner<'a>(
             }
             "__turbopack_collect__" => {
                 JsValue::WellKnownFunction(WellKnownFunctionKind::TurbopackCollect)
+            }
+            "__turbopack_chunks__" => {
+                JsValue::WellKnownFunction(WellKnownFunctionKind::TurbopackChunks)
             }
             _ => return Ok((v, false)),
         },
