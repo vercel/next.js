@@ -148,6 +148,9 @@ impl VersionedContentMap {
 impl VersionedContentMap {
     /// Inserts output assets into the map and returns a completion that when
     /// awaited will emit the assets that were inserted.
+    //
+    // TODO: If `VersionedContentMap` becomes transient as described above, these methods should be
+    // `#[turbo_tasks::function(session_dependent)]`
     #[turbo_tasks::function]
     pub async fn insert_output_assets(
         self: ResolvedVc<Self>,
