@@ -73,7 +73,7 @@ use turbopack_core::{
         binding_usage_info::{
             BindingUsageInfo, OptionBindingUsageInfo, compute_binding_usage_info,
         },
-        chunk_group_info::ChunkGroupEntry,
+        chunk_group_info::{ChunkGroupEntry, EntryHeuristics},
     },
     output::{
         ExpandOutputAssetsInput, ExpandedOutputAssets, OutputAsset, OutputAssets,
@@ -1484,7 +1484,10 @@ impl Project {
         Ok(if *self.per_page_module_graph().await? {
             ModuleGraph::from_graphs(
                 vec![SingleModuleGraph::new_with_entry(
-                    ChunkGroupEntry::Entry(vec![entry]),
+                    ChunkGroupEntry::Entry {
+                        modules: vec![entry],
+                        heuristics: EntryHeuristics::default(),
+                    },
                     /* include_traced */ *self.should_write_nft_manifests().await?,
                     /* include_binding_usage */ self.next_mode().await?.is_production(),
                 )],
@@ -1510,8 +1513,11 @@ impl Project {
                 .collect();
             ModuleGraph::from_graphs(
                 vec![SingleModuleGraph::new_with_entries(
-                    GraphEntries::from_chunk_groups(vec![ChunkGroupEntry::Entry(entries)])
-                        .resolved_cell(),
+                    GraphEntries::from_chunk_groups(vec![ChunkGroupEntry::Entry {
+                        modules: entries,
+                        heuristics: EntryHeuristics::default(),
+                    }])
+                    .resolved_cell(),
                     /* include_traced */ *self.should_write_nft_manifests().await?,
                     /* include_binding_usage */ self.next_mode().await?.is_production(),
                 )],
@@ -2579,14 +2585,16 @@ impl Project {
     #[turbo_tasks::function]
     pub async fn client_main_modules(self: Vc<Self>) -> Result<Vc<GraphEntries>> {
         let pages_project = self.pages_project();
-        let mut chunk_groups = vec![ChunkGroupEntry::Entry(vec![
-            pages_project.client_main_module().to_resolved().await?,
-        ])];
+        let mut chunk_groups = vec![ChunkGroupEntry::Entry {
+            modules: vec![pages_project.client_main_module().to_resolved().await?],
+            heuristics: EntryHeuristics::high_priority(),
+        }];
 
         if let Some(app_project) = *self.app_project().await? {
-            chunk_groups.push(ChunkGroupEntry::Entry(vec![
-                app_project.client_main_module().to_resolved().await?,
-            ]));
+            chunk_groups.push(ChunkGroupEntry::Entry {
+                modules: vec![app_project.client_main_module().to_resolved().await?],
+                heuristics: EntryHeuristics::high_priority(),
+            });
         }
 
         Ok(GraphEntries::from_chunk_groups(chunk_groups).cell())
