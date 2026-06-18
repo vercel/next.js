@@ -1659,16 +1659,9 @@ function initializeServerHmr(moduleFactories, devModuleCache) {
  * the handler is initialized first via ensureHmrClientInitialized().
  */ function emitMessage(msg) {
     if (serverHmrUpdateHandler == null) {
-        console.warn('[Server HMR] No update handler registered to receive message:', msg);
-        return false;
+        throw new Error('[Server HMR] No update handler registered to receive message');
     }
-    try {
-        serverHmrUpdateHandler(msg.data);
-        return true;
-    } catch (err) {
-        console.error('[Server HMR] Listener error:', err);
-        return false;
-    }
+    serverHmrUpdateHandler(msg.data);
 }
 /**
  * Handles server message updates and applies them to the Node.js runtime.
@@ -1722,20 +1715,18 @@ function ensureHmrClientInitialized() {
     initializeServerHmr(moduleFactories, devModuleCache);
 }
 function __turbopack_server_hmr_apply__(update) {
-    try {
-        ensureHmrClientInitialized();
-        // emitMessage returns false if any listener failed to apply the update
-        return emitMessage({
-            type: 'turbopack-message',
-            data: update
-        });
-    } catch (err) {
-        console.error('[Server HMR] Failed to apply update:', err);
-        return false;
-    }
+    ensureHmrClientInitialized();
+    // Throws if the update can't be applied in-process; the consumer catches it
+    // and falls back to evicting require.cache.
+    emitMessage({
+        type: 'turbopack-message',
+        data: update
+    });
 }
 const handlers = globalThis.__turbopack_server_hmr_handlers__ ?? new Map();
-const chunkPrefix = path.relative(RUNTIME_ROOT, path.dirname(__filename));
+// Normalize to forward slashes so it matches the virtual chunk paths in
+// `update.instruction.chunks`, which always use `/` regardless of OS.
+const chunkPrefix = path.relative(RUNTIME_ROOT, path.dirname(__filename)).replaceAll(path.sep, '/');
 if (handlers.size === 0) {
     // First registration in this generation: install the routing dispatcher.
     globalThis.__turbopack_server_hmr_apply__ = (update)=>{
@@ -1756,15 +1747,12 @@ if (handlers.size === 0) {
                 }
             }
         }
-        let applied = false;
+        // No matching runtime loaded (e.g. editing a route not required yet this
+        // session): nothing live to patch, so this is a no-op. A handler that
+        // throws propagates to the consumer, which evicts require.cache.
         for (const { handler } of toCall){
-            try {
-                if (handler(update)) applied = true;
-            } catch (err) {
-                console.error('[Server HMR] Handler error:', err);
-            }
+            handler(update);
         }
-        return applied;
     };
 }
 globalThis.__turbopack_server_hmr_handlers__ = handlers;

@@ -410,6 +410,11 @@ export declare function projectEntrypointsSubscribe(
   project: { __napiType: 'Project' },
   func: (...args: any[]) => any
 ): { __napiType: 'RootTask' }
+export declare function projectAllHmrEvents(
+  project: { __napiType: 'Project' },
+  target: string,
+  func: (...args: any[]) => any
+): { __napiType: 'RootTask' }
 export declare function projectHmrEvents(
   project: { __napiType: 'Project' },
   chunkName: RcStr,
@@ -478,7 +483,7 @@ export declare function projectGetSourceForAsset(
 ): Promise<string | null>
 export declare function projectGetSourceMap(
   project: { __napiType: 'Project' },
-  filePath: RcStr
+  sourceMapUrl: RcStr
 ): Promise<string | null>
 export declare function projectGetSourceMapSync(
   project: { __napiType: 'Project' },
