@@ -14,8 +14,8 @@ use turbopack_browser::{
 };
 use turbopack_core::{
     chunk::{
-        AssetSuffix, ChunkingConfig, ChunkingContext, ContentHashing, CrossOrigin, MangleType,
-        MinifyType, SourceMapSourceType, SourceMapsType, UnusedReferences, UrlBehavior,
+        AssetSuffix, ChunkLoadRetry, ChunkingConfig, ChunkingContext, ContentHashing, CrossOrigin,
+        MangleType, MinifyType, SourceMapSourceType, SourceMapsType, UnusedReferences, UrlBehavior,
         chunk_id_strategy::ModuleIdStrategy,
     },
     compile_time_info::{CompileTimeDefines, CompileTimeInfo, FreeVarReference, FreeVarReferences},
@@ -483,6 +483,14 @@ pub struct ClientChunkingContextOptions {
     pub style_groups_algorithm: StyleGroupsAlgorithm,
 }
 
+/// Next.js' chunk-load retry policy for the Turbopack browser runtime.
+/// Webpack does not currently support chunk-load retrying.
+const NEXT_CHUNK_LOAD_RETRY: ChunkLoadRetry = ChunkLoadRetry {
+    max_retry_attempts: 1,
+    base_delay_ms: 200,
+    max_jitter_ms: 400,
+};
+
 #[turbo_tasks::function]
 pub async fn get_client_chunking_context(
     options: ClientChunkingContextOptions,
@@ -543,6 +551,7 @@ pub async fn get_client_chunking_context(
     .asset_base_path(Some(asset_prefix))
     .current_chunk_method(CurrentChunkMethod::DocumentCurrentScript)
     .cross_origin(cross_origin_loading)
+    .chunk_load_retry(NEXT_CHUNK_LOAD_RETRY)
     .export_usage(*export_usage.await?)
     .unused_references(unused_references.to_resolved().await?)
     .module_id_strategy(module_id_strategy.to_resolved().await?)
