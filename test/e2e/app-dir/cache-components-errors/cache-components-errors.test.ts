@@ -90,7 +90,7 @@ describe('Cache Components Errors', () => {
 
           await expect(browser).toDisplayCollapsedRedbox(`
            {
-             "code": "E1292",
+             "code": "E1370",
              "description": "Next.js encountered uncached data in generateMetadata().",
              "environmentLabel": "Server",
              "label": "Blocking Route",
@@ -125,7 +125,7 @@ describe('Cache Components Errors', () => {
              Ways to fix this:
                - [static] Use a static metadata export instead of \`generateMetadata()\`
                  https://nextjs.org/docs/messages/blocking-prerender-metadata-runtime#use-static-metadata
-               - [cache] Cache the metadata with \`"use cache"\` in \`generateMetadata()\`
+               - [cache] Cache the metadata with \`"use cache"\` in \`generateMetadata()\` (does not apply to \`connection()\`)
                  https://nextjs.org/docs/messages/blocking-prerender-metadata-dynamic#cache-the-metadata
                - [dynamic] Render a marker component that calls \`await connection()\` inside \`<Suspense>\` on the page
                  https://nextjs.org/docs/messages/blocking-prerender-metadata-dynamic#mark-the-route-as-dynamic
@@ -143,7 +143,7 @@ describe('Cache Components Errors', () => {
              Ways to fix this:
                - [static] Use a static metadata export instead of \`generateMetadata()\`
                  https://nextjs.org/docs/messages/blocking-prerender-metadata-runtime#use-static-metadata
-               - [cache] Cache the metadata with \`"use cache"\` in \`generateMetadata()\`
+               - [cache] Cache the metadata with \`"use cache"\` in \`generateMetadata()\` (does not apply to \`connection()\`)
                  https://nextjs.org/docs/messages/blocking-prerender-metadata-dynamic#cache-the-metadata
                - [dynamic] Render a marker component that calls \`await connection()\` inside \`<Suspense>\` on the page
                  https://nextjs.org/docs/messages/blocking-prerender-metadata-dynamic#mark-the-route-as-dynamic
@@ -331,7 +331,7 @@ describe('Cache Components Errors', () => {
 
           await expect(browser).toDisplayCollapsedRedbox(`
            {
-             "code": "E1292",
+             "code": "E1370",
              "description": "Next.js encountered uncached data in generateMetadata().",
              "environmentLabel": "Server",
              "label": "Blocking Route",
@@ -366,7 +366,7 @@ describe('Cache Components Errors', () => {
              Ways to fix this:
                - [static] Use a static metadata export instead of \`generateMetadata()\`
                  https://nextjs.org/docs/messages/blocking-prerender-metadata-runtime#use-static-metadata
-               - [cache] Cache the metadata with \`"use cache"\` in \`generateMetadata()\`
+               - [cache] Cache the metadata with \`"use cache"\` in \`generateMetadata()\` (does not apply to \`connection()\`)
                  https://nextjs.org/docs/messages/blocking-prerender-metadata-dynamic#cache-the-metadata
                - [dynamic] Render a marker component that calls \`await connection()\` inside \`<Suspense>\` on the page
                  https://nextjs.org/docs/messages/blocking-prerender-metadata-dynamic#mark-the-route-as-dynamic
@@ -384,7 +384,7 @@ describe('Cache Components Errors', () => {
              Ways to fix this:
                - [static] Use a static metadata export instead of \`generateMetadata()\`
                  https://nextjs.org/docs/messages/blocking-prerender-metadata-runtime#use-static-metadata
-               - [cache] Cache the metadata with \`"use cache"\` in \`generateMetadata()\`
+               - [cache] Cache the metadata with \`"use cache"\` in \`generateMetadata()\` (does not apply to \`connection()\`)
                  https://nextjs.org/docs/messages/blocking-prerender-metadata-dynamic#cache-the-metadata
                - [dynamic] Render a marker component that calls \`await connection()\` inside \`<Suspense>\` on the page
                  https://nextjs.org/docs/messages/blocking-prerender-metadata-dynamic#mark-the-route-as-dynamic
@@ -405,7 +405,7 @@ describe('Cache Components Errors', () => {
 
           await expect(browser).toDisplayCollapsedRedbox(`
            {
-             "code": "E1292",
+             "code": "E1370",
              "description": "Next.js encountered uncached data in generateMetadata().",
              "environmentLabel": "Server",
              "label": "Blocking Route",
@@ -440,7 +440,7 @@ describe('Cache Components Errors', () => {
              Ways to fix this:
                - [static] Use a static metadata export instead of \`generateMetadata()\`
                  https://nextjs.org/docs/messages/blocking-prerender-metadata-runtime#use-static-metadata
-               - [cache] Cache the metadata with \`"use cache"\` in \`generateMetadata()\`
+               - [cache] Cache the metadata with \`"use cache"\` in \`generateMetadata()\` (does not apply to \`connection()\`)
                  https://nextjs.org/docs/messages/blocking-prerender-metadata-dynamic#cache-the-metadata
                - [dynamic] Render a marker component that calls \`await connection()\` inside \`<Suspense>\` on the page
                  https://nextjs.org/docs/messages/blocking-prerender-metadata-dynamic#mark-the-route-as-dynamic
@@ -458,7 +458,7 @@ describe('Cache Components Errors', () => {
              Ways to fix this:
                - [static] Use a static metadata export instead of \`generateMetadata()\`
                  https://nextjs.org/docs/messages/blocking-prerender-metadata-runtime#use-static-metadata
-               - [cache] Cache the metadata with \`"use cache"\` in \`generateMetadata()\`
+               - [cache] Cache the metadata with \`"use cache"\` in \`generateMetadata()\` (does not apply to \`connection()\`)
                  https://nextjs.org/docs/messages/blocking-prerender-metadata-dynamic#cache-the-metadata
                - [dynamic] Render a marker component that calls \`await connection()\` inside \`<Suspense>\` on the page
                  https://nextjs.org/docs/messages/blocking-prerender-metadata-dynamic#mark-the-route-as-dynamic
@@ -479,7 +479,7 @@ describe('Cache Components Errors', () => {
 
           await expect(browser).toDisplayCollapsedRedbox(`
            {
-             "code": "E1292",
+             "code": "E1370",
              "description": "Next.js encountered uncached data in generateMetadata().",
              "environmentLabel": "Server",
              "label": "Blocking Route",
@@ -514,7 +514,7 @@ describe('Cache Components Errors', () => {
              Ways to fix this:
                - [static] Use a static metadata export instead of \`generateMetadata()\`
                  https://nextjs.org/docs/messages/blocking-prerender-metadata-runtime#use-static-metadata
-               - [cache] Cache the metadata with \`"use cache"\` in \`generateMetadata()\`
+               - [cache] Cache the metadata with \`"use cache"\` in \`generateMetadata()\` (does not apply to \`connection()\`)
                  https://nextjs.org/docs/messages/blocking-prerender-metadata-dynamic#cache-the-metadata
                - [dynamic] Render a marker component that calls \`await connection()\` inside \`<Suspense>\` on the page
                  https://nextjs.org/docs/messages/blocking-prerender-metadata-dynamic#mark-the-route-as-dynamic
@@ -532,7 +532,7 @@ describe('Cache Components Errors', () => {
              Ways to fix this:
                - [static] Use a static metadata export instead of \`generateMetadata()\`
                  https://nextjs.org/docs/messages/blocking-prerender-metadata-runtime#use-static-metadata
-               - [cache] Cache the metadata with \`"use cache"\` in \`generateMetadata()\`
+               - [cache] Cache the metadata with \`"use cache"\` in \`generateMetadata()\` (does not apply to \`connection()\`)
                  https://nextjs.org/docs/messages/blocking-prerender-metadata-dynamic#cache-the-metadata
                - [dynamic] Render a marker component that calls \`await connection()\` inside \`<Suspense>\` on the page
                  https://nextjs.org/docs/messages/blocking-prerender-metadata-dynamic#mark-the-route-as-dynamic
@@ -578,7 +578,7 @@ describe('Cache Components Errors', () => {
 
           await expect(browser).toDisplayCollapsedRedbox(`
            {
-             "code": "E1352",
+             "code": "E1369",
              "description": "Next.js encountered uncached data in generateViewport().",
              "environmentLabel": "Server",
              "label": "Blocking Route",
@@ -690,7 +690,7 @@ describe('Cache Components Errors', () => {
 
           await expect(browser).toDisplayCollapsedRedbox(`
            {
-             "code": "E1352",
+             "code": "E1369",
              "description": "Next.js encountered uncached data in generateViewport().",
              "environmentLabel": "Server",
              "label": "Blocking Route",
