@@ -348,6 +348,123 @@ jobs:
         if: ${{ inputs.testTimingsArtifact == '' }}
         run: pnpm dlx turbo@${TURBO_VERSION} run get-test-timings -- --build ${{ github.sha }}
 
+      - name: Debug test timing shard assignment
+        if: ${{ inputs.testTimingsArtifact != '' && inputs.afterBuild && inputs.stepName == 'test-prod-react--5/10' }}
+        env:
+          AFTER_BUILD: ${{ inputs.afterBuild }}
+        run: |
+          set -euo pipefail
+          node <<'NODE'
+          const fs = require('fs')
+          const path = require('path')
+          const glob = require('glob')
+
+          const afterBuild = process.env.AFTER_BUILD || ''
+          const groupMatch = afterBuild.match(/(?:^|\s)(?:-g|--group)\s+([0-9]+\/[0-9]+)/)
+          const typeMatch = afterBuild.match(/(?:^|\s)--type\s+([A-Za-z0-9_-]+)/)
+          const timingsPath = path.join(process.cwd(), 'test-timings.json')
+          let timings = null
+          let timingKeys = []
+
+          try {
+            const rawTimings = fs.readFileSync(timingsPath, 'utf8')
+            timings = JSON.parse(rawTimings)
+            timingKeys = Object.keys(timings)
+            console.log(`timing-debug: test-timings.json bytes=${Buffer.byteLength(rawTimings)}`)
+            console.log(`timing-debug: test-timings.json entries=${timingKeys.length}`)
+          } catch (err) {
+            console.log(`timing-debug: failed to read test timings: ${err.message}`)
+          }
+
+          if (!groupMatch) {
+            console.log('timing-debug: no test group found in afterBuild command')
+            process.exit(0)
+          }
+
+          const [groupPos, groupTotal] = groupMatch[1].split('/').map(Number)
+          const type = typeMatch?.[1] || ''
+          console.log(`timing-debug: group=${groupPos}/${groupTotal}`)
+          console.log(`timing-debug: type=${type || '(default)'}`)
+
+          const testFilters = {
+            development: new RegExp('^(test/(development|e2e))'),
+            production: new RegExp('^(test/(production|e2e))'),
+            unit: new RegExp('^(test/unit|packages/.*/src|packages/next-codemod)'),
+            examples: 'examples/',
+            e2e: 'test/e2e/',
+          }
+          const configuredTestTypes = Object.values(testFilters)
+          const isMatchingPattern = (pattern, file) =>
+            pattern instanceof RegExp ? pattern.test(file) : file.startsWith(pattern)
+          const filterTestsBy = type === 'all' ? 'none' : testFilters[type]
+
+          let tests = glob
+            .sync('**/*.test.{js,ts,tsx}', {
+              nodir: true,
+              cwd: process.cwd(),
+              ignore: '**/node_modules/**',
+            })
+            .filter((file) => {
+              if (filterTestsBy) {
+                return filterTestsBy === 'none' || isMatchingPattern(filterTestsBy, file)
+              }
+              return !configuredTestTypes.some((configuredType) =>
+                isMatchingPattern(configuredType, file)
+              )
+            })
+            .map((file) => ({
+              file: file.replace(/\\/g, '/').replace(/\/test$/, ''),
+            }))
+
+          const testSet = new Set()
+          tests = tests.filter((test) => {
+            if (testSet.has(test.file)) return false
+            testSet.add(test.file)
+            return true
+          })
+
+          const groups = [[]]
+          const groupTimes = [0]
+          for (const test of tests) {
+            let smallestGroup = groupTimes[0]
+            let smallestGroupIdx = 0
+
+            for (let i = 1; i < groupTotal; i++) {
+              if (!groups[i]) {
+                groups[i] = []
+                groupTimes[i] = 0
+              }
+
+              const time = groupTimes[i]
+              if (time < smallestGroup) {
+                smallestGroup = time
+                smallestGroupIdx = i
+              }
+            }
+
+            const previousTime = timings?.[test.file] || 1
+            groups[smallestGroupIdx].push({
+              file: test.file,
+              previousTime,
+              hasTiming: Boolean(timings?.[test.file]),
+            })
+            groupTimes[smallestGroupIdx] += previousTime
+          }
+
+          const currentGroup = groups[groupPos - 1] || []
+          const missingTimings = currentGroup.filter((test) => !test.hasTiming).length
+          console.log(`timing-debug: total matching tests=${tests.length}`)
+          console.log(`timing-debug: assigned tests=${currentGroup.length}`)
+          console.log(`timing-debug: assigned previous accumulated seconds=${Math.round(groupTimes[groupPos - 1] || 0)}`)
+          console.log(`timing-debug: assigned tests missing timing entries=${missingTimings}`)
+
+          console.log(`::group::timing-debug assigned tests for ${groupPos}/${groupTotal}`)
+          for (const test of currentGroup) {
+            console.log(`${Math.round(test.previousTime)}s\t${test.hasTiming ? 'timed' : 'missing'}\t${test.file}`)
+          }
+          console.log('::endgroup::')
+          NODE
+
       - name: Normalize input step names into path key
         uses: actions/github-script@d746ffe35508b1917358783b479e04febd2b8f71 # v9.0.0
         id: var
