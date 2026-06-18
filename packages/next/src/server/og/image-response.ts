@@ -10,16 +10,25 @@ function importModule(): Promise<
   )
 }
 
-// The Cache Components-specific caching path (and its React Flight dependency)
-// lives in a separate module that is only loaded for Cache Components builds.
-// Cache Components is rejected for the edge runtime at compile time, so a build
-// with it enabled is always Node.js. When it's disabled this flag folds to
-// `false` and the `require` is eliminated as dead code, so apps without Cache
-// Components stream the image directly and never load that module.
+// The Cache Components-specific caching path (and its React Flight and Node
+// stream dependencies) lives in a separate module that is only required for
+// Node.js Cache Components builds. The `NEXT_RUNTIME` guard matters because
+// `__NEXT_CACHE_COMPONENTS` is derived from config, not the per-route runtime,
+// so it stays `true` in edge bundles too. A Pages Router edge route that
+// renders an `ImageResponse` is valid under Cache Components, and without the
+// guard this node-only module would be pulled into that edge bundle and fail to
+// compile. (App Router edge routes, including metadata routes, are
+// independently rejected at compile time under Cache Components.) Both checks
+// fold to constants at build time, so the `require` is eliminated as dead code
+// for edge builds and for apps without Cache Components, which keep
+// ImageResponse's original streaming behavior.
 let getCachedImageResponseBody:
   | typeof import('./cache-image-response').getCachedImageResponseBody
   | undefined
-if (process.env.__NEXT_CACHE_COMPONENTS) {
+if (
+  process.env.NEXT_RUNTIME !== 'edge' &&
+  process.env.__NEXT_CACHE_COMPONENTS
+) {
   getCachedImageResponseBody = (
     require('./cache-image-response') as typeof import('./cache-image-response')
   ).getCachedImageResponseBody
