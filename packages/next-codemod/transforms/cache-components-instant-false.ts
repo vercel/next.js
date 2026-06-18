@@ -7,7 +7,8 @@ import { createParserFromPath } from '../lib/parser'
  * build. Each opt-out is meant to be walked back, one route at a time, using
  * the companion adoption skill.
  *
- * - Skips files that already export `instant` (never overrides existing config).
+ * - Skips files that already declare or export `instant` in any form (never
+ *   overrides existing config or appends a duplicate binding).
  * - Targets `page` / `layout` only (not `route` — `instant` does not apply to
  *   route handlers).
  */
@@ -22,25 +23,28 @@ export default function transformer(file: FileInfo, _api: API) {
   const j = createParserFromPath(file.path)
   const root = j(file.source)
 
-  // Bail if `instant` is already exported in any form:
+  // Bail if `instant` already exists in any form, so we never append a
+  // duplicate declaration (which would be a `SyntaxError`). This covers:
   //   export const instant = ...
+  //   export const a = 1, instant = ...   (any declarator position)
+  //   const instant = ...                 (local binding)
   //   export { instant }
   //   export { foo as instant }
-  const existingInstantDeclaration = root.find(j.ExportNamedDeclaration, {
-    declaration: {
-      type: 'VariableDeclaration',
-      declarations: [{ id: { name: 'instant' } }],
-    },
-  })
+  //   export function instant() {} / export class instant {}
+  const hasInstantBinding =
+    root
+      .find(j.VariableDeclarator)
+      .filter((p) => {
+        const id = p.node.id
+        return id.type === 'Identifier' && id.name === 'instant'
+      })
+      .size() > 0 ||
+    root.find(j.ExportSpecifier, { exported: { name: 'instant' } }).size() >
+      0 ||
+    root.find(j.FunctionDeclaration, { id: { name: 'instant' } }).size() > 0 ||
+    root.find(j.ClassDeclaration, { id: { name: 'instant' } }).size() > 0
 
-  const existingInstantSpecifier = root
-    .find(j.ExportNamedDeclaration)
-    .find(j.ExportSpecifier, { exported: { name: 'instant' } })
-
-  if (
-    existingInstantDeclaration.size() > 0 ||
-    existingInstantSpecifier.size() > 0
-  ) {
+  if (hasInstantBinding) {
     return file.source
   }
 
