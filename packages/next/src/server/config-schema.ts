@@ -385,6 +385,14 @@ export const experimentalSchema = {
   turbopackRemoveUnusedImports: z.boolean().optional(),
   turbopackRemoveUnusedExports: z.boolean().optional(),
   turbopackScopeHoisting: z.boolean().optional(),
+  turbopackChunkingHeuristics: z
+    .object({
+      firstPageLoadPriority: z.number().min(0).max(1).optional(),
+      priorityRoutes: z.array(z.instanceof(RegExp)).optional(),
+      priorityBoost: z.number().min(1).optional(),
+      requestCost: z.number().min(0).max(1_000_000).optional(),
+    })
+    .optional(),
   turbopackWorkerAssetPrefix: z.string().optional(),
   turbopackClientSideNestedAsyncChunking: z.boolean().optional(),
   turbopackServerSideNestedAsyncChunking: z.boolean().optional(),

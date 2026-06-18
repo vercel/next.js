@@ -765,6 +765,39 @@ export interface ExperimentalConfig {
   turbopackScopeHoisting?: boolean
 
   /**
+   * (`next --turbopack` only) Traffic-related hints for the production chunker. These change the
+   * assumptions Turbopack makes when making chunk merging decisions.
+   */
+  turbopackChunkingHeuristics?: {
+    /**
+     * This is a number between `0..1`, when higher, we weight the benefits of
+     * merging chunks for a signal page load higher. If you don't know a good
+     * number for this, your bounce rate is a good approximate for this value.
+     */
+    firstPageLoadPriority?: number
+    /**
+     * Regular expressions matching routes that are often the first page
+     * visited and whose client-side bundles should be merged more eagerly to reduce the single-route
+     * request cost (e.g. the homepage). This is at the cost of extra requests on other pages.
+     */
+    priorityRoutes?: RegExp[]
+    /**
+     * How much more eagerly to merge the client-side bundles of
+     * `priorityRoutes` routes, as a multiplier on their single-request probability (default
+     * `1.5`). Higher values merge more aggressively for those routes at the cost of extra requests
+     * elsewhere.
+     */
+    priorityBoost?: number
+    /**
+     * Estimated cost of an additional request, in bytes (uncompressed
+     * and unminfified bytes of code, default is 200 KB and the max is 1 MB), used by the chunker to
+     * trade off request count against preventing double-fetching. Uncompressed and unminfified code
+     * is approximately 5x the size of compressed and minified code.
+     */
+    requestCost?: number
+  }
+
+  /**
    * (`next --turbopack` only) A custom URL prefix for Web Worker URLs
    * produced by `new Worker(new URL(..., import.meta.url))` — both the
    * entrypoint URL and the module chunks loaded inside the worker —
