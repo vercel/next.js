@@ -158,12 +158,16 @@ async function serializeImageResponseArgs(
   const passThrough = new PassThrough()
   pipe(passThrough)
 
-  const decoder = new TextDecoder('utf-8', { fatal: true })
-  let serialized = ''
+  // The Flight stream can contain raw binary bytes. Most notably, binary
+  // `ImageResponse` args such as a custom font (`fonts: [{ data: ArrayBuffer }]`)
+  // are serialized as verbatim typed-array bytes, which are not valid UTF-8.
+  // Decoding those bytes with a fatal UTF-8 decoder would throw, so we collect
+  // the raw bytes and build the key with a lossless binary-safe encoding
+  // (Node's `latin1`, i.e. ISO-8859-1, maps each byte to a distinct code point).
+  const chunks: Buffer[] = []
   for await (const chunk of passThrough) {
-    serialized += decoder.decode(chunk, { stream: true })
+    chunks.push(chunk)
   }
-  serialized += decoder.decode()
 
-  return serialized
+  return Buffer.concat(chunks).toString('latin1')
 }
