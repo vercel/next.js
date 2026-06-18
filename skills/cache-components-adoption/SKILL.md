@@ -95,12 +95,16 @@ already declare `instant`. Then set `cacheComponents: true`. The TODO comments
 are the work queue.
 
 The codemod opts **every** segment out, not only the root, on purpose.
-Resolution is top-down, first-explicit-config-wins: an `instant = false` on a
-segment shadows its whole subtree. If you only opted the root layout out, you
-couldn't make any single route instant without first removing the root opt-out —
-which re-arms validation for the entire app at once. With an opt-out on every
-segment, each one shadows only itself, so you remove exactly the leaf you're
-working on and everything else stays green. No pushing opt-outs down as you go.
+Resolution is top-down, first-explicit-config-wins: the **highest** `instant =
+false` in a route's tree decides the whole subtree, and deeper ones are never
+read. If you only opted the root layout out, removing it would re-arm validation
+for the entire app at once. With an opt-out on every segment, removing one
+segment's opt-out validates only **that** segment — its descendants keep their
+own opt-outs and stay green, so the blast radius is one segment at a time.
+
+Because the highest opt-out wins, you remove them **top-down** (root first, then
+descend). Removing a leaf's opt-out does nothing while an ancestor still holds
+one.
 
 Once the build is green, the app runs with `cacheComponents` on and behaves as
 before. This is a natural stopping point — ask the user whether to open a PR for
@@ -118,11 +122,15 @@ subtree (`app/dashboard/**`), or a top-level app if the repo has several
 (marketing, app, docs). Finish one group before moving to the next; each is an
 independent, mergeable change.
 
-Within a group, remove opt-outs **leaf-up** (pages before the layouts above
-them) so a parent's `instant = false` doesn't shadow a child you're trying to
-validate. (Direct path: there are no opt-outs — fix each failing route in
-the group; if a hand-written opt-out on an ancestor shadows it, push that down
-to the segments outside the group first.)
+Within a group, remove opt-outs **top-down** (layouts before the pages beneath
+them, starting at the root layout). The highest `instant = false` in a route's
+tree is the one in effect, so removing a page's opt-out does nothing while an
+ancestor layout still has one — the ancestor must go first. The root layout is
+often the hardest (it wraps `<html>` / `<body>` and frequently reads `cookies()`),
+but it shadows every route including framework routes like `/_not-found`, so it
+has to be fixed before anything below it can be validated. (Direct path: there
+are no opt-outs — fix each failing route; if a hand-written opt-out on an
+ancestor shadows it, remove the ancestor's first.)
 
 For each route in the group:
 
