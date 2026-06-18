@@ -16,6 +16,10 @@ sequences the work; it does not teach how to fix individual errors — the dev
 overlay fix cards, the stack traces, and the `/docs/messages/blocking-prerender-*`
 pages do that.
 
+Requires **Next.js 16.3 or later** (top-level `cacheComponents`, `export const
+instant`, the dev overlay Insights tab, and the `cache-components-instant-false`
+codemod all land in 16.3). If the app is on an older version, upgrade first.
+
 Adoption has three goals, in order. Each is shippable on its own; stop after any
 of them.
 
