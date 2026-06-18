@@ -2885,10 +2885,14 @@ export default abstract class Server<
 
     let page = pathname
     if (isAppPath) {
-      // Parallel slots sort before the children entry. Load the final direct
-      // app path because that is the entry traced into the route's serverless
-      // function. For slot-only routes, the slot itself is the final entry.
-      page = appPaths[appPaths.length - 1]
+      // In dev, the route definition identifies the entry compiled for this
+      // request, which can be a parallel slot backed by a children catch-all.
+      // Production must load a direct manifest entry because expanded slot
+      // entries are not necessarily traced into the deployed function.
+      page =
+        this.dev && match && isAppPageRouteDefinition(match.definition)
+          ? match.definition.page
+          : appPaths[appPaths.length - 1]
     } else if (match?.definition.kind === RouteKind.APP_ROUTE) {
       page = match.definition.page
     }
