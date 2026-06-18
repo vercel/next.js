@@ -297,12 +297,6 @@ export async function collectStagedSegmentData(
   const cache = createSegmentCache()
   const pendingTasks: Promise<void>[] = []
 
-  /** Track when we advance stages so we can pass them as `endTime` later. */
-  const stageEndTimes: StageEndTimes = {
-    [RenderStage.Static]: Infinity,
-    [RenderStage.Runtime]: Infinity,
-  }
-
   const renderIntoCacheItem = async (
     data: HeadData | SegmentData,
     cacheEntry: SegmentCacheItem
@@ -370,16 +364,6 @@ export async function collectStagedSegmentData(
     ])
   }
 
-  const advanceStage = (
-    targetStage: Exclude<SegmentStage, RenderStage.Static>
-  ) => {
-    const { currentStage } = controller
-    if (currentStage !== RenderStage.Dynamic) {
-      stageEndTimes[currentStage] = performance.now() + performance.timeOrigin
-    }
-    controller.advanceStage(targetStage)
-  }
-
   await runInSequentialTasks(
     () => {
       {
@@ -394,12 +378,12 @@ export async function collectStagedSegmentData(
         pendingTasks.push(renderIntoCacheItem(segmentData, segmentCacheItem))
       }
     },
-    () => advanceStage(RenderStage.Runtime),
-    () => advanceStage(RenderStage.Dynamic)
+    () => controller.advanceStage(RenderStage.Runtime),
+    () => controller.advanceStage(RenderStage.Dynamic)
   )
   await Promise.all(pendingTasks)
 
-  return { cache, payload, stageEndTimes }
+  return { cache, payload }
 }
 
 /**
@@ -894,6 +878,7 @@ export function discoverValidationDepths(loaderTree: LoaderTree): number[] {
  */
 export type ValidationPayloadResult = {
   payload: InitialRSCPayload
+  endTime: number
   /** Whether errors from this payload could be ambiguous between runtime
    * API access (cookies, headers) and uncached IO (connection, fetch).
    * True when some segments used Static stage. False when all segments
@@ -1343,8 +1328,13 @@ export async function createCombinedPayloadAtDepth(
     f: [[flightRouterState, seedData, head]],
   }
 
+  const combinedEndTime = hasRuntimeSegments
+    ? stageEndTimes[RenderStage.Runtime]
+    : stageEndTimes[RenderStage.Static]
+
   return {
     payload,
+    endTime: combinedEndTime,
     hasAmbiguousErrors: hasStaticSegments,
     slotStacks,
   }
