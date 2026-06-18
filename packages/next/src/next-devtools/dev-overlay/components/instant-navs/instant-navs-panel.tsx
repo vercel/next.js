@@ -1,20 +1,19 @@
 import { useEffect, useState, useSyncExternalStore } from 'react'
+import type { InstantCookie } from '../../../../shared/lib/app-router-types'
+import type { InstantNavCookieData } from '../../../../shared/lib/instant-nav-cookie'
 import { useDevOverlayContext } from '../../../dev-overlay.browser'
 import { useDelayedRender } from '../../hooks/use-delayed-render'
 import { usePanelRouterContext } from '../../menu/context'
 import { ACTION_INSTANT_NAVS_RESET } from '../../shared'
 import {
-  useInstantNavCookieState,
   formatRoutePattern,
+  useInstantNavCookieState,
 } from './instant-nav-cookie'
 import './instant-navs-panel.css'
-import type { CSSProperties, ReactNode } from 'react'
-import type { InstantCookie } from '../../../../shared/lib/app-router-types'
-import type { InstantNavCookieData } from '../../../../shared/lib/instant-nav-cookie'
 
 const COOKIE_NAME = 'next-instant-navigation-testing'
 type InstantNavContentStatus = 'idle' | 'pending' | 'mpa' | 'spa'
-// During a "Continue Rendering" restart the cookie is briefly absent (it's
+// During a "Resume" restart the cookie is briefly absent (it's
 // deleted, then re-written as a new pending cookie). The transient "restarting"
 // status keeps the panel on "Awaiting navigation..." across that gap instead
 // of flickering back to idle until the new pending cookie lands.
@@ -88,6 +87,7 @@ function useInstantNavStatus(
 }
 
 const DURATION = 400
+const EXPANDED_HEIGHT = 225
 
 function createPendingInstantNavCookie(): InstantCookie {
   return [0, `p${Math.random()}`]
@@ -108,105 +108,6 @@ function getCurrentLocationUrl(): string {
     return '/'
   }
   return window.location.pathname + window.location.search
-}
-
-function InstantNavContentTransition({
-  status,
-  children,
-}: {
-  status: InstantNavContentStatus
-  children: Record<InstantNavContentStatus, ReactNode>
-}) {
-  const [initialStatus] = useState(status)
-  const [hasChangedStatus, setHasChangedStatus] = useState(false)
-
-  if (status !== initialStatus && !hasChangedStatus) {
-    setHasChangedStatus(true)
-  }
-
-  return (
-    <div
-      className={
-        'instant-nav-content-container' +
-        (status === 'idle' ? '' : ' is-expanded')
-      }
-      style={
-        {
-          '--instant-nav-transition-duration': `${DURATION}ms`,
-          '--instant-nav-transition-half-duration': `${DURATION / 2}ms`,
-          '--instant-nav-transition-timing': 'cubic-bezier(0.25, 0.8, 0.5, 1)',
-        } as CSSProperties
-      }
-    >
-      <InstantNavTransitionLayer
-        active={status === 'idle'}
-        enter={hasChangedStatus}
-      >
-        {children.idle}
-      </InstantNavTransitionLayer>
-      <InstantNavTransitionLayer
-        active={status === 'pending'}
-        enter={hasChangedStatus}
-      >
-        {children.pending}
-      </InstantNavTransitionLayer>
-      <InstantNavTransitionLayer
-        active={status === 'mpa'}
-        enter={hasChangedStatus}
-      >
-        {children.mpa}
-      </InstantNavTransitionLayer>
-      <InstantNavTransitionLayer
-        active={status === 'spa'}
-        enter={hasChangedStatus}
-      >
-        {children.spa}
-      </InstantNavTransitionLayer>
-    </div>
-  )
-}
-
-function InstantNavTransitionLayer({
-  active,
-  enter = true,
-  children,
-}: {
-  active: boolean
-  enter?: boolean
-  children: ReactNode
-}) {
-  const { mounted, rendered } = useDelayedRender(active, {
-    enterDelay: enter ? 1 : 0,
-    exitDelay: DURATION,
-  })
-
-  if (!mounted) return null
-
-  const visible = rendered || (active && !enter)
-  const entering = active && enter
-
-  return (
-    <div
-      className={
-        'instant-nav-transition-layer' +
-        (visible ? ' is-visible' : '') +
-        (active && !enter ? ' instant-nav-transition-layer--no-enter' : '')
-      }
-      aria-hidden={!active}
-      style={
-        {
-          '--instant-nav-layer-opacity': visible ? 1 : 0,
-          '--instant-nav-layer-transition-duration':
-            'var(--instant-nav-transition-half-duration, 100ms)',
-          '--instant-nav-layer-transition-delay': entering
-            ? 'var(--instant-nav-transition-half-duration, 100ms)'
-            : '0ms',
-        } as CSSProperties
-      }
-    >
-      {children}
-    </div>
-  )
 }
 
 // Ends the capture: deleting the cookie triggers the CookieStore handler in
@@ -256,7 +157,7 @@ export function InstantNavsPanel() {
     }
   }, [cookieData?.state])
 
-  // While we're waiting for a "Continue Rendering" -> restart to finish,
+  // While we're waiting for a "Resume" -> restart to finish,
   // the cookie is briefly absent. Treat that window as pending so the
   // panel keeps showing the "Waiting for navigation..." UI instead of
   // flickering back to idle.
@@ -297,9 +198,9 @@ export function InstantNavsPanel() {
   const spaFromUrl = currentSpaFromUrl ?? lastSpaFromUrl
   const spaToUrl = currentSpaToUrl ?? lastSpaToUrl
 
-  async function continueRendering(): Promise<void> {
+  async function resume(): Promise<void> {
     if (typeof cookieStore !== 'undefined') {
-      // Continue Rendering: delete the cookie (which releases the
+      // Resume: delete the cookie (which releases the
       // lock and triggers a soft refresh for real data via the lock
       // listener), then restart capture for the next navigation by
       // writing a fresh pending cookie. Chaining the writes keeps
@@ -325,60 +226,85 @@ export function InstantNavsPanel() {
     }
   }
 
-  const content: Record<InstantNavContentStatus, ReactNode> = {
-    idle: null,
-    pending: (
-      <div className="instant-nav-state instant-nav-state--pending">
-        <div className="instant-nav-waiting-status">
-          <span className="instant-nav-waiting-status-dot" />
-          <h3 className="instant-nav-waiting-status-title">
-            Waiting for navigation...
-          </h3>
-        </div>
-        <p className="instant-nav-waiting-description">
-          Click any link or refresh the page to inspect the shell.
-        </p>
-      </div>
-    ),
-    mpa: (
-      <div className="instant-nav-state">
-        <DebuggerPausedButton onClick={continueRendering} />
-        <div className="instant-nav-state-details">
-          <h3 className="instant-nav-state-title">Static shell</h3>
-          <p className="instant-nav-state-description">
-            You're viewing the shell for this page's initial load.
-          </p>
-          <UrlRow label="Target" value={getCurrentLocationUrl()} />
-        </div>
-      </div>
-    ),
-    spa: (
-      <div className="instant-nav-state">
-        <DebuggerPausedButton onClick={continueRendering} />
-        <div className="instant-nav-state-details">
-          <h3 className="instant-nav-state-title">Client shell</h3>
-          <p className="instant-nav-state-description">
-            You're viewing the shell for the current navigation.
-          </p>
-          <div className="instant-nav-state-url-list">
-            {spaFromUrl !== null ? (
-              <UrlRow label="Source" value={spaFromUrl} />
-            ) : null}
-            {spaToUrl !== null ? (
-              <UrlRow label="Target" value={spaToUrl} />
-            ) : null}
-          </div>
-        </div>
-      </div>
-    ),
+  // These two pieces of state are used to preserve the panel's contents
+  // during the collapsing animation.
+  const { mounted } = useDelayedRender(status !== 'idle', {
+    exitDelay: DURATION,
+  })
+  const [renderedStatus, setRenderedStatus] = useState(status)
+  if (status !== renderedStatus && ['pending', 'mpa', 'spa'].includes(status)) {
+    setRenderedStatus(status)
+  }
+
+  const containerHeight = status === 'idle' ? 0 : EXPANDED_HEIGHT
+
+  // This preserves whatever the last height of the expandable container was
+  // when the entire panel is dismissed (via ESC or by pressing X) so that
+  // its height doesn't change during the fade-out animation.
+  const [previousPanel, setPreviousPanel] = useState(panel)
+  const [exitingHeight, setExitingHeight] = useState<null | number>(null)
+  if (previousPanel !== panel) {
+    setPreviousPanel(panel)
+    setExitingHeight(containerHeight)
   }
 
   return (
     <div className="instant-nav-panel">
       <div className="instant-nav-content">
-        <InstantNavContentTransition status={displayStatus}>
-          {content}
-        </InstantNavContentTransition>
+        <div
+          className="instant-nav-content-container"
+          style={{
+            transition: `height ${DURATION}ms cubic-bezier(0.36, 0.66, 0.04, 1)`,
+            height: exitingHeight !== null ? exitingHeight : containerHeight,
+          }}
+        >
+          {mounted && (
+            <div style={{ height: EXPANDED_HEIGHT }}>
+              {renderedStatus === 'pending' ? (
+                <div className=" instant-nav-state--pending">
+                  <div className="instant-nav-waiting-status">
+                    <span className="instant-nav-waiting-status-dot" />
+                    <h3 className="instant-nav-waiting-status-title">
+                      Waiting for navigation...
+                    </h3>
+                  </div>
+                  <p className="instant-nav-waiting-description">
+                    Click any link or refresh the page to inspect the shell.
+                  </p>
+                </div>
+              ) : renderedStatus === 'mpa' ? (
+                <div className="">
+                  <DebuggerPausedButton onClick={resume} />
+                  <div className="instant-nav-state-details">
+                    <h3 className="instant-nav-state-title">Static shell</h3>
+                    <p className="instant-nav-state-description">
+                      You're viewing the shell for this page's initial load.
+                    </p>
+                    <UrlRow label="Target" value={getCurrentLocationUrl()} />
+                  </div>
+                </div>
+              ) : renderedStatus === 'spa' ? (
+                <div className="">
+                  <DebuggerPausedButton onClick={resume} />
+                  <div className="instant-nav-state-details">
+                    <h3 className="instant-nav-state-title">Client shell</h3>
+                    <p className="instant-nav-state-description">
+                      You're viewing the shell for the current navigation.
+                    </p>
+                    <div className="instant-nav-state-url-list">
+                      {spaFromUrl !== null ? (
+                        <UrlRow label="Source" value={spaFromUrl} />
+                      ) : null}
+                      {spaToUrl !== null ? (
+                        <UrlRow label="Target" value={spaToUrl} />
+                      ) : null}
+                    </div>
+                  </div>
+                </div>
+              ) : null}
+            </div>
+          )}
+        </div>
       </div>
       <PauseControl checked={isLocked} onClick={togglePaused} />
     </div>
@@ -394,7 +320,7 @@ function DebuggerPausedButton({ onClick }: { onClick: () => void }) {
         type="button"
         className="instant-nav-debugger-paused-button"
         onClick={onClick}
-        aria-label="Continue rendering"
+        aria-label="Resume"
       >
         Resume
         <PlayIcon />

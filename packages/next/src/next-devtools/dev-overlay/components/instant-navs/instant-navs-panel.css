@@ -10,18 +10,7 @@
 
 .instant-nav-content-container {
   position: relative;
-  height: 0;
   overflow: hidden;
-  /*
-    TODO: Add this back when we can figure out a good answer for keeping the old
-    content around during the exit animation.
-  */
-  /* transition: height var(--instant-nav-transition-duration, 200ms)
-    cubic-bezier(0.36, 0.66, 0.04, 1); */
-}
-
-.instant-nav-content-container.is-expanded {
-  height: 225px;
 }
 
 .instant-nav-transition-layer {
@@ -29,9 +18,9 @@
   inset: 0;
   opacity: var(--instant-nav-layer-opacity, 0);
   pointer-events: none;
-  /* transition: opacity var(--instant-nav-layer-transition-duration, 100ms)
+  transition: opacity var(--instant-nav-layer-transition-duration, 100ms)
     cubic-bezier(0.25, 0.8, 0.5, 1)
-    var(--instant-nav-layer-transition-delay, 0ms); */
+    var(--instant-nav-layer-transition-delay, 0ms);
 }
 
 .instant-nav-transition-layer.is-visible {
@@ -41,12 +30,6 @@
 
 .instant-nav-transition-layer--no-enter {
   transition: none;
-}
-
-.instant-nav-state {
-  box-sizing: border-box;
-  height: 225px;
-  padding: 0;
 }
 
 .instant-nav-state--pending {

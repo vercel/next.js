@@ -50,7 +50,7 @@ describe('instant-nav-panel', () => {
     await waitForInstantModeCookie(browser)
   }
 
-  async function clickContinueRendering(browser: Playwright) {
+  async function clickResume(browser: Playwright) {
     await browser
       .locator('.instant-nav-debugger-paused-button', {
         hasText: 'Resume',
@@ -519,7 +519,7 @@ describe('instant-nav-panel', () => {
       await expectTargetPageMpaShell(browser)
       await waitForAppHydration(browser)
 
-      await clickContinueRendering(browser)
+      await clickResume(browser)
       await expectPendingPanel(browser)
       await expectTargetPageRendered(browser)
       await waitForInstantModeCookie(browser)
@@ -635,13 +635,13 @@ describe('instant-nav-panel', () => {
       await clickLink(browser, '/target-page/my-post?search=foo')
       await expectSpaPanel(browser)
 
-      await clickContinueRendering(browser)
+      await clickResume(browser)
       await expectPendingPanel(browser)
       await expectTargetPageRendered(browser)
       await waitForInstantModeCookie(browser)
     })
 
-    it('should continue rendering a captured await connection navigation with loading.tsx', async () => {
+    it('should resume rendering a captured await connection navigation with loading.tsx', async () => {
       const browser = await openHomeWithTargetPageWarmup()
 
       await openInstantNavPanel(browser)
@@ -650,7 +650,7 @@ describe('instant-nav-panel', () => {
       await expectSpaPanel(browser)
       await expectAwaitConnectionPageLoading(browser)
 
-      await clickContinueRendering(browser)
+      await clickResume(browser)
       await expectPendingPanel(browser)
       await expectTargetPageRendered(browser)
       await waitForInstantModeCookie(browser)
