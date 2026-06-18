@@ -2187,7 +2187,7 @@ function pushStartInstance(
             nonce: props.nonce,
             type: props.type,
             fetchPriority: props.fetchPriority,
-            referrerPolicy: props.refererPolicy
+            referrerPolicy: props.referrerPolicy
           })),
           0 <= (headers.remainingCapacity -= header.length + 2))
             ? ((renderState.resets.image[key$jscomp$0] = PRELOAD_NO_CREDS),
@@ -4146,7 +4146,7 @@ function RequestInstance(
   this.clientRenderedBoundaries = [];
   this.completedBoundaries = [];
   this.partialBoundaries = [];
-  this.trackedPostpones = null;
+  this.postponedState = this.trackedPostpones = null;
   this.onError = void 0 === onError ? defaultErrorHandler : onError;
   this.onAllReady = void 0 === onAllReady ? noop : onAllReady;
   this.onShellReady = void 0 === onShellReady ? noop : onShellReady;
@@ -7303,6 +7303,8 @@ function flushCompletedQueues(request, destination) {
     }
   } finally {
     (flushingPartialBoundaries = !1),
+      (i = request.postponedState),
+      null !== i && (i.nextSegmentId = request.nextSegmentId),
       0 === request.allPendingTasks &&
       0 === request.clientRenderedBoundaries.length &&
       0 === request.completedBoundaries.length
@@ -7415,11 +7417,11 @@ function getPostponedState(request) {
       null === trackedPostpones.rootSlots)
   )
     return (request.trackedPostpones = null);
-  if (
+  var hasFlushableShell =
     null === request.completedRootSegment ||
     (5 !== request.completedRootSegment.status &&
-      null !== request.completedPreambleSegments)
-  ) {
+      null !== request.completedPreambleSegments);
+  if (hasFlushableShell) {
     var nextSegmentId = request.nextSegmentId;
     var replaySlots = trackedPostpones.rootSlots;
     var resumableState = request.resumableState;
@@ -7444,7 +7446,7 @@ function getPostponedState(request) {
     resumableState.moduleScriptResources = {};
     resumableState.instructions = 0;
   }
-  return {
+  trackedPostpones = {
     nextSegmentId: nextSegmentId,
     rootFormatContext: request.rootFormatContext,
     progressiveChunkSize: request.progressiveChunkSize,
@@ -7452,14 +7454,16 @@ function getPostponedState(request) {
     replayNodes: trackedPostpones.rootNodes,
     replaySlots: replaySlots
   };
+  hasFlushableShell && (request.postponedState = trackedPostpones);
+  return trackedPostpones;
 }
 function ensureCorrectIsomorphicReactVersion() {
   var isomorphicReactPackageVersion = React.version;
-  if ("19.3.0-canary-ad78e251-20260616" !== isomorphicReactPackageVersion)
+  if ("19.3.0-canary-b1786c31-20260618" !== isomorphicReactPackageVersion)
     throw Error(
       'Incompatible React versions: The "react" and "react-dom" packages must have the exact same version. Instead got:\n  - react:      ' +
         (isomorphicReactPackageVersion +
-          "\n  - react-dom:  19.3.0-canary-ad78e251-20260616\nLearn more: https://react.dev/warnings/version-mismatch")
+          "\n  - react-dom:  19.3.0-canary-b1786c31-20260618\nLearn more: https://react.dev/warnings/version-mismatch")
     );
 }
 ensureCorrectIsomorphicReactVersion();
@@ -8009,4 +8013,4 @@ exports.resumeToPipeableStream = function (children, postponedState, options) {
     }
   };
 };
-exports.version = "19.3.0-canary-ad78e251-20260616";
+exports.version = "19.3.0-canary-b1786c31-20260618";
