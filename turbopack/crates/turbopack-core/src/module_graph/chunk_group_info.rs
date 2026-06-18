@@ -8,7 +8,7 @@ use bincode::{Decode, Encode};
 use either::Either;
 use indexmap::map::Entry;
 use roaring::RoaringBitmap;
-use rustc_hash::FxHashMap;
+use rustc_hash::{FxHashMap, FxHashSet};
 use tracing::Instrument;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
@@ -567,6 +567,9 @@ pub async fn compute_chunk_group_info(graph: &ModuleGraph) -> Result<Vc<ChunkGro
             })
             .collect::<FxHashMap<_, _>>();
 
+        // `inherits_from[source]` is the set of chunk groups that inherit heuristics from `source`.
+        let mut inherits_from: FxHashMap<usize, FxHashSet<u32>> = FxHashMap::default();
+
         let visit_count = graph.traverse_edges_fixed_point_with_priority(
             entries
                 .iter()
@@ -661,15 +664,16 @@ pub async fn compute_chunk_group_info(graph: &ModuleGraph) -> Result<Vc<ChunkGro
                         // Start of a new chunk group, don't inherit anything from parent
                         let chunk_group_ids = chunk_groups.map(|chunk_group| {
                             let len = chunk_groups_map.len();
-                            let is_merged = matches!(
-                                chunk_group,
-                                ChunkGroupKey::IsolatedMerged { .. }
-                                    | ChunkGroupKey::SharedMerged { .. }
-                            );
-                            match chunk_groups_map.entry(chunk_group) {
+                            // For merged groups, the parent group id whose heuristics they inherit.
+                            let merged_parent = match &chunk_group {
+                                ChunkGroupKey::IsolatedMerged { parent, .. }
+                                | ChunkGroupKey::SharedMerged { parent, .. } => Some(parent.0),
+                                _ => None,
+                            };
+                            let id = match chunk_groups_map.entry(chunk_group) {
                                 Entry::Occupied(mut e) => {
                                     let (id, merged_entries) = e.get_mut();
-                                    if is_merged {
+                                    if merged_parent.is_some() {
                                         merged_entries.insert(node);
                                     }
                                     **id
@@ -677,17 +681,51 @@ pub async fn compute_chunk_group_info(graph: &ModuleGraph) -> Result<Vc<ChunkGro
                                 Entry::Vacant(e) => {
                                     let chunk_group_id = len as u32;
                                     let mut set = FxIndexSet::default();
-                                    if is_merged {
+                                    if merged_parent.is_some() {
                                         set.insert(node);
                                     }
                                     e.insert((ChunkGroupId(chunk_group_id), set));
                                     chunk_group_id
                                 }
+                            };
+                            // Merged groups inherit heuristics from their parent group.
+                            if let Some(parent) = merged_parent
+                                && parent != id
+                            {
+                                inherits_from.entry(parent as usize).or_default().insert(id);
                             }
+                            id
                         });
 
                         let chunk_groups =
                             RoaringBitmapWrapper(RoaringBitmap::from_iter(chunk_group_ids));
+
+                        if let Some((parent, ref_data, _)) = parent_info
+                            && matches!(
+                                &ref_data.chunking_type,
+                                ChunkingType::Async
+                                    | ChunkingType::Isolated {
+                                        merge_tag: None,
+                                        ..
+                                    }
+                                    | ChunkingType::Shared {
+                                        merge_tag: None,
+                                        ..
+                                    }
+                            )
+                            && let Some(parent_groups) = module_chunk_groups.get(&parent)
+                        {
+                            for source in parent_groups.iter() {
+                                for target in chunk_groups.iter() {
+                                    if source != target {
+                                        inherits_from
+                                            .entry(source as usize)
+                                            .or_default()
+                                            .insert(target);
+                                    }
+                                }
+                            }
+                        }
 
                         // Assign chunk group to the target node (the entry of the chunk group)
                         let bitset = module_chunk_groups
@@ -806,10 +844,76 @@ pub async fn compute_chunk_group_info(graph: &ModuleGraph) -> Result<Vc<ChunkGro
             }
         }
 
+        // Resolve per-chunk-group chunking heuristics (`experimental.chunkingHeuristics`). Entry
+        // chunk groups carry their route's clusters / priority-entry-point flag; other chunk groups
+        // inherit the union of clusters (and OR of the flag) from their referencing chunk groups.
+        let chunk_group_count = chunk_groups_map.len();
+
+        let mut clusters: Vec<RoaringBitmap> = vec![RoaringBitmap::new(); chunk_group_count];
+        let mut priority_entry_points: Vec<bool> = vec![false; chunk_group_count];
+
+        for chunk_group in &entries {
+            let ChunkGroupEntry::Entry {
+                modules,
+                heuristics,
+            } = chunk_group
+            else {
+                continue;
+            };
+            if heuristics.clusters.is_empty() && !heuristics.priority_entry_point {
+                continue;
+            }
+            if let Some(index) =
+                chunk_groups_map.get_index_of(&ChunkGroupKey::Entry(modules.clone()))
+            {
+                clusters[index].extend(heuristics.clusters.iter().copied());
+                if heuristics.priority_entry_point {
+                    priority_entry_points[index] = true;
+                }
+            }
+        }
+
+        let mut worklist: Vec<usize> = (0..chunk_group_count).collect();
+        while let Some(source) = worklist.pop() {
+            let source_clusters = clusters[source].clone();
+            let source_priority_entry_point = priority_entry_points[source];
+            let Some(targets) = inherits_from.get(&source) else {
+                continue;
+            };
+            for &target in targets.iter() {
+                let target = target as usize;
+                let mut changed = false;
+                if !source_clusters.is_empty() && !source_clusters.is_subset(&clusters[target]) {
+                    clusters[target] |= &source_clusters; // clusters[target] = clusters[target] | &source_clusters,
+                    changed = true;
+                }
+                if source_priority_entry_point && !priority_entry_points[target] {
+                    priority_entry_points[target] = true;
+                    changed = true;
+                }
+                if changed {
+                    worklist.push(target);
+                }
+            }
+        }
+
+        let chunk_group_clusters: Vec<RoaringBitmapWrapper> =
+            clusters.into_iter().map(RoaringBitmapWrapper).collect();
+        let chunk_group_priority_entry_points = RoaringBitmapWrapper(
+            priority_entry_points
+                .iter()
+                .enumerate()
+                .filter_map(|(index, &is_priority)| is_priority.then_some(index as u32))
+                .collect(),
+        );
+
         Ok(ChunkGroupInfo {
             module_chunk_groups: ResolvedVc::cell(module_chunk_groups),
             chunk_group_keys: chunk_groups_map.keys().cloned().collect(),
-            chunking_heuristics: ChunkingHeuristicsInfo::default(),
+            chunking_heuristics: ChunkingHeuristicsInfo {
+                clusters: chunk_group_clusters,
+                priority_entry_points: chunk_group_priority_entry_points,
+            },
             chunk_groups: chunk_groups_map
                 .into_iter()
                 .map(|(k, (_, merged_entries))| match k {
