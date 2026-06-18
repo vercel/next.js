@@ -3267,6 +3267,24 @@ export default async function build(
                 appConfig.revalidate
               )
 
+              // `output: export` has no server, so every route must fully
+              // prerender at build time. A dynamic bailout (revalidate === 0),
+              // a postponed shell, or an empty shell all mean the route still
+              // needs request-time work, so fail the build and name the route.
+              if (
+                config.output === 'export' &&
+                config.cacheComponents &&
+                (cacheControl.revalidate === 0 ||
+                  hasPostponed ||
+                  hasEmptyStaticShell)
+              ) {
+                throw new Error(
+                  `Route "${route.pathname}" could not be statically exported because it uses dynamic or uncached data.\n` +
+                    `"output: export" requires every route to be fully prerendered at build time. ` +
+                    `Cache the data it reads with "use cache", or remove "output: export" if the route needs to be dynamic.`
+                )
+              }
+
               // Generated concrete paths (for example `/blog/post-1`) inherit
               // the route-level classification from the dynamic page
               // (`/blog/[slug]`), but they also need their own export-time

@@ -1365,5 +1365,6 @@
   "1364": "\\`experimental.turbopackRustReactCompiler\\` requires \\`reactCompiler\\` to be enabled. Please add \\`reactCompiler: true\\` in %s.",
   "1365": "Expected a dev tiered cache handler for kind \"%s\".",
   "1366": "Turbopack build failed with %s %s:\\n%s",
-  "1367": "createServerParamsForRoute should not be called in runtime prerenders."
+  "1367": "createServerParamsForRoute should not be called in runtime prerenders.",
+  "1368": "Route \"%s\" could not be statically exported because it uses dynamic or uncached data.\\n\"output: export\" requires every route to be fully prerendered at build time. Cache the data it reads with \"use cache\", or remove \"output: export\" if the route needs to be dynamic."
 }
