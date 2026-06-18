@@ -120,8 +120,6 @@ export function getDefineEnv({
   const nextPublicEnv = getNextPublicEnvironmentVariables()
   const nextConfigEnv = getNextConfigEnv(config)
 
-  // TODO: vroom
-  const isPPREnabled = Boolean(config.cacheComponents)
   const isCacheComponentsEnabled = !!config.cacheComponents
   const isUseCacheEnabled = !!config.experimental.useCache
 
@@ -173,7 +171,6 @@ export function getDefineEnv({
     'process.env.__NEXT_APP_NEW_SCROLL_HANDLER': Boolean(
       config.experimental.appNewScrollHandler
     ),
-    'process.env.__NEXT_PPR': isPPREnabled,
     'process.env.__NEXT_CACHE_COMPONENTS': isCacheComponentsEnabled,
     'process.env.__NEXT_EXPERIMENTAL_CACHED_NAVIGATIONS': Boolean(
       config.experimental.cachedNavigations
