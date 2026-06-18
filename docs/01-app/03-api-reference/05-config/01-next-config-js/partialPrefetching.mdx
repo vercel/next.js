@@ -44,20 +44,17 @@ module.exports = {
 
 ## How prefetches resolve
 
-`partialPrefetching` interacts with two complementary controls:
+Before Partial Prefetching, Next.js prefetched per visible link: a page with N links to N routes produced ~N route prefetches as those links entered the viewport.
 
-- The [`<Link prefetch>`](/docs/app/api-reference/components/link#prefetch) prop on each link controls **when** a prefetch fires.
-- The segment-level [`prefetch`](/docs/app/api-reference/file-conventions/route-segment-config/prefetch) export on each route controls **what** is in the prefetch.
+With `partialPrefetching: true`, Next.js prefetches one reusable [App Shell](/docs/app/glossary#app-shell) per route instead. The shell carries the route's rendered output minus per-link data; specifics like params and search-bound data fill in after navigation. Shells are cached on the client, so a route is fetched once even if many links on the page point at it.
 
-With `partialPrefetching` enabled, three tiers of prefetch payload are available for a route:
+The pattern is similar to per-route code splitting in single-page apps: one artifact per route, shared by every link that points to it.
 
-- **Plain `<Link>`** prefetches the route's [App Shell](/docs/app/glossary#app-shell): a per-route prerender shared across every visible link to that route.
-- **`<Link prefetch={true}>`** adds a per-link prefetch of the route's static and cached content for that specific URL. Dynamic data is excluded.
-- **`<Link prefetch={true}>` paired with a segment that exports `prefetch = 'allow-runtime'`** further adds a runtime prerender that can include dynamic data.
+> **Good to know**: Routes that read `cookies()` or `headers()` produce a personalized App Shell that the framework auto-detects (no opt-in needed). Personalized shells are cached per session on the client, not shared across users.
 
-See the [runtime prefetching guide](/docs/app/guides/runtime-prefetching) for the per-link behavior in detail.
+A link can ask for more than the App Shell with [`<Link prefetch={true}>`](/docs/app/api-reference/components/link#prefetch). The per-link payload is then capped by the destination's [`prefetch` segment config](/docs/app/api-reference/file-conventions/route-segment-config/prefetch): `'partial'` keeps it to the shell, `'allow-runtime'` lets it include runtime data like cookies, headers, and search params.
 
-> **Good to know**: If you use `<Link prefetch={true}>` without Partial Prefetching enabled for the destination route, a dev console error explains that the prefetch included dynamic data and suggests enabling `partialPrefetching` app-wide or `prefetch = 'partial'` on the segment.
+> **Good to know**: If you use `<Link prefetch={true}>` to a route that hasn't opted into Partial Prefetching, a dev console error suggests enabling `partialPrefetching` app-wide or `prefetch = 'partial'` on the segment. See [the dev warning Insight](/docs/messages/instant-link-prefetch-partial) for the full fix options.
 
 ## Per-segment overrides
 
