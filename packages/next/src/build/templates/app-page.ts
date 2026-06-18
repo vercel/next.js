@@ -29,7 +29,6 @@ import {
   NodeNextRequest,
   NodeNextResponse,
 } from '../../server/base-http/node' with { 'turbopack-transition': 'next-server-utility' }
-import { checkIsAppPPREnabled } from '../../server/lib/experimental/ppr' with { 'turbopack-transition': 'next-server-utility' }
 import { isRSCRequestHeader } from '../../server/lib/is-rsc-request' with { 'turbopack-transition': 'next-server-utility' }
 import {
   getFallbackRouteParams,
@@ -301,7 +300,7 @@ export async function handler(
    * If the route being rendered is an app page, and the ppr feature has been
    * enabled, then the given route _could_ support PPR.
    */
-  const couldSupportPPR: boolean = checkIsAppPPREnabled(nextConfig)
+  const couldSupportPPR = Boolean(nextConfig.cacheComponents)
 
   // Stash postponed state for server actions when in minimal mode.
   // We extract it here so the RDC is available for the re-render after the action completes.

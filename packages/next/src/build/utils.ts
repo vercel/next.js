@@ -2,7 +2,6 @@ import type {
   NextConfigComplete,
   NextConfigRuntime,
 } from '../server/config-shared'
-import { checkIsRoutePPREnabled } from '../server/lib/experimental/ppr'
 import type { AssetBinding } from './webpack/loaders/get-module-build-info'
 import type { ServerRuntime } from '../types'
 import type { BuildManifest } from '../server/get-page-files'
