@@ -178,7 +178,7 @@ pub async fn get_browser_runtime_code(
             var CHUNK_LOAD_RETRY_BASE_DELAY_MS = {};
             var CHUNK_LOAD_RETRY_MAX_JITTER_MS = {};
         "#,
-        chunk_load_retry.max_attempts,
+        chunk_load_retry.max_retry_attempts,
         chunk_load_retry.base_delay_ms,
         chunk_load_retry.max_jitter_ms,
     )?;

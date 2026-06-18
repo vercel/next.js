@@ -486,7 +486,7 @@ pub struct ClientChunkingContextOptions {
 /// Next.js' chunk-load retry policy for the Turbopack browser runtime.
 /// Webpack does not currently support chunk-load retrying.
 const NEXT_CHUNK_LOAD_RETRY: ChunkLoadRetry = ChunkLoadRetry {
-    max_attempts: 1,
+    max_retry_attempts: 1,
     base_delay_ms: 200,
     max_jitter_ms: 400,
 };

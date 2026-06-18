@@ -102,7 +102,7 @@ impl TryFrom<Option<&str>> for CrossOrigin {
 #[derive(Debug, Clone, Copy, Hash, Serialize, Deserialize)]
 pub struct ChunkLoadRetry {
     /// Number of retry attempts after the initial load fails. `0` disables retries.
-    pub max_attempts: u32,
+    pub max_retry_attempts: u32,
     /// Base delay before a retry, in milliseconds.
     pub base_delay_ms: u32,
     /// Maximum random jitter added to the base delay, in milliseconds.
@@ -115,7 +115,7 @@ impl Default for ChunkLoadRetry {
         // blips (a brief connection reset, a short CDN hiccup) often succeed on
         // a second try.
         Self {
-            max_attempts: 1,
+            max_retry_attempts: 1,
             base_delay_ms: 200,
             max_jitter_ms: 400,
         }

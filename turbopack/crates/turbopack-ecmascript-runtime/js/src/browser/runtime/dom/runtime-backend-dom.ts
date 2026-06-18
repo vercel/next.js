@@ -125,6 +125,13 @@ const chunkResolvers: Map<ChunkUrl, ChunkResolver> = new Map()
     return CHUNK_LOAD_RETRY_BASE_DELAY_MS + jitter
   }
 
+  function isRetryableChunkLoadError(error?: Error): boolean {
+    return (
+      error == null ||
+      (error instanceof DOMException && error.name === 'NetworkError')
+    )
+  }
+
   /**
    * Handles a failed chunk load: retries the load once after a short delay.
    */
@@ -132,9 +139,11 @@ const chunkResolvers: Map<ChunkUrl, ChunkResolver> = new Map()
     sourceType: SourceType,
     chunkUrl: ChunkUrl,
     resolver: ChunkResolver,
-    error?: Error
+    error?: Error,
+    reload?: () => void
   ) {
     if (
+      !isRetryableChunkLoadError(error) ||
       resolver.retryAttempts >= CHUNK_LOAD_RETRY_MAX_ATTEMPTS ||
       chunkResolvers.get(chunkUrl) !== resolver
     ) {
@@ -144,11 +153,18 @@ const chunkResolvers: Map<ChunkUrl, ChunkResolver> = new Map()
 
     resolver.retryAttempts++
     setTimeout(() => {
+      // if this chunk is being fetched multiple times, and one of those
+      // attempts succeeds. or, if this chunk has another resolver
+      // mapped to it - it's safe to skip retrying.
       if (resolver.resolved || chunkResolvers.get(chunkUrl) !== resolver) {
         return
       }
-      resolver.loadingStarted = false
-      doLoadChunk(sourceType, chunkUrl)
+      if (reload) {
+        reload()
+      } else {
+        resolver.loadingStarted = false
+        doLoadChunk(sourceType, chunkUrl)
+      }
     }, getChunkLoadRetryDelayMs())
   }
 
@@ -209,30 +225,35 @@ const chunkResolvers: Map<ChunkUrl, ChunkResolver> = new Map()
           // loaded instantly.
           resolver.resolve()
         } else {
-          const link = document.createElement('link')
-          link.rel = 'stylesheet'
-          link.crossOrigin = CROSS_ORIGIN
-          link.href = chunkUrl
-          link.onerror = () => {
-            // Drop the failed tag so a retry can re-add it cleanly.
-            link.remove()
-            onChunkLoadError(sourceType, chunkUrl, resolver)
-          }
-          link.onload = () => {
-            // CSS chunks do not register themselves, and as such must be marked as
-            // loaded instantly.
-            resolver.resolve()
+          const createLink = () => {
+            const link = document.createElement('link')
+            link.rel = 'stylesheet'
+            link.crossOrigin = CROSS_ORIGIN
+            link.href = chunkUrl
+            link.onerror = () => {
+              // Re-insert a fresh tag at the same position on retry to preserve
+              // cascade order.
+              const anchor = document.createComment('')
+              link.replaceWith(anchor)
+              onChunkLoadError(sourceType, chunkUrl, resolver, undefined, () =>
+                anchor.replaceWith(createLink())
+              )
+            }
+            link.onload = () => {
+              // CSS chunks do not register themselves, and as such must be marked as
+              // loaded instantly.
+              resolver.resolve()
+            }
+            return link
           }
           // Append to the `head` for webpack compatibility.
-          document.head.appendChild(link)
+          document.head.appendChild(createLink())
         }
       } else if (isJs(chunkUrl)) {
         const previousScripts = document.querySelectorAll(
           `script[src="${chunkUrl}"],script[src^="${chunkUrl}?"],script[src="${decodedChunkUrl}"],script[src^="${decodedChunkUrl}?"]`
         )
         if (previousScripts.length > 0) {
-          // There is this edge where the script already failed loading, but we
-          // can't detect that. The Promise will never resolve in this case.
           for (const script of Array.from(previousScripts)) {
             script.addEventListener(
               'error',
