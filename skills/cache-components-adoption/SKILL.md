@@ -58,7 +58,7 @@ is clean — see the
 
 **Primary: the dev server.** Most efficient. Visit a route and its blocking
 errors print to the **server console** with full stack traces — you don't have
-to drive the overlay UI, just read the logs. The same errors appear in the dev
+to drive the overlay UI, read the logs. The same errors appear in the dev
 overlay **Insights** tab with Stream / Cache / Block fix cards and a **Copy as
 prompt** button if you want them. Errors don't all accumulate in one place, so
 work one route at a time rather than trying to collect everything up front.
@@ -90,7 +90,7 @@ adoption` comment) into every `app/**/{page,layout}` file, skipping files that
 already declare `instant`. Then set `cacheComponents: true`. The TODO comments
 are the work queue.
 
-The codemod opts **every** segment out, not just the root, on purpose.
+The codemod opts **every** segment out, not only the root, on purpose.
 Resolution is top-down, first-explicit-config-wins: an `instant = false` on a
 segment shadows its whole subtree. If you only opted the root layout out, you
 couldn't make any single route instant without first removing the root opt-out —
@@ -116,7 +116,7 @@ independent, mergeable change.
 
 Within a group, remove opt-outs **leaf-up** (pages before the layouts above
 them) so a parent's `instant = false` doesn't shadow a child you're trying to
-validate. (Direct path: there are no opt-outs — just fix each failing route in
+validate. (Direct path: there are no opt-outs — fix each failing route in
 the group; if a hand-written opt-out on an ancestor shadows it, push that down
 to the segments outside the group first.)
 
