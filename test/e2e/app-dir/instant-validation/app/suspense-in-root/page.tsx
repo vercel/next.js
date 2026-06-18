@@ -289,6 +289,19 @@ export default async function Page() {
           <DebugLinks href="/suspense-in-root/disable-validation/disable-build" />
         </li>
       </ul>
+
+      <h2>Blocking await attribution</h2>
+      <ul>
+        <li>
+          <DebugLinks href="/suspense-in-root/blocking-attribution/dynamic-then-dynamic" />
+        </li>
+        <li>
+          <DebugLinks href="/suspense-in-root/blocking-attribution/runtime-in-static/123" />
+        </li>
+        <li>
+          <DebugLinks href="/suspense-in-root/blocking-attribution/runtime-then-dynamic" />
+        </li>
+      </ul>
     </main>
   )
 }
