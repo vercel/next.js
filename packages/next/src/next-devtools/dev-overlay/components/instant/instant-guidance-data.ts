@@ -82,31 +82,6 @@ const runtimeCards: FixCard[] = [
     copyable: true,
   },
   {
-    id: 'for-known-params-prerender',
-    title: 'For known params, prerender',
-    group: 'cache',
-    link: 'https://nextjs.org/docs/messages/blocking-prerender-runtime#for-known-params-prerender',
-    snippets: [
-      {
-        text: 'function generateStaticParams() {',
-        parts: [
-          { text: 'function ' },
-          { text: 'generateStaticParams', highlight: true },
-          { text: '() {' },
-        ],
-      },
-      {
-        text: '  return [{ slug: "…" }]',
-        parts: [
-          { text: '  return ' },
-          { text: '[{ slug: "…" }]', highlight: true },
-        ],
-      },
-      { text: '}' },
-    ],
-    copyable: true,
-  },
-  {
     id: 'allow-blocking-route',
     title: 'Allow blocking route',
     group: 'block',
@@ -144,50 +119,7 @@ const clientHookBlockCard: FixCard = {
   copyable: true,
 }
 
-const clientHookGspCard: FixCard = {
-  id: 'for-known-params-prerender',
-  title: 'For known params, prerender',
-  group: 'cache',
-  link: 'https://nextjs.org/docs/messages/blocking-prerender-client-hook#for-known-params-prerender',
-  snippets: [
-    {
-      text: 'function generateStaticParams() {',
-      parts: [
-        { text: 'function ' },
-        { text: 'generateStaticParams', highlight: true },
-        { text: '() {' },
-      ],
-    },
-    {
-      text: '  return [{ slug: "…" }]',
-      parts: [
-        { text: '  return ' },
-        { text: '[{ slug: "…" }]', highlight: true },
-      ],
-    },
-    { text: '}' },
-  ],
-  copyable: true,
-}
-
-/** useSearchParams: Stream + Block (GSP doesn't apply — search params come from request). */
-const clientHookCardsSearchParams: FixCard[] = [
-  clientHookSuspenseCard,
-  clientHookBlockCard,
-]
-
-/** useParams: Stream + GSP + Block. */
-const clientHookCardsWithGsp: FixCard[] = [
-  clientHookSuspenseCard,
-  clientHookGspCard,
-  clientHookBlockCard,
-]
-
-/** usePathname, useSelectedLayoutSegment(s): Stream + Block. */
-const clientHookCardsNoGsp: FixCard[] = [
-  clientHookSuspenseCard,
-  clientHookBlockCard,
-]
+const clientHookCards: FixCard[] = [clientHookSuspenseCard, clientHookBlockCard]
 
 const dynamicCards: FixCard[] = [
   {
@@ -738,6 +670,16 @@ const syncClientCardsByCause: Record<string, FixCard[]> = {
   "require('node:crypto').generateKeySync(...)": syncClientCryptoCards,
 }
 
+// `connection()`-triggered errors can't be cached.
+function filterCacheForConnection(
+  cards: FixCard[],
+  variant: GuidanceVariant,
+  cause: string | undefined
+): FixCard[] {
+  if (variant !== 'dynamic' || cause !== 'connection') return cards
+  return cards.filter((card) => card.group !== 'cache')
+}
+
 export function getCards(
   kind: GuidanceKind,
   variant: GuidanceVariant,
@@ -745,15 +687,19 @@ export function getCards(
 ): FixCard[] {
   switch (kind) {
     case 'blocking-route':
-      return variant === 'dynamic' ? dynamicCards : runtimeCards
+      return variant === 'dynamic'
+        ? filterCacheForConnection(dynamicCards, variant, cause)
+        : runtimeCards
     case 'client-hook':
-      if (cause === 'useSearchParams()') return clientHookCardsSearchParams
-      if (cause === 'useParams()') return clientHookCardsWithGsp
-      return clientHookCardsNoGsp
+      return clientHookCards
     case 'metadata':
-      return variant === 'runtime' ? metadataRuntimeCards : metadataDynamicCards
+      return variant === 'runtime'
+        ? metadataRuntimeCards
+        : filterCacheForConnection(metadataDynamicCards, variant, cause)
     case 'viewport':
-      return variant === 'runtime' ? viewportRuntimeCards : viewportDynamicCards
+      return variant === 'runtime'
+        ? viewportRuntimeCards
+        : filterCacheForConnection(viewportDynamicCards, variant, cause)
     case 'sync-io':
       return (cause && syncCardsByCause[cause]) || []
     case 'sync-io-client':

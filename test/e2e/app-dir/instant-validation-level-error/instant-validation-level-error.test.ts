@@ -204,7 +204,7 @@ describe('instant validation - level error', () => {
          Ways to fix this:
            - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
              https://nextjs.org/docs/messages/blocking-prerender-dynamic#wrap-in-or-move-into-suspense
-           - [cache] Cache the data access with \`"use cache"\`
+           - [cache] Cache the data access with \`"use cache"\` (does not apply to \`connection()\`)
              https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
            - [block] Set \`export const instant = false\` to silence this warning and allow a blocking route
              https://nextjs.org/docs/messages/blocking-prerender-dynamic#allow-blocking-route
@@ -231,7 +231,7 @@ describe('instant validation - level error', () => {
          Ways to fix this:
            - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
              https://nextjs.org/docs/messages/blocking-prerender-dynamic#wrap-in-or-move-into-suspense
-           - [cache] Cache the data access with \`"use cache"\`
+           - [cache] Cache the data access with \`"use cache"\` (does not apply to \`connection()\`)
              https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
            - [block] Set \`export const instant = false\` to silence this warning and allow a blocking route
              https://nextjs.org/docs/messages/blocking-prerender-dynamic#allow-blocking-route
@@ -258,7 +258,7 @@ describe('instant validation - level error', () => {
          Ways to fix this:
            - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
              https://nextjs.org/docs/messages/blocking-prerender-dynamic#wrap-in-or-move-into-suspense
-           - [cache] Cache the data access with \`"use cache"\`
+           - [cache] Cache the data access with \`"use cache"\` (does not apply to \`connection()\`)
              https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
            - [block] Set \`export const instant = false\` to silence this warning and allow a blocking route
              https://nextjs.org/docs/messages/blocking-prerender-dynamic#allow-blocking-route
@@ -298,7 +298,7 @@ describe('instant validation - level error', () => {
          Ways to fix this:
            - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
              https://nextjs.org/docs/messages/blocking-prerender-dynamic#wrap-in-or-move-into-suspense
-           - [cache] Cache the data access with \`"use cache"\`
+           - [cache] Cache the data access with \`"use cache"\` (does not apply to \`connection()\`)
              https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
            - [block] Set \`export const instant = false\` to silence this warning and allow a blocking route
              https://nextjs.org/docs/messages/blocking-prerender-dynamic#allow-blocking-route

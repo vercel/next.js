@@ -125,7 +125,7 @@ describe('Cache Components Errors', () => {
              Ways to fix this:
                - [static] Use a static metadata export instead of \`generateMetadata()\`
                  https://nextjs.org/docs/messages/blocking-prerender-metadata-runtime#use-static-metadata
-               - [cache] Cache the metadata with \`"use cache"\` in \`generateMetadata()\`
+               - [cache] Cache the metadata with \`"use cache"\` in \`generateMetadata()\` (does not apply to \`connection()\`)
                  https://nextjs.org/docs/messages/blocking-prerender-metadata-dynamic#cache-the-metadata
                - [dynamic] Render a marker component that calls \`await connection()\` inside \`<Suspense>\` on the page
                  https://nextjs.org/docs/messages/blocking-prerender-metadata-dynamic#mark-the-route-as-dynamic
@@ -143,7 +143,7 @@ describe('Cache Components Errors', () => {
              Ways to fix this:
                - [static] Use a static metadata export instead of \`generateMetadata()\`
                  https://nextjs.org/docs/messages/blocking-prerender-metadata-runtime#use-static-metadata
-               - [cache] Cache the metadata with \`"use cache"\` in \`generateMetadata()\`
+               - [cache] Cache the metadata with \`"use cache"\` in \`generateMetadata()\` (does not apply to \`connection()\`)
                  https://nextjs.org/docs/messages/blocking-prerender-metadata-dynamic#cache-the-metadata
                - [dynamic] Render a marker component that calls \`await connection()\` inside \`<Suspense>\` on the page
                  https://nextjs.org/docs/messages/blocking-prerender-metadata-dynamic#mark-the-route-as-dynamic
@@ -204,8 +204,6 @@ describe('Cache Components Errors', () => {
                    https://nextjs.org/docs/messages/blocking-prerender-dynamic#wrap-in-or-move-into-suspense
                  - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\`
                    https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
-                 - [cache] For \`params\`: if the params are known, prerender them with \`generateStaticParams\`
-                   https://nextjs.org/docs/messages/blocking-prerender-runtime#for-known-params-prerender
                  - [block] Set \`export const instant = false\` to silence this warning and allow a blocking route
                    https://nextjs.org/docs/messages/blocking-prerender-dynamic#allow-blocking-route
                    at Dynamic (app/dynamic-metadata-error-route/page.tsx:20:16)
@@ -234,8 +232,6 @@ describe('Cache Components Errors', () => {
                    https://nextjs.org/docs/messages/blocking-prerender-dynamic#wrap-in-or-move-into-suspense
                  - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\`
                    https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
-                 - [cache] For \`params\`: if the params are known, prerender them with \`generateStaticParams\`
-                   https://nextjs.org/docs/messages/blocking-prerender-runtime#for-known-params-prerender
                  - [block] Set \`export const instant = false\` to silence this warning and allow a blocking route
                    https://nextjs.org/docs/messages/blocking-prerender-dynamic#allow-blocking-route
                    at main (<anonymous>)
@@ -260,8 +256,6 @@ describe('Cache Components Errors', () => {
                    https://nextjs.org/docs/messages/blocking-prerender-dynamic#wrap-in-or-move-into-suspense
                  - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\`
                    https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
-                 - [cache] For \`params\`: if the params are known, prerender them with \`generateStaticParams\`
-                   https://nextjs.org/docs/messages/blocking-prerender-runtime#for-known-params-prerender
                  - [block] Set \`export const instant = false\` to silence this warning and allow a blocking route
                    https://nextjs.org/docs/messages/blocking-prerender-dynamic#allow-blocking-route
                    at Dynamic (webpack:///app/dynamic-metadata-error-route/page.tsx:20:16)
@@ -290,8 +284,6 @@ describe('Cache Components Errors', () => {
                    https://nextjs.org/docs/messages/blocking-prerender-dynamic#wrap-in-or-move-into-suspense
                  - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\`
                    https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
-                 - [cache] For \`params\`: if the params are known, prerender them with \`generateStaticParams\`
-                   https://nextjs.org/docs/messages/blocking-prerender-runtime#for-known-params-prerender
                  - [block] Set \`export const instant = false\` to silence this warning and allow a blocking route
                    https://nextjs.org/docs/messages/blocking-prerender-dynamic#allow-blocking-route
                    at a (<next-dist-dir>)
@@ -374,7 +366,7 @@ describe('Cache Components Errors', () => {
              Ways to fix this:
                - [static] Use a static metadata export instead of \`generateMetadata()\`
                  https://nextjs.org/docs/messages/blocking-prerender-metadata-runtime#use-static-metadata
-               - [cache] Cache the metadata with \`"use cache"\` in \`generateMetadata()\`
+               - [cache] Cache the metadata with \`"use cache"\` in \`generateMetadata()\` (does not apply to \`connection()\`)
                  https://nextjs.org/docs/messages/blocking-prerender-metadata-dynamic#cache-the-metadata
                - [dynamic] Render a marker component that calls \`await connection()\` inside \`<Suspense>\` on the page
                  https://nextjs.org/docs/messages/blocking-prerender-metadata-dynamic#mark-the-route-as-dynamic
@@ -392,7 +384,7 @@ describe('Cache Components Errors', () => {
              Ways to fix this:
                - [static] Use a static metadata export instead of \`generateMetadata()\`
                  https://nextjs.org/docs/messages/blocking-prerender-metadata-runtime#use-static-metadata
-               - [cache] Cache the metadata with \`"use cache"\` in \`generateMetadata()\`
+               - [cache] Cache the metadata with \`"use cache"\` in \`generateMetadata()\` (does not apply to \`connection()\`)
                  https://nextjs.org/docs/messages/blocking-prerender-metadata-dynamic#cache-the-metadata
                - [dynamic] Render a marker component that calls \`await connection()\` inside \`<Suspense>\` on the page
                  https://nextjs.org/docs/messages/blocking-prerender-metadata-dynamic#mark-the-route-as-dynamic
@@ -448,7 +440,7 @@ describe('Cache Components Errors', () => {
              Ways to fix this:
                - [static] Use a static metadata export instead of \`generateMetadata()\`
                  https://nextjs.org/docs/messages/blocking-prerender-metadata-runtime#use-static-metadata
-               - [cache] Cache the metadata with \`"use cache"\` in \`generateMetadata()\`
+               - [cache] Cache the metadata with \`"use cache"\` in \`generateMetadata()\` (does not apply to \`connection()\`)
                  https://nextjs.org/docs/messages/blocking-prerender-metadata-dynamic#cache-the-metadata
                - [dynamic] Render a marker component that calls \`await connection()\` inside \`<Suspense>\` on the page
                  https://nextjs.org/docs/messages/blocking-prerender-metadata-dynamic#mark-the-route-as-dynamic
@@ -466,7 +458,7 @@ describe('Cache Components Errors', () => {
              Ways to fix this:
                - [static] Use a static metadata export instead of \`generateMetadata()\`
                  https://nextjs.org/docs/messages/blocking-prerender-metadata-runtime#use-static-metadata
-               - [cache] Cache the metadata with \`"use cache"\` in \`generateMetadata()\`
+               - [cache] Cache the metadata with \`"use cache"\` in \`generateMetadata()\` (does not apply to \`connection()\`)
                  https://nextjs.org/docs/messages/blocking-prerender-metadata-dynamic#cache-the-metadata
                - [dynamic] Render a marker component that calls \`await connection()\` inside \`<Suspense>\` on the page
                  https://nextjs.org/docs/messages/blocking-prerender-metadata-dynamic#mark-the-route-as-dynamic
@@ -522,7 +514,7 @@ describe('Cache Components Errors', () => {
              Ways to fix this:
                - [static] Use a static metadata export instead of \`generateMetadata()\`
                  https://nextjs.org/docs/messages/blocking-prerender-metadata-runtime#use-static-metadata
-               - [cache] Cache the metadata with \`"use cache"\` in \`generateMetadata()\`
+               - [cache] Cache the metadata with \`"use cache"\` in \`generateMetadata()\` (does not apply to \`connection()\`)
                  https://nextjs.org/docs/messages/blocking-prerender-metadata-dynamic#cache-the-metadata
                - [dynamic] Render a marker component that calls \`await connection()\` inside \`<Suspense>\` on the page
                  https://nextjs.org/docs/messages/blocking-prerender-metadata-dynamic#mark-the-route-as-dynamic
@@ -540,7 +532,7 @@ describe('Cache Components Errors', () => {
              Ways to fix this:
                - [static] Use a static metadata export instead of \`generateMetadata()\`
                  https://nextjs.org/docs/messages/blocking-prerender-metadata-runtime#use-static-metadata
-               - [cache] Cache the metadata with \`"use cache"\` in \`generateMetadata()\`
+               - [cache] Cache the metadata with \`"use cache"\` in \`generateMetadata()\` (does not apply to \`connection()\`)
                  https://nextjs.org/docs/messages/blocking-prerender-metadata-dynamic#cache-the-metadata
                - [dynamic] Render a marker component that calls \`await connection()\` inside \`<Suspense>\` on the page
                  https://nextjs.org/docs/messages/blocking-prerender-metadata-dynamic#mark-the-route-as-dynamic
@@ -847,8 +839,6 @@ describe('Cache Components Errors', () => {
                    https://nextjs.org/docs/messages/blocking-prerender-dynamic#wrap-in-or-move-into-suspense
                  - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\`
                    https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
-                 - [cache] For \`params\`: if the params are known, prerender them with \`generateStaticParams\`
-                   https://nextjs.org/docs/messages/blocking-prerender-runtime#for-known-params-prerender
                  - [block] Set \`export const instant = false\` to silence this warning and allow a blocking route
                    https://nextjs.org/docs/messages/blocking-prerender-dynamic#allow-blocking-route
                    at fetchRandom (app/dynamic-root/page.tsx:62:16)
@@ -871,8 +861,6 @@ describe('Cache Components Errors', () => {
                    https://nextjs.org/docs/messages/blocking-prerender-dynamic#wrap-in-or-move-into-suspense
                  - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\`
                    https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
-                 - [cache] For \`params\`: if the params are known, prerender them with \`generateStaticParams\`
-                   https://nextjs.org/docs/messages/blocking-prerender-runtime#for-known-params-prerender
                  - [block] Set \`export const instant = false\` to silence this warning and allow a blocking route
                    https://nextjs.org/docs/messages/blocking-prerender-dynamic#allow-blocking-route
                    at fetchRandom (app/dynamic-root/page.tsx:62:16)
@@ -902,8 +890,6 @@ describe('Cache Components Errors', () => {
                    https://nextjs.org/docs/messages/blocking-prerender-dynamic#wrap-in-or-move-into-suspense
                  - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\`
                    https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
-                 - [cache] For \`params\`: if the params are known, prerender them with \`generateStaticParams\`
-                   https://nextjs.org/docs/messages/blocking-prerender-runtime#for-known-params-prerender
                  - [block] Set \`export const instant = false\` to silence this warning and allow a blocking route
                    https://nextjs.org/docs/messages/blocking-prerender-dynamic#allow-blocking-route
                    at <unknown> (app/dynamic-root/indirection.tsx:7:34)
@@ -929,8 +915,6 @@ describe('Cache Components Errors', () => {
                    https://nextjs.org/docs/messages/blocking-prerender-dynamic#wrap-in-or-move-into-suspense
                  - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\`
                    https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
-                 - [cache] For \`params\`: if the params are known, prerender them with \`generateStaticParams\`
-                   https://nextjs.org/docs/messages/blocking-prerender-runtime#for-known-params-prerender
                  - [block] Set \`export const instant = false\` to silence this warning and allow a blocking route
                    https://nextjs.org/docs/messages/blocking-prerender-dynamic#allow-blocking-route
                    at main (<anonymous>)
@@ -955,8 +939,6 @@ describe('Cache Components Errors', () => {
                    https://nextjs.org/docs/messages/blocking-prerender-dynamic#wrap-in-or-move-into-suspense
                  - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\`
                    https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
-                 - [cache] For \`params\`: if the params are known, prerender them with \`generateStaticParams\`
-                   https://nextjs.org/docs/messages/blocking-prerender-runtime#for-known-params-prerender
                  - [block] Set \`export const instant = false\` to silence this warning and allow a blocking route
                    https://nextjs.org/docs/messages/blocking-prerender-dynamic#allow-blocking-route
                    at fetchRandom (webpack:///app/dynamic-root/page.tsx:62:16)
@@ -979,8 +961,6 @@ describe('Cache Components Errors', () => {
                    https://nextjs.org/docs/messages/blocking-prerender-dynamic#wrap-in-or-move-into-suspense
                  - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\`
                    https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
-                 - [cache] For \`params\`: if the params are known, prerender them with \`generateStaticParams\`
-                   https://nextjs.org/docs/messages/blocking-prerender-runtime#for-known-params-prerender
                  - [block] Set \`export const instant = false\` to silence this warning and allow a blocking route
                    https://nextjs.org/docs/messages/blocking-prerender-dynamic#allow-blocking-route
                    at fetchRandom (webpack:///app/dynamic-root/page.tsx:62:16)
@@ -1010,8 +990,6 @@ describe('Cache Components Errors', () => {
                    https://nextjs.org/docs/messages/blocking-prerender-dynamic#wrap-in-or-move-into-suspense
                  - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\`
                    https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
-                 - [cache] For \`params\`: if the params are known, prerender them with \`generateStaticParams\`
-                   https://nextjs.org/docs/messages/blocking-prerender-runtime#for-known-params-prerender
                  - [block] Set \`export const instant = false\` to silence this warning and allow a blocking route
                    https://nextjs.org/docs/messages/blocking-prerender-dynamic#allow-blocking-route
                    at a (<next-dist-dir>)
@@ -1051,8 +1029,6 @@ describe('Cache Components Errors', () => {
                    https://nextjs.org/docs/messages/blocking-prerender-dynamic#wrap-in-or-move-into-suspense
                  - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\`
                    https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
-                 - [cache] For \`params\`: if the params are known, prerender them with \`generateStaticParams\`
-                   https://nextjs.org/docs/messages/blocking-prerender-runtime#for-known-params-prerender
                  - [block] Set \`export const instant = false\` to silence this warning and allow a blocking route
                    https://nextjs.org/docs/messages/blocking-prerender-dynamic#allow-blocking-route
                    at w (<next-dist-dir>)
@@ -2412,8 +2388,6 @@ describe('Cache Components Errors', () => {
                      https://nextjs.org/docs/messages/blocking-prerender-dynamic#wrap-in-or-move-into-suspense
                    - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\`
                      https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
-                   - [cache] For \`params\`: if the params are known, prerender them with \`generateStaticParams\`
-                     https://nextjs.org/docs/messages/blocking-prerender-runtime#for-known-params-prerender
                    - [block] Set \`export const instant = false\` to silence this warning and allow a blocking route
                      https://nextjs.org/docs/messages/blocking-prerender-dynamic#allow-blocking-route
                      at RequestData (app/sync-attribution/unguarded-async-guarded-clientsync/page.tsx:34:18)
@@ -2442,8 +2416,6 @@ describe('Cache Components Errors', () => {
                      https://nextjs.org/docs/messages/blocking-prerender-dynamic#wrap-in-or-move-into-suspense
                    - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\`
                      https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
-                   - [cache] For \`params\`: if the params are known, prerender them with \`generateStaticParams\`
-                     https://nextjs.org/docs/messages/blocking-prerender-runtime#for-known-params-prerender
                    - [block] Set \`export const instant = false\` to silence this warning and allow a blocking route
                      https://nextjs.org/docs/messages/blocking-prerender-dynamic#allow-blocking-route
                      at a (<anonymous>)
@@ -2470,8 +2442,6 @@ describe('Cache Components Errors', () => {
                      https://nextjs.org/docs/messages/blocking-prerender-dynamic#wrap-in-or-move-into-suspense
                    - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\`
                      https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
-                   - [cache] For \`params\`: if the params are known, prerender them with \`generateStaticParams\`
-                     https://nextjs.org/docs/messages/blocking-prerender-runtime#for-known-params-prerender
                    - [block] Set \`export const instant = false\` to silence this warning and allow a blocking route
                      https://nextjs.org/docs/messages/blocking-prerender-dynamic#allow-blocking-route
                      at RequestData (webpack:///app/sync-attribution/unguarded-async-guarded-clientsync/page.tsx:34:18)
@@ -3180,8 +3150,6 @@ describe('Cache Components Errors', () => {
                        https://nextjs.org/docs/messages/blocking-prerender-dynamic#wrap-in-or-move-into-suspense
                      - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\`
                        https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
-                     - [cache] For \`params\`: if the params are known, prerender them with \`generateStaticParams\`
-                       https://nextjs.org/docs/messages/blocking-prerender-runtime#for-known-params-prerender
                      - [block] Set \`export const instant = false\` to silence this warning and allow a blocking route
                        https://nextjs.org/docs/messages/blocking-prerender-dynamic#allow-blocking-route
                        at Page (app/use-cache-low-expire/fast/page.tsx:3:16)
@@ -3209,8 +3177,6 @@ describe('Cache Components Errors', () => {
                        https://nextjs.org/docs/messages/blocking-prerender-dynamic#wrap-in-or-move-into-suspense
                      - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\`
                        https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
-                     - [cache] For \`params\`: if the params are known, prerender them with \`generateStaticParams\`
-                       https://nextjs.org/docs/messages/blocking-prerender-runtime#for-known-params-prerender
                      - [block] Set \`export const instant = false\` to silence this warning and allow a blocking route
                        https://nextjs.org/docs/messages/blocking-prerender-dynamic#allow-blocking-route
                        at main (<anonymous>)
@@ -3238,8 +3204,6 @@ Ways to fix this:
     https://nextjs.org/docs/messages/blocking-prerender-dynamic#wrap-in-or-move-into-suspense
   - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\`
     https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
-  - [cache] For \`params\`: if the params are known, prerender them with \`generateStaticParams\`
-    https://nextjs.org/docs/messages/blocking-prerender-runtime#for-known-params-prerender
   - [block] Set \`export const instant = false\` to silence this warning and allow a blocking route
     https://nextjs.org/docs/messages/blocking-prerender-dynamic#allow-blocking-route`
                   )
@@ -3254,8 +3218,6 @@ Ways to fix this:
     https://nextjs.org/docs/messages/blocking-prerender-dynamic#wrap-in-or-move-into-suspense
   - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\`
     https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
-  - [cache] For \`params\`: if the params are known, prerender them with \`generateStaticParams\`
-    https://nextjs.org/docs/messages/blocking-prerender-runtime#for-known-params-prerender
   - [block] Set \`export const instant = false\` to silence this warning and allow a blocking route
     https://nextjs.org/docs/messages/blocking-prerender-dynamic#allow-blocking-route`
                   )
@@ -3310,8 +3272,6 @@ Ways to fix this:
                        https://nextjs.org/docs/messages/blocking-prerender-dynamic#wrap-in-or-move-into-suspense
                      - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\`
                        https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
-                     - [cache] For \`params\`: if the params are known, prerender them with \`generateStaticParams\`
-                       https://nextjs.org/docs/messages/blocking-prerender-runtime#for-known-params-prerender
                      - [block] Set \`export const instant = false\` to silence this warning and allow a blocking route
                        https://nextjs.org/docs/messages/blocking-prerender-dynamic#allow-blocking-route
                        at Page (app/use-cache-low-expire/slow/page.tsx:3:16)
@@ -3339,8 +3299,6 @@ Ways to fix this:
                        https://nextjs.org/docs/messages/blocking-prerender-dynamic#wrap-in-or-move-into-suspense
                      - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\`
                        https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
-                     - [cache] For \`params\`: if the params are known, prerender them with \`generateStaticParams\`
-                       https://nextjs.org/docs/messages/blocking-prerender-runtime#for-known-params-prerender
                      - [block] Set \`export const instant = false\` to silence this warning and allow a blocking route
                        https://nextjs.org/docs/messages/blocking-prerender-dynamic#allow-blocking-route
                        at main (<anonymous>)
@@ -3368,8 +3326,6 @@ Ways to fix this:
     https://nextjs.org/docs/messages/blocking-prerender-dynamic#wrap-in-or-move-into-suspense
   - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\`
     https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
-  - [cache] For \`params\`: if the params are known, prerender them with \`generateStaticParams\`
-    https://nextjs.org/docs/messages/blocking-prerender-runtime#for-known-params-prerender
   - [block] Set \`export const instant = false\` to silence this warning and allow a blocking route
     https://nextjs.org/docs/messages/blocking-prerender-dynamic#allow-blocking-route`
                   )
@@ -3384,8 +3340,6 @@ Ways to fix this:
     https://nextjs.org/docs/messages/blocking-prerender-dynamic#wrap-in-or-move-into-suspense
   - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\`
     https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
-  - [cache] For \`params\`: if the params are known, prerender them with \`generateStaticParams\`
-    https://nextjs.org/docs/messages/blocking-prerender-runtime#for-known-params-prerender
   - [block] Set \`export const instant = false\` to silence this warning and allow a blocking route
     https://nextjs.org/docs/messages/blocking-prerender-dynamic#allow-blocking-route`
                   )
@@ -3599,8 +3553,6 @@ Ways to fix this:
                        https://nextjs.org/docs/messages/blocking-prerender-dynamic#wrap-in-or-move-into-suspense
                      - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\`
                        https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
-                     - [cache] For \`params\`: if the params are known, prerender them with \`generateStaticParams\`
-                       https://nextjs.org/docs/messages/blocking-prerender-runtime#for-known-params-prerender
                      - [block] Set \`export const instant = false\` to silence this warning and allow a blocking route
                        https://nextjs.org/docs/messages/blocking-prerender-dynamic#allow-blocking-route
                        at Page (app/use-cache-revalidate-0/fast/page.tsx:3:16)
@@ -3628,8 +3580,6 @@ Ways to fix this:
                        https://nextjs.org/docs/messages/blocking-prerender-dynamic#wrap-in-or-move-into-suspense
                      - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\`
                        https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
-                     - [cache] For \`params\`: if the params are known, prerender them with \`generateStaticParams\`
-                       https://nextjs.org/docs/messages/blocking-prerender-runtime#for-known-params-prerender
                      - [block] Set \`export const instant = false\` to silence this warning and allow a blocking route
                        https://nextjs.org/docs/messages/blocking-prerender-dynamic#allow-blocking-route
                        at main (<anonymous>)
@@ -3657,8 +3607,6 @@ Ways to fix this:
     https://nextjs.org/docs/messages/blocking-prerender-dynamic#wrap-in-or-move-into-suspense
   - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\`
     https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
-  - [cache] For \`params\`: if the params are known, prerender them with \`generateStaticParams\`
-    https://nextjs.org/docs/messages/blocking-prerender-runtime#for-known-params-prerender
   - [block] Set \`export const instant = false\` to silence this warning and allow a blocking route
     https://nextjs.org/docs/messages/blocking-prerender-dynamic#allow-blocking-route`
                   )
@@ -3673,8 +3621,6 @@ Ways to fix this:
     https://nextjs.org/docs/messages/blocking-prerender-dynamic#wrap-in-or-move-into-suspense
   - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\`
     https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
-  - [cache] For \`params\`: if the params are known, prerender them with \`generateStaticParams\`
-    https://nextjs.org/docs/messages/blocking-prerender-runtime#for-known-params-prerender
   - [block] Set \`export const instant = false\` to silence this warning and allow a blocking route
     https://nextjs.org/docs/messages/blocking-prerender-dynamic#allow-blocking-route`
                   )
@@ -3729,8 +3675,6 @@ Ways to fix this:
                        https://nextjs.org/docs/messages/blocking-prerender-dynamic#wrap-in-or-move-into-suspense
                      - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\`
                        https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
-                     - [cache] For \`params\`: if the params are known, prerender them with \`generateStaticParams\`
-                       https://nextjs.org/docs/messages/blocking-prerender-runtime#for-known-params-prerender
                      - [block] Set \`export const instant = false\` to silence this warning and allow a blocking route
                        https://nextjs.org/docs/messages/blocking-prerender-dynamic#allow-blocking-route
                        at Page (app/use-cache-revalidate-0/slow/page.tsx:3:16)
@@ -3758,8 +3702,6 @@ Ways to fix this:
                        https://nextjs.org/docs/messages/blocking-prerender-dynamic#wrap-in-or-move-into-suspense
                      - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\`
                        https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
-                     - [cache] For \`params\`: if the params are known, prerender them with \`generateStaticParams\`
-                       https://nextjs.org/docs/messages/blocking-prerender-runtime#for-known-params-prerender
                      - [block] Set \`export const instant = false\` to silence this warning and allow a blocking route
                        https://nextjs.org/docs/messages/blocking-prerender-dynamic#allow-blocking-route
                        at main (<anonymous>)
@@ -3787,8 +3729,6 @@ Ways to fix this:
     https://nextjs.org/docs/messages/blocking-prerender-dynamic#wrap-in-or-move-into-suspense
   - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\`
     https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
-  - [cache] For \`params\`: if the params are known, prerender them with \`generateStaticParams\`
-    https://nextjs.org/docs/messages/blocking-prerender-runtime#for-known-params-prerender
   - [block] Set \`export const instant = false\` to silence this warning and allow a blocking route
     https://nextjs.org/docs/messages/blocking-prerender-dynamic#allow-blocking-route`
                   )
@@ -3803,8 +3743,6 @@ Ways to fix this:
     https://nextjs.org/docs/messages/blocking-prerender-dynamic#wrap-in-or-move-into-suspense
   - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\`
     https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
-  - [cache] For \`params\`: if the params are known, prerender them with \`generateStaticParams\`
-    https://nextjs.org/docs/messages/blocking-prerender-runtime#for-known-params-prerender
   - [block] Set \`export const instant = false\` to silence this warning and allow a blocking route
     https://nextjs.org/docs/messages/blocking-prerender-dynamic#allow-blocking-route`
                   )
@@ -4017,8 +3955,6 @@ Ways to fix this:
                      https://nextjs.org/docs/messages/blocking-prerender-dynamic#wrap-in-or-move-into-suspense
                    - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\`
                      https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
-                   - [cache] For \`params\`: if the params are known, prerender them with \`generateStaticParams\`
-                     https://nextjs.org/docs/messages/blocking-prerender-runtime#for-known-params-prerender
                    - [block] Set \`export const instant = false\` to silence this warning and allow a blocking route
                      https://nextjs.org/docs/messages/blocking-prerender-dynamic#allow-blocking-route
                      at Page (app/use-cache-params/[slug]/page.tsx:1:16)
@@ -4044,8 +3980,6 @@ Ways to fix this:
                      https://nextjs.org/docs/messages/blocking-prerender-dynamic#wrap-in-or-move-into-suspense
                    - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\`
                      https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
-                   - [cache] For \`params\`: if the params are known, prerender them with \`generateStaticParams\`
-                     https://nextjs.org/docs/messages/blocking-prerender-runtime#for-known-params-prerender
                    - [block] Set \`export const instant = false\` to silence this warning and allow a blocking route
                      https://nextjs.org/docs/messages/blocking-prerender-dynamic#allow-blocking-route
                      at main (<anonymous>)
@@ -4921,8 +4855,6 @@ Ways to fix this:
                      https://nextjs.org/docs/messages/blocking-prerender-dynamic#wrap-in-or-move-into-suspense
                    - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\`
                      https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
-                   - [cache] For \`params\`: if the params are known, prerender them with \`generateStaticParams\`
-                     https://nextjs.org/docs/messages/blocking-prerender-runtime#for-known-params-prerender
                    - [block] Set \`export const instant = false\` to silence this warning and allow a blocking route
                      https://nextjs.org/docs/messages/blocking-prerender-dynamic#allow-blocking-route
                      at Private (app/use-cache-private-without-suspense/page.tsx:15:1)
@@ -4951,8 +4883,6 @@ Ways to fix this:
                      https://nextjs.org/docs/messages/blocking-prerender-dynamic#wrap-in-or-move-into-suspense
                    - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\`
                      https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
-                   - [cache] For \`params\`: if the params are known, prerender them with \`generateStaticParams\`
-                     https://nextjs.org/docs/messages/blocking-prerender-runtime#for-known-params-prerender
                    - [block] Set \`export const instant = false\` to silence this warning and allow a blocking route
                      https://nextjs.org/docs/messages/blocking-prerender-dynamic#allow-blocking-route
                      at main (<anonymous>)
@@ -4980,8 +4910,6 @@ Ways to fix this:
     https://nextjs.org/docs/messages/blocking-prerender-dynamic#wrap-in-or-move-into-suspense
   - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\`
     https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
-  - [cache] For \`params\`: if the params are known, prerender them with \`generateStaticParams\`
-    https://nextjs.org/docs/messages/blocking-prerender-runtime#for-known-params-prerender
   - [block] Set \`export const instant = false\` to silence this warning and allow a blocking route
     https://nextjs.org/docs/messages/blocking-prerender-dynamic#allow-blocking-route`
                 )
@@ -4996,8 +4924,6 @@ Ways to fix this:
                      https://nextjs.org/docs/messages/blocking-prerender-dynamic#wrap-in-or-move-into-suspense
                    - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\`
                      https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
-                   - [cache] For \`params\`: if the params are known, prerender them with \`generateStaticParams\`
-                     https://nextjs.org/docs/messages/blocking-prerender-runtime#for-known-params-prerender
                    - [block] Set \`export const instant = false\` to silence this warning and allow a blocking route
                      https://nextjs.org/docs/messages/blocking-prerender-dynamic#allow-blocking-route
                      at a (<next-dist-dir>)
