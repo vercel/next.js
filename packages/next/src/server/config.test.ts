@@ -73,6 +73,44 @@ describe('loadConfig', () => {
     })
   })
 
+  describe('bundler-specific config validation', () => {
+    it('does not require an active bundler when loading config for typegen', async () => {
+      await expect(
+        loadConfig(PHASE_PRODUCTION_BUILD, __dirname, {
+          customConfig: {
+            experimental: {
+              cssChunking: 'graph',
+              turbopackRustReactCompiler: true,
+            },
+            reactCompiler: true,
+          },
+          isTypegen: true,
+        })
+      ).resolves.toMatchObject({
+        experimental: {
+          cssChunking: 'graph',
+          turbopackRustReactCompiler: true,
+        },
+        reactCompiler: true,
+      })
+    })
+
+    it('still validates turbopack-only config outside of typegen', async () => {
+      await expect(
+        loadConfig(PHASE_PRODUCTION_BUILD, __dirname, {
+          customConfig: {
+            experimental: {
+              turbopackRustReactCompiler: true,
+            },
+            reactCompiler: true,
+          },
+        })
+      ).rejects.toThrow(
+        /`experimental\.turbopackRustReactCompiler` is only supported with Turbopack/
+      )
+    })
+  })
+
   describe('canary-only features', () => {
     beforeAll(() => {
       process.env.__NEXT_VERSION = '14.2.0'

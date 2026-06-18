@@ -296,7 +296,8 @@ function assignDefaultsAndValidate(
   dir: string,
   userConfig: NextConfig & { configFileName: string },
   silent: boolean,
-  phase: PHASE_TYPE
+  phase: PHASE_TYPE,
+  isTypegen: boolean
 ): NextConfigComplete {
   const configFileName = userConfig.configFileName
   if (typeof (userConfig as any).exportTrailingSlash !== 'undefined') {
@@ -487,9 +488,10 @@ function assignDefaultsAndValidate(
 
   // Validate experimental.cssChunking compatibility with the active bundler. Graph mode is
   // Turbopack-only; strict mode and `false` (single-chunk-per-module) are webpack-only.
-  // Only validate during build/dev — `next start` doesn't pick a bundler and would otherwise
-  // see `process.env.TURBOPACK` unset and reject a valid `cssChunking: "graph"` config.
-  if (phase !== PHASE_PRODUCTION_SERVER) {
+  // Only validate when the command picks a bundler. `next start` and `next typegen` would
+  // otherwise see `process.env.TURBOPACK` unset and reject valid bundler-specific configs.
+  const isBundlerPhase = phase !== PHASE_PRODUCTION_SERVER && !isTypegen
+  if (isBundlerPhase) {
     const cssChunkingValue = result.experimental.cssChunking
     const cssChunkingMode = resolveCssChunkingMode(cssChunkingValue)
     if (cssChunkingMode === 'graph' && !process.env.TURBOPACK) {
@@ -1718,6 +1720,7 @@ function getCacheKey(
   customConfig?: object | null,
   reactProductionProfiling?: boolean,
   debugPrerender?: boolean,
+  isTypegen?: boolean,
   pid?: number
 ): string {
   // The next.config.js is unique per project, so we can use the dir as the major key
@@ -1728,6 +1731,7 @@ function getCacheKey(
     hasCustomConfig: Boolean(customConfig),
     reactProductionProfiling: Boolean(reactProductionProfiling),
     debugPrerender: Boolean(debugPrerender),
+    isTypegen: Boolean(isTypegen),
     pid: pid || 0,
   })
 
@@ -1744,6 +1748,7 @@ type LoadConfigOptions = {
   reactProductionProfiling?: boolean
   debugPrerender?: boolean
   bundler?: Bundler
+  isTypegen?: boolean
 }
 
 export default async function loadConfig(
@@ -1773,6 +1778,7 @@ export default async function loadConfig(
     reactProductionProfiling,
     debugPrerender,
     bundler,
+    isTypegen = false,
   }: LoadConfigOptions = {}
 ): Promise<NextConfigComplete> {
   // Generate cache key based on parameters that affect config output
@@ -1783,6 +1789,7 @@ export default async function loadConfig(
     customConfig,
     reactProductionProfiling,
     debugPrerender,
+    isTypegen,
     process.pid
   )
 
@@ -1863,7 +1870,8 @@ export default async function loadConfig(
             ...customConfig,
           },
           silent,
-          phase
+          phase,
+          isTypegen
         ),
         phase,
         silent,
@@ -2067,7 +2075,8 @@ export default async function loadConfig(
         ...userConfig,
       },
       silent,
-      phase
+      phase,
+      isTypegen
     )
 
     const finalConfig = finalizeConfig(
@@ -2124,7 +2133,8 @@ export default async function loadConfig(
     dir,
     { ...clonedDefaultConfig, configFileName },
     silent,
-    phase
+    phase,
+    isTypegen
   )
 
   setHttpClientAndAgentOptions(completeConfig)

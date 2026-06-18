@@ -36,7 +36,9 @@ const nextTypegen = async (
     printAndExit(`> No such directory exists as the project root: ${baseDir}`)
   }
 
-  const nextConfig = await loadConfig(PHASE_PRODUCTION_BUILD, baseDir)
+  const nextConfig = await loadConfig(PHASE_PRODUCTION_BUILD, baseDir, {
+    isTypegen: true,
+  })
   await installBindings(nextConfig.experimental?.useWasmBinary)
   const distDir = join(baseDir, nextConfig.distDir)
   const { pagesDir, appDir } = findPagesDir(baseDir)
