@@ -546,30 +546,6 @@ function assignDefaultsAndValidate(
     )
   }
 
-  // `useExperimentalReact` only opts *into* React's experimental channel; it
-  // cannot opt out of it when another feature (e.g. `taint`) structurally
-  // requires it — those APIs only exist in the experimental React build. Warn
-  // so an explicit `false` here doesn't look like it was silently ignored.
-  if (result.experimental.useExperimentalReact === false) {
-    const dependents: string[] = []
-    if (result.experimental.taint) {
-      dependents.push('`experimental.taint`')
-    }
-    if (result.experimental.transitionIndicator) {
-      dependents.push('`experimental.transitionIndicator`')
-    }
-    if (result.experimental.gestureTransition) {
-      dependents.push('`experimental.gestureTransition`')
-    }
-    if (dependents.length > 0) {
-      Log.warn(
-        `\`experimental.useExperimentalReact\` is set to \`false\`, but ${dependents.join(
-          ', '
-        )} require React's experimental channel, so it remains enabled.`
-      )
-    }
-  }
-
   if (result.experimental.appShells) {
     // App Shells is tested in combination with the experimental flags it
     // expects to ship alongside. All of these are on track to become
@@ -1197,6 +1173,15 @@ function assignDefaultsAndValidate(
   const tracingRoot = result?.outputFileTracingRoot
   const turbopackRoot = result?.turbopack?.root
 
+  let repoRoot = process.env.NEXT_PRIVATE_OUTPUT_TRACE_ROOT
+  let lockFiles: string[] | undefined = undefined
+  if (!repoRoot) {
+    const rootDirResult = findRootDirAndLockFiles(dir)
+    repoRoot = rootDirResult.rootDir
+    lockFiles = rootDirResult.lockFiles
+  }
+  ;(result as NextConfigComplete).repoRoot = repoRoot
+
   // If both provided, validate they match. If not, use outputFileTracingRoot.
   if (tracingRoot && turbopackRoot && tracingRoot !== turbopackRoot) {
     Log.warn(
@@ -1204,22 +1189,18 @@ function assignDefaultsAndValidate(
         `Using \`outputFileTracingRoot\` value: ${tracingRoot}.`
     )
   }
-
   let rootDir = tracingRoot || turbopackRoot
   if (!rootDir) {
-    const { rootDir: foundRootDir, lockFiles } = findRootDirAndLockFiles(dir)
-    rootDir = foundRootDir
-    if (!silent) {
+    rootDir = repoRoot
+    if (lockFiles && !silent) {
       warnDuplicatedLockFiles(lockFiles)
     }
   }
-
   if (!rootDir) {
     throw new Error(
       'Failed to find the root directory of the project. This is a bug in Next.js.'
     )
   }
-
   // Ensure both properties are set to the same value
   result.outputFileTracingRoot = rootDir
   dset(result, ['turbopack', 'root'], rootDir)
@@ -2144,7 +2125,7 @@ export default async function loadConfig(
     { ...clonedDefaultConfig, configFileName },
     silent,
     phase
-  ) as NextConfigComplete
+  )
 
   setHttpClientAndAgentOptions(completeConfig)
 

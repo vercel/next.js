@@ -1,20 +1,20 @@
 import { nextTestSetup } from 'e2e-utils'
 
-describe('react@experimental - useExperimentalReact', () => {
+describe('react@experimental - blockingSSR', () => {
   const { next } = nextTestSetup({
     files: __dirname,
     overrideFiles: {
       'next.config.js': `
         module.exports = {
           experimental: {
-            useExperimentalReact: true,
+            blockingSSR: true,
           }
         }
       `,
     },
   })
 
-  it('should opt into the react@experimental channel when useExperimentalReact is enabled', async () => {
+  it('should opt into the react@experimental channel when blockingSSR is enabled', async () => {
     const resPages$ = await next.render$('/app-react')
     const [
       ssrReact,

@@ -12,7 +12,7 @@ import { PrefetchHint } from '../../../shared/lib/app-router-types'
 import {
   readVaryParams,
   type VaryParams,
-  type VaryParamsThenable,
+  type VaryParamsIterable,
 } from '../../../shared/lib/segment-cache/vary-params-decoding'
 import {
   NEXT_DID_POSTPONE_HEADER,
@@ -924,14 +924,18 @@ export function upsertSegmentEntry(
       // (TODO: can this be true if `candidateEntry.fetchStrategy >= existingEntry.fetchStrategy`?)
       (!existingEntry.isPartial && candidateEntry.isPartial)
     ) {
-      // We're going to leave revalidating entry in the cache so that it doesn't
-      // get revalidated again unnecessarily. Downgrade the Fulfilled entry to
-      // Rejected and null out the data so it can be garbage collected. We leave
-      // `staleAt` intact to prevent subsequent revalidation attempts only until
-      // the entry expires.
-      const rejectedEntry: RejectedSegmentCacheEntry = candidateEntry as any
-      rejectedEntry.status = EntryStatus.Rejected
-      rejectedEntry.rsc = null
+      // The existing entry supersedes the candidate. Leave the existing entry
+      // in place and discard the candidate by not inserting it.
+      //
+      // We must not mutate the candidate here (e.g. downgrade it to Rejected or
+      // null out its `rsc`). The caller does not transfer exclusive ownership
+      // of it: it may already have been fulfilled, resolving its promise to a
+      // waiter that holds the entry and reads `rsc` off it later. A navigation
+      // seed is such a waiter, via `waitForSegmentCacheEntry`. Nulling `rsc`
+      // after the fact resolves that read to `null`, so the waiter loses the
+      // data it was about to render. Declining to insert it is enough: the
+      // existing entry stays canonical, and the candidate keeps its valid (if
+      // less complete) data for any waiter that already took it.
       return null
     }
 
@@ -1861,13 +1865,11 @@ export async function fetchRouteOnCacheMiss(
         return null
       }
 
-      // Read head vary params synchronously. Individual segments carry their
-      // own thenables in CacheNodeSeedData.
-      const headVaryParamsThenable = serverData.h
-      const headVaryParams =
-        headVaryParamsThenable !== null
-          ? readVaryParams(headVaryParamsThenable)
-          : null
+      // Read head vary params synchronously (unioning in the response-level
+      // root params). Individual segments carry their own iterables in
+      // CacheNodeSeedData; the root iterable is threaded down so each segment
+      // unions it too.
+      const headVaryParams = readVaryParams(serverData.h, serverData.r)
       writeDynamicTreeResponseIntoCache(
         Date.now(),
         // The non-PPR response format is what we'd get if we prefetched these segments
@@ -1880,6 +1882,7 @@ export async function fetchRouteOnCacheMiss(
         canonicalUrl,
         routeIsPPREnabled,
         headVaryParams,
+        serverData.r ?? null,
         pathname,
         search,
         nextUrl
@@ -2338,6 +2341,7 @@ export async function fetchSegmentPrefetchesUsingDynamicRequest(
             serverData.f,
             buildId,
             serverData.h,
+            serverData.r ?? null,
             staleAt,
             dynamicRequestTree,
             renderedSearch,
@@ -2363,6 +2367,7 @@ export async function fetchSegmentPrefetchesUsingDynamicRequest(
             shellStageData.f,
             buildId,
             shellStageData.h,
+            shellStageData.r ?? null,
             shellStaleAt,
             dynamicRequestTree,
             renderedSearch,
@@ -2372,13 +2377,16 @@ export async function fetchSegmentPrefetchesUsingDynamicRequest(
       }
     }
 
-    // Read head vary params synchronously. Individual segments carry their
-    // own thenables in CacheNodeSeedData.
-    const headVaryParamsThenable = serverDataThatSatisfiesSpawnedEntries.h
-    const headVaryParams =
-      headVaryParamsThenable !== null
-        ? readVaryParams(headVaryParamsThenable)
-        : null
+    // Read head vary params synchronously (unioning in the response-level root
+    // params). Individual segments carry their own iterables in
+    // CacheNodeSeedData; the root iterable is threaded down so each segment
+    // unions it too.
+    const rootVaryParamsIterable =
+      serverDataThatSatisfiesSpawnedEntries.r ?? null
+    const headVaryParams = readVaryParams(
+      serverDataThatSatisfiesSpawnedEntries.h,
+      rootVaryParamsIterable
+    )
 
     // PPRRuntime and RuntimeShell prefetches are partial when the server
     // marks the response as '~' (Partial). RuntimeShell additionally omits
@@ -2415,6 +2423,7 @@ export async function fetchSegmentPrefetchesUsingDynamicRequest(
       buildId,
       isResponsePartial,
       headVaryParams,
+      rootVaryParamsIterable,
       staleAtForSpawnedEntries,
       navigationSeed,
       spawnedEntries
@@ -2467,6 +2476,7 @@ function writeDynamicTreeResponseIntoCache(
   canonicalUrl: string,
   routeIsPPREnabled: boolean,
   headVaryParams: VaryParams | null,
+  rootVaryParamsIterable: VaryParamsIterable | null,
   originalPathname: string,
   originalSearch: NormalizedSearch,
   nextUrl: string | null
@@ -2549,6 +2559,7 @@ function writeDynamicTreeResponseIntoCache(
     buildId,
     isResponsePartial,
     headVaryParams,
+    rootVaryParamsIterable,
     getStaleAtFromHeader(now, response),
     navigationSeed,
     null
@@ -2582,6 +2593,7 @@ export function writeDynamicRenderResponseIntoCache(
   buildId: string | undefined,
   isResponsePartial: boolean,
   headVaryParams: VaryParams | null,
+  rootVaryParamsIterable: VaryParamsIterable | null,
   staleAt: number,
   navigationSeed: NavigationSeed,
   spawnedEntries: Map<SegmentRequestKey, PendingSegmentCacheEntry> | null
@@ -2632,6 +2644,7 @@ export function writeDynamicRenderResponseIntoCache(
         staleAt,
         seedData,
         isResponsePartial,
+        rootVaryParamsIterable,
         spawnedEntries
       )
     }
@@ -2695,6 +2708,7 @@ function writeSeedDataIntoCache(
   staleAt: number,
   seedData: CacheNodeSeedData,
   isResponsePartial: boolean,
+  rootVaryParamsIterable: VaryParamsIterable | null,
   entriesOwnedByCurrentTask: Map<
     SegmentRequestKey,
     PendingSegmentCacheEntry
@@ -2704,12 +2718,11 @@ function writeSeedDataIntoCache(
   // (CacheNodeSeedData) into the prefetch cache.
   const rsc = seedData[0]
   const isPartial = rsc === null || isResponsePartial
-  const varyParamsThenable = seedData[4]
-  // Each segment carries its own vary params thenable in the seed data. The
-  // thenable resolves to the set of params the segment accessed during render.
-  // A null thenable means tracking was not enabled (not a prerender).
-  const varyParams =
-    varyParamsThenable !== null ? readVaryParams(varyParamsThenable) : null
+  // Each segment carries its own vary params iterable in the seed data, which
+  // drains to the set of params the segment accessed during render. A null
+  // iterable means tracking was not enabled (not a prerender). readVaryParams
+  // unions in the response-level root params.
+  const varyParams = readVaryParams(seedData[4], rootVaryParamsIterable)
   fulfillEntrySpawnedByRuntimePrefetch(
     now,
     fetchStrategy,
@@ -2737,6 +2750,7 @@ function writeSeedDataIntoCache(
           staleAt,
           childSeedData,
           isResponsePartial,
+          rootVaryParamsIterable,
           entriesOwnedByCurrentTask
         )
       }
@@ -3119,16 +3133,19 @@ export function writePrerenderResponseIntoCache(
   fetchStrategy: FetchStrategy.PPR | FetchStrategy.RuntimeShell,
   flightData: FlightData,
   buildId: string | undefined,
-  headVaryParamsThenable: VaryParamsThenable | null,
+  headVaryParamsIterable: VaryParamsIterable | null,
+  rootVaryParamsIterable: VaryParamsIterable | null,
   staleAt: number,
   baseTree: FlightRouterState,
   renderedSearch: string,
   isResponsePartial: boolean
 ): void {
-  const headVaryParams =
-    headVaryParamsThenable !== null
-      ? readVaryParams(headVaryParamsThenable)
-      : null
+  // Root params are emitted once at the top level; readVaryParams unions them
+  // into the head, and they're threaded down to each segment below.
+  const headVaryParams = readVaryParams(
+    headVaryParamsIterable,
+    rootVaryParamsIterable
+  )
 
   const flightDatas = normalizeFlightData(flightData)
   if (typeof flightDatas === 'string') {
@@ -3148,6 +3165,7 @@ export function writePrerenderResponseIntoCache(
     buildId,
     isResponsePartial,
     headVaryParams,
+    rootVaryParamsIterable,
     staleAt,
     navigationSeed,
     null // spawnedEntries — no pre-created entries; will create or upsert
@@ -3171,6 +3189,7 @@ export async function processRuntimePrefetchStream(
   buildId: string | undefined
   isResponsePartial: boolean
   headVaryParams: VaryParams | null
+  rootVaryParamsIterable: VaryParamsIterable | null
   staleAt: number
 } | null> {
   const { stream, isPartial } = await stripIsPartialByte(runtimePrefetchStream)
@@ -3182,11 +3201,11 @@ export async function processRuntimePrefetchStream(
       { allowPartialStream: true }
     )
 
-  const headVaryParamsThenable = serverData.h
-  const headVaryParams =
-    headVaryParamsThenable !== null
-      ? readVaryParams(headVaryParamsThenable)
-      : null
+  // Root params are emitted once at the top level; readVaryParams unions them
+  // into the head, and we return the iterable so the caller can union it into
+  // each segment too.
+  const rootVaryParamsIterable = serverData.r ?? null
+  const headVaryParams = readVaryParams(serverData.h, rootVaryParamsIterable)
 
   const staleAt = await getStaleAt(now, serverData.s)
 
@@ -3208,6 +3227,7 @@ export async function processRuntimePrefetchStream(
     buildId: serverData.b,
     isResponsePartial: isPartial,
     headVaryParams,
+    rootVaryParamsIterable,
     staleAt,
   }
 }

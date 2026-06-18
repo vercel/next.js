@@ -2292,32 +2292,6 @@
         ping: function () {
           return pingTask(request, task);
         },
-        toJSON: function (parentPropertyName, value) {
-          var parent = this,
-            originalValue = parent[parentPropertyName];
-          "object" !== typeof originalValue ||
-            originalValue === value ||
-            originalValue instanceof Date ||
-            callWithDebugContextInDEV(request, task, function () {
-              "Object" !== objectName(originalValue)
-                ? "string" === typeof jsxChildrenParents.get(parent)
-                  ? console.error(
-                      "%s objects cannot be rendered as text children. Try formatting it using toString().%s",
-                      objectName(originalValue),
-                      describeObjectForErrorMessage(parent, parentPropertyName)
-                    )
-                  : console.error(
-                      "Only plain objects can be passed to Client Components from Server Components. %s objects are not supported.%s",
-                      objectName(originalValue),
-                      describeObjectForErrorMessage(parent, parentPropertyName)
-                    )
-                : console.error(
-                    "Only plain objects can be passed to Client Components from Server Components. Objects with toJSON methods are not supported. Convert it manually to a simple value before passing it to props.%s",
-                    describeObjectForErrorMessage(parent, parentPropertyName)
-                  );
-            });
-          return renderModel(request, task, parent, parentPropertyName, value);
-        },
         thenableState: null,
         timed: !1
       };
@@ -2328,6 +2302,69 @@
       task.debugTask = debugTask;
       abortSet.add(task);
       return task;
+    }
+    function resolveModel(request, task, parent, parentPropertyName, value) {
+      var jsonValue = value;
+      null !== value &&
+        "object" === typeof value &&
+        "function" === typeof value.toJSON &&
+        (jsonValue = value.toJSON(parentPropertyName));
+      var originalValue = parent[parentPropertyName];
+      "object" !== typeof originalValue ||
+        originalValue === jsonValue ||
+        originalValue instanceof Date ||
+        callWithDebugContextInDEV(request, task, function () {
+          "Object" !== objectName(originalValue)
+            ? "string" === typeof jsxChildrenParents.get(parent)
+              ? console.error(
+                  "%s objects cannot be rendered as text children. Try formatting it using toString().%s",
+                  objectName(originalValue),
+                  describeObjectForErrorMessage(parent, parentPropertyName)
+                )
+              : console.error(
+                  "Only plain objects can be passed to Client Components from Server Components. %s objects are not supported.%s",
+                  objectName(originalValue),
+                  describeObjectForErrorMessage(parent, parentPropertyName)
+                )
+            : console.error(
+                "Only plain objects can be passed to Client Components from Server Components. Objects with toJSON methods are not supported. Convert it manually to a simple value before passing it to props.%s",
+                describeObjectForErrorMessage(parent, parentPropertyName)
+              );
+        });
+      value = renderModel(request, task, parent, parentPropertyName, jsonValue);
+      if (null === value || "object" !== typeof value) return value;
+      if (isArrayImpl(value)) {
+        var _resolved = [];
+        for (jsonValue = 0; jsonValue < value.length; jsonValue++)
+          _resolved[jsonValue] = resolveModel(
+            request,
+            task,
+            value,
+            "" + jsonValue,
+            value[jsonValue]
+          );
+        return _resolved;
+      }
+      jsonValue = {};
+      for (_resolved in value)
+        if (hasOwnProperty.call(value, _resolved)) {
+          var resolvedValue = resolveModel(
+            request,
+            task,
+            value,
+            _resolved,
+            value[_resolved]
+          );
+          _resolved === __PROTO__$1
+            ? Object.defineProperty(jsonValue, _resolved, {
+                value: resolvedValue,
+                enumerable: !0,
+                writable: !0,
+                configurable: !0
+              })
+            : (jsonValue[_resolved] = resolvedValue);
+        }
+      return jsonValue;
     }
     function serializeByValueID(id) {
       return "$" + id.toString(16);
@@ -3962,7 +3999,14 @@
                                       value,
                                       !1
                                     )
-                                  : ((value = stringify(value, task.toJSON)),
+                                  : ((value = resolveModel(
+                                      request,
+                                      task,
+                                      { "": value },
+                                      "",
+                                      value
+                                    )),
+                                    (value = stringify(value)),
                                     (task =
                                       task.id.toString(16) +
                                       ":" +
