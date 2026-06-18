@@ -7,7 +7,6 @@ import type {
   TurbopackResult,
   Endpoint,
   RawEntrypoints,
-  Update as TurbopackUpdate,
   WrittenEndpoint,
 } from '../../build/swc/types'
 import {
@@ -18,7 +17,12 @@ import * as Log from '../../build/output/log'
 import { warnAboutEdgeRuntime } from '../../build/warn-about-edge-runtime'
 import type { PropagateToWorkersField } from '../lib/router-utils/types'
 import type { TurbopackManifestLoader } from '../../shared/lib/turbopack/manifest-loader'
-import type { AppRoute, Entrypoints, PageRoute } from '../../build/swc/types'
+import type {
+  AppRoute,
+  ClientHmrAggregateUpdate,
+  Entrypoints,
+  PageRoute,
+} from '../../build/swc/types'
 import {
   type EntryKey,
   getEntryKey,
@@ -128,8 +132,7 @@ export type ReadyIds = Set<string>
 export type ClientState = {
   clientIssues: EntryIssuesMap
   messages: Map<string, HmrMessageSentToBrowser>
-  turbopackUpdates: TurbopackUpdate[]
-  subscriptions: Map<string, AsyncIterator<any>>
+  turbopackUpdates: ClientHmrAggregateUpdate[]
 }
 
 export type ClientStateMap = WeakMap<ws, ClientState>
@@ -604,7 +607,6 @@ type HandleEntrypointsHooks = {
   startBuilding: StartBuilding
   subscribeToChanges: StartChangeSubscription
   unsubscribeFromChanges: StopChangeSubscription
-  unsubscribeFromHmrEvents: (client: ws, id: string) => void
 }
 
 type HandleEntrypointsDevOpts = {
@@ -884,18 +886,6 @@ async function handleEntrypointsDevCleanup({
     for (const key of state.clientIssues.keys()) {
       if (!hasEntrypointForKey(currentEntrypoints, key, assetMapper)) {
         state.clientIssues.delete(key)
-      }
-    }
-
-    for (const id of state.subscriptions.keys()) {
-      if (
-        !hasEntrypointForKey(
-          currentEntrypoints,
-          getEntryKey('assets', 'client', id),
-          assetMapper
-        )
-      ) {
-        hooks.unsubscribeFromHmrEvents(client, id)
       }
     }
   }

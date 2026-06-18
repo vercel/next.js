@@ -33,6 +33,24 @@ type UnknownType = {
   type: 'future-type-marker-do-not-use-or-you-will-be-fired'
 }
 
+/**
+ * Aggregate HMR frame sent from the Next.js dev server to the browser.
+ * Each entry is dispatched by `path` (the chunk list path used as the
+ * resource key).
+ *
+ * Issues aren't carried here: the dev server gates this stream on
+ * compilation errors before emitting, so frames only ever ship `updates`.
+ */
+type AggregateServerMessage = {
+  updates: AggregateClientUpdate[]
+}
+
+type AggregateClientUpdate = {
+  path: string
+  type: 'restart' | 'partial'
+  instruction?: PartialUpdate
+}
+
 type PartialUpdate =
   | ChunkListUpdate
   | {

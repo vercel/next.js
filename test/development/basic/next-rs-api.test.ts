@@ -1,6 +1,6 @@
 import { nextTestSetup } from 'e2e-utils'
 import { PHASE_DEVELOPMENT_SERVER } from 'next/constants'
-import { createDefineEnv, loadBindings, HmrTarget } from 'next/dist/build/swc'
+import { createDefineEnv, loadBindings } from 'next/dist/build/swc'
 import type {
   Issue,
   MemoryEvictionMode,
@@ -59,25 +59,6 @@ function normalizeIssues(issues: Issue[]) {
       if (a_ > b_) return 1
       return 0
     })
-}
-
-function raceIterators<T>(iterators: AsyncIterableIterator<T>[]) {
-  const nexts = iterators.map((iterator, i) =>
-    iterator.next().then((next) => ({ next, i }))
-  )
-  return (async function* () {
-    while (true) {
-      const remaining = nexts.filter((x) => x)
-      if (remaining.length === 0) return
-      const { next, i } = await Promise.race(remaining)
-      if (!next.done) {
-        yield next.value
-        nexts[i] = iterators[i].next().then((next) => ({ next, i }))
-      } else {
-        nexts[i] = undefined
-      }
-    }
-  })()
 }
 
 async function* filterMapAsyncIterator<T, U>(
@@ -618,25 +599,14 @@ describe('next.rs api', () => {
           }
         }
 
-        const result = await project
-          .hmrChunkNamesSubscribe(HmrTarget.Client)
-          .next()
-        expect(result.done).toBe(false)
-        const chunkNames = result.value.chunkNames
-        expect(chunkNames).toHaveProperty('length', expect.toBePositive())
+        // Drain the firehose's initial frame (the seed transition emits an
+        // empty `updates` array so consumers can advance their VersionState).
+        const hmrSubscription = project.clientHmrEvents()
+        const initial = await hmrSubscription.next()
+        expect(initial.done).toBe(false)
+        expect(initial.value.updates).toEqual([])
+        expect(normalizeIssues(initial.value.issues)).toEqual([])
 
-        const subscriptions = chunkNames.map((chunkName) =>
-          project.hmrEvents(chunkName, HmrTarget.Client)
-        )
-        await Promise.all(
-          subscriptions.map(async (subscription) => {
-            const result = await subscription.next()
-            expect(result.done).toBe(false)
-            expect(result.value).toHaveProperty('resource', expect.toBeObject())
-            expect(result.value).toHaveProperty('type', 'issues')
-            expect(normalizeIssues(result.value.issues)).toEqual([])
-          })
-        )
         console.log('waiting for events')
         const { next: updateComplete } = await drainAndGetNext(
           projectUpdateSubscription
@@ -651,28 +621,27 @@ describe('next.rs api', () => {
           const result2 = await Promise.race(
             [
               (async () => {
-                const merged = raceIterators(subscriptions)
-                for await (const item of merged) {
+                for await (const tick of hmrSubscription) {
                   if (done) return
-                  if (item.type === 'partial') {
-                    expect(item.instruction).toEqual({
-                      type: 'ChunkListUpdate',
-                      merged: [
-                        expect.objectContaining({
-                          chunks: expect.toBeObject(),
-                          entries: expect.toBeObject(),
-                        }),
-                      ],
-                    })
-                    const updates = Object.keys(
-                      item.instruction.merged[0].entries
-                    )
-                    expect(updates).not.toBeEmpty()
+                  for (const item of tick.updates) {
+                    if (item.type === 'partial') {
+                      expect(item.instruction).toEqual({
+                        type: 'ChunkListUpdate',
+                        merged: [
+                          expect.objectContaining({
+                            chunks: expect.toBeObject(),
+                            entries: expect.toBeObject(),
+                          }),
+                        ],
+                      })
+                      const updates = Object.keys(
+                        item.instruction.merged[0].entries
+                      )
+                      expect(updates).not.toBeEmpty()
 
-                    foundUpdates = foundUpdates || []
-                    foundUpdates.push(
-                      ...Object.keys(item.instruction.merged[0].entries)
-                    )
+                      foundUpdates = foundUpdates || []
+                      foundUpdates.push(...updates)
+                    }
                   }
                 }
               })(),
@@ -740,22 +709,10 @@ describe('next.rs api', () => {
     if (route.type !== 'page') throw new Error('unknown route type')
     await route.htmlEndpoint.writeToDisk()
 
-    const result = await project.hmrChunkNamesSubscribe(HmrTarget.Client).next()
-    expect(result.done).toBe(false)
-    const chunkNames = result.value.chunkNames
-
-    const subscriptions = chunkNames.map((chunkName) =>
-      project.hmrEvents(chunkName, HmrTarget.Client)
-    )
-    await Promise.all(
-      subscriptions.map(async (subscription) => {
-        const result = await subscription.next()
-        expect(result.done).toBe(false)
-        expect(result.value).toHaveProperty('resource', expect.toBeObject())
-        expect(result.value).toHaveProperty('type', 'issues')
-      })
-    )
-    const merged = raceIterators(subscriptions)
+    const hmrSubscription = project.clientHmrEvents()
+    // Drain the seed transition's empty initial frame.
+    const initial = await hmrSubscription.next()
+    expect(initial.done).toBe(false)
 
     const file = 'pages/index.js'
     let currentContent = await next.readFile(file)
@@ -769,9 +726,9 @@ describe('next.rs api', () => {
       nextContent = content
 
       while (true) {
-        const { value, done } = await merged.next()
+        const { value, done } = await hmrSubscription.next()
         expect(done).toBe(false)
-        if (value.type === 'partial') {
+        if (value.updates.some((u) => u.type === 'partial')) {
           break
         }
       }

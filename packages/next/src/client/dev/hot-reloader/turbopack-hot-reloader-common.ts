@@ -1,5 +1,5 @@
 import type { TurbopackMessage } from '../../../server/dev/hot-reloader-types'
-import type { Update as TurbopackUpdate } from '../../../build/swc/types'
+import type { ClientHmrAggregateUpdate } from '../../../build/swc/types'
 import { DeferredEmit } from '../../../shared/lib/turbopack/deferred-emit'
 
 declare global {
@@ -119,30 +119,31 @@ export class TurbopackHmr {
 }
 
 function extractModulesFromTurbopackMessage(
-  data: TurbopackUpdate | TurbopackUpdate[]
+  data: ClientHmrAggregateUpdate[]
 ): Set<string> {
   const updatedModules: Set<string> = new Set()
 
-  const updates = Array.isArray(data) ? data : [data]
-  for (const update of updates) {
-    // TODO this won't capture changes to CSS since they don't result in a "merged" update
-    if (
-      update.type !== 'partial' ||
-      update.instruction.type !== 'ChunkListUpdate' ||
-      update.instruction.merged === undefined
-    ) {
-      continue
-    }
-
-    for (const mergedUpdate of update.instruction.merged) {
-      if (!mergedUpdate.entries) continue
-      for (const name of Object.keys(mergedUpdate.entries)) {
-        const res = /(.*)\s+[([].*/.exec(name)
-        if (res === null) {
-          continue
+  for (const frame of data) {
+    for (const entry of frame.updates) {
+      if (entry.type !== 'partial' || !entry.instruction) continue
+      const instruction = entry.instruction as {
+        type: string
+        merged?: { entries?: Record<string, unknown> }[]
+      }
+      // TODO this won't capture changes to CSS since they don't result in a "merged" update
+      if (
+        instruction.type !== 'ChunkListUpdate' ||
+        instruction.merged === undefined
+      ) {
+        continue
+      }
+      for (const mergedUpdate of instruction.merged) {
+        if (!mergedUpdate.entries) continue
+        for (const name of Object.keys(mergedUpdate.entries)) {
+          const res = /(.*)\s+[([].*/.exec(name)
+          if (res === null) continue
+          updatedModules.add(res[1])
         }
-
-        updatedModules.add(res[1])
       }
     }
   }

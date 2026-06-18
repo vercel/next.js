@@ -19,6 +19,7 @@ use napi::{
 };
 use napi_derive::napi;
 use next_api::{
+    aggregate_hmr::{ClientChunkListUpdateKind, ClientHmrUpdates},
     entrypoints::Entrypoints,
     next_server_nft::next_server_nft_assets,
     operation::{
@@ -50,8 +51,7 @@ use tracing_subscriber::{Registry, layer::SubscriberExt, util::SubscriberInitExt
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
     Effects, FxIndexSet, OperationValue, OperationVc, PrettyPrintError, ReadRef, ResolvedVc,
-    TransientInstance, TryJoinIterExt, TurboTasksApi, TurboTasksCallApi, UpdateInfo, Vc,
-    mark_top_level_task,
+    TryJoinIterExt, TurboTasksApi, TurboTasksCallApi, UpdateInfo, Vc, mark_top_level_task,
     message_queue::{CompilationEvent, Severity},
     read_strongly_consistent_and_apply_effects, take_effects,
     trace::TraceRawVcs,
@@ -1805,73 +1805,22 @@ struct HmrUpdateWithIssues {
 }
 
 #[turbo_tasks::function(operation, root)]
-fn project_hmr_update_operation(
+fn project_server_hmr_update_operation(
     project: ResolvedVc<Project>,
-    chunk_name: RcStr,
-    target: HmrTarget,
     state: ResolvedVc<VersionState>,
 ) -> Vc<Update> {
-    project.hmr_update(chunk_name, target, *state)
+    project.server_hmr_update(*state)
 }
 
-#[tracing::instrument(
-    level = "info",
-    name = "hmr subscription",
-    skip_all,
-    fields(chunk_name = %chunk_name, target = %target),
-)]
+#[tracing::instrument(level = "info", name = "server hmr subscription", skip_all)]
 #[turbo_tasks::function(operation, root)]
-async fn hmr_update_with_issues_operation(
+async fn server_hmr_update_with_issues_operation(
     project: ResolvedVc<Project>,
-    chunk_name: RcStr,
     state: ResolvedVc<VersionState>,
-    target: HmrTarget,
 ) -> Result<Vc<HmrUpdateWithIssues>> {
-    tracing::info!(chunk_name = %chunk_name, target = %target, "hmr subscription");
-    let update_op = project_hmr_update_operation(project, chunk_name, target, state);
-    // NOTE: we do not use `strongly_consistent_catch_collectables` here. The JS HMR
-    // consumers in `hot-reloader-turbopack.ts` (`subscribeToServerHmr` and
-    // `subscribeToClientHmrEvents`) rely on this read *throwing* on build-graph
-    // failures to trigger their recovery paths
-    let update = update_op.read_strongly_consistent().await?;
-    let filter = project.issue_filter().await?;
-    let issues = get_issues(update_op, &filter).await?;
-    let effects = Arc::new(take_effects(update_op).await?);
-    Ok(HmrUpdateWithIssues {
-        update,
-        issues,
-        effects,
-    }
-    .cell())
-}
-
-/// Aggregate counterpart to [`project_hmr_update_operation`].
-#[turbo_tasks::function(operation, root)]
-fn project_all_hmr_update_operation(
-    project: ResolvedVc<Project>,
-    target: HmrTarget,
-    state: ResolvedVc<VersionState>,
-) -> Vc<Update> {
-    project.all_hmr_update(target, *state)
-}
-
-/// Aggregate counterpart to [`hmr_update_with_issues_operation`].
-#[tracing::instrument(
-    level = "info",
-    name = "aggregate hmr subscription",
-    skip_all,
-    fields(target = %target),
-)]
-#[turbo_tasks::function(operation, root)]
-async fn all_hmr_update_with_issues_operation(
-    project: ResolvedVc<Project>,
-    state: ResolvedVc<VersionState>,
-    target: HmrTarget,
-) -> Result<Vc<HmrUpdateWithIssues>> {
-    tracing::info!(target = %target, "aggregate hmr subscription");
-    let update_op = project_all_hmr_update_operation(project, target, state);
-    // See `hmr_update_with_issues_operation`: the JS consumer relies on this
-    // read *throwing* on build-graph failures; don't swallow errors.
+    let update_op = project_server_hmr_update_operation(project, state);
+    // The JS consumer relies on this read *throwing* on build-graph failures
+    // to trigger its recovery path; don't swallow errors.
     let update = update_op
         .read_strongly_consistent()
         .final_read_hint()
@@ -1887,55 +1836,52 @@ async fn all_hmr_update_with_issues_operation(
     .cell())
 }
 
-#[tracing::instrument(level = "info", name = "get all HMR events", skip(project, func), fields(target = %target))]
+#[tracing::instrument(level = "info", name = "get server HMR events", skip(project, func))]
 #[napi(ts_return_type = "{ __napiType: \"RootTask\" }")]
-pub fn project_all_hmr_events(
+pub fn project_server_hmr_events(
     #[napi(ts_arg_type = "{ __napiType: \"Project\" }")] project: External<ProjectInstance>,
-    target: String,
     func: JsFunction,
 ) -> napi::Result<External<RootTask>> {
-    let hmr_target = target
-        .parse::<HmrTarget>()
-        .map_err(napi::Error::from_reason)?;
-
     let container = project.container;
-    // Sentinel resource id for the aggregated stream (no real chunk path).
-    let identifier_path: RcStr = rcstr!("__next_all_hmr__");
+    let identifier_path: RcStr = rcstr!("__next_server_hmr__");
     subscribe(
         project.turbopack_ctx.clone(),
         func,
-        move || async move {
-            // HACK(bgw): Remove this unmark call
-            unmark_top_level_task_may_leak_eventually_consistent_state();
+        {
+            move || {
+                async move {
+                    // HACK(bgw): Remove this unmark call
+                    unmark_top_level_task_may_leak_eventually_consistent_state();
 
-            let project = container.project().to_resolved().await?;
-            let state = project
-                .all_hmr_version_state(hmr_target)
-                .to_resolved()
-                .await?;
+                    let project = container.project().to_resolved().await?;
+                    let state = project
+                        .hmr_version_state(HmrTarget::Server)
+                        .to_resolved()
+                        .await?;
 
-            let update_op = all_hmr_update_with_issues_operation(project, state, hmr_target);
+                    let update_op = server_hmr_update_with_issues_operation(project, state);
 
-            // HACK(bgw): Remove this mark call
-            mark_top_level_task();
+                    // HACK(bgw): Remove this mark call
+                    mark_top_level_task();
 
-            let read =
-                read_strongly_consistent_and_apply_effects(update_op, |v| &v.effects).await?;
+                    let read =
+                        read_strongly_consistent_and_apply_effects(update_op, |v| &v.effects)
+                            .await?;
 
-            // HACK(bgw): Remove this unmark call
-            unmark_top_level_task_may_leak_eventually_consistent_state();
+                    // HACK(bgw): Remove this unmark call
+                    unmark_top_level_task_may_leak_eventually_consistent_state();
 
-            let HmrUpdateWithIssues { update, issues, .. } = &*read;
-            match &**update {
-                Update::Missing | Update::None => {}
-                Update::Total(TotalUpdate { to }) => {
-                    state.set(to.clone()).await?;
-                }
-                Update::Partial(PartialUpdate { to, .. }) => {
-                    state.set(to.clone()).await?;
+                    let HmrUpdateWithIssues { update, issues, .. } = &*read;
+                    match &**update {
+                        Update::Missing | Update::None => {}
+                        Update::Total(TotalUpdate { to })
+                        | Update::Partial(PartialUpdate { to, .. }) => {
+                            state.set(to.clone()).await?;
+                        }
+                    }
+                    Ok((update.clone(), issues.clone()))
                 }
             }
-            Ok((Some(update.clone()), issues.clone()))
         },
         move |ctx| {
             let (update, issues) = ctx.value;
@@ -1953,16 +1899,16 @@ pub fn project_all_hmr_events(
                 path: identifier_path.clone(),
                 headers: None,
             };
-            let update = match update.as_deref() {
-                None | Some(Update::Missing) | Some(Update::Total(_)) => {
+            let update = match &*update {
+                Update::Missing | Update::Total(_) => {
                     ClientUpdateInstruction::restart(&identifier, &update_issues)
                 }
-                Some(Update::Partial(update)) => ClientUpdateInstruction::partial(
+                Update::Partial(update) => ClientUpdateInstruction::partial(
                     &identifier,
                     &update.instruction,
                     &update_issues,
                 ),
-                Some(Update::None) => ClientUpdateInstruction::issues(&identifier, &update_issues),
+                Update::None => ClientUpdateInstruction::issues(&identifier, &update_issues),
             };
 
             Ok(vec![TurbopackResult {
@@ -1971,189 +1917,148 @@ pub fn project_all_hmr_events(
             }])
         },
     )
-}
-
-#[tracing::instrument(level = "info", name = "get HMR events", skip(project, func), fields(target = %target, chunk_name = %chunk_name))]
-#[napi(ts_return_type = "{ __napiType: \"RootTask\" }")]
-pub fn project_hmr_events(
-    #[napi(ts_arg_type = "{ __napiType: \"Project\" }")] project: External<ProjectInstance>,
-    chunk_name: RcStr,
-    target: String,
-    func: JsFunction,
-) -> napi::Result<External<RootTask>> {
-    let hmr_target = target
-        .parse::<HmrTarget>()
-        .map_err(napi::Error::from_reason)?;
-
-    let container = project.container;
-    let session = TransientInstance::new(());
-    subscribe(
-        project.turbopack_ctx.clone(),
-        func,
-        {
-            let outer_chunk_name = chunk_name.clone();
-            let session = session.clone();
-            move || {
-                let chunk_name: RcStr = outer_chunk_name.clone();
-                let session = session.clone();
-                async move {
-                    // HACK(bgw): Remove this unmark call
-                    unmark_top_level_task_may_leak_eventually_consistent_state();
-                    let project = container.project().to_resolved().await?;
-                    let state = project
-                        .hmr_version_state(chunk_name.clone(), hmr_target, session)
-                        .to_resolved()
-                        .await?;
-
-                    let update_op = hmr_update_with_issues_operation(
-                        project,
-                        chunk_name.clone(),
-                        state,
-                        hmr_target,
-                    );
-                    // HACK(bgw): Remove this mark call
-                    mark_top_level_task();
-                    let read =
-                        read_strongly_consistent_and_apply_effects(update_op, |v| &v.effects)
-                            .await?;
-                    // HACK(bgw): Remove this unmark call
-                    unmark_top_level_task_may_leak_eventually_consistent_state();
-                    let HmrUpdateWithIssues { update, issues, .. } = &*read;
-                    match &**update {
-                        Update::Missing | Update::None => {}
-                        Update::Total(TotalUpdate { to }) => {
-                            state.set(to.clone()).await?;
-                        }
-                        Update::Partial(PartialUpdate { to, .. }) => {
-                            state.set(to.clone()).await?;
-                        }
-                    }
-                    Ok((Some(update.clone()), issues.clone()))
-                }
-            }
-        },
-        move |ctx| {
-            let (update, issues) = ctx.value;
-
-            let napi_issues = issues
-                .iter()
-                .map(|issue| NapiIssue::from(&**issue))
-                .collect();
-            let update_issues = issues
-                .iter()
-                .map(|issue| Issue::from(&**issue))
-                .collect::<Vec<_>>();
-
-            let identifier = ResourceIdentifier {
-                path: chunk_name.clone(),
-                headers: None,
-            };
-            let update = match update.as_deref() {
-                None | Some(Update::Missing) | Some(Update::Total(_)) => {
-                    ClientUpdateInstruction::restart(&identifier, &update_issues)
-                }
-                Some(Update::Partial(update)) => ClientUpdateInstruction::partial(
-                    &identifier,
-                    &update.instruction,
-                    &update_issues,
-                ),
-                Some(Update::None) => ClientUpdateInstruction::issues(&identifier, &update_issues),
-            };
-
-            Ok(vec![TurbopackResult {
-                result: ctx.env.to_js_value(&update)?,
-                issues: napi_issues,
-            }])
-        },
-    )
-}
-
-#[napi(object)]
-struct HmrChunkNames {
-    pub chunk_names: Vec<RcStr>,
 }
 
 #[turbo_tasks::value(serialization = "skip")]
-struct HmrChunkNamesWithIssues {
-    chunk_names: ReadRef<Vec<RcStr>>,
+struct ClientHmrUpdatesWithIssues {
+    updates: ReadRef<ClientHmrUpdates>,
     issues: Arc<Vec<ReadRef<PlainIssue>>>,
     effects: Arc<Effects>,
 }
 
 #[turbo_tasks::function(operation, root)]
-fn project_hmr_chunk_names_operation(
-    container: ResolvedVc<ProjectContainer>,
-    target: HmrTarget,
-) -> Vc<Vec<RcStr>> {
-    container.hmr_chunk_names(target)
+fn project_client_hmr_update_operation(
+    project: ResolvedVc<Project>,
+    state: ResolvedVc<VersionState>,
+) -> Vc<ClientHmrUpdates> {
+    project.client_hmr_update(*state)
 }
 
+#[tracing::instrument(level = "info", name = "client hmr subscription", skip_all)]
 #[turbo_tasks::function(operation, root)]
-async fn get_hmr_chunk_names_with_issues_operation(
-    container: ResolvedVc<ProjectContainer>,
-    target: HmrTarget,
-) -> Result<Vc<HmrChunkNamesWithIssues>> {
-    let hmr_chunk_names_op = project_hmr_chunk_names_operation(container, target);
-    // Do NOT switch this to `strongly_consistent_catch_collectables`. The JS HMR
-    // chunk-names consumer in `hot-reloader-turbopack.ts` relies on this read
-    // *throwing* on build-graph failures so its outer `try` block exits the
-    // subscription loop. Swallowing the error and emitting an empty chunk-name
-    // list keeps the loop running but with stale state, and obscures the real
-    // failure from the dev server log.
-    let hmr_chunk_names = hmr_chunk_names_op.read_strongly_consistent().await?;
-    let filter = container.project().issue_filter().await?;
-    let issues = get_issues(hmr_chunk_names_op, &filter).await?;
-    let effects = Arc::new(take_effects(hmr_chunk_names_op).await?);
-    Ok(HmrChunkNamesWithIssues {
-        chunk_names: hmr_chunk_names,
+async fn client_hmr_update_with_issues_operation(
+    project: ResolvedVc<Project>,
+    state: ResolvedVc<VersionState>,
+) -> Result<Vc<ClientHmrUpdatesWithIssues>> {
+    let updates_op = project_client_hmr_update_operation(project, state);
+    // The JS consumer relies on this read *throwing* on build-graph failures
+    // to trigger its recovery path; don't swallow errors.
+    let updates = updates_op
+        .read_strongly_consistent()
+        .final_read_hint()
+        .await?;
+    let filter = project.issue_filter().await?;
+    let issues = get_issues(updates_op, &filter).await?;
+    let effects = Arc::new(take_effects(updates_op).await?);
+    Ok(ClientHmrUpdatesWithIssues {
+        updates,
         issues,
         effects,
     }
     .cell())
 }
 
-#[tracing::instrument(level = "info", name = "get HMR chunk names", skip(project, func), fields(target = %target))]
+#[tracing::instrument(level = "info", name = "get client HMR events", skip(project, func))]
 #[napi(ts_return_type = "{ __napiType: \"RootTask\" }")]
-pub fn project_hmr_chunk_names_subscribe(
+pub fn project_client_hmr_events(
     #[napi(ts_arg_type = "{ __napiType: \"Project\" }")] project: External<ProjectInstance>,
-    target: String,
     func: JsFunction,
 ) -> napi::Result<External<RootTask>> {
-    let hmr_target = target
-        .parse::<HmrTarget>()
-        .map_err(napi::Error::from_reason)?;
-
     let container = project.container;
     subscribe(
         project.turbopack_ctx.clone(),
         func,
-        move || async move {
-            let hmr_chunk_names_with_issues_op =
-                get_hmr_chunk_names_with_issues_operation(container, hmr_target);
-            let read =
-                read_strongly_consistent_and_apply_effects(hmr_chunk_names_with_issues_op, |v| {
-                    &v.effects
-                })
-                .await?;
-            let HmrChunkNamesWithIssues {
-                chunk_names,
-                issues,
-                ..
-            } = &*read;
+        {
+            move || {
+                async move {
+                    // HACK(bgw): Remove this unmark call
+                    unmark_top_level_task_may_leak_eventually_consistent_state();
 
-            Ok((chunk_names.clone(), issues.clone()))
+                    let project = container.project().to_resolved().await?;
+                    let state = project
+                        .hmr_version_state(HmrTarget::Client)
+                        .to_resolved()
+                        .await?;
+
+                    let update_op = client_hmr_update_with_issues_operation(project, state);
+
+                    // HACK(bgw): Remove this mark call
+                    mark_top_level_task();
+
+                    let read =
+                        read_strongly_consistent_and_apply_effects(update_op, |v| &v.effects)
+                            .await?;
+
+                    // HACK(bgw): Remove this unmark call
+                    unmark_top_level_task_may_leak_eventually_consistent_state();
+
+                    let ClientHmrUpdatesWithIssues {
+                        updates, issues, ..
+                    } = &*read;
+                    // Advance `VersionState` regardless of whether any chunk
+                    // lists had non-empty diffs (mirrors the server seed
+                    // transition advancing state on an empty Partial).
+                    state.set(updates.to.clone()).await?;
+                    Ok((updates.clone(), issues.clone()))
+                }
+            }
         },
         move |ctx| {
-            let (chunk_names, issues) = ctx.value;
+            let (tick, issues) = ctx.value;
+            let updates = &tick.updates;
+
+            // Issues travel on the outer `TurbopackResult { issues, .. }`
+            // envelope, not the inner payload. The browser HMR runtime doesn't
+            // consume issues from this frame (compilation errors gate HMR
+            // before this point in `sendEnqueuedMessages`).
+            let napi_issues = issues
+                .iter()
+                .map(|issue| NapiIssue::from(&**issue))
+                .collect();
+
+            // The browser dispatches by `path` directly — no `resource` wrapper.
+            #[derive(serde::Serialize)]
+            #[serde(tag = "type", rename_all = "camelCase")]
+            enum SerializableClientUpdateKind<'a> {
+                Restart,
+                Partial { instruction: &'a serde_json::Value },
+            }
+
+            #[derive(serde::Serialize)]
+            struct SerializableClientUpdate<'a> {
+                path: &'a RcStr,
+                #[serde(flatten)]
+                kind: SerializableClientUpdateKind<'a>,
+            }
+
+            let payload: Vec<SerializableClientUpdate<'_>> = updates
+                .iter()
+                .map(|u| match &u.kind {
+                    ClientChunkListUpdateKind::Restart => SerializableClientUpdate {
+                        path: &u.path,
+                        kind: SerializableClientUpdateKind::Restart,
+                    },
+                    ClientChunkListUpdateKind::Partial { instruction } => {
+                        SerializableClientUpdate {
+                            path: &u.path,
+                            kind: SerializableClientUpdateKind::Partial {
+                                instruction: instruction.as_ref(),
+                            },
+                        }
+                    }
+                })
+                .collect();
+
+            #[derive(serde::Serialize)]
+            struct ClientHmrPayload<'a> {
+                updates: &'a [SerializableClientUpdate<'a>],
+            }
 
             Ok(vec![TurbopackResult {
-                result: HmrChunkNames {
-                    chunk_names: ReadRef::into_owned(chunk_names),
-                },
-                issues: issues
-                    .iter()
-                    .map(|issue| NapiIssue::from(&**issue))
-                    .collect(),
+                result: ctx
+                    .env
+                    .to_js_value(&ClientHmrPayload { updates: &payload })?,
+                issues: napi_issues,
             }])
         },
     )

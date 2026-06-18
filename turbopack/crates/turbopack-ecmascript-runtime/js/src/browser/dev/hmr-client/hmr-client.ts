@@ -32,10 +32,14 @@ export function connect({
       default:
         try {
           if (Array.isArray(msg.data)) {
+            // Next.js dev-server transport: each entry is an
+            // `AggregateServerMessage` (client HMR firehose, one frame per
+            // dev-server tick).
             for (let i = 0; i < msg.data.length; i++) {
-              handleSocketMessage(msg.data[i] as ServerMessage)
+              handleAggregateMessage(msg.data[i] as AggregateServerMessage)
             }
           } else {
+            // Standalone Turbopack dev server transport.
             handleSocketMessage(msg.data as ServerMessage)
           }
           applyAggregatedUpdates()
@@ -525,6 +529,37 @@ function handleSocketMessage(msg: ServerMessage) {
       triggerUpdate(msg)
       if (runHooks) finalizeUpdate()
       break
+  }
+}
+
+/**
+ * Entries are forwarded through `handleSocketMessage` so partial/restart
+ * ordering matches the per-message flow, and the outer
+ * `applyAggregatedUpdates()` flushes queued partials in one batch.
+ *
+ * Issues aren't consumed here: the dev server gates the firehose on
+ * compilation errors before this point, so frames only ever ship `updates`.
+ */
+function handleAggregateMessage(msg: AggregateServerMessage) {
+  for (const entry of msg.updates) {
+    const resource: ResourceIdentifier = {
+      path: entry.path,
+      headers: undefined,
+    }
+    const serverMsg: ServerMessage =
+      entry.type === 'partial' && entry.instruction
+        ? {
+            resource,
+            issues: [],
+            type: 'partial',
+            instruction: entry.instruction,
+          }
+        : {
+            resource,
+            issues: [],
+            type: 'restart',
+          }
+    handleSocketMessage(serverMsg)
   }
 }
 

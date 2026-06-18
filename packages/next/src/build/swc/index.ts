@@ -23,10 +23,10 @@ import type {
 import type {
   Binding,
   BuildFeatureUsage,
+  ClientHmrAggregateUpdate,
   CompilationEvent,
   DefineEnv,
   Endpoint,
-  HmrChunkNames,
   Lockfile,
   NodeJsHmrUpdate,
   PartialProjectOptions,
@@ -37,16 +37,10 @@ import type {
   TurboEngineOptions,
   TurbopackResult,
   TurbopackStackFrame,
-  Update,
   UpdateMessage,
   WrittenEndpoint,
 } from './types'
 import { runLoaderWorkerPool } from './loaderWorkerPool'
-
-export enum HmrTarget {
-  Client = 'client',
-  Server = 'server',
-}
 
 type RawBindings = typeof import('./generated-native')
 type RawWasmBindings = typeof import('./generated-wasm') & {
@@ -762,49 +756,25 @@ function bindingToApi(
       })()
     }
 
-    // Note: only the Server target is implemented in the native binding;
-    // add a Client overload once `all_hmr_update` supports it.
-    allHmrEvents(
-      target: HmrTarget.Server
-    ): AsyncIterableIterator<TurbopackResult<NodeJsHmrUpdate>> {
+    /**
+     * Emits one merged `EcmascriptMergedUpdate` per dev-server tick covering
+     * every changed server chunk.
+     */
+    serverHmrEvents(): AsyncIterableIterator<TurbopackResult<NodeJsHmrUpdate>> {
       return subscribe(true, async (callback) =>
-        binding.projectAllHmrEvents(this._nativeProject, target, callback)
-      )
-    }
-
-    hmrEvents(
-      chunkName: string,
-      target: HmrTarget.Client
-    ): AsyncIterableIterator<TurbopackResult<Update>>
-    hmrEvents(
-      chunkName: string,
-      target: HmrTarget.Server
-    ): AsyncIterableIterator<TurbopackResult<NodeJsHmrUpdate>>
-    hmrEvents(chunkName: string, target: HmrTarget.Client | HmrTarget.Server) {
-      return subscribe(true, async (callback) =>
-        binding.projectHmrEvents(
-          this._nativeProject,
-          chunkName,
-          target,
-          callback
-        )
+        binding.projectServerHmrEvents(this._nativeProject, callback)
       )
     }
 
     /**
-     * Subscribe to the list of output chunk paths that can receive HMR updates.
-     * Chunk paths are output file paths like "server/chunks/ssr/..._.js" for server
-     * or "_next/static/chunks/app/page.js" for client.
+     * Emits one frame per dev-server tick carrying every changed chunk list
+     * in a `ClientHmrAggregateUpdate`.
      */
-    hmrChunkNamesSubscribe(target: HmrTarget) {
-      return subscribe<TurbopackResult<HmrChunkNames>>(
-        false,
-        async (callback) =>
-          binding.projectHmrChunkNamesSubscribe(
-            this._nativeProject,
-            target,
-            callback
-          )
+    clientHmrEvents(): AsyncIterableIterator<
+      TurbopackResult<ClientHmrAggregateUpdate>
+    > {
+      return subscribe(true, async (callback) =>
+        binding.projectClientHmrEvents(this._nativeProject, callback)
       )
     }
 

@@ -102,6 +102,10 @@ impl VersionedContentMap {
     /// entries that span server and client contexts, changes for one context
     /// can shift the internals of the map, making iteration order different
     /// for the same set of paths.
+    ///
+    /// Not a `#[turbo_tasks::function]` because the per-chunk content fetch
+    /// already participates in the task graph; callers cache the aggregate
+    /// at their own granularity.
     pub async fn hmr_chunks_in_path(
         self: Vc<Self>,
         root: &FileSystemPath,
@@ -287,23 +291,6 @@ impl VersionedContentMap {
         }
 
         Ok(Vc::cell(None))
-    }
-
-    #[turbo_tasks::function]
-    pub async fn keys_in_path(&self, root: FileSystemPath) -> Result<Vc<Vec<RcStr>>> {
-        let keys = {
-            let map = &self.map_path_to_op.get().0;
-            map.keys().cloned().collect::<Vec<_>>()
-        };
-        let keys = keys
-            .into_iter()
-            .map(|path| {
-                let root = root.clone();
-                async move { Ok(root.get_path_to(&path).map(RcStr::from)) }
-            })
-            .try_flat_join()
-            .await?;
-        Ok(Vc::cell(keys))
     }
 
     #[turbo_tasks::function]

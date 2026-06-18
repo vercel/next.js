@@ -9,4 +9,5 @@ pub(crate) mod worker;
 
 pub use chunk::EcmascriptBrowserChunk;
 pub use content::EcmascriptBrowserChunkContent;
+pub use list::content::EcmascriptDevChunkListContent;
 pub use worker::EcmascriptBrowserWorkerEntrypoint;

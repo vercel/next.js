@@ -290,46 +290,19 @@ async fn hmr(
     tracing::info!("HMR...");
     let session = TransientInstance::new(());
 
-    #[turbo_tasks::function(operation, root)]
-    fn project_hmr_chunk_names_operation(project: ResolvedVc<ProjectContainer>) -> Vc<Vec<RcStr>> {
-        project.hmr_chunk_names(HmrTarget::Client)
-    }
-
-    let idents = tt
-        .run(async move {
-            project_hmr_chunk_names_operation(project)
-                .read_strongly_consistent()
-                .await
-        })
-        .await?;
-
     let start = Instant::now();
-    for ident in &idents {
-        if !ident.ends_with(".js") {
-            continue;
+    let session_for_task = session.clone();
+    let task = tt.spawn_root_task(move || {
+        let session = session_for_task.clone();
+        async move {
+            let project = project.project();
+            let state = project.hmr_version_state(HmrTarget::Client, session);
+            project.client_hmr_update(state).await?;
+            Ok(Vc::<()>::cell(()))
         }
-        let session = session.clone();
-        let start = Instant::now();
-        let ident_for_task = ident.clone();
-        let task = tt.spawn_root_task(move || {
-            let session = session.clone();
-            let ident = ident_for_task.clone();
-            async move {
-                let project = project.project();
-                let state = project.hmr_version_state(ident.clone(), HmrTarget::Client, session);
-                project
-                    .hmr_update(ident.clone(), HmrTarget::Client, state)
-                    .await?;
-                Ok(Vc::<()>::cell(()))
-            }
-        });
-        tt.wait_task_completion(task, ReadConsistency::Strong)
-            .await?;
-        let e = start.elapsed();
-        if e.as_millis() > 10 {
-            tracing::info!("HMR: {:?} {:?}", ident, e);
-        }
-    }
+    });
+    tt.wait_task_completion(task, ReadConsistency::Strong)
+        .await?;
     tracing::info!("HMR {:?}", start.elapsed());
 
     Ok(())

@@ -228,6 +228,45 @@ interface PartialUpdate extends BaseUpdate {
 export type Update = IssuesUpdate | PartialUpdate
 
 /**
+ * Per-chunk instruction emitted by `EcmascriptDevChunkListContent::update`.
+ * Mirrors the `ChunkListUpdate` serde struct in
+ * `turbopack-browser/src/ecmascript/list/update.rs`.
+ */
+export interface ClientChunkListUpdateInstruction {
+  type: 'ChunkListUpdate'
+  chunks?: Record<string, ClientChunkUpdate>
+  merged?: EcmascriptMergedUpdate[]
+}
+
+/**
+ * Per-chunk update kind within a `ClientChunkListUpdateInstruction`.
+ */
+export type ClientChunkUpdate =
+  | { type: 'total' }
+  | { type: 'partial'; instruction: unknown }
+  | { type: 'added' }
+  | { type: 'deleted' }
+
+/**
+ * The browser HMR client dispatches by `path` (the chunk list path used as
+ * `resource.path` in the per-resource callback registry).
+ */
+export interface ClientChunkListUpdate {
+  path: string
+  type: 'restart' | 'partial'
+  instruction?: ClientChunkListUpdateInstruction
+}
+
+/**
+ * Emitted by `project.clientHmrEvents()`. One per dev-server tick carrying
+ * every chunk list with a non-empty diff. Issues travel on the surrounding
+ * `TurbopackResult` envelope.
+ */
+export interface ClientHmrAggregateUpdate {
+  updates: ClientChunkListUpdate[]
+}
+
+/**
  * IMPORTANT: This type is duplicated in:
  * turbopack/crates/turbopack-ecmascript-runtime/js/src/nodejs/hmr-types.d.ts
  *
@@ -266,11 +305,6 @@ export type NodeJsHmrUpdate =
   | IssuesUpdate
   | NodeJsPartialHmrUpdate
   | NodeJsRestartHmrUpdate
-
-export interface HmrChunkNames {
-  /** Relative paths to output chunks that can receive HMR updates (e.g., "server/chunks/ssr/..._.js") */
-  chunkNames: string[]
-}
 
 /** @see https://github.com/vercel/next.js/blob/415cd74b9a220b6f50da64da68c13043e9b02995/crates/next-napi-bindings/src/next_api/project.rs#L824-L833 */
 export interface TurbopackStackFrame {
@@ -333,24 +367,11 @@ export interface Project {
     TurbopackResult<RawEntrypoints | {}>
   >
 
-  // Note: only the Server target is implemented in the native binding;
-  // add a Client overload once `all_hmr_update` supports it.
-  allHmrEvents(
-    target: import('./index').HmrTarget.Server
-  ): AsyncIterableIterator<TurbopackResult<NodeJsHmrUpdate>>
+  serverHmrEvents(): AsyncIterableIterator<TurbopackResult<NodeJsHmrUpdate>>
 
-  hmrEvents(
-    identifier: string,
-    target: import('./index').HmrTarget.Client
-  ): AsyncIterableIterator<TurbopackResult<Update>>
-  hmrEvents(
-    identifier: string,
-    target: import('./index').HmrTarget.Server
-  ): AsyncIterableIterator<TurbopackResult<NodeJsHmrUpdate>>
-
-  hmrChunkNamesSubscribe(
-    target: import('./index').HmrTarget
-  ): AsyncIterableIterator<TurbopackResult<HmrChunkNames>>
+  clientHmrEvents(): AsyncIterableIterator<
+    TurbopackResult<ClientHmrAggregateUpdate>
+  >
 
   getSourceForAsset(filePath: string): Promise<string | null>
 
