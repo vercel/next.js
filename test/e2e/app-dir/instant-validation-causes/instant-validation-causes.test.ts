@@ -93,19 +93,7 @@ describe('instant validation causes', () => {
     await waitForValidation(await browser.url())
     await expect(browser).toDisplayCollapsedRedbox(`
      {
-       "cause": [
-         {
-           "label": "Caused by: Instant Validation",
-           "source": "app/named-export/page.tsx (3:17) @ instant
-     > 3 | const instant = true
-         |                 ^",
-           "stack": [
-             "instant app/named-export/page.tsx (3:17)",
-             "Set.forEach <anonymous>",
-           ],
-         },
-       ],
-       "code": "E1319",
+       "code": "E1372",
        "description": "Next.js encountered runtime data during a navigation.",
        "environmentLabel": "Server",
        "label": "Instant",
@@ -124,19 +112,7 @@ describe('instant validation causes', () => {
     await waitForValidation(await browser.url())
     await expect(browser).toDisplayCollapsedRedbox(`
      {
-       "cause": [
-         {
-           "label": "Caused by: Instant Validation",
-           "source": "app/aliased-export/page.tsx (3:23) @ instant
-     > 3 | const instantConfig = true
-         |                       ^",
-           "stack": [
-             "instant app/aliased-export/page.tsx (3:23)",
-             "Set.forEach <anonymous>",
-           ],
-         },
-       ],
-       "code": "E1319",
+       "code": "E1372",
        "description": "Next.js encountered runtime data during a navigation.",
        "environmentLabel": "Server",
        "label": "Instant",
@@ -155,19 +131,7 @@ describe('instant validation causes', () => {
     await waitForValidation(await browser.url())
     await expect(browser).toDisplayCollapsedRedbox(`
      {
-       "cause": [
-         {
-           "label": "Caused by: Instant Validation",
-           "source": "app/reexport/page.tsx (3:10) @ instant
-     > 3 | export { instant } from './config'
-         |          ^",
-           "stack": [
-             "instant app/reexport/page.tsx (3:10)",
-             "Set.forEach <anonymous>",
-           ],
-         },
-       ],
-       "code": "E1319",
+       "code": "E1372",
        "description": "Next.js encountered runtime data during a navigation.",
        "environmentLabel": "Server",
        "label": "Instant",
@@ -189,19 +153,7 @@ describe('instant validation causes', () => {
     // presuming that almost all configs are just `export const instant = ...`
     await expect(browser).toDisplayCollapsedRedbox(`
      {
-       "cause": [
-         {
-           "label": "Caused by: Instant Validation",
-           "source": "app/indirect-export/page.tsx (4:23) @ instant
-     > 4 | const instantConfig = _instant
-         |                       ^",
-           "stack": [
-             "instant app/indirect-export/page.tsx (4:23)",
-             "Set.forEach <anonymous>",
-           ],
-         },
-       ],
-       "code": "E1319",
+       "code": "E1372",
        "description": "Next.js encountered runtime data during a navigation.",
        "environmentLabel": "Server",
        "label": "Instant",
