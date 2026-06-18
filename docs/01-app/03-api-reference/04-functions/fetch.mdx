@@ -94,6 +94,17 @@ fetch(url, { signal })
 
 > **Good to know**: Memoization does not apply in [Route Handlers](/docs/app/api-reference/file-conventions/route), since they are not part of the React component tree.
 
+## Caching `POST` requests
+
+A `POST` request can also be cached, but only when you explicitly opt in. A fetch response is stored in the Data Cache only if **all** of the following conditions are met:
+
+- It runs on the server (Server Component, Route Handler, or Server Action)
+- [Draft Mode](/docs/app/guides/draft-mode) is not enabled
+- You explicitly opt in with `cache: 'force-cache'`, with `next: { revalidate: N }` where `N > 0` (or `false` for indefinite caching) or `next: { tags: [tags] }`
+- The response status is `200`
+
+The cache key includes the URL, method, headers, mode, redirect, credentials, referrer, referrerPolicy, integrity, `cache`, and the request **body**. Two `POST` requests with different payloads are stored as separate entries.
+
 ## Troubleshooting
 
 ### Fetch default `auto no store` and `cache: 'no-store'` not showing fresh data in development
