@@ -2,16 +2,44 @@ import { NEXT_REQUEST_ID_HEADER } from '../components/app-router-headers'
 import { InvariantError } from '../../shared/lib/invariant-error'
 
 export interface DebugChannelReadableWriterPair {
-  readonly readable: ReadableStream<Uint8Array>
+  /**
+   * The remaining, not-yet-handed-out copy of the request's debug stream. A
+   * request can be decoded more than once (the primary decode plus any stage
+   * extractions that re-parse a slice of the same response, see
+   * `decodeStageUntilBoundary`), and each decode needs its own reader. Every
+   * time a consumer asks for the readable we tee it and reassign this field to
+   * the remainder, so each consumer gets an independent branch. The remainder
+   * is only ever tee'd again, never read directly, so it retains every chunk
+   * from the start and replays the full stream into each new branch.
+   */
+  readable: ReadableStream<Uint8Array>
   readonly writer: WritableStreamDefaultWriter<Uint8Array>
 }
 
 const pairs = new Map<string, DebugChannelReadableWriterPair>()
 
+/**
+ * Upper bound on the number of in-memory debug-channel pairs we retain, evicted
+ * least-recently-used, bounding the live per-request map.
+ *
+ * A pair must outlive its stream's close so a late decode of the same response
+ * (the primary decode plus stage extractions via `decodeStageUntilBoundary`,
+ * which can run after the channel closed over the WebSocket) still finds the
+ * buffered data. The cap only needs to exceed the pairs live or recently closed
+ * at once (bounded by how many prefetch/navigation requests are in flight
+ * together), so a few dozen leaves ample headroom even for the segment-heavy
+ * bursts the Instant Navs DevTools capture can produce.
+ */
+const MAX_DEBUG_CHANNEL_PAIRS = 64
+
 const DB_NAME = '__next_debug_channel'
 const STORE_NAME = 'channels'
 const CREATED_AT_INDEX = 'createdAt'
-const MAX_ENTRIES = 10
+/**
+ * Upper bound on persisted document debug channels in IndexedDB (one per
+ * document, kept for HTTP-cache restore), evicted oldest-first.
+ */
+const MAX_PERSISTED_DOCUMENT_CHANNELS = 10
 
 interface DebugChannelEntry {
   readonly requestId: string
@@ -76,7 +104,7 @@ async function persistDebugChannelToIndexedDB(
       // scanning, and the cursor deletes commit atomically with the put above.
       const countReq = store.count()
       countReq.onsuccess = () => {
-        let entriesToDelete = countReq.result - MAX_ENTRIES
+        let entriesToDelete = countReq.result - MAX_PERSISTED_DOCUMENT_CHANNELS
         if (entriesToDelete <= 0) {
           return
         }
@@ -304,56 +332,88 @@ function getNavigationEntry(): NavigationEntry | undefined {
   }
 }
 
+/**
+ * Reclaim the least-recently-used debug-channel pairs once the map exceeds
+ * `MAX_DEBUG_CHANNEL_PAIRS`. The map is iterated in insertion order and we
+ * re-insert entries on access (see
+ * `getOrCreateDebugChannelReadableWriterPair`), so the least-recently-used
+ * pairs sit at the front. Evicting only ever affects future lookups for that
+ * request id; consumers that already hold a tee branch keep reading
+ * independently of the map.
+ */
+function evictExcessDebugChannelPairs(): void {
+  while (pairs.size > MAX_DEBUG_CHANNEL_PAIRS) {
+    const oldestRequestId = pairs.keys().next().value
+    if (oldestRequestId === undefined) {
+      break
+    }
+    pairs.delete(oldestRequestId)
+  }
+}
+
 export function getOrCreateDebugChannelReadableWriterPair(
   requestId: string
 ): DebugChannelReadableWriterPair {
-  let pair = pairs.get(requestId)
-
-  if (!pair) {
-    // Buffer chunks only for the initial document's debug channel, not for
-    // client-side navigation requests. Persisted to IndexedDB once complete so
-    // it can be restored when the browser serves the page from HTTP cache
-    // (back-forward navigation, tab duplication, etc.).
-    const chunks: Uint8Array[] | null = requestId === self.__next_r ? [] : null
-
-    const { readable, writable } = new TransformStream<Uint8Array, Uint8Array>({
-      transform(chunk, controller) {
-        if (chunks) {
-          chunks.push(chunk.slice())
-        }
-        controller.enqueue(chunk)
-      },
-    })
-
-    pair = { readable, writer: writable.getWriter() }
-    pairs.set(requestId, pair)
-
-    pair.writer.closed
-      .then(async () => {
-        if (!chunks) {
-          return
-        }
-        // The initial document's debug stream closes while hydration is still
-        // running, so persisting here would steal main-thread time from it.
-        // Wait for genuine idle (no timeout): persistence is best-effort, so if
-        // the page never idles before navigation we skip it and a later restore
-        // falls back to a reload, rather than forcing a blocking write.
-        await whenIdle()
-        await persistDebugChannelToIndexedDB(requestId, chunks)
-      })
-      .catch((error) => {
-        // writer.closed rejected (e.g., stream aborted) — nothing to persist.
-        console.debug('Debug channel writer closed with error', error)
-      })
-      .finally(() => {
-        pairs.delete(requestId)
-        // Release the buffered chunk bytes once the channel is done, whether or
-        // not we were able to persist them.
-        if (chunks) {
-          chunks.length = 0
-        }
-      })
+  const existingPair = pairs.get(requestId)
+  if (existingPair) {
+    // Refresh the LRU recency of an already-known channel by re-inserting it at
+    // the most-recent position, so a channel that's still being written to or
+    // read from isn't evicted while a late consumer (e.g. a stage re-decode of
+    // the same response) still needs it.
+    pairs.delete(requestId)
+    pairs.set(requestId, existingPair)
+    return existingPair
   }
+
+  // Buffer chunks only for the initial document's debug channel, not for
+  // client-side navigation requests. Persisted to IndexedDB once complete so it
+  // can be restored when the browser serves the page from HTTP cache
+  // (back-forward navigation, tab duplication, etc.).
+  const chunks: Uint8Array[] | null = requestId === self.__next_r ? [] : null
+
+  const { readable, writable } = new TransformStream<Uint8Array, Uint8Array>({
+    transform(chunk, controller) {
+      if (chunks) {
+        chunks.push(chunk.slice())
+      }
+      controller.enqueue(chunk)
+    },
+  })
+
+  const pair: DebugChannelReadableWriterPair = {
+    readable,
+    writer: writable.getWriter(),
+  }
+  pairs.set(requestId, pair)
+  // Retain the pair past its stream's close (see MAX_DEBUG_CHANNEL_PAIRS) and
+  // bound the map by reclaiming the least-recently-used.
+  evictExcessDebugChannelPairs()
+
+  pair.writer.closed
+    .then(async () => {
+      if (!chunks) {
+        return
+      }
+      // The initial document's debug stream closes while hydration is still
+      // running, so persisting here would steal main-thread time from it. Wait
+      // for genuine idle (no timeout): persistence is best-effort, so if the
+      // page never idles before navigation we skip it and a later restore falls
+      // back to a reload, rather than forcing a blocking write.
+      await whenIdle()
+      await persistDebugChannelToIndexedDB(requestId, chunks)
+    })
+    .catch((error) => {
+      // writer.closed rejected (e.g., stream aborted), nothing to persist.
+      console.debug('Debug channel writer closed with error', error)
+    })
+    .finally(() => {
+      // Keep the now-closed pair in the map so late decodes of this request
+      // still resolve against its buffered stream; it's reclaimed later by LRU
+      // eviction. Release the IndexedDB staging buffer now that it's persisted.
+      if (chunks) {
+        chunks.length = 0
+      }
+    })
 
   return pair
 }
@@ -402,9 +462,13 @@ export function createDebugChannel(
     }
   }
 
-  const { readable } = getOrCreateDebugChannelReadableWriterPair(requestId)
+  const pair = getOrCreateDebugChannelReadableWriterPair(requestId)
+  // Hand out a fresh tee branch per consumer and keep the remainder for the
+  // next one (see the `readable` field doc above).
+  const [branch, rest] = pair.readable.tee()
+  pair.readable = rest
 
-  return { readable }
+  return { readable: branch }
 }
 
 /**
