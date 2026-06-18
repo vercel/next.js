@@ -13,11 +13,7 @@ describe('use-cache-metadata-route-handler', () => {
     if (isNextStart) {
       const [buildStatus] = next.cliOutput.match(/. \/opengraph-image/)
 
-      // TODO: Should always be `○ /opengraph-image`.
-      expect(buildStatus).toBeOneOf([
-        '○ /opengraph-image',
-        'ƒ /opengraph-image',
-      ])
+      expect(buildStatus).toBe('○ /opengraph-image')
     }
   })
 
@@ -29,8 +25,7 @@ describe('use-cache-metadata-route-handler', () => {
     if (isNextStart) {
       const [buildStatus] = next.cliOutput.match(/. \/icon/)
 
-      // TODO: Should always be `○ /icon`.
-      expect(buildStatus).toBeOneOf(['○ /icon', 'ƒ /icon'])
+      expect(buildStatus).toBe('○ /icon')
     }
   })
 

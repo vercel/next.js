@@ -10,6 +10,21 @@ function importModule(): Promise<
   )
 }
 
+// The Cache Components-specific caching path (and its React Flight dependency)
+// lives in a separate module that is only loaded for Cache Components builds.
+// Cache Components is rejected for the edge runtime at compile time, so a build
+// with it enabled is always Node.js. When it's disabled this flag folds to
+// `false` and the `require` is eliminated as dead code, so apps without Cache
+// Components stream the image directly and never load that module.
+let getCachedImageResponseBody:
+  | typeof import('./cache-image-response').getCachedImageResponseBody
+  | undefined
+if (process.env.__NEXT_CACHE_COMPONENTS) {
+  getCachedImageResponseBody = (
+    require('./cache-image-response') as typeof import('./cache-image-response')
+  ).getCachedImageResponseBody
+}
+
 /**
  * The ImageResponse class allows you to generate dynamic images using JSX and CSS.
  * This is useful for generating social media images such as Open Graph images, Twitter cards, and more.
@@ -19,28 +34,33 @@ function importModule(): Promise<
 export class ImageResponse extends Response {
   public static displayName = 'ImageResponse'
   constructor(...args: ConstructorParameters<OgModule['ImageResponse']>) {
-    const readable = new ReadableStream({
-      async start(controller) {
-        const OGImageResponse: typeof import('next/dist/compiled/@vercel/og').ImageResponse =
-          // So far we have to manually determine which build to use,
-          // as the auto resolving is not working
-          (await importModule()).ImageResponse
-        const imageResponse = new OGImageResponse(...args) as Response
+    // Under Cache Components, route the render through the cache so metadata
+    // image routes can be statically prerendered. Otherwise stream the rendered
+    // image directly from the underlying `@vercel/og` response.
+    const readable = getCachedImageResponseBody
+      ? getCachedImageResponseBody(args)
+      : new ReadableStream({
+          async start(controller) {
+            const OGImageResponse: typeof import('next/dist/compiled/@vercel/og').ImageResponse =
+              // So far we have to manually determine which build to use, as the
+              // auto resolving is not working
+              (await importModule()).ImageResponse
+            const imageResponse = new OGImageResponse(...args) as Response
 
-        if (!imageResponse.body) {
-          return controller.close()
-        }
+            if (!imageResponse.body) {
+              return controller.close()
+            }
 
-        const reader = imageResponse.body!.getReader()
-        while (true) {
-          const { done, value } = await reader.read()
-          if (done) {
-            return controller.close()
-          }
-          controller.enqueue(value)
-        }
-      },
-    })
+            const reader = imageResponse.body.getReader()
+            while (true) {
+              const { done, value } = await reader.read()
+              if (done) {
+                return controller.close()
+              }
+              controller.enqueue(value)
+            }
+          },
+        })
 
     const options = args[1] || {}
 
