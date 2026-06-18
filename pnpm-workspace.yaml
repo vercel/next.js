@@ -46,7 +46,3 @@ minimumReleaseAgeExclude:
   - react-server-dom-*
   - scheduler
   - turbo
-  # these playwright exemptions can be removed once v1.61.0 is >48hrs old
-  - playwright
-  - playwright-core
-  - playwright-chromium
