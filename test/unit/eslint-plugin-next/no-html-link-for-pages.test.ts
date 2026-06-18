@@ -199,6 +199,20 @@ export class Blah extends Head {
   }
 }
 `
+const invalidMdxCode = `
+import Link from 'next/link';
+
+export class Blah extends Head {
+  render() {
+    return (
+      <div>
+        <a href='/markdown'>Markdown</a>
+        <h1>Hello title</h1>
+      </div>
+    );
+  }
+}
+`
 const secondInvalidDynamicCode = `
 import Link from 'next/link';
 
@@ -389,6 +403,18 @@ describe('no-html-link-for-pages', function () {
     assert.equal(
       thirdReport.message,
       'Do not use an `<a>` element to navigate to `/list/lorem-ipsum/`. Use `<Link />` from `next/link` instead. See: https://nextjs.org/docs/messages/no-html-link-for-pages'
+    )
+  })
+  it('invalid custom extension page', function () {
+    const [report] = linters.withCustomPages.verify(
+      invalidMdxCode,
+      linterConfigWithCustomDirectory,
+      { filename: 'foo.js' }
+    )
+    assert.notEqual(report, undefined, 'No lint errors found.')
+    assert.equal(
+      report.message,
+      'Do not use an `<a>` element to navigate to `/markdown/`. Use `<Link />` from `next/link` instead. See: https://nextjs.org/docs/messages/no-html-link-for-pages'
     )
   })
   it('valid link element with appDir', function () {

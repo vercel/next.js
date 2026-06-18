@@ -14,20 +14,21 @@ function parseUrlForPages(urlprefix: string, directory: string) {
   })
   const res = []
   fsReadDirSyncCache[directory].forEach((dirent) => {
-    // TODO: this should account for all page extensions
-    // not just js(x) and ts(x)
-    if (/(\.(j|t)sx?)$/.test(dirent.name)) {
-      if (/^index(\.(j|t)sx?)$/.test(dirent.name)) {
-        res.push(
-          `${urlprefix}${dirent.name.replace(/^index(\.(j|t)sx?)$/, '')}`
-        )
-      }
-      res.push(`${urlprefix}${dirent.name.replace(/(\.(j|t)sx?)$/, '')}`)
-    } else {
+    if (dirent.isDirectory() && !dirent.isSymbolicLink()) {
       const dirPath = path.join(directory, dirent.name)
-      if (dirent.isDirectory() && !dirent.isSymbolicLink()) {
-        res.push(...parseUrlForPages(urlprefix + dirent.name + '/', dirPath))
+      res.push(...parseUrlForPages(urlprefix + dirent.name + '/', dirPath))
+      return
+    }
+
+    const parsedName = path.parse(dirent.name)
+
+    // Treat any non-directory file in the pages directory as a page file.
+    // This keeps the rule aligned with custom page extensions such as .mdx.
+    if (parsedName.ext) {
+      if (parsedName.name === 'index') {
+        res.push(`${urlprefix}${parsedName.name.replace(/^index$/, '')}`)
       }
+      res.push(`${urlprefix}${parsedName.name}`)
     }
   })
   return res
@@ -52,8 +53,8 @@ function parseUrlForAppDir(urlprefix: string, directory: string) {
       }
     } else {
       const dirPath = path.join(directory, dirent.name)
-      if (dirent.isDirectory(dirPath) && !dirent.isSymbolicLink()) {
-        res.push(...parseUrlForPages(urlprefix + dirent.name + '/', dirPath))
+      if (dirent.isDirectory() && !dirent.isSymbolicLink()) {
+        res.push(...parseUrlForAppDir(urlprefix + dirent.name + '/', dirPath))
       }
     }
   })
