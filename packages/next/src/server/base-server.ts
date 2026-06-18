@@ -430,7 +430,7 @@ export default abstract class Server<
     readonly data: NextDataPathnameNormalizer | undefined
   }
 
-  private readonly isAppPPREnabled: boolean
+  private readonly isAppCacheComponentsEnabled: boolean
 
   /**
    * This is used to persist cache scopes across
@@ -516,7 +516,7 @@ export default abstract class Server<
 
     this.enabledDirectories = this.getEnabledDirectories(dev)
 
-    this.isAppPPREnabled =
+    this.isAppCacheComponentsEnabled =
       this.enabledDirectories.app && Boolean(this.nextConfig.cacheComponents)
 
     this.normalizers = {
@@ -1094,7 +1094,7 @@ export default abstract class Server<
           // It's important to execute the following block even it the request
           // matches a pages data route from above.
           if (
-            this.isAppPPREnabled &&
+            this.isAppCacheComponentsEnabled &&
             this.minimalMode &&
             req.headers[NEXT_RESUME_HEADER] === '1' &&
             req.method === 'POST'
@@ -2216,7 +2216,7 @@ export default abstract class Server<
      * enabled, then the given route _could_ support PPR.
      */
     const couldSupportPPR: boolean =
-      this.isAppPPREnabled &&
+      this.isAppCacheComponentsEnabled &&
       typeof routeModule !== 'undefined' &&
       isAppPageRouteModule(routeModule)
 
