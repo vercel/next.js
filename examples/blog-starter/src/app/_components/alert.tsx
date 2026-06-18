@@ -17,27 +17,31 @@ const Alert = ({ preview }: Props) => {
       <Container>
         <div className="py-2 text-center text-sm">
           {preview ? (
-            <>
+            <p>
               This page is a preview.{" "}
               <a
                 href="/api/exit-preview"
-                className="underline hover:text-teal-300 duration-200 transition-colors"
+                className="underline hover:text-teal-300 transition-colors duration-200"
+                aria-label="Exit preview mode"
               >
                 Click here
               </a>{" "}
               to exit preview mode.
-            </>
+            </p>
           ) : (
-            <>
+            <p>
               The source code for this blog is{" "}
               <a
                 href={`https://github.com/vercel/next.js/tree/canary/examples/${EXAMPLE_PATH}`}
-                className="underline hover:text-blue-600 duration-200 transition-colors"
+                className="underline hover:text-blue-600 transition-colors duration-200"
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label="View source code on GitHub"
               >
                 available on GitHub
               </a>
               .
-            </>
+            </p>
           )}
         </div>
       </Container>
