@@ -3309,11 +3309,6 @@ async fn resolve_package_internal_with_imports_field(
     let Pattern::Constant(specifier) = pattern else {
         bail!("PackageInternal requests can only be Constant strings");
     };
-    // Node.js spec rejects specifiers that are exactly "#", start with "#/", or end with "/".
-    // However, the "#/*" pattern (e.g. { "#/*": "./src/*" }) is widely used in TypeScript
-    // projects and is supported by webpack (enhanced-resolve). Turbopack follows webpack
-    // behavior here to avoid a webpack/Turbopack divergence for this common pattern.
-    // See: https://github.com/vercel/next.js/issues/94290
     if specifier == "#" || specifier.ends_with('/') {
         ResolvingIssue {
             severity: resolve_error_severity(resolve_options).await?,
