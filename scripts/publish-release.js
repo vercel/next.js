@@ -216,6 +216,13 @@ const publishRetryDelaySeconds = 15
     optionalDependencies['@next/swc-' + platform] = version
     nextPkg.optionalDependencies = optionalDependencies
   }
+  // These props are only needed for development and build so we strip
+  // before publishing to reduce the total metadata size. The max is
+  // 100 MB for all versions of a pkg and we are currently at 30MB. Run:
+  // curl -w '%{size_download}' -so /dev/null https://registry.npmjs.org/next | awk '{print $1/1000000 " MB"}'
+  for (const field of ['devDependencies', 'taskr', 'scripts']) {
+    delete nextPkg[field]
+  }
   await fs.writeFile(
     path.join(cwd, 'packages/next/package.json'),
     JSON.stringify(nextPkg, null, 2)
