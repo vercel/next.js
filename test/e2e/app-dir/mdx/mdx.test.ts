@@ -65,6 +65,14 @@ for (const type of ['with-mdx-rs', 'without-mdx-rs']) {
         )
       })
 
+      it('should support exporting metadata from an mdx page', async () => {
+        const $ = await next.render$('/metadata')
+        expect($('title').text()).toBe('MDX Metadata Title')
+        expect($('meta[name="description"]').attr('content')).toBe(
+          'MDX metadata description'
+        )
+      })
+
       if (type === 'without-mdx-rs') {
         it('should run recma plugins', async () => {
           const $ = await next.render$('/recma-plugin')
