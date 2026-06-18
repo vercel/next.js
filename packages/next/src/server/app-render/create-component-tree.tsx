@@ -320,7 +320,6 @@ async function createComponentTreeInternal(
         case 'prerender':
         case 'prerender-runtime':
         case 'prerender-legacy':
-        case 'prerender-ppr':
           if (workUnitStore.revalidate > defaultRevalidate) {
             workUnitStore.revalidate = defaultRevalidate
           }
@@ -371,7 +370,6 @@ async function createComponentTreeInternal(
         case 'prerender':
         case 'prerender-runtime':
         case 'prerender-legacy':
-        case 'prerender-ppr':
           if (workUnitStore.stale > pageStaleTime) {
             workUnitStore.stale = pageStaleTime
           }
@@ -1331,7 +1329,6 @@ function createSeedData(
         case 'prerender':
         case 'prerender-client':
         case 'validation-client':
-        case 'prerender-ppr':
         case 'prerender-legacy':
         case 'cache':
         case 'private-cache':

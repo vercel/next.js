@@ -183,7 +183,6 @@ export function markCurrentScopeAsDynamic(
         // A private cache scope is already dynamic by definition.
         return
       case 'prerender-legacy':
-      case 'prerender-ppr':
       case 'request':
       case 'generate-static-params':
         break
@@ -205,12 +204,6 @@ export function markCurrentScopeAsDynamic(
 
   if (workUnitStore) {
     switch (workUnitStore.type) {
-      case 'prerender-ppr':
-        return postponeWithTracking(
-          store.route,
-          expression,
-          workUnitStore.dynamicTracking
-        )
       case 'prerender-legacy':
         workUnitStore.revalidate = 0
 
@@ -282,7 +275,6 @@ export function trackDynamicDataInDynamicRender(workUnitStore: WorkUnitStore) {
     case 'prerender':
     case 'prerender-runtime':
     case 'prerender-legacy':
-    case 'prerender-ppr':
     case 'prerender-client':
     case 'validation-client':
     case 'generate-static-params':
@@ -388,15 +380,11 @@ type PostponeProps = {
   route: string
 }
 export function Postpone({ reason, route }: PostponeProps): never {
-  const prerenderStore = workUnitAsyncStorage.getStore()
-  const dynamicTracking =
-    prerenderStore && prerenderStore.type === 'prerender-ppr'
-      ? prerenderStore.dynamicTracking
-      : null
+  const dynamicTracking = null
   postponeWithTracking(route, reason, dynamicTracking)
 }
 
-export function postponeWithTracking(
+function postponeWithTracking(
   route: string,
   expression: string,
   dynamicTracking: null | DynamicTrackingState
@@ -601,7 +589,6 @@ export function createHangingInputAbortSignal(
       return controller.signal
     case 'prerender-client':
     case 'validation-client':
-    case 'prerender-ppr':
     case 'prerender-legacy':
     case 'request':
     case 'cache':
@@ -656,17 +643,6 @@ export function useDynamicRouteParams(expression: string) {
         throw new InvariantError(
           `\`${expression}\` was called from a Server Component. Next.js should be preventing ${expression} from being included in server components statically, but did not in this case.`
         )
-      case 'prerender-ppr': {
-        const fallbackParams = workUnitStore.fallbackRouteParams
-        if (fallbackParams && fallbackParams.size > 0) {
-          return postponeWithTracking(
-            workStore.route,
-            expression,
-            workUnitStore.dynamicTracking
-          )
-        }
-        break
-      }
       case 'validation-client': {
         // Don't check fallbackRouteParams here. We handle params that weren't
         // provided in the samples using a proxy that throws when accessed.
@@ -722,8 +698,7 @@ export function useDynamicSearchParams(expression: string) {
       )
       break
     }
-    case 'prerender-legacy':
-    case 'prerender-ppr': {
+    case 'prerender-legacy': {
       if (workStore.forceStatic) {
         return
       }

@@ -321,13 +321,13 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
                      at useSearchParams (webpack:///<next-src>)
                      at UseSearchParams (webpack:///app/client-hook-abort-reasons/client.tsx:27:18)
                      at Page (webpack:///app/client-hook-abort-reasons/normal/use-search-params/[id]/page.tsx:8:7)
-                   715 |       return
-                   716 |     case 'prerender-client': {
-                 > 717 |       React.use(
+                   608 |       return
+                   609 |     case 'prerender-client': {
+                 > 610 |       React.use(
                        |             ^
-                   718 |         makeClientHookHangingPromise(
-                   719 |           workUnitStore.renderSignal,
-                   720 |           new ClientHookDynamicError(workStore.route, expression) {
+                   611 |         makeClientHookHangingPromise(
+                   612 |           workUnitStore.renderSignal,
+                   613 |           new ClientHookDynamicError(workStore.route, expression) {
                    digest: 'CLIENT_HOOK_DYNAMIC'
                  }
                  To debug the issue, start the app in development mode by running \`next dev\`, then open "/client-hook-abort-reasons/normal/use-search-params/[id]" in your browser to investigate the error.
@@ -358,6 +358,7 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
                      at i (<next-dist-dir>)
                      at j (<next-dist-dir>)
                      at k (<next-dist-dir>)
+                     ... collapsed 30 duplicate lines matching above 10 lines 3 times...
                      at l (<next-dist-dir>)
                      at m (<next-dist-dir>)
                      at n (<next-dist-dir>)
@@ -369,36 +370,6 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
                      at t (<next-dist-dir>)
                      at u (<next-dist-dir>)
                      at v (<next-dist-dir>)
-                     at w (<next-dist-dir>)
-                     at x (<next-dist-dir>)
-                     at y (<next-dist-dir>)
-                     at z (<next-dist-dir>)
-                     at a (<next-dist-dir>)
-                     at b (<next-dist-dir>)
-                     at c (<next-dist-dir>)
-                     at d (<next-dist-dir>)
-                     at e (<next-dist-dir>)
-                     at f (<next-dist-dir>)
-                     at g (<next-dist-dir>)
-                     at h (<next-dist-dir>)
-                     at i (<next-dist-dir>)
-                     at j (<next-dist-dir>)
-                     at k (<next-dist-dir>)
-                     at l (<next-dist-dir>)
-                     at m (<next-dist-dir>)
-                     at n (<next-dist-dir>)
-                     at o (<next-dist-dir>)
-                     at p (<next-dist-dir>)
-                     at q (<next-dist-dir>)
-                     at r (<next-dist-dir>)
-                     at s (<next-dist-dir>)
-                     at t (<next-dist-dir>)
-                     at u (<next-dist-dir>)
-                     at v (<next-dist-dir>)
-                     at w (<next-dist-dir>)
-                     at x (<next-dist-dir>)
-                     at y (<next-dist-dir>)
-                     at z (<next-dist-dir>)
                      at body (<anonymous>)
                      at html (<anonymous>) {
                    digest: 'CLIENT_HOOK_DYNAMIC'
@@ -419,28 +390,6 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
                      https://nextjs.org/docs/messages/blocking-prerender-runtime#for-known-params-prerender
                    - [block] Set \`export const instant = false\` to silence this warning and allow a blocking route
                      https://nextjs.org/docs/messages/blocking-prerender-dynamic#allow-blocking-route
-                     at a (<next-dist-dir>)
-                     at b (<next-dist-dir>)
-                     at c (<next-dist-dir>)
-                     at d (<next-dist-dir>)
-                     at e (<next-dist-dir>)
-                     at f (<next-dist-dir>)
-                     at g (<next-dist-dir>)
-                     at h (<next-dist-dir>)
-                     at i (<next-dist-dir>)
-                     at j (<next-dist-dir>)
-                     at k (<next-dist-dir>)
-                     at l (<next-dist-dir>)
-                     at m (<next-dist-dir>)
-                     at n (<next-dist-dir>)
-                     at o (<next-dist-dir>)
-                     at p (<next-dist-dir>)
-                     at q (<next-dist-dir>)
-                     at r (<next-dist-dir>)
-                     at s (<next-dist-dir>)
-                     at t (<next-dist-dir>)
-                     at u (<next-dist-dir>)
-                     at v (<next-dist-dir>)
                      at w (<next-dist-dir>)
                      at x (<next-dist-dir>)
                      at y (<next-dist-dir>)
@@ -451,6 +400,7 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
                      at d (<next-dist-dir>)
                      at e (<next-dist-dir>)
                      at f (<next-dist-dir>)
+                     ... collapsed 30 duplicate lines matching above 10 lines 3 times...
                      at g (<next-dist-dir>)
                      at h (<next-dist-dir>)
                      at i (<next-dist-dir>)
@@ -462,14 +412,6 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
                      at o (<next-dist-dir>)
                      at p (<next-dist-dir>)
                      at q (<next-dist-dir>)
-                     at r (<next-dist-dir>)
-                     at s (<next-dist-dir>)
-                     at t (<next-dist-dir>)
-                     at u (<next-dist-dir>)
-                     at v (<next-dist-dir>)
-                     at w (<next-dist-dir>)
-                     at x (<next-dist-dir>)
-                     at y (<next-dist-dir>)
                      at body (<anonymous>)
                      at html (<anonymous>)
                  To get a more detailed stack trace and pinpoint the issue, try one of the following:
@@ -623,13 +565,13 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
                      at usePathname (webpack:///<next-src>)
                      at UsePathname (webpack:///app/client-hook-abort-reasons/client.tsx:22:14)
                      at Page (webpack:///app/client-hook-abort-reasons/normal/use-pathname/[id]/page.tsx:7:7)
-                   644 |           // hang here and never resolve. This will cause the currently
-                   645 |           // rendering component to effectively be a dynamic hole.
-                 > 646 |           React.use(
+                   548 |           // hang here and never resolve. This will cause the currently
+                   549 |           // rendering component to effectively be a dynamic hole.
+                 > 550 |           React.use(
                        |                 ^
-                   647 |             makeClientHookHangingPromise(
-                   648 |               workUnitStore.renderSignal,
-                   649 |               new ParamClientHookDynamicError(workStore.route, expression) {
+                   551 |             makeClientHookHangingPromise(
+                   552 |               workUnitStore.renderSignal,
+                   553 |               new ParamClientHookDynamicError(workStore.route, expression) {
                    digest: 'CLIENT_HOOK_DYNAMIC'
                  }
                  To debug the issue, start the app in development mode by running \`next dev\`, then open "/client-hook-abort-reasons/normal/use-pathname/[id]" in your browser to investigate the error.
@@ -660,6 +602,7 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
                      at i (<next-dist-dir>)
                      at j (<next-dist-dir>)
                      at k (<next-dist-dir>)
+                     ... collapsed 30 duplicate lines matching above 10 lines 3 times...
                      at l (<next-dist-dir>)
                      at m (<next-dist-dir>)
                      at n (<next-dist-dir>)
@@ -671,36 +614,6 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
                      at t (<next-dist-dir>)
                      at u (<next-dist-dir>)
                      at v (<next-dist-dir>)
-                     at w (<next-dist-dir>)
-                     at x (<next-dist-dir>)
-                     at y (<next-dist-dir>)
-                     at z (<next-dist-dir>)
-                     at a (<next-dist-dir>)
-                     at b (<next-dist-dir>)
-                     at c (<next-dist-dir>)
-                     at d (<next-dist-dir>)
-                     at e (<next-dist-dir>)
-                     at f (<next-dist-dir>)
-                     at g (<next-dist-dir>)
-                     at h (<next-dist-dir>)
-                     at i (<next-dist-dir>)
-                     at j (<next-dist-dir>)
-                     at k (<next-dist-dir>)
-                     at l (<next-dist-dir>)
-                     at m (<next-dist-dir>)
-                     at n (<next-dist-dir>)
-                     at o (<next-dist-dir>)
-                     at p (<next-dist-dir>)
-                     at q (<next-dist-dir>)
-                     at r (<next-dist-dir>)
-                     at s (<next-dist-dir>)
-                     at t (<next-dist-dir>)
-                     at u (<next-dist-dir>)
-                     at v (<next-dist-dir>)
-                     at w (<next-dist-dir>)
-                     at x (<next-dist-dir>)
-                     at y (<next-dist-dir>)
-                     at z (<next-dist-dir>)
                      at body (<anonymous>)
                      at html (<anonymous>) {
                    digest: 'CLIENT_HOOK_DYNAMIC'
@@ -721,28 +634,6 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
                      https://nextjs.org/docs/messages/blocking-prerender-runtime#for-known-params-prerender
                    - [block] Set \`export const instant = false\` to silence this warning and allow a blocking route
                      https://nextjs.org/docs/messages/blocking-prerender-dynamic#allow-blocking-route
-                     at a (<next-dist-dir>)
-                     at b (<next-dist-dir>)
-                     at c (<next-dist-dir>)
-                     at d (<next-dist-dir>)
-                     at e (<next-dist-dir>)
-                     at f (<next-dist-dir>)
-                     at g (<next-dist-dir>)
-                     at h (<next-dist-dir>)
-                     at i (<next-dist-dir>)
-                     at j (<next-dist-dir>)
-                     at k (<next-dist-dir>)
-                     at l (<next-dist-dir>)
-                     at m (<next-dist-dir>)
-                     at n (<next-dist-dir>)
-                     at o (<next-dist-dir>)
-                     at p (<next-dist-dir>)
-                     at q (<next-dist-dir>)
-                     at r (<next-dist-dir>)
-                     at s (<next-dist-dir>)
-                     at t (<next-dist-dir>)
-                     at u (<next-dist-dir>)
-                     at v (<next-dist-dir>)
                      at w (<next-dist-dir>)
                      at x (<next-dist-dir>)
                      at y (<next-dist-dir>)
@@ -753,6 +644,7 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
                      at d (<next-dist-dir>)
                      at e (<next-dist-dir>)
                      at f (<next-dist-dir>)
+                     ... collapsed 30 duplicate lines matching above 10 lines 3 times...
                      at g (<next-dist-dir>)
                      at h (<next-dist-dir>)
                      at i (<next-dist-dir>)
@@ -764,14 +656,6 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
                      at o (<next-dist-dir>)
                      at p (<next-dist-dir>)
                      at q (<next-dist-dir>)
-                     at r (<next-dist-dir>)
-                     at s (<next-dist-dir>)
-                     at t (<next-dist-dir>)
-                     at u (<next-dist-dir>)
-                     at v (<next-dist-dir>)
-                     at w (<next-dist-dir>)
-                     at x (<next-dist-dir>)
-                     at y (<next-dist-dir>)
                      at body (<anonymous>)
                      at html (<anonymous>)
                  To get a more detailed stack trace and pinpoint the issue, try one of the following:
@@ -927,13 +811,13 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
                      at useParams (webpack:///<next-src>)
                      at UseParams (webpack:///app/client-hook-abort-reasons/client.tsx:17:12)
                      at Page (webpack:///app/client-hook-abort-reasons/normal/use-params/[id]/page.tsx:8:7)
-                   644 |           // hang here and never resolve. This will cause the currently
-                   645 |           // rendering component to effectively be a dynamic hole.
-                 > 646 |           React.use(
+                   548 |           // hang here and never resolve. This will cause the currently
+                   549 |           // rendering component to effectively be a dynamic hole.
+                 > 550 |           React.use(
                        |                 ^
-                   647 |             makeClientHookHangingPromise(
-                   648 |               workUnitStore.renderSignal,
-                   649 |               new ParamClientHookDynamicError(workStore.route, expression) {
+                   551 |             makeClientHookHangingPromise(
+                   552 |               workUnitStore.renderSignal,
+                   553 |               new ParamClientHookDynamicError(workStore.route, expression) {
                    digest: 'CLIENT_HOOK_DYNAMIC'
                  }
                  To debug the issue, start the app in development mode by running \`next dev\`, then open "/client-hook-abort-reasons/normal/use-params/[id]" in your browser to investigate the error.
@@ -966,6 +850,7 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
                      at i (<next-dist-dir>)
                      at j (<next-dist-dir>)
                      at k (<next-dist-dir>)
+                     ... collapsed 30 duplicate lines matching above 10 lines 3 times...
                      at l (<next-dist-dir>)
                      at m (<next-dist-dir>)
                      at n (<next-dist-dir>)
@@ -977,36 +862,6 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
                      at t (<next-dist-dir>)
                      at u (<next-dist-dir>)
                      at v (<next-dist-dir>)
-                     at w (<next-dist-dir>)
-                     at x (<next-dist-dir>)
-                     at y (<next-dist-dir>)
-                     at z (<next-dist-dir>)
-                     at a (<next-dist-dir>)
-                     at b (<next-dist-dir>)
-                     at c (<next-dist-dir>)
-                     at d (<next-dist-dir>)
-                     at e (<next-dist-dir>)
-                     at f (<next-dist-dir>)
-                     at g (<next-dist-dir>)
-                     at h (<next-dist-dir>)
-                     at i (<next-dist-dir>)
-                     at j (<next-dist-dir>)
-                     at k (<next-dist-dir>)
-                     at l (<next-dist-dir>)
-                     at m (<next-dist-dir>)
-                     at n (<next-dist-dir>)
-                     at o (<next-dist-dir>)
-                     at p (<next-dist-dir>)
-                     at q (<next-dist-dir>)
-                     at r (<next-dist-dir>)
-                     at s (<next-dist-dir>)
-                     at t (<next-dist-dir>)
-                     at u (<next-dist-dir>)
-                     at v (<next-dist-dir>)
-                     at w (<next-dist-dir>)
-                     at x (<next-dist-dir>)
-                     at y (<next-dist-dir>)
-                     at z (<next-dist-dir>)
                      at body (<anonymous>)
                      at html (<anonymous>) {
                    digest: 'CLIENT_HOOK_DYNAMIC'
@@ -1027,28 +882,6 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
                      https://nextjs.org/docs/messages/blocking-prerender-runtime#for-known-params-prerender
                    - [block] Set \`export const instant = false\` to silence this warning and allow a blocking route
                      https://nextjs.org/docs/messages/blocking-prerender-dynamic#allow-blocking-route
-                     at a (<next-dist-dir>)
-                     at b (<next-dist-dir>)
-                     at c (<next-dist-dir>)
-                     at d (<next-dist-dir>)
-                     at e (<next-dist-dir>)
-                     at f (<next-dist-dir>)
-                     at g (<next-dist-dir>)
-                     at h (<next-dist-dir>)
-                     at i (<next-dist-dir>)
-                     at j (<next-dist-dir>)
-                     at k (<next-dist-dir>)
-                     at l (<next-dist-dir>)
-                     at m (<next-dist-dir>)
-                     at n (<next-dist-dir>)
-                     at o (<next-dist-dir>)
-                     at p (<next-dist-dir>)
-                     at q (<next-dist-dir>)
-                     at r (<next-dist-dir>)
-                     at s (<next-dist-dir>)
-                     at t (<next-dist-dir>)
-                     at u (<next-dist-dir>)
-                     at v (<next-dist-dir>)
                      at w (<next-dist-dir>)
                      at x (<next-dist-dir>)
                      at y (<next-dist-dir>)
@@ -1059,6 +892,7 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
                      at d (<next-dist-dir>)
                      at e (<next-dist-dir>)
                      at f (<next-dist-dir>)
+                     ... collapsed 30 duplicate lines matching above 10 lines 3 times...
                      at g (<next-dist-dir>)
                      at h (<next-dist-dir>)
                      at i (<next-dist-dir>)
@@ -1070,14 +904,6 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
                      at o (<next-dist-dir>)
                      at p (<next-dist-dir>)
                      at q (<next-dist-dir>)
-                     at r (<next-dist-dir>)
-                     at s (<next-dist-dir>)
-                     at t (<next-dist-dir>)
-                     at u (<next-dist-dir>)
-                     at v (<next-dist-dir>)
-                     at w (<next-dist-dir>)
-                     at x (<next-dist-dir>)
-                     at y (<next-dist-dir>)
                      at body (<anonymous>)
                      at html (<anonymous>)
                  To get a more detailed stack trace and pinpoint the issue, try one of the following:
@@ -1235,13 +1061,13 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
                      at useSelectedLayoutSegments (webpack:///<next-src>)
                      at UseSelectedLayoutSegments (webpack:///app/client-hook-abort-reasons/client.tsx:37:28)
                      at Page (webpack:///app/client-hook-abort-reasons/normal/use-selected-layout-segments/[id]/page.tsx:7:7)
-                   644 |           // hang here and never resolve. This will cause the currently
-                   645 |           // rendering component to effectively be a dynamic hole.
-                 > 646 |           React.use(
+                   548 |           // hang here and never resolve. This will cause the currently
+                   549 |           // rendering component to effectively be a dynamic hole.
+                 > 550 |           React.use(
                        |                 ^
-                   647 |             makeClientHookHangingPromise(
-                   648 |               workUnitStore.renderSignal,
-                   649 |               new ParamClientHookDynamicError(workStore.route, expression) {
+                   551 |             makeClientHookHangingPromise(
+                   552 |               workUnitStore.renderSignal,
+                   553 |               new ParamClientHookDynamicError(workStore.route, expression) {
                    digest: 'CLIENT_HOOK_DYNAMIC'
                  }
                  To debug the issue, start the app in development mode by running \`next dev\`, then open "/client-hook-abort-reasons/normal/use-selected-layout-segments/[id]" in your browser to investigate the error.
@@ -1272,6 +1098,7 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
                      at i (<next-dist-dir>)
                      at j (<next-dist-dir>)
                      at k (<next-dist-dir>)
+                     ... collapsed 30 duplicate lines matching above 10 lines 3 times...
                      at l (<next-dist-dir>)
                      at m (<next-dist-dir>)
                      at n (<next-dist-dir>)
@@ -1283,36 +1110,6 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
                      at t (<next-dist-dir>)
                      at u (<next-dist-dir>)
                      at v (<next-dist-dir>)
-                     at w (<next-dist-dir>)
-                     at x (<next-dist-dir>)
-                     at y (<next-dist-dir>)
-                     at z (<next-dist-dir>)
-                     at a (<next-dist-dir>)
-                     at b (<next-dist-dir>)
-                     at c (<next-dist-dir>)
-                     at d (<next-dist-dir>)
-                     at e (<next-dist-dir>)
-                     at f (<next-dist-dir>)
-                     at g (<next-dist-dir>)
-                     at h (<next-dist-dir>)
-                     at i (<next-dist-dir>)
-                     at j (<next-dist-dir>)
-                     at k (<next-dist-dir>)
-                     at l (<next-dist-dir>)
-                     at m (<next-dist-dir>)
-                     at n (<next-dist-dir>)
-                     at o (<next-dist-dir>)
-                     at p (<next-dist-dir>)
-                     at q (<next-dist-dir>)
-                     at r (<next-dist-dir>)
-                     at s (<next-dist-dir>)
-                     at t (<next-dist-dir>)
-                     at u (<next-dist-dir>)
-                     at v (<next-dist-dir>)
-                     at w (<next-dist-dir>)
-                     at x (<next-dist-dir>)
-                     at y (<next-dist-dir>)
-                     at z (<next-dist-dir>)
                      at body (<anonymous>)
                      at html (<anonymous>) {
                    digest: 'CLIENT_HOOK_DYNAMIC'
@@ -1333,28 +1130,6 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
                      https://nextjs.org/docs/messages/blocking-prerender-runtime#for-known-params-prerender
                    - [block] Set \`export const instant = false\` to silence this warning and allow a blocking route
                      https://nextjs.org/docs/messages/blocking-prerender-dynamic#allow-blocking-route
-                     at a (<next-dist-dir>)
-                     at b (<next-dist-dir>)
-                     at c (<next-dist-dir>)
-                     at d (<next-dist-dir>)
-                     at e (<next-dist-dir>)
-                     at f (<next-dist-dir>)
-                     at g (<next-dist-dir>)
-                     at h (<next-dist-dir>)
-                     at i (<next-dist-dir>)
-                     at j (<next-dist-dir>)
-                     at k (<next-dist-dir>)
-                     at l (<next-dist-dir>)
-                     at m (<next-dist-dir>)
-                     at n (<next-dist-dir>)
-                     at o (<next-dist-dir>)
-                     at p (<next-dist-dir>)
-                     at q (<next-dist-dir>)
-                     at r (<next-dist-dir>)
-                     at s (<next-dist-dir>)
-                     at t (<next-dist-dir>)
-                     at u (<next-dist-dir>)
-                     at v (<next-dist-dir>)
                      at w (<next-dist-dir>)
                      at x (<next-dist-dir>)
                      at y (<next-dist-dir>)
@@ -1365,6 +1140,7 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
                      at d (<next-dist-dir>)
                      at e (<next-dist-dir>)
                      at f (<next-dist-dir>)
+                     ... collapsed 30 duplicate lines matching above 10 lines 3 times...
                      at g (<next-dist-dir>)
                      at h (<next-dist-dir>)
                      at i (<next-dist-dir>)
@@ -1376,14 +1152,6 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
                      at o (<next-dist-dir>)
                      at p (<next-dist-dir>)
                      at q (<next-dist-dir>)
-                     at r (<next-dist-dir>)
-                     at s (<next-dist-dir>)
-                     at t (<next-dist-dir>)
-                     at u (<next-dist-dir>)
-                     at v (<next-dist-dir>)
-                     at w (<next-dist-dir>)
-                     at x (<next-dist-dir>)
-                     at y (<next-dist-dir>)
                      at body (<anonymous>)
                      at html (<anonymous>)
                  To get a more detailed stack trace and pinpoint the issue, try one of the following:
@@ -1537,13 +1305,13 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
                      at useSelectedLayoutSegment (webpack:///<next-src>)
                      at UseSelectedLayoutSegment (webpack:///app/client-hook-abort-reasons/client.tsx:32:27)
                      at Page (webpack:///app/client-hook-abort-reasons/normal/use-selected-layout-segment/[id]/page.tsx:8:7)
-                   644 |           // hang here and never resolve. This will cause the currently
-                   645 |           // rendering component to effectively be a dynamic hole.
-                 > 646 |           React.use(
+                   548 |           // hang here and never resolve. This will cause the currently
+                   549 |           // rendering component to effectively be a dynamic hole.
+                 > 550 |           React.use(
                        |                 ^
-                   647 |             makeClientHookHangingPromise(
-                   648 |               workUnitStore.renderSignal,
-                   649 |               new ParamClientHookDynamicError(workStore.route, expression) {
+                   551 |             makeClientHookHangingPromise(
+                   552 |               workUnitStore.renderSignal,
+                   553 |               new ParamClientHookDynamicError(workStore.route, expression) {
                    digest: 'CLIENT_HOOK_DYNAMIC'
                  }
                  To debug the issue, start the app in development mode by running \`next dev\`, then open "/client-hook-abort-reasons/normal/use-selected-layout-segment/[id]" in your browser to investigate the error.
@@ -1574,6 +1342,7 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
                      at i (<next-dist-dir>)
                      at j (<next-dist-dir>)
                      at k (<next-dist-dir>)
+                     ... collapsed 30 duplicate lines matching above 10 lines 3 times...
                      at l (<next-dist-dir>)
                      at m (<next-dist-dir>)
                      at n (<next-dist-dir>)
@@ -1585,36 +1354,6 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
                      at t (<next-dist-dir>)
                      at u (<next-dist-dir>)
                      at v (<next-dist-dir>)
-                     at w (<next-dist-dir>)
-                     at x (<next-dist-dir>)
-                     at y (<next-dist-dir>)
-                     at z (<next-dist-dir>)
-                     at a (<next-dist-dir>)
-                     at b (<next-dist-dir>)
-                     at c (<next-dist-dir>)
-                     at d (<next-dist-dir>)
-                     at e (<next-dist-dir>)
-                     at f (<next-dist-dir>)
-                     at g (<next-dist-dir>)
-                     at h (<next-dist-dir>)
-                     at i (<next-dist-dir>)
-                     at j (<next-dist-dir>)
-                     at k (<next-dist-dir>)
-                     at l (<next-dist-dir>)
-                     at m (<next-dist-dir>)
-                     at n (<next-dist-dir>)
-                     at o (<next-dist-dir>)
-                     at p (<next-dist-dir>)
-                     at q (<next-dist-dir>)
-                     at r (<next-dist-dir>)
-                     at s (<next-dist-dir>)
-                     at t (<next-dist-dir>)
-                     at u (<next-dist-dir>)
-                     at v (<next-dist-dir>)
-                     at w (<next-dist-dir>)
-                     at x (<next-dist-dir>)
-                     at y (<next-dist-dir>)
-                     at z (<next-dist-dir>)
                      at body (<anonymous>)
                      at html (<anonymous>) {
                    digest: 'CLIENT_HOOK_DYNAMIC'
@@ -1635,28 +1374,6 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
                      https://nextjs.org/docs/messages/blocking-prerender-runtime#for-known-params-prerender
                    - [block] Set \`export const instant = false\` to silence this warning and allow a blocking route
                      https://nextjs.org/docs/messages/blocking-prerender-dynamic#allow-blocking-route
-                     at a (<next-dist-dir>)
-                     at b (<next-dist-dir>)
-                     at c (<next-dist-dir>)
-                     at d (<next-dist-dir>)
-                     at e (<next-dist-dir>)
-                     at f (<next-dist-dir>)
-                     at g (<next-dist-dir>)
-                     at h (<next-dist-dir>)
-                     at i (<next-dist-dir>)
-                     at j (<next-dist-dir>)
-                     at k (<next-dist-dir>)
-                     at l (<next-dist-dir>)
-                     at m (<next-dist-dir>)
-                     at n (<next-dist-dir>)
-                     at o (<next-dist-dir>)
-                     at p (<next-dist-dir>)
-                     at q (<next-dist-dir>)
-                     at r (<next-dist-dir>)
-                     at s (<next-dist-dir>)
-                     at t (<next-dist-dir>)
-                     at u (<next-dist-dir>)
-                     at v (<next-dist-dir>)
                      at w (<next-dist-dir>)
                      at x (<next-dist-dir>)
                      at y (<next-dist-dir>)
@@ -1667,6 +1384,7 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
                      at d (<next-dist-dir>)
                      at e (<next-dist-dir>)
                      at f (<next-dist-dir>)
+                     ... collapsed 30 duplicate lines matching above 10 lines 3 times...
                      at g (<next-dist-dir>)
                      at h (<next-dist-dir>)
                      at i (<next-dist-dir>)
@@ -1678,14 +1396,6 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
                      at o (<next-dist-dir>)
                      at p (<next-dist-dir>)
                      at q (<next-dist-dir>)
-                     at r (<next-dist-dir>)
-                     at s (<next-dist-dir>)
-                     at t (<next-dist-dir>)
-                     at u (<next-dist-dir>)
-                     at v (<next-dist-dir>)
-                     at w (<next-dist-dir>)
-                     at x (<next-dist-dir>)
-                     at y (<next-dist-dir>)
                      at body (<anonymous>)
                      at html (<anonymous>)
                  To get a more detailed stack trace and pinpoint the issue, try one of the following:
@@ -2277,13 +1987,13 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
                      at useParams (webpack:///<next-src>)
                      at UseParams (webpack:///app/client-hook-abort-reasons/client.tsx:17:12)
                      at Page (webpack:///app/client-hook-abort-reasons/sync-io/use-params/[id]/page.tsx:7:7)
-                   644 |           // hang here and never resolve. This will cause the currently
-                   645 |           // rendering component to effectively be a dynamic hole.
-                 > 646 |           React.use(
+                   548 |           // hang here and never resolve. This will cause the currently
+                   549 |           // rendering component to effectively be a dynamic hole.
+                 > 550 |           React.use(
                        |                 ^
-                   647 |             makeClientHookHangingPromise(
-                   648 |               workUnitStore.renderSignal,
-                   649 |               new ParamClientHookDynamicError(workStore.route, expression) {
+                   551 |             makeClientHookHangingPromise(
+                   552 |               workUnitStore.renderSignal,
+                   553 |               new ParamClientHookDynamicError(workStore.route, expression) {
                    digest: 'CLIENT_HOOK_DYNAMIC'
                  }
                  To debug the issue, start the app in development mode by running \`next dev\`, then open "/client-hook-abort-reasons/sync-io/use-params/[id]" in your browser to investigate the error.
@@ -2331,6 +2041,7 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
                      at j (<next-dist-dir>)
                      at k (<next-dist-dir>)
                      at l (<next-dist-dir>)
+                     ... collapsed 30 duplicate lines matching above 10 lines 3 times...
                      at m (<next-dist-dir>)
                      at n (<next-dist-dir>)
                      at o (<next-dist-dir>)
@@ -2342,36 +2053,6 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
                      at u (<next-dist-dir>)
                      at v (<next-dist-dir>)
                      at w (<next-dist-dir>)
-                     at x (<next-dist-dir>)
-                     at y (<next-dist-dir>)
-                     at z (<next-dist-dir>)
-                     at a (<next-dist-dir>)
-                     at b (<next-dist-dir>)
-                     at c (<next-dist-dir>)
-                     at d (<next-dist-dir>)
-                     at e (<next-dist-dir>)
-                     at f (<next-dist-dir>)
-                     at g (<next-dist-dir>)
-                     at h (<next-dist-dir>)
-                     at i (<next-dist-dir>)
-                     at j (<next-dist-dir>)
-                     at k (<next-dist-dir>)
-                     at l (<next-dist-dir>)
-                     at m (<next-dist-dir>)
-                     at n (<next-dist-dir>)
-                     at o (<next-dist-dir>)
-                     at p (<next-dist-dir>)
-                     at q (<next-dist-dir>)
-                     at r (<next-dist-dir>)
-                     at s (<next-dist-dir>)
-                     at t (<next-dist-dir>)
-                     at u (<next-dist-dir>)
-                     at v (<next-dist-dir>)
-                     at w (<next-dist-dir>)
-                     at x (<next-dist-dir>)
-                     at y (<next-dist-dir>)
-                     at z (<next-dist-dir>)
-                     at a (<next-dist-dir>)
                      at body (<anonymous>)
                      at html (<anonymous>) {
                    digest: 'CLIENT_HOOK_DYNAMIC'
@@ -2592,6 +2273,7 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
                      at i (<next-dist-dir>)
                      at j (<next-dist-dir>)
                      at k (<next-dist-dir>)
+                     ... collapsed 30 duplicate lines matching above 10 lines 3 times...
                      at l (<next-dist-dir>)
                      at m (<next-dist-dir>)
                      at n (<next-dist-dir>)
@@ -2603,36 +2285,6 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
                      at t (<next-dist-dir>)
                      at u (<next-dist-dir>)
                      at v (<next-dist-dir>)
-                     at w (<next-dist-dir>)
-                     at x (<next-dist-dir>)
-                     at y (<next-dist-dir>)
-                     at z (<next-dist-dir>)
-                     at a (<next-dist-dir>)
-                     at b (<next-dist-dir>)
-                     at c (<next-dist-dir>)
-                     at d (<next-dist-dir>)
-                     at e (<next-dist-dir>)
-                     at f (<next-dist-dir>)
-                     at g (<next-dist-dir>)
-                     at h (<next-dist-dir>)
-                     at i (<next-dist-dir>)
-                     at j (<next-dist-dir>)
-                     at k (<next-dist-dir>)
-                     at l (<next-dist-dir>)
-                     at m (<next-dist-dir>)
-                     at n (<next-dist-dir>)
-                     at o (<next-dist-dir>)
-                     at p (<next-dist-dir>)
-                     at q (<next-dist-dir>)
-                     at r (<next-dist-dir>)
-                     at s (<next-dist-dir>)
-                     at t (<next-dist-dir>)
-                     at u (<next-dist-dir>)
-                     at v (<next-dist-dir>)
-                     at w (<next-dist-dir>)
-                     at x (<next-dist-dir>)
-                     at y (<next-dist-dir>)
-                     at z (<next-dist-dir>)
                      at body (<anonymous>)
                      at html (<anonymous>)
                  To get a more detailed stack trace and pinpoint the issue, try one of the following:
@@ -2805,13 +2457,13 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
                      at useSelectedLayoutSegment (webpack:///<next-src>)
                      at UseSelectedLayoutSegment (webpack:///app/client-hook-abort-reasons/client.tsx:32:27)
                      at Page (webpack:///app/client-hook-abort-reasons/sync-io/use-selected-layout-segment/[id]/page.tsx:8:7)
-                   644 |           // hang here and never resolve. This will cause the currently
-                   645 |           // rendering component to effectively be a dynamic hole.
-                 > 646 |           React.use(
+                   548 |           // hang here and never resolve. This will cause the currently
+                   549 |           // rendering component to effectively be a dynamic hole.
+                 > 550 |           React.use(
                        |                 ^
-                   647 |             makeClientHookHangingPromise(
-                   648 |               workUnitStore.renderSignal,
-                   649 |               new ParamClientHookDynamicError(workStore.route, expression) {
+                   551 |             makeClientHookHangingPromise(
+                   552 |               workUnitStore.renderSignal,
+                   553 |               new ParamClientHookDynamicError(workStore.route, expression) {
                    digest: 'CLIENT_HOOK_DYNAMIC'
                  }
                  To debug the issue, start the app in development mode by running \`next dev\`, then open "/client-hook-abort-reasons/sync-io/use-selected-layout-segment/[id]" in your browser to investigate the error.
@@ -2857,6 +2509,7 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
                      at j (<next-dist-dir>)
                      at k (<next-dist-dir>)
                      at l (<next-dist-dir>)
+                     ... collapsed 30 duplicate lines matching above 10 lines 3 times...
                      at m (<next-dist-dir>)
                      at n (<next-dist-dir>)
                      at o (<next-dist-dir>)
@@ -2868,36 +2521,6 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
                      at u (<next-dist-dir>)
                      at v (<next-dist-dir>)
                      at w (<next-dist-dir>)
-                     at x (<next-dist-dir>)
-                     at y (<next-dist-dir>)
-                     at z (<next-dist-dir>)
-                     at a (<next-dist-dir>)
-                     at b (<next-dist-dir>)
-                     at c (<next-dist-dir>)
-                     at d (<next-dist-dir>)
-                     at e (<next-dist-dir>)
-                     at f (<next-dist-dir>)
-                     at g (<next-dist-dir>)
-                     at h (<next-dist-dir>)
-                     at i (<next-dist-dir>)
-                     at j (<next-dist-dir>)
-                     at k (<next-dist-dir>)
-                     at l (<next-dist-dir>)
-                     at m (<next-dist-dir>)
-                     at n (<next-dist-dir>)
-                     at o (<next-dist-dir>)
-                     at p (<next-dist-dir>)
-                     at q (<next-dist-dir>)
-                     at r (<next-dist-dir>)
-                     at s (<next-dist-dir>)
-                     at t (<next-dist-dir>)
-                     at u (<next-dist-dir>)
-                     at v (<next-dist-dir>)
-                     at w (<next-dist-dir>)
-                     at x (<next-dist-dir>)
-                     at y (<next-dist-dir>)
-                     at z (<next-dist-dir>)
-                     at a (<next-dist-dir>)
                      at body (<anonymous>)
                      at html (<anonymous>) {
                    digest: 'CLIENT_HOOK_DYNAMIC'
@@ -2918,28 +2541,6 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
                      https://nextjs.org/docs/messages/blocking-prerender-runtime#for-known-params-prerender
                    - [block] Set \`export const instant = false\` to silence this warning and allow a blocking route
                      https://nextjs.org/docs/messages/blocking-prerender-dynamic#allow-blocking-route
-                     at b (<next-dist-dir>)
-                     at c (<next-dist-dir>)
-                     at d (<next-dist-dir>)
-                     at e (<next-dist-dir>)
-                     at f (<next-dist-dir>)
-                     at g (<next-dist-dir>)
-                     at h (<next-dist-dir>)
-                     at i (<next-dist-dir>)
-                     at j (<next-dist-dir>)
-                     at k (<next-dist-dir>)
-                     at l (<next-dist-dir>)
-                     at m (<next-dist-dir>)
-                     at n (<next-dist-dir>)
-                     at o (<next-dist-dir>)
-                     at p (<next-dist-dir>)
-                     at q (<next-dist-dir>)
-                     at r (<next-dist-dir>)
-                     at s (<next-dist-dir>)
-                     at t (<next-dist-dir>)
-                     at u (<next-dist-dir>)
-                     at v (<next-dist-dir>)
-                     at w (<next-dist-dir>)
                      at x (<next-dist-dir>)
                      at y (<next-dist-dir>)
                      at z (<next-dist-dir>)
@@ -2950,6 +2551,7 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
                      at e (<next-dist-dir>)
                      at f (<next-dist-dir>)
                      at g (<next-dist-dir>)
+                     ... collapsed 30 duplicate lines matching above 10 lines 3 times...
                      at h (<next-dist-dir>)
                      at i (<next-dist-dir>)
                      at j (<next-dist-dir>)
@@ -2961,14 +2563,6 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
                      at p (<next-dist-dir>)
                      at q (<next-dist-dir>)
                      at r (<next-dist-dir>)
-                     at s (<next-dist-dir>)
-                     at t (<next-dist-dir>)
-                     at u (<next-dist-dir>)
-                     at v (<next-dist-dir>)
-                     at w (<next-dist-dir>)
-                     at x (<next-dist-dir>)
-                     at y (<next-dist-dir>)
-                     at z (<next-dist-dir>)
                      at body (<anonymous>)
                      at html (<anonymous>)
                  To get a more detailed stack trace and pinpoint the issue, try one of the following:
