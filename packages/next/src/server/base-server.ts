@@ -518,8 +518,7 @@ export default abstract class Server<
     this.enabledDirectories = this.getEnabledDirectories(dev)
 
     this.isAppPPREnabled =
-      this.enabledDirectories.app &&
-      checkIsAppPPREnabled(this.nextConfig.experimental.ppr)
+      this.enabledDirectories.app && checkIsAppPPREnabled(this.nextConfig)
 
     this.normalizers = {
       // We should normalize the pathname from the RSC prefix only in minimal

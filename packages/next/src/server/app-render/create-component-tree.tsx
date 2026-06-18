@@ -285,8 +285,8 @@ async function createComponentTreeInternal(
     } else if (dynamic === 'force-dynamic') {
       workStore.forceDynamic = true
 
-      // TODO: (PPR) remove this bailout once PPR is the default
-      if (workStore.isStaticGeneration && !experimental.isRoutePPREnabled) {
+      // TODO: Is this even reachable? force-dynamic should be disallowed with Cache Components
+      if (workStore.isStaticGeneration && !cacheComponents) {
         // If the postpone API isn't available, we can't postpone the render and
         // therefore we can't use the dynamic API.
         const err = new DynamicServerError(
@@ -347,7 +347,7 @@ async function createComponentTreeInternal(
       defaultRevalidate === 0 &&
       // If the postpone API isn't available, we can't postpone the render and
       // therefore we can't use the dynamic API.
-      !experimental.isRoutePPREnabled
+      !cacheComponents
     ) {
       const dynamicUsageDescription = `revalidate: 0 configured ${segment}`
       workStore.dynamicUsageDescription = dynamicUsageDescription
@@ -414,7 +414,7 @@ async function createComponentTreeInternal(
   // For dynamic requests, this must always be `false` because dynamic responses
   // are never partial.
   const isPossiblyPartialResponse =
-    isStaticGeneration && experimental.isRoutePPREnabled === true
+    isStaticGeneration && cacheComponents === true
 
   const LayoutOrPage: ComponentType<any> | undefined = layoutOrPageMod
     ? interopDefault(layoutOrPageMod)
@@ -576,7 +576,7 @@ async function createComponentTreeInternal(
           // possible during both prefetches and dynamic navigations. But during
           // the beta period, we should be clear about this trade off in our
           // communications.
-          !experimental.isRoutePPREnabled
+          !cacheComponents
         ) {
           // Don't prefetch this child. This will trigger a lazy fetch by the
           // client router.
@@ -785,7 +785,7 @@ async function createComponentTreeInternal(
   if (
     workStore.isStaticGeneration &&
     workStore.forceDynamic &&
-    experimental.isRoutePPREnabled
+    cacheComponents
   ) {
     return createSeedData(
       ctx,

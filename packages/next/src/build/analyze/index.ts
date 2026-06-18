@@ -167,7 +167,7 @@ async function collectRoutesForAnalyze(
     config.basePath ? `${config.basePath}${pathPrefix}` : pathPrefix
   )
 
-  const isAppPPREnabled = checkIsAppPPREnabled(config.experimental.ppr)
+  const isAppPPREnabled = checkIsAppPPREnabled(config)
 
   // Generate routes manifest
   const { routesManifest } = generateRoutesManifest({

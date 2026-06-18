@@ -121,7 +121,7 @@ export function getDefineEnv({
   const nextPublicEnv = getNextPublicEnvironmentVariables()
   const nextConfigEnv = getNextConfigEnv(config)
 
-  const isPPREnabled = checkIsAppPPREnabled(config.experimental.ppr)
+  const isPPREnabled = checkIsAppPPREnabled(config)
   const isCacheComponentsEnabled = !!config.cacheComponents
   const isUseCacheEnabled = !!config.experimental.useCache
 
