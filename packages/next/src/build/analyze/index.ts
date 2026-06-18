@@ -166,9 +166,6 @@ async function collectRoutesForAnalyze(
     config.basePath ? `${config.basePath}${pathPrefix}` : pathPrefix
   )
 
-  // TODO: vroom
-  const isAppPPREnabled = Boolean(config.cacheComponents)
-
   // Generate routes manifest
   const { routesManifest } = generateRoutesManifest({
     appType,
@@ -179,7 +176,6 @@ async function collectRoutesForAnalyze(
     onMatchHeaders,
     rewrites,
     restrictedRedirectPaths,
-    isAppPPREnabled,
   })
 
   return routesManifest.dynamicRoutes

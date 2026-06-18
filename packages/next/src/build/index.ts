@@ -1520,8 +1520,6 @@ export default async function build(
       const isAuthInterruptsEnabled = Boolean(
         config.experimental.authInterrupts
       )
-      // TODO: vroom
-      const isAppPPREnabled = Boolean(config.cacheComponents)
 
       const routesManifestPath = path.join(distDir, ROUTES_MANIFEST)
 
@@ -1538,7 +1536,6 @@ export default async function build(
             onMatchHeaders,
             rewrites,
             restrictedRedirectPaths,
-            isAppPPREnabled,
             deploymentId: config.deploymentId,
           })
         )
@@ -3305,7 +3302,7 @@ export default async function build(
                 prerenderManifest.routes[route.pathname] = {
                   initialStatus: status,
                   initialHeaders: meta.headers,
-                  renderingMode: isAppPPREnabled
+                  renderingMode: isAppCacheComponentsEnabled
                     ? isRoutePPREnabled
                       ? RenderingMode.PARTIALLY_STATIC
                       : RenderingMode.STATIC
@@ -3403,7 +3400,7 @@ export default async function build(
                 let dynamicRoute = routesManifest.dynamicRoutes.find(
                   (r) => r.page === route.pathname
                 )
-                if (!isAppRouteHandler && isAppPPREnabled) {
+                if (!isAppRouteHandler && isAppCacheComponentsEnabled) {
                   // If the dynamic route wasn't found, then we need to create
                   // it. This ensures that for each fallback shell there's an
                   // entry in the app routes manifest which enables routing for
@@ -3538,7 +3535,7 @@ export default async function build(
                   experimentalPPR: isRoutePPREnabled,
                   remainingPrerenderableParams:
                     route.remainingPrerenderableParams,
-                  renderingMode: isAppPPREnabled
+                  renderingMode: isAppCacheComponentsEnabled
                     ? isRoutePPREnabled
                       ? RenderingMode.PARTIALLY_STATIC
                       : RenderingMode.STATIC

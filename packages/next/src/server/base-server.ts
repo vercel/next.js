@@ -516,7 +516,6 @@ export default abstract class Server<
 
     this.enabledDirectories = this.getEnabledDirectories(dev)
 
-    // TODO: vroom
     this.isAppPPREnabled =
       this.enabledDirectories.app && Boolean(this.nextConfig.cacheComponents)
 
