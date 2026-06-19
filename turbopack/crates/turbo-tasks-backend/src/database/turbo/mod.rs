@@ -8,7 +8,8 @@ use std::{
 use anyhow::{Ok, Result};
 use smallvec::SmallVec;
 use turbo_persistence::{
-    ArcBytes, CompactConfig, DbConfig, KeyBase, StoreKey, TurboPersistence, ValueBuffer,
+    ArcBytes, CommitStats, CompactConfig, DbConfig, KeyBase, StoreKey, TurboPersistence,
+    ValueBuffer,
 };
 use turbo_tasks::{
     message_queue::{TimingEvent, TraceEvent},
@@ -216,9 +217,8 @@ impl<'a> TurboWriteBatch<'a> {
         self.db.get(key_space as usize, &key)
     }
 
-    pub fn commit(self) -> Result<()> {
-        self.db.commit_write_batch(self.batch)?;
-        Ok(())
+    pub fn commit(self) -> Result<CommitStats> {
+        self.db.commit_write_batch(self.batch)
     }
 
     pub fn put(

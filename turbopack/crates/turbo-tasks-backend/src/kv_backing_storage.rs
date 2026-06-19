@@ -236,7 +236,7 @@ impl TurboBackingStorage {
 
         {
             let _span = tracing::trace_span!("update task data").entered();
-            let snapshot_meta =
+            let mut snapshot_meta =
                 parallel::map_collect_owned::<_, _, Result<Vec<_>>>(snapshots, |shard: I| {
                     let mut max_new_task_id = 0;
                     let mut data_items = 0;
@@ -282,6 +282,9 @@ impl TurboBackingStorage {
                         data_items,
                         meta_items,
                         task_cache_items,
+                        // we don't know yet
+                        bytes_written: 0,
+                        bytes_deleted: 0,
                         max_next_task_id: max_new_task_id,
                     })
                 })?
@@ -306,7 +309,11 @@ impl TurboBackingStorage {
             save_infra(&batch, next_task_id, operations)?;
             {
                 let _span = tracing::trace_span!("commit").entered();
-                batch.commit().context("Unable to commit operations")?;
+                // Byte totals are the physical on-disk bytes (post-compression, including .sst /
+                // .blob / .meta files) produced and removed by the commit.
+                let stats = batch.commit().context("Unable to commit operations")?;
+                snapshot_meta.bytes_written = stats.bytes_written as usize;
+                snapshot_meta.bytes_deleted = stats.bytes_deleted as usize;
             }
             Ok(snapshot_meta)
         }

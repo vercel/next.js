@@ -68,7 +68,7 @@ use crate::{
         storage::Storage,
         storage_schema::{TaskStorage, TaskStorageAccessors},
     },
-    backing_storage::{SnapshotItem, SnapshotMeta, compute_task_type_hash},
+    backing_storage::{SnapshotItem, compute_task_type_hash},
     data::{
         ActivenessState, CellRef, CollectibleRef, CollectiblesRef, Dirtyness, InProgressCellState,
         InProgressState, InProgressStateInner, OutputValue, TransientTask,
@@ -1256,27 +1256,17 @@ impl TurboTasksBackend {
             parent: parent_span,
             "persist",
             reason = reason.as_str(),
-            data_items= tracing::field::Empty,
-            meta_items= tracing::field::Empty,
-            task_cache_items= tracing::field::Empty,
-            next_task_id= tracing::field::Empty,)
+            snapshot_meta = tracing::field::Empty,
+        )
         .entered();
         {
             // Tasks were already consumed by take_snapshot, so a future snapshot
             // would not re-persist them — returning an error signals to the caller
             // that further persist attempts would corrupt the task graph in storage.
-            let SnapshotMeta {
-                task_cache_items,
-                data_items,
-                meta_items,
-                max_next_task_id,
-            } = self
+            let snapshot_meta = self
                 .backing_storage
                 .save_snapshot(suspended_operations, task_snapshots)?;
-            span.record("data_items", data_items);
-            span.record("meta_items", meta_items);
-            span.record("task_cache_items", task_cache_items);
-            span.record("next_task_id", max_next_task_id);
+            span.record("snapshot_meta", tracing::field::display(snapshot_meta));
 
             #[cfg(feature = "print_cache_item_size")]
             {
