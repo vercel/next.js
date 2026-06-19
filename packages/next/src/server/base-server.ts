@@ -84,8 +84,8 @@ import {
 import { removePathPrefix } from '../shared/lib/router/utils/remove-path-prefix'
 import {
   compareAppPaths,
-  getAppPageRouteDefinitionPage,
   normalizeAppPath,
+  selectAppPageEntry,
 } from '../shared/lib/router/utils/app-paths'
 import { getHostname } from '../shared/lib/get-hostname'
 import {
@@ -1719,7 +1719,7 @@ export default abstract class Server<
     const appPaths = this.appPathRoutes?.[pathname]
     if (!appPaths) return
 
-    const page = getAppPageRouteDefinitionPage(pathname, appPaths)
+    const page = selectAppPageEntry(pathname, appPaths)
     if (!isAppPageRoute(page)) return
 
     const filename = this.appPathsManifest?.[page]
@@ -2885,14 +2885,10 @@ export default abstract class Server<
 
     let page = pathname
     if (isAppPath) {
-      // In dev, the route definition identifies the entry compiled for this
-      // request, which can be a parallel slot backed by a children catch-all.
-      // Production must load a direct manifest entry because expanded slot
-      // entries are not necessarily traced into the deployed function.
-      page =
-        this.dev && match && isAppPageRouteDefinition(match.definition)
-          ? match.definition.page
-          : appPaths[appPaths.length - 1]
+      // Load the same direct entry selected by the build and deployment
+      // adapter. Expanded catch-all contributors are part of the route tree,
+      // but their modules are not necessarily traced into this function.
+      page = selectAppPageEntry(pathname, appPaths)
     } else if (match?.definition.kind === RouteKind.APP_ROUTE) {
       page = match.definition.page
     }

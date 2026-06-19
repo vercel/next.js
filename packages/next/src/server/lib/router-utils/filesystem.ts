@@ -63,7 +63,7 @@ import { RouteKind } from '../../route-kind'
 import { isAppPageRouteDefinition } from '../../route-definitions/app-page-route-definition'
 import {
   compareAppPaths,
-  getAppPageRouteDefinitionPage,
+  selectAppPageEntry,
 } from '../../../shared/lib/router/utils/app-paths'
 import { normalizeCatchAllRoutes } from './normalize-catchall-routes'
 
@@ -453,10 +453,8 @@ export async function setupFsCheck(opts: {
     normalizeCatchAllRoutes(allAppPaths, appNormalizers.pathname)
     for (const [pathname, appPaths] of Object.entries(allAppPaths)) {
       appPaths.sort(compareAppPaths)
-      const page = getAppPageRouteDefinitionPage(
-        pathname,
-        appPaths,
-        (appPath) => appNormalizers.pathname.normalize(appPath)
+      const page = selectAppPageEntry(pathname, appPaths, (appPath) =>
+        appNormalizers.pathname.normalize(appPath)
       )
       setRouteDefinition('appFile', pathname, {
         kind: RouteKind.APP_PAGE,

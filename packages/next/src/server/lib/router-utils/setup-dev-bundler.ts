@@ -110,6 +110,7 @@ import {
 import {
   normalizeAppPath,
   compareAppPaths,
+  selectAppPageEntry,
 } from '../../../shared/lib/router/utils/app-paths'
 import { ensureLeadingSlash } from '../../../shared/lib/page-path/ensure-leading-slash'
 import { Lockfile, type DevServerInfo } from '../../../build/lockfile'
@@ -163,23 +164,6 @@ export type ServerFields = {
   >[]
   setIsrStatus?: (key: string, value: boolean | undefined) => void
   resetFetch?: () => void
-}
-
-function getDevAppPathDefinitionPage(
-  pathname: string,
-  appPaths: readonly string[]
-): string {
-  // Dev has a source module for every app path, so select the children/root
-  // module that directly normalizes to the route. Production definitions use
-  // the first app path instead because it owns the packaged route function.
-  for (let i = appPaths.length - 1; i >= 0; i--) {
-    const appPath = appPaths[i]
-    if (normalizeAppPath(appPath) === pathname) {
-      return appPath
-    }
-  }
-
-  return appPaths[appPaths.length - 1]
 }
 
 async function verifyTypeScript(opts: SetupOpts) {
@@ -1098,7 +1082,7 @@ async function startWatcher(
 
       const appRouteDefinitions = [
         ...Object.entries(appPaths).map(([route, routeAppPaths]) => {
-          const page = getDevAppPathDefinitionPage(route, routeAppPaths)
+          const page = selectAppPageEntry(route, routeAppPaths)
           const filePath = appRouteFilePaths.get(page)!
           return {
             kind: RouteKind.APP_PAGE,

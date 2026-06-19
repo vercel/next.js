@@ -53,9 +53,8 @@ export function normalizeAppPath(route: string) {
 
 /**
  * Comparator for sorting app paths so that parallel slot paths (containing
- * `/@`) come before the children/root page path. The first item owns the
- * compiled route entry, while the last item remains the children page used
- * when rendering without a route definition.
+ * `/@`) come before the children/root page path. This keeps the direct
+ * children/root page last so it can be selected as the canonical entry.
  *
  * Without this, route group prefixes like `(group)` (char code 0x28) sort
  * before `@` (0x40), causing the children page to sort first instead of last
@@ -70,23 +69,31 @@ export function compareAppPaths(a: string, b: string): number {
 }
 
 /**
- * Returns the app path that owns the compiled entry for a normalized route.
- * Catch-all normalization can add app paths from other routes, so prefer the
- * first path that directly normalizes to the requested pathname. When none do,
- * fall back to the children/root path at the end of the array.
+ * Selects the app path that owns the compiled entry for a normalized route.
+ * Catch-all normalization can add app paths from other routes, so only direct
+ * paths are candidates. Among those, compareAppPaths deterministically prefers
+ * the children/root page, or a stable slot when the route only has slots.
  */
-export function getAppPageRouteDefinitionPage(
+export function selectAppPageEntry(
   pathname: string,
   appPaths: readonly string[],
   normalizePathname: (appPath: string) => string = normalizeAppPath
 ): string {
+  let entry: string | undefined
+
   for (const appPath of appPaths) {
-    if (normalizePathname(appPath) === pathname) {
-      return appPath
+    if (normalizePathname(appPath) !== pathname) continue
+
+    if (entry === undefined || compareAppPaths(entry, appPath) < 0) {
+      entry = appPath
     }
   }
 
-  return appPaths[appPaths.length - 1]
+  if (entry === undefined) {
+    throw new Error(`Invariant: no direct app page entry found for ${pathname}`)
+  }
+
+  return entry
 }
 
 /**

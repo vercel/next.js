@@ -1,36 +1,51 @@
 import {
   compareAppPaths,
-  getAppPageRouteDefinitionPage,
   normalizeRscURL,
+  selectAppPageEntry,
 } from './app-paths'
 
-describe('getAppPageRouteDefinitionPage', () => {
-  it('prefers an app path that directly normalizes to the route', () => {
+describe('selectAppPageEntry', () => {
+  it('prefers the direct children page over an expanded catch-all slot', () => {
     const appPaths = ['/@slot/[...catchAll]/page', '/foo/page'].sort(
       compareAppPaths
     )
 
-    expect(getAppPageRouteDefinitionPage('/foo', appPaths)).toBe('/foo/page')
+    expect(selectAppPageEntry('/foo', appPaths)).toBe('/foo/page')
   })
 
-  it('uses the first exact app path as the route entry owner', () => {
+  it('prefers the direct children page over a direct parallel slot', () => {
     const appPaths = ['/[...catchAll]/page', '/@slot/[...catchAll]/page'].sort(
       compareAppPaths
     )
 
-    expect(getAppPageRouteDefinitionPage('/[...catchAll]', appPaths)).toBe(
-      '/@slot/[...catchAll]/page'
-    )
-  })
-
-  it('falls back to the children page', () => {
-    const appPaths = ['/[...catchAll]/page', '/@slot/[...catchAll]/page'].sort(
-      compareAppPaths
-    )
-
-    expect(getAppPageRouteDefinitionPage('/unrelated', appPaths)).toBe(
+    expect(selectAppPageEntry('/[...catchAll]', appPaths)).toBe(
       '/[...catchAll]/page'
     )
+  })
+
+  it('deterministically selects an entry for a slot-only route', () => {
+    const appPaths = ['/@alpha/foo/page', '/@beta/foo/page']
+
+    expect(selectAppPageEntry('/foo', appPaths)).toBe('/@beta/foo/page')
+    expect(selectAppPageEntry('/foo', [...appPaths].reverse())).toBe(
+      '/@beta/foo/page'
+    )
+  })
+
+  it('rejects a route with no direct app path', () => {
+    const appPaths = ['/[...catchAll]/page', '/@slot/[...catchAll]/page']
+
+    expect(() => selectAppPageEntry('/unrelated', appPaths)).toThrow(
+      'Invariant: no direct app page entry found for /unrelated'
+    )
+  })
+})
+
+describe('compareAppPaths', () => {
+  it('sorts parallel slots before the children page', () => {
+    expect(
+      ['/[...catchAll]/page', '/@slot/[...catchAll]/page'].sort(compareAppPaths)
+    ).toEqual(['/@slot/[...catchAll]/page', '/[...catchAll]/page'])
   })
 })
 

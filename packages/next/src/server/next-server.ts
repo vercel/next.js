@@ -71,6 +71,7 @@ import BaseServer from './base-server'
 import { getMaybePagePath, getPagePath } from './require'
 import { denormalizePagePath } from '../shared/lib/page-path/denormalize-page-path'
 import { normalizePagePath } from '../shared/lib/page-path/normalize-page-path'
+import { selectAppPageEntry } from '../shared/lib/router/utils/app-paths'
 import { loadComponents } from './load-components'
 import type { LoadComponentsReturnType } from './load-components'
 import isError, { getProperError } from '../lib/is-error'
@@ -806,7 +807,7 @@ export default class NextNodeServer extends BaseServer<
       let page = ctx.pathname
       if (isAppPath) {
         // When it's an array, we need to pass all parallel routes to the loader.
-        page = appPaths[0]
+        page = selectAppPageEntry(ctx.pathname, appPaths)
       }
 
       for (const edgeFunctionsPage of edgeFunctionsPages) {
