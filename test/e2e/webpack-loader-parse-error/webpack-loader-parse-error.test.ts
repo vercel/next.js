@@ -177,7 +177,7 @@ describe('webpack-loader-parse-error (development)', () => {
 
        Unexpected token CurlyBracketBlock
 
-       Generated code of PostCSS transform of loaders [broken-css-loader.js] transform of file content of app/css-page/styles.broken.css:
+       Generated code of loaders [broken-css-loader.js] transform of file content of app/css-page/styles.broken.css:
        ./app/css-page/styles.broken.css:5:15
          3 |   color: red
          4 |   @@@ THIS IS NOT VALID CSS @@@;
@@ -260,7 +260,7 @@ describe('webpack-loader-parse-error (production)', () => {
 
        Unexpected token CurlyBracketBlock
 
-       Generated code of PostCSS transform of loaders [broken-css-loader.js] transform of file content of app/css-page/styles.broken.css:
+       Generated code of loaders [broken-css-loader.js] transform of file content of app/css-page/styles.broken.css:
        ./app/css-page/styles.broken.css:5:15
          3 |   color: red
          4 |   @@@ THIS IS NOT VALID CSS @@@;

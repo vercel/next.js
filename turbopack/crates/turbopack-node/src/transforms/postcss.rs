@@ -176,6 +176,15 @@ impl Source for PostCssTransformedAsset {
 
     #[turbo_tasks::function]
     async fn description(&self) -> Result<Vc<RcStr>> {
+        let ExecutionContext { project_path, .. } = &*self.execution_context.await?;
+        // Keep the diagnostic label aligned with `process`, which returns the
+        // original source when no PostCSS config applies.
+        if find_config_in_location(project_path.clone(), self.config_location, *self.source)
+            .await?
+            .is_none()
+        {
+            return Ok(self.source.description());
+        }
         let inner = self.source.description().await?;
         Ok(Vc::cell(format!("PostCSS transform of {}", inner).into()))
     }
