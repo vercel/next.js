@@ -447,7 +447,7 @@ describe('Error recovery app', () => {
          |         ^",
        "stack": [
          "Child child.js (3:9)",
-         "Page app/server/page.js (4:1)",
+         "Page app/server/page.js (3:10)",
        ],
      }
     `,
