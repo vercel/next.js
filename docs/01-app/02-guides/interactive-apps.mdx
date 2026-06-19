@@ -681,6 +681,20 @@ Every pattern so far smooths a single interaction. Across navigations, the same 
 
 This step uses [Cache Components](/docs/app/api-reference/config/next-config-js/cacheComponents), introduced in Next.js 16. Steps 1 through 7 work without it. If you aren't using Cache Components, see [Caching without Cache Components](/docs/app/guides/caching-without-cache-components).
 
+Enable it in `next.config.ts`:
+
+```ts filename="next.config.ts"
+import type { NextConfig } from 'next'
+
+const nextConfig: NextConfig = {
+  cacheComponents: true,
+}
+
+export default nextConfig
+```
+
+Enabling Cache Components applies prerender validation across every route, not just the ones in this step. A route that reads request data such as `cookies()`, `headers()`, or `searchParams` outside [`<Suspense>`](https://react.dev/reference/react/Suspense) now blocks prerendering and needs the Step 1 treatment. To turn it on in an existing app, see [Migrating to Cache Components](/docs/app/guides/migrating-to-cache-components).
+
 #### Cache reusable reads
 
 For each server read, ask whether the next viewer would see the same thing. Tasks and comments would, so mark each one with [`'use cache'`](/docs/app/api-reference/directives/use-cache) and tag it for invalidation:
