@@ -58,7 +58,7 @@ impl UpdateCellOperation {
         #[cfg(not(feature = "verify_determinism"))] _verification_mode: VerificationMode,
         mut ctx: impl ExecuteContext<'_>,
     ) {
-        let value_type = registry::get_value_type(cell.type_id);
+        let value_type = registry::get_value_type(cell.type_id());
         // `content_hash` is only ever supplied for `HashOnly` cells — only the
         // `"hash"`-mode write path emits a hash, and no other mode consumes
         // it. (It can still be `None` for `HashOnly` when the cell is being
@@ -97,7 +97,9 @@ impl UpdateCellOperation {
                     let cell_type = value_type.ty.global_name;
                     eprintln!(
                         "Task {} updated cell #{} (type: {}) while recomputing",
-                        task_description, cell.index, cell_type
+                        task_description,
+                        cell.index(),
+                        cell_type
                     );
                 }
                 return;
@@ -211,7 +213,7 @@ impl UpdateCellOperation {
                     dependent_tasks,
                     #[cfg(feature = "task_dirty_cause")]
                     has_updated_key_hashes,
-                    content: content.map(|r| r.into_typed(cell.type_id)),
+                    content: content.map(|r| r.into_typed(cell.type_id())),
                     queue: AggregationUpdateQueue::new(),
                 }
                 .execute(&mut ctx);
@@ -252,7 +254,7 @@ impl UpdateCellOperation {
             UpdateCellOperation::InvalidateWhenCellDependency { cell_ref, .. }
             | UpdateCellOperation::FinalCellChange { cell_ref, .. } => {
                 matches!(
-                    registry::get_value_type(cell_ref.cell.type_id).persistence,
+                    registry::get_value_type(cell_ref.cell.type_id()).persistence,
                     ValueTypePersistence::Persistable(_, _),
                 )
             }
@@ -330,7 +332,7 @@ impl Operation for UpdateCellOperation {
                             make_stale,
                             #[cfg(feature = "task_dirty_cause")]
                             TaskDirtyCause::CellChange {
-                                value_type: cell_ref.cell.type_id,
+                                value_type: cell_ref.cell.type_id(),
                                 keys: has_updated_key_hashes.then_some(keys).unwrap_or_default(),
                             },
                             queue,

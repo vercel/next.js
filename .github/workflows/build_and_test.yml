@@ -171,12 +171,10 @@ jobs:
       # Match the reusable workflow's pnpm-store cache path so this setup-only
       # job does not bottleneck the larger test matrix.
       - name: Get pnpm store directory
-        if: ${{ runner.environment == 'github-hosted' }}
         id: get-store-path
         run: echo STORE_PATH="$(pnpm store path)" >> "$GITHUB_OUTPUT"
 
       - name: Cache pnpm store
-        if: ${{ runner.environment == 'github-hosted' }}
         uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
         timeout-minutes: 5
         id: cache-pnpm-store
@@ -457,6 +455,7 @@ jobs:
         react: ['', '18.3.1']
     uses: ./.github/workflows/build_reusable.yml
     with:
+      nodeVersion: 20.19.x
       afterBuild: |
         export NEXT_EXTERNAL_TESTS_FILTERS="$(pwd)/test/rspack-dev-tests-manifest.json"
         export NEXT_TEST_MODE=dev
@@ -502,7 +501,7 @@ jobs:
         react: ['', '18.3.1']
     uses: ./.github/workflows/build_reusable.yml
     with:
-      nodeVersion: 20.9.0
+      nodeVersion: 20.19.x
       afterBuild: |
         export NEXT_EXTERNAL_TESTS_FILTERS="$(pwd)/test/rspack-build-tests-manifest.json"
         export NEXT_TEST_MODE=start

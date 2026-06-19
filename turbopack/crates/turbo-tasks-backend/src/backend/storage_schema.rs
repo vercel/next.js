@@ -1278,10 +1278,7 @@ mod tests {
             .insert(TaskId::new(200).unwrap());
         original.cell_dependencies_mut().insert(CellRef {
             task: TaskId::new(1).unwrap(),
-            cell: CellId {
-                type_id: unsafe { turbo_tasks::ValueTypeId::new_unchecked(1) },
-                index: 0,
-            },
+            cell: CellId::new(unsafe { turbo_tasks::ValueTypeId::new_unchecked(1) }, 0),
         });
 
         // Set lazy data transient field (should NOT be serialized)
@@ -1423,10 +1420,7 @@ mod tests {
         // Lazy filter_transient data field.
         storage.cell_dependencies_mut().insert(CellRef {
             task: persistent_task(10),
-            cell: CellId {
-                type_id: unsafe { turbo_tasks::ValueTypeId::new_unchecked(1) },
-                index: 0,
-            },
+            cell: CellId::new(unsafe { turbo_tasks::ValueTypeId::new_unchecked(1) }, 0),
         });
 
         // Mark as restored so the task is eligible for dropping.
@@ -1616,17 +1610,11 @@ mod tests {
         }
 
         fn keepable_cell(index: u32) -> CellId {
-            CellId {
-                type_id: Keepable::get_value_type_id(),
-                index,
-            }
+            CellId::new(Keepable::get_value_type_id(), index)
         }
 
         fn keep_me_cell(index: u32) -> CellId {
-            CellId {
-                type_id: KeepMe::get_value_type_id(),
-                index,
-            }
+            CellId::new(KeepMe::get_value_type_id(), index)
         }
 
         #[test]

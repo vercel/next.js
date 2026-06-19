@@ -187,7 +187,7 @@ where
             if let Some(config) = &opts.styled_components {
                 program.mutate(styled_components::styled_components(
                     Some(&file_path_str),
-                    file.src_hash,
+                    file.src_hash(),
                     config,
                     NoopComments,
                 ))
@@ -209,7 +209,7 @@ where
                     program.mutate(swc_emotion::emotion(
                         config,
                         path,
-                        file.src_hash as u32,
+                        file.src_hash() as u32,
                         cm.clone(),
                         comments.clone(),
                     ));
