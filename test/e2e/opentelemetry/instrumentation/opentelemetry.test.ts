@@ -521,6 +521,57 @@ describe.each(
             ])
           })
 
+          it('should record status code for failing handler', async () => {
+            await next.fetch('/api/app/param/error', env.fetchInit)
+
+            await expectTrace(getCollector(), [
+              {
+                name: 'GET /api/app/[param]/error',
+                attributes: {
+                  'http.method': 'GET',
+                  'http.route': '/api/app/[param]/error',
+                  'http.status_code': 500,
+                  'http.target': '/api/app/param/error',
+                  'next.route': '/api/app/[param]/error',
+                  'next.span_name': 'GET /api/app/[param]/error',
+                  'next.span_type': 'BaseServer.handleRequest',
+                },
+                kind: 1,
+                status: { code: 2 },
+                traceId: env.span.traceId,
+                parentId: env.span.rootParentId,
+                spans: [
+                  {
+                    name: 'executing api route (app) /api/app/[param]/error',
+                    attributes: {
+                      'next.route': '/api/app/[param]/error',
+                      'next.span_name':
+                        'executing api route (app) /api/app/[param]/error',
+                      'next.span_type': 'AppRouteRouteHandlers.runHandler',
+                    },
+                    kind: 0,
+                    status: { code: 2, message: 'foobar' },
+                  },
+                  ...(useDirectEntrypointHandler
+                    ? []
+                    : [
+                        {
+                          name: 'resolve page components',
+                          attributes: {
+                            'next.route': '/api/app/[param]/error',
+                            'next.span_name': 'resolve page components',
+                            'next.span_type':
+                              'NextNodeServer.findPageComponents',
+                          },
+                          kind: 0,
+                          status: { code: 0 },
+                        },
+                      ]),
+                ],
+              },
+            ])
+          })
+
           itEdge(
             'should handle route handlers in app router on edge',
             async () => {
