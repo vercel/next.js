@@ -1365,5 +1365,6 @@
   "1364": "\\`experimental.turbopackRustReactCompiler\\` requires \\`reactCompiler\\` to be enabled. Please add \\`reactCompiler: true\\` in %s.",
   "1365": "Expected a dev tiered cache handler for kind \"%s\".",
   "1366": "Turbopack build failed with %s %s:\\n%s",
-  "1367": "createServerParamsForRoute should not be called in runtime prerenders."
+  "1367": "createServerParamsForRoute should not be called in runtime prerenders.",
+  "1368": "An onClose call failed, which means after() can't work correctly."
 }
