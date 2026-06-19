@@ -319,13 +319,13 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
                      at useSearchParams (webpack:///<next-src>)
                      at UseSearchParams (webpack:///app/client-hook-abort-reasons/client.tsx:27:18)
                      at Page (webpack:///app/client-hook-abort-reasons/normal/use-search-params/[id]/page.tsx:8:7)
-                   708 |       return
-                   709 |     case 'prerender-client': {
-                 > 710 |       React.use(
+                   707 |       return
+                   708 |     case 'prerender-client': {
+                 > 709 |       React.use(
                        |             ^
-                   711 |         makeClientHookHangingPromise(
-                   712 |           workUnitStore.renderSignal,
-                   713 |           new ClientHookDynamicError(workStore.route, expression) {
+                   710 |         makeClientHookHangingPromise(
+                   711 |           workUnitStore.renderSignal,
+                   712 |           new ClientHookDynamicError(workStore.route, expression) {
                    digest: 'CLIENT_HOOK_DYNAMIC'
                  }
                  To debug the issue, start the app in development mode by running \`next dev\`, then open "/client-hook-abort-reasons/normal/use-search-params/[id]" in your browser to investigate the error.
