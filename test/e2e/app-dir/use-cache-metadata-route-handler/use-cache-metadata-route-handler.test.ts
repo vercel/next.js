@@ -29,6 +29,30 @@ describe('use-cache-metadata-route-handler', () => {
     }
   })
 
+  it('should statically prerender an image whose component uses "use cache" directly', async () => {
+    const res = await next.fetch('/apple-icon')
+    expect(res.status).toBe(200)
+    expect(res.headers.get('content-type')).toBe('image/png')
+
+    if (isNextStart) {
+      const [buildStatus] = next.cliOutput.match(/. \/apple-icon/)
+
+      expect(buildStatus).toBe('○ /apple-icon')
+    }
+  })
+
+  it('should treat a twitter image that reads request data as dynamic', async () => {
+    const res = await next.fetch('/twitter-image')
+    expect(res.status).toBe(200)
+    expect(res.headers.get('content-type')).toBe('image/png')
+
+    if (isNextStart) {
+      const [buildStatus] = next.cliOutput.match(/. \/twitter-image/)
+
+      expect(buildStatus).toBe('ƒ /twitter-image')
+    }
+  })
+
   it('should generate sitemaps with a metadata route handler that uses "use cache"', async () => {
     const res = await next.fetch('/sitemap.xml')
     expect(res.status).toBe(200)
