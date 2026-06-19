@@ -1,5 +1,8 @@
 {
   "name": "next-github-workflows",
   "private": true,
-  "packageManager": "pnpm@10.33.0"
+  "packageManager": "pnpm@10.33.0",
+  "dependencies": {
+    "axios": "1.8.2"
+  }
 }
