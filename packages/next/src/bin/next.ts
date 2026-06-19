@@ -514,6 +514,7 @@ program
       'If no directory is provided, the current directory will be used.'
     )}`
   )
+  .option('--webpack', 'Use webpack when validating next.config.js')
   .action((directory: string, options: NextTypegenOptions) =>
     // ensure process exits after typegen completes so open handles/connections
     // don't cause process to hang
