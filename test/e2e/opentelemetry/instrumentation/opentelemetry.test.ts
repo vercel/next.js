@@ -129,29 +129,6 @@ describe.each(
                     status: { code: 0 },
                     spans: [
                       {
-                        name: 'AppRender.renderToNodeFizzStream',
-                        attributes: {
-                          'next.span_type': 'AppRender.renderToNodeFizzStream',
-                        },
-                        kind: 0,
-                        spans: [
-                          {
-                            name: 'AppRender.waitShellReady',
-                            attributes: {
-                              'next.span_type': 'AppRender.waitShellReady',
-                            },
-                            kind: 0,
-                          },
-                        ],
-                      },
-                      {
-                        name: 'AppRender.waitShellReady',
-                        attributes: {
-                          'next.span_type': 'AppRender.waitShellReady',
-                        },
-                        kind: 0,
-                      },
-                      {
                         name: 'build component tree',
                         attributes: {
                           'next.span_name': 'build component tree',
@@ -646,36 +623,6 @@ describe.each(
                     status: { code: 2 },
                     spans: [
                       {
-                        name: 'AppRender.renderToNodeFizzStream',
-                        attributes: {
-                          'next.span_type': 'AppRender.renderToNodeFizzStream',
-                        },
-                        kind: 0,
-                        spans: [
-                          {
-                            name: 'AppRender.waitShellReady',
-                            attributes: {
-                              'next.span_type': 'AppRender.waitShellReady',
-                            },
-                            kind: 0,
-                          },
-                        ],
-                      },
-                      {
-                        name: 'AppRender.waitShellReady',
-                        attributes: {
-                          'next.span_type': 'AppRender.waitShellReady',
-                        },
-                        kind: 0,
-                      },
-                      {
-                        name: 'AppRender.waitShellReady',
-                        attributes: {
-                          'next.span_type': 'AppRender.waitShellReady',
-                        },
-                        kind: 0,
-                      },
-                      {
                         name: 'build component tree',
                         attributes: {
                           'next.span_name': 'build component tree',
@@ -814,29 +761,6 @@ describe.each(
                       message: 'Error inside Suspense boundary',
                     },
                     spans: [
-                      {
-                        name: 'AppRender.renderToNodeFizzStream',
-                        attributes: {
-                          'next.span_type': 'AppRender.renderToNodeFizzStream',
-                        },
-                        kind: 0,
-                        spans: [
-                          {
-                            name: 'AppRender.waitShellReady',
-                            attributes: {
-                              'next.span_type': 'AppRender.waitShellReady',
-                            },
-                            kind: 0,
-                          },
-                        ],
-                      },
-                      {
-                        name: 'AppRender.waitShellReady',
-                        attributes: {
-                          'next.span_type': 'AppRender.waitShellReady',
-                        },
-                        kind: 0,
-                      },
                       {
                         name: 'build component tree',
                         attributes: {
@@ -1500,12 +1424,6 @@ describe('opentelemetry with disabled fetch tracing', () => {
                   name: 'render route (app) /app/[param]/rsc-fetch',
                   spans: [
                     {
-                      name: 'AppRender.renderToNodeFizzStream',
-                    },
-                    {
-                      name: 'AppRender.waitShellReady',
-                    },
-                    {
                       name: 'build component tree',
                       spans: [
                         {
@@ -1613,29 +1531,6 @@ describe('opentelemetry with custom server', () => {
                 kind: 0,
                 status: { code: 0 },
                 spans: [
-                  {
-                    name: 'AppRender.renderToNodeFizzStream',
-                    attributes: {
-                      'next.span_type': 'AppRender.renderToNodeFizzStream',
-                    },
-                    kind: 0,
-                    spans: [
-                      {
-                        name: 'AppRender.waitShellReady',
-                        attributes: {
-                          'next.span_type': 'AppRender.waitShellReady',
-                        },
-                        kind: 0,
-                      },
-                    ],
-                  },
-                  {
-                    name: 'AppRender.waitShellReady',
-                    attributes: {
-                      'next.span_type': 'AppRender.waitShellReady',
-                    },
-                    kind: 0,
-                  },
                   {
                     name: 'build component tree',
                     attributes: {
