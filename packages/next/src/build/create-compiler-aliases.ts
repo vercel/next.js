@@ -152,11 +152,10 @@ export function createWebpackAliases({
           // `private-next-instrumentation-client` resolves to a placeholder
           // file whose contents are replaced at build time by
           // `next-instrumentation-client-loader` (registered via a
-          // `module.rules` entry in webpack-config.ts). The emitted module
-          // requires each `instrumentationClientInject` entry for side effects,
-          // then re-exports the user's `instrumentation-client.{pageExt}` file
-          // (resolved through the `private-next-instrumentation-client-user`
-          // alias below).
+          // `module.rules` entry in webpack-config.ts). The emitted module lists
+          // each configured instrumentation module, followed by the user's
+          // `instrumentation-client.{pageExt}` file (resolved through the
+          // `private-next-instrumentation-client-user` alias below).
           'private-next-instrumentation-client':
             INSTRUMENTATION_CLIENT_STUB_PATH,
           'private-next-instrumentation-client-user': [

@@ -27,6 +27,8 @@ import type { StaticIndicatorState } from './dev/hot-reloader/app/hot-reloader-a
 import { createInitialRSCPayloadFromFallbackPrerender } from './flight-data-helpers'
 import { getDeploymentId } from '../shared/lib/deployment-id'
 import { setNavigationBuildId } from './navigation-build-id'
+import type { ClientInstrumentationModules } from './router-transition-types'
+import { initializeRouterTransitionModules } from './components/router-transition'
 
 /// <reference types="react-dom/experimental" />
 
@@ -339,15 +341,8 @@ const reactRootOptions: ReactDOMClient.RootOptions = {
   onUncaughtError,
 }
 
-export type ClientInstrumentationHooks = {
-  onRouterTransitionStart?: (
-    url: string,
-    navigationType: 'push' | 'replace' | 'traverse'
-  ) => void
-}
-
 export async function hydrate(
-  instrumentationHooks: ClientInstrumentationHooks | null,
+  instrumentationModules: ClientInstrumentationModules,
   assetPrefix: string
 ) {
   let staticIndicatorState: StaticIndicatorState | undefined
@@ -376,6 +371,8 @@ export async function hydrate(
     setNavigationBuildId(getDeploymentId()!)
   }
 
+  initializeRouterTransitionModules(instrumentationModules)
+
   const initialTimestamp = Date.now()
   const actionQueue: AppRouterActionQueue = createMutableActionQueue(
     createInitialRouterState({
@@ -383,8 +380,7 @@ export async function hydrate(
       initialRSCPayload,
       initialFlightStreamForCache,
       location: window.location,
-    }),
-    instrumentationHooks
+    })
   )
 
   const reactEl = (
