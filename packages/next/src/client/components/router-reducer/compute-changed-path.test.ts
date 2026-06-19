@@ -3,11 +3,9 @@ import {
   segmentToSourcePagePathname,
 } from './compute-changed-path'
 import {
-  type FlightRouterState,
   type Segment,
   PrefetchHint,
 } from '../../../shared/lib/app-router-types'
-import { getActiveRoutePaths } from '../router-transition'
 
 describe('computeChangedPath', () => {
   const sourceRouteSegmentCases: Array<[Segment, string]> = [
@@ -86,37 +84,5 @@ describe('computeChangedPath', () => {
         ]
       )
     ).toBe('/')
-  })
-
-  it('normalizes active route paths', () => {
-    const tree: FlightRouterState = [
-      '',
-      {
-        children: [
-          'children',
-          {
-            children: [
-              '(group)',
-              {
-                children: ['/_not-found', {}],
-              },
-            ],
-          },
-        ],
-        modal: [
-          '(__SLOT__)',
-          {
-            children: [
-              ['slug', 'hello', 'd', null],
-              {
-                children: ['__PAGE__', {}],
-              },
-            ],
-          },
-        ],
-      },
-    ]
-
-    expect(getActiveRoutePaths(tree)).toEqual(['/_not-found', '/@modal/[slug]'])
   })
 })

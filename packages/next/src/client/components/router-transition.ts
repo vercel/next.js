@@ -98,7 +98,7 @@ function classifySegment(segment: Segment): {
   return { path: sourceSegment, isPage: false }
 }
 
-export function getActiveRoutePaths(tree: FlightRouterState): string[] {
+function getActiveRoutePaths(tree: FlightRouterState): string[] {
   const routes: Array<{ path: string; primary: boolean }> = []
 
   function visit(

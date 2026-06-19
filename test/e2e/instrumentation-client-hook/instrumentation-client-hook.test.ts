@@ -181,6 +181,31 @@ describe('Instrumentation Client Hook', () => {
         (await getTransitionEvents(browser)).at(-1).event.fromRoutes
       ).toEqual(['/dashboard', '/dashboard/@analytics'])
     })
+
+    it('omits route groups from fromRoutes', async () => {
+      const browser = await next.browser('/about')
+
+      await browser.elementByCss('a[href="/"]').click()
+      await browser.elementById('home')
+
+      expect(
+        (await getTransitionEvents(browser)).at(-1).event.fromRoutes
+      ).toEqual(['/about'])
+    })
+
+    it('reports intercepted route patterns in fromRoutes', async () => {
+      const browser = await next.browser('/gallery')
+
+      await browser.elementByCss('a[href="/gallery/photos/1"]').click()
+      await browser.elementById('photo-modal')
+
+      await browser.elementByCss('a[href="/"]').click()
+      await browser.elementById('home')
+
+      expect(
+        (await getTransitionEvents(browser)).at(-1).event.fromRoutes
+      ).toEqual(['/gallery', '/gallery/@modal/(.)photos/[id]'])
+    })
   })
 
   describe.each([
