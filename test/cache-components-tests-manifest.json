@@ -195,6 +195,7 @@
       "test/e2e/app-dir/logging/fetch-warning.test.ts",
       "test/e2e/app-dir/metadata-dynamic-routes/index.test.ts",
       "test/e2e/app-dir/metadata-edge/index.test.ts",
+      "test/e2e/app-dir/metadata-font/metadata-font.test.ts",
       "test/e2e/app-dir/metadata-icons/metadata-icons.test.ts",
       "test/e2e/app-dir/metadata-navigation/metadata-navigation.test.ts",
       "test/e2e/app-dir/metadata-streaming-parallel-routes/metadata-streaming-parallel-routes.test.ts",
