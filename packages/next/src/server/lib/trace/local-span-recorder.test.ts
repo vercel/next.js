@@ -68,6 +68,29 @@ describe('local recording span', () => {
     ])
   })
 
+  it('ignores undefined values when setting attributes', () => {
+    process.env.NEXT_OTEL_LOCAL_SPANS = '1'
+    const span = createLocalSpan({
+      name: 'test.local-span.attributes',
+      attributes: { 'next.phase': 'render' },
+    })
+
+    span.setAttributes({
+      'next.phase': undefined,
+      'next.route': '/dashboard',
+    })
+    span.end()
+
+    expect(getSpanRecords()).toEqual([
+      expect.objectContaining({
+        attributes: {
+          'next.phase': 'render',
+          'next.route': '/dashboard',
+        },
+      }),
+    ])
+  })
+
   it('captures status, exception, and event mutations before ending', () => {
     process.env.NEXT_OTEL_LOCAL_SPANS = '1'
     const span = createLocalSpan({ name: 'test.local-span.error' })

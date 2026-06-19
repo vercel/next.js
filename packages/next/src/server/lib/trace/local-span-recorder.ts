@@ -167,7 +167,10 @@ class LocalRecordingSpan implements Span {
       return this
     }
 
-    for (const [key, value] of Object.entries(attributes)) {
+    // OpenTelemetry attributes may be undefined. Ignore them instead of
+    // overwriting an existing value as Object.assign would.
+    for (const key of Object.keys(attributes)) {
+      const value = attributes[key]
       if (value !== undefined) {
         this.attributes[key] = value
       }
@@ -337,7 +340,8 @@ function cleanSpanStoreAttributes(
 ): SpanStoreAttributes {
   const cleanedAttributes: SpanStoreAttributes = {}
   if (attributes) {
-    for (const [key, value] of Object.entries(attributes)) {
+    for (const key of Object.keys(attributes)) {
+      const value = attributes[key]
       if (value !== undefined) {
         cleanedAttributes[key] = value
       }
