@@ -303,8 +303,6 @@ impl ModuleOptions {
         let mut ecma_preprocess = vec![];
         let mut postprocess = vec![];
 
-        // Runs first so it sees the original source text (text-bridge re-parses after
-        // react_compiler_swc).
         if let Some(compilation_mode) = enable_rust_react_compiler {
             ecma_preprocess.push(EcmascriptInputTransform::ReactCompilerRust {
                 compilation_mode,
