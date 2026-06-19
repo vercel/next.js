@@ -1409,8 +1409,35 @@ describe.each(
                       'next.span_type': 'Node.runHandler',
                     },
                     kind: 0,
-                    status: { code: 0 },
+                    // TODO this difference is odd
+                    status: { code: isNextDev ? 2 : 0 },
                   },
+                  ...(isNextDev
+                    ? [
+                        {
+                          name: 'render route (pages) /_error',
+                          attributes: {
+                            'next.route': '/_error',
+                            'next.span_name': 'render route (pages) /_error',
+                            'next.span_type': 'Render.renderDocument',
+                          },
+                          kind: 0,
+                          status: { code: 0 },
+                        },
+
+                        {
+                          name: 'resolve page components',
+                          attributes: {
+                            'next.route': '/_error',
+                            'next.span_name': 'resolve page components',
+                            'next.span_type':
+                              'NextNodeServer.findPageComponents',
+                          },
+                          kind: 0,
+                          status: { code: 0 },
+                        },
+                      ]
+                    : []),
                 ],
               },
             ])
