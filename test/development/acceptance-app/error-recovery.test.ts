@@ -339,7 +339,7 @@ describe('Error recovery app', () => {
            "Index.useCallback[increment] index.js (7:11)",
            "button <anonymous>",
            "Index index.js (12:7)",
-           "Page index.js (10:5)",
+           "Page app/page.js (4:10)",
          ],
        }
       `)
@@ -1084,7 +1084,7 @@ describe('Error recovery app', () => {
            |           ^",
          "stack": [
            "ClassDefault.render index.js (5:11)",
-           "Page index.js (10:16)",
+           "Page app/page.js (4:10)",
          ],
        }
       `)

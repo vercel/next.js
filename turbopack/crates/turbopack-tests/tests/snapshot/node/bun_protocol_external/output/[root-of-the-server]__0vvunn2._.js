@@ -1,4 +1,10 @@
 (globalThis["TURBOPACK"] || (globalThis["TURBOPACK"] = [])).push(["output/[root-of-the-server]__0vvunn2._.js",
+"[externals]/bun [external] (bun, cjs)", ((__turbopack_context__, module, exports) => {
+
+var mod = __turbopack_context__.x("bun", () => require("bun"));
+
+module.exports = mod;
+}),
 "[externals]/bun:ffi [external] (bun:ffi, cjs)", ((__turbopack_context__, module, exports) => {
 
 var mod = __turbopack_context__.x("bun:ffi", () => require("bun:ffi"));
@@ -26,12 +32,6 @@ module.exports = mod;
 "[externals]/bun:wrap [external] (bun:wrap, cjs)", ((__turbopack_context__, module, exports) => {
 
 var mod = __turbopack_context__.x("bun:wrap", () => require("bun:wrap"));
-
-module.exports = mod;
-}),
-"[externals]/bun [external] (bun, cjs)", ((__turbopack_context__, module, exports) => {
-
-var mod = __turbopack_context__.x("bun", () => require("bun"));
 
 module.exports = mod;
 }),
