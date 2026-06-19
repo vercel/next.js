@@ -1,5 +1,5 @@
 import type { Font } from 'fontkit'
-import type { AdjustFontFallback } from 'next/font'
+import type { AdjustFontFallback } from '../types'
 
 // The font metadata of the fallback fonts, retrieved with fontkit on system font files
 // The average width is calculated with the calcAverageWidth function below

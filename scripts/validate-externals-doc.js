@@ -1,6 +1,6 @@
 const fs = require('fs')
 const path = require('path')
-const JSON5 = require('next/dist/compiled/json5')
+const JSON5 = require('../packages/next/dist/compiled/json5')
 
 const serverExternals = JSON5.parse(
   fs.readFileSync(

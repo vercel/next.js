@@ -1,4 +1,4 @@
-import type { AdjustFontFallback, FontLoader } from 'next/font'
+import type { AdjustFontFallback, FontLoader } from '../types'
 // @ts-ignore
 import * as Log from 'next/dist/build/output/log'
 import { validateGoogleFontFunctionCall } from './validate-google-font-function-call'
