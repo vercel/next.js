@@ -1355,6 +1355,68 @@ describe.each(
               true
             )
           })
+
+          it('should handle failing api routes in pages', async () => {
+            await next.fetch('/api/pages/param/error', env.fetchInit)
+
+            await expectTrace(getCollector(), [
+              {
+                name: 'GET /api/pages/[param]/error',
+                attributes: {
+                  'http.method': 'GET',
+                  'http.route': '/api/pages/[param]/error',
+                  'http.status_code': 500,
+                  'http.target': '/api/pages/param/error',
+                  'next.route': '/api/pages/[param]/error',
+                  'next.span_name': 'GET /api/pages/[param]/error',
+                  'next.span_type': 'BaseServer.handleRequest',
+                },
+                kind: 1,
+                status: { code: 2 },
+                traceId: env.span.traceId,
+                parentId: env.span.rootParentId,
+                spans: [
+                  {
+                    name: 'executing api route (pages) /api/pages/[param]/error',
+                    attributes: {
+                      'next.span_name':
+                        'executing api route (pages) /api/pages/[param]/error',
+                      'next.span_type': 'Node.runHandler',
+                    },
+                    kind: 0,
+                    status: { code: 0 },
+                  },
+                ],
+              },
+            ])
+          })
+
+          itEdge(
+            'should handle failing api routes in pages on edge',
+            async () => {
+              await next.fetch('/api/pages/param/error-edge', env.fetchInit)
+
+              await expectTrace(
+                getCollector(),
+                [
+                  {
+                    runtime: 'edge',
+                    traceId: env.span.traceId,
+                    parentId: env.span.rootParentId,
+                    name: 'executing api route (pages) /api/pages/[param]/error-edge',
+                    attributes: {
+                      'next.span_name':
+                        'executing api route (pages) /api/pages/[param]/error-edge',
+                      'next.span_type': 'Node.runHandler',
+                    },
+                    kind: 0,
+                    status: { code: 2 },
+                  },
+                ],
+                true
+              )
+            }
+          )
         })
       }
     )
