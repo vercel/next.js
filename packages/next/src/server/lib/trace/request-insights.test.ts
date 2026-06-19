@@ -8,6 +8,7 @@ import { clearSpanStoreForTest, recordSpan } from './span-store'
 
 const originalLocalSpans = process.env.NEXT_OTEL_LOCAL_SPANS
 const originalRequestInsights = process.env.__NEXT_REQUEST_INSIGHTS
+const originalDevServer = process.env.__NEXT_DEV_SERVER
 
 function restoreEnv(name: string, value: string | undefined) {
   if (value === undefined) {
@@ -18,9 +19,14 @@ function restoreEnv(name: string, value: string | undefined) {
 }
 
 describe('request insights', () => {
+  beforeEach(() => {
+    process.env.__NEXT_DEV_SERVER = '1'
+  })
+
   afterEach(() => {
     restoreEnv('NEXT_OTEL_LOCAL_SPANS', originalLocalSpans)
     restoreEnv('__NEXT_REQUEST_INSIGHTS', originalRequestInsights)
+    restoreEnv('__NEXT_DEV_SERVER', originalDevServer)
     clearSpanStoreForTest()
     clearRequestInsightsForTest()
   })

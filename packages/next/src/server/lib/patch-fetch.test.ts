@@ -3,16 +3,28 @@ import type { WorkUnitStore } from '../app-render/work-unit-async-storage.extern
 import type { WorkStore } from '../app-render/work-async-storage.external'
 import type { IncrementalCache } from './incremental-cache'
 import { createPatchedFetcher } from './patch-fetch'
+import { registerLocalSpanRecorder } from './trace/local-span-recorder'
 import { clearSpanStoreForTest, getSpanRecords } from './trace/span-store'
 
 const originalLocalSpans = process.env.NEXT_OTEL_LOCAL_SPANS
+const originalDevServer = process.env.__NEXT_DEV_SERVER
 
 describe('createPatchedFetcher', () => {
+  beforeEach(() => {
+    process.env.__NEXT_DEV_SERVER = '1'
+    registerLocalSpanRecorder()
+  })
+
   afterEach(() => {
     if (originalLocalSpans === undefined) {
       delete process.env.NEXT_OTEL_LOCAL_SPANS
     } else {
       process.env.NEXT_OTEL_LOCAL_SPANS = originalLocalSpans
+    }
+    if (originalDevServer === undefined) {
+      delete process.env.__NEXT_DEV_SERVER
+    } else {
+      process.env.__NEXT_DEV_SERVER = originalDevServer
     }
     clearSpanStoreForTest()
   })
