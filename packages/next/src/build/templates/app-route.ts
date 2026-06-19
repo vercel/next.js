@@ -296,6 +296,7 @@ export async function handler(
       const responseGenerator: ResponseGenerator = async ({
         previousCacheEntry,
       }) => {
+        let thrownError = false
         try {
           if (
             !isMinimalMode &&
@@ -386,6 +387,7 @@ export async function handler(
             return null
           }
         } catch (err) {
+          thrownError = true
           // if this is a background revalidate we need to report
           // the request error here as it won't be bubbled
           if (previousCacheEntry?.isStale) {
@@ -413,19 +415,24 @@ export async function handler(
             if (!currentSpan) {
               return
             }
+
+            // If an error was thrown, then we will respond with a 500 in some catch further up the
+            // stack.
+            let statusCode = thrownError ? 500 : res.statusCode
+
             currentSpan.setAttributes({
-              'http.status_code': res.statusCode,
+              'http.status_code': statusCode,
               'next.rsc': false,
             })
 
-            if (res.statusCode && res.statusCode >= 500) {
+            if (statusCode && statusCode >= 500) {
               // For 5xx status codes: SHOULD be set to 'Error' span status.
               // x-ref: https://opentelemetry.io/docs/specs/semconv/http/http-spans/#status
               currentSpan.setStatus({
                 code: SpanStatusCode.ERROR,
               })
               // For span status 'Error', SHOULD set 'error.type' attribute.
-              currentSpan.setAttribute('error.type', res.statusCode.toString())
+              currentSpan.setAttribute('error.type', statusCode.toString())
             }
 
             const rootSpanAttributes = tracer.getRootSpanAttributes()
