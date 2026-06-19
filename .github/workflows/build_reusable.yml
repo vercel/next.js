@@ -335,11 +335,7 @@ jobs:
       - name: Install node-file-trace test dependencies
         if: ${{ inputs.needsNextest == 'yes' }}
         working-directory: turbopack/crates/turbopack-tracing/tests/node-file-trace
-        # there are no arm64 binaries for the phamtomjs-prebuilt or canvas
-        # packages, but we can install the x64 versions, we don't actually run
-        # the binary. npm_config_target_arch is read by node-pre-gyp, which
-        # canvas uses.
-        run: PHANTOMJS_ARCH=x64 npm_config_target_arch=x64 pnpm install --recursive
+        run: pnpm install --recursive
 
       - run: ANALYZE=1 pnpm build
         if: ${{ inputs.skipInstallBuild != 'yes' }}
