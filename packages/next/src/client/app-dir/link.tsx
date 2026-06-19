@@ -22,6 +22,7 @@ import {
   FetchStrategy,
   type PrefetchTaskFetchStrategy,
 } from '../components/segment-cache/types'
+import type { RouterTransitionPrefetchIntent } from '../router-transition-types'
 
 type Url = string | UrlObject
 type RequiredKeys<T> = {
@@ -256,7 +257,8 @@ function linkClicked(
   replace?: boolean,
   scroll?: boolean,
   onNavigate?: OnNavigateEventHandler,
-  transitionTypes?: string[]
+  transitionTypes?: string[],
+  prefetchIntent: RouterTransitionPrefetchIntent = 'none'
 ): void {
   if (typeof window !== 'undefined') {
     const { nodeName } = e.currentTarget
@@ -308,7 +310,8 @@ function linkClicked(
         replace ? 'replace' : 'push',
         scroll === false ? ScrollBehavior.NoScroll : ScrollBehavior.Default,
         linkInstanceRef.current,
-        transitionTypes
+        transitionTypes,
+        prefetchIntent
       )
     })
   }
@@ -376,10 +379,12 @@ export default function LinkComponent(
   const router = React.useContext(AppRouterContext)
 
   const prefetchEnabled = prefetchProp !== false
+  const prefetchIntent: RouterTransitionPrefetchIntent =
+    prefetchProp === false ? 'none' : prefetchProp === true ? 'full' : 'auto'
 
   const fetchStrategy =
-    prefetchProp !== false
-      ? getFetchStrategyFromPrefetchProp(prefetchProp)
+    prefetchIntent !== 'none'
+      ? getFetchStrategyFromPrefetchIntent(prefetchIntent)
       : // TODO: it makes no sense to assign a fetchStrategy when prefetching is disabled.
         FetchStrategy.PPR
 
@@ -692,7 +697,8 @@ export default function LinkComponent(
         replace,
         scroll,
         onNavigate,
-        transitionTypes
+        transitionTypes,
+        prefetchIntent
       )
     },
     onMouseEnter(e) {
@@ -799,26 +805,23 @@ export const useLinkStatus = () => {
   return useContext(LinkStatusContext)
 }
 
-function getFetchStrategyFromPrefetchProp(
-  prefetchProp: Exclude<LinkProps['prefetch'], undefined | false>
+function getFetchStrategyFromPrefetchIntent(
+  prefetchIntent: Exclude<RouterTransitionPrefetchIntent, 'none'>
 ): PrefetchTaskFetchStrategy {
   if (process.env.__NEXT_CACHE_COMPONENTS) {
-    if (prefetchProp === true) {
+    if (prefetchIntent === 'full') {
       return FetchStrategy.Full
     }
 
-    // `null` or `"auto"`: this is the default "auto" mode, where we will prefetch partially if the link is in the viewport.
-    // This will also include invalid prop values that don't match the types specified here.
-    // (although those should've been filtered out by prop validation in dev)
-    prefetchProp satisfies null | 'auto'
+    // `"auto"`: the default mode, where we will prefetch partially if the link is in the viewport.
+    prefetchIntent satisfies 'auto'
     return FetchStrategy.PPR
   } else {
-    return prefetchProp === null || prefetchProp === 'auto'
+    return prefetchIntent === 'auto'
       ? // We default to PPR, and we'll discover whether or not the route supports it with the initial prefetch.
         FetchStrategy.PPR
-      : // In the old implementation without runtime prefetches, `prefetch={true}` forces all dynamic data to be prefetched.
-        // To preserve backwards-compatibility, anything other than `false`, `null`, or `"auto"` results in a full prefetch.
-        // (although invalid values should've been filtered out by prop validation in dev)
+      : // In the old implementation without runtime prefetches, `prefetch={true}` (`'full'`) forces all dynamic
+        // data to be prefetched, preserving backwards-compatibility.
         FetchStrategy.Full
   }
 }

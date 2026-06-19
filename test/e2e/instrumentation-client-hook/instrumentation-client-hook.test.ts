@@ -98,6 +98,114 @@ describe('Instrumentation Client Hook', () => {
         '[Router Transition Start] [traverse] /some-page',
       ])
     })
+
+    it('preserves the legacy two-argument start hook without the experimental flag', async () => {
+      const browser = await next.browser('/')
+
+      await browser.elementByCss('a[href="/some-page"]').click()
+      await browser.elementById('some-page')
+
+      expect(
+        await browser.eval(`
+          window.__ROUTER_TRANSITION_EVENTS.map((event) => ({
+            phase: event.phase,
+            hasEvent: event.event != null,
+          }))
+        `)
+      ).toEqual([{ phase: 'start', hasEvent: false }])
+    })
+  })
+
+  describe('router transition start context', () => {
+    const { next } = nextTestSetup({
+      files: path.join(__dirname, 'app-router'),
+      nextConfig: {
+        experimental: {
+          instrumentationClientRouterTransitionEvents: true,
+        },
+      },
+    })
+
+    async function getTransitionEvents(browser) {
+      return browser.eval(`window.__ROUTER_TRANSITION_EVENTS`)
+    }
+
+    it('reports transition metadata, source routes, and prefetch intent', async () => {
+      const browser = await next.browser('/')
+
+      await browser.elementByCss('a[href="/some-page"]').click()
+      await browser.elementById('some-page')
+
+      const [start] = await getTransitionEvents(browser)
+      expect(start.phase).toBe('start')
+      expect(start.url).toBe('/some-page')
+      expect(start.navigateType).toBe('push')
+      expect(typeof start.event.id).toBe('string')
+      expect(start.event.timestamp).toBeGreaterThan(0)
+      expect(start.event.fromRoutes).toEqual(['/'])
+      expect(start.event.prefetchIntent).toBe('full')
+    })
+
+    it('reports a null prefetch intent for programmatic navigation', async () => {
+      const browser = await next.browser('/')
+
+      await browser.elementById('push-some-page').click()
+      await browser.elementById('some-page')
+
+      const [start] = await getTransitionEvents(browser)
+      expect(start.phase).toBe('start')
+      expect(start.url).toBe('/some-page')
+      expect(start.navigateType).toBe('push')
+      expect(start.event.prefetchIntent).toBe(null)
+    })
+
+    it('uses route patterns and puts the primary source route first', async () => {
+      const browser = await next.browser('/')
+
+      await browser.elementByCss('a[href="/blog/hello"]').click()
+      await browser.elementById('blog-post')
+      await browser.elementByCss('a[href="/"]').click()
+      await browser.elementById('home')
+
+      expect(
+        (await getTransitionEvents(browser)).at(-1).event.fromRoutes
+      ).toEqual(['/blog/[slug]'])
+
+      await browser.elementByCss('a[href="/dashboard"]').click()
+      await browser.elementById('dashboard')
+      await browser.elementById('analytics')
+      await browser.elementByCss('a[href="/"]').click()
+      await browser.elementById('home')
+
+      expect(
+        (await getTransitionEvents(browser)).at(-1).event.fromRoutes
+      ).toEqual(['/dashboard', '/dashboard/@analytics'])
+    })
+
+    it('omits route groups from fromRoutes', async () => {
+      const browser = await next.browser('/about')
+
+      await browser.elementByCss('a[href="/"]').click()
+      await browser.elementById('home')
+
+      expect(
+        (await getTransitionEvents(browser)).at(-1).event.fromRoutes
+      ).toEqual(['/about'])
+    })
+
+    it('reports intercepted route patterns in fromRoutes', async () => {
+      const browser = await next.browser('/gallery')
+
+      await browser.elementByCss('a[href="/gallery/photos/1"]').click()
+      await browser.elementById('photo-modal')
+
+      await browser.elementByCss('a[href="/"]').click()
+      await browser.elementById('home')
+
+      expect(
+        (await getTransitionEvents(browser)).at(-1).event.fromRoutes
+      ).toEqual(['/gallery', '/gallery/@modal/(.)photos/[id]'])
+    })
   })
 
   describe.each([

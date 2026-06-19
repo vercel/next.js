@@ -35,6 +35,7 @@ import type {
   PrefetchOptions,
 } from '../../shared/lib/app-router-context.shared-runtime'
 import { setLinkForCurrentNavigation, type LinkInstance } from './links'
+import type { RouterTransitionPrefetchIntent } from '../router-transition-types'
 import type { GlobalErrorComponent } from './builtin/global-error'
 import { isJavaScriptURLString } from '../lib/javascript-url'
 import { startRouterTransition } from './router-transition'
@@ -262,7 +263,8 @@ export function dispatchNavigateAction(
   navigateType: NavigateAction['navigateType'],
   scrollBehavior: ScrollBehavior,
   linkInstanceRef: LinkInstance | null,
-  transitionTypes: string[] | undefined
+  transitionTypes: string[] | undefined,
+  prefetchIntent: RouterTransitionPrefetchIntent | null
 ): void {
   // TODO: This stuff could just go into the reducer. Leaving as-is for now
   // since we're about to rewrite all the router reducer stuff anyway.
@@ -279,7 +281,12 @@ export function dispatchNavigateAction(
   }
 
   setLinkForCurrentNavigation(linkInstanceRef)
-  startRouterTransition(href, navigateType)
+  startRouterTransition(
+    href,
+    navigateType,
+    getAppRouterActionQueue().state.tree,
+    prefetchIntent
+  )
 
   dispatchAppRouterAction({
     type: ACTION_NAVIGATE,
@@ -295,7 +302,12 @@ export function dispatchTraverseAction(
   href: string,
   historyState: AppHistoryState | undefined
 ) {
-  startRouterTransition(href, 'traverse')
+  startRouterTransition(
+    href,
+    'traverse',
+    getAppRouterActionQueue().state.tree,
+    null
+  )
   dispatchAppRouterAction({
     type: ACTION_RESTORE,
     url: new URL(href),
@@ -425,7 +437,8 @@ export const publicAppRouterInstance: AppRouterInstance = {
           ? ScrollBehavior.NoScroll
           : ScrollBehavior.Default,
         null,
-        options?.transitionTypes
+        options?.transitionTypes,
+        null
       )
     })
   },
@@ -443,7 +456,8 @@ export const publicAppRouterInstance: AppRouterInstance = {
           ? ScrollBehavior.NoScroll
           : ScrollBehavior.Default,
         null,
-        options?.transitionTypes
+        options?.transitionTypes,
+        null
       )
     })
   },

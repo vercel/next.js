@@ -477,6 +477,7 @@ export interface ExperimentalConfig {
   dynamicOnHover?: boolean
   useOffline?: boolean
   optimisticRouting?: boolean
+  instrumentationClientRouterTransitionEvents?: boolean
   /**
    * Enables App Shell prefetching: a route's reusable, param-free loading
    * state is prefetched once per session and served instantly for any
@@ -2025,6 +2026,7 @@ export const defaultConfig = Object.freeze({
     useOffline: false,
     varyParams: true,
     optimisticRouting: true,
+    instrumentationClientRouterTransitionEvents: false,
     prefetchInlining: true,
     preloadEntriesOnStart: true,
     clientRouterFilter: true,
