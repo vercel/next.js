@@ -9,8 +9,7 @@ export type RouterTransitionEvent = {
 
 export type RouterTransitionStartEvent = RouterTransitionEvent & {
   fromRoutes: string[]
-  // `null` for programmatic navigations (`router.push()`/`router.replace()`),
-  // which have no associated link and therefore no prefetch intent.
+  // `null` for non-prefetch transitions.
   prefetchIntent: RouterTransitionPrefetchIntent | null
 }
 
@@ -18,7 +17,7 @@ export type ClientInstrumentationHooks = {
   onRouterTransitionStart?: (
     url: string,
     navigationType: RouterTransitionType,
-    event?: RouterTransitionStartEvent
+    event: RouterTransitionStartEvent | null
   ) => void
 }
 

@@ -306,8 +306,6 @@ export function dispatchTraverseAction(
     href,
     'traverse',
     getAppRouterActionQueue().state.tree,
-    // Traversals (browser back/forward) have no associated link, so there is no
-    // prefetch intent to report.
     null
   )
   dispatchAppRouterAction({
@@ -440,8 +438,6 @@ export const publicAppRouterInstance: AppRouterInstance = {
           : ScrollBehavior.Default,
         null,
         options?.transitionTypes,
-        // Programmatic navigations have no associated link, so there is no
-        // prefetch intent to report.
         null
       )
     })
@@ -461,8 +457,6 @@ export const publicAppRouterInstance: AppRouterInstance = {
           : ScrollBehavior.Default,
         null,
         options?.transitionTypes,
-        // Programmatic navigations have no associated link, so there is no
-        // prefetch intent to report.
         null
       )
     })

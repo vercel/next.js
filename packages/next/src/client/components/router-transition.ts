@@ -49,29 +49,29 @@ export function startRouterTransition(
   fromTree: FlightRouterState,
   prefetchIntent: RouterTransitionPrefetchIntent | null
 ): void {
-  if (!process.env.__NEXT_INSTRUMENTATION_CLIENT_ROUTER_TRANSITION_EVENTS) {
-    callHooks((hooks) => hooks.onRouterTransitionStart?.(url, type))
-    return
-  }
+  // Positive flag check so the instrumentation-only path is removed by DCE when disabled.
+  if (process.env.__NEXT_INSTRUMENTATION_CLIENT_ROUTER_TRANSITION_EVENTS) {
+    if (
+      !instrumentationModules.some(
+        (hooks) => typeof hooks.onRouterTransitionStart === 'function'
+      )
+    ) {
+      return
+    }
 
-  if (
-    !instrumentationModules.some(
-      (hooks) => typeof hooks.onRouterTransitionStart === 'function'
+    const id = `${Date.now().toString(36)}-${(++nextTransitionId).toString(36)}`
+
+    callHooks((hooks) =>
+      hooks.onRouterTransitionStart?.(url, type, {
+        id,
+        timestamp: timestamp(),
+        fromRoutes: getActiveRoutePaths(fromTree),
+        prefetchIntent,
+      })
     )
-  ) {
-    return
+  } else {
+    callHooks((hooks) => hooks.onRouterTransitionStart?.(url, type, null))
   }
-
-  const id = `${Date.now().toString(36)}-${(++nextTransitionId).toString(36)}`
-
-  callHooks((hooks) =>
-    hooks.onRouterTransitionStart?.(url, type, {
-      id,
-      timestamp: timestamp(),
-      fromRoutes: getActiveRoutePaths(fromTree),
-      prefetchIntent,
-    })
-  )
 }
 
 function classifySegment(segment: Segment): {

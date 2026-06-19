@@ -109,7 +109,7 @@ describe('Instrumentation Client Hook', () => {
         await browser.eval(`
           window.__ROUTER_TRANSITION_EVENTS.map((event) => ({
             phase: event.phase,
-            hasEvent: event.event !== undefined,
+            hasEvent: event.event != null,
           }))
         `)
       ).toEqual([{ phase: 'start', hasEvent: false }])
