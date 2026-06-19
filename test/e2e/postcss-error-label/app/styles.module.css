@@ -1,0 +1,5 @@
+@media screen and (min-width: 700px), screen and (min-zoom: 120%) {
+  .root {
+    color: red;
+  }
+}

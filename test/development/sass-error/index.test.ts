@@ -47,7 +47,7 @@ describe('app dir - css', () => {
                ./app/global.scss.css [Client Component Browser]
                ./app/layout.js [Client Component Browser]
                ./app/layout.js [Server Component]"
-          `)
+           `)
         })
       }
     )
