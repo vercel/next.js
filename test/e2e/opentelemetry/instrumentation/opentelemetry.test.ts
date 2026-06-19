@@ -600,6 +600,31 @@ describe.each(
             }
           )
 
+          itEdge('should handle failing handler on edge', async () => {
+            await next.fetch('/api/app/param/error/edge', env.fetchInit)
+
+            await expectTrace(
+              getCollector(),
+              [
+                {
+                  runtime: 'edge',
+                  traceId: env.span.traceId,
+                  parentId: env.span.rootParentId,
+                  name: 'executing api route (app) /api/app/[param]/error/edge',
+                  attributes: {
+                    'next.route': '/api/app/[param]/error/edge',
+                    'next.span_name':
+                      'executing api route (app) /api/app/[param]/error/edge',
+                    'next.span_type': 'AppRouteRouteHandlers.runHandler',
+                  },
+                  kind: 0,
+                  status: { code: 2 },
+                },
+              ],
+              true
+            )
+          })
+
           itEdge('should trace middleware', async () => {
             await next.fetch('/behind-middleware', env.fetchInit)
 
