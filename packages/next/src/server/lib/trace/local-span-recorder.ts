@@ -6,6 +6,7 @@ import type {
 import type { AsyncLocalStorage } from 'async_hooks'
 import { SpanStatusCode } from 'next/dist/compiled/@opentelemetry/api'
 import {
+  isLocalSpanStoreEnabled,
   recordSpan,
   type SpanStoreAttributes,
   type SpanStoreEvent,
@@ -68,6 +69,29 @@ export function isLocalRecordingSpan(span: Span): boolean {
 
 export function withLocalSpan<T>(span: Span, fn: () => T): T {
   return getLocalSpanAsyncStorage().run(span, fn)
+}
+
+export type LocalSpanRecorder = {
+  createLocalSpan: typeof createLocalSpan
+  getActiveLocalSpan: typeof getActiveLocalSpan
+  isLocalRecordingSpan: typeof isLocalRecordingSpan
+  isLocalSpanStoreEnabled: typeof isLocalSpanStoreEnabled
+  withLocalSpan: typeof withLocalSpan
+}
+
+export function registerLocalSpanRecorder(): void {
+  const key = Symbol.for('@next/local-span-recorder')
+  ;(
+    globalThis as typeof globalThis & {
+      [key]?: LocalSpanRecorder
+    }
+  )[key] = {
+    createLocalSpan,
+    getActiveLocalSpan,
+    isLocalRecordingSpan,
+    isLocalSpanStoreEnabled,
+    withLocalSpan,
+  }
 }
 
 function getLocalSpanAsyncStorage(): AsyncLocalStorage<Span> {

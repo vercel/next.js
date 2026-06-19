@@ -19,6 +19,7 @@ import {
 } from '@opentelemetry/api'
 
 import { clearSpanStoreForTest, getSpanRecords } from './span-store'
+import { registerLocalSpanRecorder } from './local-span-recorder'
 import { AppRenderSpan, NodeSpan } from './constants'
 import { SpanKind, SpanStatusCode, getTracer } from './tracer'
 
@@ -146,6 +147,7 @@ describe('withPropagatedContext', () => {
 describe('local span store sink', () => {
   beforeEach(() => {
     process.env.__NEXT_DEV_SERVER = '1'
+    registerLocalSpanRecorder()
   })
 
   afterEach(() => {
@@ -412,7 +414,7 @@ describe('local span store sink', () => {
     process.env.NEXT_OTEL_LOCAL_SPANS = '1'
 
     const parentSpan = getTracer().startSpan(NodeSpan.runHandler, {
-      attributes: { 'next.test.name': 'parent' },
+      attributes: { 'next.page': 'parent' },
     })
     let childSpanId: string | undefined
 
@@ -420,7 +422,7 @@ describe('local span store sink', () => {
       expect(getTracer().getActiveScopeSpan()).toBe(parentSpan)
 
       const childSpan = getTracer().startSpan(AppRenderSpan.fetch, {
-        attributes: { 'next.test.name': 'child' },
+        attributes: { 'next.page': 'child' },
       })
       childSpanId = childSpan.spanContext().spanId
       childSpan.end()
@@ -429,10 +431,10 @@ describe('local span store sink', () => {
 
     const records = getSpanRecords()
     const parentRecord = records.find(
-      (record) => record.attributes?.['next.test.name'] === 'parent'
+      (record) => record.attributes?.['next.page'] === 'parent'
     )
     const childRecord = records.find(
-      (record) => record.attributes?.['next.test.name'] === 'child'
+      (record) => record.attributes?.['next.page'] === 'child'
     )
 
     expect(parentRecord).toEqual(
@@ -488,6 +490,9 @@ describe('local span store sink', () => {
           require('../../app-render/work-unit-async-storage.external') as typeof import('../../app-render/work-unit-async-storage.external')
         const { getSpanRecords: getIsolatedSpanRecords } =
           require('./span-store') as typeof import('./span-store')
+        const { registerLocalSpanRecorder: registerIsolatedLocalSpanRecorder } =
+          require('./local-span-recorder') as typeof import('./local-span-recorder')
+        registerIsolatedLocalSpanRecorder()
         const { getTracer: getIsolatedTracer } =
           require('./tracer') as typeof import('./tracer')
 

@@ -1,14 +1,8 @@
 import type { FetchEventResult } from '../../web/types'
 import type { TextMapSetter } from '@opentelemetry/api'
 import type { SpanTypes } from './constants'
+import type { LocalSpanRecorder } from './local-span-recorder'
 import { LogSpanAllowList, NextVanillaSpanAllowlist } from './constants'
-import {
-  createLocalSpan,
-  getActiveLocalSpan,
-  isLocalRecordingSpan,
-  isLocalSpanStoreEnabled,
-  withLocalSpan,
-} from './local-span-recorder'
 
 import type {
   Context,
@@ -22,8 +16,21 @@ import type {
 import { isThenable } from '../../../shared/lib/is-thenable'
 
 const NEXT_OTEL_PERFORMANCE_PREFIX = process.env.NEXT_OTEL_PERFORMANCE_PREFIX
+const LOCAL_SPAN_RECORDER_KEY = Symbol.for('@next/local-span-recorder')
+
+type GlobalWithLocalSpanRecorder = typeof globalThis & {
+  [LOCAL_SPAN_RECORDER_KEY]?: LocalSpanRecorder
+}
 
 let api: typeof import('next/dist/compiled/@opentelemetry/api')
+
+function getLocalSpanRecorder() {
+  if (process.env.__NEXT_DEV_SERVER) {
+    return (globalThis as GlobalWithLocalSpanRecorder)[LOCAL_SPAN_RECORDER_KEY]
+  } else {
+    return undefined
+  }
+}
 
 // we want to allow users to use their own version of @opentelemetry/api if they
 // want to, so we try to require it first, and if it fails we fall back to the
@@ -252,7 +259,7 @@ class NextTracerImpl implements NextTracer {
     if (activeSpan || !process.env.__NEXT_DEV_SERVER) {
       return activeSpan
     }
-    return getActiveLocalSpan()
+    return getLocalSpanRecorder()?.getActiveLocalSpan()
   }
 
   /**
@@ -331,7 +338,7 @@ class NextTracerImpl implements NextTracer {
     const tracingEnabled =
       Boolean(NEXT_OTEL_PERFORMANCE_PREFIX) || this.isTracingEnabled()
     const localSpanStoreEnabled =
-      Boolean(process.env.__NEXT_DEV_SERVER) && isLocalSpanStoreEnabled()
+      getLocalSpanRecorder()?.isLocalSpanStoreEnabled() ?? false
 
     if (!tracingEnabled && !localSpanStoreEnabled) {
       return typeof fnOrOptions === 'function' ? fnOrOptions() : fnOrEmpty()
@@ -520,7 +527,7 @@ class NextTracerImpl implements NextTracer {
     const span = this.createLocalRecordingSpan(spanName, options, parentContext)
     const activeContext = trace.setSpan(context.active(), span)
 
-    return withLocalSpan(span, () =>
+    return getLocalSpanRecorder()!.withLocalSpan(span, () =>
       context.with(activeContext, fn, undefined, span)
     )
   }
@@ -534,7 +541,7 @@ class NextTracerImpl implements NextTracer {
     const parentSpanContext = trace.getSpanContext(parentContext)
     const delegateSpanContext = delegateSpan?.spanContext()
 
-    return createLocalSpan({
+    return getLocalSpanRecorder()!.createLocalSpan({
       name,
       attributes: options.attributes,
       links: options.links,
@@ -602,7 +609,7 @@ class NextTracerImpl implements NextTracer {
       this.getSpanContext(options?.parentSpan ?? this.getActiveScopeSpan()) ??
       context.active()
     const localSpanStoreEnabled =
-      Boolean(process.env.__NEXT_DEV_SERVER) && isLocalSpanStoreEnabled()
+      getLocalSpanRecorder()?.isLocalSpanStoreEnabled() ?? false
 
     if (!localSpanStoreEnabled) {
       return this.getTracerInstance().startSpan(type, options, parentContext)
@@ -641,7 +648,7 @@ class NextTracerImpl implements NextTracer {
     }
 
     if (process.env.__NEXT_DEV_SERVER) {
-      const localSpan = getActiveLocalSpan()
+      const localSpan = getLocalSpanRecorder()?.getActiveLocalSpan()
       if (localSpan) {
         localSpan.setAttribute(key, value)
       }
@@ -650,8 +657,9 @@ class NextTracerImpl implements NextTracer {
 
   public withSpan<T>(span: Span, fn: () => T): T {
     const spanContext = trace.setSpan(context.active(), span)
-    if (process.env.__NEXT_DEV_SERVER && isLocalRecordingSpan(span)) {
-      return withLocalSpan(span, () => context.with(spanContext, fn))
+    const recorder = getLocalSpanRecorder()
+    if (recorder?.isLocalRecordingSpan(span)) {
+      return recorder.withLocalSpan(span, () => context.with(spanContext, fn))
     }
     return context.with(spanContext, fn)
   }
