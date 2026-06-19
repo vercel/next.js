@@ -67,10 +67,12 @@ overlay **Insights** tab with Stream / Cache / Block fix cards and a **Copy as
 prompt** button if you want them. Errors don't all accumulate in one place, so
 work one route at a time rather than trying to collect everything up front.
 
-**Alternative: build.** `next build` fails on blocking routes and lists them,
-but it's a slower loop — you rebuild to re-check. Pass `--debug-prerender` for
-full stack traces (the default build output is terser), and `--debug-build-paths
-/r1 /r2` to rebuild only the routes you're iterating on.
+**Alternative: build.** `next build` reports a blocking route too, but it stops
+at the **first** one it hits and exits, so it's a poor way to size up the work
+(you fix one, rebuild, hit the next). The dev server above is better for
+scoping. Pass `--debug-prerender` for full stack traces (the default build
+output is terser), and `--debug-build-paths /r1 /r2` to rebuild only the routes
+you're iterating on.
 
 ## Step 1 — Choose a strategy
 
@@ -88,6 +90,8 @@ Ask the user; don't assume.
 ```bash
 npx @next/codemod@latest cache-components-instant-false ./app
 ```
+
+> The `cache-components-instant-false` transform ships in a recent `@next/codemod`. If `@latest` reports `Invalid transform choice`, your installed version predates it — use `@canary`, or apply the opt-out by hand (add `export const instant = false` to each `app/**/{page,layout}` file that doesn't already export `instant`).
 
 Inserts `export const instant = false` (with a `// TODO: Cache Components
 adoption` comment) into every `app/**/{page,layout}` file, skipping files that
