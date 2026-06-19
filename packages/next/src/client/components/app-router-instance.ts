@@ -264,7 +264,7 @@ export function dispatchNavigateAction(
   scrollBehavior: ScrollBehavior,
   linkInstanceRef: LinkInstance | null,
   transitionTypes: string[] | undefined,
-  prefetchIntent: RouterTransitionPrefetchIntent
+  prefetchIntent: RouterTransitionPrefetchIntent | null
 ): void {
   // TODO: This stuff could just go into the reducer. Leaving as-is for now
   // since we're about to rewrite all the router reducer stuff anyway.
@@ -306,7 +306,9 @@ export function dispatchTraverseAction(
     href,
     'traverse',
     getAppRouterActionQueue().state.tree,
-    'none'
+    // Traversals (browser back/forward) have no associated link, so there is no
+    // prefetch intent to report.
+    null
   )
   dispatchAppRouterAction({
     type: ACTION_RESTORE,
@@ -438,7 +440,9 @@ export const publicAppRouterInstance: AppRouterInstance = {
           : ScrollBehavior.Default,
         null,
         options?.transitionTypes,
-        'none'
+        // Programmatic navigations have no associated link, so there is no
+        // prefetch intent to report.
+        null
       )
     })
   },
@@ -457,7 +461,9 @@ export const publicAppRouterInstance: AppRouterInstance = {
           : ScrollBehavior.Default,
         null,
         options?.transitionTypes,
-        'none'
+        // Programmatic navigations have no associated link, so there is no
+        // prefetch intent to report.
+        null
       )
     })
   },

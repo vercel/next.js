@@ -47,7 +47,7 @@ export function startRouterTransition(
   url: string,
   type: RouterTransitionType,
   fromTree: FlightRouterState,
-  prefetchIntent: RouterTransitionPrefetchIntent
+  prefetchIntent: RouterTransitionPrefetchIntent | null
 ): void {
   if (!process.env.__NEXT_INSTRUMENTATION_CLIENT_ROUTER_TRANSITION_EVENTS) {
     callHooks((hooks) => hooks.onRouterTransitionStart?.(url, type))

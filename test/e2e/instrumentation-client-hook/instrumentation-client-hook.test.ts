@@ -146,6 +146,19 @@ describe('Instrumentation Client Hook', () => {
       expect(start.event.prefetchIntent).toBe('full')
     })
 
+    it('reports a null prefetch intent for programmatic navigation', async () => {
+      const browser = await next.browser('/')
+
+      await browser.elementById('push-some-page').click()
+      await browser.elementById('some-page')
+
+      const [start] = await getTransitionEvents(browser)
+      expect(start.phase).toBe('start')
+      expect(start.url).toBe('/some-page')
+      expect(start.navigateType).toBe('push')
+      expect(start.event.prefetchIntent).toBe(null)
+    })
+
     it('uses route patterns and puts the primary source route first', async () => {
       const browser = await next.browser('/')
 

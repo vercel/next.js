@@ -102,7 +102,7 @@ export function onRouterTransitionStart(url, navigationType, event) {
 - `event.id` - An opaque ID shared by events for this transition
 - `event.timestamp` - A framework-captured Unix timestamp in milliseconds
 - `event.fromRoutes` - Route patterns visible before navigation. The primary `children` route is first, followed by parallel slots in deterministic order
-- `event.prefetchIntent` - Whether the clicked link requested full prefetching (`full`), used automatic prefetching (`auto`), or did not request prefetching (`none`)
+- `event.prefetchIntent` - For link navigations, whether the clicked link requested full prefetching (`full`), used automatic prefetching (`auto`), or did not request prefetching (`none`). For navigations with no associated link (programmatic `router.push()`/`router.replace()`, or browser back/forward) this is `null`, since no link prefetch intent applies
 
 Route entries use filesystem-style patterns, so a navigation away from `/blog/hello` may report `/blog/[slug]`.
 
