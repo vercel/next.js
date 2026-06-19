@@ -589,7 +589,10 @@ export async function renderToNodeFizzStream(
     })
   )
 
-  await shellReady.promise
+  await getTracer().trace(
+    AppRenderSpan.waitShellReady,
+    () => shellReady.promise
+  )
 
   if (!deferPipe) {
     await waitAtLeastOneReactRenderTask()
