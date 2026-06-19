@@ -9,7 +9,7 @@
   "dependencies": {
     "next": "latest",
     "react": "^19.1.1",
-    "react-dom": "^19.1.1",
+    "react-dom": "^19.1.1"
   },
   "devDependencies": {
     "@testing-library/react": "^16.3.0",
