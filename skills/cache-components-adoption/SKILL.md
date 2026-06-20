@@ -185,13 +185,48 @@ static shell and make navigations feel instant.
 
 ## Step 4 — Adopt Partial Prefetching (final advancement)
 
-Once the build is clean and routes are instant, turn on Partial Prefetching for
-the full Cache Components payoff: `<Link>` then prefetches only the static
+Once the build is clean and routes are instant, adopt Partial Prefetching for
+the full Cache Components payoff: `<Link>` prefetches only the static
 [App Shell](/docs/app/glossary#app-shell) by default, instead of the whole route.
-This is a config flag plus `<Link>` tuning, not a build gate — do it as a
-separate, mergeable milestone after goals 1–3.
+This is config plus `<Link>` tuning, not a build gate — do it as a separate,
+mergeable milestone after goals 1–3.
 
-1. Enable it in `next.config.ts`:
+**Order matters: adopt per-route first, flip the global flag last.** The
+dev-only `link-prefetch-partial` Insight fires for a `<Link prefetch={true}>`
+pointing at a route that has **not** adopted Partial Prefetching. If you set
+`partialPrefetching: true` globally up front, every route counts as adopted, the
+Insight never fires, and you lose the signal that tells you which links to
+audit. So leave the global flag off while you walk the routes.
+
+1. **Opt routes in one at a time** with the route segment config, leaving
+   `partialPrefetching` unset in `next.config.ts`:
+
+   ```ts
+   // app/<route>/page.tsx
+   export const prefetch = 'partial'
+   ```
+
+   A `<Link>` to a route with `prefetch = 'partial'` loads the App Shell only,
+   even without the global flag.
+
+2. **Audit `<Link prefetch={true}>` calls** as you go. In dev, each one pointing
+   at a not-yet-adopted route surfaces an Insight (`link-prefetch-partial`) with
+   three fix cards:
+   - **Upgrade** — add `export const prefetch = 'partial'` to the destination
+     route (step 1).
+   - **Disable** — drop the `prefetch={true}` prop.
+   - **Ignore** — `export const instant = false` to silence it.
+
+   Walk the Insights like goal 3: visit routes, read each card's **Copy as
+   prompt**, apply the fix, re-check. Don't improvise — the
+   [`instant-link-prefetch-partial`](/docs/messages/instant-link-prefetch-partial)
+   page and the [Adopting Partial Prefetching](https://nextjs.org/docs/app/guides/adopting-partial-prefetching)
+   guide carry the details.
+
+3. **Flip the global flag last.** Once every route in scope has
+   `prefetch = 'partial'` and no `link-prefetch-partial` Insights remain (except
+   deliberate ignores), enable the config and remove the now-redundant per-route
+   exports:
 
    ```ts
    const nextConfig = {
@@ -200,21 +235,5 @@ separate, mergeable milestone after goals 1–3.
    }
    ```
 
-2. **Audit existing `<Link prefetch={true}>` calls.** In dev, each one pointing
-   at a route that hasn't adopted Partial Prefetching surfaces an Insight in the
-   overlay (`link-prefetch-partial`) with three fix cards:
-   - **Upgrade** — set `prefetch = 'partial'` on the route so the link prefetches
-     the shell.
-   - **Disable** — drop the `prefetch={true}` prop.
-   - **Ignore** — `export const instant = false` to silence it.
-
-   Walk the Insights like goal 3: visit routes, read each card's **Copy as
-   prompt**, apply the fix, re-check. Don't improvise — the
-   [`instant-link-prefetch-partial`](/docs/messages/instant-link-prefetch-partial)
-   page and the [Adopting Partial Prefetching](https://nextjs.org/docs/app/guides/adopting-partial-prefetching)
-   guide (see its "Auditing existing calls" section) carry the details.
-
-Done when `partialPrefetching` is on and no `link-prefetch-partial` Insights are
-left except deliberate ignores. See the
-[Adopting Partial Prefetching](https://nextjs.org/docs/app/guides/adopting-partial-prefetching)
-guide for the full migration path off `unstable_eager`.
+See the [Adopting Partial Prefetching](https://nextjs.org/docs/app/guides/adopting-partial-prefetching)
+guide for the full adoption path and `<Link>` defaults.
