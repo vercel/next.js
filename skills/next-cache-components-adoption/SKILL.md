@@ -37,7 +37,7 @@ work.
 
 Get the app building on 16.3+ first, then come back and adopt Cache Components.
 
-Adoption has three goals, in order. Each is shippable on its own; stop after any
+Adoption has four goals, in order. Each is shippable on its own; stop after any
 of them.
 
 1. **Green build.** Get `next build` passing with `cacheComponents` on —
