@@ -32,6 +32,12 @@ describe('selectAppPageEntry', () => {
     )
   })
 
+  it('matches escaped underscore entries to decoded pathnames', () => {
+    expect(selectAppPageEntry('/_shop', ['/%5Fshop/page'])).toBe(
+      '/%5Fshop/page'
+    )
+  })
+
   it('rejects a route with no direct app path', () => {
     const appPaths = ['/[...catchAll]/page', '/@slot/[...catchAll]/page']
 

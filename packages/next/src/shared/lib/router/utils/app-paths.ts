@@ -68,6 +68,12 @@ export function compareAppPaths(a: string, b: string): number {
   return a.localeCompare(b)
 }
 
+function normalizeAppPageEntryPathname(appPath: string): string {
+  // Webpack app entries preserve escaped underscore segments as `%5F`, while
+  // normalized request pathnames expose the decoded `_` segment.
+  return normalizeAppPath(appPath).replace(/%5F/g, '_')
+}
+
 /**
  * Selects the app path that owns the compiled entry for a normalized route.
  * Catch-all normalization can add app paths from other routes, so only direct
@@ -77,7 +83,7 @@ export function compareAppPaths(a: string, b: string): number {
 export function selectAppPageEntry(
   pathname: string,
   appPaths: readonly string[],
-  normalizePathname: (appPath: string) => string = normalizeAppPath
+  normalizePathname: (appPath: string) => string = normalizeAppPageEntryPathname
 ): string {
   let entry: string | undefined
 
