@@ -16,9 +16,26 @@ sequences the work; it does not teach how to fix individual errors — the dev
 overlay fix cards, the stack traces, and the `/docs/messages/blocking-prerender-*`
 pages do that.
 
-Requires **Next.js 16.3 or later** (top-level `cacheComponents`, `export const
-instant`, the dev overlay Insights tab, and the `cache-components-instant-false`
-codemod all land in 16.3). If the app is on an older version, upgrade first.
+## Prerequisite: be on Next.js 16.3 or later
+
+This skill assumes **Next.js 16.3+**. That release is where the pieces it relies
+on land: top-level `cacheComponents`, `export const instant`, the dev overlay
+**Insights** tab, the `link-prefetch-partial` Insight, and the
+`cache-components-instant-false` codemod. On older versions the validation
+signals the skill walks you through don't exist, so there's little to guide the
+work.
+
+**Upgrade first if needed.** Check the installed version (`next --version` or
+`package.json`). If it's below 16.3, upgrade before doing anything else:
+
+- Run `npx @next/codemod@canary upgrade latest` to move to the current release
+  and apply the version-to-version codemods.
+- Follow the [version upgrade guides](https://nextjs.org/docs/app/guides/upgrading)
+  for the major(s) you're crossing (e.g.
+  [Version 16](https://nextjs.org/docs/app/guides/upgrading/version-16)) — read
+  the guide for the version you're on, don't guess.
+
+Get the app building on 16.3+ first, then come back and adopt Cache Components.
 
 Adoption has three goals, in order. Each is shippable on its own; stop after any
 of them.
