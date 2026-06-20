@@ -19,7 +19,10 @@
  * normal error logging for genuine unhandled rejections.
  */
 
-import { workUnitAsyncStorage } from '../app-render/work-unit-async-storage.external'
+import {
+  throwPrerenderPPRRemovedError,
+  workUnitAsyncStorage,
+} from '../app-render/work-unit-async-storage.external'
 
 const MODE:
   | 'enabled'
@@ -616,6 +619,7 @@ function filteringUnhandledRejectionHandler(
         break
       }
       case 'prerender-ppr':
+        return throwPrerenderPPRRemovedError()
       case 'prerender-legacy':
       case 'cache':
       case 'private-cache':

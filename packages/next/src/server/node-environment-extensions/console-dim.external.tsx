@@ -4,7 +4,10 @@ import {
   consoleAsyncStorage,
   type ConsoleStore,
 } from '../app-render/console-async-storage.external'
-import { workUnitAsyncStorage } from '../app-render/work-unit-async-storage.external'
+import {
+  throwPrerenderPPRRemovedError,
+  workUnitAsyncStorage,
+} from '../app-render/work-unit-async-storage.external'
 import { getServerReact, getClientReact } from '../runtime-reacts.external'
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars -- we may use later and want parity with the HIDDEN_STYLE value
@@ -233,6 +236,8 @@ function patchConsoleMethod(methodName: InterceptableConsoleMethod): void {
       // scope independent of actual React rendering.
       const workUnitStore = workUnitAsyncStorage.getStore()
       switch (workUnitStore?.type) {
+        case 'prerender-ppr':
+          return throwPrerenderPPRRemovedError()
         case 'prerender':
         case 'prerender-runtime':
         // These can be hit in a route handler. In the future we can use potential React.createCache API
@@ -257,7 +262,6 @@ function patchConsoleMethod(methodName: InterceptableConsoleMethod): void {
         }
         // intentional fallthrough
         case 'prerender-legacy':
-        case 'prerender-ppr':
         case 'cache':
         case 'unstable-cache':
         case 'private-cache':

@@ -8,7 +8,10 @@ import { createContext, type ReactNode } from 'react'
 import { INSTANT_VALIDATION_BOUNDARY_NAME } from './boundary-constants'
 import { InvariantError } from '../../../shared/lib/invariant-error'
 import type { ValidationBoundaryTracking } from './boundary-tracking'
-import { workUnitAsyncStorage } from '../work-unit-async-storage.external'
+import {
+  throwPrerenderPPRRemovedError,
+  workUnitAsyncStorage,
+} from '../work-unit-async-storage.external'
 
 if (typeof window !== 'undefined') {
   throw new InvariantError(
@@ -22,9 +25,10 @@ function getValidationBoundaryTracking(): ValidationBoundaryTracking | null {
   switch (store.type) {
     case 'validation-client':
       return store.boundaryState
+    case 'prerender-ppr':
+      return throwPrerenderPPRRemovedError()
     case 'prerender':
     case 'prerender-client':
-    case 'prerender-ppr':
     case 'prerender-legacy':
     case 'prerender-runtime':
     case 'request':

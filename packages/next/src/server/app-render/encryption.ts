@@ -21,6 +21,7 @@ import {
 import {
   getCacheSignal,
   getResumeDataCache,
+  throwPrerenderPPRRemovedError,
   workUnitAsyncStorage,
 } from './work-unit-async-storage.external'
 import { createHangingInputAbortSignal } from './dynamic-rendering'
@@ -291,9 +292,10 @@ export async function decryptActionBoundArgs(
               )
             }
             break
+          case 'prerender-ppr':
+            return throwPrerenderPPRRemovedError()
           case 'prerender-client':
           case 'validation-client':
-          case 'prerender-ppr':
           case 'prerender-legacy':
           case 'request':
           case 'cache':

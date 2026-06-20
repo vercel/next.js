@@ -11,14 +11,8 @@ import {
 
 import { ReflectAdapter } from '../web/spec-extension/adapters/reflect'
 import {
-  throwToInterruptStaticGeneration,
-  postponeWithTracking,
-} from '../app-render/dynamic-rendering'
-
-import {
+  throwPrerenderPPRRemovedError,
   workUnitAsyncStorage,
-  type PrerenderStorePPR,
-  type PrerenderStoreLegacy,
   type StaticPrerenderStoreModern,
   type StaticPrerenderStore,
   throwInvariantForMissingStore,
@@ -54,9 +48,10 @@ export function createParamsFromClient(
   const workUnitStore = workUnitAsyncStorage.getStore()
   if (workUnitStore) {
     switch (workUnitStore.type) {
+      case 'prerender-ppr':
+        return throwPrerenderPPRRemovedError()
       case 'prerender':
       case 'prerender-client':
-      case 'prerender-ppr':
       case 'prerender-legacy':
         // Client params don't need additional vary tracking because by the
         // time they reach the client, the access would have already been
@@ -146,8 +141,9 @@ export function createServerParamsForRoute(
   const workUnitStore = workUnitAsyncStorage.getStore()
   if (workUnitStore) {
     switch (workUnitStore.type) {
-      case 'prerender':
       case 'prerender-ppr':
+        return throwPrerenderPPRRemovedError()
+      case 'prerender':
       case 'prerender-legacy':
         return createStaticPrerenderParams(
           underlyingParams,
@@ -210,9 +206,10 @@ export function createServerParamsForServerSegment(
   const workUnitStore = workUnitAsyncStorage.getStore()
   if (workUnitStore) {
     switch (workUnitStore.type) {
+      case 'prerender-ppr':
+        return throwPrerenderPPRRemovedError()
       case 'prerender':
       case 'prerender-client':
-      case 'prerender-ppr':
       case 'prerender-legacy':
         return createStaticPrerenderParams(
           underlyingParams,
@@ -307,8 +304,9 @@ export function createPrerenderParamsForClientSegment(
         throw new InvariantError(
           'createPrerenderParamsForClientSegment should not be called inside generateStaticParams.'
         )
-      case 'prerender-runtime':
       case 'prerender-ppr':
+        return throwPrerenderPPRRemovedError()
+      case 'prerender-runtime':
       case 'prerender-legacy':
       case 'request':
         break
@@ -393,20 +391,7 @@ function createStaticPrerenderParams(
       break
     }
     case 'prerender-ppr': {
-      const fallbackParams = prerenderStore.fallbackRouteParams
-      if (fallbackParams) {
-        for (const key in underlyingParams) {
-          if (fallbackParams.has(key)) {
-            return makeErroringParams(
-              underlyingParams,
-              fallbackParams,
-              workStore,
-              prerenderStore
-            )
-          }
-        }
-      }
-      break
+      return throwPrerenderPPRRemovedError()
     }
     case 'prerender-legacy':
       break
@@ -756,65 +741,6 @@ function makeHangingParams(
   )
 
   CachedParams.set(underlyingParams, promise)
-
-  return promise
-}
-
-function makeErroringParams(
-  underlyingParams: Params,
-  fallbackParams: OpaqueFallbackRouteParams,
-  workStore: WorkStore,
-  prerenderStore: PrerenderStorePPR | PrerenderStoreLegacy
-): Promise<Params> {
-  const cachedParams = CachedParams.get(underlyingParams)
-  if (cachedParams) {
-    return cachedParams
-  }
-
-  const augmentedUnderlying = { ...underlyingParams }
-
-  // We don't use makeResolvedReactPromise here because params
-  // supports copying with spread and we don't want to unnecessarily
-  // instrument the promise with spreadable properties of ReactPromise.
-  const promise = Promise.resolve(augmentedUnderlying)
-  CachedParams.set(underlyingParams, promise)
-
-  Object.keys(underlyingParams).forEach((prop) => {
-    if (wellKnownProperties.has(prop)) {
-      // These properties cannot be shadowed because they need to be the
-      // true underlying value for Promises to work correctly at runtime
-    } else {
-      if (fallbackParams.has(prop)) {
-        Object.defineProperty(augmentedUnderlying, prop, {
-          get() {
-            const expression = describeStringPropertyAccess('params', prop)
-            // In most dynamic APIs we also throw if `dynamic = "error"` however
-            // for params is only dynamic when we're generating a fallback shell
-            // and even when `dynamic = "error"` we still support generating dynamic
-            // fallback shells
-            // TODO remove this comment when cacheComponents is the default since there
-            // will be no `dynamic = "error"`
-            if (prerenderStore.type === 'prerender-ppr') {
-              // PPR Prerender (no cacheComponents)
-              postponeWithTracking(
-                workStore.route,
-                expression,
-                prerenderStore.dynamicTracking
-              )
-            } else {
-              // Legacy Prerender
-              throwToInterruptStaticGeneration(
-                expression,
-                workStore,
-                prerenderStore
-              )
-            }
-          },
-          enumerable: true,
-        })
-      }
-    }
-  })
 
   return promise
 }

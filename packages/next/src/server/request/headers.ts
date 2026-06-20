@@ -8,13 +8,13 @@ import {
 } from '../app-render/work-async-storage.external'
 import {
   throwForMissingRequestStore,
+  throwPrerenderPPRRemovedError,
   workUnitAsyncStorage,
   type PrerenderStoreModern,
   type RequestStore,
   isInEarlyRenderStage,
 } from '../app-render/work-unit-async-storage.external'
 import {
-  postponeWithTracking,
   throwToInterruptStaticGeneration,
   trackDynamicDataInDynamicRender,
 } from '../app-render/dynamic-rendering'
@@ -77,12 +77,13 @@ export function headers(): Promise<ReadonlyHeaders> {
           throw new Error(
             `Route ${workStore.route} used \`headers()\` inside \`generateStaticParams\`. This is not supported because \`generateStaticParams\` runs at build time without an HTTP request. Read more: https://nextjs.org/docs/messages/next-dynamic-api-wrong-context`
           )
+        case 'prerender-ppr':
+          return throwPrerenderPPRRemovedError()
         case 'prerender':
         case 'prerender-client':
         case 'validation-client':
         case 'private-cache':
         case 'prerender-runtime':
-        case 'prerender-ppr':
         case 'prerender-legacy':
         case 'request':
           break
@@ -106,16 +107,6 @@ export function headers(): Promise<ReadonlyHeaders> {
           const exportName = '`headers`'
           throw new InvariantError(
             `${exportName} must not be used within a client component. Next.js should be preventing ${exportName} from being included in client components statically, but did not in this case.`
-          )
-        case 'prerender-ppr':
-          // PPR Prerender (no cacheComponents)
-          // We are prerendering with PPR. We need track dynamic access here eagerly
-          // to keep continuity with how headers has worked in PPR without cacheComponents.
-          // TODO consider switching the semantic to throw on property access instead
-          return postponeWithTracking(
-            workStore.route,
-            callingExpression,
-            workUnitStore.dynamicTracking
           )
         case 'prerender-legacy':
           // Legacy Prerender

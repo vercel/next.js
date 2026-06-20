@@ -12,7 +12,10 @@ import { getSegmentParam } from '../../../shared/lib/router/utils/get-segment-pa
 import { parseRelativeUrl } from '../../../shared/lib/router/utils/parse-relative-url'
 import { InvariantError } from '../../../shared/lib/invariant-error'
 import { InstantValidationError } from './instant-validation-error'
-import { workUnitAsyncStorage } from '../work-unit-async-storage.external'
+import {
+  throwPrerenderPPRRemovedError,
+  workUnitAsyncStorage,
+} from '../work-unit-async-storage.external'
 import { wellKnownProperties } from '../../../shared/lib/utils/reflect-utils'
 import type { WorkStore } from '../work-async-storage.external'
 
@@ -38,11 +41,12 @@ function getExpectedSampleTracking(): InstantValidationSampleTracking {
         validationSampleTracking =
           workUnitStore.validationSampleTracking ?? null
         break
+      case 'prerender-ppr':
+        return throwPrerenderPPRRemovedError()
       case 'cache':
       case 'private-cache':
       case 'unstable-cache':
       case 'prerender-legacy':
-      case 'prerender-ppr':
       case 'prerender-client':
       case 'prerender':
       case 'prerender-runtime':

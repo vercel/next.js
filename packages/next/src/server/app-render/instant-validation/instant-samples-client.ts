@@ -1,6 +1,9 @@
 import type { Params } from '../../request/params'
 import type { ReadonlyURLSearchParams } from '../../../client/components/readonly-url-search-params'
-import { workUnitAsyncStorage } from '../work-unit-async-storage.external'
+import {
+  throwPrerenderPPRRemovedError,
+  workUnitAsyncStorage,
+} from '../work-unit-async-storage.external'
 import { workAsyncStorage } from '../work-async-storage.external'
 import {
   createExhaustiveParamsProxy,
@@ -29,10 +32,11 @@ export function instrumentParamsForClientValidation<TPArams extends Params>(
         }
         break
       }
+      case 'prerender-ppr':
+        return throwPrerenderPPRRemovedError()
       case 'prerender-runtime':
       case 'prerender-client':
       case 'prerender-legacy':
-      case 'prerender-ppr':
       case 'prerender':
       case 'cache':
       case 'request':
@@ -69,10 +73,11 @@ export function expectCompleteParamsInClientValidation(
         }
         break
       }
+      case 'prerender-ppr':
+        return throwPrerenderPPRRemovedError()
       case 'prerender-runtime':
       case 'prerender-client':
       case 'prerender-legacy':
-      case 'prerender-ppr':
       case 'prerender':
       case 'cache':
       case 'request':
@@ -106,10 +111,11 @@ export function instrumentSearchParamsForClientValidation(
         }
         break
       }
+      case 'prerender-ppr':
+        return throwPrerenderPPRRemovedError()
       case 'prerender-runtime':
       case 'prerender-client':
       case 'prerender-legacy':
-      case 'prerender-ppr':
       case 'prerender':
       case 'cache':
       case 'request':

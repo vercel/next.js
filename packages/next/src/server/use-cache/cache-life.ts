@@ -1,6 +1,9 @@
 import { InvariantError } from '../../shared/lib/invariant-error'
 import { workAsyncStorage } from '../app-render/work-async-storage.external'
-import { workUnitAsyncStorage } from '../app-render/work-unit-async-storage.external'
+import {
+  throwPrerenderPPRRemovedError,
+  workUnitAsyncStorage,
+} from '../app-render/work-unit-async-storage.external'
 
 export type CacheLife = {
   // How long the client can cache a value without checking with the server.
@@ -84,11 +87,12 @@ export function cacheLife(profile: CacheLifeProfiles | CacheLife): void {
   const workUnitStore = workUnitAsyncStorage.getStore()
 
   switch (workUnitStore?.type) {
+    case 'prerender-ppr':
+      return throwPrerenderPPRRemovedError()
     case 'prerender':
     case 'prerender-client':
     case 'validation-client':
     case 'prerender-runtime':
-    case 'prerender-ppr':
     case 'prerender-legacy':
     case 'request':
     case 'unstable-cache':

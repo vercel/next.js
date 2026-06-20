@@ -6,7 +6,10 @@ import {
   type StagedRenderingController,
 } from './app-render/staged-rendering'
 import type { RequestStore } from './app-render/work-unit-async-storage.external'
-import { workUnitAsyncStorage } from './app-render/work-unit-async-storage.external'
+import {
+  throwPrerenderPPRRemovedError,
+  workUnitAsyncStorage,
+} from './app-render/work-unit-async-storage.external'
 import { getServerReact, getClientReact } from './runtime-reacts.external'
 
 export function isHangingPromiseRejectionError(
@@ -270,10 +273,11 @@ export function applyOwnerStack(error: Error): Error {
           (innerOwnerStack || '') + (workUnitStore.outerOwnerStack || '') ||
           undefined
         break
+      case 'prerender-ppr':
+        return throwPrerenderPPRRemovedError()
       case 'unstable-cache':
       case 'request':
       case 'prerender':
-      case 'prerender-ppr':
       case 'prerender-legacy':
       case 'prerender-runtime':
       case 'prerender-client':

@@ -22,7 +22,10 @@ import { getTracer } from '../lib/trace/tracer'
 import { NextNodeServerSpan } from '../lib/trace/constants'
 import { StaticGenBailoutError } from '../../client/components/static-generation-bailout'
 import type { Params } from '../request/params'
-import { workUnitAsyncStorage } from './work-unit-async-storage.external'
+import {
+  throwPrerenderPPRRemovedError,
+  workUnitAsyncStorage,
+} from './work-unit-async-storage.external'
 import {
   createVaryParamsAccumulator,
   emptyVaryParamsAccumulator,
@@ -317,10 +320,11 @@ async function createComponentTreeInternal(
 
     if (workUnitStore) {
       switch (workUnitStore.type) {
+        case 'prerender-ppr':
+          return throwPrerenderPPRRemovedError()
         case 'prerender':
         case 'prerender-runtime':
         case 'prerender-legacy':
-        case 'prerender-ppr':
           if (workUnitStore.revalidate > defaultRevalidate) {
             workUnitStore.revalidate = defaultRevalidate
           }
@@ -368,10 +372,11 @@ async function createComponentTreeInternal(
 
     if (workUnitStore) {
       switch (workUnitStore.type) {
+        case 'prerender-ppr':
+          return throwPrerenderPPRRemovedError()
         case 'prerender':
         case 'prerender-runtime':
         case 'prerender-legacy':
-        case 'prerender-ppr':
           if (workUnitStore.stale > pageStaleTime) {
             workUnitStore.stale = pageStaleTime
           }
@@ -1328,10 +1333,11 @@ function createSeedData(
               .then(() => deferredRsc)
           }
           break
+        case 'prerender-ppr':
+          return throwPrerenderPPRRemovedError()
         case 'prerender':
         case 'prerender-client':
         case 'validation-client':
-        case 'prerender-ppr':
         case 'prerender-legacy':
         case 'cache':
         case 'private-cache':

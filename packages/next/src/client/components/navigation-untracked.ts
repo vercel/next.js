@@ -11,16 +11,17 @@ import { PathnameContext } from '../../shared/lib/hooks-client-context.shared-ru
 function hasFallbackRouteParams(): boolean {
   if (typeof window === 'undefined') {
     // AsyncLocalStorage should not be included in the client bundle.
-    const { workUnitAsyncStorage } =
+    const { workUnitAsyncStorage, throwPrerenderPPRRemovedError } =
       require('../../server/app-render/work-unit-async-storage.external') as typeof import('../../server/app-render/work-unit-async-storage.external')
 
     const workUnitStore = workUnitAsyncStorage.getStore()
     if (!workUnitStore) return false
 
     switch (workUnitStore.type) {
+      case 'prerender-ppr':
+        return throwPrerenderPPRRemovedError()
       case 'prerender':
       case 'prerender-client':
-      case 'prerender-ppr':
       case 'validation-client':
         const fallbackParams = workUnitStore.fallbackRouteParams
         return fallbackParams ? fallbackParams.size > 0 : false

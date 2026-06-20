@@ -1,14 +1,14 @@
-import {
-  abortAndThrowOnSynchronousRequestDataAccess,
-  postponeWithTracking,
-} from '../../app-render/dynamic-rendering'
+import { abortAndThrowOnSynchronousRequestDataAccess } from '../../app-render/dynamic-rendering'
 import { isDynamicRoute } from '../../../shared/lib/router/utils'
 import {
   NEXT_CACHE_IMPLICIT_TAG_ID,
   NEXT_CACHE_SOFT_TAG_MAX_LENGTH,
 } from '../../../lib/constants'
 import { workAsyncStorage } from '../../app-render/work-async-storage.external'
-import { workUnitAsyncStorage } from '../../app-render/work-unit-async-storage.external'
+import {
+  throwPrerenderPPRRemovedError,
+  workUnitAsyncStorage,
+} from '../../app-render/work-unit-async-storage.external'
 import { DynamicServerError } from '../../../client/components/hooks-server-context'
 import { InvariantError } from '../../../shared/lib/invariant-error'
 import {
@@ -174,11 +174,7 @@ function revalidate(
           `${expression} must not be used within a client component. Next.js should be preventing ${expression} from being included in client components statically, but did not in this case.`
         )
       case 'prerender-ppr':
-        return postponeWithTracking(
-          store.route,
-          expression,
-          workUnitStore.dynamicTracking
-        )
+        return throwPrerenderPPRRemovedError()
       case 'prerender-legacy':
         workUnitStore.revalidate = 0
 

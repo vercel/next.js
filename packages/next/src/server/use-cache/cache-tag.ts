@@ -1,4 +1,7 @@
-import { workUnitAsyncStorage } from '../app-render/work-unit-async-storage.external'
+import {
+  throwPrerenderPPRRemovedError,
+  workUnitAsyncStorage,
+} from '../app-render/work-unit-async-storage.external'
 import { validateTags } from '../lib/patch-fetch'
 
 export function cacheTag(...tags: string[]): void {
@@ -11,11 +14,12 @@ export function cacheTag(...tags: string[]): void {
   const workUnitStore = workUnitAsyncStorage.getStore()
 
   switch (workUnitStore?.type) {
+    case 'prerender-ppr':
+      return throwPrerenderPPRRemovedError()
     case 'prerender':
     case 'prerender-client':
     case 'validation-client':
     case 'prerender-runtime':
-    case 'prerender-ppr':
     case 'prerender-legacy':
     case 'request':
     case 'unstable-cache':

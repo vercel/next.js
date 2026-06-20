@@ -44,6 +44,7 @@ import {
   type WorkStore,
 } from '../../app-render/work-async-storage.external'
 import {
+  throwPrerenderPPRRemovedError,
   workUnitAsyncStorage,
   type RequestStore,
   type PrerenderStore,
@@ -60,7 +61,6 @@ import { StaticGenBailoutError } from '../../../client/components/static-generat
 import { isStaticGenEnabled } from './helpers/is-static-gen-enabled'
 import {
   abortAndThrowOnSynchronousRequestDataAccess,
-  postponeWithTracking,
   createDynamicTrackingState,
   getFirstDynamicReason,
 } from '../../app-render/dynamic-rendering'
@@ -1353,11 +1353,7 @@ function trackDynamic(
           'A runtime prerender store should not be used for a route handler.'
         )
       case 'prerender-ppr':
-        return postponeWithTracking(
-          store.route,
-          expression,
-          workUnitStore.dynamicTracking
-        )
+        return throwPrerenderPPRRemovedError()
       case 'prerender-legacy':
         workUnitStore.revalidate = 0
 

@@ -1,5 +1,8 @@
 import { workAsyncStorage } from '../app-render/work-async-storage.external'
-import { workUnitAsyncStorage } from '../app-render/work-unit-async-storage.external'
+import {
+  throwPrerenderPPRRemovedError,
+  workUnitAsyncStorage,
+} from '../app-render/work-unit-async-storage.external'
 import { abortOnSynchronousPlatformIOAccess } from '../app-render/dynamic-rendering'
 import { RenderStage } from '../app-render/staged-rendering'
 import { applyOwnerStack } from '../dynamic-rendering-utils'
@@ -89,8 +92,9 @@ export function io(expression: string, type: SyncIOApiType) {
       }
       break
     }
-    case 'validation-client':
     case 'prerender-ppr':
+      return throwPrerenderPPRRemovedError()
+    case 'validation-client':
     case 'prerender-legacy':
     case 'cache':
     case 'private-cache':

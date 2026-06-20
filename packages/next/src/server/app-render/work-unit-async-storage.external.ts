@@ -424,6 +424,12 @@ export type WorkUnitAsyncStorage = AsyncLocalStorage<WorkUnitStore>
 
 export { workUnitAsyncStorageInstance as workUnitAsyncStorage }
 
+export function throwPrerenderPPRRemovedError(): never {
+  throw new InvariantError(
+    'The prerender-ppr work unit type has been removed. This code path should be unreachable.'
+  )
+}
+
 export function throwForMissingRequestStore(callingExpression: string): never {
   throw new Error(
     `\`${callingExpression}\` was called outside a request scope. Read more: https://nextjs.org/docs/messages/next-dynamic-api-wrong-context`
@@ -448,8 +454,9 @@ export function getResumeDataCache(
     case 'prerender-runtime':
     case 'prerender-client':
     case 'validation-client':
-    case 'prerender-ppr':
       return workUnitStore.resumeDataCache
+    case 'prerender-ppr':
+      return throwPrerenderPPRRemovedError()
     case 'cache':
     case 'private-cache':
     case 'unstable-cache':
@@ -473,9 +480,10 @@ export function getHmrRefreshHash(
         return workUnitStore.hmrRefreshHash
       case 'request':
         return workUnitStore.cookies.get(NEXT_HMR_REFRESH_HASH_COOKIE)?.value
+      case 'prerender-ppr':
+        return throwPrerenderPPRRemovedError()
       case 'prerender-client':
       case 'validation-client':
-      case 'prerender-ppr':
       case 'prerender-legacy':
       case 'unstable-cache':
       case 'generate-static-params':
@@ -495,11 +503,12 @@ export function isHmrRefresh(workUnitStore: WorkUnitStore): boolean {
       case 'private-cache':
       case 'request':
         return workUnitStore.isHmrRefresh ?? false
+      case 'prerender-ppr':
+        return throwPrerenderPPRRemovedError()
       case 'prerender':
       case 'prerender-client':
       case 'validation-client':
       case 'prerender-runtime':
-      case 'prerender-ppr':
       case 'prerender-legacy':
       case 'unstable-cache':
       case 'generate-static-params':
@@ -521,11 +530,12 @@ export function getServerComponentsHmrCache(
       case 'private-cache':
       case 'request':
         return workUnitStore.serverComponentsHmrCache
+      case 'prerender-ppr':
+        return throwPrerenderPPRRemovedError()
       case 'prerender':
       case 'prerender-client':
       case 'validation-client':
       case 'prerender-runtime':
-      case 'prerender-ppr':
       case 'prerender-legacy':
       case 'unstable-cache':
       case 'generate-static-params':
@@ -553,10 +563,11 @@ export function getDraftModeProviderForCacheScope(
       case 'prerender-runtime':
       case 'request':
         return workUnitStore.draftMode
+      case 'prerender-ppr':
+        return throwPrerenderPPRRemovedError()
       case 'prerender':
       case 'prerender-client':
       case 'validation-client':
-      case 'prerender-ppr':
       case 'prerender-legacy':
       case 'generate-static-params':
         break
@@ -576,9 +587,10 @@ export function getStagedRenderingController(
     case 'prerender-runtime':
     case 'prerender':
       return workUnitStore.stagedRendering ?? null
+    case 'prerender-ppr':
+      return throwPrerenderPPRRemovedError()
     case 'prerender-client':
     case 'validation-client':
-    case 'prerender-ppr':
     case 'prerender-legacy':
     case 'cache':
     case 'private-cache':
@@ -599,6 +611,8 @@ export function getCacheSignal(
     case 'validation-client':
     case 'prerender-runtime':
       return workUnitStore.cacheSignal
+    case 'prerender-ppr':
+      return throwPrerenderPPRRemovedError()
     case 'request': {
       // In dev, we might fill caches even during a dynamic request.
       if (workUnitStore.cacheSignal) {
@@ -606,7 +620,6 @@ export function getCacheSignal(
       }
       // fallthrough
     }
-    case 'prerender-ppr':
     case 'prerender-legacy':
     case 'cache':
     case 'private-cache':
@@ -628,6 +641,7 @@ export function getVaryParamsAccumulator(
       return workUnitStore.varyParamsAccumulator ?? null
     }
     case 'prerender-ppr':
+      return throwPrerenderPPRRemovedError()
     case 'prerender-legacy':
     case 'cache':
     case 'private-cache':

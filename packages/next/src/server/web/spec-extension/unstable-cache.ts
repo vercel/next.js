@@ -9,6 +9,7 @@ import {
 import {
   getCacheSignal,
   getDraftModeProviderForCacheScope,
+  throwPrerenderPPRRemovedError,
   workUnitAsyncStorage,
 } from '../../app-render/work-unit-async-storage.external'
 import {
@@ -162,11 +163,12 @@ export function unstable_cache<T extends Callback>(
 
         if (workUnitStore) {
           switch (workUnitStore.type) {
+            case 'prerender-ppr':
+              return throwPrerenderPPRRemovedError()
             case 'cache':
             case 'private-cache':
             case 'prerender':
             case 'prerender-runtime':
-            case 'prerender-ppr':
             case 'prerender-legacy':
               // We update the store's revalidate property if the option.revalidate is a higher precedence
               // options.revalidate === undefined doesn't affect timing.
@@ -414,11 +416,12 @@ function getFetchUrlPrefix(
         .join('&')
 
       return `${pathname}${sortedSearch.length ? '?' : ''}${sortedSearch}`
+    case 'prerender-ppr':
+      return throwPrerenderPPRRemovedError()
     case 'prerender':
     case 'prerender-client':
     case 'validation-client':
     case 'prerender-runtime':
-    case 'prerender-ppr':
     case 'prerender-legacy':
     case 'cache':
     case 'private-cache':

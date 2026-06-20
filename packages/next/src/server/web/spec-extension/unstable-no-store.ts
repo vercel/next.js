@@ -1,5 +1,8 @@
 import { workAsyncStorage } from '../../app-render/work-async-storage.external'
-import { workUnitAsyncStorage } from '../../app-render/work-unit-async-storage.external'
+import {
+  throwPrerenderPPRRemovedError,
+  workUnitAsyncStorage,
+} from '../../app-render/work-unit-async-storage.external'
 import { markCurrentScopeAsDynamic } from '../../app-render/dynamic-rendering'
 
 /**
@@ -39,6 +42,7 @@ export function unstable_noStore() {
           // unstable_noStore() is a noop in Dynamic I/O.
           return
         case 'prerender-ppr':
+          return throwPrerenderPPRRemovedError()
         case 'prerender-legacy':
         case 'request':
         case 'cache':

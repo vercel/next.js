@@ -5,7 +5,10 @@ import {
   htmlEscapeAttributeString,
   htmlEscapeJsonString,
 } from '../../shared/lib/htmlescape'
-import { workUnitAsyncStorage } from './work-unit-async-storage.external'
+import {
+  throwPrerenderPPRRemovedError,
+  workUnitAsyncStorage,
+} from './work-unit-async-storage.external'
 import { InvariantError } from '../../shared/lib/invariant-error'
 import { getClientReferenceManifest } from './manifests-singleton'
 
@@ -133,9 +136,10 @@ export function getFlightStream<T>(
         })
         flightResponses.set(flightStream, responseOnNextTick)
         return responseOnNextTick
+      case 'prerender-ppr':
+        return throwPrerenderPPRRemovedError()
       case 'prerender':
       case 'prerender-runtime':
-      case 'prerender-ppr':
       case 'prerender-legacy':
       case 'request':
       case 'cache':

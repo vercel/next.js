@@ -1,11 +1,13 @@
 import { workAsyncStorage } from '../app-render/work-async-storage.external'
-import { workUnitAsyncStorage } from '../app-render/work-unit-async-storage.external'
+import {
+  throwPrerenderPPRRemovedError,
+  workUnitAsyncStorage,
+} from '../app-render/work-unit-async-storage.external'
 import {
   makeHangingPromise,
   makeDevtoolsIOAwarePromise,
 } from '../dynamic-rendering-utils'
 import { RenderStage } from '../app-render/staged-rendering'
-import { throwPrerenderPPRRemovedError } from '../../shared/lib/ppr-removed-error'
 import { isRequestApiAllowedInCurrentPhase } from './utils'
 
 // A fulfilled thenable that React can unwrap synchronously via `use()` without
@@ -68,9 +70,8 @@ export function io(): Promise<void> {
           '`io()`'
         )
       case 'prerender-ppr':
-        // Dead code to be removed when we eliminate legacy ppr code
-        throwPrerenderPPRRemovedError()
-        break
+        // Kept as a dead-code sentinel until PrerenderStorePPR is removed.
+        return throwPrerenderPPRRemovedError()
       case 'cache':
       case 'private-cache':
       case 'unstable-cache':
