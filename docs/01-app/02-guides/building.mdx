@@ -10,6 +10,7 @@ related:
     - app/api-reference/functions/generate-static-params
     - app/api-reference/config/next-config-js/cacheComponents
     - app/guides/streaming
+    - app/guides/incremental-static-regeneration-cache-components
     - app/guides/ci-build-caching
 ---
 
@@ -153,13 +154,13 @@ Route (app)
 ◐  (Partial Prerender)  prerendered as static HTML with dynamic server-streamed content
 ```
 
-When a user visits an unlisted param, Next.js serves the loading fallback immediately while the page content streams in. The result is cached for subsequent visits.
+When a user visits an unlisted param, Next.js serves the prerendered shell immediately while the page content streams in.
 
 When there are more paths than fit in the preview, Next.js prints a short list and ends with `[+N more paths]`.
 
 > **Good to know**: The shell for unlisted params is available from Next.js 16.3. Earlier versions wait for a full server render before sending the response for unlisted params.
 
-Routes that use [`cacheLife`](/docs/app/api-reference/functions/cacheLife) also show `Revalidate` and `Expire` columns:
+Routes that use [`cacheLife`](/docs/app/api-reference/functions/cacheLife) also show `Revalidate` and `Expire` columns. These cached, revalidating routes are covered in [Incremental Static Regeneration with Cache Components](/docs/app/guides/incremental-static-regeneration-cache-components):
 
 ```bash filename="Terminal"
 Route (app)                Revalidate  Expire
@@ -174,11 +175,7 @@ Route (app)                Revalidate  Expire
 
 ### High-cardinality routes
 
-Large or unbounded slug sets (for example, millions of product pages) are not practical to prerender fully at build time.
-
-With Cache Components, Next.js serves a `<Suspense>` shell from the CDN for unknown slugs while data streams in. After the first visit, the page is cached and treated as static on subsequent requests. Keep `generateStaticParams` small and let traffic decide which extra pages warm into cache.
-
-> **Good to know**: This behavior is available from Next.js 16.3. Earlier versions wait for a full server render before sending the response for unlisted params.
+Large or unbounded slug sets (for example, millions of product pages) aren't practical to prerender fully at build time. List the ones worth prerendering in `generateStaticParams` — they appear as their own `○` rows — and the dynamic segment's `◐` row covers the rest, served as a shell and upgraded after the first visit. [Incremental Static Regeneration with Cache Components](/docs/app/guides/incremental-static-regeneration-cache-components) explains that model in full.
 
 ## Debugging prerender errors
 
@@ -208,4 +205,5 @@ Next, learn how to:
 
 - [Deploy your application](/docs/app/getting-started/deploying)
 - [Cache data and UI](/docs/app/getting-started/caching)
+- [Revalidate cached routes with ISR](/docs/app/guides/incremental-static-regeneration-cache-components)
 - [Configure CI build caching](/docs/app/guides/ci-build-caching)
