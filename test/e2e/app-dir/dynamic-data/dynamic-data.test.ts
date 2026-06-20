@@ -311,7 +311,7 @@ describe('dynamic-data inside cache scope', () => {
       try {
         await expect(browser).toDisplayRedbox(`
          {
-           "code": "E1370",
+           "code": "E1372",
            "description": "Route "/cookies": \`cookies()\` can't be read inside \`unstable_cache()\`. Read it outside the cached function and pass what you need as an argument.
          Learn more: https://nextjs.org/docs/app/api-reference/functions/unstable_cache",
            "environmentLabel": "Server",

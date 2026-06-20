@@ -164,7 +164,7 @@ describe('Cache Components Errors', () => {
 
           await expect(browser).toDisplayCollapsedRedbox(`
            {
-             "code": "E1290",
+             "code": "E1318",
              "description": "Next.js encountered uncached data during prerendering.",
              "environmentLabel": "Server",
              "label": "Blocking Route",
@@ -586,7 +586,7 @@ describe('Cache Components Errors', () => {
 
           await expect(browser).toDisplayCollapsedRedbox(`
            {
-             "code": "E1289",
+             "code": "E1352",
              "description": "Next.js encountered uncached data in generateViewport().",
              "environmentLabel": "Server",
              "label": "Blocking Route",
@@ -698,7 +698,7 @@ describe('Cache Components Errors', () => {
 
           await expect(browser).toDisplayCollapsedRedbox(`
            {
-             "code": "E1289",
+             "code": "E1352",
              "description": "Next.js encountered uncached data in generateViewport().",
              "environmentLabel": "Server",
              "label": "Blocking Route",
@@ -792,7 +792,7 @@ describe('Cache Components Errors', () => {
           await expect(browser).toDisplayCollapsedRedbox(`
            [
              {
-               "code": "E1290",
+               "code": "E1318",
                "description": "Next.js encountered uncached data during prerendering.",
                "environmentLabel": "Server",
                "label": "Blocking Route",
@@ -806,7 +806,7 @@ describe('Cache Components Errors', () => {
                ],
              },
              {
-               "code": "E1290",
+               "code": "E1318",
                "description": "Next.js encountered uncached data during prerendering.",
                "environmentLabel": "Server",
                "label": "Blocking Route",
@@ -2377,7 +2377,7 @@ describe('Cache Components Errors', () => {
 
             await expect(browser).toDisplayCollapsedRedbox(`
              {
-               "code": "E1296",
+               "code": "E1320",
                "description": "Next.js encountered runtime data during prerendering.",
                "environmentLabel": "Server",
                "label": "Blocking Route",
@@ -3166,7 +3166,7 @@ describe('Cache Components Errors', () => {
 
               await expect(browser).toDisplayCollapsedRedbox(`
                {
-                 "code": "E1296",
+                 "code": "E1320",
                  "description": "Next.js encountered runtime data during prerendering.",
                  "environmentLabel": "Server",
                  "label": "Blocking Route",
@@ -3296,7 +3296,7 @@ Ways to fix this:
 
               await expect(browser).toDisplayCollapsedRedbox(`
                {
-                 "code": "E1296",
+                 "code": "E1320",
                  "description": "Next.js encountered runtime data during prerendering.",
                  "environmentLabel": "Server",
                  "label": "Blocking Route",
@@ -3440,7 +3440,7 @@ Ways to fix this:
                      ],
                    },
                  ],
-                 "code": "E1365",
+                 "code": "E1368",
                  "description": "A nested \`"use cache"\` with a short \`expire\` (under 5 minutes) is inside an outer \`"use cache"\` that has no \`cacheLife()\`. Add \`cacheLife()\` to the outer one to choose: a longer \`expire\` to prerender it, or a short \`expire\` to keep it dynamic.
                Learn more: https://nextjs.org/docs/messages/nested-use-cache-no-explicit-cachelife",
                  "environmentLabel": "Server",
@@ -3590,7 +3590,7 @@ Ways to fix this:
 
               await expect(browser).toDisplayCollapsedRedbox(`
                {
-                 "code": "E1296",
+                 "code": "E1320",
                  "description": "Next.js encountered runtime data during prerendering.",
                  "environmentLabel": "Server",
                  "label": "Blocking Route",
@@ -3720,7 +3720,7 @@ Ways to fix this:
 
               await expect(browser).toDisplayCollapsedRedbox(`
                {
-                 "code": "E1296",
+                 "code": "E1320",
                  "description": "Next.js encountered runtime data during prerendering.",
                  "environmentLabel": "Server",
                  "label": "Blocking Route",
@@ -3866,7 +3866,7 @@ Ways to fix this:
                      ],
                    },
                  ],
-                 "code": "E1383",
+                 "code": "E1384",
                  "description": "A nested \`"use cache"\` with \`revalidate: 0\` is inside an outer \`"use cache"\` that has no \`cacheLife()\`. Add \`cacheLife()\` to the outer one to choose: a non-zero \`revalidate\` to prerender it, or \`revalidate: 0\` to keep it dynamic.
                Learn more: https://nextjs.org/docs/messages/nested-use-cache-no-explicit-cachelife",
                  "environmentLabel": "Server",
@@ -4015,7 +4015,7 @@ Ways to fix this:
 
             await expect(browser).toDisplayCollapsedRedbox(`
              {
-               "code": "E1296",
+               "code": "E1320",
                "description": "Next.js encountered runtime data during prerendering.",
                "environmentLabel": "Server",
                "label": "Blocking Route",
@@ -4680,7 +4680,7 @@ Ways to fix this:
             if (isTurbopack) {
               await expect(browser).toDisplayRedbox(`
                {
-                 "code": "E1375",
+                 "code": "E1377",
                  "description": "\`"use cache: private"\` can't be used inside \`unstable_cache()\`.
                Learn more: https://nextjs.org/docs/app/api-reference/directives/use-cache-private",
                  "environmentLabel": "Server",
@@ -4697,7 +4697,7 @@ Ways to fix this:
             } else {
               await expect(browser).toDisplayRedbox(`
                {
-                 "code": "E1375",
+                 "code": "E1377",
                  "description": "\`"use cache: private"\` can't be used inside \`unstable_cache()\`.
                Learn more: https://nextjs.org/docs/app/api-reference/directives/use-cache-private",
                  "environmentLabel": "Server",
@@ -4814,7 +4814,7 @@ Ways to fix this:
 
             await expect(browser).toDisplayRedbox(`
              {
-               "code": "E1373",
+               "code": "E1375",
                "description": "\`"use cache: private"\` can't be nested inside \`"use cache"\`. It can only be nested inside another \`"use cache: private"\`.
              Learn more: https://nextjs.org/docs/app/api-reference/directives/use-cache-private",
                "environmentLabel": "Server",
@@ -4953,7 +4953,7 @@ Ways to fix this:
 
             await expect(browser).toDisplayCollapsedRedbox(`
              {
-               "code": "E1296",
+               "code": "E1320",
                "description": "Next.js encountered runtime data during prerendering.",
                "environmentLabel": "Server",
                "label": "Blocking Route",
