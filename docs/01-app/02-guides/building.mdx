@@ -120,11 +120,11 @@ Route (app)
 
 > **Good to know**: `generateStaticParams` must return at least one param. An empty array causes a [build error](/docs/messages/empty-generate-static-params).
 
-This works because the params and data are fully known at build time, so Next.js can prerender each page in full. But if the page also uses request-time APIs like `cookies()`, `headers()`, or `searchParams`, the build fails again — those values are not available during prerendering.
+The params and data are known at build time, so Next.js prerenders each page in full. If the page also uses request-time APIs like `cookies()`, `headers()`, or `searchParams`, the build fails again. Those values are not available during prerendering.
 
 ### Stream the request-time work
 
-Give Next.js a shell it can prerender, and let the request-time work stream in. The [Streaming guide](/docs/app/guides/streaming) covers the options and where to place the boundary; a [`loading.js`](/docs/app/api-reference/file-conventions/loading) file is the simplest, wrapping the whole segment in one boundary:
+Give Next.js a shell it can prerender, and let the request-time work stream in. The [Streaming guide](/docs/app/guides/streaming) covers the options and where to place the boundary. A [`loading.js`](/docs/app/api-reference/file-conventions/loading) file is the simplest, wrapping the whole segment in one boundary:
 
 ```tsx filename="app/products/[id]/loading.tsx" switcher
 export default function Loading() {
@@ -138,7 +138,7 @@ export default function Loading() {
 }
 ```
 
-With the loading fallback in place:
+With the shell in place:
 
 ```bash filename="Terminal"
 Route (app)
@@ -175,7 +175,7 @@ Route (app)                Revalidate  Expire
 
 ### High-cardinality routes
 
-Large or unbounded slug sets (for example, millions of product pages) aren't practical to prerender fully at build time. List the ones worth prerendering in `generateStaticParams` — they appear as their own `○` rows — and the dynamic segment's `◐` row covers the rest, served as a shell and upgraded after the first visit. [Incremental Static Regeneration with Cache Components](/docs/app/guides/incremental-static-regeneration-cache-components) explains that model in full.
+Large or unbounded slug sets (for example, millions of product pages) aren't practical to prerender fully at build time. List the ones worth prerendering in `generateStaticParams` so they appear as their own `○` rows. The dynamic segment's `◐` row covers the rest, served as a shell and upgraded after the first visit. [Incremental Static Regeneration with Cache Components](/docs/app/guides/incremental-static-regeneration-cache-components) explains that model in full.
 
 ## Debugging prerender errors
 
