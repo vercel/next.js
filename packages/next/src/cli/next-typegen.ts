@@ -30,6 +30,11 @@ export type NextTypegenOptions = {
 const nextTypegen = async (options: NextTypegenOptions, directory?: string) => {
   parseBundlerArgs(options)
 
+  // Signal to config loading that we are running typegen so that
+  // Turbopack-only config checks (e.g. turbopackRustReactCompiler) are
+  // skipped – typegen does not involve a bundler at all.
+  process.env.NEXT_PRIVATE_TYPEGEN = '1'
+
   const baseDir = getProjectDir(directory)
 
   // Check if the provided directory exists

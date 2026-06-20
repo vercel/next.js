@@ -515,7 +515,8 @@ function assignDefaultsAndValidate(
 
     if (
       result.experimental.turbopackRustReactCompiler &&
-      !process.env.TURBOPACK
+      !process.env.TURBOPACK &&
+      !process.env.NEXT_PRIVATE_TYPEGEN
     ) {
       throw new Error(
         `\`experimental.turbopackRustReactCompiler\` is only supported with Turbopack. ` +
