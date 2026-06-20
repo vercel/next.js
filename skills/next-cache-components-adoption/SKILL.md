@@ -93,8 +93,8 @@ signal for sync IO.) This most often bites in a shared layout, where one
 `new Date()` blocks every route under it.
 
 Milestone C is a separate, dev-only surface: instant-navigation validation
-warnings in the Insights tab. They don't block the build. Work them down once
-the build is clean — see the
+warnings (today plain `console.error`s; the Insights tab UI is still landing).
+They don't block the build. Work them down once the build is clean — see the
 [instant navigation guide](https://nextjs.org/docs/app/guides/instant-navigation).
 
 Milestone D is the final advancement: [Partial Prefetching](https://nextjs.org/docs/app/guides/adopting-partial-prefetching).
@@ -116,6 +116,13 @@ at the **first** one it hits and exits, so it's a poor way to size up the work
 scoping. Pass `--debug-prerender` for full stack traces (the default build
 output is terser), and `--debug-build-paths /r1 /r2` to rebuild only the routes
 you're iterating on.
+
+**Verifying a fix at runtime.** A green build or a cleared overlay isn't proof
+the route actually behaves — Cache Components is a runtime concern (static shell
+
+- streamed data). Use the **`next-dev-loop`** skill to confirm each change at
+  runtime (it cross-checks `/_next/mcp` against the live browser). Lean on it after
+  every fix in the steps below, not only at the end.
 
 ## Step 1 — Choose a strategy
 
@@ -222,8 +229,8 @@ For each route in the group:
 4. Re-check the route, then move to the next.
 
 Keep a todo list of the group's routes and work it to completion; don't
-truncate. When the group is done, **stop and ask the user**: open a PR and move
-to the next group, or stop here? Don't silently roll on.
+truncate. When every route is clean, move to **Step 3** to verify the group and
+show the results to the user before opening a PR.
 
 ## Step 3 — Verify (per group)
 
@@ -234,11 +241,19 @@ Step 2. It is a checklist, not new adoption work.
 - The group's routes no longer carry `// TODO: Cache Components adoption`
   opt-outs, except deliberate Blocks (`grep` to confirm). A route you intend to
   keep blocking keeps its `instant = false`.
-- Drive each route in dev, not only the build. Visit it, wait for
-  streaming to settle, and confirm every `<Suspense>` fallback you added
-  resolves to its real content (not stuck on a skeleton or a blank). A green
-  build with zero opt-outs is not the same as a working route. Query the live
-  DOM if a tool's snapshot looks stale before reporting a route as broken.
+- Drive each route in dev, not only the build — use the **`next-dev-loop`**
+  skill. Visit it, wait for streaming to settle, and confirm every `<Suspense>`
+  fallback you added resolves to its real content (not stuck on a skeleton or a
+  blank). A green build with zero opt-outs is not the same as a working route.
+  Query the live DOM if a tool's snapshot looks stale before reporting a route
+  as broken.
+- Show the user the rendered result before moving on. For each route you
+  cleaned, surface what it looks like now (a screenshot, or the visible content
+  you observed) and confirm they're happy with it — the build can't tell whether
+  the streamed-in loading state, the fallback, or the final layout matches what
+  they want. Adoption changes the _experience_ (instant shell + streamed data),
+  so the person who owns the product should sign off on each piece, not the
+  agent alone. This is what makes incremental adoption safe to roll forward.
 
 **Expect some routes to still print `ƒ` (Dynamic) in the build's route table —
 that is success, not a regression.** A route comes out `ƒ` when it does
@@ -246,19 +261,50 @@ request-time work through the documented escape hatch (e.g. a layout that
 `await connection()` for `new Date()`); the page is no longer _opted out_, it is
 genuinely dynamic. Don't rip the escape hatch back out chasing a `◐`.
 
-When every group is clean, move on to **Step 4** to make navigations instant.
+When the group passes and the user is happy with each route, **stop and ask**:
+open a PR and move to the next group, or stop here? If you stop here, **milestone
+B is incomplete** — the rest of the app still carries `instant = false`, and
+Steps 4–5 only apply to the cleaned group. Don't silently roll on, and don't
+treat one cleaned group as the whole adoption.
+
+Milestone B is done only when **every** group is clean — no `instant = false`
+remains except deliberate Blocks. Grep the whole app to confirm
+(`grep -rl "instant = false" app`); a single cleaned group is a checkpoint, not
+the finish line. When the whole app is clean, move on to **Step 4** to make
+navigations instant.
 
 ## Step 4 — Make navigations instant (milestone C)
 
+**Precondition: milestone B is complete across the app.** Before starting this
+step, confirm no route outside the cleaned group still carries `instant = false`
+(`grep -rl "instant = false" app`, ignoring deliberate Blocks). If opt-outs are
+left, you're not ready for Step 4 — go back to **Step 2** and finish the
+other groups first. Making navigations instant on a handful of routes while
+most of the app is still opted out of validation isn't meaningful adoption. If
+the user genuinely wants to proceed on the cleaned subset only, say so
+explicitly and flag that the rest of the app is unmigrated — don't assume they
+want to skip ahead.
+
 A green build means no route is _opted out_, not that navigations are instant.
-The dev overlay's **Insights** tab surfaces instant-navigation validation
-warnings: dev-only signals (they don't block the build) that look like the
-blocking-prerender errors you cleared in Step 2, and you fix them the same way —
-read the warning, follow its fix card / **Copy as prompt**, apply it.
+Next.js surfaces instant-navigation validation warnings: dev-only signals (they
+don't block the build) that look like the blocking-prerender errors you cleared
+in Step 2, and you fix them the same way — read the warning and apply the fix it
+names.
+
+These warnings fire on **navigation**, not on hover or prefetch (dev doesn't
+prefetch), so drive the app — use the **`next-dev-loop`** skill — and navigate
+into each route to surface them. Today they land as plain `console.error`s in
+the dev overlay; the richer **Insights** tab with fix cards / **Copy as prompt**
+is still landing, so don't go hunting for a tab that may not be there yet.
 
 Work them down once the build is clean, group by group like Step 2. See the
 [instant navigation guide](https://nextjs.org/docs/app/guides/instant-navigation)
-for the per-warning details.
+for the per-warning details — and for **locking the result in**: its
+[e2e-test section](https://nextjs.org/docs/app/guides/instant-navigation#prevent-regressions-with-e2e-tests)
+covers the `@next/playwright` `instant()` helper, which asserts on the UI that's
+available immediately on navigation. The `next-dev-loop` check confirms a route
+is instant _now_; an `instant()` test keeps it that way in CI. Consider adding
+one per route you make instant.
 
 This is where navigations actually become instant. It's the last required
 adoption milestone; **Step 5** (Partial Prefetching) and the optimizer skill
@@ -266,49 +312,29 @@ below are optional polish.
 
 ## Step 5 — Adopt Partial Prefetching (optional)
 
-Once the build is clean and navigations are instant, adopt Partial Prefetching for
-the full Cache Components payoff: `<Link>` prefetches only the static
-[App Shell](/docs/app/glossary#app-shell) by default, instead of the whole route.
-This is config plus `<Link>` tuning, not a build gate — do it as a separate,
-mergeable milestone after milestones A–C.
+**Precondition: milestones A–C are complete across the app** (build green, no
+`instant = false` outside deliberate Blocks, navigations instant). If earlier
+milestones are unfinished, go back rather than adopting Partial Prefetching on a
+partially-migrated app.
 
-The dev-only `link-prefetch-partial` Insight drives this. It fires for a
-`<Link prefetch={true}>` pointing at a route that has **not** adopted Partial
-Prefetching (so the link falls back to a legacy full prefetch). Let the Insights
-guide the work — don't blanket-enable the global flag first, or every route
-counts as adopted, the Insights never fire, and you lose the signal for which
-links to audit.
+Once the build is clean and navigations are instant, adopt Partial Prefetching
+for the full Cache Components payoff: `<Link>` prefetches only the static
+[App Shell](/docs/app/glossary#app-shell) by default instead of the whole route.
+It's config plus `<Link>` tuning, not a build gate — a separate, mergeable
+milestone after milestones A–C.
 
-1. **Walk the Insights, like Step 4.** Visit routes in dev; each
-   `<Link prefetch={true}>` to an unadopted route surfaces a
-   `link-prefetch-partial` Insight with three fix cards. Read each card's
-   **Copy as prompt** and apply the one that fits — don't improvise:
-   - **Upgrade** — opt the destination route into Partial Prefetching with
-     `export const prefetch = 'partial'`. Use when the route should ship its
-     shell ahead of the click.
-   - **Disable** — drop the `prefetch={true}` prop. Use for fully static
-     destinations, where the default `<Link>` already loads the page.
-   - **Ignore** — `export const instant = false` to silence it.
-
-   The [`instant-link-prefetch-partial`](/docs/messages/instant-link-prefetch-partial)
-   page and the [Adopting Partial Prefetching](https://nextjs.org/docs/app/guides/adopting-partial-prefetching)
-   guide (see its "Auditing existing calls" table) carry the per-case details,
-   including when to keep `prefetch={true}` and add `prefetch = 'allow-runtime'`
-   for routes that read request data.
-
-2. **Flip the global flag last.** Once the `link-prefetch-partial` Insights are
-   cleared (except deliberate ignores), enable the config and remove the
-   now-redundant per-route `prefetch = 'partial'` exports:
-
-   ```ts
-   const nextConfig = {
-     cacheComponents: true,
-     partialPrefetching: true,
-   }
-   ```
-
-See the [Adopting Partial Prefetching](https://nextjs.org/docs/app/guides/adopting-partial-prefetching)
-guide for the full adoption path and `<Link>` defaults.
+Follow the [Adopting Partial Prefetching](https://nextjs.org/docs/app/guides/adopting-partial-prefetching)
+guide for the whole flow — the incremental `prefetch = 'partial'` path, the
+flag-flip, and the "Auditing existing `<Link prefetch={true}>` calls" table that
+maps each link to its fix. The dev-only `link-prefetch-partial` warning drives
+it, the same way Step 4's warnings drive that step. As in Step 4, it fires on
+**navigation** (not hover/prefetch — dev doesn't prefetch) and currently lands
+as a `console.error`, so navigate with **`next-dev-loop`** to surface it. The one
+piece of sequencing the guide assumes you know: walk the warnings **before**
+enabling the global `partialPrefetching` flag — flip it first and every route
+counts as adopted, so the warnings never fire and you lose the signal for which
+links to audit. Trust the warning text and the guide's audit table for the
+per-link fix; the segment-config values are simple to misremember.
 
 ## Optional: grow static shells
 
