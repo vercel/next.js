@@ -48,6 +48,8 @@ export type NextConfigComplete = Required<Omit<NextConfig, 'configFile'>> & {
   // since development builds use `{distDir}/dev`. This is used to ensure that the bundler doesn't
   // traverse into the output directory.
   distDirRoot: string
+  // The repository root, regardless of overwritten outputFileTracingRoot or turbopack.root.
+  repoRoot: string
 }
 
 export type I18NDomains = readonly DomainLocale[]
@@ -475,6 +477,7 @@ export interface ExperimentalConfig {
   dynamicOnHover?: boolean
   useOffline?: boolean
   optimisticRouting?: boolean
+  instrumentationClientRouterTransitionEvents?: boolean
   /**
    * Enables App Shell prefetching: a route's reusable, param-free loading
    * state is prefetched once per session and served instantly for any
@@ -1960,7 +1963,7 @@ export const defaultConfig = Object.freeze({
   staticPageGenerationTimeout: 60,
   output: !!process.env.NEXT_PRIVATE_STANDALONE ? 'standalone' : undefined,
   modularizeImports: undefined,
-  outputFileTracingRoot: process.env.NEXT_PRIVATE_OUTPUT_TRACE_ROOT || '',
+  outputFileTracingRoot: '',
   allowedDevOrigins: undefined,
   enablePrerenderSourceMaps: true,
   cacheComponents: false,
@@ -2023,6 +2026,7 @@ export const defaultConfig = Object.freeze({
     useOffline: false,
     varyParams: true,
     optimisticRouting: true,
+    instrumentationClientRouterTransitionEvents: false,
     prefetchInlining: true,
     preloadEntriesOnStart: true,
     clientRouterFilter: true,

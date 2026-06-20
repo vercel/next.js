@@ -374,7 +374,7 @@ export default function BlogPage() {
 
 Sequential data fetching happens when one request depends on data from another.
 
-For example, `<Playlists>` can only fetch data after `<Artist>` completes because it needs the `artistID`:
+For example, `<Playlists>` can only fetch data after `getArtist()` resolves because it needs the `artistID`:
 
 ```tsx filename="app/artist/[username]/page.tsx" switcher
 export default async function Page({

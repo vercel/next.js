@@ -87,6 +87,8 @@ enum AppRenderSpan {
   renderToReadableStream = 'AppRender.renderToReadableStream',
   getBodyResult = 'AppRender.getBodyResult',
   fetch = 'AppRender.fetch',
+  waitShellReady = 'AppRender.waitShellReady',
+  renderToNodeFizzStream = 'AppRender.renderToNodeFizzStream',
 }
 
 enum RouterSpan {

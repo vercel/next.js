@@ -1133,7 +1133,11 @@ async function spawnRuntimePrefetchWithFilledCaches(
       requestStore.cookies,
       requestStore.draftMode,
       onError,
-      staleTimeIterable
+      staleTimeIterable,
+      // This path is only reached on the production Cache Components + Cached
+      // Navigations renders (the staged Flight response and the HTML hydration
+      // payload), which set up no React debug channel.
+      undefined
     )
 
     await result.prelude.pipeTo(writable)
@@ -1407,9 +1411,12 @@ async function generateRuntimePrefetchResult(
   requestStore: RequestStore,
   isShellPrefetch: boolean
 ): Promise<RenderResult> {
-  const { workStore, renderOpts } = ctx
-  const { isBuildTimePrerendering = false, onInstrumentationRequestError } =
-    renderOpts
+  const { workStore, renderOpts, htmlRequestId, requestId } = ctx
+  const {
+    isBuildTimePrerendering = false,
+    onInstrumentationRequestError,
+    setReactDebugChannel,
+  } = renderOpts
   const { appShells } = renderOpts.experimental
 
   function onFlightDataRenderError(err: DigestedError, silenceLog: boolean) {
@@ -1469,6 +1476,13 @@ async function generateRuntimePrefetchResult(
         }
     : { type: 'runtime-only' }
 
+  const debugChannel = setReactDebugChannel
+    ? createWebDebugChannel()
+    : undefined
+  if (debugChannel && setReactDebugChannel) {
+    setReactDebugChannel(debugChannel.clientSide, htmlRequestId, requestId)
+  }
+
   const response = await finalRuntimeServerPrerender(
     mode,
     ctx,
@@ -1489,7 +1503,8 @@ async function generateRuntimePrefetchResult(
     requestStore.cookies,
     requestStore.draftMode,
     onError,
-    staleTimeIterable
+    staleTimeIterable,
+    debugChannel?.serverSide
   )
 
   applyMetadataFromPrerenderResult(response, metadata, workStore)
@@ -1675,7 +1690,8 @@ async function finalRuntimeServerPrerender(
   cookies: PrerenderStoreModernRuntime['cookies'],
   draftMode: PrerenderStoreModernRuntime['draftMode'],
   onError: (err: unknown) => string | undefined,
-  staleTimeIterable: StaleTimeIterable
+  staleTimeIterable: StaleTimeIterable,
+  debugChannel: RenderToReadableStreamServerOptions['debugChannel']
 ) {
   const { implicitTags, renderOpts } = ctx
   const { ComponentMod, experimental, isDebugDynamicAccesses } = renderOpts
@@ -1803,6 +1819,7 @@ async function finalRuntimeServerPrerender(
           filterStackFrame,
           onError,
           signal: finalServerController.signal,
+          debugChannel,
         }
       )
 
@@ -2350,7 +2367,7 @@ function App<T>({
     location: null,
   })
 
-  const actionQueue = createMutableActionQueue(initialState, null)
+  const actionQueue = createMutableActionQueue(initialState)
 
   const { HeadManagerContext } =
     require('../../shared/lib/head-manager-context.shared-runtime') as typeof import('../../shared/lib/head-manager-context.shared-runtime')
@@ -2411,7 +2428,7 @@ function ErrorApp<T>({
     location: null,
   })
 
-  const actionQueue = createMutableActionQueue(initialState, null)
+  const actionQueue = createMutableActionQueue(initialState)
 
   return (
     <ImageConfigContext.Provider value={images ?? imageConfigDefault}>
@@ -3816,12 +3833,16 @@ async function renderToStream(
           formState,
         }
 
-        const { stream: htmlStream, allReady } = await workUnitAsyncStorage.run(
-          requestStore,
-          renderToNodeFizzStream,
-          appElement,
-          fizzOptions,
-          { waitForAllReady: generateStaticHTML }
+        const { stream: htmlStream, allReady } = await getTracer().trace(
+          AppRenderSpan.renderToNodeFizzStream,
+          () =>
+            workUnitAsyncStorage.run(
+              requestStore,
+              renderToNodeFizzStream,
+              appElement,
+              fizzOptions,
+              { waitForAllReady: generateStaticHTML }
+            )
         )
 
         // End the render span only after React completed rendering (including anything inside Suspense boundaries)
@@ -4655,19 +4676,41 @@ async function streamStagedRenderInDev({
 
   // Whether any stage boundary still had pending cache reads (or modules): i.e.
   // the caches weren't filled yet and the render streamed Suspense fallbacks
-  // for content that would be cached in production. Returns the running verdict
-  // so each boundary can reveal the shell as soon as a miss is seen.
+  // for content that would be cached in production.
   let hadCacheMiss = false
+
+  // Whether the cold-cache status has already been reported for this render. It
+  // is reported at most once, and only for a read that's still pending while a
+  // shell stage is flushing (see `checkForCacheMiss`).
+  let reportedColdCache = false
+
+  // Runs at each stage boundary. Latches the running cache-miss verdict and
+  // returns it, so a boundary can reveal the shell as soon as a miss is seen
+  // (and so dev validation can later tell whether the streamed render is
+  // prod-representative). The first miss seen while a shell stage is still
+  // flushing also reports the cold-cache status.
   const checkForCacheMiss = () => {
     if (cacheSignal.hasPendingReads()) {
-      if (!hadCacheMiss) {
-        // First detected cache miss this render: tell the dev overlay the load
-        // is streaming with a cold cache now, while it's still in progress, so
-        // the indicator can combine with the rendering status on client navs.
-        // The per-load `'ready'` reset clears it again on the next load.
-        ctx.renderOpts.setCacheStatus?.('cold', ctx.htmlRequestId)
-      }
       hadCacheMiss = true
+
+      // The cold-cache indicator reflects the shell only. A cache read still
+      // pending while a shell stage flushes (`currentStage <=
+      // revealAfterStage`, using the ordered `RenderStage` values) is part of
+      // the shell that production serves instantly, so a cold cache there is
+      // worth surfacing and we show the indicator. A cache miss after the shell
+      // stage is runtime or dynamic content that production reads/fills during
+      // the resume at runtime, so a cold cache there is expected and must not
+      // show the indicator.
+      if (
+        !reportedColdCache &&
+        stageController.currentStage <= revealAfterStage
+      ) {
+        // First in-shell cache miss this render: tell the dev overlay we're
+        // streaming with a cold cache now. The per-load `'ready'` reset clears
+        // it again on the next load.
+        ctx.renderOpts.setCacheStatus?.('cold', ctx.htmlRequestId)
+        reportedColdCache = true
+      }
     }
     return hadCacheMiss
   }

@@ -70,25 +70,24 @@ Use this skill when turning local work into a GitHub pull request.
 Use this PR body format:
 
 ```markdown
-### What?
+## Summary
 
-<what changed>
+<what changed and why>
 
-### Why?
-
-<why this is needed>
-
-### How?
-
-<implementation approach>
-
-### Verification
+## Verification
 
 - `<command that passed>`
 - Not run: `<command>` (`<reason>`)
 
 <!-- NEXT_JS_LLM_PR -->
 ```
+
+The "what" should be explained from the end-user perspective or developer perspective. Only include implementation changes if they're not obvious from the diff.
+
+A "why" should be included if the change isn't self-explanatory, or if the motivation is not clear from the diff.
+Omitting the "why" should be used sparringly and only for small changes.
+
+Do not include trivial verification commands that CI already covers (e.g. `pnpm run build`), but do include any manual verification steps. If the PR changes a test, you don't need to repeat the command to run that test. But if you used an existing test to validate some behavior didn't change, include that test.
 
 Use `--body` with this filled content.
 

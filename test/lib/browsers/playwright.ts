@@ -269,6 +269,13 @@ export class Playwright<TCurrent = undefined> {
       disableCache?: boolean
       cpuThrottleRate?: number
       pushErrorAsConsoleLog?: boolean
+      /**
+       * Suppress the harness from echoing the browser's console output to the
+       * test's terminal (the `Browser Log:` lines). Browser logs are still
+       * collected and available via `browser.log()`. Useful when a test
+       * captures and asserts on terminal output, where the echo would be noise.
+       */
+      disableBrowserLog?: boolean
       beforePageLoad?: (page: Page) => void | Promise<void>
       /**
        * @see {@link https://playwright.dev/docs/api/class-page#page-set-extra-http-headers Playwright.Page.setExtraHTTPHeaders}
@@ -298,7 +305,9 @@ export class Playwright<TCurrent = undefined> {
     websocketFrames = []
 
     page.on('console', (msg) => {
-      debugPrint('Browser Log:', msg)
+      if (!opts?.disableBrowserLog) {
+        debugPrint('Browser Log:', msg)
+      }
 
       pageLogs.push(
         Promise.all(

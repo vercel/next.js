@@ -186,7 +186,7 @@ pub struct TransformContext<'a> {
     pub file_path: FileSystemPath,
     pub source: ResolvedVc<Box<dyn Source>>,
     /// Original source text; used by transforms that need the raw text (e.g.
-    /// `react_compiler_swc`).
+    /// `swc_ecma_react_compiler`).
     pub source_text: &'a str,
     /// The value of `process.env.NODE_ENV` for this compilation
     /// (e.g. `"development"` or `"production"`).
@@ -454,24 +454,31 @@ async fn apply_rust_react_compiler(
     compilation_mode: ReactCompilerCompilationMode,
     target: ReactCompilerTarget,
 ) -> Result<HelperData> {
-    let Program::Module(module) = program else {
+    let Program::Module(_) = program else {
         return Ok(helpers);
     };
 
-    let options = react_compiler_swc_options(ctx, compilation_mode, target);
-    let result = react_compiler_swc::transform(module, ctx.source_text, options);
+    let single_threaded_comments =
+        crate::swc_comments::swc_comments_to_single_threaded(ctx.comments);
+    let result = swc_ecma_react_compiler::transform(
+        program,
+        swc_ecma_react_compiler::SourceType::from_program(program),
+        ctx.source_text,
+        Some(&single_threaded_comments),
+        react_compiler_options(ctx, compilation_mode, target),
+    );
 
     // TODO: Emit these diagnostics with an Info level once there's a way of adjusting log levels in
     //       general. By default React Compiler is silent, as de-opts align closely with feedback
-    //       rom tools like React's lint rules.
+    //       from tools like React's lint rules.
 
-    if let Some(compiled_module) = result.module {
-        *program = Program::Module(compiled_module);
+    if let Some(compiled_program) = result.program {
+        *program = compiled_program;
 
         // TODO(react-compiler-swc): The Rust React Compiler emits every identifier with
         // `SyntaxContext::empty()` in `convert_ast_reverse.rs`.
         //
-        // Remove this once `nextjs_react_compiler_swc`
+        // Remove this once `swc_ecma_react_compiler`
         // preserves/assigns contexts on the converted AST.
         program.mutate(swc_core::ecma::transforms::base::resolver(
             ctx.unresolved_mark,
@@ -483,7 +490,7 @@ async fn apply_rust_react_compiler(
     Ok(helpers)
 }
 
-fn react_compiler_swc_options(
+fn react_compiler_options(
     ctx: &TransformContext<'_>,
     compilation_mode: ReactCompilerCompilationMode,
     target: ReactCompilerTarget,

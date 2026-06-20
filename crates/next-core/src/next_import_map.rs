@@ -1394,11 +1394,10 @@ fn insert_package_alias(import_map: &mut ImportMap, prefix: &str, package_root: 
 
 /// Handles instrumentation-client.ts bundling logic.
 ///
-/// Resolves the `private-next-instrumentation-client` alias to a virtual module
-/// that first requires each entry of `instrumentationClientInject` for side
-/// effects (in array order) and then re-exports the user's
-/// `instrumentation-client.{pageExt}` file via the
-/// `private-next-instrumentation-client-user` alias.
+/// Without injected modules, resolves `private-next-instrumentation-client`
+/// directly to the user's `instrumentation-client.{pageExt}` file. Otherwise,
+/// resolves it to a virtual module containing each injected module in array
+/// order, followed by the user's instrumentation module.
 async fn insert_instrumentation_client_alias(
     import_map: &mut ImportMap,
     project_path: FileSystemPath,
@@ -1415,9 +1414,9 @@ async fn insert_instrumentation_client_alias(
         ImportMapping::Ignore.resolved_cell(),
     ];
 
-    let injects = next_config.instrumentation_client_inject().await?;
+    let modules = next_config.instrumentation_client_inject().await?;
 
-    if injects.is_empty() {
+    if modules.is_empty() {
         insert_alias_to_alternatives(
             import_map,
             rcstr!("private-next-instrumentation-client"),
@@ -1434,25 +1433,18 @@ async fn insert_instrumentation_client_alias(
         user_file_alternatives,
     );
 
-    let injects = injects
+    let modules = modules
         .iter()
         .map(|s| s.as_str())
         .chain(std::iter::once("private-next-instrumentation-client-user"));
-
-    let mut body = String::new();
-    for (i, spec) in injects.clone().enumerate() {
-        body.push_str(&format!(
-            "var mod_{i} = require({});\n",
-            serde_json::to_string(spec)?
-        ));
+    let mut body = String::from("module.exports = [");
+    for (i, spec) in modules.enumerate() {
+        if i > 0 {
+            body.push(',');
+        }
+        body.push_str(&format!("require({})", serde_json::to_string(spec)?));
     }
-    body.push_str("module.exports = { onRouterTransitionStart(url, type) {\n");
-    for (i, _) in injects.enumerate() {
-        body.push_str(&format!(
-            "    mod_{i}?.onRouterTransitionStart?.(url, type);\n"
-        ));
-    }
-    body.push_str("}};\n");
+    body.push_str("];\n");
 
     let virtual_source = VirtualSource::new(
         // Use cjs here in case the user has type:module in the package.json. We do intentionally
