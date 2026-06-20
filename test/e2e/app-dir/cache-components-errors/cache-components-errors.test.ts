@@ -4118,8 +4118,8 @@ Ways to fix this:
             await expect(browser).toDisplayRedbox(`
              {
                "description": "Kaputt!",
-               "environmentLabel": "Server",
-               "label": "Console Error",
+               "environmentLabel": "Cache",
+               "label": "Runtime Error",
                "source": "app/use-cache-runtime-error/page.tsx (15:9) @ throwAnError
              > 15 |   throw new Error('Kaputt!')
                   |         ^",
@@ -4188,7 +4188,7 @@ Ways to fix this:
             await expect(browser).toDisplayCollapsedRedbox(`
              {
                "description": "Kaputt!",
-               "environmentLabel": "Server",
+               "environmentLabel": "Cache",
                "label": "Console Error",
                "source": "app/use-cache-catch-error/page.tsx (19:9) @ throwAnError
              > 19 |   throw new Error('Kaputt!')
@@ -4684,7 +4684,7 @@ Ways to fix this:
                  "description": "\`"use cache: private"\` can't be used inside \`unstable_cache()\`.
                Learn more: https://nextjs.org/docs/app/api-reference/directives/use-cache-private",
                  "environmentLabel": "Server",
-                 "label": "Console Error",
+                 "label": "Runtime Error",
                  "source": "app/use-cache-private-in-unstable-cache/page.tsx (21:38) @ <anonymous>
                > 21 | const getCachedData = unstable_cache(async () => {
                     |                                      ^",
@@ -4701,7 +4701,7 @@ Ways to fix this:
                  "description": "\`"use cache: private"\` can't be used inside \`unstable_cache()\`.
                Learn more: https://nextjs.org/docs/app/api-reference/directives/use-cache-private",
                  "environmentLabel": "Server",
-                 "label": "Console Error",
+                 "label": "Runtime Error",
                  "source": "app/use-cache-private-in-unstable-cache/page.tsx (21:38) @ eval
                > 21 | const getCachedData = unstable_cache(async () => {
                     |                                      ^",
@@ -4817,8 +4817,8 @@ Ways to fix this:
                "code": "E1375",
                "description": "\`"use cache: private"\` can't be nested inside \`"use cache"\`. It can only be nested inside another \`"use cache: private"\`.
              Learn more: https://nextjs.org/docs/app/api-reference/directives/use-cache-private",
-               "environmentLabel": "Server",
-               "label": "Console Error",
+               "environmentLabel": "Cache",
+               "label": "Runtime Error",
                "source": "app/use-cache-private-in-use-cache/page.tsx (15:1) @ Private
              > 15 | async function Private() {
                   | ^",
