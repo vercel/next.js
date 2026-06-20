@@ -228,13 +228,12 @@ async fn write_debug_dump(
     // a hard constraint forbade merging across.
     let mut chunks_json: Vec<serde_json::Value> = chunks
         .iter()
-        .map(|(chunk, merge_cost_to_next)| {
+        .flat_map(|(chunk, merge_cost_to_next)| {
             [
                 serde_json::json!(chunk.iter().map(|&id| ident(id)).collect::<Vec<_>>()),
                 serde_json::json!(cost_to_json(*merge_cost_to_next)),
             ]
         })
-        .flatten()
         .collect();
 
     // last chunk has no merge cost
