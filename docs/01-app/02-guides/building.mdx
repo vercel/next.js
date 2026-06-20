@@ -179,6 +179,8 @@ Large or unbounded slug sets (for example, millions of product pages) aren't pra
 
 ## Debugging prerender errors
 
+Most prerender failures point at a specific component and surface a [blocking-route error](/docs/messages/blocking-route) with a fix card. Synchronous-IO errors are a related class with their own pages: [`blocking-prerender-current-time`](/docs/messages/blocking-prerender-current-time), [`blocking-prerender-random`](/docs/messages/blocking-prerender-random), and [`blocking-prerender-crypto`](/docs/messages/blocking-prerender-crypto). They fire when a route calls `new Date()`, `Math.random()`, or `crypto.randomUUID()` outside `<Suspense>`, and unlike runtime-data errors they are not cleared by `instant = false`.
+
 When the error does not include a clear file and line, run:
 
 ```bash filename="Terminal"
