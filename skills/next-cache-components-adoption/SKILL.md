@@ -37,21 +37,26 @@ work.
 
 Get the app building on 16.3+ first, then come back and adopt Cache Components.
 
-Adoption has four goals, in order. Each is shippable on its own; stop after any
-of them.
+Adoption has four milestones, in order. Each is shippable on its own; stop
+after any of them. These are lettered (A–D) on purpose — they are **not** the
+numbered Steps below. The numbered Steps (1–4) are the procedure; milestone C
+below is handled by a different skill (`next-cache-components-optimizer`), not
+by a "Step 3" here.
 
-1. **Green build.** Get `next build` passing with `cacheComponents` on —
-   blanket `instant = false` if needed. This is the baseline; everything builds
-   and behaves as before.
-2. **Remove `instant = false`.** Make routes genuinely prerenderable (Stream /
-   Cache) so the opt-outs come back off, feature by feature. This is where the
-   real adoption work is.
-3. **Address dev-only insights.** With the build clean, resolve the
-   instant-navigation validation warnings (dev-only, lower priority) to make
-   navigations actually instant.
-4. **Adopt Partial Prefetching.** Turn on `partialPrefetching` and tune
-   `<Link>` so prefetching ships only the static shell by default — the last
-   step to the full Cache Components experience.
+- **A. Green build.** Get `next build` passing with `cacheComponents` on —
+  blanket `instant = false` if needed. This is the baseline; everything builds
+  and behaves as before. (Steps 1–2 below.)
+- **B. Remove `instant = false`.** Make routes genuinely prerenderable (Stream /
+  Cache) so the opt-outs come back off, feature by feature. This is where the
+  real adoption work is. (Steps 2–3 below.)
+- **C. Make navigations instant.** With the build clean, resolve the
+  instant-navigation validation warnings in the dev overlay's **Insights** tab.
+  They're dev-only (they don't block the build) and look like the
+  blocking-prerender errors you cleared in Step 2 — you fix them the same way.
+  This is the work that actually makes navigations instant.
+- **D. Adopt Partial Prefetching.** Turn on `partialPrefetching` and tune
+  `<Link>` so prefetching ships only the static shell by default — the last
+  step to the full Cache Components experience. (Step 4 below.)
 
 For everything that is not a blocking-route error (`dynamic`, `revalidate`,
 `fetchCache`, `unstable_cache` → `"use cache"`, `revalidateTag` / `updateTag`,
@@ -71,7 +76,7 @@ there instead of guessing API shapes.
 reads request-time data outside `<Suspense>` is "blocking" and **fails the
 build**. `export const instant = false` marks a route as allowed to block, which
 clears it in both dev and build; on a layout it covers the whole subtree beneath
-it. Goals 1 and 2 are about getting these opt-outs in, then back out.
+it. Milestones A and B are about getting these opt-outs in, then back out.
 
 **`instant = false` does not clear sync-IO errors.** Unstable values evaluated
 at module/render time — `new Date()`, `Date.now()`, `Math.random()`,
@@ -87,16 +92,16 @@ is what the error's `[dynamic]` fix card suggests; `io()` is the more targeted
 signal for sync IO.) This most often bites in a shared layout, where one
 `new Date()` blocks every route under it.
 
-Goal 3 is a separate, dev-only surface: instant-navigation validation warnings
-in the Insights tab. They don't block the build. Work them down once the build
-is clean — see the
+Milestone C is a separate, dev-only surface: instant-navigation validation
+warnings in the Insights tab. They don't block the build. Work them down once
+the build is clean — see the
 [instant navigation guide](https://nextjs.org/docs/app/guides/instant-navigation).
 
-Goal 4 is the final advancement: [Partial Prefetching](https://nextjs.org/docs/app/guides/adopting-partial-prefetching).
+Milestone D is the final advancement: [Partial Prefetching](https://nextjs.org/docs/app/guides/adopting-partial-prefetching).
 It's a config flag plus `<Link>` tuning, not a build gate. With `cacheComponents`
 clean, it makes `<Link>` ship only the static [App Shell](/docs/app/glossary#app-shell)
 by default instead of the full route, which is the biggest payoff of Cache
-Components. Like goal 3, it surfaces a dev-only Insight (for `<Link prefetch={true}>`
+Components. Like milestone C, it surfaces a dev-only Insight (for `<Link prefetch={true}>`
 pointing at routes that haven't adopted it) rather than failing the build.
 
 ## How to surface the errors
@@ -150,7 +155,7 @@ one.
 
 Once the build is green, the app runs with `cacheComponents` on and behaves as
 before. This is a natural stopping point — ask the user whether to open a PR for
-it before starting goal 2, or keep going. Don't silently roll on.
+it before starting milestone B, or keep going. Don't silently roll on.
 
 After running the codemod, **confirm the root layout got an opt-out** (`grep -n
 "export const instant" app/layout.*`). The root layout is the one segment that
@@ -202,9 +207,18 @@ For each route in the group:
 2. Reload it in dev (or `next build --debug-build-paths /that/route`). If it's
    clean, the route was already prerenderable — move on.
 3. If it still blocks, read the error in the dev overlay and its stack trace,
-   then apply the fix it points at. The fix card's **Copy as prompt** and the
-   linked `/docs/messages/blocking-prerender-*` page carry the details — don't
-   improvise.
+   then apply the fix it points at. Read the full linked page behind the fix
+   card's **Learn more** — not only the **Copy as prompt** snippet — before
+   editing; the card unblocks the build, but the page covers the details that
+   make the route's navigation actually instant (e.g. where to place a
+   `<Suspense>` boundary). Don't improvise. If you're unsure which fix fits —
+   the right call usually depends on what this part of the page is _for_, which
+   the code doesn't capture — ask the user about their goal for it rather than
+   guessing. Frame it as a product/UX question: should this content be there
+   instantly on load, or is it fine for it to stream in a moment later? Should
+   everyone see the same thing (cacheable) or is it per-user / per-request? Tie
+   the technical fix to that answer (cache it, wrap it in `<Suspense>`, or keep
+   it request-time), so they're deciding the experience, not the API.
 4. Re-check the route, then move to the next.
 
 Keep a todo list of the group's routes and work it to completion; don't
@@ -213,21 +227,45 @@ to the next group, or stop here? Don't silently roll on.
 
 ## Step 3 — Verify (per group)
 
+This Step verifies milestone B (opt-outs removed) for the group you cleaned in
+Step 2. It is a checklist, not new adoption work.
+
 - Build: `next build` completes without blocking-route errors.
 - The group's routes no longer carry `// TODO: Cache Components adoption`
   opt-outs, except deliberate Blocks (`grep` to confirm). A route you intend to
   keep blocking keeps its `instant = false`.
 
-Then hand off to **`next-cache-components-optimizer`** to grow each route's
-static shell and make navigations feel instant.
+**Expect some routes to still print `ƒ` (Dynamic) in the build's route table —
+that is success, not a regression.** A route comes out `ƒ` when it does
+request-time work through the documented escape hatch (e.g. a layout that
+`await connection()` for `new Date()`); the page is no longer _opted out_, it is
+genuinely dynamic. Don't rip the escape hatch back out chasing a `◐`.
 
-## Step 4 — Adopt Partial Prefetching (final advancement)
+When every group is clean, move on to **Step 4** to make navigations instant.
 
-Once the build is clean and routes are instant, adopt Partial Prefetching for
+## Step 4 — Make navigations instant (milestone C)
+
+A green build means no route is _opted out_, not that navigations are instant.
+The dev overlay's **Insights** tab surfaces instant-navigation validation
+warnings: dev-only signals (they don't block the build) that look like the
+blocking-prerender errors you cleared in Step 2, and you fix them the same way —
+read the warning, follow its fix card / **Copy as prompt**, apply it.
+
+Work them down once the build is clean, group by group like Step 2. See the
+[instant navigation guide](https://nextjs.org/docs/app/guides/instant-navigation)
+for the per-warning details.
+
+This is where navigations actually become instant. It's the last required
+adoption milestone; **Step 5** (Partial Prefetching) and the optimizer skill
+below are optional polish.
+
+## Step 5 — Adopt Partial Prefetching (optional)
+
+Once the build is clean and navigations are instant, adopt Partial Prefetching for
 the full Cache Components payoff: `<Link>` prefetches only the static
 [App Shell](/docs/app/glossary#app-shell) by default, instead of the whole route.
 This is config plus `<Link>` tuning, not a build gate — do it as a separate,
-mergeable milestone after goals 1–3.
+mergeable milestone after milestones A–C.
 
 The dev-only `link-prefetch-partial` Insight drives this. It fires for a
 `<Link prefetch={true}>` pointing at a route that has **not** adopted Partial
@@ -236,7 +274,7 @@ guide the work — don't blanket-enable the global flag first, or every route
 counts as adopted, the Insights never fire, and you lose the signal for which
 links to audit.
 
-1. **Walk the Insights, like goal 3.** Visit routes in dev; each
+1. **Walk the Insights, like Step 4.** Visit routes in dev; each
    `<Link prefetch={true}>` to an unadopted route surfaces a
    `link-prefetch-partial` Insight with three fix cards. Read each card's
    **Copy as prompt** and apply the one that fits — don't improvise:
@@ -266,3 +304,11 @@ links to audit.
 
 See the [Adopting Partial Prefetching](https://nextjs.org/docs/app/guides/adopting-partial-prefetching)
 guide for the full adoption path and `<Link>` defaults.
+
+## Optional: grow static shells
+
+With adoption done, the **`next-cache-components-optimizer`** skill is a future,
+optional polish pass: it grows each route's static shell so more of the page
+prerenders and less streams in. It doesn't gate the build or block navigation
+— reach for it only when you want to push shells further after the milestones
+above are complete.

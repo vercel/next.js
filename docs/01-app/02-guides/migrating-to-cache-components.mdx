@@ -249,6 +249,9 @@ A validation insight or error tells you a route won't render instantly. Resolve 
 export const instant = false
 ```
 
+{/* TODO: distribution of the skill/plugin */}
+For a larger app, the [`next-cache-components-adoption`](https://github.com/vercel/next.js/tree/canary/skills/next-cache-components-adoption) skill drives this whole migration for agents: it picks a blanket-or-direct strategy, opts every route out at once so you land a green build first (via the [`cache-components-instant-false`](/docs/app/guides/upgrading/codemods#cache-components-instant-false) codemod), removes the opt-outs top-down one group at a time, then hands off to [`next-cache-components-optimizer`](https://github.com/vercel/next.js/tree/canary/skills/next-cache-components-optimizer) for shell tuning.
+
 ## `fetch` cache options
 
 **Move `cache` and `next` options to `use cache`.**
