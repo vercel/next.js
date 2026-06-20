@@ -234,6 +234,11 @@ Step 2. It is a checklist, not new adoption work.
 - The group's routes no longer carry `// TODO: Cache Components adoption`
   opt-outs, except deliberate Blocks (`grep` to confirm). A route you intend to
   keep blocking keeps its `instant = false`.
+- Drive each route in dev, not only the build. Visit it, wait for
+  streaming to settle, and confirm every `<Suspense>` fallback you added
+  resolves to its real content (not stuck on a skeleton or a blank). A green
+  build with zero opt-outs is not the same as a working route. Query the live
+  DOM if a tool's snapshot looks stale before reporting a route as broken.
 
 **Expect some routes to still print `ƒ` (Dynamic) in the build's route table —
 that is success, not a regression.** A route comes out `ƒ` when it does
