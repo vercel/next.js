@@ -1,5 +1,5 @@
 ---
-name: cache-components-adoption
+name: next-cache-components-adoption
 description: >
   Turn on Cache Components in a Next.js app and resolve the blocking routes it
   surfaces. Use when the user wants to enable, adopt, or migrate to Cache
