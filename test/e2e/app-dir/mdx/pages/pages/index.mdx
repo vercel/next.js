@@ -1,3 +1,13 @@
 # Hello World
 
 This is MDX!
+
+import { useState } from 'react'
+
+export function Counter() {
+  const [count] = useState(0)
+
+return <p id="pages-router-counter">Count: {count}</p>
+}
+
+<Counter />

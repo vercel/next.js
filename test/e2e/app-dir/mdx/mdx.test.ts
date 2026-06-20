@@ -22,6 +22,7 @@ for (const type of ['with-mdx-rs', 'without-mdx-rs']) {
     describe('app directory', () => {
       it('should work in initial html', async () => {
         const $ = await next.render$('/')
+        expect($('title').text()).toBe('MDX metadata')
         expect($('h1').text()).toBe('Hello World')
         expect($('p').text()).toBe('This is MDX!')
       })
@@ -97,7 +98,8 @@ for (const type of ['with-mdx-rs', 'without-mdx-rs']) {
       it('should work in initial html', async () => {
         const $ = await next.render$('/pages')
         expect($('h1').text()).toBe('Hello World')
-        expect($('p').text()).toBe('This is MDX!')
+        expect($('p').first().text()).toBe('This is MDX!')
+        expect($('#pages-router-counter').text()).toBe('Count: 0')
       })
 
       // Recommended for tests that need a full browser

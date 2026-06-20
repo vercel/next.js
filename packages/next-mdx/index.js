@@ -35,9 +35,29 @@ module.exports =
           '@mdx-js/react',
           require.resolve('./mdx-components.js'),
         ]
+        const rscMdxLoader =
+          options.defaultLoaders.babel &&
+          typeof options.defaultLoaders.babel === 'object' &&
+          options.defaultLoaders.babel.loader?.includes('next-swc-loader')
+            ? {
+                ...options.defaultLoaders.babel,
+                options: {
+                  ...options.defaultLoaders.babel.options,
+                  bundleLayer: 'rsc',
+                },
+              }
+            : options.defaultLoaders.babel
         config.module.rules.push({
           test: extension,
-          use: [options.defaultLoaders.babel, loader],
+          oneOf: [
+            {
+              issuerLayer: 'rsc',
+              use: [rscMdxLoader, loader],
+            },
+            {
+              use: [options.defaultLoaders.babel, loader],
+            },
+          ],
         })
 
         if (typeof inputConfig.webpack === 'function') {
