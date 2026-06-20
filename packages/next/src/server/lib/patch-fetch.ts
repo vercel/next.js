@@ -4,7 +4,7 @@ import type {
 } from '../app-render/work-async-storage.external'
 
 import { AppRenderSpan, NextNodeServerSpan } from './trace/constants'
-import { getTracer, SpanKind } from './trace/tracer'
+import { getTracer, SpanKind, SpanStatusCode } from './trace/tracer'
 import {
   CACHE_ONE_YEAR_SECONDS,
   INFINITE_CACHE,
@@ -313,7 +313,7 @@ export function createPatchedFetcher(
           'net.peer.port': url?.port || undefined,
         },
       },
-      async () => {
+      async (span) => {
         // If this is an internal fetch, we should not do any special treatment.
         if (isInternal) {
           return originFetch(input, init)
@@ -856,6 +856,12 @@ export function createPatchedFetcher(
                   cacheWarning,
                   status: res.status,
                   method: clonedInit.method || 'GET',
+                })
+              }
+              if (res.status >= 400) {
+                span?.setStatus({
+                  code: SpanStatusCode.ERROR,
+                  message: `HTTP ${res.status}`,
                 })
               }
               if (
