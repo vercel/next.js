@@ -5,7 +5,7 @@ import type {
   InitialRSCPayload,
   Segment,
 } from '../../../shared/lib/app-router-types'
-import type { VaryParamsThenable } from '../../../shared/lib/segment-cache/vary-params-decoding'
+import type { VaryParamsIterable } from '../../../shared/lib/segment-cache/vary-params-decoding'
 import { InvariantError } from '../../../shared/lib/invariant-error'
 import { RenderStage } from '../staged-rendering'
 import { getServerModuleMap } from '../manifests-singleton'
@@ -196,17 +196,19 @@ export type SegmentStage =
   | RenderStage.Runtime
   | RenderStage.Dynamic
 
+/** The stages that a prefetched segment can be in. */
+type PrefetchedSegmentStage = Exclude<SegmentStage, RenderStage.Dynamic>
+
+const SEGMENT_STAGE_ORDER = [
+  RenderStage.Static,
+  RenderStage.Runtime,
+  RenderStage.Dynamic,
+] as const satisfies readonly SegmentStage[]
+
 export type StageChunks = Record<SegmentStage, Uint8Array[]>
 
-export type StageEndTimes = {
-  [RenderStage.Static]: number
-  [RenderStage.Runtime]: number
-}
+export type StageEndTimes = Record<PrefetchedSegmentStage, number>
 
-/**
- * Splits an existing staged stream (represented as arrays of chunks)
- * into separate staged streams (also in arrays-of-chunks form), one for each segment.
- * */
 type RenderToFlightStream = (
   ComponentMod: FlightComponentMod,
   payload: any,
@@ -214,6 +216,10 @@ type RenderToFlightStream = (
   opts: any
 ) => AsyncIterable<Uint8Array>
 
+/**
+ * Splits an existing staged stream (represented as arrays of chunks)
+ * into separate staged streams (also in arrays-of-chunks form), one for each segment.
+ * */
 export async function collectStagedSegmentData(
   ComponentMod: FlightComponentMod,
   renderFlightStream: RenderToFlightStream,
@@ -293,8 +299,8 @@ export async function collectStagedSegmentData(
 
   /** Track when we advance stages so we can pass them as `endTime` later. */
   const stageEndTimes: StageEndTimes = {
-    [RenderStage.Static]: -1,
-    [RenderStage.Runtime]: -1,
+    [RenderStage.Static]: Infinity,
+    [RenderStage.Runtime]: Infinity,
   }
 
   const renderIntoCacheItem = async (
@@ -364,6 +370,16 @@ export async function collectStagedSegmentData(
     ])
   }
 
+  const advanceStage = (
+    targetStage: Exclude<SegmentStage, RenderStage.Static>
+  ) => {
+    const { currentStage } = controller
+    if (currentStage !== RenderStage.Dynamic) {
+      stageEndTimes[currentStage] = performance.now() + performance.timeOrigin
+    }
+    controller.advanceStage(targetStage)
+  }
+
   await runInSequentialTasks(
     () => {
       {
@@ -378,18 +394,8 @@ export async function collectStagedSegmentData(
         pendingTasks.push(renderIntoCacheItem(segmentData, segmentCacheItem))
       }
     },
-    () => {
-      stageEndTimes[RenderStage.Static] =
-        performance.now() + performance.timeOrigin
-
-      controller.advanceStage(RenderStage.Runtime)
-    },
-    () => {
-      stageEndTimes[RenderStage.Runtime] =
-        performance.now() + performance.timeOrigin
-
-      controller.advanceStage(RenderStage.Dynamic)
-    }
+    () => advanceStage(RenderStage.Runtime),
+    () => advanceStage(RenderStage.Dynamic)
   )
   await Promise.all(pendingTasks)
 
@@ -409,19 +415,14 @@ function createStagedStreamFromChunks(stageChunks: StageChunks) {
   // and just look at the lengths of the Static/Runtime arrays
   const allChunks = stageChunks[RenderStage.Dynamic]
 
-  const numStaticChunks = stageChunks[RenderStage.Static].length
-  const numRuntimeChunks = stageChunks[RenderStage.Runtime].length
-  const numDynamicChunks = stageChunks[RenderStage.Dynamic].length
-
   let chunkIx = 0
-  let currentStage:
-    | RenderStage.Static
-    | RenderStage.Runtime
-    | RenderStage.Dynamic = RenderStage.Static
+  let currentStage: SegmentStage = RenderStage.Static
   let closed = false
 
-  function push(chunk: Uint8Array) {
-    stream.push(chunk)
+  function emitNewChunks(chunks: Uint8Array[]) {
+    for (; chunkIx < chunks.length; chunkIx++) {
+      stream.push(allChunks[chunkIx])
+    }
   }
 
   function close() {
@@ -432,9 +433,7 @@ function createStagedStreamFromChunks(stageChunks: StageChunks) {
   const stream = new Readable({
     read() {
       // Emit static chunks
-      for (; chunkIx < numStaticChunks; chunkIx++) {
-        push(allChunks[chunkIx])
-      }
+      emitNewChunks(stageChunks[RenderStage.Static])
 
       // If there's no more chunks after this stage, finish the stream.
       if (chunkIx >= allChunks.length) {
@@ -445,31 +444,14 @@ function createStagedStreamFromChunks(stageChunks: StageChunks) {
   })
 
   function advanceStage(
-    stage: RenderStage.Runtime | RenderStage.Dynamic
+    stage: Exclude<SegmentStage, RenderStage.Static>
   ): boolean {
     if (closed) return true
 
-    switch (stage) {
-      case RenderStage.Runtime: {
-        currentStage = RenderStage.Runtime
-        for (; chunkIx < numRuntimeChunks; chunkIx++) {
-          push(allChunks[chunkIx])
-        }
-        break
-      }
-
-      case RenderStage.Dynamic: {
-        currentStage = RenderStage.Dynamic
-        for (; chunkIx < numDynamicChunks; chunkIx++) {
-          push(allChunks[chunkIx])
-        }
-        break
-      }
-
-      default: {
-        stage satisfies never
-      }
-    }
+    // NOTE: we don't special handling for skipping stages,
+    // emitNewChunks will emit anything that hasn't been emitted before.
+    currentStage = stage
+    emitNewChunks(stageChunks[stage])
 
     // If there's no more chunks after this stage, finish the stream.
     if (chunkIx >= allChunks.length) {
@@ -493,24 +475,21 @@ function createStagedStreamFromChunks(stageChunks: StageChunks) {
 
 function writeChunk(
   stageChunks: StageChunks,
-  stage: SegmentStage,
+  currentStage: SegmentStage,
   chunk: Uint8Array
 ) {
-  switch (stage) {
-    case RenderStage.Static: {
-      stageChunks[RenderStage.Static].push(chunk)
-      // fallthrough
-    }
-    case RenderStage.Runtime: {
-      stageChunks[RenderStage.Runtime].push(chunk)
-      // fallthrough
-    }
-    case RenderStage.Dynamic: {
-      stageChunks[RenderStage.Dynamic].push(chunk)
+  // Add the chunk to every stage that's greater or equal to the current stage.
+  // Iterate in reverse (descending order) so that we can easily skip the stages
+  // that are already completed.
+  for (let i = SEGMENT_STAGE_ORDER.length - 1; i >= 0; i--) {
+    const stage = SEGMENT_STAGE_ORDER[i]
+    if (stage >= currentStage) {
+      stageChunks[stage].push(chunk)
+    } else {
+      // Found the first stage that's less than the current stage
+      // (i.e. one that ended and shouldn't get this chunk).
+      // Skip it and the rest.
       break
-    }
-    default: {
-      stage satisfies never
     }
   }
 }
@@ -649,7 +628,7 @@ async function createValidationHead(
   releaseSignal: AbortSignal,
   clientReferenceManifest: ClientReferenceManifest,
   stageEndTimes: StageEndTimes,
-  stage: RenderStage.Static | RenderStage.Runtime
+  stage: PrefetchedSegmentStage
 ): Promise<HeadData> {
   const segmentCacheItem = cache.head
   if (!segmentCacheItem) {
@@ -727,7 +706,7 @@ function deserializeFromChunks<T>(
 type SegmentData = {
   node: React.ReactNode | null
   isPartial: boolean
-  varyParams: VaryParamsThenable | null
+  varyParams: VaryParamsIterable | null
 }
 
 function createSegmentData(seedData: CacheNodeSeedData): SegmentData {
@@ -1187,17 +1166,15 @@ export async function createCombinedPayloadAtDepth(
         : createChildSegmentPath(parentPath, key!, segment)
 
     let instantConfig: Instant | null = null
-    let prefetchConfig: AppSegmentConfig['unstable_prefetch'] | null = null
+    let prefetchConfig: AppSegmentConfig['prefetch'] | null = null
     let localCreateInstantStack: (() => Error) | null = null
     if (layoutOrPageMod !== undefined) {
-      instantConfig =
-        (layoutOrPageMod as AppSegmentConfig).unstable_instant ?? null
-      prefetchConfig =
-        (layoutOrPageMod as AppSegmentConfig).unstable_prefetch ?? null
+      instantConfig = (layoutOrPageMod as AppSegmentConfig).instant ?? null
+      prefetchConfig = (layoutOrPageMod as AppSegmentConfig).prefetch ?? null
 
       // When the default validation level is active and this is a page or
       // default segment without an explicit config, treat it as if
-      // unstable_instant = true was exported. Framework-synthesized error
+      // instant = true was exported. Framework-synthesized error
       // routes are excluded — see isFrameworkErrorRoute.
       if (
         instantConfig === null &&
@@ -1220,7 +1197,7 @@ export async function createCombinedPayloadAtDepth(
       }
     }
 
-    const segmentHasRuntimePrefetch = prefetchConfig === 'force-runtime'
+    const segmentHasRuntimePrefetch = prefetchConfig === 'allow-runtime'
 
     let childIsInsideRuntimePrefetch = isInsideRuntimePrefetch
     let stage: SegmentStage

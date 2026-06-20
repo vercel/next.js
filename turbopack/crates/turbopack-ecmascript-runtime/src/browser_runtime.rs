@@ -5,7 +5,7 @@ use indoc::writedoc;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{ResolvedVc, Vc};
 use turbopack_core::{
-    chunk::{AssetSuffix, CrossOrigin},
+    chunk::{AssetSuffix, ChunkLoadRetry, CrossOrigin},
     code_builder::{Code, CodeBuilder},
     context::AssetContext,
     environment::ChunkLoading,
@@ -25,6 +25,7 @@ pub async fn get_browser_runtime_code(
     generate_source_map: bool,
     chunk_loading_global: Vc<RcStr>,
     cross_origin: Vc<CrossOrigin>,
+    chunk_load_retry: Vc<ChunkLoadRetry>,
     has_async_modules: bool,
 ) -> Result<Vc<Code>> {
     let asset_context = *asset_context;
@@ -167,6 +168,21 @@ pub async fn get_browser_runtime_code(
         StringifyJs(&cross_origin)
     )?;
 
+    // The chunk-load retry policy is owned by the framework (e.g. Next.js) and
+    // passed in via the chunking context, so the runtime never hard-codes it.
+    let chunk_load_retry = *chunk_load_retry.await?;
+    writedoc!(
+        code,
+        r#"
+            var CHUNK_LOAD_RETRY_MAX_ATTEMPTS = {};
+            var CHUNK_LOAD_RETRY_BASE_DELAY_MS = {};
+            var CHUNK_LOAD_RETRY_MAX_JITTER_MS = {};
+        "#,
+        chunk_load_retry.max_retry_attempts,
+        chunk_load_retry.base_delay_ms,
+        chunk_load_retry.max_jitter_ms,
+    )?;
+
     code.push_code(&*shared_runtime_utils_code.await?);
     // Only include the async-module (top-level await) machinery when the app uses it.
     if has_async_modules {
@@ -205,17 +221,6 @@ pub async fn get_browser_runtime_code(
             .await?,
         );
     }
-    if *environment.supports_wasm().await? {
-        code.push_code(
-            &*embed_static_code(
-                asset_context,
-                rcstr!("shared-node/node-wasm-utils.ts"),
-                generate_source_map,
-            )
-            .await?,
-        );
-    }
-
     for backend_code in runtime_backend_code {
         code.push_code(
             &*embed_static_code(asset_context, backend_code.into(), generate_source_map).await?,

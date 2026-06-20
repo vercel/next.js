@@ -4,7 +4,7 @@
 // Usage: node scripts/docker-native-build.js [flags] [filter]
 //   --quick        Use release-with-assertions profile (no LTO, faster)
 //   --host-target  Share host target/ dir with container for caching
-//   --rebuild      Force Docker image rebuild
+//   --rebuild      Force a fresh Docker image build (docker build --no-cache)
 //   --test         Smoke-test built binaries (native arch only)
 //   filter         Substring match on target name (e.g. "musl", "x86_64")
 
@@ -85,17 +85,33 @@ if (targets.length === 0) {
   process.exit(1)
 }
 
-// --- Build/restore Docker image ---
-function ensureDockerImage() {
-  const args = rebuild ? ['--force'] : []
-  execFileSync(
-    'node',
-    [path.join(__dirname, 'docker-image-cache.js'), ...args],
-    { stdio: 'inherit' }
+function buildImage() {
+  console.log(`Building Docker image: ${DOCKER_IMAGE}`)
+  const ctx = fs.mkdtempSync(path.join(os.tmpdir(), 'next-swc-docker-'))
+  fs.copyFileSync(
+    path.join(REPO_ROOT, 'rust-toolchain.toml'),
+    path.join(ctx, 'rust-toolchain.toml')
   )
+  try {
+    execFileSync(
+      'docker',
+      [
+        'build',
+        ...(rebuild ? ['--no-cache'] : []),
+        '-t',
+        DOCKER_IMAGE,
+        '-f',
+        path.join(REPO_ROOT, 'scripts/native-builder.Dockerfile'),
+        ctx,
+      ],
+      { stdio: 'inherit' }
+    )
+  } finally {
+    fs.rmSync(ctx, { recursive: true, force: true })
+  }
 }
 
-ensureDockerImage()
+buildImage()
 
 // --- Build targets ---
 const buildTask = quick

@@ -228,338 +228,292 @@ export const getHandler = ({
       routerServerContext?.isWrappedByNextServer
     )
 
-    try {
-      const method = req.method || 'GET'
+    const method = req.method || 'GET'
 
-      const resolvedUrl = formatUrl({
-        pathname: nextConfig.trailingSlash
-          ? `${encodedResolvedPathname}${!encodedResolvedPathname.endsWith('/') && parsedUrl.pathname?.endsWith('/') ? '/' : ''}`
-          : removeTrailingSlash(encodedResolvedPathname || '/'),
-        // make sure to only add query values from original URL
-        query: hasStaticProps ? {} : originalQuery,
-      })
+    const resolvedUrl = formatUrl({
+      pathname: nextConfig.trailingSlash
+        ? `${encodedResolvedPathname}${!encodedResolvedPathname.endsWith('/') && parsedUrl.pathname?.endsWith('/') ? '/' : ''}`
+        : removeTrailingSlash(encodedResolvedPathname || '/'),
+      // make sure to only add query values from original URL
+      query: hasStaticProps ? {} : originalQuery,
+    })
 
-      let parentSpan: Span | undefined
-      const handleResponse = async (span?: Span) => {
-        const responseGenerator: ResponseGenerator = async ({
-          previousCacheEntry,
-        }) => {
-          const doRender = async () => {
-            try {
-              return await routeModule
-                .render(req, res, {
-                  query:
-                    hasStaticProps && !isExperimentalCompile
-                      ? ({
-                          ...params,
-                        } as ParsedUrlQuery)
-                      : {
-                          ...query,
-                          ...params,
-                        },
+    let parentSpan: Span | undefined
+    const handleResponse = async (span?: Span) => {
+      const responseGenerator: ResponseGenerator = async ({
+        previousCacheEntry,
+      }) => {
+        const doRender = async () => {
+          try {
+            return await routeModule
+              .render(req, res, {
+                query:
+                  hasStaticProps && !isExperimentalCompile
+                    ? ({
+                        ...params,
+                      } as ParsedUrlQuery)
+                    : {
+                        ...query,
+                        ...params,
+                      },
+                params,
+                page: srcPage,
+                renderContext: {
+                  isDraftMode,
+                  isFallback: isIsrFallback,
+                  developmentNotFoundSourcePage: getRequestMeta(
+                    req,
+                    'developmentNotFoundSourcePage'
+                  ),
+                },
+                sharedContext: {
+                  buildId,
+                  customServer:
+                    Boolean(routerServerContext?.isCustomServer) || undefined,
+                  deploymentId,
+                  clientAssetToken,
+                },
+                renderOpts: {
                   params,
+                  routeModule,
                   page: srcPage,
-                  renderContext: {
-                    isDraftMode,
-                    isFallback: isIsrFallback,
-                    developmentNotFoundSourcePage: getRequestMeta(
-                      req,
-                      'developmentNotFoundSourcePage'
-                    ),
+                  pageConfig: config || {},
+                  Component: interopDefault(userland),
+                  ComponentMod: userland,
+                  getStaticProps,
+                  getStaticPaths,
+                  getServerSideProps,
+                  supportsDynamicResponse: !hasStaticProps,
+                  buildManifest: isFallbackError
+                    ? fallbackBuildManifest
+                    : buildManifest,
+                  nextFontManifest,
+                  reactLoadableManifest,
+
+                  assetPrefix: nextConfig.assetPrefix,
+                  previewProps: prerenderManifest.preview,
+                  images: nextConfig.images as any,
+                  nextConfigOutput: nextConfig.output,
+                  optimizeCss: Boolean(nextConfig.experimental.optimizeCss),
+                  nextScriptWorkers: Boolean(
+                    nextConfig.experimental.nextScriptWorkers
+                  ),
+                  domainLocales: nextConfig.i18n?.domains,
+                  crossOrigin: nextConfig.crossOrigin,
+
+                  multiZoneDraftMode,
+                  basePath: nextConfig.basePath,
+                  disableOptimizedLoading:
+                    nextConfig.experimental.disableOptimizedLoading,
+                  largePageDataBytes:
+                    nextConfig.experimental.largePageDataBytes,
+
+                  isExperimentalCompile,
+
+                  experimental: {
+                    clientTraceMetadata:
+                      nextConfig.experimental.clientTraceMetadata ||
+                      ([] as any),
                   },
-                  sharedContext: {
-                    buildId,
-                    customServer:
-                      Boolean(routerServerContext?.isCustomServer) || undefined,
-                    deploymentId,
-                    clientAssetToken,
-                  },
-                  renderOpts: {
-                    params,
-                    routeModule,
-                    page: srcPage,
-                    pageConfig: config || {},
-                    Component: interopDefault(userland),
-                    ComponentMod: userland,
-                    getStaticProps,
-                    getStaticPaths,
-                    getServerSideProps,
-                    supportsDynamicResponse: !hasStaticProps,
-                    buildManifest: isFallbackError
-                      ? fallbackBuildManifest
-                      : buildManifest,
-                    nextFontManifest,
-                    reactLoadableManifest,
 
-                    assetPrefix: nextConfig.assetPrefix,
-                    previewProps: prerenderManifest.preview,
-                    images: nextConfig.images as any,
-                    nextConfigOutput: nextConfig.output,
-                    optimizeCss: Boolean(nextConfig.experimental.optimizeCss),
-                    nextScriptWorkers: Boolean(
-                      nextConfig.experimental.nextScriptWorkers
-                    ),
-                    domainLocales: nextConfig.i18n?.domains,
-                    crossOrigin: nextConfig.crossOrigin,
+                  locale,
+                  locales,
+                  defaultLocale,
+                  setIsrStatus: routerServerContext?.setIsrStatus,
 
-                    multiZoneDraftMode,
-                    basePath: nextConfig.basePath,
-                    disableOptimizedLoading:
-                      nextConfig.experimental.disableOptimizedLoading,
-                    largePageDataBytes:
-                      nextConfig.experimental.largePageDataBytes,
+                  isNextDataRequest:
+                    isNextDataRequest && (hasServerProps || hasStaticProps),
 
-                    isExperimentalCompile,
+                  resolvedUrl,
+                  // For getServerSideProps and getInitialProps we need to ensure we use the original URL
+                  // and not the resolved URL to prevent a hydration mismatch on
+                  // asPath
+                  resolvedAsPath:
+                    hasServerProps || hasGetInitialProps
+                      ? formatUrl({
+                          // we use the original URL pathname less the _next/data prefix if
+                          // present
+                          pathname: isNextDataRequest
+                            ? normalizeDataPath(originalPathname)
+                            : originalPathname,
+                          query: originalQuery,
+                        })
+                      : resolvedUrl,
 
-                    experimental: {
-                      clientTraceMetadata:
-                        nextConfig.experimental.clientTraceMetadata ||
-                        ([] as any),
-                    },
+                  isOnDemandRevalidate,
 
-                    locale,
-                    locales,
-                    defaultLocale,
-                    setIsrStatus: routerServerContext?.setIsrStatus,
+                  ErrorDebug: getRequestMeta(req, 'PagesErrorDebug'),
+                  err: getRequestMeta(req, 'invokeError'),
 
-                    isNextDataRequest:
-                      isNextDataRequest && (hasServerProps || hasStaticProps),
+                  // needed for experimental.optimizeCss feature
+                  distDir: path.join(
+                    /* turbopackIgnore: true */
+                    process.cwd(),
+                    routeModule.relativeProjectDir,
+                    routeModule.distDir
+                  ),
+                },
+              })
+              .then((renderResult): ResponseCacheEntry => {
+                const { metadata } = renderResult
 
-                    resolvedUrl,
-                    // For getServerSideProps and getInitialProps we need to ensure we use the original URL
-                    // and not the resolved URL to prevent a hydration mismatch on
-                    // asPath
-                    resolvedAsPath:
-                      hasServerProps || hasGetInitialProps
-                        ? formatUrl({
-                            // we use the original URL pathname less the _next/data prefix if
-                            // present
-                            pathname: isNextDataRequest
-                              ? normalizeDataPath(originalPathname)
-                              : originalPathname,
-                            query: originalQuery,
-                          })
-                        : resolvedUrl,
+                let cacheControl: CacheControl | undefined =
+                  metadata.cacheControl
 
-                    isOnDemandRevalidate,
+                // Apply the `expireTime` fallback as soon as we have the
+                // render's `cacheControl`, so every downstream consumer (the
+                // cache stored via `incrementalCache.set`, the response
+                // Cache-Control header, the outgoing entry returned from this
+                // responseGenerator) sees a finalized `cacheControl` with a
+                // populated `expire`. This mirrors the build-time fallback in
+                // `build/index.ts` so we don't apply an expire to routes that
+                // opt out of revalidation entirely (`revalidate: false`) or
+                // that are dynamic (`revalidate: 0`).
+                if (
+                  cacheControl &&
+                  cacheControl.revalidate !== false &&
+                  cacheControl.revalidate > 0 &&
+                  cacheControl.expire === undefined
+                ) {
+                  cacheControl.expire = nextConfig.expireTime
+                }
 
-                    ErrorDebug: getRequestMeta(req, 'PagesErrorDebug'),
-                    err: getRequestMeta(req, 'invokeError'),
+                if ('isNotFound' in metadata && metadata.isNotFound) {
+                  return {
+                    value: null,
+                    cacheControl,
+                  } satisfies ResponseCacheEntry
+                }
 
-                    // needed for experimental.optimizeCss feature
-                    distDir: path.join(
-                      /* turbopackIgnore: true */
-                      process.cwd(),
-                      routeModule.relativeProjectDir,
-                      routeModule.distDir
-                    ),
-                  },
-                })
-                .then((renderResult): ResponseCacheEntry => {
-                  const { metadata } = renderResult
-
-                  let cacheControl: CacheControl | undefined =
-                    metadata.cacheControl
-
-                  // Apply the `expireTime` fallback as soon as we have the
-                  // render's `cacheControl`, so every downstream consumer (the
-                  // cache stored via `incrementalCache.set`, the response
-                  // Cache-Control header, the outgoing entry returned from this
-                  // responseGenerator) sees a finalized `cacheControl` with a
-                  // populated `expire`. This mirrors the build-time fallback in
-                  // `build/index.ts` so we don't apply an expire to routes that
-                  // opt out of revalidation entirely (`revalidate: false`) or
-                  // that are dynamic (`revalidate: 0`).
-                  if (
-                    cacheControl &&
-                    cacheControl.revalidate !== false &&
-                    cacheControl.revalidate > 0 &&
-                    cacheControl.expire === undefined
-                  ) {
-                    cacheControl.expire = nextConfig.expireTime
-                  }
-
-                  if ('isNotFound' in metadata && metadata.isNotFound) {
-                    return {
-                      value: null,
-                      cacheControl,
-                    } satisfies ResponseCacheEntry
-                  }
-
-                  // Handle `isRedirect`.
-                  if (metadata.isRedirect) {
-                    return {
-                      value: {
-                        kind: CachedRouteKind.REDIRECT,
-                        props: metadata.pageData ?? metadata.flightData,
-                      } satisfies CachedRedirectValue,
-                      cacheControl,
-                    } satisfies ResponseCacheEntry
-                  }
-
+                // Handle `isRedirect`.
+                if (metadata.isRedirect) {
                   return {
                     value: {
-                      kind: CachedRouteKind.PAGES,
-                      html: renderResult,
-                      pageData: renderResult.metadata.pageData,
-                      headers: renderResult.metadata.headers,
-                      status: renderResult.metadata.statusCode,
-                    },
+                      kind: CachedRouteKind.REDIRECT,
+                      props: metadata.pageData ?? metadata.flightData,
+                    } satisfies CachedRedirectValue,
                     cacheControl,
-                  }
-                })
-                .finally(() => {
-                  if (!span) return
-
-                  span.setAttributes({
-                    'http.status_code': res.statusCode,
-                    'next.rsc': false,
-                  })
-
-                  const rootSpanAttributes = tracer.getRootSpanAttributes()
-                  // We were unable to get attributes, probably OTEL is not enabled
-                  if (!rootSpanAttributes) {
-                    return
-                  }
-
-                  if (
-                    rootSpanAttributes.get('next.span_type') !==
-                    BaseServerSpan.handleRequest
-                  ) {
-                    console.warn(
-                      `Unexpected root span type '${rootSpanAttributes.get(
-                        'next.span_type'
-                      )}'. Please report this Next.js issue https://github.com/vercel/next.js`
-                    )
-                    return
-                  }
-
-                  const route = rootSpanAttributes.get('next.route') || srcPage
-                  const name = `${method} ${route}`
-
-                  span.setAttributes({
-                    'next.route': route,
-                    'http.route': route,
-                    'next.span_name': name,
-                  })
-                  span.updateName(name)
-
-                  // Propagate http.route to the parent span if one exists
-                  // (e.g. a platform-created HTTP span in adapter
-                  // deployments).
-                  if (parentSpan && parentSpan !== span) {
-                    parentSpan.setAttribute('http.route', route)
-                    parentSpan.updateName(name)
-                  }
-                })
-            } catch (err: unknown) {
-              // if this is a background revalidate we need to report
-              // the request error here as it won't be bubbled
-              if (previousCacheEntry?.isStale) {
-                const silenceLog = false
-                await routeModule.onRequestError(
-                  req,
-                  err,
-                  {
-                    routerKind: 'Pages Router',
-                    routePath: srcPage,
-                    routeType: 'render',
-                    revalidateReason: getRevalidateReason({
-                      isStaticGeneration: hasStaticProps,
-                      isOnDemandRevalidate,
-                    }),
-                  },
-                  silenceLog,
-                  routerServerContext
-                )
-              }
-              throw err
-            }
-          }
-
-          // if we've already generated this page we no longer
-          // serve the fallback
-          if (previousCacheEntry) {
-            isIsrFallback = false
-          }
-
-          if (isIsrFallback) {
-            const fallbackResponse = await routeModule
-              .getResponseCache(req)
-              .get(
-                routeModule.isDev
-                  ? null
-                  : locale
-                    ? `/${locale}${srcPage}`
-                    : srcPage,
-                async ({
-                  previousCacheEntry: previousFallbackCacheEntry = null,
-                }) => {
-                  if (!routeModule.isDev) {
-                    return toResponseCacheEntry(previousFallbackCacheEntry)
-                  }
-                  return doRender()
-                },
-                {
-                  routeKind: RouteKind.PAGES,
-                  isFallback: true,
-                  isRoutePPREnabled: false,
-                  isOnDemandRevalidate: false,
-                  incrementalCache: await routeModule.getIncrementalCache(
-                    req,
-                    nextConfig,
-                    prerenderManifest,
-                    isMinimalMode
-                  ),
-                  waitUntil: ctx.waitUntil,
+                  } satisfies ResponseCacheEntry
                 }
-              )
-            if (fallbackResponse) {
-              // Remove the cache control from the response to prevent it from being
-              // used in the surrounding cache.
-              delete fallbackResponse.cacheControl
-              fallbackResponse.isMiss = true
-              return fallbackResponse
-            }
-          }
 
-          if (
-            !isMinimalMode &&
-            isOnDemandRevalidate &&
-            revalidateOnlyGenerated &&
-            !previousCacheEntry
-          ) {
-            res.statusCode = 404
-            // on-demand revalidate always sets this header
-            res.setHeader('x-nextjs-cache', 'REVALIDATED')
-            res.end('This page could not be found')
-            return null
-          }
-
-          if (
-            isIsrFallback &&
-            previousCacheEntry?.value?.kind === CachedRouteKind.PAGES
-          ) {
-            return {
-              value: {
-                kind: CachedRouteKind.PAGES,
-                html: new RenderResult(previousCacheEntry.value.html, {
-                  contentType: HTML_CONTENT_TYPE_HEADER,
-                  metadata: {
-                    statusCode: previousCacheEntry.value.status,
-                    headers: previousCacheEntry.value.headers,
+                return {
+                  value: {
+                    kind: CachedRouteKind.PAGES,
+                    html: renderResult,
+                    pageData: renderResult.metadata.pageData,
+                    headers: renderResult.metadata.headers,
+                    status: renderResult.metadata.statusCode,
                   },
-                }),
-                pageData: {},
-                status: previousCacheEntry.value.status,
-                headers: previousCacheEntry.value.headers,
-              } satisfies CachedPageValue,
-              cacheControl: { revalidate: 0, expire: undefined },
-            } satisfies ResponseCacheEntry
+                  cacheControl,
+                }
+              })
+          } catch (err: unknown) {
+            // if this is a background revalidate we need to report
+            // the request error here as it won't be bubbled
+            if (previousCacheEntry?.isStale) {
+              const silenceLog = false
+              await routeModule.onRequestError(
+                req,
+                err,
+                {
+                  routerKind: 'Pages Router',
+                  routePath: srcPage,
+                  routeType: 'render',
+                  revalidateReason: getRevalidateReason({
+                    isStaticGeneration: hasStaticProps,
+                    isOnDemandRevalidate,
+                  }),
+                },
+                silenceLog,
+                routerServerContext
+              )
+            }
+            throw err
           }
-          return doRender()
         }
 
+        // if we've already generated this page we no longer
+        // serve the fallback
+        if (previousCacheEntry) {
+          isIsrFallback = false
+        }
+
+        if (isIsrFallback) {
+          const fallbackResponse = await routeModule.getResponseCache(req).get(
+            routeModule.isDev
+              ? null
+              : locale
+                ? `/${locale}${srcPage}`
+                : srcPage,
+            async ({
+              previousCacheEntry: previousFallbackCacheEntry = null,
+            }) => {
+              if (!routeModule.isDev) {
+                return toResponseCacheEntry(previousFallbackCacheEntry)
+              }
+              return doRender()
+            },
+            {
+              routeKind: RouteKind.PAGES,
+              isFallback: true,
+              isRoutePPREnabled: false,
+              isOnDemandRevalidate: false,
+              incrementalCache: await routeModule.getIncrementalCache(
+                req,
+                nextConfig,
+                prerenderManifest,
+                isMinimalMode
+              ),
+              waitUntil: ctx.waitUntil,
+            }
+          )
+          if (fallbackResponse) {
+            // Remove the cache control from the response to prevent it from being
+            // used in the surrounding cache.
+            delete fallbackResponse.cacheControl
+            fallbackResponse.isMiss = true
+            return fallbackResponse
+          }
+        }
+
+        if (
+          !isMinimalMode &&
+          isOnDemandRevalidate &&
+          revalidateOnlyGenerated &&
+          !previousCacheEntry
+        ) {
+          res.statusCode = 404
+          // on-demand revalidate always sets this header
+          res.setHeader('x-nextjs-cache', 'REVALIDATED')
+          res.end('This page could not be found')
+          return null
+        }
+
+        if (
+          isIsrFallback &&
+          previousCacheEntry?.value?.kind === CachedRouteKind.PAGES
+        ) {
+          return {
+            value: {
+              kind: CachedRouteKind.PAGES,
+              html: new RenderResult(previousCacheEntry.value.html, {
+                contentType: HTML_CONTENT_TYPE_HEADER,
+                metadata: {
+                  statusCode: previousCacheEntry.value.status,
+                  headers: previousCacheEntry.value.headers,
+                },
+              }),
+              pageData: {},
+              status: previousCacheEntry.value.status,
+              headers: previousCacheEntry.value.headers,
+            } satisfies CachedPageValue,
+            cacheControl: { revalidate: 0, expire: undefined },
+          } satisfies ResponseCacheEntry
+        }
+        return doRender()
+      }
+
+      try {
         const result = await routeModule.handleResponse({
           cacheKey,
           req,
@@ -763,55 +717,101 @@ export const getHandler = ({
           poweredByHeader: nextConfig.poweredByHeader,
           cacheControl: routeModule.isDev ? undefined : cacheControl,
         })
-      }
+      } catch (err) {
+        if (!(err instanceof NoFallbackError)) {
+          const silenceLog = false
+          await routeModule.onRequestError(
+            req,
+            err,
+            {
+              routerKind: 'Pages Router',
+              routePath: srcPage,
+              routeType: 'render',
+              revalidateReason: getRevalidateReason({
+                isStaticGeneration: hasStaticProps,
+                isOnDemandRevalidate,
+              }),
+            },
+            silenceLog,
+            routerServerContext
+          )
+        }
 
-      // TODO: activeSpan code path is for when wrapped by
-      // next-server can be removed when this is no longer used
-      if (isWrappedByNextServer && activeSpan) {
-        await handleResponse(activeSpan)
-      } else {
-        parentSpan = tracer.getActiveScopeSpan()
-        await tracer.withPropagatedContext(
-          req.headers,
-          () =>
-            tracer.trace(
-              BaseServerSpan.handleRequest,
-              {
-                spanName: `${method} ${srcPage}`,
-                kind: SpanKind.SERVER,
-                attributes: {
-                  'http.method': method,
-                  'http.target': req.url,
-                },
+        // rethrow so that we can handle serving error page
+        throw err
+      } finally {
+        // An IIFE to make early returns easier.
+        ;(() => {
+          if (!span) return
+
+          span.setAttributes({
+            'http.status_code': res.statusCode,
+            'next.rsc': false,
+          })
+
+          const rootSpanAttributes = tracer.getRootSpanAttributes()
+          // We were unable to get attributes, probably OTEL is not enabled
+          if (!rootSpanAttributes) {
+            return
+          }
+
+          if (
+            rootSpanAttributes.get('next.span_type') !==
+            BaseServerSpan.handleRequest
+          ) {
+            console.warn(
+              `Unexpected root span type '${rootSpanAttributes.get(
+                'next.span_type'
+              )}'. Please report this Next.js issue https://github.com/vercel/next.js`
+            )
+            return
+          }
+
+          const route = rootSpanAttributes.get('next.route') || srcPage
+          const name = `${method} ${route}`
+
+          span.setAttributes({
+            'next.route': route,
+            'http.route': route,
+            'next.span_name': name,
+          })
+          span.updateName(name)
+
+          // Propagate http.route to the parent span if one exists
+          // (e.g. a platform-created HTTP span in adapter
+          // deployments).
+          if (parentSpan && parentSpan !== span) {
+            parentSpan.setAttribute('http.route', route)
+            parentSpan.updateName(name)
+          }
+        })()
+      }
+    }
+
+    // TODO: activeSpan code path is for when wrapped by
+    // next-server can be removed when this is no longer used
+    if (isWrappedByNextServer && activeSpan) {
+      await handleResponse(activeSpan)
+    } else {
+      parentSpan = tracer.getActiveScopeSpan()
+      await tracer.withPropagatedContext(
+        req.headers,
+        () =>
+          tracer.trace(
+            BaseServerSpan.handleRequest,
+            {
+              spanName: `${method} ${srcPage}`,
+              kind: SpanKind.SERVER,
+              attributes: {
+                'http.method': method,
+                'http.target': req.url,
               },
-              handleResponse
-            ),
-          undefined,
-          !isWrappedByNextServer
-        )
-      }
-    } catch (err) {
-      if (!(err instanceof NoFallbackError)) {
-        const silenceLog = false
-        await routeModule.onRequestError(
-          req,
-          err,
-          {
-            routerKind: 'Pages Router',
-            routePath: srcPage,
-            routeType: 'render',
-            revalidateReason: getRevalidateReason({
-              isStaticGeneration: hasStaticProps,
-              isOnDemandRevalidate,
-            }),
-          },
-          silenceLog,
-          routerServerContext
-        )
-      }
-
-      // rethrow so that we can handle serving error page
-      throw err
+            },
+            handleResponse
+          ),
+        undefined,
+        !isWrappedByNextServer
+      )
     }
   }
 }

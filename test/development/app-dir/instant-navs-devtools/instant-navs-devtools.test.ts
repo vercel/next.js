@@ -1,19 +1,10 @@
 import { nextTestSetup, type Playwright } from 'e2e-utils'
 import { retry, toggleDevToolsIndicatorPopover } from 'next-test-utils'
 
-/*
-  FIXME: This entire module is flaky on CI. When making changes, remove the
-  .skip and run locally, but add it back before pushing.
-
-  We can re-enable the module on CI when the root cause of the flakiness is
-  determined (#94196).
-*/
-describe.skip('instant-nav-panel', () => {
+describe('instant-nav-panel', () => {
   const { isNextDev, isTurbopack, next } = nextTestSetup({
     files: __dirname,
   })
-
-  const targetPage = '/target-page/my-post?search=foo'
 
   async function waitForPanelRouterTransition() {
     // Run all the necessary CSS transitions
@@ -75,26 +66,19 @@ describe.skip('instant-nav-panel', () => {
     }, href)
   }
 
+  function getInstantNavPanel(browser: Playwright) {
+    // Wait up to 5s for the panel. elementByCssInstant's 10ms timeout flakes
+    // badly under load; waitUntil:false because the page may not fire `load`
+    // while the instant lock holds dynamic data, so we must not wait for it.
+    return browser.elementByCss('.instant-nav-panel', { waitUntil: false })
+  }
+
   async function getInstantNavPanelText(browser: Playwright): Promise<string> {
-    return browser.elementByCssInstant('.instant-nav-panel').text()
+    return getInstantNavPanel(browser).text()
   }
 
   async function closePanelViaHeader(browser: Playwright) {
     return browser.elementByCss('#_next-devtools-panel-close').click()
-  }
-
-  async function hasInstantNavPanelOpen(browser: Playwright): Promise<void> {
-    await browser.elementByCssInstant('.instant-nav-panel')
-  }
-
-  async function waitForInstantNavPanelOpen(browser: Playwright) {
-    await retry(
-      async () => {
-        await hasInstantNavPanelOpen(browser)
-      },
-      5_000,
-      500
-    )
   }
 
   async function waitForAppHydration(browser: Playwright) {
@@ -108,7 +92,7 @@ describe.skip('instant-nav-panel', () => {
     await waitForPanelRouterTransition()
     await clickInstantNavMenuItem(browser)
 
-    await waitForInstantNavPanelOpen(browser)
+    await getInstantNavPanel(browser)
     await waitForPanelRouterTransition()
   }
 
@@ -201,7 +185,7 @@ describe.skip('instant-nav-panel', () => {
       5_000,
       250
     )
-    await waitForInstantNavPanelOpen(browser)
+    await getInstantNavPanel(browser)
     await waitForPanelRouterTransition()
   }
 
@@ -258,7 +242,7 @@ describe.skip('instant-nav-panel', () => {
   async function expectTargetPageMpaShell(browser: Playwright) {
     await browser
       .locator('[data-testid="dynamic-skeleton"]')
-      .waitFor({ state: 'visible', timeout: 30000 })
+      .waitFor({ state: 'visible' })
     await browser
       .locator('[data-testid="param-skeleton"]')
       .waitFor({ state: 'visible' })
@@ -275,9 +259,36 @@ describe.skip('instant-nav-panel', () => {
   }
 
   async function expectTargetPageSpaShell(browser: Playwright) {
+    // With App Shell prefetching (the default), a captured SPA navigation shows
+    // the same instant shell as an MPA page load: the static skeletons, with
+    // runtime params and dynamic data held behind their Suspense boundaries
+    // until the lock releases. (They are not baked into the prefetched shell.)
     await browser
       .locator('[data-testid="dynamic-skeleton"]')
-      .waitFor({ state: 'visible', timeout: 30000 })
+      .waitFor({ state: 'visible' })
+    await browser
+      .locator('[data-testid="param-skeleton"]')
+      .waitFor({ state: 'visible' })
+    await browser
+      .locator('[data-testid="search-param-skeleton"]')
+      .waitFor({ state: 'visible' })
+    expect(
+      await browser.locator('[data-testid="dynamic-content"]').count()
+    ).toBe(0)
+    expect(await browser.locator('[data-testid="param-value"]').count()).toBe(0)
+    expect(
+      await browser.locator('[data-testid="search-param-value"]').count()
+    ).toBe(0)
+  }
+
+  // For a link with prefetch={true}, the per-page (runtime) data is prefetched,
+  // so the captured SPA shell DOES include the resolved param and searchParam
+  // values. Only the genuinely dynamic data (guarded by connection()) stays
+  // behind its skeleton until the lock releases.
+  async function expectTargetPageSpaShellWithRuntimeData(browser: Playwright) {
+    await browser
+      .locator('[data-testid="dynamic-skeleton"]')
+      .waitFor({ state: 'visible' })
     await browser
       .locator('[data-testid="param-value"]')
       .waitFor({ state: 'visible' })
@@ -301,12 +312,26 @@ describe.skip('instant-nav-panel', () => {
       .waitFor({ state: 'visible', timeout: 30000 })
   }
 
+  async function expectAwaitConnectionPageLoading(browser: Playwright) {
+    await retry(
+      async () => {
+        const text = await browser.elementByCss('body').text()
+        expect(text).toContain('Loading await connection page...')
+      },
+      30_000,
+      500
+    )
+    expect(
+      await browser.locator('[data-testid="dynamic-content"]').count()
+    ).toBe(0)
+  }
+
   async function openHomeWithTargetPageWarmup() {
     const [browser] = await Promise.all([
       next.browser('/'),
       isNextDev && !isTurbopack
         ? // warmup target page compilation before clicking Start, to avoid extra flakiness.
-          next.render(targetPage).catch(() => {})
+          next.render('/target-page/my-post?search=foo').catch(() => {})
         : null,
     ])
     await clearInstantModeCookie(browser)
@@ -384,14 +409,14 @@ describe.skip('instant-nav-panel', () => {
 
   describe('MPA captures', () => {
     it('should show page load state after clicking Start and refreshing', async () => {
-      const browser = await next.browser(targetPage)
+      const browser = await next.browser('/target-page/my-post?search=foo')
       await clearInstantModeCookie(browser)
 
       await openInstantNavPanel(browser)
 
       await clickStartCapturing(browser)
       await browser.refresh()
-      await waitForInstantNavPanelOpen(browser)
+      await getInstantNavPanel(browser)
 
       await expectMpaPanel(browser)
     })
@@ -410,7 +435,7 @@ describe.skip('instant-nav-panel', () => {
       await browser.waitForElementByCss('[data-testid="home-title"]')
 
       await retry(async () => {
-        await hasInstantNavPanelOpen(browser)
+        await getInstantNavPanel(browser)
         const text = await getInstantNavPanelText(browser)
         expect(text).toContain('Page load')
         expect(text).toContain('prerendered UI')
@@ -421,13 +446,13 @@ describe.skip('instant-nav-panel', () => {
     })
 
     it('should reset the panel and app when pressing the close button from captured MPA state', async () => {
-      const browser = await next.browser(targetPage)
+      const browser = await next.browser('/target-page/my-post?search=foo')
       await clearInstantModeCookie(browser)
 
       await openInstantNavPanel(browser)
       await clickStartCapturing(browser)
       await browser.refresh()
-      await waitForInstantNavPanelOpen(browser)
+      await getInstantNavPanel(browser)
       await expectMpaPanel(browser)
       await expectTargetPageMpaShell(browser)
 
@@ -441,13 +466,13 @@ describe.skip('instant-nav-panel', () => {
     })
 
     it('should keep params and searchParams RSC content suspended for a captured MPA page load', async () => {
-      const browser = await next.browser(targetPage)
+      const browser = await next.browser('/target-page/my-post?search=foo')
       await clearInstantModeCookie(browser)
 
       await openInstantNavPanel(browser)
       await clickStartCapturing(browser)
       await browser.refresh()
-      await waitForInstantNavPanelOpen(browser)
+      await getInstantNavPanel(browser)
       await expectMpaPanel(browser)
 
       await expectTargetPageMpaShell(browser)
@@ -468,25 +493,25 @@ describe.skip('instant-nav-panel', () => {
           .click()
       })
       await browser.waitForElementByCss('[data-testid="mpa-target-title"]')
-      await waitForInstantNavPanelOpen(browser)
+      await getInstantNavPanel(browser)
 
       await expectMpaPanel(browser)
       await browser
         .locator('[data-testid="mpa-dynamic-skeleton"]')
-        .waitFor({ state: 'visible', timeout: 30000 })
+        .waitFor({ state: 'visible' })
       expect(
         await browser.locator('[data-testid="mpa-dynamic-content"]').count()
       ).toBe(0)
     })
 
-    it('should re-arm capture and return to awaiting navigation after Continue Rendering from MPA state', async () => {
-      const browser = await next.browser(targetPage)
+    it('should restart capture and return to awaiting navigation after Continue Rendering from MPA state', async () => {
+      const browser = await next.browser('/target-page/my-post?search=foo')
       await clearInstantModeCookie(browser)
 
       await openInstantNavPanel(browser)
       await clickStartCapturing(browser)
       await browser.refresh()
-      await waitForInstantNavPanelOpen(browser)
+      await getInstantNavPanel(browser)
       await expectMpaPanel(browser)
       await expectTargetPageMpaShell(browser)
       await waitForAppHydration(browser)
@@ -519,7 +544,7 @@ describe.skip('instant-nav-panel', () => {
       })
 
       // Navigate to target page via SPA (use eval to bypass overlay pointer interception)
-      await clickLink(browser, targetPage)
+      await clickLink(browser, '/target-page/my-post?search=foo')
 
       // Panel should transition to client navigation capture state
       await expectSpaPanel(browser)
@@ -537,13 +562,12 @@ describe.skip('instant-nav-panel', () => {
       await clickStartCapturing(browser)
 
       // Navigate to target page via SPA (use eval to bypass overlay pointer interception)
-      await clickLink(browser, targetPage)
+      await clickLink(browser, '/target-page/my-post?search=foo')
 
       // Dynamic data should be suspended under the lock.
-      // Use a longer timeout because dev mode needs to compile the target page.
       await browser
         .locator('[data-testid="dynamic-skeleton"]')
-        .waitFor({ state: 'visible', timeout: 30000 })
+        .waitFor({ state: 'visible' })
       expect(
         await browser.locator('[data-testid="dynamic-content"]').count()
       ).toBe(0)
@@ -557,7 +581,7 @@ describe.skip('instant-nav-panel', () => {
 
       await openInstantNavPanel(browser)
       await clickStartCapturing(browser)
-      await clickLink(browser, targetPage)
+      await clickLink(browser, '/target-page/my-post?search=foo')
       await expectSpaPanel(browser)
       await expectTargetPageSpaShell(browser)
 
@@ -570,24 +594,56 @@ describe.skip('instant-nav-panel', () => {
       await expectIdlePanel(browser)
     })
 
-    it('should show params and searchParams RSC content for a captured SPA navigation', async () => {
+    it('should keep params and searchParams RSC content suspended for a captured SPA navigation', async () => {
       const browser = await openHomeWithTargetPageWarmup()
 
       await openInstantNavPanel(browser)
       await clickStartCapturing(browser)
-      await clickLink(browser, targetPage)
+      await clickLink(browser, '/target-page/my-post?search=foo')
       await expectSpaPanel(browser)
 
       await expectTargetPageSpaShell(browser)
     })
 
-    it('should re-arm capture and return to awaiting navigation after Continue Rendering from SPA state', async () => {
+    it('should include runtime param and searchParam values in the captured SPA shell for a prefetch={true} link', async () => {
       const browser = await openHomeWithTargetPageWarmup()
 
       await openInstantNavPanel(browser)
       await clickStartCapturing(browser)
-      await clickLink(browser, targetPage)
+      // The prefetch link shares its href with #link-to-target, so select it
+      // by id rather than by href.
+      await browser.eval(() => {
+        document
+          .querySelector<HTMLAnchorElement>('#link-to-target-prefetch')!
+          .click()
+      })
       await expectSpaPanel(browser)
+
+      await expectTargetPageSpaShellWithRuntimeData(browser)
+    })
+
+    it('should restart capture and return to awaiting navigation after Continue Rendering from SPA state', async () => {
+      const browser = await openHomeWithTargetPageWarmup()
+
+      await openInstantNavPanel(browser)
+      await clickStartCapturing(browser)
+      await clickLink(browser, '/target-page/my-post?search=foo')
+      await expectSpaPanel(browser)
+
+      await clickContinueRendering(browser)
+      await expectPendingPanel(browser)
+      await expectTargetPageRendered(browser)
+      await waitForInstantModeCookie(browser)
+    })
+
+    it('should continue rendering a captured await connection navigation with loading.tsx', async () => {
+      const browser = await openHomeWithTargetPageWarmup()
+
+      await openInstantNavPanel(browser)
+      await clickStartCapturing(browser)
+      await clickLink(browser, '/await-connection')
+      await expectSpaPanel(browser)
+      await expectAwaitConnectionPageLoading(browser)
 
       await clickContinueRendering(browser)
       await expectPendingPanel(browser)
@@ -605,10 +661,10 @@ describe.skip('instant-nav-panel', () => {
       await browser.refresh()
       await browser.waitForElementByCss('[data-testid="home-title"]')
       await waitForAppHydration(browser)
-      await waitForInstantNavPanelOpen(browser)
+      await getInstantNavPanel(browser)
       await expectMpaPanel(browser)
 
-      await clickLink(browser, targetPage)
+      await clickLink(browser, '/target-page/my-post?search=foo')
       await expectSpaPanel(browser)
       await expectTargetPageSpaShell(browser)
     })
@@ -618,11 +674,20 @@ describe.skip('instant-nav-panel', () => {
 
       await openInstantNavPanel(browser)
       await clickStartCapturing(browser)
-      await clickLink(browser, targetPage)
+      await clickLink(browser, '/target-page/my-post?search=foo')
       await expectSpaPanel(browser)
 
+      // The SPA capture (cookie -> spa) is recorded as soon as the prefetch
+      // resolves, which can be before the navigation commits the new URL. Wait
+      // for the URL to actually change to the target route before reloading,
+      // otherwise browser.refresh() reloads the previous page (home) and we
+      // capture an MPA load of the wrong route.
+      await retry(async () => {
+        expect(await browser.url()).toContain('/target-page/my-post')
+      }, 10000)
+
       await browser.refresh()
-      await waitForInstantNavPanelOpen(browser)
+      await getInstantNavPanel(browser)
 
       const initialPanelText = await getInstantNavPanelText(browser)
       expect(initialPanelText).toContain('Page load')

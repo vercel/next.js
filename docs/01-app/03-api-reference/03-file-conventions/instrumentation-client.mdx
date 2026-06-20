@@ -43,33 +43,70 @@ window.addEventListener('error', (event) => {
 
 ## Router navigation tracking
 
-You can export an `onRouterTransitionStart` function to receive notifications when navigation begins:
+You can export `onRouterTransitionStart` to observe the start of App Router navigations:
 
-```ts filename="instrumentation-client.ts" switcher
-performance.mark('app-init')
-
+```ts filename="instrumentation-client.ts"
 export function onRouterTransitionStart(
   url: string,
   navigationType: 'push' | 'replace' | 'traverse'
 ) {
-  console.log(`Navigation started: ${navigationType} to ${url}`)
-  performance.mark(`nav-start-${Date.now()}`)
+  console.log(url, navigationType)
+}
+```
+
+Additional router transition information is experimental. Enable it to receive a third `event` argument:
+
+```ts filename="next.config.ts"
+import type { NextConfig } from 'next'
+
+const nextConfig: NextConfig = {
+  experimental: {
+    instrumentationClientRouterTransitionEvents: true,
+  },
+}
+
+export default nextConfig
+```
+
+The event includes the transition metadata and source context known when the navigation is dispatched:
+
+```ts filename="instrumentation-client.ts" switcher
+import type { RouterTransitionStartEvent, RouterTransitionType } from 'next'
+
+export function onRouterTransitionStart(
+  url: string,
+  navigationType: RouterTransitionType,
+  { id, timestamp, fromRoutes, prefetchIntent }: RouterTransitionStartEvent
+) {
+  console.log(id, timestamp, url, navigationType, fromRoutes, prefetchIntent)
 }
 ```
 
 ```js filename="instrumentation-client.js" switcher
-performance.mark('app-init')
-
-export function onRouterTransitionStart(url, navigationType) {
-  console.log(`Navigation started: ${navigationType} to ${url}`)
-  performance.mark(`nav-start-${Date.now()}`)
+export function onRouterTransitionStart(url, navigationType, event) {
+  console.log(
+    event.id,
+    event.timestamp,
+    url,
+    navigationType,
+    event.fromRoutes,
+    event.prefetchIntent
+  )
 }
 ```
 
-The `onRouterTransitionStart` function receives two parameters:
+`onRouterTransitionStart` receives:
 
 - `url: string` - The URL being navigated to
 - `navigationType: 'push' | 'replace' | 'traverse'` - The type of navigation
+- `event.id` - An opaque ID shared by events for this transition
+- `event.timestamp` - A framework-captured Unix timestamp in milliseconds
+- `event.fromRoutes` - Route patterns visible before navigation. The primary `children` route is first, followed by parallel slots in deterministic order
+- `event.prefetchIntent` - For link navigations, whether the clicked link requested full prefetching (`full`), used automatic prefetching (`auto`), or did not request prefetching (`none`). For navigations with no associated link (programmatic `router.push()`/`router.replace()`, or browser back/forward) this is `null`, since no link prefetch intent applies
+
+Route entries use filesystem-style patterns, so a navigation away from `/blog/hello` may report `/blog/[slug]`.
+
+Hook errors are isolated and do not affect navigation or other hooks.
 
 ## Performance considerations
 
@@ -89,7 +126,7 @@ This timing makes it ideal for setting up error tracking, analytics, and perform
 
 ## See also
 
-`next.config.js` plugins (for example, wrappers like `withSentry`) can register their own client instrumentation module via the [`instrumentationClientInject`](/docs/app/api-reference/config/next-config-js/instrumentationClientInject) option. Injected modules run before this file, in array order, and may export their own `onRouterTransitionStart`. Application code should continue to use this file convention directly.
+`next.config.js` plugins (for example, wrappers like `withSentry`) can register their own client instrumentation module via the [`instrumentationClientInject`](/docs/app/api-reference/config/next-config-js/instrumentationClientInject) option. Injected modules run before this file, in array order, and may export the same router transition start hook. Application code should continue to use this file convention directly.
 
 ## Examples
 
@@ -223,6 +260,7 @@ if (!window.ResizeObserver) {
 
 ## Version history
 
-| Version | Changes                             |
-| ------- | ----------------------------------- |
-| `v15.3` | `instrumentation-client` introduced |
+| Version   | Changes                                               |
+| --------- | ----------------------------------------------------- |
+| `v16.3.0` | Experimental router transition start event introduced |
+| `v15.3`   | `instrumentation-client` introduced                   |

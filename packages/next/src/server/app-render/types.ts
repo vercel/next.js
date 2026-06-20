@@ -97,6 +97,7 @@ export interface RenderOptsPartial {
   err?: Error | null
   basePath: string
   cacheComponents: boolean
+  partialPrefetching?: NextConfigComplete['partialPrefetching']
   validationLevel: ValidationLevel
   trailingSlash: boolean
   images: ImageConfigComplete
@@ -226,7 +227,7 @@ export interface RenderOptsPartial {
   /**
    * When true, attempt to run build-time instant validation for this prerender.
    * Only the first prerender per page sets this, since validation uses
-   * unstable_instant.unstable_samples and is independent of actual route params.
+   * instant.unstable_samples and is independent of actual route params.
    */
   runInstantValidation?: boolean
 }

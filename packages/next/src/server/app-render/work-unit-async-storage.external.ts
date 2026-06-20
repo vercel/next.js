@@ -375,11 +375,15 @@ export interface PrivateUseCacheStore extends CommonUseCacheStore {
   readonly headers: ReadonlyHeaders
   readonly cookies: ReadonlyRequestCookies
 
-  /**
-   * Private caches don't currently need to track read root params for the cache
-   * key because they're not persisted anywhere.
-   */
   readonly rootParams: Params
+
+  /**
+   * DEV-only: Tracks which root param names were read during this cache
+   * invocation. In development, private caches are persisted (keyed by the
+   * request's cookies and headers), so reads of different root param values
+   * must produce different entries.
+   */
+  readonly readRootParamNames: Set<string> | undefined
 }
 
 export type UseCacheStore = PublicUseCacheStore | PrivateUseCacheStore
@@ -611,5 +615,29 @@ export function getCacheSignal(
       return null
     default:
       return workUnitStore satisfies never
+  }
+}
+
+export function getVaryParamsAccumulator(
+  workUnitStore: WorkUnitStore
+): ResponseVaryParamsAccumulator | null {
+  switch (workUnitStore.type) {
+    case 'prerender':
+    case 'prerender-runtime':
+    case 'request': {
+      return workUnitStore.varyParamsAccumulator ?? null
+    }
+    case 'prerender-ppr':
+    case 'prerender-legacy':
+    case 'cache':
+    case 'private-cache':
+    case 'prerender-client':
+    case 'validation-client':
+    case 'unstable-cache':
+    case 'generate-static-params':
+      return null
+    default:
+      workUnitStore satisfies never
+      return null
   }
 }

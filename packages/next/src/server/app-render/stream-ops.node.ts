@@ -589,7 +589,10 @@ export async function renderToNodeFizzStream(
     })
   )
 
-  await shellReady.promise
+  await getTracer().trace(
+    AppRenderSpan.waitShellReady,
+    () => shellReady.promise
+  )
 
   if (!deferPipe) {
     await waitAtLeastOneReactRenderTask()
@@ -612,18 +615,29 @@ export async function resumeToFizzStream(
   const run: <T>(fn: () => T) => T = runInContext ?? ((fn) => fn())
 
   const pt = new PassThrough()
+  const shellReady = new DetachedPromise<void>()
   const allReady = new DetachedPromise<void>()
 
   const pipeable = await run(() =>
     resumeToPipeableStream(element, postponedState, {
       ...streamOptions,
+      onShellReady() {
+        streamOptions?.onShellReady?.()
+        shellReady.resolve()
+      },
+      onShellError(error: unknown) {
+        streamOptions?.onShellError?.(error)
+        shellReady.reject(error)
+      },
       onAllReady() {
         streamOptions?.onAllReady?.()
         allReady.resolve()
       },
     })
   )
+
   pipeable.pipe(pt)
+  await shellReady.promise
 
   return {
     stream: pt,

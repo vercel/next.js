@@ -34,7 +34,57 @@ class HangingPromiseRejectionError extends Error {
   }
 }
 
-type AbortListeners = Array<(err: unknown) => void>
+const CLIENT_HOOK_DYNAMIC = 'CLIENT_HOOK_DYNAMIC'
+
+export class ClientHookDynamicError extends Error {
+  public readonly digest = CLIENT_HOOK_DYNAMIC
+
+  constructor(route: string, expression: string) {
+    super(
+      `Route "${route}": Next.js encountered URL data \`${expression}\` in a Client Component outside of \`<Suspense>\`.\n\n` +
+        `This blocks prerendering because the value is only available at runtime.\n\n` +
+        `Ways to fix this:\n` +
+        `  - [stream] Wrap the component in \`<Suspense fallback={...}>\` so the hook value streams in after prerendering\n` +
+        `    https://nextjs.org/docs/messages/blocking-prerender-client-hook#wrap-in-or-move-into-suspense\n` +
+        `  - [block] Set \`export const instant = false\` to silence this warning and allow a blocking route\n` +
+        `    https://nextjs.org/docs/messages/blocking-prerender-client-hook#allow-blocking-route`
+    )
+  }
+}
+
+export class ParamClientHookDynamicError extends Error {
+  public readonly digest = CLIENT_HOOK_DYNAMIC
+
+  constructor(route: string, expression: string) {
+    const cacheBullet =
+      expression === 'useParams()'
+        ? `  - [cache] For known params, prerender them with \`generateStaticParams\`\n` +
+          `    https://nextjs.org/docs/messages/blocking-prerender-client-hook#for-known-params-prerender\n`
+        : ''
+    super(
+      `Route "${route}": Next.js encountered URL data \`${expression}\` in a Client Component outside of \`<Suspense>\`.\n\n` +
+        `This blocks prerendering because the value is only available at runtime.\n\n` +
+        `Ways to fix this:\n` +
+        `  - [stream] Wrap the component in \`<Suspense fallback={...}>\` so the hook value streams in after prerendering\n` +
+        `    https://nextjs.org/docs/messages/blocking-prerender-client-hook#wrap-in-or-move-into-suspense\n` +
+        cacheBullet +
+        `  - [block] Set \`export const instant = false\` to silence this warning and allow a blocking route\n` +
+        `    https://nextjs.org/docs/messages/blocking-prerender-client-hook#allow-blocking-route`
+    )
+  }
+}
+
+export function isClientHookDynamicError(
+  err: unknown
+): err is ClientHookDynamicError | ParamClientHookDynamicError {
+  if (typeof err !== 'object' || err === null || !('digest' in err)) {
+    return false
+  }
+
+  return err.digest === CLIENT_HOOK_DYNAMIC
+}
+
+type AbortListeners = Array<() => void>
 const abortListenersBySignal = new WeakMap<AbortSignal, AbortListeners>()
 
 /**
@@ -49,14 +99,28 @@ export function makeHangingPromise<T>(
   route: string,
   expression: string
 ): Promise<T> {
+  return makeHangingPromiseWithError(
+    signal,
+    new HangingPromiseRejectionError(route, expression)
+  )
+}
+
+export function makeClientHookHangingPromise<T>(
+  signal: AbortSignal,
+  error: ClientHookDynamicError | ParamClientHookDynamicError
+): Promise<T> {
+  return makeHangingPromiseWithError(signal, error)
+}
+
+function makeHangingPromiseWithError<T>(
+  signal: AbortSignal,
+  error: Error
+): Promise<T> {
   if (signal.aborted) {
-    return Promise.reject(new HangingPromiseRejectionError(route, expression))
+    return Promise.reject(error)
   } else {
     const hangingPromise = new Promise<T>((_, reject) => {
-      const boundRejection = reject.bind(
-        null,
-        new HangingPromiseRejectionError(route, expression)
-      )
+      const boundRejection = reject.bind(null, error)
       let currentListeners = abortListenersBySignal.get(signal)
       if (currentListeners) {
         currentListeners.push(boundRejection)

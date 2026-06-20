@@ -125,6 +125,7 @@ use crate::{
 pub use crate::{
     references::{AnalyzeEcmascriptModuleResult, TURBOPACK_HELPER},
     static_code::StaticEcmascriptCode,
+    swc_comments::swc_comments_to_single_threaded,
     transform::{
         CustomTransformer, EcmascriptInputTransform, EcmascriptInputTransforms, TransformContext,
         TransformPlugin,
@@ -433,13 +434,7 @@ pub struct EcmascriptModuleAsset {
 #[turbo_tasks::value_trait]
 pub trait EcmascriptParsable {
     #[turbo_tasks::function]
-    fn failsafe_parse(self: Vc<Self>) -> Result<Vc<ParseResult>>;
-
-    #[turbo_tasks::function]
-    fn parse_original(self: Vc<Self>) -> Result<Vc<ParseResult>>;
-
-    #[turbo_tasks::function]
-    fn ty(self: Vc<Self>) -> Result<Vc<EcmascriptModuleAssetType>>;
+    fn failsafe_parse(self: Vc<Self>) -> Vc<ParseResult>;
 }
 
 #[turbo_tasks::value_trait]
@@ -599,16 +594,6 @@ impl EcmascriptParsable for EcmascriptModuleAsset {
         } else {
             Ok(real_result)
         }
-    }
-
-    #[turbo_tasks::function]
-    fn parse_original(self: Vc<Self>) -> Vc<ParseResult> {
-        self.failsafe_parse()
-    }
-
-    #[turbo_tasks::function]
-    fn ty(&self) -> Vc<EcmascriptModuleAssetType> {
-        self.ty.cell()
     }
 }
 

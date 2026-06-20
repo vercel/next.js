@@ -34,6 +34,7 @@ use next_api::{
 };
 use next_core::{
     app_structure::find_app_dir,
+    next_config::DIST_PROFILES_DIR_NAME,
     next_telemetry::ProjectFeatureUsageSummary,
     tracing_presets::{
         TRACING_NEXT_OVERVIEW_TARGETS, TRACING_NEXT_TARGETS, TRACING_NEXT_TURBO_TASKS_TARGETS,
@@ -51,7 +52,7 @@ use turbo_tasks::{
     TransientInstance, TryJoinIterExt, TurboTasksApi, TurboTasksCallApi, UpdateInfo, Vc,
     mark_top_level_task,
     message_queue::{CompilationEvent, Severity},
-    take_effects,
+    read_strongly_consistent_and_apply_effects, take_effects,
     trace::TraceRawVcs,
     unmark_top_level_task_may_leak_eventually_consistent_state,
 };
@@ -81,8 +82,8 @@ use crate::{
         analyze::{WriteAnalyzeResult, write_analyze_data_with_issues_operation},
         endpoint::ExternalEndpoint,
         turbopack_ctx::{
-            NapiNextTurbopackCallbacks, NapiNextTurbopackCallbacksJsObject, NextTurboTasks,
-            NextTurbopackContext, create_turbo_tasks,
+            MemoryEvictionMode, NapiNextTurbopackCallbacks, NapiNextTurbopackCallbacksJsObject,
+            NextTurboTasks, NextTurbopackContext, create_turbo_tasks,
         },
         utils::{
             DetachedVc, NapiIssue, NapiUsedFeature, RootTask, TurbopackResult, get_issues,
@@ -272,8 +273,6 @@ pub struct NapiDefineEnv {
 
 #[napi(object)]
 pub struct NapiTurboEngineOptions {
-    /// An upper bound of memory that turbopack will attempt to stay under.
-    pub memory_limit: Option<f64>,
     /// Track dependencies between tasks. If false, any change during build will error.
     pub dependency_tracking: Option<bool>,
     /// Whether the project is running in a CI environment.
@@ -282,6 +281,8 @@ pub struct NapiTurboEngineOptions {
     pub is_short_session: Option<bool>,
     /// Whether to skip database compaction during shutdown.
     pub skip_compaction: Option<bool>,
+    /// Turbopack memory eviction mode for the persistent cache.
+    pub turbopack_memory_eviction: MemoryEvictionMode,
 }
 
 impl From<NapiWatchOptions> for WatchOptions {
@@ -463,8 +464,9 @@ pub fn project_new(
         } else {
             PathBuf::from(&options.root_path)
                 .join(&options.project_path)
-                .join(".next-profiles")
-                .join("trace-turbopack")
+                .join(DIST_PROFILES_DIR_NAME)
+                // use a generic binary extension to hint to random tools not to read it.
+                .join("trace-turbopack.bin")
         };
         let trace_dir = trace_file
             .parent()
@@ -553,23 +555,20 @@ pub fn project_new(
 
     env.spawn_future(
         async move {
-            let memory_limit = turbo_engine_options
-                .memory_limit
-                .map(|m| m as usize)
-                .unwrap_or(usize::MAX);
             let dependency_tracking = turbo_engine_options.dependency_tracking.unwrap_or(true);
             let is_ci = turbo_engine_options.is_ci.unwrap_or(false);
             let is_short_session = turbo_engine_options.is_short_session.unwrap_or(false);
             let skip_compaction = turbo_engine_options.skip_compaction.unwrap_or(false);
+            let turbopack_memory_eviction = turbo_engine_options.turbopack_memory_eviction;
             let turbo_tasks = create_turbo_tasks(
                 PathBuf::from(&options.dist_dir),
                 &options.next_version,
                 options.is_persistent_caching_enabled,
-                memory_limit,
                 dependency_tracking,
                 is_ci,
                 is_short_session,
                 skip_compaction,
+                turbopack_memory_eviction,
             )?;
             let turbopack_ctx = NextTurbopackContext::new(turbo_tasks.clone(), napi_callbacks);
 
@@ -1363,6 +1362,7 @@ pub async fn project_write_all_entrypoints_to_disk(
                 let DeferredEntrypointInfo(entrypoints, deferred_entries) =
                     &*deferred_entrypoint_info_operation(container)
                         .read_strongly_consistent()
+                        .final_read_hint()
                         .await?;
 
                 Ok(compute_deferred_phase_build_paths(
@@ -1406,17 +1406,16 @@ pub async fn project_write_all_entrypoints_to_disk(
                 first_phase,
             );
 
-            // Read and compile the files
+            let read =
+                read_strongly_consistent_and_apply_effects(entrypoints_with_issues_op, |v| {
+                    &v.effects
+                })
+                .await?;
             let AllWrittenEntrypointsWithIssues {
                 entrypoints,
                 issues,
-                effects,
-            } = &*entrypoints_with_issues_op
-                .read_strongly_consistent()
-                .await?;
-
-            // Apply phase side effects. Asset emission is performed once at the end.
-            effects.apply().await?;
+                ..
+            } = &*read;
 
             Ok((
                 entrypoints.clone(),
@@ -1471,16 +1470,16 @@ pub async fn project_write_all_entrypoints_to_disk(
                     EntrypointsWritePhase::Deferred,
                 );
 
+                let read =
+                    read_strongly_consistent_and_apply_effects(entrypoints_with_issues_op, |v| {
+                        &v.effects
+                    })
+                    .await?;
                 let AllWrittenEntrypointsWithIssues {
                     entrypoints,
                     issues,
-                    effects,
-                } = &*entrypoints_with_issues_op
-                    .read_strongly_consistent()
-                    .await?;
-
-                // Apply phase side effects. Asset emission is performed once at the end.
-                effects.apply().await?;
+                    ..
+                } = &*read;
 
                 Ok((
                     entrypoints.clone(),
@@ -1503,17 +1502,16 @@ pub async fn project_write_all_entrypoints_to_disk(
                 app_dir_only,
                 has_deferred_entrypoints,
             );
-            let OperationResult { issues, effects } =
-                &*emit_result_op.read_strongly_consistent().await?;
+            let read =
+                read_strongly_consistent_and_apply_effects(emit_result_op, |v| &v.effects).await?;
+            let OperationResult { issues, .. } = &*read;
 
-            effects.apply().await?;
-
-            Ok(issues.iter().cloned().collect::<Vec<_>>())
+            Ok(issues.clone())
         })
         .or_else(|e| ctx.throw_turbopack_internal_result(&e.into()))
         .await?;
 
-    issues.extend(emit_issues);
+    issues.extend(emit_issues.iter().cloned());
 
     Ok(TurbopackResult {
         result: if let Some(entrypoints) = entrypoints {
@@ -1710,6 +1708,7 @@ pub async fn project_entrypoints(
                 effects: _,
             } = &*entrypoints_with_issues_op
                 .read_strongly_consistent()
+                .final_read_hint()
                 .await?;
 
             Ok((entrypoints.clone(), issues.clone()))
@@ -1745,15 +1744,16 @@ pub fn project_entrypoints_subscribe(
         move || {
             async move {
                 let entrypoints_with_issues_op = get_entrypoints_with_issues_operation(container);
+                let read =
+                    read_strongly_consistent_and_apply_effects(entrypoints_with_issues_op, |v| {
+                        &v.effects
+                    })
+                    .await?;
                 let EntrypointsWithIssues {
                     entrypoints,
                     issues,
-                    effects,
-                } = &*entrypoints_with_issues_op
-                    .read_strongly_consistent()
-                    .await?;
-
-                effects.apply().await?;
+                    ..
+                } = &*read;
                 Ok((entrypoints.clone(), issues.clone()))
             }
             .instrument(tracing::info_span!("entrypoints subscription"))
@@ -1815,7 +1815,10 @@ async fn hmr_update_with_issues_operation(
     // consumers in `hot-reloader-turbopack.ts` (`subscribeToServerHmr` and
     // `subscribeToClientHmrEvents`) rely on this read *throwing* on build-graph
     // failures to trigger their recovery paths
-    let update = update_op.read_strongly_consistent().await?;
+    let update = update_op
+        .read_strongly_consistent()
+        .final_read_hint()
+        .await?;
     let filter = project.issue_filter().await?;
     let issues = get_issues(update_op, &filter).await?;
     let effects = Arc::new(take_effects(update_op).await?);
@@ -1865,17 +1868,14 @@ pub fn project_hmr_events(
                         state,
                         hmr_target,
                     );
-                    let update = update_op.read_strongly_consistent().await?;
-                    let HmrUpdateWithIssues {
-                        update,
-                        issues,
-                        effects,
-                    } = &*update;
                     // HACK(bgw): Remove this mark call
                     mark_top_level_task();
-                    effects.apply().await?;
+                    let read =
+                        read_strongly_consistent_and_apply_effects(update_op, |v| &v.effects)
+                            .await?;
                     // HACK(bgw): Remove this unmark call
                     unmark_top_level_task_may_leak_eventually_consistent_state();
+                    let HmrUpdateWithIssues { update, issues, .. } = &*read;
                     match &**update {
                         Update::Missing | Update::None => {}
                         Update::Total(TotalUpdate { to }) => {
@@ -1987,14 +1987,16 @@ pub fn project_hmr_chunk_names_subscribe(
         move || async move {
             let hmr_chunk_names_with_issues_op =
                 get_hmr_chunk_names_with_issues_operation(container, hmr_target);
+            let read =
+                read_strongly_consistent_and_apply_effects(hmr_chunk_names_with_issues_op, |v| {
+                    &v.effects
+                })
+                .await?;
             let HmrChunkNamesWithIssues {
                 chunk_names,
                 issues,
-                effects,
-            } = &*hmr_chunk_names_with_issues_op
-                .read_strongly_consistent()
-                .await?;
-            effects.apply().await?;
+                ..
+            } = &*read;
 
             Ok((chunk_names.clone(), issues.clone()))
         },
@@ -2453,11 +2455,10 @@ pub async fn project_write_analyze_data(
         .turbo_tasks()
         .run_once(async move {
             let analyze_data_op = write_analyze_data_with_issues_operation(container, app_dir_only);
-            let WriteAnalyzeResult { issues, effects } =
-                &*analyze_data_op.read_strongly_consistent().await?;
-
             // Write the files to disk
-            effects.apply().await?;
+            let read =
+                read_strongly_consistent_and_apply_effects(analyze_data_op, |v| &v.effects).await?;
+            let WriteAnalyzeResult { issues, .. } = &*read;
             Ok(issues.clone())
         })
         .await
@@ -2484,16 +2485,6 @@ async fn get_all_compilation_issues_inner_operation(
         .as_side_effect()
         .await?;
     Ok(Vc::cell(()))
-}
-
-#[turbo_tasks::function(operation, root)]
-async fn get_all_compilation_issues_operation(
-    container: ResolvedVc<ProjectContainer>,
-) -> Result<Vc<OperationResult>> {
-    let inner_op = get_all_compilation_issues_inner_operation(container);
-    let filter = container.project().issue_filter().await?;
-    let (_, issues, effects) = strongly_consistent_catch_collectables(inner_op, &filter).await?;
-    Ok(OperationResult { issues, effects }.cell())
 }
 
 /// Returns the build-feature-usage telemetry summary for this project — the set of
@@ -2537,13 +2528,24 @@ pub async fn project_feature_usage(
 pub async fn project_get_all_compilation_issues(
     #[napi(ts_arg_type = "{ __napiType: \"Project\" }")] project: External<ProjectInstance>,
 ) -> napi::Result<TurbopackResult<()>> {
+    #[turbo_tasks::function(operation, root)]
+    async fn get_all_compilation_issues_operation(
+        container: ResolvedVc<ProjectContainer>,
+    ) -> Result<Vc<OperationResult>> {
+        let inner_op = get_all_compilation_issues_inner_operation(container);
+        let filter = container.project().issue_filter().await?;
+        let (_, issues, effects) =
+            strongly_consistent_catch_collectables(inner_op, &filter).await?;
+        Ok(OperationResult { issues, effects }.cell())
+    }
     let container = project.container;
     let issues = project
         .turbopack_ctx
         .turbo_tasks()
         .run_once(async move {
             let op = get_all_compilation_issues_operation(container);
-            let OperationResult { issues, effects: _ } = &*op.read_strongly_consistent().await?;
+            let OperationResult { issues, effects: _ } =
+                &*op.read_strongly_consistent().final_read_hint().await?;
             Ok(issues.clone())
         })
         .await

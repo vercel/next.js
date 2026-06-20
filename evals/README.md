@@ -32,7 +32,7 @@ cp -r evals/evals/agent-034-async-cookies evals/evals/agent-042-your-thing
 
 Then edit three files:
 
-**`PROMPT.md`** — what you'd type into the agent. Write it like a real user would: describe the symptom or goal, not the API. "Navigating from `/a` to `/b` is slow, fix it" is a good prompt. "Use `unstable_instant`" is not — you're testing whether the agent understands the feature well enough to reach for it, not whether it can pattern-match a name you handed it.
+**`PROMPT.md`** — what you'd type into the agent. Write it like a real user would: describe the symptom or goal, not the API. "Navigating from `/a` to `/b` is slow, fix it" is a good prompt. "Use `instant`" is not — you're testing whether the agent understands the feature well enough to reach for it, not whether it can pattern-match a name you handed it.
 
 **`EVAL.ts`** — vitest assertions against files the agent wrote. Regex the source, don't run it.
 
@@ -43,8 +43,8 @@ import { join } from 'path'
 
 const page = readFileSync(join(process.cwd(), 'app/page.tsx'), 'utf-8')
 
-test('exports unstable_instant', () => {
-  expect(page).toMatch(/export const unstable_instant\b/)
+test('exports instant', () => {
+  expect(page).toMatch(/export const instant\b/)
 })
 ```
 

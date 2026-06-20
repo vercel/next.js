@@ -2,7 +2,7 @@ import type { Instant } from 'next'
 import assert from 'node:assert/strict'
 import { Suspense } from 'react'
 
-export const unstable_instant: Instant = {
+export const instant: Instant = {
   level: 'experimental-error',
   unstable_samples: [
     {
@@ -21,8 +21,8 @@ export default async function Page({
   return (
     <main>
       <p>
-        This page defines its own unstable_instant samples, which should
-        override the layout samples (no merging).
+        This page defines its own instant samples, which should override the
+        layout samples (no merging).
       </p>
       <Suspense fallback={<div>Loading...</div>}>
         <TestParams params={params} />

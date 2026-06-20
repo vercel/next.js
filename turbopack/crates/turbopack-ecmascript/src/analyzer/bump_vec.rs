@@ -16,7 +16,7 @@ use std::{
 };
 
 use allocator_api2::alloc::Allocator;
-use bumpalo::Bump;
+use bumpalo::{Bump, boxed::Box as BumpBox};
 
 /// A minimal growable vector for the list children of a `JsValue` that grow or are rebuilt after
 /// construction (e.g. `Array.items`, `Object.parts`, `Alternatives.values`, `Add` operands, and the
@@ -43,6 +43,19 @@ unsafe impl<T: Sync> Sync for BumpVec<'_, T> {}
 impl<T> Default for BumpVec<'_, T> {
     fn default() -> Self {
         Self::new()
+    }
+}
+
+impl<'a, T> From<BumpBox<'a, [T]>> for BumpVec<'a, T> {
+    fn from(boxed: BumpBox<'a, [T]>) -> Self {
+        let len = boxed.len();
+        let ptr = BumpBox::into_raw(boxed) as *mut T;
+        Self {
+            ptr: NonNull::new(ptr).unwrap_or(NonNull::dangling()),
+            cap: len,
+            len,
+            _marker: PhantomData,
+        }
     }
 }
 
@@ -84,6 +97,15 @@ impl<'a, T> BumpVec<'a, T> {
             Self::with_capacity_in(bump, iter.size_hint().1.unwrap_or(iter.size_hint().0));
         vec.extend(bump, iter);
         vec
+    }
+
+    /// Freeze into an arena-allocated boxed slice, handing the existing allocation to the box.
+    pub fn into_boxed_slice(self) -> BumpBox<'a, [T]> {
+        let me = ManuallyDrop::new(self);
+        let slice = ptr::slice_from_raw_parts_mut(me.ptr.as_ptr(), me.len);
+        // SAFETY: `ptr`/`len` describe an initialized arena slice we exclusively own, exactly the
+        // representation `BumpBox<[T]>` expects.
+        unsafe { BumpBox::from_raw(slice) }
     }
 
     /// Reallocate the buffer to `new_cap` elements (`new_cap >= len`), moving the live prefix into
@@ -166,6 +188,19 @@ impl<'a, T> BumpVec<'a, T> {
         self.len -= 1;
         // SAFETY: index `len` was initialized; move it out and logically shrink.
         Some(unsafe { self.ptr.as_ptr().add(self.len).read() })
+    }
+
+    /// Remove the element at `index` and return it, moving the last element into its slot. This
+    /// does not preserve element order but is O(1). Panics if `index` is out of bounds.
+    pub fn swap_remove(&mut self, index: usize) -> T {
+        assert!(index < self.len, "swap_remove index out of bounds");
+        // Move the last item into the slot and return the displaced one.
+        let last = self.pop().unwrap();
+        if index < self.len {
+            std::mem::replace(&mut self[index], last)
+        } else {
+            last
+        }
     }
 
     /// Split the vec in two at `at`: `self` retains the prefix `[0, at)` and the returned vec owns
@@ -280,7 +315,25 @@ impl<T> Iterator for IntoIter<'_, T> {
         self.idx += 1;
         Some(value)
     }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        let remaining = self.len - self.idx;
+        (remaining, Some(remaining))
+    }
 }
+
+impl<T> DoubleEndedIterator for IntoIter<'_, T> {
+    fn next_back(&mut self) -> Option<T> {
+        if self.idx == self.len {
+            return None;
+        }
+        self.len -= 1;
+        // SAFETY: index `len` (post-decrement) lies in the initialized `[idx, len)` range.
+        Some(unsafe { self.ptr.as_ptr().add(self.len).read() })
+    }
+}
+
+impl<T> ExactSizeIterator for IntoIter<'_, T> {}
 
 impl<T> Drop for IntoIter<'_, T> {
     fn drop(&mut self) {
@@ -406,6 +459,45 @@ mod tests {
     }
 
     #[test]
+    fn swap_remove() {
+        let bump = Bump::new();
+        let mut v = BumpVec::from_iter_in(&bump, [1, 2, 3, 4, 5]);
+        // Removing a middle element moves the last element into its slot.
+        assert_eq!(v.swap_remove(1), 2);
+        assert_eq!(&*v, &[1, 5, 3, 4][..]);
+        // Removing the last element is just a pop.
+        assert_eq!(v.swap_remove(3), 4);
+        assert_eq!(&*v, &[1, 5, 3][..]);
+        // Removing the first element.
+        assert_eq!(v.swap_remove(0), 1);
+        assert_eq!(&*v, &[3, 5][..]);
+    }
+
+    #[test]
+    #[should_panic(expected = "swap_remove index out of bounds")]
+    fn swap_remove_out_of_bounds() {
+        let bump = Bump::new();
+        let mut v = BumpVec::from_iter_in(&bump, [1, 2, 3]);
+        v.swap_remove(3);
+    }
+
+    #[test]
+    fn swap_remove_does_not_double_free() {
+        let bump = Bump::new();
+        let counter = Rc::new(Cell::new(0));
+        let mut v = BumpVec::new();
+        for _ in 0..3 {
+            v.push(&bump, DropCounter(counter.clone()));
+        }
+        let removed = v.swap_remove(0);
+        drop(removed);
+        assert_eq!(counter.get(), 1);
+        // The two remaining drop exactly once; the removed slot must not be dropped again.
+        drop(v);
+        assert_eq!(counter.get(), 3);
+    }
+
+    #[test]
     fn split_off_prefix_and_suffix() {
         let bump = Bump::new();
         let mut v = BumpVec::from_iter_in(&bump, [1, 2, 3, 4, 5]);
@@ -441,6 +533,39 @@ mod tests {
 
         let collected: Vec<i32> = v.into_iter().collect();
         assert_eq!(collected, vec![2, 4, 6]);
+    }
+
+    #[test]
+    fn into_iter_double_ended() {
+        let bump = Bump::new();
+        let v = BumpVec::from_iter_in(&bump, [1, 2, 3, 4]);
+        let reversed: Vec<i32> = v.into_iter().rev().collect();
+        assert_eq!(reversed, vec![4, 3, 2, 1]);
+
+        // Front and back cursors meet without overlap.
+        let v = BumpVec::from_iter_in(&bump, [1, 2, 3]);
+        let mut it = v.into_iter();
+        assert_eq!(it.next(), Some(1));
+        assert_eq!(it.next_back(), Some(3));
+        assert_eq!(it.next(), Some(2));
+        assert_eq!(it.next_back(), None);
+        assert_eq!(it.next(), None);
+    }
+
+    #[test]
+    fn double_ended_drops_remainder_once() {
+        let bump = Bump::new();
+        let counter = Rc::new(Cell::new(0));
+        let mut v = BumpVec::new();
+        for _ in 0..5 {
+            v.push(&bump, DropCounter(counter.clone()));
+        }
+        let mut it = v.into_iter();
+        drop(it.next()); // front
+        drop(it.next_back()); // back
+        assert_eq!(counter.get(), 2);
+        drop(it); // remaining three drop exactly once
+        assert_eq!(counter.get(), 5);
     }
 
     #[test]

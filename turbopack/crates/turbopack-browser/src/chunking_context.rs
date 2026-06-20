@@ -7,9 +7,9 @@ use turbo_tasks_hash::HashAlgorithm;
 use turbopack_core::{
     asset::{Asset, AssetContent},
     chunk::{
-        AssetSuffix, Chunk, ChunkGroupResult, ChunkItem, ChunkType, ChunkableModule,
-        ChunkingConfig, ChunkingConfigs, ChunkingContext, ContentHashing, CrossOrigin,
-        EntryChunkGroupResult, EvaluatableAsset, EvaluatableAssets, MinifyType,
+        AssetSuffix, Chunk, ChunkGroupResult, ChunkItem, ChunkLoadRetry, ChunkType,
+        ChunkableModule, ChunkingConfig, ChunkingConfigs, ChunkingContext, ContentHashing,
+        CrossOrigin, EntryChunkGroupResult, EvaluatableAsset, EvaluatableAssets, MinifyType,
         SourceMapSourceType, SourceMapsType, UnusedReferences, UrlBehavior,
         WorkerConfigurationOptions,
         availability_info::AvailabilityInfo,
@@ -230,6 +230,11 @@ impl BrowserChunkingContextBuilder {
         self
     }
 
+    pub fn chunk_load_retry(mut self, chunk_load_retry: ChunkLoadRetry) -> Self {
+        self.chunking_context.chunk_load_retry = chunk_load_retry;
+        self
+    }
+
     pub fn build(self) -> Vc<BrowserChunkingContext> {
         BrowserChunkingContext::cell(self.chunking_context)
     }
@@ -336,6 +341,8 @@ pub struct BrowserChunkingContext {
     hash_salt: ResolvedVc<RcStr>,
     /// The crossorigin mode for dynamically loaded chunks.
     cross_origin: CrossOrigin,
+    /// The retry policy for transient chunk load failures in the browser runtime.
+    chunk_load_retry: ChunkLoadRetry,
 }
 
 impl BrowserChunkingContext {
@@ -390,6 +397,7 @@ impl BrowserChunkingContext {
                 chunk_loading_global: Default::default(),
                 hash_salt: ResolvedVc::cell(RcStr::default()),
                 cross_origin: Default::default(),
+                chunk_load_retry: Default::default(),
             },
         }
     }
@@ -523,6 +531,11 @@ impl BrowserChunkingContext {
     #[turbo_tasks::function]
     pub fn cross_origin(&self) -> Vc<CrossOrigin> {
         self.cross_origin.cell()
+    }
+
+    #[turbo_tasks::function]
+    pub fn chunk_load_retry(&self) -> Vc<ChunkLoadRetry> {
+        self.chunk_load_retry.cell()
     }
 }
 
