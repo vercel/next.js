@@ -355,8 +355,8 @@ async function startWatcher(
   opts.fsChecker.ensureCallback(async function ensure(item) {
     if (item.type === 'appFile' || item.type === 'pageFile') {
       const definition = item.route
-      // Keep the normalized route for diagnostics and static-info lookup. The
-      // definition identifies the concrete grouped or parallel app entry.
+      // Static-info lookup needs the concrete grouped or parallel app path to
+      // discover segment configuration such as `runtime = 'edge'`.
       await getTracer().trace(
         DevRoutePreparationSpan.ensureRoute,
         {
@@ -365,7 +365,7 @@ async function startWatcher(
         () =>
           hotReloader.ensurePage({
             clientOnly: false,
-            page: item.itemPath,
+            page: definition?.page ?? item.itemPath,
             isApp: item.type === 'appFile',
             definition,
             url: item.requestPath,
