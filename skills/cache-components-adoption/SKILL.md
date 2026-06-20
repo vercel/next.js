@@ -32,6 +32,9 @@ of them.
 3. **Address dev-only insights.** With the build clean, resolve the
    instant-navigation validation warnings (dev-only, lower priority) to make
    navigations actually instant.
+4. **Adopt Partial Prefetching.** Turn on `partialPrefetching` and tune
+   `<Link>` so prefetching ships only the static shell by default — the last
+   step to the full Cache Components experience.
 
 For everything that is not a blocking-route error (`dynamic`, `revalidate`,
 `fetchCache`, `unstable_cache` → `"use cache"`, `revalidateTag` / `updateTag`,
@@ -57,6 +60,13 @@ Goal 3 is a separate, dev-only surface: instant-navigation validation warnings
 in the Insights tab. They don't block the build. Work them down once the build
 is clean — see the
 [instant navigation guide](https://nextjs.org/docs/app/guides/instant-navigation).
+
+Goal 4 is the final advancement: [Partial Prefetching](https://nextjs.org/docs/app/guides/adopting-partial-prefetching).
+It's a config flag plus `<Link>` tuning, not a build gate. With `cacheComponents`
+clean, it makes `<Link>` ship only the static [App Shell](/docs/app/glossary#app-shell)
+by default instead of the full route, which is the biggest payoff of Cache
+Components. Like goal 3, it surfaces a dev-only Insight (for `<Link prefetch={true}>`
+pointing at routes that haven't adopted it) rather than failing the build.
 
 ## How to surface the errors
 
@@ -172,3 +182,39 @@ to the next group, or stop here? Don't silently roll on.
 
 Then hand off to **`next-cache-components-optimizer`** to grow each route's
 static shell and make navigations feel instant.
+
+## Step 4 — Adopt Partial Prefetching (final advancement)
+
+Once the build is clean and routes are instant, turn on Partial Prefetching for
+the full Cache Components payoff: `<Link>` then prefetches only the static
+[App Shell](/docs/app/glossary#app-shell) by default, instead of the whole route.
+This is a config flag plus `<Link>` tuning, not a build gate — do it as a
+separate, mergeable milestone after goals 1–3.
+
+1. Enable it in `next.config.ts`:
+
+   ```ts
+   const nextConfig = {
+     cacheComponents: true,
+     partialPrefetching: true,
+   }
+   ```
+
+2. **Audit existing `<Link prefetch={true}>` calls.** In dev, each one pointing
+   at a route that hasn't adopted Partial Prefetching surfaces an Insight in the
+   overlay (`link-prefetch-partial`) with three fix cards:
+   - **Upgrade** — set `prefetch = 'partial'` on the route so the link prefetches
+     the shell.
+   - **Disable** — drop the `prefetch={true}` prop.
+   - **Ignore** — `export const instant = false` to silence it.
+
+   Walk the Insights like goal 3: visit routes, read each card's **Copy as
+   prompt**, apply the fix, re-check. Don't improvise — the
+   [`instant-link-prefetch-partial`](/docs/messages/instant-link-prefetch-partial)
+   page and the [Adopting Partial Prefetching](https://nextjs.org/docs/app/guides/adopting-partial-prefetching)
+   guide (see its "Auditing existing calls" section) carry the details.
+
+Done when `partialPrefetching` is on and no `link-prefetch-partial` Insights are
+left except deliberate ignores. See the
+[Adopting Partial Prefetching](https://nextjs.org/docs/app/guides/adopting-partial-prefetching)
+guide for the full migration path off `unstable_eager`.
