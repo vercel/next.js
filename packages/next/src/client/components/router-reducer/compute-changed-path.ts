@@ -27,7 +27,7 @@ const segmentToPathname = (segment: Segment): string => {
   return segment[1]
 }
 
-const segmentToSourcePagePathname = (segment: Segment): string => {
+export const segmentToSourcePagePathname = (segment: Segment): string => {
   if (typeof segment === 'string') {
     if (segment === 'children') return ''
     if (segment.startsWith(PAGE_SEGMENT_KEY)) return 'page'
