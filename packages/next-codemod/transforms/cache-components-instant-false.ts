@@ -2,23 +2,24 @@ import type { API, FileInfo } from 'jscodeshift'
 import { createParserFromPath } from '../lib/parser'
 
 /**
- * Blanket-inserts `export const instant = false` into every App Router `page`
- * and `layout` file so that enabling `cacheComponents` does not break the
- * build. Each opt-out is meant to be walked back, one route at a time, using
- * the companion adoption skill.
+ * Blanket-inserts `export const instant = false` into every App Router `page`,
+ * `layout`, and `default` file so that enabling `cacheComponents` does not
+ * break the build. Each opt-out is meant to be walked back, one route at a
+ * time, using the companion adoption skill.
  *
  * - Skips files that already declare or export `instant` in any form (never
  *   overrides existing config or appends a duplicate binding).
  * - Skips Client/Server Component modules (`"use client"` / `"use server"`):
  *   `instant` is a Server Component route segment config, so exporting it from
  *   those modules is a build error.
- * - Targets `page` / `layout` only (not `route` — `instant` does not apply to
- *   route handlers).
+ * - Targets `page` / `layout` / `default` only (not `route` — `instant` does
+ *   not apply to route handlers). `default.tsx` is the parallel-route fallback,
+ *   a server segment that accepts route segment config like the other two.
  */
 export default function transformer(file: FileInfo, _api: API) {
   if (
     process.env.NODE_ENV !== 'test' &&
-    !/(^|[/\\])app[/\\].*?(page|layout)\.[^/\\]+$/.test(file.path)
+    !/(^|[/\\])app[/\\].*?(page|layout|default)\.[^/\\]+$/.test(file.path)
   ) {
     return file.source
   }

@@ -149,13 +149,13 @@ npx @next/codemod@latest cache-components-instant-false ./app
 ```
 
 Inserts `export const instant = false` (with a `// TODO: Cache Components
-adoption` comment) into every `app/**/{page,layout}` file, skipping files that
+adoption` comment) into every `app/**/{page,layout,default}` file, skipping files that
 already declare `instant` and Client Components (`"use client"`). Then set
 `cacheComponents: true`. The TODO comments are the work queue.
 
 If the command exits with `Invalid transform choice`, your installed
 `@next/codemod` predates 16.3. Until you can upgrade, do the same opt-out by
-hand: in every `app/**/{page,layout}.{js,jsx,ts,tsx}` file that is **not** a
+hand: in every `app/**/{page,layout,default}.{js,jsx,ts,tsx}` file that is **not** a
 Client Component and does **not** already export `instant`, append:
 
 ```ts
