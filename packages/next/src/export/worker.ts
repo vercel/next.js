@@ -29,6 +29,7 @@ import { normalizeAppPath } from '../shared/lib/router/utils/app-paths'
 import { removeTrailingSlash } from '../shared/lib/router/utils/remove-trailing-slash'
 
 import { createRequestResponseMocks } from '../server/lib/mock-request'
+import { NEXT_URL } from '../client/components/app-router-headers'
 import { isAppRouteRoute } from '../lib/is-app-route-route'
 import { hasNextSupport } from '../server/ci-info'
 import { exportAppRoute } from './routes/app-route'
@@ -120,6 +121,9 @@ async function exportPageImpl(
     // When true, attempt to run build-time instant validation for this export path.
     _runInstantValidation: runInstantValidation = false,
 
+    // When true, mark this route as interceptable in its prerendered payload.
+    _couldBeIntercepted: couldBeIntercepted = false,
+
     // Pull the original query out.
     query: originalQuery = {},
   } = exportPath
@@ -165,6 +169,14 @@ async function exportPageImpl(
   }
 
   const { req, res } = createRequestResponseMocks({ url: updatedPath })
+
+  // At runtime `setVaryHeader` adds `Next-URL` to the `Vary` header for routes
+  // that an interception route can target, which is how the render derives
+  // `couldBeIntercepted`. That doesn't run during static prerendering, so set it
+  // here to avoid baking `couldBeIntercepted: false` into the prerendered RSC.
+  if (couldBeIntercepted) {
+    res.appendHeader('vary', NEXT_URL)
+  }
 
   // If this is a status code page, then set the response code.
   for (const statusCode of [404, 500]) {
