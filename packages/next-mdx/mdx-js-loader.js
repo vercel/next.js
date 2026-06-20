@@ -6,7 +6,15 @@ function interopDefault(mod) {
 }
 
 async function importPluginForPath(pluginPath, projectRoot) {
-  const path = require.resolve(pluginPath, { paths: [projectRoot] })
+  let path
+
+  try {
+    path = require.resolve(pluginPath, { paths: [projectRoot] })
+  } catch (error) {
+    error.message = `Failed to resolve MDX plugin "${pluginPath}": ${error.message}`
+    throw error
+  }
+
   return interopDefault(
     // "use pathToFileUrl to make esm import()s work with absolute windows paths":
     // on windows import("C:\\path\\to\\file") is not valid, so we need to use file:// URLs
@@ -58,21 +66,30 @@ module.exports = function nextMdxLoader(...args) {
   const callback = this.async().bind(this)
   const loaderContext = this
 
-  getOptions(options, this.context).then((userProvidedMdxOptions) => {
-    const proxy = new Proxy(loaderContext, {
-      get(target, prop, receiver) {
-        if (prop === 'getOptions') {
-          return () => userProvidedMdxOptions
-        }
+  getOptions(options, this.context).then(
+    (userProvidedMdxOptions) => {
+      const proxy = new Proxy(loaderContext, {
+        get(target, prop, receiver) {
+          if (prop === 'getOptions') {
+            return () => userProvidedMdxOptions
+          }
 
-        if (prop === 'async') {
-          return () => callback
-        }
+          if (prop === 'async') {
+            return () => callback
+          }
 
-        return Reflect.get(target, prop, receiver)
-      },
-    })
+          return Reflect.get(target, prop, receiver)
+        },
+      })
 
-    mdxLoader.call(proxy, ...args)
-  })
+      try {
+        mdxLoader.call(proxy, ...args)
+      } catch (error) {
+        callback(error)
+      }
+    },
+    (error) => {
+      callback(error)
+    }
+  )
 }

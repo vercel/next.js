@@ -2,7 +2,7 @@ import { nextTestSetup } from 'e2e-utils'
 
 for (const type of ['with-mdx-rs', 'without-mdx-rs']) {
   describe(`mdx ${type}`, () => {
-    const { next } = nextTestSetup({
+    const { next, isNextStart } = nextTestSetup({
       files: __dirname,
       dependencies: {
         '@next/mdx': 'canary',
@@ -128,5 +128,39 @@ for (const type of ['with-mdx-rs', 'without-mdx-rs']) {
         )
       })
     })
+
+    if (type === 'without-mdx-rs') {
+      it('should report unresolved string plugin paths during build', async () => {
+        if (!isNextStart) {
+          return
+        }
+
+        await next.stop()
+        await next.patchFile(
+          'next.config.ts',
+          `
+            import nextMDX from '@next/mdx'
+
+            const withMDX = nextMDX({
+              extension: /\\.mdx?$/,
+              options: {
+                remarkPlugins: ['remark-this-plugin-does-not-exist'],
+              },
+            })
+
+            export default withMDX({
+              pageExtensions: ['js', 'jsx', 'ts', 'tsx', 'mdx'],
+            })
+          `,
+          async () => {
+            const { exitCode, cliOutput } = await next.build()
+
+            expect(exitCode).toBe(1)
+            expect(cliOutput).toContain('remark-this-plugin-does-not-exist')
+            expect(cliOutput).not.toContain('UnhandledPromiseRejection')
+          }
+        )
+      })
+    }
   })
 }
