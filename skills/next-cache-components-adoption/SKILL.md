@@ -28,7 +28,7 @@ work.
 **Upgrade first if needed.** Check the installed version (`next --version` or
 `package.json`). If it's below 16.3, upgrade before doing anything else:
 
-- Run `npx @next/codemod@canary upgrade latest` to move to the current release
+- Run `npx @next/codemod@latest upgrade latest` to move to the current release
   and apply the version-to-version codemods.
 - Follow the [version upgrade guides](https://nextjs.org/docs/app/guides/upgrading)
   for the major(s) you're crossing (e.g.
@@ -93,8 +93,8 @@ signal for sync IO.) This most often bites in a shared layout, where one
 `new Date()` blocks every route under it.
 
 Milestone C is a separate, dev-only surface: instant-navigation validation
-warnings (today plain `console.error`s; the Insights tab UI is still landing).
-They don't block the build. Work them down once the build is clean — see the
+warnings in the dev overlay's **Insights** tab. They don't block the build. Work
+them down once the build is clean — see the
 [instant navigation guide](https://nextjs.org/docs/app/guides/instant-navigation).
 
 Milestone D is the final advancement: [Partial Prefetching](https://nextjs.org/docs/app/guides/adopting-partial-prefetching).
@@ -140,8 +140,6 @@ Ask the user; don't assume.
 ```bash
 npx @next/codemod@latest cache-components-instant-false ./app
 ```
-
-> The `cache-components-instant-false` transform ships in a recent `@next/codemod`. If `@latest` reports `Invalid transform choice`, your installed version predates it — use `@canary`, or apply the opt-out by hand (add `export const instant = false` to each `app/**/{page,layout}` file that doesn't already export `instant`).
 
 Inserts `export const instant = false` (with a `// TODO: Cache Components
 adoption` comment) into every `app/**/{page,layout}` file, skipping files that
@@ -226,7 +224,15 @@ For each route in the group:
    everyone see the same thing (cacheable) or is it per-user / per-request? Tie
    the technical fix to that answer (cache it, wrap it in `<Suspense>`, or keep
    it request-time), so they're deciding the experience, not the API.
-4. Re-check the route, then move to the next.
+4. Re-check the route, then move to the next. **If a route is genuinely meant to
+   block** (it's inherently per-request with no useful static shell), or the
+   refactor would be large and the user would rather not take it on now, that's
+   a legitimate outcome — keep `instant = false`, but confirm it with the user
+   first and turn its `// TODO: Cache Components adoption` comment into a reason,
+   e.g. `// instant = false: kept on purpose — fully request-time dashboard` or
+   `// instant = false: deferred, refactor too large for now`. A documented,
+   deliberate Block is fine to leave after the migration; an undocumented
+   leftover opt-out is not.
 
 Keep a todo list of the group's routes and work it to completion; don't
 truncate. When every route is clean, move to **Step 3** to verify the group and
@@ -239,8 +245,10 @@ Step 2. It is a checklist, not new adoption work.
 
 - Build: `next build` completes without blocking-route errors.
 - The group's routes no longer carry `// TODO: Cache Components adoption`
-  opt-outs, except deliberate Blocks (`grep` to confirm). A route you intend to
-  keep blocking keeps its `instant = false`.
+  opt-outs (`grep` to confirm). Any `instant = false` left behind must be a
+  **deliberate, documented Block** — its comment rewritten to a reason (per
+  Step 2's last point), not the original `// TODO`. A bare `// TODO` opt-out is
+  unfinished work; a documented one is a decision.
 - Drive each route in dev, not only the build — use the **`next-dev-loop`**
   skill. Visit it, wait for streaming to settle, and confirm every `<Suspense>`
   fallback you added resolves to its real content (not stuck on a skeleton or a
@@ -267,17 +275,20 @@ B is incomplete** — the rest of the app still carries `instant = false`, and
 Steps 4–5 only apply to the cleaned group. Don't silently roll on, and don't
 treat one cleaned group as the whole adoption.
 
-Milestone B is done only when **every** group is clean — no `instant = false`
-remains except deliberate Blocks. Grep the whole app to confirm
-(`grep -rl "instant = false" app`); a single cleaned group is a checkpoint, not
-the finish line. When the whole app is clean, move on to **Step 4** to make
-navigations instant.
+Milestone B is done only when **every** group is clean — every `instant = false`
+left is a documented, deliberate Block, and no bare `// TODO: Cache Components
+adoption` opt-outs are left. Grep the whole app to confirm
+(`grep -rln "TODO: Cache Components adoption" app` should return nothing; any
+remaining `instant = false` should sit under a reason comment). A single cleaned
+group is a checkpoint, not the finish line. When the whole app is clean, move on
+to **Step 4** to make navigations instant.
 
 ## Step 4 — Make navigations instant (milestone C)
 
 **Precondition: milestone B is complete across the app.** Before starting this
-step, confirm no route outside the cleaned group still carries `instant = false`
-(`grep -rl "instant = false" app`, ignoring deliberate Blocks). If opt-outs are
+step, confirm no route outside the cleaned group still carries an undocumented
+opt-out (`grep -rln "TODO: Cache Components adoption" app` should return
+nothing; documented, deliberate Blocks are fine to leave). If bare opt-outs are
 left, you're not ready for Step 4 — go back to **Step 2** and finish the
 other groups first. Making navigations instant on a handful of routes while
 most of the app is still opted out of validation isn't meaningful adoption. If
@@ -293,9 +304,9 @@ names.
 
 These warnings fire on **navigation**, not on hover or prefetch (dev doesn't
 prefetch), so drive the app — use the **`next-dev-loop`** skill — and navigate
-into each route to surface them. Today they land as plain `console.error`s in
-the dev overlay; the richer **Insights** tab with fix cards / **Copy as prompt**
-is still landing, so don't go hunting for a tab that may not be there yet.
+into each route to surface them. They appear in the dev overlay's **Insights**
+tab with fix cards and a **Copy as prompt** button, the same as the
+blocking-prerender errors in Step 2.
 
 Work them down once the build is clean, group by group like Step 2. See the
 [instant navigation guide](https://nextjs.org/docs/app/guides/instant-navigation)
@@ -328,8 +339,8 @@ guide for the whole flow — the incremental `prefetch = 'partial'` path, the
 flag-flip, and the "Auditing existing `<Link prefetch={true}>` calls" table that
 maps each link to its fix. The dev-only `link-prefetch-partial` warning drives
 it, the same way Step 4's warnings drive that step. As in Step 4, it fires on
-**navigation** (not hover/prefetch — dev doesn't prefetch) and currently lands
-as a `console.error`, so navigate with **`next-dev-loop`** to surface it. The one
+**navigation** (not hover/prefetch — dev doesn't prefetch), so navigate with
+**`next-dev-loop`** to surface it. The one
 piece of sequencing the guide assumes you know: walk the warnings **before**
 enabling the global `partialPrefetching` flag — flip it first and every route
 counts as adopted, so the warnings never fire and you lose the signal for which
