@@ -117,17 +117,17 @@ output is terser), and `--debug-build-paths /r1 /r2` to rebuild only the routes
 you're iterating on.
 
 **Verifying a fix at runtime.** A green build or a cleared overlay isn't proof
-the route actually behaves — Cache Components is a runtime concern (static shell
-
-- streamed data). The **`next-dev-loop`** skill is the cleanest way to confirm
-  each change at runtime: it cross-checks `/_next/mcp` against the live browser.
-  It's a **separate companion skill** from the same Next.js skills collection, so
-  load it if your agent has it; it has its own hard prerequisites (Turbopack and
-  `agent-browser >= 0.27.0`) and will tell you how to set those up. **If it isn't
-  available**, do the same loop by hand: keep `next dev` running, open the route
-  in a browser, and read errors from the dev overlay (or the browser console) —
-  don't fall back to grepping source or trusting the build alone. Either way,
-  verify after every fix in the steps below, not only at the end.
+the route actually behaves — Cache Components is a runtime concern (a static
+shell with streamed data). The **`next-dev-loop`** skill is the cleanest way to
+confirm each change at runtime: it cross-checks `/_next/mcp` against the live
+browser. It's a **separate companion skill** from the same Next.js skills
+collection, so load it if your agent has it; it has its own hard prerequisites
+(Turbopack and `agent-browser >= 0.27.0`) and will tell you how to set those up.
+**If it isn't available**, do the same loop by hand: keep `next dev` running,
+open the route in a browser, and read errors from the dev overlay (or the
+browser console) — don't fall back to grepping source or trusting the build
+alone. Either way, verify after every fix in the steps below, not only at the
+end.
 
 ## Step 1 — Choose a strategy
 

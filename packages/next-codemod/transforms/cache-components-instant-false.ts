@@ -64,16 +64,35 @@ export default function transformer(file: FileInfo, _api: API) {
   //   export const instant = ...
   //   export const a = 1, instant = ...   (any declarator position)
   //   const instant = ...                 (local binding)
+  //   const { instant } = ...             (destructured binding)
   //   export { instant }
   //   export { foo as instant }
   //   export function instant() {} / export class instant {}
+  const bindsInstant = (node: any): boolean => {
+    switch (node?.type) {
+      case 'Identifier':
+        return node.name === 'instant'
+      case 'ObjectPattern':
+        return node.properties.some((prop: any) =>
+          prop.type === 'RestElement'
+            ? bindsInstant(prop.argument)
+            : bindsInstant(prop.value ?? prop.argument)
+        )
+      case 'ArrayPattern':
+        return node.elements.some((el: any) => el != null && bindsInstant(el))
+      case 'AssignmentPattern':
+        return bindsInstant(node.left)
+      case 'RestElement':
+        return bindsInstant(node.argument)
+      default:
+        return false
+    }
+  }
+
   const hasInstantBinding =
     root
       .find(j.VariableDeclarator)
-      .filter((p) => {
-        const id = p.node.id
-        return id.type === 'Identifier' && id.name === 'instant'
-      })
+      .filter((p) => bindsInstant(p.node.id))
       .size() > 0 ||
     root.find(j.ExportSpecifier, { exported: { name: 'instant' } }).size() >
       0 ||
@@ -91,7 +110,7 @@ export default function transformer(file: FileInfo, _api: API) {
   )
 
   // Annotate so the inserted opt-outs are greppable while walking them back.
-  j(instantExport).getAST()[0].node.comments = [
+  instantExport.comments = [
     j.commentLine(
       ' TODO: Cache Components adoption — remove once this route is instant.',
       true,
