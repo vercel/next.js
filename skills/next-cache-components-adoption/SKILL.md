@@ -101,12 +101,9 @@ pointing at routes that haven't adopted it) rather than failing the build.
 
 ## How to surface the errors
 
-**Primary: the dev server.** Most efficient. Visit a route and its blocking
-errors print to the **server console** with full stack traces — you don't have
-to drive the overlay UI, read the logs. The same errors appear in the dev
-overlay **Insights** tab with Stream / Cache / Block fix cards and a **Copy as
-prompt** button if you want them. Errors don't all accumulate in one place, so
-work one route at a time rather than trying to collect everything up front.
+**Primary: the dev server.** Visit a route; its blocking errors surface in the
+dev overlay with full stack traces, fix cards, and a **Copy as prompt** button.
+Work one route at a time — errors don't all accumulate in one place.
 
 **Alternative: build.** `next build` reports a blocking route too, but it stops
 at the **first** one it hits and exits, so it's a poor way to size up the work
@@ -204,8 +201,8 @@ For each route in the group:
 1. Remove its `instant = false` (blanket) or target the failing route (direct).
 2. Reload it in dev (or `next build --debug-build-paths /that/route`). If it's
    clean, the route was already prerenderable — move on.
-3. If it still blocks, read the logged error and its stack trace, then apply the
-   fix it points at. The dev overlay fix card's **Copy as prompt** and the
+3. If it still blocks, read the error in the dev overlay and its stack trace,
+   then apply the fix it points at. The fix card's **Copy as prompt** and the
    linked `/docs/messages/blocking-prerender-*` page carry the details — don't
    improvise.
 4. Re-check the route, then move to the next.
