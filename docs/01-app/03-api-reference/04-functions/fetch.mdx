@@ -83,6 +83,20 @@ fetch(`https://...`, { next: { tags: ['collection'] } })
 
 Set the cache tags of a resource. Data can then be revalidated on-demand using [`revalidateTag`](/docs/app/api-reference/functions/revalidateTag). The max length for a custom tag is 256 characters and the max tag items is 128.
 
+### `options.next.cacheKeyExcludedHeaders`
+
+```ts
+fetch(`https://...`, {
+  next: { cacheKeyExcludedHeaders: ['x-request-id', 'sentry-trace'] },
+})
+```
+
+A list of request header names to exclude from the fetch [Data Cache](/docs/app/getting-started/caching) key for this individual request. Header names are matched case-insensitively. The excluded headers are still forwarded to the origin server — they only affect which responses are considered cache-equivalent.
+
+This is additive to the built-in exclusions (`traceparent`, `tracestate`) and to any headers configured globally via [`experimental.cacheKeyExcludedHeaders`](/docs/app/api-reference/config/next-config-js/cacheKeyExcludedHeaders).
+
+> **Warning:** Only exclude headers that do **not** affect the response body. Excluding a header that the origin uses to vary its response — such as `authorization`, `cookie`, `accept-language`, or `accept-encoding` — will cause **cross-context cache poisoning**: one user's response may be served to another user.
+
 ## Memoization
 
 `fetch` requests using `GET` with the same URL and options are automatically [memoized](/docs/app/glossary#memoization) during a server render pass. If you call the same `fetch` in multiple Server Components, layouts, pages, `generateStaticParams` and `generateViewport`, Next.js executes it only once and shares the result. This is separate from persistent [caching](/docs/app/getting-started/caching): memoization lasts only for a single render pass, while cached responses persist across requests.

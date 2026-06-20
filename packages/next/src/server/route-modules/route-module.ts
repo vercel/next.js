@@ -515,6 +515,8 @@ export abstract class RouteModule<
         minimalMode: isMinimalMode,
         serverDistDir: `${projectDir}/${this.distDir}/server`,
         fetchCacheKeyPrefix: nextConfig.experimental.fetchCacheKeyPrefix,
+        cacheKeyExcludedHeaders:
+          nextConfig.experimental.cacheKeyExcludedHeaders,
         maxMemoryCacheSize: nextConfig.cacheMaxMemorySize,
         flushToDisk: !isMinimalMode && nextConfig.experimental.isrFlushToDisk,
         getPrerenderManifest: () => prerenderManifest,

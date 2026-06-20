@@ -535,6 +535,7 @@ export interface ExperimentalConfig {
   extensionAlias?: Record<string, any>
   allowedRevalidateHeaderKeys?: string[]
   fetchCacheKeyPrefix?: string
+  cacheKeyExcludedHeaders?: string[]
   imgOptConcurrency?: number | null
   imgOptOperationCache?: boolean | null
   imgOptTimeoutInSeconds?: number
@@ -2193,6 +2194,7 @@ export interface NextConfigRuntime {
     | 'clientParamParsingOrigins'
     | 'allowedRevalidateHeaderKeys'
     | 'fetchCacheKeyPrefix'
+    | 'cacheKeyExcludedHeaders'
     | 'isrFlushToDisk'
     | 'optimizeCss'
     | 'nextScriptWorkers'
@@ -2261,6 +2263,7 @@ export function getNextConfigRuntime(
     clientParamParsingOrigins: ex.clientParamParsingOrigins,
     allowedRevalidateHeaderKeys: ex.allowedRevalidateHeaderKeys,
     fetchCacheKeyPrefix: ex.fetchCacheKeyPrefix,
+    cacheKeyExcludedHeaders: ex.cacheKeyExcludedHeaders,
     isrFlushToDisk: ex.isrFlushToDisk,
     optimizeCss: ex.optimizeCss,
     nextScriptWorkers: ex.nextScriptWorkers,

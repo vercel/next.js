@@ -196,6 +196,7 @@ export const experimentalSchema = {
   appNewScrollHandler: z.boolean().optional(),
   preloadEntriesOnStart: z.boolean().optional(),
   allowedRevalidateHeaderKeys: z.array(z.string()).optional(),
+  cacheKeyExcludedHeaders: z.array(z.string()).optional(),
   staleTimes: z
     .object({
       dynamic: z.number().optional(),

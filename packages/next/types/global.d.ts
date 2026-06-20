@@ -149,6 +149,7 @@ interface Window {
 interface NextFetchRequestConfig {
   revalidate?: number | false
   tags?: string[]
+  cacheKeyExcludedHeaders?: string[]
 }
 
 interface RequestInit {
