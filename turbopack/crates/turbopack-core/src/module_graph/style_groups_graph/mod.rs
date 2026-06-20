@@ -183,6 +183,19 @@ static DEBUG_DUMP_ENABLED: LazyLock<bool> =
         Err(_) => false,
     });
 
+/// Serialize a split cost metric for the debug dump. `serde_json` renders non-finite floats as
+/// `null`, which would be indistinguishable from the genuine `None` of the last chunk, so the
+/// non-finite cases are emitted as strings instead.
+fn cost_to_json(cost: Option<f32>) -> serde_json::Value {
+    match cost {
+        None => serde_json::Value::Null,
+        Some(c) if c.is_finite() => serde_json::json!(c),
+        Some(c) if c == f32::NEG_INFINITY => serde_json::json!("-Infinity"),
+        Some(c) if c == f32::INFINITY => serde_json::json!("Infinity"),
+        Some(_) => serde_json::json!("NaN"),
+    }
+}
+
 /// Write a JSON snapshot of the inputs and outputs of the graph-based CSS chunker to the
 /// current working directory. Each invocation produces a uniquely named file so concurrent or
 /// repeated computations don't overwrite each other.
@@ -191,7 +204,7 @@ async fn write_debug_dump(
     modules: &[StyleModuleRef],
     module_data: &[ModuleData],
     global_order: &[NodeIndex],
-    chunks: &[Vec<usize>],
+    chunks: &[(Vec<usize>, Option<f32>)],
 ) -> Result<()> {
     // Resolve `ident_string()` for every module up front. Done in parallel to keep this off the
     // critical path even on graphs with thousands of CSS modules.
@@ -210,10 +223,22 @@ async fn write_debug_dump(
         .map(|g| g.iter().map(|&id| ident(id)).collect())
         .collect();
 
-    let global_order_chunks_json: Vec<Vec<&str>> = chunks
+    // Each chunk carries the cost-delta of merging it with the following chunk (`None`/`null` for
+    // the last chunk). A finite value is the surviving split metric; `"Infinity"` marks a boundary
+    // a hard constraint forbade merging across.
+    let mut chunks_json: Vec<serde_json::Value> = chunks
         .iter()
-        .map(|chunk| chunk.iter().map(|&id| ident(id)).collect())
+        .map(|(chunk, merge_cost_to_next)| {
+            [
+                serde_json::json!(chunk.iter().map(|&id| ident(id)).collect::<Vec<_>>()),
+                serde_json::json!(cost_to_json(*merge_cost_to_next)),
+            ]
+        })
+        .flatten()
         .collect();
+
+    // last chunk has no merge cost
+    chunks_json.pop();
 
     let global_order_flat_json: Vec<&str> = global_order.iter().map(|n| ident(n.index())).collect();
 
@@ -235,7 +260,7 @@ async fn write_debug_dump(
     let dump = serde_json::json!({
         "chunk_groups": chunk_groups_json,
         "global_order": global_order_flat_json,
-        "global_order_chunks": global_order_chunks_json,
+        "chunks": chunks_json,
         "modules": modules_json,
     });
 
@@ -259,7 +284,7 @@ async fn write_debug_dump(
 }
 
 async fn assemble_style_groups(
-    chunks: &[Vec<usize>],
+    chunks: &[(Vec<usize>, Option<f32>)],
     module_data: &[ModuleData],
 ) -> Result<Vc<StyleGroups>> {
     let mut shared_chunk_items: FxIndexMap<ChunkItemWithAsyncModuleInfo, StyleItemInfo> =
@@ -279,7 +304,7 @@ async fn assemble_style_groups(
             order_counter += 1;
         };
 
-    for chunk in chunks {
+    for (chunk, _cost) in chunks {
         if chunk.is_empty() {
             continue;
         }
