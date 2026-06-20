@@ -73,6 +73,20 @@ build**. `export const instant = false` marks a route as allowed to block, which
 clears it in both dev and build; on a layout it covers the whole subtree beneath
 it. Goals 1 and 2 are about getting these opt-outs in, then back out.
 
+**`instant = false` does not clear sync-IO errors.** Unstable values evaluated
+at module/render time — `new Date()`, `Date.now()`, `Math.random()`,
+`crypto.randomUUID()` — still fail the prerender (`blocking-prerender-current-time`
+/ `-random` / `-crypto`) even with the opt-out, because they produce a different
+result on every render and can't be baked into a static shell. So the blanket
+codemod gets the build green **only if no shared layout or page calls one of
+these directly**; if one does, you must fix it regardless of `instant = false`.
+The fix is `await io()` (from `next/cache`) immediately before the call — it
+tells Next.js synchronous IO follows, so the value is treated as request-time
+instead of prerendered. (`await connection()` from `next/server` also works and
+is what the error's `[dynamic]` fix card suggests; `io()` is the more targeted
+signal for sync IO.) This most often bites in a shared layout, where one
+`new Date()` blocks every route under it.
+
 Goal 3 is a separate, dev-only surface: instant-navigation validation warnings
 in the Insights tab. They don't block the build. Work them down once the build
 is clean — see the
@@ -152,6 +166,16 @@ fails on `/_not-found` even though no other route changed. If it was missed, add
 is no user file for it, and the directive wouldn't apply. When `/_not-found` (or
 another framework route) blocks, the cause is the **root layout** it renders
 through; fix the opt-out there.
+
+**Client Components (`"use client"` pages/layouts) get no opt-out** — the codemod
+skips them, on purpose. `instant` is a Server Component route segment config;
+exporting it from a client module is a build error (`E1344`). They don't need
+one anyway: a client page is covered by its nearest server layout's opt-out
+(resolution walks top-down, and the layout's `instant = false` shadows the whole
+subtree), and a client page can't read server request data (`cookies()`,
+`headers()`, `await params`) itself, so it rarely blocks on its own. If a route
+with a client page still blocks, the cause is server-side data in an ancestor
+layout — fix the opt-out or the read there, not on the client page.
 
 ### Direct
 
