@@ -9,6 +9,9 @@ import { createParserFromPath } from '../lib/parser'
  *
  * - Skips files that already declare or export `instant` in any form (never
  *   overrides existing config or appends a duplicate binding).
+ * - Skips Client/Server Component modules (`"use client"` / `"use server"`):
+ *   `instant` is a Server Component route segment config, so exporting it from
+ *   those modules is a build error.
  * - Targets `page` / `layout` only (not `route` — `instant` does not apply to
  *   route handlers).
  */
@@ -22,6 +25,39 @@ export default function transformer(file: FileInfo, _api: API) {
 
   const j = createParserFromPath(file.path)
   const root = j(file.source)
+
+  // Bail on Client/Server Component modules. `instant` is a Server Component
+  // route segment config; exporting it from a `"use client"` (or `"use server"`)
+  // module fails the build. Parsers represent the directive either in
+  // `program.directives` or as a leading string-literal `ExpressionStatement`.
+  const program = root.get().node.program
+  const isClientOrServerDirective = (value: unknown) =>
+    value === 'use client' || value === 'use server'
+
+  let hasModuleDirective = (program.directives ?? []).some((d: any) =>
+    isClientOrServerDirective(d?.value?.value)
+  )
+
+  if (!hasModuleDirective) {
+    for (const node of program.body) {
+      if (
+        node.type !== 'ExpressionStatement' ||
+        (node.expression?.type !== 'StringLiteral' &&
+          node.expression?.type !== 'Literal')
+      ) {
+        // Directives must lead the module; stop at the first non-directive.
+        break
+      }
+      if (isClientOrServerDirective(node.expression.value)) {
+        hasModuleDirective = true
+        break
+      }
+    }
+  }
+
+  if (hasModuleDirective) {
+    return file.source
+  }
 
   // Bail if `instant` already exists in any form, so we never append a
   // duplicate declaration (which would be a `SyntaxError`). This covers:
