@@ -67,7 +67,7 @@ Learn more: [Streaming with Suspense](/docs/app/guides/streaming).
 
 ### Trade-off
 
-The component shows the fallback during SSR and the first paint. For above-the-fold UI this can be visible. Use [`loading.js`](/docs/app/api-reference/file-conventions/loading) for full-segment fallback or pick a fallback that matches the final layout to minimize visual jump.
+The component shows the fallback during SSR and the first paint. For above-the-fold UI this can be visible. Use [`loading.js`](/docs/app/api-reference/file-conventions/loading) for full-segment fallback or pick a fallback that matches the final layout to minimize visual jump. See [CLS-safe skeleton fallback guidance](/docs/app/guides/streaming#cls-cumulative-layout-shift).
 
 ### Gotchas
 
