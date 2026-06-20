@@ -719,6 +719,9 @@ fn split_weight_distribution_protects_small_groups_from_overshipping() {
             weight_distribution,
             0,
         )
+        .into_iter()
+        .map(|(chunk, _cost)| chunk)
+        .collect()
     };
 
     // weight_distribution = 0 weights every group equally, so the request saved for B outweighs
