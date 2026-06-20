@@ -179,6 +179,8 @@ export default async function Page() {
 }
 ```
 
+> **Good to know**: If your `revalidate` value doesn't match a built-in [`cacheLife`](/docs/app/api-reference/functions/cacheLife) profile (`'seconds'`, `'minutes'`, `'hours'`, `'days'`, `'weeks'`, `'max'`), pick the closest one or define a [custom profile](/docs/app/api-reference/functions/cacheLife#defining-reusable-cache-profiles).
+
 ## `fetchCache`
 
 **Not needed.** With `use cache`, all data fetching within a cached scope is automatically cached, making `fetchCache` unnecessary.
@@ -248,6 +250,8 @@ A validation insight or error tells you a route won't render instantly. Resolve 
 ```tsx filename="app/dashboard/layout.tsx"
 export const instant = false
 ```
+
+> **Good to know**: `instant = false` marks a segment as allowed to block. It does not force the route to be dynamic, so a genuinely prerenderable route still ships a static shell. It also does not clear synchronous-IO build errors. Calls like `new Date()`, `Math.random()`, and `crypto.randomUUID()` still fail the prerender. Wrap the call in `<Suspense>` and gate it with [`connection()`](/docs/app/api-reference/functions/connection), or use `io()` from `next/cache` for the targeted synchronous-IO signal.
 
 ## `fetch` cache options
 
