@@ -181,15 +181,3 @@ export function createUseCachePrivateOutsideRequestContextError(): Error {
     `\`"use cache: private"\` needs an active request. It can't be used during \`generateStaticParams\` or other build-time contexts.\nLearn more: ${USE_CACHE_PRIVATE_DIRECTIVE_DOCS}`
   )
 }
-
-export function createUseCacheTimeoutError(): Error {
-  return new Error(
-    `Filling a \`"use cache"\` entry took too long. The most common cause is reading request data (\`params\`, \`searchParams\`, \`cookies()\`, \`headers()\`) inside the cached function. Read it outside and pass what you need as an argument.\nLearn more: ${NEXT_REQUEST_IN_USE_CACHE}`
-  )
-}
-
-export function createUseCacheDeadlockError(): Error {
-  return new Error(
-    `A \`"use cache"\` entry is awaiting a promise created outside the cached function. The same call completed when run in isolation, so a module-scoped value (often a top-level \`Map\` used to dedupe fetches) is most likely blocking it. \`"use cache"\` already dedupes calls with the same arguments. Remove the surrounding dedupe layer.\nLearn more: ${NEXT_REQUEST_IN_USE_CACHE}`
-  )
-}

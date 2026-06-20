@@ -38,9 +38,9 @@ describe('use-cache-configured-timeout', () => {
 
         await expect(browser).toDisplayRedbox(`
          {
-           "code": "E1380",
+           "code": "E1390",
            "description": "Filling a \`"use cache"\` entry took too long. The most common cause is reading request data (\`params\`, \`searchParams\`, \`cookies()\`, \`headers()\`) inside the cached function. Read it outside and pass what you need as an argument.
-           Learn more: https://nextjs.org/docs/messages/next-request-in-use-cache",
+         Learn more: https://nextjs.org/docs/messages/next-request-in-use-cache",
            "environmentLabel": "Cache",
            "label": "Runtime Error",
            "source": "app/above-dev-timeout/page.tsx (4:1) @ getCachedData
@@ -50,6 +50,11 @@ describe('use-cache-configured-timeout', () => {
              "getCachedData app/above-dev-timeout/page.tsx (4:1)",
              "Cached app/above-dev-timeout/page.tsx (13:22)",
              "Page app/above-dev-timeout/page.tsx (19:10)",
+             "resolveErrorDev ../../../packages/next/dist/compiled/react-server-dom-turbopack/cjs/react-server-dom-turbopack-client.node.development.js (3491:51)",
+             "processFullStringRow ../../../packages/next/dist/compiled/react-server-dom-turbopack/cjs/react-server-dom-turbopack-client.node.development.js (4658:23)",
+             "processFullBinaryRow ../../../packages/next/dist/compiled/react-server-dom-turbopack/cjs/react-server-dom-turbopack-client.node.development.js (4601:7)",
+             "processBinaryChunk ../../../packages/next/dist/compiled/react-server-dom-turbopack/cjs/react-server-dom-turbopack-client.node.development.js (4824:19)",
+             "progress ../../../packages/next/dist/compiled/react-server-dom-turbopack/cjs/react-server-dom-turbopack-client.node.development.js (5010:9)",
            ],
          }
         `)

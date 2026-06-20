@@ -24,11 +24,11 @@ describe('use-cache-hanging', () => {
 
         await expect(browser).toDisplayCollapsedRedbox(`
          {
-           "code": "E1380",
+           "code": "E1390",
            "description": "Filling a \`"use cache"\` entry took too long. The most common cause is reading request data (\`params\`, \`searchParams\`, \`cookies()\`, \`headers()\`) inside the cached function. Read it outside and pass what you need as an argument.
-           Learn more: https://nextjs.org/docs/messages/next-request-in-use-cache",
-           "environmentLabel": "Cache",
-           "label": "Runtime Error",
+         Learn more: https://nextjs.org/docs/messages/next-request-in-use-cache",
+           "environmentLabel": "Server",
+           "label": "Console Error",
            "source": "app/static/page.tsx (1:1) @ getCachedData
          > 1 | async function getCachedData(): Promise<string> {
              | ^",
@@ -54,11 +54,11 @@ describe('use-cache-hanging', () => {
 
         await expect(browser).toDisplayCollapsedRedbox(`
          {
-           "code": "E1380",
+           "code": "E1390",
            "description": "Filling a \`"use cache"\` entry took too long. The most common cause is reading request data (\`params\`, \`searchParams\`, \`cookies()\`, \`headers()\`) inside the cached function. Read it outside and pass what you need as an argument.
-           Learn more: https://nextjs.org/docs/messages/next-request-in-use-cache",
-           "environmentLabel": "Cache",
-           "label": "Runtime Error",
+         Learn more: https://nextjs.org/docs/messages/next-request-in-use-cache",
+           "environmentLabel": "Server",
+           "label": "Console Error",
            "source": "app/runtime/page.tsx (4:1) @ getCachedData
          > 4 | async function getCachedData(): Promise<string> {
              | ^",
@@ -93,11 +93,11 @@ describe('use-cache-hanging', () => {
 
         await expect(browser).toDisplayCollapsedRedbox(`
          {
-           "code": "E1380",
+           "code": "E1390",
            "description": "Filling a \`"use cache"\` entry took too long. The most common cause is reading request data (\`params\`, \`searchParams\`, \`cookies()\`, \`headers()\`) inside the cached function. Read it outside and pass what you need as an argument.
-           Learn more: https://nextjs.org/docs/messages/next-request-in-use-cache",
-           "environmentLabel": "Cache",
-           "label": "Runtime Error",
+         Learn more: https://nextjs.org/docs/messages/next-request-in-use-cache",
+           "environmentLabel": "Server",
+           "label": "Console Error",
            "source": "app/static/page.tsx (1:1) @ getCachedData
          > 1 | async function getCachedData(): Promise<string> {
              | ^",
@@ -127,11 +127,11 @@ describe('use-cache-hanging', () => {
 
         await expect(browser).toDisplayCollapsedRedbox(`
          {
-           "code": "E1380",
+           "code": "E1390",
            "description": "Filling a \`"use cache"\` entry took too long. The most common cause is reading request data (\`params\`, \`searchParams\`, \`cookies()\`, \`headers()\`) inside the cached function. Read it outside and pass what you need as an argument.
-           Learn more: https://nextjs.org/docs/messages/next-request-in-use-cache",
-           "environmentLabel": "Cache",
-           "label": "Runtime Error",
+         Learn more: https://nextjs.org/docs/messages/next-request-in-use-cache",
+           "environmentLabel": "Server",
+           "label": "Console Error",
            "source": "app/runtime/page.tsx (4:1) @ getCachedData
          > 4 | async function getCachedData(): Promise<string> {
              | ^",

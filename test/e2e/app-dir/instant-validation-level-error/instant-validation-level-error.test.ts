@@ -60,7 +60,7 @@ describe('instant validation - level error', () => {
         const browser = await next.browser('/bare')
         await expect(browser).toDisplayCollapsedRedbox(`
          {
-           "code": "E1298",
+           "code": "E1317",
            "description": "Next.js encountered uncached data during a navigation.",
            "environmentLabel": "Server",
            "label": "Instant",
@@ -78,19 +78,7 @@ describe('instant validation - level error', () => {
         const browser = await next.browser('/explicit-error')
         await expect(browser).toDisplayCollapsedRedbox(`
          {
-           "cause": [
-             {
-               "label": "Caused by: Instant Validation",
-               "source": "app/explicit-error/page.tsx (8:24) @ instant
-         >  8 | export const instant = { level: 'experimental-error' as const }
-              |                        ^",
-               "stack": [
-                 "instant app/explicit-error/page.tsx (8:24)",
-                 "Set.forEach <anonymous>",
-               ],
-             },
-           ],
-           "code": "E1298",
+           "code": "E1317",
            "description": "Next.js encountered uncached data during a navigation.",
            "environmentLabel": "Server",
            "label": "Instant",
@@ -108,19 +96,7 @@ describe('instant validation - level error', () => {
         const browser = await next.browser('/explicit-true')
         await expect(browser).toDisplayCollapsedRedbox(`
          {
-           "cause": [
-             {
-               "label": "Caused by: Instant Validation",
-               "source": "app/explicit-true/page.tsx (9:24) @ instant
-         >  9 | export const instant = true
-              |                        ^",
-               "stack": [
-                 "instant app/explicit-true/page.tsx (9:24)",
-                 "Set.forEach <anonymous>",
-               ],
-             },
-           ],
-           "code": "E1298",
+           "code": "E1317",
            "description": "Next.js encountered uncached data during a navigation.",
            "environmentLabel": "Server",
            "label": "Instant",
@@ -138,19 +114,7 @@ describe('instant validation - level error', () => {
         const browser = await next.browser('/explicit-warning')
         await expect(browser).toDisplayCollapsedRedbox(`
          {
-           "cause": [
-             {
-               "label": "Caused by: Instant Validation",
-               "source": "app/explicit-warning/page.tsx (8:24) @ instant
-         >  8 | export const instant = { level: 'warning' as const }
-              |                        ^",
-               "stack": [
-                 "instant app/explicit-warning/page.tsx (8:24)",
-                 "Set.forEach <anonymous>",
-               ],
-             },
-           ],
-           "code": "E1298",
+           "code": "E1317",
            "description": "Next.js encountered uncached data during a navigation.",
            "environmentLabel": "Server",
            "label": "Instant",
@@ -177,7 +141,7 @@ describe('instant validation - level error', () => {
         const browser = await next.browser('/layered')
         await expect(browser).toDisplayCollapsedRedbox(`
          {
-           "code": "E1298",
+           "code": "E1317",
            "description": "Next.js encountered uncached data during a navigation.",
            "environmentLabel": "Server",
            "label": "Instant",
