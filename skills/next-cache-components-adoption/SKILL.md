@@ -163,9 +163,14 @@ Because the highest opt-out wins, you remove them **top-down** (root first, then
 descend). Removing a leaf's opt-out does nothing while an ancestor still holds
 one.
 
-Once the build is green, the app runs with `cacheComponents` on and behaves as
-before. This is a natural stopping point — ask the user whether to open a PR for
-it before starting milestone B, or keep going. Don't silently roll on.
+**Confirm milestone A with a build.** Run `next build` and make sure it
+completes with no blocking-route errors before you call the green build done. The
+codemod gets you most of the way, but a shared layout that calls `new Date()` /
+`Math.random()` directly still fails regardless of the opt-out (see Background),
+so the build is the proof, not the codemod run. Once it passes, the app runs with
+`cacheComponents` on and behaves as before. This is a natural stopping point —
+ask the user whether to open a PR for it before starting milestone B, or keep
+going. Don't silently roll on.
 
 After running the codemod, **confirm the root layout got an opt-out** (`grep -n
 "export const instant" app/layout.*`). The root layout is the one segment that
@@ -229,7 +234,10 @@ For each route in the group:
    everyone see the same thing (cacheable) or is it per-user / per-request? Tie
    the technical fix to that answer (cache it, wrap it in `<Suspense>`, or keep
    it request-time), so they're deciding the experience, not the API.
-4. Re-check the route, then move to the next. **If a route is genuinely meant to
+4. Re-check the route, then move to the next. **If your fix touched shared code**
+   (a layout, or a shared component like a sidebar/breadcrumb), re-check the
+   other routes that render it too — a shared-shell change can fix the route
+   you're on and break a sibling. **If a route is genuinely meant to
    block** (it's inherently per-request with no useful static shell), or the
    refactor would be large and the user would rather not take it on now, that's
    a legitimate outcome — keep `instant = false`, but confirm it with the user
