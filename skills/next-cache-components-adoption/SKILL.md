@@ -131,7 +131,9 @@ end.
 
 ## Step 1 — Choose a strategy
 
-Ask the user; don't assume.
+Ask the user; don't assume. **In a non-interactive run** (no way to prompt),
+default to **Blanket** for a multi-route app and **Direct** for a single-route
+or handful-of-routes app, and say so when you start.
 
 - **Blanket** — run the codemod to opt every page and layout out, get a clean
   build immediately, **merge that**, then remove the opt-outs feature by feature
@@ -148,8 +150,18 @@ npx @next/codemod@latest cache-components-instant-false ./app
 
 Inserts `export const instant = false` (with a `// TODO: Cache Components
 adoption` comment) into every `app/**/{page,layout}` file, skipping files that
-already declare `instant`. Then set `cacheComponents: true`. The TODO comments
-are the work queue.
+already declare `instant` and Client Components (`"use client"`). Then set
+`cacheComponents: true`. The TODO comments are the work queue.
+
+If the command exits with `Invalid transform choice`, your installed
+`@next/codemod` predates 16.3. Until you can upgrade, do the same opt-out by
+hand: in every `app/**/{page,layout}.{js,jsx,ts,tsx}` file that is **not** a
+Client Component and does **not** already export `instant`, append:
+
+```ts
+// TODO: Cache Components adoption — remove once this route is instant.
+export const instant = false
+```
 
 The codemod opts **every** segment out, not only the root, on purpose.
 Resolution is top-down, first-explicit-config-wins: the **highest** `instant =
