@@ -39,9 +39,8 @@ Get the app building on 16.3+ first, then come back and adopt Cache Components.
 
 Adoption has four milestones, in order. Each is shippable on its own; stop
 after any of them. These are lettered (A–D) on purpose — they are **not** the
-numbered Steps below. The numbered Steps (1–4) are the procedure; milestone C
-below is handled by a different skill (`next-cache-components-optimizer`), not
-by a "Step 3" here.
+numbered Steps below. The numbered Steps (1–5) are the procedure; the milestones
+are the outcomes they produce.
 
 - **A. Green build.** Get `next build` passing with `cacheComponents` on —
   blanket `instant = false` if needed. This is the baseline; everything builds
@@ -53,10 +52,10 @@ by a "Step 3" here.
   instant-navigation validation warnings in the dev overlay's **Insights** tab.
   They're dev-only (they don't block the build) and look like the
   blocking-prerender errors you cleared in Step 2 — you fix them the same way.
-  This is the work that actually makes navigations instant.
+  This is the work that actually makes navigations instant. (Step 4 below.)
 - **D. Adopt Partial Prefetching.** Turn on `partialPrefetching` and tune
   `<Link>` so prefetching ships only the static shell by default — the last
-  step to the full Cache Components experience. (Step 4 below.)
+  step to the full Cache Components experience. (Step 5 below.)
 
 For everything that is not a blocking-route error (`dynamic`, `revalidate`,
 `fetchCache`, `unstable_cache` → `"use cache"`, `revalidateTag` / `updateTag`,
@@ -120,9 +119,15 @@ you're iterating on.
 **Verifying a fix at runtime.** A green build or a cleared overlay isn't proof
 the route actually behaves — Cache Components is a runtime concern (static shell
 
-- streamed data). Use the **`next-dev-loop`** skill to confirm each change at
-  runtime (it cross-checks `/_next/mcp` against the live browser). Lean on it after
-  every fix in the steps below, not only at the end.
+- streamed data). The **`next-dev-loop`** skill is the cleanest way to confirm
+  each change at runtime: it cross-checks `/_next/mcp` against the live browser.
+  It's a **separate companion skill** from the same Next.js skills collection, so
+  load it if your agent has it; it has its own hard prerequisites (Turbopack and
+  `agent-browser >= 0.27.0`) and will tell you how to set those up. **If it isn't
+  available**, do the same loop by hand: keep `next dev` running, open the route
+  in a browser, and read errors from the dev overlay (or the browser console) —
+  don't fall back to grepping source or trusting the build alone. Either way,
+  verify after every fix in the steps below, not only at the end.
 
 ## Step 1 — Choose a strategy
 
@@ -250,11 +255,12 @@ Step 2. It is a checklist, not new adoption work.
   Step 2's last point), not the original `// TODO`. A bare `// TODO` opt-out is
   unfinished work; a documented one is a decision.
 - Drive each route in dev, not only the build — use the **`next-dev-loop`**
-  skill. Visit it, wait for streaming to settle, and confirm every `<Suspense>`
-  fallback you added resolves to its real content (not stuck on a skeleton or a
-  blank). A green build with zero opt-outs is not the same as a working route.
-  Query the live DOM if a tool's snapshot looks stale before reporting a route
-  as broken.
+  skill (or the manual dev-overlay loop if it isn't available; see "Verifying a
+  fix at runtime" above). Visit it, wait for streaming to settle, and confirm
+  every `<Suspense>` fallback you added resolves to its real content (not stuck
+  on a skeleton or a blank). A green build with zero opt-outs is not the same as
+  a working route. Query the live DOM if a tool's snapshot looks stale before
+  reporting a route as broken.
 - Show the user the rendered result before moving on. For each route you
   cleaned, surface what it looks like now (a screenshot, or the visible content
   you observed) and confirm they're happy with it — the build can't tell whether
@@ -303,10 +309,10 @@ in Step 2, and you fix them the same way — read the warning and apply the fix 
 names.
 
 These warnings fire on **navigation**, not on hover or prefetch (dev doesn't
-prefetch), so drive the app — use the **`next-dev-loop`** skill — and navigate
-into each route to surface them. They appear in the dev overlay's **Insights**
-tab with fix cards and a **Copy as prompt** button, the same as the
-blocking-prerender errors in Step 2.
+prefetch), so drive the app — use the **`next-dev-loop`** skill (or the manual
+dev-overlay loop) — and navigate into each route to surface them. They appear in
+the dev overlay's **Insights** tab with fix cards and a **Copy as prompt**
+button, the same as the blocking-prerender errors in Step 2.
 
 Work them down once the build is clean, group by group like Step 2. See the
 [instant navigation guide](https://nextjs.org/docs/app/guides/instant-navigation)
