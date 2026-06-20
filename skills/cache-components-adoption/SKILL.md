@@ -224,7 +224,7 @@ audit. So leave the global flag off while you walk the routes.
    guide carry the details.
 
 3. **Flip the global flag last.** Once every route in scope has
-   `prefetch = 'partial'` and no `link-prefetch-partial` Insights remain (except
+   `prefetch = 'partial'` and no `link-prefetch-partial` Insights are left (except
    deliberate ignores), enable the config and remove the now-redundant per-route
    exports:
 
