@@ -28,6 +28,8 @@ This skill assumes a clean starting point. If the app still uses `experimental.d
 
 Adoption has four milestones, in order. Each is shippable on its own; stop after any of them. These are lettered (A–D) on purpose — they are **not** the numbered Steps below. The numbered Steps (1–5) are the procedure; the milestones are the outcomes they produce.
 
+**End of every milestone: summarize and ask.** When a milestone is done, tell the user what changed (which routes, what kind of fix — cached / wrapped in `<Suspense>` / opted out as a documented Block / etc.), what they should sanity-check, and ask whether to open a PR and continue to the next milestone or stop here. Don't silently roll on. Each milestone is a real checkpoint, not a step inside a single agent run.
+
 - **A. Green build.** Get `next build` passing with `cacheComponents` on — blanket `instant = false` if needed. This is the baseline; everything builds and behaves as before. (Steps 1–2 below.)
 - **B. Remove `instant = false`.** Make routes genuinely prerenderable (Stream / Cache) so the opt-outs come back off, feature by feature. This is where the real adoption work is. (Steps 2–3 below.)
 - **C. Make navigations instant.** With the build clean, resolve the instant-navigation validation warnings in the dev overlay's **Insights** tab. They're dev-only (they don't block the build) and look like the blocking-prerender errors you cleared in Step 2 — you fix them the same way. This is the work that actually makes navigations instant. (Step 4 below.)
@@ -153,6 +155,8 @@ Next.js surfaces instant-navigation validation warnings: dev-only signals (they 
 
 Work them down once the build is clean, group by group like Step 2. See the [instant navigation guide](https://nextjs.org/docs/app/guides/instant-navigation) for the per-warning details — and for **locking the result in**: its [e2e-test section](https://nextjs.org/docs/app/guides/instant-navigation#prevent-regressions-with-e2e-tests) covers the `@next/playwright` `instant()` helper, which asserts on the UI that's available immediately on navigation. The `next-dev-loop` check confirms a route is instant _now_; an `instant()` test keeps it that way in CI. Consider adding one per route you make instant.
 
+When the Insights are clear, **summarize and ask** per the end-of-milestone rule above: which routes are instant now, which `instant()` tests you added (if any), and whether to open a PR and move to Step 5 (optional Partial Prefetching) or stop here. Milestone C is the last required adoption milestone, so stopping here is a complete adoption — say so.
+
 This is where navigations actually become instant. It's the last required adoption milestone; **Step 5** (Partial Prefetching) and the optimizer skill below are optional polish.
 
 ## Step 5 — Adopt Partial Prefetching (optional)
@@ -164,6 +168,8 @@ This is where navigations actually become instant. It's the last required adopti
 Once the build is clean and navigations are instant, adopt Partial Prefetching for the full Cache Components payoff: `<Link>` prefetches only the static [App Shell](/docs/app/glossary#app-shell) by default instead of the whole route. It's config plus `<Link>` tuning, not a build gate — a separate, mergeable milestone after milestones A–C.
 
 Follow the [Adopting Partial Prefetching](https://nextjs.org/docs/app/guides/adopting-partial-prefetching) guide for the whole flow — the incremental `prefetch = 'partial'` path, the flag-flip, and the "Auditing existing `<Link prefetch={true}>` calls" table that maps each link to its fix. The dev-only `link-prefetch-partial` warning drives it, the same way Step 4's warnings drive that step. As in Step 4, it fires on **navigation** (not hover/prefetch — dev doesn't prefetch), so navigate with **`next-dev-loop`** (or your own browser) to surface it. The one piece of sequencing the guide assumes you know: walk the warnings **before** enabling the global `partialPrefetching` flag — flip it first and every route counts as adopted, so the warnings never fire and you lose the signal for which links to audit. Trust the warning text and the guide's audit table for the per-link fix; the segment-config values are simple to misremember.
+
+When the warnings are clear and `partialPrefetching: true` is on, **summarize and ask** per the end-of-milestone rule above: which links you changed, whether any routes still use `<Link prefetch={true}>` intentionally (and why), and whether to open the PR. Adoption is now complete — say so.
 
 ## Optional: grow static shells
 
