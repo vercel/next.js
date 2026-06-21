@@ -104,41 +104,52 @@ export default function transformer(file: FileInfo, _api: API) {
     return file.source
   }
 
-  // Build `export const instant = false` with the two leading-comment
-  // lines attached. Recast prints them above the declaration.
+  // Build `export const instant = false`. The two `//` comments above it
+  // (TODO + See:) are attached as leading comments on the declaration so
+  // recast prints them right above it.
+  const todoComment = j.commentLine(
+    ' TODO: Cache Components adoption. Refactor this route so this opt-out can be removed.',
+    true,
+    false
+  )
+  const seeComment = j.commentLine(
+    ' See: https://nextjs.org/docs/app/guides/migrating-to-cache-components',
+    true,
+    false
+  )
   const instantExport = j.exportNamedDeclaration(
     j.variableDeclaration('const', [
       j.variableDeclarator(j.identifier('instant'), j.booleanLiteral(false)),
     ])
   )
-  instantExport.comments = [
-    j.commentLine(
-      ' TODO: Cache Components adoption. Refactor this route so this opt-out can be removed.',
-      true,
-      false
-    ),
-    j.commentLine(
-      ' See: https://nextjs.org/docs/app/guides/migrating-to-cache-components',
-      true,
-      false
-    ),
-  ]
+  instantExport.comments = [todoComment, seeComment]
 
   // Insert after the last top-level import, or at the top of the module
-  // if there are no imports (after any directive prologue, which recast
-  // preserves automatically).
+  // if there are no imports.
   const body = program.body as any[]
   let lastImportIndex = -1
   for (let i = 0; i < body.length; i++) {
     if (body[i].type === 'ImportDeclaration') lastImportIndex = i
   }
+
   if (lastImportIndex !== -1) {
     body.splice(lastImportIndex + 1, 0, instantExport)
-  } else {
-    // No imports: insert at the top of the body. If a directive prologue
-    // is present (`"use client"` etc.) we already bailed above, so we can
-    // insert at index 0 safely.
+  } else if (body.length > 0) {
+    // No imports. Inserting at index 0 would steal any file-level leading
+    // comments (e.g. `// @ts-nocheck`) from `body[0]` because recast
+    // attributes them to whatever is first. Move those leading comments
+    // off `body[0]` onto the new export *before* its TODO/See: lines, so
+    // they print in their original position.
+    const first = body[0]
+    const allComments = (first.comments ?? []) as any[]
+    const firstLeading = allComments.filter((c) => c.leading === true)
+    if (firstLeading.length > 0) {
+      first.comments = allComments.filter((c) => c.leading !== true)
+      instantExport.comments = [...firstLeading, todoComment, seeComment]
+    }
     body.unshift(instantExport)
+  } else {
+    body.push(instantExport)
   }
 
   return root.toSource()
