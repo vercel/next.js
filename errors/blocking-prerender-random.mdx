@@ -75,7 +75,21 @@ export async function RequestTrace() {
 }
 ```
 
-Learn more: [`connection`](/docs/app/api-reference/functions/connection), [Streaming patterns and boundary placement](/docs/app/guides/streaming).
+#### Alternative: `await io()`
+
+If you'd rather not tie the read to an HTTP request context, use [`io()`](/docs/app/api-reference/functions/io) from `next/cache`. It signals a request-time IO read and works the same way as `connection()` in the streaming case, plus inside `"use cache"` scopes and Client Components where `connection()` throws.
+
+```jsx filename="app/dashboard/request-trace.js"
+import { io } from 'next/cache'
+
+export async function RequestTrace() {
+  await io()
+  const traceId = Math.random().toString(16).slice(2)
+  return <small>trace: {traceId}</small>
+}
+```
+
+Learn more: [`connection`](/docs/app/api-reference/functions/connection), [`io`](/docs/app/api-reference/functions/io), [Streaming patterns and boundary placement](/docs/app/guides/streaming).
 
 ### Trade-off
 

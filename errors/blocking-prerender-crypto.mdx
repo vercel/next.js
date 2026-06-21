@@ -73,7 +73,20 @@ export async function CsrfToken() {
 }
 ```
 
-Learn more: [`connection`](/docs/app/api-reference/functions/connection), [Streaming patterns and boundary placement](/docs/app/guides/streaming).
+#### Alternative: `await io()`
+
+If you'd rather not tie the read to an HTTP request context, use [`io()`](/docs/app/api-reference/functions/io) from `next/cache`. It signals a request-time IO read and works the same way as `connection()` in the streaming case, plus inside `"use cache"` scopes and Client Components where `connection()` throws.
+
+```jsx filename="app/dashboard/csrf-token.js"
+import { io } from 'next/cache'
+
+export async function CsrfToken() {
+  await io()
+  return <input type="hidden" name="csrf" value={crypto.randomUUID()} />
+}
+```
+
+Learn more: [`connection`](/docs/app/api-reference/functions/connection), [`io`](/docs/app/api-reference/functions/io), [Streaming patterns and boundary placement](/docs/app/guides/streaming).
 
 #### Switch to an async crypto API
 
