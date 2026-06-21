@@ -327,7 +327,11 @@ Note the persistence difference. The `fetch` Data Cache persists cached response
 
 `unstable_cache` is replaced by the [`use cache`](/docs/app/api-reference/directives/use-cache) directive.
 
-Turn the wrapped function into a function with the `'use cache'` directive. The cache key is derived automatically from the arguments, so the key-parts array is no longer needed, and the `options` object maps to [`cacheLife`](/docs/app/api-reference/functions/cacheLife) and [`cacheTag`](/docs/app/api-reference/functions/cacheTag).
+Turn the wrapped function into a function with the `'use cache'` directive. The cache key is derived automatically from the function's arguments and closure variables, and the `options` object maps to [`cacheLife`](/docs/app/api-reference/functions/cacheLife) and [`cacheTag`](/docs/app/api-reference/functions/cacheTag):
+
+- **`revalidate`** → [`cacheLife()`](/docs/app/api-reference/functions/cacheLife) with a [preset](/docs/app/api-reference/functions/cacheLife#preset-cache-profiles), or an [inline profile](/docs/app/api-reference/functions/cacheLife#inline-cache-profiles) for an exact duration in seconds.
+- **`tags`** → [`cacheTag()`](/docs/app/api-reference/functions/cacheTag) with the same strings.
+- **`keyParts`** → omit. The cache key comes from the function's arguments and closure.
 
 ```tsx filename="app/lib/data.ts" switcher
 // Before
@@ -384,6 +388,8 @@ export async function getUser(id) {
 ```
 
 Like the `fetch` Data Cache, `unstable_cache` persists cached values across deployments and serverless instances, while `use cache` does not. See [`fetch` cache options](#fetch-cache-options) above for the storage details.
+
+For durable, shared caching across instances, use [`use cache: remote`](/docs/app/api-reference/directives/use-cache-remote) or a [custom cache handler](/docs/app/api-reference/config/next-config-js/cacheHandlers). Remote cache keys include the `deploymentId` (when configured) or the `buildId`, so new deploys produce cache misses you wouldn't see with `unstable_cache`, which didn't use that keying. There's also added lookup latency and platform cost, so use it where the durability is worth it, not as a drop-in default. A custom cache handler can persist entries across deployments.
 
 ## On-demand revalidation (`revalidateTag`, `revalidatePath`, `updateTag`)
 
