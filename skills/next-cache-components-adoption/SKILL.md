@@ -61,7 +61,7 @@ Milestone D is the final advancement: [Partial Prefetching](https://nextjs.org/d
 **Verifying a fix at runtime.** A green build or a cleared overlay isn't proof the route actually behaves — Cache Components is a runtime concern (a static shell with streamed data). The [`next-dev-loop`](https://github.com/vercel/next.js/tree/canary/skills/next-dev-loop) skill is the cleanest way to confirm each change at runtime: it cross-checks `/_next/mcp` against the live browser. It's a **separate companion skill** from the same Next.js skills collection, so install it if your agent doesn't have it:
 
 ```bash
-npx skills install https://github.com/vercel/next.js/tree/canary/skills/next-dev-loop
+npx skills add https://github.com/vercel/next.js/tree/canary/skills/next-dev-loop
 ```
 
 It has its own hard prerequisites (Turbopack and `agent-browser >= 0.27.0`) and will tell you how to set those up. **If it isn't available**, do the same loop by hand: keep `next dev` running, open the route in a browser, and read errors from the dev overlay (or the browser console) — don't fall back to grepping source or trusting the build alone. Either way, verify after every fix in the steps below, not only at the end.
@@ -160,5 +160,5 @@ Follow the [Adopting Partial Prefetching](https://nextjs.org/docs/app/guides/ado
 With adoption done, the [`next-cache-components-optimizer`](https://github.com/vercel/next.js/tree/canary/skills/next-cache-components-optimizer) skill is an optional polish pass: it grows each route's static shell so more of the page prerenders and less streams in. It doesn't gate the build or block navigation — reach for it only when you want to push shells further after the milestones above are complete. Install with:
 
 ```bash
-npx skills install https://github.com/vercel/next.js/tree/canary/skills/next-cache-components-optimizer
+npx skills add https://github.com/vercel/next.js/tree/canary/skills/next-cache-components-optimizer
 ```

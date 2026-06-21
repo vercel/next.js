@@ -23,7 +23,7 @@ Start by removing the route segment configs (`dynamic`, `revalidate`, `fetchCach
 > **Good to know:** For agents working on larger apps, the [`next-cache-components-adoption`](https://github.com/vercel/next.js/tree/canary/skills/next-cache-components-adoption) skill drives this guide route by route after the initial opt-out: it works each `instant = false` back off, helps you decide what becomes instant and what stays blocking, and walks the dev-overlay validation insights with you. Install with:
 >
 > ```bash filename="Terminal"
-> npx skills install https://github.com/vercel/next.js/tree/canary/skills/next-cache-components-adoption
+> npx skills add https://github.com/vercel/next.js/tree/canary/skills/next-cache-components-adoption
 > ```
 
 Your existing `fetch` and `unstable_cache` caching keeps working as a separate layer, so let the insights and errors guide what to change.
