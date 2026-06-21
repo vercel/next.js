@@ -104,110 +104,42 @@ export default function transformer(file: FileInfo, _api: API) {
     return file.source
   }
 
-  // Insert as raw text rather than mutating the AST and round-tripping through
-  // `root.toSource()`. Recast's printer preserves unmodified subtrees, but the
-  // moment we push a new statement into `program.body` it re-prints the whole
-  // module — which normalizes quirks the original file had (mixed quotes,
-  // indentation in JSX, missing semicolons) and produces a noisy diff. Raw
-  // text insertion keeps every other byte exactly as the user wrote it.
-  //
-  // Babel mis-reports byte positions on files with `\r\n` terminators
-  // (Windows checkouts), so we normalize the source to LF, find the insertion
-  // offset on that LF view via the AST, then map the LF offset back into the
-  // original (possibly CRLF) source by counting line breaks. Multi-line
-  // imports and JSDoc banners thus work uniformly across line endings.
-  const originalSource = file.source
-  const eol = originalSource.includes('\r\n') ? '\r\n' : '\n'
-  const isCRLF = eol === '\r\n'
-
-  // Work on an LF-normalized copy so AST positions are accurate. Re-parse the
-  // normalized source: the earlier `root` may have been built on CRLF.
-  const lfSource = isCRLF
-    ? originalSource.replace(/\r\n/g, '\n')
-    : originalSource
-  const lfRoot = isCRLF ? j(lfSource) : root
-  const lfBody = lfRoot.get().node.program.body as any[]
-
-  // Find the LF byte offset to insert at.
-  let lfLastImportEnd = -1
-  for (const node of lfBody) {
-    if (node.type === 'ImportDeclaration') {
-      const end = node.end ?? node.range?.[1]
-      if (typeof end === 'number' && end > lfLastImportEnd)
-        lfLastImportEnd = end
-    }
-  }
-
-  // Convert an LF offset to an offset in the original source.
-  const lfToOriginal = (lfOffset: number): number => {
-    if (!isCRLF) return lfOffset
-    // Each '\n' before `lfOffset` corresponds to a '\r\n' in the original,
-    // so the original offset is `lfOffset` plus the count of LFs before it.
-    let nl = 0
-    for (let i = 0; i < lfOffset; i++) {
-      if (lfSource.charCodeAt(i) === 10 /* \n */) nl++
-    }
-    return lfOffset + nl
-  }
-
-  // Step past the trailing newline of a statement so the opt-out lands on
-  // its own line. Works on either LF or original (CRLF) source.
-  const skipNewline = (s: string, offset: number): number => {
-    if (s.charCodeAt(offset) === 13 /* \r */) offset++
-    if (s.charCodeAt(offset) === 10 /* \n */) offset++
-    return offset
-  }
-
-  const optOut =
-    `// TODO: Cache Components adoption. Refactor this route so this opt-out can be removed.${eol}` +
-    `// See: https://nextjs.org/docs/app/guides/migrating-to-cache-components${eol}` +
-    `export const instant = false;${eol}`
-
-  if (lfLastImportEnd !== -1) {
-    // Insert after the last import, on its own line, with a blank-line
-    // separator before the opt-out.
-    const lfInsertAt = skipNewline(lfSource, lfLastImportEnd)
-    const insertAt = lfToOriginal(lfInsertAt)
-    return (
-      originalSource.slice(0, insertAt) +
-      eol +
-      optOut +
-      originalSource.slice(insertAt)
-    )
-  }
-
-  // No imports. Insert before the first non-import statement. AST gives us
-  // the statement's start *including* its leading comments, so we walk back
-  // through `leadingComments` to find the position past the last comment.
-  const firstNonImport = lfBody.find(
-    (node: any) => node.type !== 'ImportDeclaration'
+  // Build `export const instant = false` with the two leading-comment
+  // lines attached. Recast prints them above the declaration.
+  const instantExport = j.exportNamedDeclaration(
+    j.variableDeclaration('const', [
+      j.variableDeclarator(j.identifier('instant'), j.booleanLiteral(false)),
+    ])
   )
+  instantExport.comments = [
+    j.commentLine(
+      ' TODO: Cache Components adoption. Refactor this route so this opt-out can be removed.',
+      true,
+      false
+    ),
+    j.commentLine(
+      ' See: https://nextjs.org/docs/app/guides/migrating-to-cache-components',
+      true,
+      false
+    ),
+  ]
 
-  if (!firstNonImport) {
-    // Imports-only module (unusual, but possible for re-export aggregations).
-    const trailingNewline = originalSource.endsWith('\n') ? '' : eol
-    return originalSource + trailingNewline + eol + optOut
+  // Insert after the last top-level import, or at the top of the module
+  // if there are no imports (after any directive prologue, which recast
+  // preserves automatically).
+  const body = program.body as any[]
+  let lastImportIndex = -1
+  for (let i = 0; i < body.length; i++) {
+    if (body[i].type === 'ImportDeclaration') lastImportIndex = i
+  }
+  if (lastImportIndex !== -1) {
+    body.splice(lastImportIndex + 1, 0, instantExport)
+  } else {
+    // No imports: insert at the top of the body. If a directive prologue
+    // is present (`"use client"` etc.) we already bailed above, so we can
+    // insert at index 0 safely.
+    body.unshift(instantExport)
   }
 
-  let lfInsertAt: number = firstNonImport.start
-  const leadingComments =
-    firstNonImport.leadingComments ?? firstNonImport.comments
-  if (Array.isArray(leadingComments) && leadingComments.length > 0) {
-    // Find the comment that ends *latest* in source order.
-    let maxEnd = -1
-    for (const c of leadingComments) {
-      if (typeof c?.end === 'number' && c.end > maxEnd) maxEnd = c.end
-    }
-    if (maxEnd !== -1 && maxEnd < lfInsertAt) {
-      lfInsertAt = skipNewline(lfSource, maxEnd)
-    }
-  }
-
-  const insertAt = lfToOriginal(lfInsertAt)
-  return (
-    originalSource.slice(0, insertAt) +
-    optOut +
-    eol +
-    originalSource.slice(insertAt)
-  )
+  return root.toSource()
 }
