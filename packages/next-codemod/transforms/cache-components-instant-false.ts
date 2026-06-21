@@ -111,57 +111,108 @@ export default function transformer(file: FileInfo, _api: API) {
   // indentation in JSX, missing semicolons) and produces a noisy diff. Raw
   // text insertion keeps every other byte exactly as the user wrote it.
   //
-  // Place the opt-out right after the last `import`, so it's visible at the
-  // top of the file when walking routes back without splitting any leading
-  // comments attached to the first real statement (e.g. a "// TYPES" banner
-  // sitting above an `interface`). When the module has no imports, fall back
-  // to inserting after any leading comments on the first non-import statement
-  // (so file pragmas like `// @ts-nocheck` keep working).
-  const body = program.body as any[]
-  const optOut =
-    '// TODO: Cache Components adoption. Remove once this route navigates instantly.\n' +
-    '// See: https://nextjs.org/docs/app/guides/migrating-to-cache-components\n' +
-    'export const instant = false;\n'
-
+  // Find the insertion point by scanning the source line-by-line rather than
+  // trusting AST node positions. Babel's parser misreports `node.start` /
+  // `comment.end` on files with `\r\n` terminators (Windows checkouts), so
+  // string-anchored scanning is the only reliable approach across line
+  // endings.
   const source = file.source
 
-  let lastImportEnd = -1
-  for (const node of body) {
-    if (node.type === 'ImportDeclaration') {
-      const end = node.end ?? node.range?.[1]
-      if (typeof end === 'number' && end > lastImportEnd) lastImportEnd = end
+  // Match the source's line terminator (CRLF on Windows checkouts, LF
+  // elsewhere) so the inserted block doesn't mix terminators with the
+  // surrounding file.
+  const eol = source.includes('\r\n') ? '\r\n' : '\n'
+
+  const optOut =
+    `// TODO: Cache Components adoption. Remove once this route navigates instantly.${eol}` +
+    `// See: https://nextjs.org/docs/app/guides/migrating-to-cache-components${eol}` +
+    `export const instant = false;${eol}`
+
+  // Walk the source line by line and find the offset where we should splice
+  // in the opt-out. The rule:
+  //   1. If the module has any `import` statements, insert immediately after
+  //      the last one (with a blank line separator).
+  //   2. Otherwise, insert before the first line that is neither blank, nor a
+  //      `//` comment, nor part of a `/* ... */` block comment.
+  const lines = source.split(/(\r\n|\n)/)
+  // `lines` interleaves text and separators: [text0, sep0, text1, sep1, ...].
+  // Walk it pair-wise.
+  let offset = 0
+  let lastImportLineEnd = -1
+  let firstStatementStart = -1
+  let inBlockComment = false
+
+  for (let i = 0; i < lines.length; i += 2) {
+    const text = lines[i]
+    const sep = lines[i + 1] ?? ''
+    const lineStart = offset
+    const lineEnd = offset + text.length + sep.length
+    const trimmed = text.trim()
+
+    // Track block-comment state. We don't care about exact bounds inside the
+    // comment; we just need to skip the whole `/* ... */`.
+    if (inBlockComment) {
+      if (trimmed.includes('*/')) inBlockComment = false
+      offset = lineEnd
+      continue
     }
-  }
-
-  if (lastImportEnd !== -1) {
-    let insertAt = lastImportEnd
-    if (source[insertAt] === '\n') insertAt += 1
-    return source.slice(0, insertAt) + '\n' + optOut + source.slice(insertAt)
-  }
-
-  // No imports. Insert before the first non-import statement, but *after* any
-  // leading comments attached to it — comments like `@ts-nocheck` only work
-  // as the very first comment of the file.
-  const firstNonImport = body.find(
-    (node: any) => node.type !== 'ImportDeclaration'
-  )
-
-  if (!firstNonImport) {
-    // Imports-only module (unusual, but possible for re-export aggregations).
-    const trailingNewline = source.endsWith('\n') ? '' : '\n'
-    return source + trailingNewline + '\n' + optOut
-  }
-
-  let insertAt: number = firstNonImport.start
-  const leadingComments =
-    firstNonImport.leadingComments ?? firstNonImport.comments
-  if (Array.isArray(leadingComments) && leadingComments.length > 0) {
-    const lastLeadingEnd = leadingComments[leadingComments.length - 1].end
-    if (typeof lastLeadingEnd === 'number' && lastLeadingEnd < insertAt) {
-      insertAt = lastLeadingEnd
-      if (source[insertAt] === '\n') insertAt += 1
+    if (trimmed.startsWith('/*') && !trimmed.includes('*/')) {
+      inBlockComment = true
+      offset = lineEnd
+      continue
     }
+
+    // Skip blank lines and single-line `//` comments. A line that *starts*
+    // with `/*` and *also closes* on the same line is a one-line block
+    // comment — also skipped.
+    const isBlank = trimmed === ''
+    const isLineComment = trimmed.startsWith('//')
+    const isOneLineBlockComment =
+      trimmed.startsWith('/*') && trimmed.endsWith('*/')
+
+    if (
+      trimmed.startsWith('import ') ||
+      trimmed.startsWith('import{') ||
+      trimmed.startsWith('import"') ||
+      trimmed.startsWith("import'")
+    ) {
+      lastImportLineEnd = lineEnd
+      offset = lineEnd
+      continue
+    }
+
+    if (isBlank || isLineComment || isOneLineBlockComment) {
+      offset = lineEnd
+      continue
+    }
+
+    // First non-import, non-comment, non-blank line.
+    firstStatementStart = lineStart
+    break
   }
 
-  return source.slice(0, insertAt) + optOut + '\n' + source.slice(insertAt)
+  if (lastImportLineEnd !== -1) {
+    // After the last import. Add a blank line between the imports and the
+    // opt-out for breathing room.
+    return (
+      source.slice(0, lastImportLineEnd) +
+      eol +
+      optOut +
+      source.slice(lastImportLineEnd)
+    )
+  }
+
+  if (firstStatementStart !== -1) {
+    // Before the first real statement, after any leading comments.
+    return (
+      source.slice(0, firstStatementStart) +
+      optOut +
+      eol +
+      source.slice(firstStatementStart)
+    )
+  }
+
+  // Module is comments-only (very unusual) or empty. Append at the end.
+  const trailingNewline = source.endsWith('\n') ? '' : eol
+  return source + trailingNewline + eol + optOut
 }
