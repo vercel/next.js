@@ -43,7 +43,7 @@ regex = { workspace = true }
 rustc-hash = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true, features = ["raw_value"] }
-react_compiler_swc = { workspace = true }
+swc_ecma_react_compiler = { workspace = true }
 react_compiler = { workspace = true }
 next-custom-transforms = { workspace = true, default-features = false }
 swc_sourcemap = { workspace = true }
