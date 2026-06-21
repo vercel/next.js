@@ -11,6 +11,7 @@ related:
     - app/getting-started/server-and-client-components
     - app/guides/server-actions
     - app/guides/prefetching
+    - app/guides/adopting-partial-prefetching
     - app/guides/runtime-prefetching
     - app/guides/instant-navigation
     - app/guides/offline-support
@@ -667,22 +668,57 @@ Click into a project, then back to the list, then into a deployment. The sidebar
   title="Step 7: Cache reusable work"
 />
 
-The cache is set up, but the visible paint hasn't changed for sections waiting on a request. The missing piece is filling those entries before the click.
+The cache is set up, but the visible paint hasn't changed for sections waiting on a request. The missing piece is shipping work ahead of the click so the next page is ready by the time the user gets there.
+
+### Prefetch a shell per route
+
+Historically, `<Link>` fired a prefetch request for every distinct destination in the viewport. A grid with a thousand profile cards meant a thousand prefetches — most of them wasted on content the user would never reach.
+
+Each route now has an [App Shell](/docs/app/glossary#app-shell): the cached parts of the page that can be served without a request, plus suspense fallbacks for everything that streams. The shell is the same for every link to the same route, so it doesn't have to be fetched per link. [Partial Prefetching](/docs/app/glossary#partial-prefetching) is the prefetch model that takes advantage of this — one shell per route, cached for the session, regardless of how many links point at it.
+
+Turn it on alongside `cacheComponents`:
+
+```ts filename="next.config.ts" highlight={5}
+import type { NextConfig } from 'next'
+
+const nextConfig: NextConfig = {
+  cacheComponents: true,
+  partialPrefetching: true,
+}
+
+export default nextConfig
+```
+
+For an existing app where flipping the global flag at once isn't realistic, the [Adopting Partial Prefetching guide](/docs/app/guides/adopting-partial-prefetching) covers opting routes in one at a time with `export const prefetch = 'partial'`.
+
+To see what each route's shell looks like, the **Navigation Inspector** in the Next.js DevTools pauses navigations at the shell so you can see exactly what's available instantly before dynamic content streams in. Use it as a feedback loop while placing `<Suspense>` boundaries: too much fallback, and the shell ships skeletons where it could ship real UI; too little, and the route can't prerender at all.
+
+### Prefetch more than the shell
+
+Sometimes the shell isn't enough. The project detail page is the example here: the project metadata and deployments list are cached, and would feel snappier if they landed with the click instead of streaming in.
+
+For a `<Link>` whose destination has worth-shipping cached content, opt in with the [`prefetch`](/docs/app/api-reference/components/link#prefetch) prop:
+
+```tsx
+<Link href={`/projects/${project.id}`} prefetch>
+  {project.name}
+</Link>
+```
+
+This prefetches the shell **plus** whatever's cached down the tree — anything synchronous or marked `'use cache'`. Dynamic data (cookies, headers, `searchParams`) still streams in after the navigation.
+
+This is per-link, not per-route. A different `<Link>` to the same destination can leave `prefetch` off; the cost only applies where the prop is set.
 
 ### Prefetch runtime data
 
-Prefetching is what fills cache entries before the click. By default, [`<Link>`](/docs/app/api-reference/components/link) prefetches its destinations against build-time inputs only when they enter the viewport, which covers the static shell and any cached read keyed on build-time inputs. See [Prefetching](/docs/app/guides/prefetching) for the default behavior.
+Some destinations need request-time data to render anything useful — search results depend on `?q=`, the project page reads the viewer's cookies for pin state. By default `<Link prefetch>` skips that data, since prefetching it for every link would be expensive.
 
-[Runtime prefetch](/docs/app/guides/runtime-prefetching) does the render with the real cookies, headers, and `searchParams` the navigation would carry, then stores the result in the [Client Cache](/docs/app/glossary#client-cache). It's the same skip-recomputation goal as the server cache, only filled before the click instead of during it.
-
-Prefetch only sticks if the destination reads are cached. Without `'use cache'` and tags on those reads, the prefetched output has no entry to reuse, and the next click rerenders from scratch. The reads above already carry tags and lifetimes, so prefetched output has a stable slot.
-
-We can opt a page into runtime prefetch with the [`unstable_prefetch`](/docs/app/api-reference/file-conventions/route-segment-config/prefetch) segment export:
+To extend per-link prefetching to request-time cached content, opt the destination segment into [runtime prefetching](/docs/app/guides/runtime-prefetching) with the [`prefetch`](/docs/app/api-reference/file-conventions/route-segment-config/prefetch) segment export:
 
 ```tsx filename="app/projects/page.tsx" highlight={3}
 import { Suspense } from 'react'
 
-export const unstable_prefetch = 'force-runtime'
+export const prefetch = 'allow-runtime'
 
 export default function ProjectsPage({ searchParams }) {
   return (
@@ -695,20 +731,19 @@ export default function ProjectsPage({ searchParams }) {
 }
 ```
 
-Each page declares its own choice. On this app, `/projects` opts in for the avatar and pinned section (cookies) and the grid (`?q=`). `/projects/[id]` and `/projects/[id]/deployments/[deployId]` opt in for cookies and `params`. Other pages stay on static prefetch.
+Each page declares its own choice. On this app, `/projects` opts in for the avatar and pinned section (cookies) and the grid (`?q=`). `/projects/[id]` and `/projects/[id]/deployments/[deployId]` opt in for cookies and `params`. Other pages stay on the default static prefetch.
 
-As links scroll into view, the prefetches show up as ordinary fetches:
+Runtime prefetch only sticks if the destination reads are cached. Without `'use cache'` and tags on those reads, the prefetched output has no entry to reuse and the next click rerenders from scratch. The reads above already carry tags and lifetimes, so prefetched output has a stable slot in the [Client Cache](/docs/app/glossary#client-cache).
+
+As links scroll into view, the prefetches show up as ordinary fetches — one per route, not one per link:
 
 ```txt
 Name                                          Status  Type   Size      Time
-projects/compass                              200     fetch  12.4 KB    84 ms
-projects/feather                              200     fetch  11.8 KB    79 ms
-projects/compass/deployments/compass-jx9q3    200     fetch  18.2 KB   112 ms
-projects/aurora                               200     fetch  12.1 KB    81 ms
-projects/aurora/deployments/aurora-7k8h1      200     fetch  17.6 KB   108 ms
+projects/[id]                                 200     fetch  12.4 KB    84 ms
+projects/[id]/deployments/[deployId]          200     fetch  18.2 KB   112 ms
 ```
 
-Each row is a per-request render of the destination, and the result is stored in the Client Cache. Before prefetch finishes, the fallback still appears. After it finishes, the section is already in the Client Cache.
+Each row is a per-request render of the destination's runtime-cacheable content, stored in the Client Cache and reused across every link to that route for the session. Before prefetch finishes, the fallback still appears. After it finishes, the section is already in the cache.
 
 Click between projects fast and the fallback paints. Wait a beat before clicking, and the section is already prefetched.
 
@@ -719,9 +754,9 @@ Click between projects fast and the fallback paints. Wait a beat before clicking
 
 When prefetch finishes before the click, the destination renders real markup instead of skeletons. The `<Suspense>` boundaries stay in place because they still guard reads that need a real request.
 
-Every route the prefetch pass touched, static or runtime, is cached in the browser, so subsequent navigations work even over a flaky connection. [Offline support](/docs/app/guides/offline-support) covers the broader story for apps that go fully offline.
+Every route the prefetch pass touched is cached in the browser, so subsequent navigations work even over a flaky connection. [Offline support](/docs/app/guides/offline-support) covers the broader story for apps that go fully offline.
 
-Three layers combine for instant repeat navigation. `<Suspense>` handles the first visit, `'use cache'` gives prefetched output a stable entry, and runtime prefetch fills that entry before the click. Each layer has a cost, so apply them where smoother repeat navigation is worth the server work and the browser memory.
+Three layers combine for instant navigation. `<Suspense>` handles the first visit, `'use cache'` builds an App Shell that `<Link>` ships by default, and per-link `prefetch` (with `prefetch = 'allow-runtime'` where personalized) fills the cached parts of that shell before the click. Each layer has a cost, so apply them where smoother repeat navigation is worth the server work and the browser memory.
 
 Source: [`steps/07-caching`](https://github.com/vercel-labs/thinking-in-nextjs/tree/main/steps/07-caching) and [`steps/08-prefetching`](https://github.com/vercel-labs/thinking-in-nextjs/tree/main/steps/08-prefetching).
 
