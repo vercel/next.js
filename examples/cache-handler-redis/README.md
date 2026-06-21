@@ -44,7 +44,7 @@ For detailed information on configuration and usage, please refer to our compreh
 
 - **Configure Redis Credentials:** Update the `cache-handler-redis*` files with your Redis credentials. Connection details can be found [here](https://redis.io/docs/connect/clients/nodejs/).
 
-- **Building Without Redis:** To build the app without connecting to Redis use conditions inside `onCreation` callback. Check the [documentation](https://caching-tools.github.io/next-shared-cache/configuration/opt-out-cache-on-build) for more details.
+- **Building Without Redis:** To build the app without connecting to Redis use conditions inside `onCreation` callback. Check the [documentation](https://caching-tools.github.io/next-shared-cache) for more details.
 
 ## Development and Production Considerations
 

@@ -10,7 +10,7 @@ This example shows how you can use `@auth0/nextjs-auth` to easily add authentica
 - Loading the user on the client side by accessing API (Serverless function) CSR pages ([`pages/advanced/api-profile.tsx`](pages/advanced/api-profile.tsx))
 - Creates route handlers under the hood that perform different parts of the authentication flow ([`pages/auth/[...auth0].tsx`](pages/auth/[...auth0].tsx))
 
-Read more: [https://auth0.com/blog/ultimate-guide-nextjs-authentication-auth0/](https://auth0.com/blog/ultimate-guide-nextjs-authentication-auth0/)
+Read more: [https://auth0.com/docs/quickstart/webapp/nextjs](https://auth0.com/docs/quickstart/webapp/nextjs) (the Auth0 blog post was retired; the official quickstart is the current canonical guide)
 
 ## How to use
 
