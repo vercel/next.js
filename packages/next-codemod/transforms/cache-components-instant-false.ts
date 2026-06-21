@@ -111,108 +111,103 @@ export default function transformer(file: FileInfo, _api: API) {
   // indentation in JSX, missing semicolons) and produces a noisy diff. Raw
   // text insertion keeps every other byte exactly as the user wrote it.
   //
-  // Find the insertion point by scanning the source line-by-line rather than
-  // trusting AST node positions. Babel's parser misreports `node.start` /
-  // `comment.end` on files with `\r\n` terminators (Windows checkouts), so
-  // string-anchored scanning is the only reliable approach across line
-  // endings.
-  const source = file.source
+  // Babel mis-reports byte positions on files with `\r\n` terminators
+  // (Windows checkouts), so we normalize the source to LF, find the insertion
+  // offset on that LF view via the AST, then map the LF offset back into the
+  // original (possibly CRLF) source by counting line breaks. Multi-line
+  // imports and JSDoc banners thus work uniformly across line endings.
+  const originalSource = file.source
+  const eol = originalSource.includes('\r\n') ? '\r\n' : '\n'
+  const isCRLF = eol === '\r\n'
 
-  // Match the source's line terminator (CRLF on Windows checkouts, LF
-  // elsewhere) so the inserted block doesn't mix terminators with the
-  // surrounding file.
-  const eol = source.includes('\r\n') ? '\r\n' : '\n'
+  // Work on an LF-normalized copy so AST positions are accurate. Re-parse the
+  // normalized source: the earlier `root` may have been built on CRLF.
+  const lfSource = isCRLF
+    ? originalSource.replace(/\r\n/g, '\n')
+    : originalSource
+  const lfRoot = isCRLF ? j(lfSource) : root
+  const lfBody = lfRoot.get().node.program.body as any[]
+
+  // Find the LF byte offset to insert at.
+  let lfLastImportEnd = -1
+  for (const node of lfBody) {
+    if (node.type === 'ImportDeclaration') {
+      const end = node.end ?? node.range?.[1]
+      if (typeof end === 'number' && end > lfLastImportEnd)
+        lfLastImportEnd = end
+    }
+  }
+
+  // Convert an LF offset to an offset in the original source.
+  const lfToOriginal = (lfOffset: number): number => {
+    if (!isCRLF) return lfOffset
+    // Each '\n' before `lfOffset` corresponds to a '\r\n' in the original,
+    // so the original offset is `lfOffset` plus the count of LFs before it.
+    let nl = 0
+    for (let i = 0; i < lfOffset; i++) {
+      if (lfSource.charCodeAt(i) === 10 /* \n */) nl++
+    }
+    return lfOffset + nl
+  }
+
+  // Step past the trailing newline of a statement so the opt-out lands on
+  // its own line. Works on either LF or original (CRLF) source.
+  const skipNewline = (s: string, offset: number): number => {
+    if (s.charCodeAt(offset) === 13 /* \r */) offset++
+    if (s.charCodeAt(offset) === 10 /* \n */) offset++
+    return offset
+  }
 
   const optOut =
     `// TODO: Cache Components adoption. Remove once this route navigates instantly.${eol}` +
     `// See: https://nextjs.org/docs/app/guides/migrating-to-cache-components${eol}` +
     `export const instant = false;${eol}`
 
-  // Walk the source line by line and find the offset where we should splice
-  // in the opt-out. The rule:
-  //   1. If the module has any `import` statements, insert immediately after
-  //      the last one (with a blank line separator).
-  //   2. Otherwise, insert before the first line that is neither blank, nor a
-  //      `//` comment, nor part of a `/* ... */` block comment.
-  const lines = source.split(/(\r\n|\n)/)
-  // `lines` interleaves text and separators: [text0, sep0, text1, sep1, ...].
-  // Walk it pair-wise.
-  let offset = 0
-  let lastImportLineEnd = -1
-  let firstStatementStart = -1
-  let inBlockComment = false
-
-  for (let i = 0; i < lines.length; i += 2) {
-    const text = lines[i]
-    const sep = lines[i + 1] ?? ''
-    const lineStart = offset
-    const lineEnd = offset + text.length + sep.length
-    const trimmed = text.trim()
-
-    // Track block-comment state. We don't care about exact bounds inside the
-    // comment; we just need to skip the whole `/* ... */`.
-    if (inBlockComment) {
-      if (trimmed.includes('*/')) inBlockComment = false
-      offset = lineEnd
-      continue
-    }
-    if (trimmed.startsWith('/*') && !trimmed.includes('*/')) {
-      inBlockComment = true
-      offset = lineEnd
-      continue
-    }
-
-    // Skip blank lines and single-line `//` comments. A line that *starts*
-    // with `/*` and *also closes* on the same line is a one-line block
-    // comment — also skipped.
-    const isBlank = trimmed === ''
-    const isLineComment = trimmed.startsWith('//')
-    const isOneLineBlockComment =
-      trimmed.startsWith('/*') && trimmed.endsWith('*/')
-
-    if (
-      trimmed.startsWith('import ') ||
-      trimmed.startsWith('import{') ||
-      trimmed.startsWith('import"') ||
-      trimmed.startsWith("import'")
-    ) {
-      lastImportLineEnd = lineEnd
-      offset = lineEnd
-      continue
-    }
-
-    if (isBlank || isLineComment || isOneLineBlockComment) {
-      offset = lineEnd
-      continue
-    }
-
-    // First non-import, non-comment, non-blank line.
-    firstStatementStart = lineStart
-    break
-  }
-
-  if (lastImportLineEnd !== -1) {
-    // After the last import. Add a blank line between the imports and the
-    // opt-out for breathing room.
+  if (lfLastImportEnd !== -1) {
+    // Insert after the last import, on its own line, with a blank-line
+    // separator before the opt-out.
+    const lfInsertAt = skipNewline(lfSource, lfLastImportEnd)
+    const insertAt = lfToOriginal(lfInsertAt)
     return (
-      source.slice(0, lastImportLineEnd) +
+      originalSource.slice(0, insertAt) +
       eol +
       optOut +
-      source.slice(lastImportLineEnd)
+      originalSource.slice(insertAt)
     )
   }
 
-  if (firstStatementStart !== -1) {
-    // Before the first real statement, after any leading comments.
-    return (
-      source.slice(0, firstStatementStart) +
-      optOut +
-      eol +
-      source.slice(firstStatementStart)
-    )
+  // No imports. Insert before the first non-import statement. AST gives us
+  // the statement's start *including* its leading comments, so we walk back
+  // through `leadingComments` to find the position past the last comment.
+  const firstNonImport = lfBody.find(
+    (node: any) => node.type !== 'ImportDeclaration'
+  )
+
+  if (!firstNonImport) {
+    // Imports-only module (unusual, but possible for re-export aggregations).
+    const trailingNewline = originalSource.endsWith('\n') ? '' : eol
+    return originalSource + trailingNewline + eol + optOut
   }
 
-  // Module is comments-only (very unusual) or empty. Append at the end.
-  const trailingNewline = source.endsWith('\n') ? '' : eol
-  return source + trailingNewline + eol + optOut
+  let lfInsertAt: number = firstNonImport.start
+  const leadingComments =
+    firstNonImport.leadingComments ?? firstNonImport.comments
+  if (Array.isArray(leadingComments) && leadingComments.length > 0) {
+    // Find the comment that ends *latest* in source order.
+    let maxEnd = -1
+    for (const c of leadingComments) {
+      if (typeof c?.end === 'number' && c.end > maxEnd) maxEnd = c.end
+    }
+    if (maxEnd !== -1 && maxEnd < lfInsertAt) {
+      lfInsertAt = skipNewline(lfSource, maxEnd)
+    }
+  }
+
+  const insertAt = lfToOriginal(lfInsertAt)
+  return (
+    originalSource.slice(0, insertAt) +
+    optOut +
+    eol +
+    originalSource.slice(insertAt)
+  )
 }
