@@ -77,8 +77,8 @@ function normalizeAppPageEntryPathname(appPath: string): string {
 /**
  * Selects the app path that owns the compiled entry for a normalized route.
  * Catch-all normalization can add app paths from other routes, so only direct
- * paths are candidates. Among those, compareAppPaths deterministically prefers
- * the children/root page, or a stable slot when the route only has slots.
+ * paths are candidates. The input order is the canonical build manifest order;
+ * the final direct path is the entry included in legacy deployed functions.
  */
 export function selectAppPageEntry(
   pathname: string,
@@ -90,9 +90,7 @@ export function selectAppPageEntry(
   for (const appPath of appPaths) {
     if (normalizePathname(appPath) !== pathname) continue
 
-    if (entry === undefined || compareAppPaths(entry, appPath) < 0) {
-      entry = appPath
-    }
+    entry = appPath
   }
 
   if (entry === undefined) {

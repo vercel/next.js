@@ -23,13 +23,10 @@ describe('selectAppPageEntry', () => {
     )
   })
 
-  it('deterministically selects an entry for a slot-only route', () => {
-    const appPaths = ['/@alpha/foo/page', '/@beta/foo/page']
+  it('selects the final direct entry from canonical build order', () => {
+    const appPaths = ['/foo/page', '/@alpha/foo/page', '/@beta/foo/page']
 
     expect(selectAppPageEntry('/foo', appPaths)).toBe('/@beta/foo/page')
-    expect(selectAppPageEntry('/foo', [...appPaths].reverse())).toBe(
-      '/@beta/foo/page'
-    )
   })
 
   it('matches escaped underscore entries to decoded pathnames', () => {

@@ -61,10 +61,7 @@ import { PagesNormalizers } from '../../normalizers/built/pages'
 import { AppNormalizers } from '../../normalizers/built/app'
 import { RouteKind } from '../../route-kind'
 import { isAppPageRouteDefinition } from '../../route-definitions/app-page-route-definition'
-import {
-  compareAppPaths,
-  selectAppPageEntry,
-} from '../../../shared/lib/router/utils/app-paths'
+import { selectAppPageEntry } from '../../../shared/lib/router/utils/app-paths'
 import { normalizeCatchAllRoutes } from './normalize-catchall-routes'
 
 export type FsOutput = {
@@ -452,7 +449,7 @@ export async function setupFsCheck(opts: {
     }
     normalizeCatchAllRoutes(allAppPaths, appNormalizers.pathname)
     for (const [pathname, appPaths] of Object.entries(allAppPaths)) {
-      appPaths.sort(compareAppPaths)
+      // Keep manifest order aligned with the module packaged for this route.
       const page = selectAppPageEntry(pathname, appPaths, (appPath) =>
         appNormalizers.pathname.normalize(appPath)
       )

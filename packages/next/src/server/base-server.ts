@@ -83,7 +83,6 @@ import {
 } from './request-meta'
 import { removePathPrefix } from '../shared/lib/router/utils/remove-path-prefix'
 import {
-  compareAppPaths,
   normalizeAppPath,
   selectAppPageEntry,
 } from '../shared/lib/router/utils/app-paths'
@@ -1420,11 +1419,20 @@ export default abstract class Server<
             }
           }
 
-          // x-matched-path describes the platform's filesystem dispatch. Use
-          // it to normalize params above, but do not treat it as the final
-          // render match: locale stripping and route precedence can select a
-          // different route for the resulting concrete pathname.
-          removeRequestMeta(req, 'match')
+          // x-matched-path describes the platform's filesystem dispatch. Match
+          // the resulting concrete pathname again so route precedence is
+          // preserved while the concrete params remain available to PPR.
+          const finalRouteMatch = this.getRouteMatch(
+            matchedPath,
+            localeAnalysisResult
+              ? { ...localeAnalysisResult, pathname: matchedPath }
+              : undefined
+          )
+          if (finalRouteMatch) {
+            addRequestMeta(req, 'match', finalRouteMatch)
+          } else {
+            removeRequestMeta(req, 'match')
+          }
 
           if (pageIsDynamic || didRewrite) {
             utils.normalizeCdnUrl(req, [
@@ -2032,14 +2040,8 @@ export default abstract class Server<
       appPathRoutes[normalizedPath].push(entry)
     })
 
-    // Keep this mapping limited to entries that directly normalize to each
-    // route. Catch-all expansion belongs to filesystem dispatch and build-time
-    // loader generation; expanded entries may not be traced into a deployed
-    // route's serverless function.
-    for (const appPaths of Object.values(appPathRoutes)) {
-      appPaths.sort(compareAppPaths)
-    }
-
+    // Preserve manifest order: legacy deployment builders package the final
+    // direct entry for a pathname as the function's loadable page module.
     return appPathRoutes
   }
 
