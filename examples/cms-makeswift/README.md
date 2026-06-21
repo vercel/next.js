@@ -8,8 +8,6 @@ This example showcases how you can use [Makeswift](https://www.makeswift.com/) t
 
 ## Demo
 
-### [https://nextjs-makeswift-example.vercel.app/](https://nextjs-makeswift-example.vercel.app/)
-
 ### Related examples
 
 - [AgilityCMS](/examples/cms-agilitycms)
