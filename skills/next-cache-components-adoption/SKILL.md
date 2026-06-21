@@ -91,14 +91,6 @@ npx @next/codemod@latest cache-components-instant-false ./app
 
 Inserts `export const instant = false` (with a `// TODO: Cache Components adoption` comment) into every `app/**/{page,layout,default}` file, skipping files that already declare `instant` and Client Components (`"use client"`). Then set `cacheComponents: true`. The TODO comments are the work queue.
 
-If the command exits with `Invalid transform choice`, your installed `@next/codemod` predates 16.3. Until you can upgrade, do the same opt-out by hand: in every `app/**/{page,layout,default}.{js,jsx,ts,tsx}` file that is **not** a Client Component and does **not** already export `instant`, insert this near the top of the file (after any imports):
-
-```ts
-// TODO: Cache Components adoption. Refactor this route so this opt-out can be removed.
-// See: https://nextjs.org/docs/app/guides/migrating-to-cache-components
-export const instant = false
-```
-
 The codemod opts **every** segment out, not only the root, on purpose. Resolution is top-down, first-explicit-config-wins: the **highest** `instant = false` in a route's tree decides the whole subtree, and deeper ones are never read. If you only opted the root layout out, removing it would re-arm validation for the entire app at once. With an opt-out on every segment, removing one segment's opt-out validates only **that** segment — its descendants keep their own opt-outs and stay green, so the blast radius is one segment at a time.
 
 Because the highest opt-out wins, you remove them **top-down** (root first, then descend). Removing a leaf's opt-out does nothing while an ancestor still holds one.
