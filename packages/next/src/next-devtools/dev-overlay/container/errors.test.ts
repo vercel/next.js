@@ -18,6 +18,11 @@ import {
   type SyncIOApiType,
 } from '../../../server/app-render/sync-io-messages'
 import {
+  ClientHookDynamicError,
+  ParamClientHookDynamicError,
+} from '../../../server/dynamic-rendering-utils'
+import { getCards } from '../components/instant/instant-guidance-data'
+import {
   getBlockingRouteErrorDetails,
   getUnrenderedSegmentErrorDetails,
   isInstantNavigationError,
@@ -124,6 +129,28 @@ describe('isSyncIOClientError', () => {
 })
 
 describe('getBlockingRouteErrorDetails', () => {
+  it('classifies client hook errors separately', () => {
+    expect(
+      getBlockingRouteErrorDetails(
+        new ClientHookDynamicError(ROUTE, 'useSearchParams()')
+      )
+    ).toEqual({
+      type: 'client-hook',
+      expression: 'useSearchParams()',
+    })
+  })
+
+  it('classifies param-derived client hook errors separately', () => {
+    expect(
+      getBlockingRouteErrorDetails(
+        new ParamClientHookDynamicError(ROUTE, 'useParams()')
+      )
+    ).toEqual({
+      type: 'client-hook',
+      expression: 'useParams()',
+    })
+  })
+
   it('classifies createRuntimeBodyError as blocking-route + runtime (SSR-only)', () => {
     expect(getBlockingRouteErrorDetails(createRuntimeBodyError(ROUTE))).toEqual(
       { type: 'blocking-route', variant: 'runtime', inNavigation: false }
@@ -256,6 +283,169 @@ describe('getBlockingRouteErrorDetails', () => {
   })
 })
 
+describe('client hook guidance', () => {
+  it('shows Stream and Block cards for useSearchParams', () => {
+    const cards = getCards('client-hook', 'runtime', 'useSearchParams()')
+    expect(cards.map((card) => card.id)).toEqual([
+      'wrap-in-or-move-into-suspense',
+      'allow-blocking-route',
+    ])
+    expect(cards.map((card) => card.group)).toEqual(['stream', 'block'])
+  })
+
+  it('shows Stream, GSP, and Block cards for useParams', () => {
+    const cards = getCards('client-hook', 'runtime', 'useParams()')
+    expect(cards.map((card) => card.id)).toEqual([
+      'wrap-in-or-move-into-suspense',
+      'for-known-params-prerender',
+      'allow-blocking-route',
+    ])
+    expect(cards.map((card) => card.group)).toEqual([
+      'stream',
+      'cache',
+      'block',
+    ])
+  })
+
+  it('shows Stream and Block cards for hooks without GSP', () => {
+    const expected = ['wrap-in-or-move-into-suspense', 'allow-blocking-route']
+    expect(
+      getCards('client-hook', 'runtime', 'usePathname()').map((c) => c.id)
+    ).toEqual(expected)
+    expect(
+      getCards('client-hook', 'runtime', 'useSelectedLayoutSegment()').map(
+        (c) => c.id
+      )
+    ).toEqual(expected)
+    expect(
+      getCards('client-hook', 'runtime', 'useSelectedLayoutSegments()').map(
+        (c) => c.id
+      )
+    ).toEqual(expected)
+  })
+})
+
+describe('card sets for all error families', () => {
+  it('blocking-route runtime', () => {
+    expect(
+      getCards('blocking-route', 'runtime').map((card) => card.id)
+    ).toEqual([
+      'wrap-in-or-move-into-suspense',
+      'for-known-params-prerender',
+      'allow-blocking-route',
+    ])
+  })
+
+  it('blocking-route dynamic', () => {
+    expect(
+      getCards('blocking-route', 'dynamic').map((card) => card.id)
+    ).toEqual([
+      'cache-the-component-or-data',
+      'wrap-in-or-move-into-suspense',
+      'allow-blocking-route',
+    ])
+  })
+
+  it('metadata runtime', () => {
+    expect(getCards('metadata', 'runtime').map((card) => card.id)).toEqual([
+      'use-static-metadata',
+      'render-page-at-request-time',
+    ])
+  })
+
+  it('metadata dynamic', () => {
+    expect(getCards('metadata', 'dynamic').map((card) => card.id)).toEqual([
+      'cache-the-metadata',
+      'render-page-at-request-time',
+    ])
+  })
+
+  it('viewport runtime', () => {
+    expect(getCards('viewport', 'runtime').map((card) => card.id)).toEqual([
+      'use-static-viewport',
+      'allow-blocking-route',
+    ])
+  })
+
+  it('viewport dynamic', () => {
+    expect(getCards('viewport', 'dynamic').map((card) => card.id)).toEqual([
+      'cache-viewport-data',
+      'allow-blocking-route',
+    ])
+  })
+
+  it('unrendered-segment', () => {
+    expect(
+      getCards('unrendered-segment', 'runtime').map((card) => card.id)
+    ).toEqual(['render-the-dropped-segment', 'skip-validation-on-the-segment'])
+  })
+
+  it('sync-io math', () => {
+    expect(
+      getCards('sync-io', 'runtime', 'Math.random()').map((card) => card.id)
+    ).toEqual([
+      'render-at-request-time',
+      'cache-the-random-value',
+      'render-on-the-client',
+    ])
+  })
+
+  it('sync-io date', () => {
+    expect(
+      getCards('sync-io', 'runtime', 'Date.now()').map((card) => card.id)
+    ).toEqual([
+      'render-at-request-time',
+      'cache-the-timestamp',
+      'render-on-the-client',
+      'measure-elapsed-time',
+    ])
+  })
+
+  it('sync-io crypto', () => {
+    expect(
+      getCards('sync-io', 'runtime', 'crypto.randomUUID()').map(
+        (card) => card.id
+      )
+    ).toEqual([
+      'render-at-request-time',
+      'cache-the-generated-value',
+      'render-on-the-client',
+    ])
+  })
+
+  it('sync-io-client math', () => {
+    expect(
+      getCards('sync-io-client', 'runtime', 'Math.random()').map(
+        (card) => card.id
+      )
+    ).toEqual([
+      'wrap-in-or-move-into-suspense',
+      'move-into-effect-or-event-handler',
+    ])
+  })
+
+  it('sync-io-client date', () => {
+    expect(
+      getCards('sync-io-client', 'runtime', 'Date.now()').map((card) => card.id)
+    ).toEqual([
+      'wrap-in-or-move-into-suspense',
+      'move-into-effect-or-event-handler',
+      'measure-elapsed-time',
+    ])
+  })
+
+  it('sync-io-client crypto', () => {
+    expect(
+      getCards('sync-io-client', 'runtime', 'crypto.randomUUID()').map(
+        (card) => card.id
+      )
+    ).toEqual([
+      'wrap-in-or-move-into-suspense',
+      'move-into-effect-or-event-handler',
+    ])
+  })
+})
+
 describe('getUnrenderedSegmentErrorDetails', () => {
   function createUnrenderedSegmentError(
     route: string,
@@ -268,9 +458,9 @@ describe('getUnrenderedSegmentErrorDetails', () => {
         `\n\nThis segment was dropped from rendering. Issues that would prevent instant navigation will go undetected.` +
         `\n\n${label}:\n${files.map((p) => `  ${p}`).join('\n')}` +
         `\n\nWays to fix this:` +
-        `\n  - Render the dropped segment` +
-        `\n  - Set \`export const instant = false\` on the dropped segment to skip validation` +
-        `\n\nLearn more: https://nextjs.org/docs/messages/unrendered-instant-segment`
+        `\n  - [render] Render the dropped segment` +
+        `\n  - [ignore] Set \`export const instant = false\` on the dropped segment to skip validation` +
+        `\n\nLearn more: https://nextjs.org/docs/messages/instant-unrendered-segment`
     }
     return new Error(message)
   }

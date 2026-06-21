@@ -14,7 +14,6 @@ const config = {
 // Add properties to the turbo object
 config.turbopack.resolveAlias.foo = 'bar';
 config.experimental.turbopackMinify = true;
-config.experimental.turbopackMemoryLimit = 4096;
 
 // Add regular property
 config.images = {

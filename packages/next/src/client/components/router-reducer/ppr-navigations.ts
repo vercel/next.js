@@ -35,7 +35,7 @@ import {
   markRouteEntryAsDynamicRewrite,
   invalidateRouteCacheEntries,
   getStaleAt,
-  writeStaticStageResponseIntoCache,
+  writePrerenderResponseIntoCache,
   processRuntimePrefetchStream,
   writeDynamicRenderResponseIntoCache,
   EntryStatus,
@@ -127,6 +127,8 @@ export type NavigationRequestAccumulation = {
   scrollRef: ScrollRef | null
 }
 
+export type NavigationLock = Promise<void> | null
+
 const noop = () => {}
 
 export function createInitialCacheNodeForHydration(
@@ -200,7 +202,6 @@ export function startPPRNavigation(
   isSamePageNavigation: boolean,
   accumulation: NavigationRequestAccumulation
 ): NavigationTask | null {
-  const didFindRootLayout = false
   const parentNeedsDynamicRequest = false
   const parentRefreshState = null
   const oldRootRefreshState: RefreshState = {
@@ -215,7 +216,6 @@ export function startPPRNavigation(
     newRouteTree,
     newMetadataVaryPath,
     freshness,
-    didFindRootLayout,
     seedData,
     seedHead,
     seedDynamicStaleAt,
@@ -235,7 +235,6 @@ function updateCacheNodeOnNavigation(
   newRouteTree: RouteTree,
   newMetadataVaryPath: PageVaryPath | null,
   freshness: FreshnessPolicy,
-  didFindRootLayout: boolean,
   seedData: CacheNodeSeedData | null,
   seedHead: HeadData | null,
   seedDynamicStaleAt: number,
@@ -273,11 +272,12 @@ function updateCacheNodeOnNavigation(
       //
       // Refer to isNavigatingToNewRootLayout for details.
       //
-      // Note that we only have to perform this extra traversal if we didn't
-      // already discover a root layout in the part of the tree that is
-      // unchanged. We also only need to compare the subtree that is not
+      // Note that we only have to perform this extra traversal if this changed
+      // segment is still at or above the root layout (IsRootLayoutOrAbove);
+      // once we've descended past the root layout, a segment change can't alter
+      // the root layout. We also only need to compare the subtree that is not
       // shared. In the common case, this branch is skipped completely.
-      (!didFindRootLayout &&
+      ((newRouteTree.prefetchHints & PrefetchHint.IsRootLayoutOrAbove) !== 0 &&
         isNavigatingToNewRootLayout(oldRouterState, newRouteTree)) ||
       // The global Not Found route (app/global-not-found.tsx) is a special
       // case, because it acts like a root layout, but in the router tree, it
@@ -309,13 +309,6 @@ function updateCacheNodeOnNavigation(
   const newSlots = newRouteTree.slots
   const oldRouterStateChildren = oldRouterState[1]
   const seedDataChildren = seedData !== null ? seedData[1] : null
-
-  // We're currently traversing the part of the tree that was also part of
-  // the previous route. If we discover a root layout, then we don't need to
-  // trigger an MPA navigation.
-  const childDidFindRootLayout =
-    didFindRootLayout ||
-    (newRouteTree.prefetchHints & PrefetchHint.IsRootLayout) !== 0
 
   let shouldRefreshDynamicData: boolean = false
   switch (freshness) {
@@ -515,7 +508,6 @@ function updateCacheNodeOnNavigation(
         newRouteTreeChild,
         newMetadataVaryPath,
         freshness,
-        childDidFindRootLayout,
         seedDataChild ?? null,
         seedHeadChild,
         seedDynamicStaleAt,
@@ -1383,7 +1375,8 @@ export function spawnDynamicRequests(
   // The original navigation's push/replace intent. Threaded through to the
   // server-patch retry logic so it can inherit the intent if the original
   // transition hasn't committed yet.
-  navigateType: 'push' | 'replace'
+  navigateType: 'push' | 'replace',
+  navigationLock: NavigationLock
 ): void {
   const dynamicRequestTree = task.dynamicRequestTree
   if (dynamicRequestTree === null) {
@@ -1407,7 +1400,8 @@ export function spawnDynamicRequests(
     primaryUrl,
     nextUrl,
     freshnessPolicy,
-    routeCacheEntry
+    routeCacheEntry,
+    navigationLock
   )
 
   const separateRefreshUrls = accumulation.separateRefreshUrls
@@ -1459,7 +1453,8 @@ export function spawnDynamicRequests(
             // hard refresh.
             nextUrl,
             freshnessPolicy,
-            routeCacheEntry
+            routeCacheEntry,
+            navigationLock
           )
         )
       }
@@ -1697,7 +1692,8 @@ async function fetchMissingDynamicData(
   url: URL,
   nextUrl: string | null,
   freshnessPolicy: FreshnessPolicy,
-  routeCacheEntry: FulfilledRouteCacheEntry | null
+  routeCacheEntry: FulfilledRouteCacheEntry | null,
+  navigationLock: NavigationLock
 ): Promise<{
   exitStatus: NavigationTaskExitStatus
   url: URL
@@ -1734,9 +1730,12 @@ async function fetchMissingDynamicData(
     // writing the dynamic data. This allows tests to assert on the prefetched
     // UI state.
     if (process.env.__NEXT_EXPOSE_TESTING_API) {
-      await waitForNavigationLock()
+      await waitForNavigationLock(navigationLock)
     }
 
+    // TODO: Implement Shell extraction as part of Cached Navigations.
+    // Intentionally holding off on doing this until we decide how the Cached
+    // Navigations behavior should work in combination with App Shells.
     if (routeCacheEntry !== null && result.staticStageData !== null) {
       const { response: staticStageResponse, isResponsePartial } =
         result.staticStageData
@@ -1747,11 +1746,13 @@ async function fetchMissingDynamicData(
             result.responseHeaders.get(NEXT_NAV_DEPLOYMENT_ID_HEADER) ??
             staticStageResponse.b
 
-          writeStaticStageResponseIntoCache(
+          writePrerenderResponseIntoCache(
             now,
+            FetchStrategy.PPR,
             staticStageResponse.f,
             buildId,
             staticStageResponse.h,
+            staticStageResponse.r ?? null,
             staleAt,
             dynamicRequestTree,
             result.renderedSearch,
@@ -1780,6 +1781,7 @@ async function fetchMissingDynamicData(
               processed.buildId,
               processed.isResponsePartial,
               processed.headVaryParams,
+              processed.rootVaryParamsIterable,
               processed.staleAt,
               processed.navigationSeed,
               null
@@ -1802,7 +1804,8 @@ async function fetchMissingDynamicData(
       seed.data,
       seed.head,
       dynamicStaleAt,
-      result.debugInfo
+      result.debugInfo,
+      result.revealAfter
     )
 
     return {
@@ -1830,11 +1833,18 @@ function writeDynamicDataIntoNavigationTask(
   dynamicData: CacheNodeSeedData | null,
   dynamicHead: HeadData,
   dynamicStaleAt: number,
-  debugInfo: Array<any> | null
+  debugInfo: Array<any> | null,
+  revealAfter: Promise<void> | null
 ): boolean {
   if (task.status === NavigationTaskStatus.Pending && dynamicData !== null) {
     task.status = NavigationTaskStatus.Fulfilled
-    finishPendingCacheNode(task.node, dynamicData, dynamicHead, debugInfo)
+    finishPendingCacheNode(
+      task.node,
+      dynamicData,
+      dynamicHead,
+      debugInfo,
+      revealAfter
+    )
 
     // Update the BFCache entry's staleAt for this segment with the value
     // from the dynamic response. This applies the per-page
@@ -1893,7 +1903,8 @@ function writeDynamicDataIntoNavigationTask(
                 dynamicDataChild,
                 dynamicHead,
                 dynamicStaleAt,
-                debugInfo
+                debugInfo,
+                revealAfter
               )
             if (childDidReceiveUnknownParallelRoute) {
               didReceiveUnknownParallelRoute = true
@@ -1916,7 +1927,8 @@ function finishPendingCacheNode(
   cacheNode: CacheNode,
   dynamicData: CacheNodeSeedData,
   dynamicHead: HeadData,
-  debugInfo: Array<any> | null
+  debugInfo: Array<any> | null,
+  revealAfter: Promise<void> | null
 ): void {
   // Writes a dynamic response into an existing Cache Node tree. This does _not_
   // create a new tree, it updates the existing tree in-place. So it must follow
@@ -1949,7 +1961,21 @@ function finishPendingCacheNode(
     // This is a deferred RSC promise. We can fulfill it with the data we just
     // received from the server. If it was already resolved by a different
     // navigation, then this does nothing because we can't overwrite data.
-    rsc.resolve(dynamicSegmentData, debugInfo)
+    //
+    // In the streaming dev render, defer the fill until `revealAfter` settles,
+    // so React doesn't render the boundary's children before their row has been
+    // decoded (otherwise it suspends on the still-pending children and commits
+    // a premature fallback). Outside that render `revealAfter` is null and we
+    // resolve immediately.
+    if (revealAfter !== null) {
+      const resolveRsc = () => rsc.resolve(dynamicSegmentData, debugInfo)
+      // Use the same callback for both outcomes: we don't expect `revealAfter`
+      // to reject, but if it ever did (e.g. a connection drop mid-stream) we'd
+      // still want to resolve the RSC.
+      revealAfter.then(resolveRsc, resolveRsc)
+    } else {
+      rsc.resolve(dynamicSegmentData, debugInfo)
+    }
   } else {
     // This is not a deferred RSC promise, nor is it empty, so it must have
     // been populated by a different navigation. We must not overwrite it.
@@ -2148,16 +2174,25 @@ function createDeferredRsc<
 }
 
 /**
- * Helper for the Instant Navigation Testing API. Waits for the navigation lock
- * to be released before returning. The network request has already completed by
- * the time this is called, so this only delays writing the dynamic data.
+ * Helper for the Instant Navigation Testing API. Snapshots the lock that is
+ * active when a navigation starts, so the navigation can wait for the same lock
+ * even if another lock is acquired before its dynamic response is applied.
  *
  * Not exposed in production builds by default.
  */
-async function waitForNavigationLock(): Promise<void> {
+export function getCurrentNavigationLock(): NavigationLock {
+  if (process.env.__NEXT_EXPOSE_TESTING_API) {
+    const { getCurrentNavigationLock: getCurrentLock } =
+      require('../segment-cache/navigation-testing-lock') as typeof import('../segment-cache/navigation-testing-lock')
+    return getCurrentLock()
+  }
+  return null
+}
+
+async function waitForNavigationLock(lock: NavigationLock): Promise<void> {
   if (process.env.__NEXT_EXPOSE_TESTING_API) {
     const { waitForNavigationLockIfActive } =
       require('../segment-cache/navigation-testing-lock') as typeof import('../segment-cache/navigation-testing-lock')
-    await waitForNavigationLockIfActive()
+    await waitForNavigationLockIfActive(lock)
   }
 }

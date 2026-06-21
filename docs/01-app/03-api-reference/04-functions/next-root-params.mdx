@@ -61,7 +61,7 @@ Given this file structure:
 
 Only `lang` is a root parameter. `slug` is a regular route parameter:
 
-```tsx filename="app/[lang]/posts/[slug]/page.tsx" highlight={1,5} switcher
+```tsx filename="app/[lang]/posts/[slug]/page.tsx" highlight={1,7} switcher
 import { lang } from 'next/root-params'
 
 export default async function PostPage(
@@ -268,7 +268,7 @@ Since `id` does not exist in the marketing root layout, `await id()` returns `un
 
 Root parameters work with [catch-all and optional catch-all](/docs/app/api-reference/file-conventions/dynamic-routes#catch-all-segments) segments:
 
-```tsx filename="app/docs/[...path]/layout.tsx" highlight={4} switcher
+```tsx filename="app/docs/[...path]/layout.tsx" highlight={6} switcher
 import { path } from 'next/root-params'
 
 export default async function DocsLayout(
@@ -311,6 +311,8 @@ Each root parameter getter returns a `Promise` that resolves to one of the follo
 If the parameter does not exist in the current route's root layout (see [Multiple root layouts](#multiple-root-layouts)), the return type includes `undefined`.
 
 ## Restrictions
+
+Most of these are permanent constraints of how root parameters work. The exception is [Route Handlers](/docs/app/api-reference/file-conventions/route), which are not supported yet but are planned for a future release.
 
 ### Server Components only
 

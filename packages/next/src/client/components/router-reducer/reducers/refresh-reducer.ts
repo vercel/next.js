@@ -10,7 +10,7 @@ import {
 } from '../../segment-cache/navigation'
 import { invalidateSegmentCacheEntries } from '../../segment-cache/cache'
 import { hasInterceptionRouteInCurrentTree } from './has-interception-route-in-current-tree'
-import { FreshnessPolicy } from '../ppr-navigations'
+import { FreshnessPolicy, getCurrentNavigationLock } from '../ppr-navigations'
 import {
   invalidateBfCache,
   UnknownDynamicStaleTime,
@@ -61,6 +61,7 @@ export function refreshDynamicData(
   const currentRenderedSearch = state.renderedSearch
   const currentFlightRouterState = state.tree
   const scrollBehavior = ScrollBehavior.NoScroll
+  const navigationLock = getCurrentNavigationLock()
 
   // Create a NavigationSeed from the current FlightRouterState.
   // TODO: Eventually we will store this type directly on the state object
@@ -92,6 +93,7 @@ export function refreshDynamicData(
     nextUrlForRefresh,
     scrollBehavior,
     navigateType,
+    navigationLock,
     null,
     // Refresh navigations don't use route prediction, so there's no route
     // cache entry to mark as having a dynamic rewrite on mismatch. If a

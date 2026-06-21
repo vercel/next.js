@@ -1,13 +1,10 @@
 import { nextTestSetup, type Playwright } from 'e2e-utils'
 import { retry, toggleDevToolsIndicatorPopover } from 'next-test-utils'
 
-// FIXME: Skipped due to flakiness. Reenable when fixed
-describe.skip('instant-nav-panel', () => {
+describe('instant-nav-panel', () => {
   const { isNextDev, isTurbopack, next } = nextTestSetup({
     files: __dirname,
   })
-
-  const targetPage = '/target-page/my-post?search=foo'
 
   async function waitForPanelRouterTransition() {
     // Run all the necessary CSS transitions
@@ -69,26 +66,19 @@ describe.skip('instant-nav-panel', () => {
     }, href)
   }
 
+  function getInstantNavPanel(browser: Playwright) {
+    // Wait up to 5s for the panel. elementByCssInstant's 10ms timeout flakes
+    // badly under load; waitUntil:false because the page may not fire `load`
+    // while the instant lock holds dynamic data, so we must not wait for it.
+    return browser.elementByCss('.instant-nav-panel', { waitUntil: false })
+  }
+
   async function getInstantNavPanelText(browser: Playwright): Promise<string> {
-    return browser.elementByCssInstant('.instant-nav-panel').text()
+    return getInstantNavPanel(browser).text()
   }
 
   async function closePanelViaHeader(browser: Playwright) {
     return browser.elementByCss('#_next-devtools-panel-close').click()
-  }
-
-  async function hasInstantNavPanelOpen(browser: Playwright): Promise<void> {
-    await browser.elementByCssInstant('.instant-nav-panel')
-  }
-
-  async function waitForInstantNavPanelOpen(browser: Playwright) {
-    await retry(
-      async () => {
-        await hasInstantNavPanelOpen(browser)
-      },
-      5_000,
-      500
-    )
   }
 
   async function waitForAppHydration(browser: Playwright) {
@@ -102,7 +92,7 @@ describe.skip('instant-nav-panel', () => {
     await waitForPanelRouterTransition()
     await clickInstantNavMenuItem(browser)
 
-    await waitForInstantNavPanelOpen(browser)
+    await getInstantNavPanel(browser)
     await waitForPanelRouterTransition()
   }
 
@@ -111,6 +101,52 @@ describe.skip('instant-nav-panel', () => {
       const portal = document.querySelector('nextjs-portal')
       const root = portal?.shadowRoot ?? document
       return Boolean(root.querySelector('.instant-nav-panel'))
+    })
+  }
+
+  async function triggerAppError(browser: Playwright) {
+    await browser.eval(() => {
+      document
+        .querySelector<HTMLButtonElement>('[data-testid="trigger-error"]')!
+        .click()
+    })
+  }
+
+  async function waitForErrorToast(browser: Playwright) {
+    await retry(async () => {
+      const hasToast = await browser.eval(() => {
+        const portal = document.querySelector('nextjs-portal')
+        const root = portal?.shadowRoot ?? document
+        return Boolean(root.querySelector('[data-issues-open]'))
+      })
+      expect(hasToast).toBe(true)
+    })
+  }
+
+  async function clickErrorToast(browser: Playwright) {
+    await browser.elementByCss('[data-issues-open]').click()
+  }
+
+  async function isErrorOverlayOpen(browser: Playwright): Promise<boolean> {
+    // The overlay can linger in the DOM (hidden via React Activity) after
+    // closing, so key on data-rendered="true" rather than mere presence.
+    return browser.eval(() => {
+      const portal = document.querySelector('nextjs-portal')
+      const root = portal?.shadowRoot ?? document
+      return Boolean(
+        root.querySelector('[data-nextjs-dialog-overlay][data-rendered="true"]')
+      )
+    })
+  }
+
+  async function readInstantPanelZIndex(
+    browser: Playwright
+  ): Promise<number | null> {
+    return browser.eval(() => {
+      const portal = document.querySelector('nextjs-portal')
+      const root = portal?.shadowRoot
+      const el = root?.querySelector('.dynamic-panel-container')
+      return el ? Number(getComputedStyle(el).zIndex) : null
     })
   }
 
@@ -149,7 +185,7 @@ describe.skip('instant-nav-panel', () => {
       5_000,
       250
     )
-    await waitForInstantNavPanelOpen(browser)
+    await getInstantNavPanel(browser)
     await waitForPanelRouterTransition()
   }
 
@@ -206,7 +242,7 @@ describe.skip('instant-nav-panel', () => {
   async function expectTargetPageMpaShell(browser: Playwright) {
     await browser
       .locator('[data-testid="dynamic-skeleton"]')
-      .waitFor({ state: 'visible', timeout: 30000 })
+      .waitFor({ state: 'visible' })
     await browser
       .locator('[data-testid="param-skeleton"]')
       .waitFor({ state: 'visible' })
@@ -223,9 +259,36 @@ describe.skip('instant-nav-panel', () => {
   }
 
   async function expectTargetPageSpaShell(browser: Playwright) {
+    // With App Shell prefetching (the default), a captured SPA navigation shows
+    // the same instant shell as an MPA page load: the static skeletons, with
+    // runtime params and dynamic data held behind their Suspense boundaries
+    // until the lock releases. (They are not baked into the prefetched shell.)
     await browser
       .locator('[data-testid="dynamic-skeleton"]')
-      .waitFor({ state: 'visible', timeout: 30000 })
+      .waitFor({ state: 'visible' })
+    await browser
+      .locator('[data-testid="param-skeleton"]')
+      .waitFor({ state: 'visible' })
+    await browser
+      .locator('[data-testid="search-param-skeleton"]')
+      .waitFor({ state: 'visible' })
+    expect(
+      await browser.locator('[data-testid="dynamic-content"]').count()
+    ).toBe(0)
+    expect(await browser.locator('[data-testid="param-value"]').count()).toBe(0)
+    expect(
+      await browser.locator('[data-testid="search-param-value"]').count()
+    ).toBe(0)
+  }
+
+  // For a link with prefetch={true}, the per-page (runtime) data is prefetched,
+  // so the captured SPA shell DOES include the resolved param and searchParam
+  // values. Only the genuinely dynamic data (guarded by connection()) stays
+  // behind its skeleton until the lock releases.
+  async function expectTargetPageSpaShellWithRuntimeData(browser: Playwright) {
+    await browser
+      .locator('[data-testid="dynamic-skeleton"]')
+      .waitFor({ state: 'visible' })
     await browser
       .locator('[data-testid="param-value"]')
       .waitFor({ state: 'visible' })
@@ -249,12 +312,26 @@ describe.skip('instant-nav-panel', () => {
       .waitFor({ state: 'visible', timeout: 30000 })
   }
 
+  async function expectAwaitConnectionPageLoading(browser: Playwright) {
+    await retry(
+      async () => {
+        const text = await browser.elementByCss('body').text()
+        expect(text).toContain('Loading await connection page...')
+      },
+      30_000,
+      500
+    )
+    expect(
+      await browser.locator('[data-testid="dynamic-content"]').count()
+    ).toBe(0)
+  }
+
   async function openHomeWithTargetPageWarmup() {
     const [browser] = await Promise.all([
       next.browser('/'),
       isNextDev && !isTurbopack
         ? // warmup target page compilation before clicking Start, to avoid extra flakiness.
-          next.render(targetPage).catch(() => {})
+          next.render('/target-page/my-post?search=foo').catch(() => {})
         : null,
     ])
     await clearInstantModeCookie(browser)
@@ -332,14 +409,14 @@ describe.skip('instant-nav-panel', () => {
 
   describe('MPA captures', () => {
     it('should show page load state after clicking Start and refreshing', async () => {
-      const browser = await next.browser(targetPage)
+      const browser = await next.browser('/target-page/my-post?search=foo')
       await clearInstantModeCookie(browser)
 
       await openInstantNavPanel(browser)
 
       await clickStartCapturing(browser)
       await browser.refresh()
-      await waitForInstantNavPanelOpen(browser)
+      await getInstantNavPanel(browser)
 
       await expectMpaPanel(browser)
     })
@@ -358,7 +435,7 @@ describe.skip('instant-nav-panel', () => {
       await browser.waitForElementByCss('[data-testid="home-title"]')
 
       await retry(async () => {
-        await hasInstantNavPanelOpen(browser)
+        await getInstantNavPanel(browser)
         const text = await getInstantNavPanelText(browser)
         expect(text).toContain('Page load')
         expect(text).toContain('prerendered UI')
@@ -369,13 +446,13 @@ describe.skip('instant-nav-panel', () => {
     })
 
     it('should reset the panel and app when pressing the close button from captured MPA state', async () => {
-      const browser = await next.browser(targetPage)
+      const browser = await next.browser('/target-page/my-post?search=foo')
       await clearInstantModeCookie(browser)
 
       await openInstantNavPanel(browser)
       await clickStartCapturing(browser)
       await browser.refresh()
-      await waitForInstantNavPanelOpen(browser)
+      await getInstantNavPanel(browser)
       await expectMpaPanel(browser)
       await expectTargetPageMpaShell(browser)
 
@@ -389,13 +466,13 @@ describe.skip('instant-nav-panel', () => {
     })
 
     it('should keep params and searchParams RSC content suspended for a captured MPA page load', async () => {
-      const browser = await next.browser(targetPage)
+      const browser = await next.browser('/target-page/my-post?search=foo')
       await clearInstantModeCookie(browser)
 
       await openInstantNavPanel(browser)
       await clickStartCapturing(browser)
       await browser.refresh()
-      await waitForInstantNavPanelOpen(browser)
+      await getInstantNavPanel(browser)
       await expectMpaPanel(browser)
 
       await expectTargetPageMpaShell(browser)
@@ -416,25 +493,25 @@ describe.skip('instant-nav-panel', () => {
           .click()
       })
       await browser.waitForElementByCss('[data-testid="mpa-target-title"]')
-      await waitForInstantNavPanelOpen(browser)
+      await getInstantNavPanel(browser)
 
       await expectMpaPanel(browser)
       await browser
         .locator('[data-testid="mpa-dynamic-skeleton"]')
-        .waitFor({ state: 'visible', timeout: 30000 })
+        .waitFor({ state: 'visible' })
       expect(
         await browser.locator('[data-testid="mpa-dynamic-content"]').count()
       ).toBe(0)
     })
 
-    it('should re-arm capture and return to awaiting navigation after Continue Rendering from MPA state', async () => {
-      const browser = await next.browser(targetPage)
+    it('should restart capture and return to awaiting navigation after Continue Rendering from MPA state', async () => {
+      const browser = await next.browser('/target-page/my-post?search=foo')
       await clearInstantModeCookie(browser)
 
       await openInstantNavPanel(browser)
       await clickStartCapturing(browser)
       await browser.refresh()
-      await waitForInstantNavPanelOpen(browser)
+      await getInstantNavPanel(browser)
       await expectMpaPanel(browser)
       await expectTargetPageMpaShell(browser)
       await waitForAppHydration(browser)
@@ -467,7 +544,7 @@ describe.skip('instant-nav-panel', () => {
       })
 
       // Navigate to target page via SPA (use eval to bypass overlay pointer interception)
-      await clickLink(browser, targetPage)
+      await clickLink(browser, '/target-page/my-post?search=foo')
 
       // Panel should transition to client navigation capture state
       await expectSpaPanel(browser)
@@ -485,13 +562,12 @@ describe.skip('instant-nav-panel', () => {
       await clickStartCapturing(browser)
 
       // Navigate to target page via SPA (use eval to bypass overlay pointer interception)
-      await clickLink(browser, targetPage)
+      await clickLink(browser, '/target-page/my-post?search=foo')
 
       // Dynamic data should be suspended under the lock.
-      // Use a longer timeout because dev mode needs to compile the target page.
       await browser
         .locator('[data-testid="dynamic-skeleton"]')
-        .waitFor({ state: 'visible', timeout: 30000 })
+        .waitFor({ state: 'visible' })
       expect(
         await browser.locator('[data-testid="dynamic-content"]').count()
       ).toBe(0)
@@ -505,7 +581,7 @@ describe.skip('instant-nav-panel', () => {
 
       await openInstantNavPanel(browser)
       await clickStartCapturing(browser)
-      await clickLink(browser, targetPage)
+      await clickLink(browser, '/target-page/my-post?search=foo')
       await expectSpaPanel(browser)
       await expectTargetPageSpaShell(browser)
 
@@ -518,24 +594,56 @@ describe.skip('instant-nav-panel', () => {
       await expectIdlePanel(browser)
     })
 
-    it('should show params and searchParams RSC content for a captured SPA navigation', async () => {
+    it('should keep params and searchParams RSC content suspended for a captured SPA navigation', async () => {
       const browser = await openHomeWithTargetPageWarmup()
 
       await openInstantNavPanel(browser)
       await clickStartCapturing(browser)
-      await clickLink(browser, targetPage)
+      await clickLink(browser, '/target-page/my-post?search=foo')
       await expectSpaPanel(browser)
 
       await expectTargetPageSpaShell(browser)
     })
 
-    it('should re-arm capture and return to awaiting navigation after Continue Rendering from SPA state', async () => {
+    it('should include runtime param and searchParam values in the captured SPA shell for a prefetch={true} link', async () => {
       const browser = await openHomeWithTargetPageWarmup()
 
       await openInstantNavPanel(browser)
       await clickStartCapturing(browser)
-      await clickLink(browser, targetPage)
+      // The prefetch link shares its href with #link-to-target, so select it
+      // by id rather than by href.
+      await browser.eval(() => {
+        document
+          .querySelector<HTMLAnchorElement>('#link-to-target-prefetch')!
+          .click()
+      })
       await expectSpaPanel(browser)
+
+      await expectTargetPageSpaShellWithRuntimeData(browser)
+    })
+
+    it('should restart capture and return to awaiting navigation after Continue Rendering from SPA state', async () => {
+      const browser = await openHomeWithTargetPageWarmup()
+
+      await openInstantNavPanel(browser)
+      await clickStartCapturing(browser)
+      await clickLink(browser, '/target-page/my-post?search=foo')
+      await expectSpaPanel(browser)
+
+      await clickContinueRendering(browser)
+      await expectPendingPanel(browser)
+      await expectTargetPageRendered(browser)
+      await waitForInstantModeCookie(browser)
+    })
+
+    it('should continue rendering a captured await connection navigation with loading.tsx', async () => {
+      const browser = await openHomeWithTargetPageWarmup()
+
+      await openInstantNavPanel(browser)
+      await clickStartCapturing(browser)
+      await clickLink(browser, '/await-connection')
+      await expectSpaPanel(browser)
+      await expectAwaitConnectionPageLoading(browser)
 
       await clickContinueRendering(browser)
       await expectPendingPanel(browser)
@@ -553,10 +661,10 @@ describe.skip('instant-nav-panel', () => {
       await browser.refresh()
       await browser.waitForElementByCss('[data-testid="home-title"]')
       await waitForAppHydration(browser)
-      await waitForInstantNavPanelOpen(browser)
+      await getInstantNavPanel(browser)
       await expectMpaPanel(browser)
 
-      await clickLink(browser, targetPage)
+      await clickLink(browser, '/target-page/my-post?search=foo')
       await expectSpaPanel(browser)
       await expectTargetPageSpaShell(browser)
     })
@@ -566,11 +674,20 @@ describe.skip('instant-nav-panel', () => {
 
       await openInstantNavPanel(browser)
       await clickStartCapturing(browser)
-      await clickLink(browser, targetPage)
+      await clickLink(browser, '/target-page/my-post?search=foo')
       await expectSpaPanel(browser)
 
+      // The SPA capture (cookie -> spa) is recorded as soon as the prefetch
+      // resolves, which can be before the navigation commits the new URL. Wait
+      // for the URL to actually change to the target route before reloading,
+      // otherwise browser.refresh() reloads the previous page (home) and we
+      // capture an MPA load of the wrong route.
+      await retry(async () => {
+        expect(await browser.url()).toContain('/target-page/my-post')
+      }, 10000)
+
       await browser.refresh()
-      await waitForInstantNavPanelOpen(browser)
+      await getInstantNavPanel(browser)
 
       const initialPanelText = await getInstantNavPanelText(browser)
       expect(initialPanelText).toContain('Page load')
@@ -578,6 +695,143 @@ describe.skip('instant-nav-panel', () => {
 
       await expectMpaPanel(browser)
       await expectTargetPageMpaShell(browser)
+    })
+  })
+
+  describe('capture lifecycle', () => {
+    it('ends the capture when opening the menu via the logo', async () => {
+      const browser = await next.browser('/')
+      await clearInstantModeCookie(browser)
+      await browser.waitForElementByCss('[data-testid="home-title"]')
+      await waitForAppHydration(browser)
+
+      await openInstantNavPanel(browser)
+      await clickStartCapturing(browser)
+      await expectPendingPanel(browser)
+
+      // Click the logo: opening the menu switches away from the instant panel,
+      // which ends the capture.
+      await toggleDevToolsIndicatorPopover(browser)
+      await waitForPanelRouterTransition()
+
+      // Leaving the panel for the menu releases the capture cookie.
+      await waitForInstantModeCookieAbsent(browser)
+    })
+
+    it('ends the capture when pressing Escape (no error overlay open)', async () => {
+      const browser = await next.browser('/')
+      await clearInstantModeCookie(browser)
+      await browser.waitForElementByCss('[data-testid="home-title"]')
+      await waitForAppHydration(browser)
+
+      await openInstantNavPanel(browser)
+      await clickStartCapturing(browser)
+      await expectPendingPanel(browser)
+
+      await browser.keydown('Escape')
+      await browser.keyup('Escape')
+
+      await waitForPanelRouterTransition()
+      await waitForInstantModeCookieAbsent(browser)
+    })
+
+    it('ends the capture when pressing the X close button', async () => {
+      const browser = await next.browser('/')
+      await clearInstantModeCookie(browser)
+      await browser.waitForElementByCss('[data-testid="home-title"]')
+      await waitForAppHydration(browser)
+
+      await openInstantNavPanel(browser)
+      await clickStartCapturing(browser)
+      await expectPendingPanel(browser)
+
+      await closePanelViaHeader(browser)
+
+      await waitForPanelRouterTransition()
+      await waitForInstantModeCookieAbsent(browser)
+    })
+
+    it('keeps the capture and panel mounted when opening the error overlay', async () => {
+      const browser = await next.browser('/')
+      await clearInstantModeCookie(browser)
+      await browser.waitForElementByCss('[data-testid="home-title"]')
+      await waitForAppHydration(browser)
+
+      await openInstantNavPanel(browser)
+      await clickStartCapturing(browser)
+      await expectPendingPanel(browser)
+
+      await triggerAppError(browser)
+      await waitForErrorToast(browser)
+      await clickErrorToast(browser)
+      await retry(async () => {
+        expect(await isErrorOverlayOpen(browser)).toBe(true)
+      })
+
+      // Capture survives and the panel stays mounted behind the overlay.
+      await waitForInstantModeCookie(browser)
+      expect(await isInstantNavPanelMounted(browser)).toBe(true)
+
+      await clearInstantModeCookie(browser)
+    })
+
+    it('keeps the instant panel behind the error overlay', async () => {
+      const browser = await next.browser('/')
+      await clearInstantModeCookie(browser)
+      await browser.waitForElementByCss('[data-testid="home-title"]')
+      await waitForAppHydration(browser)
+
+      await openInstantNavPanel(browser)
+      await clickStartCapturing(browser)
+      await triggerAppError(browser)
+      await waitForErrorToast(browser)
+      await clickErrorToast(browser)
+      await retry(async () => {
+        expect(await isErrorOverlayOpen(browser)).toBe(true)
+      })
+
+      await retry(async () => {
+        const z = await readInstantPanelZIndex(browser)
+        expect(z).not.toBeNull()
+        expect(z).toBeLessThan(2147483646)
+      })
+
+      await clearInstantModeCookie(browser)
+    })
+
+    it('closes the error overlay first on Escape and keeps the capture', async () => {
+      const browser = await next.browser('/')
+      await clearInstantModeCookie(browser)
+      await browser.waitForElementByCss('[data-testid="home-title"]')
+      await waitForAppHydration(browser)
+
+      await openInstantNavPanel(browser)
+      await clickStartCapturing(browser)
+      await triggerAppError(browser)
+      await waitForErrorToast(browser)
+      await clickErrorToast(browser)
+      await retry(async () => {
+        expect(await isErrorOverlayOpen(browser)).toBe(true)
+      })
+
+      // First Escape: the overlay closes, the capture survives.
+      await browser.keydown('Escape')
+      await browser.keyup('Escape')
+      await retry(async () => {
+        expect(await isErrorOverlayOpen(browser)).toBe(false)
+      })
+      await waitForInstantModeCookie(browser)
+      expect(await isInstantNavPanelMounted(browser)).toBe(true)
+
+      // Wait for the deferred errorOverlayOpenRef clear so the next ESC releases.
+      await waitForPanelRouterTransition()
+
+      // Second Escape: now the panel close releases the capture.
+      await browser.keydown('Escape')
+      await browser.keyup('Escape')
+      await waitForInstantModeCookieAbsent(browser)
+
+      await clearInstantModeCookie(browser)
     })
   })
 })

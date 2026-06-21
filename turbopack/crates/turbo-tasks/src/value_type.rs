@@ -13,8 +13,11 @@ use crate::{
     RawVc, SharedReference, TaskPriority, VcValueType,
     dyn_task_inputs::any_as_encode,
     id::TraitTypeId,
-    macro_helpers::{CollectableTraitMethods, NativeFunction},
-    registry::{RegistryType, get_trait_type_id, trait_type_count, turbo_registry},
+    macro_helpers::{NativeFunction, TRAIT_IMPLS_SLICE},
+    registry::{
+        RegistryType, get_trait_type_id, get_value_type_id_unchecked, impl_ptr_identity,
+        trait_type_count,
+    },
     task::shared_reference::TypedSharedReference,
     vc::VcCellMode,
 };
@@ -103,6 +106,7 @@ pub struct ValueType {
 
     traits: SyncUnsafeCell<ValueTypeTraits>,
 }
+impl_ptr_identity!(ValueType);
 
 impl Debug for ValueType {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
@@ -265,12 +269,10 @@ impl ValueType {
     }
 }
 
-turbo_registry!("Value", ValueType);
-
 // Called during ValueType registry post_init to register all trait methods.
 // Single-threaded during Lazy init.
-pub(crate) fn register_all_trait_methods(_: &[&'static ValueType]) {
-    for entry in inventory::iter::<CollectableTraitMethods> {
+pub(crate) fn register_all_trait_methods() {
+    for entry in TRAIT_IMPLS_SLICE.iter() {
         for (i, impl_method) in entry.methods.iter().enumerate() {
             let trait_method = &entry.trait_type.methods[i];
             if trait_method.is_root != impl_method.is_root {
@@ -289,11 +291,14 @@ pub(crate) fn register_all_trait_methods(_: &[&'static ValueType]) {
                 );
             }
         }
-        entry
-            .value_type
-            .register_trait(entry.trait_type, entry.methods);
-        // Reigster all the rust vtables to support into_trait_ref calling stryles
-        (entry.finalize_vtable_registry)();
+        let value_type = entry.value_type;
+        value_type.register_trait(entry.trait_type, entry.methods);
+        // SAFETY: We are inside the `VALUES` `LazyLock` init after `init_registry` assigned
+        // ids. Reading the id cell directly (rather than `get_value_type_id`)
+        // avoids re-entering `LazyLock::force` and deadlocking.
+        let id = unsafe { get_value_type_id_unchecked(value_type) };
+        // Register all the rust vtables to support into_trait_ref calling stryles
+        (entry.install_vtable)(id);
     }
 }
 
@@ -354,6 +359,7 @@ pub struct TraitType {
     pub methods: &'static [TraitMethod],
     pub default_methods: &'static [Option<&'static NativeFunction>],
 }
+impl_ptr_identity!(TraitType);
 
 impl Debug for TraitType {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
@@ -394,8 +400,6 @@ impl TraitType {
             .expect("Method not found!")
     }
 }
-
-turbo_registry!("Trait", TraitType);
 
 pub trait TraitVtablePrototype {
     const LEN: usize;

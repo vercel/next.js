@@ -569,9 +569,13 @@ describe('prefetch inlining', () => {
       { includes: 'Static layout content' }
     )
 
+    // Navigate to the route. The static layout was prefetched (and is cached),
+    // but the runtime leaf page has no static descendants and is not
+    // speculatively prefetched under App Shells — it is fetched here, on
+    // navigation.
     await act(async () => {
       await browser.elementByCss('a[href="/test-runtime-bailout"]').click()
-    }, 'no-requests')
+    })
 
     expect(await browser.elementByCss('#layout-runtime-bailout').text()).toBe(
       'Static layout content'
@@ -777,29 +781,32 @@ describe('prefetch inlining', () => {
     // Now we're on route A. Reveal the sibling link to route B. The
     // runtime layout is shared between A and B, so it's already cached
     // and won't be re-fetched. The only new segment is the [item] page,
-    // which is static. But the head differs (title includes "Item: b")
-    // and depends on runtime data, so it must still be fetched via a
-    // runtime prefetch even though no other runtime request is needed.
+    // which is static, so it IS prefetched. But the head depends on the
+    // [item] param (and searchParams), so it is param-dependent and is NOT
+    // part of the App Shell. Under App Shells, a speculative per-link
+    // prefetch does not request the param-dependent head — it is deferred
+    // to navigation. So the static page is prefetched here, but the title
+    // for B is not.
+    await act(async () => {
+      await browser
+        .elementByCss('input[data-link-accordion="/test-independent-head/b"]')
+        .click()
+    }, [
+      // The static page below the runtime layout is prefetched.
+      { includes: 'page-independent-head' },
+      // The param-dependent head must NOT be prefetched — it is not part
+      // of the App Shell and arrives on navigation instead.
+      { includes: 'Independent Head Title: b', block: 'reject' },
+    ])
+
+    // Navigate to route B. The param-dependent head was not prefetched, so
+    // it is fetched now, on navigation.
     await act(
       async () => {
-        await browser
-          .elementByCss('input[data-link-accordion="/test-independent-head/b"]')
-          .click()
+        await browser.elementByCss('a[href="/test-independent-head/b"]').click()
       },
       { includes: 'Independent Head Title: b' }
     )
-
-    // Navigate to route B. The page segment is unnecessarily marked as
-    // partial because the metadata outlet in the page's RSC data
-    // contains an unresolved reference to the dynamic metadata. This
-    // causes navigation to re-fetch the page even though the actual
-    // page content is fully static.
-    // TODO: The page segment should not be considered partial just
-    // because the metadata is dynamic. Once this is fixed, this
-    // navigation should not require any network requests.
-    await act(async () => {
-      await browser.elementByCss('a[href="/test-independent-head/b"]').click()
-    })
 
     expect(await browser.elementByCss('#page-independent-head').text()).toBe(
       'Independent head page'

@@ -11,7 +11,7 @@ use anyhow::Result;
 use turbo_tasks::{
     ResolvedVc, State, TurboTasks, Vc, unmark_top_level_task_may_leak_eventually_consistent_state,
 };
-use turbo_tasks_backend::{BackendOptions, GitVersionInfo, TurboBackingStorage, TurboTasksBackend};
+use turbo_tasks_backend::{BackendOptions, GitVersionInfo, TurboTasksBackend};
 
 /// Creates a fresh per-call persistence directory rooted under
 /// `CARGO_TARGET_TMPDIR/.cache/`, with the test `name` as a prefix so failed
@@ -34,10 +34,7 @@ fn create_test_persistence_dir(name: &str) -> tempfile::TempDir {
 fn create_tt_with_workers(
     name: &str,
     num_workers: usize,
-) -> (
-    Arc<TurboTasks<TurboTasksBackend<TurboBackingStorage>>>,
-    tempfile::TempDir,
-) {
+) -> (Arc<TurboTasks<TurboTasksBackend>>, tempfile::TempDir) {
     let dir = create_test_persistence_dir(name);
     let tt = TurboTasks::new(TurboTasksBackend::new(
         BackendOptions {
@@ -65,12 +62,7 @@ fn create_tt_with_workers(
     (tt, dir)
 }
 
-fn create_tt(
-    name: &str,
-) -> (
-    Arc<TurboTasks<TurboTasksBackend<TurboBackingStorage>>>,
-    tempfile::TempDir,
-) {
+fn create_tt(name: &str) -> (Arc<TurboTasks<TurboTasksBackend>>, tempfile::TempDir) {
     create_tt_with_workers(name, 2)
 }
 
@@ -96,7 +88,7 @@ async fn eviction_recompute() {
         let initial_random = read.random;
 
         // Trigger snapshot + eviction
-        let (had_data, counts) = tt2.backend().snapshot_and_evict_for_testing(&*tt2);
+        let (had_data, counts) = tt2.backend().snapshot_and_evict_for_testing(&tt2);
         println!("snapshot had_data={had_data}, evicted: {counts:?}");
         assert!(had_data, "snapshot should have persisted data");
 
@@ -137,7 +129,7 @@ async fn eviction_deep_chain() {
         let initial_random = read.random;
 
         // Snapshot + evict — expect multiple intermediate tasks evicted
-        let (had_data, counts) = tt2.backend().snapshot_and_evict_for_testing(&*tt2);
+        let (had_data, counts) = tt2.backend().snapshot_and_evict_for_testing(&tt2);
         println!("deep_chain: snapshot had_data={had_data}, evicted: {counts:?}");
         assert!(had_data, "snapshot should have persisted data");
         assert!(
@@ -155,7 +147,7 @@ async fn eviction_deep_chain() {
         let random_after_first = read.random;
 
         // Evict again and change again
-        let (had_data2, counts2) = tt2.backend().snapshot_and_evict_for_testing(&*tt2);
+        let (had_data2, counts2) = tt2.backend().snapshot_and_evict_for_testing(&tt2);
         println!("deep_chain (2nd): snapshot had_data={had_data2}, evicted: {counts2:?}");
 
         state.set(0);
@@ -193,7 +185,7 @@ async fn eviction_dependency_chain() {
         let initial_random = read.random;
 
         // Snapshot + evict
-        let (had_data, counts) = tt2.backend().snapshot_and_evict_for_testing(&*tt2);
+        let (had_data, counts) = tt2.backend().snapshot_and_evict_for_testing(&tt2);
         println!("snapshot had_data={had_data}, evicted: {counts:?}");
         assert!(had_data, "snapshot should have persisted data");
         assert!(
@@ -210,7 +202,7 @@ async fn eviction_dependency_chain() {
         let random_after_first = read.random;
 
         // Evict again
-        let (had_data2, counts2) = tt2.backend().snapshot_and_evict_for_testing(&*tt2);
+        let (had_data2, counts2) = tt2.backend().snapshot_and_evict_for_testing(&tt2);
         println!("snapshot (2nd) had_data={had_data2}, evicted: {counts2:?}");
 
         // Change again
@@ -378,7 +370,7 @@ async fn eviction_session_stateful_survives() {
         assert_eq!(normal_read.value, 43);
 
         // Snapshot + evict
-        let (had_data, counts) = tt2.backend().snapshot_and_evict_for_testing(&*tt2);
+        let (had_data, counts) = tt2.backend().snapshot_and_evict_for_testing(&tt2);
         println!("session_stateful: snapshot had_data={had_data}, evicted: {counts:?}");
         assert!(had_data, "snapshot should have persisted data");
         // The normal intermediate tasks (add_one, times_three, plus_ten) should be
@@ -428,7 +420,7 @@ async fn eviction_transient_reader_invalidated() {
         // (this run_once closure), so it may be blocked from full eviction. But we
         // still exercise the evict path — some tasks (like create_state) may be
         // data-only evicted.
-        let (had_data, counts) = tt2.backend().snapshot_and_evict_for_testing(&*tt2);
+        let (had_data, counts) = tt2.backend().snapshot_and_evict_for_testing(&tt2);
         println!("transient_reader: snapshot had_data={had_data}, evicted: {counts:?}");
         assert!(had_data, "snapshot should have persisted data");
 
@@ -444,7 +436,7 @@ async fn eviction_transient_reader_invalidated() {
         );
 
         // Second eviction cycle
-        let (_, counts2) = tt2.backend().snapshot_and_evict_for_testing(&*tt2);
+        let (_, counts2) = tt2.backend().snapshot_and_evict_for_testing(&tt2);
         println!("transient_reader (2nd): evicted: {counts2:?}");
 
         state.set(0);
@@ -517,9 +509,7 @@ async fn eviction_stress_concurrent() {
     // worker threads, but fast enough to race with restores.
     let eviction_handle = tokio::task::spawn_blocking(move || {
         while !stop_clone.load(Ordering::Relaxed) {
-            tt_evict
-                .backend()
-                .snapshot_and_evict_for_testing(&*tt_evict);
+            tt_evict.backend().snapshot_and_evict_for_testing(&tt_evict);
             eviction_cycles_clone.fetch_add(1, Ordering::Relaxed);
             std::thread::sleep(std::time::Duration::from_millis(1));
         }
@@ -687,7 +677,7 @@ async fn eviction_persistable_never_preserves_live_cell() {
         // Snapshot + evict. `create_session_alive`'s `cell_data` should retain
         // the SessionAlive cell as residue (Evictability::Never), while
         // clearing `data_restored` and persisted data flag bits.
-        let (had_data, counts) = tt2.backend().snapshot_and_evict_for_testing(&*tt2);
+        let (had_data, counts) = tt2.backend().snapshot_and_evict_for_testing(&tt2);
         println!("persistable_never: snapshot had_data={had_data}, evicted: {counts:?}");
         assert!(had_data, "snapshot should have persisted data");
 

@@ -11,7 +11,10 @@ use rustc_hash::FxHashSet;
 use serde::Deserialize;
 use serde_json::json;
 use turbo_rcstr::{RcStr, rcstr};
-use turbo_tasks::{Effects, OperationVc, ResolvedVc, TurboTasks, Vc, take_effects, turbofmt};
+use turbo_tasks::{
+    Effects, OperationVc, ResolvedVc, TurboTasks, Vc, read_strongly_consistent_and_apply_effects,
+    take_effects, turbofmt,
+};
 use turbo_tasks_backend::{BackendOptions, TurboTasksBackend, noop_backing_storage};
 use turbo_tasks_env::DotenvProcessEnv;
 use turbo_tasks_fs::{
@@ -45,7 +48,7 @@ use turbopack_core::{
     issue::{CollectibleIssuesExt, IssueFilter, IssueSeverity},
     module::Module,
     module_graph::{
-        ModuleGraph, SingleModuleGraph,
+        GraphEntries, ModuleGraph, SingleModuleGraph,
         binding_usage_info::compute_binding_usage_info,
         chunk_group_info::{ChunkGroup, ChunkGroupEntry},
     },
@@ -54,7 +57,7 @@ use turbopack_core::{
 };
 use turbopack_ecmascript::{
     AnalyzeMode, CustomTransformer, EcmascriptInputTransform, TransformPlugin, TreeShakingMode,
-    chunk::EcmascriptChunkType,
+    chunk::EcmascriptChunkType, transform::ReactCompilerCompilationMode,
 };
 use turbopack_ecmascript_plugins::transform::{
     emotion::{EmotionTransformConfig, EmotionTransformer},
@@ -99,6 +102,8 @@ struct SnapshotOptions {
     source_map_source_type: SourceMapSourceType,
     #[serde(default = "default_chunk_loading_global")]
     chunk_loading_global: String,
+    #[serde(default)]
+    enable_rust_react_compiler: bool,
 }
 
 #[derive(Debug, Deserialize, Default)]
@@ -132,6 +137,7 @@ impl Default for SnapshotOptions {
             enable_debug_ids: false,
             source_map_source_type: SourceMapSourceType::default(),
             chunk_loading_global: default_chunk_loading_global(),
+            enable_rust_react_compiler: false,
         }
     }
 }
@@ -234,7 +240,7 @@ async fn run(resource: PathBuf) -> Result<()> {
 
             let plain_issues = out_op
                 .peek_issues()
-                .get_plain_issues(IssueFilter::everything())
+                .get_plain_issues(&IssueFilter::everything())
                 .await?;
 
             snapshot_issues(plain_issues, out_vc.join("issues")?, &REPO_ROOT)
@@ -249,11 +255,11 @@ async fn run(resource: PathBuf) -> Result<()> {
             Ok(take_effects(op).await?.cell())
         }
 
-        extract_effects(inner_operation(resource.to_str().unwrap().into()))
-            .read_strongly_consistent()
-            .await?
-            .apply()
-            .await?;
+        read_strongly_consistent_and_apply_effects(
+            extract_effects(inner_operation(resource.to_str().unwrap().into())),
+            |e| e,
+        )
+        .await?;
 
         Ok(())
     })
@@ -399,6 +405,9 @@ async fn run_test_operation(resource: RcStr) -> Result<Vc<FileSystemPath>> {
                 ignore_dynamic_requests: true,
                 infer_module_side_effects: true,
                 enable_exports_info_inlining: true,
+                enable_rust_react_compiler: options
+                    .enable_rust_react_compiler
+                    .then_some(ReactCompilerCompilationMode::Infer),
                 ..Default::default()
             },
             environment: Some(env),
@@ -456,7 +465,8 @@ async fn run_test_operation(resource: RcStr) -> Result<Vc<FileSystemPath>> {
             .collect();
 
     let single_graph = SingleModuleGraph::new_with_entries(
-        ResolvedVc::cell(vec![ChunkGroupEntry::Entry(entry_modules.clone())]),
+        GraphEntries::from_chunk_groups(vec![ChunkGroupEntry::Entry(entry_modules.clone())])
+            .resolved_cell(),
         false,
         true,
     );

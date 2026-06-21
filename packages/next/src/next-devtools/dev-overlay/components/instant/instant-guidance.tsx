@@ -10,7 +10,9 @@ import {
   FixCardTimerIcon,
   FixCardZapIcon,
 } from '../../icons/fix-card-icons'
+import { CopyButton } from '../copy-button'
 import { ExternalIcon } from '../../icons/external'
+import { CopyPromptIcon } from '../../icons/copy-prompt'
 import { css } from '../../utils/css'
 import {
   DOCS_URLS,
@@ -20,6 +22,7 @@ import {
   SYNC_IO_DOCS,
   getCards,
   type FixCard,
+  type FixCardGroup,
   type FixCardIcon,
   type GuidanceKind,
   type GuidanceVariant,
@@ -56,14 +59,70 @@ function getCardIcon(icon: FixCardIcon) {
   }
 }
 
-function CardGrid({ cards }: { cards: FixCard[] }) {
+function CopyPromptButton({
+  title,
+  group,
+  link,
+  generateErrorInfo,
+}: {
+  title: string
+  group: FixCardGroup
+  link: string
+  generateErrorInfo?: () => Promise<string>
+}) {
+  const groupLabel = FIX_CARD_GROUPS[group].label
+  const hashIndex = link.indexOf('#')
+  const rulePage = hashIndex === -1 ? link : link.slice(0, hashIndex)
+  const fixHeader = [
+    `Apply the [${groupLabel}] "${title}" fix to the Next.js Insight raised in this project.`,
+    '',
+    'Steps:',
+    '',
+    "1. The failing code is in the error block below — it may be a data-access call, a hook call, a metadata or viewport export, or a component. The fix applies to that exact code; don't touch unrelated files.",
+    '',
+    `2. Read the rule docs at ${rulePage} for the full Insight explanation, then read the fix section at ${link}. Pick the pattern under "### Patterns" that matches the failing code, then read "### Gotchas" before editing — they list constraints that are easy to miss. Use the canonical imports and code shape from the page; don't improvise variations.`,
+    '',
+    `3. Apply the chosen pattern to the code identified in step 1.`,
+  ].join('\n')
+
+  return generateErrorInfo ? (
+    <CopyButton
+      getContent={async () => {
+        const info = await generateErrorInfo()
+        return info ? `${fixHeader}\n\n${info}` : fixHeader
+      }}
+      actionLabel="Copy as prompt"
+      successLabel="Copied"
+      icon={<CopyPromptIcon />}
+      showLabel
+      data-nextjs-fix-card-copy-button
+    />
+  ) : (
+    <CopyButton
+      content={fixHeader}
+      actionLabel="Copy as prompt"
+      successLabel="Copied"
+      icon={<CopyPromptIcon />}
+      showLabel
+      data-nextjs-fix-card-copy-button
+    />
+  )
+}
+
+function CardGrid({
+  cards,
+  generateErrorInfo,
+}: {
+  cards: FixCard[]
+  generateErrorInfo?: () => Promise<string>
+}) {
   return (
     <div data-nextjs-card-grid>
       {cards.map((card) => {
         const groupMeta = FIX_CARD_GROUPS[card.group]
         const inner = (
           <>
-            {card.link ? (
+            {card.link && !card.copyable ? (
               <span data-nextjs-fix-card-link-icon aria-hidden="true">
                 <ExternalIcon width={16} height={16} />
               </span>
@@ -73,6 +132,14 @@ function CardGrid({ cards }: { cards: FixCard[] }) {
               <div data-nextjs-fix-card-header-text>
                 <div data-nextjs-fix-card-title-row>
                   <span data-nextjs-fix-card-title>{groupMeta.label}</span>
+                  {card.copyable && card.link ? (
+                    <span
+                      data-nextjs-fix-card-title-link-icon
+                      aria-hidden="true"
+                    >
+                      <ExternalIcon width={12} height={12} />
+                    </span>
+                  ) : null}
                 </div>
                 <span data-nextjs-fix-card-description>{card.title}</span>
               </div>
@@ -106,20 +173,36 @@ function CardGrid({ cards }: { cards: FixCard[] }) {
           'data-card-color': groupMeta.color,
         }
 
-        return card.link ? (
+        const cardElement = card.link ? (
           <a
             {...sharedProps}
             href={card.link}
             target="_blank"
             rel="noopener noreferrer"
-            key={card.id}
             aria-label={`Open docs for ${card.title}`}
           >
             {inner}
           </a>
         ) : (
-          <div {...sharedProps} key={card.id}>
-            {inner}
+          <div {...sharedProps}>{inner}</div>
+        )
+
+        // Render the copy button as a sibling of the card so the <button>
+        // isn't nested inside the card's <a>, which would be invalid HTML
+        // and break keyboard / focus behavior.
+        return card.copyable && card.link ? (
+          <div data-nextjs-fix-card-wrapper key={card.id}>
+            {cardElement}
+            <CopyPromptButton
+              title={card.title}
+              group={card.group}
+              link={card.link}
+              generateErrorInfo={generateErrorInfo}
+            />
+          </div>
+        ) : (
+          <div data-nextjs-fix-card-wrapper key={card.id}>
+            {cardElement}
           </div>
         )
       })}
@@ -133,12 +216,14 @@ export function InstantGuidance({
   explanation,
   cause,
   showExplanation = true,
+  generateErrorInfo,
 }: {
   variant: GuidanceVariant
   kind?: GuidanceKind
   explanation?: string
   cause?: string
   showExplanation?: boolean
+  generateErrorInfo?: () => Promise<string>
 }) {
   const cards = getCards(kind, variant, cause)
   let docsUrl: string
@@ -146,6 +231,21 @@ export function InstantGuidance({
     docsUrl = SYNC_IO_DOCS[cause] || DOCS_URLS[kind]
   } else if (kind === 'sync-io-client' && cause) {
     docsUrl = SYNC_IO_CLIENT_DOCS[cause] || DOCS_URLS[kind]
+  } else if (kind === 'blocking-route') {
+    docsUrl =
+      variant === 'runtime'
+        ? 'https://nextjs.org/docs/messages/blocking-prerender-runtime'
+        : 'https://nextjs.org/docs/messages/blocking-prerender-dynamic'
+  } else if (kind === 'metadata') {
+    docsUrl =
+      variant === 'runtime'
+        ? 'https://nextjs.org/docs/messages/blocking-prerender-metadata-runtime'
+        : 'https://nextjs.org/docs/messages/blocking-prerender-metadata-dynamic'
+  } else if (kind === 'viewport') {
+    docsUrl =
+      variant === 'runtime'
+        ? 'https://nextjs.org/docs/messages/blocking-prerender-viewport-runtime'
+        : 'https://nextjs.org/docs/messages/blocking-prerender-viewport-dynamic'
   } else {
     docsUrl = DOCS_URLS[kind]
   }
@@ -171,22 +271,42 @@ export function InstantGuidance({
         Ways to fix this:
       </div>
 
-      <CardGrid cards={cards} />
+      <CardGrid cards={cards} generateErrorInfo={generateErrorInfo} />
     </div>
   )
 }
 
 export function InstantHeaderExplanation({
   kind,
+  variant,
   explanation,
   docsUrl,
 }: {
   kind?: GuidanceKind
+  variant?: GuidanceVariant
   explanation?: string
   docsUrl?: string
 }) {
   const resolvedExplanation = explanation || (kind ? EXPLANATIONS[kind] : '')
-  const resolvedDocsUrl = docsUrl || (kind ? DOCS_URLS[kind] : '')
+  let resolvedDocsUrl = docsUrl
+  if (!resolvedDocsUrl && kind === 'blocking-route') {
+    resolvedDocsUrl =
+      variant === 'runtime'
+        ? 'https://nextjs.org/docs/messages/blocking-prerender-runtime'
+        : 'https://nextjs.org/docs/messages/blocking-prerender-dynamic'
+  } else if (!resolvedDocsUrl && kind === 'metadata') {
+    resolvedDocsUrl =
+      variant === 'runtime'
+        ? 'https://nextjs.org/docs/messages/blocking-prerender-metadata-runtime'
+        : 'https://nextjs.org/docs/messages/blocking-prerender-metadata-dynamic'
+  } else if (!resolvedDocsUrl && kind === 'viewport') {
+    resolvedDocsUrl =
+      variant === 'runtime'
+        ? 'https://nextjs.org/docs/messages/blocking-prerender-viewport-runtime'
+        : 'https://nextjs.org/docs/messages/blocking-prerender-viewport-dynamic'
+  } else if (!resolvedDocsUrl && kind) {
+    resolvedDocsUrl = DOCS_URLS[kind]
+  }
 
   return (
     <p data-nextjs-instant-explanation>
@@ -279,18 +399,19 @@ export const INSTANT_GUIDANCE_STYLES = css`
   }
 
   [data-nextjs-fix-card-icon] {
-    width: var(--size-36);
-    height: var(--size-36);
+    width: var(--size-28);
+    height: var(--size-28);
     border-radius: var(--rounded-full);
     flex-shrink: 0;
     display: flex;
     align-items: center;
     justify-content: center;
+    opacity: 0.85;
   }
 
   [data-nextjs-fix-card-icon] svg {
-    width: var(--size-16);
-    height: var(--size-16);
+    width: var(--size-14);
+    height: var(--size-14);
   }
 
   [data-nextjs-fix-card-header-text] {
@@ -413,5 +534,70 @@ export const INSTANT_GUIDANCE_STYLES = css`
   [data-card-color='amber'] [data-nextjs-fix-card-icon] {
     background: var(--color-amber-100);
     color: var(--color-amber-900);
+  }
+
+  [data-nextjs-fix-card-title-link-icon] {
+    align-items: center;
+    color: inherit;
+    display: inline-flex;
+    flex-shrink: 0;
+  }
+
+  [data-nextjs-fix-card]:hover [data-nextjs-fix-card-title-link-icon] {
+    color: inherit;
+  }
+
+  [data-nextjs-fix-card-wrapper] {
+    display: flex;
+    position: relative;
+  }
+
+  [data-nextjs-fix-card-wrapper] > [data-nextjs-fix-card] {
+    flex: 1;
+  }
+
+  [data-nextjs-fix-card-copy-button] {
+    align-items: center;
+    background: var(--color-background-100);
+    border: 1px solid var(--color-gray-alpha-300);
+    border-radius: 9999px;
+    color: var(--color-gray-900);
+    cursor: pointer;
+    display: inline-flex;
+    font-family: var(--font-stack-sans);
+    font-size: var(--size-11);
+    font-weight: 500;
+    gap: 4px;
+    height: auto;
+    padding: 3px 8px 3px 7px;
+    position: absolute;
+    right: 10px;
+    top: -10px;
+    transition:
+      background 120ms ease,
+      border-color 120ms ease,
+      color 120ms ease;
+    z-index: 2;
+  }
+
+  [data-nextjs-fix-card-copy-button] svg {
+    width: var(--size-12);
+    height: var(--size-12);
+    flex-shrink: 0;
+  }
+
+  [data-nextjs-fix-card-copy-button] span {
+    line-height: 1;
+  }
+
+  [data-nextjs-fix-card-copy-button]:hover {
+    background: var(--color-background-200);
+    border-color: var(--color-gray-alpha-500);
+    color: var(--color-gray-1000);
+  }
+
+  [data-nextjs-fix-card-copy-button]:focus-visible {
+    outline: var(--focus-ring);
+    outline-offset: 2px;
   }
 `

@@ -52,6 +52,7 @@ import type { NextAdapter } from '../build/adapter/build-complete'
 import { HardDeprecatedConfigError } from '../shared/lib/errors/hard-deprecated-config-error'
 import { NextInstanceErrorState } from './mcp/tools/next-instance-error-state'
 import { Bundler } from '../lib/bundler'
+import type { MemoryEvictionMode } from '../build/swc/types'
 
 export { normalizeConfig } from './config-shared'
 export type { DomainLocale, NextConfig } from './config-shared'
@@ -422,6 +423,23 @@ function assignDefaultsAndValidate(
     result.experimental.trustHostHeader = true
   }
 
+  // Normalize the user-facing `turbopackMemoryEviction` (`false | 'full' |
+  // undefined`) into the `turbopackMemoryEvictionMode` enum expected by napi
+  // (`'off' | 'full'`).
+  let turbopackMemoryEvictionMode: 'off' | 'full'
+  if (result.experimental.turbopackMemoryEviction === false) {
+    turbopackMemoryEvictionMode = 'off'
+  } else if (result.experimental.turbopackMemoryEviction === 'full') {
+    turbopackMemoryEvictionMode = 'full'
+  } else {
+    // Not set by the user: fall back to the env var if present, otherwise 'off'.
+    const rawEnv = process.env.TURBO_ENGINE_EVICT_AFTER_SNAPSHOT
+    turbopackMemoryEvictionMode =
+      rawEnv == null || rawEnv === '1' || rawEnv === 'true' ? 'full' : 'off'
+  }
+  ;(result as NextConfigComplete).experimental.turbopackMemoryEvictionMode =
+    turbopackMemoryEvictionMode as MemoryEvictionMode
+
   // Normalize experimental.browserDebugInfoInTerminal to logging.browserToTerminal
   if (
     result.logging !== false &&
@@ -494,11 +512,37 @@ function assignDefaultsAndValidate(
           `Please remove the option or run Next.js with webpack in ${configFileName}.`
       )
     }
+
+    if (
+      result.experimental.turbopackRustReactCompiler &&
+      !process.env.TURBOPACK
+    ) {
+      throw new Error(
+        `\`experimental.turbopackRustReactCompiler\` is only supported with Turbopack. ` +
+          `Please remove the option or run Next.js with Turbopack in ${configFileName}.`
+      )
+    }
+
+    if (
+      result.experimental.turbopackRustReactCompiler &&
+      !result.reactCompiler
+    ) {
+      throw new Error(
+        `\`experimental.turbopackRustReactCompiler\` requires \`reactCompiler\` to be enabled. ` +
+          `Please add \`reactCompiler: true\` in ${configFileName}.`
+      )
+    }
   }
 
   if (result.experimental.cachedNavigations && !result.cacheComponents) {
     throw new Error(
       `\`experimental.cachedNavigations\` requires \`cacheComponents\` to be enabled. Please update your ${configFileName} accordingly.`
+    )
+  }
+
+  if (result.partialPrefetching && !result.cacheComponents) {
+    throw new Error(
+      `\`partialPrefetching\` requires \`cacheComponents\` to be enabled. Please update your ${configFileName} accordingly.`
     )
   }
 
@@ -508,12 +552,12 @@ function assignDefaultsAndValidate(
     // defaults, so we don't support enabling App Shells against arbitrary
     // subsets of them — the validation goes away once each becomes a
     // default.
+    // Note: `prefetchInlining` is intentionally NOT required. App Shells works
+    // correctly whether or not prefetch inlining is enabled, so disabling it
+    // (e.g. to exercise non-inlined prefetch paths) must not force App Shells off.
     const missing: string[] = []
     if (!result.cacheComponents) {
       missing.push('`cacheComponents`')
-    }
-    if (!result.experimental.prefetchInlining) {
-      missing.push('`experimental.prefetchInlining`')
     }
     if (!result.experimental.varyParams) {
       missing.push('`experimental.varyParams`')
@@ -1129,6 +1173,15 @@ function assignDefaultsAndValidate(
   const tracingRoot = result?.outputFileTracingRoot
   const turbopackRoot = result?.turbopack?.root
 
+  let repoRoot = process.env.NEXT_PRIVATE_OUTPUT_TRACE_ROOT
+  let lockFiles: string[] | undefined = undefined
+  if (!repoRoot) {
+    const rootDirResult = findRootDirAndLockFiles(dir)
+    repoRoot = rootDirResult.rootDir
+    lockFiles = rootDirResult.lockFiles
+  }
+  ;(result as NextConfigComplete).repoRoot = repoRoot
+
   // If both provided, validate they match. If not, use outputFileTracingRoot.
   if (tracingRoot && turbopackRoot && tracingRoot !== turbopackRoot) {
     Log.warn(
@@ -1136,22 +1189,18 @@ function assignDefaultsAndValidate(
         `Using \`outputFileTracingRoot\` value: ${tracingRoot}.`
     )
   }
-
   let rootDir = tracingRoot || turbopackRoot
   if (!rootDir) {
-    const { rootDir: foundRootDir, lockFiles } = findRootDirAndLockFiles(dir)
-    rootDir = foundRootDir
-    if (!silent) {
+    rootDir = repoRoot
+    if (lockFiles && !silent) {
       warnDuplicatedLockFiles(lockFiles)
     }
   }
-
   if (!rootDir) {
     throw new Error(
       'Failed to find the root directory of the project. This is a bug in Next.js.'
     )
   }
-
   // Ensure both properties are set to the same value
   result.outputFileTracingRoot = rootDir
   dset(result, ['turbopack', 'root'], rootDir)
@@ -1618,7 +1667,7 @@ function assignDefaultsAndValidate(
 function finalizeConfig(config: NextConfigComplete): NextConfigComplete {
   config.experimental.instantInsights = {
     validationLevel:
-      config.experimental.instantInsights?.validationLevel ?? 'manual-warning',
+      config.experimental.instantInsights?.validationLevel ?? 'warning',
   }
   return config
 }
@@ -2076,7 +2125,7 @@ export default async function loadConfig(
     { ...clonedDefaultConfig, configFileName },
     silent,
     phase
-  ) as NextConfigComplete
+  )
 
   setHttpClientAndAgentOptions(completeConfig)
 
@@ -2201,6 +2250,32 @@ function enforceExperimentalFeatures(
     config.experimental.cachedNavigations = true
   }
 
+  // Enable appShells by default when cacheComponents is enabled, unless
+  // explicitly disabled. App Shells builds on Cache Components rendering, so
+  // the two features are tied together: we only flip the default for projects
+  // that are already using Cache Components. Done silently for the same reasons
+  // as the cachedNavigations default above.
+  //
+  // We only auto-enable when App Shells's required dependencies are satisfied.
+  // If a project has explicitly disabled one of them, we leave App Shells off
+  // rather than force it on — otherwise the validation in
+  // `assignDefaultsAndValidate` would turn a previously-valid config into a
+  // hard error. Users who want App Shells in that situation can still enable it
+  // explicitly and get the actionable validation message. `prefetchInlining` is
+  // intentionally not part of this gate (App Shells works without it). This runs
+  // after the cachedNavigations default above so that dependency is already set.
+  // TODO: Remove this once appShells is unconditionally the default.
+  if (
+    config.cacheComponents &&
+    config.experimental.varyParams !== false &&
+    config.experimental.optimisticRouting !== false &&
+    config.experimental.cachedNavigations !== false &&
+    (config.experimental.appShells === undefined ||
+      (isDefaultConfig && !config.experimental.appShells))
+  ) {
+    config.experimental.appShells = true
+  }
+
   // TODO: Remove this once appNewScrollHandler is the default.
   if (
     process.env.__NEXT_EXPERIMENTAL_APP_NEW_SCROLL_HANDLER === 'true' &&
@@ -2218,25 +2293,6 @@ function enforceExperimentalFeatures(
         'enabled by `__NEXT_EXPERIMENTAL_APP_NEW_SCROLL_HANDLER`'
       )
     }
-  }
-
-  // Enable node streams via env var (for CI testing).
-  if (
-    process.env.__NEXT_USE_NODE_STREAMS === 'true' &&
-    (config.experimental.useNodeStreams === undefined ||
-      (isDefaultConfig && !config.experimental.useNodeStreams))
-  ) {
-    config.experimental.useNodeStreams = true
-  }
-
-  // Keep runtime bundle selection env in sync with the resolved config.
-  // Explicit user config (e.g. useNodeStreams: false) should win over an
-  // inherited shell env var to avoid selecting nodestream runtime bundles
-  // while define-env compiled user bundles with node streams disabled.
-  if (config.experimental.useNodeStreams) {
-    process.env.__NEXT_USE_NODE_STREAMS = 'true'
-  } else {
-    delete process.env.__NEXT_USE_NODE_STREAMS
   }
 
   // TODO: Remove this once strictRouteTypes is the default.

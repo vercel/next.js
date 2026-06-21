@@ -482,6 +482,7 @@ async function exportAppImpl(
     distDir,
     basePath: nextConfig.basePath,
     cacheComponents: nextConfig.cacheComponents ?? false,
+    partialPrefetching: nextConfig.partialPrefetching,
     validationLevel: nextConfig.experimental.instantInsights.validationLevel,
     trailingSlash: nextConfig.trailingSlash,
     locales: i18n?.locales,
@@ -518,6 +519,7 @@ async function exportAppImpl(
       authInterrupts: !!nextConfig.experimental.authInterrupts,
       useCacheTimeout: nextConfig.experimental.useCacheTimeout,
       cachedNavigations: nextConfig.experimental.cachedNavigations ?? false,
+      appShells: nextConfig.experimental.appShells,
       maxPostponedStateSizeBytes: parseMaxPostponedStateSize(
         nextConfig.experimental.maxPostponedStateSize
       ),

@@ -1,12 +1,12 @@
 use crate::analyzer::{JsValue, ObjectPart};
 
 // Visiting
-impl JsValue {
+impl<'a> JsValue<'a> {
     /// Calls a function for each child of the node. Allows mutating the node.
     /// Updates the total nodes count after mutation.
     pub fn for_each_children_mut(
         &mut self,
-        visitor: &mut impl FnMut(&mut JsValue) -> bool,
+        visitor: &mut impl FnMut(&mut JsValue<'a>) -> bool,
     ) -> bool {
         match self {
             JsValue::Alternatives {
@@ -158,7 +158,7 @@ impl JsValue {
     /// node. Updates the total nodes count after mutation.
     pub fn for_each_early_children_mut(
         &mut self,
-        visitor: &mut impl FnMut(&mut JsValue) -> bool,
+        visitor: &mut impl FnMut(&mut JsValue<'a>) -> bool,
     ) -> bool {
         match self {
             JsValue::New(_, call) if !call.args().is_empty() => {
@@ -199,7 +199,7 @@ impl JsValue {
     /// node. Updates the total nodes count after mutation.
     pub fn for_each_late_children_mut(
         &mut self,
-        visitor: &mut impl FnMut(&mut JsValue) -> bool,
+        visitor: &mut impl FnMut(&mut JsValue<'a>) -> bool,
     ) -> bool {
         match self {
             JsValue::New(_, call) if !call.args().is_empty() => {
@@ -250,13 +250,13 @@ impl JsValue {
     }
 
     /// Visit the node and all its children with a function.
-    pub fn visit(&self, visitor: &mut impl FnMut(&JsValue)) {
+    pub fn visit(&self, visitor: &mut impl FnMut(&JsValue<'a>)) {
         self.for_each_children(&mut |value| value.visit(visitor));
         visitor(self);
     }
 
     /// Calls a function for all children of the node.
-    pub fn for_each_children(&self, visitor: &mut impl FnMut(&JsValue)) {
+    pub fn for_each_children(&self, visitor: &mut impl FnMut(&JsValue<'a>)) {
         match self {
             JsValue::Alternatives {
                 total_nodes: _,

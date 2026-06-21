@@ -3,9 +3,7 @@ use bincode::{Decode, Encode};
 use rustc_hash::{FxHashMap, FxHashSet};
 use serde::{Deserialize, Serialize};
 use turbo_rcstr::RcStr;
-use turbo_tasks::{
-    NonLocalValue, ResolvedVc, TaskInput, Upcast, Vc, trace::TraceRawVcs, turbobail,
-};
+use turbo_tasks::{ResolvedVc, Upcast, Vc, trace::TraceRawVcs, turbobail};
 use turbo_tasks_fs::FileSystemPath;
 use turbo_tasks_hash::DeterministicHash;
 
@@ -29,9 +27,9 @@ use crate::{
     reference::ModuleReference,
 };
 
+#[turbo_tasks::task_input]
 #[derive(
     Debug,
-    TaskInput,
     Clone,
     Copy,
     PartialEq,
@@ -40,7 +38,6 @@ use crate::{
     Deserialize,
     TraceRawVcs,
     DeterministicHash,
-    NonLocalValue,
     Encode,
     Decode,
 )]
@@ -50,8 +47,8 @@ pub enum MangleType {
     Deterministic,
 }
 
-#[turbo_tasks::value(shared)]
-#[derive(Debug, TaskInput, Clone, Copy, Hash, DeterministicHash, Deserialize)]
+#[turbo_tasks::value(shared, task_input)]
+#[derive(Debug, Clone, Copy, Hash, DeterministicHash, Deserialize)]
 pub enum MinifyType {
     // TODO instead of adding a new property here,
     // refactor that to Minify(MinifyOptions) to allow defaults on MinifyOptions
@@ -67,8 +64,8 @@ impl Default for MinifyType {
     }
 }
 
-#[turbo_tasks::value(shared)]
-#[derive(Debug, Default, TaskInput, Clone, Copy, Hash, DeterministicHash)]
+#[turbo_tasks::value(shared, task_input)]
+#[derive(Debug, Default, Clone, Copy, Hash, DeterministicHash)]
 pub enum SourceMapsType {
     /// Extracts source maps from input files and writes source maps for output files.
     #[default]
@@ -105,9 +102,9 @@ pub struct UrlBehavior {
     pub static_suffix: ResolvedVc<Option<RcStr>>,
 }
 
+#[turbo_tasks::task_input]
 #[derive(
     Debug,
-    TaskInput,
     Clone,
     Copy,
     PartialEq,
@@ -117,7 +114,6 @@ pub struct UrlBehavior {
     Deserialize,
     TraceRawVcs,
     DeterministicHash,
-    NonLocalValue,
     Encode,
     Decode,
 )]
@@ -244,19 +240,8 @@ pub struct EntryChunkGroupResult {
     pub availability_info: AvailabilityInfo,
 }
 
-#[derive(
-    Default,
-    Debug,
-    Clone,
-    PartialEq,
-    Eq,
-    Hash,
-    TraceRawVcs,
-    NonLocalValue,
-    TaskInput,
-    Encode,
-    Decode,
-)]
+#[turbo_tasks::task_input]
+#[derive(Default, Debug, Clone, PartialEq, Eq, Hash, TraceRawVcs, Encode, Decode)]
 pub struct ChunkingConfig {
     /// Try to avoid creating more than 1 chunk smaller than this size.
     /// It merges multiple small chunks into bigger ones to avoid that.
@@ -283,7 +268,7 @@ pub struct ChunkingConfig {
 pub struct ChunkingConfigs(FxHashMap<ResolvedVc<Box<dyn ChunkType>>, ChunkingConfig>);
 
 #[turbo_tasks::value(shared)]
-#[derive(Debug, Clone, Copy, Hash, TaskInput, Default, Deserialize)]
+#[derive(Debug, Clone, Copy, Hash, Default, Deserialize)]
 pub enum SourceMapSourceType {
     AbsoluteFileUri,
     RelativeUri,
@@ -293,6 +278,19 @@ pub enum SourceMapSourceType {
 
 #[turbo_tasks::value(transparent, cell = "keyed")]
 pub struct UnusedReferences(FxHashSet<ResolvedVc<Box<dyn ModuleReference>>>);
+
+#[turbo_tasks::value(shared)]
+#[derive(Debug, Clone, Default)]
+pub struct WorkerConfigurationOptions {
+    /// The worker base-path override. When `Some`, takes precedence over
+    /// `chunk_base_path` for the worker entrypoint URL and the module chunks
+    /// loaded inside the worker.
+    pub asset_prefix: Option<RcStr>,
+    /// The list of global variable names to forward to workers. These globals
+    /// are read from `globalThis` at worker creation time and passed to the
+    /// worker via URL params.
+    pub forwarded_globals: Vec<RcStr>,
+}
 
 /// A context for the chunking that influences the way chunks are created
 #[turbo_tasks::value_trait]
@@ -496,12 +494,11 @@ pub trait ChunkingContext {
     #[turbo_tasks::function]
     fn debug_ids_enabled(self: Vc<Self>) -> Vc<bool>;
 
-    /// Returns the list of global variable names to forward to workers.
-    /// These globals are read from globalThis at worker creation time and passed
-    /// to the worker via URL params.
+    /// Returns the worker-related configuration: the base-path override and the
+    /// list of globals to forward to workers.
     #[turbo_tasks::function]
-    fn worker_forwarded_globals(self: Vc<Self>) -> Vc<Vec<RcStr>> {
-        Vc::cell(vec![])
+    fn worker_configuration_options(self: Vc<Self>) -> Vc<WorkerConfigurationOptions> {
+        WorkerConfigurationOptions::default().cell()
     }
 
     /// Returns the worker entrypoint for this chunking context.

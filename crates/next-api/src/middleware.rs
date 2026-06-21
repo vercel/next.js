@@ -228,7 +228,7 @@ impl MiddlewareEndpoint {
         if matches!(this.runtime, NextRuntime::NodeJs) {
             let chunk = self.node_chunk().to_resolved().await?;
             let mut output_assets = vec![chunk];
-            if this.project.next_mode().await?.is_production() {
+            if *this.project.should_write_nft_manifests().await? {
                 output_assets.push(ResolvedVc::upcast(
                     NftJsonAsset::new(*this.project, None, *chunk, vec![], self.trace_result())
                         .to_resolved()
@@ -347,7 +347,7 @@ impl MiddlewareEndpoint {
             *this.project,
             None,
             this.project.module_graph(userland_module),
-            vec![userland_module],
+            userland_module,
         ))
     }
 }
@@ -406,9 +406,12 @@ impl Endpoint for MiddlewareEndpoint {
 
     #[turbo_tasks::function]
     async fn entries(self: Vc<Self>) -> Result<Vc<GraphEntries>> {
-        Ok(Vc::cell(vec![ChunkGroupEntry::Entry(vec![
-            self.entry_module().to_resolved().await?,
-        ])]))
+        Ok(
+            GraphEntries::from_chunk_groups(vec![ChunkGroupEntry::Entry(vec![
+                self.entry_module().to_resolved().await?,
+            ])])
+            .cell(),
+        )
     }
 
     #[turbo_tasks::function]

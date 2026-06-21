@@ -1,18 +1,17 @@
 use anyhow::{Context, Result, bail};
 use tracing::Instrument;
 use turbo_rcstr::{RcStr, rcstr};
-use turbo_tasks::{
-    FxIndexMap, FxIndexSet, ResolvedVc, TaskInput, TryJoinIterExt, Upcast, ValueToString, Vc,
-};
+use turbo_tasks::{FxIndexMap, FxIndexSet, ResolvedVc, TryJoinIterExt, Upcast, ValueToString, Vc};
 use turbo_tasks_fs::FileSystemPath;
 use turbo_tasks_hash::HashAlgorithm;
 use turbopack_core::{
     asset::{Asset, AssetContent},
     chunk::{
-        AssetSuffix, Chunk, ChunkGroupResult, ChunkItem, ChunkType, ChunkableModule,
-        ChunkingConfig, ChunkingConfigs, ChunkingContext, ContentHashing, CrossOrigin,
-        EntryChunkGroupResult, EvaluatableAsset, EvaluatableAssets, MinifyType,
+        AssetSuffix, Chunk, ChunkGroupResult, ChunkItem, ChunkLoadRetry, ChunkType,
+        ChunkableModule, ChunkingConfig, ChunkingConfigs, ChunkingContext, ContentHashing,
+        CrossOrigin, EntryChunkGroupResult, EvaluatableAsset, EvaluatableAssets, MinifyType,
         SourceMapSourceType, SourceMapsType, UnusedReferences, UrlBehavior,
+        WorkerConfigurationOptions,
         availability_info::AvailabilityInfo,
         chunk_group::{MakeChunkGroupResult, make_chunk_group},
         chunk_id_strategy::ModuleIdStrategy,
@@ -42,7 +41,7 @@ use crate::ecmascript::{
 };
 
 #[turbo_tasks::value]
-#[derive(Debug, Clone, Copy, Hash, TaskInput)]
+#[derive(Debug, Clone, Copy, Hash)]
 pub enum CurrentChunkMethod {
     StringLiteral,
     DocumentCurrentScript,
@@ -231,6 +230,11 @@ impl BrowserChunkingContextBuilder {
         self
     }
 
+    pub fn chunk_load_retry(mut self, chunk_load_retry: ChunkLoadRetry) -> Self {
+        self.chunking_context.chunk_load_retry = chunk_load_retry;
+        self
+    }
+
     pub fn build(self) -> Vc<BrowserChunkingContext> {
         BrowserChunkingContext::cell(self.chunking_context)
     }
@@ -337,6 +341,8 @@ pub struct BrowserChunkingContext {
     hash_salt: ResolvedVc<RcStr>,
     /// The crossorigin mode for dynamically loaded chunks.
     cross_origin: CrossOrigin,
+    /// The retry policy for transient chunk load failures in the browser runtime.
+    chunk_load_retry: ChunkLoadRetry,
 }
 
 impl BrowserChunkingContext {
@@ -391,6 +397,7 @@ impl BrowserChunkingContext {
                 chunk_loading_global: Default::default(),
                 hash_salt: ResolvedVc::cell(RcStr::default()),
                 cross_origin: Default::default(),
+                chunk_load_retry: Default::default(),
             },
         }
     }
@@ -477,14 +484,6 @@ impl BrowserChunkingContext {
         Vc::cell(self.chunk_base_path.clone())
     }
 
-    /// Returns the worker base-path override. When `Some`, takes precedence
-    /// over `chunk_base_path` for the entrypoint URL and the module chunks
-    /// loaded inside the worker.
-    #[turbo_tasks::function]
-    pub fn worker_asset_prefix(&self) -> Vc<Option<RcStr>> {
-        Vc::cell(self.worker_asset_prefix.clone())
-    }
-
     /// Returns the asset suffix path.
     #[turbo_tasks::function]
     pub fn asset_suffix(&self) -> Vc<AssetSuffix> {
@@ -532,6 +531,11 @@ impl BrowserChunkingContext {
     #[turbo_tasks::function]
     pub fn cross_origin(&self) -> Vc<CrossOrigin> {
         self.cross_origin.cell()
+    }
+
+    #[turbo_tasks::function]
+    pub fn chunk_load_retry(&self) -> Vc<ChunkLoadRetry> {
+        self.chunk_load_retry.cell()
     }
 }
 
@@ -1016,15 +1020,19 @@ impl ChunkingContext for BrowserChunkingContext {
     }
 
     #[turbo_tasks::function]
-    fn worker_forwarded_globals(&self) -> Vc<Vec<RcStr>> {
-        Vc::cell(self.worker_forwarded_globals.clone())
+    fn worker_configuration_options(&self) -> Vc<WorkerConfigurationOptions> {
+        WorkerConfigurationOptions {
+            asset_prefix: self.worker_asset_prefix.clone(),
+            forwarded_globals: self.worker_forwarded_globals.clone(),
+        }
+        .cell()
     }
 
     #[turbo_tasks::function]
     async fn worker_entrypoint(self: Vc<Self>) -> Result<Vc<Box<dyn OutputAsset>>> {
         let chunking_context: Vc<Box<dyn ChunkingContext>> = Vc::upcast(self);
         let resolved = chunking_context.to_resolved().await?;
-        let forwarded_globals = chunking_context.worker_forwarded_globals();
+        let forwarded_globals = Vc::cell(self.await?.worker_forwarded_globals.clone());
         let entrypoint = EcmascriptBrowserWorkerEntrypoint::new(*resolved, forwarded_globals);
         Ok(Vc::upcast(entrypoint))
     }

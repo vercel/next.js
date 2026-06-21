@@ -17,7 +17,7 @@ const validFixtures = [
     },
     null,
     null,
-    0b10000, // PrefetchHint.IsRootLayout
+    0b10000, // PrefetchHint.IsRootLayoutOrAbove
   ],
   [
     ['a', 'b', 'c', null],

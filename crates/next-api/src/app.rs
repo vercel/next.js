@@ -52,7 +52,7 @@ use turbopack_core::{
     asset::AssetContent,
     chunk::{
         ChunkGroupResult, ChunkingContext, ChunkingContextExt, EvaluatableAsset, EvaluatableAssets,
-        SourceMapsType, availability_info::AvailabilityInfo,
+        availability_info::AvailabilityInfo,
     },
     file_source::FileSource,
     ident::{AssetIdent, Layer},
@@ -66,8 +66,6 @@ use turbopack_core::{
     reference::all_assets_from_entries,
     reference_type::{CommonJsReferenceSubType, CssReferenceSubType, ReferenceTypeCondition},
     resolve::{ResolveErrorMode, origin::PlainResolveOrigin, parse::Request, pattern::Pattern},
-    source::Source,
-    source_map::SourceMapAsset,
     virtual_output::VirtualOutputAsset,
 };
 use turbopack_ecmascript::single_file_ecmascript_output::SingleFileEcmascriptOutput;
@@ -222,6 +220,7 @@ impl AppProject {
             self.project().encryption_key(),
             self.project().server_compile_time_info().environment(),
             self.project().client_compile_time_info().environment(),
+            *self.project().should_write_nft_manifests().await?,
         ))
     }
 
@@ -237,6 +236,8 @@ impl AppProject {
             self.project().encryption_key(),
             self.project().edge_compile_time_info().environment(),
             self.project().client_compile_time_info().environment(),
+            // There is no NFT on edge
+            false,
         ))
     }
 
@@ -252,6 +253,7 @@ impl AppProject {
             self.project().encryption_key(),
             self.project().server_compile_time_info().environment(),
             self.project().client_compile_time_info().environment(),
+            *self.project().should_write_nft_manifests().await?,
         ))
     }
 
@@ -267,6 +269,8 @@ impl AppProject {
             self.project().encryption_key(),
             self.project().edge_compile_time_info().environment(),
             self.project().client_compile_time_info().environment(),
+            // There is no NFT on edge
+            false,
         ))
     }
 
@@ -594,6 +598,7 @@ impl AppProject {
             self.project().encryption_key(),
             self.project().server_compile_time_info().environment(),
             self.project().client_compile_time_info().environment(),
+            *self.project().should_write_nft_manifests().await?,
         ))
     }
 
@@ -609,6 +614,8 @@ impl AppProject {
             self.project().encryption_key(),
             self.project().edge_compile_time_info().environment(),
             self.project().client_compile_time_info().environment(),
+            // There is no NFT on edge
+            false,
         ))
     }
 
@@ -880,7 +887,7 @@ impl AppProject {
         if *self.project.per_page_module_graph().await? {
             let next_mode = self.project.next_mode();
             let next_mode_ref = next_mode.await?;
-            let should_trace = next_mode_ref.is_production();
+            let should_trace = *self.project.should_write_nft_manifests().await?;
             let should_read_binding_usage = next_mode_ref.is_production();
 
             // Implements layout segment optimization to compute a graph "chain" for each layout
@@ -910,7 +917,7 @@ impl AppProject {
                     // SEGMENT: client_shared_entries and server utils shared by the layout segments
                     // and the page
                     let graph = SingleModuleGraph::new_with_entries_visited_intern(
-                        vec![
+                        GraphEntries::from_chunk_groups(vec![
                             ChunkGroupEntry::Entry(client_shared_entries),
                             ChunkGroupEntry::SharedMultiple(
                                 server_utils
@@ -919,7 +926,7 @@ impl AppProject {
                                     .try_join()
                                     .await?,
                             ),
-                        ],
+                        ]),
                         visited_modules,
                         should_trace,
                         should_read_binding_usage,
@@ -936,7 +943,9 @@ impl AppProject {
                     {
                         // SEGMENT: layout segment
                         let graph = SingleModuleGraph::new_with_entries_visited_intern(
-                            vec![ChunkGroupEntry::Shared(ResolvedVc::upcast(*module))],
+                            GraphEntries::from_chunk_groups(vec![ChunkGroupEntry::Shared(
+                                ResolvedVc::upcast(*module),
+                            )]),
                             visited_modules,
                             should_trace,
                             should_read_binding_usage,
@@ -959,7 +968,7 @@ impl AppProject {
 
                 // SEGMENT: rsc entry chunk group
                 let graph = SingleModuleGraph::new_with_entries_visited_intern(
-                    vec![rsc_entry_chunk_group],
+                    GraphEntries::from_chunk_groups(vec![rsc_entry_chunk_group]),
                     visited_modules,
                     should_trace,
                     should_read_binding_usage,
@@ -1287,15 +1296,13 @@ impl AppEndpoint {
                 .get_next_dynamic_imports_for_endpoint(*rsc_entry)
                 .await?;
 
-        let is_production = project.next_mode().await?.is_production();
-
         let client_references =
             ClientReferencesGraphs::new(*module_graphs.base, per_page_module_graph)
                 .get_client_references_for_endpoint(
                     *rsc_entry,
                     matches!(this.ty, AppEndpointType::Page { .. }),
-                    is_production,
-                    is_production,
+                    /* include_traced */ *project.should_write_nft_manifests().await?,
+                    /* include_binding_usage */ project.next_mode().await?.is_production(),
                 )
                 .to_resolved()
                 .await?;
@@ -1393,43 +1400,20 @@ impl AppEndpoint {
         let polyfill_output_asset = if matches!(this.ty, AppEndpointType::Page { .. }) {
             // polyfill-nomodule.js is a pre-compiled asset distributed as part of next
             let next_package = get_next_package(project.project_path().owned().await?).await?;
-            let polyfill_source_path =
-                next_package.join("dist/build/polyfills/polyfill-nomodule.js")?;
-            let polyfill_source = FileSource::new(polyfill_source_path.clone());
-            let polyfill_output_path = client_chunking_context
-                .chunk_path(
-                    Some(Vc::upcast(polyfill_source)),
-                    polyfill_source.ident(),
-                    None,
-                    rcstr!(".js"),
-                )
-                .owned()
-                .await?;
+            let polyfill_source =
+                FileSource::new(next_package.join("dist/build/polyfills/polyfill-nomodule.js")?);
 
-            let polyfill_output = SingleFileEcmascriptOutput::new(
-                polyfill_output_path.clone(),
-                polyfill_source_path,
-                Vc::upcast(polyfill_source),
-            )
-            .to_resolved()
-            .await?;
-
-            let polyfill_output_asset = ResolvedVc::upcast(polyfill_output);
-            client_assets.insert(polyfill_output_asset);
-
-            let client_source_maps = project
-                .next_config()
-                .client_source_maps(project.next_mode())
-                .await?;
-            if *client_source_maps != SourceMapsType::None {
-                let polyfill_source_map_asset = SourceMapAsset::new_fixed(
-                    polyfill_output_path.clone(),
-                    *ResolvedVc::upcast(polyfill_output),
+            let polyfill_output_asset = ResolvedVc::upcast(
+                SingleFileEcmascriptOutput::new(
+                    *client_chunking_context,
+                    Vc::upcast(polyfill_source),
                 )
                 .to_resolved()
-                .await?;
-                client_assets.insert(ResolvedVc::upcast(polyfill_source_map_asset));
-            }
+                .await?,
+            );
+
+            client_assets.insert(polyfill_output_asset);
+
             Some(polyfill_output_asset)
         } else {
             None
@@ -1772,12 +1756,11 @@ impl AppEndpoint {
                     None
                 };
 
-                if this
+                if *this
                     .app_project
                     .project()
-                    .next_mode()
+                    .should_write_nft_manifests()
                     .await?
-                    .is_production()
                 {
                     server_assets.insert(ResolvedVc::upcast(
                         NftJsonAsset::new(
@@ -2002,7 +1985,7 @@ impl AppEndpoint {
             this.app_project.project(),
             Some(app_function_name(&app_entry.original_name).into()),
             *module_graphs.full,
-            vec![*rsc_entry],
+            *rsc_entry,
         ))
     }
 }
@@ -2151,7 +2134,7 @@ impl Endpoint for AppEndpoint {
     #[turbo_tasks::function]
     async fn entries(self: Vc<Self>) -> Result<Vc<GraphEntries>> {
         let this = self.await?;
-        Ok(Vc::cell(vec![
+        Ok(GraphEntries::from_chunk_groups(vec![
             ChunkGroupEntry::Entry(vec![self.app_endpoint_entry().await?.rsc_entry]),
             ChunkGroupEntry::Entry(
                 this.app_project
@@ -2162,7 +2145,8 @@ impl Endpoint for AppEndpoint {
                     .map(ResolvedVc::upcast)
                     .collect(),
             ),
-        ]))
+        ])
+        .cell())
     }
 
     #[turbo_tasks::function]
@@ -2201,9 +2185,10 @@ impl Endpoint for AppEndpoint {
             .await?,
         );
 
-        Ok(Vc::cell(vec![ChunkGroupEntry::Shared(
-            server_actions_loader,
-        )]))
+        Ok(
+            GraphEntries::from_chunk_groups(vec![ChunkGroupEntry::Shared(server_actions_loader)])
+                .cell(),
+        )
     }
 
     #[turbo_tasks::function]

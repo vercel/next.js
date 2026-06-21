@@ -25,8 +25,7 @@ import type { ReadyRuntimeError } from '../utils/get-error-by-type'
 import type { ErrorBaseProps } from '../components/errors/error-overlay/error-overlay'
 import type { HydrationErrorState } from '../../shared/hydration-error'
 import { useActiveRuntimeError } from '../hooks/use-active-runtime-error'
-import { formatCodeFrame } from '../components/code-frame/parse-code-frame'
-import stripAnsi from 'next/dist/compiled/strip-ansi'
+import { generateErrorInfo as generateErrorInfoHelper } from '../utils/generate-error-info'
 import {
   InstantHeaderExplanation,
   InstantGuidance,
@@ -96,6 +95,9 @@ export function getErrorTypeLabel(
   if (errorDetails.type === 'blocking-route') {
     return errorDetails.inNavigation ? `Instant` : `Blocking Route`
   }
+  if (errorDetails.type === 'client-hook') {
+    return `Blocking Route`
+  }
   if (errorDetails.type === 'dynamic-metadata') {
     return `Blocking Route`
   }
@@ -124,6 +126,7 @@ type ErrorDetails =
   | NoErrorDetails
   | HydrationErrorDetails
   | BlockingRouteErrorDetails
+  | ClientHookErrorDetails
   | DynamicMetadataErrorDetails
   | DynamicViewportErrorDetails
   | SyncIOErrorDetails
@@ -145,6 +148,11 @@ type BlockingRouteErrorDetails = {
   type: 'blocking-route'
   variant: 'dynamic' | 'runtime'
   inNavigation: boolean
+}
+
+type ClientHookErrorDetails = {
+  type: 'client-hook'
+  expression: string
 }
 
 type DynamicMetadataErrorDetails = {
@@ -248,6 +256,7 @@ function InstantRuntimeError({
   cause,
   showExplanation = true,
   dialogResizerRef,
+  generateErrorInfo,
 }: {
   error: ReadyRuntimeError
   variant: GuidanceVariant
@@ -256,6 +265,7 @@ function InstantRuntimeError({
   cause?: string
   showExplanation?: boolean
   dialogResizerRef: React.RefObject<HTMLDivElement | null>
+  generateErrorInfo: () => Promise<string>
 }) {
   const frames = useFrames(error)
 
@@ -283,6 +293,7 @@ function InstantRuntimeError({
         explanation={explanation}
         cause={cause}
         showExplanation={showExplanation}
+        generateErrorInfo={generateErrorInfo}
       />
       {frames.length > 0 && (
         <ErrorOverlayCallStack
@@ -332,7 +343,7 @@ const SYNC_IO_APIS = [
 ]
 
 const SYNC_IO_DOCS_PATTERN =
-  /https:\/\/nextjs\.org\/docs\/messages\/next-prerender-(?:runtime-)?(random|current-time|crypto)(-client)?/
+  /https:\/\/nextjs\.org\/docs\/messages\/blocking-prerender-(random|current-time|crypto)(-client)?/
 
 // Discriminate sync IO errors via the docs URL embedded in the user-facing
 // message by `createSyncIOError`, `createSyncIORuntimeError`, and
@@ -354,7 +365,7 @@ export function isSyncIOClientError(message: string): boolean {
 export function isBlockingRouteInNavError(message: string): boolean {
   return (
     message.includes('or a navigation') ||
-    message.includes('Could not validate `unstable_instant`') ||
+    message.includes('Could not validate `instant`') ||
     message.includes(
       'Could not validate that a segment in your UI has instant navigation'
     )
@@ -367,7 +378,20 @@ export function getBlockingRouteErrorDetails(
   const message = error.message
   const inNavigation = isBlockingRouteInNavError(message)
 
-  const isBlockingPageLoadError = message.includes('/blocking-route')
+  const clientHookMatch =
+    /Next\.js encountered URL data `([^`]+)` in a Client Component outside of `<Suspense>`\./.exec(
+      message
+    )
+  if (clientHookMatch) {
+    return {
+      type: 'client-hook',
+      expression: clientHookMatch[1],
+    }
+  }
+
+  const isBlockingPageLoadError =
+    message.includes('/blocking-prerender-runtime#') ||
+    message.includes('/blocking-prerender-dynamic#')
   if (isBlockingPageLoadError) {
     return {
       type: 'blocking-route',
@@ -376,9 +400,9 @@ export function getBlockingRouteErrorDetails(
     }
   }
 
-  const isDynamicMetadataError = message.includes(
-    '/next-prerender-dynamic-metadata'
-  )
+  const isDynamicMetadataError =
+    message.includes('/blocking-prerender-metadata-dynamic') ||
+    message.includes('/blocking-prerender-metadata-runtime')
   if (isDynamicMetadataError) {
     return {
       type: 'dynamic-metadata',
@@ -386,9 +410,9 @@ export function getBlockingRouteErrorDetails(
     }
   }
 
-  const isBlockingViewportError = message.includes(
-    '/next-prerender-dynamic-viewport'
-  )
+  const isBlockingViewportError =
+    message.includes('/blocking-prerender-viewport-dynamic') ||
+    message.includes('/blocking-prerender-viewport-runtime')
   if (isBlockingViewportError) {
     return {
       type: 'dynamic-viewport',
@@ -489,31 +513,43 @@ export function ErrorTabBar({
         className="error-overlay-tab"
         data-active={activeTab === 'errors'}
         disabled={errorCount === 0}
+        aria-disabled={errorCount === 0}
         onClick={() => onTabChange('errors')}
       >
-        Issues
-        <span
-          className="error-overlay-tab-count"
-          data-active={activeTab === 'errors'}
-        >
-          {createCount(errorActiveIdx, errorCount, activeTab === 'errors')}
-        </span>
+        {errorCount === 0 ? (
+          'No issues'
+        ) : (
+          <>
+            Issues
+            <span
+              className="error-overlay-tab-count"
+              data-active={activeTab === 'errors'}
+            >
+              {createCount(errorActiveIdx, errorCount, activeTab === 'errors')}
+            </span>
+          </>
+        )}
       </button>
-      <button
-        type="button"
-        className="error-overlay-tab"
-        data-active={activeTab === 'instant'}
-        disabled={instantCount === 0}
-        onClick={() => onTabChange('instant')}
-      >
-        Insights
-        <span
-          className="error-overlay-tab-count"
+      {instantCount > 0 && (
+        <button
+          type="button"
+          className="error-overlay-tab"
           data-active={activeTab === 'instant'}
+          onClick={() => onTabChange('instant')}
         >
-          {createCount(instantActiveIdx, instantCount, activeTab === 'instant')}
-        </span>
-      </button>
+          Insights
+          <span
+            className="error-overlay-tab-count"
+            data-active={activeTab === 'instant'}
+          >
+            {createCount(
+              instantActiveIdx,
+              instantCount,
+              activeTab === 'instant'
+            )}
+          </span>
+        </button>
+      )}
       {nextButton}
     </div>
   )
@@ -589,89 +625,16 @@ export function Errors({
     },
   })
 
-  const generateErrorInfo = useCallback(async () => {
-    if (!activeError) return ''
-
-    const parts: string[] = []
-
-    // 1. Error Type
-    if (errorType) {
-      parts.push(`## Error Type\n${errorType}`)
-    }
-
-    // 2. Error Message
-    const error = activeError.error
-    let message = error.message
-    if ('environmentName' in error && error.environmentName) {
-      const envPrefix = `[ ${error.environmentName} ] `
-      if (message.startsWith(envPrefix)) {
-        message = message.slice(envPrefix.length)
-      }
-    }
-    if (message) {
-      parts.push(`## Error Message\n${message}`)
-    }
-
-    const frames = await Promise.race([
-      activeError.frames(),
-      new Promise<null>((resolve) => setTimeout(() => resolve(null), 2000)),
-    ])
-
-    // Append call stack
-    if (frames === null) {
-      parts.push(
-        'Unable to retrieve stack frames for this error. Falling back to unsourcemapped stack\n\n' +
-          error.stack
-      )
-    } else {
-      if (frames.length > 0) {
-        const visibleFrames = frames.filter((frame) => !frame.ignored)
-        if (visibleFrames.length > 0) {
-          const stackLines = visibleFrames
-            .map((frame) => {
-              if (frame.originalStackFrame) {
-                const { methodName, file, line1, column1 } =
-                  frame.originalStackFrame
-                return `    at ${methodName} (${file}:${line1}:${column1})`
-              } else if (frame.sourceStackFrame) {
-                const { methodName, file, line1, column1 } =
-                  frame.sourceStackFrame
-                return `    at ${methodName} (${file}:${line1}:${column1})`
-              }
-              return ''
-            })
-            .filter(Boolean)
-
-          if (stackLines.length > 0) {
-            parts.push(`\n${stackLines.join('\n')}`)
-          }
-        }
-      }
-
-      // 3. Code Frame (decoded)
-      const firstFirstPartyFrameIndex = frames.findIndex(
-        (entry) =>
-          !entry.ignored &&
-          Boolean(entry.originalCodeFrame) &&
-          Boolean(entry.originalStackFrame)
-      )
-
-      const firstFrame = frames[firstFirstPartyFrameIndex] ?? null
-      if (firstFrame?.originalCodeFrame) {
-        const decodedCodeFrame = stripAnsi(
-          formatCodeFrame(firstFrame.originalCodeFrame)
-        )
-        parts.push(`## Code Frame\n${decodedCodeFrame}`)
-      }
-    }
-
-    // Format as markdown error info
-    const errorInfo = `${parts.join('\n\n')}
-
-Next.js version: ${props.versionInfo.installed} (${process.env.__NEXT_BUNDLER})\n`
-
-    return errorInfo
-  }, [activeError, errorType, props.versionInfo])
+  const generateErrorInfo = useCallback(
+    () =>
+      generateErrorInfoHelper({
+        activeError,
+        errorType,
+        versionInfo: props.versionInfo.installed,
+        bundler: process.env.__NEXT_BUNDLER as string,
+      }),
+    [activeError, errorType, props.versionInfo]
+  )
 
   if (isLoading) {
     // TODO: better loading state
@@ -691,8 +654,10 @@ Next.js version: ${props.versionInfo.installed} (${process.env.__NEXT_BUNDLER})\
     getErrorSource(error) || ''
   )
 
-  // Show the tab bar whenever there are instant errors so the user
-  // knows they're looking at an insight, even if the other tab is empty.
+  // Show the tab bar only when at least one Insight is present. When the only
+  // bucket with content is Issues, the red pill already conveys the count and a
+  // single-tab bar would be redundant. When Insights exist (alone or alongside
+  // Issues), the bar is shown so the user can switch between buckets.
   const showTabBar = instantErrors.length > 0
   const renderTabBar = showTabBar
     ? ({
@@ -842,6 +807,7 @@ Next.js version: ${props.versionInfo.installed} (${process.env.__NEXT_BUNDLER})\
           headerChildren={
             <InstantHeaderExplanation
               kind="blocking-route"
+              variant={errorDetails.variant}
               explanation={
                 errorDetails.inNavigation
                   ? BLOCKING_ROUTE_NAVIGATION_EXPLANATION
@@ -871,6 +837,49 @@ Next.js version: ${props.versionInfo.installed} (${process.env.__NEXT_BUNDLER})\
               variant={errorDetails.variant}
               showExplanation={false}
               dialogResizerRef={dialogResizerRef}
+              generateErrorInfo={generateErrorInfo}
+            />
+          </Suspense>
+        </ErrorOverlayLayout>
+      )
+    case 'client-hook':
+      return (
+        <ErrorOverlayLayout
+          errorCode={errorCode}
+          errorType={errorType}
+          errorMessage={
+            <>
+              Next.js encountered URL data{' '}
+              <code>{errorDetails.expression}</code> in a Client Component
+              outside of Suspense.
+            </>
+          }
+          headerChildren={<InstantHeaderExplanation kind="client-hook" />}
+          renderTabBar={renderTabBar}
+          canGoPrevious={canGoPrevious}
+          canGoNext={canGoNext}
+          onPrevious={handlePrevious}
+          onNext={handleNext}
+          onClose={isServerError ? undefined : onClose}
+          debugInfo={debugInfo}
+          error={error}
+          runtimeErrors={activeErrors}
+          activeIdx={activeIdx}
+          setActiveIndex={setActiveIndex}
+          dialogResizerRef={dialogResizerRef}
+          generateErrorInfo={generateErrorInfo}
+          {...props}
+        >
+          <Suspense fallback={<div data-nextjs-error-suspended />}>
+            <InstantRuntimeError
+              key={activeError.id.toString()}
+              error={activeError}
+              variant="runtime"
+              kind="client-hook"
+              cause={errorDetails.expression}
+              showExplanation={false}
+              dialogResizerRef={dialogResizerRef}
+              generateErrorInfo={generateErrorInfo}
             />
           </Suspense>
         </ErrorOverlayLayout>
@@ -893,7 +902,12 @@ Next.js version: ${props.versionInfo.installed} (${process.env.__NEXT_BUNDLER})\
               </>
             )
           }
-          headerChildren={<InstantHeaderExplanation kind="metadata" />}
+          headerChildren={
+            <InstantHeaderExplanation
+              kind="metadata"
+              variant={errorDetails.variant}
+            />
+          }
           renderTabBar={renderTabBar}
           canGoPrevious={canGoPrevious}
           canGoNext={canGoNext}
@@ -917,6 +931,7 @@ Next.js version: ${props.versionInfo.installed} (${process.env.__NEXT_BUNDLER})\
               kind="metadata"
               showExplanation={false}
               dialogResizerRef={dialogResizerRef}
+              generateErrorInfo={generateErrorInfo}
             />
           </Suspense>
         </ErrorOverlayLayout>
@@ -939,7 +954,12 @@ Next.js version: ${props.versionInfo.installed} (${process.env.__NEXT_BUNDLER})\
               </>
             )
           }
-          headerChildren={<InstantHeaderExplanation kind="viewport" />}
+          headerChildren={
+            <InstantHeaderExplanation
+              kind="viewport"
+              variant={errorDetails.variant}
+            />
+          }
           renderTabBar={renderTabBar}
           canGoPrevious={canGoPrevious}
           canGoNext={canGoNext}
@@ -963,6 +983,7 @@ Next.js version: ${props.versionInfo.installed} (${process.env.__NEXT_BUNDLER})\
               kind="viewport"
               showExplanation={false}
               dialogResizerRef={dialogResizerRef}
+              generateErrorInfo={generateErrorInfo}
             />
           </Suspense>
         </ErrorOverlayLayout>
@@ -1008,6 +1029,7 @@ Next.js version: ${props.versionInfo.installed} (${process.env.__NEXT_BUNDLER})\
               cause={errorDetails.cause}
               showExplanation={false}
               dialogResizerRef={dialogResizerRef}
+              generateErrorInfo={generateErrorInfo}
             />
           </Suspense>
         </ErrorOverlayLayout>
@@ -1053,6 +1075,7 @@ Next.js version: ${props.versionInfo.installed} (${process.env.__NEXT_BUNDLER})\
               cause={errorDetails.cause}
               showExplanation={false}
               dialogResizerRef={dialogResizerRef}
+              generateErrorInfo={generateErrorInfo}
             />
           </Suspense>
         </ErrorOverlayLayout>
@@ -1066,15 +1089,19 @@ Next.js version: ${props.versionInfo.installed} (${process.env.__NEXT_BUNDLER})\
           headerChildren={
             <InstantHeaderExplanation kind="unrendered-segment" />
           }
+          renderTabBar={renderTabBar}
+          canGoPrevious={canGoPrevious}
+          canGoNext={canGoNext}
+          onPrevious={handlePrevious}
+          onNext={handleNext}
           onClose={isServerError ? undefined : onClose}
           debugInfo={debugInfo}
           error={error}
-          runtimeErrors={runtimeErrors}
+          runtimeErrors={activeErrors}
           activeIdx={activeIdx}
           setActiveIndex={setActiveIndex}
           dialogResizerRef={dialogResizerRef}
           generateErrorInfo={generateErrorInfo}
-          renderTabBar={renderTabBar}
           {...props}
         >
           <UnrenderedSegmentInfo
@@ -1177,21 +1204,24 @@ export const styles = `
   }
   .nextjs__container_errors__error_title {
     display: flex;
-    align-items: start;
-    justify-content: space-between;
-    gap: 12px;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
     position: relative;
+  }
+  .nextjs__container_errors__error_title__row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 8px;
+    width: 100%;
   }
   .error-overlay-notes-container {
     margin: 8px 2px;
   }
   .error-overlay-notes-container p {
     white-space: pre-wrap;
-  }
-  @media (max-width: 767px) {
-    .nextjs__container_errors__error_title {
-      flex-direction: column-reverse;
-    }
   }
   .external-link, .external-link:hover {
     color:inherit;
@@ -1222,7 +1252,7 @@ export const styles = `
     transition: color 0.15s ease;
     border-radius: var(--rounded-md);
 
-    &:hover {
+    &:hover:not(:disabled) {
       color: var(--color-gray-1000);
     }
 

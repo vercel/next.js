@@ -32,8 +32,8 @@ use next_core::{
 use tracing::Instrument;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
-    Completion, FxIndexMap, NonLocalValue, ResolvedVc, TaskInput, ValueToString, Vc, fxindexmap,
-    fxindexset, trace::TraceRawVcs,
+    Completion, FxIndexMap, ResolvedVc, ValueToString, Vc, fxindexmap, fxindexset,
+    trace::TraceRawVcs,
 };
 use turbo_tasks_fs::{
     self, File, FileContent, FileSystem, FileSystemPath, FileSystemPathOption, VirtualFileSystem,
@@ -447,6 +447,7 @@ impl PagesProject {
             self.project().encryption_key(),
             self.project().server_compile_time_info().environment(),
             self.project().client_compile_time_info().environment(),
+            *self.project().should_write_nft_manifests().await?,
         ))
     }
 
@@ -464,6 +465,8 @@ impl PagesProject {
             self.project().encryption_key(),
             self.project().edge_compile_time_info().environment(),
             self.project().client_compile_time_info().environment(),
+            // There is no NFT on edge,
+            false,
         ))
     }
 
@@ -481,6 +484,7 @@ impl PagesProject {
             self.project().encryption_key(),
             self.project().server_compile_time_info().environment(),
             self.project().client_compile_time_info().environment(),
+            *self.project().should_write_nft_manifests().await?,
         ))
     }
 
@@ -498,6 +502,8 @@ impl PagesProject {
             self.project().encryption_key(),
             self.project().edge_compile_time_info().environment(),
             self.project().client_compile_time_info().environment(),
+            // There is no NFT on edge
+            false,
         ))
     }
 
@@ -588,9 +594,8 @@ struct PageEndpoint {
     pages_structure: ResolvedVc<PagesStructure>,
 }
 
-#[derive(
-    Copy, Clone, PartialEq, Eq, Hash, Debug, TaskInput, TraceRawVcs, NonLocalValue, Encode, Decode,
-)]
+#[turbo_tasks::task_input]
+#[derive(Copy, Clone, PartialEq, Eq, Hash, Debug, TraceRawVcs, Encode, Decode)]
 enum PageEndpointType {
     Api,
     Html,
@@ -601,14 +606,16 @@ enum PageEndpointType {
     SsrOnly,
 }
 
-#[derive(Copy, Clone, PartialEq, Eq, Hash, Debug, TaskInput, TraceRawVcs, Encode, Decode)]
+#[turbo_tasks::task_input]
+#[derive(Copy, Clone, PartialEq, Eq, Hash, Debug, TraceRawVcs, Encode, Decode)]
 enum SsrChunkType {
     Page,
     Data,
     Api,
 }
 
-#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash, TaskInput, TraceRawVcs, Encode, Decode)]
+#[turbo_tasks::task_input]
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash, TraceRawVcs, Encode, Decode)]
 enum EmitManifests {
     /// Don't emit any manifests
     None,
@@ -718,7 +725,7 @@ impl PageEndpoint {
         if *project.per_page_module_graph().await? {
             let next_mode = project.next_mode();
             let next_mode_ref = next_mode.await?;
-            let should_trace = next_mode_ref.is_production();
+            let should_trace = *project.should_write_nft_manifests().await?;
             let should_read_binding_usage = next_mode_ref.is_production();
 
             let ssr_chunk_module = self.internal_ssr_chunk_module().await?;
@@ -734,7 +741,7 @@ impl PageEndpoint {
             .flatten()
             {
                 let graph = SingleModuleGraph::new_with_entries_visited_intern(
-                    vec![ChunkGroupEntry::Shared(module)],
+                    GraphEntries::from_chunk_groups(vec![ChunkGroupEntry::Shared(module)]),
                     visited_modules,
                     should_trace,
                     should_read_binding_usage,
@@ -744,7 +751,9 @@ impl PageEndpoint {
             }
 
             let graph = SingleModuleGraph::new_with_entries_visited_intern(
-                vec![ChunkGroupEntry::Entry(vec![ssr_chunk_module.ssr_module])],
+                GraphEntries::from_chunk_groups(vec![ChunkGroupEntry::Entry(vec![
+                    ssr_chunk_module.ssr_module,
+                ])]),
                 visited_modules,
                 should_trace,
                 should_read_binding_usage,
@@ -1065,12 +1074,11 @@ impl PageEndpoint {
                     .to_resolved()
                     .await?;
 
-                let server_asset_trace_file = if this
+                let server_asset_trace_file = if *this
                     .pages_project
                     .project()
-                    .next_mode()
+                    .should_write_nft_manifests()
                     .await?
-                    .is_production()
                 {
                     let additional_assets = if emit_manifests == EmitManifests::Full {
                         self.react_loadable_manifest(
@@ -1569,7 +1577,7 @@ impl PageEndpoint {
             this.pages_project.project(),
             Some(pages_function_name(&this.original_name).into()),
             ssr_module_graph,
-            vec![*ssr_module],
+            *ssr_module,
         ))
     }
 }
@@ -1731,7 +1739,7 @@ impl Endpoint for PageEndpoint {
             })
             .collect::<Vec<_>>();
 
-        Ok(Vc::cell(modules))
+        Ok(GraphEntries::from_chunk_groups(modules).cell())
     }
 
     #[turbo_tasks::function]

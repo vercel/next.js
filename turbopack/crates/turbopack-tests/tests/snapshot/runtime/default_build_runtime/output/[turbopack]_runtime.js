@@ -1,13 +1,13 @@
 var RUNTIME_PUBLIC_PATH = "output/[turbopack]_runtime.js";
 var RELATIVE_ROOT_PATH = "../../../../../../..";
 var ASSET_PREFIX = "/";
-var WORKER_FORWARDED_GLOBALS = [];
 /**
  * This file contains runtime types and functions that are shared between all
  * TurboPack ECMAScript runtimes.
  *
  * It will be prepended to the runtime code of each runtime.
  */ /* eslint-disable @typescript-eslint/no-unused-vars */ /// <reference path="./runtime-types.d.ts" />
+/// <reference path="./async-module.ts" />
 /**
  * Describes why a module was instantiated.
  * Shared between browser and Node.js runtimes.
@@ -343,25 +343,6 @@ contextPrototype.f = moduleContext;
  */ function getChunkPath(chunkData) {
     return typeof chunkData === 'string' ? chunkData : chunkData.path;
 }
-function isPromise(maybePromise) {
-    return maybePromise != null && typeof maybePromise === 'object' && 'then' in maybePromise && typeof maybePromise.then === 'function';
-}
-function isAsyncModuleExt(obj) {
-    return turbopackQueues in obj;
-}
-function createPromise() {
-    let resolve;
-    let reject;
-    const promise = new Promise((res, rej)=>{
-        reject = rej;
-        resolve = res;
-    });
-    return {
-        promise,
-        resolve: resolve,
-        reject: reject
-    };
-}
 // Load the CompressedmoduleFactories of a chunk into the `moduleFactories` Map.
 // The CompressedModuleFactories format is
 // - 1 or more module ids
@@ -411,110 +392,6 @@ function installCompressedModuleFactories(chunkModules, offset, moduleFactories,
         i = end + 1; // end is pointing at the last factory advance to the next id or the end of the array.
     }
 }
-// everything below is adapted from webpack
-// https://github.com/webpack/webpack/blob/6be4065ade1e252c1d8dcba4af0f43e32af1bdc1/lib/runtime/AsyncModuleRuntimeModule.js#L13
-const turbopackQueues = Symbol('turbopack queues');
-const turbopackExports = Symbol('turbopack exports');
-const turbopackError = Symbol('turbopack error');
-function resolveQueue(queue) {
-    if (queue && queue.status !== 1) {
-        queue.status = 1;
-        queue.forEach((fn)=>fn.queueCount--);
-        queue.forEach((fn)=>fn.queueCount-- ? fn.queueCount++ : fn());
-    }
-}
-function wrapDeps(deps) {
-    return deps.map((dep)=>{
-        if (dep !== null && typeof dep === 'object') {
-            if (isAsyncModuleExt(dep)) return dep;
-            if (isPromise(dep)) {
-                const queue = Object.assign([], {
-                    status: 0
-                });
-                const obj = {
-                    [turbopackExports]: {},
-                    [turbopackQueues]: (fn)=>fn(queue)
-                };
-                dep.then((res)=>{
-                    obj[turbopackExports] = res;
-                    resolveQueue(queue);
-                }, (err)=>{
-                    obj[turbopackError] = err;
-                    resolveQueue(queue);
-                });
-                return obj;
-            }
-        }
-        return {
-            [turbopackExports]: dep,
-            [turbopackQueues]: ()=>{}
-        };
-    });
-}
-function asyncModule(body, hasAwait) {
-    const module = this.m;
-    const queue = hasAwait ? Object.assign([], {
-        status: -1
-    }) : undefined;
-    const depQueues = new Set();
-    const { resolve, reject, promise: rawPromise } = createPromise();
-    const promise = Object.assign(rawPromise, {
-        [turbopackExports]: module.exports,
-        [turbopackQueues]: (fn)=>{
-            queue && fn(queue);
-            depQueues.forEach(fn);
-            promise['catch'](()=>{});
-        }
-    });
-    const attributes = {
-        get () {
-            return promise;
-        },
-        set (v) {
-            // Calling `esmExport` leads to this.
-            if (v !== promise) {
-                promise[turbopackExports] = v;
-            }
-        }
-    };
-    Object.defineProperty(module, 'exports', attributes);
-    Object.defineProperty(module, 'namespaceObject', attributes);
-    function handleAsyncDependencies(deps) {
-        const currentDeps = wrapDeps(deps);
-        const getResult = ()=>currentDeps.map((d)=>{
-                if (d[turbopackError]) throw d[turbopackError];
-                return d[turbopackExports];
-            });
-        const { promise, resolve } = createPromise();
-        const fn = Object.assign(()=>resolve(getResult), {
-            queueCount: 0
-        });
-        function fnQueue(q) {
-            if (q !== queue && !depQueues.has(q)) {
-                depQueues.add(q);
-                if (q && q.status === 0) {
-                    fn.queueCount++;
-                    q.push(fn);
-                }
-            }
-        }
-        currentDeps.map((dep)=>dep[turbopackQueues](fnQueue));
-        return fn.queueCount ? promise : getResult();
-    }
-    function asyncResult(err) {
-        if (err) {
-            reject(promise[turbopackError] = err);
-        } else {
-            resolve(promise[turbopackExports]);
-        }
-        resolveQueue(queue);
-    }
-    body(handleAsyncDependencies, asyncResult);
-    if (queue && queue.status === -1) {
-        queue.status = 0;
-    }
-}
-contextPrototype.a = asyncModule;
 /**
  * A pseudo "fake" URL object to resolve to its relative path.
  *
@@ -650,31 +527,9 @@ Context.prototype.P = resolveAbsolutePath;
     return require('url').pathToFileURL(resolveAbsolutePath(modulePath)).href;
 }
 Context.prototype.F = resolveFileUrl;
-/* eslint-disable @typescript-eslint/no-unused-vars */ /// <reference path="../shared/runtime/runtime-utils.ts" />
-function readWebAssemblyAsResponse(path) {
-    const { createReadStream } = require('fs');
-    const { Readable } = require('stream');
-    const stream = createReadStream(path);
-    // @ts-ignore unfortunately there's a slight type mismatch with the stream.
-    return new Response(Readable.toWeb(stream), {
-        headers: {
-            'content-type': 'application/wasm'
-        }
-    });
-}
-async function compileWebAssemblyFromPath(path) {
-    const response = readWebAssemblyAsResponse(path);
-    return await WebAssembly.compileStreaming(response);
-}
-async function instantiateWebAssemblyFromPath(path, importsObj) {
-    const response = readWebAssemblyAsResponse(path);
-    const { instance } = await WebAssembly.instantiateStreaming(response, importsObj);
-    return instance.exports;
-}
 /* eslint-disable @typescript-eslint/no-unused-vars */ /// <reference path="../../shared/runtime/runtime-utils.ts" />
 /// <reference path="../../shared-node/base-externals-utils.ts" />
 /// <reference path="../../shared-node/node-externals-utils.ts" />
-/// <reference path="../../shared-node/node-wasm-utils.ts" />
 /// <reference path="./nodejs-globals.d.ts" />
 /**
  * Base Node.js runtime shared between production and development.
@@ -778,40 +633,9 @@ function loadChunkAsyncByUrl(chunkUrl) {
     return loadChunkAsync.call(this, path1);
 }
 contextPrototype.L = loadChunkAsyncByUrl;
-function loadWebAssembly(chunkPath, _edgeModule, imports) {
-    const resolved = path.resolve(RUNTIME_ROOT, chunkPath);
-    return instantiateWebAssemblyFromPath(resolved, imports);
-}
-contextPrototype.w = loadWebAssembly;
-function loadWebAssemblyModule(chunkPath, _edgeModule) {
-    const resolved = path.resolve(RUNTIME_ROOT, chunkPath);
-    return compileWebAssemblyFromPath(resolved);
-}
-contextPrototype.u = loadWebAssemblyModule;
-/**
- * Creates a Node.js worker thread by instantiating the given WorkerConstructor
- * with the appropriate path and options, including forwarded globals.
- *
- * @param WorkerConstructor The Worker constructor from worker_threads
- * @param workerPath Path to the worker entry chunk
- * @param workerOptions options to pass to the Worker constructor (optional)
- */ function createWorker(WorkerConstructor, workerPath, workerOptions) {
-    // Build the forwarded globals object
-    const forwardedGlobals = {};
-    for (const name of WORKER_FORWARDED_GLOBALS){
-        forwardedGlobals[name] = globalThis[name];
-    }
-    // Merge workerData with forwarded globals
-    const existingWorkerData = workerOptions?.workerData || {};
-    const options = {
-        ...workerOptions,
-        workerData: {
-            ...typeof existingWorkerData === 'object' ? existingWorkerData : {},
-            __turbopack_globals__: forwardedGlobals
-        }
-    };
-    return new WorkerConstructor(workerPath, options);
-}
+// Shared runtime primitive: the root that on-disk chunk paths are resolved
+// against. Used by the bundled wasm helper (exposed as `__turbopack_runtime_root__`).
+contextPrototype.w = RUNTIME_ROOT;
 const regexJsUrl = /\.js(?:\?[^#]*)?(?:#.*)?$/;
 /**
  * Checks if a given path/URL ends with .js, optionally followed by ?query or #fragment.
@@ -831,7 +655,6 @@ nodeContextPrototype.M = moduleFactories;
 // Cast moduleCache to ModuleWithDirection for production mode
 nodeContextPrototype.c = moduleCache;
 nodeContextPrototype.R = resolvePathFromModule;
-nodeContextPrototype.b = createWorker;
 nodeContextPrototype.C = clearChunkCache;
 function instantiateModule(id, sourceType, sourceData) {
     const moduleFactory = moduleFactories.get(id);

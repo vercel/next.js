@@ -96,7 +96,7 @@ describe('instant validation - server errors', () => {
         )
         expect(extractBuildValidationError(result.cliOutput))
           .toMatchInlineSnapshot(`
-         "Error: Route "/suspense-in-root/static/server-error-blocks-children": Could not validate \`unstable_instant\` because the target segment was prevented from rendering, likely due to the following error.
+         "Error: Route "/suspense-in-root/static/server-error-blocks-children": Could not validate \`instant\` because the target segment was prevented from rendering, likely due to the following error.
              at ignore-listed frames
          Error: An error occurred while attempting to validate instant UI. This error may be preventing the validation from completing.
              at a (<anonymous>)
@@ -105,7 +105,6 @@ describe('instant validation - server errors', () => {
              at b (<anonymous>) {
            [cause]: Error: Server component error
                at c (app/suspense-in-root/static/server-error-blocks-children/layout.tsx:7:9)
-               at d (<anonymous>)
               5 |
               6 | function ServerError() {
            >  7 |   throw new Error('Server component error')
@@ -157,7 +156,7 @@ describe('instant validation - server errors', () => {
         )
         expect(extractBuildValidationError(result.cliOutput))
           .toMatchInlineSnapshot(`
-         "Error: Route "/suspense-in-root/static/server-error-inside-boundary": Could not validate \`unstable_instant\` because the target segment was prevented from rendering, likely due to the following error.
+         "Error: Route "/suspense-in-root/static/server-error-inside-boundary": Could not validate \`instant\` because the target segment was prevented from rendering, likely due to the following error.
              at ignore-listed frames
          Error: An error occurred while attempting to validate instant UI. This error may be preventing the validation from completing.
              at body (<anonymous>)
@@ -165,7 +164,6 @@ describe('instant validation - server errors', () => {
              at a (<anonymous>) {
            [cause]: Error: Server component error inside boundary
                at b (app/suspense-in-root/static/server-error-inside-boundary/layout.tsx:7:9)
-               at c (<anonymous>)
               5 |
               6 | function ServerError() {
            >  7 |   throw new Error('Server component error inside boundary')

@@ -671,7 +671,7 @@ impl ReactServerComponentValidator {
                         "useFormState",
                     ],
                 ),
-                (atom!("next/error").into(), vec!["unstable_catchError"]),
+                (atom!("next/error").into(), vec!["catchError"]),
                 (
                     atom!("next/navigation").into(),
                     vec![
@@ -902,7 +902,14 @@ impl ReactServerComponentValidator {
             return;
         }
         let ext_pattern = build_page_extensions_regex(&self.page_extensions);
-        let re = Regex::new(&format!(r"[\\/](page|layout|route)\.{ext_pattern}$")).unwrap();
+        // Metadata convention files (e.g. `icon`, `opengraph-image`, `sitemap`)
+        // compile to route handlers and accept the same route segment configs,
+        // so they're subject to the same `cacheComponents`/`useCache`
+        // restrictions as `page`/`layout`/`route` entries.
+        let re = Regex::new(&format!(
+            r"[\\/](page|layout|route|icon\d?|apple-icon\d?|opengraph-image\d?|twitter-image\d?|sitemap|robots|manifest)\.{ext_pattern}$",
+        ))
+        .unwrap();
         let is_app_entry = re.is_match(&self.filepath);
 
         if is_app_entry {
@@ -956,7 +963,7 @@ impl ReactServerComponentValidator {
                             ),
                         );
                     }
-                    "unstable_instant" if !self.cache_components_enabled => {
+                    "instant" if !self.cache_components_enabled => {
                         possibly_invalid_exports.insert(
                             export_name.clone(),
                             (

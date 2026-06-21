@@ -14,6 +14,9 @@ import type { SupportedTestRunners } from '../cli/next-test'
 import type { ExperimentalPPRConfig } from './lib/experimental/ppr'
 import { INFINITE_CACHE } from '../lib/constants'
 import type { FallbackRouteParam } from '../build/static-paths/types'
+import type { MemoryEvictionMode } from '../build/swc/types'
+import { isStableBuild } from '../shared/lib/errors/canary-only-config-error'
+import { isCI } from './ci-info'
 
 /**
  * Resolved form of the prefetchInlining config after normalization in
@@ -36,13 +39,17 @@ export type NextConfigComplete = Required<Omit<NextConfig, 'configFile'>> & {
     prefetchInlining?: PrefetchInliningConfig
     // Normalized by config.ts: defaulted to 90% of staticPageGenerationTimeout
     useCacheTimeout: number
-    // Normalized by config.ts `finalizeConfig`: defaulted to `'manual-warning'`
+    // Normalized by config.ts `finalizeConfig`: defaulted to `'warning'`
     instantInsights: { validationLevel: ValidationLevel }
+    // Normalized by finalized config with a default and the expected type
+    turbopackMemoryEvictionMode: MemoryEvictionMode
   }
   // The root directory of the distDir. In development mode, this is the parent directory of `distDir`
   // since development builds use `{distDir}/dev`. This is used to ensure that the bundler doesn't
   // traverse into the output directory.
   distDirRoot: string
+  // The repository root, regardless of overwritten outputFileTracingRoot or turbopack.root.
+  repoRoot: string
 }
 
 export type I18NDomains = readonly DomainLocale[]
@@ -470,6 +477,7 @@ export interface ExperimentalConfig {
   dynamicOnHover?: boolean
   useOffline?: boolean
   optimisticRouting?: boolean
+  instrumentationClientRouterTransitionEvents?: boolean
   /**
    * Enables App Shell prefetching: a route's reusable, param-free loading
    * state is prefetched once per session and served instantly for any
@@ -524,12 +532,6 @@ export interface ExperimentalConfig {
    * Do not enable in user-facing production deployments.
    */
   exposeTestingApiInProductionBuild?: boolean
-  /**
-   * Show the Instant Navigation Mode toggle in the dev tools indicator.
-   * When enabled, a menu item lets you lock navigations to only show
-   * the cached/prefetched state.
-   */
-  instantNavigationDevToolsToggle?: boolean
   extensionAlias?: Record<string, any>
   allowedRevalidateHeaderKeys?: string[]
   fetchCacheKeyPrefix?: string
@@ -686,9 +688,17 @@ export interface ExperimentalConfig {
   gestureTransition?: boolean
 
   /**
-   * A target memory limit for turbo, in bytes.
+   * Controls Turbopack's memory eviction strategy for development sessions
+   *
+   * Only effective in dev sessions where
+   * `experimental.turbopackFileSystemCacheForDev` is enabled (which it is by default).
+   *
+   * - `false`: disable eviction.
+   * - `'full'`: after every snapshot, drop as much memory as possible.
+   *
+   * Defaults to `'full'`
    */
-  turbopackMemoryLimit?: number
+  turbopackMemoryEviction?: false | 'full'
 
   /**
    * Selects the backend used by Turbopack for Node.js evaluation, e.g. webpack
@@ -791,7 +801,7 @@ export interface ExperimentalConfig {
   /**
    * Enable filesystem cache for the turbopack build.
    *
-   * Defaults to `false`.
+   * Defaults to `true` in canary/preview builds, `false` in production.
    */
   turbopackFileSystemCacheForBuild?: boolean
 
@@ -968,6 +978,24 @@ export interface ExperimentalConfig {
   taint?: boolean
 
   /**
+   * Enables blocking server-side rendering for the `app` directory: React emits
+   * a `<link rel="expect">` tag that holds the browser's first paint until the
+   * streamed shell is coherent, avoiding the layout shift / flicker that can
+   * occur while a partially-streamed HTML document is painted. Note that
+   * `rel="expect"` is currently only implemented by Chromium-based browsers.
+   *
+   * This feature is currently only available in React's experimental release
+   * channel, so enabling it opts the `app` directory into `react@experimental`
+   * (the same channel used by `taint`, `transitionIndicator`, and
+   * `gestureTransition`). The name mirrors React's underlying feature flag.
+   *
+   * This is an opt-in only. Setting it to `false` does not disable the
+   * experimental channel when another feature (such as `taint`,
+   * `transitionIndicator`, or `gestureTransition`) requires it.
+   */
+  blockingSSR?: boolean
+
+  /**
    * Uninstalls all "unhandledRejection" and "uncaughtException" listeners from
    * the global process so that we can override the behavior, which in some
    * runtimes is to exit the process.
@@ -1086,10 +1114,10 @@ export interface ExperimentalConfig {
     /**
      * Controls the validation behavior of Instant Insights
      *
-     * - `'warning'`: Validates all navigations for Instant UI in development
-     * - `'manual-warning'`: Validates navigations for Instant UI in development when configured with `unstable_instant` in Pages and Layouts
+     * - `'warning'` (default): Validates all navigations for Instant UI in development
+     * - `'manual-warning'`: Validates navigations for Instant UI in development only when configured with `instant` in Pages and Layouts
      * - `'experimental-error'`: Validates all navigations for Instant in development and build. Use with caution.
-     * - `'experimental-manual-error'`: Validates navigations for Instant UI in developement and build when configured with `unstable_instant` in Pages and Layouts. Use with caution.
+     * - `'experimental-manual-error'`: Validates navigations for Instant UI in development and build when configured with `instant` in Pages and Layouts. Use with caution.
      */
     validationLevel?: ValidationLevel
   }
@@ -1140,13 +1168,6 @@ export interface ExperimentalConfig {
   useCache?: boolean
 
   /**
-   * Use Node.js native streams instead of web streams for the App Router
-   * rendering pipeline on the Node.js runtime. This can improve performance
-   * by avoiding the overhead of web stream wrappers.
-   */
-  useNodeStreams?: boolean
-
-  /**
    * Enables detection and reporting of slow modules during development builds.
    * Enabling this may impact build performance to ensure accurate measurements.
    */
@@ -1163,6 +1184,12 @@ export interface ExperimentalConfig {
    *
    */
   globalNotFound?: boolean
+
+  /**
+   * @experimental Use the Rust port of the React compiler (Turbopack only).
+   * Requires `reactCompiler` to be enabled.
+   */
+  turbopackRustReactCompiler?: boolean
 
   /**
    * Enable debug information to be forwarded from browser to dev server stdout/stderr.
@@ -1347,7 +1374,7 @@ export type ExportPathMap = {
     /**
      * When true, run build-time instant validation for this export path.
      * Only set on the first export entry per page, since validation uses
-     * unstable_instant.unstable_samples (not actual params from generateStaticParams),
+     * instant.unstable_samples (not actual params from generateStaticParams),
      * so the result is the same for all param combinations.
      *
      * @internal
@@ -1759,13 +1786,31 @@ export interface NextConfig {
   enablePrerenderSourceMaps?: boolean
 
   /**
-   * When enabled, in development and build, Next.js will automatically cache
-   * page-level components and functions for faster builds and rendering. This
+   * When enabled, routes can combine a prerendered shell with dynamic content
+   * streamed into it, rather than being either fully static or fully dynamic. You can mark data and parts of your UI as cacheable using the
+   * `use cache` directive, which includes them in the pre-render pass alongside
+   * static parts of the page. Also enables `cacheLife` and `cacheTag` APIs, and
    * includes Partial Prerendering support.
    *
    * @see [Cache Components documentation](https://nextjs.org/docs/app/api-reference/config/next-config-js/cacheComponents)
    */
   cacheComponents?: boolean
+
+  /**
+   * Opts the whole app into Partial Prefetching: `<Link prefetch={true}>`
+   * prefetches only the static parts of a route, never its dynamic data.
+   * When `true`, the default segment-level `prefetch` becomes
+   * `'partial'`; per-segment `prefetch` exports still win. Requires
+   * `cacheComponents: true`.
+   *
+   * When `false` or omitted, this does nothing (the legacy behavior, where
+   * dynamic data is included in the prefetch).
+   *
+   * `'unstable_eager'` is like `true`, except the default becomes
+   * `'unstable_eager'` instead of `'partial'`: every Link has an implied
+   * prefetch={true}. Internal migration aid; not part of the public API.
+   */
+  partialPrefetching?: boolean | 'unstable_eager'
 
   cacheLife?: {
     [profile: string]: {
@@ -1918,7 +1963,7 @@ export const defaultConfig = Object.freeze({
   staticPageGenerationTimeout: 60,
   output: !!process.env.NEXT_PRIVATE_STANDALONE ? 'standalone' : undefined,
   modularizeImports: undefined,
-  outputFileTracingRoot: process.env.NEXT_PRIVATE_OUTPUT_TRACE_ROOT || '',
+  outputFileTracingRoot: '',
   allowedDevOrigins: undefined,
   enablePrerenderSourceMaps: true,
   cacheComponents: false,
@@ -1981,6 +2026,7 @@ export const defaultConfig = Object.freeze({
     useOffline: false,
     varyParams: true,
     optimisticRouting: true,
+    instrumentationClientRouterTransitionEvents: false,
     prefetchInlining: true,
     preloadEntriesOnStart: true,
     clientRouterFilter: true,
@@ -2054,13 +2100,22 @@ export const defaultConfig = Object.freeze({
     hideLogsAfterAbort: false,
     mcpServer: true,
     turbopackFileSystemCacheForDev: true,
-    turbopackFileSystemCacheForBuild: false,
+    turbopackFileSystemCacheForBuild: turbopackFileSystemCacheForBuildDefault(),
     turbopackInferModuleSideEffects: true,
     turbopackPluginRuntimeStrategy: 'childProcesses',
   },
   htmlLimitedBots: undefined,
   bundlePagesRouterDependencies: false,
 } satisfies NextConfig)
+
+function turbopackFileSystemCacheForBuildDefault() {
+  if (isStableBuild()) return false
+  if (isCI && process.env.NOW_BUILDER) {
+    // Assume caching is available on vercel
+    return true
+  }
+  return false
+}
 
 export async function normalizeConfig(phase: string, config: any) {
   if (typeof config === 'function') {
@@ -2093,6 +2148,7 @@ export interface NextConfigRuntime {
 
   distDir: NextConfigComplete['distDir']
   cacheComponents: NextConfigComplete['cacheComponents']
+  partialPrefetching: NextConfigComplete['partialPrefetching']
   agentRules: NextConfigComplete['agentRules']
   htmlLimitedBots: NextConfigComplete['htmlLimitedBots']
   assetPrefix: NextConfigComplete['assetPrefix']
@@ -2164,7 +2220,6 @@ export interface NextConfigRuntime {
     | 'cachedNavigations'
     | 'exposeTestingApiInProductionBuild'
     | 'supportsImmutableAssets'
-    | 'useNodeStreams'
     | 'instantInsights'
   > & {
     // Pick on @internal fields generates invalid .d.ts files
@@ -2234,7 +2289,6 @@ export function getNextConfigRuntime(
     cachedNavigations: ex.cachedNavigations,
     exposeTestingApiInProductionBuild: ex.exposeTestingApiInProductionBuild,
     supportsImmutableAssets: ex.supportsImmutableAssets,
-    useNodeStreams: ex.useNodeStreams,
     instantInsights: ex.instantInsights,
 
     trustHostHeader: ex.trustHostHeader,
@@ -2251,6 +2305,7 @@ export function getNextConfigRuntime(
 
     distDir: config.distDir,
     cacheComponents: config.cacheComponents,
+    partialPrefetching: config.partialPrefetching,
     agentRules: config.agentRules,
     htmlLimitedBots: config.htmlLimitedBots,
     assetPrefix: config.assetPrefix,
