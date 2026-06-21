@@ -38,7 +38,7 @@ For everything that is not a blocking-route error (`dynamic`, `revalidate`, `fet
 - <https://nextjs.org/docs/app/guides/migrating-to-cache-components>
 - Offline copy, if present: `node_modules/next/dist/docs/01-app/02-guides/migrating-to-cache-components.md`
 
-**Prefer the bundled offline docs over `nextjs.org` for every link in this skill.** Every guide linked below ships at `node_modules/next/dist/docs/<same-path>.md` (drop the `/docs/` prefix and append `.md`). Use the offline copy when present: it's faster, version-matched to the installed Next.js, and immune to URLs that have shifted between drafts and published pages. Fall back to the public URL only if the offline file is missing.
+Guide links in this skill have offline copies at `node_modules/next/dist/docs/<same-path>.md` (drop the `/docs/` prefix and append `.md`). The `/docs/messages/*` error pages are not bundled.
 
 If the offline docs are missing entirely, run `npx @next/codemod@latest agents-md` to write a version-matched docs index into `AGENTS.md` / `CLAUDE.md`, then read from there instead of guessing API shapes.
 
@@ -54,7 +54,7 @@ Milestone D is the final advancement: [Partial Prefetching](https://nextjs.org/d
 
 ## How to surface the errors
 
-**Primary: the dev server.** Visit a route; its blocking errors surface in the dev overlay with full stack traces, fix cards, and a **Copy as prompt** button. Work one route at a time — errors don't all accumulate in one place.
+**Primary: the dev server.** Visit a route; its blocking errors surface in the dev overlay with full stack traces, fix cards, and a **Copy as prompt** button. Work one route at a time — errors don't all accumulate in one place. The route itself still returns HTTP 200, so don't gate on status codes; read the overlay (or `.next-dev.log` if you can't drive a browser).
 
 **Alternative: build.** `next build` reports a blocking route too, but the default output stops at the first one, so the dev server above is better for sizing up the work. When you do run a build, the [Building guide](https://nextjs.org/docs/app/guides/building) covers the route-table glyphs and the flags (`--debug-prerender`, `--debug-build-paths`) for scoping.
 
@@ -139,7 +139,7 @@ Milestone B is done only when **every** group is clean — every `instant = fals
 
 **Precondition: milestone B is complete across the app.** Before starting this step, confirm no route outside the cleaned group still carries an undocumented opt-out (`grep -rln "TODO: Cache Components adoption" app` should return nothing; documented, deliberate Blocks are fine to leave). If bare opt-outs are left, you're not ready for Step 4 — go back to **Step 2** and finish the other groups first. Making navigations instant on a handful of routes while most of the app is still opted out of validation isn't meaningful adoption. If the user genuinely wants to proceed on the cleaned subset only, say so explicitly and flag that the rest of the app is unmigrated — don't assume they want to skip ahead.
 
-A green build means no route is _opted out_, not that navigations are instant. Next.js surfaces instant-navigation validation warnings: dev-only signals (they don't block the build) that look like the blocking-prerender errors you cleared in Step 2, and you fix them the same way — read the warning and apply the fix it names.
+A green build means no route is _opted out_, not that navigations are instant. The build's route table is silent on this too: a route can print `◐` (Partial Prerender) because _some_ shell streams above it (e.g. only a root-layout `<Suspense>`) while still blocking the client navigation into it. Don't trust the build output for milestone C — drive the app in dev and read the Insights. Next.js surfaces instant-navigation validation warnings: dev-only signals (they don't block the build) that look like the blocking-prerender errors you cleared in Step 2, and you fix them the same way — read the warning and apply the fix it names.
 
 These warnings fire on **navigation**, not on hover or prefetch (dev doesn't prefetch), so drive the app — use the **`next-dev-loop`** skill (or the manual dev-overlay loop) — and navigate into each route to surface them. They appear in the dev overlay's **Insights** tab with fix cards and a **Copy as prompt** button, the same as the blocking-prerender errors in Step 2.
 
