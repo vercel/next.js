@@ -38,7 +38,9 @@ For everything that is not a blocking-route error (`dynamic`, `revalidate`, `fet
 - <https://nextjs.org/docs/app/guides/migrating-to-cache-components>
 - Offline copy, if present: `node_modules/next/dist/docs/01-app/02-guides/migrating-to-cache-components.md`
 
-If the offline docs are missing, run `npx @next/codemod@latest agents-md` to write a version-matched docs index into `AGENTS.md` / `CLAUDE.md`, then read from there instead of guessing API shapes.
+**Prefer the bundled offline docs over `nextjs.org` for every link in this skill.** Every guide linked below ships at `node_modules/next/dist/docs/<same-path>.md` (drop the `/docs/` prefix and append `.md`). Use the offline copy when present: it's faster, version-matched to the installed Next.js, and immune to URLs that have shifted between drafts and published pages. Fall back to the public URL only if the offline file is missing.
+
+If the offline docs are missing entirely, run `npx @next/codemod@latest agents-md` to write a version-matched docs index into `AGENTS.md` / `CLAUDE.md`, then read from there instead of guessing API shapes.
 
 ## Background
 
