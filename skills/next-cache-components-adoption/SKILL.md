@@ -88,7 +88,7 @@ Ask the user; don't assume. **In a non-interactive run** (no way to prompt), def
 ### Blanket
 
 ```bash
-npx @next/codemod@latest cache-components-instant-false ./app
+npx @next/codemod@canary cache-components-instant-false ./app
 ```
 
 Inserts `export const instant = false` (with a `// TODO: Cache Components adoption` comment) into every `app/**/{page,layout,default}` file, skipping files that already declare `instant` and Client Components (`"use client"`). Then set `cacheComponents: true`. The TODO comments are the work queue.

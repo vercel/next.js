@@ -68,7 +68,7 @@ npx @next/codemod upgrade canary
 ##### `cache-components-instant-false`
 
 ```bash filename="Terminal"
-npx @next/codemod@latest cache-components-instant-false ./app
+npx @next/codemod@canary cache-components-instant-false ./app
 ```
 
 This codemod adds `export const instant = false` to every `app/**/{page,layout,default}` file that doesn't already export `instant`, so you can enable [`cacheComponents`](/docs/app/api-reference/config/next-config-js/cacheComponents) and then remove the opt-outs route by route. It skips Client Components (`"use client"`) and files that already declare `instant`.
