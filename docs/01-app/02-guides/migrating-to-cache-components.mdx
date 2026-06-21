@@ -20,6 +20,12 @@ The migration is driven by **instant navigation validation**. With Cache Compone
 
 Start by removing the route segment configs (`dynamic`, `revalidate`, `fetchCache`), then follow the validation insights and errors. Each one names the code to fix, most often uncached data to cache with [`use cache`](/docs/app/api-reference/directives/use-cache) or runtime data to wrap in [`<Suspense>`](https://react.dev/reference/react/Suspense). If a route needs more work than you want to take on right now, you can [opt it out of validation](#opting-out-of-validation) and come back to it later.
 
+> **Good to know:** For agents working on larger apps, the [`next-cache-components-adoption`](https://github.com/vercel/next.js/tree/canary/skills/next-cache-components-adoption) skill drives this guide route by route after the initial opt-out: it works each `instant = false` back off, helps you decide what becomes instant and what stays blocking, and walks the dev-overlay validation insights with you. Install with:
+>
+> ```bash filename="Terminal"
+> npx skills install https://github.com/vercel/next.js/tree/canary/skills/next-cache-components-adoption
+> ```
+
 Your existing `fetch` and `unstable_cache` caching keeps working as a separate layer, so let the insights and errors guide what to change.
 
 Some surfaces have their own steps:
@@ -248,9 +254,6 @@ A validation insight or error tells you a route won't render instantly. Resolve 
 ```tsx filename="app/dashboard/layout.tsx"
 export const instant = false
 ```
-
-{/* TODO: distribution of the skill/plugin */}
-For a larger app, the [`next-cache-components-adoption`](https://github.com/vercel/next.js/tree/canary/skills/next-cache-components-adoption) skill drives this whole migration for agents: it picks a blanket-or-direct strategy, opts every route out at once so you land a green build first (via the [`cache-components-instant-false`](/docs/app/guides/upgrading/codemods#cache-components-instant-false) codemod), removes the opt-outs top-down one group at a time, then hands off to [`next-cache-components-optimizer`](https://github.com/vercel/next.js/tree/canary/skills/next-cache-components-optimizer) for shell tuning.
 
 ## `fetch` cache options
 

@@ -104,22 +104,64 @@ export default function transformer(file: FileInfo, _api: API) {
     return file.source
   }
 
-  const instantExport = j.exportNamedDeclaration(
-    j.variableDeclaration('const', [
-      j.variableDeclarator(j.identifier('instant'), j.booleanLiteral(false)),
-    ])
+  // Insert as raw text rather than mutating the AST and round-tripping through
+  // `root.toSource()`. Recast's printer preserves unmodified subtrees, but the
+  // moment we push a new statement into `program.body` it re-prints the whole
+  // module — which normalizes quirks the original file had (mixed quotes,
+  // indentation in JSX, missing semicolons) and produces a noisy diff. Raw
+  // text insertion keeps every other byte exactly as the user wrote it.
+  //
+  // Place the opt-out right after the last `import`, so it's visible at the
+  // top of the file when walking routes back without splitting any leading
+  // comments attached to the first real statement (e.g. a "// TYPES" banner
+  // sitting above an `interface`). When the module has no imports, fall back
+  // to inserting after any leading comments on the first non-import statement
+  // (so file pragmas like `// @ts-nocheck` keep working).
+  const body = program.body as any[]
+  const optOut =
+    '// TODO: Cache Components adoption. Remove once this route navigates instantly.\n' +
+    '// See: https://nextjs.org/docs/app/guides/migrating-to-cache-components\n' +
+    'export const instant = false;\n'
+
+  const source = file.source
+
+  let lastImportEnd = -1
+  for (const node of body) {
+    if (node.type === 'ImportDeclaration') {
+      const end = node.end ?? node.range?.[1]
+      if (typeof end === 'number' && end > lastImportEnd) lastImportEnd = end
+    }
+  }
+
+  if (lastImportEnd !== -1) {
+    let insertAt = lastImportEnd
+    if (source[insertAt] === '\n') insertAt += 1
+    return source.slice(0, insertAt) + '\n' + optOut + source.slice(insertAt)
+  }
+
+  // No imports. Insert before the first non-import statement, but *after* any
+  // leading comments attached to it — comments like `@ts-nocheck` only work
+  // as the very first comment of the file.
+  const firstNonImport = body.find(
+    (node: any) => node.type !== 'ImportDeclaration'
   )
 
-  // Annotate so the inserted opt-outs are greppable while walking them back.
-  instantExport.comments = [
-    j.commentLine(
-      ' TODO: Cache Components adoption — remove once this route is instant.',
-      true,
-      false
-    ),
-  ]
+  if (!firstNonImport) {
+    // Imports-only module (unusual, but possible for re-export aggregations).
+    const trailingNewline = source.endsWith('\n') ? '' : '\n'
+    return source + trailingNewline + '\n' + optOut
+  }
 
-  root.get().node.program.body.push(instantExport)
+  let insertAt: number = firstNonImport.start
+  const leadingComments =
+    firstNonImport.leadingComments ?? firstNonImport.comments
+  if (Array.isArray(leadingComments) && leadingComments.length > 0) {
+    const lastLeadingEnd = leadingComments[leadingComments.length - 1].end
+    if (typeof lastLeadingEnd === 'number' && lastLeadingEnd < insertAt) {
+      insertAt = lastLeadingEnd
+      if (source[insertAt] === '\n') insertAt += 1
+    }
+  }
 
-  return root.toSource()
+  return source.slice(0, insertAt) + optOut + '\n' + source.slice(insertAt)
 }
