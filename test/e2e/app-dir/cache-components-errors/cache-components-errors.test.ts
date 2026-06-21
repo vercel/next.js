@@ -200,13 +200,13 @@ describe('Cache Components Errors', () => {
                \`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking the page load and leading to a slower user experience.
 
                Ways to fix this:
-                 - [cache] Cache the data access with \`"use cache"\`
-                   https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
                  - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
                    https://nextjs.org/docs/messages/blocking-prerender-dynamic#wrap-in-or-move-into-suspense
-                 - [cache] If the runtime data is \`params\` and they're known, prerender them with \`generateStaticParams\`
+                 - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\`
+                   https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
+                 - [cache] For \`params\`: if the params are known, prerender them with \`generateStaticParams\`
                    https://nextjs.org/docs/messages/blocking-prerender-runtime#for-known-params-prerender
-                 - [block] Set \`export const unstable_instant = false\` to silence this warning and allow a blocking route
+                 - [block] Set \`export const instant = false\` to silence this warning and allow a blocking route
                    https://nextjs.org/docs/messages/blocking-prerender-dynamic#allow-blocking-route
                    at Dynamic (app/dynamic-metadata-error-route/page.tsx:20:16)
                    at Page (app/dynamic-metadata-error-route/page.tsx:15:7)
@@ -230,13 +230,13 @@ describe('Cache Components Errors', () => {
                \`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking the page load and leading to a slower user experience.
 
                Ways to fix this:
-                 - [cache] Cache the data access with \`"use cache"\`
-                   https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
                  - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
                    https://nextjs.org/docs/messages/blocking-prerender-dynamic#wrap-in-or-move-into-suspense
-                 - [cache] If the runtime data is \`params\` and they're known, prerender them with \`generateStaticParams\`
+                 - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\`
+                   https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
+                 - [cache] For \`params\`: if the params are known, prerender them with \`generateStaticParams\`
                    https://nextjs.org/docs/messages/blocking-prerender-runtime#for-known-params-prerender
-                 - [block] Set \`export const unstable_instant = false\` to silence this warning and allow a blocking route
+                 - [block] Set \`export const instant = false\` to silence this warning and allow a blocking route
                    https://nextjs.org/docs/messages/blocking-prerender-dynamic#allow-blocking-route
                    at main (<anonymous>)
                    at body (<anonymous>)
@@ -256,13 +256,13 @@ describe('Cache Components Errors', () => {
                \`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking the page load and leading to a slower user experience.
 
                Ways to fix this:
-                 - [cache] Cache the data access with \`"use cache"\`
-                   https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
                  - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
                    https://nextjs.org/docs/messages/blocking-prerender-dynamic#wrap-in-or-move-into-suspense
-                 - [cache] If the runtime data is \`params\` and they're known, prerender them with \`generateStaticParams\`
+                 - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\`
+                   https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
+                 - [cache] For \`params\`: if the params are known, prerender them with \`generateStaticParams\`
                    https://nextjs.org/docs/messages/blocking-prerender-runtime#for-known-params-prerender
-                 - [block] Set \`export const unstable_instant = false\` to silence this warning and allow a blocking route
+                 - [block] Set \`export const instant = false\` to silence this warning and allow a blocking route
                    https://nextjs.org/docs/messages/blocking-prerender-dynamic#allow-blocking-route
                    at Dynamic (webpack:///app/dynamic-metadata-error-route/page.tsx:20:16)
                    at Page (webpack:///app/dynamic-metadata-error-route/page.tsx:15:7)
@@ -286,13 +286,13 @@ describe('Cache Components Errors', () => {
                \`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking the page load and leading to a slower user experience.
 
                Ways to fix this:
-                 - [cache] Cache the data access with \`"use cache"\`
-                   https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
                  - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
                    https://nextjs.org/docs/messages/blocking-prerender-dynamic#wrap-in-or-move-into-suspense
-                 - [cache] If the runtime data is \`params\` and they're known, prerender them with \`generateStaticParams\`
+                 - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\`
+                   https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
+                 - [cache] For \`params\`: if the params are known, prerender them with \`generateStaticParams\`
                    https://nextjs.org/docs/messages/blocking-prerender-runtime#for-known-params-prerender
-                 - [block] Set \`export const unstable_instant = false\` to silence this warning and allow a blocking route
+                 - [block] Set \`export const instant = false\` to silence this warning and allow a blocking route
                    https://nextjs.org/docs/messages/blocking-prerender-dynamic#allow-blocking-route
                    at a (<next-dist-dir>)
                    at b (<next-dist-dir>)
@@ -616,14 +616,14 @@ describe('Cache Components Errors', () => {
             expect(output).toMatchInlineSnapshot(`
              "Route "/dynamic-viewport-static-route": Next.js encountered uncached or runtime data in \`generateViewport()\`.
 
-             This prevents the page from being prerendered, leading to a slower user experience.
+             This prevents the page from being prerendered, leading to a slower user experience. Unlike metadata, viewport cannot be streamed behind \`<Suspense>\` because it affects the initial page load.
 
              Ways to fix this:
                - [static] Use a static viewport export instead of \`generateViewport()\`
                  https://nextjs.org/docs/messages/blocking-prerender-viewport-runtime#use-static-viewport
-               - [cache] Cache the viewport data with \`"use cache"\` in \`generateViewport()\`
+               - [cache] For uncached data (\`fetch\`, database calls): cache the viewport with \`"use cache"\` in \`generateViewport()\`
                  https://nextjs.org/docs/messages/blocking-prerender-viewport-dynamic#cache-the-viewport-data
-               - [block] Set \`export const unstable_instant = false\` to silence this warning and allow a blocking route
+               - [block] Set \`export const instant = false\` to silence this warning and allow a blocking route
                  https://nextjs.org/docs/messages/blocking-prerender-viewport-dynamic#allow-blocking-route
              Error occurred prerendering page "/dynamic-viewport-static-route". Read more: https://nextjs.org/docs/messages/prerender-error
 
@@ -634,14 +634,14 @@ describe('Cache Components Errors', () => {
             expect(output).toMatchInlineSnapshot(`
              "Route "/dynamic-viewport-static-route": Next.js encountered uncached or runtime data in \`generateViewport()\`.
 
-             This prevents the page from being prerendered, leading to a slower user experience.
+             This prevents the page from being prerendered, leading to a slower user experience. Unlike metadata, viewport cannot be streamed behind \`<Suspense>\` because it affects the initial page load.
 
              Ways to fix this:
                - [static] Use a static viewport export instead of \`generateViewport()\`
                  https://nextjs.org/docs/messages/blocking-prerender-viewport-runtime#use-static-viewport
-               - [cache] Cache the viewport data with \`"use cache"\` in \`generateViewport()\`
+               - [cache] For uncached data (\`fetch\`, database calls): cache the viewport with \`"use cache"\` in \`generateViewport()\`
                  https://nextjs.org/docs/messages/blocking-prerender-viewport-dynamic#cache-the-viewport-data
-               - [block] Set \`export const unstable_instant = false\` to silence this warning and allow a blocking route
+               - [block] Set \`export const instant = false\` to silence this warning and allow a blocking route
                  https://nextjs.org/docs/messages/blocking-prerender-viewport-dynamic#allow-blocking-route
              Error occurred prerendering page "/dynamic-viewport-static-route". Read more: https://nextjs.org/docs/messages/prerender-error
              Export encountered an error on /dynamic-viewport-static-route/page: /dynamic-viewport-static-route, exiting the build."
@@ -728,14 +728,14 @@ describe('Cache Components Errors', () => {
             expect(output).toMatchInlineSnapshot(`
              "Route "/dynamic-viewport-dynamic-route": Next.js encountered uncached or runtime data in \`generateViewport()\`.
 
-             This prevents the page from being prerendered, leading to a slower user experience.
+             This prevents the page from being prerendered, leading to a slower user experience. Unlike metadata, viewport cannot be streamed behind \`<Suspense>\` because it affects the initial page load.
 
              Ways to fix this:
                - [static] Use a static viewport export instead of \`generateViewport()\`
                  https://nextjs.org/docs/messages/blocking-prerender-viewport-runtime#use-static-viewport
-               - [cache] Cache the viewport data with \`"use cache"\` in \`generateViewport()\`
+               - [cache] For uncached data (\`fetch\`, database calls): cache the viewport with \`"use cache"\` in \`generateViewport()\`
                  https://nextjs.org/docs/messages/blocking-prerender-viewport-dynamic#cache-the-viewport-data
-               - [block] Set \`export const unstable_instant = false\` to silence this warning and allow a blocking route
+               - [block] Set \`export const instant = false\` to silence this warning and allow a blocking route
                  https://nextjs.org/docs/messages/blocking-prerender-viewport-dynamic#allow-blocking-route
              Error occurred prerendering page "/dynamic-viewport-dynamic-route". Read more: https://nextjs.org/docs/messages/prerender-error
 
@@ -746,14 +746,14 @@ describe('Cache Components Errors', () => {
             expect(output).toMatchInlineSnapshot(`
              "Route "/dynamic-viewport-dynamic-route": Next.js encountered uncached or runtime data in \`generateViewport()\`.
 
-             This prevents the page from being prerendered, leading to a slower user experience.
+             This prevents the page from being prerendered, leading to a slower user experience. Unlike metadata, viewport cannot be streamed behind \`<Suspense>\` because it affects the initial page load.
 
              Ways to fix this:
                - [static] Use a static viewport export instead of \`generateViewport()\`
                  https://nextjs.org/docs/messages/blocking-prerender-viewport-runtime#use-static-viewport
-               - [cache] Cache the viewport data with \`"use cache"\` in \`generateViewport()\`
+               - [cache] For uncached data (\`fetch\`, database calls): cache the viewport with \`"use cache"\` in \`generateViewport()\`
                  https://nextjs.org/docs/messages/blocking-prerender-viewport-dynamic#cache-the-viewport-data
-               - [block] Set \`export const unstable_instant = false\` to silence this warning and allow a blocking route
+               - [block] Set \`export const instant = false\` to silence this warning and allow a blocking route
                  https://nextjs.org/docs/messages/blocking-prerender-viewport-dynamic#allow-blocking-route
              Error occurred prerendering page "/dynamic-viewport-dynamic-route". Read more: https://nextjs.org/docs/messages/prerender-error
              Export encountered an error on /dynamic-viewport-dynamic-route/page: /dynamic-viewport-dynamic-route, exiting the build."
@@ -843,13 +843,13 @@ describe('Cache Components Errors', () => {
                \`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking the page load and leading to a slower user experience.
 
                Ways to fix this:
-                 - [cache] Cache the data access with \`"use cache"\`
-                   https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
                  - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
                    https://nextjs.org/docs/messages/blocking-prerender-dynamic#wrap-in-or-move-into-suspense
-                 - [cache] If the runtime data is \`params\` and they're known, prerender them with \`generateStaticParams\`
+                 - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\`
+                   https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
+                 - [cache] For \`params\`: if the params are known, prerender them with \`generateStaticParams\`
                    https://nextjs.org/docs/messages/blocking-prerender-runtime#for-known-params-prerender
-                 - [block] Set \`export const unstable_instant = false\` to silence this warning and allow a blocking route
+                 - [block] Set \`export const instant = false\` to silence this warning and allow a blocking route
                    https://nextjs.org/docs/messages/blocking-prerender-dynamic#allow-blocking-route
                    at fetchRandom (app/dynamic-root/page.tsx:62:16)
                    at FetchingComponent (app/dynamic-root/page.tsx:46:56)
@@ -867,13 +867,13 @@ describe('Cache Components Errors', () => {
                \`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking the page load and leading to a slower user experience.
 
                Ways to fix this:
-                 - [cache] Cache the data access with \`"use cache"\`
-                   https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
                  - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
                    https://nextjs.org/docs/messages/blocking-prerender-dynamic#wrap-in-or-move-into-suspense
-                 - [cache] If the runtime data is \`params\` and they're known, prerender them with \`generateStaticParams\`
+                 - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\`
+                   https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
+                 - [cache] For \`params\`: if the params are known, prerender them with \`generateStaticParams\`
                    https://nextjs.org/docs/messages/blocking-prerender-runtime#for-known-params-prerender
-                 - [block] Set \`export const unstable_instant = false\` to silence this warning and allow a blocking route
+                 - [block] Set \`export const instant = false\` to silence this warning and allow a blocking route
                    https://nextjs.org/docs/messages/blocking-prerender-dynamic#allow-blocking-route
                    at fetchRandom (app/dynamic-root/page.tsx:62:16)
                    at FetchingComponent (app/dynamic-root/page.tsx:46:56)
@@ -898,13 +898,13 @@ describe('Cache Components Errors', () => {
                \`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking the page load and leading to a slower user experience.
 
                Ways to fix this:
-                 - [cache] Cache the data access with \`"use cache"\`
-                   https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
                  - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
                    https://nextjs.org/docs/messages/blocking-prerender-dynamic#wrap-in-or-move-into-suspense
-                 - [cache] If the runtime data is \`params\` and they're known, prerender them with \`generateStaticParams\`
+                 - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\`
+                   https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
+                 - [cache] For \`params\`: if the params are known, prerender them with \`generateStaticParams\`
                    https://nextjs.org/docs/messages/blocking-prerender-runtime#for-known-params-prerender
-                 - [block] Set \`export const unstable_instant = false\` to silence this warning and allow a blocking route
+                 - [block] Set \`export const instant = false\` to silence this warning and allow a blocking route
                    https://nextjs.org/docs/messages/blocking-prerender-dynamic#allow-blocking-route
                    at <unknown> (app/dynamic-root/indirection.tsx:7:34)
                    at main (<anonymous>)
@@ -925,13 +925,13 @@ describe('Cache Components Errors', () => {
                \`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking the page load and leading to a slower user experience.
 
                Ways to fix this:
-                 - [cache] Cache the data access with \`"use cache"\`
-                   https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
                  - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
                    https://nextjs.org/docs/messages/blocking-prerender-dynamic#wrap-in-or-move-into-suspense
-                 - [cache] If the runtime data is \`params\` and they're known, prerender them with \`generateStaticParams\`
+                 - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\`
+                   https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
+                 - [cache] For \`params\`: if the params are known, prerender them with \`generateStaticParams\`
                    https://nextjs.org/docs/messages/blocking-prerender-runtime#for-known-params-prerender
-                 - [block] Set \`export const unstable_instant = false\` to silence this warning and allow a blocking route
+                 - [block] Set \`export const instant = false\` to silence this warning and allow a blocking route
                    https://nextjs.org/docs/messages/blocking-prerender-dynamic#allow-blocking-route
                    at main (<anonymous>)
                    at body (<anonymous>)
@@ -951,13 +951,13 @@ describe('Cache Components Errors', () => {
                \`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking the page load and leading to a slower user experience.
 
                Ways to fix this:
-                 - [cache] Cache the data access with \`"use cache"\`
-                   https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
                  - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
                    https://nextjs.org/docs/messages/blocking-prerender-dynamic#wrap-in-or-move-into-suspense
-                 - [cache] If the runtime data is \`params\` and they're known, prerender them with \`generateStaticParams\`
+                 - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\`
+                   https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
+                 - [cache] For \`params\`: if the params are known, prerender them with \`generateStaticParams\`
                    https://nextjs.org/docs/messages/blocking-prerender-runtime#for-known-params-prerender
-                 - [block] Set \`export const unstable_instant = false\` to silence this warning and allow a blocking route
+                 - [block] Set \`export const instant = false\` to silence this warning and allow a blocking route
                    https://nextjs.org/docs/messages/blocking-prerender-dynamic#allow-blocking-route
                    at fetchRandom (webpack:///app/dynamic-root/page.tsx:62:16)
                    at FetchingComponent (webpack:///app/dynamic-root/page.tsx:46:56)
@@ -975,13 +975,13 @@ describe('Cache Components Errors', () => {
                \`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking the page load and leading to a slower user experience.
 
                Ways to fix this:
-                 - [cache] Cache the data access with \`"use cache"\`
-                   https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
                  - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
                    https://nextjs.org/docs/messages/blocking-prerender-dynamic#wrap-in-or-move-into-suspense
-                 - [cache] If the runtime data is \`params\` and they're known, prerender them with \`generateStaticParams\`
+                 - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\`
+                   https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
+                 - [cache] For \`params\`: if the params are known, prerender them with \`generateStaticParams\`
                    https://nextjs.org/docs/messages/blocking-prerender-runtime#for-known-params-prerender
-                 - [block] Set \`export const unstable_instant = false\` to silence this warning and allow a blocking route
+                 - [block] Set \`export const instant = false\` to silence this warning and allow a blocking route
                    https://nextjs.org/docs/messages/blocking-prerender-dynamic#allow-blocking-route
                    at fetchRandom (webpack:///app/dynamic-root/page.tsx:62:16)
                    at FetchingComponent (webpack:///app/dynamic-root/page.tsx:46:56)
@@ -1006,13 +1006,13 @@ describe('Cache Components Errors', () => {
                \`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking the page load and leading to a slower user experience.
 
                Ways to fix this:
-                 - [cache] Cache the data access with \`"use cache"\`
-                   https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
                  - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
                    https://nextjs.org/docs/messages/blocking-prerender-dynamic#wrap-in-or-move-into-suspense
-                 - [cache] If the runtime data is \`params\` and they're known, prerender them with \`generateStaticParams\`
+                 - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\`
+                   https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
+                 - [cache] For \`params\`: if the params are known, prerender them with \`generateStaticParams\`
                    https://nextjs.org/docs/messages/blocking-prerender-runtime#for-known-params-prerender
-                 - [block] Set \`export const unstable_instant = false\` to silence this warning and allow a blocking route
+                 - [block] Set \`export const instant = false\` to silence this warning and allow a blocking route
                    https://nextjs.org/docs/messages/blocking-prerender-dynamic#allow-blocking-route
                    at a (<next-dist-dir>)
                    at b (<next-dist-dir>)
@@ -1047,13 +1047,13 @@ describe('Cache Components Errors', () => {
                \`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking the page load and leading to a slower user experience.
 
                Ways to fix this:
-                 - [cache] Cache the data access with \`"use cache"\`
-                   https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
                  - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
                    https://nextjs.org/docs/messages/blocking-prerender-dynamic#wrap-in-or-move-into-suspense
-                 - [cache] If the runtime data is \`params\` and they're known, prerender them with \`generateStaticParams\`
+                 - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\`
+                   https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
+                 - [cache] For \`params\`: if the params are known, prerender them with \`generateStaticParams\`
                    https://nextjs.org/docs/messages/blocking-prerender-runtime#for-known-params-prerender
-                 - [block] Set \`export const unstable_instant = false\` to silence this warning and allow a blocking route
+                 - [block] Set \`export const instant = false\` to silence this warning and allow a blocking route
                    https://nextjs.org/docs/messages/blocking-prerender-dynamic#allow-blocking-route
                    at w (<next-dist-dir>)
                    at x (<next-dist-dir>)
@@ -2412,13 +2412,13 @@ describe('Cache Components Errors', () => {
                  \`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking the page load and leading to a slower user experience.
 
                  Ways to fix this:
-                   - [cache] Cache the data access with \`"use cache"\`
-                     https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
                    - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
                      https://nextjs.org/docs/messages/blocking-prerender-dynamic#wrap-in-or-move-into-suspense
-                   - [cache] If the runtime data is \`params\` and they're known, prerender them with \`generateStaticParams\`
+                   - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\`
+                     https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
+                   - [cache] For \`params\`: if the params are known, prerender them with \`generateStaticParams\`
                      https://nextjs.org/docs/messages/blocking-prerender-runtime#for-known-params-prerender
-                   - [block] Set \`export const unstable_instant = false\` to silence this warning and allow a blocking route
+                   - [block] Set \`export const instant = false\` to silence this warning and allow a blocking route
                      https://nextjs.org/docs/messages/blocking-prerender-dynamic#allow-blocking-route
                      at RequestData (app/sync-attribution/unguarded-async-guarded-clientsync/page.tsx:34:18)
                      at Page (app/sync-attribution/unguarded-async-guarded-clientsync/page.tsx:27:9)
@@ -2442,13 +2442,13 @@ describe('Cache Components Errors', () => {
                  \`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking the page load and leading to a slower user experience.
 
                  Ways to fix this:
-                   - [cache] Cache the data access with \`"use cache"\`
-                     https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
                    - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
                      https://nextjs.org/docs/messages/blocking-prerender-dynamic#wrap-in-or-move-into-suspense
-                   - [cache] If the runtime data is \`params\` and they're known, prerender them with \`generateStaticParams\`
+                   - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\`
+                     https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
+                   - [cache] For \`params\`: if the params are known, prerender them with \`generateStaticParams\`
                      https://nextjs.org/docs/messages/blocking-prerender-runtime#for-known-params-prerender
-                   - [block] Set \`export const unstable_instant = false\` to silence this warning and allow a blocking route
+                   - [block] Set \`export const instant = false\` to silence this warning and allow a blocking route
                      https://nextjs.org/docs/messages/blocking-prerender-dynamic#allow-blocking-route
                      at a (<anonymous>)
                      at main (<anonymous>)
@@ -2470,13 +2470,13 @@ describe('Cache Components Errors', () => {
                  \`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking the page load and leading to a slower user experience.
 
                  Ways to fix this:
-                   - [cache] Cache the data access with \`"use cache"\`
-                     https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
                    - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
                      https://nextjs.org/docs/messages/blocking-prerender-dynamic#wrap-in-or-move-into-suspense
-                   - [cache] If the runtime data is \`params\` and they're known, prerender them with \`generateStaticParams\`
+                   - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\`
+                     https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
+                   - [cache] For \`params\`: if the params are known, prerender them with \`generateStaticParams\`
                      https://nextjs.org/docs/messages/blocking-prerender-runtime#for-known-params-prerender
-                   - [block] Set \`export const unstable_instant = false\` to silence this warning and allow a blocking route
+                   - [block] Set \`export const instant = false\` to silence this warning and allow a blocking route
                      https://nextjs.org/docs/messages/blocking-prerender-dynamic#allow-blocking-route
                      at RequestData (webpack:///app/sync-attribution/unguarded-async-guarded-clientsync/page.tsx:34:18)
                      at Page (webpack:///app/sync-attribution/unguarded-async-guarded-clientsync/page.tsx:27:9)
@@ -2714,7 +2714,7 @@ describe('Cache Components Errors', () => {
 
             await expect(browser).toDisplayRedbox(`
              {
-               "code": "E1378",
+               "code": "E1380",
                "description": "Route "/use-cache-cookies": \`cookies()\` can't be read inside \`"use cache"\`. Read it outside the cached function and pass what you need as an argument.
              Learn more: https://nextjs.org/docs/messages/next-request-in-use-cache",
                "environmentLabel": "Server",
@@ -2828,7 +2828,7 @@ describe('Cache Components Errors', () => {
 
             await expect(browser).toDisplayRedbox(`
              {
-               "code": "E1384",
+               "code": "E1385",
                "description": "Route "/use-cache-draft-mode": \`draftMode().enable()\` can't be called inside \`"use cache"\`. Draft mode can be read from a cached function, but enabling or disabling it must happen outside.
              Learn more: https://nextjs.org/docs/messages/next-request-in-use-cache",
                "environmentLabel": "Server",
@@ -2941,7 +2941,7 @@ describe('Cache Components Errors', () => {
 
             await expect(browser).toDisplayRedbox(`
              {
-               "code": "E1372",
+               "code": "E1374",
                "description": "Route "/use-cache-headers": \`headers()\` can't be read inside \`"use cache"\`. Read it outside the cached function and pass what you need as an argument.
              Learn more: https://nextjs.org/docs/messages/next-request-in-use-cache",
                "environmentLabel": "Server",
@@ -3053,7 +3053,7 @@ describe('Cache Components Errors', () => {
 
             await expect(browser).toDisplayRedbox(`
              {
-               "code": "E1387",
+               "code": "E1388",
                "description": "Route "/use-cache-connection": \`connection()\` can't be used inside \`"use cache"\`. A cache entry can be built before any request exists, so it can't depend on one.
              Learn more: https://nextjs.org/docs/messages/next-request-in-use-cache",
                "environmentLabel": "Server",
@@ -3200,13 +3200,13 @@ describe('Cache Components Errors', () => {
                    \`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking the page load and leading to a slower user experience.
 
                    Ways to fix this:
-                     - [cache] Cache the data access with \`"use cache"\`
-                       https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
                      - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
                        https://nextjs.org/docs/messages/blocking-prerender-dynamic#wrap-in-or-move-into-suspense
-                     - [cache] If the runtime data is \`params\` and they're known, prerender them with \`generateStaticParams\`
+                     - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\`
+                       https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
+                     - [cache] For \`params\`: if the params are known, prerender them with \`generateStaticParams\`
                        https://nextjs.org/docs/messages/blocking-prerender-runtime#for-known-params-prerender
-                     - [block] Set \`export const unstable_instant = false\` to silence this warning and allow a blocking route
+                     - [block] Set \`export const instant = false\` to silence this warning and allow a blocking route
                        https://nextjs.org/docs/messages/blocking-prerender-dynamic#allow-blocking-route
                        at Page (app/use-cache-low-expire/fast/page.tsx:3:16)
                      1 | import { cacheLife } from 'next/cache'
@@ -3229,13 +3229,13 @@ describe('Cache Components Errors', () => {
                    \`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking the page load and leading to a slower user experience.
 
                    Ways to fix this:
-                     - [cache] Cache the data access with \`"use cache"\`
-                       https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
                      - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
                        https://nextjs.org/docs/messages/blocking-prerender-dynamic#wrap-in-or-move-into-suspense
-                     - [cache] If the runtime data is \`params\` and they're known, prerender them with \`generateStaticParams\`
+                     - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\`
+                       https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
+                     - [cache] For \`params\`: if the params are known, prerender them with \`generateStaticParams\`
                        https://nextjs.org/docs/messages/blocking-prerender-runtime#for-known-params-prerender
-                     - [block] Set \`export const unstable_instant = false\` to silence this warning and allow a blocking route
+                     - [block] Set \`export const instant = false\` to silence this warning and allow a blocking route
                        https://nextjs.org/docs/messages/blocking-prerender-dynamic#allow-blocking-route
                        at main (<anonymous>)
                        at body (<anonymous>)
@@ -3258,13 +3258,13 @@ describe('Cache Components Errors', () => {
 \`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking the page load and leading to a slower user experience.
 
 Ways to fix this:
-  - [cache] Cache the data access with \`"use cache"\`
-    https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
   - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
     https://nextjs.org/docs/messages/blocking-prerender-dynamic#wrap-in-or-move-into-suspense
-  - [cache] If the runtime data is \`params\` and they're known, prerender them with \`generateStaticParams\`
+  - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\`
+    https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
+  - [cache] For \`params\`: if the params are known, prerender them with \`generateStaticParams\`
     https://nextjs.org/docs/messages/blocking-prerender-runtime#for-known-params-prerender
-  - [block] Set \`export const unstable_instant = false\` to silence this warning and allow a blocking route
+  - [block] Set \`export const instant = false\` to silence this warning and allow a blocking route
     https://nextjs.org/docs/messages/blocking-prerender-dynamic#allow-blocking-route`
                   )
                 } else {
@@ -3274,13 +3274,13 @@ Ways to fix this:
 \`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking the page load and leading to a slower user experience.
 
 Ways to fix this:
-  - [cache] Cache the data access with \`"use cache"\`
-    https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
   - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
     https://nextjs.org/docs/messages/blocking-prerender-dynamic#wrap-in-or-move-into-suspense
-  - [cache] If the runtime data is \`params\` and they're known, prerender them with \`generateStaticParams\`
+  - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\`
+    https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
+  - [cache] For \`params\`: if the params are known, prerender them with \`generateStaticParams\`
     https://nextjs.org/docs/messages/blocking-prerender-runtime#for-known-params-prerender
-  - [block] Set \`export const unstable_instant = false\` to silence this warning and allow a blocking route
+  - [block] Set \`export const instant = false\` to silence this warning and allow a blocking route
     https://nextjs.org/docs/messages/blocking-prerender-dynamic#allow-blocking-route`
                   )
                 }
@@ -3330,13 +3330,13 @@ Ways to fix this:
                    \`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking the page load and leading to a slower user experience.
 
                    Ways to fix this:
-                     - [cache] Cache the data access with \`"use cache"\`
-                       https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
                      - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
                        https://nextjs.org/docs/messages/blocking-prerender-dynamic#wrap-in-or-move-into-suspense
-                     - [cache] If the runtime data is \`params\` and they're known, prerender them with \`generateStaticParams\`
+                     - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\`
+                       https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
+                     - [cache] For \`params\`: if the params are known, prerender them with \`generateStaticParams\`
                        https://nextjs.org/docs/messages/blocking-prerender-runtime#for-known-params-prerender
-                     - [block] Set \`export const unstable_instant = false\` to silence this warning and allow a blocking route
+                     - [block] Set \`export const instant = false\` to silence this warning and allow a blocking route
                        https://nextjs.org/docs/messages/blocking-prerender-dynamic#allow-blocking-route
                        at Page (app/use-cache-low-expire/slow/page.tsx:3:16)
                      1 | import { cacheLife } from 'next/cache'
@@ -3359,13 +3359,13 @@ Ways to fix this:
                    \`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking the page load and leading to a slower user experience.
 
                    Ways to fix this:
-                     - [cache] Cache the data access with \`"use cache"\`
-                       https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
                      - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
                        https://nextjs.org/docs/messages/blocking-prerender-dynamic#wrap-in-or-move-into-suspense
-                     - [cache] If the runtime data is \`params\` and they're known, prerender them with \`generateStaticParams\`
+                     - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\`
+                       https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
+                     - [cache] For \`params\`: if the params are known, prerender them with \`generateStaticParams\`
                        https://nextjs.org/docs/messages/blocking-prerender-runtime#for-known-params-prerender
-                     - [block] Set \`export const unstable_instant = false\` to silence this warning and allow a blocking route
+                     - [block] Set \`export const instant = false\` to silence this warning and allow a blocking route
                        https://nextjs.org/docs/messages/blocking-prerender-dynamic#allow-blocking-route
                        at main (<anonymous>)
                        at body (<anonymous>)
@@ -3388,13 +3388,13 @@ Ways to fix this:
 \`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking the page load and leading to a slower user experience.
 
 Ways to fix this:
-  - [cache] Cache the data access with \`"use cache"\`
-    https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
   - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
     https://nextjs.org/docs/messages/blocking-prerender-dynamic#wrap-in-or-move-into-suspense
-  - [cache] If the runtime data is \`params\` and they're known, prerender them with \`generateStaticParams\`
+  - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\`
+    https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
+  - [cache] For \`params\`: if the params are known, prerender them with \`generateStaticParams\`
     https://nextjs.org/docs/messages/blocking-prerender-runtime#for-known-params-prerender
-  - [block] Set \`export const unstable_instant = false\` to silence this warning and allow a blocking route
+  - [block] Set \`export const instant = false\` to silence this warning and allow a blocking route
     https://nextjs.org/docs/messages/blocking-prerender-dynamic#allow-blocking-route`
                   )
                 } else {
@@ -3404,13 +3404,13 @@ Ways to fix this:
 \`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking the page load and leading to a slower user experience.
 
 Ways to fix this:
-  - [cache] Cache the data access with \`"use cache"\`
-    https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
   - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
     https://nextjs.org/docs/messages/blocking-prerender-dynamic#wrap-in-or-move-into-suspense
-  - [cache] If the runtime data is \`params\` and they're known, prerender them with \`generateStaticParams\`
+  - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\`
+    https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
+  - [cache] For \`params\`: if the params are known, prerender them with \`generateStaticParams\`
     https://nextjs.org/docs/messages/blocking-prerender-runtime#for-known-params-prerender
-  - [block] Set \`export const unstable_instant = false\` to silence this warning and allow a blocking route
+  - [block] Set \`export const instant = false\` to silence this warning and allow a blocking route
     https://nextjs.org/docs/messages/blocking-prerender-dynamic#allow-blocking-route`
                   )
                 }
@@ -3624,13 +3624,13 @@ Ways to fix this:
                    \`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking the page load and leading to a slower user experience.
 
                    Ways to fix this:
-                     - [cache] Cache the data access with \`"use cache"\`
-                       https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
                      - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
                        https://nextjs.org/docs/messages/blocking-prerender-dynamic#wrap-in-or-move-into-suspense
-                     - [cache] If the runtime data is \`params\` and they're known, prerender them with \`generateStaticParams\`
+                     - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\`
+                       https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
+                     - [cache] For \`params\`: if the params are known, prerender them with \`generateStaticParams\`
                        https://nextjs.org/docs/messages/blocking-prerender-runtime#for-known-params-prerender
-                     - [block] Set \`export const unstable_instant = false\` to silence this warning and allow a blocking route
+                     - [block] Set \`export const instant = false\` to silence this warning and allow a blocking route
                        https://nextjs.org/docs/messages/blocking-prerender-dynamic#allow-blocking-route
                        at Page (app/use-cache-revalidate-0/fast/page.tsx:3:16)
                      1 | import { cacheLife } from 'next/cache'
@@ -3653,13 +3653,13 @@ Ways to fix this:
                    \`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking the page load and leading to a slower user experience.
 
                    Ways to fix this:
-                     - [cache] Cache the data access with \`"use cache"\`
-                       https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
                      - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
                        https://nextjs.org/docs/messages/blocking-prerender-dynamic#wrap-in-or-move-into-suspense
-                     - [cache] If the runtime data is \`params\` and they're known, prerender them with \`generateStaticParams\`
+                     - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\`
+                       https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
+                     - [cache] For \`params\`: if the params are known, prerender them with \`generateStaticParams\`
                        https://nextjs.org/docs/messages/blocking-prerender-runtime#for-known-params-prerender
-                     - [block] Set \`export const unstable_instant = false\` to silence this warning and allow a blocking route
+                     - [block] Set \`export const instant = false\` to silence this warning and allow a blocking route
                        https://nextjs.org/docs/messages/blocking-prerender-dynamic#allow-blocking-route
                        at main (<anonymous>)
                        at body (<anonymous>)
@@ -3682,13 +3682,13 @@ Ways to fix this:
 \`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking the page load and leading to a slower user experience.
 
 Ways to fix this:
-  - [cache] Cache the data access with \`"use cache"\`
-    https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
   - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
     https://nextjs.org/docs/messages/blocking-prerender-dynamic#wrap-in-or-move-into-suspense
-  - [cache] If the runtime data is \`params\` and they're known, prerender them with \`generateStaticParams\`
+  - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\`
+    https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
+  - [cache] For \`params\`: if the params are known, prerender them with \`generateStaticParams\`
     https://nextjs.org/docs/messages/blocking-prerender-runtime#for-known-params-prerender
-  - [block] Set \`export const unstable_instant = false\` to silence this warning and allow a blocking route
+  - [block] Set \`export const instant = false\` to silence this warning and allow a blocking route
     https://nextjs.org/docs/messages/blocking-prerender-dynamic#allow-blocking-route`
                   )
                 } else {
@@ -3698,13 +3698,13 @@ Ways to fix this:
 \`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking the page load and leading to a slower user experience.
 
 Ways to fix this:
-  - [cache] Cache the data access with \`"use cache"\`
-    https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
   - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
     https://nextjs.org/docs/messages/blocking-prerender-dynamic#wrap-in-or-move-into-suspense
-  - [cache] If the runtime data is \`params\` and they're known, prerender them with \`generateStaticParams\`
+  - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\`
+    https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
+  - [cache] For \`params\`: if the params are known, prerender them with \`generateStaticParams\`
     https://nextjs.org/docs/messages/blocking-prerender-runtime#for-known-params-prerender
-  - [block] Set \`export const unstable_instant = false\` to silence this warning and allow a blocking route
+  - [block] Set \`export const instant = false\` to silence this warning and allow a blocking route
     https://nextjs.org/docs/messages/blocking-prerender-dynamic#allow-blocking-route`
                   )
                 }
@@ -3754,13 +3754,13 @@ Ways to fix this:
                    \`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking the page load and leading to a slower user experience.
 
                    Ways to fix this:
-                     - [cache] Cache the data access with \`"use cache"\`
-                       https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
                      - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
                        https://nextjs.org/docs/messages/blocking-prerender-dynamic#wrap-in-or-move-into-suspense
-                     - [cache] If the runtime data is \`params\` and they're known, prerender them with \`generateStaticParams\`
+                     - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\`
+                       https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
+                     - [cache] For \`params\`: if the params are known, prerender them with \`generateStaticParams\`
                        https://nextjs.org/docs/messages/blocking-prerender-runtime#for-known-params-prerender
-                     - [block] Set \`export const unstable_instant = false\` to silence this warning and allow a blocking route
+                     - [block] Set \`export const instant = false\` to silence this warning and allow a blocking route
                        https://nextjs.org/docs/messages/blocking-prerender-dynamic#allow-blocking-route
                        at Page (app/use-cache-revalidate-0/slow/page.tsx:3:16)
                      1 | import { cacheLife } from 'next/cache'
@@ -3783,13 +3783,13 @@ Ways to fix this:
                    \`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking the page load and leading to a slower user experience.
 
                    Ways to fix this:
-                     - [cache] Cache the data access with \`"use cache"\`
-                       https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
                      - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
                        https://nextjs.org/docs/messages/blocking-prerender-dynamic#wrap-in-or-move-into-suspense
-                     - [cache] If the runtime data is \`params\` and they're known, prerender them with \`generateStaticParams\`
+                     - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\`
+                       https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
+                     - [cache] For \`params\`: if the params are known, prerender them with \`generateStaticParams\`
                        https://nextjs.org/docs/messages/blocking-prerender-runtime#for-known-params-prerender
-                     - [block] Set \`export const unstable_instant = false\` to silence this warning and allow a blocking route
+                     - [block] Set \`export const instant = false\` to silence this warning and allow a blocking route
                        https://nextjs.org/docs/messages/blocking-prerender-dynamic#allow-blocking-route
                        at main (<anonymous>)
                        at body (<anonymous>)
@@ -3812,13 +3812,13 @@ Ways to fix this:
 \`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking the page load and leading to a slower user experience.
 
 Ways to fix this:
-  - [cache] Cache the data access with \`"use cache"\`
-    https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
   - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
     https://nextjs.org/docs/messages/blocking-prerender-dynamic#wrap-in-or-move-into-suspense
-  - [cache] If the runtime data is \`params\` and they're known, prerender them with \`generateStaticParams\`
+  - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\`
+    https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
+  - [cache] For \`params\`: if the params are known, prerender them with \`generateStaticParams\`
     https://nextjs.org/docs/messages/blocking-prerender-runtime#for-known-params-prerender
-  - [block] Set \`export const unstable_instant = false\` to silence this warning and allow a blocking route
+  - [block] Set \`export const instant = false\` to silence this warning and allow a blocking route
     https://nextjs.org/docs/messages/blocking-prerender-dynamic#allow-blocking-route`
                   )
                 } else {
@@ -3828,13 +3828,13 @@ Ways to fix this:
 \`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking the page load and leading to a slower user experience.
 
 Ways to fix this:
-  - [cache] Cache the data access with \`"use cache"\`
-    https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
   - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
     https://nextjs.org/docs/messages/blocking-prerender-dynamic#wrap-in-or-move-into-suspense
-  - [cache] If the runtime data is \`params\` and they're known, prerender them with \`generateStaticParams\`
+  - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\`
+    https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
+  - [cache] For \`params\`: if the params are known, prerender them with \`generateStaticParams\`
     https://nextjs.org/docs/messages/blocking-prerender-runtime#for-known-params-prerender
-  - [block] Set \`export const unstable_instant = false\` to silence this warning and allow a blocking route
+  - [block] Set \`export const instant = false\` to silence this warning and allow a blocking route
     https://nextjs.org/docs/messages/blocking-prerender-dynamic#allow-blocking-route`
                   )
                 }
@@ -4047,13 +4047,13 @@ Ways to fix this:
                  \`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking the page load and leading to a slower user experience.
 
                  Ways to fix this:
-                   - [cache] Cache the data access with \`"use cache"\`
-                     https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
                    - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
                      https://nextjs.org/docs/messages/blocking-prerender-dynamic#wrap-in-or-move-into-suspense
-                   - [cache] If the runtime data is \`params\` and they're known, prerender them with \`generateStaticParams\`
+                   - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\`
+                     https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
+                   - [cache] For \`params\`: if the params are known, prerender them with \`generateStaticParams\`
                      https://nextjs.org/docs/messages/blocking-prerender-runtime#for-known-params-prerender
-                   - [block] Set \`export const unstable_instant = false\` to silence this warning and allow a blocking route
+                   - [block] Set \`export const instant = false\` to silence this warning and allow a blocking route
                      https://nextjs.org/docs/messages/blocking-prerender-dynamic#allow-blocking-route
                      at Page (app/use-cache-params/[slug]/page.tsx:1:16)
                  > 1 | export default async function Page({
@@ -4074,13 +4074,13 @@ Ways to fix this:
                  \`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking the page load and leading to a slower user experience.
 
                  Ways to fix this:
-                   - [cache] Cache the data access with \`"use cache"\`
-                     https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
                    - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
                      https://nextjs.org/docs/messages/blocking-prerender-dynamic#wrap-in-or-move-into-suspense
-                   - [cache] If the runtime data is \`params\` and they're known, prerender them with \`generateStaticParams\`
+                   - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\`
+                     https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
+                   - [cache] For \`params\`: if the params are known, prerender them with \`generateStaticParams\`
                      https://nextjs.org/docs/messages/blocking-prerender-runtime#for-known-params-prerender
-                   - [block] Set \`export const unstable_instant = false\` to silence this warning and allow a blocking route
+                   - [block] Set \`export const instant = false\` to silence this warning and allow a blocking route
                      https://nextjs.org/docs/messages/blocking-prerender-dynamic#allow-blocking-route
                      at main (<anonymous>)
                      at body (<anonymous>)
@@ -4261,7 +4261,7 @@ Ways to fix this:
 
               await expect(browser).toDisplayRedbox(`
                {
-                 "code": "E1378",
+                 "code": "E1380",
                  "description": "Route "/use-cache-cookies-third-party": \`cookies()\` can't be read inside \`"use cache"\`. Read it outside the cached function and pass what you need as an argument.
                Learn more: https://nextjs.org/docs/messages/next-request-in-use-cache",
                  "environmentLabel": "Server",
@@ -4365,7 +4365,7 @@ Ways to fix this:
 
               await expect(browser).toDisplayRedbox(`
                {
-                 "code": "E1384",
+                 "code": "E1385",
                  "description": "Route "/use-cache-draft-mode-third-party": \`draftMode().enable()\` can't be called inside \`"use cache"\`. Draft mode can be read from a cached function, but enabling or disabling it must happen outside.
                Learn more: https://nextjs.org/docs/messages/next-request-in-use-cache",
                  "environmentLabel": "Server",
@@ -4468,7 +4468,7 @@ Ways to fix this:
 
               await expect(browser).toDisplayRedbox(`
                {
-                 "code": "E1372",
+                 "code": "E1374",
                  "description": "Route "/use-cache-headers-third-party": \`headers()\` can't be read inside \`"use cache"\`. Read it outside the cached function and pass what you need as an argument.
                Learn more: https://nextjs.org/docs/messages/next-request-in-use-cache",
                  "environmentLabel": "Server",
@@ -4572,7 +4572,7 @@ Ways to fix this:
 
               await expect(browser).toDisplayRedbox(`
                {
-                 "code": "E1387",
+                 "code": "E1388",
                  "description": "Route "/use-cache-connection-third-party": \`connection()\` can't be used inside \`"use cache"\`. A cache entry can be built before any request exists, so it can't depend on one.
                Learn more: https://nextjs.org/docs/messages/next-request-in-use-cache",
                  "environmentLabel": "Server",
@@ -4988,13 +4988,13 @@ Ways to fix this:
                  \`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking the page load and leading to a slower user experience.
 
                  Ways to fix this:
-                   - [cache] Cache the data access with \`"use cache"\`
-                     https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
                    - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
                      https://nextjs.org/docs/messages/blocking-prerender-dynamic#wrap-in-or-move-into-suspense
-                   - [cache] If the runtime data is \`params\` and they're known, prerender them with \`generateStaticParams\`
+                   - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\`
+                     https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
+                   - [cache] For \`params\`: if the params are known, prerender them with \`generateStaticParams\`
                      https://nextjs.org/docs/messages/blocking-prerender-runtime#for-known-params-prerender
-                   - [block] Set \`export const unstable_instant = false\` to silence this warning and allow a blocking route
+                   - [block] Set \`export const instant = false\` to silence this warning and allow a blocking route
                      https://nextjs.org/docs/messages/blocking-prerender-dynamic#allow-blocking-route
                      at Private (app/use-cache-private-without-suspense/page.tsx:15:1)
                      at Page (app/use-cache-private-without-suspense/page.tsx:10:7)
@@ -5018,13 +5018,13 @@ Ways to fix this:
                  \`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking the page load and leading to a slower user experience.
 
                  Ways to fix this:
-                   - [cache] Cache the data access with \`"use cache"\`
-                     https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
                    - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
                      https://nextjs.org/docs/messages/blocking-prerender-dynamic#wrap-in-or-move-into-suspense
-                   - [cache] If the runtime data is \`params\` and they're known, prerender them with \`generateStaticParams\`
+                   - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\`
+                     https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
+                   - [cache] For \`params\`: if the params are known, prerender them with \`generateStaticParams\`
                      https://nextjs.org/docs/messages/blocking-prerender-runtime#for-known-params-prerender
-                   - [block] Set \`export const unstable_instant = false\` to silence this warning and allow a blocking route
+                   - [block] Set \`export const instant = false\` to silence this warning and allow a blocking route
                      https://nextjs.org/docs/messages/blocking-prerender-dynamic#allow-blocking-route
                      at main (<anonymous>)
                      at body (<anonymous>)
@@ -5047,13 +5047,13 @@ Ways to fix this:
 \`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking the page load and leading to a slower user experience.
 
 Ways to fix this:
-  - [cache] Cache the data access with \`"use cache"\`
-    https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
   - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
     https://nextjs.org/docs/messages/blocking-prerender-dynamic#wrap-in-or-move-into-suspense
-  - [cache] If the runtime data is \`params\` and they're known, prerender them with \`generateStaticParams\`
+  - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\`
+    https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
+  - [cache] For \`params\`: if the params are known, prerender them with \`generateStaticParams\`
     https://nextjs.org/docs/messages/blocking-prerender-runtime#for-known-params-prerender
-  - [block] Set \`export const unstable_instant = false\` to silence this warning and allow a blocking route
+  - [block] Set \`export const instant = false\` to silence this warning and allow a blocking route
     https://nextjs.org/docs/messages/blocking-prerender-dynamic#allow-blocking-route`
                 )
               } else {
@@ -5063,13 +5063,13 @@ Ways to fix this:
                  \`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking the page load and leading to a slower user experience.
 
                  Ways to fix this:
-                   - [cache] Cache the data access with \`"use cache"\`
-                     https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
                    - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
                      https://nextjs.org/docs/messages/blocking-prerender-dynamic#wrap-in-or-move-into-suspense
-                   - [cache] If the runtime data is \`params\` and they're known, prerender them with \`generateStaticParams\`
+                   - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\`
+                     https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
+                   - [cache] For \`params\`: if the params are known, prerender them with \`generateStaticParams\`
                      https://nextjs.org/docs/messages/blocking-prerender-runtime#for-known-params-prerender
-                   - [block] Set \`export const unstable_instant = false\` to silence this warning and allow a blocking route
+                   - [block] Set \`export const instant = false\` to silence this warning and allow a blocking route
                      https://nextjs.org/docs/messages/blocking-prerender-dynamic#allow-blocking-route
                      at a (<next-dist-dir>)
                      at b (<next-dist-dir>)

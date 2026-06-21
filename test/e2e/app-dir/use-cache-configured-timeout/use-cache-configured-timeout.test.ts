@@ -50,11 +50,6 @@ describe('use-cache-configured-timeout', () => {
              "getCachedData app/above-dev-timeout/page.tsx (4:1)",
              "Cached app/above-dev-timeout/page.tsx (13:22)",
              "Page app/above-dev-timeout/page.tsx (19:10)",
-             "resolveErrorDev ../../../packages/next/dist/compiled/react-server-dom-turbopack/cjs/react-server-dom-turbopack-client.node.development.js (3491:51)",
-             "processFullStringRow ../../../packages/next/dist/compiled/react-server-dom-turbopack/cjs/react-server-dom-turbopack-client.node.development.js (4658:23)",
-             "processFullBinaryRow ../../../packages/next/dist/compiled/react-server-dom-turbopack/cjs/react-server-dom-turbopack-client.node.development.js (4601:7)",
-             "processBinaryChunk ../../../packages/next/dist/compiled/react-server-dom-turbopack/cjs/react-server-dom-turbopack-client.node.development.js (4824:19)",
-             "progress ../../../packages/next/dist/compiled/react-server-dom-turbopack/cjs/react-server-dom-turbopack-client.node.development.js (5010:9)",
            ],
          }
         `)

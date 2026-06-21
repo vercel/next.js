@@ -52,8 +52,8 @@ describe('use-cache-search-params', () => {
              "code": "E1371",
              "description": "Route "/search-params-used": \`searchParams\` can't be read inside \`"use cache"\`. Await it outside the cached function and pass what you need as an argument.
            Learn more: https://nextjs.org/docs/messages/next-request-in-use-cache",
-             "environmentLabel": "Server",
-             "label": "Console Error",
+             "environmentLabel": "Cache",
+             "label": "Runtime Error",
              "source": "app/search-params-used/page.tsx (8:17) @ Page
            >  8 |   const param = (await searchParams).foo
                 |                 ^",
@@ -86,8 +86,8 @@ describe('use-cache-search-params', () => {
              "code": "E1371",
              "description": "Route "/search-params-caught": \`searchParams\` can't be read inside \`"use cache"\`. Await it outside the cached function and pass what you need as an argument.
            Learn more: https://nextjs.org/docs/messages/next-request-in-use-cache",
-             "environmentLabel": "Server",
-             "label": "Console Error",
+             "environmentLabel": "Cache",
+             "label": "Runtime Error",
              "source": "app/search-params-caught/page.tsx (11:5) @ Page
            > 11 |     param = (await searchParams).foo
                 |     ^",
@@ -102,8 +102,8 @@ describe('use-cache-search-params', () => {
              "code": "E1371",
              "description": "Route "/search-params-caught": \`searchParams\` can't be read inside \`"use cache"\`. Await it outside the cached function and pass what you need as an argument.
            Learn more: https://nextjs.org/docs/messages/next-request-in-use-cache",
-             "environmentLabel": "Server",
-             "label": "Console Error",
+             "environmentLabel": "Cache",
+             "label": "Runtime Error",
              "source": "app/search-params-caught/page.tsx (11:5) @ Page
            > 11 |     param = (await searchParams).foo
                 |     ^",
@@ -134,8 +134,8 @@ describe('use-cache-search-params', () => {
              "code": "E1371",
              "description": "Route "/search-params-caught": \`searchParams\` can't be read inside \`"use cache"\`. Await it outside the cached function and pass what you need as an argument.
            Learn more: https://nextjs.org/docs/messages/next-request-in-use-cache",
-             "environmentLabel": "Server",
-             "label": "Console Error",
+             "environmentLabel": "Cache",
+             "label": "Runtime Error",
              "source": "app/search-params-caught/page.tsx (11:5) @ Page
            > 11 |     param = (await searchParams).foo
                 |     ^",
@@ -150,8 +150,8 @@ describe('use-cache-search-params', () => {
              "code": "E1371",
              "description": "Route "/search-params-caught": \`searchParams\` can't be read inside \`"use cache"\`. Await it outside the cached function and pass what you need as an argument.
            Learn more: https://nextjs.org/docs/messages/next-request-in-use-cache",
-             "environmentLabel": "Server",
-             "label": "Console Error",
+             "environmentLabel": "Cache",
+             "label": "Runtime Error",
              "source": "app/search-params-caught/page.tsx (11:5) @ Page
            > 11 |     param = (await searchParams).foo
                 |     ^",
@@ -208,8 +208,8 @@ describe('use-cache-search-params', () => {
            "code": "E1371",
            "description": "Route "/search-params-used-generate-metadata": \`searchParams\` can't be read inside \`"use cache"\`. Await it outside the cached function and pass what you need as an argument.
          Learn more: https://nextjs.org/docs/messages/next-request-in-use-cache",
-           "environmentLabel": "Server",
-           "label": "Console Error",
+           "environmentLabel": "Cache",
+           "label": "Runtime Error",
            "source": "app/search-params-used-generate-metadata/page.tsx (9:17) @ generateMetadata
          >  9 |   const title = (await searchParams).title
               |                 ^",
@@ -248,8 +248,8 @@ describe('use-cache-search-params', () => {
            "code": "E1371",
            "description": "Route "/search-params-used-generate-viewport": \`searchParams\` can't be read inside \`"use cache"\`. Await it outside the cached function and pass what you need as an argument.
          Learn more: https://nextjs.org/docs/messages/next-request-in-use-cache",
-           "environmentLabel": "Server",
-           "label": "Console Error",
+           "environmentLabel": "Cache",
+           "label": "Runtime Error",
            "source": "app/search-params-used-generate-viewport/page.tsx (9:17) @ generateViewport
          >  9 |   const color = (await searchParams).color
               |                 ^",

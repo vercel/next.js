@@ -33,7 +33,7 @@ describe('use-cache-deadlock-probe', () => {
 
       await expect(browser).toDisplayCollapsedRedbox(`
        {
-         "code": "E1366",
+         "code": "E1389",
          "description": "A \`"use cache"\` entry is awaiting a promise created outside the cached function. The same call completed when run in isolation, so a module-scoped value (often a top-level \`Map\` used to dedupe fetches) is most likely blocking it. \`"use cache"\` already dedupes calls with the same arguments. Remove the surrounding dedupe layer.
            Learn more: https://nextjs.org/docs/messages/next-request-in-use-cache",
          "environmentLabel": "Cache",
@@ -62,7 +62,7 @@ describe('use-cache-deadlock-probe', () => {
 
       await expect(browser).toDisplayCollapsedRedbox(`
        {
-         "code": "E1366",
+         "code": "E1389",
          "description": "A \`"use cache"\` entry is awaiting a promise created outside the cached function. The same call completed when run in isolation, so a module-scoped value (often a top-level \`Map\` used to dedupe fetches) is most likely blocking it. \`"use cache"\` already dedupes calls with the same arguments. Remove the surrounding dedupe layer.
            Learn more: https://nextjs.org/docs/messages/next-request-in-use-cache",
          "environmentLabel": "Cache",
@@ -99,7 +99,7 @@ describe('use-cache-deadlock-probe', () => {
 
       await expect(browser).toDisplayCollapsedRedbox(`
        {
-         "code": "E1366",
+         "code": "E1389",
          "description": "A \`"use cache"\` entry is awaiting a promise created outside the cached function. The same call completed when run in isolation, so a module-scoped value (often a top-level \`Map\` used to dedupe fetches) is most likely blocking it. \`"use cache"\` already dedupes calls with the same arguments. Remove the surrounding dedupe layer.
            Learn more: https://nextjs.org/docs/messages/next-request-in-use-cache",
          "environmentLabel": "Cache",
@@ -132,7 +132,7 @@ describe('use-cache-deadlock-probe', () => {
 
       await expect(browser).toDisplayCollapsedRedbox(`
        {
-         "code": "E1366",
+         "code": "E1389",
          "description": "A \`"use cache"\` entry is awaiting a promise created outside the cached function. The same call completed when run in isolation, so a module-scoped value (often a top-level \`Map\` used to dedupe fetches) is most likely blocking it. \`"use cache"\` already dedupes calls with the same arguments. Remove the surrounding dedupe layer.
            Learn more: https://nextjs.org/docs/messages/next-request-in-use-cache",
          "environmentLabel": "Cache",
@@ -176,7 +176,7 @@ describe('use-cache-deadlock-probe', () => {
 
       await expect(browser).toDisplayCollapsedRedbox(`
        {
-         "code": "E1380",
+         "code": "E1390",
          "description": "Filling a \`"use cache"\` entry took too long. The most common cause is reading request data (\`params\`, \`searchParams\`, \`cookies()\`, \`headers()\`) inside the cached function. Read it outside and pass what you need as an argument.
            Learn more: https://nextjs.org/docs/messages/next-request-in-use-cache",
          "environmentLabel": "Cache",
@@ -235,7 +235,7 @@ describe('use-cache-deadlock-probe', () => {
 
       await expect(browser).toDisplayCollapsedRedbox(`
        {
-         "code": "E1366",
+         "code": "E1389",
          "description": "A \`"use cache"\` entry is awaiting a promise created outside the cached function. The same call completed when run in isolation, so a module-scoped value (often a top-level \`Map\` used to dedupe fetches) is most likely blocking it. \`"use cache"\` already dedupes calls with the same arguments. Remove the surrounding dedupe layer.
            Learn more: https://nextjs.org/docs/messages/next-request-in-use-cache",
          "environmentLabel": "Cache",
@@ -265,7 +265,7 @@ describe('use-cache-deadlock-probe', () => {
 
       await expect(browser).toDisplayCollapsedRedbox(`
        {
-         "code": "E1366",
+         "code": "E1389",
          "description": "A \`"use cache"\` entry is awaiting a promise created outside the cached function. The same call completed when run in isolation, so a module-scoped value (often a top-level \`Map\` used to dedupe fetches) is most likely blocking it. \`"use cache"\` already dedupes calls with the same arguments. Remove the surrounding dedupe layer.
            Learn more: https://nextjs.org/docs/messages/next-request-in-use-cache",
          "environmentLabel": "Cache",

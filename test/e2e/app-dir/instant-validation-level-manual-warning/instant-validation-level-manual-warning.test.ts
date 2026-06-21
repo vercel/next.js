@@ -149,8 +149,8 @@ describe('instant validation - level manual-warning', () => {
                {
                  "label": "Caused by: Instant Validation",
                  "source": "app/with-root-suspense/explicit-warning/page.tsx (6:24) @ instant
-           >  6 | export const instant = { level: 'warning' as const }
-                |                        ^",
+           > 6 | export const instant = { level: 'warning' as const }
+               |                        ^",
                  "stack": [
                    "instant app/with-root-suspense/explicit-warning/page.tsx (6:24)",
                    "Set.forEach <anonymous>",
