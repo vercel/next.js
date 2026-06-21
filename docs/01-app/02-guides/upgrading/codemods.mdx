@@ -71,15 +71,16 @@ npx @next/codemod upgrade canary
 npx @next/codemod@latest cache-components-instant-false ./app
 ```
 
-This codemod adds `export const instant = false` to every `app/**/{page,layout,default}` file that doesn't already export `instant`, so you can enable [`cacheComponents`](/docs/app/api-reference/config/next-config-js/cacheComponents) and get a green build first, then remove the opt-outs route by route. It skips Client Components (`"use client"`) and files that already declare `instant`.
+This codemod adds `export const instant = false` to every `app/**/{page,layout,default}` file that doesn't already export `instant`, so you can enable [`cacheComponents`](/docs/app/api-reference/config/next-config-js/cacheComponents) and then remove the opt-outs route by route. It skips Client Components (`"use client"`) and files that already declare `instant`.
 
 ```diff filename="app/page.tsx"
++ // TODO: Cache Components adoption. Remove once this route navigates instantly.
++ // See: https://nextjs.org/docs/app/guides/migrating-to-cache-components
++ export const instant = false
++
   export default function Page() {
     return <h1>Hello</h1>
   }
-+
-+ // TODO: Cache Components adoption — remove once this route is instant.
-+ export const instant = false
 ```
 
 See the [Migrating to Cache Components](/docs/app/guides/migrating-to-cache-components) guide for the full adoption path.

@@ -58,7 +58,13 @@ Milestone D is the final advancement: [Partial Prefetching](https://nextjs.org/d
 
 **Alternative: build.** `next build` reports a blocking route too, but the default output stops at the first one, so the dev server above is better for sizing up the work. When you do run a build, the [Building guide](https://nextjs.org/docs/app/guides/building) covers the route-table glyphs and the flags (`--debug-prerender`, `--debug-build-paths`) for scoping.
 
-**Verifying a fix at runtime.** A green build or a cleared overlay isn't proof the route actually behaves — Cache Components is a runtime concern (a static shell with streamed data). The **`next-dev-loop`** skill is the cleanest way to confirm each change at runtime: it cross-checks `/_next/mcp` against the live browser. It's a **separate companion skill** from the same Next.js skills collection, so load it if your agent has it; it has its own hard prerequisites (Turbopack and `agent-browser >= 0.27.0`) and will tell you how to set those up. **If it isn't available**, do the same loop by hand: keep `next dev` running, open the route in a browser, and read errors from the dev overlay (or the browser console) — don't fall back to grepping source or trusting the build alone. Either way, verify after every fix in the steps below, not only at the end.
+**Verifying a fix at runtime.** A green build or a cleared overlay isn't proof the route actually behaves — Cache Components is a runtime concern (a static shell with streamed data). The [`next-dev-loop`](https://github.com/vercel/next.js/tree/canary/skills/next-dev-loop) skill is the cleanest way to confirm each change at runtime: it cross-checks `/_next/mcp` against the live browser. It's a **separate companion skill** from the same Next.js skills collection, so install it if your agent doesn't have it:
+
+```bash
+npx skills install https://github.com/vercel/next.js/tree/canary/skills/next-dev-loop
+```
+
+It has its own hard prerequisites (Turbopack and `agent-browser >= 0.27.0`) and will tell you how to set those up. **If it isn't available**, do the same loop by hand: keep `next dev` running, open the route in a browser, and read errors from the dev overlay (or the browser console) — don't fall back to grepping source or trusting the build alone. Either way, verify after every fix in the steps below, not only at the end.
 
 ## Step 1 — Choose a strategy
 
@@ -75,7 +81,7 @@ npx @next/codemod@latest cache-components-instant-false ./app
 
 Inserts `export const instant = false` (with a `// TODO: Cache Components adoption` comment) into every `app/**/{page,layout,default}` file, skipping files that already declare `instant` and Client Components (`"use client"`). Then set `cacheComponents: true`. The TODO comments are the work queue.
 
-If the command exits with `Invalid transform choice`, your installed `@next/codemod` predates 16.3. Until you can upgrade, do the same opt-out by hand: in every `app/**/{page,layout,default}.{js,jsx,ts,tsx}` file that is **not** a Client Component and does **not** already export `instant`, append:
+If the command exits with `Invalid transform choice`, your installed `@next/codemod` predates 16.3. Until you can upgrade, do the same opt-out by hand: in every `app/**/{page,layout,default}.{js,jsx,ts,tsx}` file that is **not** a Client Component and does **not** already export `instant`, insert this near the top of the file (after any imports):
 
 ```ts
 // TODO: Cache Components adoption. Remove once this route navigates instantly.
@@ -151,4 +157,8 @@ Follow the [Adopting Partial Prefetching](https://nextjs.org/docs/app/guides/ado
 
 ## Optional: grow static shells
 
-With adoption done, the **`next-cache-components-optimizer`** skill is a future, optional polish pass: it grows each route's static shell so more of the page prerenders and less streams in. It doesn't gate the build or block navigation — reach for it only when you want to push shells further after the milestones above are complete.
+With adoption done, the [`next-cache-components-optimizer`](https://github.com/vercel/next.js/tree/canary/skills/next-cache-components-optimizer) skill is an optional polish pass: it grows each route's static shell so more of the page prerenders and less streams in. It doesn't gate the build or block navigation — reach for it only when you want to push shells further after the milestones above are complete. Install with:
+
+```bash
+npx skills install https://github.com/vercel/next.js/tree/canary/skills/next-cache-components-optimizer
+```

@@ -3,9 +3,9 @@ import { createParserFromPath } from '../lib/parser'
 
 /**
  * Blanket-inserts `export const instant = false` into every App Router `page`,
- * `layout`, and `default` file so that enabling `cacheComponents` does not
- * break the build. Each opt-out is meant to be walked back, one route at a
- * time, using the companion adoption skill.
+ * `layout`, and `default` file so they're marked as allowed to block when
+ * `cacheComponents` is enabled. Each opt-out is meant to be walked back, one
+ * route at a time, using the companion adoption skill.
  *
  * - Skips files that already declare or export `instant` in any form (never
  *   overrides existing config or appends a duplicate binding).
