@@ -159,7 +159,7 @@ export default function transformer(file: FileInfo, _api: API) {
   }
 
   const optOut =
-    `// TODO: Cache Components adoption. Remove once this route navigates instantly.${eol}` +
+    `// TODO: Cache Components adoption. Refactor this route so this opt-out can be removed.${eol}` +
     `// See: https://nextjs.org/docs/app/guides/migrating-to-cache-components${eol}` +
     `export const instant = false;${eol}`
 

@@ -84,7 +84,7 @@ Inserts `export const instant = false` (with a `// TODO: Cache Components adopti
 If the command exits with `Invalid transform choice`, your installed `@next/codemod` predates 16.3. Until you can upgrade, do the same opt-out by hand: in every `app/**/{page,layout,default}.{js,jsx,ts,tsx}` file that is **not** a Client Component and does **not** already export `instant`, insert this near the top of the file (after any imports):
 
 ```ts
-// TODO: Cache Components adoption. Remove once this route navigates instantly.
+// TODO: Cache Components adoption. Refactor this route so this opt-out can be removed.
 // See: https://nextjs.org/docs/app/guides/migrating-to-cache-components
 export const instant = false
 ```
