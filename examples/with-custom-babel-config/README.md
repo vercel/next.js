@@ -2,7 +2,7 @@
 
 This example features:
 
-- An app using proposed [do expressions](https://babeljs.io/docs/plugins/transform-do-expressions/).
+- An app using proposed [do expressions](https://babeljs.io/docs/babel-preset-react) (originally a [Babel proposal](https://babeljs.io/docs/plugins/) — proposal stage-X was eventually retired and the proposal moved to TC39 Stage 1).
 - It uses babel-preset-stage-0, which allows us to use above JavaScript feature.
 - It uses '.babelrc' file in the app directory to add above preset.
 
