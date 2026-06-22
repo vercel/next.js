@@ -58,7 +58,7 @@ Milestone D is the final advancement: [Partial Prefetching](https://nextjs.org/d
 
 Two surfaces; they show different things.
 
-**Build (`next build`) — detection only.** It tells you whether the app prerenders. Use it to confirm milestone A (green build) and to spot-check milestone B (no route opted out). It stops at the first blocking route, so it's poor for sizing the work, and it can't surface milestone C/D's navigation-time signals at all — those are dev-only. Two flags help when iterating: `--debug-build-paths /that/route` builds just one route (faster loop than a full build) and `--debug-prerender` (dev-only) prints a fuller stack trace so the error names the originating file and line.
+**Build (`next build`) — detection only.** It tells you whether the app prerenders. Use it to confirm milestone A (green build) and to spot-check milestone B (no route opted out). It stops at the first blocking route, so it's poor for sizing the work, and it can't surface milestone C/D's navigation-time signals at all — those are dev-only. Two flags help when iterating: `--debug-build-paths /that/route` builds only that one route (faster loop than a full build) and `--debug-prerender` (dev-only) prints a fuller stack trace so the error names the originating file and line.
 
 **Dev server (`next dev`) — the working surface.** Visit a route; its blocking errors surface in the dev overlay with full stack traces and fix cards linking the per-error docs. Work one route at a time — errors don't all accumulate in one place. The route itself still returns HTTP 200, so don't gate on status codes; read the overlay (or `.next-dev.log` if you can't drive a browser yet). Steps 4 and 5's validation warnings only fire on real client navigation in the dev overlay — there is no build-time equivalent.
 
@@ -118,7 +118,7 @@ Within a group, remove opt-outs **top-down** (layouts before the pages beneath t
 For each route in the group:
 
 1. Remove its `instant = false` (blanket) or target the failing route (direct).
-2. Reload it in dev or rebuild just that route. If it's clean, the route was already prerenderable — move on.
+2. Reload it in dev or rebuild only that route. If it's clean, the route was already prerenderable — move on.
 3. If it still blocks, read the error in the dev overlay and apply the fix it points at. See [Deciding what to do with a blocking read](#deciding-what-to-do-with-a-blocking-read) and [Security gates and other code you can't infer](#security-gates-and-other-code-you-cant-infer) below for the cases this gets ambiguous.
 4. Re-check the route, then move to the next. See [Shared code: re-check the siblings](#shared-code-re-check-the-siblings) and [When to leave a Block in place](#when-to-leave-a-block-in-place).
 
