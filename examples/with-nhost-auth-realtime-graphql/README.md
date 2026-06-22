@@ -30,7 +30,7 @@ pnpm create next-app --example with-nhost-auth-realtime-graphql nhost-app
 
 ### Step 1. Create an account and a project on Nhost
 
-[Create an account and project on Nhost](https://console.nhost.io).
+[Create an account and project on Nhost](https://app.nhost.io).
 
 ### Step 2. Create `items` database
 
