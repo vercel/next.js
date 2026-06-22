@@ -16,7 +16,6 @@ import { isHTTPAccessFallbackError } from '../../client/components/http-access-f
 import type { MetadataContext } from './types/resolvers'
 import { createServerSearchParamsForMetadata } from '../../server/request/search-params'
 import { createServerPathnameForMetadata } from '../../server/request/pathname'
-import { isPostpone } from '../../server/lib/router-utils/is-postpone'
 import {
   workUnitAsyncStorage,
   getStagedRenderingController,
@@ -91,12 +90,6 @@ export function createMetadataComponents({
       isRuntimePrefetchable,
       errorType
     ).catch((viewportErr) => {
-      // When Legacy PPR is enabled viewport can reject with a Postpone type
-      // This will go away once Legacy PPR is removed and dynamic metadata will
-      // stay pending until after the prerender is complete when it is dynamic
-      if (isPostpone(viewportErr)) {
-        throw viewportErr
-      }
       if (!errorType && isHTTPAccessFallbackError(viewportErr)) {
         return getNotFoundViewport(
           tree,
@@ -144,12 +137,6 @@ export function createMetadataComponents({
       isRuntimePrefetchable,
       errorType
     ).catch((metadataErr) => {
-      // When Legacy PPR is enabled metadata can reject with a Postpone type
-      // This will go away once Legacy PPR is removed and dynamic metadata will
-      // stay pending until after the prerender is complete when it is dynamic
-      if (isPostpone(metadataErr)) {
-        throw metadataErr
-      }
       if (!errorType && isHTTPAccessFallbackError(metadataErr)) {
         return getNotFoundMetadata(
           tree,

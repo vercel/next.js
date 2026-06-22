@@ -575,7 +575,7 @@ function assignDefaultsAndValidate(
     }
   }
 
-  if (result.experimental.ppr) {
+  if ((result.experimental as any).ppr) {
     throw new HardDeprecatedConfigError(
       `\`experimental.ppr\` has been merged into \`cacheComponents\`. The Partial Prerendering feature is still available, but is now enabled via \`cacheComponents\`. Please update your ${configFileName} accordingly.`
     )
@@ -1570,11 +1570,6 @@ function assignDefaultsAndValidate(
     result.experimental.mcpServer = true
   }
 
-  if (result.cacheComponents) {
-    // TODO: remove once we've finished migrating internally to cacheComponents.
-    result.experimental.ppr = true
-  }
-
   // "use cache" was originally implicitly enabled with the cacheComponents flag, so
   // we transfer the value for cacheComponents to the explicit useCache flag to ensure
   // backwards compatibility.
@@ -2215,7 +2210,10 @@ function enforceExperimentalFeatures(
     config.cacheComponents = true
   }
 
-  // TODO: Remove this once cachedNavigations is the default.
+  // TODO: Remove this once cachedNavigations is the default. Note:
+  // cachedNavigations may be the string 'allow-runtime'. These guards treat it
+  // as truthy, so an explicit 'allow-runtime' is respected here and in the
+  // cacheComponents-tied default below rather than being downgraded to `true`.
   if (
     process.env.__NEXT_EXPERIMENTAL_CACHED_NAVIGATIONS === 'true' &&
     // We do respect an explicit value in the user config.

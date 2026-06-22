@@ -72,7 +72,6 @@ import { DefaultFileReader } from '../route-matcher-providers/dev/helpers/file-r
 import { LRUCache } from '../lib/lru-cache'
 import { getMiddlewareRouteMatcher } from '../../shared/lib/router/utils/middleware-route-matcher'
 import { DetachedPromise } from '../../lib/detached-promise'
-import { isPostpone } from '../lib/router-utils/is-postpone'
 import { generateInterceptionRoutesRewrites } from '../../lib/generate-interception-routes-rewrites'
 import { buildCustomRoute } from '../../lib/build-custom-route'
 import { decorateServerError } from '../../shared/lib/error-source'
@@ -345,11 +344,6 @@ export default class DevServer extends Server {
     }
 
     process.on('unhandledRejection', (reason) => {
-      if (isPostpone(reason)) {
-        // React postpones that are unhandled might end up logged here but they're
-        // not really errors. They're just part of rendering.
-        return
-      }
       this.logErrorWithOriginalStack(reason, 'unhandledRejection')
     })
     process.on('uncaughtException', (err) => {
@@ -806,7 +800,6 @@ export default class DevServer extends Server {
           distDir: this.distDir,
           pathname,
           config: {
-            pprConfig: this.nextConfig.experimental.ppr,
             configFileName,
             cacheComponents: Boolean(this.nextConfig.cacheComponents),
           },
