@@ -1,8 +1,13 @@
 import { Suspense } from 'react'
 
-// `id` is never covered by `generateStaticParams`, so it is always deferred to
-// the runtime stage. The parent `[lang]` layout reads `lang`; this page reads
-// only `id`.
+// `id` is covered by `generateStaticParams` only for `x`, so `/mixed/en/x` is a
+// fully prerendered route (both params resolve in the static shell) while other
+// ids such as `123` are deferred to the runtime stage. The parent `[lang]`
+// layout reads `lang`; this page reads only `id`.
+export function generateStaticParams() {
+  return [{ id: 'x' }]
+}
+
 export default function MixedIdPage({
   params,
 }: {

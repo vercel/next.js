@@ -2393,15 +2393,16 @@ export default abstract class Server<
           // prerendered route here, so we do the same match: among the routes
           // whose canonical regex matches this URL, pick the one with the
           // fewest fallback params (the most-specific) and thread it via the
-          // `fallbackParams` meta.
+          // `fallbackParams` meta. A fully-covered concrete route (e.g.
+          // `/blog/a`) has zero fallback params and is the most-specific match
+          // for its own URL, so it must be considered alongside the others: it
+          // wins over the base dynamic route (`/blog/[slug]`) and leaves its
+          // statically-known params out of the deferred set.
           let perUrlFallbackRouteParams: NonNullable<
             (typeof pathsResults.prerenderedRoutes)[number]['fallbackRouteParams']
           > | null = null
           for (const route of pathsResults.prerenderedRoutes) {
-            const { fallbackRouteParams } = route
-            if (!fallbackRouteParams || fallbackRouteParams.length === 0) {
-              continue
-            }
+            const fallbackRouteParams = route.fallbackRouteParams ?? []
             if (!getRouteRegex(route.pathname).re.test(urlPathname)) {
               continue
             }
@@ -2412,7 +2413,10 @@ export default abstract class Server<
               perUrlFallbackRouteParams = fallbackRouteParams
             }
           }
-          if (perUrlFallbackRouteParams) {
+          if (
+            perUrlFallbackRouteParams &&
+            perUrlFallbackRouteParams.length > 0
+          ) {
             addRequestMeta(
               req,
               'fallbackParams',

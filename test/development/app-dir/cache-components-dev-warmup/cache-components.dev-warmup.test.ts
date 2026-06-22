@@ -409,6 +409,27 @@ describe.each([
             await testNavigation(path, assertLogs)
           }
         })
+
+        it('fully covered params', async () => {
+          const path = '/mixed/en/x'
+
+          const assertLogs = async (browser: Playwright) => {
+            const logs = await browser.log()
+            // Both `en` and `x` are covered by `generateStaticParams`, so this
+            // is a fully prerendered concrete route and both params resolve in
+            // the static shell. (Skipping the concrete route before matching
+            // the URL would let the base route win and defer the
+            // statically-known `id`.)
+            assertLog(logs, 'after params - lang', 'Prerender')
+            assertLog(logs, 'after params - id', 'Prerender')
+          }
+
+          if (isInitialLoad) {
+            await testInitialLoad(path, assertLogs)
+          } else {
+            await testNavigation(path, assertLogs)
+          }
+        })
       })
 
       // FIXME: it seems like in Turbopack we sometimes get two instances of `workUnitAsyncStorage` --
