@@ -67,7 +67,7 @@ For more information on the Umbraco .NET CLI templates, visit [this page](https:
 
 ### Step 2. Install sample data
 
-To avoid having to create the entire blog dataset in hand, we have created a [NuGet package](https://www.nuget.org/packages/Umbraco.Sample.Headless.Blog) with everything you need to get started.
+To avoid having to create the entire blog dataset in hand, we have created a [NuGet package](https://www.nuget.org/packages/Umbraco.Sample.Headless.Blog) with everything you need to get started. (The NuGet package was deprecated by Umbraco; the canonical home is now the [Umbraco.Sample.Headless.Blog GitHub repo](https://github.com/umbraco/Umbraco.Sample.Headless.Blog) — installation instructions live in the README there.)
 
 Install the NuGet package with the following command in the terminal window: `dotnet add package Umbraco.Sample.Headless.Blog`.
 
