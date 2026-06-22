@@ -116,7 +116,7 @@ describe('cache-components OTEL spans', () => {
          {
            "code": "E394",
            "description": "A Cache Function (\`use cache\`) was passed to startActiveSpan which means it will receive a Span argument with a possibly random ID on every invocation leading to cache misses. Provide a wrapping function around the Cache Function that does not forward the Span argument to avoid this issue.",
-           "environmentLabel": "Prerender",
+           "environmentLabel": "Prefetchable",
            "label": "Console Error",
            "source": "app/traced-work.tsx (26:19) @ <anonymous>
          > 26 |     return tracer.startActiveSpan('span-active-span', fn)
@@ -125,7 +125,7 @@ describe('cache-components OTEL spans', () => {
              "<anonymous> app/traced-work.tsx (26:19)",
              "Inner app/traced-work.tsx (97:26)",
              "CachedInnerTraceActiveSpan app/traced-work.tsx (104:9)",
-             "Page app/[slug]/server/page.tsx (29:7)",
+             "Page app/[slug]/server/page.tsx (36:7)",
            ],
          }
         `)
@@ -134,7 +134,7 @@ describe('cache-components OTEL spans', () => {
          {
            "code": "E394",
            "description": "A Cache Function (\`use cache\`) was passed to startActiveSpan which means it will receive a Span argument with a possibly random ID on every invocation leading to cache misses. Provide a wrapping function around the Cache Function that does not forward the Span argument to avoid this issue.",
-           "environmentLabel": "Prerender",
+           "environmentLabel": "Prefetchable",
            "label": "Console Error",
            "source": "app/traced-work.tsx (26:19) @ eval
          > 26 |     return tracer.startActiveSpan('span-active-span', fn)
@@ -143,7 +143,7 @@ describe('cache-components OTEL spans', () => {
              "eval app/traced-work.tsx (26:19)",
              "Inner app/traced-work.tsx (97:26)",
              "CachedInnerTraceActiveSpan app/traced-work.tsx (104:9)",
-             "Page app/[slug]/server/page.tsx (29:7)",
+             "Page app/[slug]/server/page.tsx (36:7)",
            ],
          }
         `)
@@ -177,7 +177,7 @@ describe('cache-components OTEL spans', () => {
              "<anonymous> app/traced-work.tsx (26:19)",
              "Inner app/traced-work.tsx (97:26)",
              "CachedInnerTraceActiveSpan app/traced-work.tsx (104:9)",
-             "Page app/[slug]/server/page.tsx (29:7)",
+             "Page app/[slug]/server/page.tsx (36:7)",
            ],
          }
         `)
@@ -195,7 +195,7 @@ describe('cache-components OTEL spans', () => {
              "eval app/traced-work.tsx (26:19)",
              "Inner app/traced-work.tsx (97:26)",
              "CachedInnerTraceActiveSpan app/traced-work.tsx (104:9)",
-             "Page app/[slug]/server/page.tsx (29:7)",
+             "Page app/[slug]/server/page.tsx (36:7)",
            ],
          }
         `)
