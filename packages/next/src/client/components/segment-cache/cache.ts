@@ -486,12 +486,25 @@ export function readSegmentCacheEntry(
   )
 }
 
+function isInstantNavigationLocked(): boolean {
+  if (process.env.__NEXT_EXPOSE_TESTING_API) {
+    const { isNavigationLocked } =
+      require('./navigation-testing-lock') as typeof import('./navigation-testing-lock')
+    return isNavigationLocked()
+  }
+  return false
+}
+
 /**
  * Like `readSegmentCacheEntry`, but prefers a Fulfilled entry over a
  * more-specific Pending or Rejected entry. Use this during a navigation, where
  * a less-specific shell entry (e.g. params -> Fallback) should be rendered
  * immediately rather than blocking on a more-specific Pending entry that may
  * still be in-flight.
+ *
+ * Exception: while an Instant Navigation Testing lock is held, a more-specific
+ * Pending entry is preferred (see body) so the capture waits for an in-flight
+ * runtime prefetch instead of committing a less-specific fallback shell.
  *
  * Performs up to two lookups:
  *  1. An `onlyMatchFulfilled` lookup that walks past Pending/Rejected entries
@@ -514,6 +527,34 @@ export function readSegmentCacheEntryForNavigation(
     true
   )
   if (fulfilled !== null) {
+    if (process.env.__NEXT_EXPOSE_TESTING_API && isInstantNavigationLocked()) {
+      // While an Instant Navigation Testing lock is held, the capture should
+      // reflect the fully-prefetched state. Normally we prefer a ready
+      // (Fulfilled) shell over a more-specific in-flight (Pending) entry so a
+      // real navigation isn't stalled. But under the lock that fallback shell
+      // can be a less-specific entry (e.g. a static prefetch with the
+      // runtime-stage data, such as dynamic params, deferred) while a
+      // more-specific runtime prefetch is still in flight. In that case we want
+      // to wait for the runtime prefetch so the data it resolves surfaces
+      // inside the instant scope, matching the best case in production, where
+      // the runtime prefetch has written its entry before the navigation reads
+      // it. So if a more-specific Pending entry exists, prefer it.
+      const mostSpecific = getFromCacheMap(
+        now,
+        getCurrentSegmentCacheVersion(),
+        segmentCacheMap,
+        varyPath,
+        isRevalidation,
+        false
+      )
+      if (
+        mostSpecific !== null &&
+        mostSpecific !== fulfilled &&
+        mostSpecific.status === EntryStatus.Pending
+      ) {
+        return mostSpecific
+      }
+    }
     return fulfilled
   }
   return getFromCacheMap(
