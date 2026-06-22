@@ -1,6 +1,6 @@
 # Formspree & Next.js example
 
-**An example of using [Formspree](https://formspree.io) with [Next.js](https://nextjs.org). For more information on how to use Formspree check out [our official integration guide](https://formspree.io/guides/nextjs/).**
+**An example of using [Formspree](https://formspree.io) with [Next.js](https://nextjs.org). For more information on how to use Formspree check out [our official integration guide](https://formspree.io/forms/integration/nextjs/).**
 
 ## Get the code
 
