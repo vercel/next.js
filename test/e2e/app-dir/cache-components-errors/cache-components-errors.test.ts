@@ -2708,7 +2708,7 @@ describe('Cache Components Errors', () => {
           it('should show a redbox error', async () => {
             const browser = await next.browser(pathname)
 
-            await expect(browser).toDisplayRedbox(`
+            await expect(browser).toDisplayCollapsedRedbox(`
              {
                "code": "E1380",
                "description": "Route "/use-cache-cookies": \`cookies()\` can't be read inside \`"use cache"\`. Read it outside the cached function and pass what you need as an argument.
@@ -2822,7 +2822,7 @@ describe('Cache Components Errors', () => {
           it('should show a redbox error', async () => {
             const browser = await next.browser(pathname)
 
-            await expect(browser).toDisplayRedbox(`
+            await expect(browser).toDisplayCollapsedRedbox(`
              {
                "code": "E1385",
                "description": "Route "/use-cache-draft-mode": \`draftMode().enable()\` can't be called inside \`"use cache"\`. Draft mode can be read from a cached function, but enabling or disabling it must happen outside.
@@ -2935,7 +2935,7 @@ describe('Cache Components Errors', () => {
           it('should show a redbox error', async () => {
             const browser = await next.browser(pathname)
 
-            await expect(browser).toDisplayRedbox(`
+            await expect(browser).toDisplayCollapsedRedbox(`
              {
                "code": "E1374",
                "description": "Route "/use-cache-headers": \`headers()\` can't be read inside \`"use cache"\`. Read it outside the cached function and pass what you need as an argument.
@@ -3047,7 +3047,7 @@ describe('Cache Components Errors', () => {
           it('should show a redbox error', async () => {
             const browser = await next.browser('/use-cache-connection')
 
-            await expect(browser).toDisplayRedbox(`
+            await expect(browser).toDisplayCollapsedRedbox(`
              {
                "code": "E1388",
                "description": "Route "/use-cache-connection": \`connection()\` can't be used inside \`"use cache"\`. A cache entry can be built before any request exists, so it can't depend on one.
@@ -4255,7 +4255,7 @@ Ways to fix this:
                 '/use-cache-cookies-third-party'
               )
 
-              await expect(browser).toDisplayRedbox(`
+              await expect(browser).toDisplayCollapsedRedbox(`
                {
                  "code": "E1380",
                  "description": "Route "/use-cache-cookies-third-party": \`cookies()\` can't be read inside \`"use cache"\`. Read it outside the cached function and pass what you need as an argument.
@@ -4359,7 +4359,7 @@ Ways to fix this:
                 '/use-cache-draft-mode-third-party'
               )
 
-              await expect(browser).toDisplayRedbox(`
+              await expect(browser).toDisplayCollapsedRedbox(`
                {
                  "code": "E1385",
                  "description": "Route "/use-cache-draft-mode-third-party": \`draftMode().enable()\` can't be called inside \`"use cache"\`. Draft mode can be read from a cached function, but enabling or disabling it must happen outside.
@@ -4462,7 +4462,7 @@ Ways to fix this:
                 '/use-cache-headers-third-party'
               )
 
-              await expect(browser).toDisplayRedbox(`
+              await expect(browser).toDisplayCollapsedRedbox(`
                {
                  "code": "E1374",
                  "description": "Route "/use-cache-headers-third-party": \`headers()\` can't be read inside \`"use cache"\`. Read it outside the cached function and pass what you need as an argument.
@@ -4566,7 +4566,7 @@ Ways to fix this:
                 '/use-cache-connection-third-party'
               )
 
-              await expect(browser).toDisplayRedbox(`
+              await expect(browser).toDisplayCollapsedRedbox(`
                {
                  "code": "E1388",
                  "description": "Route "/use-cache-connection-third-party": \`connection()\` can't be used inside \`"use cache"\`. A cache entry can be built before any request exists, so it can't depend on one.
