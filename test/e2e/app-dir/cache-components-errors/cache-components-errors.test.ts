@@ -4885,7 +4885,6 @@ Ways to fix this:
                  "⨯ Error: \`"use cache: private"\` can't be nested inside \`"use cache"\`. It can only be nested inside another \`"use cache: private"\`.
                  Learn more: https://nextjs.org/docs/app/api-reference/directives/use-cache-private
                      at <unknown> (app/use-cache-private-in-use-cache/page.tsx:15:1)
-                     at a (<anonymous>)
                    13 | }
                    14 |
                  > 15 | async function Private() {
@@ -4922,7 +4921,7 @@ Ways to fix this:
                  }
                  Error: \`"use cache: private"\` can't be nested inside \`"use cache"\`. It can only be nested inside another \`"use cache: private"\`.
                  Learn more: https://nextjs.org/docs/app/api-reference/directives/use-cache-private
-                     at c (<next-dist-dir>) {
+                     at b (<next-dist-dir>) {
                    digest: '<error-digest>'
                  }
                  To get a more detailed stack trace and pinpoint the issue, try one of the following:
