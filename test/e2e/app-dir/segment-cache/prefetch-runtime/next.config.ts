@@ -4,9 +4,12 @@ const nextConfig: NextConfig = {
   cacheComponents: true,
   productionBrowserSourceMaps: true,
   experimental: {
-    // TODO: This test asserts on the pre-`varyParams` cache-keying behavior
-    // for root params. Pin the fixture to the old default until the test is
-    // updated to reflect the new shape (or until the flag is removed).
+    // TODO: With `varyParams: true`, the "includes root params, but not
+    // dynamic content" test fails for the `de` case (a root param that's
+    // not in `generateStaticParams`). This is similar to the existing
+    // `runtime-ppr` TODO that already skips the `de` case when deployed.
+    // Pin to the old default until the runtime-prefetch path is fixed for
+    // unknown root params under `varyParams`.
     varyParams: false,
   },
 }

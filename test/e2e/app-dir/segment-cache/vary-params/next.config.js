@@ -12,7 +12,6 @@ const nextConfig = {
     appShells: false,
     optimisticRouting: true,
     prefetchInlining: false,
-    varyParams: true,
   },
 }
 

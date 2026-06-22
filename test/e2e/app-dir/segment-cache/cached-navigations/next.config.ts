@@ -9,7 +9,6 @@ const nextConfig: NextConfig = {
     exposeTestingApiInProductionBuild: true,
     optimisticRouting: true,
     useOffline: true,
-    varyParams: true,
   },
 }
 
