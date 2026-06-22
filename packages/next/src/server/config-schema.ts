@@ -220,7 +220,9 @@ export const experimentalSchema = {
   craCompat: z.boolean().optional(),
   caseSensitiveRoutes: z.boolean().optional(),
   clientParamParsingOrigins: z.array(z.string()).optional(),
-  cachedNavigations: z.boolean().optional(),
+  cachedNavigations: z
+    .union([z.boolean(), z.literal('allow-runtime')])
+    .optional(),
   dynamicOnHover: z.boolean().optional(),
   useOffline: z.boolean().optional(),
   optimisticRouting: z.boolean().optional(),
