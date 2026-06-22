@@ -61,6 +61,30 @@ npx @next/codemod upgrade canary
 
 ## Codemods
 
+### 16.3
+
+#### Opt every route out of Cache Components validation
+
+##### `cache-components-instant-false`
+
+```bash filename="Terminal"
+npx @next/codemod@canary cache-components-instant-false ./app
+```
+
+This codemod adds `export const instant = false` to every `app/**/{page,layout,default}` file that doesn't already export `instant`, so you can enable [`cacheComponents`](/docs/app/api-reference/config/next-config-js/cacheComponents) and then remove the opt-outs route by route. It skips Client Components (`"use client"`) and files that already declare `instant`.
+
+```diff filename="app/page.tsx"
++ // TODO: Cache Components adoption. Refactor this route so this opt-out can be removed.
++ // See: https://nextjs.org/docs/app/guides/migrating-to-cache-components
++ export const instant = false
++
+  export default function Page() {
+    return <h1>Hello</h1>
+  }
+```
+
+See the [Migrating to Cache Components](/docs/app/guides/migrating-to-cache-components) guide for the full adoption path.
+
 ### 16.0
 
 #### Remove `experimental_ppr` Route Segment Config from App Router pages and layouts
