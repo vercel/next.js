@@ -878,7 +878,7 @@ To create and manage database sessions, you'll need to follow these steps:
 For example:
 
 ```ts filename="app/lib/session.ts" switcher
-import cookies from 'next/headers'
+import { cookies } from 'next/headers'
 import { db } from '@/app/lib/db'
 import { encrypt } from '@/app/lib/session'
 
@@ -913,7 +913,7 @@ export async function createSession(id: number) {
 ```
 
 ```js filename="app/lib/session.js" switcher
-import cookies from 'next/headers'
+import { cookies } from 'next/headers'
 import { db } from '@/app/lib/db'
 import { encrypt } from '@/app/lib/session'
 
@@ -1351,9 +1351,17 @@ Due to [Partial Rendering](/docs/app/getting-started/linking-and-navigating#clie
 
 Instead, you should do the checks close to your data source or the component that'll be conditionally rendered.
 
-For example, consider a shared layout that fetches the user data and displays the user image in a nav. Instead of doing the auth check in the layout, you should fetch the user data (`getUser()`) in the layout and do the auth check in your DAL.
+For example, consider a shared layout that fetches the user data and displays the user image in a nav. Instead of doing the auth check in the layout, you should fetch the user data (`getUser()`) in the layout and do the auth check in your [DAL](#creating-a-data-access-layer-dal).
 
-This guarantees that wherever `getUser()` is called within your application, the auth check is performed, and prevents developers forgetting to check the user is authorized to access the data.
+This guarantees that wherever `getUser()` is called within your application, the auth check is performed, and prevents developers from forgetting to check that the user is authorized to access the data.
+
+#### Auth and streaming
+
+Session and user data often appear in shell UI (header, nav) that repeats across routes. A top-level `await` on `cookies()`, `headers()`, or the DAL in a layout delays the first streamed chunk for that segment and holds `{children}` behind that work.
+
+If only part of the shell needs session data (for example, a user menu), move the `await` into a nested Server Component and wrap it in `<Suspense>` so the rest of the page streams first. See [Push dynamic access down](/docs/app/guides/streaming#push-dynamic-access-down) for the pattern.
+
+Client Components can't import the DAL. Run `verifySession()`, `getUser()`, or similar in a parent Server Component, then pass data to client children as props or through a [Context Provider](#context-providers). To share data across multiple Server Components without re-fetching, see [Sharing data with context and `React.cache`](/docs/app/getting-started/fetching-data#sharing-data-with-context-and-reactcache).
 
 #### Auth checks in page components
 
@@ -1546,7 +1554,7 @@ Using context providers for auth works due to [interleaving](/docs/app/getting-s
 
 This works, but any child Server Components will be rendered on the server first, and will not have access to the context provider’s session data:
 
-```tsx filename="app/layout.ts" switcher
+```tsx filename="app/layout.tsx" switcher
 import { ContextProvider } from 'auth-lib'
 
 export default function RootLayout({ children }) {
@@ -1560,8 +1568,8 @@ export default function RootLayout({ children }) {
 }
 ```
 
-```tsx filename="app/ui/profile.ts switcher
-'use client';
+```tsx filename="app/ui/profile.tsx" switcher
+'use client'
 
 import { useSession } from "auth-lib";
 
@@ -1575,8 +1583,8 @@ export default function Profile() {
 }
 ```
 
-```jsx filename="app/ui/profile.js switcher
-'use client';
+```jsx filename="app/ui/profile.jsx" switcher
+'use client'
 
 import { useSession } from "auth-lib";
 
