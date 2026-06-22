@@ -13,22 +13,35 @@ describe('app dir - metadata static routes cache', () => {
     skipStart: true,
   })
 
-  it('should generate different content after replace the static metadata file', async () => {
+  let faviconMd5: string
+  let opengraphImageMd5: string
+
+  // Each `next.start()` performs a full production build, and a single test
+  // case only gets a 60s budget, which two builds can exceed on slower CI
+  // runners (most often while collecting build traces). The first build and
+  // start (with the original metadata files) therefore runs in `beforeAll`,
+  // which gets the longer setup-hook budget, leaving the test body responsible
+  // for only the second build. Keeping the build out of the test body also
+  // makes it idempotent, so a `jest.retryTimes` retry recomputes the new hashes
+  // against a stable baseline.
+  beforeAll(async () => {
     await next.start()
 
     const $ = await next.render$('/')
     const faviconUrl = $('link[rel="icon"]').attr('href')
     const faviconBody = await (await next.fetch(faviconUrl)).text()
-    const faviconMd5 = generateMD5(faviconBody)
+    faviconMd5 = generateMD5(faviconBody)
 
     const opengraphImageUrl = $('meta[property="og:image"]').attr('href')
     const opengraphImageBody = await (
       await next.fetch(opengraphImageUrl)
     ).text()
-    const opengraphImageMd5 = generateMD5(opengraphImageBody)
+    opengraphImageMd5 = generateMD5(opengraphImageBody)
 
     await next.stop()
+  })
 
+  it('should generate different content after replace the static metadata file', async () => {
     // Update favicon and opengraph image
     const newFaviconContent = await next.readFileBuffer('app/favicon.new.ico')
     await next.remove('app/favicon.ico')

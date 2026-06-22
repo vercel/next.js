@@ -11,6 +11,7 @@ import { getProjectDir } from '../lib/get-project-dir'
 import { findPagesDir } from '../lib/find-pages-dir'
 import { verifyAndRunTypeScript } from '../lib/verify-typescript-setup'
 import { discoverRoutes } from '../build/route-discovery'
+import { parseBundlerArgs } from '../lib/bundler'
 
 import {
   createRouteTypesManifest,
@@ -23,12 +24,12 @@ import { installBindings } from '../build/swc/install-bindings'
 
 export type NextTypegenOptions = {
   dir?: string
+  webpack?: boolean
 }
 
-const nextTypegen = async (
-  _options: NextTypegenOptions,
-  directory?: string
-) => {
+const nextTypegen = async (options: NextTypegenOptions, directory?: string) => {
+  parseBundlerArgs(options)
+
   const baseDir = getProjectDir(directory)
 
   // Check if the provided directory exists

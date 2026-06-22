@@ -1,5 +1,5 @@
 import { nextTestSetup } from 'e2e-utils'
-import { retry } from 'next-test-utils'
+import { retry, waitFor } from 'next-test-utils'
 
 describe('cache-components-dev-streaming', () => {
   const { next } = nextTestSetup({
@@ -14,18 +14,49 @@ describe('cache-components-dev-streaming', () => {
     })
 
     // The loading boundary should be streamed immediately, without waiting for
-    // the cache to be filled.
-    expect(await browser.elementByCss('p').text()).toBe('Loading...')
+    // the cache to be filled. Read it at commit so we don't wait for "load"
+    // (which only fires once the cache has filled).
+    expect(await browser.elementByCss('p', { waitUntil: false }).text()).toBe(
+      'Loading...'
+    )
 
     // Eventually, the cache content should be streamed in.
     await retry(async () => {
-      expect(await browser.elementByCss('p').text()).toBeDateString()
+      expect(
+        await browser.elementByCss('p', { waitUntil: false }).text()
+      ).toBeDateString()
     })
 
-    // Now that the cache is filled, it should be served immediately on the next
-    // page load.
-    await browser.refresh()
-    expect(await browser.elementByCss('p').text()).toBeDateString()
+    // Now that the cache is filled, it should be served immediately with the
+    // shell on the next page load, without going through the loading boundary.
+    await browser.refresh({ waitUntil: 'commit' })
+    expect(
+      await browser.elementByCss('p', { waitUntil: false }).text()
+    ).toBeDateString()
+  })
+
+  it('streams a Suspense fallback above a private cache while filling it in the background', async () => {
+    const browser = await next.browser('/use-cache-private', {
+      waitHydration: false,
+      // do not wait for "load", we want to inspect the page as it streams in
+      waitUntil: 'commit',
+    })
+
+    // The loading boundary should be streamed immediately, without waiting for
+    // the private cache to be filled. Read it at commit (`waitUntil: false`) so
+    // we don't wait for "load" (which only fires once the cache has filled).
+    expect(
+      await browser
+        .elementByCss('#private-fallback', { waitUntil: false })
+        .text()
+    ).toBe('Loading...')
+
+    // Eventually, the private cache content should be streamed in.
+    await retry(async () => {
+      expect(
+        await browser.elementByCssInstant('#private').text()
+      ).toBeDateString()
+    })
   })
 
   it('streams dynamic content immediately while a sibling cache is still filling', async () => {
@@ -41,7 +72,7 @@ describe('cache-components-dev-streaming', () => {
     //
     // Use instant checks throughout: `elementByCss`/`elementById` also wait for
     // the page "load" event, which (with `waitUntil: 'commit'`) only fires once
-    // the slow cache has filled — that would advance past the very window this
+    // the slow cache has filled, which would advance past the very window this
     // test inspects.
     await retry(async () => {
       expect(await browser.elementByCssInstant('#dynamic').text()).toBe(
@@ -112,6 +143,78 @@ describe('cache-components-dev-streaming', () => {
       runtime: false,
       dynamic: true,
     })
+  })
+
+  it('shows the private-cache fallback on a cold client navigation but not on a warm one', async () => {
+    // Uses a runtime-prefetch route, whose cached content belongs to the
+    // runtime shell stage. On a warm navigation the client defers revealing
+    // the response (via `_revealAfter`) until the server has flushed the shell,
+    // so the content arrives with the shell and the fallback isn't shown.
+    const browser = await next.browser('/')
+
+    // Cold navigation: the cache misses and fills in the background, so the
+    // fallback is shown until the content streams in.
+    await browser
+      .elementByCss('a[href="/use-cache-private-runtime-prefetch"]')
+      .click()
+    expect(await browser.elementByCss('#private-fallback').text()).toBe(
+      'Loading...'
+    )
+    expect(await browser.elementByCss('#private').text()).toBeDateString()
+
+    // Wait for the background write to settle so the next navigation hits the
+    // warm entry instead of racing a pending write.
+    await waitFor(2000)
+
+    // Hard-reload home so the first navigation below is a fresh, unknown-route
+    // nav. An unknown route has no prior cache entry, so the server sends the
+    // content inline in the seed (rather than the dynamic-only delta a known
+    // route gets), and that inline reveal is gated on `_revealAfter` too, so
+    // even this first nav delivers the content with the shell. Later iterations
+    // navigate via back()/forward, exercising the known-route deferred-RSC
+    // path.
+    await browser.loadPage(new URL('/', next.url).href)
+
+    // Warm navigation: record whether the fallback ever enters the DOM during
+    // the navigation, even briefly. It shouldn't, since the warm content is
+    // delivered with the shell.
+    await browser.eval(() => {
+      ;(window as any).__privateFallbackSeen = 0
+      new MutationObserver((records) => {
+        records.forEach((record) =>
+          record.addedNodes.forEach((node) => {
+            if (
+              node instanceof Element &&
+              (node.id === 'private-fallback' ||
+                node.querySelector('#private-fallback'))
+            ) {
+              ;(window as any).__privateFallbackSeen += 1
+            }
+          })
+        )
+      }).observe(document.body, { childList: true, subtree: true })
+    })
+
+    // Regression test for a rare client-side race the `_revealAfter` gate
+    // fixes. The Flight client decodes the response incrementally, so before
+    // the gate React Fiber could occasionally commit the fallback before the
+    // children's row was processed, even though the warm content is delivered
+    // with the shell. Deferring the reveal until `_revealAfter` settles means
+    // the children are decoded by the time React reads them, so the fallback no
+    // longer appears. The race was timing-dependent, so a single navigation
+    // would catch a regression only by luck; we repeat the warm navigation many
+    // times and assert the fallback never enters the DOM.
+    for (let i = 0; i < 100; i++) {
+      await browser
+        .elementByCss('a[href="/use-cache-private-runtime-prefetch"]')
+        .click()
+      expect(await browser.elementByCss('#private').text()).toBeDateString()
+      await browser.back()
+    }
+
+    expect(
+      await browser.eval(() => (window as any).__privateFallbackSeen)
+    ).toBe(0)
   })
 
   // The following are smoke tests that Cache Components validation still

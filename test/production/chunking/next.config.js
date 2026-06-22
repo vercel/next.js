@@ -7,6 +7,11 @@ module.exports = {
       new BundleAnalyzerPlugin({
         analyzerMode: 'disabled',
         generateStatsFile: true,
+        statsOptions: {
+          chunks: true,
+          chunkModules: true,
+          modules: true,
+        },
       })
     )
     return config

@@ -27,11 +27,6 @@ echo "Cache endpoint: ${TURBO_API:0:9}..."
 echo "TURBO_TOKEN: ${TURBO_TOKEN:0:3}..."
 echo "TURBO_TEAM: ${TURBO_TEAM}"
 
-# Kill stale processes from cancelled builds on self-hosted runners.
-sccache --stop-server 2>/dev/null || true
-pkill -9 -x cargo 2>/dev/null || true
-pkill -9 -x rustc 2>/dev/null || true
-
 # Install vercel/sccache fork via cargo-binstall.
 # cargo-binstall is installed by .github/actions/setup-rust.
 cargo binstall --no-confirm --git https://github.com/vercel/sccache sccache

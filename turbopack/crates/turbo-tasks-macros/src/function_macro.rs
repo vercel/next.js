@@ -70,7 +70,6 @@ pub fn function(args: TokenStream, input: TokenStream) -> TokenStream {
         is_session_dependent,
     };
     let native_function_ident = get_native_function_ident(ident);
-    let native_function_ty = native_fn.ty();
     let native_function_def = native_fn.definition();
 
     let exposed_signature = turbo_fn.signature();
@@ -84,8 +83,8 @@ pub fn function(args: TokenStream, input: TokenStream) -> TokenStream {
         #[doc(hidden)]
         #inline_signature #inline_block
 
-        turbo_tasks::macro_helpers::turbo_register!(
-            #native_function_ident: #native_function_ty = #native_function_def
+        turbo_tasks::macro_helpers::register_function!(
+            #native_function_ident = #native_function_def
         );
 
         #(#errors)*

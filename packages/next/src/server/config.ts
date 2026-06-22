@@ -512,6 +512,26 @@ function assignDefaultsAndValidate(
           `Please remove the option or run Next.js with webpack in ${configFileName}.`
       )
     }
+
+    if (
+      result.experimental.turbopackRustReactCompiler &&
+      !process.env.TURBOPACK
+    ) {
+      throw new Error(
+        `\`experimental.turbopackRustReactCompiler\` is only supported with Turbopack. ` +
+          `Please remove the option or run Next.js with Turbopack in ${configFileName}.`
+      )
+    }
+
+    if (
+      result.experimental.turbopackRustReactCompiler &&
+      !result.reactCompiler
+    ) {
+      throw new Error(
+        `\`experimental.turbopackRustReactCompiler\` requires \`reactCompiler\` to be enabled. ` +
+          `Please add \`reactCompiler: true\` in ${configFileName}.`
+      )
+    }
   }
 
   if (result.experimental.cachedNavigations && !result.cacheComponents) {
@@ -1134,17 +1154,6 @@ function assignDefaultsAndValidate(
     result.deploymentId = process.env.NEXT_DEPLOYMENT_ID
   }
 
-  // Only read process.env.__NEXT_IMMUTABLE_ASSET_TOKEN to make our testing setup easier. This is
-  // actually done by the adapter's modifyConfig
-  if (
-    process.env.__NEXT_TEST_MODE &&
-    process.env.IS_TURBOPACK_TEST &&
-    result.deploymentId &&
-    process.env.__NEXT_SUPPORTS_IMMUTABLE_ASSETS
-  ) {
-    result.experimental.supportsImmutableAssets = true
-  }
-
   if (process.env.NEXT_HASH_SALT) {
     result.experimental.outputHashSalt =
       (result.experimental.outputHashSalt ?? '') + process.env.NEXT_HASH_SALT
@@ -1153,6 +1162,15 @@ function assignDefaultsAndValidate(
   const tracingRoot = result?.outputFileTracingRoot
   const turbopackRoot = result?.turbopack?.root
 
+  let repoRoot = process.env.NEXT_PRIVATE_OUTPUT_TRACE_ROOT
+  let lockFiles: string[] | undefined = undefined
+  if (!repoRoot) {
+    const rootDirResult = findRootDirAndLockFiles(dir)
+    repoRoot = rootDirResult.rootDir
+    lockFiles = rootDirResult.lockFiles
+  }
+  ;(result as NextConfigComplete).repoRoot = repoRoot
+
   // If both provided, validate they match. If not, use outputFileTracingRoot.
   if (tracingRoot && turbopackRoot && tracingRoot !== turbopackRoot) {
     Log.warn(
@@ -1160,22 +1178,18 @@ function assignDefaultsAndValidate(
         `Using \`outputFileTracingRoot\` value: ${tracingRoot}.`
     )
   }
-
   let rootDir = tracingRoot || turbopackRoot
   if (!rootDir) {
-    const { rootDir: foundRootDir, lockFiles } = findRootDirAndLockFiles(dir)
-    rootDir = foundRootDir
-    if (!silent) {
+    rootDir = repoRoot
+    if (lockFiles && !silent) {
       warnDuplicatedLockFiles(lockFiles)
     }
   }
-
   if (!rootDir) {
     throw new Error(
       'Failed to find the root directory of the project. This is a bug in Next.js.'
     )
   }
-
   // Ensure both properties are set to the same value
   result.outputFileTracingRoot = rootDir
   dset(result, ['turbopack', 'root'], rootDir)
@@ -1644,6 +1658,18 @@ function finalizeConfig(config: NextConfigComplete): NextConfigComplete {
     validationLevel:
       config.experimental.instantInsights?.validationLevel ?? 'warning',
   }
+
+  // Only read process.env.__NEXT_IMMUTABLE_ASSET_TOKEN to make our testing setup easier. In the
+  // real world, this is done by the adapter's modifyConfig
+  if (
+    process.env.__NEXT_TEST_MODE &&
+    process.env.IS_TURBOPACK_TEST &&
+    config.deploymentId &&
+    process.env.__NEXT_SUPPORTS_IMMUTABLE_ASSETS
+  ) {
+    config.experimental.supportsImmutableAssets = true
+  }
+
   return config
 }
 
@@ -2100,7 +2126,7 @@ export default async function loadConfig(
     { ...clonedDefaultConfig, configFileName },
     silent,
     phase
-  ) as NextConfigComplete
+  )
 
   setHttpClientAndAgentOptions(completeConfig)
 

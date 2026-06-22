@@ -756,6 +756,7 @@ export async function initialize(opts: {
     distDir: config.distDir,
     experimentalFeatures,
     cacheComponents: config.cacheComponents,
+    partialPrefetching: config.partialPrefetching,
   }
   renderServerOpts.serverFields.routerServerHandler = requestHandlerImpl
 
@@ -935,6 +936,7 @@ export async function initialize(opts: {
     distDir: config.distDir,
     experimentalFeatures,
     cacheComponents: config.cacheComponents,
+    partialPrefetching: config.partialPrefetching,
     agentRules: config.agentRules,
   }
 }

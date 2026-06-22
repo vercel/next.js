@@ -666,13 +666,17 @@ export default async function PostPage({ params }) {
 
 > **Good to know:** You can also reject requests early using [`proxy`](/docs/app/api-reference/file-conventions/proxy) (for redirects, rewrites, or returning a response) or [`next.config.js` redirects](/docs/app/api-reference/config/next-config-js/redirects). Both run before the page renders, so HTTP status codes are still available.
 
-### Metadata and bots
+### Bots and crawlers
 
-[`generateMetadata`](/docs/app/api-reference/functions/generate-metadata) resolves before streaming begins for bots that only scrape static HTML (such as Twitterbot or Slackbot). For full browsers and capable crawlers, metadata can [stream](/docs/app/api-reference/functions/generate-metadata#streaming-metadata) alongside the page content.
+Bots and crawlers consume a complete, fully formed HTML document rather than rendering chunks as they arrive. Next.js detects them by their user agent and waits for the render to finish, then sends the whole document in a single response instead of streaming it progressively. [`generateMetadata`](/docs/app/api-reference/functions/generate-metadata) resolves before the response is sent for bots that only scrape static HTML (such as Twitterbot or Slackbot), so metadata is present in the `<head>` of that HTML. Full browsers and capable crawlers can instead receive [streaming metadata](/docs/app/api-reference/functions/generate-metadata#streaming-metadata) alongside the page content.
 
-Next.js automatically detects user agents to choose the right behavior. You can customize which bots receive blocking metadata with the [`htmlLimitedBots`](/docs/app/api-reference/config/next-config-js/htmlLimitedBots) configuration option.
+You can customize which bots receive blocking metadata with the [`htmlLimitedBots`](/docs/app/api-reference/config/next-config-js/htmlLimitedBots) configuration option. See the [`loading.js` SEO section](/docs/app/api-reference/file-conventions/loading#seo) for more details.
 
-See the [`loading.js` SEO section](/docs/app/api-reference/file-conventions/loading#seo) for more details.
+#### Cache Components
+
+With [Cache Components](/docs/app/getting-started/caching), a visitor receives the prerendered shell immediately and dynamic content streams in as it resolves. A bot is served differently: because it needs a complete document, Next.js skips the prerendered shell and renders the entire page dynamically at request time, waiting for the full render to complete before sending the finished HTML.
+
+Keep this in mind when your prerendered shell depends on inputs that only exist while prerendering, such as build-time data or values that are not reachable in the request-time environment. A visitor receives the shell without re-running that code, but a bot re-renders it dynamically, so a page that loads for a person can fail to render for a crawler. Make sure any data the shell relies on is also available at request time.
 
 ## What can affect streaming
 
@@ -761,6 +765,14 @@ chunk 3 (+3000ms) # Analytics dashboard: payload + <div hidden id="S:1"> (swaps 
 The `<template id="B:0">` markers are the Suspense fallback placeholders. When a boundary resolves, React streams a `<div hidden id="S:0">` containing the completed HTML and a script that swaps it into the page. The timestamps show each boundary resolving independently.
 
 > **Good to know:** The `Accept-Encoding: identity` header disables compression so chunks are not buffered by the compression layer.
+
+**Compare a bot request.** Add a bot user agent to the same script with `headers: { 'User-Agent': 'Twitterbot/1.0', 'Accept-Encoding': 'identity' }`. Now `await fetch()` itself blocks until the full render completes (around 3 seconds for this page), because the server holds the response until it has the finished document. The body then arrives all at once, with none of the staggered `+1000ms` / `+3000ms` timestamps:
+
+```text filename="Terminal"
+chunk 0 (+0ms) # Entire document in a single burst, after fetch() already waited
+```
+
+This is the [bots and crawlers](#bots-and-crawlers) behavior: the server waits for the full render and sends one fully formed HTML document instead of streaming.
 
 ### Platform support
 
