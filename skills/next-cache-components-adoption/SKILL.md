@@ -24,7 +24,9 @@ If `next --version` reports below 16.3, upgrade first:
 
 This skill also assumes a clean starting point. If the app still uses `experimental.dynamicIO` / `experimental.useCache`, route segment configs (`dynamic`, `revalidate`, `fetchCache`), or `unstable_cache()`, work those out first via the [migration guide](https://nextjs.org/docs/app/guides/migrating-to-cache-components), then come back here.
 
-Offline copies of guide links live at `node_modules/next/dist/docs/<same-path>.md` (drop the `/docs/` prefix and append `.md`). The `/docs/messages/*` error pages are not bundled. If offline docs are missing entirely, run `npx @next/codemod@latest agents-md` to write a version-matched index into `AGENTS.md` / `CLAUDE.md`.
+**If the app already uses `"use cache"`**, there is no green build before `cacheComponents: true` — the pre-flag build errors with `please enable the feature flag cacheComponents`. Enabling the flag is the first step of milestone A, not a thing to do _after_ getting green; the green baseline comes from milestone A (blanket the opt-outs in), not from before it. Note this in your starting summary so it doesn't read as a regression.
+
+Offline copies of guide links live under `node_modules/next/dist/docs/`, with the directory layout numbered for ordering (e.g. `node_modules/next/dist/docs/01-app/02-guides/migrating-to-cache-components.md`). The trailing filename matches the slug. If you can't predict the numbered prefix, `find node_modules/next/dist/docs -name '<slug>.md'` resolves it. The `/docs/messages/*` error pages are not bundled. If offline docs are missing entirely, run `npx @next/codemod@latest agents-md` to write a version-matched index into `AGENTS.md` / `CLAUDE.md`.
 
 ## the shape of the work
 
@@ -49,7 +51,7 @@ Adoption has two milestones. Each is shippable on its own:
 
 Two surfaces; they show different things.
 
-**`next build` — detection only.** Use it to confirm milestone A (green build) and to spot-check milestone B (no route opted out). It stops at the first blocking route, so it's poor for sizing the work. Two flags help when iterating: `--debug-build-paths /that/route` builds only that one route (faster than a full build) and `--debug-prerender` (dev-only) prints a fuller stack trace so the error names the originating file and line.
+**`next build` — detection only.** Use it to confirm milestone A (green build) and to spot-check milestone B (no route opted out). It stops at the first blocking route, so it's poor for sizing the work. Two flags help when iterating: `--debug-build-paths` builds only the routes you name (comma-separated glob patterns of **file paths relative to the project root**, e.g. `--debug-build-paths="app/admin/**/page.tsx"` or `--debug-build-paths="app/(marketing)/about/page.tsx"` — not URL paths; `--debug-build-paths=/admin` matches nothing and silently exits 0) and `--debug-prerender` (dev-only) prints a fuller stack trace so the error names the originating file and line.
 
 **`next dev` — the working surface.** Visit a route; its blocking errors surface in the dev overlay with full stack traces and fix cards linking the per-error docs. Work one route at a time — errors don't accumulate in one place. The route itself still returns HTTP 200, so don't gate on status codes; read the overlay (or `.next-dev.log` if you can't drive a browser yet).
 
@@ -84,6 +86,16 @@ npx @next/codemod@canary cache-components-instant-false ./app
 
 Inserts `export const instant = false` (with a `// TODO: Cache Components adoption` comment) into every `app/**/{page,layout,default}` file, skipping files that already declare `instant` and any module marked `"use client"` or `"use server"`. Then set `cacheComponents: true`. The TODO comments are the work queue for milestone B.
 
+**If the codemod isn't available** (older `@next/codemod`, sandboxed environment, offline run), reproduce it by hand: for every `app/**/{page,layout,default}.{js,jsx,ts,tsx}` that isn't `"use client"` or `"use server"` and doesn't already declare or export `instant` in any form, insert the three-line block below after the file's import statements (or at the top, if there are none):
+
+```ts
+// TODO: Cache Components adoption. Refactor this route so this opt-out can be removed.
+// See: https://nextjs.org/docs/app/guides/migrating-to-cache-components
+export const instant = false
+```
+
+Then set `cacheComponents: true`. The result is the same as what the codemod produces.
+
 The codemod opts **every** segment out, not only the root, on purpose. Resolution is top-down, first-explicit-config-wins: the **highest** `instant = false` in a route's tree decides the whole subtree, and deeper ones are never read. If you only opted the root layout out, removing it would re-arm validation for the entire app at once. With an opt-out on every segment, removing one segment's opt-out validates only **that** segment — its descendants keep their own opt-outs and stay green, so the blast radius is one segment at a time.
 
 Because the highest opt-out wins, **remove them top-down** (root first, then descend). Removing a leaf's opt-out does nothing while an ancestor still holds one.
@@ -105,6 +117,8 @@ Set `cacheComponents: true` and collect the errors. The reported routes are the 
 The route tree is the work queue. Pick one subtree (`app/dashboard/**`, or a top-level app if the repo has several — marketing, app, docs), finish it end-to-end, ship it, then start the next. Each subtree is an independent, mergeable change. Don't fan out across the whole app in one pass — the point of milestone A's blanket was to make the loop incremental, not optional.
 
 Within a subtree, walk **top-down** (layouts before the pages beneath them, root layout first). The root layout is often the hardest (it wraps `<html>` / `<body>` and frequently reads `cookies()`), but it shadows every route including framework routes like `/_not-found`, so it has to come off before anything below it can be validated. (Direct path: there are no opt-outs to remove — fix each failing route; if a hand-written opt-out on an ancestor shadows it, remove that first.)
+
+**A green build mid-walk doesn't mean the layout is clean.** Removing a layout's opt-out while its descendant pages still have theirs keeps the build green — each page shadows the inherited validation. The layout's actual blocking reads only surface once nothing below it shadows them. So after a layout is opt-out-free, **keep going** down the subtree; if the layout has an inherent blocker, the first page you uncover will be the one to surface it. Don't call a subtree done at the layout boundary.
 
 For each route in the subtree:
 

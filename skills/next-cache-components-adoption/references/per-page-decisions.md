@@ -18,12 +18,6 @@ For the broader picture, read the [Authentication guide](https://nextjs.org/docs
 
 If you don't know how to make a piece of code Cache Components–correct without changing what it does, ask.
 
-## shared code: re-check the siblings
-
-If your fix touched shared code (a layout, or a shared component like a sidebar/breadcrumb), re-check the other routes that render it too — a shared-shell change can fix the route you're on and break a sibling.
-
-**A layout with `instant = false` shadows its whole subtree at build time**, so dropping a descendant page's opt-out and rebuilding will stay green whether or not the page is actually adopted. Audit descendants of a Blocked layout via dev overlay (or after removing the layout's Block), not via the build.
-
 ## when to leave a Block in place
 
 If a route is genuinely meant to block — it's inherently per-request with no useful static shell — or the refactor would be large and the user would rather not take it on now, that's a legitimate outcome. Keep `instant = false`, but confirm it with the user first and turn its `// TODO: Cache Components adoption` comment into a reason, e.g. `// instant = false: kept on purpose — fully request-time dashboard` or `// instant = false: deferred, refactor too large for now`.
