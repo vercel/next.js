@@ -144,19 +144,11 @@ async function runTest(
   next.env['NEXT_DEPLOYMENT_ID'] = 'foo-dpl-id'
   expect((await next.build()).exitCode).toBe(0)
   let run1 = await readFiles(next)
-  // await fs.rename(
-  //   path.join(next.testDir, '.vercel/output'),
-  //   path.join(next.testDir, '.vercel/output1')
-  // )
 
   // Second build
   next.env['NEXT_DEPLOYMENT_ID'] = 'bar-dpl-id'
   expect((await next.build()).exitCode).toBe(0)
   let run2 = await readFiles(next)
-  // await fs.rename(
-  //   path.join(next.testDir, '.vercel/output'),
-  //   path.join(next.testDir, '.vercel/output2')
-  // )
 
   // First, compare file names
   let run1FileNames = [...run1.entries()].map(([fn, files]) => [
