@@ -24,6 +24,12 @@ export default function Page() {
           <Link href="/apis/123">/apis/123</Link>
         </li>
         <li>
+          <Link href="/mixed/en/123">/mixed/en/123</Link>
+        </li>
+        <li>
+          <Link href="/mixed/fr/123">/mixed/fr/123</Link>
+        </li>
+        <li>
           <Link href="/sync-io/static">/sync-io/static</Link>
         </li>
         <li>
