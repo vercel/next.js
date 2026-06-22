@@ -119,9 +119,11 @@ impl EcmascriptBrowserChunkContent {
 
         let content = this.content.await?;
         let mut chunk_items = content.chunk_item_code_and_ids().await?;
-        chunk_items.sort_by_key(|item| item.first().map(|(id, _)| id.clone()));
+        // Sort items by their module path so that similar modules stay
+        // together so that the chunks gzips better.
+        chunk_items.sort_by_key(|item| item.first().map(|(_, _, path)| path.clone()));
         for item in &chunk_items {
-            for (id, item_code) in &**item {
+            for (id, item_code, _) in &**item {
                 write!(code, "\n{}, ", StringifyJs(id))?;
                 code.push_code(item_code);
                 write!(code, ",")?;

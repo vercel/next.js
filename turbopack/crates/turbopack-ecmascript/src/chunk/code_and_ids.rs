@@ -1,9 +1,10 @@
 use anyhow::Result;
 use rustc_hash::FxHashMap;
 use smallvec::{SmallVec, smallvec};
-use turbo_tasks::{ReadRef, TryJoinIterExt, Vc};
+use turbo_rcstr::RcStr;
+use turbo_tasks::{ReadRef, TryJoinIterExt, ValueToString, Vc};
 use turbopack_core::{
-    chunk::{ChunkItemExt, ModuleId},
+    chunk::{ChunkItem, ChunkItemExt, ModuleId},
     code_builder::Code,
 };
 
@@ -13,7 +14,7 @@ use crate::chunk::{
 };
 
 #[turbo_tasks::value(transparent, serialization = "skip")]
-pub struct CodeAndIds(SmallVec<[(ModuleId, ReadRef<Code>); 1]>);
+pub struct CodeAndIds(SmallVec<[(ModuleId, ReadRef<Code>, RcStr); 1]>);
 
 #[turbo_tasks::value(transparent, serialization = "skip")]
 pub struct BatchGroupCodeAndIds(
@@ -49,7 +50,8 @@ pub async fn item_code_and_ids(
         }) => {
             let id = chunk_item.id().await?;
             let code = chunk_item.code(async_info.map(|info| *info));
-            smallvec![(id, code.await?)]
+            let path = chunk_item.asset_ident().to_string().owned().await?;
+            smallvec![(id, code.await?, path)]
         }
         EcmascriptChunkItemOrBatchWithAsyncInfo::Batch(batch) => batch
             .await?
@@ -61,6 +63,7 @@ pub async fn item_code_and_ids(
                     item.chunk_item
                         .code(item.async_info.map(|info| *info))
                         .await?,
+                    item.chunk_item.asset_ident().to_string().owned().await?,
                 ))
             })
             .try_join()
