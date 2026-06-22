@@ -16,7 +16,7 @@ import theme from "./themeConfig";
 
 const HomePage = () => (
   <ConfigProvider theme={theme}>
-    <div className="p-10 min-h-screen">
+    <div style={{ padding: 100, height: "100vh" }}>
       <div className="text-center mb-5">
         <Link href="#" className="logo mr-0">
           <SmileFilled style={{ fontSize: 48 }} />
