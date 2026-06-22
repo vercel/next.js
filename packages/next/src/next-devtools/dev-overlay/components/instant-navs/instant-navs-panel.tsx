@@ -292,7 +292,9 @@ export function InstantNavsPanel() {
                 <div className="">
                   <DebuggerPausedButton onClick={resume} />
                   <div className="instant-nav-state-details">
-                    <h3 className="instant-nav-state-title">Client shell</h3>
+                    <h3 className="instant-nav-state-title">
+                      Navigation shell
+                    </h3>
                     <p className="instant-nav-state-description">
                       You're viewing the shell for the current navigation.
                     </p>

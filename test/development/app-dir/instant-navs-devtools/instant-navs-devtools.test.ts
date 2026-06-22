@@ -232,7 +232,7 @@ describe('instant-nav-panel', () => {
       browser,
       'Debugger paused',
       'Resume',
-      'Client shell',
+      'Navigation shell',
       "You're viewing the shell for the current navigation.",
       'SOURCE',
       'TARGET'
@@ -696,7 +696,7 @@ describe('instant-nav-panel', () => {
 
       const initialPanelText = await getInstantNavPanelText(browser)
       expect(initialPanelText).toContain('Static shell')
-      expect(initialPanelText).not.toContain('Client shell')
+      expect(initialPanelText).not.toContain('Navigation shell')
 
       await expectMpaPanel(browser)
       await expectTargetPageMpaShell(browser)
