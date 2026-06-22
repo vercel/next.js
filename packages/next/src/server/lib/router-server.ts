@@ -31,6 +31,7 @@ import { parseUrl as parseUrlUtil } from '../../shared/lib/router/utils/parse-ur
 import {
   PHASE_PRODUCTION_SERVER,
   PHASE_DEVELOPMENT_SERVER,
+  REQUEST_INSIGHTS_DEV_ENDPOINT,
   UNDERSCORE_NOT_FOUND_ROUTE,
 } from '../../shared/lib/constants'
 import { RedirectStatusCode } from '../../client/components/redirect-status-code'
@@ -65,7 +66,6 @@ import {
   getRequestInsightsSnapshot,
   isRequestInsightsEnabled,
 } from './trace/request-insights'
-import { REQUEST_INSIGHTS_DEV_ENDPOINT } from '../../next-devtools/shared/request-insights'
 
 const debug = setupDebug('next:router-server:main')
 const isNextFont = (pathname: string | null) =>

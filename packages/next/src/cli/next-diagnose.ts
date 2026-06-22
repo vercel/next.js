@@ -1,14 +1,16 @@
 import path from 'path'
 import { readLockfileContent, parseDevServerInfo } from '../build/lockfile'
 import { getProjectDir } from '../lib/get-project-dir'
-import {
-  REQUEST_INSIGHTS_DEV_ENDPOINT,
-  type RequestInsight,
-  type RequestInsightsSnapshot,
+import type {
+  RequestInsight,
+  RequestInsightsSnapshot,
 } from '../next-devtools/shared/request-insights'
 import loadConfig from '../server/config'
 import { printAndExit } from '../server/lib/utils'
-import { PHASE_DEVELOPMENT_SERVER } from '../shared/lib/constants'
+import {
+  PHASE_DEVELOPMENT_SERVER,
+  REQUEST_INSIGHTS_DEV_ENDPOINT,
+} from '../shared/lib/constants'
 
 const DEFAULT_REQUEST_LIMIT = 20
 const DEFAULT_FETCH_LIMIT = 5
