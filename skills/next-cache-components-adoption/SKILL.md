@@ -9,62 +9,53 @@ description: >
   with `export const instant = false` and fixing them in place.
 ---
 
-# Cache Components Adoption
+# next-cache-components-adoption
 
-Enable Cache Components on an app and work it to a clean build. This skill sequences the work; it does not teach how to fix individual errors — the dev overlay fix cards, the stack traces, and the `/docs/messages/blocking-prerender-*` pages do that.
+Enable Cache Components on an app and walk it to a clean build. This skill **sequences** the work; per-error recipes live in the dev overlay fix cards, stack traces, and `/docs/messages/blocking-prerender-*` pages.
 
-## Requires
+## requires
 
-This skill assumes **Next.js 16.3+**. That release is where the pieces it relies on land: top-level `cacheComponents`, `export const instant`, the dev-overlay instant-navigation validation warnings (including `link-prefetch-partial`), and the `cache-components-instant-false` codemod. On older versions the validation signals the skill walks you through don't exist, so there's little to guide the work.
+Next.js **16.3+**. That release is where the pieces this skill relies on land: top-level `cacheComponents`, `export const instant`, the dev-overlay instant-navigation validation warnings (including `link-prefetch-partial`), and the `cache-components-instant-false` codemod.
 
-**Upgrade first if needed.** Check the installed version (`next --version` or `package.json`). If it's below 16.3, upgrade before doing anything else:
+If `next --version` reports below 16.3, upgrade first:
 
-- Run `npx @next/codemod@latest upgrade latest` to move to the current release and apply the version-to-version codemods.
-- Follow the [version upgrade guides](https://nextjs.org/docs/app/guides/upgrading) for the major(s) you're crossing (e.g. [Version 16](https://nextjs.org/docs/app/guides/upgrading/version-16)) — read the guide for the version you're on, don't guess.
+- `npx @next/codemod@latest upgrade latest` to apply the version-to-version codemods.
+- Read the relevant [version upgrade guide](https://nextjs.org/docs/app/guides/upgrading) (e.g. [Version 16](https://nextjs.org/docs/app/guides/upgrading/version-16)) for what the codemod doesn't cover.
 
-Get the app building on 16.3+ first, then come back and adopt Cache Components.
+This skill also assumes a clean starting point. If the app still uses `experimental.dynamicIO` / `experimental.useCache`, route segment configs (`dynamic`, `revalidate`, `fetchCache`), or `unstable_cache()`, work those out first via the [migration guide](https://nextjs.org/docs/app/guides/migrating-to-cache-components), then come back here.
 
-This skill assumes a clean starting point. If the app still uses `experimental.dynamicIO` / `experimental.useCache`, route segment configs (`dynamic`, `revalidate`, `fetchCache`), or `unstable_cache()`, work those out first via the [migration guide](https://nextjs.org/docs/app/guides/migrating-to-cache-components), then come back here.
+Offline copies of guide links live at `node_modules/next/dist/docs/<same-path>.md` (drop the `/docs/` prefix and append `.md`). The `/docs/messages/*` error pages are not bundled. If offline docs are missing entirely, run `npx @next/codemod@latest agents-md` to write a version-matched index into `AGENTS.md` / `CLAUDE.md`.
 
-Adoption has four milestones, in order. Each is shippable on its own; stop after any of them. These are lettered (A–D) on purpose — they are **not** the numbered Steps below. The numbered Steps (1–5) are the procedure; the milestones are the outcomes they produce.
+## the shape of the work
 
-**End of every milestone: summarize and ask.** When a milestone is done, tell the user what changed (which routes, what kind of fix — cached / wrapped in `<Suspense>` / opted out as a documented Block / etc.), what they should sanity-check, and ask whether to open a PR and continue to the next milestone or stop here. Don't silently roll on. Each milestone is a real checkpoint, not a step inside a single agent run.
+Adoption has two milestones. Each is shippable on its own:
 
-- **A. Green build.** Get `next build` passing with `cacheComponents` on — blanket `instant = false` if needed. This is the baseline; everything builds and behaves as before. (Steps 1–2 below.)
-- **B. Remove `instant = false`.** Make routes genuinely prerenderable (Stream / Cache) so the opt-outs come back off, feature by feature. This is where the real adoption work is. (Steps 2–3 below.)
-- **C. Make navigations instant.** With the build clean, resolve the instant-navigation validation warnings the dev overlay surfaces on client navigation. They're dev-only (they don't block the build) and look like the blocking-prerender errors you cleared in Step 2 — you fix them the same way. This is the work that actually makes navigations instant. (Step 4 below.)
-- **D. Adopt Partial Prefetching.** Turn on `partialPrefetching` and tune `<Link>` so prefetching ships only the static shell by default — the last step to the full Cache Components experience. (Step 5 below.)
+- **A. Green build.** `next build` passes with `cacheComponents: true` — blanket `instant = false` if needed. Setup for B. (steps 1–2.)
+- **B. Remove `instant = false`.** **This is the loop where adoption happens.** Walk the route tree top-down, one subtree at a time, removing each opt-out and either making the route prerenderable or documenting it as a deliberate Block — checking in with the user at each subtree boundary. Expect to spend most of the time here. (steps 2–3.)
 
-For everything that is not a blocking-route error (`dynamic`, `revalidate`, `fetchCache`, `unstable_cache` → `"use cache"`, `revalidateTag` / `updateTag`, `generateStaticParams`, async `cookies()` / `headers()`, route handlers, `generateMetadata`, `runtime`), follow the migration guide:
+**Adoption is complete after B.** Further optimization — making navigations instant, adopting Partial Prefetching, locking the result in with e2e tests, growing static shells — is covered by the linked guides in [further reading](#further-reading). Point the user at them; this skill doesn't walk through them.
 
-- <https://nextjs.org/docs/app/guides/migrating-to-cache-components>
-- Offline copy, if present: `node_modules/next/dist/docs/01-app/02-guides/migrating-to-cache-components.md`
+**End of every milestone: summarize and ask.** Tell the user which routes changed and how (cached / wrapped in `<Suspense>` / opted out as a documented Block), what they should sanity-check, and ask whether to open a PR before continuing. Each milestone is a real checkpoint, not a step inside one agent run. Don't silently roll on.
 
-Guide links in this skill have offline copies at `node_modules/next/dist/docs/<same-path>.md` (drop the `/docs/` prefix and append `.md`). The `/docs/messages/*` error pages are not bundled.
+**End of every milestone: summarize and ask.** Tell the user which routes changed and how (cached / wrapped in `<Suspense>` / opted out as a documented Block), what they should sanity-check, and ask whether to open a PR before continuing. Each milestone is a real checkpoint, not a step inside one agent run. Don't silently roll on.
 
-If the offline docs are missing entirely, run `npx @next/codemod@latest agents-md` to write a version-matched docs index into `AGENTS.md` / `CLAUDE.md`, then read from there instead of guessing API shapes.
+## background
 
-## Background
-
-`cacheComponents: true` requires every route to be prerenderable. A route that reads request-time data outside `<Suspense>` is "blocking" and **fails the build**. `export const instant = false` marks a route as allowed to block, which clears it in both dev and build; on a layout it covers the whole subtree beneath it. Milestones A and B are about getting these opt-outs in, then back out.
+`cacheComponents: true` requires every route to be prerenderable. A route that reads request-time data outside `<Suspense>` is "blocking" and **fails the build**. `export const instant = false` marks a route as allowed to block, which clears it in both dev and build; on a layout it covers the whole subtree beneath it.
 
 **`instant = false` does not clear sync-IO errors.** Unstable values evaluated at module/render time — `new Date()`, `Date.now()`, `Math.random()`, `crypto.randomUUID()` — still fail the prerender (`blocking-prerender-current-time` / `-random` / `-crypto`) even with the opt-out, because they produce a different result on every render and can't be baked into a static shell. So the blanket codemod gets the build green **only if no shared layout or page calls one of these directly**; if one does, you must fix it regardless of `instant = false`. Follow the fix cards on the error page itself — they own the per-API recipe. This most often bites in a shared layout, where one `new Date()` blocks every route under it.
 
-Milestone C is a separate, dev-only surface: instant-navigation validation warnings the dev overlay raises on client navigation. They don't block the build. Work them down once the build is clean — see the [instant navigation guide](https://nextjs.org/docs/app/guides/instant-navigation).
-
-Milestone D is the final advancement: [Partial Prefetching](https://nextjs.org/docs/app/guides/adopting-partial-prefetching). It's a config flag plus `<Link>` tuning, not a build gate. With `cacheComponents` clean, it makes `<Link>` ship only the static [App Shell](/docs/app/glossary#app-shell) by default instead of the full route, which is the biggest payoff of Cache Components. Like milestone C, it surfaces a dev-only Insight (for `<Link prefetch={true}>` pointing at routes that haven't adopted it) rather than failing the build.
-
-## Surfacing Errors
+## surfacing errors
 
 Two surfaces; they show different things.
 
-**Build (`next build`) — detection only.** It tells you whether the app prerenders. Use it to confirm milestone A (green build) and to spot-check milestone B (no route opted out). It stops at the first blocking route, so it's poor for sizing the work, and it can't surface milestone C/D's navigation-time signals at all — those are dev-only. Two flags help when iterating: `--debug-build-paths /that/route` builds only that one route (faster loop than a full build) and `--debug-prerender` (dev-only) prints a fuller stack trace so the error names the originating file and line.
+**`next build` — detection only.** Use it to confirm milestone A (green build) and to spot-check milestone B (no route opted out). It stops at the first blocking route, so it's poor for sizing the work. Two flags help when iterating: `--debug-build-paths /that/route` builds only that one route (faster than a full build) and `--debug-prerender` (dev-only) prints a fuller stack trace so the error names the originating file and line.
 
-**Dev server (`next dev`) — the working surface.** Visit a route; its blocking errors surface in the dev overlay with full stack traces and fix cards linking the per-error docs. Work one route at a time — errors don't all accumulate in one place. The route itself still returns HTTP 200, so don't gate on status codes; read the overlay (or `.next-dev.log` if you can't drive a browser yet). Steps 4 and 5's validation warnings only fire on real client navigation in the dev overlay — there is no build-time equivalent.
+**`next dev` — the working surface.** Visit a route; its blocking errors surface in the dev overlay with full stack traces and fix cards linking the per-error docs. Work one route at a time — errors don't accumulate in one place. The route itself still returns HTTP 200, so don't gate on status codes; read the overlay (or `.next-dev.log` if you can't drive a browser yet).
 
-**Verifying a fix at runtime.** A green build or a cleared overlay isn't proof the route actually behaves — Cache Components is a runtime concern (a static shell with streamed data). You need to load the route in a real browser, wait for streaming to settle, and confirm the page renders. Three ways to do that, in order of preference:
+**Verifying a fix at runtime.** A green build or a cleared overlay isn't proof the route actually behaves — Cache Components is a runtime concern (a static shell with streamed data). Load the route in a real browser, wait for streaming to settle, and confirm it renders. Three ways, in order of preference:
 
-1. **The [`next-dev-loop`](https://github.com/vercel/next.js/tree/canary/skills/next-dev-loop) skill** is the fastest path: it cross-checks `/_next/mcp` against the live browser. It's a **separate companion skill** from the same Next.js skills collection — install if your agent doesn't have it:
+1. **The [`next-dev-loop`](https://github.com/vercel/next.js/tree/canary/skills/next-dev-loop) skill** is the fastest path: it cross-checks `/_next/mcp` against the live browser. Install if your agent doesn't have it:
 
    ```bash
    npx skills add https://github.com/vercel/next.js/tree/canary/skills/next-dev-loop
@@ -72,141 +63,79 @@ Two surfaces; they show different things.
 
    It has its own hard prerequisites (Turbopack and `agent-browser >= 0.27.0`) and will tell you how to set those up.
 
-2. **A browser you can drive yourself** (Playwright, agent-browser, any browser-automation tool) is enough on its own — `next-dev-loop` is an accelerator, not a prerequisite. Keep `next dev` running, navigate to each route, read errors from the dev overlay and the browser console.
+2. **A browser you can drive yourself** (Playwright, agent-browser, any browser-automation tool). `next-dev-loop` is an accelerator, not a prerequisite.
 
-3. **No browser at all?** Ask the user. Either ask them to drive the dev server (navigate the routes, report what the overlay shows) and continue from there, or commit the milestone you've reached and hand the rest off. **Don't silently stop at milestone A or B and call it done** — milestone C and D's work hides behind navigation, and the build won't surface it. Be explicit about what you couldn't verify.
+3. **No browser at all?** Ask the user. Either ask them to drive the dev server and report what the overlay shows, or commit the milestone you've reached and hand off. **Don't silently stop at A or B and call it done** — the runtime behavior won't surface in the build. Be explicit about what you couldn't verify.
 
-Verify after every fix in the steps below, not only at the end. Don't fall back to grepping source or trusting the build alone for milestones B–D.
+Verify after every fix, not only at the end. Don't fall back to grepping source or trusting the build alone.
 
-## Step 1: Choose a Strategy
+## step 1: choose a strategy
 
 Ask the user; don't assume. **In a non-interactive run** (no way to prompt), default to **Blanket** for a multi-route app and **Direct** for a single-route or handful-of-routes app, and say so when you start.
 
 - **Blanket** — run the codemod to opt every page and layout out, get a clean build immediately, **merge that**, then remove the opt-outs feature by feature in follow-up PRs. Use for large apps, team repos (a long-lived failing branch blocks others), or when you can't land every route in one PR.
 - **Direct** — enable the flag and fix every route in place in one pass. Use for small or solo apps where one PR is realistic.
 
-### Blanket
+### blanket
 
 ```bash
 npx @next/codemod@canary cache-components-instant-false ./app
 ```
 
-Inserts `export const instant = false` (with a `// TODO: Cache Components adoption` comment) into every `app/**/{page,layout,default}` file, skipping files that already declare `instant` and Client Components (`"use client"`). Then set `cacheComponents: true`. The TODO comments are the work queue.
+Inserts `export const instant = false` (with a `// TODO: Cache Components adoption` comment) into every `app/**/{page,layout,default}` file, skipping files that already declare `instant` and any module marked `"use client"` or `"use server"`. Then set `cacheComponents: true`. The TODO comments are the work queue for milestone B.
 
 The codemod opts **every** segment out, not only the root, on purpose. Resolution is top-down, first-explicit-config-wins: the **highest** `instant = false` in a route's tree decides the whole subtree, and deeper ones are never read. If you only opted the root layout out, removing it would re-arm validation for the entire app at once. With an opt-out on every segment, removing one segment's opt-out validates only **that** segment — its descendants keep their own opt-outs and stay green, so the blast radius is one segment at a time.
 
-Because the highest opt-out wins, you remove them **top-down** (root first, then descend). Removing a leaf's opt-out does nothing while an ancestor still holds one.
+Because the highest opt-out wins, **remove them top-down** (root first, then descend). Removing a leaf's opt-out does nothing while an ancestor still holds one.
 
-**Confirm milestone A with a build.** Run `next build` and make sure it completes with no blocking-route errors before you call the green build done. The codemod gets you most of the way, but a shared layout that calls `new Date()` / `Math.random()` directly still fails regardless of the opt-out (see Background), so the build is the proof, not the codemod run. Once it passes, the app runs with `cacheComponents` on and behaves as before. This is a natural stopping point — ask the user whether to open a PR for it before starting milestone B, or keep going. Don't silently roll on.
+**Confirm milestone A with a build.** Run `next build` and make sure it completes with no blocking-route errors before you call the green build done. The codemod gets you most of the way, but a shared layout that calls `new Date()` / `Math.random()` directly still fails regardless of the opt-out (see "background" above), so the build is the proof, not the codemod run.
 
 After running the codemod, **confirm the root layout got an opt-out** (`grep -n "export const instant" app/layout.*`). The root layout is the one segment that must be covered: it renders every route, including framework routes like `/_not-found`, so if it still reads `cookies()` without an opt-out the build fails on `/_not-found` even though no other route changed. If it was missed, add `export const instant = false` to it by hand.
 
 **Never add `instant = false` to a synthetic route** like `/_not-found` — there is no user file for it, and the directive wouldn't apply. When `/_not-found` (or another framework route) blocks, the cause is the **root layout** it renders through; fix the opt-out there.
 
-**Client Components (`"use client"` pages/layouts) get no opt-out** — the codemod skips them, on purpose. `instant` is a Server Component route segment config; exporting it from a client module is a build error (`E1344`). They don't need one anyway: a client page is covered by its nearest server layout's opt-out (resolution walks top-down, and the layout's `instant = false` shadows the whole subtree), and a client page can't read server request data (`cookies()`, `headers()`, `await params`) itself, so it rarely blocks on its own. If a route with a client page still blocks, the cause is server-side data in an ancestor layout — fix the opt-out or the read there, not on the client page.
+**Client Components (`"use client"` pages/layouts) get no opt-out** — the codemod skips them on purpose. `instant` is a Server Component route segment config; exporting it from a client module is a build error (`E1344`). They don't need one anyway: a client page is covered by its nearest server layout's opt-out, and a client page can't read server request data (`cookies()`, `headers()`, `await params`) itself, so it rarely blocks on its own. If a route with a client page still blocks, the cause is server-side data in an ancestor layout — fix the opt-out or the read there, not on the client page.
 
-### Direct
+### direct
 
-Set `cacheComponents: true` and collect the errors (above). The reported routes are the work queue; there are no opt-outs to remove.
+Set `cacheComponents: true` and collect the errors. The reported routes are the work queue; there are no opt-outs to remove.
 
-## Step 2: Remove Opt-Outs
+## step 2: remove opt-outs, one subtree at a time
 
-You're removing opt-outs route by route, but group the work by area — a feature subtree (`app/dashboard/**`), or a top-level app if the repo has several (marketing, app, docs). Finish one group before moving to the next; each is an independent, mergeable change.
+The route tree is the work queue. Pick one subtree (`app/dashboard/**`, or a top-level app if the repo has several — marketing, app, docs), finish it end-to-end, ship it, then start the next. Each subtree is an independent, mergeable change. Don't fan out across the whole app in one pass — the point of milestone A's blanket was to make the loop incremental, not optional.
 
-Within a group, remove opt-outs **top-down** (layouts before the pages beneath them, starting at the root layout). The highest `instant = false` in a route's tree is the one in effect, so removing a page's opt-out does nothing while an ancestor layout still has one — the ancestor must go first. The root layout is often the hardest (it wraps `<html>` / `<body>` and frequently reads `cookies()`), but it shadows every route including framework routes like `/_not-found`, so it has to be fixed before anything below it can be validated. (Direct path: there are no opt-outs — fix each failing route; if a hand-written opt-out on an ancestor shadows it, remove the ancestor's first.)
+Within a subtree, walk **top-down** (layouts before the pages beneath them, root layout first). The root layout is often the hardest (it wraps `<html>` / `<body>` and frequently reads `cookies()`), but it shadows every route including framework routes like `/_not-found`, so it has to come off before anything below it can be validated. (Direct path: there are no opt-outs to remove — fix each failing route; if a hand-written opt-out on an ancestor shadows it, remove that first.)
 
-For each route in the group:
+For each route in the subtree:
 
-1. Remove its `instant = false` (blanket) or target the failing route (direct).
+1. Remove its `instant = false` (Blanket) or target the failing route (Direct).
 2. Reload it in dev or rebuild only that route. If it's clean, the route was already prerenderable — move on.
-3. If it still blocks, read the error in the dev overlay and apply the fix it points at. See [Deciding what to do with a blocking read](#deciding-what-to-do-with-a-blocking-read) and [Security gates and other code you can't infer](#security-gates-and-other-code-you-cant-infer) below for the cases this gets ambiguous.
-4. Re-check the route, then move to the next. See [Shared code: re-check the siblings](#shared-code-re-check-the-siblings) and [When to leave a Block in place](#when-to-leave-a-block-in-place).
+3. If it still blocks, read the error in the dev overlay and apply the fix it points at. When the call gets ambiguous — you're not sure which fix fits, the blocking code looks security-sensitive, or the user might want to keep the route blocking on purpose — read **[references/per-page-decisions.md](./references/per-page-decisions.md)** before editing. Those cases are user check-in moments, not agent judgment calls.
+4. Re-check the route. If your fix touched shared code (a layout, a sidebar component), re-check sibling routes too — a shared-shell change can fix the route you're on and break a sibling. Then move to the next route.
 
-Keep a todo list of the group's routes and work it to completion; don't truncate. When every route is clean, move to **Step 3** to verify the group and show the results to the user before opening a PR.
+Keep a todo list of the subtree's routes and work it to completion; don't truncate. When every route in the subtree is clean, move to **step 3** to verify and hand the subtree off to the user.
 
-### Deciding what to do with a blocking read
+## step 3: verify the subtree
 
-Read the full linked page behind the fix card — not only the inline snippet — before editing. The card unblocks the build, but the page covers the details that make the route's navigation actually instant (e.g. where to place a `<Suspense>` boundary). Don't improvise.
+A checklist, not new adoption work. This is where the user signs off on the subtree before you start the next.
 
-If you're unsure which fix fits, the right call usually depends on what this part of the page is _for_, which the code doesn't capture. Ask the user about their goal for it rather than guessing. Frame it as a product/UX question: should this content be there instantly on load, or is it fine for it to stream in a moment later? Should everyone see the same thing (cacheable) or is it per-user / per-request? Tie the technical fix to that answer (cache it, wrap it in `<Suspense>`, or keep it request-time), so they're deciding the experience, not the API.
+- `next build` completes without blocking-route errors.
+- No bare `// TODO: Cache Components adoption` opt-outs are left in the subtree (`grep` to confirm). Any `instant = false` left behind must be a **deliberate, documented Block** — its comment rewritten to a reason (see [references/per-page-decisions.md](./references/per-page-decisions.md) → "when to leave a Block in place"), not the original `// TODO`.
+- Drive each route in dev, not only the build. Visit it, wait for streaming to settle, confirm every `<Suspense>` fallback resolves to its real content (not stuck on a skeleton or a blank). A green build with zero opt-outs is not the same as a working route. Query the live DOM if a tool's snapshot looks stale before reporting a route as broken.
+- **Show the user the rendered result.** A screenshot or the visible content you observed, per route. The build can't tell whether the streamed-in loading state, the fallback, or the final layout matches what the user wants. Adoption changes the _experience_, so the person who owns the product should sign off on each piece.
 
-### Security gates and other code you can't infer
+**Expect some routes to still print `ƒ` (Dynamic) in the build's route table — that is success, not a regression.** A route comes out `ƒ` when it does request-time work through the documented escape hatch (e.g. a layout that `await connection()` for `new Date()`); the page is no longer _opted out_, it is genuinely dynamic. Don't rip the escape hatch back out chasing a `◐`. The inverse also holds: `instant = false` does **not** force a route to be `ƒ`. The glyph reflects what the route does at prerender time, not which validation knobs it exports.
 
-If the blocking code looks like it's there for a _reason you can't infer_ — a security gate at the page top (`await verifyAccess()`, an auth redirect, a feature-flag check) where moving it inside `<Suspense>` would change what the code guarantees — stop and ask the user before refactoring. The build error wants `<Suspense>`, but wrapping a gate in `<Suspense>` defeats the gate. Only the person who wrote it knows whether to keep the route blocking (`instant = false` as a documented Block), restructure the page so the gate runs differently, or move the check to [Proxy](https://nextjs.org/docs/app/api-reference/file-conventions/proxy).
+When the subtree passes and the user is happy with each route, **summarize and ask**: open a PR and move to the next subtree, or stop here?
 
-If _every_ route under a layout is gated this way, a documented Block on the layout is the correct end state. Moving the gate to [Proxy](https://nextjs.org/docs/app/api-reference/file-conventions/proxy) is the architectural fix, not a Cache Components one, and that's a follow-up rather than something to hold the migration on.
+Milestone B is done only when **every** subtree is clean — every remaining `instant = false` sits under a reason comment, no bare TODOs are left (`grep -rln "TODO: Cache Components adoption" app` returns nothing). **Adoption is complete here.** Point the user at [further reading](#further-reading) if they want to push the experience further, or stop and ship.
 
-For the broader picture, read the [Authentication guide](https://nextjs.org/docs/app/guides/authentication) (where auth checks belong: Proxy for routing, Data Access Layer for data) and the [Data Access Layer section of Data Security](https://nextjs.org/docs/app/guides/data-security#data-access-layer) (centralized auth checks that compose with `'use cache'`).
+## further reading
 
-If you don't know how to make a piece of code Cache Components–correct without changing what it does, ask.
+Adoption ends at milestone B. The work below is optional and lives in the docs — link the user to them and let them decide which to take on next. Don't walk these through inside this skill.
 
-### Shared code: re-check the siblings
-
-If your fix touched shared code (a layout, or a shared component like a sidebar/breadcrumb), re-check the other routes that render it too — a shared-shell change can fix the route you're on and break a sibling.
-
-**A layout with `instant = false` shadows its whole subtree at build time**, so dropping a descendant page's opt-out and rebuilding will stay green whether or not the page is actually adopted. Audit descendants of a Blocked layout via dev overlay (or after removing the layout's Block), not via the build.
-
-### When to leave a Block in place
-
-If a route is genuinely meant to block — it's inherently per-request with no useful static shell — or the refactor would be large and the user would rather not take it on now, that's a legitimate outcome. Keep `instant = false`, but confirm it with the user first and turn its `// TODO: Cache Components adoption` comment into a reason, e.g. `// instant = false: kept on purpose — fully request-time dashboard` or `// instant = false: deferred, refactor too large for now`.
-
-A documented, deliberate Block is fine to leave after the migration; an undocumented leftover opt-out is not.
-
-## Step 3: Verify the Group
-
-This Step verifies milestone B (opt-outs removed) for the group you cleaned in Step 2. It is a checklist, not new adoption work.
-
-- Build: `next build` completes without blocking-route errors.
-- The group's routes no longer carry `// TODO: Cache Components adoption` opt-outs (`grep` to confirm). Any `instant = false` left behind must be a **deliberate, documented Block** — its comment rewritten to a reason (per Step 2's last point), not the original `// TODO`. A bare `// TODO` opt-out is unfinished work; a documented one is a decision.
-- Drive each route in dev, not only the build — use the **`next-dev-loop`** skill (or the manual dev-overlay loop if it isn't available; see "Verifying a fix at runtime" above). Visit it, wait for streaming to settle, and confirm every `<Suspense>` fallback you added resolves to its real content (not stuck on a skeleton or a blank). A green build with zero opt-outs is not the same as a working route. Query the live DOM if a tool's snapshot looks stale before reporting a route as broken.
-- Show the user the rendered result before moving on. For each route you cleaned, surface what it looks like now (a screenshot, or the visible content you observed) and confirm they're happy with it — the build can't tell whether the streamed-in loading state, the fallback, or the final layout matches what they want. Adoption changes the _experience_ (instant shell + streamed data), so the person who owns the product should sign off on each piece, not the agent alone. This is what makes incremental adoption safe to roll forward.
-
-**Expect some routes to still print `ƒ` (Dynamic) in the build's route table — that is success, not a regression.** A route comes out `ƒ` when it does request-time work through the documented escape hatch (e.g. a layout that `await connection()` for `new Date()`); the page is no longer _opted out_, it is genuinely dynamic. Don't rip the escape hatch back out chasing a `◐`. (And the inverse: `instant = false` does **not** force a route to be `ƒ`. The glyph reflects what the route does at prerender time, not which validation knobs it exports — an already-prerenderable route stays `◐` even while opted out, so removing an opt-out only changes the glyph if the route was actually blocking.)
-
-When the group passes and the user is happy with each route, **stop and ask**: open a PR and move to the next group, or stop here? If you stop here, **milestone B is incomplete** — the rest of the app still carries `instant = false`, and Steps 4–5 only apply to the cleaned group. Don't silently roll on, and don't treat one cleaned group as the whole adoption.
-
-Milestone B is done only when **every** group is clean — every `instant = false` left is a documented, deliberate Block, and no bare `// TODO: Cache Components adoption` opt-outs are left. Grep the whole app to confirm (`grep -rln "TODO: Cache Components adoption" app` should return nothing; any remaining `instant = false` should sit under a reason comment). A single cleaned group is a checkpoint, not the finish line. When the whole app is clean, move on to **Step 4** to make navigations instant.
-
-## Step 4: Make Navigations Instant
-
-**Precondition: milestone B is complete across the app.** Before starting this step, confirm no route outside the cleaned group still carries an undocumented opt-out (`grep -rln "TODO: Cache Components adoption" app` should return nothing; documented, deliberate Blocks are fine to leave). If bare opt-outs are left, you're not ready for Step 4 — go back to **Step 2** and finish the other groups first. Making navigations instant on a handful of routes while most of the app is still opted out of validation isn't meaningful adoption. If the user genuinely wants to proceed on the cleaned subset only, say so explicitly and flag that the rest of the app is unmigrated — don't assume they want to skip ahead.
-
-**You need a browser for this step.** A green build means no route is _opted out_, not that navigations are instant. The build's route table is silent on this too: a route can print `◐` (Partial Prerender) because _some_ shell streams above it (e.g. only a root-layout `<Suspense>`) while still blocking the client navigation into it. Don't trust the build output for milestone C — drive the app in dev and read the validation warnings.
-
-These warnings fire on **navigation**, not on hover or prefetch (dev doesn't prefetch), and they only surface in the dev overlay — there is no build-time or `.next-dev.log` equivalent. So navigate into each route to surface them, in one of three ways (see "How to surface the errors" above for details):
-
-- The **`next-dev-loop`** skill if you have it.
-- Any browser you can drive yourself.
-- If you can't drive a browser, **ask the user** to navigate the routes and paste the warnings, or commit milestone B and hand off Step 4. Don't silently skip it.
-
-Next.js surfaces instant-navigation validation warnings: dev-only signals (they don't block the build) that look like the blocking-prerender errors you cleared in Step 2, and you fix them the same way — read the warning and apply the fix it names. They show up in the dev overlay with fix cards the same as the blocking-prerender errors in Step 2.
-
-Work them down once the build is clean, group by group like Step 2. See the [instant navigation guide](https://nextjs.org/docs/app/guides/instant-navigation) for the per-warning details — and for **locking the result in**: its [e2e-test section](https://nextjs.org/docs/app/guides/instant-navigation#prevent-regressions-with-e2e-tests) covers the `@next/playwright` `instant()` helper, which asserts on the UI that's available immediately on navigation. The `next-dev-loop` check confirms a route is instant _now_; an `instant()` test keeps it that way in CI. Consider adding one per route you make instant.
-
-Milestone C can come up clean on small or well-factored apps if Step 2 was thorough — but you only know by driving every route. The warnings here cover the **client-navigation** case, which renders below the layout the current and destination routes share; a `<Suspense>` above that point caught the page-load case in Step 2 but doesn't cover the navigation. A larger or more nested app will usually find something. If a sweep produces zero warnings, that's a valid completion — but confirm by navigating, not by inference.
-
-When the warnings are clear, **summarize and ask** per the end-of-milestone rule above: which routes are instant now, which `instant()` tests you added (if any), and whether to open a PR and move to Step 5 (optional Partial Prefetching) or stop here. Milestone C is the last required adoption milestone, so stopping here is a complete adoption — say so.
-
-This is where navigations actually become instant. It's the last required adoption milestone; **Step 5** (Partial Prefetching) and the optimizer skill below are optional polish.
-
-## Step 5: Adopt Partial Prefetching (Optional)
-
-**Precondition: milestones A–C are complete across the app** (build green, no `instant = false` outside deliberate Blocks, navigations instant). If earlier milestones are unfinished, go back rather than adopting Partial Prefetching on a partially-migrated app.
-
-**You need a browser for this step too**, for the same reason as Step 4: the `link-prefetch-partial` warning fires on navigation in the dev overlay only. If you don't have one, follow the same fallback — ask the user to drive, or commit C and hand off D.
-
-Once the build is clean and navigations are instant, adopt Partial Prefetching for the full Cache Components payoff: `<Link>` prefetches only the static [App Shell](/docs/app/glossary#app-shell) by default instead of the whole route. It's config plus `<Link>` tuning, not a build gate — a separate, mergeable milestone after milestones A–C.
-
-**Check first whether the audit is necessary.** The `link-prefetch-partial` warning only fires for `<Link prefetch={true}>`. If `grep -rn "prefetch={true}\|prefetch$" app components` returns nothing (no explicit overrides anywhere in the app), there's nothing to audit — enable `partialPrefetching: true` directly, re-build, and you're done.
-
-Follow the [Adopting Partial Prefetching](https://nextjs.org/docs/app/guides/adopting-partial-prefetching) guide for the whole flow — the incremental `prefetch = 'partial'` path, the flag-flip, and the "Auditing existing `<Link prefetch={true}>` calls" table that maps each link to its fix. The dev-only `link-prefetch-partial` warning drives it, the same way Step 4's warnings drive that step. As in Step 4, it fires on **navigation** (not hover/prefetch — dev doesn't prefetch), so navigate with **`next-dev-loop`** (or your own browser) to surface it. The one piece of sequencing the guide assumes you know: walk the warnings **before** enabling the global `partialPrefetching` flag — flip it first and every route counts as adopted, so the warnings never fire and you lose the signal for which links to audit. Trust the warning text and the guide's audit table for the per-link fix; the segment-config values are simple to misremember.
-
-When the warnings are clear and `partialPrefetching: true` is on, **summarize and ask** per the end-of-milestone rule above: which links you changed, whether any routes still use `<Link prefetch={true}>` intentionally (and why), and whether to open the PR. Adoption is now complete — say so.
-
-## Optional: Grow Static Shells
-
-With adoption done, the [`next-cache-components-optimizer`](https://github.com/vercel/next.js/tree/canary/skills/next-cache-components-optimizer) skill is an optional polish pass: it grows each route's static shell so more of the page prerenders and less streams in. It doesn't gate the build or block navigation — reach for it only when you want to push shells further after the milestones above are complete. Install with:
-
-```bash
-npx skills add https://github.com/vercel/next.js/tree/canary/skills/next-cache-components-optimizer
-```
+- **[Instant navigation](https://nextjs.org/docs/app/guides/instant-navigation)** — dev-only validation warnings the overlay raises on client navigation. Same shape as the blocking-prerender errors you cleared in step 2; the guide covers the per-warning details. Recommend it next if the user wants navigations to actually be instant (a green build doesn't guarantee that — a `<Suspense>` above the shared layout caught the page-load case but doesn't cover client navigation).
+- **[Adopting Partial Prefetching](https://nextjs.org/docs/app/guides/adopting-partial-prefetching)** — walks an audit of `<Link prefetch={true}>` calls driven by the dev overlay's `link-prefetch-partial` warning, then flips the `partialPrefetching` config. **Walk the audit first, with the flag off** — flipping it before the audit makes every route count as adopted, so the warnings never fire and the per-link signal is lost. The biggest payoff of Cache Components: `<Link>` prefetches only the static App Shell by default. Recommended after instant navigation, since its fixes feed directly into how much of each route the shell can prefetch.
+- **[Prefetching](https://nextjs.org/docs/app/guides/prefetching)** and **[Runtime prefetching](https://nextjs.org/docs/app/guides/runtime-prefetching)** — broader prefetching reference. Runtime prefetching extends the static shell with per-session content; reach for it when a route's shell is too thin to be useful and Partial Prefetching alone doesn't cover the gap.
+- **[Locking the result in with e2e tests](https://nextjs.org/docs/app/guides/instant-navigation#prevent-regressions-with-e2e-tests)** — the `@next/playwright` [`instant()`](https://nextjs.org/docs/app/api-reference/file-conventions/route-segment-config/instant#testing-instant-navigation) helper asserts on the UI that's available immediately on navigation, so regressions surface in CI. Recommend it once a route is instant: `next-dev-loop` confirms it _now_; an `instant()` test keeps it that way.
+- **[`next-cache-components-optimizer`](https://github.com/vercel/next.js/tree/canary/skills/next-cache-components-optimizer)** — a separate skill that grows each route's static shell so more of the page prerenders and less streams in. Pure optimization, not part of adoption.
