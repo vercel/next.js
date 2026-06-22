@@ -1371,5 +1371,6 @@
   "1370": "Route %s used \\`headers()\\` inside \\`after()\\` while rendering. This is not supported. If you need this data inside an \\`after()\\` callback, use \\`headers()\\` outside of the callback. See more info here: https://nextjs.org/docs/app/api-reference/functions/after",
   "1371": "Route %s used \\`io()\\` inside \\`after()\\`. The \\`io()\\` function is not allowed in this scope. See more info here: https://nextjs.org/docs/app/api-reference/functions/after",
   "1372": "Route %s used \\`io()\\` inside \\`after()\\` while rendering. The \\`io()\\` function is not allowed in this scope. See more info here: https://nextjs.org/docs/app/api-reference/functions/after",
-  "1373": "Route %s used \\`cookies()\\` inside \\`after()\\` while rendering. This is not supported. If you need this data inside an \\`after()\\` callback, use \\`cookies()\\` outside of the callback. See more info here: https://nextjs.org/docs/app/api-reference/functions/after"
+  "1373": "Route %s used \\`cookies()\\` inside \\`after()\\` while rendering. This is not supported. If you need this data inside an \\`after()\\` callback, use \\`cookies()\\` outside of the callback. See more info here: https://nextjs.org/docs/app/api-reference/functions/after",
+  "1374": "Expected a work store while caching an `ImageResponse` during prerendering."
 }
