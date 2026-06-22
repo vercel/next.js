@@ -4,6 +4,7 @@ import { SavedSpan } from './constants'
 export interface Collector {
   getSpans: () => SavedSpan[]
   shutdown: () => Promise<void>
+  clear: () => void
 }
 
 export async function connectCollector({
@@ -11,7 +12,7 @@ export async function connectCollector({
 }: {
   port: number
 }): Promise<Collector> {
-  const spans: SavedSpan[] = []
+  let spans: SavedSpan[] = []
 
   const server = new HttpServer(async (req, res) => {
     if (req.method !== 'POST') {
@@ -63,6 +64,9 @@ export async function connectCollector({
       ).catch((err) => {
         console.warn('WARN: collector server disconnect failure:', err)
       })
+    },
+    clear() {
+      spans = []
     },
   }
 }
