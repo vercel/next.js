@@ -1419,14 +1419,43 @@ export default abstract class Server<
             }
           }
 
-          // x-matched-path describes the platform's filesystem dispatch. Match
-          // the resulting concrete pathname again so route precedence is
-          // preserved while the concrete params remain available to PPR.
+          // A platform route match can capture the locale as a dynamic param.
+          // Analyze the interpolated pathname again to remove that prefix, but
+          // preserve the original locale when it was already stripped above.
+          let finalLocaleAnalysisResult = localeAnalysisResult
+          if (this.i18nProvider) {
+            const analyzedMatchedPath = this.i18nProvider.analyze(matchedPath, {
+              defaultLocale,
+            })
+            const hasLocalePrefix = analyzedMatchedPath.pathname !== matchedPath
+
+            if (hasLocalePrefix || !localeAnalysisResult) {
+              finalLocaleAnalysisResult = analyzedMatchedPath
+            } else {
+              finalLocaleAnalysisResult = {
+                ...localeAnalysisResult,
+                pathname: matchedPath,
+              }
+            }
+
+            matchedPath = finalLocaleAnalysisResult.pathname
+            addRequestMeta(
+              req,
+              'locale',
+              finalLocaleAnalysisResult.detectedLocale
+            )
+            if (finalLocaleAnalysisResult.inferredFromDefault) {
+              addRequestMeta(req, 'localeInferredFromDefault', true)
+            } else {
+              removeRequestMeta(req, 'localeInferredFromDefault')
+            }
+          }
+
+          // Match the resulting concrete pathname again so route precedence
+          // is preserved while the concrete params remain available to PPR.
           const finalRouteMatch = this.getRouteMatch(
             matchedPath,
-            localeAnalysisResult
-              ? { ...localeAnalysisResult, pathname: matchedPath }
-              : undefined
+            finalLocaleAnalysisResult
           )
           if (finalRouteMatch) {
             addRequestMeta(req, 'match', finalRouteMatch)
