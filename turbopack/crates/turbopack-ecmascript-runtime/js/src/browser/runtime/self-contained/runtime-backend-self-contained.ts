@@ -1,8 +1,11 @@
 /**
- * This file contains the runtime code specific to the Turbopack development
- * ECMAScript "None" runtime (e.g. for Edge).
+ * This file contains the runtime code specific to the Turbopack self-contained
+ * ECMAScript runtime: a backend that performs no runtime chunk loading and
+ * registers chunks only via `globalThis`/`self` (no DOM). It is used both for
+ * the Edge execution environment and for single-chunk (service-worker) bundles,
+ * where everything is inlined into one file.
  *
- * It will be appended to the base development runtime code.
+ * It will be appended to the base runtime code.
  */
 
 /* eslint-disable @typescript-eslint/no-unused-vars */

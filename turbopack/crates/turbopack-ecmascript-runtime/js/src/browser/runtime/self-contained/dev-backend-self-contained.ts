@@ -1,6 +1,8 @@
 /**
- * This file contains the runtime code specific to the Turbopack development
- * ECMAScript "None" runtime (e.g. for Edge).
+ * This file contains the development-mode runtime code specific to the
+ * Turbopack self-contained ECMAScript runtime (no runtime chunk loading,
+ * `globalThis`/`self` only, no DOM). Used for the Edge execution environment
+ * and for single-chunk (service-worker) bundles.
  *
  * It will be appended to the base development runtime code.
  */
