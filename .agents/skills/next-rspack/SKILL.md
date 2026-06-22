@@ -7,6 +7,8 @@ description: >
   rspack_* crate versions, Rust toolchain version, building and linking for local
   testing, and NEXT_RSPACK environment variable usage. Does NOT apply to root
   rust-toolchain.toml (that's for Turbopack).
+metadata:
+  internal: true
 ---
 
 # Next.js with Rspack

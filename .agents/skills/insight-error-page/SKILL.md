@@ -1,6 +1,8 @@
 ---
 name: insight-error-page
 description: Write or audit an insight-kind error page for the Next.js dev overlay. Use when creating a new `errors/<slug>.mdx` page, auditing an existing one, or checking that a page matches the framework fix cards. Covers page structure, title alignment, FixOption cards with Copy AI prompt button, code snippets, terminology verification against canonical docs, and Vercel technical writing style.
+metadata:
+  internal: true
 ---
 
 # Insight Error Page — Write & Audit
