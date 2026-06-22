@@ -31,7 +31,7 @@ pnpm create next-app --example cms-prepr cms-prepr-app
 
 **1.1** First, [sign up for a Prepr account](https://signup.prepr.io/).
 
-**1.2** After you sign up, create a new environment in Prepr. For more details, [check out the environment docs](https://docs.prepr.io/developing-with-prepr/set-up-environments).
+**1.2** After you sign up, create a new environment in Prepr. For more details, [check out the environment docs](https://docs.prepr.io/project-setup/setting-up-environments) (the old `/developing-with-prepr/set-up-environments` subpath was retired in the Prepr docs restructure).
 
 ![Create Prepr environment](https://assets-site.prepr.io//1bynxkn1084r-create-enviroment.png)
 
