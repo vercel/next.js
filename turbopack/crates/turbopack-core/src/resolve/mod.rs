@@ -3309,8 +3309,7 @@ async fn resolve_package_internal_with_imports_field(
     let Pattern::Constant(specifier) = pattern else {
         bail!("PackageInternal requests can only be Constant strings");
     };
-    // https://github.com/nodejs/node/blob/1b177932/lib/internal/modules/esm/resolve.js#L615-L619
-    if specifier == "#" || specifier.starts_with("#/") || specifier.ends_with('/') {
+    if specifier == "#" || specifier.ends_with('/') {
         ResolvingIssue {
             severity: resolve_error_severity(resolve_options).await?,
             file_path: file_path.clone(),
