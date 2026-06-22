@@ -1,6 +1,6 @@
 # rbx & bulma-pro example
 
-This example shows how to use Next.js along with [rbx](https://github.com/dfee/rbx)(Bulma UI Framework for react) and [Bulma Pro](https://mubaidr.js.org/bulma-pro/).
+This example shows how to use Next.js along with [rbx](https://github.com/dfee/rbx)(Bulma UI Framework for react) and [Bulma Pro](https://github.com/mubaidr/bulma-pro).
 
 ## Deploy your own
 
