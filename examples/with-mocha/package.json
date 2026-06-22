@@ -12,7 +12,7 @@
     "react-dom": "^18.2.0"
   },
   "devDependencies": {
-    "@babel/core": "7.22.5",
+    "@babel/core": "7.29.6",
     "@babel/register": "7.22.5",
     "cross-env": "7.0.2",
     "enzyme": "^3.11.0",
