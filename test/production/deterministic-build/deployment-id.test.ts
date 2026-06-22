@@ -71,7 +71,10 @@ async function readFilesBuilder(
       cwd: next.testDir,
       nodir: true,
     })) as string[]
-  ).sort()
+  )
+    .sort()
+    // Prerenders contain `<html data-dpl-id="foo-dpl-id">`
+    .filter((f) => !f.endsWith('.html'))
 
   return new Map([
     [
