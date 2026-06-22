@@ -1599,6 +1599,7 @@ impl Project {
         self: Vc<Self>,
     ) -> Result<Vc<Box<dyn ChunkingContext>>> {
         let css_url_suffix = self.next_config().asset_suffix_path();
+        let chunking_heuristics = self.next_config().chunking_heuristics().await?;
         Ok(get_client_chunking_context(ClientChunkingContextOptions {
             mode: self.next_mode(),
             root_path: self.project_root_path().owned().await?,
@@ -1629,6 +1630,9 @@ impl Project {
             cross_origin: self.next_config().cross_origin(),
             chunk_loading_global: self.next_config().turbopack_chunk_loading_global(),
             style_groups_algorithm: self.next_config().css_chunking().owned().await?,
+            chunking_bounce_rate_percent: chunking_heuristics.bounce_rate_percent,
+            chunking_priority_boost_percent: chunking_heuristics.priority_boost_percent,
+            chunking_estimated_request_cost: chunking_heuristics.estimated_request_cost,
         }))
     }
 

@@ -481,6 +481,9 @@ pub struct ClientChunkingContextOptions {
     pub cross_origin: Vc<CrossOrigin>,
     pub chunk_loading_global: Vc<Option<RcStr>>,
     pub style_groups_algorithm: StyleGroupsAlgorithm,
+    pub chunking_bounce_rate_percent: Option<u32>,
+    pub chunking_priority_boost_percent: Option<u32>,
+    pub chunking_estimated_request_cost: Option<u64>,
 }
 
 /// Next.js' chunk-load retry policy for the Turbopack browser runtime.
@@ -519,6 +522,9 @@ pub async fn get_client_chunking_context(
         cross_origin,
         chunk_loading_global,
         style_groups_algorithm,
+        chunking_bounce_rate_percent,
+        chunking_priority_boost_percent,
+        chunking_estimated_request_cost,
     } = options;
 
     let next_mode = mode.await?;
@@ -583,6 +589,9 @@ pub async fn get_client_chunking_context(
                     min_chunk_size: 50_000,
                     max_chunk_count_per_group: 40,
                     max_merge_chunk_size: 200_000,
+                    bounce_rate_percent: chunking_bounce_rate_percent,
+                    priority_boost_percent: chunking_priority_boost_percent,
+                    estimated_request_cost: chunking_estimated_request_cost,
                     ..Default::default()
                 },
             )
