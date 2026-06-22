@@ -15,7 +15,7 @@ Enable Cache Components on an app and walk it to a clean build. This skill **seq
 
 ## requires
 
-**App Router only.** Cache Components is an App Router feature; `cacheComponents: true` does nothing for `pages/` routes. If `ls src/pages app 2>/dev/null` shows a `pages/` tree and no `app/` tree, stop and tell the user — Pages → App migration is its own project, not part of this skill. A hybrid app (both `pages/` and `app/`) is fine: the flag affects the `app/` routes; `pages/` routes are unaffected and don't need opt-outs.
+**App Router only.** Cache Components is an App Router feature; `cacheComponents: true` does nothing for `pages/` routes. If the project has a `pages/` or `src/pages/` tree but no `app/` or `src/app/` tree, stop and tell the user — Pages → App migration is its own project, not part of this skill. A hybrid app (both `pages/` and `app/`) is fine: the flag affects the `app/` routes; `pages/` routes are unaffected and don't need opt-outs.
 
 Next.js **16.3+**. That release is where the pieces this skill relies on land: top-level `cacheComponents`, `export const instant`, the dev-overlay instant-navigation validation warnings (including `link-prefetch-partial`), and the `cache-components-instant-false` codemod.
 
