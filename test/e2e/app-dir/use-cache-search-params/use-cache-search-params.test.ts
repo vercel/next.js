@@ -5,8 +5,6 @@ import stripAnsi from 'strip-ansi'
 const getExpectedErrorMessage = (route: string) =>
   `Route "${route}": \`searchParams\` can't be read inside \`"use cache"\`. Await it outside the cached function and pass what you need as an argument.\nLearn more: https://nextjs.org/docs/messages/next-request-in-use-cache`
 
-const isCacheComponentsEnabled = process.env.__NEXT_CACHE_COMPONENTS === 'true'
-
 describe('use-cache-search-params', () => {
   const { next, isNextDev, skipped } = nextTestSetup({
     files: __dirname,
@@ -30,39 +28,20 @@ describe('use-cache-search-params', () => {
         const outputIndex = next.cliOutput.length
         const browser = await next.browser(`${route}?foo=1`)
 
-        if (isCacheComponentsEnabled) {
-          await expect(browser).toDisplayRedbox(`
-           {
-             "code": "E1371",
-             "description": "Route "/search-params-used": \`searchParams\` can't be read inside \`"use cache"\`. Await it outside the cached function and pass what you need as an argument.
-           Learn more: https://nextjs.org/docs/messages/next-request-in-use-cache",
-             "environmentLabel": "Cache",
-             "label": "Runtime Error",
-             "source": "app/search-params-used/page.tsx (8:17) @ Page
-           >  8 |   const param = (await searchParams).foo
-                |                 ^",
-             "stack": [
-               "Page app/search-params-used/page.tsx (8:17)",
-             ],
-           }
-          `)
-        } else {
-          await expect(browser).toDisplayRedbox(`
-           {
-             "code": "E1371",
-             "description": "Route "/search-params-used": \`searchParams\` can't be read inside \`"use cache"\`. Await it outside the cached function and pass what you need as an argument.
-           Learn more: https://nextjs.org/docs/messages/next-request-in-use-cache",
-             "environmentLabel": "Cache",
-             "label": "Runtime Error",
-             "source": "app/search-params-used/page.tsx (8:17) @ Page
-           >  8 |   const param = (await searchParams).foo
-                |                 ^",
-             "stack": [
-               "Page app/search-params-used/page.tsx (8:17)",
-             ],
-           }
-          `)
-        }
+        await expect(browser).toDisplayRedbox(`
+         {
+           "code": "E1371",
+           "description": "Route "/search-params-used": \`searchParams\` can't be read inside \`"use cache"\`. Await it outside the cached function and pass what you need as an argument.\nLearn more: https://nextjs.org/docs/messages/next-request-in-use-cache",
+           "environmentLabel": "Cache",
+           "label": "Runtime Error",
+           "source": "app/search-params-used/page.tsx (8:17) @ Page
+         >  8 |   const param = (await searchParams).foo
+              |                 ^",
+           "stack": [
+             "Page app/search-params-used/page.tsx (8:17)",
+           ],
+         }
+        `)
 
         const cliOutput = stripAnsi(next.cliOutput.slice(outputIndex))
 
@@ -80,39 +59,20 @@ describe('use-cache-search-params', () => {
         const outputIndex = next.cliOutput.length
         const browser = await next.browser(`${route}?foo=1`)
 
-        if (isCacheComponentsEnabled) {
-          await expect(browser).toDisplayCollapsedRedbox(`
-           {
-             "code": "E1371",
-             "description": "Route "/search-params-caught": \`searchParams\` can't be read inside \`"use cache"\`. Await it outside the cached function and pass what you need as an argument.
-           Learn more: https://nextjs.org/docs/messages/next-request-in-use-cache",
-             "environmentLabel": "Cache",
-             "label": "Runtime Error",
-             "source": "app/search-params-caught/page.tsx (11:5) @ Page
-           > 11 |     param = (await searchParams).foo
-                |     ^",
-             "stack": [
-               "Page app/search-params-caught/page.tsx (11:5)",
-             ],
-           }
-          `)
-        } else {
-          await expect(browser).toDisplayCollapsedRedbox(`
-           {
-             "code": "E1371",
-             "description": "Route "/search-params-caught": \`searchParams\` can't be read inside \`"use cache"\`. Await it outside the cached function and pass what you need as an argument.
-           Learn more: https://nextjs.org/docs/messages/next-request-in-use-cache",
-             "environmentLabel": "Cache",
-             "label": "Runtime Error",
-             "source": "app/search-params-caught/page.tsx (11:5) @ Page
-           > 11 |     param = (await searchParams).foo
-                |     ^",
-             "stack": [
-               "Page app/search-params-caught/page.tsx (11:5)",
-             ],
-           }
-          `)
-        }
+        await expect(browser).toDisplayCollapsedRedbox(`
+         {
+           "code": "E1371",
+           "description": "Route "/search-params-caught": \`searchParams\` can't be read inside \`"use cache"\`. Await it outside the cached function and pass what you need as an argument.\nLearn more: https://nextjs.org/docs/messages/next-request-in-use-cache",
+           "environmentLabel": "Server",
+           "label": "Console Error",
+           "source": "app/search-params-caught/page.tsx (11:5) @ Page
+         > 11 |     param = (await searchParams).foo
+              |     ^",
+           "stack": [
+             "Page app/search-params-caught/page.tsx (11:5)",
+           ],
+         }
+        `)
 
         const cliOutput = stripAnsi(next.cliOutput.slice(outputIndex))
 
@@ -128,39 +88,20 @@ describe('use-cache-search-params', () => {
         await browser.refresh()
         await browser.refresh()
 
-        if (isCacheComponentsEnabled) {
-          await expect(browser).toDisplayCollapsedRedbox(`
-           {
-             "code": "E1371",
-             "description": "Route "/search-params-caught": \`searchParams\` can't be read inside \`"use cache"\`. Await it outside the cached function and pass what you need as an argument.
-           Learn more: https://nextjs.org/docs/messages/next-request-in-use-cache",
-             "environmentLabel": "Cache",
-             "label": "Runtime Error",
-             "source": "app/search-params-caught/page.tsx (11:5) @ Page
-           > 11 |     param = (await searchParams).foo
-                |     ^",
-             "stack": [
-               "Page app/search-params-caught/page.tsx (11:5)",
-             ],
-           }
-          `)
-        } else {
-          await expect(browser).toDisplayCollapsedRedbox(`
-           {
-             "code": "E1371",
-             "description": "Route "/search-params-caught": \`searchParams\` can't be read inside \`"use cache"\`. Await it outside the cached function and pass what you need as an argument.
-           Learn more: https://nextjs.org/docs/messages/next-request-in-use-cache",
-             "environmentLabel": "Cache",
-             "label": "Runtime Error",
-             "source": "app/search-params-caught/page.tsx (11:5) @ Page
-           > 11 |     param = (await searchParams).foo
-                |     ^",
-             "stack": [
-               "Page app/search-params-caught/page.tsx (11:5)",
-             ],
-           }
-          `)
-        }
+        await expect(browser).toDisplayCollapsedRedbox(`
+         {
+           "code": "E1371",
+           "description": "Route "/search-params-caught": \`searchParams\` can't be read inside \`"use cache"\`. Await it outside the cached function and pass what you need as an argument.\nLearn more: https://nextjs.org/docs/messages/next-request-in-use-cache",
+           "environmentLabel": "Server",
+           "label": "Console Error",
+           "source": "app/search-params-caught/page.tsx (11:5) @ Page
+         > 11 |     param = (await searchParams).foo
+              |     ^",
+           "stack": [
+             "Page app/search-params-caught/page.tsx (11:5)",
+           ],
+         }
+        `)
       })
     })
 
@@ -186,39 +127,20 @@ describe('use-cache-search-params', () => {
         '/search-params-used-generate-metadata?title=foo'
       )
 
-      if (isCacheComponentsEnabled) {
-        await expect(browser).toDisplayRedbox(`
-         {
-           "code": "E1371",
-           "description": "Route "/search-params-used-generate-metadata": \`searchParams\` can't be read inside \`"use cache"\`. Await it outside the cached function and pass what you need as an argument.
-         Learn more: https://nextjs.org/docs/messages/next-request-in-use-cache",
-           "environmentLabel": "Cache",
-           "label": "Runtime Error",
-           "source": "app/search-params-used-generate-metadata/page.tsx (9:17) @ generateMetadata
-         >  9 |   const title = (await searchParams).title
-              |                 ^",
-           "stack": [
-             "generateMetadata app/search-params-used-generate-metadata/page.tsx (9:17)",
-           ],
-         }
-        `)
-      } else {
-        await expect(browser).toDisplayRedbox(`
-         {
-           "code": "E1371",
-           "description": "Route "/search-params-used-generate-metadata": \`searchParams\` can't be read inside \`"use cache"\`. Await it outside the cached function and pass what you need as an argument.
-         Learn more: https://nextjs.org/docs/messages/next-request-in-use-cache",
-           "environmentLabel": "Cache",
-           "label": "Runtime Error",
-           "source": "app/search-params-used-generate-metadata/page.tsx (9:17) @ generateMetadata
-         >  9 |   const title = (await searchParams).title
-              |                 ^",
-           "stack": [
-             "generateMetadata app/search-params-used-generate-metadata/page.tsx (9:17)",
-           ],
-         }
-        `)
-      }
+      await expect(browser).toDisplayRedbox(`
+       {
+         "code": "E1371",
+         "description": "Route "/search-params-used-generate-metadata": \`searchParams\` can't be read inside \`"use cache"\`. Await it outside the cached function and pass what you need as an argument.\nLearn more: https://nextjs.org/docs/messages/next-request-in-use-cache",
+         "environmentLabel": "Cache",
+         "label": "Runtime Error",
+         "source": "app/search-params-used-generate-metadata/page.tsx (9:17) @ generateMetadata
+       >  9 |   const title = (await searchParams).title
+            |                 ^",
+         "stack": [
+           "generateMetadata app/search-params-used-generate-metadata/page.tsx (9:17)",
+         ],
+       }
+      `)
     })
 
     it('should show an error when searchParams are used inside of a cached generateViewport', async () => {
@@ -226,39 +148,20 @@ describe('use-cache-search-params', () => {
         '/search-params-used-generate-viewport?color=red'
       )
 
-      if (isCacheComponentsEnabled) {
-        await expect(browser).toDisplayRedbox(`
-         {
-           "code": "E1371",
-           "description": "Route "/search-params-used-generate-viewport": \`searchParams\` can't be read inside \`"use cache"\`. Await it outside the cached function and pass what you need as an argument.
-         Learn more: https://nextjs.org/docs/messages/next-request-in-use-cache",
-           "environmentLabel": "Cache",
-           "label": "Runtime Error",
-           "source": "app/search-params-used-generate-viewport/page.tsx (9:17) @ generateViewport
-         >  9 |   const color = (await searchParams).color
-              |                 ^",
-           "stack": [
-             "generateViewport app/search-params-used-generate-viewport/page.tsx (9:17)",
-           ],
-         }
-        `)
-      } else {
-        await expect(browser).toDisplayRedbox(`
-         {
-           "code": "E1371",
-           "description": "Route "/search-params-used-generate-viewport": \`searchParams\` can't be read inside \`"use cache"\`. Await it outside the cached function and pass what you need as an argument.
-         Learn more: https://nextjs.org/docs/messages/next-request-in-use-cache",
-           "environmentLabel": "Cache",
-           "label": "Runtime Error",
-           "source": "app/search-params-used-generate-viewport/page.tsx (9:17) @ generateViewport
-         >  9 |   const color = (await searchParams).color
-              |                 ^",
-           "stack": [
-             "generateViewport app/search-params-used-generate-viewport/page.tsx (9:17)",
-           ],
-         }
-        `)
-      }
+      await expect(browser).toDisplayRedbox(`
+       {
+         "code": "E1371",
+         "description": "Route "/search-params-used-generate-viewport": \`searchParams\` can't be read inside \`"use cache"\`. Await it outside the cached function and pass what you need as an argument.\nLearn more: https://nextjs.org/docs/messages/next-request-in-use-cache",
+         "environmentLabel": "Cache",
+         "label": "Runtime Error",
+         "source": "app/search-params-used-generate-viewport/page.tsx (9:17) @ generateViewport
+       >  9 |   const color = (await searchParams).color
+            |                 ^",
+         "stack": [
+           "generateViewport app/search-params-used-generate-viewport/page.tsx (9:17)",
+         ],
+       }
+      `)
     })
   } else {
     afterEach(async () => {
