@@ -65,6 +65,7 @@ import {
   getRequestInsightsSnapshot,
   isRequestInsightsEnabled,
 } from './trace/request-insights'
+import { REQUEST_INSIGHTS_DEV_ENDPOINT } from '../../next-devtools/shared/request-insights'
 
 const debug = setupDebug('next:router-server:main')
 const isNextFont = (pathname: string | null) =>
@@ -251,7 +252,7 @@ export async function initialize(opts: {
       const urlParts = req.url.split('?', 1)
       const pathname = removePathPrefix(urlParts[0] || '', config.basePath)
 
-      if (pathname === '/__nextjs_request_insights') {
+      if (pathname === REQUEST_INSIGHTS_DEV_ENDPOINT) {
         if (
           development &&
           blockCrossSiteDEV(

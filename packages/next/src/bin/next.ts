@@ -614,16 +614,29 @@ program
   .description(
     'Inspect experimental Request Insights from a running Next.js dev server.'
   )
+  .argument(
+    '[directory]',
+    `A directory containing the Next.js application. ${italic(
+      'If no directory is provided, the current directory will be used.'
+    )}`
+  )
   .option(
     '--url <url>',
-    'URL of the running Next.js dev server. Defaults to http://localhost:3000.'
+    'Override automatic discovery with the URL of the running Next.js dev server.'
   )
   .option('--json', 'Print raw request insight JSON.')
-  .action((options: NextDiagnoseOptions) => {
+  .addOption(
+    new Option(
+      '--limit <count>',
+      'Maximum number of recent request summaries to print.'
+    ).argParser(parseValidPositiveInteger)
+  )
+  .action((directory: string, options: NextDiagnoseOptions) => {
     return import('../cli/next-diagnose.js').then((mod) =>
-      mod.nextDiagnose(options)
+      mod.nextDiagnose(options, directory)
     )
   })
+  .usage('[directory] [options]')
 
 const internal = program
   .command('internal')

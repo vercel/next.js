@@ -1,3 +1,6 @@
+export const REQUEST_INSIGHTS_DEV_ENDPOINT =
+  '/_next/development/request-insights'
+
 type RequestInsightAttributeValue =
   | string
   | number
