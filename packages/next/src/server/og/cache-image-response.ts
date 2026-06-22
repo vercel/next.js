@@ -140,11 +140,11 @@ async function getCachedImageResponseArrayBuffer(
   // time. But route handler prerendering doesn't use that scheme, so here the
   // deferred immediates would race the abort.
   //
-  // We can't pass the abort signal directly because the prerender then halts
-  // silently, leaving unfulfilled references without telling us. Instead we
-  // pass a derived signal that we only abort when the serialization didn't
-  // complete in time, recording that fact so we can fall back to dynamic.
-  const abortController = new AbortController()
+  // The prerender halts silently on abort, leaving unfulfilled references in
+  // place rather than reporting through `onError`. So to tell a halt (the tree
+  // needed dynamic input) apart from a normal completion, we record whether the
+  // abort fired before the serialization finished. `abort()` runs this listener
+  // synchronously, well before we read `resultIsPartial` below.
   let prerenderCompleted = false
   let resultIsPartial = false
   let serializationError: unknown
@@ -154,7 +154,6 @@ async function getCachedImageResponseArrayBuffer(
     () => {
       if (!prerenderCompleted) {
         resultIsPartial = true
-        abortController.abort(hangingInputAbortSignal.reason)
       }
     },
     { once: true }
@@ -164,7 +163,7 @@ async function getCachedImageResponseArrayBuffer(
 
   try {
     const { prelude } = await prerenderToNodeStream(args, clientModules, {
-      signal: abortController.signal,
+      signal: hangingInputAbortSignal,
       filterStackFrame: undefined,
       onError(error) {
         // A halt (our deliberate abort) emits nothing, so this is only called
