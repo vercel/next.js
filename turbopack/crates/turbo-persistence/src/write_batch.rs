@@ -33,7 +33,7 @@ use crate::{
 pub(crate) struct NewFile {
     pub(crate) seq: u32,
     pub(crate) file: File,
-    /// On-disk size in bytes (post-compression).
+    /// On-disk size in bytes.
     pub(crate) size: u64,
 }
 

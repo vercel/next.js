@@ -1,6 +1,7 @@
 use std::{
     borrow::Cow,
     collections::HashSet,
+    fmt::Display,
     fs::{self, File, OpenOptions, ReadDir},
     io::{BufWriter, Write},
     mem::take,
@@ -276,14 +277,27 @@ struct DeletedFile {
     size: u64,
 }
 
-/// Physical byte volume of a single commit, measured from on-disk file sizes (post-compression,
-/// including `.sst`, `.blob`, and `.meta` files).
+/// Physical byte volume of a single commit/compaction cycle, measured from on-disk file sizes
+/// (post-compression, including `.sst`, `.blob`, and `.meta` files).
 #[derive(Clone, Copy, Debug, Default)]
 pub struct CommitStats {
     /// Total bytes of new files created by this commit.
     pub bytes_written: u64,
     /// Total bytes of files removed/superseded by this commit.
     pub bytes_deleted: u64,
+}
+
+impl Display for CommitStats {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let CommitStats {
+            bytes_written,
+            bytes_deleted,
+        } = self;
+        write!(
+            f,
+            "bytes_written={bytes_written} bytes_deleted={bytes_deleted}"
+        )
+    }
 }
 
 struct OpenOpts<S: ParallelScheduler, const FAMILIES: usize> {
@@ -799,14 +813,7 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
 
         new_meta_files.sort_unstable_by_key(|f| f.seq);
 
-        // Sum the on-disk size of every new file (post-compression). The sizes were captured at
-        // each file's creation site (no stat), so this is a plain in-memory sum.
-        let bytes_written = new_meta_files
-            .iter()
-            .chain(new_sst_files.iter())
-            .chain(new_blob_files.iter())
-            .map(|f| f.size)
-            .sum::<u64>();
+        let mut stats = CommitStats::default();
 
         let sync_span = tracing::trace_span!("sync new files").entered();
 
@@ -823,13 +830,16 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
 
         let mut sync_items: Vec<SyncItem> =
             Vec::with_capacity(new_meta_files.len() + new_sst_files.len() + new_blob_files.len());
-        for NewFile { seq, file, .. } in new_meta_files {
+        for NewFile { seq, file, size } in new_meta_files {
+            stats.bytes_written += size;
             sync_items.push(SyncItem::Meta(seq, file));
         }
-        for NewFile { file, .. } in new_sst_files {
+        for NewFile { file, size, .. } in new_sst_files {
+            stats.bytes_written += size;
             sync_items.push(SyncItem::Sst(file));
         }
-        for NewFile { seq, file, .. } in new_blob_files {
+        for NewFile { seq, file, size } in new_blob_files {
+            stats.bytes_written += size;
             sync_items.push(SyncItem::Blob(seq, file));
         }
 
@@ -906,11 +916,9 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
         let has_delete_file;
         let mut meta_seq_numbers_to_delete = Vec::new();
         let entries_to_remove;
-        // On-disk bytes of deleted SST files. The caller knows each deleted SST's size when it
-        // decides to delete it, so it's carried on `DeletedFile` — just sum it (no scan, no stat).
-        let sst_bytes_deleted = sst_files_to_delete.iter().map(|f| f.size).sum::<u64>();
-        // On-disk bytes of deleted meta files, read from each `MetaFile`'s mmap length (no stat).
-        let mut meta_bytes_deleted = 0u64;
+        // Deleted SST bytes: the caller knows each deleted SST's size when it decides to delete it,
+        // so it's carried on `DeletedFile` and summed here (no scan, no stat).
+        stats.bytes_deleted += sst_files_to_delete.iter().map(|f| f.size).sum::<u64>();
         // The rest of the commit only needs the sequence numbers of the deleted SSTs.
         let mut sst_seq_numbers_to_delete = sst_files_to_delete
             .iter()
@@ -948,7 +956,8 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
             for i in (0..inner.meta_files.len()).rev() {
                 if sst_filter.apply_and_get_remove(&inner.meta_files[i]) {
                     meta_seq_numbers_to_delete.push(inner.meta_files[i].sequence_number());
-                    meta_bytes_deleted += inner.meta_files[i].byte_size();
+                    // Deleted meta bytes, read from the `MetaFile`'s mmap length (no stat).
+                    stats.bytes_deleted += inner.meta_files[i].byte_size();
                 }
             }
 
@@ -960,12 +969,12 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                 || !meta_seq_numbers_to_delete.is_empty();
         }
 
-        // Bytes deleted by this commit. SST sizes came from `DeletedFile` and meta sizes from each
-        // `MetaFile`'s mmap length (both in-memory, no stat). Blob sizes aren't tracked in memory,
-        // so stat them by sequence number before Phase C unlinks them — best-effort: a file already
-        // gone reports 0 rather than failing the commit (these stats are reported, not
-        // load-bearing). Blob deletions are rare.
-        let blob_bytes_deleted = blob_seq_numbers_to_delete
+        // Deleted blob bytes. Unlike SST/meta sizes (both already in memory), blob sizes aren't
+        // tracked, so we stat them by sequence number before Phase C unlinks them. Best-effort: a
+        // file already gone reports 0 rather than failing the commit (these stats are reported, not
+        // load-bearing). Left serial rather than dispatched to the scheduler: blob deletions are
+        // rare and few, so the fan-out overhead would outweigh a handful of `stat` calls.
+        stats.bytes_deleted += blob_seq_numbers_to_delete
             .iter()
             .map(|seq| {
                 fs::metadata(self.path.join(format!("{seq:08}.blob")))
@@ -973,7 +982,6 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                     .unwrap_or(0)
             })
             .sum::<u64>();
-        let bytes_deleted = sst_bytes_deleted + meta_bytes_deleted + blob_bytes_deleted;
 
         if has_delete_file {
             seq += 1;
@@ -1188,10 +1196,7 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
             })();
         }
 
-        Ok(CommitStats {
-            bytes_written,
-            bytes_deleted,
-        })
+        Ok(stats)
     }
 
     /// Runs a full compaction on the database. This will rewrite all SST files, removing all
@@ -1213,7 +1218,10 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
     /// files is above the given threshold. The coverage is the average number of SST files that
     /// need to be read to find a key. It also limits the maximum number of SST files that are
     /// merged at once, which is the main factor for the runtime of the compaction.
-    pub fn compact(&self, compact_config: &CompactConfig) -> Result<bool> {
+    ///
+    /// Returns `Some(stats)` describing the bytes written/deleted if a compaction commit happened,
+    /// or `None` if there was nothing to compact.
+    pub fn compact(&self, compact_config: &CompactConfig) -> Result<Option<CommitStats>> {
         let mut guard = self.acquire_write_operation("compaction")?;
 
         // Free block caches and SST mmaps before compaction. The block caches
@@ -1246,13 +1254,7 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
         }
 
         let has_changes = !new_meta_files.is_empty();
-        if has_changes {
-            let span = tracing::info_span!(
-                "compact",
-                bytes_written = tracing::field::Empty,
-                bytes_deleted = tracing::field::Empty,
-            )
-            .entered();
+        let stats = if has_changes {
             let stats = self
                 .commit(CommitOptions {
                     new_meta_files,
@@ -1264,12 +1266,13 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                     keys_written,
                 })
                 .context("Failed to commit the database compaction")?;
-            span.record("bytes_written", stats.bytes_written);
-            span.record("bytes_deleted", stats.bytes_deleted);
-        }
+            Some(stats)
+        } else {
+            None
+        };
 
         guard.success();
-        Ok(has_changes)
+        Ok(stats)
     }
 
     /// Internal function to perform a compaction.

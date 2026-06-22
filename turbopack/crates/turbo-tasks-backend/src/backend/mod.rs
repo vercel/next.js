@@ -26,7 +26,7 @@ use parking_lot::Mutex;
 use rustc_hash::{FxHashMap, FxHashSet, FxHasher};
 use smallvec::{SmallVec, smallvec};
 use tokio::time::{Duration, Instant};
-use tracing::{Span, trace_span};
+use tracing::{Span, field::display, trace_span};
 use turbo_bincode::{TurboBincodeBuffer, new_turbo_bincode_decoder, new_turbo_bincode_encoder};
 use turbo_tasks::{
     CellId, DynTaskInputsStorage, RawVc, RawVcUnpacked, ReadCellOptions, ReadCellTracking,
@@ -1266,7 +1266,7 @@ impl TurboTasksBackend {
             let snapshot_meta = self
                 .backing_storage
                 .save_snapshot(suspended_operations, task_snapshots)?;
-            span.record("snapshot_meta", tracing::field::display(snapshot_meta));
+            span.record("snapshot_meta", display(snapshot_meta));
 
             #[cfg(feature = "print_cache_item_size")]
             {
@@ -2950,16 +2950,18 @@ impl TurboTasksBackend {
                                     // Enter the span only around the synchronous
                                     // compact() call so we never hold an
                                     // `EnteredSpan` across an await point.
-                                    let _compact_span = tracing::info_span!(
+                                    let compact_span = tracing::info_span!(
                                         parent: background_span.id(),
-                                        "compact database"
+                                        "compact database",
+                                        stats = tracing::field::Empty,
                                     )
                                     .entered();
                                     match self.backing_storage.compact() {
-                                        Ok(true) => {
+                                        Ok(Some(stats)) => {
+                                            compact_span.record("stats", display(stats));
                                             ran_compaction = true;
                                         }
-                                        Ok(false) => break,
+                                        Ok(None) => break,
                                         Err(err) => {
                                             eprintln!("Compaction failed: {err:?}");
                                             if self.backing_storage.has_unrecoverable_write_error()

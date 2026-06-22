@@ -8,6 +8,7 @@ use std::{
 use anyhow::{Context, Result};
 use smallvec::SmallVec;
 use turbo_bincode::{new_turbo_bincode_decoder, turbo_bincode_decode, turbo_bincode_encode};
+use turbo_persistence::CommitStats;
 use turbo_tasks::{
     DynTaskInputs, RawVc, TaskId,
     macro_helpers::NativeFunction,
@@ -282,7 +283,8 @@ impl TurboBackingStorage {
                         data_items,
                         meta_items,
                         task_cache_items,
-                        // we don't know yet
+                        // The on-disk byte totals aren't known until the batch is committed below;
+                        // they're filled in from `CommitStats` after `batch.commit()`.
                         bytes_written: 0,
                         bytes_deleted: 0,
                         max_next_task_id: max_new_task_id,
@@ -402,7 +404,7 @@ impl TurboBackingStorage {
             .collect::<Result<Vec<_>>>()
     }
 
-    pub(crate) fn compact(&self) -> Result<bool> {
+    pub(crate) fn compact(&self) -> Result<Option<CommitStats>> {
         self.inner.database.compact()
     }
 

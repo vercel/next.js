@@ -126,11 +126,11 @@ impl TurboKeyValueDatabase {
 
     /// Triggers compaction of the database.
     ///
-    /// Returns `Ok(true)` if compaction actually merged files, `Ok(false)` if there was nothing
-    /// to compact.
-    pub fn compact(&self) -> Result<bool> {
+    /// Returns `Ok(Some(stats))` with the bytes written/deleted if compaction actually merged
+    /// files, `Ok(None)` if there was nothing to compact.
+    pub fn compact(&self) -> Result<Option<CommitStats>> {
         if self.is_short_session || self.db.is_empty() {
-            return Ok(false);
+            return Ok(None);
         }
         do_compact(
             &self.db,
@@ -170,16 +170,16 @@ fn do_compact(
     db: &TurboPersistence<TurboTasksParallelScheduler, FAMILIES>,
     message: &'static str,
     max_merge_segment_count: usize,
-) -> Result<bool> {
+) -> Result<Option<CommitStats>> {
     let start = Instant::now();
     // SystemTime for wall-clock timestamps in trace events (Instant has no
     // defined epoch so it can't be used for cross-process trace correlation).
     let wall_start = SystemTime::now();
-    let ran = db.compact(&CompactConfig {
+    let stats = db.compact(&CompactConfig {
         max_merge_segment_count,
         ..COMPACT_CONFIG
     })?;
-    if ran {
+    if stats.is_some() {
         let elapsed = start.elapsed();
         // avoid spamming the event queue with information about fast operations
         if elapsed > Duration::from_secs(10) {
@@ -199,7 +199,7 @@ fn do_compact(
             vec![],
         )));
     }
-    Ok(ran)
+    Ok(stats)
 }
 
 pub struct TurboWriteBatch<'a> {

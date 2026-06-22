@@ -43,8 +43,6 @@ impl<'a> MetaFileBuilder<'a> {
         self.used_key_hashes_amqf = Some(amqf);
     }
 
-    /// Writes the meta file and returns the file handle along with the number of bytes written to
-    /// disk.
     #[tracing::instrument(level = "trace", skip_all)]
     pub fn write(self, db_path: &Path, seq: u32) -> Result<(File, u64)> {
         let file = db_path.join(format!("{seq:08}.meta"));
