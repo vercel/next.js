@@ -15,6 +15,8 @@ Enable Cache Components on an app and walk it to a clean build. This skill **seq
 
 ## requires
 
+**App Router only.** Cache Components is an App Router feature; `cacheComponents: true` does nothing for `pages/` routes. If the project has a `pages/` or `src/pages/` tree but no `app/` or `src/app/` tree, stop and tell the user — Pages → App migration is its own project, not part of this skill. A hybrid app (both `pages/` and `app/`) is fine: the flag affects the `app/` routes; `pages/` routes are unaffected and don't need opt-outs.
+
 Next.js **16.3+**. That release is where the pieces this skill relies on land: top-level `cacheComponents`, `export const instant`, the dev-overlay instant-navigation validation warnings (including `link-prefetch-partial`), and the `cache-components-instant-false` codemod.
 
 If `next --version` reports below 16.3, upgrade first:
@@ -36,8 +38,6 @@ Adoption has two milestones. Each is shippable on its own:
 - **B. Remove `instant = false`.** **This is the loop where adoption happens.** Walk the route tree top-down, one subtree at a time, removing each opt-out and either making the route prerenderable or documenting it as a deliberate Block — checking in with the user at each subtree boundary. Expect to spend most of the time here. (steps 2–3.)
 
 **Adoption is complete after B.** Further optimization — making navigations instant, adopting Partial Prefetching, locking the result in with e2e tests, growing static shells — is covered by the linked guides in [further reading](#further-reading). Point the user at them; this skill doesn't walk through them.
-
-**End of every milestone: summarize and ask.** Tell the user which routes changed and how (cached / wrapped in `<Suspense>` / opted out as a documented Block), what they should sanity-check, and ask whether to open a PR before continuing. Each milestone is a real checkpoint, not a step inside one agent run. Don't silently roll on.
 
 **End of every milestone: summarize and ask.** Tell the user which routes changed and how (cached / wrapped in `<Suspense>` / opted out as a documented Block), what they should sanity-check, and ask whether to open a PR before continuing. Each milestone is a real checkpoint, not a step inside one agent run. Don't silently roll on.
 
