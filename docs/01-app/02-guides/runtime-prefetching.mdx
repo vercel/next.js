@@ -60,7 +60,7 @@ export default function CoursesPage() {
 }
 ```
 
-Without `prefetch = 'allow-runtime'`, the router prefetches the App Shell. `<h1>` and `<FeaturedCourses>` are in it; both `<Suspense>` boundaries render to their fallbacks. After the click, `<EnrolledBadge>` and `<LiveEnrollment>` stream in.
+Without `prefetch = 'allow-runtime'`, the App Shell renders `<h1>` and `<FeaturedCourses>` directly, while the two `<Suspense>` boundaries show their fallbacks. After the click, `<EnrolledBadge>` and `<LiveEnrollment>` stream in.
 
 When [`prefetch = 'allow-runtime'`](/docs/app/api-reference/file-conventions/route-segment-config/prefetch) is set on the route, the router prefetches a prerender of `/courses` that includes request data, beyond what's in the App Shell. `<EnrolledBadge>` resolves because the session cookie is available at prefetch time. `<LiveEnrollment>` still sits behind its fallback because no prerender can know its current value. After the click, only `<LiveEnrollment>` streams in.
 
