@@ -172,17 +172,9 @@ async function getCachedImageResponseArrayBuffer(
           serializationError = error
         }
       },
-    }).then((result) => {
-      prerenderCompleted = true
-      // The serialization finished before any dynamic input was needed, so we
-      // will render and cache the image. Hold the cache read now, before the
-      // stream is buffered and deserialized below, so that the prospective
-      // prerender's `cacheReady()` waits for the image to be stored.
-      if (!resultIsPartial) {
-        beginReadOnce()
-      }
-      return result
     })
+
+    prerenderCompleted = true
 
     if (serializationError !== undefined) {
       throw serializationError
@@ -199,6 +191,12 @@ async function getCachedImageResponseArrayBuffer(
         'dynamic `ImageResponse`'
       )
     }
+
+    // The serialization finished before any dynamic input was needed, so we
+    // will render and cache the image. Hold the cache read now, before the
+    // stream is buffered and deserialized below, so that the prospective
+    // prerender's `cacheReady()` waits for the image to be stored.
+    beginReadOnce()
 
     const chunks: Buffer[] = []
     for await (const chunk of prelude) {
