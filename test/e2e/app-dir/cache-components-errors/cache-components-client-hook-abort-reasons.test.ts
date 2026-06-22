@@ -321,13 +321,13 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
                      at useSearchParams (webpack:///<next-src>)
                      at UseSearchParams (webpack:///app/client-hook-abort-reasons/client.tsx:27:18)
                      at Page (webpack:///app/client-hook-abort-reasons/normal/use-search-params/[id]/page.tsx:8:7)
-                   715 |       return
-                   716 |     case 'prerender-client': {
-                 > 717 |       React.use(
+                   608 |       return
+                   609 |     case 'prerender-client': {
+                 > 610 |       React.use(
                        |             ^
-                   718 |         makeClientHookHangingPromise(
-                   719 |           workUnitStore.renderSignal,
-                   720 |           new ClientHookDynamicError(workStore.route, expression) {
+                   611 |         makeClientHookHangingPromise(
+                   612 |           workUnitStore.renderSignal,
+                   613 |           new ClientHookDynamicError(workStore.route, expression) {
                    digest: 'CLIENT_HOOK_DYNAMIC'
                  }
                  To debug the issue, start the app in development mode by running \`next dev\`, then open "/client-hook-abort-reasons/normal/use-search-params/[id]" in your browser to investigate the error.
@@ -623,13 +623,13 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
                      at usePathname (webpack:///<next-src>)
                      at UsePathname (webpack:///app/client-hook-abort-reasons/client.tsx:22:14)
                      at Page (webpack:///app/client-hook-abort-reasons/normal/use-pathname/[id]/page.tsx:7:7)
-                   644 |           // hang here and never resolve. This will cause the currently
-                   645 |           // rendering component to effectively be a dynamic hole.
-                 > 646 |           React.use(
+                   548 |           // hang here and never resolve. This will cause the currently
+                   549 |           // rendering component to effectively be a dynamic hole.
+                 > 550 |           React.use(
                        |                 ^
-                   647 |             makeClientHookHangingPromise(
-                   648 |               workUnitStore.renderSignal,
-                   649 |               new ParamClientHookDynamicError(workStore.route, expression) {
+                   551 |             makeClientHookHangingPromise(
+                   552 |               workUnitStore.renderSignal,
+                   553 |               new ParamClientHookDynamicError(workStore.route, expression) {
                    digest: 'CLIENT_HOOK_DYNAMIC'
                  }
                  To debug the issue, start the app in development mode by running \`next dev\`, then open "/client-hook-abort-reasons/normal/use-pathname/[id]" in your browser to investigate the error.
@@ -927,13 +927,13 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
                      at useParams (webpack:///<next-src>)
                      at UseParams (webpack:///app/client-hook-abort-reasons/client.tsx:17:12)
                      at Page (webpack:///app/client-hook-abort-reasons/normal/use-params/[id]/page.tsx:8:7)
-                   644 |           // hang here and never resolve. This will cause the currently
-                   645 |           // rendering component to effectively be a dynamic hole.
-                 > 646 |           React.use(
+                   548 |           // hang here and never resolve. This will cause the currently
+                   549 |           // rendering component to effectively be a dynamic hole.
+                 > 550 |           React.use(
                        |                 ^
-                   647 |             makeClientHookHangingPromise(
-                   648 |               workUnitStore.renderSignal,
-                   649 |               new ParamClientHookDynamicError(workStore.route, expression) {
+                   551 |             makeClientHookHangingPromise(
+                   552 |               workUnitStore.renderSignal,
+                   553 |               new ParamClientHookDynamicError(workStore.route, expression) {
                    digest: 'CLIENT_HOOK_DYNAMIC'
                  }
                  To debug the issue, start the app in development mode by running \`next dev\`, then open "/client-hook-abort-reasons/normal/use-params/[id]" in your browser to investigate the error.
@@ -1235,13 +1235,13 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
                      at useSelectedLayoutSegments (webpack:///<next-src>)
                      at UseSelectedLayoutSegments (webpack:///app/client-hook-abort-reasons/client.tsx:37:28)
                      at Page (webpack:///app/client-hook-abort-reasons/normal/use-selected-layout-segments/[id]/page.tsx:7:7)
-                   644 |           // hang here and never resolve. This will cause the currently
-                   645 |           // rendering component to effectively be a dynamic hole.
-                 > 646 |           React.use(
+                   548 |           // hang here and never resolve. This will cause the currently
+                   549 |           // rendering component to effectively be a dynamic hole.
+                 > 550 |           React.use(
                        |                 ^
-                   647 |             makeClientHookHangingPromise(
-                   648 |               workUnitStore.renderSignal,
-                   649 |               new ParamClientHookDynamicError(workStore.route, expression) {
+                   551 |             makeClientHookHangingPromise(
+                   552 |               workUnitStore.renderSignal,
+                   553 |               new ParamClientHookDynamicError(workStore.route, expression) {
                    digest: 'CLIENT_HOOK_DYNAMIC'
                  }
                  To debug the issue, start the app in development mode by running \`next dev\`, then open "/client-hook-abort-reasons/normal/use-selected-layout-segments/[id]" in your browser to investigate the error.
@@ -1537,13 +1537,13 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
                      at useSelectedLayoutSegment (webpack:///<next-src>)
                      at UseSelectedLayoutSegment (webpack:///app/client-hook-abort-reasons/client.tsx:32:27)
                      at Page (webpack:///app/client-hook-abort-reasons/normal/use-selected-layout-segment/[id]/page.tsx:8:7)
-                   644 |           // hang here and never resolve. This will cause the currently
-                   645 |           // rendering component to effectively be a dynamic hole.
-                 > 646 |           React.use(
+                   548 |           // hang here and never resolve. This will cause the currently
+                   549 |           // rendering component to effectively be a dynamic hole.
+                 > 550 |           React.use(
                        |                 ^
-                   647 |             makeClientHookHangingPromise(
-                   648 |               workUnitStore.renderSignal,
-                   649 |               new ParamClientHookDynamicError(workStore.route, expression) {
+                   551 |             makeClientHookHangingPromise(
+                   552 |               workUnitStore.renderSignal,
+                   553 |               new ParamClientHookDynamicError(workStore.route, expression) {
                    digest: 'CLIENT_HOOK_DYNAMIC'
                  }
                  To debug the issue, start the app in development mode by running \`next dev\`, then open "/client-hook-abort-reasons/normal/use-selected-layout-segment/[id]" in your browser to investigate the error.
@@ -2277,13 +2277,13 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
                      at useParams (webpack:///<next-src>)
                      at UseParams (webpack:///app/client-hook-abort-reasons/client.tsx:17:12)
                      at Page (webpack:///app/client-hook-abort-reasons/sync-io/use-params/[id]/page.tsx:7:7)
-                   644 |           // hang here and never resolve. This will cause the currently
-                   645 |           // rendering component to effectively be a dynamic hole.
-                 > 646 |           React.use(
+                   548 |           // hang here and never resolve. This will cause the currently
+                   549 |           // rendering component to effectively be a dynamic hole.
+                 > 550 |           React.use(
                        |                 ^
-                   647 |             makeClientHookHangingPromise(
-                   648 |               workUnitStore.renderSignal,
-                   649 |               new ParamClientHookDynamicError(workStore.route, expression) {
+                   551 |             makeClientHookHangingPromise(
+                   552 |               workUnitStore.renderSignal,
+                   553 |               new ParamClientHookDynamicError(workStore.route, expression) {
                    digest: 'CLIENT_HOOK_DYNAMIC'
                  }
                  To debug the issue, start the app in development mode by running \`next dev\`, then open "/client-hook-abort-reasons/sync-io/use-params/[id]" in your browser to investigate the error.
@@ -2805,13 +2805,13 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
                      at useSelectedLayoutSegment (webpack:///<next-src>)
                      at UseSelectedLayoutSegment (webpack:///app/client-hook-abort-reasons/client.tsx:32:27)
                      at Page (webpack:///app/client-hook-abort-reasons/sync-io/use-selected-layout-segment/[id]/page.tsx:8:7)
-                   644 |           // hang here and never resolve. This will cause the currently
-                   645 |           // rendering component to effectively be a dynamic hole.
-                 > 646 |           React.use(
+                   548 |           // hang here and never resolve. This will cause the currently
+                   549 |           // rendering component to effectively be a dynamic hole.
+                 > 550 |           React.use(
                        |                 ^
-                   647 |             makeClientHookHangingPromise(
-                   648 |               workUnitStore.renderSignal,
-                   649 |               new ParamClientHookDynamicError(workStore.route, expression) {
+                   551 |             makeClientHookHangingPromise(
+                   552 |               workUnitStore.renderSignal,
+                   553 |               new ParamClientHookDynamicError(workStore.route, expression) {
                    digest: 'CLIENT_HOOK_DYNAMIC'
                  }
                  To debug the issue, start the app in development mode by running \`next dev\`, then open "/client-hook-abort-reasons/sync-io/use-selected-layout-segment/[id]" in your browser to investigate the error.

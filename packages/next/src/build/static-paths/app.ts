@@ -789,7 +789,7 @@ export async function buildAppStaticPaths({
   fetchCacheKeyPrefix,
   nextConfigOutput,
   ComponentMod,
-  isRoutePPREnabled = false,
+  isRoutePPREnabled,
   buildId,
   deploymentId,
   rootParamKeys,
