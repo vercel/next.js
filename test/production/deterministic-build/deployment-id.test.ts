@@ -143,8 +143,8 @@ async function runTest(
   expect((await next.build()).exitCode).toBe(0)
   let run1 = await readFiles(next)
   await fs.rename(
-    path.join(next.testDir, '.vercel'),
-    path.join(next.testDir, '.vercel1')
+    path.join(next.testDir, '.vercel/output'),
+    path.join(next.testDir, '.vercel/output1')
   )
 
   // Second build
@@ -152,8 +152,8 @@ async function runTest(
   expect((await next.build()).exitCode).toBe(0)
   let run2 = await readFiles(next)
   await fs.rename(
-    path.join(next.testDir, '.vercel'),
-    path.join(next.testDir, '.vercel2')
+    path.join(next.testDir, '.vercel/output'),
+    path.join(next.testDir, '.vercel/output2')
   )
 
   // First, compare file names
