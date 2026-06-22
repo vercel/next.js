@@ -42,14 +42,14 @@ export class DevBundlerService {
       hotReloader.setReactDebugChannel.bind(hotReloader)
     this.sendErrorsToBrowser = hotReloader.sendErrorsToBrowser.bind(hotReloader)
 
-    this.unsubscribeRequestInsights = subscribeRequestInsights((insight) => {
-      if (isRequestInsightsEnabled()) {
+    if (isRequestInsightsEnabled()) {
+      this.unsubscribeRequestInsights = subscribeRequestInsights((insight) => {
         hotReloader.send({
           type: HMR_MESSAGE_SENT_TO_BROWSER.REQUEST_INSIGHTS_UPDATE,
           insight,
         })
-      }
-    })
+      })
+    }
   }
 
   public close: NextJsHotReloaderInterface['close'] = () => {

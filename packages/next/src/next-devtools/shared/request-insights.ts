@@ -1,4 +1,10 @@
-import type { AttributeValue } from 'next/dist/compiled/@opentelemetry/api'
+type RequestInsightAttributeValue =
+  | string
+  | number
+  | boolean
+  | Array<null | undefined | string>
+  | Array<null | undefined | number>
+  | Array<null | undefined | boolean>
 
 export type RequestInsightSpan = {
   name: string
@@ -8,16 +14,16 @@ export type RequestInsightSpan = {
   traceId?: string
   spanId?: string
   parentSpanId?: string
-  attributes?: Record<string, AttributeValue>
+  attributes?: Record<string, RequestInsightAttributeValue>
   links?: Array<{
     traceId: string
     spanId: string
-    attributes?: Record<string, AttributeValue>
+    attributes?: Record<string, RequestInsightAttributeValue>
   }>
   events?: Array<{
     name: string
     timestamp: number
-    attributes?: Record<string, AttributeValue>
+    attributes?: Record<string, RequestInsightAttributeValue>
   }>
   error?: {
     type?: string
