@@ -2,6 +2,7 @@ import type { Instant } from 'next'
 import assert from 'node:assert/strict'
 
 import { ClientChild } from './client'
+import { Suspense, Fragment } from 'react'
 
 export const instant: Instant = {
   level: 'experimental-error',
@@ -23,10 +24,16 @@ export default async function Page({
 }) {
   return (
     <main>
-      <TestSearchParams searchParams={searchParams} />
+      <SuspenseInPartialPrefetching>
+        <TestSearchParams searchParams={searchParams} />
+      </SuspenseInPartialPrefetching>
     </main>
   )
 }
+
+const SuspenseInPartialPrefetching = process.env.__NEXT_PARTIAL_PREFETCHING
+  ? Suspense
+  : Fragment
 
 async function TestSearchParams({
   searchParams,
