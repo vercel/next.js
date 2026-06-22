@@ -25,7 +25,7 @@ const IGNORE_CONTENT_NEXT_REGEX = new RegExp(
     .join('|')
 )
 
-const IGNORE = /^trace$|^trace-build$/
+const IGNORE = /(^|\/)(trace|trace-build)$/
 
 async function readFilesNext(
   next: NextInstance
