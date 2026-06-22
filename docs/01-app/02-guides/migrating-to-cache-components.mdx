@@ -243,6 +243,8 @@ Cache Components validates your routes in development and surfaces errors and in
 
 Each card is clickable and opens a page with patterns, code samples, and trade-offs. Work through the insights and errors until they're gone. For the full validation workflow, the DevTools, and CI testing, see the [instant navigation guide](/docs/app/guides/instant-navigation).
 
+Insights don't show up in the HTTP response. An offending route still returns `200` with rendered HTML in dev. The insight only appears in the dev overlay, the dev-server log, or the [MCP `get_errors` tool](/docs/app/guides/mcp). To see them, read the overlay (or query the MCP).
+
 ## Opting out of validation
 
 A validation insight or error tells you a route won't render instantly. Resolve it by following the recommendation: cache the data with [`use cache`](/docs/app/api-reference/directives/use-cache) or wrap it in [`<Suspense>`](https://react.dev/reference/react/Suspense). If you're not ready to address it yet, set the [`instant`](/docs/app/api-reference/file-conventions/route-segment-config/instant) config to `false` on the segment that raised it (a layout, page, or parallel slot), then come back to it later.
@@ -576,7 +578,7 @@ The [`useSearchParams`](/docs/app/api-reference/functions/use-search-params) hoo
 
 ## `cookies`, `headers`, and `searchParams`
 
-**Wrap runtime data access in `<Suspense>`.** Without Cache Components, reading [`cookies()`](/docs/app/api-reference/functions/cookies), [`headers()`](/docs/app/api-reference/functions/headers), or [`searchParams`](/docs/app/api-reference/file-conventions/page#searchparams-optional) opts the whole route into dynamic rendering. With Cache Components, accessing them outside a [`<Suspense>`](https://react.dev/reference/react/Suspense) boundary surfaces the [**blocking-route** insight](/docs/messages/blocking-prerender-dynamic). Move the access into a component wrapped in `<Suspense>` so the rest of the page prerenders as a static shell and the dynamic part streams in at request time.
+**Wrap runtime data access in `<Suspense>`.** Without Cache Components, reading [`cookies()`](/docs/app/api-reference/functions/cookies), [`headers()`](/docs/app/api-reference/functions/headers), or [`searchParams`](/docs/app/api-reference/file-conventions/page#searchparams-optional) opts the whole route into dynamic rendering. With Cache Components, accessing them outside a [`<Suspense>`](https://react.dev/reference/react/Suspense) boundary surfaces the [**blocking-prerender-runtime** insight](/docs/messages/blocking-prerender-runtime). Move the access into a component wrapped in `<Suspense>` so the rest of the page prerenders as a static shell and the dynamic part streams in at request time.
 
 ```tsx filename="app/page.tsx" switcher
 import { cookies } from 'next/headers'
