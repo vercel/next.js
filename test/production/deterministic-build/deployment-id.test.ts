@@ -25,12 +25,11 @@ const IGNORE_CONTENT_NEXT_REGEX = new RegExp(
     .join('|')
 )
 
+const IGNORE = /^trace$|^trace-build$/
+
 async function readFilesNext(
   next: NextInstance
 ): Promise<Map<string, Map<string, string>>> {
-  // These are cosmetic files which aren't deployed.
-  const IGNORE = /^trace$|^trace-build$/
-
   const files = (
     (await glob('**/*', {
       cwd: path.join(next.testDir, next.distDir),
@@ -73,8 +72,8 @@ async function readFilesBuilder(
     })) as string[]
   )
     .sort()
-    // Prerenders contain `<html data-dpl-id="foo-dpl-id">`
-    .filter((f) => !f.endsWith('.html'))
+    // HTML Prerenders contain `<html data-dpl-id="foo-dpl-id">`
+    .filter((f) => !f.endsWith('.html') && !IGNORE.test(f))
 
   return new Map([
     [
@@ -145,19 +144,19 @@ async function runTest(
   next.env['NEXT_DEPLOYMENT_ID'] = 'foo-dpl-id'
   expect((await next.build()).exitCode).toBe(0)
   let run1 = await readFiles(next)
-  await fs.rename(
-    path.join(next.testDir, '.vercel/output'),
-    path.join(next.testDir, '.vercel/output1')
-  )
+  // await fs.rename(
+  //   path.join(next.testDir, '.vercel/output'),
+  //   path.join(next.testDir, '.vercel/output1')
+  // )
 
   // Second build
   next.env['NEXT_DEPLOYMENT_ID'] = 'bar-dpl-id'
   expect((await next.build()).exitCode).toBe(0)
   let run2 = await readFiles(next)
-  await fs.rename(
-    path.join(next.testDir, '.vercel/output'),
-    path.join(next.testDir, '.vercel/output2')
-  )
+  // await fs.rename(
+  //   path.join(next.testDir, '.vercel/output'),
+  //   path.join(next.testDir, '.vercel/output2')
+  // )
 
   // First, compare file names
   let run1FileNames = [...run1.entries()].map(([fn, files]) => [
