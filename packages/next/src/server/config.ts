@@ -1154,17 +1154,6 @@ function assignDefaultsAndValidate(
     result.deploymentId = process.env.NEXT_DEPLOYMENT_ID
   }
 
-  // Only read process.env.__NEXT_IMMUTABLE_ASSET_TOKEN to make our testing setup easier. This is
-  // actually done by the adapter's modifyConfig
-  if (
-    process.env.__NEXT_TEST_MODE &&
-    process.env.IS_TURBOPACK_TEST &&
-    result.deploymentId &&
-    process.env.__NEXT_SUPPORTS_IMMUTABLE_ASSETS
-  ) {
-    result.experimental.supportsImmutableAssets = true
-  }
-
   if (process.env.NEXT_HASH_SALT) {
     result.experimental.outputHashSalt =
       (result.experimental.outputHashSalt ?? '') + process.env.NEXT_HASH_SALT
@@ -1669,6 +1658,18 @@ function finalizeConfig(config: NextConfigComplete): NextConfigComplete {
     validationLevel:
       config.experimental.instantInsights?.validationLevel ?? 'warning',
   }
+
+  // Only read process.env.__NEXT_IMMUTABLE_ASSET_TOKEN to make our testing setup easier. In the
+  // real world, this is done by the adapter's modifyConfig
+  if (
+    process.env.__NEXT_TEST_MODE &&
+    process.env.IS_TURBOPACK_TEST &&
+    config.deploymentId &&
+    process.env.__NEXT_SUPPORTS_IMMUTABLE_ASSETS
+  ) {
+    config.experimental.supportsImmutableAssets = true
+  }
+
   return config
 }
 
