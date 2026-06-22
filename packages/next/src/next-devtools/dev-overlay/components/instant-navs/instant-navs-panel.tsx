@@ -240,12 +240,17 @@ export function InstantNavsPanel() {
 
   // This preserves whatever the last height of the expandable container was
   // when the entire panel is dismissed (via ESC or by pressing X) so that
-  // its height doesn't change during the fade-out animation.
+  // its height doesn't change during the fade-out animation. We only freeze
+  // the height while leaving the panel; re-entering it must reset back to
+  // null so the container can size to its content again. Otherwise, reopening
+  // the panel before it unmounts (it stays mounted briefly for the fade-out)
+  // would leave the height frozen at the dismissed value (e.g. 0), keeping
+  // the panel permanently collapsed.
   const [previousPanel, setPreviousPanel] = useState(panel)
   const [exitingHeight, setExitingHeight] = useState<null | number>(null)
   if (previousPanel !== panel) {
     setPreviousPanel(panel)
-    setExitingHeight(containerHeight)
+    setExitingHeight(panel === 'instant-navs' ? null : containerHeight)
   }
 
   return (
