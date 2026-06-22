@@ -11,7 +11,7 @@ This is a starter project for creating universal React apps with Next.js, Expo, 
 ![iOS, Android, and web running with Expo and Next.js](./public/demo.png)
 
 - Next.js cannot be used for SSR in your native app.
-- The native bundle is built using the [Metro bundler](https://facebook.github.io/metro/) and may not have the same level of optimization as the web bundle which is compiled using the Next.js Webpack configuration.
+- The native bundle is built using the [Metro bundler](https://reactnative.dev/docs/metro) and may not have the same level of optimization as the web bundle which is compiled using the Next.js Webpack configuration.
 - Expo transpiles `react-native-web` packages by default to enable the use of `react-native` in a browser or Node.js environment.
 - All [Expo packages](https://docs.expo.io/versions/latest/) work in the browser. If you experience issues using them in a Node environment, please report them here: [Expo issues](https://github.com/expo/expo/issues).
 - Most community `react-native-*` packages do not support web, please refer to [reactnative.directory](https://reactnative.directory/?web=true) for a list of web compatible packages.
