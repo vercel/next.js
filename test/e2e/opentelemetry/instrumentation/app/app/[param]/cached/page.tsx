@@ -1,6 +1,7 @@
 export function generateStaticParams() {
-  return [{ param: 'foo' }]
+  return []
 }
+
 export const revalidate = 120
 
 export default function Page() {

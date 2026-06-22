@@ -939,13 +939,11 @@ describe.each(
 
       it('should handle cached responses', async () => {
         let initial = await next.fetch('/app/xyz/cached', env.fetchInit)
-        console.log(initial.status, initial.headers)
-        // expect(initial.headers.get('x-nextjs-cache')).toBe('MISS')
+        expect(initial.headers.get('x-nextjs-cache')).toBe('MISS')
         collector.clear()
 
         let cached = await next.fetch('/app/xyz/cached', env.fetchInit)
-        console.log(cached.status, cached.headers)
-        // expect(cached.headers.get('x-nextjs-cache')).toBe('HIT')
+        expect(cached.headers.get('x-nextjs-cache')).toBe('HIT')
 
         await expectTrace(getCollector(), [
           {
