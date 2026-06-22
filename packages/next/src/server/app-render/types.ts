@@ -165,7 +165,7 @@ export interface RenderOptsPartial {
     prefetchInlining: PrefetchInliningConfig
     authInterrupts: boolean
     useCacheTimeout: number
-    cachedNavigations: boolean
+    cachedNavigations: boolean | 'allow-runtime'
     appShells: ExperimentalConfig['appShells']
 
     /**
