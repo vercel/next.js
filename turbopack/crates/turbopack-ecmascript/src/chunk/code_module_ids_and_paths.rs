@@ -14,23 +14,28 @@ use crate::chunk::{
 };
 
 #[turbo_tasks::value(transparent, serialization = "skip")]
-pub struct CodeAndIds(SmallVec<[(ModuleId, ReadRef<Code>, RcStr); 1]>);
+pub struct CodeModuleIdsAndPaths(SmallVec<[(ModuleId, ReadRef<Code>, RcStr); 1]>);
 
 #[turbo_tasks::value(transparent, serialization = "skip")]
-pub struct BatchGroupCodeAndIds(
-    FxHashMap<EcmascriptChunkItemOrBatchWithAsyncInfo, ReadRef<CodeAndIds>>,
+pub struct BatchGroupCodeModuleIdsAndPaths(
+    FxHashMap<EcmascriptChunkItemOrBatchWithAsyncInfo, ReadRef<CodeModuleIdsAndPaths>>,
 );
 
 #[turbo_tasks::function]
-pub async fn batch_group_code_and_ids(
+pub async fn batch_group_code_module_ids_and_paths(
     batch_group: Vc<EcmascriptChunkItemBatchGroup>,
-) -> Result<Vc<BatchGroupCodeAndIds>> {
+) -> Result<Vc<BatchGroupCodeModuleIdsAndPaths>> {
     Ok(Vc::cell(
         batch_group
             .await?
             .items
             .iter()
-            .map(async |item| Ok((item.clone(), item_code_and_ids(item.clone()).await?)))
+            .map(async |item| {
+                Ok((
+                    item.clone(),
+                    item_code_module_ids_and_paths(item.clone()).await?,
+                ))
+            })
             .try_join()
             .await?
             .into_iter()
@@ -39,9 +44,9 @@ pub async fn batch_group_code_and_ids(
 }
 
 #[turbo_tasks::function]
-pub async fn item_code_and_ids(
+pub async fn item_code_module_ids_and_paths(
     item: EcmascriptChunkItemOrBatchWithAsyncInfo,
-) -> Result<Vc<CodeAndIds>> {
+) -> Result<Vc<CodeModuleIdsAndPaths>> {
     Ok(Vc::cell(match item {
         EcmascriptChunkItemOrBatchWithAsyncInfo::ChunkItem(EcmascriptChunkItemWithAsyncInfo {
             chunk_item,
