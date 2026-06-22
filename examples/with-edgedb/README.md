@@ -50,7 +50,7 @@ Initialize the project with the following CLI command:
 $ edgedb project init
 ```
 
-After you follow the prompts, this command will spin up a local EdgeDB instance and apply all the migrations inside `dbschema/migrations`. Now that the project is initialized, all EdgeDB clients initialized inside the project directory will connect to this instance automatically—no need for environment variables or hard-coded configuration. ([Read more about projects here.](https://www.edgedb.com/docs/guides/projects))
+After you follow the prompts, this command will spin up a local EdgeDB instance and apply all the migrations inside `dbschema/migrations`. Now that the project is initialized, all EdgeDB clients initialized inside the project directory will connect to this instance automatically—no need for environment variables or hard-coded configuration. ([Read more about projects here.](https://www.edgedb.com/docs/))
 
 ### Install dependencies
 
