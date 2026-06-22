@@ -36,9 +36,11 @@ async function main() {
   require('next/dist/server/node-environment')
 
   const handlers = [
+    [/^\/api\/app\/param\/cached$/, 'app/api/app/[param]/cached/route.js'],
     [/^\/api\/app\/param\/data$/, 'app/api/app/[param]/data/route.js'],
     [/^\/api\/app\/param\/error$/, 'app/api/app/[param]/error/route.js'],
     [/^\/api\/app\/param\/status$/, 'app/api/app/[param]/status/route.js'],
+    [/^\/app\/param\/cached$/, 'app/app/[param]/cached/page.js'],
     [/^\/app\/param\/loading\/error$/, 'app/app/[param]/loading/error/page.js'],
     [/^\/app\/param\/loading\/page1$/, 'app/app/[param]/loading/page1/page.js'],
     [/^\/app\/param\/loading\/page2$/, 'app/app/[param]/loading/page2/page.js'],

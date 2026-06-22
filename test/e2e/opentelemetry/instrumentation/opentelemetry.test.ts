@@ -70,7 +70,7 @@ describe.each(
   // Edge runtime is currently not implemented in custom-entrypoint-server.ts
   const itEdge = useDirectEntrypointHandler ? it.skip : it
 
-  for (const env of [
+  ;(process.env.__NEXT_CACHE_COMPONENTS ? describe.skip.each : describe.each)([
     {
       name: 'root context',
       fetchInit: undefined,
@@ -91,1388 +91,1498 @@ describe.each(
         rootParentId: EXTERNAL.spanId,
       },
     },
-  ]) {
-    ;(process.env.__NEXT_CACHE_COMPONENTS ? describe.skip : describe)(
-      env.name,
-      () => {
-        describe('app router', () => {
-          it('should handle RSC with fetch', async () => {
-            await next.fetch('/app/param/rsc-fetch', env.fetchInit)
+  ])('$name', (env) => {
+    describe('app router', () => {
+      it('should handle RSC with fetch', async () => {
+        await next.fetch('/app/param/rsc-fetch', env.fetchInit)
 
-            await expectTrace(getCollector(), [
+        await expectTrace(getCollector(), [
+          {
+            name: 'GET /app/[param]/rsc-fetch',
+            attributes: {
+              'http.method': 'GET',
+              'http.route': '/app/[param]/rsc-fetch',
+              'http.status_code': 200,
+              'http.target': '/app/param/rsc-fetch',
+              'next.route': '/app/[param]/rsc-fetch',
+              'next.rsc': false,
+              'next.span_name': 'GET /app/[param]/rsc-fetch',
+              'next.span_type': 'BaseServer.handleRequest',
+            },
+            kind: 1,
+            status: { code: 0 },
+            traceId: env.span.traceId,
+            parentId: env.span.rootParentId,
+            spans: [
               {
-                name: 'GET /app/[param]/rsc-fetch',
+                name: 'render route (app) /app/[param]/rsc-fetch',
                 attributes: {
-                  'http.method': 'GET',
-                  'http.route': '/app/[param]/rsc-fetch',
-                  'http.status_code': 200,
-                  'http.target': '/app/param/rsc-fetch',
                   'next.route': '/app/[param]/rsc-fetch',
-                  'next.rsc': false,
-                  'next.span_name': 'GET /app/[param]/rsc-fetch',
-                  'next.span_type': 'BaseServer.handleRequest',
+                  'next.span_name': 'render route (app) /app/[param]/rsc-fetch',
+                  'next.span_type': 'AppRender.getBodyResult',
                 },
-                kind: 1,
+                kind: 0,
                 status: { code: 0 },
-                traceId: env.span.traceId,
-                parentId: env.span.rootParentId,
                 spans: [
                   {
-                    name: 'render route (app) /app/[param]/rsc-fetch',
+                    name: 'build component tree',
                     attributes: {
-                      'next.route': '/app/[param]/rsc-fetch',
-                      'next.span_name':
-                        'render route (app) /app/[param]/rsc-fetch',
-                      'next.span_type': 'AppRender.getBodyResult',
+                      'next.span_name': 'build component tree',
+                      'next.span_type': 'NextNodeServer.createComponentTree',
                     },
                     kind: 0,
                     status: { code: 0 },
                     spans: [
                       {
-                        name: 'build component tree',
+                        name: 'resolve segment modules',
                         attributes: {
-                          'next.span_name': 'build component tree',
+                          'next.segment': '__PAGE__',
+                          'next.span_name': 'resolve segment modules',
                           'next.span_type':
-                            'NextNodeServer.createComponentTree',
-                        },
-                        kind: 0,
-                        status: { code: 0 },
-                        spans: [
-                          {
-                            name: 'resolve segment modules',
-                            attributes: {
-                              'next.segment': '__PAGE__',
-                              'next.span_name': 'resolve segment modules',
-                              'next.span_type':
-                                'NextNodeServer.getLayoutOrPageModule',
-                            },
-                            kind: 0,
-                            status: { code: 0 },
-                          },
-                          {
-                            name: 'resolve segment modules',
-                            attributes: {
-                              'next.segment': '[param]',
-                              'next.span_name': 'resolve segment modules',
-                              'next.span_type':
-                                'NextNodeServer.getLayoutOrPageModule',
-                            },
-                            kind: 0,
-                            status: { code: 0 },
-                          },
-                        ],
-                      },
-                      {
-                        name: 'fetch GET https://example.vercel.sh/',
-                        attributes: {
-                          'http.method': 'GET',
-                          'http.url': 'https://example.vercel.sh/',
-                          'net.peer.name': 'example.vercel.sh',
-                          'next.span_name':
-                            'fetch GET https://example.vercel.sh/',
-                          'next.span_type': 'AppRender.fetch',
-                        },
-                        kind: 2,
-                        status: { code: 0 },
-                      },
-                      {
-                        name: 'generateMetadata /app/[param]/layout',
-                        attributes: {
-                          'next.page': '/app/[param]/layout',
-                          'next.span_name':
-                            'generateMetadata /app/[param]/layout',
-                          'next.span_type': 'ResolveMetadata.generateMetadata',
+                            'NextNodeServer.getLayoutOrPageModule',
                         },
                         kind: 0,
                         status: { code: 0 },
                       },
                       {
-                        name: 'generateMetadata /app/[param]/rsc-fetch/page',
+                        name: 'resolve segment modules',
                         attributes: {
-                          'next.page': '/app/[param]/rsc-fetch/page',
-                          'next.span_name':
-                            'generateMetadata /app/[param]/rsc-fetch/page',
-                          'next.span_type': 'ResolveMetadata.generateMetadata',
-                        },
-                        kind: 0,
-                        status: { code: 0 },
-                      },
-                      {
-                        attributes: {
-                          'next.clientComponentLoadCount': isNextDev ? 8 : 7,
+                          'next.segment': '[param]',
+                          'next.span_name': 'resolve segment modules',
                           'next.span_type':
-                            'NextNodeServer.clientComponentLoading',
-                        },
-                        kind: 0,
-                        name: 'NextNodeServer.clientComponentLoading',
-                        status: {
-                          code: 0,
-                        },
-                      },
-                      {
-                        name: 'start response',
-                        attributes: {
-                          'next.span_name': 'start response',
-                          'next.span_type': 'NextNodeServer.startResponse',
+                            'NextNodeServer.getLayoutOrPageModule',
                         },
                         kind: 0,
                         status: { code: 0 },
                       },
                     ],
                   },
-                  ...(useDirectEntrypointHandler
-                    ? []
-                    : [
-                        {
-                          name: 'resolve page components',
-                          attributes: {
-                            'next.route': '/app/[param]/rsc-fetch',
-                            'next.span_name': 'resolve page components',
-                            'next.span_type':
-                              'NextNodeServer.findPageComponents',
-                          },
-                          kind: 0,
-                          status: { code: 0 },
-                        },
-                      ]),
+                  {
+                    name: 'fetch GET https://example.vercel.sh/',
+                    attributes: {
+                      'http.method': 'GET',
+                      'http.url': 'https://example.vercel.sh/',
+                      'net.peer.name': 'example.vercel.sh',
+                      'next.span_name': 'fetch GET https://example.vercel.sh/',
+                      'next.span_type': 'AppRender.fetch',
+                    },
+                    kind: 2,
+                    status: { code: 0 },
+                  },
+                  {
+                    name: 'generateMetadata /app/[param]/layout',
+                    attributes: {
+                      'next.page': '/app/[param]/layout',
+                      'next.span_name': 'generateMetadata /app/[param]/layout',
+                      'next.span_type': 'ResolveMetadata.generateMetadata',
+                    },
+                    kind: 0,
+                    status: { code: 0 },
+                  },
+                  {
+                    name: 'generateMetadata /app/[param]/rsc-fetch/page',
+                    attributes: {
+                      'next.page': '/app/[param]/rsc-fetch/page',
+                      'next.span_name':
+                        'generateMetadata /app/[param]/rsc-fetch/page',
+                      'next.span_type': 'ResolveMetadata.generateMetadata',
+                    },
+                    kind: 0,
+                    status: { code: 0 },
+                  },
+                  {
+                    attributes: {
+                      'next.clientComponentLoadCount': isNextDev ? 8 : 7,
+                      'next.span_type': 'NextNodeServer.clientComponentLoading',
+                    },
+                    kind: 0,
+                    name: 'NextNodeServer.clientComponentLoading',
+                    status: {
+                      code: 0,
+                    },
+                  },
+                  {
+                    name: 'start response',
+                    attributes: {
+                      'next.span_name': 'start response',
+                      'next.span_type': 'NextNodeServer.startResponse',
+                    },
+                    kind: 0,
+                    status: { code: 0 },
+                  },
                 ],
               },
-            ])
-          })
+              ...(useDirectEntrypointHandler
+                ? []
+                : [
+                    {
+                      name: 'resolve page components',
+                      attributes: {
+                        'next.route': '/app/[param]/rsc-fetch',
+                        'next.span_name': 'resolve page components',
+                        'next.span_type': 'NextNodeServer.findPageComponents',
+                      },
+                      kind: 0,
+                      status: { code: 0 },
+                    },
+                  ]),
+            ],
+          },
+        ])
+      })
 
-          it('should propagate custom context without span', async () => {
-            await next.fetch('/app/param/rsc-fetch', {
-              ...env.fetchInit,
-              headers: { ...env.fetchInit?.headers, 'x-custom': 'custom1' },
-            })
+      it('should propagate custom context without span', async () => {
+        await next.fetch('/app/param/rsc-fetch', {
+          ...env.fetchInit,
+          headers: { ...env.fetchInit?.headers, 'x-custom': 'custom1' },
+        })
 
-            await expectTrace(getCollector(), [
-              {
-                name: 'GET /app/[param]/rsc-fetch',
-                attributes: {
-                  custom: 'custom1',
-                },
+        await expectTrace(getCollector(), [
+          {
+            name: 'GET /app/[param]/rsc-fetch',
+            attributes: {
+              custom: 'custom1',
+            },
+          },
+        ])
+      })
+
+      itEdge('should handle RSC with fetch on edge', async () => {
+        await next.fetch('/app/param/rsc-fetch/edge', env.fetchInit)
+
+        await expectTrace(
+          getCollector(),
+          [
+            {
+              traceId: env.span.traceId,
+              parentId: env.span.rootParentId,
+              runtime: 'edge',
+              name: 'GET /app/[param]/rsc-fetch/edge',
+              kind: 1,
+              attributes: {
+                'next.span_name': 'GET /app/[param]/rsc-fetch/edge',
+                'next.span_type': 'BaseServer.handleRequest',
+                'http.method': 'GET',
+                'http.target': '/app/param/rsc-fetch/edge?param=param',
+                'http.status_code': 200,
+                'next.route': '/app/[param]/rsc-fetch/edge',
+                'http.route': '/app/[param]/rsc-fetch/edge',
               },
-            ])
-          })
-
-          itEdge('should handle RSC with fetch on edge', async () => {
-            await next.fetch('/app/param/rsc-fetch/edge', env.fetchInit)
-
-            await expectTrace(
-              getCollector(),
-              [
+              status: { code: 0 },
+              spans: [
                 {
-                  traceId: env.span.traceId,
-                  parentId: env.span.rootParentId,
-                  runtime: 'edge',
-                  name: 'GET /app/[param]/rsc-fetch/edge',
-                  kind: 1,
+                  name: 'render route (app) /app/[param]/rsc-fetch/edge',
+                  kind: 0,
                   attributes: {
-                    'next.span_name': 'GET /app/[param]/rsc-fetch/edge',
-                    'next.span_type': 'BaseServer.handleRequest',
-                    'http.method': 'GET',
-                    'http.target': '/app/param/rsc-fetch/edge?param=param',
-                    'http.status_code': 200,
+                    'next.span_name':
+                      'render route (app) /app/[param]/rsc-fetch/edge',
+                    'next.span_type': 'AppRender.getBodyResult',
                     'next.route': '/app/[param]/rsc-fetch/edge',
-                    'http.route': '/app/[param]/rsc-fetch/edge',
                   },
                   status: { code: 0 },
                   spans: [
                     {
-                      name: 'render route (app) /app/[param]/rsc-fetch/edge',
+                      name: 'build component tree',
                       kind: 0,
                       attributes: {
-                        'next.span_name':
-                          'render route (app) /app/[param]/rsc-fetch/edge',
-                        'next.span_type': 'AppRender.getBodyResult',
-                        'next.route': '/app/[param]/rsc-fetch/edge',
+                        'next.span_name': 'build component tree',
+                        'next.span_type': 'NextNodeServer.createComponentTree',
                       },
                       status: { code: 0 },
                       spans: [
                         {
-                          name: 'build component tree',
+                          name: 'resolve segment modules',
                           kind: 0,
                           attributes: {
-                            'next.span_name': 'build component tree',
+                            'next.span_name': 'resolve segment modules',
                             'next.span_type':
-                              'NextNodeServer.createComponentTree',
-                          },
-                          status: { code: 0 },
-                          spans: [
-                            {
-                              name: 'resolve segment modules',
-                              kind: 0,
-                              attributes: {
-                                'next.span_name': 'resolve segment modules',
-                                'next.span_type':
-                                  'NextNodeServer.getLayoutOrPageModule',
-                                'next.segment': '__PAGE__',
-                              },
-                              status: { code: 0 },
-                            },
-                            {
-                              name: 'resolve segment modules',
-                              kind: 0,
-                              attributes: {
-                                'next.span_name': 'resolve segment modules',
-                                'next.span_type':
-                                  'NextNodeServer.getLayoutOrPageModule',
-                                'next.segment': '[param]',
-                              },
-                              status: { code: 0 },
-                            },
-                          ],
-                        },
-                        {
-                          name: 'fetch GET https://example.vercel.sh/',
-                          kind: 2,
-                          attributes: {
-                            'next.span_name':
-                              'fetch GET https://example.vercel.sh/',
-                            'next.span_type': 'AppRender.fetch',
-                            'http.url': 'https://example.vercel.sh/',
-                            'http.method': 'GET',
-                            'net.peer.name': 'example.vercel.sh',
+                              'NextNodeServer.getLayoutOrPageModule',
+                            'next.segment': '__PAGE__',
                           },
                           status: { code: 0 },
                         },
                         {
-                          name: 'generateMetadata /app/[param]/layout',
+                          name: 'resolve segment modules',
                           kind: 0,
                           attributes: {
-                            'next.span_name':
-                              'generateMetadata /app/[param]/layout',
+                            'next.span_name': 'resolve segment modules',
                             'next.span_type':
-                              'ResolveMetadata.generateMetadata',
-                            'next.page': '/app/[param]/layout',
-                          },
-                          status: { code: 0 },
-                        },
-                        {
-                          name: 'generateMetadata /app/[param]/rsc-fetch/edge/page',
-                          kind: 0,
-                          attributes: {
-                            'next.span_name':
-                              'generateMetadata /app/[param]/rsc-fetch/edge/page',
-                            'next.span_type':
-                              'ResolveMetadata.generateMetadata',
-                            'next.page': '/app/[param]/rsc-fetch/edge/page',
+                              'NextNodeServer.getLayoutOrPageModule',
+                            'next.segment': '[param]',
                           },
                           status: { code: 0 },
                         },
                       ],
                     },
+                    {
+                      name: 'fetch GET https://example.vercel.sh/',
+                      kind: 2,
+                      attributes: {
+                        'next.span_name':
+                          'fetch GET https://example.vercel.sh/',
+                        'next.span_type': 'AppRender.fetch',
+                        'http.url': 'https://example.vercel.sh/',
+                        'http.method': 'GET',
+                        'net.peer.name': 'example.vercel.sh',
+                      },
+                      status: { code: 0 },
+                    },
+                    {
+                      name: 'generateMetadata /app/[param]/layout',
+                      kind: 0,
+                      attributes: {
+                        'next.span_name':
+                          'generateMetadata /app/[param]/layout',
+                        'next.span_type': 'ResolveMetadata.generateMetadata',
+                        'next.page': '/app/[param]/layout',
+                      },
+                      status: { code: 0 },
+                    },
+                    {
+                      name: 'generateMetadata /app/[param]/rsc-fetch/edge/page',
+                      kind: 0,
+                      attributes: {
+                        'next.span_name':
+                          'generateMetadata /app/[param]/rsc-fetch/edge/page',
+                        'next.span_type': 'ResolveMetadata.generateMetadata',
+                        'next.page': '/app/[param]/rsc-fetch/edge/page',
+                      },
+                      status: { code: 0 },
+                    },
                   ],
                 },
               ],
-              true
-            )
-          })
+            },
+          ],
+          true
+        )
+      })
 
-          it('should handle RSC with fetch in RSC mode', async () => {
-            await next.fetch(`/app/param/rsc-fetch?${NEXT_RSC_UNION_QUERY}`, {
-              ...env.fetchInit,
-              headers: {
-                ...env.fetchInit?.headers,
-                Rsc: '1',
-              },
-            })
-
-            await expectTrace(getCollector(), [
-              {
-                runtime: 'nodejs',
-                traceId: env.span.traceId,
-                parentId: env.span.rootParentId,
-                name: 'RSC GET /app/[param]/rsc-fetch',
-                attributes: {
-                  'http.method': 'GET',
-                  'http.route': '/app/[param]/rsc-fetch',
-                  'http.status_code': 200,
-                  'http.target': `/app/param/rsc-fetch?${NEXT_RSC_UNION_QUERY}`,
-                  'next.route': '/app/[param]/rsc-fetch',
-                  'next.rsc': true,
-                  'next.span_name': 'RSC GET /app/[param]/rsc-fetch',
-                  'next.span_type': 'BaseServer.handleRequest',
-                },
-                kind: 1,
-                status: { code: 0 },
-              },
-            ])
-          })
-
-          it('should handle route handlers in app router', async () => {
-            await next.fetch('/api/app/param/data', env.fetchInit)
-
-            await expectTrace(getCollector(), [
-              {
-                name: 'GET /api/app/[param]/data',
-                attributes: {
-                  'http.method': 'GET',
-                  'http.route': '/api/app/[param]/data',
-                  'http.status_code': 200,
-                  'http.target': '/api/app/param/data',
-                  'next.route': '/api/app/[param]/data',
-                  'next.span_name': 'GET /api/app/[param]/data',
-                  'next.span_type': 'BaseServer.handleRequest',
-                },
-                kind: 1,
-                status: { code: 0 },
-                traceId: env.span.traceId,
-                parentId: env.span.rootParentId,
-                spans: [
-                  {
-                    name: 'executing api route (app) /api/app/[param]/data',
-                    attributes: {
-                      'next.route': '/api/app/[param]/data',
-                      'next.span_name':
-                        'executing api route (app) /api/app/[param]/data',
-                      'next.span_type': 'AppRouteRouteHandlers.runHandler',
-                    },
-                    kind: 0,
-                    status: { code: 0 },
-                  },
-                  ...(useDirectEntrypointHandler
-                    ? []
-                    : [
-                        {
-                          name: 'resolve page components',
-                          attributes: {
-                            'next.route': '/api/app/[param]/data',
-                            'next.span_name': 'resolve page components',
-                            'next.span_type':
-                              'NextNodeServer.findPageComponents',
-                          },
-                          kind: 0,
-                          status: { code: 0 },
-                        },
-                      ]),
-                  {
-                    name: 'start response',
-                    attributes: {
-                      'next.span_name': 'start response',
-                      'next.span_type': 'NextNodeServer.startResponse',
-                    },
-                    kind: 0,
-                    status: { code: 0 },
-                  },
-                ],
-              },
-            ])
-          })
-
-          it('should record accurate status code for non-200 route handler responses', async () => {
-            await next.fetch('/api/app/param/status', env.fetchInit)
-
-            await expectTrace(getCollector(), [
-              {
-                name: 'GET /api/app/[param]/status',
-                attributes: {
-                  'http.method': 'GET',
-                  'http.route': '/api/app/[param]/status',
-                  'http.status_code': 418,
-                  'http.target': '/api/app/param/status',
-                  'next.route': '/api/app/[param]/status',
-                  'next.span_name': 'GET /api/app/[param]/status',
-                  'next.span_type': 'BaseServer.handleRequest',
-                },
-                kind: 1,
-                status: { code: 0 },
-                traceId: env.span.traceId,
-                parentId: env.span.rootParentId,
-                spans: [
-                  {
-                    name: 'executing api route (app) /api/app/[param]/status',
-                    attributes: {
-                      'next.route': '/api/app/[param]/status',
-                      'next.span_name':
-                        'executing api route (app) /api/app/[param]/status',
-                      'next.span_type': 'AppRouteRouteHandlers.runHandler',
-                    },
-                    kind: 0,
-                    status: { code: 0 },
-                  },
-                  ...(useDirectEntrypointHandler
-                    ? []
-                    : [
-                        {
-                          name: 'resolve page components',
-                          attributes: {
-                            'next.route': '/api/app/[param]/status',
-                            'next.span_name': 'resolve page components',
-                            'next.span_type':
-                              'NextNodeServer.findPageComponents',
-                          },
-                          kind: 0,
-                          status: { code: 0 },
-                        },
-                      ]),
-                  {
-                    name: 'start response',
-                    attributes: {
-                      'next.span_name': 'start response',
-                      'next.span_type': 'NextNodeServer.startResponse',
-                    },
-                    kind: 0,
-                    status: { code: 0 },
-                  },
-                ],
-              },
-            ])
-          })
-
-          it('should record status code for failing handler', async () => {
-            await next.fetch('/api/app/param/error', env.fetchInit)
-
-            await expectTrace(getCollector(), [
-              {
-                name: 'GET /api/app/[param]/error',
-                attributes: {
-                  'http.method': 'GET',
-                  'http.route': '/api/app/[param]/error',
-                  'http.status_code': 500,
-                  'http.target': '/api/app/param/error',
-                  'next.route': '/api/app/[param]/error',
-                  'next.span_name': 'GET /api/app/[param]/error',
-                  'next.span_type': 'BaseServer.handleRequest',
-                },
-                kind: 1,
-                status: { code: 2 },
-                traceId: env.span.traceId,
-                parentId: env.span.rootParentId,
-                spans: [
-                  {
-                    name: 'executing api route (app) /api/app/[param]/error',
-                    attributes: {
-                      'next.route': '/api/app/[param]/error',
-                      'next.span_name':
-                        'executing api route (app) /api/app/[param]/error',
-                      'next.span_type': 'AppRouteRouteHandlers.runHandler',
-                    },
-                    kind: 0,
-                    status: { code: 2, message: 'foobar' },
-                  },
-                  ...(useDirectEntrypointHandler
-                    ? []
-                    : [
-                        {
-                          name: 'resolve page components',
-                          attributes: {
-                            'next.route': '/api/app/[param]/error',
-                            'next.span_name': 'resolve page components',
-                            'next.span_type':
-                              'NextNodeServer.findPageComponents',
-                          },
-                          kind: 0,
-                          status: { code: 0 },
-                        },
-                      ]),
-                ],
-              },
-            ])
-          })
-
-          itEdge(
-            'should handle route handlers in app router on edge',
-            async () => {
-              await next.fetch('/api/app/param/data/edge', env.fetchInit)
-
-              await expectTrace(
-                getCollector(),
-                [
-                  {
-                    runtime: 'edge',
-                    traceId: env.span.traceId,
-                    parentId: env.span.rootParentId,
-                    name: 'executing api route (app) /api/app/[param]/data/edge',
-                    attributes: {
-                      'next.route': '/api/app/[param]/data/edge',
-                      'next.span_name':
-                        'executing api route (app) /api/app/[param]/data/edge',
-                      'next.span_type': 'AppRouteRouteHandlers.runHandler',
-                    },
-                    kind: 0,
-                    status: { code: 0 },
-                  },
-                ],
-                true
-              )
-            }
-          )
-
-          itEdge('should handle failing handler on edge', async () => {
-            await next.fetch('/api/app/param/error/edge', env.fetchInit)
-
-            await expectTrace(
-              getCollector(),
-              [
-                {
-                  runtime: 'edge',
-                  traceId: env.span.traceId,
-                  parentId: env.span.rootParentId,
-                  name: 'executing api route (app) /api/app/[param]/error/edge',
-                  attributes: {
-                    'next.route': '/api/app/[param]/error/edge',
-                    'next.span_name':
-                      'executing api route (app) /api/app/[param]/error/edge',
-                    'next.span_type': 'AppRouteRouteHandlers.runHandler',
-                  },
-                  kind: 0,
-                  status: { code: 2 },
-                },
-              ],
-              true
-            )
-          })
-
-          itEdge('should trace middleware', async () => {
-            await next.fetch('/behind-middleware', env.fetchInit)
-
-            await expectTrace(getCollector(), [
-              {
-                runtime: 'edge',
-                traceId: env.span.traceId,
-                parentId: env.span.rootParentId,
-                name: 'middleware GET',
-                attributes: {
-                  'http.method': 'GET',
-                  'http.target': '/behind-middleware',
-                  'next.span_name': 'middleware GET',
-                  'next.span_type': 'Middleware.execute',
-                },
-                status: { code: 0 },
-                spans: [],
-              },
-
-              {
-                runtime: 'nodejs',
-                traceId: env.span.traceId,
-                parentId: env.span.rootParentId,
-                name: 'GET /behind-middleware',
-                attributes: {
-                  'http.method': 'GET',
-                  'http.route': '/behind-middleware',
-                  'http.status_code': 200,
-                  'http.target': '/behind-middleware',
-                  'next.route': '/behind-middleware',
-                  'next.span_name': 'GET /behind-middleware',
-                  'next.span_type': 'BaseServer.handleRequest',
-                },
-              },
-            ])
-          })
-
-          it('should handle error in RSC', async () => {
-            await next.fetch(
-              '/app/param/rsc-fetch/error?status=error',
-              env.fetchInit
-            )
-
-            await expectTrace(getCollector(), [
-              {
-                name: 'GET /app/[param]/rsc-fetch/error',
-                attributes: {
-                  'http.method': 'GET',
-                  'http.route': '/app/[param]/rsc-fetch/error',
-                  'http.status_code': 500,
-                  'http.target': '/app/param/rsc-fetch/error?status=error',
-                  'next.route': '/app/[param]/rsc-fetch/error',
-                  'next.rsc': false,
-                  'next.span_name': 'GET /app/[param]/rsc-fetch/error',
-                  'next.span_type': 'BaseServer.handleRequest',
-                  'error.type': '500',
-                },
-                kind: 1,
-                status: { code: 2 },
-                traceId: env.span.traceId,
-                parentId: env.span.rootParentId,
-                spans: [
-                  {
-                    name: 'render route (app) /app/[param]/rsc-fetch/error',
-                    attributes: {
-                      'next.route': '/app/[param]/rsc-fetch/error',
-                      'next.span_name':
-                        'render route (app) /app/[param]/rsc-fetch/error',
-                      'next.span_type': 'AppRender.getBodyResult',
-                    },
-                    kind: 0,
-                    status: { code: 2 },
-                    spans: [
-                      {
-                        name: 'build component tree',
-                        attributes: {
-                          'next.span_name': 'build component tree',
-                          'next.span_type':
-                            'NextNodeServer.createComponentTree',
-                        },
-                        kind: 0,
-                        status: { code: 0 },
-                        spans: [
-                          {
-                            name: 'resolve segment modules',
-                            attributes: {
-                              'next.segment': '__PAGE__',
-                              'next.span_name': 'resolve segment modules',
-                              'next.span_type':
-                                'NextNodeServer.getLayoutOrPageModule',
-                            },
-                            kind: 0,
-                            status: { code: 0 },
-                          },
-                          {
-                            name: 'resolve segment modules',
-                            attributes: {
-                              'next.segment': '[param]',
-                              'next.span_name': 'resolve segment modules',
-                              'next.span_type':
-                                'NextNodeServer.getLayoutOrPageModule',
-                            },
-                            kind: 0,
-                            status: { code: 0 },
-                          },
-                        ],
-                      },
-                      {
-                        name: 'generateMetadata /app/[param]/layout',
-                        attributes: {
-                          'next.page': '/app/[param]/layout',
-                          'next.span_name':
-                            'generateMetadata /app/[param]/layout',
-                          'next.span_type': 'ResolveMetadata.generateMetadata',
-                        },
-                        kind: 0,
-                        status: { code: 0 },
-                      },
-                      {
-                        name: 'generateMetadata /app/[param]/layout',
-                        attributes: {
-                          'next.page': '/app/[param]/layout',
-                          'next.span_name':
-                            'generateMetadata /app/[param]/layout',
-                          'next.span_type': 'ResolveMetadata.generateMetadata',
-                        },
-                        kind: 0,
-                        status: { code: 0 },
-                      },
-                      {
-                        attributes: {
-                          'next.clientComponentLoadCount': isNextDev ? 12 : 10,
-                          'next.span_type':
-                            'NextNodeServer.clientComponentLoading',
-                        },
-                        kind: 0,
-                        name: 'NextNodeServer.clientComponentLoading',
-                        status: {
-                          code: 0,
-                        },
-                      },
-                      {
-                        name: 'start response',
-                        attributes: {
-                          'next.span_name': 'start response',
-                          'next.span_type': 'NextNodeServer.startResponse',
-                        },
-                        kind: 0,
-                        status: { code: 0 },
-                      },
-                    ],
-                  },
-                  ...(useDirectEntrypointHandler
-                    ? []
-                    : [
-                        {
-                          name: 'resolve page components',
-                          attributes: {
-                            'next.route': '/app/[param]/rsc-fetch/error',
-                            'next.span_name': 'resolve page components',
-                            'next.span_type':
-                              'NextNodeServer.findPageComponents',
-                          },
-                          kind: 0,
-                          status: { code: 0 },
-                        },
-                      ]),
-                ],
-              },
-            ])
-          })
-
-          it('should handle error inside Suspense boundary', async () => {
-            await next.fetch('/app/param/loading/error', env.fetchInit)
-
-            await expectTrace(getCollector(), [
-              {
-                name: 'GET /app/[param]/loading/error',
-                attributes: {
-                  'http.method': 'GET',
-                  'http.route': '/app/[param]/loading/error',
-                  // The response starts streaming before the error,
-                  // so HTTP status is 200 (unlike synchronous errors which get 500)
-                  'http.status_code': 200,
-                  'http.target': '/app/param/loading/error',
-                  'next.route': '/app/[param]/loading/error',
-                  'next.rsc': false,
-                  'next.span_name': 'GET /app/[param]/loading/error',
-                  'next.span_type': 'BaseServer.handleRequest',
-                },
-                kind: 1,
-                status: { code: 0 },
-                traceId: env.span.traceId,
-                parentId: env.span.rootParentId,
-                spans: [
-                  {
-                    name: 'render route (app) /app/[param]/loading/error',
-                    attributes: {
-                      'next.route': '/app/[param]/loading/error',
-                      'next.span_name':
-                        'render route (app) /app/[param]/loading/error',
-                      'next.span_type': 'AppRender.getBodyResult',
-                      'error.type': 'Error',
-                    },
-                    kind: 0,
-                    // The render span should have error status because an error
-                    // was thrown inside a Suspense boundary during streaming
-                    status: {
-                      code: 2,
-                      message: 'Error inside Suspense boundary',
-                    },
-                    spans: [
-                      {
-                        name: 'build component tree',
-                        attributes: {
-                          'next.span_name': 'build component tree',
-                          'next.span_type':
-                            'NextNodeServer.createComponentTree',
-                        },
-                        kind: 0,
-                        status: { code: 0 },
-                        spans: [
-                          {
-                            name: 'resolve segment modules',
-                            attributes: {
-                              'next.segment': '__PAGE__',
-                              'next.span_name': 'resolve segment modules',
-                              'next.span_type':
-                                'NextNodeServer.getLayoutOrPageModule',
-                            },
-                            kind: 0,
-                            status: { code: 0 },
-                          },
-                          {
-                            name: 'resolve segment modules',
-                            attributes: {
-                              'next.segment': '[param]',
-                              'next.span_name': 'resolve segment modules',
-                              'next.span_type':
-                                'NextNodeServer.getLayoutOrPageModule',
-                            },
-                            kind: 0,
-                            status: { code: 0 },
-                          },
-                        ],
-                      },
-                      {
-                        name: 'generateMetadata /app/[param]/layout',
-                        attributes: {
-                          'next.page': '/app/[param]/layout',
-                          'next.span_name':
-                            'generateMetadata /app/[param]/layout',
-                          'next.span_type': 'ResolveMetadata.generateMetadata',
-                        },
-                        kind: 0,
-                        status: { code: 0 },
-                      },
-                      {
-                        attributes: {
-                          'next.clientComponentLoadCount': isNextDev ? 9 : 8,
-                          'next.span_type':
-                            'NextNodeServer.clientComponentLoading',
-                        },
-                        kind: 0,
-                        name: 'NextNodeServer.clientComponentLoading',
-                        status: {
-                          code: 0,
-                        },
-                      },
-                      {
-                        name: 'start response',
-                        attributes: {
-                          'next.span_name': 'start response',
-                          'next.span_type': 'NextNodeServer.startResponse',
-                        },
-                        kind: 0,
-                        status: { code: 0 },
-                      },
-                    ],
-                  },
-                  ...(useDirectEntrypointHandler
-                    ? []
-                    : [
-                        {
-                          name: 'resolve page components',
-                          attributes: {
-                            'next.route': '/app/[param]/loading/error',
-                            'next.span_name': 'resolve page components',
-                            'next.span_type':
-                              'NextNodeServer.findPageComponents',
-                          },
-                          kind: 0,
-                          status: { code: 0 },
-                        },
-                      ]),
-                ],
-              },
-            ])
-          })
+      it('should handle RSC with fetch in RSC mode', async () => {
+        await next.fetch(`/app/param/rsc-fetch?${NEXT_RSC_UNION_QUERY}`, {
+          ...env.fetchInit,
+          headers: {
+            ...env.fetchInit?.headers,
+            Rsc: '1',
+          },
         })
 
-        describe('pages', () => {
-          it('should handle getServerSideProps', async () => {
-            await next.fetch('/pages/param/getServerSideProps', env.fetchInit)
+        await expectTrace(getCollector(), [
+          {
+            runtime: 'nodejs',
+            traceId: env.span.traceId,
+            parentId: env.span.rootParentId,
+            name: 'RSC GET /app/[param]/rsc-fetch',
+            attributes: {
+              'http.method': 'GET',
+              'http.route': '/app/[param]/rsc-fetch',
+              'http.status_code': 200,
+              'http.target': `/app/param/rsc-fetch?${NEXT_RSC_UNION_QUERY}`,
+              'next.route': '/app/[param]/rsc-fetch',
+              'next.rsc': true,
+              'next.span_name': 'RSC GET /app/[param]/rsc-fetch',
+              'next.span_type': 'BaseServer.handleRequest',
+            },
+            kind: 1,
+            status: { code: 0 },
+          },
+        ])
+      })
 
-            await expectTrace(getCollector(), [
+      it('should handle route handlers in app router', async () => {
+        await next.fetch('/api/app/param/data', env.fetchInit)
+
+        await expectTrace(getCollector(), [
+          {
+            name: 'GET /api/app/[param]/data',
+            attributes: {
+              'http.method': 'GET',
+              'http.route': '/api/app/[param]/data',
+              'http.status_code': 200,
+              'http.target': '/api/app/param/data',
+              'next.route': '/api/app/[param]/data',
+              'next.span_name': 'GET /api/app/[param]/data',
+              'next.span_type': 'BaseServer.handleRequest',
+            },
+            kind: 1,
+            status: { code: 0 },
+            traceId: env.span.traceId,
+            parentId: env.span.rootParentId,
+            spans: [
               {
-                name: 'GET /pages/[param]/getServerSideProps',
+                name: 'executing api route (app) /api/app/[param]/data',
                 attributes: {
-                  'http.method': 'GET',
-                  'http.route': '/pages/[param]/getServerSideProps',
-                  'http.status_code': 200,
-                  'http.target': '/pages/param/getServerSideProps',
-                  'next.route': '/pages/[param]/getServerSideProps',
-                  'next.span_name': 'GET /pages/[param]/getServerSideProps',
-                  'next.span_type': 'BaseServer.handleRequest',
-                },
-                kind: 1,
-                status: { code: 0 },
-                traceId: env.span.traceId,
-                parentId: env.span.rootParentId,
-                spans: [
-                  {
-                    name: 'getServerSideProps /pages/[param]/getServerSideProps',
-                    attributes: {
-                      'next.route': '/pages/[param]/getServerSideProps',
-                      'next.span_name':
-                        'getServerSideProps /pages/[param]/getServerSideProps',
-                      'next.span_type': 'Render.getServerSideProps',
-                    },
-                    kind: 0,
-                    status: { code: 0 },
-                  },
-                  {
-                    name: 'render route (pages) /pages/[param]/getServerSideProps',
-                    attributes: {
-                      'next.route': '/pages/[param]/getServerSideProps',
-                      'next.span_name':
-                        'render route (pages) /pages/[param]/getServerSideProps',
-                      'next.span_type': 'Render.renderDocument',
-                    },
-                    kind: 0,
-                    status: { code: 0 },
-                  },
-                  ...(useDirectEntrypointHandler
-                    ? []
-                    : [
-                        {
-                          name: 'resolve page components',
-                          attributes: {
-                            'next.route': '/pages/[param]/getServerSideProps',
-                            'next.span_name': 'resolve page components',
-                            'next.span_type':
-                              'NextNodeServer.findPageComponents',
-                          },
-                          kind: 0,
-                          status: { code: 0 },
-                        },
-                      ]),
-                ],
-              },
-            ])
-          })
-
-          it("should handle getStaticProps when fallback: 'blocking'", async () => {
-            const v = env.span.rootParentId ? '2' : ''
-            await next.fetch(`/pages/param/getStaticProps${v}`, env.fetchInit)
-
-            await expectTrace(getCollector(), [
-              {
-                name: `GET /pages/[param]/getStaticProps${v}`,
-                attributes: {
-                  'http.method': 'GET',
-                  'http.route': `/pages/[param]/getStaticProps${v}`,
-                  'http.status_code': 200,
-                  'http.target': `/pages/param/getStaticProps${v}`,
-                  'next.route': `/pages/[param]/getStaticProps${v}`,
-                  'next.span_name': `GET /pages/[param]/getStaticProps${v}`,
-                  'next.span_type': 'BaseServer.handleRequest',
-                },
-                kind: 1,
-                status: { code: 0 },
-                traceId: env.span.traceId,
-                parentId: env.span.rootParentId,
-                spans: [
-                  {
-                    name: `getStaticProps /pages/[param]/getStaticProps${v}`,
-                    attributes: {
-                      'next.route': `/pages/[param]/getStaticProps${v}`,
-                      'next.span_name': `getStaticProps /pages/[param]/getStaticProps${v}`,
-                      'next.span_type': 'Render.getStaticProps',
-                    },
-                    kind: 0,
-                    status: { code: 0 },
-                  },
-                  {
-                    name: `render route (pages) /pages/[param]/getStaticProps${v}`,
-                    attributes: {
-                      'next.route': `/pages/[param]/getStaticProps${v}`,
-                      'next.span_name': `render route (pages) /pages/[param]/getStaticProps${v}`,
-                      'next.span_type': 'Render.renderDocument',
-                    },
-                    kind: 0,
-                    status: { code: 0 },
-                  },
-                  ...(useDirectEntrypointHandler
-                    ? []
-                    : [
-                        {
-                          name: 'resolve page components',
-                          attributes: {
-                            'next.route': `/pages/[param]/getStaticProps${v}`,
-                            'next.span_name': 'resolve page components',
-                            'next.span_type':
-                              'NextNodeServer.findPageComponents',
-                          },
-                          kind: 0,
-                          status: { code: 0 },
-                        },
-                      ]),
-                ],
-              },
-            ])
-          })
-
-          itEdge('should handle getServerSideProps on edge', async () => {
-            await next.fetch(
-              '/pages/param/edge/getServerSideProps',
-              env.fetchInit
-            )
-
-            await expectTrace(
-              getCollector(),
-              [
-                {
-                  runtime: 'edge',
-                  traceId: env.span.traceId,
-                  parentId: env.span.rootParentId,
-                  name: 'GET /pages/[param]/edge/getServerSideProps',
-                  kind: 1,
-                  attributes: {
-                    'next.span_name':
-                      'GET /pages/[param]/edge/getServerSideProps',
-                    'next.span_type': 'BaseServer.handleRequest',
-                    'http.method': 'GET',
-                    'http.target':
-                      '/pages/param/edge/getServerSideProps?param=param',
-                    'http.status_code': 200,
-                    'next.route': '/pages/[param]/edge/getServerSideProps',
-                    'http.route': '/pages/[param]/edge/getServerSideProps',
-                  },
-                  status: { code: 0 },
-                  spans: [
-                    {
-                      name: 'getServerSideProps /pages/[param]/edge/getServerSideProps',
-                      kind: 0,
-                      attributes: {
-                        'next.span_name':
-                          'getServerSideProps /pages/[param]/edge/getServerSideProps',
-                        'next.span_type': 'Render.getServerSideProps',
-                        'next.route': '/pages/[param]/edge/getServerSideProps',
-                      },
-                      status: { code: 0 },
-                    },
-                    {
-                      name: 'render route (pages) /pages/[param]/edge/getServerSideProps',
-                      kind: 0,
-                      attributes: {
-                        'next.span_name':
-                          'render route (pages) /pages/[param]/edge/getServerSideProps',
-                        'next.span_type': 'Render.renderDocument',
-                        'next.route': '/pages/[param]/edge/getServerSideProps',
-                      },
-                      status: { code: 0 },
-                    },
-                  ],
-                },
-              ],
-              true
-            )
-          })
-
-          it('should handle getServerSideProps exceptions', async () => {
-            await next.fetch(
-              '/pages/param/getServerSidePropsError',
-              env.fetchInit
-            )
-
-            await expectTrace(getCollector(), [
-              {
-                name: 'GET /pages/[param]/getServerSidePropsError',
-                attributes: {
-                  'http.method': 'GET',
-                  'http.route': '/pages/[param]/getServerSidePropsError',
-                  'http.target': '/pages/param/getServerSidePropsError',
-                  'next.route': '/pages/[param]/getServerSidePropsError',
+                  'next.route': '/api/app/[param]/data',
                   'next.span_name':
-                    'GET /pages/[param]/getServerSidePropsError',
-                  'next.span_type': 'BaseServer.handleRequest',
-                  ...(useDirectEntrypointHandler
-                    ? {
-                        // With direct entrypoints, this 500 error has to be handled by whatever is
-                        // invoking the handler. And that same invoker is then also responsible for
-                        // setting OTEL correctly.
-                        'error.type': 'Error',
-                        'http.status_code': 200,
-                      }
-                    : {
-                        'error.type': '500',
-                        'http.status_code': 500,
-                      }),
+                    'executing api route (app) /api/app/[param]/data',
+                  'next.span_type': 'AppRouteRouteHandlers.runHandler',
                 },
-                kind: 1,
+                kind: 0,
+                status: { code: 0 },
+              },
+              ...(useDirectEntrypointHandler
+                ? []
+                : [
+                    {
+                      name: 'resolve page components',
+                      attributes: {
+                        'next.route': '/api/app/[param]/data',
+                        'next.span_name': 'resolve page components',
+                        'next.span_type': 'NextNodeServer.findPageComponents',
+                      },
+                      kind: 0,
+                      status: { code: 0 },
+                    },
+                  ]),
+              {
+                name: 'start response',
+                attributes: {
+                  'next.span_name': 'start response',
+                  'next.span_type': 'NextNodeServer.startResponse',
+                },
+                kind: 0,
+                status: { code: 0 },
+              },
+            ],
+          },
+        ])
+      })
+
+      it('should record accurate status code for non-200 route handler responses', async () => {
+        await next.fetch('/api/app/param/status', env.fetchInit)
+
+        await expectTrace(getCollector(), [
+          {
+            name: 'GET /api/app/[param]/status',
+            attributes: {
+              'http.method': 'GET',
+              'http.route': '/api/app/[param]/status',
+              'http.status_code': 418,
+              'http.target': '/api/app/param/status',
+              'next.route': '/api/app/[param]/status',
+              'next.span_name': 'GET /api/app/[param]/status',
+              'next.span_type': 'BaseServer.handleRequest',
+            },
+            kind: 1,
+            status: { code: 0 },
+            traceId: env.span.traceId,
+            parentId: env.span.rootParentId,
+            spans: [
+              {
+                name: 'executing api route (app) /api/app/[param]/status',
+                attributes: {
+                  'next.route': '/api/app/[param]/status',
+                  'next.span_name':
+                    'executing api route (app) /api/app/[param]/status',
+                  'next.span_type': 'AppRouteRouteHandlers.runHandler',
+                },
+                kind: 0,
+                status: { code: 0 },
+              },
+              ...(useDirectEntrypointHandler
+                ? []
+                : [
+                    {
+                      name: 'resolve page components',
+                      attributes: {
+                        'next.route': '/api/app/[param]/status',
+                        'next.span_name': 'resolve page components',
+                        'next.span_type': 'NextNodeServer.findPageComponents',
+                      },
+                      kind: 0,
+                      status: { code: 0 },
+                    },
+                  ]),
+              {
+                name: 'start response',
+                attributes: {
+                  'next.span_name': 'start response',
+                  'next.span_type': 'NextNodeServer.startResponse',
+                },
+                kind: 0,
+                status: { code: 0 },
+              },
+            ],
+          },
+        ])
+      })
+
+      it('should record status code for failing handler', async () => {
+        await next.fetch('/api/app/param/error', env.fetchInit)
+
+        await expectTrace(getCollector(), [
+          {
+            name: 'GET /api/app/[param]/error',
+            attributes: {
+              'http.method': 'GET',
+              'http.route': '/api/app/[param]/error',
+              'http.status_code': 500,
+              'http.target': '/api/app/param/error',
+              'next.route': '/api/app/[param]/error',
+              'next.span_name': 'GET /api/app/[param]/error',
+              'next.span_type': 'BaseServer.handleRequest',
+            },
+            kind: 1,
+            status: { code: 2 },
+            traceId: env.span.traceId,
+            parentId: env.span.rootParentId,
+            spans: [
+              {
+                name: 'executing api route (app) /api/app/[param]/error',
+                attributes: {
+                  'next.route': '/api/app/[param]/error',
+                  'next.span_name':
+                    'executing api route (app) /api/app/[param]/error',
+                  'next.span_type': 'AppRouteRouteHandlers.runHandler',
+                },
+                kind: 0,
+                status: { code: 2, message: 'foobar' },
+              },
+              ...(useDirectEntrypointHandler
+                ? []
+                : [
+                    {
+                      name: 'resolve page components',
+                      attributes: {
+                        'next.route': '/api/app/[param]/error',
+                        'next.span_name': 'resolve page components',
+                        'next.span_type': 'NextNodeServer.findPageComponents',
+                      },
+                      kind: 0,
+                      status: { code: 0 },
+                    },
+                  ]),
+            ],
+          },
+        ])
+      })
+
+      itEdge('should handle route handlers in app router on edge', async () => {
+        await next.fetch('/api/app/param/data/edge', env.fetchInit)
+
+        await expectTrace(
+          getCollector(),
+          [
+            {
+              runtime: 'edge',
+              traceId: env.span.traceId,
+              parentId: env.span.rootParentId,
+              name: 'executing api route (app) /api/app/[param]/data/edge',
+              attributes: {
+                'next.route': '/api/app/[param]/data/edge',
+                'next.span_name':
+                  'executing api route (app) /api/app/[param]/data/edge',
+                'next.span_type': 'AppRouteRouteHandlers.runHandler',
+              },
+              kind: 0,
+              status: { code: 0 },
+            },
+          ],
+          true
+        )
+      })
+
+      itEdge('should handle failing handler on edge', async () => {
+        await next.fetch('/api/app/param/error/edge', env.fetchInit)
+
+        await expectTrace(
+          getCollector(),
+          [
+            {
+              runtime: 'edge',
+              traceId: env.span.traceId,
+              parentId: env.span.rootParentId,
+              name: 'executing api route (app) /api/app/[param]/error/edge',
+              attributes: {
+                'next.route': '/api/app/[param]/error/edge',
+                'next.span_name':
+                  'executing api route (app) /api/app/[param]/error/edge',
+                'next.span_type': 'AppRouteRouteHandlers.runHandler',
+              },
+              kind: 0,
+              status: { code: 2 },
+            },
+          ],
+          true
+        )
+      })
+
+      it('should handle cached route handlers in app router', async () => {
+        let initial = await next.fetch('/api/app/param/cached', env.fetchInit)
+        expect(initial.headers.get('x-nextjs-cache')).toBe('MISS')
+        collector.clear()
+
+        let cached = await next.fetch('/api/app/param/cached', env.fetchInit)
+        expect(cached.headers.get('x-nextjs-cache')).toBe('HIT')
+
+        await expectTrace(getCollector(), [
+          {
+            name: 'GET /api/app/[param]/cached',
+            attributes: {
+              'http.method': 'GET',
+              'http.route': '/api/app/[param]/cached',
+              'http.status_code': 201,
+              'http.target': '/api/app/param/cached',
+              'next.route': '/api/app/[param]/cached',
+              'next.span_name': 'GET /api/app/[param]/cached',
+              'next.span_type': 'BaseServer.handleRequest',
+            },
+            kind: 1,
+            status: { code: 0 },
+            traceId: env.span.traceId,
+            parentId: env.span.rootParentId,
+            spans: [
+              {
+                name: 'start response',
+                attributes: {
+                  'next.span_name': 'start response',
+                  'next.span_type': 'NextNodeServer.startResponse',
+                },
+                kind: 0,
+                status: { code: 0 },
+              },
+            ],
+          },
+        ])
+      })
+
+      itEdge('should trace middleware', async () => {
+        await next.fetch('/behind-middleware', env.fetchInit)
+
+        await expectTrace(getCollector(), [
+          {
+            runtime: 'edge',
+            traceId: env.span.traceId,
+            parentId: env.span.rootParentId,
+            name: 'middleware GET',
+            attributes: {
+              'http.method': 'GET',
+              'http.target': '/behind-middleware',
+              'next.span_name': 'middleware GET',
+              'next.span_type': 'Middleware.execute',
+            },
+            status: { code: 0 },
+            spans: [],
+          },
+
+          {
+            runtime: 'nodejs',
+            traceId: env.span.traceId,
+            parentId: env.span.rootParentId,
+            name: 'GET /behind-middleware',
+            attributes: {
+              'http.method': 'GET',
+              'http.route': '/behind-middleware',
+              'http.status_code': 200,
+              'http.target': '/behind-middleware',
+              'next.route': '/behind-middleware',
+              'next.span_name': 'GET /behind-middleware',
+              'next.span_type': 'BaseServer.handleRequest',
+            },
+          },
+        ])
+      })
+
+      it('should handle error in RSC', async () => {
+        await next.fetch(
+          '/app/param/rsc-fetch/error?status=error',
+          env.fetchInit
+        )
+
+        await expectTrace(getCollector(), [
+          {
+            name: 'GET /app/[param]/rsc-fetch/error',
+            attributes: {
+              'http.method': 'GET',
+              'http.route': '/app/[param]/rsc-fetch/error',
+              'http.status_code': 500,
+              'http.target': '/app/param/rsc-fetch/error?status=error',
+              'next.route': '/app/[param]/rsc-fetch/error',
+              'next.rsc': false,
+              'next.span_name': 'GET /app/[param]/rsc-fetch/error',
+              'next.span_type': 'BaseServer.handleRequest',
+              'error.type': '500',
+            },
+            kind: 1,
+            status: { code: 2 },
+            traceId: env.span.traceId,
+            parentId: env.span.rootParentId,
+            spans: [
+              {
+                name: 'render route (app) /app/[param]/rsc-fetch/error',
+                attributes: {
+                  'next.route': '/app/[param]/rsc-fetch/error',
+                  'next.span_name':
+                    'render route (app) /app/[param]/rsc-fetch/error',
+                  'next.span_type': 'AppRender.getBodyResult',
+                },
+                kind: 0,
                 status: { code: 2 },
-                traceId: env.span.traceId,
-                parentId: env.span.rootParentId,
                 spans: [
                   {
-                    name: 'getServerSideProps /pages/[param]/getServerSidePropsError',
+                    name: 'build component tree',
                     attributes: {
-                      'next.route': '/pages/[param]/getServerSidePropsError',
-                      'next.span_name':
-                        'getServerSideProps /pages/[param]/getServerSidePropsError',
-                      'next.span_type': 'Render.getServerSideProps',
-                      'error.type': 'Error',
+                      'next.span_name': 'build component tree',
+                      'next.span_type': 'NextNodeServer.createComponentTree',
                     },
                     kind: 0,
-                    status: {
-                      code: 2,
-                      message: 'ServerSideProps error',
-                    },
-                    events: [
+                    status: { code: 0 },
+                    spans: [
                       {
-                        name: 'exception',
+                        name: 'resolve segment modules',
                         attributes: {
-                          'exception.type': 'Error',
-                          'exception.message': 'ServerSideProps error',
+                          'next.segment': '__PAGE__',
+                          'next.span_name': 'resolve segment modules',
+                          'next.span_type':
+                            'NextNodeServer.getLayoutOrPageModule',
                         },
+                        kind: 0,
+                        status: { code: 0 },
+                      },
+                      {
+                        name: 'resolve segment modules',
+                        attributes: {
+                          'next.segment': '[param]',
+                          'next.span_name': 'resolve segment modules',
+                          'next.span_type':
+                            'NextNodeServer.getLayoutOrPageModule',
+                        },
+                        kind: 0,
+                        status: { code: 0 },
                       },
                     ],
                   },
-                  ...(useDirectEntrypointHandler
-                    ? []
-                    : [
-                        {
-                          name: 'render route (pages) /_error',
-                          attributes: {
-                            'next.route': '/_error',
-                            'next.span_name': 'render route (pages) /_error',
-                            'next.span_type': 'Render.renderDocument',
-                          },
-                          kind: 0,
-                          status: { code: 0 },
-                        },
-
-                        {
-                          name: 'resolve page components',
-                          attributes: {
-                            'next.route': '/_error',
-                            'next.span_name': 'resolve page components',
-                            'next.span_type':
-                              'NextNodeServer.findPageComponents',
-                          },
-                          kind: 0,
-                          status: { code: 0 },
-                        },
-                      ]),
-                  ...(isNextDev || useDirectEntrypointHandler
-                    ? []
-                    : [
-                        {
-                          name: 'resolve page components',
-                          attributes: {
-                            'next.route': '/500',
-                            'next.span_name': 'resolve page components',
-                            'next.span_type':
-                              'NextNodeServer.findPageComponents',
-                          },
-                          kind: 0,
-                          status: { code: 0 },
-                        },
-                        {
-                          name: 'resolve page components',
-                          attributes: {
-                            'next.route': '/500',
-                            'next.span_name': 'resolve page components',
-                            'next.span_type':
-                              'NextNodeServer.findPageComponents',
-                          },
-                          kind: 0,
-                          status: { code: 0 },
-                        },
-                      ]),
-                  ...(useDirectEntrypointHandler
-                    ? []
-                    : [
-                        {
-                          name: 'resolve page components',
-                          attributes: {
-                            'next.route':
-                              '/pages/[param]/getServerSidePropsError',
-                            'next.span_name': 'resolve page components',
-                            'next.span_type':
-                              'NextNodeServer.findPageComponents',
-                          },
-                          kind: 0,
-                          status: { code: 0 },
-                        },
-                      ]),
-                ],
-              },
-            ])
-          })
-
-          it('should handle getServerSideProps returning notFound', async () => {
-            await next.fetch(
-              '/pages/param/getServerSidePropsNotFound',
-              env.fetchInit
-            )
-
-            await expectTrace(getCollector(), [
-              {
-                name: 'GET /pages/[param]/getServerSidePropsNotFound',
-                attributes: {
-                  'http.method': 'GET',
-                  'http.route': '/pages/[param]/getServerSidePropsNotFound',
-                  'http.status_code': 404,
-                  'http.target': '/pages/param/getServerSidePropsNotFound',
-                  'next.route': '/pages/[param]/getServerSidePropsNotFound',
-                  'next.span_name':
-                    'GET /pages/[param]/getServerSidePropsNotFound',
-                  'next.span_type': 'BaseServer.handleRequest',
-                },
-                kind: 1,
-                status: { code: 0 },
-                traceId: env.span.traceId,
-                parentId: env.span.rootParentId,
-                spans: [
                   {
-                    name: 'getServerSideProps /pages/[param]/getServerSidePropsNotFound',
+                    name: 'generateMetadata /app/[param]/layout',
                     attributes: {
-                      'next.route': '/pages/[param]/getServerSidePropsNotFound',
-                      'next.span_name':
-                        'getServerSideProps /pages/[param]/getServerSidePropsNotFound',
-                      'next.span_type': 'Render.getServerSideProps',
+                      'next.page': '/app/[param]/layout',
+                      'next.span_name': 'generateMetadata /app/[param]/layout',
+                      'next.span_type': 'ResolveMetadata.generateMetadata',
                     },
                     kind: 0,
+                    status: { code: 0 },
+                  },
+                  {
+                    name: 'generateMetadata /app/[param]/layout',
+                    attributes: {
+                      'next.page': '/app/[param]/layout',
+                      'next.span_name': 'generateMetadata /app/[param]/layout',
+                      'next.span_type': 'ResolveMetadata.generateMetadata',
+                    },
+                    kind: 0,
+                    status: { code: 0 },
+                  },
+                  {
+                    attributes: {
+                      'next.clientComponentLoadCount': isNextDev ? 12 : 10,
+                      'next.span_type': 'NextNodeServer.clientComponentLoading',
+                    },
+                    kind: 0,
+                    name: 'NextNodeServer.clientComponentLoading',
                     status: {
                       code: 0,
                     },
                   },
-                  ...(isNextDev
-                    ? [
-                        {
-                          name: 'render route (app) /_not-found',
-                          attributes: {
-                            'next.route': '/_not-found',
-                            'next.span_name': 'render route (app) /_not-found',
-                            'next.span_type': 'AppRender.getBodyResult',
-                          },
-                          kind: 0,
-                          status: { code: 0 },
-                        },
-                      ]
-                    : []),
-                  ...(useDirectEntrypointHandler
-                    ? []
-                    : [
-                        {
-                          name: 'resolve page components',
-                          attributes: {
-                            'next.route': '/_not-found',
-                            'next.span_name': 'resolve page components',
-                            'next.span_type':
-                              'NextNodeServer.findPageComponents',
-                          },
-                          kind: 0,
-                          status: { code: 0 },
-                        },
-                        {
-                          name: 'resolve page components',
-                          attributes: {
-                            'next.route':
-                              '/pages/[param]/getServerSidePropsNotFound',
-                            'next.span_name': 'resolve page components',
-                            'next.span_type':
-                              'NextNodeServer.findPageComponents',
-                          },
-                          kind: 0,
-                          status: { code: 0 },
-                        },
-                      ]),
-                ],
-              },
-            ])
-          })
-
-          it('should handle api routes in pages', async () => {
-            await next.fetch('/api/pages/param/basic', env.fetchInit)
-
-            await expectTrace(getCollector(), [
-              {
-                name: 'GET /api/pages/[param]/basic',
-                attributes: {
-                  'http.method': 'GET',
-                  'http.route': '/api/pages/[param]/basic',
-                  'http.status_code': 200,
-                  'http.target': '/api/pages/param/basic',
-                  'next.route': '/api/pages/[param]/basic',
-                  'next.span_name': 'GET /api/pages/[param]/basic',
-                  'next.span_type': 'BaseServer.handleRequest',
-                },
-                kind: 1,
-                status: { code: 0 },
-                traceId: env.span.traceId,
-                parentId: env.span.rootParentId,
-                spans: [
                   {
-                    name: 'executing api route (pages) /api/pages/[param]/basic',
+                    name: 'start response',
                     attributes: {
-                      'next.span_name':
-                        'executing api route (pages) /api/pages/[param]/basic',
-                      'next.span_type': 'Node.runHandler',
+                      'next.span_name': 'start response',
+                      'next.span_type': 'NextNodeServer.startResponse',
                     },
                     kind: 0,
                     status: { code: 0 },
                   },
                 ],
               },
-            ])
-          })
+              ...(useDirectEntrypointHandler
+                ? []
+                : [
+                    {
+                      name: 'resolve page components',
+                      attributes: {
+                        'next.route': '/app/[param]/rsc-fetch/error',
+                        'next.span_name': 'resolve page components',
+                        'next.span_type': 'NextNodeServer.findPageComponents',
+                      },
+                      kind: 0,
+                      status: { code: 0 },
+                    },
+                  ]),
+            ],
+          },
+        ])
+      })
 
-          itEdge('should handle api routes in pages on edge', async () => {
-            await next.fetch('/api/pages/param/edge', env.fetchInit)
+      it('should handle error inside Suspense boundary', async () => {
+        await next.fetch('/app/param/loading/error', env.fetchInit)
 
-            await expectTrace(
-              getCollector(),
-              [
+        await expectTrace(getCollector(), [
+          {
+            name: 'GET /app/[param]/loading/error',
+            attributes: {
+              'http.method': 'GET',
+              'http.route': '/app/[param]/loading/error',
+              // The response starts streaming before the error,
+              // so HTTP status is 200 (unlike synchronous errors which get 500)
+              'http.status_code': 200,
+              'http.target': '/app/param/loading/error',
+              'next.route': '/app/[param]/loading/error',
+              'next.rsc': false,
+              'next.span_name': 'GET /app/[param]/loading/error',
+              'next.span_type': 'BaseServer.handleRequest',
+            },
+            kind: 1,
+            status: { code: 0 },
+            traceId: env.span.traceId,
+            parentId: env.span.rootParentId,
+            spans: [
+              {
+                name: 'render route (app) /app/[param]/loading/error',
+                attributes: {
+                  'next.route': '/app/[param]/loading/error',
+                  'next.span_name':
+                    'render route (app) /app/[param]/loading/error',
+                  'next.span_type': 'AppRender.getBodyResult',
+                  'error.type': 'Error',
+                },
+                kind: 0,
+                // The render span should have error status because an error
+                // was thrown inside a Suspense boundary during streaming
+                status: {
+                  code: 2,
+                  message: 'Error inside Suspense boundary',
+                },
+                spans: [
+                  {
+                    name: 'build component tree',
+                    attributes: {
+                      'next.span_name': 'build component tree',
+                      'next.span_type': 'NextNodeServer.createComponentTree',
+                    },
+                    kind: 0,
+                    status: { code: 0 },
+                    spans: [
+                      {
+                        name: 'resolve segment modules',
+                        attributes: {
+                          'next.segment': '__PAGE__',
+                          'next.span_name': 'resolve segment modules',
+                          'next.span_type':
+                            'NextNodeServer.getLayoutOrPageModule',
+                        },
+                        kind: 0,
+                        status: { code: 0 },
+                      },
+                      {
+                        name: 'resolve segment modules',
+                        attributes: {
+                          'next.segment': '[param]',
+                          'next.span_name': 'resolve segment modules',
+                          'next.span_type':
+                            'NextNodeServer.getLayoutOrPageModule',
+                        },
+                        kind: 0,
+                        status: { code: 0 },
+                      },
+                    ],
+                  },
+                  {
+                    name: 'generateMetadata /app/[param]/layout',
+                    attributes: {
+                      'next.page': '/app/[param]/layout',
+                      'next.span_name': 'generateMetadata /app/[param]/layout',
+                      'next.span_type': 'ResolveMetadata.generateMetadata',
+                    },
+                    kind: 0,
+                    status: { code: 0 },
+                  },
+                  {
+                    attributes: {
+                      'next.clientComponentLoadCount': isNextDev ? 9 : 8,
+                      'next.span_type': 'NextNodeServer.clientComponentLoading',
+                    },
+                    kind: 0,
+                    name: 'NextNodeServer.clientComponentLoading',
+                    status: {
+                      code: 0,
+                    },
+                  },
+                  {
+                    name: 'start response',
+                    attributes: {
+                      'next.span_name': 'start response',
+                      'next.span_type': 'NextNodeServer.startResponse',
+                    },
+                    kind: 0,
+                    status: { code: 0 },
+                  },
+                ],
+              },
+              ...(useDirectEntrypointHandler
+                ? []
+                : [
+                    {
+                      name: 'resolve page components',
+                      attributes: {
+                        'next.route': '/app/[param]/loading/error',
+                        'next.span_name': 'resolve page components',
+                        'next.span_type': 'NextNodeServer.findPageComponents',
+                      },
+                      kind: 0,
+                      status: { code: 0 },
+                    },
+                  ]),
+            ],
+          },
+        ])
+      })
+
+      it('should handle cached responses', async () => {
+        let initial = await next.fetch('/app/param/cached', env.fetchInit)
+        console.log(initial.status, initial.headers)
+        // expect(initial.headers.get('x-nextjs-cache')).toBe('MISS')
+        collector.clear()
+
+        let cached = await next.fetch('/app/param/cached', env.fetchInit)
+        console.log(cached.status, cached.headers)
+        // expect(cached.headers.get('x-nextjs-cache')).toBe('HIT')
+
+        await expectTrace(getCollector(), [
+          {
+            name: 'GET /app/[param]/cached',
+            attributes: {
+              'http.method': 'GET',
+              'http.route': '/app/[param]/cached',
+              'http.status_code': 200,
+              'http.target': '/app/param/cached',
+              'next.route': '/app/[param]/cached',
+              'next.rsc': false,
+              'next.span_name': 'GET /app/[param]/cached',
+              'next.span_type': 'BaseServer.handleRequest',
+            },
+            kind: 1,
+            status: { code: 0 },
+            traceId: env.span.traceId,
+            parentId: env.span.rootParentId,
+            spans: [
+              {
+                name: 'render route (app) /app/[param]/cached',
+                attributes: {
+                  'next.route': '/app/[param]/cached',
+                  'next.span_name': 'render route (app) /app/[param]/cached',
+                  'next.span_type': 'AppRender.getBodyResult',
+                },
+                kind: 0,
+                status: { code: 0 },
+                spans: [
+                  {
+                    name: 'build component tree',
+                    attributes: {
+                      'next.span_name': 'build component tree',
+                      'next.span_type': 'NextNodeServer.createComponentTree',
+                    },
+                    kind: 0,
+                    status: { code: 0 },
+                    spans: [
+                      {
+                        name: 'resolve segment modules',
+                        attributes: {
+                          'next.segment': '__PAGE__',
+                          'next.span_name': 'resolve segment modules',
+                          'next.span_type':
+                            'NextNodeServer.getLayoutOrPageModule',
+                        },
+                        kind: 0,
+                        status: { code: 0 },
+                      },
+                      {
+                        name: 'resolve segment modules',
+                        attributes: {
+                          'next.segment': '[param]',
+                          'next.span_name': 'resolve segment modules',
+                          'next.span_type':
+                            'NextNodeServer.getLayoutOrPageModule',
+                        },
+                        kind: 0,
+                        status: { code: 0 },
+                      },
+                    ],
+                  },
+                  {
+                    name: 'generateMetadata /app/[param]/layout',
+                    attributes: {
+                      'next.page': '/app/[param]/layout',
+                      'next.span_name': 'generateMetadata /app/[param]/layout',
+                      'next.span_type': 'ResolveMetadata.generateMetadata',
+                    },
+                    kind: 0,
+                    status: { code: 0 },
+                  },
+                  {
+                    attributes: {
+                      'next.clientComponentLoadCount': isNextDev ? 8 : 7,
+                      'next.span_type': 'NextNodeServer.clientComponentLoading',
+                    },
+                    kind: 0,
+                    name: 'NextNodeServer.clientComponentLoading',
+                    status: {
+                      code: 0,
+                    },
+                  },
+                  {
+                    name: 'start response',
+                    attributes: {
+                      'next.span_name': 'start response',
+                      'next.span_type': 'NextNodeServer.startResponse',
+                    },
+                    kind: 0,
+                    status: { code: 0 },
+                  },
+                ],
+              },
+              ...(useDirectEntrypointHandler
+                ? []
+                : [
+                    {
+                      name: 'resolve page components',
+                      attributes: {
+                        'next.route': '/app/[param]/cached',
+                        'next.span_name': 'resolve page components',
+                        'next.span_type': 'NextNodeServer.findPageComponents',
+                      },
+                      kind: 0,
+                      status: { code: 0 },
+                    },
+                  ]),
+            ],
+          },
+        ])
+      })
+    })
+
+    describe('pages', () => {
+      it('should handle getServerSideProps', async () => {
+        await next.fetch('/pages/param/getServerSideProps', env.fetchInit)
+
+        await expectTrace(getCollector(), [
+          {
+            name: 'GET /pages/[param]/getServerSideProps',
+            attributes: {
+              'http.method': 'GET',
+              'http.route': '/pages/[param]/getServerSideProps',
+              'http.status_code': 200,
+              'http.target': '/pages/param/getServerSideProps',
+              'next.route': '/pages/[param]/getServerSideProps',
+              'next.span_name': 'GET /pages/[param]/getServerSideProps',
+              'next.span_type': 'BaseServer.handleRequest',
+            },
+            kind: 1,
+            status: { code: 0 },
+            traceId: env.span.traceId,
+            parentId: env.span.rootParentId,
+            spans: [
+              {
+                name: 'getServerSideProps /pages/[param]/getServerSideProps',
+                attributes: {
+                  'next.route': '/pages/[param]/getServerSideProps',
+                  'next.span_name':
+                    'getServerSideProps /pages/[param]/getServerSideProps',
+                  'next.span_type': 'Render.getServerSideProps',
+                },
+                kind: 0,
+                status: { code: 0 },
+              },
+              {
+                name: 'render route (pages) /pages/[param]/getServerSideProps',
+                attributes: {
+                  'next.route': '/pages/[param]/getServerSideProps',
+                  'next.span_name':
+                    'render route (pages) /pages/[param]/getServerSideProps',
+                  'next.span_type': 'Render.renderDocument',
+                },
+                kind: 0,
+                status: { code: 0 },
+              },
+              ...(useDirectEntrypointHandler
+                ? []
+                : [
+                    {
+                      name: 'resolve page components',
+                      attributes: {
+                        'next.route': '/pages/[param]/getServerSideProps',
+                        'next.span_name': 'resolve page components',
+                        'next.span_type': 'NextNodeServer.findPageComponents',
+                      },
+                      kind: 0,
+                      status: { code: 0 },
+                    },
+                  ]),
+            ],
+          },
+        ])
+      })
+
+      it("should handle getStaticProps when fallback: 'blocking'", async () => {
+        const v = env.span.rootParentId ? '2' : ''
+        await next.fetch(`/pages/param/getStaticProps${v}`, env.fetchInit)
+
+        await expectTrace(getCollector(), [
+          {
+            name: `GET /pages/[param]/getStaticProps${v}`,
+            attributes: {
+              'http.method': 'GET',
+              'http.route': `/pages/[param]/getStaticProps${v}`,
+              'http.status_code': 200,
+              'http.target': `/pages/param/getStaticProps${v}`,
+              'next.route': `/pages/[param]/getStaticProps${v}`,
+              'next.span_name': `GET /pages/[param]/getStaticProps${v}`,
+              'next.span_type': 'BaseServer.handleRequest',
+            },
+            kind: 1,
+            status: { code: 0 },
+            traceId: env.span.traceId,
+            parentId: env.span.rootParentId,
+            spans: [
+              {
+                name: `getStaticProps /pages/[param]/getStaticProps${v}`,
+                attributes: {
+                  'next.route': `/pages/[param]/getStaticProps${v}`,
+                  'next.span_name': `getStaticProps /pages/[param]/getStaticProps${v}`,
+                  'next.span_type': 'Render.getStaticProps',
+                },
+                kind: 0,
+                status: { code: 0 },
+              },
+              {
+                name: `render route (pages) /pages/[param]/getStaticProps${v}`,
+                attributes: {
+                  'next.route': `/pages/[param]/getStaticProps${v}`,
+                  'next.span_name': `render route (pages) /pages/[param]/getStaticProps${v}`,
+                  'next.span_type': 'Render.renderDocument',
+                },
+                kind: 0,
+                status: { code: 0 },
+              },
+              ...(useDirectEntrypointHandler
+                ? []
+                : [
+                    {
+                      name: 'resolve page components',
+                      attributes: {
+                        'next.route': `/pages/[param]/getStaticProps${v}`,
+                        'next.span_name': 'resolve page components',
+                        'next.span_type': 'NextNodeServer.findPageComponents',
+                      },
+                      kind: 0,
+                      status: { code: 0 },
+                    },
+                  ]),
+            ],
+          },
+        ])
+      })
+
+      itEdge('should handle getServerSideProps on edge', async () => {
+        await next.fetch('/pages/param/edge/getServerSideProps', env.fetchInit)
+
+        await expectTrace(
+          getCollector(),
+          [
+            {
+              runtime: 'edge',
+              traceId: env.span.traceId,
+              parentId: env.span.rootParentId,
+              name: 'GET /pages/[param]/edge/getServerSideProps',
+              kind: 1,
+              attributes: {
+                'next.span_name': 'GET /pages/[param]/edge/getServerSideProps',
+                'next.span_type': 'BaseServer.handleRequest',
+                'http.method': 'GET',
+                'http.target':
+                  '/pages/param/edge/getServerSideProps?param=param',
+                'http.status_code': 200,
+                'next.route': '/pages/[param]/edge/getServerSideProps',
+                'http.route': '/pages/[param]/edge/getServerSideProps',
+              },
+              status: { code: 0 },
+              spans: [
                 {
-                  runtime: 'edge',
-                  traceId: env.span.traceId,
-                  parentId: env.span.rootParentId,
-                  name: 'executing api route (pages) /api/pages/[param]/edge',
+                  name: 'getServerSideProps /pages/[param]/edge/getServerSideProps',
+                  kind: 0,
                   attributes: {
                     'next.span_name':
-                      'executing api route (pages) /api/pages/[param]/edge',
-                    'next.span_type': 'Node.runHandler',
+                      'getServerSideProps /pages/[param]/edge/getServerSideProps',
+                    'next.span_type': 'Render.getServerSideProps',
+                    'next.route': '/pages/[param]/edge/getServerSideProps',
                   },
+                  status: { code: 0 },
+                },
+                {
+                  name: 'render route (pages) /pages/[param]/edge/getServerSideProps',
                   kind: 0,
+                  attributes: {
+                    'next.span_name':
+                      'render route (pages) /pages/[param]/edge/getServerSideProps',
+                    'next.span_type': 'Render.renderDocument',
+                    'next.route': '/pages/[param]/edge/getServerSideProps',
+                  },
                   status: { code: 0 },
                 },
               ],
-              true
-            )
-          })
+            },
+          ],
+          true
+        )
+      })
 
-          it('should handle failing api routes in pages', async () => {
-            await next.fetch('/api/pages/param/error', env.fetchInit)
+      it('should handle getServerSideProps exceptions', async () => {
+        await next.fetch('/pages/param/getServerSidePropsError', env.fetchInit)
 
-            await expectTrace(getCollector(), [
+        await expectTrace(getCollector(), [
+          {
+            name: 'GET /pages/[param]/getServerSidePropsError',
+            attributes: {
+              'http.method': 'GET',
+              'http.route': '/pages/[param]/getServerSidePropsError',
+              'http.target': '/pages/param/getServerSidePropsError',
+              'next.route': '/pages/[param]/getServerSidePropsError',
+              'next.span_name': 'GET /pages/[param]/getServerSidePropsError',
+              'next.span_type': 'BaseServer.handleRequest',
+              ...(useDirectEntrypointHandler
+                ? {
+                    // With direct entrypoints, this 500 error has to be handled by whatever is
+                    // invoking the handler. And that same invoker is then also responsible for
+                    // setting OTEL correctly.
+                    'error.type': 'Error',
+                    'http.status_code': 200,
+                  }
+                : {
+                    'error.type': '500',
+                    'http.status_code': 500,
+                  }),
+            },
+            kind: 1,
+            status: { code: 2 },
+            traceId: env.span.traceId,
+            parentId: env.span.rootParentId,
+            spans: [
               {
-                name: 'GET /api/pages/[param]/error',
+                name: 'getServerSideProps /pages/[param]/getServerSidePropsError',
                 attributes: {
-                  'http.method': 'GET',
-                  'http.route': '/api/pages/[param]/error',
-                  'http.status_code': 500,
-                  'http.target': '/api/pages/param/error',
-                  'next.route': '/api/pages/[param]/error',
-                  'next.span_name': 'GET /api/pages/[param]/error',
-                  'next.span_type': 'BaseServer.handleRequest',
+                  'next.route': '/pages/[param]/getServerSidePropsError',
+                  'next.span_name':
+                    'getServerSideProps /pages/[param]/getServerSidePropsError',
+                  'next.span_type': 'Render.getServerSideProps',
+                  'error.type': 'Error',
                 },
-                kind: 1,
-                status: { code: 2 },
-                traceId: env.span.traceId,
-                parentId: env.span.rootParentId,
-                spans: [
+                kind: 0,
+                status: {
+                  code: 2,
+                  message: 'ServerSideProps error',
+                },
+                events: [
                   {
-                    name: 'executing api route (pages) /api/pages/[param]/error',
+                    name: 'exception',
                     attributes: {
-                      'next.span_name':
-                        'executing api route (pages) /api/pages/[param]/error',
-                      'next.span_type': 'Node.runHandler',
+                      'exception.type': 'Error',
+                      'exception.message': 'ServerSideProps error',
                     },
-                    kind: 0,
-                    // TODO this difference is odd
-                    status: { code: isNextDev ? 2 : 0 },
                   },
-                  ...(isNextDev
-                    ? [
-                        {
-                          name: 'render route (pages) /_error',
-                          attributes: {
-                            'next.route': '/_error',
-                            'next.span_name': 'render route (pages) /_error',
-                            'next.span_type': 'Render.renderDocument',
-                          },
-                          kind: 0,
-                          status: { code: 0 },
-                        },
-
-                        {
-                          name: 'resolve page components',
-                          attributes: {
-                            'next.route': '/_error',
-                            'next.span_name': 'resolve page components',
-                            'next.span_type':
-                              'NextNodeServer.findPageComponents',
-                          },
-                          kind: 0,
-                          status: { code: 0 },
-                        },
-                      ]
-                    : []),
                 ],
               },
-            ])
-          })
-
-          itEdge(
-            'should handle failing api routes in pages on edge',
-            async () => {
-              await next.fetch('/api/pages/param/error-edge', env.fetchInit)
-
-              await expectTrace(
-                getCollector(),
-                [
-                  {
-                    runtime: 'edge',
-                    traceId: env.span.traceId,
-                    parentId: env.span.rootParentId,
-                    name: 'executing api route (pages) /api/pages/[param]/error-edge',
-                    attributes: {
-                      'next.span_name':
-                        'executing api route (pages) /api/pages/[param]/error-edge',
-                      'next.span_type': 'Node.runHandler',
+              ...(useDirectEntrypointHandler
+                ? []
+                : [
+                    {
+                      name: 'render route (pages) /_error',
+                      attributes: {
+                        'next.route': '/_error',
+                        'next.span_name': 'render route (pages) /_error',
+                        'next.span_type': 'Render.renderDocument',
+                      },
+                      kind: 0,
+                      status: { code: 0 },
                     },
-                    kind: 0,
-                    status: { code: 2 },
-                  },
-                ],
-                true
-              )
-            }
-          )
-        })
-      }
-    )
-  }
+
+                    {
+                      name: 'resolve page components',
+                      attributes: {
+                        'next.route': '/_error',
+                        'next.span_name': 'resolve page components',
+                        'next.span_type': 'NextNodeServer.findPageComponents',
+                      },
+                      kind: 0,
+                      status: { code: 0 },
+                    },
+                  ]),
+              ...(isNextDev || useDirectEntrypointHandler
+                ? []
+                : [
+                    {
+                      name: 'resolve page components',
+                      attributes: {
+                        'next.route': '/500',
+                        'next.span_name': 'resolve page components',
+                        'next.span_type': 'NextNodeServer.findPageComponents',
+                      },
+                      kind: 0,
+                      status: { code: 0 },
+                    },
+                    {
+                      name: 'resolve page components',
+                      attributes: {
+                        'next.route': '/500',
+                        'next.span_name': 'resolve page components',
+                        'next.span_type': 'NextNodeServer.findPageComponents',
+                      },
+                      kind: 0,
+                      status: { code: 0 },
+                    },
+                  ]),
+              ...(useDirectEntrypointHandler
+                ? []
+                : [
+                    {
+                      name: 'resolve page components',
+                      attributes: {
+                        'next.route': '/pages/[param]/getServerSidePropsError',
+                        'next.span_name': 'resolve page components',
+                        'next.span_type': 'NextNodeServer.findPageComponents',
+                      },
+                      kind: 0,
+                      status: { code: 0 },
+                    },
+                  ]),
+            ],
+          },
+        ])
+      })
+
+      it('should handle getServerSideProps returning notFound', async () => {
+        await next.fetch(
+          '/pages/param/getServerSidePropsNotFound',
+          env.fetchInit
+        )
+
+        await expectTrace(getCollector(), [
+          {
+            name: 'GET /pages/[param]/getServerSidePropsNotFound',
+            attributes: {
+              'http.method': 'GET',
+              'http.route': '/pages/[param]/getServerSidePropsNotFound',
+              'http.status_code': 404,
+              'http.target': '/pages/param/getServerSidePropsNotFound',
+              'next.route': '/pages/[param]/getServerSidePropsNotFound',
+              'next.span_name': 'GET /pages/[param]/getServerSidePropsNotFound',
+              'next.span_type': 'BaseServer.handleRequest',
+            },
+            kind: 1,
+            status: { code: 0 },
+            traceId: env.span.traceId,
+            parentId: env.span.rootParentId,
+            spans: [
+              {
+                name: 'getServerSideProps /pages/[param]/getServerSidePropsNotFound',
+                attributes: {
+                  'next.route': '/pages/[param]/getServerSidePropsNotFound',
+                  'next.span_name':
+                    'getServerSideProps /pages/[param]/getServerSidePropsNotFound',
+                  'next.span_type': 'Render.getServerSideProps',
+                },
+                kind: 0,
+                status: {
+                  code: 0,
+                },
+              },
+              ...(isNextDev
+                ? [
+                    {
+                      name: 'render route (app) /_not-found',
+                      attributes: {
+                        'next.route': '/_not-found',
+                        'next.span_name': 'render route (app) /_not-found',
+                        'next.span_type': 'AppRender.getBodyResult',
+                      },
+                      kind: 0,
+                      status: { code: 0 },
+                    },
+                  ]
+                : []),
+              ...(useDirectEntrypointHandler
+                ? []
+                : [
+                    {
+                      name: 'resolve page components',
+                      attributes: {
+                        'next.route': '/_not-found',
+                        'next.span_name': 'resolve page components',
+                        'next.span_type': 'NextNodeServer.findPageComponents',
+                      },
+                      kind: 0,
+                      status: { code: 0 },
+                    },
+                    {
+                      name: 'resolve page components',
+                      attributes: {
+                        'next.route':
+                          '/pages/[param]/getServerSidePropsNotFound',
+                        'next.span_name': 'resolve page components',
+                        'next.span_type': 'NextNodeServer.findPageComponents',
+                      },
+                      kind: 0,
+                      status: { code: 0 },
+                    },
+                  ]),
+            ],
+          },
+        ])
+      })
+
+      it('should handle api routes in pages', async () => {
+        await next.fetch('/api/pages/param/basic', env.fetchInit)
+
+        await expectTrace(getCollector(), [
+          {
+            name: 'GET /api/pages/[param]/basic',
+            attributes: {
+              'http.method': 'GET',
+              'http.route': '/api/pages/[param]/basic',
+              'http.status_code': 200,
+              'http.target': '/api/pages/param/basic',
+              'next.route': '/api/pages/[param]/basic',
+              'next.span_name': 'GET /api/pages/[param]/basic',
+              'next.span_type': 'BaseServer.handleRequest',
+            },
+            kind: 1,
+            status: { code: 0 },
+            traceId: env.span.traceId,
+            parentId: env.span.rootParentId,
+            spans: [
+              {
+                name: 'executing api route (pages) /api/pages/[param]/basic',
+                attributes: {
+                  'next.span_name':
+                    'executing api route (pages) /api/pages/[param]/basic',
+                  'next.span_type': 'Node.runHandler',
+                },
+                kind: 0,
+                status: { code: 0 },
+              },
+            ],
+          },
+        ])
+      })
+
+      itEdge('should handle api routes in pages on edge', async () => {
+        await next.fetch('/api/pages/param/edge', env.fetchInit)
+
+        await expectTrace(
+          getCollector(),
+          [
+            {
+              runtime: 'edge',
+              traceId: env.span.traceId,
+              parentId: env.span.rootParentId,
+              name: 'executing api route (pages) /api/pages/[param]/edge',
+              attributes: {
+                'next.span_name':
+                  'executing api route (pages) /api/pages/[param]/edge',
+                'next.span_type': 'Node.runHandler',
+              },
+              kind: 0,
+              status: { code: 0 },
+            },
+          ],
+          true
+        )
+      })
+
+      it('should handle failing api routes in pages', async () => {
+        await next.fetch('/api/pages/param/error', env.fetchInit)
+
+        await expectTrace(getCollector(), [
+          {
+            name: 'GET /api/pages/[param]/error',
+            attributes: {
+              'http.method': 'GET',
+              'http.route': '/api/pages/[param]/error',
+              'http.status_code': 500,
+              'http.target': '/api/pages/param/error',
+              'next.route': '/api/pages/[param]/error',
+              'next.span_name': 'GET /api/pages/[param]/error',
+              'next.span_type': 'BaseServer.handleRequest',
+            },
+            kind: 1,
+            status: { code: 2 },
+            traceId: env.span.traceId,
+            parentId: env.span.rootParentId,
+            spans: [
+              {
+                name: 'executing api route (pages) /api/pages/[param]/error',
+                attributes: {
+                  'next.span_name':
+                    'executing api route (pages) /api/pages/[param]/error',
+                  'next.span_type': 'Node.runHandler',
+                },
+                kind: 0,
+                // TODO this difference is odd
+                status: { code: isNextDev ? 2 : 0 },
+              },
+              ...(isNextDev
+                ? [
+                    {
+                      name: 'render route (pages) /_error',
+                      attributes: {
+                        'next.route': '/_error',
+                        'next.span_name': 'render route (pages) /_error',
+                        'next.span_type': 'Render.renderDocument',
+                      },
+                      kind: 0,
+                      status: { code: 0 },
+                    },
+
+                    {
+                      name: 'resolve page components',
+                      attributes: {
+                        'next.route': '/_error',
+                        'next.span_name': 'resolve page components',
+                        'next.span_type': 'NextNodeServer.findPageComponents',
+                      },
+                      kind: 0,
+                      status: { code: 0 },
+                    },
+                  ]
+                : []),
+            ],
+          },
+        ])
+      })
+
+      itEdge('should handle failing api routes in pages on edge', async () => {
+        await next.fetch('/api/pages/param/error-edge', env.fetchInit)
+
+        await expectTrace(
+          getCollector(),
+          [
+            {
+              runtime: 'edge',
+              traceId: env.span.traceId,
+              parentId: env.span.rootParentId,
+              name: 'executing api route (pages) /api/pages/[param]/error-edge',
+              attributes: {
+                'next.span_name':
+                  'executing api route (pages) /api/pages/[param]/error-edge',
+                'next.span_type': 'Node.runHandler',
+              },
+              kind: 0,
+              status: { code: 2 },
+            },
+          ],
+          true
+        )
+      })
+    })
+  })
 })
 ;(process.env.__NEXT_CACHE_COMPONENTS ? describe.skip : describe)(
   'opentelemetry NEXT_OTEL_VERBOSE=1',
