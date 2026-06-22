@@ -26,6 +26,7 @@ import type {
   PrerenderStoreLegacy,
   PrerenderStoreModern,
   ValidationStoreClient,
+  PrerenderStoreModernServer,
 } from '../app-render/work-unit-async-storage.external'
 
 // Once postpone is in stable we should switch to importing the postpone export directly
@@ -554,6 +555,12 @@ export function createRenderInBrowserAbortSignal(): AbortSignal {
  * stalling on connection() or because they're loading dynamic data. In that
  * case we need to abort the encoding of arguments since they'll never complete.
  */
+export function createHangingInputAbortSignal(
+  workUnitStore: PrerenderStoreModernServer
+): AbortSignal
+export function createHangingInputAbortSignal(
+  workUnitStore: WorkUnitStore
+): AbortSignal | undefined
 export function createHangingInputAbortSignal(
   workUnitStore: WorkUnitStore
 ): AbortSignal | undefined {
