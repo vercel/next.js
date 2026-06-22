@@ -29,7 +29,8 @@ export async function getVersionInfo(): Promise<VersionInfo> {
       // ignore fetch errors
     }
 
-    if ('staleness' in res && res['staleness'] === 'unknown') return res
+    if (!res || ('staleness' in res && res['staleness'] === 'unknown'))
+      return { installed, staleness: 'unknown' }
 
     const { latest, canary } = res
 
