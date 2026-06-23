@@ -5,7 +5,7 @@ import path from 'path'
 const appDir = path.join(__dirname, 'app')
 
 describe('next/jest', () => {
-  const { next } = nextTestSetup({
+  const { next, isNextDeploy } = nextTestSetup({
     files: {
       components: new FileRef(path.join(appDir, 'components')),
       pages: new FileRef(path.join(appDir, 'pages')),
@@ -68,7 +68,7 @@ describe('next/jest', () => {
     },
   })
 
-  it('has up-to-date graphql types', async () => {
+  ;(isNextDeploy ? it.skip : it)('has up-to-date graphql types', async () => {
     await execa('pnpm', ['exec', 'relay-compiler', '--validate'], {
       cwd: next.testDir,
       stdout: 'inherit',

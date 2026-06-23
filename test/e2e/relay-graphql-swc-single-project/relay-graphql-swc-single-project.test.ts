@@ -2,7 +2,7 @@ import { nextTestSetup } from 'e2e-utils'
 import execa from 'execa'
 
 describe('Relay Compiler Transform - Single Project Config', () => {
-  const { next } = nextTestSetup({
+  const { next, isNextDeploy } = nextTestSetup({
     files: __dirname,
     dependencies: {
       'relay-compiler': '21.0.1',
@@ -11,7 +11,7 @@ describe('Relay Compiler Transform - Single Project Config', () => {
     },
   })
 
-  it('has up-to-date graphql types', async () => {
+  ;(isNextDeploy ? it.skip : it)('has up-to-date graphql types', async () => {
     await execa('pnpm', ['exec', 'relay-compiler', '--validate'], {
       cwd: next.testDir,
       stdout: 'inherit',

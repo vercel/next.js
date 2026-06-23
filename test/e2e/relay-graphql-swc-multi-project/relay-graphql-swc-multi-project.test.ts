@@ -1,9 +1,14 @@
-import { nextTestSetup, isNextDev, type NextInstance } from 'e2e-utils'
+import {
+  nextTestSetup,
+  isNextDev,
+  isNextDeploy,
+  type NextInstance,
+} from 'e2e-utils'
 import execa from 'execa'
 import { shouldUseTurbopack } from 'next-test-utils'
 
 function relayCompilerValidate(next: NextInstance) {
-  it('has up-to-date graphql types', async () => {
+  ;(isNextDeploy ? it.skip : it)('has up-to-date graphql types', async () => {
     await execa('pnpm', ['exec', 'relay-compiler', '--validate'], {
       cwd: next.testDir,
       stdout: 'inherit',
