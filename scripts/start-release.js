@@ -15,6 +15,27 @@ const { createGitHubReleaseCommit } = require('./release-github-api')
 const SEMVER_TYPES = ['patch', 'minor', 'major']
 
 /**
+ * A GitHub client (matching the `githubRequest` signature) for dry runs: it
+ * just logs the request and returns a minimal canned response instead of
+ * hitting the API, so the sign/tag/push flow can be exercised without creating
+ * remote refs. Bodies are not logged (blob uploads carry base64 file contents).
+ */
+function createMockGitHubRequest() {
+  let counter = 0
+
+  return async function mockGitHubRequest(_token, method, apiPath) {
+    console.log(`[dry-run] GitHub API ${method} ${apiPath}`)
+
+    // One canned shape covers every consumer: `.sha` (blobs/trees/commits) and
+    // `.verification.verified` (commits). Ref writes ignore the return value.
+    return {
+      sha: (++counter).toString(16).padStart(40, '0'),
+      verification: { verified: true },
+    }
+  }
+}
+
+/**
  * Compute the next `@preview` version when cutting ad-hoc from `canary`.
  *
  * Unlike the other prerelease channels, the preview line has no branch of its
@@ -203,15 +224,24 @@ async function main() {
     )
   }
 
+  const releaseCommitOptions = isPreview
+    ? { baseSha, tagName: `v${previewVersion}` }
+    : {}
+
   if (dryRun) {
+    // Exercise the full sign/tag/push flow with a mock GitHub client that logs
+    // instead of calling the API, so the replay and tagging logic is covered
+    // without creating any remote commits, tags, or refs.
     console.log(
-      'Dry run: skipping GitHub-signed release commit and GitHub release creation'
+      'Dry run: creating GitHub-signed release commit(s) with a mock GitHub client (no API calls)'
     )
+    await createGitHubReleaseCommit(githubToken, {
+      ...releaseCommitOptions,
+      githubRequest: createMockGitHubRequest(),
+    })
+    console.log('Dry run: skipping GitHub release creation')
   } else {
-    await createGitHubReleaseCommit(
-      githubToken,
-      isPreview ? { baseSha, tagName: `v${previewVersion}` } : {}
-    )
+    await createGitHubReleaseCommit(githubToken, releaseCommitOptions)
 
     if (isCanary || isReleaseCandidate || isBeta || isPreview) {
       const releaseChild = execa(

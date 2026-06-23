@@ -83,8 +83,16 @@ async function getSingleParent(commitSha) {
  * `options.baseSha` and `options.tagName` let the caller pin both explicitly
  * (required for preview, since after the revert `lerna.json` no longer matches
  * HEAD).
+ *
+ * `options.githubRequest` injects a custom GitHub client (signature matching
+ * `githubRequest`). A dry run passes a logging mock so the whole sign/tag/push
+ * flow is exercised without touching the API; when a mock is used the final
+ * local-branch sync is skipped (the signed commits don't exist on the remote).
  */
 async function createGitHubReleaseCommit(token, options = {}) {
+  const request = options.githubRequest ?? githubRequest
+  const usingMockClient = options.githubRequest != null
+
   const branch = await git(['rev-parse', '--abbrev-ref', 'HEAD'], {
     captureOutput: true,
   })
@@ -112,6 +120,7 @@ async function createGitHubReleaseCommit(token, options = {}) {
     repo: 'next.js',
     fromBaseSha: baseSha,
     toLocalSha: localHead,
+    request,
   })
 
   const taggedCommit = signedCommits.find(
@@ -127,24 +136,19 @@ async function createGitHubReleaseCommit(token, options = {}) {
   let createdTag = false
 
   try {
-    await githubRequest(token, 'POST', `${REPO_API_PATH}/git/refs`, {
+    await request(token, 'POST', `${REPO_API_PATH}/git/refs`, {
       ref: `refs/tags/${tagName}`,
       sha: signedTagSha,
     })
     createdTag = true
 
-    await githubRequest(
-      token,
-      'PATCH',
-      `${REPO_API_PATH}/git/refs/heads/${branch}`,
-      {
-        sha: headSha,
-        force: false,
-      }
-    )
+    await request(token, 'PATCH', `${REPO_API_PATH}/git/refs/heads/${branch}`, {
+      sha: headSha,
+      force: false,
+    })
   } catch (error) {
     if (createdTag) {
-      await githubRequest(
+      await request(
         token,
         'DELETE',
         `${REPO_API_PATH}/git/refs/tags/${tagName}`
@@ -157,7 +161,15 @@ async function createGitHubReleaseCommit(token, options = {}) {
     throw error
   }
 
-  await alignLocalBranchWithSignedCommit(branch, headSha, { tagName })
+  if (usingMockClient) {
+    // The signed commits only exist in the mock; there is nothing on the remote
+    // to sync the local branch against.
+    console.log(
+      `Dry run: skipping local branch sync; would set ${branch} to ${headSha} and tag ${tagName} at ${signedTagSha}`
+    )
+  } else {
+    await alignLocalBranchWithSignedCommit(branch, headSha, { tagName })
+  }
 
   console.log(
     `Created GitHub-signed release tag ${tagName} at ${signedTagSha}; branch ${branch} now at ${headSha}`
