@@ -152,7 +152,7 @@ async function main() {
     )
   }
 
-  console.log(`Running pnpm release-${isCanary ? 'canary' : 'stable'}...`)
+  console.log(`Running pnpm release-${releaseType}...`)
 
   const { version: canaryVersion } = JSON.parse(
     await fs.readFile(path.join(process.cwd(), 'lerna.json'), 'utf-8')
