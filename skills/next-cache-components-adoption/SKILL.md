@@ -23,7 +23,7 @@ Confirm each item before starting milestone A. The skill won't apply cleanly if 
   - `npx @next/codemod@latest upgrade latest` to apply the version-to-version codemods.
   - Read the relevant [version upgrade guide](https://nextjs.org/docs/app/guides/upgrading) (e.g. [Version 16](https://nextjs.org/docs/app/guides/upgrading/version-16)) for what the codemod doesn't cover.
 
-- **No incompatible config keys.** `cacheComponents: true` rejects any page that still exports `dynamic`, and `experimental.dynamicIO` / `experimental.useCache` have been renamed. Resolve those via the [migration guide](https://nextjs.org/docs/app/guides/migrating-to-cache-components) before starting. `revalidate`, `fetchCache`, and `unstable_cache` keep working as a separate layer and get translated during milestone B — don't introduce new ones.
+- **No incompatible config keys.** `cacheComponents: true` errors on any page that still exports `dynamic`, and `experimental.dynamicIO` / `experimental.useCache` have been renamed. Resolve those via the [migration guide](https://nextjs.org/docs/app/guides/migrating-to-cache-components) before starting. `revalidate`, `fetchCache`, and `unstable_cache` keep working as a separate layer and get translated during milestone B — don't introduce new ones.
 
 ### notes
 

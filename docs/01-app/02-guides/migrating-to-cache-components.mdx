@@ -53,7 +53,7 @@ export default nextConfig
 
 > **Good to know:** If you were using `experimental.dynamicIO` or `experimental.useCache`, `cacheComponents` replaces them. See the [version 16 upgrade guide](/docs/app/guides/upgrading/version-16#experimentaldynamicio-and-experimentalusecache).
 
-Before enabling the flag, remove every `export const dynamic` from your route segments. Pages that still export this config are rejected.
+Before enabling the flag, remove every `export const dynamic` from your route segments. Pages that still export this config will fail to build.
 
 Legacy caching APIs (`revalidate`, `fetchCache`, `unstable_cache`, and the `fetch` cache options) keep working as a separate caching layer after the flag is on. The sections below cover how to translate each one as the validation insights and errors surface them.
 
