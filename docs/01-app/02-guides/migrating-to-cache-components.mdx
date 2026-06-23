@@ -53,9 +53,9 @@ export default nextConfig
 
 > **Good to know:** If you were using `experimental.dynamicIO` or `experimental.useCache`, `cacheComponents` replaces them. See the [version 16 upgrade guide](/docs/app/guides/upgrading/version-16#experimentaldynamicio-and-experimentalusecache).
 
-Before enabling the flag, remove every `export const dynamic` from your route segments. `cacheComponents: true` rejects pages that still export this config.
+Before enabling the flag, remove every `export const dynamic` from your route segments. Pages that still export this config are rejected.
 
-Other legacy APIs (`revalidate`, `fetchCache`, `unstable_cache`, and the `fetch` cache options) keep working as a separate caching layer after the flag is on. The sections below cover how to translate each one. Migrate them as the validation insights and errors point at each one.
+Legacy caching APIs (`revalidate`, `fetchCache`, `unstable_cache`, and the `fetch` cache options) keep working as a separate caching layer after the flag is on. The sections below cover how to translate each one as the validation insights and errors surface them.
 
 ## `dynamic = "force-dynamic"`
 
@@ -425,9 +425,9 @@ export async function createPost(formData) {
 }
 ```
 
-> **Good to know:** `updateTag` can only be called from a Server Action; calling it elsewhere throws. In Route Handlers or webhooks, use `revalidateTag` instead.
+> **Good to know:** `updateTag` can only be called from a Server Action; calling it elsewhere throws. In Route Handlers or webhooks, use `revalidateTag` instead with a cache profile.
 
-For `revalidateTag`, add the cache profile as the second argument:
+Pass `'max'` as the second argument to `revalidateTag` to expire the tag with stale-while-revalidate semantics:
 
 ```tsx filename="app/api/webhook/route.ts" switcher
 // Before
