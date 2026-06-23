@@ -264,6 +264,7 @@ import {
 } from './staged-rendering'
 import {
   anySegmentHasRuntimePrefetchEnabled,
+  anySegmentHasPartialPrefetchingEnabled,
   isPageAllowedToBlock,
   anySegmentNeedsInstantValidationInDev,
   anySegmentNeedsInstantValidationInBuild,
@@ -980,16 +981,18 @@ async function generateStagedDynamicFlightRenderResultNode(
 
   let runtimePrefetchStream: ReadableStream<Uint8Array> | undefined
 
-  // Check if this route should runtime-cache its navigation: either a segment
-  // opted in via `prefetch = 'allow-runtime'`, or the global
-  // `cachedNavigations: 'allow-runtime'` flag forces it for every route. If so,
-  // we piggyback on the dynamic render to fill caches and then spawn a final
-  // runtime prerender whose result stream is embedded in the RSC payload. This
-  // is gated because it adds extra server processing and increases the response
-  // payload size.
+  // Check if this route should runtime-cache its navigation. This happens when
+  // Partial Prefetching is enabled for the route, either per segment (a
+  // `prefetch` of 'partial', 'unstable_eager', or 'allow-runtime') or globally
+  // (the `partialPrefetching` config), or when the `cachedNavigations:
+  // 'allow-runtime'` flag forces it for every route. If so, we piggyback on the
+  // dynamic render to fill caches and then spawn a final runtime prerender
+  // whose result stream is embedded in the RSC payload. This is gated because
+  // it adds extra server processing and increases the response payload size.
   if (
     experimental.cachedNavigations === 'allow-runtime' ||
-    (await anySegmentHasRuntimePrefetchEnabled(loaderTree))
+    Boolean(renderOpts.partialPrefetching) ||
+    (await anySegmentHasPartialPrefetchingEnabled(loaderTree))
   ) {
     // Create a mutable cache that gets filled during the dynamic render.
     const prerenderResumeDataCache = createPrerenderResumeDataCache()
@@ -3529,12 +3532,15 @@ async function renderToStream(
         // If the route should runtime-cache its navigation, spawn a runtime
         // prerender after the resume render fills caches. The result is
         // embedded in the initial RSC payload so the client can cache
-        // runtime-prefetchable content during hydration. This is enabled either
-        // per segment via `prefetch = 'allow-runtime'`, or globally via the
-        // `cachedNavigations: 'allow-runtime'` flag.
+        // runtime-prefetchable content during hydration. This is enabled when
+        // Partial Prefetching is on for the route, either per segment (a
+        // `prefetch` of 'partial', 'unstable_eager', or 'allow-runtime') or
+        // globally (the `partialPrefetching` config), or when the
+        // `cachedNavigations: 'allow-runtime'` flag forces it for every route.
         if (
           cachedNavigations === 'allow-runtime' ||
-          (await anySegmentHasRuntimePrefetchEnabled(tree))
+          Boolean(renderOpts.partialPrefetching) ||
+          (await anySegmentHasPartialPrefetchingEnabled(tree))
         ) {
           const prerenderResumeDataCache = createPrerenderResumeDataCache()
           requestStore.resumeDataCache = prerenderResumeDataCache
