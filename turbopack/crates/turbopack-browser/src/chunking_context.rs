@@ -1017,8 +1017,7 @@ impl ChunkingContext for BrowserChunkingContext {
                 .emit();
             }
 
-            // Best effort (if chunks != 1): use the first ECMAScript chunk
-            // we produced or use a stub if chunks == 0.
+            // use a stub if chunks == 0, we already emitted an issue
             let ecmascript_chunk = match ecmascript_chunk {
                 Some(ecmascript_chunk) => ecmascript_chunk,
                 None => {
