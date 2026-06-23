@@ -1953,16 +1953,15 @@ export default async function getBaseWebpackConfig(
           sideEffects: false,
         },
         // The placeholder file aliased from `private-next-instrumentation-client`.
-        // The loader replaces its contents with a synthetic module that
-        // requires each `instrumentationClientInject` entry, then re-exports
-        // the user's `instrumentation-client.{pageExt}` (composing
-        // `onRouterTransitionStart` hooks across all of them).
+        // The loader replaces its contents with a synthetic module containing
+        // each `instrumentationClientInject` entry, followed by the user's
+        // `instrumentation-client.{pageExt}` module.
         {
           test: /[\\/]next[\\/]dist[\\/](esm[\\/])?build[\\/]webpack[\\/]loaders[\\/]instrumentation-client-stub\.js$/,
           use: {
             loader: 'next-instrumentation-client-loader',
             options: {
-              injects: JSON.stringify(config.instrumentationClientInject),
+              modules: config.instrumentationClientInject,
             },
           },
         },

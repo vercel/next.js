@@ -5,7 +5,7 @@ import {
   makeDevtoolsIOAwarePromise,
 } from '../dynamic-rendering-utils'
 import { RenderStage } from '../app-render/staged-rendering'
-import { throwPrerenderPPRRemovedError } from '../../shared/lib/ppr-removed-error'
+import { isRequestApiAllowedInCurrentPhase } from './utils'
 
 // A fulfilled thenable that React can unwrap synchronously via `use()` without
 // ever suspending. Reusing a single instance avoids allocating on every call.
@@ -29,6 +29,11 @@ export function io(): Promise<void> {
   const workUnitStore = workUnitAsyncStorage.getStore()
 
   if (workStore && workUnitStore) {
+    if (workUnitStore && !isRequestApiAllowedInCurrentPhase(workUnitStore)) {
+      throw new Error(
+        `Route ${workStore.route} used \`io()\` inside \`after()\` while rendering. The \`io()\` function is not allowed in this scope. See more info here: https://nextjs.org/docs/app/api-reference/functions/after`
+      )
+    }
     switch (workUnitStore.type) {
       case 'request':
         // For dev renders we instrument the promise so it will show up in
@@ -61,10 +66,6 @@ export function io(): Promise<void> {
           workStore.route,
           '`io()`'
         )
-      case 'prerender-ppr':
-        // Dead code to be removed when we eliminate legacy ppr code
-        throwPrerenderPPRRemovedError()
-        break
       case 'cache':
       case 'private-cache':
       case 'unstable-cache':

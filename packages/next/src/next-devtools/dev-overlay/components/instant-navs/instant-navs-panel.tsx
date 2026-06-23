@@ -14,25 +14,18 @@ import type { InstantNavCookieData } from '../../../../shared/lib/instant-nav-co
 
 const COOKIE_NAME = 'next-instant-navigation-testing'
 type InstantNavContentStatus = 'idle' | 'pending' | 'mpa' | 'spa'
-type InstantNavStatus =
-  | InstantNavContentStatus
-  // Waiting for the refresh action to start (renderingIndicator -> true).
-  | 'rearming-awaiting-start'
-  // Refresh in progress, waiting for it to finish (renderingIndicator -> false).
-  | 'rearming-awaiting-end'
-  // Refresh finished and the new pending cookie has been written; waiting
-  // for the CookieStore change event to land so the panel can read it.
-  // Keeping the status non-idle through this window prevents a flicker
-  // back to the idle UI between cookie write and cookie change event.
-  | 'rearming-awaiting-cookie'
+// During a "Continue Rendering" restart the cookie is briefly absent (it's
+// deleted, then re-written as a new pending cookie). The transient "restarting"
+// status keeps the panel on "Awaiting navigation..." across that gap instead
+// of flickering back to idle until the new pending cookie lands.
+type InstantNavStatus = InstantNavContentStatus | 'restarting'
 
-// Module-level state machine for the "Continue Rendering" -> re-arm flow.
-// The panel is a singleton in the dev overlay, so this is safe. Tracking
-// the transition outside React lets us read/write it from both event
-// handlers and effects without tripping React Compiler rules. The status
-// is exposed to React via a useSyncExternalStore hook so the panel can
-// re-render while we wait for the refresh to complete (otherwise the
-// panel would flicker back to idle between the cookie delete and re-set).
+// Transient restart status held at module scope. The panel is a singleton in
+// the dev overlay, so this is safe, and it lets us set the status from the
+// click handler and clear it from an effect without tripping React Compiler
+// rules. It's exposed to React via a useSyncExternalStore hook so the panel
+// re-renders (and stays on "Awaiting navigation...") between the cookie delete
+// and the new pending cookie landing.
 let instantNavTransientStatus: InstantNavStatus = 'idle'
 const instantNavStatusSubscribers = new Set<() => void>()
 
@@ -51,14 +44,14 @@ function getInstantNavTransientStatus(): InstantNavStatus {
   return instantNavTransientStatus
 }
 
-function isRearmingStatus(
+function isRestartingStatus(
   status: InstantNavStatus
 ): status is Exclude<InstantNavStatus, InstantNavContentStatus> {
-  return status.startsWith('rearming-')
+  return status === 'restarting'
 }
 
 function getContentStatus(status: InstantNavStatus): InstantNavContentStatus {
-  if (isRearmingStatus(status)) {
+  if (isRestartingStatus(status)) {
     return 'pending'
   }
   return status
@@ -66,10 +59,10 @@ function getContentStatus(status: InstantNavStatus): InstantNavContentStatus {
 
 function getInstantNavStatus(
   cookieData: InstantNavCookieData | null,
-  rearmStatus: InstantNavStatus
+  restartStatus: InstantNavStatus
 ): InstantNavStatus {
-  if (isRearmingStatus(rearmStatus)) {
-    return rearmStatus
+  if (isRestartingStatus(restartStatus)) {
+    return restartStatus
   }
   if (cookieData?.state === 'spa') {
     return 'spa'
@@ -205,7 +198,7 @@ function clearInstantNavCaptureCookie(): void {
 }
 
 export function InstantNavsPanel() {
-  const { state, dispatch } = useDevOverlayContext()
+  const { dispatch } = useDevOverlayContext()
   const { panel } = usePanelRouterContext()
 
   // The cookie is the sole source of truth for the instant navigation
@@ -231,49 +224,18 @@ export function InstantNavsPanel() {
     }
   }, [panel, dispatch])
 
-  // State machine for "Continue Rendering" in a captured state (mpa/spa):
-  // delete the cookie (which triggers a soft refresh via the lock listener),
-  // wait for the refresh to actually complete, then re-arm capture by
-  // writing a new pending cookie. We observe completion by watching
-  // state.renderingIndicator transition false -> true -> false, which is
-  // driven by useTransition's isPending around the refresh dispatch.
-  // The transient rearming status lives at module scope so it can be
-  // read and written from both event handlers and effects.
+  // Clear the transient restarting status once the new pending cookie has landed
+  // in the panel's view of cookie state, handing the UI back to the cookie.
   useEffect(() => {
     if (
-      instantNavTransientStatus === 'rearming-awaiting-start' &&
-      state.renderingIndicator
-    ) {
-      setInstantNavTransientStatus('rearming-awaiting-end')
-    } else if (
-      instantNavTransientStatus === 'rearming-awaiting-end' &&
-      !state.renderingIndicator
-    ) {
-      setInstantNavTransientStatus('rearming-awaiting-cookie')
-      if (typeof cookieStore !== 'undefined') {
-        const cookie: InstantCookie = [0, `p${Math.random()}`]
-        cookieStore.set({
-          name: COOKIE_NAME,
-          value: JSON.stringify(cookie),
-          path: '/',
-        })
-      }
-    }
-  }, [state.renderingIndicator])
-
-  // Clear the rearm status once the new pending cookie has actually landed
-  // in the panel's view of cookie state. Until then we keep isRearming true
-  // so the UI stays on the "Awaiting navigation..." card.
-  useEffect(() => {
-    if (
-      instantNavTransientStatus === 'rearming-awaiting-cookie' &&
+      instantNavTransientStatus === 'restarting' &&
       cookieData?.state === 'pending'
     ) {
       setInstantNavTransientStatus('idle')
     }
   }, [cookieData?.state])
 
-  // While we're waiting for a "Continue Rendering" -> re-arm to finish,
+  // While we're waiting for a "Continue Rendering" -> restart to finish,
   // the cookie is briefly absent. Treat that window as pending so the
   // panel keeps showing the "Awaiting navigation..." UI instead of
   // flickering back to idle.
@@ -390,8 +352,22 @@ export function InstantNavsPanel() {
             className="instant-nav-capture-button instant-nav-capture-button--inline-icon"
             onClick={() => {
               if (typeof cookieStore !== 'undefined') {
-                cookieStore.delete(COOKIE_NAME)
-                setInstantNavTransientStatus('rearming-awaiting-start')
+                // Continue Rendering: delete the cookie (which releases the
+                // lock and triggers a soft refresh for real data via the lock
+                // listener), then restart capture for the next navigation by
+                // writing a fresh pending cookie. Chaining the writes keeps
+                // them as two ordered cookie events (delete -> refresh, then
+                // restart) rather than coalescing into one, so the refresh runs
+                // and snapshots the released lock before the restart re-acquires it.
+                setInstantNavTransientStatus('restarting')
+                const pendingCookie: InstantCookie = [0, `p${Math.random()}`]
+                cookieStore.delete(COOKIE_NAME).then(() => {
+                  cookieStore.set({
+                    name: COOKIE_NAME,
+                    value: JSON.stringify(pendingCookie),
+                    path: '/',
+                  })
+                })
               }
             }}
             disabled={!isLocked || isPending}

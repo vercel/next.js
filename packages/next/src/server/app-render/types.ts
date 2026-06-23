@@ -149,11 +149,6 @@ export interface RenderOptsPartial {
   isPrefetch?: boolean
   htmlLimitedBots: string | undefined
   experimental: {
-    /**
-     * When true, it indicates that the current page supports partial
-     * prerendering.
-     */
-    isRoutePPREnabled?: boolean
     expireTime: number | undefined
     staleTimes: ExperimentalConfig['staleTimes'] | undefined
     clientTraceMetadata: string[] | undefined
@@ -170,7 +165,7 @@ export interface RenderOptsPartial {
     prefetchInlining: PrefetchInliningConfig
     authInterrupts: boolean
     useCacheTimeout: number
-    cachedNavigations: boolean
+    cachedNavigations: boolean | 'allow-runtime'
     appShells: ExperimentalConfig['appShells']
 
     /**

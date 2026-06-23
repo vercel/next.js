@@ -20,6 +20,12 @@ The migration is driven by **instant navigation validation**. With Cache Compone
 
 Start by removing the route segment configs (`dynamic`, `revalidate`, `fetchCache`), then follow the validation insights and errors. Each one names the code to fix, most often uncached data to cache with [`use cache`](/docs/app/api-reference/directives/use-cache) or runtime data to wrap in [`<Suspense>`](https://react.dev/reference/react/Suspense). If a route needs more work than you want to take on right now, you can [opt it out of validation](#opting-out-of-validation) and come back to it later.
 
+> **Good to know:** For agents working on larger apps, the [`next-cache-components-adoption`](https://github.com/vercel/next.js/tree/canary/skills/next-cache-components-adoption) skill drives this guide route by route. It can blanket-opt-out the app with `instant = false` to unblock the build, work each opt-out back off, help decide what becomes instant and what stays blocking, and walk the dev-overlay validation insights with you. Install with:
+>
+> ```bash filename="Terminal"
+> npx skills add https://github.com/vercel/next.js/tree/canary/skills/next-cache-components-adoption
+> ```
+
 Your existing `fetch` and `unstable_cache` caching keeps working as a separate layer, so let the insights and errors guide what to change.
 
 Some surfaces have their own steps:
