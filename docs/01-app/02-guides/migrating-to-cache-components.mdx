@@ -53,10 +53,6 @@ export default nextConfig
 
 > **Good to know:** If you were using `experimental.dynamicIO` or `experimental.useCache`, `cacheComponents` replaces them. See the [version 16 upgrade guide](/docs/app/guides/upgrading/version-16#experimentaldynamicio-and-experimentalusecache).
 
-Before enabling the flag, remove `export const dynamic` from your route segments. Pages that still export it will fail to build. Also remove `export const revalidate` and `export const fetchCache`: under `cacheComponents`, they no longer configure caching. The sections below cover the replacements (`cacheLife` and `'use cache'`).
-
-Your existing `unstable_cache` calls and `fetch` cache options keep working as a separate caching layer after the flag is on. Translate them as the validation insights and errors surface each one.
-
 ## `dynamic = "force-dynamic"`
 
 **Not needed.** All pages are dynamic by default.
@@ -400,7 +396,7 @@ Like the `fetch` Data Cache, `unstable_cache` persists cached values across depl
 On-demand invalidation still works by tagging cached data and expiring it after an event. Tag data with [`cacheTag`](/docs/app/api-reference/functions/cacheTag) inside a `use cache` function instead of the `fetch` `next.tags` option, then choose the invalidation API by the behavior you want:
 
 - [`updateTag`](/docs/app/api-reference/functions/updateTag): for mutations whose result the user must see immediately (read-your-own-writes). Called from a Server Action, it expires the tag so the next request waits for fresh data instead of serving stale content.
-- [`revalidateTag`](/docs/app/api-reference/functions/revalidateTag): for stale-while-revalidate. A cache profile is **required** as the second argument, for example use `'max'` to serve cached data while it refreshes in the background. Works in Server Actions and Route Handlers.
+- [`revalidateTag`](/docs/app/api-reference/functions/revalidateTag): for stale-while-revalidate. Pass a cache profile like `'max'` to serve cached data while it refreshes in the background. Works in Server Actions and Route Handlers.
 - [`revalidatePath`](/docs/app/api-reference/functions/revalidatePath): unchanged from the previous caching model.
 
 `updateTag` isn't exclusive to Cache Components (it also works with the previous caching model), but migrating is a good time to adopt it. After a mutation in a Server Action, reach for it when the user should see their own change right away.
@@ -425,49 +421,7 @@ export async function createPost(formData) {
 }
 ```
 
-> **Good to know:** `updateTag` can only be called from a Server Action; calling it elsewhere throws. In Route Handlers or webhooks, use `revalidateTag` instead with a cache profile.
-
-Pass `'max'` as the second argument to `revalidateTag` to expire the tag with stale-while-revalidate semantics:
-
-```tsx filename="app/api/webhook/route.ts" switcher
-// Before
-import { revalidateTag } from 'next/cache'
-
-export async function POST() {
-  revalidateTag('posts')
-  return Response.json({ ok: true })
-}
-```
-
-```js filename="app/api/webhook/route.js" switcher
-// Before
-import { revalidateTag } from 'next/cache'
-
-export async function POST() {
-  revalidateTag('posts')
-  return Response.json({ ok: true })
-}
-```
-
-```tsx filename="app/api/webhook/route.ts" switcher
-// After - Pass a cache profile
-import { revalidateTag } from 'next/cache'
-
-export async function POST() {
-  revalidateTag('posts', 'max')
-  return Response.json({ ok: true })
-}
-```
-
-```js filename="app/api/webhook/route.js" switcher
-// After - Pass a cache profile
-import { revalidateTag } from 'next/cache'
-
-export async function POST() {
-  revalidateTag('posts', 'max')
-  return Response.json({ ok: true })
-}
-```
+> **Good to know:** `updateTag` can only be called from a Server Action; calling it elsewhere throws. In Route Handlers or webhooks, use `revalidateTag` instead.
 
 ## `unstable_noStore`
 
