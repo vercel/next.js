@@ -129,7 +129,7 @@ export function createDynamicOrRuntimeViewportError(route: string): Error {
       `Ways to fix this:\n` +
       `  - [static] Use a static viewport export instead of \`generateViewport()\`\n` +
       `    https://nextjs.org/docs/messages/blocking-prerender-viewport-runtime#use-static-viewport\n` +
-      `  - [cache] For uncached data (\`fetch\`, database calls): cache the viewport with \`"use cache"\` in \`generateViewport()\`\n` +
+      `  - [cache] For uncached data (\`fetch\`, database calls): cache the viewport with \`"use cache"\` in \`generateViewport()\` (does not apply to \`connection()\`)\n` +
       `    https://nextjs.org/docs/messages/blocking-prerender-viewport-dynamic#cache-the-viewport-data\n` +
       `  - [block] Set \`export const instant = false\` to silence this warning and allow a blocking route\n` +
       `    https://nextjs.org/docs/messages/blocking-prerender-viewport-dynamic#allow-blocking-route`

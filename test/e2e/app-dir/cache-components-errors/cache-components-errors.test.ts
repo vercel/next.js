@@ -613,7 +613,7 @@ describe('Cache Components Errors', () => {
              Ways to fix this:
                - [static] Use a static viewport export instead of \`generateViewport()\`
                  https://nextjs.org/docs/messages/blocking-prerender-viewport-runtime#use-static-viewport
-               - [cache] For uncached data (\`fetch\`, database calls): cache the viewport with \`"use cache"\` in \`generateViewport()\`
+               - [cache] For uncached data (\`fetch\`, database calls): cache the viewport with \`"use cache"\` in \`generateViewport()\` (does not apply to \`connection()\`)
                  https://nextjs.org/docs/messages/blocking-prerender-viewport-dynamic#cache-the-viewport-data
                - [block] Set \`export const instant = false\` to silence this warning and allow a blocking route
                  https://nextjs.org/docs/messages/blocking-prerender-viewport-dynamic#allow-blocking-route
@@ -631,7 +631,7 @@ describe('Cache Components Errors', () => {
              Ways to fix this:
                - [static] Use a static viewport export instead of \`generateViewport()\`
                  https://nextjs.org/docs/messages/blocking-prerender-viewport-runtime#use-static-viewport
-               - [cache] For uncached data (\`fetch\`, database calls): cache the viewport with \`"use cache"\` in \`generateViewport()\`
+               - [cache] For uncached data (\`fetch\`, database calls): cache the viewport with \`"use cache"\` in \`generateViewport()\` (does not apply to \`connection()\`)
                  https://nextjs.org/docs/messages/blocking-prerender-viewport-dynamic#cache-the-viewport-data
                - [block] Set \`export const instant = false\` to silence this warning and allow a blocking route
                  https://nextjs.org/docs/messages/blocking-prerender-viewport-dynamic#allow-blocking-route
@@ -725,7 +725,7 @@ describe('Cache Components Errors', () => {
              Ways to fix this:
                - [static] Use a static viewport export instead of \`generateViewport()\`
                  https://nextjs.org/docs/messages/blocking-prerender-viewport-runtime#use-static-viewport
-               - [cache] For uncached data (\`fetch\`, database calls): cache the viewport with \`"use cache"\` in \`generateViewport()\`
+               - [cache] For uncached data (\`fetch\`, database calls): cache the viewport with \`"use cache"\` in \`generateViewport()\` (does not apply to \`connection()\`)
                  https://nextjs.org/docs/messages/blocking-prerender-viewport-dynamic#cache-the-viewport-data
                - [block] Set \`export const instant = false\` to silence this warning and allow a blocking route
                  https://nextjs.org/docs/messages/blocking-prerender-viewport-dynamic#allow-blocking-route
@@ -743,7 +743,7 @@ describe('Cache Components Errors', () => {
              Ways to fix this:
                - [static] Use a static viewport export instead of \`generateViewport()\`
                  https://nextjs.org/docs/messages/blocking-prerender-viewport-runtime#use-static-viewport
-               - [cache] For uncached data (\`fetch\`, database calls): cache the viewport with \`"use cache"\` in \`generateViewport()\`
+               - [cache] For uncached data (\`fetch\`, database calls): cache the viewport with \`"use cache"\` in \`generateViewport()\` (does not apply to \`connection()\`)
                  https://nextjs.org/docs/messages/blocking-prerender-viewport-dynamic#cache-the-viewport-data
                - [block] Set \`export const instant = false\` to silence this warning and allow a blocking route
                  https://nextjs.org/docs/messages/blocking-prerender-viewport-dynamic#allow-blocking-route
