@@ -281,7 +281,12 @@ export function InstantNavsPanel() {
                 <div className="">
                   <DebuggerPausedButton onClick={resume} />
                   <div className="instant-nav-state-details">
-                    <h3 className="instant-nav-state-title">Static shell</h3>
+                    <h3 className="instant-nav-state-title">
+                      Loading shell
+                      <span className="instant-nav-state-title-type">
+                        Page load
+                      </span>
+                    </h3>
                     <p className="instant-nav-state-description">
                       You're viewing the shell for this page's initial load.
                     </p>
@@ -293,7 +298,10 @@ export function InstantNavsPanel() {
                   <DebuggerPausedButton onClick={resume} />
                   <div className="instant-nav-state-details">
                     <h3 className="instant-nav-state-title">
-                      Navigation shell
+                      Loading shell
+                      <span className="instant-nav-state-title-type">
+                        Client nav
+                      </span>
                     </h3>
                     <p className="instant-nav-state-description">
                       You're viewing the shell for the current navigation.
@@ -348,8 +356,8 @@ function PauseControl({
       <div className="instant-nav-pause-copy">
         <label htmlFor="instant-nav-pause-toggle">Pause on navigations</label>
         <p>
-          When enabled, every navigation will pause so you can inspect the shell
-          before resuming.
+          When enabled, every navigation will pause so you can inspect the
+          loading shell before resuming.
         </p>
       </div>
       <button

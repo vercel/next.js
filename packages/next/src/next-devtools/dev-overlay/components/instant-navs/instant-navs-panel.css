@@ -47,13 +47,26 @@
   font-weight: 600;
   line-height: 21px;
   color: var(--color-gray-1000);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.instant-nav-state-title-type {
+  color: var(--color-gray-900);
+  font-size: var(--size-11);
+  font-weight: 500;
+  background-color: var(--color-gray-100);
+  padding: 4px 5px;
+  line-height: 1;
+  border-radius: 4px;
+  margin-left: 2px;
 }
 
 .instant-nav-state-description {
-  margin: 0;
+  margin-top: 4px;
   font-size: var(--size-14);
-  line-height: 21px;
-  color: var(--color-gray-900);
+  color: var(--color-gray-800);
 }
 
 .instant-nav-waiting-status {

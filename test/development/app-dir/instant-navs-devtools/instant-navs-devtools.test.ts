@@ -203,7 +203,7 @@ describe('instant-nav-panel', () => {
     await expectInstantNavPanelText(
       browser,
       'Pause on navigations',
-      'When enabled, every navigation will pause so you can inspect the shell before resuming.'
+      'When enabled, every navigation will pause so you can inspect the loading shell before resuming.'
     )
   }
 
@@ -221,7 +221,7 @@ describe('instant-nav-panel', () => {
       browser,
       'Debugger paused',
       'Resume',
-      'Static shell',
+      'Loading shell',
       "You're viewing the shell for this page's initial load.",
       'TARGET'
     )
@@ -232,7 +232,7 @@ describe('instant-nav-panel', () => {
       browser,
       'Debugger paused',
       'Resume',
-      'Navigation shell',
+      'Loading shell',
       "You're viewing the shell for the current navigation.",
       'SOURCE',
       'TARGET'
@@ -353,7 +353,7 @@ describe('instant-nav-panel', () => {
         const text = await getInstantNavPanelText(browser)
         expect(text).toContain('Pause on navigations')
         expect(text).toContain(
-          'When enabled, every navigation will pause so you can inspect the shell before resuming.'
+          'When enabled, every navigation will pause so you can inspect the loading shell before resuming.'
         )
       })
 
@@ -438,7 +438,7 @@ describe('instant-nav-panel', () => {
       await retry(async () => {
         await getInstantNavPanel(browser)
         const text = await getInstantNavPanelText(browser)
-        expect(text).toContain('Static shell')
+        expect(text).toContain('Loading shell')
         expect(text).toContain(
           "You're viewing the shell for this page's initial load."
         )
@@ -695,8 +695,8 @@ describe('instant-nav-panel', () => {
       await getInstantNavPanel(browser)
 
       const initialPanelText = await getInstantNavPanelText(browser)
-      expect(initialPanelText).toContain('Static shell')
-      expect(initialPanelText).not.toContain('Navigation shell')
+      expect(initialPanelText).toContain('Page load')
+      expect(initialPanelText).not.toContain('Client nav')
 
       await expectMpaPanel(browser)
       await expectTargetPageMpaShell(browser)
