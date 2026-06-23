@@ -48,7 +48,6 @@ export type FixCard = {
   /** Docs URL the card links to, or `null` for no link. */
   link: string | null
   snippets: Snippet[]
-  /** Whether to render the "Copy AI prompt" button on this card. */
   copyable?: boolean
 }
 
