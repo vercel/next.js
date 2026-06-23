@@ -69,8 +69,11 @@ impl EcmascriptBuildNodeChunkContent {
 
         let content = self.content.await?;
         let mut chunk_items = content.chunk_item_code_module_ids_and_paths().await?;
-        chunk_items
-            .sort_by_key(|item| item.first().map(|(id, _, path)| (path.clone(), id.clone())));
+        chunk_items.sort_by(|a, b| {
+            a.first()
+                .map(|(id, _, path)| (path, id))
+                .cmp(&b.first().map(|(id, _, path)| (path, id)))
+        });
         for item in &chunk_items {
             for (id, item_code, _) in &**item {
                 write!(code, "\n{}, ", StringifyJs(id))?;
