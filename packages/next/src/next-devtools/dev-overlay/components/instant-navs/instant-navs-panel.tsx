@@ -1,20 +1,19 @@
 import { useEffect, useState, useSyncExternalStore } from 'react'
+import type { InstantCookie } from '../../../../shared/lib/app-router-types'
+import type { InstantNavCookieData } from '../../../../shared/lib/instant-nav-cookie'
 import { useDevOverlayContext } from '../../../dev-overlay.browser'
 import { useDelayedRender } from '../../hooks/use-delayed-render'
 import { usePanelRouterContext } from '../../menu/context'
 import { ACTION_INSTANT_NAVS_RESET } from '../../shared'
 import {
-  useInstantNavCookieState,
   formatRoutePattern,
+  useInstantNavCookieState,
 } from './instant-nav-cookie'
 import './instant-navs-panel.css'
-import type { CSSProperties, ReactNode } from 'react'
-import type { InstantCookie } from '../../../../shared/lib/app-router-types'
-import type { InstantNavCookieData } from '../../../../shared/lib/instant-nav-cookie'
 
 const COOKIE_NAME = 'next-instant-navigation-testing'
 type InstantNavContentStatus = 'idle' | 'pending' | 'mpa' | 'spa'
-// During a "Continue Rendering" restart the cookie is briefly absent (it's
+// During a "Resume" restart the cookie is briefly absent (it's
 // deleted, then re-written as a new pending cookie). The transient "restarting"
 // status keeps the panel on "Awaiting navigation..." across that gap instead
 // of flickering back to idle until the new pending cookie lands.
@@ -87,105 +86,28 @@ function useInstantNavStatus(
   return getInstantNavStatus(cookieData, transientStatus)
 }
 
-const DURATION = 200
+const DURATION = 400
+const EXPANDED_HEIGHT = 225
 
-function InstantNavContentTransition({
-  status,
-  children,
-}: {
-  status: InstantNavContentStatus
-  children: Record<InstantNavContentStatus, ReactNode>
-}) {
-  const [initialStatus] = useState(status)
-  const [hasChangedStatus, setHasChangedStatus] = useState(false)
-
-  if (status !== initialStatus && !hasChangedStatus) {
-    setHasChangedStatus(true)
-  }
-
-  return (
-    <div
-      className={
-        'instant-nav-content-container' +
-        (status === 'idle' ? '' : ' is-expanded')
-      }
-      style={
-        {
-          '--instant-nav-transition-duration': `${DURATION}ms`,
-          '--instant-nav-transition-half-duration': `${DURATION / 2}ms`,
-          '--instant-nav-transition-timing': 'cubic-bezier(0.25, 0.8, 0.5, 1)',
-        } as CSSProperties
-      }
-    >
-      <InstantNavTransitionLayer
-        active={status === 'idle'}
-        enter={hasChangedStatus}
-      >
-        {children.idle}
-      </InstantNavTransitionLayer>
-      <InstantNavTransitionLayer
-        active={status === 'pending'}
-        enter={hasChangedStatus}
-      >
-        {children.pending}
-      </InstantNavTransitionLayer>
-      <InstantNavTransitionLayer
-        active={status === 'mpa'}
-        enter={hasChangedStatus}
-      >
-        {children.mpa}
-      </InstantNavTransitionLayer>
-      <InstantNavTransitionLayer
-        active={status === 'spa'}
-        enter={hasChangedStatus}
-      >
-        {children.spa}
-      </InstantNavTransitionLayer>
-    </div>
-  )
+function createPendingInstantNavCookie(): InstantCookie {
+  return [0, `p${Math.random()}`]
 }
 
-function InstantNavTransitionLayer({
-  active,
-  enter = true,
-  children,
-}: {
-  active: boolean
-  enter?: boolean
-  children: ReactNode
-}) {
-  const { mounted, rendered } = useDelayedRender(active, {
-    enterDelay: enter ? 1 : 0,
-    exitDelay: DURATION,
-  })
+function setPendingInstantNavCookie(): void {
+  if (typeof cookieStore !== 'undefined') {
+    cookieStore.set({
+      name: COOKIE_NAME,
+      value: JSON.stringify(createPendingInstantNavCookie()),
+      path: '/',
+    })
+  }
+}
 
-  if (!mounted) return null
-
-  const visible = rendered || (active && !enter)
-  const entering = active && enter
-
-  return (
-    <div
-      className={
-        'instant-nav-transition-layer' +
-        (visible ? ' is-visible' : '') +
-        (active && !enter ? ' instant-nav-transition-layer--no-enter' : '')
-      }
-      aria-hidden={!active}
-      style={
-        {
-          '--instant-nav-layer-opacity': visible ? 1 : 0,
-          '--instant-nav-layer-transition-duration':
-            'var(--instant-nav-transition-half-duration, 100ms)',
-          '--instant-nav-layer-transition-delay': entering
-            ? 'var(--instant-nav-transition-half-duration, 100ms)'
-            : '0ms',
-        } as CSSProperties
-      }
-    >
-      {children}
-    </div>
-  )
+function getCurrentLocationUrl(): string {
+  if (typeof window === 'undefined') {
+    return '/'
+  }
+  return window.location.pathname + window.location.search
 }
 
 // Ends the capture: deleting the cookie triggers the CookieStore handler in
@@ -235,14 +157,13 @@ export function InstantNavsPanel() {
     }
   }, [cookieData?.state])
 
-  // While we're waiting for a "Continue Rendering" -> restart to finish,
+  // While we're waiting for a "Resume" -> restart to finish,
   // the cookie is briefly absent. Treat that window as pending so the
-  // panel keeps showing the "Awaiting navigation..." UI instead of
+  // panel keeps showing the "Waiting for navigation..." UI instead of
   // flickering back to idle.
   const status = useInstantNavStatus(cookieData)
   const contentStatus = getContentStatus(status)
   const isLocked = status !== 'idle'
-  const isPending = contentStatus === 'pending'
 
   const isClosing = panel !== 'instant-navs'
   const [displayStatus, setDisplayStatus] = useState(contentStatus)
@@ -251,154 +172,235 @@ export function InstantNavsPanel() {
     setDisplayStatus(contentStatus)
   }
 
-  const currentSpaSourceUrl =
+  const currentSpaFromUrl =
     cookieData?.state === 'spa' ? formatRoutePattern(cookieData.fromTree) : null
-  // Keep the most recent SPA source URL available while the outgoing card fades.
-  const [lastSpaSourceUrl, setLastSpaSourceUrl] = useState<string | null>(
-    currentSpaSourceUrl
+  const currentSpaToUrl =
+    cookieData?.state === 'spa' && cookieData.toTree !== null
+      ? formatRoutePattern(cookieData.toTree)
+      : null
+
+  // Keep the most recent SPA URLs available while the outgoing card fades.
+  const [lastSpaFromUrl, setLastSpaFromUrl] = useState<string | null>(
+    currentSpaFromUrl
+  )
+  const [lastSpaToUrl, setLastSpaToUrl] = useState<string | null>(
+    currentSpaToUrl
   )
 
-  if (
-    currentSpaSourceUrl !== null &&
-    currentSpaSourceUrl !== lastSpaSourceUrl
-  ) {
-    setLastSpaSourceUrl(currentSpaSourceUrl)
+  if (currentSpaFromUrl !== null && currentSpaFromUrl !== lastSpaFromUrl) {
+    setLastSpaFromUrl(currentSpaFromUrl)
   }
 
-  const spaSourceUrl = currentSpaSourceUrl ?? lastSpaSourceUrl
+  if (currentSpaToUrl !== null && currentSpaToUrl !== lastSpaToUrl) {
+    setLastSpaToUrl(currentSpaToUrl)
+  }
 
-  const content: Record<InstantNavContentStatus, ReactNode> = {
-    idle: (
-      <p className="instant-nav-intro-description">
-        Inspect the UI that will show instantly to users as they navigate around
-        your app. Start capturing, then click any link or refresh the current
-        page.
-      </p>
-    ),
-    pending: (
-      <div className="instant-nav-state-card instant-nav-state-card--awaiting">
-        <h3 className="instant-nav-state-title">Awaiting navigation...</h3>
-        <p className="instant-nav-state-description">
-          Click any link or refresh the page.
-        </p>
-      </div>
-    ),
-    mpa: (
-      <div className="instant-nav-state-card">
-        <h3 className="instant-nav-state-title">Page load</h3>
-        <p className="instant-nav-state-description">
-          You're viewing the prerendered UI for the current page.
-        </p>
-      </div>
-    ),
-    spa: (
-      <div className="instant-nav-state-card">
-        <h3 className="instant-nav-state-title">Navigation</h3>
-        <p className="instant-nav-state-description">
-          You're viewing the prefetched UI for the last navigation.
-        </p>
-        {spaSourceUrl !== null ? (
-          <p className="instant-nav-state-source-url" title={spaSourceUrl}>
-            Source URL: {spaSourceUrl}
-          </p>
-        ) : null}
-      </div>
-    ),
+  const spaFromUrl = currentSpaFromUrl ?? lastSpaFromUrl
+  const spaToUrl = currentSpaToUrl ?? lastSpaToUrl
+
+  async function resume(): Promise<void> {
+    if (typeof cookieStore !== 'undefined') {
+      // Resume: delete the cookie (which releases the
+      // lock and triggers a soft refresh for real data via the lock
+      // listener), then restart capture for the next navigation by
+      // writing a fresh pending cookie. Chaining the writes keeps
+      // them as two ordered cookie events (delete -> refresh, then
+      // restart) rather than coalescing into one, so the refresh runs
+      // and snapshots the released lock before the restart re-acquires it.
+      setInstantNavTransientStatus('restarting')
+      const pendingCookie: InstantCookie = [0, `p${Math.random()}`]
+      await cookieStore.delete(COOKIE_NAME)
+      cookieStore.set({
+        name: COOKIE_NAME,
+        value: JSON.stringify(pendingCookie),
+        path: '/',
+      })
+    }
+  }
+
+  function togglePaused(): void {
+    if (isLocked) {
+      clearInstantNavCaptureCookie()
+    } else {
+      setPendingInstantNavCookie()
+    }
+  }
+
+  // These two pieces of state are used to preserve the panel's contents
+  // during the collapsing animation.
+  const { mounted } = useDelayedRender(status !== 'idle', {
+    exitDelay: DURATION,
+  })
+  const [renderedStatus, setRenderedStatus] = useState(status)
+  if (status !== renderedStatus && ['pending', 'mpa', 'spa'].includes(status)) {
+    setRenderedStatus(status)
+  }
+
+  const containerHeight = status === 'idle' ? 0 : EXPANDED_HEIGHT
+
+  // This preserves whatever the last height of the expandable container was
+  // when the entire panel is dismissed (via ESC or by pressing X) so that
+  // its height doesn't change during the fade-out animation. We only freeze
+  // the height while leaving the panel; re-entering it must reset back to
+  // null so the container can size to its content again. Otherwise, reopening
+  // the panel before it unmounts (it stays mounted briefly for the fade-out)
+  // would leave the height frozen at the dismissed value (e.g. 0), keeping
+  // the panel permanently collapsed.
+  const [previousPanel, setPreviousPanel] = useState(panel)
+  const [exitingHeight, setExitingHeight] = useState<null | number>(null)
+  if (previousPanel !== panel) {
+    setPreviousPanel(panel)
+    setExitingHeight(panel === 'instant-navs' ? null : containerHeight)
   }
 
   return (
     <div className="instant-nav-panel">
       <div className="instant-nav-content">
-        <InstantNavContentTransition status={displayStatus}>
-          {content}
-        </InstantNavContentTransition>
-
-        <div className="instant-nav-capture-controls">
-          {isLocked ? (
-            <button
-              type="button"
-              className="instant-nav-capture-button instant-nav-capture-button--active"
-              onClick={() => {
-                // Delete the cookie to release the lock and end the capture session.
-                // The CookieStore change event triggers refreshOnInstantNavigationUnlock
-                // which does a soft refresh to fetch dynamic data.
-                clearInstantNavCaptureCookie()
-              }}
-            >
-              <StopIcon />
-              Stop Capturing
-            </button>
-          ) : (
-            <button
-              type="button"
-              className="instant-nav-capture-button"
-              onClick={() => {
-                if (typeof cookieStore !== 'undefined') {
-                  const cookie: InstantCookie = [0, `p${Math.random()}`]
-                  cookieStore.set({
-                    name: COOKIE_NAME,
-                    value: JSON.stringify(cookie),
-                    path: '/',
-                  })
-                }
-              }}
-            >
-              <RecordIcon />
-              Start Capturing
-            </button>
+        <div
+          className="instant-nav-content-container"
+          style={{
+            transition: `height ${DURATION}ms cubic-bezier(0.36, 0.66, 0.04, 1)`,
+            height: exitingHeight !== null ? exitingHeight : containerHeight,
+          }}
+        >
+          {mounted && (
+            <div style={{ height: EXPANDED_HEIGHT }}>
+              {renderedStatus === 'pending' ? (
+                <div className=" instant-nav-state--pending">
+                  <div className="instant-nav-waiting-status">
+                    <span className="instant-nav-waiting-status-dot" />
+                    <h3 className="instant-nav-waiting-status-title">
+                      Waiting for navigation...
+                    </h3>
+                  </div>
+                  <p className="instant-nav-waiting-description">
+                    Click any link or refresh the page to inspect the shell.
+                  </p>
+                </div>
+              ) : renderedStatus === 'mpa' ? (
+                <div className="">
+                  <DebuggerPausedButton onClick={resume} />
+                  <div className="instant-nav-state-details">
+                    <h3 className="instant-nav-state-title">
+                      Loading shell
+                      <span className="instant-nav-state-title-type">
+                        Page load
+                      </span>
+                    </h3>
+                    <p className="instant-nav-state-description">
+                      You're viewing the shell for this page's initial load.
+                    </p>
+                    <UrlRow label="Target" value={getCurrentLocationUrl()} />
+                  </div>
+                </div>
+              ) : renderedStatus === 'spa' ? (
+                <div className="">
+                  <DebuggerPausedButton onClick={resume} />
+                  <div className="instant-nav-state-details">
+                    <h3 className="instant-nav-state-title">
+                      Loading shell
+                      <span className="instant-nav-state-title-type">
+                        Client nav
+                      </span>
+                    </h3>
+                    <p className="instant-nav-state-description">
+                      You're viewing the shell for the current navigation.
+                    </p>
+                    <div className="instant-nav-state-url-list">
+                      {spaFromUrl !== null ? (
+                        <UrlRow label="Source" value={spaFromUrl} />
+                      ) : null}
+                      {spaToUrl !== null ? (
+                        <UrlRow label="Target" value={spaToUrl} />
+                      ) : null}
+                    </div>
+                  </div>
+                </div>
+              ) : null}
+            </div>
           )}
-          <button
-            type="button"
-            className="instant-nav-capture-button instant-nav-capture-button--inline-icon"
-            onClick={() => {
-              if (typeof cookieStore !== 'undefined') {
-                // Continue Rendering: delete the cookie (which releases the
-                // lock and triggers a soft refresh for real data via the lock
-                // listener), then restart capture for the next navigation by
-                // writing a fresh pending cookie. Chaining the writes keeps
-                // them as two ordered cookie events (delete -> refresh, then
-                // restart) rather than coalescing into one, so the refresh runs
-                // and snapshots the released lock before the restart re-acquires it.
-                setInstantNavTransientStatus('restarting')
-                const pendingCookie: InstantCookie = [0, `p${Math.random()}`]
-                cookieStore.delete(COOKIE_NAME).then(() => {
-                  cookieStore.set({
-                    name: COOKIE_NAME,
-                    value: JSON.stringify(pendingCookie),
-                    path: '/',
-                  })
-                })
-              }
-            }}
-            disabled={!isLocked || isPending}
-          >
-            <PlayIcon />
-            Continue Rendering
-          </button>
         </div>
       </div>
+      <PauseControl checked={isLocked} onClick={togglePaused} />
     </div>
   )
 }
 
-function RecordIcon() {
+function DebuggerPausedButton({ onClick }: { onClick: () => void }) {
+  return (
+    <div className="instant-nav-debugger-paused">
+      <InfoIcon />
+      <span>Debugger paused</span>
+      <button
+        type="button"
+        className="instant-nav-debugger-paused-button"
+        onClick={onClick}
+        aria-label="Resume"
+      >
+        Resume
+        <PlayIcon />
+      </button>
+    </div>
+  )
+}
+
+function PauseControl({
+  checked,
+  onClick,
+}: {
+  checked: boolean
+  onClick: () => void
+}) {
+  return (
+    <div className="instant-nav-pause-control">
+      <div className="instant-nav-pause-copy">
+        <label htmlFor="instant-nav-pause-toggle">Pause on navigations</label>
+        <p>
+          When enabled, every navigation will pause so you can inspect the
+          loading shell before resuming.
+        </p>
+      </div>
+      <button
+        id="instant-nav-pause-toggle"
+        type="button"
+        role="switch"
+        aria-checked={checked}
+        aria-label="Pause on navigations"
+        className="instant-nav-pause-toggle"
+        onClick={onClick}
+      >
+        <span className="instant-nav-pause-toggle-thumb" />
+      </button>
+    </div>
+  )
+}
+
+function UrlRow({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="instant-nav-url-row">
+      <span className="instant-nav-url-label">{label}</span>
+      <span className="instant-nav-url-value" title={value}>
+        {value}
+      </span>
+    </div>
+  )
+}
+
+function InfoIcon() {
   return (
     <svg
-      width="20"
-      height="20"
       viewBox="0 0 16 16"
-      fill="none"
+      height="16"
+      width="16"
       aria-hidden="true"
+      style={{ color: 'currentcolor' }}
     >
-      <circle
-        cx="8"
-        cy="8"
-        r="6.25"
-        stroke="currentColor"
-        strokeWidth="1.5"
-        opacity="0.5"
-      />
-      <circle cx="8" cy="8" r="3.25" fill="currentColor" />
+      <path
+        fill="currentColor"
+        fillRule="evenodd"
+        d="M8 14.5a6.5 6.5 0 1 0 0-13 6.5 6.5 0 0 0 0 13M8 16A8 8 0 1 0 8 0a8 8 0 0 0 0 16M6.25 7h1.5a1 1 0 0 1 1 1v4.25h-1.5V8.5h-1zM8 6a1 1 0 1 0 0-2 1 1 0 0 0 0 2"
+        clipRule="evenodd"
+      ></path>
     </svg>
   )
 }
@@ -409,32 +411,11 @@ function PlayIcon() {
       xmlns="http://www.w3.org/2000/svg"
       viewBox="0 0 20 20"
       fill="currentColor"
-      width="14"
-      height="14"
-    >
-      <path d="M6.3 2.84A1.5 1.5 0 0 0 4 4.11v11.78a1.5 1.5 0 0 0 2.3 1.27l9.344-5.891a1.5 1.5 0 0 0 0-2.538L6.3 2.841Z" />
-    </svg>
-  )
-}
-
-function StopIcon() {
-  return (
-    <svg
-      width="20"
-      height="20"
-      viewBox="0 0 16 16"
-      fill="none"
+      width="12"
+      height="12"
       aria-hidden="true"
     >
-      <circle
-        cx="8"
-        cy="8"
-        r="6.25"
-        stroke="currentColor"
-        strokeWidth="1.5"
-        opacity="0.5"
-      />
-      <rect x="5.5" y="5.5" width="5" height="5" rx="1" fill="currentColor" />
+      <path d="M6.3 2.84A1.5 1.5 0 0 0 4 4.11v11.78a1.5 1.5 0 0 0 2.3 1.27l9.344-5.891a1.5 1.5 0 0 0 0-2.538L6.3 2.841Z" />
     </svg>
   )
 }

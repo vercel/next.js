@@ -46,16 +46,14 @@ describe('instant-nav-panel', () => {
   }
 
   async function clickStartCapturing(browser: Playwright) {
-    await browser
-      .locator('.instant-nav-capture-button', { hasText: 'Start Capturing' })
-      .click()
+    await browser.locator('#instant-nav-pause-toggle').click()
     await waitForInstantModeCookie(browser)
   }
 
-  async function clickContinueRendering(browser: Playwright) {
+  async function clickResume(browser: Playwright) {
     await browser
-      .locator('.instant-nav-capture-button', {
-        hasText: 'Continue Rendering',
+      .locator('.instant-nav-debugger-paused-button', {
+        hasText: 'Resume',
       })
       .click()
   }
@@ -204,38 +202,40 @@ describe('instant-nav-panel', () => {
   async function expectIdlePanel(browser: Playwright) {
     await expectInstantNavPanelText(
       browser,
-      'Inspect the UI',
-      'Start Capturing',
-      'Continue Rendering'
+      'Pause on navigations',
+      'When enabled, every navigation will pause so you can inspect the loading shell before resuming.'
     )
   }
 
   async function expectPendingPanel(browser: Playwright) {
     await expectInstantNavPanelText(
       browser,
-      'Awaiting navigation',
-      'Stop Capturing',
-      'Continue Rendering'
+      'Waiting for navigation',
+      'Click any link or refresh the page to inspect the shell.',
+      'Pause on navigations'
     )
   }
 
   async function expectMpaPanel(browser: Playwright) {
     await expectInstantNavPanelText(
       browser,
-      'Page load',
-      'prerendered UI',
-      'Stop Capturing',
-      'Continue Rendering'
+      'Debugger paused',
+      'Resume',
+      'Loading shell',
+      "You're viewing the shell for this page's initial load.",
+      'TARGET'
     )
   }
 
   async function expectSpaPanel(browser: Playwright) {
     await expectInstantNavPanelText(
       browser,
-      'Navigation',
-      'prefetched UI',
-      'Stop Capturing',
-      'Continue Rendering'
+      'Debugger paused',
+      'Resume',
+      'Loading shell',
+      "You're viewing the shell for the current navigation.",
+      'SOURCE',
+      'TARGET'
     )
   }
 
@@ -351,9 +351,10 @@ describe('instant-nav-panel', () => {
       // Panel should show the idle helper copy and capture controls.
       await retry(async () => {
         const text = await getInstantNavPanelText(browser)
-        expect(text).toContain('Inspect the UI')
-        expect(text).toContain('Start Capturing')
-        expect(text).toContain('Continue Rendering')
+        expect(text).toContain('Pause on navigations')
+        expect(text).toContain(
+          'When enabled, every navigation will pause so you can inspect the loading shell before resuming.'
+        )
       })
 
       // Cookie should NOT be set yet (only set when user starts capturing)
@@ -437,8 +438,10 @@ describe('instant-nav-panel', () => {
       await retry(async () => {
         await getInstantNavPanel(browser)
         const text = await getInstantNavPanelText(browser)
-        expect(text).toContain('Page load')
-        expect(text).toContain('prerendered UI')
+        expect(text).toContain('Loading shell')
+        expect(text).toContain(
+          "You're viewing the shell for this page's initial load."
+        )
       })
 
       // Clean up
@@ -504,7 +507,7 @@ describe('instant-nav-panel', () => {
       ).toBe(0)
     })
 
-    it('should restart capture and return to awaiting navigation after Continue Rendering from MPA state', async () => {
+    it('should restart capture and return to awaiting navigation after resuming from MPA state', async () => {
       const browser = await next.browser('/target-page/my-post?search=foo')
       await clearInstantModeCookie(browser)
 
@@ -516,7 +519,7 @@ describe('instant-nav-panel', () => {
       await expectTargetPageMpaShell(browser)
       await waitForAppHydration(browser)
 
-      await clickContinueRendering(browser)
+      await clickResume(browser)
       await expectPendingPanel(browser)
       await expectTargetPageRendered(browser)
       await waitForInstantModeCookie(browser)
@@ -538,9 +541,11 @@ describe('instant-nav-panel', () => {
       // Panel should show the awaiting navigation state
       await retry(async () => {
         const text = await getInstantNavPanelText(browser)
-        expect(text).toContain('Awaiting navigation')
-        expect(text).toContain('Stop Capturing')
-        expect(text).toContain('Continue Rendering')
+        expect(text).toContain('Waiting for navigation')
+        expect(text).toContain(
+          'Click any link or refresh the page to inspect the shell.'
+        )
+        expect(text).toContain('Pause on navigations')
       })
 
       // Navigate to target page via SPA (use eval to bypass overlay pointer interception)
@@ -622,7 +627,7 @@ describe('instant-nav-panel', () => {
       await expectTargetPageSpaShellWithRuntimeData(browser)
     })
 
-    it('should restart capture and return to awaiting navigation after Continue Rendering from SPA state', async () => {
+    it('should restart capture and return to awaiting navigation after resuming from SPA state', async () => {
       const browser = await openHomeWithTargetPageWarmup()
 
       await openInstantNavPanel(browser)
@@ -630,13 +635,13 @@ describe('instant-nav-panel', () => {
       await clickLink(browser, '/target-page/my-post?search=foo')
       await expectSpaPanel(browser)
 
-      await clickContinueRendering(browser)
+      await clickResume(browser)
       await expectPendingPanel(browser)
       await expectTargetPageRendered(browser)
       await waitForInstantModeCookie(browser)
     })
 
-    it('should continue rendering a captured await connection navigation with loading.tsx', async () => {
+    it('should resume rendering a captured await connection navigation with loading.tsx', async () => {
       const browser = await openHomeWithTargetPageWarmup()
 
       await openInstantNavPanel(browser)
@@ -645,7 +650,7 @@ describe('instant-nav-panel', () => {
       await expectSpaPanel(browser)
       await expectAwaitConnectionPageLoading(browser)
 
-      await clickContinueRendering(browser)
+      await clickResume(browser)
       await expectPendingPanel(browser)
       await expectTargetPageRendered(browser)
       await waitForInstantModeCookie(browser)
@@ -691,7 +696,7 @@ describe('instant-nav-panel', () => {
 
       const initialPanelText = await getInstantNavPanelText(browser)
       expect(initialPanelText).toContain('Page load')
-      expect(initialPanelText).not.toContain('Navigation')
+      expect(initialPanelText).not.toContain('Client nav')
 
       await expectMpaPanel(browser)
       await expectTargetPageMpaShell(browser)
