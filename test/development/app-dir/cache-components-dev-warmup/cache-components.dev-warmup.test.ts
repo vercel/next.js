@@ -368,6 +368,70 @@ describe.each([
         }
       })
 
+      describe('mixed static and fallback params resolve in the correct phase', () => {
+        it('covered leading param', async () => {
+          const path = '/mixed/en/123'
+
+          const assertLogs = async (browser: Playwright) => {
+            const logs = await browser.log()
+            // `en` is covered by `generateStaticParams`, so `lang` resolves in
+            // the static shell.
+            assertLog(logs, 'after params - lang', 'Prerender')
+            // `id` is never covered, so it's deferred to the runtime stage.
+            assertLog(logs, 'after params - id', RUNTIME_ENV)
+          }
+
+          if (isInitialLoad) {
+            await testInitialLoad(path, assertLogs)
+          } else {
+            await testNavigation(path, assertLogs)
+          }
+        })
+
+        it('uncovered leading param', async () => {
+          const path = '/mixed/fr/123'
+
+          const assertLogs = async (browser: Playwright) => {
+            const logs = await browser.log()
+            // `fr` is not covered by `generateStaticParams`, so the most-specific
+            // prerendered route matching this URL is the base route and its
+            // fallback set is both params. `lang` must therefore defer to the
+            // runtime stage too, not resolve in the static shell. (Picking the
+            // fewest-param route without matching the URL would resolve `lang`
+            // in `Prerender` here.)
+            assertLog(logs, 'after params - lang', RUNTIME_ENV)
+            assertLog(logs, 'after params - id', RUNTIME_ENV)
+          }
+
+          if (isInitialLoad) {
+            await testInitialLoad(path, assertLogs)
+          } else {
+            await testNavigation(path, assertLogs)
+          }
+        })
+
+        it('fully covered params', async () => {
+          const path = '/mixed/en/x'
+
+          const assertLogs = async (browser: Playwright) => {
+            const logs = await browser.log()
+            // Both `en` and `x` are covered by `generateStaticParams`, so this
+            // is a fully prerendered concrete route and both params resolve in
+            // the static shell. (Skipping the concrete route before matching
+            // the URL would let the base route win and defer the
+            // statically-known `id`.)
+            assertLog(logs, 'after params - lang', 'Prerender')
+            assertLog(logs, 'after params - id', 'Prerender')
+          }
+
+          if (isInitialLoad) {
+            await testInitialLoad(path, assertLogs)
+          } else {
+            await testNavigation(path, assertLogs)
+          }
+        })
+      })
+
       // FIXME: it seems like in Turbopack we sometimes get two instances of `workUnitAsyncStorage` --
       // `app-render` gets a second, newer instance, different from `io()`.
       // Thus, `io()` gets an undefined `workUnitStore` and does nothing, so sync IO does not get tracked at all.
