@@ -110,7 +110,7 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
                  ],
                },
                {
-                 "code": "E1318",
+                 "code": "E1373",
                  "description": "Next.js encountered uncached data during prerendering.",
                  "environmentLabel": "Server",
                  "label": "Blocking Route",
@@ -134,7 +134,7 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
             await expect(browser).toDisplayCollapsedRedbox(`
              [
                {
-                 "code": "E1315",
+                 "code": "E1316",
                  "description": "Next.js encountered URL data usePathname() in a Client Component outside of Suspense.",
                  "environmentLabel": "Server",
                  "label": "Blocking Route",
@@ -147,7 +147,7 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
                  ],
                },
                {
-                 "code": "E1318",
+                 "code": "E1373",
                  "description": "Next.js encountered uncached data during prerendering.",
                  "environmentLabel": "Server",
                  "label": "Blocking Route",
@@ -171,7 +171,7 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
             await expect(browser).toDisplayCollapsedRedbox(`
              [
                {
-                 "code": "E1315",
+                 "code": "E1316",
                  "description": "Next.js encountered URL data useParams() in a Client Component outside of Suspense.",
                  "environmentLabel": "Server",
                  "label": "Blocking Route",
@@ -184,7 +184,7 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
                  ],
                },
                {
-                 "code": "E1318",
+                 "code": "E1373",
                  "description": "Next.js encountered uncached data during prerendering.",
                  "environmentLabel": "Server",
                  "label": "Blocking Route",
@@ -208,7 +208,7 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
             await expect(browser).toDisplayCollapsedRedbox(`
              [
                {
-                 "code": "E1315",
+                 "code": "E1316",
                  "description": "Next.js encountered URL data useSelectedLayoutSegments() in a Client Component outside of Suspense.",
                  "environmentLabel": "Server",
                  "label": "Blocking Route",
@@ -221,7 +221,7 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
                  ],
                },
                {
-                 "code": "E1318",
+                 "code": "E1373",
                  "description": "Next.js encountered uncached data during prerendering.",
                  "environmentLabel": "Server",
                  "label": "Blocking Route",
@@ -245,7 +245,7 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
             await expect(browser).toDisplayCollapsedRedbox(`
              [
                {
-                 "code": "E1315",
+                 "code": "E1316",
                  "description": "Next.js encountered URL data useSelectedLayoutSegment() in a Client Component outside of Suspense.",
                  "environmentLabel": "Server",
                  "label": "Blocking Route",
@@ -258,7 +258,7 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
                  ],
                },
                {
-                 "code": "E1318",
+                 "code": "E1373",
                  "description": "Next.js encountered uncached data during prerendering.",
                  "environmentLabel": "Server",
                  "label": "Blocking Route",
@@ -1830,7 +1830,7 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
                  ],
                },
                {
-                 "code": "E1315",
+                 "code": "E1316",
                  "description": "Next.js encountered URL data useParams() in a Client Component outside of Suspense.",
                  "environmentLabel": "Server",
                  "label": "Blocking Route",
@@ -1871,7 +1871,7 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
                  ],
                },
                {
-                 "code": "E1318",
+                 "code": "E1373",
                  "description": "Next.js encountered uncached data during prerendering.",
                  "environmentLabel": "Server",
                  "label": "Blocking Route",
@@ -1908,7 +1908,7 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
                  ],
                },
                {
-                 "code": "E1315",
+                 "code": "E1316",
                  "description": "Next.js encountered URL data useSelectedLayoutSegment() in a Client Component outside of Suspense.",
                  "environmentLabel": "Server",
                  "label": "Blocking Route",
@@ -1921,7 +1921,7 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
                  ],
                },
                {
-                 "code": "E1318",
+                 "code": "E1373",
                  "description": "Next.js encountered uncached data during prerendering.",
                  "environmentLabel": "Server",
                  "label": "Blocking Route",
