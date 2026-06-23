@@ -250,7 +250,7 @@ pub async fn make_production_chunks(
                             iterations += 1;
                             let overlap = overlap(&candidate.chunk_groups, &other.chunk_groups);
                             // It need to have at least two chunk groups in common
-                            if overlap <= 1 {
+                            if overlap < 1 {
                                 continue;
                             }
                             // If the candidate is already big enough, avoid shrinking the sharing
