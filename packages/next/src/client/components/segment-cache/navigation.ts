@@ -657,7 +657,7 @@ export function completeHardNavigation(
   state: AppRouterState,
   url: URL,
   navigateType: 'push' | 'replace',
-  transitionId: string | null = null
+  transitionId: string | null
 ): AppRouterState {
   if (isJavaScriptURLString(url.href)) {
     console.error(

@@ -385,7 +385,14 @@ export function serverActionReducer(
             navigateType
           )
           reject(redirectError)
-          return completeHardNavigation(state, redirectLocation, navigateType)
+          // A server action redirect is not a router transition, so there is
+          // no transition id to correlate.
+          return completeHardNavigation(
+            state,
+            redirectLocation,
+            navigateType,
+            null
+          )
         } else {
           // Internal redirect. Triggers an SPA navigation.
           const redirectWithBasepath = createHrefFromUrl(
@@ -425,7 +432,12 @@ export function serverActionReducer(
         // an external redirect.
         // TODO: We should refactor the action response type to be more explicit
         // about the various response types.
-        return completeHardNavigation(state, redirectLocation, navigateType)
+        return completeHardNavigation(
+          state,
+          redirectLocation,
+          navigateType,
+          null
+        )
       }
 
       if (typeof flightData === 'string') {
@@ -434,7 +446,8 @@ export function serverActionReducer(
         return completeHardNavigation(
           state,
           new URL(flightData, location.origin),
-          navigateType
+          navigateType,
+          null
         )
       }
 
