@@ -371,7 +371,8 @@ function updateCacheNodeOnNavigation(
       // route hasn't changed. Otherwise (no prior node) mint a fresh one.
       oldCacheNode !== undefined
         ? oldCacheNode.bfcacheId
-        : generateBFCacheId(freshness)
+        : generateBFCacheId(freshness),
+      segmentMatchKind === SegmentMatchKind.SearchParamOnlyChange
     )
     newCacheNode = result.cacheNode
     needsDynamicRequest = result.needsDynamicRequest
@@ -918,7 +919,11 @@ function createCacheNodeForSegment(
   seedHead: HeadData | null,
   freshness: FreshnessPolicy,
   dynamicStaleAt: number,
-  bfcacheId: number
+  bfcacheId: number,
+  // When true, search params changed and the segment cache may have a Fallback
+  // entry (keyed without search params) that does not reflect the new params.
+  // Always spawn a dynamic request so the correct content is fetched.
+  isSearchParamOnlyChange: boolean = false
 ): { cacheNode: CacheNode; needsDynamicRequest: boolean } {
   // Construct a new CacheNode using data from the BFCache, the client's
   // Segment Cache, or seeded from a server response.
@@ -1103,6 +1108,15 @@ function createCacheNodeForSegment(
         break
       }
     }
+  }
+
+  // When only search params changed, the segment cache may have returned a
+  // Fallback entry (one stored without search params, e.g. a PPR static shell)
+  // whose `isPartial` is false. That entry doesn't contain content specific to
+  // the new search params, so we must not treat it as a complete cache hit.
+  // Force a dynamic request to fetch the correct search-param-specific content.
+  if (isSearchParamOnlyChange) {
+    isCachedRscPartial = true
   }
 
   // Now combine the cached data with the seed data to determine what we can
