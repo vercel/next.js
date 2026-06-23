@@ -3,7 +3,7 @@
 const execa = require('execa')
 const fs = require('fs/promises')
 const {
-  createSignedCommit,
+  replayLocalCommitsAsSigned,
   githubRequest,
   alignLocalBranchWithSignedCommit,
 } = require('./github-utils/signed-commit')
@@ -68,10 +68,23 @@ async function getSingleParent(commitSha) {
 }
 
 /**
- * Replace Lerna's local release commit with an equivalent GitHub-signed commit,
- * then move the release tag and current branch to that new commit.
+ * Replace Lerna's local release commit(s) with equivalent GitHub-signed
+ * commits, then move the release tag and current branch in a single branch
+ * push.
+ *
+ * Signs every local commit between the remote base and local HEAD. The release
+ * tag is placed on the signed commit that corresponds to the local Lerna
+ * release commit; the branch is fast-forwarded to the final signed commit.
+ *
+ * For a normal release this is a single commit (tag == branch head). For an
+ * ad-hoc preview release the local history is two commits — the preview
+ * version bump (tagged) followed by a revert restoring the canary version — so
+ * the tag points at the preview commit while the branch ends on the revert.
+ * `options.baseSha` and `options.tagName` let the caller pin both explicitly
+ * (required for preview, since after the revert `lerna.json` no longer matches
+ * HEAD).
  */
-async function createGitHubReleaseCommit(token) {
+async function createGitHubReleaseCommit(token, options = {}) {
   const branch = await git(['rev-parse', '--abbrev-ref', 'HEAD'], {
     captureOutput: true,
   })
@@ -80,34 +93,43 @@ async function createGitHubReleaseCommit(token) {
     throw new Error('Cannot create a GitHub release commit from detached HEAD')
   }
 
-  const localReleaseSha = await git(['rev-parse', 'HEAD'], {
+  const localHead = await git(['rev-parse', 'HEAD'], {
     captureOutput: true,
   })
-  const baseSha = await getSingleParent(localReleaseSha)
-  const tagName = await getLocalReleaseTagName(localReleaseSha)
-  const message = await git(['log', '-1', '--pretty=%B'], {
+  const baseSha = options.baseSha ?? (await getSingleParent(localHead))
+  const tagName = options.tagName ?? (await getLocalReleaseTagName(localHead))
+  const localTaggedSha = await git(['rev-list', '-n', '1', tagName], {
     captureOutput: true,
   })
 
   console.log(
-    `Creating GitHub-signed release commit for ${tagName} from local Lerna commit ${localReleaseSha}`
+    `Creating GitHub-signed release commit(s) for ${tagName} from local commits ${baseSha}..${localHead}`
   )
 
-  const commit = await createSignedCommit({
+  const { headSha, signedCommits } = await replayLocalCommitsAsSigned({
     token,
     owner: 'vercel',
     repo: 'next.js',
-    baseSha,
-    localCommitSha: localReleaseSha,
-    message,
+    fromBaseSha: baseSha,
+    toLocalSha: localHead,
   })
+
+  const taggedCommit = signedCommits.find(
+    (entry) => entry.localSha === localTaggedSha
+  )
+  if (!taggedCommit) {
+    throw new Error(
+      `Could not find a signed commit for the release tag ${tagName} (local ${localTaggedSha})`
+    )
+  }
+  const signedTagSha = taggedCommit.signedSha
 
   let createdTag = false
 
   try {
     await githubRequest(token, 'POST', `${REPO_API_PATH}/git/refs`, {
       ref: `refs/tags/${tagName}`,
-      sha: commit.sha,
+      sha: signedTagSha,
     })
     createdTag = true
 
@@ -116,7 +138,7 @@ async function createGitHubReleaseCommit(token) {
       'PATCH',
       `${REPO_API_PATH}/git/refs/heads/${branch}`,
       {
-        sha: commit.sha,
+        sha: headSha,
         force: false,
       }
     )
@@ -135,16 +157,18 @@ async function createGitHubReleaseCommit(token) {
     throw error
   }
 
-  await alignLocalBranchWithSignedCommit(branch, commit.sha, { tagName })
+  await alignLocalBranchWithSignedCommit(branch, headSha, { tagName })
 
   console.log(
-    `Created GitHub-signed release commit ${commit.sha} and tag ${tagName}`
+    `Created GitHub-signed release tag ${tagName} at ${signedTagSha}; branch ${branch} now at ${headSha}`
   )
 
   return {
     branch,
-    sha: commit.sha,
+    sha: signedTagSha,
     tagName,
+    headSha,
+    baseSha,
   }
 }
 

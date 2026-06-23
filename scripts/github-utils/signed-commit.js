@@ -232,7 +232,9 @@ async function createSignedCommit({
  * top of the previous signed commit's tree. The local commit message is
  * preserved.
  *
- * Returns the SHA of the final signed commit.
+ * Returns `{ headSha, signedCommits }` where `headSha` is the final signed
+ * commit and `signedCommits` maps each local commit to its signed counterpart
+ * (`{ localSha, signedSha }`, in replay order).
  */
 async function replayLocalCommitsAsSigned({
   token,
@@ -260,6 +262,7 @@ async function replayLocalCommitsAsSigned({
   let parentTreeSha = await git(['rev-parse', `${fromBaseSha}^{tree}`], {
     captureOutput: true,
   })
+  const signedCommits = []
 
   for (const localSha of localCommits) {
     const localParentSha = await git(['rev-parse', `${localSha}^`], {
@@ -297,9 +300,10 @@ async function replayLocalCommitsAsSigned({
 
     parentSha = commit.sha
     parentTreeSha = treeSha
+    signedCommits.push({ localSha, signedSha: commit.sha })
   }
 
-  return parentSha
+  return { headSha: parentSha, signedCommits }
 }
 
 /**
