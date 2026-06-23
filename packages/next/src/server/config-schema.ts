@@ -459,6 +459,16 @@ export const experimentalSchema = {
   deferredEntries: z.array(z.string()).optional(),
   onBeforeDeferredEntries: z.function().returns(z.promise(z.void())).optional(),
   reportSystemEnvInlining: z.enum(['warn', 'error']).optional(),
+  turbopackContexts: z
+    .record(
+      z.string(),
+      z.object({
+        inherits: z.string(),
+        resolveConditions: z.array(z.string()).optional(),
+        rules: z.record(z.string(), zTurbopackRuleConfigCollection).optional(),
+      })
+    )
+    .optional(),
 }
 
 export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>

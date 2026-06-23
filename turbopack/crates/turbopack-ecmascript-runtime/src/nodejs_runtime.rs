@@ -2,6 +2,7 @@ use anyhow::Result;
 use turbo_rcstr::rcstr;
 use turbo_tasks::{ResolvedVc, Vc};
 use turbopack_core::{
+    chunk::ChunkGroupType,
     code_builder::{Code, CodeBuilder},
     context::AssetContext,
 };
@@ -15,6 +16,7 @@ pub async fn get_nodejs_runtime_code(
     runtime_type: RuntimeType,
     has_async_modules: bool,
     generate_source_map: bool,
+    ty: ChunkGroupType,
 ) -> Result<Vc<Code>> {
     let asset_context = *asset_context;
 
@@ -41,6 +43,10 @@ pub async fn get_nodejs_runtime_code(
     );
 
     let mut code = CodeBuilder::default();
+    if ty == ChunkGroupType::Evaluated {
+        code += "{\n";
+    }
+
     code.push_code(&*shared_runtime_utils_code.await?);
     // Only include the async-module (top-level await) machinery when the app uses it.
     if has_async_modules {
@@ -67,6 +73,17 @@ pub async fn get_nodejs_runtime_code(
                 )
                 .await?,
             );
+            code.push_code(
+                &*embed_static_code(
+                    asset_context,
+                    match ty {
+                        ChunkGroupType::Evaluated => rcstr!("nodejs/runtime/build-evaluated.ts"),
+                        ChunkGroupType::Entry => rcstr!("nodejs/runtime/build-entry.ts"),
+                    },
+                    generate_source_map,
+                )
+                .await?,
+            );
         }
         RuntimeType::Development => {
             // Include shared HMR runtime (includes instantiateModuleShared, etc.)
@@ -84,6 +101,18 @@ pub async fn get_nodejs_runtime_code(
                 &*embed_static_code(
                     asset_context,
                     rcstr!("nodejs/runtime/dev-base.ts"),
+                    generate_source_map,
+                )
+                .await?,
+            );
+
+            code.push_code(
+                &*embed_static_code(
+                    asset_context,
+                    match ty {
+                        ChunkGroupType::Evaluated => rcstr!("nodejs/runtime/dev-evaluated.ts"),
+                        ChunkGroupType::Entry => rcstr!("nodejs/runtime/dev-entry.ts"),
+                    },
                     generate_source_map,
                 )
                 .await?,
@@ -113,6 +142,10 @@ pub async fn get_nodejs_runtime_code(
         RuntimeType::Dummy => {
             panic!("Dummy runtime is not supported in Node.js runtime")
         }
+    }
+
+    if ty == ChunkGroupType::Evaluated {
+        code += "\n}\n";
     }
 
     Ok(Code::cell(code.build()))

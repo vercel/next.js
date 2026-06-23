@@ -1310,6 +1310,24 @@ export interface ExperimentalConfig {
    * Only supported for Turbopack.
    */
   reportSystemEnvInlining?: 'error' | 'warn'
+
+  /**
+   * Additional module contexts for Turbopack. This allows you to define custom contexts with
+   * specific resolve conditions and rules.
+   */
+  turbopackContexts?: TurbopackContextConfig
+}
+
+export type TurbopackContextConfig = {
+  /** The key is the name of the context */
+  [name: string]: {
+    /** The name of the context to base this context on */
+    inherits: string
+    /** The conditions that should be used to resolve modules within this context */
+    resolveConditions?: string[]
+    /** Additional module rules that should be applied within this context */
+    rules?: Record<string, TurbopackRuleConfigCollection>
+  }
 }
 
 export type ExportPathMap = {

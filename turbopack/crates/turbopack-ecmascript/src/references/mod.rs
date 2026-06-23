@@ -1,9 +1,11 @@
 pub mod amd;
 pub mod async_module;
+pub mod chunk;
 pub mod cjs;
 pub mod constant_condition;
 pub mod constant_value;
 pub mod dynamic_expression;
+pub mod emit_collect;
 pub mod esm;
 pub mod exports;
 pub mod exports_info;
@@ -29,7 +31,7 @@ use std::{
     sync::{Arc, LazyLock},
 };
 
-use anyhow::Result;
+use anyhow::{Context, Result, bail};
 use bincode::{Decode, Encode};
 use bumpalo::boxed::Box as BumpBox;
 use constant_condition::{ConstantConditionCodeGen, ConstantConditionValue};
@@ -118,11 +120,13 @@ use crate::{
             AmdDefineWithDependenciesCodeGen,
         },
         async_module::{AsyncModule, OptionAsyncModule},
+        chunk::TurbopackChunksAssetReference,
         cjs::{
             CjsAssetReference, CjsRequireAssetReference, CjsRequireCacheAccess,
             CjsRequireResolveAssetReference,
         },
         dynamic_expression::DynamicExpression,
+        emit_collect::{CollectReference, EmitReference},
         esm::{
             EsmAssetReference, EsmAsyncAssetReference, EsmBinding, ImportMetaBinding,
             ImportMetaRef, UrlAssetReference, UrlRewriteBehavior, base::EsmAssetReferences,
@@ -1515,6 +1519,7 @@ async fn handle_call<'a, G: Fn(BumpVec<'a, Effect<'a>>) + Send + Sync>(
     let &AnalysisState {
         handler,
         origin,
+        module,
         source,
         compile_time_info,
         ignore_dynamic_requests,
@@ -1575,6 +1580,7 @@ async fn handle_call<'a, G: Fn(BumpVec<'a, Effect<'a>>) + Send + Sync>(
                         ignore_dynamic_requests,
                         analysis,
                         origin,
+                        ResolvedVc::upcast(module),
                         compile_time_info,
                         url_rewrite_behavior,
                         source,
@@ -1599,6 +1605,7 @@ async fn handle_call<'a, G: Fn(BumpVec<'a, Effect<'a>>) + Send + Sync>(
                 ignore_dynamic_requests,
                 analysis,
                 origin,
+                ResolvedVc::upcast(module),
                 compile_time_info,
                 url_rewrite_behavior,
                 source,
@@ -1785,6 +1792,7 @@ async fn handle_well_known_function_call<'a, 'l, F, Fut>(
     ignore_dynamic_requests: bool,
     analysis: &mut AnalyzeEcmascriptModuleResultBuilder,
     origin: ResolvedVc<Box<dyn ResolveOrigin>>,
+    parent_module: ResolvedVc<Box<dyn Module>>,
     compile_time_info: ResolvedVc<CompileTimeInfo>,
     url_rewrite_behavior: Option<UrlRewriteBehavior>,
     source: ResolvedVc<Box<dyn Source>>,
@@ -2989,6 +2997,224 @@ where
                 }
             }
         }
+        WellKnownFunctionKind::TurbopackEmit => {
+            let args = linked_args().await?;
+            let (specifier, options) = match &args[..] {
+                [
+                    JsValue::Constant(JsConstantValue::Str(specifier)),
+                    JsValue::Object { parts: options, .. },
+                ] => (Some(specifier), Some(options)),
+                [JsValue::Object { parts: options, .. }] => (None, Some(options)),
+                _ => (None, None),
+            };
+
+            if let Some(options) = options {
+                let invalid_args = |key: &str| {
+                    let (args, hints) = explain_args(args);
+                    handler.span_warn_with_code(
+                        span,
+                        &format!(
+                            "Unsupported property \"{key}\" for __turbopack_emit___({args}) \
+                             call{hints}",
+                        ),
+                        DiagnosticId::Error(
+                            errors::failed_to_analyze::ecmascript::TURBOPACK_EMIT.to_string(),
+                        ),
+                    );
+                    Ok(())
+                };
+
+                let mut namespace = None;
+                let mut data = None;
+                let mut emit_scope = None;
+                let mut with = None;
+                let mut exports = None;
+
+                for part in options {
+                    if let ObjectPart::KeyValue(
+                        JsValue::Constant(JsConstantValue::Str(key)),
+                        value,
+                    ) = part
+                    {
+                        match key.as_str() {
+                            "namespace" => namespace = Some(value),
+                            "data" => data = Some(value),
+                            "scope" => emit_scope = Some(value),
+                            "with" => with = Some(value),
+                            "exports" => exports = Some(value),
+                            v => return invalid_args(v),
+                        }
+                    }
+                }
+
+                let Some(JsValue::Constant(JsConstantValue::Str(namespace))) = namespace else {
+                    return invalid_args("namespace");
+                };
+                let Some(annotations) = with.map_or_else(
+                    || Some(ImportAnnotations::default()),
+                    |v| ImportAnnotations::parse_dynamic(v),
+                ) else {
+                    return invalid_args("with");
+                };
+                let emit_to_all_entries = match emit_scope {
+                    Some(JsValue::Constant(JsConstantValue::Str(emit_scope))) => {
+                        match emit_scope.as_str() {
+                            "app" => true,
+                            "entry" => false,
+                            _ => return invalid_args("scope"),
+                        }
+                    }
+                    None => false,
+                    _ => return invalid_args("scope"),
+                };
+                let exports = match exports {
+                    Some(JsValue::Constant(JsConstantValue::Str(export))) => {
+                        ExportUsage::Named(export.as_rcstr())
+                    }
+                    Some(JsValue::Array { items, .. }) => {
+                        let mut result = vec![];
+                        for item in items {
+                            if let JsValue::Constant(JsConstantValue::Str(export)) = item {
+                                result.push(export.as_rcstr());
+                            } else {
+                                return invalid_args("exports");
+                            }
+                        }
+                        match result.len() {
+                            0 => ExportUsage::All,
+                            1 => ExportUsage::Named(result.into_iter().next().unwrap()),
+                            _ => ExportUsage::PartialNamespaceObject(result.into()),
+                        }
+                    }
+                    None => ExportUsage::All,
+                    _ => return invalid_args("exports"),
+                };
+
+                analysis.add_reference_code_gen(
+                    EmitReference::new(
+                        origin,
+                        Request::parse_string(specifier.context("TODO data-only emit")?.as_rcstr())
+                            .to_resolved()
+                            .await?,
+                        issue_source(source, span),
+                        annotations,
+                        ResolveErrorMode::Error,
+                        exports,
+                        namespace.as_rcstr(),
+                        match data {
+                            Some(JsValue::Constant(JsConstantValue::Str(data))) => {
+                                Some(data.as_rcstr())
+                            }
+                            None => None,
+                            _ => bail!("TODO support non-string data"),
+                        },
+                        emit_to_all_entries,
+                    ),
+                    ast_path.to_vec().into(),
+                );
+                return Ok(());
+            }
+            let (args, hints) = explain_args(args);
+            handler.span_warn_with_code(
+                span,
+                &format!("Unsupported arguments for __turbopack_emit__({args}) call{hints}",),
+                DiagnosticId::Error(
+                    errors::failed_to_analyze::ecmascript::TURBOPACK_EMIT.to_string(),
+                ),
+            )
+        }
+        WellKnownFunctionKind::TurbopackCollect => {
+            let args = linked_args().await?;
+            if let [JsValue::Object { parts: options, .. }] = &args[..] {
+                let mut namespace = None;
+
+                for part in options {
+                    if let ObjectPart::KeyValue(JsValue::Constant(JsConstantValue::Str(key)), value) =
+                        part
+                        && key.as_str() == "namespace"
+                    {
+                        namespace = Some(value)
+                    }
+                }
+
+                let Some(JsValue::Constant(JsConstantValue::Str(namespace))) = namespace else {
+                    let (args, hints) = explain_args(args);
+                    handler.span_warn_with_code(
+                        span,
+                        &format!(
+                            "Unsupported \"namespace\" for __turbopack_collect__({args}) \
+                             call{hints}",
+                        ),
+                        DiagnosticId::Error(
+                            errors::failed_to_analyze::ecmascript::TURBOPACK_COLLECT.to_string(),
+                        ),
+                    );
+                    return Ok(());
+                };
+
+                analysis.add_reference_code_gen(
+                    CollectReference::new(origin, parent_module, namespace.as_rcstr()),
+                    ast_path.to_vec().into(),
+                );
+                return Ok(());
+            }
+            let (args, hints) = explain_args(args);
+            handler.span_warn_with_code(
+                span,
+                &format!("Unsupported arguments for __turbopack_collect___({args}) call{hints}",),
+                DiagnosticId::Error(
+                    errors::failed_to_analyze::ecmascript::TURBOPACK_COLLECT.to_string(),
+                ),
+            )
+        }
+        WellKnownFunctionKind::TurbopackChunks => {
+            let args = linked_args().await?;
+            if args.len() == 1 || args.len() == 2 {
+                let pat = js_value_to_pattern(&args[0]);
+                let options = args.get(1);
+                let import_annotations = options
+                    .and_then(|options| {
+                        if let JsValue::Object { parts, .. } = options {
+                            parts.iter().find_map(|part| {
+                                if let ObjectPart::KeyValue(
+                                    JsValue::Constant(super::analyzer::ConstantValue::Str(key)),
+                                    value,
+                                ) = part
+                                    && key.as_str() == "with"
+                                {
+                                    return Some(value);
+                                }
+                                None
+                            })
+                        } else {
+                            None
+                        }
+                    })
+                    .and_then(ImportAnnotations::parse_dynamic)
+                    .unwrap_or_default();
+
+                analysis.add_reference_code_gen(
+                    TurbopackChunksAssetReference::new(
+                        origin,
+                        Request::parse(pat).to_resolved().await?,
+                        issue_source(source, span),
+                        import_annotations,
+                        error_mode,
+                    )
+                    .await?,
+                    ast_path.to_vec().into(),
+                );
+                return Ok(());
+            }
+            let (args, hints) = JsValue::explain_args(args, 10, 2);
+            handler.span_warn_with_code(
+                span,
+                &format!("__turbopack_chunks__({args}) is not statically analyze-able{hints}",),
+                DiagnosticId::Error(
+                    errors::failed_to_analyze::ecmascript::DYNAMIC_IMPORT.to_string(),
+                ),
+            );
+        }
         _ => {}
     };
     Ok(())
@@ -3649,6 +3875,15 @@ async fn value_visitor_inner<'a>(
             "process" => JsValue::WellKnownObject(WellKnownObjectKind::NodeProcessModule),
             "Object" => JsValue::WellKnownObject(WellKnownObjectKind::GlobalObject),
             "Buffer" => JsValue::WellKnownObject(WellKnownObjectKind::NodeBuffer),
+            "__turbopack_emit__" => {
+                JsValue::WellKnownFunction(WellKnownFunctionKind::TurbopackEmit)
+            }
+            "__turbopack_collect__" => {
+                JsValue::WellKnownFunction(WellKnownFunctionKind::TurbopackCollect)
+            }
+            "__turbopack_chunks__" => {
+                JsValue::WellKnownFunction(WellKnownFunctionKind::TurbopackChunks)
+            }
             _ => return Ok((v, false)),
         },
         JsValue::Module(ref mv) => compile_time_info

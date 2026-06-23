@@ -8,6 +8,7 @@
 
     "lib": ["ESNext", "DOM"],
     "skipLibCheck": true,
+    "types": ["node"],
 
     "strict": true,
     "jsx": "react-jsx",

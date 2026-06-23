@@ -4,6 +4,7 @@
 #![feature(arbitrary_self_types)]
 #![feature(arbitrary_self_types_pointers)]
 
+pub mod collect_module;
 pub mod evaluate_context;
 pub mod global_module_ids;
 pub mod module_options;
@@ -1173,7 +1174,7 @@ impl AssetContext for ModuleAssetContext {
     #[turbo_tasks::function]
     async fn with_transition(&self, transition: RcStr) -> Result<Vc<Box<dyn AssetContext>>> {
         Ok(
-            if let Some(transition) = self.transitions.await?.get_named(transition) {
+            if let Some(transition) = self.transitions.await?.get_named(&transition) {
                 Vc::upcast(ModuleAssetContext::new_transition(
                     *self.transitions,
                     *self.compile_time_info,

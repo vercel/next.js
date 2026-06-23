@@ -6,6 +6,7 @@ use turbo_tasks::{
 };
 use turbo_tasks_fs::FileSystemPath;
 use turbo_tasks_hash::HashAlgorithm;
+use turbopack_browser::BrowserChunkingContext;
 use turbopack_core::{
     asset::{Asset, AssetContent},
     chunk::{
@@ -17,7 +18,7 @@ use turbopack_core::{
         chunk_group::{MakeChunkGroupResult, make_chunk_group},
         chunk_id_strategy::ModuleIdStrategy,
     },
-    environment::Environment,
+    environment::{EdgeWorkerEnvironment, Environment, ExecutionEnvironment, NodeJsVersion},
     ident::AssetIdent,
     module::Module,
     module_graph::{
@@ -29,7 +30,7 @@ use turbopack_core::{
 };
 use turbopack_ecmascript::{
     async_chunk::module::AsyncLoaderModule,
-    chunk::EcmascriptChunk,
+    chunk::{EcmascriptChunk, EcmascriptChunkPlaceable},
     manifest::{chunk_asset::ManifestAsyncModule, loader_module::ManifestLoaderModule},
 };
 use turbopack_ecmascript_runtime::RuntimeType;
@@ -313,6 +314,47 @@ impl NodeJsChunkingContext {
     pub fn asset_prefix(&self) -> Vc<Option<RcStr>> {
         Vc::cell(self.asset_prefix.clone())
     }
+
+    #[turbo_tasks::function]
+    pub async fn evaluated_context(&self) -> Result<Vc<Box<dyn ChunkingContext>>> {
+        let mut builder = BrowserChunkingContext::builder(
+            self.root_path.clone(),
+            self.output_root.clone(),
+            self.output_root_to_root_path.clone(),
+            self.client_root.clone(),
+            self.chunk_root_path.clone(),
+            self.asset_root_path.clone(),
+            Environment::new(ExecutionEnvironment::EdgeWorker(
+                EdgeWorkerEnvironment {
+                    node_version: NodeJsVersion::default().resolved_cell(),
+                }
+                .resolved_cell(),
+            ))
+            .to_resolved()
+            .await?,
+            self.runtime_type,
+        )
+        .minify_type(self.minify_type)
+        .source_maps(self.source_maps_type)
+        .export_usage(self.export_usage)
+        .hash_salt(self.hash_salt)
+        .module_merging(self.enable_module_merging)
+        .worker_forwarded_globals(self.worker_forwarded_globals.clone())
+        .dynamic_chunk_content_loading(false);
+
+        if let Some(module_id_strategy) = self.module_id_strategy {
+            builder = builder.module_id_strategy(module_id_strategy);
+        }
+        if let Some(unused_references) = self.unused_references {
+            builder = builder.unused_references(unused_references);
+        }
+
+        for (ty, config) in &self.chunking_configs {
+            builder = builder.chunking_config(*ty, config.clone());
+        }
+
+        Ok(Vc::upcast(builder.build()))
+    }
 }
 
 impl NodeJsChunkingContext {
@@ -590,16 +632,24 @@ impl ChunkingContext for NodeJsChunkingContext {
                 .await?;
             other_chunks.extend(extra_chunks.iter().copied());
 
-            let Some(module) = ResolvedVc::try_sidecast(chunk_group.entries().last().unwrap())
+            let module = chunk_group.entries().last().unwrap();
+            let Some(module) =
+                ResolvedVc::try_sidecast::<Box<dyn EcmascriptChunkPlaceable>>(module)
             else {
-                bail!("module must be placeable in an ecmascript chunk");
+                bail!("last entry must be EcmascriptChunkPlaceable {:?}", module);
             };
 
             let evaluatable_assets = chunk_group
                 .entries()
                 .map(|entry| {
-                    ResolvedVc::try_sidecast::<Box<dyn EvaluatableAsset>>(entry)
-                        .context("entry_chunk_group entries must be evaluatable")
+                    ResolvedVc::try_sidecast::<Box<dyn EvaluatableAsset>>(entry).with_context(
+                        || {
+                            format!(
+                                "entry_chunk_group entries must be EvaluatableAssets {:?}",
+                                entry
+                            )
+                        },
+                    )
                 })
                 .collect::<Result<Vec<_>>>()?;
 
@@ -629,15 +679,24 @@ impl ChunkingContext for NodeJsChunkingContext {
     }
 
     #[turbo_tasks::function]
-    fn evaluated_chunk_group(
-        self: Vc<Self>,
-        _ident: Vc<AssetIdent>,
-        _chunk_group: ChunkGroup,
-        _module_graph: Vc<ModuleGraph>,
-        _extra_chunks: Vc<OutputAssets>,
-        _availability_info: AvailabilityInfo,
+    async fn evaluated_chunk_group(
+        self: ResolvedVc<Self>,
+        ident: Vc<AssetIdent>,
+        chunk_group: ChunkGroup,
+        module_graph: Vc<ModuleGraph>,
+        extra_chunks: Vc<OutputAssets>,
+        availability_info: AvailabilityInfo,
     ) -> Result<Vc<ChunkGroupResult>> {
-        bail!("the Node.js chunking context does not support evaluated chunk groups")
+        let context = self.evaluated_context();
+        let x = context.evaluated_chunk_group(
+            ident,
+            chunk_group.clone(),
+            module_graph,
+            extra_chunks,
+            availability_info,
+        );
+
+        Ok(x)
     }
 
     #[turbo_tasks::function]

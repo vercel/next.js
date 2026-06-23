@@ -17,6 +17,7 @@ mod next_build;
 pub mod next_client;
 pub mod next_client_reference;
 pub mod next_config;
+pub mod next_context_transition;
 pub mod next_dynamic;
 pub mod next_edge;
 mod next_font;

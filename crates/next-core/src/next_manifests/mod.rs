@@ -431,7 +431,7 @@ pub struct ActionManifestEntry<'a> {
     #[serde(rename = "exportedName")]
     pub exported_name: &'a str,
 
-    pub filename: &'a str,
+    pub filename: RcStr,
 
     /// Source location line number (1-indexed), if available
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -445,19 +445,28 @@ pub struct ActionManifestEntry<'a> {
 #[derive(Serialize, Debug)]
 pub struct ActionManifestWorkerEntry<'a> {
     #[serde(rename = "moduleId")]
-    pub module_id: ActionManifestModuleId<'a>,
+    pub module_id: ActionManifestModuleId,
     #[serde(rename = "async")]
     pub is_async: bool,
     #[serde(rename = "exportedName")]
     pub exported_name: &'a str,
-    pub filename: &'a str,
+    pub filename: RcStr,
 }
 
 #[derive(Serialize, Debug, Clone)]
 #[serde(untagged)]
-pub enum ActionManifestModuleId<'a> {
-    String(&'a str),
+pub enum ActionManifestModuleId {
+    String(RcStr),
     Number(u64),
+}
+
+impl From<turbopack_core::chunk::ModuleId> for ActionManifestModuleId {
+    fn from(module_id: turbopack_core::chunk::ModuleId) -> Self {
+        match module_id {
+            turbopack_core::chunk::ModuleId::String(s) => ActionManifestModuleId::String(s),
+            turbopack_core::chunk::ModuleId::Number(n) => ActionManifestModuleId::Number(n),
+        }
+    }
 }
 
 #[turbo_tasks::task_input]

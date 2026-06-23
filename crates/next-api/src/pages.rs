@@ -54,7 +54,7 @@ use turbopack_core::{
     ident::{AssetIdent, Layer},
     module::Module,
     module_graph::{
-        GraphEntries, ModuleGraph, SingleModuleGraph, VisitedModules,
+        GraphCollectingMode, GraphEntries, ModuleGraph, SingleModuleGraph, VisitedModules,
         binding_usage_info::compute_binding_usage_info,
         chunk_group_info::{ChunkGroup, ChunkGroupEntry},
     },
@@ -710,15 +710,7 @@ impl PageEndpoint {
     }
 
     #[turbo_tasks::function]
-    async fn client_module_graph(self: Vc<Self>) -> Result<Vc<ModuleGraph>> {
-        let this = self.await?;
-        let project = this.pages_project.project();
-        let evaluatable_assets = self.client_evaluatable_assets();
-        Ok(project.module_graph_for_modules(evaluatable_assets))
-    }
-
-    #[turbo_tasks::function]
-    async fn ssr_module_graph(self: Vc<Self>) -> Result<Vc<ModuleGraph>> {
+    async fn module_graph(self: Vc<Self>) -> Result<Vc<ModuleGraph>> {
         let this = self.await?;
         let project = this.pages_project.project();
 
@@ -745,18 +737,36 @@ impl PageEndpoint {
                     visited_modules,
                     should_trace,
                     should_read_binding_usage,
+                    GraphCollectingMode::IncompleteGraph {
+                        ignored_collected_namespace: Default::default(),
+                    },
                 );
                 graphs.push(graph);
                 visited_modules = VisitedModules::concatenate(visited_modules, graph);
             }
 
             let graph = SingleModuleGraph::new_with_entries_visited_intern(
-                GraphEntries::from_chunk_groups(vec![ChunkGroupEntry::Entry(vec![
-                    ssr_chunk_module.ssr_module,
-                ])]),
+                GraphEntries::from_chunk_groups(
+                    [ChunkGroupEntry::Entry(vec![ssr_chunk_module.ssr_module])]
+                        .into_iter()
+                        .chain(if this.ty == PageEndpointType::Html {
+                            Some(ChunkGroupEntry::Entry(
+                                self.client_evaluatable_assets()
+                                    .await?
+                                    .iter()
+                                    .map(|m| ResolvedVc::upcast(*m))
+                                    .collect(),
+                            ))
+                            .into_iter()
+                        } else {
+                            None.into_iter()
+                        })
+                        .collect::<Vec<_>>(),
+                ),
                 visited_modules,
                 should_trace,
                 should_read_binding_usage,
+                GraphCollectingMode::CompleteGraph,
             );
             graphs.push(graph);
 
@@ -764,10 +774,14 @@ impl PageEndpoint {
                 .next_config()
                 .turbopack_remove_unused_imports(next_mode)
                 .await?;
+            let remove_unused_exports = *project
+                .next_config()
+                .turbopack_remove_unused_exports(next_mode)
+                .await?;
 
-            let graph = if remove_unused_imports {
+            let graph = if remove_unused_imports || remove_unused_exports {
                 let graph = ModuleGraph::from_graphs(graphs.clone(), None);
-                let binding_usage_info = compute_binding_usage_info(graph, true);
+                let binding_usage_info = compute_binding_usage_info(graph, remove_unused_imports);
                 ModuleGraph::from_graphs(graphs, Some(binding_usage_info))
             } else {
                 ModuleGraph::from_graphs(graphs, None)
@@ -775,7 +789,7 @@ impl PageEndpoint {
 
             Ok(graph.connect())
         } else {
-            Ok(*project.whole_app_module_graphs().await?.full)
+            Ok(project.whole_app_module_graph())
         }
     }
 
@@ -787,7 +801,7 @@ impl PageEndpoint {
             let project = this.pages_project.project();
             let client_chunking_context = project.client_chunking_context();
 
-            let module_graph = self.client_module_graph();
+            let module_graph = self.module_graph();
 
             let evaluatable_assets = self
                 .client_evaluatable_assets()
@@ -936,15 +950,11 @@ impl PageEndpoint {
             } = *self.internal_ssr_chunk_module().await?;
 
             let project = this.pages_project.project();
-            // The SSR and Client Graphs are not connected in Pages Router.
-            // We are only interested in get_next_dynamic_imports_for_endpoint at the
-            // moment, which only needs the client graph anyway.
-            let ssr_module_graph = self.ssr_module_graph();
+            let module_graph = self.module_graph();
 
             let next_dynamic_imports = if let PageEndpointType::Html = this.ty {
                 let client_availability_info = self.client_chunk_group().await?.availability_info;
 
-                let client_module_graph = self.client_module_graph();
                 let per_page_module_graph = *project.per_page_module_graph().await?;
 
                 // We only validate the global css imports when there is not a `app` folder at the
@@ -952,7 +962,7 @@ impl PageEndpoint {
                 if project.app_project().await?.is_none() {
                     // We recreate the app_module here because the one provided from the
                     // `internal_ssr_chunk_module` is not the same as the one
-                    // provided from the `client_module_graph`. There can be cases where
+                    // provided from the `module_graph`. There can be cases where
                     // the `app_module` is None, and we are processing the `pages/_app.js` file
                     // as a page rather than the app module.
                     let app_module = project
@@ -969,7 +979,7 @@ impl PageEndpoint {
                         .module();
 
                     validate_pages_css_imports(
-                        client_module_graph,
+                        module_graph,
                         per_page_module_graph,
                         self.client_module(),
                         app_module,
@@ -978,7 +988,7 @@ impl PageEndpoint {
                 }
 
                 let next_dynamic_imports =
-                    NextDynamicGraphs::new(client_module_graph, per_page_module_graph)
+                    NextDynamicGraphs::new(module_graph, per_page_module_graph)
                         .get_next_dynamic_imports_for_endpoint(self.client_module())
                         .await?;
                 Some((next_dynamic_imports, client_availability_info))
@@ -992,7 +1002,7 @@ impl PageEndpoint {
             )) = next_dynamic_imports
             {
                 collect_next_dynamic_chunks(
-                    self.client_module_graph(),
+                    self.module_graph(),
                     project.client_chunking_context(),
                     next_dynamic_imports,
                     NextDynamicChunkAvailability::AvailabilityInfo(client_availability_info),
@@ -1017,7 +1027,7 @@ impl PageEndpoint {
                     let chunk_group = chunking_context.chunk_group(
                         layout.ident(),
                         ChunkGroup::Shared(layout),
-                        ssr_module_graph,
+                        module_graph,
                         current_chunk_group.await?.availability_info,
                     );
 
@@ -1037,7 +1047,7 @@ impl PageEndpoint {
                 let chunk_assets = edge_chunking_context.evaluated_chunk_group_assets(
                     ssr_module.ident(),
                     ChunkGroup::Entry(vec![ssr_module]),
-                    ssr_module_graph,
+                    module_graph,
                     OutputAssets::empty(),
                     current_chunk_group.await?.availability_info,
                 );
@@ -1066,7 +1076,7 @@ impl PageEndpoint {
                     .entry_chunk_group_asset(
                         ssr_entry_chunk_path,
                         ChunkGroup::Entry(vec![ssr_module]),
-                        ssr_module_graph,
+                        module_graph,
                         current_chunk_group.primary_assets(),
                         current_chunk_group.referenced_assets(),
                         current_chunk_group.await?.availability_info,
@@ -1571,7 +1581,7 @@ impl PageEndpoint {
     #[turbo_tasks::function]
     async fn trace_result(self: Vc<Self>) -> Result<Vc<EndpointTraceResult>> {
         let this = self.await?;
-        let ssr_module_graph = self.ssr_module_graph();
+        let ssr_module_graph = self.module_graph();
         let InternalSsrChunkModule { ssr_module, .. } = *self.internal_ssr_chunk_module().await?;
         Ok(trace_endpoint(
             this.pages_project.project(),
@@ -1744,13 +1754,7 @@ impl Endpoint for PageEndpoint {
 
     #[turbo_tasks::function]
     async fn module_graphs(self: Vc<Self>) -> Result<Vc<ModuleGraphs>> {
-        let client_module_graph = self.client_module_graph().to_resolved().await?;
-        let ssr_module_graph = self.ssr_module_graph().to_resolved().await?;
-        Ok(Vc::cell(if client_module_graph != ssr_module_graph {
-            vec![client_module_graph, ssr_module_graph]
-        } else {
-            vec![ssr_module_graph]
-        }))
+        Ok(Vc::cell(vec![self.module_graph().to_resolved().await?]))
     }
 
     #[turbo_tasks::function]

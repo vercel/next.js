@@ -109,7 +109,7 @@ pub struct EmptyWebpackLoaderBuiltinConditionSet;
 #[turbo_tasks::value_impl]
 impl EmptyWebpackLoaderBuiltinConditionSet {
     #[turbo_tasks::function]
-    fn new() -> Vc<Box<dyn WebpackLoaderBuiltinConditionSet>> {
+    pub fn new() -> Vc<Box<dyn WebpackLoaderBuiltinConditionSet>> {
         Vc::upcast::<Box<dyn WebpackLoaderBuiltinConditionSet>>(
             EmptyWebpackLoaderBuiltinConditionSet.cell(),
         )

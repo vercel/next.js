@@ -23,6 +23,7 @@ bytes-str = { workspace = true }
 const_format = { workspace = true }
 data-encoding = { workspace = true }
 either = { workspace = true }
+futures = { workspace = true }
 indexmap = { workspace = true }
 num-bigint = "0.4"
 patricia_tree = { version = "0.10.1", features = ["serde"] }
