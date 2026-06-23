@@ -285,14 +285,6 @@ async function createComponentTreeInternal(
   }
 
   if (typeof dynamic === 'string') {
-    if (cacheComponents) {
-      // TODO: Remove this since this should be caught during compilation.
-      // Left as a guard in case usage of Postpone was attempted
-      throw new Error(
-        `Route segment config "dynamic" is not compatible with \`nextConfig.cacheComponents\`. Please remove it.`
-      )
-    }
-
     // the nested most config wins so we only force-static
     // if it's configured above any parent that configured
     // otherwise
