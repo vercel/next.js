@@ -43,7 +43,6 @@ import {
   ClientHookDynamicError,
   isClientHookDynamicError,
   makeClientHookHangingPromise,
-  ParamClientHookDynamicError,
 } from '../dynamic-rendering-utils'
 import {
   METADATA_BOUNDARY_NAME,
@@ -550,7 +549,7 @@ export function useDynamicRouteParams(expression: string) {
           React.use(
             makeClientHookHangingPromise(
               workUnitStore.renderSignal,
-              new ParamClientHookDynamicError(workStore.route, expression)
+              new ClientHookDynamicError(workStore.route, expression)
             )
           )
         }

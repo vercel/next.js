@@ -52,31 +52,9 @@ export class ClientHookDynamicError extends Error {
   }
 }
 
-export class ParamClientHookDynamicError extends Error {
-  public readonly digest = CLIENT_HOOK_DYNAMIC
-
-  constructor(route: string, expression: string) {
-    const cacheBullet =
-      expression === 'useParams()'
-        ? `  - [cache] For known params, prerender them with \`generateStaticParams\`\n` +
-          `    https://nextjs.org/docs/messages/blocking-prerender-client-hook#for-known-params-prerender\n`
-        : ''
-    super(
-      `Route "${route}": Next.js encountered URL data \`${expression}\` in a Client Component outside of \`<Suspense>\`.\n\n` +
-        `This blocks prerendering because the value is only available at runtime.\n\n` +
-        `Ways to fix this:\n` +
-        `  - [stream] Wrap the component in \`<Suspense fallback={...}>\` so the hook value streams in after prerendering\n` +
-        `    https://nextjs.org/docs/messages/blocking-prerender-client-hook#wrap-in-or-move-into-suspense\n` +
-        cacheBullet +
-        `  - [block] Set \`export const instant = false\` to silence this warning and allow a blocking route\n` +
-        `    https://nextjs.org/docs/messages/blocking-prerender-client-hook#allow-blocking-route`
-    )
-  }
-}
-
 export function isClientHookDynamicError(
   err: unknown
-): err is ClientHookDynamicError | ParamClientHookDynamicError {
+): err is ClientHookDynamicError {
   if (typeof err !== 'object' || err === null || !('digest' in err)) {
     return false
   }
@@ -107,7 +85,7 @@ export function makeHangingPromise<T>(
 
 export function makeClientHookHangingPromise<T>(
   signal: AbortSignal,
-  error: ClientHookDynamicError | ParamClientHookDynamicError
+  error: ClientHookDynamicError
 ): Promise<T> {
   return makeHangingPromiseWithError(signal, error)
 }

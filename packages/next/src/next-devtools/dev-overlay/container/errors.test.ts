@@ -17,12 +17,10 @@ import {
   createSyncIORuntimeError,
   type SyncIOApiType,
 } from '../../../server/app-render/sync-io-messages'
-import {
-  ClientHookDynamicError,
-  ParamClientHookDynamicError,
-} from '../../../server/dynamic-rendering-utils'
+import { ClientHookDynamicError } from '../../../server/dynamic-rendering-utils'
 import { getCards } from '../components/instant/instant-guidance-data'
 import {
+  deriveCauseFromCodeFrame,
   getBlockingRouteErrorDetails,
   getUnrenderedSegmentErrorDetails,
   isInstantNavigationError,
@@ -140,10 +138,10 @@ describe('getBlockingRouteErrorDetails', () => {
     })
   })
 
-  it('classifies param-derived client hook errors separately', () => {
+  it('classifies useParams() client hook errors', () => {
     expect(
       getBlockingRouteErrorDetails(
-        new ParamClientHookDynamicError(ROUTE, 'useParams()')
+        new ClientHookDynamicError(ROUTE, 'useParams()')
       )
     ).toEqual({
       type: 'client-hook',
@@ -293,21 +291,16 @@ describe('client hook guidance', () => {
     expect(cards.map((card) => card.group)).toEqual(['stream', 'block'])
   })
 
-  it('shows Stream, GSP, and Block cards for useParams', () => {
+  it('shows Stream and Block cards for useParams', () => {
     const cards = getCards('client-hook', 'runtime', 'useParams()')
     expect(cards.map((card) => card.id)).toEqual([
       'wrap-in-or-move-into-suspense',
-      'for-known-params-prerender',
       'allow-blocking-route',
     ])
-    expect(cards.map((card) => card.group)).toEqual([
-      'stream',
-      'cache',
-      'block',
-    ])
+    expect(cards.map((card) => card.group)).toEqual(['stream', 'block'])
   })
 
-  it('shows Stream and Block cards for hooks without GSP', () => {
+  it('shows Stream and Block cards for hooks (no GSP)', () => {
     const expected = ['wrap-in-or-move-into-suspense', 'allow-blocking-route']
     expect(
       getCards('client-hook', 'runtime', 'usePathname()').map((c) => c.id)
@@ -329,35 +322,43 @@ describe('card sets for all error families', () => {
   it('blocking-route runtime', () => {
     expect(
       getCards('blocking-route', 'runtime').map((card) => card.id)
-    ).toEqual([
-      'wrap-in-or-move-into-suspense',
-      'for-known-params-prerender',
-      'allow-blocking-route',
-    ])
+    ).toEqual(['wrap-in-or-move-into-suspense', 'allow-blocking-route'])
   })
 
   it('blocking-route dynamic', () => {
     expect(
       getCards('blocking-route', 'dynamic').map((card) => card.id)
     ).toEqual([
-      'cache-the-component-or-data',
       'wrap-in-or-move-into-suspense',
+      'cache-the-component-or-data',
       'allow-blocking-route',
     ])
+  })
+
+  it('blocking-route dynamic with connection() drops the cache card', () => {
+    expect(
+      getCards('blocking-route', 'dynamic', 'connection').map((card) => card.id)
+    ).toEqual(['wrap-in-or-move-into-suspense', 'allow-blocking-route'])
   })
 
   it('metadata runtime', () => {
     expect(getCards('metadata', 'runtime').map((card) => card.id)).toEqual([
       'use-static-metadata',
-      'render-page-at-request-time',
+      'mark-the-route-as-dynamic',
     ])
   })
 
   it('metadata dynamic', () => {
     expect(getCards('metadata', 'dynamic').map((card) => card.id)).toEqual([
       'cache-the-metadata',
-      'render-page-at-request-time',
+      'mark-the-route-as-dynamic',
     ])
+  })
+
+  it('metadata dynamic with connection() drops the cache card', () => {
+    expect(
+      getCards('metadata', 'dynamic', 'connection').map((card) => card.id)
+    ).toEqual(['mark-the-route-as-dynamic'])
   })
 
   it('viewport runtime', () => {
@@ -369,9 +370,15 @@ describe('card sets for all error families', () => {
 
   it('viewport dynamic', () => {
     expect(getCards('viewport', 'dynamic').map((card) => card.id)).toEqual([
-      'cache-viewport-data',
+      'cache-the-viewport-data',
       'allow-blocking-route',
     ])
+  })
+
+  it('viewport dynamic with connection() drops the cache card', () => {
+    expect(
+      getCards('viewport', 'dynamic', 'connection').map((card) => card.id)
+    ).toEqual(['allow-blocking-route'])
   })
 
   it('unrendered-segment', () => {
@@ -555,5 +562,59 @@ describe('isInstantNavigationError', () => {
 
   it('returns false for unrelated errors', () => {
     expect(isInstantNavigationError(new Error('regular bug'))).toBe(false)
+  })
+})
+
+describe('deriveCauseFromCodeFrame', () => {
+  const connectionFrame = `  3 | export default async function Page() {\n> 4 |   await connection();\n    |                   ^\n  5 |   return <p>OK</p>;`
+  const fetchFrame = `  1 | export default async function Page() {\n> 2 |   const r = await fetch("/api");\n    |                     ^\n  3 |   return <p>{r.status}</p>;`
+
+  it('returns "connection" when the highlighted line calls connection()', () => {
+    expect(
+      deriveCauseFromCodeFrame('blocking-route', 'dynamic', connectionFrame)
+    ).toBe('connection')
+    expect(
+      deriveCauseFromCodeFrame('metadata', 'dynamic', connectionFrame)
+    ).toBe('connection')
+    expect(
+      deriveCauseFromCodeFrame('viewport', 'dynamic', connectionFrame)
+    ).toBe('connection')
+  })
+
+  it('returns undefined when the highlighted line is a fetch/db call', () => {
+    expect(
+      deriveCauseFromCodeFrame('blocking-route', 'dynamic', fetchFrame)
+    ).toBeUndefined()
+  })
+
+  it('returns undefined for runtime variant even if connection() is in scope', () => {
+    expect(
+      deriveCauseFromCodeFrame('blocking-route', 'runtime', connectionFrame)
+    ).toBeUndefined()
+  })
+
+  it('returns undefined for kinds that do not show a cache card', () => {
+    expect(
+      deriveCauseFromCodeFrame('client-hook', 'dynamic', connectionFrame)
+    ).toBeUndefined()
+    expect(
+      deriveCauseFromCodeFrame('sync-io', 'dynamic', connectionFrame)
+    ).toBeUndefined()
+  })
+
+  it('returns undefined when there is no code frame', () => {
+    expect(
+      deriveCauseFromCodeFrame('blocking-route', 'dynamic', null)
+    ).toBeUndefined()
+    expect(
+      deriveCauseFromCodeFrame('blocking-route', 'dynamic', undefined)
+    ).toBeUndefined()
+  })
+
+  it('does not match when connection() appears only in a non-highlighted line', () => {
+    const frame = `  1 | import { connection } from "next/server";\n> 2 |   await fetch("/api");\n    |         ^`
+    expect(
+      deriveCauseFromCodeFrame('blocking-route', 'dynamic', frame)
+    ).toBeUndefined()
   })
 })

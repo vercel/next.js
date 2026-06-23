@@ -23,15 +23,6 @@ This error can also appear during a client-side navigation when the data access 
 </FixOption>
 
 <FixOption
-  group="cache"
-  href="#for-known-params-prerender"
-  title="For known params, prerender"
->
-  Tell Next.js the full set of valid params ahead of time. Each one becomes a
-  prerendered route.
-</FixOption>
-
-<FixOption
   group="block"
   href="#allow-blocking-route"
   title="Allow blocking route"
@@ -180,58 +171,6 @@ A useful rule: **push the boundary as low as possible** while keeping the fallba
 - The function returned by [`cookies()`](/docs/app/api-reference/functions/cookies) and [`headers()`](/docs/app/api-reference/functions/headers) is async. Make sure the component reading them is async too, and `await` the call.
 - The `params` and `searchParams` props are also async promises. Treat them like any other awaited value when deciding where the boundary goes.
 
-## For known params, prerender
-
-Choose this fix when the route has a closed set of valid params and you know them at build time. Adding [`generateStaticParams`](/docs/app/api-reference/functions/generate-static-params) tells Next.js to prerender each one, so the per-request `params` value becomes a build-time constant for those entries.
-
-### Patterns
-
-#### Return a fixed list
-
-Return the full list of params from the export. Use this for routes whose param space is small and known.
-
-```jsx filename="app/dashboard/[team]/page.js"
-export function generateStaticParams() {
-  return [{ team: 'marketing' }, { team: 'sales' }, { team: 'ops' }]
-}
-
-export default async function Page({ params }) {
-  const { team } = await params
-  return <TeamDashboard team={team} />
-}
-```
-
-Learn more: [`generateStaticParams` basics](/docs/app/api-reference/functions/generate-static-params).
-
-#### Fetch the list at build time
-
-When the param values come from a content source, fetch them inside `generateStaticParams`. Next.js calls the function once at build time.
-
-```jsx filename="app/dashboard/[team]/page.js"
-export async function generateStaticParams() {
-  const teams = await db.teams.findMany({ select: { slug: true } })
-  return teams.map((team) => ({ team: team.slug }))
-}
-
-export default async function Page({ params }) {
-  const { team } = await params
-  const dashboard = await getDashboard(team)
-  return <TeamDashboard dashboard={dashboard} />
-}
-```
-
-Learn more: [ISR with Cache Components](/docs/app/guides/incremental-static-regeneration-cache-components).
-
-### Trade-off
-
-The list of params is decided at build time. See [`generateStaticParams`](/docs/app/api-reference/functions/generate-static-params) for rebuild and cache-invalidation patterns when the list changes. A request for a param not in the returned list falls through to runtime rendering, so the runtime data read still needs a [`<Suspense>`](https://react.dev/reference/react/Suspense) boundary or [Allow blocking route](#allow-blocking-route).
-
-### Gotchas
-
-- The [`generateStaticParams`](/docs/app/api-reference/functions/generate-static-params) function only handles `params`. It does not solve [`cookies()`](/docs/app/api-reference/functions/cookies), [`headers()`](/docs/app/api-reference/functions/headers), or [`searchParams`](/docs/app/api-reference/file-conventions/page#searchparams-optional). If the page also reads any of those, you still need a [`<Suspense>`](https://react.dev/reference/react/Suspense) boundary.
-- The function runs at build time, so it can't depend on per-request values. Reading [`cookies()`](/docs/app/api-reference/functions/cookies) or [`headers()`](/docs/app/api-reference/functions/headers) inside it throws.
-- The [`dynamicParams`](/docs/app/api-reference/file-conventions/route-segment-config/dynamicParams) config isn't available in this model. If you're migrating an existing page, use [`<Suspense>`](https://react.dev/reference/react/Suspense), [`notFound()`](/docs/app/api-reference/functions/not-found), or [Allow blocking route](#allow-blocking-route) instead.
-
 ## Allow blocking route
 
 Choose this fix when the route renders per-request and there's no useful static shell. Setting [`instant`](/docs/app/api-reference/file-conventions/route-segment-config/instant) to `false` exempts the segment from instant-navigation validation. The page renders on every request and the navigation blocks until that render completes.
@@ -272,7 +211,7 @@ Use either pattern when:
 - The route needs request-time data high in the tree to decide what to render (for example auth, tenant, or other gating in a layout), so there is no meaningful [static shell](/docs/app/glossary#static-shell) worth showing first.
 - You're migrating a route incrementally and want to defer the lifetime decision without changing how the page renders today.
 
-Don't use this to dismiss the error. Choose [Wrap in or move into Suspense](#wrap-in-or-move-into-suspense) or [For known params, prerender](#for-known-params-prerender) when either is feasible.
+Don't use this to dismiss the error. Choose [Wrap in or move into Suspense](#wrap-in-or-move-into-suspense) when feasible.
 
 ### Trade-off
 

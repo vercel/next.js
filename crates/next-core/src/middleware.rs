@@ -191,9 +191,7 @@ impl Issue for MiddlewareMissingExportIssue {
              To fix it:\n\
              - Ensure this file has either a default or \"{}\" function export.\n\n\
              Learn more: https://nextjs.org/docs/messages/middleware-to-proxy",
-            type_description,
-            migration_bullet,
-            self.function_name
+            type_description, migration_bullet, self.function_name
         );
 
         Ok(Some(StyledString::Text(description_text.into())))

@@ -33,6 +33,8 @@ For errors in the page body rather than metadata, see [Next.js encountered uncac
 
 Choose this fix when the metadata comes from an external source (CMS, database) but doesn't need to change on every request. Add the [`use cache`](/docs/app/api-reference/directives/use-cache) directive as the first statement inside [`generateMetadata()`](/docs/app/api-reference/functions/generate-metadata). Next.js caches the returned metadata object and includes it in the prerender.
 
+This fix does not apply to [`connection()`](/docs/app/api-reference/functions/connection). The point of `connection()` is to opt into per-request rendering, so caching it would defeat the purpose. Use [Mark the route as dynamic](#mark-the-route-as-dynamic) instead.
+
 ### Patterns
 
 #### Add `use cache` to `generateMetadata`
