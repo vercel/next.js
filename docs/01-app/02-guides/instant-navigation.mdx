@@ -107,9 +107,11 @@ The `@next/playwright` package provides an [`instant()`](/docs/app/api-reference
 
 ### Inspect loading states
 
-The **Navigation Inspector** in the Next.js DevTools freezes the page at its initial loading state: the static shell on direct visits, the prefetched destination on client navigations. Use it as a feedback loop while you develop. Is a loading fallback covering too much? Can a `<Suspense>` boundary move closer to the data? See [Maximizing the static shell](/docs/app/getting-started/caching#maximizing-the-static-shell) for the structural pattern.
+The **Navigation Inspector** in the Next.js DevTools freezes the page at its initial loading state, showing the static shell on direct visits and the prefetched destination on client navigations. Use the inspector to see how much meaningful content lands in the shell.
 
 Pair it with the React DevTools Suspense panel to see exactly which boundary covers which part of the page. See [Visualize loading states with the Next.js DevTools](#visualize-loading-states-with-the-nextjs-devtools) for the workflow.
+
+See [Maximizing the static shell](/docs/app/getting-started/caching#maximizing-the-static-shell) for patterns to reduce fallback coverage and pull more content into the shell.
 
 ## A page that navigates instantly
 
