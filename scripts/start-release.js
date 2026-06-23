@@ -16,15 +16,27 @@ const SEMVER_TYPES = ['patch', 'minor', 'major']
 
 /**
  * A GitHub client (matching the `githubRequest` signature) for dry runs: it
- * just logs the request and returns a minimal canned response instead of
- * hitting the API, so the sign/tag/push flow can be exercised without creating
- * remote refs. Bodies are not logged (blob uploads carry base64 file contents).
+ * logs the request (method, path, and body) and returns a minimal canned
+ * response instead of hitting the API, so the sign/tag/push flow can be
+ * exercised without creating remote refs. Long string values (e.g. the base64
+ * blob content of file uploads) are truncated so the log stays readable.
  */
 function createMockGitHubRequest() {
   let counter = 0
 
-  return async function mockGitHubRequest(_token, method, apiPath) {
-    console.log(`[dry-run] GitHub API ${method} ${apiPath}`)
+  const formatBody = (body) =>
+    JSON.stringify(body, (_key, value) =>
+      typeof value === 'string' && value.length > 200
+        ? `${value.slice(0, 120)}… (${value.length} chars)`
+        : value
+    )
+
+  return async function mockGitHubRequest(_token, method, apiPath, body) {
+    console.log(
+      `[dry-run] GitHub API ${method} ${apiPath}${
+        body ? ` ${formatBody(body)}` : ''
+      }`
+    )
 
     // One canned shape covers every consumer: `.sha` (blobs/trees/commits) and
     // `.verification.verified` (commits). Ref writes ignore the return value.
