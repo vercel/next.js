@@ -351,6 +351,16 @@ function rescheduleLinkPrefetch(
   }
 }
 
+function rescheduleVisibleLinksOnReconnect() {
+  for (const instance of prefetchableAndVisible) {
+    rescheduleLinkPrefetch(instance, PrefetchPriority.Default)
+  }
+}
+
+if (typeof window !== 'undefined') {
+  window.addEventListener('online', rescheduleVisibleLinksOnReconnect)
+}
+
 export function pingVisibleLinks(
   nextUrl: string | null,
   tree: FlightRouterState
