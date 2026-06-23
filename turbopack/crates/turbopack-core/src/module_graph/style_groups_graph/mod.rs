@@ -54,8 +54,14 @@
 //!   that would put a global item into a chunk loaded by a chunk group not currently loading that
 //!   item is treated as `+infinity` cost.
 
+use std::{
+    sync::atomic::{AtomicU64, Ordering},
+    time::{SystemTime, UNIX_EPOCH},
+};
+
 use anyhow::Result;
 use indexmap::map::Entry;
+use petgraph::graph::NodeIndex;
 use rustc_hash::FxHashSet;
 use tracing::{Instrument, instrument};
 use turbo_tasks::{FxIndexMap, FxIndexSet, ResolvedVc, TryJoinIterExt, Vc};
@@ -65,7 +71,7 @@ use crate::{
         ChunkItemBatchWithAsyncModuleInfo, ChunkItemWithAsyncModuleInfo, ChunkType,
         ChunkableModule, ChunkingContext, chunk_item_batch::attach_async_info_to_chunkable_module,
     },
-    module::{StyleModule, StyleType},
+    module::{Module, StyleModule, StyleType},
     module_graph::{
         GraphTraversalAction, ModuleGraph,
         module_batch::ModuleOrBatch,
@@ -145,11 +151,109 @@ pub async fn compute_style_groups_graph(
         )
     });
 
+    // Optional debug dump controlled by `TURBOPACK_DEBUG_CSS_CHUNKING`. Failures here are
+    // logged and otherwise swallowed so a debug toggle never breaks the build.
+    if debug_dump_enabled()
+        && let Err(err) = write_debug_dump(
+            &chunk_groups,
+            &modules_in_order,
+            &module_data,
+            &global_order,
+            &chunks,
+        )
+        .instrument(tracing::trace_span!("debug_dump"))
+        .await
+    {
+        eprintln!("TURBOPACK_DEBUG_CSS_CHUNKING: failed to write debug dump: {err:?}");
+    }
+
     // 4. Assemble the result. Each multi-item chunk becomes a `ChunkItemBatch`; singletons get a
     //    `batch = None` entry so the production sort still places them at the right `order`.
     assemble_style_groups(&chunks, &module_data)
         .instrument(tracing::trace_span!("assemble"))
         .await
+}
+
+fn debug_dump_enabled() -> bool {
+    match std::env::var("TURBOPACK_DEBUG_CSS_CHUNKING") {
+        Ok(v) => !v.is_empty() && v != "0" && !v.eq_ignore_ascii_case("false"),
+        Err(_) => false,
+    }
+}
+
+/// Write a JSON snapshot of the inputs and outputs of the graph-based CSS chunker to the
+/// current working directory. Each invocation produces a uniquely named file so concurrent or
+/// repeated computations don't overwrite each other.
+async fn write_debug_dump(
+    chunk_groups: &[Vec<usize>],
+    modules: &[StyleModuleRef],
+    module_data: &[ModuleData],
+    global_order: &[NodeIndex],
+    chunks: &[Vec<usize>],
+) -> Result<()> {
+    // Resolve `ident_string()` for every module up front. Done in parallel to keep this off the
+    // critical path even on graphs with thousands of CSS modules.
+    let ident_strings: Vec<String> = modules
+        .iter()
+        .map(async |m| -> Result<String> {
+            Ok(m.chunkable.ident_string().await?.as_str().to_owned())
+        })
+        .try_join()
+        .await?;
+
+    let ident = |id: usize| ident_strings[id].as_str();
+
+    let chunk_groups_json: Vec<Vec<&str>> = chunk_groups
+        .iter()
+        .map(|g| g.iter().map(|&id| ident(id)).collect())
+        .collect();
+
+    let global_order_chunks_json: Vec<Vec<&str>> = chunks
+        .iter()
+        .map(|chunk| chunk.iter().map(|&id| ident(id)).collect())
+        .collect();
+
+    let global_order_flat_json: Vec<&str> = global_order.iter().map(|n| ident(n.index())).collect();
+
+    let modules_json: Vec<serde_json::Value> = modules
+        .iter()
+        .enumerate()
+        .map(|(i, _)| {
+            serde_json::json!({
+                "ident": ident(i),
+                "size": module_data[i].size,
+                "style_type": match module_data[i].style_type {
+                    StyleType::GlobalStyle => "GlobalStyle",
+                    StyleType::IsolatedStyle => "IsolatedStyle",
+                },
+            })
+        })
+        .collect();
+
+    let dump = serde_json::json!({
+        "chunk_groups": chunk_groups_json,
+        "global_order": global_order_flat_json,
+        "global_order_chunks": global_order_chunks_json,
+        "modules": modules_json,
+    });
+
+    let now_ms = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|d| d.as_millis())
+        .unwrap_or(0);
+    static COUNTER: AtomicU64 = AtomicU64::new(0);
+    let seq = COUNTER.fetch_add(1, Ordering::Relaxed);
+    let path =
+        std::env::current_dir()?.join(format!("turbopack-css-chunking-debug-{now_ms}-{seq}.json"));
+
+    let bytes = serde_json::to_vec_pretty(&dump)?;
+    std::fs::write(&path, &bytes)?;
+    eprintln!(
+        "TURBOPACK_DEBUG_CSS_CHUNKING: wrote {} bytes to {}",
+        bytes.len(),
+        path.display()
+    );
+    Ok(())
 }
 
 async fn assemble_style_groups(
