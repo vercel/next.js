@@ -183,7 +183,7 @@ export const revalidate = false
 > **Good to know**:
 >
 > - The revalidate value needs to be statically analyzable. For example `revalidate = 600` is valid, but `revalidate = 60 * 10` is not.
-> - The revalidate value is not available when using `runtime = 'edge'`.
+> - The revalidate value is not available when using the deprecated `runtime = 'edge'`.
 > - In Development, Pages are _always_ rendered on-demand and are never cached. This allows you to see changes immediately without waiting for a revalidation period to pass.
 
 #### Revalidation frequency
@@ -226,7 +226,7 @@ import { revalidateTag } from 'next/cache'
 
 export async function updateUser(id: string) {
   // Mutate data
-  revalidateTag('user')
+  revalidateTag('user', 'max')
 }
 ```
 
@@ -235,7 +235,7 @@ import { revalidateTag } from 'next/cache'
 
 export async function updateUser(id) {
   // Mutate data
-  revalidateTag('user')
+  revalidateTag('user', 'max')
 }
 ```
 

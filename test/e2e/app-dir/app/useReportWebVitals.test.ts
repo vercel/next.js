@@ -1,23 +1,19 @@
-import { createNext } from 'e2e-utils'
-import { NextInstance } from 'e2e-utils'
+import { nextTestSetup } from 'e2e-utils'
 import { check } from 'next-test-utils'
 
 describe('useReportWebVitals hook', () => {
-  let next: NextInstance
+  const { next } = nextTestSetup({
+    files: __dirname,
+    skipStart: true,
+    env: {},
+    dependencies: {
+      nanoid: '4.0.1',
+    },
+  })
 
   beforeAll(async () => {
-    next = await createNext({
-      files: __dirname,
-      skipStart: true,
-      env: {},
-      dependencies: {
-        nanoid: '4.0.1',
-      },
-    })
-
     await next.start()
   })
-  afterAll(() => next.destroy())
 
   // Analytics events are only sent in production
   it('should send web-vitals', async () => {

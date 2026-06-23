@@ -1,8 +1,5 @@
-#![feature(box_patterns)]
 #![feature(trivial_bounds)]
 #![feature(min_specialization)]
-#![feature(map_try_insert)]
-#![feature(hash_set_entry)]
 #![recursion_limit = "256"]
 #![feature(arbitrary_self_types)]
 #![feature(arbitrary_self_types_pointers)]
@@ -10,12 +7,14 @@
 pub mod evaluate_context;
 pub mod global_module_ids;
 pub mod module_options;
+pub mod runtime_asset_context;
 pub mod transition;
 
 use anyhow::{Context as _, Result, bail};
 use module_options::{
     ConfiguredModuleType, ModuleOptions, ModuleOptionsContext, ModuleRuleEffect, ModuleType,
 };
+pub use runtime_asset_context::get_runtime_asset_context;
 use tracing::{Instrument, field::Empty};
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{ResolvedVc, TryJoinIterExt, ValueToString, Vc};
@@ -37,8 +36,11 @@ use turbopack_core::{
     },
     resolve::{
         ExternalTraced, ExternalType, ModulePart, ModuleResolveResult, ModuleResolveResultItem,
-        ResolveResult, ResolveResultItem, options::ResolveOptions, origin::PlainResolveOrigin,
-        parse::Request, resolve,
+        ResolveResult, ResolveResultItem,
+        options::{ConditionValue, ResolveOptions},
+        origin::PlainResolveOrigin,
+        parse::Request,
+        resolve,
     },
     source::Source,
     source_transform::SourceTransforms,
@@ -215,10 +217,10 @@ async fn apply_module_type(
                                     ModulePart::Export(_) => {
                                         apply_reexport_tree_shaking(
                                             Vc::upcast(
-                                                EcmascriptModuleFacadeModule::new(Vc::upcast(
+                                                *EcmascriptModuleFacadeModule::new(Vc::upcast(
                                                     *module,
                                                 ))
-                                                .resolve()
+                                                .to_resolved()
                                                 .await?,
                                             ),
                                             part.clone(),
@@ -423,23 +425,15 @@ impl ModuleAssetContext {
     }
 
     #[turbo_tasks::function]
-    pub async fn is_types_resolving_enabled(&self) -> Result<Vc<bool>> {
-        let resolve_options_context = self.resolve_options_context.await?;
-        Ok(Vc::cell(
-            resolve_options_context.enable_types && resolve_options_context.enable_typescript,
-        ))
-    }
-
-    #[turbo_tasks::function]
     pub async fn with_types_resolving_enabled(self: Vc<Self>) -> Result<Vc<ModuleAssetContext>> {
-        if *self.is_types_resolving_enabled().await? {
+        let this = self.await?;
+        if this.is_types_resolving_enabled().await? {
             return Ok(self);
         }
-        let this = self.await?;
-        let resolve_options_context = this
+        let resolve_options_context = *this
             .resolve_options_context
             .with_types_enabled()
-            .resolve()
+            .to_resolved()
             .await?;
 
         Ok(ModuleAssetContext::new(
@@ -453,6 +447,10 @@ impl ModuleAssetContext {
 }
 
 impl ModuleAssetContext {
+    async fn is_types_resolving_enabled(&self) -> Result<bool> {
+        let resolve_options_context = self.resolve_options_context.await?;
+        Ok(resolve_options_context.enable_types && resolve_options_context.enable_typescript)
+    }
     async fn process_with_transition_rules(
         self: Vc<Self>,
         source: ResolvedVc<Box<dyn Source>>,
@@ -654,7 +652,8 @@ async fn process_default_internal(
     processed_rules: Vec<usize>,
 ) -> Result<Vc<ProcessResult>> {
     let ident = source.ident().to_resolved().await?;
-    let path_ref = ident.path().await?;
+    let ident_ref = ident.await?;
+    let path_ref = &ident_ref.path;
     let options = ModuleOptions::new(
         path_ref.parent(),
         module_asset_context.module_options_context(),
@@ -828,7 +827,7 @@ async fn process_default_internal(
         if processed_rules.contains(&i) {
             continue;
         }
-        if rule.matches(source, &path_ref, &reference_type).await? {
+        if rule.matches(source, path_ref, &reference_type).await? {
             for effect in rule.effects() {
                 match effect {
                     ModuleRuleEffect::Ignore => {
@@ -930,6 +929,7 @@ pub async fn externals_tracing_module_context(
         loose_errors: true,
         collect_affecting_sources: true,
         custom_conditions: vec![rcstr!("node")],
+        module_sync: ConditionValue::Unknown,
         ..Default::default()
     };
 
@@ -994,10 +994,17 @@ impl AssetContext for ModuleAssetContext {
             self
         };
         // TODO move `apply_commonjs/esm_resolve_options` etc. to here
-        Ok(resolve_options(
+        let options = resolve_options(
             origin_path.parent(),
             *module_asset_context.await?.resolve_options_context,
-        ))
+        );
+        // Inject the turbopack-ecmascript-runtime import map so that
+        // @turbopack/* built-in modules and @vercel/turbopack-ecmascript-runtime/*
+        // paths are always resolvable.
+        let runtime_import_map = turbopack_ecmascript_runtime::turbopack_runtime_import_map()
+            .to_resolved()
+            .await?;
+        Ok(options.with_extended_import_map(*runtime_import_map))
     }
 
     #[turbo_tasks::function]
@@ -1017,9 +1024,9 @@ impl AssetContext for ModuleAssetContext {
             resolve_options,
         );
 
-        let mut result = self.process_resolve_result(result.resolve().await?, reference_type);
-
-        if *self.is_types_resolving_enabled().await? {
+        let mut result = self.process_resolve_result(*result.to_resolved().await?, reference_type);
+        let this = self.await?;
+        if this.is_types_resolving_enabled().await? {
             let types_result = type_resolve(
                 Vc::upcast(PlainResolveOrigin::new(Vc::upcast(self), origin_path)),
                 request,
@@ -1215,15 +1222,15 @@ pub async fn emit_assets_into_dir(
     Ok(())
 }
 
-#[turbo_tasks::function(operation)]
+#[turbo_tasks::function(operation, root)]
 pub async fn emit_assets_into_dir_operation(
     assets: ResolvedVc<ExpandedOutputAssets>,
     output_dir: FileSystemPath,
-) -> Result<Vc<()>> {
+) -> Result<()> {
     emit_assets_into_dir(*assets, output_dir)
         .as_side_effect()
         .await?;
-    Ok(Vc::cell(()))
+    Ok(())
 }
 
 /// Replaces the externals in the result with `ExternalModuleAsset` instances.

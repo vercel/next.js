@@ -1268,7 +1268,7 @@
         export_usage: All,
     },
     ImportedBinding {
-        esm_reference_index: 4,
+        esm_reference_index: 5,
         export: Some(
             "z",
         ),

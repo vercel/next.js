@@ -1,19 +1,20 @@
 ---
-title: Preserving UI state across navigations
+title: How Next.js preserves UI state with Activity
 nav_title: Preserving UI state
-description: Learn how to control which UI state is preserved and which resets when navigating between pages.
+description: Learn how React's Activity component preserves UI state across navigations in Next.js and how to control what resets.
 related:
   title: Related
   description: Learn more about Cache Components and preserving UI state.
   links:
     - app/getting-started/caching
+    - app/guides/migrating-to-cache-components
 ---
 
 > **Good to know:** This guide assumes [Cache Components](/docs/app/getting-started/caching) is enabled. Enable it by setting [`cacheComponents: true`](/docs/app/api-reference/config/next-config-js/cacheComponents) in your Next config file.
 
 Before Cache Components, preserving page-level state across navigations required workarounds like hoisting state to a [shared layout](/docs/app/getting-started/layouts-and-pages#nesting-layouts) or using an external store. With Cache Components, Next.js preserves state and DOM out of the box.
 
-Instead of unmounting pages on navigation, Next.js hides them using React's [`<Activity>`](https://react.dev/reference/react/Activity) component. The DOM nodes stay in the document (hidden with `display: none`), so both React state and DOM state are preserved: form drafts, scroll positions, expanded `<details>` elements, video playback progress, and more.
+Instead of unmounting pages on navigation, Next.js hides them using React's [`<Activity>`](https://react.dev/reference/react/Activity) component. Activity keeps the DOM in the document (hidden with `display: none`), so both React state and DOM state are preserved: form drafts, scroll positions, expanded `<details>` elements, video playback progress, and more.
 
 Next.js preserves up to 3 routes. Beyond that, the oldest route is evicted and will re-render fresh.
 
@@ -140,95 +141,114 @@ function ProductTab() {
 
 With this approach, `isDialogOpen` derives from the URL rather than component state. When navigating away and returning, the search param is cleared (the URL changed), so `isDialogOpen` becomes `false`. Opening the dialog sets the param, which changes `isDialogOpen` and triggers the Effect.
 
-### Form input values
+### Forms, inputs, and state
 
-Activity preserves form input values: text typed into fields, selected options, checkbox states.
+Activity preserves form input values (text fields, selected options, checkbox states), submission results, and status messages across navigations.
 
 **When to keep it:** A search page with filters, a draft the user was composing, or a settings form with unsaved changes. Preserving input state is one of the biggest UX wins because the user doesn't lose work.
 
-**When to reset it:** A "create new item" page where returning should start fresh, or a contact form after successful submission.
-
-To reset form fields when Activity hides the component, use a callback ref:
-
-```tsx
-<form
-  ref={(form) => {
-    // Cleanup function - runs when Activity hides this component
-    return () => form?.reset()
-  }}
->
-  {/* fields */}
-</form>
-```
-
-This resets the form whenever the user navigates away.
-
-### Action state (`useActionState`)
-
-Activity preserves [`useActionState`](https://react.dev/reference/react/useActionState) results: success messages, error messages, and any other state returned by the action.
-
-**When to keep it:** A ticket redemption form showing "Ticket redeemed successfully", or a settings form showing "Changes saved". Seeing the result of a previous action when returning to the page is useful confirmation so the user can see what happened.
-
 **When to reset it:** A "new transaction" flow where each visit should start fresh, or a form where stale success/error messages would be confusing in a new context.
 
-You can think of `useActionState` as a `useReducer` that allows side effects. It doesn't have to only handle form submissions; you can dispatch any action to it. Adding a `RESET` action gives you a clean way to clear state when Activity hides the component (see [Reset state](https://react.dev/reference/react/useActionState#reset-state) in the React docs):
+#### Resetting form state on submit
 
-```tsx highlight={5-6,9-21,26-35}
+Consider a page where the user creates a new item. After submitting, `router.push` navigates to the new record. Since Activity preserves the page, navigating back shows the previous name still in the form. Reset state in the event handler to keep the form fresh:
+
+```tsx filename="app/new/page.tsx" highlight={13}
 'use client'
 
-import { useActionState, useLayoutEffect, useRef, startTransition } from 'react'
+import { useState } from 'react'
+import { useRouter } from 'next/navigation'
 
-type Action = { type: 'SUBMIT'; data: FormData } | { type: 'RESET' }
-type State = { success: boolean; error: string | null }
+export default function NewItemPage() {
+  const [name, setName] = useState('')
+  const router = useRouter()
 
-function CommentForm() {
-  const [state, dispatch, isPending] = useActionState(
-    async (prev: State, action: Action) => {
-      if (action.type === 'RESET') {
-        return { success: false, error: null }
-      }
-      // Handle the form submission
-      const res = await saveComment(action.data)
-      if (!res.ok) return { success: false, error: res.message }
-      shouldReset.current = true
-      return { success: true, error: null }
-    },
-    { success: false, error: null }
-  )
-
-  const shouldReset = useRef(false)
-
-  // Dispatch RESET when Activity hides this component
-  useLayoutEffect(() => {
-    return () => {
-      if (shouldReset.current) {
-        shouldReset.current = false
-        startTransition(() => {
-          dispatch({ type: 'RESET' })
-        })
-      }
-    }
-  }, [dispatch])
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault()
+    const item = await createItem({ name })
+    setName('')
+    router.push(`/items/${item.id}`)
+  }
 
   return (
-    <form action={(formData) => dispatch({ type: 'SUBMIT', data: formData })}>
-      <textarea name="comment" />
-      <button type="submit" disabled={isPending}>
-        {isPending ? 'Posting...' : 'Post Comment'}
-      </button>
-      {state.success && <p>Comment posted!</p>}
-      {state.error && <p>{state.error}</p>}
+    <form onSubmit={handleSubmit}>
+      <input value={name} onChange={(e) => setName(e.target.value)} />
+      <button type="submit">Create</button>
     </form>
   )
 }
 ```
 
-Here's what happens step by step:
+#### Resetting stale status messages
 
-1. The user submits the form. The reducer receives a `SUBMIT` action with the `FormData`, calls `saveComment`, and returns `{ success: true }`. It also sets `shouldReset.current = true` to mark that a reset is needed.
-2. The user navigates away. Activity hides the component and runs the `useLayoutEffect` cleanup. Because `shouldReset.current` is `true`, it dispatches a `RESET` action.
-3. The reducer receives `RESET` and returns the initial state (`{ success: false, error: null }`). The stale success message is cleared.
-4. If the user navigates back, the form is ready for a new submission. If they never submitted (step 1 didn't happen), `shouldReset.current` is still `false`, so no `RESET` is dispatched. The form stays as-is.
+If after submitting you set a status into state to render a feedback message, there's often not a reliable user-initiated event to clear it.
+
+The user might navigate via `next/link` elements out of your control, or via browser controls.
+
+Navigating back to the form shows a stale message. In this case, you may use a `useLayoutEffect` cleanup to reset the form and state:
+
+```tsx highlight={17-26}
+'use client'
+
+import { useState, useRef, useLayoutEffect } from 'react'
+
+function ContactForm() {
+  const [name, setName] = useState('')
+  const [status, setStatus] = useState<'idle' | 'success'>('idle')
+  const shouldReset = useRef(false)
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault()
+    await sendMessage({ name })
+    setStatus('success')
+    shouldReset.current = true
+  }
+
+  // Reset stale success message when Activity hides this component
+  useLayoutEffect(() => {
+    return () => {
+      if (shouldReset.current) {
+        shouldReset.current = false
+        setStatus('idle')
+        setName('')
+      }
+    }
+  }, [])
+
+  return (
+    <form onSubmit={handleSubmit}>
+      <input value={name} onChange={(e) => setName(e.target.value)} />
+      <button type="submit">Send</button>
+      {status === 'success' && <p>Message sent!</p>}
+    </form>
+  )
+}
+```
+
+The `shouldReset` ref ensures the cleanup only runs after a successful submission. If the user navigates away mid-draft without submitting, their input is preserved.
+
+If you use [`useActionState`](https://react.dev/reference/react/useActionState), the same approach applies. See [Reset state](https://react.dev/reference/react/useActionState#reset-state) in the React docs for how to add a `RESET` action to your reducer.
+
+<details>
+<summary>Resetting all form fields with a callback ref</summary>
+
+You can use a callback ref to call `form.reset()` when Activity hides the component:
+
+```tsx
+<form
+  ref={(form) => {
+    return () => form?.reset()
+  }}
+>
+  <input name="email" />
+  <input name="message" />
+  <button type="submit">Send</button>
+</form>
+```
+
+This resets all fields whenever the user navigates away.
+
+</details>
 
 ## State and authentication
 

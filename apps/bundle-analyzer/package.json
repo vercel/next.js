@@ -3,10 +3,10 @@
   "version": "16.0.2-canary.16",
   "private": true,
   "scripts": {
-    "build": "cross-env NEXT_TEST_NATIVE_IGNORE_LOCAL_INSTALL=true NEXT_TEST_NATIVE_DIR=no next build --no-mangling",
-    "dev": "cross-env NEXT_TEST_NATIVE_IGNORE_LOCAL_INSTALL=true NEXT_TEST_NATIVE_DIR=no next dev",
+    "build": "cross-env NEXT_TEST_NATIVE_IGNORE_LOCAL_INSTALL=true NEXT_TEST_WASM= next build --no-mangling",
+    "dev": "cross-env NEXT_TEST_NATIVE_IGNORE_LOCAL_INSTALL=true next dev",
     "lint": "eslint .",
-    "start": "cross-env NEXT_TEST_NATIVE_IGNORE_LOCAL_INSTALL=true NEXT_TEST_NATIVE_DIR=no next start"
+    "start": "cross-env NEXT_TEST_NATIVE_IGNORE_LOCAL_INSTALL=true next start"
   },
   "dependencies": {
     "@radix-ui/react-dialog": "1.1.4",
@@ -20,7 +20,7 @@
     "clsx": "^2.1.1",
     "cmdk": "1.0.4",
     "lucide-react": "^0.554.0",
-    "next": "16.0.8",
+    "next": "16.2.3",
     "next-themes": "^0.4.6",
     "polished": "^4.3.1",
     "react": "19.2.0",
@@ -39,6 +39,6 @@
     "postcss": "^8.5",
     "tailwindcss": "^4.1.9",
     "tw-animate-css": "1.3.3",
-    "typescript": "^5"
+    "typescript": "6.0.2"
   }
 }

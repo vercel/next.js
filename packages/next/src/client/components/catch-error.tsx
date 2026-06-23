@@ -30,7 +30,7 @@ type CatchErrorProps<P extends UserProps> = {
 }
 
 type CatchErrorState = {
-  error: Error | null
+  error: null | { thrownValue: unknown }
   previousPathname: string | null
 }
 
@@ -38,13 +38,13 @@ type CatchErrorState = {
 // TODO: Extend it instead of forking to easily sync the behavior?
 class CatchError<P extends UserProps> extends React.Component<
   CatchErrorProps<P>,
-  { error: Error | null; previousPathname: string | null }
+  CatchErrorState
 > {
   declare context: AppRouterInstance | null
   static contextType = AppRouterContext
-  // `unstable_catchError()` is parsed as an HOC-style name and displays as
-  // a label (<name> [unstable_catchError]) in DevTools.
-  static displayName = 'unstable_catchError(Next.CatchError)'
+  // `catchError()` is parsed as an HOC-style name and displays as
+  // a label (<name> [catchError]) in DevTools.
+  static displayName = 'catchError(Next.CatchError)'
 
   constructor(props: CatchErrorProps<P>) {
     super(props)
@@ -54,14 +54,16 @@ class CatchError<P extends UserProps> extends React.Component<
     }
   }
 
-  static getDerivedStateFromError(error: Error) {
-    if (isNextRouterError(error)) {
+  static getDerivedStateFromError(
+    thrownValue: unknown
+  ): Partial<CatchErrorState> {
+    if (isNextRouterError(thrownValue)) {
       // Re-throw if an expected internal Next.js router error occurs
       // this means it should be handled by a different boundary (such as a NotFound boundary in a parent segment)
-      throw error
+      throw thrownValue
     }
 
-    return { error }
+    return { error: { thrownValue } }
   }
 
   static getDerivedStateFromProps(
@@ -75,7 +77,7 @@ class CatchError<P extends UserProps> extends React.Component<
     // the error boundary and instead should fallback
     // to a hard navigation to attempt recovering
     if (process.env.__NEXT_APP_NAV_FAIL_HANDLING) {
-      if (error && handleHardNavError(error)) {
+      if (error && handleHardNavError(error.thrownValue)) {
         // clear error so we don't render anything
         return {
           error: null,
@@ -106,10 +108,10 @@ class CatchError<P extends UserProps> extends React.Component<
     this.setState({ error: null })
   }
 
-  unstable_retry = () => {
+  retry = () => {
     if (this.props.isPagesRouter) {
       throw new Error(
-        '`unstable_retry()` can only be used in the App Router. Use `reset()` in the Pages Router.'
+        '`retry()` can only be used in the App Router. Use `reset()` in the Pages Router.'
       )
     }
 
@@ -124,15 +126,17 @@ class CatchError<P extends UserProps> extends React.Component<
     //When it's bot request, segment level error boundary will keep rendering the children,
     // the final error will be caught by the root error boundary and determine wether need to apply graceful degrade.
     if (this.state.error && !isBotUserAgent) {
-      handleISRError({ error: this.state.error })
+      const thrownValue = this.state.error.thrownValue
+      handleISRError({ error: thrownValue })
 
       return (
         <this.props.fallback
           props={this.props.props}
           errorInfo={{
-            error: this.state.error,
+            // TODO(NAR-804): Docs say this is an Error object, but we don't guarantee that
+            error: thrownValue,
             reset: this.reset,
-            unstable_retry: this.unstable_retry,
+            retry: this.retry,
           }}
         />
       )
@@ -143,9 +147,9 @@ class CatchError<P extends UserProps> extends React.Component<
 }
 
 /**
- * `unstable_catchError` is a counterpart to `error.js` that provides a granular
+ * `catchError` is a counterpart to `error.js` that provides a granular
  * control of error boundaries at the component level. It provides the `ErrorInfo`
- * including `unstable_retry` for error recovery.
+ * including `retry` for error recovery.
  *
  * Pass a Component-like fallback function that receives the props and `ErrorInfo`.
  * The props omit `children` intentionally as it is the "fallback" of the error and
@@ -158,13 +162,13 @@ class CatchError<P extends UserProps> extends React.Component<
  * ```tsx
  * // CustomErrorBoundary.tsx
  * 'use client'
- * import { unstable_catchError, type ErrorInfo } from 'next/error'
+ * import { catchError, type ErrorInfo } from 'next/error'
  *
  * function CustomErrorBoundary(props: Props, errorInfo: ErrorInfo) {
  *   return ...
  * }
  *
- * export default unstable_catchError(CustomErrorBoundary)
+ * export default catchError(CustomErrorBoundary)
  *
  * // page.tsx
  * 'use client'
@@ -179,7 +183,7 @@ class CatchError<P extends UserProps> extends React.Component<
  * }
  * ```
  */
-export function unstable_catchError<P extends UserProps>(
+export function catchError<P extends UserProps>(
   fallback: (
     // children is omitted by design as the error fallback component is the "fallback"
     // for the children when an error occurs.
@@ -187,7 +191,7 @@ export function unstable_catchError<P extends UserProps>(
     errorInfo: ErrorInfo
   ) => React.ReactNode
 ): React.ComponentType<P & { children?: React.ReactNode }> {
-  // Create Fallback component from the closure of `unstable_catchError`.
+  // Create Fallback component from the closure of `catchError`.
   const Fallback = ({ props, errorInfo }: { props: P; errorInfo: ErrorInfo }) =>
     fallback(props, errorInfo)
 

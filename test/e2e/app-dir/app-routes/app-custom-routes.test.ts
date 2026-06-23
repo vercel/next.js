@@ -709,4 +709,12 @@ describe('app-custom-routes', () => {
       expect(cliOutput).not.toContain('Attempted import error')
     })
   })
+
+  describe('top-level await', () => {
+    it('handles route handlers that use top-level await', async () => {
+      const res = await next.fetch(basePath + '/top-level-await')
+      expect(res.status).toBe(200)
+      expect(await res.text()).toBe('hello from top-level await')
+    })
+  })
 })

@@ -14,18 +14,18 @@ import {
   isInEarlyRenderStage,
 } from '../app-render/work-unit-async-storage.external'
 import {
-  postponeWithTracking,
   throwToInterruptStaticGeneration,
   trackDynamicDataInDynamicRender,
 } from '../app-render/dynamic-rendering'
 import { StaticGenBailoutError } from '../../client/components/static-generation-bailout'
 import {
-  delayUntilRuntimeStage,
   makeDevtoolsIOAwarePromise,
   makeHangingPromise,
+  getSessionDataStage,
 } from '../dynamic-rendering-utils'
 import { createDedupedByCallsiteServerErrorLoggerDev } from '../create-deduped-by-callsite-server-error-logger'
-import { isRequestAPICallableInsideAfter } from './utils'
+import { isRequestApiAllowedInCurrentPhase } from './utils'
+import { applyOwnerStack } from '../dynamic-rendering-utils'
 import { InvariantError } from '../../shared/lib/invariant-error'
 import { RenderStage } from '../app-render/staged-rendering'
 
@@ -44,13 +44,9 @@ export function headers(): Promise<ReadonlyHeaders> {
   const workUnitStore = workUnitAsyncStorage.getStore()
 
   if (workStore) {
-    if (
-      workUnitStore &&
-      workUnitStore.phase === 'after' &&
-      !isRequestAPICallableInsideAfter()
-    ) {
+    if (workUnitStore && !isRequestApiAllowedInCurrentPhase(workUnitStore)) {
       throw new Error(
-        `Route ${workStore.route} used \`headers()\` inside \`after()\`. This is not supported. If you need this data inside an \`after()\` callback, use \`headers()\` outside of the callback. See more info here: https://nextjs.org/docs/canary/app/api-reference/functions/after`
+        `Route ${workStore.route} used \`headers()\` inside \`after()\` while rendering. This is not supported. If you need this data inside an \`after()\` callback, use \`headers()\` outside of the callback. See more info here: https://nextjs.org/docs/app/api-reference/functions/after`
       )
     }
 
@@ -68,6 +64,7 @@ export function headers(): Promise<ReadonlyHeaders> {
             `Route ${workStore.route} used \`headers()\` inside "use cache". Accessing Dynamic data sources inside a cache scope is not supported. If you need this data inside a cached function use \`headers()\` outside of the cached function and pass the required dynamic data in as an argument. See more info here: https://nextjs.org/docs/messages/next-request-in-use-cache`
           )
           Error.captureStackTrace(error, headers)
+          applyOwnerStack(error)
           workStore.invalidDynamicUsageError ??= error
           throw error
         }
@@ -84,7 +81,6 @@ export function headers(): Promise<ReadonlyHeaders> {
         case 'validation-client':
         case 'private-cache':
         case 'prerender-runtime':
-        case 'prerender-ppr':
         case 'prerender-legacy':
         case 'request':
           break
@@ -109,16 +105,6 @@ export function headers(): Promise<ReadonlyHeaders> {
           throw new InvariantError(
             `${exportName} must not be used within a client component. Next.js should be preventing ${exportName} from being included in client components statically, but did not in this case.`
           )
-        case 'prerender-ppr':
-          // PPR Prerender (no cacheComponents)
-          // We are prerendering with PPR. We need track dynamic access here eagerly
-          // to keep continuity with how headers has worked in PPR without cacheComponents.
-          // TODO consider switching the semantic to throw on property access instead
-          return postponeWithTracking(
-            workStore.route,
-            callingExpression,
-            workUnitStore.dynamicTracking
-          )
         case 'prerender-legacy':
           // Legacy Prerender
           // We are in a legacy static generation mode while prerendering
@@ -129,11 +115,18 @@ export function headers(): Promise<ReadonlyHeaders> {
             workStore,
             workUnitStore
           )
-        case 'prerender-runtime':
-          return delayUntilRuntimeStage(
-            workUnitStore,
-            makeUntrackedHeaders(workUnitStore.headers)
-          )
+        case 'prerender-runtime': {
+          const { stagedRendering } = workUnitStore
+          if (stagedRendering) {
+            return stagedRendering.delayUntilStage(
+              getSessionDataStage(stagedRendering),
+              'headers',
+              workUnitStore.headers
+            )
+          } else {
+            return makeUntrackedHeaders(workUnitStore.headers)
+          }
+        }
         case 'private-cache':
           // Private caches are delayed until the runtime stage in use-cache-wrapper,
           // so we don't need an additional delay here.

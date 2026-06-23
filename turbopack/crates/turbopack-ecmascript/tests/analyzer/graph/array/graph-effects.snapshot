@@ -6,9 +6,7 @@
                 Constant(
                     Num(
                         ConstantNumber(
-                            TotalOrderF64(
-                                1.0,
-                            ),
+                            1.0,
                         ),
                     ),
                 ),
@@ -325,9 +323,7 @@
         prop: Constant(
             Num(
                 ConstantNumber(
-                    TotalOrderF64(
-                        1.0,
-                    ),
+                    1.0,
                 ),
             ),
         ),
@@ -370,9 +366,7 @@
         prop: Constant(
             Num(
                 ConstantNumber(
-                    TotalOrderF64(
-                        2.0,
-                    ),
+                    2.0,
                 ),
             ),
         ),

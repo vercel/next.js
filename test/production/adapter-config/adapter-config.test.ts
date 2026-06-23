@@ -43,6 +43,7 @@ describe('adapter-config', () => {
     }
 
     expect(ctx.nextVersion).toBe(nextVersion)
+    expect(ctx.projectDir).toBe(next.testDir)
     expect(config?.basePath).toBe('/docs')
 
     const combinedRouteOutputs = [
@@ -102,7 +103,7 @@ describe('adapter-config', () => {
           /\.(png|jpg|jpeg|ico|svg|gif|json|webmanifest|xml|txt)$/
         )
       } else {
-        expect(output.pathname).toStartWith('/docs/_next/static')
+        expect(output.pathname).toMatch(/^\/docs\/_next\/static/)
       }
       // ensure / -> /index normalizing is correct
       expect(output.pathname.includes('/.')).toBe(false)
@@ -379,6 +380,7 @@ describe('adapter-config', () => {
 
     expect(routing).toEqual({
       beforeMiddleware: expect.toBeArray(),
+      middlewareMatchers: expect.toBeArray(),
       beforeFiles: expect.toBeArray(),
       afterFiles: expect.toBeArray(),
       dynamicRoutes: expect.toBeArray(),
@@ -387,5 +389,18 @@ describe('adapter-config', () => {
       shouldNormalizeNextData: expect.toBeBoolean(),
       rsc: expect.toBeObject(),
     })
+  })
+
+  it('should propagate preferredRegion to adapter output', async () => {
+    const { outputs }: Parameters<NextAdapter['onBuildComplete']>[0] =
+      await next.readJSON('build-complete.json')
+
+    const preferredRegionRoute = outputs.appRoutes.find(
+      (output) => output.pathname === '/docs/preferred-region'
+    )
+
+    expect(preferredRegionRoute).toBeDefined()
+    expect(preferredRegionRoute?.runtime).toBe('edge')
+    expect(preferredRegionRoute?.config.preferredRegion).toEqual(['cdg1'])
   })
 })

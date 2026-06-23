@@ -1,8 +1,6 @@
 import http from 'http'
 import { join } from 'path'
-import webdriver from 'next-webdriver'
-import { createNext, FileRef } from 'e2e-utils'
-import { NextInstance } from 'e2e-utils'
+import { FileRef, NextInstance, nextTestSetup } from 'e2e-utils'
 import { fetchViaHTTP, findPort, retry } from 'next-test-utils'
 
 async function createHostServer() {
@@ -78,8 +76,8 @@ function requestInternalDevMiddleware(
   )
 }
 
-function expectBlockedDevResourceMessage(
-  output: string,
+async function expectBlockedDevResourceMessage(
+  next: NextInstance,
   options: {
     resourcePath: string
     source?: string
@@ -88,7 +86,11 @@ function expectBlockedDevResourceMessage(
     opaqueOrigin?: true
   }
 ) {
-  expect(output).toContain(options.resourcePath)
+  // I/O may not be flushed immediately, so retry until we see the message in the output.
+  await retry(() => {
+    expect(next.cliOutput).toContain(options.resourcePath)
+  })
+  const output = next.cliOutput
   expect(output).toContain(
     'Cross-origin access to Next.js dev resources is blocked by default for safety.'
   )
@@ -119,20 +121,18 @@ function expectBlockedDevResourceMessage(
 describe.each(['', '/docs'])(
   'allowed-dev-origins, basePath: %p',
   (basePath: string) => {
-    let next: NextInstance
-
     describe('default blocking', () => {
-      beforeAll(async () => {
-        next = await createNext({
-          files: {
-            pages: new FileRef(join(__dirname, 'misc/pages')),
-            public: new FileRef(join(__dirname, 'misc/public')),
-          },
-          nextConfig: {
-            basePath,
-          },
-        })
+      const { next } = nextTestSetup({
+        files: {
+          pages: new FileRef(join(__dirname, 'misc/pages')),
+          public: new FileRef(join(__dirname, 'misc/public')),
+        },
+        nextConfig: {
+          basePath,
+        },
+      })
 
+      beforeAll(async () => {
         // render 404 page to generate
         // "/_next/static/chunks/pages/_app.js"
         // we need this because not found static assets
@@ -148,7 +148,6 @@ describe.each(['', '/docs'])(
           expect(res.status).toBe(200)
         })
       })
-      afterAll(() => next.destroy())
 
       it('should block WebSocket from cross-site', async () => {
         const { server, port } = await createHostServer()
@@ -169,7 +168,10 @@ describe.each(['', '/docs'])(
             })()`
 
           // ensure direct port with mismatching port is blocked
-          const browser = await webdriver(`http://127.0.0.1:${port}`, '/about')
+          const browser = await next.browser('/about', {
+            baseUrl: `http://127.0.0.1:${port}`,
+            permissions: ['local-network-access'],
+          })
           await browser.eval(websocketSnippet)
           await retry(async () => {
             expect(await browser.elementByCss('#status').text()).toBe('error')
@@ -182,7 +184,7 @@ describe.each(['', '/docs'])(
             expect(await browser.elementByCss('#status').text()).toBe('error')
           })
 
-          expectBlockedDevResourceMessage(next.cliOutput, {
+          await expectBlockedDevResourceMessage(next, {
             resourcePath: withBasePath(basePath, '/_next/hmr'),
             source: 'example.vercel.sh',
           })
@@ -212,7 +214,7 @@ describe.each(['', '/docs'])(
         )
         expect(differentHostRes.status).toBe(403)
 
-        expectBlockedDevResourceMessage(next.cliOutput, {
+        await expectBlockedDevResourceMessage(next, {
           resourcePath: withBasePath(
             basePath,
             '/_next/static/chunks/pages/_app.js'
@@ -238,12 +240,20 @@ describe.each(['', '/docs'])(
         )
         expect(differentHostRes.status).toBe(403)
 
-        expectBlockedDevResourceMessage(next.cliOutput, {
+        await expectBlockedDevResourceMessage(next, {
           resourcePath: withBasePath(basePath, '/__nextjs_error_feedback'),
           source: 'example.vercel.sh',
         })
       })
 
+      it('should allow requests from multi-level localhost subdomains', async () => {
+        const res = await requestInternalDevMiddleware(
+          next.appPort,
+          basePath,
+          'https://sub.app.localhost'
+        )
+        expect(res.status).not.toBe(403)
+      })
       it('should allow same-site requests without an origin header', async () => {
         const res = await fetchViaHTTP(
           next.appPort,
@@ -254,18 +264,18 @@ describe.each(['', '/docs'])(
     })
 
     describe('configured but not allowlisted origins', () => {
-      beforeAll(async () => {
-        next = await createNext({
-          files: {
-            pages: new FileRef(join(__dirname, 'misc/pages')),
-            public: new FileRef(join(__dirname, 'misc/public')),
-          },
-          nextConfig: {
-            basePath,
-            allowedDevOrigins: ['127.0.0.1'],
-          },
-        })
+      const { next } = nextTestSetup({
+        files: {
+          pages: new FileRef(join(__dirname, 'misc/pages')),
+          public: new FileRef(join(__dirname, 'misc/public')),
+        },
+        nextConfig: {
+          basePath,
+          allowedDevOrigins: ['127.0.0.1'],
+        },
+      })
 
+      beforeAll(async () => {
         await next.render(withBasePath(basePath, '/404'))
 
         await retry(async () => {
@@ -276,7 +286,6 @@ describe.each(['', '/docs'])(
           expect(res.status).toBe(200)
         })
       })
-      afterAll(() => next.destroy())
 
       it('should block websocket requests from configured but non-allowlisted hosts', async () => {
         const { server, port } = await createHostServer()
@@ -296,7 +305,10 @@ describe.each(['', '/docs'])(
               })
             })()`
 
-          const browser = await webdriver(`http://127.0.0.1:${port}`, '/about')
+          const browser = await next.browser('/about', {
+            baseUrl: `http://127.0.0.1:${port}`,
+            permissions: ['local-network-access'],
+          })
           await browser.get(`https://example.vercel.sh/`)
           await browser.eval(websocketSnippet)
           await retry(async () => {
@@ -316,18 +328,18 @@ describe.each(['', '/docs'])(
     })
 
     describe('configured allowed origins', () => {
-      beforeAll(async () => {
-        next = await createNext({
-          files: {
-            pages: new FileRef(join(__dirname, 'misc/pages')),
-            public: new FileRef(join(__dirname, 'misc/public')),
-          },
-          nextConfig: {
-            basePath,
-            allowedDevOrigins: ['127.0.0.1', 'example.vercel.sh'],
-          },
-        })
+      const { next } = nextTestSetup({
+        files: {
+          pages: new FileRef(join(__dirname, 'misc/pages')),
+          public: new FileRef(join(__dirname, 'misc/public')),
+        },
+        nextConfig: {
+          basePath,
+          allowedDevOrigins: ['127.0.0.1', 'example.vercel.sh'],
+        },
+      })
 
+      beforeAll(async () => {
         // render 404 page to generate
         // "/_next/static/chunks/pages/_app.js"
         // since we haven't built any paths by this point
@@ -343,7 +355,6 @@ describe.each(['', '/docs'])(
           expect(res.status).toBe(200)
         })
       })
-      afterAll(() => next.destroy())
 
       it('should allow dev WebSocket from configured cross-site', async () => {
         const { server, port } = await createHostServer()
@@ -364,7 +375,10 @@ describe.each(['', '/docs'])(
             })()`
 
           // ensure direct port with mismatching port is allowed when configured
-          const browser = await webdriver(`http://127.0.0.1:${port}`, '/about')
+          const browser = await next.browser('/about', {
+            baseUrl: `http://127.0.0.1:${port}`,
+            permissions: ['local-network-access'],
+          })
           await browser.eval(websocketSnippet)
           await retry(async () => {
             expect(await browser.elementByCss('#status').text()).toBe(
@@ -411,7 +425,7 @@ describe.each(['', '/docs'])(
         const res = await requestInternalDevScript(next.appPort, basePath)
         expect(res.status).toBe(403)
 
-        expectBlockedDevResourceMessage(next.cliOutput, {
+        await expectBlockedDevResourceMessage(next, {
           resourcePath: withBasePath(
             basePath,
             '/_next/static/chunks/pages/_app.js'
@@ -441,7 +455,10 @@ describe.each(['', '/docs'])(
       it('should load images regardless of allowed origins', async () => {
         const { server, port } = await createHostServer()
         try {
-          const browser = await webdriver(`http://127.0.0.1:${port}`, '/about')
+          const browser = await next.browser('/about', {
+            baseUrl: `http://127.0.0.1:${port}`,
+            permissions: ['local-network-access'],
+          })
 
           const imageSnippet = `(() => {
             const statusEl = document.createElement('p')
@@ -505,13 +522,16 @@ describe.each(['', '/docs'])(
         })
 
         try {
-          const browser = await webdriver(`http://127.0.0.1:${port}`, '/')
+          const browser = await next.browser('/', {
+            baseUrl: `http://127.0.0.1:${port}`,
+            permissions: ['local-network-access'],
+          })
 
           await retry(async () => {
             expect(await browser.elementByCss('#status').text()).toBe('error')
           })
 
-          expectBlockedDevResourceMessage(next.cliOutput, {
+          await expectBlockedDevResourceMessage(next, {
             resourcePath: withBasePath(basePath, '/_next/hmr'),
             opaqueOrigin: true,
           })

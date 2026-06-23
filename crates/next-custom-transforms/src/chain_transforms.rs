@@ -187,7 +187,7 @@ where
             if let Some(config) = &opts.styled_components {
                 program.mutate(styled_components::styled_components(
                     Some(&file_path_str),
-                    file.src_hash,
+                    file.src_hash(),
                     config,
                     NoopComments,
                 ))
@@ -209,7 +209,7 @@ where
                     program.mutate(swc_emotion::emotion(
                         config,
                         path,
-                        file.src_hash as u32,
+                        file.src_hash() as u32,
                         cm.clone(),
                         comments.clone(),
                     ));
@@ -348,15 +348,15 @@ where
                 crate::transforms::debug_fn_name::debug_fn_name(),
                 opts.debug_function_name,
             ),
-            crate::transforms::debug_instant_stack::debug_instant_stack(
-                file_path_for_instant_stack,
+            crate::transforms::debug_instant_stack::DebugInstantStack::new(
                 match &opts.server_components {
                     Some(react_server_components::Config::WithOptions(options)) => {
                         options.page_extensions.clone()
                     }
                     _ => vec![],
                 },
-            ),
+            )
+            .get_pass(file_path_for_instant_stack),
             visit_mut_pass(crate::transforms::pure::pure_magic(comments.clone())),
             Optional::new(
                 linter(lint_codemod_comments(comments)),

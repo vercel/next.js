@@ -11,6 +11,7 @@ describe('nx-handling', () => {
       name: '@nx-next/source',
       version: '0.0.0',
       private: true,
+      packageManager: 'npm@10.9.2',
       scripts: {
         build: 'rm -rf dist; nx run next-nx-test:build',
         dev: 'nx run next-nx-test:dev',

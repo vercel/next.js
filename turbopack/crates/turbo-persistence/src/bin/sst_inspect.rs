@@ -24,6 +24,7 @@ use turbo_persistence::{
     BLOCK_HEADER_SIZE, checksum_block,
     meta_file::MetaFile,
     mmap_helper::advise_mmap_for_persistence,
+    sst_filter::SstFilter,
     static_sorted_file::{
         BLOCK_TYPE_FIXED_KEY_NO_HASH, BLOCK_TYPE_FIXED_KEY_WITH_HASH, BLOCK_TYPE_KEY_NO_HASH,
         BLOCK_TYPE_KEY_WITH_HASH, KEY_BLOCK_ENTRY_TYPE_BLOB, KEY_BLOCK_ENTRY_TYPE_DELETED,
@@ -205,33 +206,68 @@ fn format_bytes(bytes: u64) -> String {
     }
 }
 
-/// Collect SST info from all meta files in the database directory
+/// Collect SST info from all active meta files in the database directory,
+/// mirroring the DB's own open logic: read CURRENT, filter by .del files,
+/// and apply SstFilter to skip superseded entries.
 fn collect_sst_info(db_path: &Path) -> Result<BTreeMap<u32, Vec<SstInfo>>> {
-    let mut meta_files: Vec<PathBuf> = fs::read_dir(db_path)?
-        .filter_map(|entry| entry.ok())
-        .map(|entry| entry.path())
-        .filter(|path| path.extension().is_some_and(|ext| ext == "meta"))
+    // Read the CURRENT sequence number — only files with seq <= current are valid.
+    let current: u32 = File::open(db_path.join("CURRENT"))
+        .context("Failed to open CURRENT file")?
+        .read_u32::<BE>()
+        .context("Failed to read CURRENT file")?;
+
+    // Read .del files to find sequences that were deleted but not yet cleaned up.
+    let mut deleted_seqs: HashSet<u32> = HashSet::new();
+    for entry in fs::read_dir(db_path)? {
+        let path = entry?.path();
+        if path.extension().and_then(|s| s.to_str()) == Some("del") {
+            let content = fs::read(&path)?;
+            let mut cursor: &[u8] = &content;
+            while !cursor.is_empty() {
+                deleted_seqs.insert(cursor.read_u32::<BE>()?);
+            }
+        }
+    }
+
+    // Collect valid meta sequence numbers.
+    let mut meta_seqs: Vec<u32> = fs::read_dir(db_path)?
+        .filter_map(|e| e.ok())
+        .filter_map(|e| {
+            let path = e.path();
+            if path.extension().and_then(|s| s.to_str()) != Some("meta") {
+                return None;
+            }
+            let seq: u32 = path.file_stem()?.to_str()?.parse().ok()?;
+            if seq > current || deleted_seqs.contains(&seq) {
+                return None;
+            }
+            Some(seq)
+        })
         .collect();
 
-    meta_files.sort();
+    if meta_seqs.is_empty() {
+        bail!("No active .meta files found in {}", db_path.display());
+    }
 
-    if meta_files.is_empty() {
-        bail!("No .meta files found in {}", db_path.display());
+    meta_seqs.sort_unstable();
+
+    let mut meta_files: Vec<MetaFile> = meta_seqs
+        .iter()
+        .map(|&seq| {
+            MetaFile::open(db_path, seq).with_context(|| format!("Failed to open {seq:08}.meta"))
+        })
+        .collect::<Result<_>>()?;
+
+    // Apply SstFilter (newest first) to drop entries superseded by a newer meta file.
+    let mut sst_filter = SstFilter::new();
+    for meta in meta_files.iter_mut().rev() {
+        sst_filter.apply_filter(meta);
     }
 
     let mut family_sst_info: BTreeMap<u32, Vec<SstInfo>> = BTreeMap::new();
-
-    for meta_path in &meta_files {
-        // Extract sequence number from filename
-        let filename = meta_path.file_stem().and_then(|s| s.to_str()).unwrap_or("");
-        let seq_num: u32 = filename.parse().unwrap_or(0);
-
-        let meta_file = MetaFile::open(db_path, seq_num)
-            .with_context(|| format!("Failed to open {}", meta_path.display()))?;
-
-        let family = meta_file.family();
-
-        for entry in meta_file.entries() {
+    for meta in &meta_files {
+        let family = meta.family();
+        for entry in meta.entries() {
             family_sst_info.entry(family).or_default().push(SstInfo {
                 sequence_number: entry.sequence_number(),
                 block_count: entry.block_count(),
@@ -317,7 +353,7 @@ fn read_block(
 ///
 /// Index block format: `[1B type][2B first_block][N * (8B hash + 2B block_index)]`.
 fn parse_key_block_indices(index_block: &[u8]) -> HashSet<u16> {
-    assert!(index_block.len() >= 4, "Index block too small");
+    assert!(index_block.len() >= 3, "Index block too small");
     let mut data = &index_block[1..]; // skip block type byte
     let first_block = data.read_u16::<BE>().unwrap();
     let mut indices = HashSet::new();

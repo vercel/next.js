@@ -36,7 +36,6 @@ import { exportAppPage } from './routes/app-page'
 import { exportPagesPage } from './routes/pages'
 import { getParams } from './helpers/get-params'
 import { createIncrementalCache } from './helpers/create-incremental-cache'
-import { isPostpone } from '../server/lib/router-utils/is-postpone'
 import { isDynamicUsageError } from './helpers/is-dynamic-usage-error'
 import { isBailoutToCSRError } from '../shared/lib/lazy-dynamic/bailout-to-csr'
 import {
@@ -82,7 +81,6 @@ async function exportPageImpl(
     disableOptimizedLoading,
     debugOutput = false,
     enableExperimentalReact,
-    enableNodeStreams,
     trailingSlash,
     sriEnabled,
     renderOpts: commonRenderOpts,
@@ -95,9 +93,6 @@ async function exportPageImpl(
 
   if (enableExperimentalReact) {
     process.env.__NEXT_EXPERIMENTAL_REACT = 'true'
-  }
-  if (enableNodeStreams) {
-    process.env.__NEXT_USE_NODE_STREAMS = 'true'
   }
 
   const {
@@ -112,10 +107,6 @@ async function exportPageImpl(
 
     // Check if this should error when dynamic usage is detected.
     _isDynamicError: isDynamicError = false,
-
-    // If this page supports partial prerendering, then we need to pass that to
-    // the renderOpts.
-    _isRoutePPREnabled: isRoutePPREnabled,
 
     // Configure the rendering of the page to allow that an empty static shell
     // is generated while rendering using PPR and Cache Components.
@@ -257,8 +248,10 @@ async function exportPageImpl(
       htmlFilepath,
       fileWriter,
       commonRenderOpts.cacheComponents,
+      commonRenderOpts.staticPageGenerationTimeout,
       commonRenderOpts.experimental,
-      buildId
+      buildId,
+      deploymentId
     )
   }
 
@@ -277,10 +270,6 @@ async function exportPageImpl(
     serveStreamingMetadata: true,
     allowEmptyStaticShell,
     runInstantValidation,
-    experimental: {
-      ...commonRenderOpts.experimental,
-      isRoutePPREnabled,
-    },
     renderResumeDataCache,
   }
 
@@ -436,7 +425,6 @@ export async function exportPages(
             httpAgentOptions: nextConfig.httpAgentOptions,
             debugOutput: options.debugOutput,
             enableExperimentalReact: needsExperimentalReact(nextConfig),
-            enableNodeStreams: !!nextConfig.experimental.useNodeStreams,
             sriEnabled: Boolean(nextConfig.experimental.sri?.algorithm),
             buildId: input.buildId,
             deploymentId: input.deploymentId,
@@ -617,12 +605,6 @@ async function exportPage(
 }
 
 process.on('unhandledRejection', (err: unknown) => {
-  // if it's a postpone error, it'll be handled later
-  // when the postponed promise is actually awaited.
-  if (isPostpone(err)) {
-    return
-  }
-
   // we don't want to log these errors
   if (isDynamicUsageError(err)) {
     return

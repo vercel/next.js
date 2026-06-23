@@ -73,6 +73,7 @@ import { getParams } from './helpers/get-params'
 import { isDynamicRoute } from '../shared/lib/router/utils/is-dynamic'
 import { normalizeAppPath } from '../shared/lib/router/utils/app-paths'
 import type { Params } from '../server/request/params'
+import { Bundler } from '../lib/bundler'
 
 export class ExportError extends Error {
   code = 'NEXT_EXPORT_ERROR'
@@ -220,7 +221,7 @@ async function exportAppImpl(
         isSrcDir: null,
         hasNowJson: !!(await findUp('now.json', { cwd: dir })),
         isCustomServer: null,
-        turboFlag: false,
+        turboFlag: options.bundler === Bundler.Turbopack,
         pagesDir: null,
         appDir: null,
       })
@@ -344,8 +345,10 @@ async function exportAppImpl(
     )
   }
 
-  await fs.rm(outDir, { recursive: true, force: true })
-  await fs.mkdir(join(outDir, '_next', buildId), { recursive: true })
+  if (!options.buildExport) {
+    await fs.rm(outDir, { recursive: true, force: true })
+    await fs.mkdir(join(outDir, '_next', buildId), { recursive: true })
+  }
 
   await fs.writeFile(
     join(distDir, EXPORT_DETAIL),
@@ -479,6 +482,8 @@ async function exportAppImpl(
     distDir,
     basePath: nextConfig.basePath,
     cacheComponents: nextConfig.cacheComponents ?? false,
+    partialPrefetching: nextConfig.partialPrefetching,
+    validationLevel: nextConfig.experimental.instantInsights.validationLevel,
     trailingSlash: nextConfig.trailingSlash,
     locales: i18n?.locales,
     locale: i18n?.defaultLocale,
@@ -495,6 +500,7 @@ async function exportAppImpl(
     serverActions: nextConfig.experimental.serverActions,
     serverComponents: enabledDirectories.app,
     cacheLifeProfiles: nextConfig.cacheLife,
+    staticPageGenerationTimeout: nextConfig.staticPageGenerationTimeout,
     nextFontManifest: require(
       join(distDir, 'server', `${NEXT_FONT_MANIFEST}.json`)
     ),
@@ -511,7 +517,9 @@ async function exportAppImpl(
       inlineCss: nextConfig.experimental.inlineCss ?? false,
       prefetchInlining: nextConfig.experimental.prefetchInlining ?? false,
       authInterrupts: !!nextConfig.experimental.authInterrupts,
+      useCacheTimeout: nextConfig.experimental.useCacheTimeout,
       cachedNavigations: nextConfig.experimental.cachedNavigations ?? false,
+      appShells: nextConfig.experimental.appShells,
       maxPostponedStateSizeBytes: parseMaxPostponedStateSize(
         nextConfig.experimental.maxPostponedStateSize
       ),
@@ -649,7 +657,7 @@ async function exportAppImpl(
   }
 
   const pagesDataDir = options.buildExport
-    ? outDir
+    ? join(distDir, 'server', 'pages')
     : join(outDir, '_next/data', buildId)
 
   const publicDir = join(dir, CLIENT_PUBLIC_FILES_PATH)
@@ -706,9 +714,9 @@ async function exportAppImpl(
           worker.exportPages({
             buildId,
             deploymentId: nextConfig.deploymentId,
-            clientAssetToken:
-              nextConfig.experimental.immutableAssetToken ||
-              nextConfig.deploymentId,
+            clientAssetToken: nextConfig.experimental.supportsImmutableAssets
+              ? ''
+              : nextConfig.deploymentId,
             exportPaths: batch,
             parentSpanId: span.getId(),
             pagesDataDir,
@@ -716,7 +724,9 @@ async function exportAppImpl(
             options,
             dir,
             distDir,
-            outDir,
+            outDir: options.buildExport
+              ? join(distDir, 'server', 'pages')
+              : outDir,
             nextConfig,
             cacheHandler: nextConfig.cacheHandler,
             cacheMaxMemorySize: nextConfig.cacheMaxMemorySize,
@@ -743,6 +753,10 @@ async function exportAppImpl(
         initialPhaseExportPaths.push(exportPath)
       }
 
+      // Always mark routes for potential build validation. The actual
+      // decision of whether to validate is made per-route by
+      // anySegmentNeedsInstantValidationInBuild, which checks both the
+      // default validation level and per-segment level overrides.
       const route = exportPath.page
       if (!routesWithInstantValidation.has(route)) {
         exportPath._runInstantValidation = true
@@ -866,9 +880,11 @@ async function exportAppImpl(
   }
 
   // Export mode provide static outputs that are not compatible with PPR mode.
-  if (!options.buildExport && nextConfig.experimental.ppr) {
+  if (!options.buildExport && nextConfig.cacheComponents) {
     // TODO: add message
-    throw new Error('Invariant: PPR cannot be enabled in export mode')
+    throw new Error(
+      'Invariant: Cache Components cannot be enabled in export mode'
+    )
   }
 
   // copy prerendered routes to outDir
@@ -929,19 +945,25 @@ async function exportAppImpl(
         // realizing the implications.
         const route = normalizePagePath(unnormalizedRoute)
 
-        const pagePath = getPagePath(pageName, distDir, undefined, isAppPath)
-        const distPagesDir = join(
-          pagePath,
-          // strip leading / and then recurse number of nested dirs
-          // to place from base folder
-          pageName
-            .slice(1)
-            .split('/')
-            .map(() => '..')
-            .join('/')
-        )
-
-        const orig = join(distPagesDir, route)
+        let orig: string
+        if (isAppPath) {
+          const pagePath = getPagePath(pageName, distDir, undefined, isAppPath)
+          const distPagesDir = join(
+            pagePath,
+            // strip leading / and then recurse number of nested dirs
+            // to place from base folder
+            pageName
+              .slice(1)
+              .split('/')
+              .map(() => '..')
+              .join('/')
+          )
+          orig = join(distPagesDir, route)
+        } else {
+          // Pages router files are written directly to server/pages/
+          // by the export worker during build, so read from there.
+          orig = join(distDir, 'server', 'pages', route)
+        }
         const handlerSrc = `${orig}.body`
         const handlerDest = join(outDir, route)
 

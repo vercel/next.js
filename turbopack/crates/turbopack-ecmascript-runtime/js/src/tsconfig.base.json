@@ -12,7 +12,6 @@
     "target": "ESNext",
 
     // modules
-    "baseUrl": ".",
     "module": "CommonJS",
     "types": [], // disable implicit types.
 

@@ -108,24 +108,27 @@ impl ChunkGroupInfo {
         if let Some(idx) = self.chunk_groups.get_index_of(&chunk_group) {
             Ok(Vc::cell(idx))
         } else {
-            bail!(
-                "Couldn't find chunk group index for {} in {}",
-                chunk_group.debug_str(self).await?,
-                self.chunk_groups
-                    .iter()
-                    .map(|c| c.debug_str(self))
-                    .try_join()
-                    .await?
-                    .join(", ")
-            );
+            if cfg!(debug_assertions) {
+                bail!(
+                    "Couldn't find chunk group index for {} in {}",
+                    chunk_group.debug_str(self).await?,
+                    self.chunk_groups
+                        .iter()
+                        .map(|c| c.debug_str(self))
+                        .try_join()
+                        .await?
+                        .join(", ")
+                );
+            } else {
+                bail!("Couldn't find chunk group index")
+            }
         }
     }
 }
 
 /// See [ChunkGroup] for documentation
-#[derive(
-    Debug, Clone, Hash, TaskInput, PartialEq, Eq, TraceRawVcs, NonLocalValue, Encode, Decode,
-)]
+#[turbo_tasks::task_input]
+#[derive(Debug, Clone, Hash, PartialEq, Eq, TraceRawVcs, Encode, Decode)]
 pub enum ChunkGroupEntry {
     Entry(Vec<ResolvedVc<Box<dyn Module>>>),
     Async(ResolvedVc<Box<dyn Module>>),
@@ -157,7 +160,8 @@ impl ChunkGroupEntry {
     }
 }
 
-#[derive(Debug, Clone, Hash, TaskInput, PartialEq, Eq, TraceRawVcs, Encode, Decode)]
+#[turbo_tasks::task_input]
+#[derive(Debug, Clone, Hash, PartialEq, Eq, TraceRawVcs, Encode, Decode)]
 pub enum ChunkGroup {
     /// The entry chunk group of the compilation, e.g. src/index.js for a SPA, or app/foo/page.js
     /// for Next.js.
@@ -424,11 +428,7 @@ pub async fn compute_chunk_group_info(graph: &ModuleGraph) -> Result<Vc<ChunkGro
         span.record("module_count", module_count);
 
         // use all entries from all graphs
-        let entries = graph
-            .graphs
-            .iter()
-            .flat_map(|g| g.entries.iter())
-            .collect::<Vec<_>>();
+        let entries = graph.all_chunk_group_entries().collect::<Vec<_>>();
 
         // First, compute the depth for each module in the graph
         let module_depth: FxHashMap<ResolvedVc<Box<dyn Module>>, usize> = {
@@ -483,7 +483,7 @@ pub async fn compute_chunk_group_info(graph: &ModuleGraph) -> Result<Vc<ChunkGro
                         .0;
 
                     ChunkGroupKey::IsolatedMerged {
-                        parent: ChunkGroupId(*parent as u32),
+                        parent: ChunkGroupId(*parent),
                         merge_tag,
                     }
                 }
@@ -500,18 +500,16 @@ pub async fn compute_chunk_group_info(graph: &ModuleGraph) -> Result<Vc<ChunkGro
                         .0;
 
                     ChunkGroupKey::SharedMerged {
-                        parent: ChunkGroupId(*parent as u32),
+                        parent: ChunkGroupId(*parent),
                         merge_tag,
                     }
                 }
             }
         }
 
-        let entry_chunk_group_keys = graph
-            .graphs
+        let entry_chunk_group_keys = entries
             .iter()
-            .flat_map(|g| g.entries.iter())
-            .flat_map(|chunk_group| {
+            .flat_map(|&chunk_group| {
                 let chunk_group_key =
                     entry_to_chunk_group_id(chunk_group.clone(), &mut chunk_groups_map);
                 chunk_group
@@ -594,7 +592,7 @@ pub async fn compute_chunk_group_info(graph: &ModuleGraph) -> Result<Vc<ChunkGro
                                 chunk_groups,
                             )))
                         }
-                        ChunkingType::Traced => {
+                        ChunkingType::Traced { .. } => {
                             // Traced modules are not placed in chunk groups
                             return Ok(GraphTraversalAction::Skip);
                         }
@@ -714,9 +712,9 @@ pub async fn compute_chunk_group_info(graph: &ModuleGraph) -> Result<Vc<ChunkGro
 
         #[cfg(debug_assertions)]
         {
-            use once_cell::sync::Lazy;
-            static PRINT_CHUNK_GROUP_INFO: Lazy<bool> =
-                Lazy::new(|| match std::env::var_os("TURBOPACK_PRINT_CHUNK_GROUPS") {
+            use std::sync::LazyLock;
+            static PRINT_CHUNK_GROUP_INFO: LazyLock<bool> =
+                LazyLock::new(|| match std::env::var_os("TURBOPACK_PRINT_CHUNK_GROUPS") {
                     Some(v) => v == "1",
                     None => false,
                 });

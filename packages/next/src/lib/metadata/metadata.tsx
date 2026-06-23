@@ -16,12 +16,10 @@ import { isHTTPAccessFallbackError } from '../../client/components/http-access-f
 import type { MetadataContext } from './types/resolvers'
 import { createServerSearchParamsForMetadata } from '../../server/request/search-params'
 import { createServerPathnameForMetadata } from '../../server/request/pathname'
-import { isPostpone } from '../../server/lib/router-utils/is-postpone'
 import {
   workUnitAsyncStorage,
   getStagedRenderingController,
 } from '../../server/app-render/work-unit-async-storage.external'
-import { RenderStage } from '../../server/app-render/staged-rendering'
 
 import {
   MetadataBoundary,
@@ -31,6 +29,7 @@ import {
 
 import { getOrigin } from './generate/utils'
 import { IconMark } from './generate/icon-mark'
+import { FIRST_LATE_RENDER_STAGE } from '../../server/app-render/staged-rendering'
 
 // Use a promise to share the status of the metadata resolving,
 // returning two components `MetadataTree` and `MetadataOutlet`
@@ -65,18 +64,21 @@ export function createMetadataComponents({
     parsedQuery,
     isRuntimePrefetchable
   )
-  const pathnameForMetadata = createServerPathnameForMetadata(pathname)
+  const pathnameForMetadata = createServerPathnameForMetadata(
+    pathname,
+    isRuntimePrefetchable
+  )
 
   async function Viewport() {
     // Gate metadata to the correct render stage. If the page is not
-    // runtime-prefetchable, defer until the Static stage so that
+    // runtime-prefetchable, defer until the ShellStatic stage so that
     // prefetchable segments get a head start.
     if (!isRuntimePrefetchable) {
       const workUnitStore = workUnitAsyncStorage.getStore()
       if (workUnitStore) {
         const stagedRendering = getStagedRenderingController(workUnitStore)
         if (stagedRendering) {
-          await stagedRendering.waitForStage(RenderStage.Static)
+          await stagedRendering.waitForStage(FIRST_LATE_RENDER_STAGE)
         }
       }
     }
@@ -88,12 +90,6 @@ export function createMetadataComponents({
       isRuntimePrefetchable,
       errorType
     ).catch((viewportErr) => {
-      // When Legacy PPR is enabled viewport can reject with a Postpone type
-      // This will go away once Legacy PPR is removed and dynamic metadata will
-      // stay pending until after the prerender is complete when it is dynamic
-      if (isPostpone(viewportErr)) {
-        throw viewportErr
-      }
       if (!errorType && isHTTPAccessFallbackError(viewportErr)) {
         return getNotFoundViewport(
           tree,
@@ -120,14 +116,14 @@ export function createMetadataComponents({
 
   async function Metadata() {
     // Gate metadata to the correct render stage. If the page is not
-    // runtime-prefetchable, defer until the Static stage so that
+    // runtime-prefetchable, defer until the ShellStatic stage so that
     // prefetchable segments get a head start.
     if (!isRuntimePrefetchable) {
       const workUnitStore = workUnitAsyncStorage.getStore()
       if (workUnitStore) {
         const stagedRendering = getStagedRenderingController(workUnitStore)
         if (stagedRendering) {
-          await stagedRendering.waitForStage(RenderStage.Static)
+          await stagedRendering.waitForStage(FIRST_LATE_RENDER_STAGE)
         }
       }
     }
@@ -141,12 +137,6 @@ export function createMetadataComponents({
       isRuntimePrefetchable,
       errorType
     ).catch((metadataErr) => {
-      // When Legacy PPR is enabled metadata can reject with a Postpone type
-      // This will go away once Legacy PPR is removed and dynamic metadata will
-      // stay pending until after the prerender is complete when it is dynamic
-      if (isPostpone(metadataErr)) {
-        throw metadataErr
-      }
       if (!errorType && isHTTPAccessFallbackError(metadataErr)) {
         return getNotFoundMetadata(
           tree,

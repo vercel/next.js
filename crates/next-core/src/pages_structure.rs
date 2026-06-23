@@ -1,7 +1,7 @@
 use anyhow::Result;
 use tracing::Instrument;
 use turbo_rcstr::RcStr;
-use turbo_tasks::{OptionVcExt, ResolvedVc, TryJoinIterExt, Vc};
+use turbo_tasks::{OptionVcExt, ResolvedVc, TryJoinIterExt, ValueToStringRef, Vc};
 use turbo_tasks_fs::{
     DirectoryContent, DirectoryEntry, FileSystemEntryType, FileSystemPath, FileSystemPathOption,
 };
@@ -327,7 +327,7 @@ async fn get_pages_structure_for_directory(
 ) -> Result<Vc<PagesDirectoryStructure>> {
     let span = tracing::info_span!(
         "analyze pages structure",
-        name = display(project_path.value_to_string().await?)
+        name = display(project_path.to_string_ref().await?)
     );
     async move {
         let page_extensions_raw = &*page_extensions.await?;

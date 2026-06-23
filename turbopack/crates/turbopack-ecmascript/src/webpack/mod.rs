@@ -3,6 +3,8 @@ use swc_core::ecma::ast::Lit;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{ResolvedVc, ValueToString, Vc};
 use turbopack_core::{
+    chunk::{ChunkingType, TracedMode},
+    compile_time_info::CompileTimeInfo,
     file_source::FileSource,
     ident::AssetIdent,
     module::{Module, ModuleSideEffects},
@@ -27,6 +29,7 @@ pub struct WebpackModuleAsset {
     pub source: ResolvedVc<Box<dyn Source>>,
     pub runtime: ResolvedVc<WebpackRuntime>,
     pub transforms: ResolvedVc<EcmascriptInputTransforms>,
+    pub compile_time_info: ResolvedVc<CompileTimeInfo>,
 }
 
 #[turbo_tasks::value_impl]
@@ -36,11 +39,13 @@ impl WebpackModuleAsset {
         source: ResolvedVc<Box<dyn Source>>,
         runtime: ResolvedVc<WebpackRuntime>,
         transforms: ResolvedVc<EcmascriptInputTransforms>,
+        compile_time_info: ResolvedVc<CompileTimeInfo>,
     ) -> Vc<Self> {
         Self::cell(WebpackModuleAsset {
             source,
             runtime,
             transforms,
+            compile_time_info,
         })
     }
 }
@@ -48,8 +53,14 @@ impl WebpackModuleAsset {
 #[turbo_tasks::value_impl]
 impl Module for WebpackModuleAsset {
     #[turbo_tasks::function]
-    fn ident(&self) -> Vc<AssetIdent> {
-        self.source.ident().with_modifier(rcstr!("webpack"))
+    async fn ident(&self) -> Result<Vc<AssetIdent>> {
+        Ok(self
+            .source
+            .ident()
+            .owned()
+            .await?
+            .with_modifier(rcstr!("webpack"))
+            .into_vc())
     }
 
     #[turbo_tasks::function]
@@ -59,7 +70,12 @@ impl Module for WebpackModuleAsset {
 
     #[turbo_tasks::function]
     fn references(&self) -> Vc<ModuleReferences> {
-        module_references(*self.source, *self.runtime, *self.transforms)
+        module_references(
+            *self.source,
+            *self.runtime,
+            *self.transforms,
+            *self.compile_time_info,
+        )
     }
 
     #[turbo_tasks::function]
@@ -77,6 +93,7 @@ pub struct WebpackChunkAssetReference {
     pub chunk_id: Lit,
     pub runtime: ResolvedVc<WebpackRuntime>,
     pub transforms: ResolvedVc<EcmascriptInputTransforms>,
+    pub compile_time_info: ResolvedVc<CompileTimeInfo>,
 }
 
 impl WebpackChunkAssetReference {
@@ -95,11 +112,9 @@ impl ModuleReference for WebpackChunkAssetReference {
     async fn resolve_reference(&self) -> Result<Vc<ModuleResolveResult>> {
         let runtime = self.runtime.await?;
         Ok(match &*runtime {
-            WebpackRuntime::Webpack5 {
-                chunk_request_expr: _,
-                context_path,
-            } => {
-                // TODO determine filename from chunk_request_expr
+            WebpackRuntime::Webpack5 { context_path } => {
+                // TODO: Determine the filename from the chunk filename in `webpack_runtime()`,
+                // refer to `is_webpack_runtime()` in https://github.com/vercel/next.js/commit/f6d8529af54b78e913f0f743ab6cace851b32e4f for a partial implentation
                 let chunk_id = match &self.chunk_id {
                     Lit::Str(str) => str.value.to_string_lossy().into_owned(),
                     Lit::Num(num) => format!("{num}"),
@@ -109,12 +124,23 @@ impl ModuleReference for WebpackChunkAssetReference {
                 let source = Vc::upcast(FileSource::new(context_path.join(&filename)?));
 
                 *ModuleResolveResult::module(ResolvedVc::upcast(
-                    WebpackModuleAsset::new(source, *self.runtime, *self.transforms)
-                        .to_resolved()
-                        .await?,
+                    WebpackModuleAsset::new(
+                        source,
+                        *self.runtime,
+                        *self.transforms,
+                        *self.compile_time_info,
+                    )
+                    .to_resolved()
+                    .await?,
                 ))
             }
             WebpackRuntime::None => *ModuleResolveResult::unresolvable(),
+        })
+    }
+
+    fn chunking_type(&self) -> Option<ChunkingType> {
+        Some(ChunkingType::Traced {
+            mode: TracedMode::Transitive,
         })
     }
 }
@@ -126,6 +152,7 @@ pub struct WebpackEntryAssetReference {
     pub source: ResolvedVc<Box<dyn Source>>,
     pub runtime: ResolvedVc<WebpackRuntime>,
     pub transforms: ResolvedVc<EcmascriptInputTransforms>,
+    pub compile_time_info: ResolvedVc<CompileTimeInfo>,
 }
 
 #[turbo_tasks::value_impl]
@@ -133,10 +160,21 @@ impl ModuleReference for WebpackEntryAssetReference {
     #[turbo_tasks::function]
     async fn resolve_reference(&self) -> Result<Vc<ModuleResolveResult>> {
         Ok(*ModuleResolveResult::module(ResolvedVc::upcast(
-            WebpackModuleAsset::new(*self.source, *self.runtime, *self.transforms)
-                .to_resolved()
-                .await?,
+            WebpackModuleAsset::new(
+                *self.source,
+                *self.runtime,
+                *self.transforms,
+                *self.compile_time_info,
+            )
+            .to_resolved()
+            .await?,
         )))
+    }
+
+    fn chunking_type(&self) -> Option<ChunkingType> {
+        Some(ChunkingType::Traced {
+            mode: TracedMode::Transitive,
+        })
     }
 }
 
@@ -148,18 +186,20 @@ pub struct WebpackRuntimeAssetReference {
     pub request: ResolvedVc<Request>,
     pub runtime: ResolvedVc<WebpackRuntime>,
     pub transforms: ResolvedVc<EcmascriptInputTransforms>,
+    pub compile_time_info: ResolvedVc<CompileTimeInfo>,
 }
 
 #[turbo_tasks::value_impl]
 impl ModuleReference for WebpackRuntimeAssetReference {
     #[turbo_tasks::function]
     async fn resolve_reference(&self) -> Result<Vc<ModuleResolveResult>> {
-        let options = self.origin.resolve_options();
+        let origin = self.origin.into_trait_ref().await?;
+        let options = origin.resolve_options();
 
         let options = apply_cjs_specific_options(options);
 
         let resolved = resolve(
-            self.origin.origin_path().await?.parent(),
+            origin.origin_path().parent(),
             ReferenceType::CommonJs(CommonJsReferenceSubType::Undefined),
             *self.request,
             options,
@@ -169,12 +209,23 @@ impl ModuleReference for WebpackRuntimeAssetReference {
             .await?
             .map_module(|source| async move {
                 Ok(ModuleResolveResultItem::Module(ResolvedVc::upcast(
-                    WebpackModuleAsset::new(*source, *self.runtime, *self.transforms)
-                        .to_resolved()
-                        .await?,
+                    WebpackModuleAsset::new(
+                        *source,
+                        *self.runtime,
+                        *self.transforms,
+                        *self.compile_time_info,
+                    )
+                    .to_resolved()
+                    .await?,
                 )))
             })
             .await?
             .cell())
+    }
+
+    fn chunking_type(&self) -> Option<ChunkingType> {
+        Some(ChunkingType::Traced {
+            mode: TracedMode::Transitive,
+        })
     }
 }

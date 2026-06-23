@@ -578,7 +578,7 @@
             null === formData && (formData = new FormData());
             var _data3 = formData;
             key = nextPartId++;
-            var prefix = formFieldPrefix + key + "_";
+            var prefix = formFieldPrefix + "_" + key + "_";
             value.forEach(function (originalValue, originalKey) {
               _data3.append(prefix + originalKey, originalValue);
             });
@@ -1373,7 +1373,9 @@
             "This object has been omitted by React in the console log to avoid sending too much data from the server. Try logging smaller or more specific objects." ===
             value
               ? "\u2026"
-              : JSON.stringify(value);
+              : JSON.stringify(
+                  1024 <= value.length ? value.slice(0, 1023) + "\u2026" : value
+                );
           break;
         case "undefined":
           value = "undefined";
@@ -1875,6 +1877,20 @@
         }
         chunk.status = "rejected";
         chunk.reason = error;
+        a: if (null !== response._debugEndTime)
+          for (
+            prevHandler = response._debugEndTime - performance.timeOrigin,
+              chunk = chunk._debugInfo,
+              prevChunk = 0;
+            prevChunk < chunk.length;
+            prevChunk++
+          ) {
+            var info = chunk[prevChunk];
+            if ("number" === typeof info.time && info.time > prevHandler) {
+              chunk.length = prevChunk;
+              break a;
+            }
+          }
         null !== listeners && rejectChunk(response, listeners, error);
       }
     }
@@ -2999,7 +3015,7 @@
         null == debugStartTime ? performance.now() : debugStartTime;
       this._debugIOStarted = !1;
       setTimeout(markIOStarted.bind(this), 0);
-      this._debugEndTime = null == debugEndTime ? null : debugEndTime;
+      this._debugEndTime = void 0 === debugEndTime ? null : debugEndTime;
       this._debugFindSourceMapURL = findSourceMapURL;
       this._debugChannel = debugChannel;
       this._blockedConsole = null;
@@ -3377,18 +3393,31 @@
                   "cause"
                 )
               }
-            : void 0;
+            : void 0,
+        isAggregateError =
+          "undefined" !== typeof AggregateError && "errors" in errorInfo,
+        revivedErrors = isAggregateError
+          ? reviveModel(response, errorInfo.errors, errorInfo, "errors")
+          : null;
       message = buildFakeCallStack(
         response,
         stack,
         env,
         !1,
-        Error.bind(
-          null,
-          message ||
-            "An error occurred in the Server Components render but no message was provided",
-          errorOptions
-        )
+        isAggregateError
+          ? AggregateError.bind(
+              null,
+              revivedErrors,
+              message ||
+                "An error occurred in the Server Components render but no message was provided",
+              errorOptions
+            )
+          : Error.bind(
+              null,
+              message ||
+                "An error occurred in the Server Components render but no message was provided",
+              errorOptions
+            )
       );
       stack = null;
       null != errorInfo.owner &&

@@ -48,15 +48,11 @@ impl Fold for ExportShaker {
 
     fn fold_export_decl(&mut self, mut decl: ExportDecl) -> ExportDecl {
         match &mut decl.decl {
-            Decl::Fn(fn_decl) => {
-                if !self.ignore.contains(&fn_decl.ident.sym) {
-                    self.remove_export = true;
-                }
+            Decl::Fn(fn_decl) if !self.ignore.contains(&fn_decl.ident.sym) => {
+                self.remove_export = true;
             }
-            Decl::Class(class_decl) => {
-                if !self.ignore.contains(&class_decl.ident.sym) {
-                    self.remove_export = true;
-                }
+            Decl::Class(class_decl) if !self.ignore.contains(&class_decl.ident.sym) => {
+                self.remove_export = true;
             }
             Decl::Var(var_decl) => {
                 var_decl.decls = var_decl

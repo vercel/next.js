@@ -1,11 +1,11 @@
-import { nextTestSetup } from 'e2e-utils'
+import { nextTestSetup, type Playwright } from 'e2e-utils'
 import {
+  expectBuildValidationSkipped,
   expectNoBuildValidationErrors,
   extractBuildValidationError,
   waitForValidation,
 } from 'e2e-utils/instant-validation'
 import { retry, waitForNoErrorToast } from '../../../lib/next-test-utils'
-import type { Playwright } from '../../../lib/next-webdriver'
 
 describe('instant validation - parallel slot configs', () => {
   const { next, skipped, isNextDev, isNextStart, isTurbopack } = nextTestSetup({
@@ -115,33 +115,19 @@ describe('instant validation - parallel slot configs', () => {
              "cause": [
                {
                  "label": "Caused by: Instant Validation",
-                 "source": "app/suspense-in-root/parallel/slot-config-only/@slot/page.tsx (1:33) @ unstable_instant
-           > 1 | export const unstable_instant = { prefetch: 'static' }
-               |                                 ^",
+                 "source": "app/suspense-in-root/parallel/slot-config-only/@slot/page.tsx (1:24) @ instant
+           > 1 | export const instant = { level: 'experimental-error' }
+               |                        ^",
                  "stack": [
-                   "unstable_instant app/suspense-in-root/parallel/slot-config-only/@slot/page.tsx (1:33)",
+                   "instant app/suspense-in-root/parallel/slot-config-only/@slot/page.tsx (1:24)",
                    "Set.forEach <anonymous>",
                  ],
                },
              ],
-             "code": "E1078",
-             "description": "Runtime data was accessed outside of <Suspense>
-
-           This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation. cookies(), headers(), and searchParams, are examples of Runtime data that can only come from a user request.
-
-           To fix this:
-
-           Provide a fallback UI using <Suspense> around this component.
-
-           or
-
-           Move the Runtime data access into a deeper component wrapped in <Suspense>.
-
-           In either case this allows Next.js to stream its contents to the user when they request the page, while still providing an initial UI that is prerendered and prefetchable for instant navigations.
-
-           Learn more: https://nextjs.org/docs/messages/blocking-route",
+             "code": "E1319",
+             "description": "Next.js encountered runtime data during a navigation.",
              "environmentLabel": "Server",
-             "label": "Blocking Route",
+             "label": "Instant",
              "source": "app/suspense-in-root/parallel/slot-config-only/page.tsx (4:16) @ ChildrenPage
            > 4 |   await cookies()
                |                ^",
@@ -156,11 +142,24 @@ describe('instant validation - parallel slot configs', () => {
           )
           expect(extractBuildValidationError(result.cliOutput))
             .toMatchInlineSnapshot(`
-           "Error: Route "/suspense-in-root/parallel/slot-config-only": Runtime data such as \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` was accessed outside of \`<Suspense>\`. This delays the entire page from rendering, resulting in a slow user experience. Learn more: https://nextjs.org/docs/messages/blocking-route
+           "Error: Route "/suspense-in-root/parallel/slot-config-only": Next.js encountered runtime data during prerendering or a navigation.
+
+           \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` accessed outside of \`<Suspense>\` prevents the route from being prerendered or the navigation from being instant, leading to a slower user experience.
+
+           Ways to fix this:
+             - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
+               https://nextjs.org/docs/messages/blocking-prerender-runtime#wrap-in-or-move-into-suspense
+             - [cache] For \`params\`: if the params are known, prerender them with \`generateStaticParams\`
+               https://nextjs.org/docs/messages/blocking-prerender-runtime#for-known-params-prerender
+             - [block] Set \`export const instant = false\` to silence this warning and allow a blocking route
+               https://nextjs.org/docs/messages/blocking-prerender-runtime#allow-blocking-route
                at body (<anonymous>)
                at html (<anonymous>)
                at a (<anonymous>)
            Build-time instant validation failed for route "/suspense-in-root/parallel/slot-config-only".
+           To get a more detailed stack trace and pinpoint the issue, try one of the following:
+             - Start the app in development mode by running \`next dev\`, then open "/suspense-in-root/parallel/slot-config-only" in your browser to investigate the error.
+             - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
            Stopping prerender due to instant validation errors."
           `)
           expect(result.exitCode).toBe(1)
@@ -177,33 +176,19 @@ describe('instant validation - parallel slot configs', () => {
              "cause": [
                {
                  "label": "Caused by: Instant Validation",
-                 "source": "app/suspense-in-root/parallel/slot-layout-config/@slot/layout.tsx (3:33) @ unstable_instant
-           > 3 | export const unstable_instant = { prefetch: 'static' }
-               |                                 ^",
+                 "source": "app/suspense-in-root/parallel/slot-layout-config/@slot/layout.tsx (3:24) @ instant
+           > 3 | export const instant = { level: 'experimental-error' }
+               |                        ^",
                  "stack": [
-                   "unstable_instant app/suspense-in-root/parallel/slot-layout-config/@slot/layout.tsx (3:33)",
+                   "instant app/suspense-in-root/parallel/slot-layout-config/@slot/layout.tsx (3:24)",
                    "Set.forEach <anonymous>",
                  ],
                },
              ],
-             "code": "E1078",
-             "description": "Runtime data was accessed outside of <Suspense>
-
-           This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation. cookies(), headers(), and searchParams, are examples of Runtime data that can only come from a user request.
-
-           To fix this:
-
-           Provide a fallback UI using <Suspense> around this component.
-
-           or
-
-           Move the Runtime data access into a deeper component wrapped in <Suspense>.
-
-           In either case this allows Next.js to stream its contents to the user when they request the page, while still providing an initial UI that is prerendered and prefetchable for instant navigations.
-
-           Learn more: https://nextjs.org/docs/messages/blocking-route",
+             "code": "E1319",
+             "description": "Next.js encountered runtime data during a navigation.",
              "environmentLabel": "Server",
-             "label": "Blocking Route",
+             "label": "Instant",
              "source": "app/suspense-in-root/parallel/slot-layout-config/page.tsx (4:16) @ ChildrenPage
            > 4 |   await cookies()
                |                ^",
@@ -218,11 +203,24 @@ describe('instant validation - parallel slot configs', () => {
           )
           expect(extractBuildValidationError(result.cliOutput))
             .toMatchInlineSnapshot(`
-           "Error: Route "/suspense-in-root/parallel/slot-layout-config": Runtime data such as \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` was accessed outside of \`<Suspense>\`. This delays the entire page from rendering, resulting in a slow user experience. Learn more: https://nextjs.org/docs/messages/blocking-route
+           "Error: Route "/suspense-in-root/parallel/slot-layout-config": Next.js encountered runtime data during prerendering or a navigation.
+
+           \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` accessed outside of \`<Suspense>\` prevents the route from being prerendered or the navigation from being instant, leading to a slower user experience.
+
+           Ways to fix this:
+             - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
+               https://nextjs.org/docs/messages/blocking-prerender-runtime#wrap-in-or-move-into-suspense
+             - [cache] For \`params\`: if the params are known, prerender them with \`generateStaticParams\`
+               https://nextjs.org/docs/messages/blocking-prerender-runtime#for-known-params-prerender
+             - [block] Set \`export const instant = false\` to silence this warning and allow a blocking route
+               https://nextjs.org/docs/messages/blocking-prerender-runtime#allow-blocking-route
                at body (<anonymous>)
                at html (<anonymous>)
                at a (<anonymous>)
            Build-time instant validation failed for route "/suspense-in-root/parallel/slot-layout-config".
+           To get a more detailed stack trace and pinpoint the issue, try one of the following:
+             - Start the app in development mode by running \`next dev\`, then open "/suspense-in-root/parallel/slot-layout-config" in your browser to investigate the error.
+             - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
            Stopping prerender due to instant validation errors."
           `)
           expect(result.exitCode).toBe(1)
@@ -239,33 +237,19 @@ describe('instant validation - parallel slot configs', () => {
              "cause": [
                {
                  "label": "Caused by: Instant Validation",
-                 "source": "app/suspense-in-root/parallel/slot-runtime-config/@slot/page.tsx (4:33) @ unstable_instant
-           > 4 | export const unstable_instant = {
-               |                                 ^",
+                 "source": "app/suspense-in-root/parallel/slot-runtime-config/@slot/page.tsx (4:24) @ instant
+           > 4 | export const instant = { level: 'experimental-error' }
+               |                        ^",
                  "stack": [
-                   "unstable_instant app/suspense-in-root/parallel/slot-runtime-config/@slot/page.tsx (4:33)",
+                   "instant app/suspense-in-root/parallel/slot-runtime-config/@slot/page.tsx (4:24)",
                    "Set.forEach <anonymous>",
                  ],
                },
              ],
-             "code": "E1078",
-             "description": "Runtime data was accessed outside of <Suspense>
-
-           This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation. cookies(), headers(), and searchParams, are examples of Runtime data that can only come from a user request.
-
-           To fix this:
-
-           Provide a fallback UI using <Suspense> around this component.
-
-           or
-
-           Move the Runtime data access into a deeper component wrapped in <Suspense>.
-
-           In either case this allows Next.js to stream its contents to the user when they request the page, while still providing an initial UI that is prerendered and prefetchable for instant navigations.
-
-           Learn more: https://nextjs.org/docs/messages/blocking-route",
+             "code": "E1319",
+             "description": "Next.js encountered runtime data during a navigation.",
              "environmentLabel": "Server",
-             "label": "Blocking Route",
+             "label": "Instant",
              "source": "app/suspense-in-root/parallel/slot-runtime-config/page.tsx (4:16) @ ChildrenPage
            > 4 |   await cookies()
                |                ^",
@@ -280,11 +264,24 @@ describe('instant validation - parallel slot configs', () => {
           )
           expect(extractBuildValidationError(result.cliOutput))
             .toMatchInlineSnapshot(`
-           "Error: Route "/suspense-in-root/parallel/slot-runtime-config": Runtime data such as \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` was accessed outside of \`<Suspense>\`. This delays the entire page from rendering, resulting in a slow user experience. Learn more: https://nextjs.org/docs/messages/blocking-route
+           "Error: Route "/suspense-in-root/parallel/slot-runtime-config": Next.js encountered runtime data during prerendering or a navigation.
+
+           \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` accessed outside of \`<Suspense>\` prevents the route from being prerendered or the navigation from being instant, leading to a slower user experience.
+
+           Ways to fix this:
+             - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
+               https://nextjs.org/docs/messages/blocking-prerender-runtime#wrap-in-or-move-into-suspense
+             - [cache] For \`params\`: if the params are known, prerender them with \`generateStaticParams\`
+               https://nextjs.org/docs/messages/blocking-prerender-runtime#for-known-params-prerender
+             - [block] Set \`export const instant = false\` to silence this warning and allow a blocking route
+               https://nextjs.org/docs/messages/blocking-prerender-runtime#allow-blocking-route
                at body (<anonymous>)
                at html (<anonymous>)
                at a (<anonymous>)
            Build-time instant validation failed for route "/suspense-in-root/parallel/slot-runtime-config".
+           To get a more detailed stack trace and pinpoint the issue, try one of the following:
+             - Start the app in development mode by running \`next dev\`, then open "/suspense-in-root/parallel/slot-runtime-config" in your browser to investigate the error.
+             - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
            Stopping prerender due to instant validation errors."
           `)
           expect(result.exitCode).toBe(1)
@@ -303,33 +300,19 @@ describe('instant validation - parallel slot configs', () => {
              "cause": [
                {
                  "label": "Caused by: Instant Validation",
-                 "source": "app/suspense-in-root/parallel/children-config-with-slot/page.tsx (1:33) @ unstable_instant
-           > 1 | export const unstable_instant = { prefetch: 'static' }
-               |                                 ^",
+                 "source": "app/suspense-in-root/parallel/children-config-with-slot/page.tsx (1:24) @ instant
+           > 1 | export const instant = { level: 'experimental-error' }
+               |                        ^",
                  "stack": [
-                   "unstable_instant app/suspense-in-root/parallel/children-config-with-slot/page.tsx (1:33)",
+                   "instant app/suspense-in-root/parallel/children-config-with-slot/page.tsx (1:24)",
                    "Set.forEach <anonymous>",
                  ],
                },
              ],
-             "code": "E1078",
-             "description": "Runtime data was accessed outside of <Suspense>
-
-           This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation. cookies(), headers(), and searchParams, are examples of Runtime data that can only come from a user request.
-
-           To fix this:
-
-           Provide a fallback UI using <Suspense> around this component.
-
-           or
-
-           Move the Runtime data access into a deeper component wrapped in <Suspense>.
-
-           In either case this allows Next.js to stream its contents to the user when they request the page, while still providing an initial UI that is prerendered and prefetchable for instant navigations.
-
-           Learn more: https://nextjs.org/docs/messages/blocking-route",
+             "code": "E1319",
+             "description": "Next.js encountered runtime data during a navigation.",
              "environmentLabel": "Server",
-             "label": "Blocking Route",
+             "label": "Instant",
              "source": "app/suspense-in-root/parallel/children-config-with-slot/@slot/page.tsx (4:16) @ SlotPage
            > 4 |   await cookies()
                |                ^",
@@ -344,12 +327,25 @@ describe('instant validation - parallel slot configs', () => {
           )
           expect(extractBuildValidationError(result.cliOutput))
             .toMatchInlineSnapshot(`
-           "Error: Route "/suspense-in-root/parallel/children-config-with-slot": Runtime data such as \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` was accessed outside of \`<Suspense>\`. This delays the entire page from rendering, resulting in a slow user experience. Learn more: https://nextjs.org/docs/messages/blocking-route
+           "Error: Route "/suspense-in-root/parallel/children-config-with-slot": Next.js encountered runtime data during prerendering or a navigation.
+
+           \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` accessed outside of \`<Suspense>\` prevents the route from being prerendered or the navigation from being instant, leading to a slower user experience.
+
+           Ways to fix this:
+             - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
+               https://nextjs.org/docs/messages/blocking-prerender-runtime#wrap-in-or-move-into-suspense
+             - [cache] For \`params\`: if the params are known, prerender them with \`generateStaticParams\`
+               https://nextjs.org/docs/messages/blocking-prerender-runtime#for-known-params-prerender
+             - [block] Set \`export const instant = false\` to silence this warning and allow a blocking route
+               https://nextjs.org/docs/messages/blocking-prerender-runtime#allow-blocking-route
                at div (<anonymous>)
                at body (<anonymous>)
                at html (<anonymous>)
                at a (<anonymous>)
            Build-time instant validation failed for route "/suspense-in-root/parallel/children-config-with-slot".
+           To get a more detailed stack trace and pinpoint the issue, try one of the following:
+             - Start the app in development mode by running \`next dev\`, then open "/suspense-in-root/parallel/children-config-with-slot" in your browser to investigate the error.
+             - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
            Stopping prerender due to instant validation errors."
           `)
           expect(result.exitCode).toBe(1)
@@ -367,33 +363,19 @@ describe('instant validation - parallel slot configs', () => {
                "cause": [
                  {
                    "label": "Caused by: Instant Validation",
-                   "source": "app/suspense-in-root/parallel/fork-layout-config-with-slot/layout.tsx (3:33) @ unstable_instant
-           > 3 | export const unstable_instant = { prefetch: 'static' }
-               |                                 ^",
+                   "source": "app/suspense-in-root/parallel/fork-layout-config-with-slot/layout.tsx (3:24) @ instant
+           > 3 | export const instant = { level: 'experimental-error' }
+               |                        ^",
                    "stack": [
-                     "unstable_instant app/suspense-in-root/parallel/fork-layout-config-with-slot/layout.tsx (3:33)",
+                     "instant app/suspense-in-root/parallel/fork-layout-config-with-slot/layout.tsx (3:24)",
                      "Set.forEach <anonymous>",
                    ],
                  },
                ],
-               "code": "E1078",
-               "description": "Runtime data was accessed outside of <Suspense>
-
-           This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation. cookies(), headers(), and searchParams, are examples of Runtime data that can only come from a user request.
-
-           To fix this:
-
-           Provide a fallback UI using <Suspense> around this component.
-
-           or
-
-           Move the Runtime data access into a deeper component wrapped in <Suspense>.
-
-           In either case this allows Next.js to stream its contents to the user when they request the page, while still providing an initial UI that is prerendered and prefetchable for instant navigations.
-
-           Learn more: https://nextjs.org/docs/messages/blocking-route",
+               "code": "E1319",
+               "description": "Next.js encountered runtime data during a navigation.",
                "environmentLabel": "Server",
-               "label": "Blocking Route",
+               "label": "Instant",
                "source": "app/suspense-in-root/parallel/fork-layout-config-with-slot/@slot/page.tsx (4:16) @ SlotPage
            > 4 |   await cookies()
                |                ^",
@@ -405,33 +387,19 @@ describe('instant validation - parallel slot configs', () => {
                "cause": [
                  {
                    "label": "Caused by: Instant Validation",
-                   "source": "app/suspense-in-root/parallel/fork-layout-config-with-slot/layout.tsx (3:33) @ unstable_instant
-           > 3 | export const unstable_instant = { prefetch: 'static' }
-               |                                 ^",
+                   "source": "app/suspense-in-root/parallel/fork-layout-config-with-slot/layout.tsx (3:24) @ instant
+           > 3 | export const instant = { level: 'experimental-error' }
+               |                        ^",
                    "stack": [
-                     "unstable_instant app/suspense-in-root/parallel/fork-layout-config-with-slot/layout.tsx (3:33)",
+                     "instant app/suspense-in-root/parallel/fork-layout-config-with-slot/layout.tsx (3:24)",
                      "Set.forEach <anonymous>",
                    ],
                  },
                ],
-               "code": "E1078",
-               "description": "Runtime data was accessed outside of <Suspense>
-
-           This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation. cookies(), headers(), and searchParams, are examples of Runtime data that can only come from a user request.
-
-           To fix this:
-
-           Provide a fallback UI using <Suspense> around this component.
-
-           or
-
-           Move the Runtime data access into a deeper component wrapped in <Suspense>.
-
-           In either case this allows Next.js to stream its contents to the user when they request the page, while still providing an initial UI that is prerendered and prefetchable for instant navigations.
-
-           Learn more: https://nextjs.org/docs/messages/blocking-route",
+               "code": "E1319",
+               "description": "Next.js encountered runtime data during a navigation.",
                "environmentLabel": "Server",
-               "label": "Blocking Route",
+               "label": "Instant",
                "source": "app/suspense-in-root/parallel/fork-layout-config-with-slot/page.tsx (4:16) @ ChildrenPage
            > 4 |   await cookies()
                |                ^",
@@ -447,16 +415,39 @@ describe('instant validation - parallel slot configs', () => {
           )
           expect(extractBuildValidationError(result.cliOutput))
             .toMatchInlineSnapshot(`
-           "Error: Route "/suspense-in-root/parallel/fork-layout-config-with-slot": Runtime data such as \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` was accessed outside of \`<Suspense>\`. This delays the entire page from rendering, resulting in a slow user experience. Learn more: https://nextjs.org/docs/messages/blocking-route
+           "Error: Route "/suspense-in-root/parallel/fork-layout-config-with-slot": Next.js encountered runtime data during prerendering or a navigation.
+
+           \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` accessed outside of \`<Suspense>\` prevents the route from being prerendered or the navigation from being instant, leading to a slower user experience.
+
+           Ways to fix this:
+             - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
+               https://nextjs.org/docs/messages/blocking-prerender-runtime#wrap-in-or-move-into-suspense
+             - [cache] For \`params\`: if the params are known, prerender them with \`generateStaticParams\`
+               https://nextjs.org/docs/messages/blocking-prerender-runtime#for-known-params-prerender
+             - [block] Set \`export const instant = false\` to silence this warning and allow a blocking route
+               https://nextjs.org/docs/messages/blocking-prerender-runtime#allow-blocking-route
                at div (<anonymous>)
                at body (<anonymous>)
                at html (<anonymous>)
                at a (<anonymous>)
-           Error: Route "/suspense-in-root/parallel/fork-layout-config-with-slot": Runtime data such as \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` was accessed outside of \`<Suspense>\`. This delays the entire page from rendering, resulting in a slow user experience. Learn more: https://nextjs.org/docs/messages/blocking-route
+           Error: Route "/suspense-in-root/parallel/fork-layout-config-with-slot": Next.js encountered runtime data during prerendering or a navigation.
+
+           \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` accessed outside of \`<Suspense>\` prevents the route from being prerendered or the navigation from being instant, leading to a slower user experience.
+
+           Ways to fix this:
+             - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
+               https://nextjs.org/docs/messages/blocking-prerender-runtime#wrap-in-or-move-into-suspense
+             - [cache] For \`params\`: if the params are known, prerender them with \`generateStaticParams\`
+               https://nextjs.org/docs/messages/blocking-prerender-runtime#for-known-params-prerender
+             - [block] Set \`export const instant = false\` to silence this warning and allow a blocking route
+               https://nextjs.org/docs/messages/blocking-prerender-runtime#allow-blocking-route
                at body (<anonymous>)
                at html (<anonymous>)
                at b (<anonymous>)
            Build-time instant validation failed for route "/suspense-in-root/parallel/fork-layout-config-with-slot".
+           To get a more detailed stack trace and pinpoint the issue, try one of the following:
+             - Start the app in development mode by running \`next dev\`, then open "/suspense-in-root/parallel/fork-layout-config-with-slot" in your browser to investigate the error.
+             - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
            Stopping prerender due to instant validation errors."
           `)
           expect(result.exitCode).toBe(1)
@@ -490,6 +481,178 @@ describe('instant validation - parallel slot configs', () => {
             '/suspense-in-root/parallel/slot-config-children-suspended'
           )
           expectNoBuildValidationErrors(result)
+        }
+      })
+    })
+
+    describe('conditional slot rendering', () => {
+      it('valid - both slots render, no cookies', async () => {
+        const href =
+          '/suspense-in-root/parallel/conditional-breadcrumbs/show-both/unblocked'
+        if (isNextDev) {
+          const browser = await navigateTo(href)
+          await expectNoDevValidationErrors(browser, await browser.url())
+        } else {
+          const result = await prerender(href)
+          expectNoBuildValidationErrors(result)
+        }
+      })
+
+      it('valid - only configured children slot renders, no cookies', async () => {
+        const href =
+          '/suspense-in-root/parallel/conditional-breadcrumbs/show-only-children/unblocked'
+        if (isNextDev) {
+          const browser = await navigateTo(href)
+          await expectNoDevValidationErrors(browser, await browser.url())
+        } else {
+          const result = await prerender(href)
+          expectNoBuildValidationErrors(result)
+        }
+      })
+
+      it('valid - only configured children slot renders, breadcrumbs blocked', async () => {
+        const href =
+          '/suspense-in-root/parallel/conditional-breadcrumbs/show-only-children/blocked'
+        if (isNextDev) {
+          const browser = await navigateTo(href)
+          await expectNoDevValidationErrors(browser, await browser.url())
+        } else {
+          const result = await prerender(href)
+          expectNoBuildValidationErrors(result)
+        }
+      })
+
+      it('errors when both slots render and breadcrumbs calls cookies', async () => {
+        const href =
+          '/suspense-in-root/parallel/conditional-breadcrumbs/show-both/blocked'
+        if (isNextDev) {
+          const browser = await navigateTo(href)
+          await expect(browser).toDisplayCollapsedRedbox(`
+           {
+             "cause": [
+               {
+                 "label": "Caused by: Instant Validation",
+                 "source": "app/suspense-in-root/parallel/conditional-breadcrumbs/show-both/blocked/page.tsx (1:24) @ instant
+           > 1 | export const instant = { level: 'experimental-error' }
+               |                        ^",
+                 "stack": [
+                   "instant app/suspense-in-root/parallel/conditional-breadcrumbs/show-both/blocked/page.tsx (1:24)",
+                   "Set.forEach <anonymous>",
+                 ],
+               },
+             ],
+             "code": "E1319",
+             "description": "Next.js encountered runtime data during a navigation.",
+             "environmentLabel": "Server",
+             "label": "Instant",
+             "source": "app/suspense-in-root/parallel/conditional-breadcrumbs/show-both/@breadcrumbs/blocked/page.tsx (3:16) @ BreadcrumbsPage
+           > 3 |   await cookies()
+               |                ^",
+             "stack": [
+               "BreadcrumbsPage app/suspense-in-root/parallel/conditional-breadcrumbs/show-both/@breadcrumbs/blocked/page.tsx (3:16)",
+             ],
+           }
+          `)
+        } else {
+          const result = await prerender(href)
+          expect(extractBuildValidationError(result.cliOutput))
+            .toMatchInlineSnapshot(`
+           "Error: Route "/suspense-in-root/parallel/conditional-breadcrumbs/show-both/blocked": Next.js encountered runtime data during prerendering or a navigation.
+
+           \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` accessed outside of \`<Suspense>\` prevents the route from being prerendered or the navigation from being instant, leading to a slower user experience.
+
+           Ways to fix this:
+             - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
+               https://nextjs.org/docs/messages/blocking-prerender-runtime#wrap-in-or-move-into-suspense
+             - [cache] For \`params\`: if the params are known, prerender them with \`generateStaticParams\`
+               https://nextjs.org/docs/messages/blocking-prerender-runtime#for-known-params-prerender
+             - [block] Set \`export const instant = false\` to silence this warning and allow a blocking route
+               https://nextjs.org/docs/messages/blocking-prerender-runtime#allow-blocking-route
+               at div (<anonymous>)
+               at main (<anonymous>)
+               at body (<anonymous>)
+               at html (<anonymous>)
+               at a (<anonymous>)
+           Build-time instant validation failed for route "/suspense-in-root/parallel/conditional-breadcrumbs/show-both/blocked".
+           To get a more detailed stack trace and pinpoint the issue, try one of the following:
+             - Start the app in development mode by running \`next dev\`, then open "/suspense-in-root/parallel/conditional-breadcrumbs/show-both/blocked" in your browser to investigate the error.
+             - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
+           Stopping prerender due to instant validation errors."
+          `)
+          expect(result.exitCode).toBe(1)
+        }
+      })
+
+      it('errors when configured children slot is hidden, no cookies', async () => {
+        const href =
+          '/suspense-in-root/parallel/conditional-breadcrumbs/show-only-breadcrumbs/unblocked'
+        if (isNextDev) {
+          const browser = await navigateTo(href)
+          await expect(browser).toDisplayCollapsedRedbox(`
+           {
+             "code": "E1286",
+             "description": "Next.js could not validate that a segment in your UI has instant navigation.",
+             "environmentLabel": "Server",
+             "label": "Instant",
+             "source": "/suspense-in-root/parallel/conditional-breadcrumbs/show-only-breadcrumbs/unblocked
+           │
+           │ ├─ suspense-in-root/
+           │ │  ├─ parallel/
+           │ │  │  ├─ conditional-breadcrumbs/
+           │ │  │  │  ├─ show-only-breadcrumbs/
+           │ │  │  │  │  ├─ (group)/
+           │ │  │  │  │  │  ├─ unblocked/
+           │                   └─ page.tsx ← dropped from rendering
+           │",
+             "stack": [],
+           }
+          `)
+        } else {
+          // The route group workaround only fires in dev mode; build-time
+          // pattern matching doesn't resolve through (group)/ so the
+          // route is skipped entirely (no validation markers emitted).
+          const result = await prerender(href)
+          expectBuildValidationSkipped(result)
+        }
+      })
+
+      it('errors when configured children slot is hidden, breadcrumbs blocked', async () => {
+        const href =
+          '/suspense-in-root/parallel/conditional-breadcrumbs/show-only-breadcrumbs/blocked'
+        if (isNextDev) {
+          const browser = await navigateTo(href)
+          await expect(browser).toDisplayCollapsedRedbox(`
+           {
+             "cause": [
+               {
+                 "label": "Caused by: Instant Validation",
+                 "source": "app/suspense-in-root/parallel/conditional-breadcrumbs/show-only-breadcrumbs/(group)/blocked/page.tsx (1:24) @ instant
+           > 1 | export const instant = { level: 'experimental-error' }
+               |                        ^",
+                 "stack": [
+                   "instant app/suspense-in-root/parallel/conditional-breadcrumbs/show-only-breadcrumbs/(group)/blocked/page.tsx (1:24)",
+                   "Set.forEach <anonymous>",
+                 ],
+               },
+             ],
+             "code": "E1319",
+             "description": "Next.js encountered runtime data during a navigation.",
+             "environmentLabel": "Server",
+             "label": "Instant",
+             "source": "app/suspense-in-root/parallel/conditional-breadcrumbs/show-only-breadcrumbs/@breadcrumbs/blocked/page.tsx (3:16) @ BreadcrumbsPage
+           > 3 |   await cookies()
+               |                ^",
+             "stack": [
+               "BreadcrumbsPage app/suspense-in-root/parallel/conditional-breadcrumbs/show-only-breadcrumbs/@breadcrumbs/blocked/page.tsx (3:16)",
+             ],
+           }
+          `)
+        } else {
+          // The route group workaround only fires in dev mode; build-time
+          // pattern matching doesn't resolve through (group)/ so the
+          // route is skipped entirely (no validation markers emitted).
+          const result = await prerender(href)
+          expectBuildValidationSkipped(result)
         }
       })
     })

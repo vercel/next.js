@@ -11,14 +11,14 @@ import {
   getStaleAt,
   processRuntimePrefetchStream,
   writeDynamicRenderResponseIntoCache,
-  writeStaticStageResponseIntoCache,
+  writePrerenderResponseIntoCache,
 } from '../segment-cache/cache'
 import { FetchStrategy } from '../segment-cache/types'
 import {
   UnknownDynamicStaleTime,
   computeDynamicStaleAt,
 } from '../segment-cache/bfcache'
-import { decodeStaticStage } from './fetch-server-response'
+import { decodeStageUntilBoundary } from './fetch-server-response'
 import { discoverKnownRoute } from '../segment-cache/optimistic-routes'
 import type { NormalizedSearch } from '../segment-cache/cache-key'
 
@@ -44,6 +44,7 @@ export function createInitialRouterState({
     s: initialStaleTime,
     l: initialStaticStageByteLength,
     h: initialHeadVaryParams,
+    r: initialRootVaryParams,
     p: initialRuntimePrefetchStream,
     d: initialDynamicStaleTimeSeconds,
   } = initialRSCPayload
@@ -106,6 +107,7 @@ export function createInitialRouterState({
     discoverKnownRoute(
       Date.now(),
       location.pathname,
+      location.search as NormalizedSearch,
       null, // nextUrl — initial render is never an interception
       null, // No pending entry
       initialRouteTree,
@@ -116,6 +118,10 @@ export function createInitialRouterState({
       false // hasDynamicRewrite
     )
 
+    // TODO: Implement Shell extraction as part of Cached Navigations.
+    // Intentionally holding off on doing this until we decide how the Cached
+    // Navigations behavior should work in combination with App Shells.
+
     // Write the initial seed data into the segment cache so subsequent
     // navigations to the initial page can serve cached segments instantly.
     if (initialSeedData !== null && initialStaleTime !== undefined) {
@@ -125,20 +131,26 @@ export function createInitialRouterState({
       ) {
         // Partially static page — truncate the cloned Flight stream at the
         // static stage byte boundary, decode, and cache the static subset.
-        decodeStaticStage<InitialRSCPayload>(
-          initialFlightStreamForCache,
-          initialStaticStageByteLength,
-          undefined
-        )
-          .then(async (staticStageResponse) => {
+        // Promise.resolve wraps the Flight-deserialized thenable into a
+        // native Promise so we can chain `.then` on it safely.
+        Promise.resolve(initialStaticStageByteLength)
+          .then(async (byteLength) => {
+            const staticStageResponse =
+              await decodeStageUntilBoundary<InitialRSCPayload>(
+                initialFlightStreamForCache,
+                byteLength,
+                undefined
+              )
             const now = Date.now()
             const staleAt = await getStaleAt(now, staticStageResponse.s)
 
-            writeStaticStageResponseIntoCache(
+            writePrerenderResponseIntoCache(
               now,
+              FetchStrategy.PPR,
               staticStageResponse.f,
               undefined, // no build ID mismatch check for initial HTML
               staticStageResponse.h,
+              staticStageResponse.r ?? null,
               staleAt,
               initialTree,
               initialRenderedSearch,
@@ -159,11 +171,13 @@ export function createInitialRouterState({
 
         getStaleAt(now, initialStaleTime)
           .then((staleAt) => {
-            writeStaticStageResponseIntoCache(
+            writePrerenderResponseIntoCache(
               now,
+              FetchStrategy.PPR,
               initialFlightData,
               undefined, // buildId — not applicable for initial HTML
               initialHeadVaryParams,
+              initialRootVaryParams ?? null,
               staleAt,
               initialTree,
               initialRenderedSearch,
@@ -203,6 +217,7 @@ export function createInitialRouterState({
               processed.buildId,
               processed.isResponsePartial,
               processed.headVaryParams,
+              processed.rootVaryParamsIterable,
               processed.staleAt,
               processed.navigationSeed,
               null

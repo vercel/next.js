@@ -2,6 +2,8 @@
 
 const defaultCacheHandler =
   require('next/dist/server/lib/cache-handlers/default.external').default
+const { AsyncLocalStorage } = require('node:async_hooks')
+const snapshot = AsyncLocalStorage.snapshot()
 
 /**
  * @type {import('next/dist/server/lib/cache-handlers/types').CacheHandler}
@@ -14,6 +16,15 @@ const cacheHandler = {
 
   async set(cacheKey, pendingEntry) {
     console.log('ModernCustomCacheHandler::set', cacheKey)
+
+    pendingEntry.then(({ revalidate, expire, tags }) => {
+      snapshot(() => {
+        console.log(
+          `ModernCustomCacheHandler::set-resolved-entry revalidate: ${revalidate}, expire: ${expire}, tags: ${tags}\n  ${cacheKey}`
+        )
+      })
+    })
+
     return defaultCacheHandler.set(cacheKey, pendingEntry)
   },
 

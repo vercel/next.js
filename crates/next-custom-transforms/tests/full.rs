@@ -1,4 +1,7 @@
-use std::path::{Path, PathBuf};
+use std::{
+    path::{Path, PathBuf},
+    sync::Arc,
+};
 
 use next_custom_transforms::chain_transforms::{TransformOptions, custom_before_pass};
 use serde::de::DeserializeOwned;
@@ -87,6 +90,8 @@ fn test(input: &Path, minify: bool) {
             let unresolved_mark = Mark::new();
             let mut options = options.patch(&fm);
             options.swc.unresolved_mark = Some(unresolved_mark);
+            options.swc.runtime_options = swc_core::base::config::RuntimeOptions::default()
+                .plugin_runtime(Arc::new(swc_plugin_backend_wasmtime::WasmtimeRuntime));
 
             let comments = SingleThreadedComments::default();
             match c.process_js_with_custom_pass(

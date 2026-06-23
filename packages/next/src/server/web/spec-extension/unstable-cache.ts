@@ -166,7 +166,6 @@ export function unstable_cache<T extends Callback>(
             case 'private-cache':
             case 'prerender':
             case 'prerender-runtime':
-            case 'prerender-ppr':
             case 'prerender-legacy':
               // We update the store's revalidate property if the option.revalidate is a higher precedence
               // options.revalidate === undefined doesn't affect timing.
@@ -288,8 +287,12 @@ export function unstable_cache<T extends Callback>(
                 // Check if we need to do foreground revalidation
                 if (workStore.isStaticGeneration) {
                   // When the page is revalidating and the cache entry is stale,
-                  // we need to wait for fresh data (blocking revalidate)
-                  return workStore.pendingRevalidates[invocationKey]
+                  // we need to wait for fresh data (blocking revalidate). The
+                  // `await` here keeps `cacheSignal.endRead` (in the outer
+                  // `finally`) suspended until the recompute + cacheNewResult
+                  // actually complete, so the prospective prerender's
+                  // `cacheSignal` doesn't resolve `cacheReady` prematurely.
+                  return await workStore.pendingRevalidates[invocationKey]
                 }
                 // Otherwise, we're doing background revalidation - return stale immediately
               }
@@ -414,7 +417,6 @@ function getFetchUrlPrefix(
     case 'prerender-client':
     case 'validation-client':
     case 'prerender-runtime':
-    case 'prerender-ppr':
     case 'prerender-legacy':
     case 'cache':
     case 'private-cache':

@@ -4,11 +4,11 @@
 // Usage: node scripts/docker-native-build.js [flags] [filter]
 //   --quick        Use release-with-assertions profile (no LTO, faster)
 //   --host-target  Share host target/ dir with container for caching
-//   --rebuild      Force Docker image rebuild
+//   --rebuild      Force a fresh Docker image build (docker build --no-cache)
 //   --test         Smoke-test built binaries (native arch only)
 //   filter         Substring match on target name (e.g. "musl", "x86_64")
 
-const { execSync, execFileSync } = require('child_process')
+const { execFileSync } = require('child_process')
 const path = require('path')
 const fs = require('fs')
 const os = require('os')
@@ -85,34 +85,33 @@ if (targets.length === 0) {
   process.exit(1)
 }
 
-// --- Build Docker image via turbo task ---
-// Step 1: turbo either builds (cache miss) or restores image.tar (cache hit).
-// Step 2: --load ensures the image is in docker (turbo skips the script on hit).
-function ensureDockerImage() {
-  try {
-    execSync(`docker image inspect ${DOCKER_IMAGE}`, { stdio: 'ignore' })
-    if (!rebuild) return // already loaded
-  } catch {
-    // not loaded — continue to build/restore
-  }
-
-  const forceFlag = rebuild ? ' -- --force' : ''
-  execSync(`pnpm -F @next/swc build-docker-image${forceFlag}`, {
-    stdio: 'inherit',
-    cwd: REPO_ROOT,
-  })
-  // Load the image if turbo restored it from cache (turbo skips the script on hit)
-  const loadFlag = rebuild ? '--force' : '--load'
-  execFileSync(
-    'node',
-    [path.join(__dirname, 'docker-image-cache.js'), loadFlag],
-    {
-      stdio: 'inherit',
-    }
+function buildImage() {
+  console.log(`Building Docker image: ${DOCKER_IMAGE}`)
+  const ctx = fs.mkdtempSync(path.join(os.tmpdir(), 'next-swc-docker-'))
+  fs.copyFileSync(
+    path.join(REPO_ROOT, 'rust-toolchain.toml'),
+    path.join(ctx, 'rust-toolchain.toml')
   )
+  try {
+    execFileSync(
+      'docker',
+      [
+        'build',
+        ...(rebuild ? ['--no-cache'] : []),
+        '-t',
+        DOCKER_IMAGE,
+        '-f',
+        path.join(REPO_ROOT, 'scripts/native-builder.Dockerfile'),
+        ctx,
+      ],
+      { stdio: 'inherit' }
+    )
+  } finally {
+    fs.rmSync(ctx, { recursive: true, force: true })
+  }
 }
 
-ensureDockerImage()
+buildImage()
 
 // --- Build targets ---
 const buildTask = quick

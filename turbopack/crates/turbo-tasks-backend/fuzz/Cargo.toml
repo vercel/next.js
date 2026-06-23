@@ -13,12 +13,11 @@ anyhow = { workspace = true }
 arbitrary = { version = "1.4.1", features = ["derive"] }
 bincode = { workspace = true }
 libfuzzer-sys = "0.4.9"
-once_cell = { workspace = true }
 serde = { workspace = true }
 tokio = { workspace = true, features = ["full"] }
-turbo-tasks = { workspace = true }
+turbo-tasks = { workspace = true, features = ["non_operation_vc_strongly_consistent"] }
 turbo-tasks-backend = { workspace = true }
-turbo-tasks-malloc = { workspace = true }
+turbo-tasks-malloc = { workspace = true , features = ["custom_allocator"]}
 
 [[bin]]
 name = "fuzz_graph"

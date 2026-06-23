@@ -45,6 +45,7 @@ describe('getDynamicHTMLPostponedState', () => {
         hasExplicitRevalidate: true,
         hasExplicitExpire: true,
         readRootParamNames: undefined,
+        dynamicNestedCacheError: undefined,
       })
     )
 
@@ -76,6 +77,8 @@ describe('getDynamicHTMLPostponedState', () => {
          "decryptedBoundArgs": Map {},
          "encryptedBoundArgs": Map {},
          "fetch": Map {},
+         "imageResponses": Map {},
+         "mutable": false,
        },
        "type": 2,
      }
@@ -118,7 +121,14 @@ describe('getDynamicHTMLPostponedState', () => {
     expect(parsed).toEqual({
       type: DynamicState.HTML,
       data: [1, { [value]: value }],
-      renderResumeDataCache: createPrerenderResumeDataCache(),
+      renderResumeDataCache: {
+        cache: new Map(),
+        fetch: new Map(),
+        encryptedBoundArgs: new Map(),
+        decryptedBoundArgs: new Map(),
+        imageResponses: new Map(),
+        mutable: false,
+      },
     })
 
     // The replacements have been replaced.
@@ -148,7 +158,14 @@ describe('parsePostponedState', () => {
     expect(parsed).toEqual({
       type: DynamicState.HTML,
       data: expect.any(Object),
-      renderResumeDataCache: createPrerenderResumeDataCache(),
+      renderResumeDataCache: {
+        cache: new Map(),
+        fetch: new Map(),
+        encryptedBoundArgs: new Map(),
+        decryptedBoundArgs: new Map(),
+        imageResponses: new Map(),
+        mutable: false,
+      },
     })
 
     // Ensure that the replacement worked and removed all the placeholders.
@@ -164,7 +181,14 @@ describe('parsePostponedState', () => {
     expect(parsed).toEqual({
       type: DynamicState.HTML,
       data: expect.any(Object),
-      renderResumeDataCache: createPrerenderResumeDataCache(),
+      renderResumeDataCache: {
+        cache: new Map(),
+        fetch: new Map(),
+        encryptedBoundArgs: new Map(),
+        decryptedBoundArgs: new Map(),
+        imageResponses: new Map(),
+        mutable: false,
+      },
     })
   })
 
@@ -175,7 +199,14 @@ describe('parsePostponedState', () => {
     // Ensure that it parsed it correctly.
     expect(parsed).toEqual({
       type: DynamicState.DATA,
-      renderResumeDataCache: createPrerenderResumeDataCache(),
+      renderResumeDataCache: {
+        cache: new Map(),
+        fetch: new Map(),
+        encryptedBoundArgs: new Map(),
+        decryptedBoundArgs: new Map(),
+        imageResponses: new Map(),
+        mutable: false,
+      },
     })
   })
 })

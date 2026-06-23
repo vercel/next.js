@@ -26,7 +26,6 @@ import { workUnitAsyncStorage } from './work-unit-async-storage.external'
 import {
   createVaryParamsAccumulator,
   emptyVaryParamsAccumulator,
-  getVaryParamsThenable,
   type VaryParamsAccumulator,
 } from './vary-params'
 import type {
@@ -42,7 +41,10 @@ import {
   isNextjsBuiltinFilePath,
 } from './segment-explorer-path'
 import type { AppSegmentConfig } from '../../build/segment-config/app/app-segment-config'
-import { RenderStage, type StagedRenderingController } from './staged-rendering'
+import {
+  FIRST_LATE_RENDER_STAGE,
+  type StagedRenderingController,
+} from './staged-rendering'
 
 /**
  * Use the provided loader tree to create the React Component tree.
@@ -117,7 +119,7 @@ async function createComponentTreeInternal(
   isRoot: boolean
 ): Promise<CacheNodeSeedData> {
   const {
-    renderOpts: { nextConfigOutput, experimental, cacheComponents },
+    renderOpts: { nextConfigOutput, cacheComponents },
     workStore,
     componentMod: {
       createElement,
@@ -133,7 +135,6 @@ async function createComponentTreeInternal(
       createServerParamsForServerSegment,
       createPrerenderParamsForClientSegment,
       serverHooks: { DynamicServerError },
-      Postpone,
     },
     pagePath,
     getDynamicParamFromSegment,
@@ -233,13 +234,10 @@ async function createComponentTreeInternal(
       })
     : []
 
-  const instantConfig = layoutOrPageMod
-    ? (layoutOrPageMod as AppSegmentConfig).unstable_instant
+  const prefetchConfig = layoutOrPageMod
+    ? (layoutOrPageMod as AppSegmentConfig).prefetch
     : undefined
-  const hasRuntimePrefetch =
-    instantConfig && typeof instantConfig === 'object'
-      ? instantConfig.prefetch === 'runtime'
-      : false
+  const hasRuntimePrefetch = prefetchConfig === 'allow-runtime'
   const isRuntimePrefetchable = hasRuntimePrefetch || parentRuntimePrefetchable
 
   const [Forbidden, forbiddenStyles] =
@@ -265,6 +263,15 @@ async function createComponentTreeInternal(
       : []
 
   let dynamic = layoutOrPageMod?.dynamic
+  if (typeof dynamic === 'string') {
+    if (cacheComponents) {
+      // TODO: Remove this since this should be caught during compilation.
+      // Left as a guard in case usage of Postpone was attempted
+      throw new Error(
+        `Route segment config "dynamic" is not compatible with \`nextConfig.cacheComponents\`. Please remove it.`
+      )
+    }
+  }
 
   if (nextConfigOutput === 'export') {
     if (!dynamic || dynamic === 'auto') {
@@ -286,10 +293,7 @@ async function createComponentTreeInternal(
     } else if (dynamic === 'force-dynamic') {
       workStore.forceDynamic = true
 
-      // TODO: (PPR) remove this bailout once PPR is the default
-      if (workStore.isStaticGeneration && !experimental.isRoutePPREnabled) {
-        // If the postpone API isn't available, we can't postpone the render and
-        // therefore we can't use the dynamic API.
+      if (workStore.isStaticGeneration) {
         const err = new DynamicServerError(
           `Page with \`dynamic = "force-dynamic"\` won't be rendered statically.`
         )
@@ -321,7 +325,6 @@ async function createComponentTreeInternal(
         case 'prerender':
         case 'prerender-runtime':
         case 'prerender-legacy':
-        case 'prerender-ppr':
           if (workUnitStore.revalidate > defaultRevalidate) {
             workUnitStore.revalidate = defaultRevalidate
           }
@@ -348,7 +351,7 @@ async function createComponentTreeInternal(
       defaultRevalidate === 0 &&
       // If the postpone API isn't available, we can't postpone the render and
       // therefore we can't use the dynamic API.
-      !experimental.isRoutePPREnabled
+      !cacheComponents
     ) {
       const dynamicUsageDescription = `revalidate: 0 configured ${segment}`
       workStore.dynamicUsageDescription = dynamicUsageDescription
@@ -372,7 +375,6 @@ async function createComponentTreeInternal(
         case 'prerender':
         case 'prerender-runtime':
         case 'prerender-legacy':
-        case 'prerender-ppr':
           if (workUnitStore.stale > pageStaleTime) {
             workUnitStore.stale = pageStaleTime
           }
@@ -415,7 +417,7 @@ async function createComponentTreeInternal(
   // For dynamic requests, this must always be `false` because dynamic responses
   // are never partial.
   const isPossiblyPartialResponse =
-    isStaticGeneration && experimental.isRoutePPREnabled === true
+    isStaticGeneration && cacheComponents === true
 
   const LayoutOrPage: ComponentType<any> | undefined = layoutOrPageMod
     ? interopDefault(layoutOrPageMod)
@@ -577,7 +579,7 @@ async function createComponentTreeInternal(
           // possible during both prefetches and dynamic navigations. But during
           // the beta period, we should be clear about this trade off in our
           // communications.
-          !experimental.isRoutePPREnabled
+          !cacheComponents
         ) {
           // Don't prefetch this child. This will trigger a lazy fetch by the
           // client router.
@@ -595,28 +597,31 @@ async function createComponentTreeInternal(
             }
           }
 
-          const seedData = await createComponentTreeInternal(
-            {
-              loaderTree: parallelRoute,
-              parentParams: currentParams,
-              parentOptionalCatchAllParamName: optionalCatchAllParamName,
-              parentRuntimePrefetchable: isRuntimePrefetchable,
-              rootLayoutIncluded: rootLayoutIncludedAtThisLevelOrAbove,
-              injectedCSS: injectedCSSWithCurrentLayout,
-              injectedJS: injectedJSWithCurrentLayout,
-              injectedFontPreloadTags: injectedFontPreloadTagsWithCurrentLayout,
-              ctx,
-              missingSlots,
-              preloadCallbacks,
-              authInterrupts,
-              // `StreamingMetadataOutlet` is used to conditionally throw. In the case of parallel routes we will have more than one page
-              // but we only want to throw on the first one.
-              MetadataOutlet: isChildrenRouteKey ? MetadataOutlet : null,
-            },
-            false
-          )
+          if (childCacheNodeSeedData === null) {
+            const seedData = await createComponentTreeInternal(
+              {
+                loaderTree: parallelRoute,
+                parentParams: currentParams,
+                parentOptionalCatchAllParamName: optionalCatchAllParamName,
+                parentRuntimePrefetchable: isRuntimePrefetchable,
+                rootLayoutIncluded: rootLayoutIncludedAtThisLevelOrAbove,
+                injectedCSS: injectedCSSWithCurrentLayout,
+                injectedJS: injectedJSWithCurrentLayout,
+                injectedFontPreloadTags:
+                  injectedFontPreloadTagsWithCurrentLayout,
+                ctx,
+                missingSlots,
+                preloadCallbacks,
+                authInterrupts,
+                // `StreamingMetadataOutlet` is used to conditionally throw. In the case of parallel routes we will have more than one page
+                // but we only want to throw on the first one.
+                MetadataOutlet: isChildrenRouteKey ? MetadataOutlet : null,
+              },
+              false
+            )
 
-          childCacheNodeSeedData = seedData
+            childCacheNodeSeedData = seedData
+          }
         }
 
         const templateNode = createElement(
@@ -769,43 +774,15 @@ async function createComponentTreeInternal(
   }
 
   const Component = MaybeComponent
-  // If force-dynamic is used and the current render supports postponing, we
-  // replace it with a node that will postpone the render. This ensures that the
-  // postpone is invoked during the react render phase and not during the next
-  // render phase.
-  // @TODO this does not actually do what it seems like it would or should do. The idea is that
-  // if we are rendering in a force-dynamic mode and we can postpone we should only make the segments
-  // that ask for force-dynamic to be dynamic, allowing other segments to still prerender. However
-  // because this comes after the children traversal and the static generation store is mutated every segment
-  // along the parent path of a force-dynamic segment will hit this condition effectively making the entire
-  // render force-dynamic. We should refactor this function so that we can correctly track which segments
-  // need to be dynamic
   if (
     workStore.isStaticGeneration &&
     workStore.forceDynamic &&
-    experimental.isRoutePPREnabled
+    cacheComponents
   ) {
-    return createSeedData(
-      ctx,
-      createElement(
-        Fragment,
-        {
-          key: cacheNodeKey,
-        },
-        createElement(Postpone, {
-          reason: 'dynamic = "force-dynamic" was used',
-          route: workStore.route,
-        }),
-        layerAssets
-      ),
-      parallelRouteCacheNodeSeedData,
-      loadingData,
-      true,
-      isRuntimePrefetchable,
-
-      // force-dynamic postpones without rendering the component, so no params
-      // are accessed. The vary params are empty.
-      emptyVaryParamsAccumulator
+    // TODO: Remove this since this should be caught during compilation.
+    // Left as a guard in case usage of Postpone was attempted
+    throw new Error(
+      `Route segment config "dynamic" is not compatible with \`nextConfig.cacheComponents\`. Please remove it.`
     )
   }
 
@@ -1305,11 +1282,12 @@ function createSeedData(
 ): CacheNodeSeedData {
   const createElement = ctx.componentMod.createElement
 
-  // When this segment is NOT runtime-prefetchable, delay it until the Static
-  // stage by wrapping the node in a promise. This allows runtime-prefetchable
-  // segments (the lower tree) to render first during EarlyStatic, so their
-  // runtime data resolves in EarlyRuntime where sync IO can be checked.
-  // React will suspend on the thenable and resume when the stage advances.
+  // When this segment is NOT runtime-prefetchable, delay it until the ShellStatic
+  // stage (i.e. the first late stage) by wrapping the node in a promise.
+  // This allows runtime-prefetchable segments (the lower tree) to render first
+  // during ShellEarlyStatic, so their runtime data resolves in ShellEarlyRuntime
+  // where sync IO can be checked. React will suspend on the thenable and resume
+  // when the stage advances.
   if (!isRuntimePrefetchable) {
     const workUnitStore = workUnitAsyncStorage.getStore()
     if (workUnitStore) {
@@ -1321,14 +1299,13 @@ function createSeedData(
           if (stagedRendering) {
             const deferredRsc = rsc
             rsc = stagedRendering
-              .waitForStage(RenderStage.Static)
+              .waitForStage(FIRST_LATE_RENDER_STAGE)
               .then(() => deferredRsc)
           }
           break
         case 'prerender':
         case 'prerender-client':
         case 'validation-client':
-        case 'prerender-ppr':
         case 'prerender-legacy':
         case 'cache':
         case 'private-cache':
@@ -1358,6 +1335,8 @@ function createSeedData(
     parallelRoutes,
     null,
     isPossiblyPartialResponse,
-    varyParamsAccumulator ? getVaryParamsThenable(varyParamsAccumulator) : null,
+    // The accumulator is itself the AsyncIterable<string> that Flight
+    // serializes into the segment's seed data.
+    varyParamsAccumulator,
   ]
 }

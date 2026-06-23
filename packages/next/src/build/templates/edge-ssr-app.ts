@@ -11,7 +11,12 @@ import * as pageMod from 'VAR_USERLAND'
 import { setManifestsSingleton } from '../../server/app-render/manifests-singleton'
 import * as cacheHandlers from '../../server/use-cache/handlers'
 import { BaseServerSpan } from '../../server/lib/trace/constants'
-import { getTracer, SpanKind, type Span } from '../../server/lib/trace/tracer'
+import {
+  getTracer,
+  SpanKind,
+  SpanStatusCode,
+  type Span,
+} from '../../server/lib/trace/tracer'
 import { WebNextRequest, WebNextResponse } from '../../server/base-http/web'
 import type { NextFetchEvent } from '../../server/web/spec-extension/fetch-event'
 import type {
@@ -96,7 +101,7 @@ async function requestHandler(
   const isPossibleServerAction = getIsPossibleServerAction(req)
   const botType = getBotType(req.headers.get('User-Agent') || '')
   const { isOnDemandRevalidate } = checkIsOnDemandRevalidate(
-    req,
+    req.headers,
     prerenderManifest.preview
   )
 
@@ -152,14 +157,15 @@ async function requestHandler(
 
       multiZoneDraftMode: false,
       cacheLifeProfiles: nextConfig.cacheLife,
+      staticPageGenerationTimeout: nextConfig.staticPageGenerationTimeout,
       basePath: nextConfig.basePath,
       serverActions: nextConfig.experimental.serverActions,
       logServerFunctions:
         typeof nextConfig.logging === 'object' &&
         Boolean(nextConfig.logging.serverFunctions),
       cacheComponents: Boolean(nextConfig.cacheComponents),
+      validationLevel: nextConfig.experimental.instantInsights.validationLevel,
       experimental: {
-        isRoutePPREnabled: false,
         expireTime: nextConfig.expireTime,
         staleTimes: nextConfig.experimental.staleTimes,
         dynamicOnHover: Boolean(nextConfig.experimental.dynamicOnHover),
@@ -167,7 +173,9 @@ async function requestHandler(
         inlineCss: Boolean(nextConfig.experimental.inlineCss),
         prefetchInlining: nextConfig.experimental.prefetchInlining ?? false,
         authInterrupts: Boolean(nextConfig.experimental.authInterrupts),
-        cachedNavigations: Boolean(nextConfig.experimental.cachedNavigations),
+        useCacheTimeout: nextConfig.experimental.useCacheTimeout,
+        cachedNavigations: nextConfig.experimental.cachedNavigations ?? false,
+        appShells: nextConfig.experimental.appShells,
         clientTraceMetadata:
           nextConfig.experimental.clientTraceMetadata || ([] as any),
         clientParamParsingOrigins:
@@ -298,6 +306,16 @@ async function requestHandler(
             'http.status_code': finalStatus,
             'next.rsc': false,
           })
+
+          if (finalStatus && finalStatus >= 500) {
+            // For 5xx status codes: SHOULD be set to 'Error' span status.
+            // x-ref: https://opentelemetry.io/docs/specs/semconv/http/http-spans/#status
+            span.setStatus({
+              code: SpanStatusCode.ERROR,
+            })
+            // For span status 'Error', SHOULD set 'error.type' attribute.
+            span.setAttribute('error.type', finalStatus.toString())
+          }
 
           const rootSpanAttributes = tracer.getRootSpanAttributes()
           // We were unable to get attributes, probably OTEL is not enabled

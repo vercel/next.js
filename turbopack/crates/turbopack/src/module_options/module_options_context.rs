@@ -14,7 +14,9 @@ use turbopack_core::{
     environment::Environment, resolve::options::ImportMapping,
 };
 use turbopack_ecmascript::{
-    AnalyzeMode, TreeShakingMode, TypeofWindow, references::esm::UrlRewriteBehavior,
+    AnalyzeMode, TreeShakingMode, TypeofWindow,
+    references::esm::UrlRewriteBehavior,
+    transform::{PresetEnvConfig, ReactCompilerCompilationMode, ReactCompilerTarget},
 };
 pub use turbopack_mdx::MdxTransformOptions;
 use turbopack_node::{
@@ -173,14 +175,6 @@ pub struct DecoratorsOptions {
     pub use_define_for_class_fields: bool,
 }
 
-#[turbo_tasks::value_impl]
-impl ValueDefault for DecoratorsOptions {
-    #[turbo_tasks::function]
-    fn value_default() -> Vc<Self> {
-        Self::default().cell()
-    }
-}
-
 /// Subset of Typescript options configured via tsconfig.json or jsconfig.json,
 /// which affects the runtime transform output.
 #[turbo_tasks::value(shared)]
@@ -188,14 +182,6 @@ impl ValueDefault for DecoratorsOptions {
 pub struct TypescriptTransformOptions {
     pub use_define_for_class_fields: bool,
     pub verbatim_module_syntax: bool,
-}
-
-#[turbo_tasks::value_impl]
-impl ValueDefault for TypescriptTransformOptions {
-    #[turbo_tasks::function]
-    fn value_default() -> Vc<Self> {
-        Self::default().cell()
-    }
 }
 
 #[turbo_tasks::value(shared)]
@@ -265,6 +251,8 @@ pub struct EcmascriptOptionsContext {
     // node_modules.
     pub enable_typeof_window_inlining: Option<TypeofWindow>,
     pub enable_jsx: Option<ResolvedVc<JsxTransformOptions>>,
+    pub enable_rust_react_compiler: Option<ReactCompilerCompilationMode>,
+    pub rust_react_compiler_target: ReactCompilerTarget,
     /// Follow type references and resolve declaration files in additional to
     /// normal resolution.
     pub enable_types: bool,
@@ -295,6 +283,9 @@ pub struct EcmascriptOptionsContext {
 
     /// Whether to infer side effect free modules via local analysis. Defaults to true.
     pub infer_module_side_effects: bool,
+
+    /// Additional SWC preset-env options (mode, coreJs, include, exclude, etc.).
+    pub preset_env_config: Option<ResolvedVc<PresetEnvConfig>>,
 
     pub placeholder_for_future_extensions: (),
 }

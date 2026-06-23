@@ -73,11 +73,12 @@ function extractErrorBlock(output: string, errorTitle: string): string {
 }
 
 describe('webpack-loader-parse-error (development)', () => {
-  const { next, isTurbopack, isNextDev } = nextTestSetup({
+  const { next, isTurbopack, isNextDev, skipped } = nextTestSetup({
     files: __dirname,
     skipDeployment: true,
     skipStart: true,
   })
+  if (skipped) return
 
   if (!isNextDev) {
     it('skipped in production mode', () => {})
@@ -112,7 +113,7 @@ describe('webpack-loader-parse-error (development)', () => {
       )
       expect(errorBlock).toMatchInlineSnapshot(`
        "⨯ ./app/data.broken.js:3:1
-       Expected '</', got '{'
+       Error: Expected '</', got '{'
          1 | // This file will be processed by broken-js-loader
          2 | // The loader will return invalid JavaScript with a source map
        > 3 | export default function Data() {
@@ -166,7 +167,7 @@ describe('webpack-loader-parse-error (development)', () => {
       )
       expect(errorBlock).toMatchInlineSnapshot(`
        "⨯ ./app/css-page/styles.broken.css:2:3
-       Parsing CSS source code failed
+       Error: Parsing CSS source code failed
          1 | .page {
        > 2 |   color: blue;
            |   ^
@@ -217,7 +218,7 @@ describe('webpack-loader-parse-error (production)', () => {
       const jsError = extractErrorBlock(output, "Expected '</', got '{'")
       expect(jsError).toMatchInlineSnapshot(`
        "./app/data.broken.js:3:1
-       Expected '</', got '{'
+       Error: Expected '</', got '{'
          1 | // This file will be processed by broken-js-loader
          2 | // The loader will return invalid JavaScript with a source map
        > 3 | export default function Data() {
@@ -249,7 +250,7 @@ describe('webpack-loader-parse-error (production)', () => {
       )
       expect(cssError).toMatchInlineSnapshot(`
        "./app/css-page/styles.broken.css:5:15
-       Parsing CSS source code failed
+       Error: Parsing CSS source code failed
          3 |   color: red
          4 |   @@@ THIS IS NOT VALID CSS @@@;
        > 5 |   background: {{{ invalid

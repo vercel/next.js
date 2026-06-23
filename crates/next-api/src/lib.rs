@@ -1,4 +1,3 @@
-#![feature(future_join)]
 #![feature(arbitrary_self_types)]
 #![feature(arbitrary_self_types_pointers)]
 #![feature(impl_trait_in_assoc_type)]
@@ -16,6 +15,7 @@ mod loadable_manifest;
 mod middleware;
 mod module_graph;
 pub mod next_server_nft;
+mod nft;
 mod nft_json;
 pub mod operation;
 mod pages;

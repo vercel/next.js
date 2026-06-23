@@ -2,7 +2,7 @@
 
 const path = require('path')
 const _glob = require('glob')
-const { existsSync } = require('fs')
+const fs = require('fs')
 const fsp = require('fs/promises')
 const { createClient } = require('@vercel/kv')
 const { promisify } = require('util')
@@ -15,9 +15,140 @@ const core = require('@actions/core')
 const { getTestFilter } = require('./test/get-test-filter')
 const { checkBuildFreshness } = require('./test/lib/check-build-freshness')
 
+// --- Test profile and result caching via actions cache ---
+// On CI retry attempts, skip tests that already passed on this commit.
+// The file contains null-byte delimited filenames
+
+class TestProfile {
+  // Env vars that always affect test behavior (non-NEXT prefixed).
+  static EXTRA_ENV_VARS = [
+    'IS_WEBPACK_TEST',
+    'IS_TURBOPACK_TEST',
+    'TURBOPACK_DEV',
+    'TURBOPACK_BUILD',
+    'BROWSER_NAME',
+    'DEVICE_NAME',
+  ]
+
+  // NEXT_* / __NEXT* vars that are operational, not behavioral.
+  static IGNORED_VARS = new Set([
+    'NEXT_TELEMETRY_DISABLED',
+    'NEXT_TEST_JOB',
+    'NEXT_JUNIT_TEST_REPORT',
+    'NEXT_TEST_PREFER_OFFLINE',
+    'NEXT_CI_RUNNER',
+    'NEXT_E2E_TEST_TIMEOUT',
+    'NEXT_TURBOPACK_IO_CONCURRENCY',
+    'NEXT_TEST_PASSED_FILE',
+    'TURBO_TASKS_AVAILABLE_PARALLELISM',
+  ])
+
+  // All key=value pairs identifying this test profile, sorted by key.
+  // Used for the diagnostic `log()` output. Computed once at construction
+  // from a snapshot of process.env. The actual cache key for the workflow
+  // is `input_step_key` (see `.github/workflows/build_reusable.yml`).
+  entries
+  // NEXT_*/__NEXT* vars that matched the pattern but were ignored.
+  ignoredVars
+  cachingEnabled
+
+  constructor({ group = '', type = '', testPattern = '' } = {}) {
+    this.cachingEnabled = !!(
+      process.env.CI &&
+      process.env.GITHUB_SHA &&
+      !process.env.NEXT_FLAKE_DETECTION &&
+      !process.env.NEXT_TEST_SKIP_RESULT_CACHE
+    )
+
+    // Snapshot env at construction time so dynamic vars set during the run
+    // (e.g. NEXT_TEST_STARTER, NEXT_TEST_PKG_PATHS) don't pollute the key.
+    const env = { ...process.env }
+
+    // Collect env vars that affect test behavior
+    const vars = new Map()
+    for (const v of TestProfile.EXTRA_ENV_VARS) {
+      if (env[v]) vars.set(v, env[v])
+    }
+    const ignored = []
+    for (const key of Object.keys(env)) {
+      if (
+        (key.startsWith('NEXT_') || key.startsWith('__NEXT')) &&
+        !key.startsWith('NEXT_SKIP_')
+      ) {
+        if (TestProfile.IGNORED_VARS.has(key)) {
+          ignored.push(key)
+        } else {
+          vars.set(key, env[key])
+        }
+      }
+    }
+    this.ignoredVars = ignored.sort()
+
+    // Build the single sorted entries list used for hashing, logging, and descriptions.
+    const branch =
+      process.env.GITHUB_HEAD_REF || process.env.GITHUB_REF_NAME || ''
+    const map = new Map([
+      ['os', process.platform],
+      ['branch', branch],
+      ['sha', process.env.GITHUB_SHA || ''],
+      ['node', process.versions.node.split('.')[0]],
+    ])
+    if (group) map.set('group', group)
+    if (type) map.set('type', type)
+    if (testPattern) map.set('testPattern', testPattern)
+    for (const [k, v] of [...vars.entries()].sort((a, b) =>
+      a[0].localeCompare(b[0])
+    )) {
+      map.set(k, v)
+    }
+    this.entries = [...map.entries()]
+  }
+
+  get description() {
+    return this.entries
+      .map(([k, v]) => (k === 'sha' ? `sha=${v?.slice(0, 10)}` : `${k}=${v}`))
+      .join(' | ')
+  }
+
+  log() {
+    console.log(`\nTest profile:`)
+    for (const [k, v] of this.entries) {
+      console.log(`  ${k}=${k === 'sha' ? v?.slice(0, 10) : v}`)
+    }
+    if (this.ignoredVars.length > 0) {
+      console.log(`  Ignored: ${this.ignoredVars.join(', ')}`)
+    }
+    console.log(`  Caching: ${this.cachingEnabled ? 'enabled' : 'disabled'}`)
+    console.log('')
+  }
+
+  // Read the passed-tests file (restored from cache by the workflow
+  // before this script runs). Returns a Set of test filenames. Empty
+  // Set on miss / parse error — best-effort by design.
+  loadPassedTests() {
+    if (!this.cachingEnabled) return new Set()
+    const file = process.env.NEXT_TEST_PASSED_FILE
+    if (!file) return new Set()
+    try {
+      const data = fs.readFileSync(file, 'utf8')
+      // Tolerate a partial trailing line from a hard kill mid-append by
+      // requiring an explicit '\0' terminator. Lines without it are
+      // dropped.
+      const lines = data.split('\0')
+      return new Set(data.endsWith('\0') ? lines : lines.slice(0, -1))
+    } catch (err) {
+      // ENOENT is the normal "no prior attempt" path — silent.
+      if (err && err.code !== 'ENOENT') {
+        console.log(`Test result cache: failed to load (${err.message})`)
+      }
+      return new Set()
+    }
+  }
+}
+
 // Do not rename or format. sync-react script relies on this line.
 // prettier-ignore
-const nextjsReactPeerVersion = "19.2.4";
+const nextjsReactPeerVersion = "19.2.7";
 
 let argv = require('yargs/yargs')(process.argv.slice(2))
   .string('type')
@@ -106,7 +237,6 @@ const testFilters = {
   production: new RegExp('^(test/(production|e2e))'),
   unit: new RegExp('^(test/unit|packages/.*/src|packages/next-codemod)'),
   examples: 'examples/',
-  integration: 'test/integration/',
   e2e: 'test/e2e/',
 }
 
@@ -177,12 +307,6 @@ const cleanUpAndExit = async (code) => {
 
   if (process.env.NEXT_TEST_STARTER) {
     await fsp.rm(process.env.NEXT_TEST_STARTER, {
-      recursive: true,
-      force: true,
-    })
-  }
-  if (process.env.NEXT_TEST_TEMP_REPO) {
-    await fsp.rm(process.env.NEXT_TEST_TEMP_REPO, {
       recursive: true,
       force: true,
     })
@@ -270,6 +394,13 @@ async function main() {
     'in test mode',
     process.env.NEXT_TEST_MODE
   )
+
+  const profile = new TestProfile({
+    group: String(options.group || ''),
+    type: String(options.type || ''),
+    testPattern: String(options.testPattern || ''),
+  })
+  profile.log()
 
   // Only fetch/update shared timing data during grouped CI runs to avoid
   // individual test runs from polluting the timing data
@@ -473,19 +604,18 @@ ${ENDGROUP}`)
     ((options.type && options.type !== 'unit') ||
       tests.some((test) => !testFilters.unit.test(test.file)))
   ) {
-    // For isolated next tests (e2e, dev, prod) and integration tests we create
-    // a starter Next.js install to re-use to speed up tests to avoid having to
-    // run `pnpm install` each time.
+    // For isolated next tests (e2e, dev, prod) we create a starter Next.js
+    // install to re-use to speed up tests to avoid having to run `pnpm install`
+    // each time.
     console.log(`${GROUP}Creating shared Next.js install`)
     const reactVersion =
       process.env.NEXT_TEST_REACT_VERSION || nextjsReactPeerVersion
-    const { installDir, pkgPaths, tmpRepoDir } = await createNextInstall({
+    const { installDir, pkgPaths } = await createNextInstall({
       parentSpan: mockTrace(),
       dependencies: {
         react: reactVersion,
         'react-dom': reactVersion,
       },
-      keepRepoDir: true,
     })
 
     const serializedPkgPaths = []
@@ -494,7 +624,6 @@ ${ENDGROUP}`)
       serializedPkgPaths.push([key, pkgPaths.get(key)])
     }
     process.env.NEXT_TEST_PKG_PATHS = JSON.stringify(serializedPkgPaths)
-    process.env.NEXT_TEST_TEMP_REPO = tmpRepoDir
     process.env.NEXT_TEST_STARTER = installDir
     console.log(`${ENDGROUP}`)
   }
@@ -669,10 +798,9 @@ ${ENDGROUP}`)
           return reject(err)
         }
 
-        // If environment is CI and if this test execution is failed after retry, preserve test traces
-        // to upload into github actions artifacts for debugging purpose
+        // preserve test traces to upload into github actions artifacts for debugging purposes
         const shouldPreserveTracesOutput =
-          (process.env.CI && isRetry && isChildExitWithNonZero) ||
+          (process.env.CI && isChildExitWithNonZero) ||
           process.env.PRESERVE_TRACES_OUTPUT
         if (!shouldPreserveTracesOutput) {
           await fsp
@@ -693,7 +821,57 @@ ${ENDGROUP}`)
       })
     })
 
+  const isRetryAttempt =
+    process.env.CI && parseInt(process.env.GITHUB_RUN_ATTEMPT || '1', 10) > 1
+
+  // Load tests that already passed (either on this attempt — restored
+  // from cache by the workflow — or after a timeout/cancel of an earlier
+  // attempt). The workflow's `actions/cache/restore` step lands the file
+  // at the path `loadPassedTests` reads.
+  let cachedPassedTests = new Set()
+  if (process.env.CI) {
+    cachedPassedTests = await profile.loadPassedTests()
+    if (cachedPassedTests.size > 0) {
+      console.log(
+        `Test result cache: loaded ${cachedPassedTests.size} passed test(s) (${profile.description})`
+      )
+    } else if (isRetryAttempt) {
+      console.log(`Test result cache: miss (${profile.description})`)
+    }
+  }
+
+  // Stream passing test names to this file.
+  /** @type {number | null} */
+  let passedTestsFd = null
+  if (profile.cachingEnabled) {
+    try {
+      passedTestsFd = fs.openSync(process.env.NEXT_TEST_PASSED_FILE, 'a')
+    } catch (err) {
+      console.log(`Test result cache: open failed (${err.message})`)
+    }
+  }
+  /** @param {string} file */
+  const recordPassed = (file) => {
+    if (passedTestsFd === null) return
+    try {
+      // Ensure durability of our writes by syncing each one.
+      // This is a tiny bit of overhead but shouldn't really matter.
+      fs.writeSync(passedTestsFd, `${file}\0`)
+      fs.fdatasyncSync(passedTestsFd)
+    } catch (err) {
+      console.log(`Test result cache: append failed (${err.message})`)
+    }
+  }
+
   const runTest = async (/** @type {TestFile} */ test) => {
+    // On CI retry attempts, skip tests that already passed on this commit
+    if (cachedPassedTests.has(test.file)) {
+      console.log(
+        `${test.file} already passed on this commit (cached) — skipping`
+      )
+      return
+    }
+
     let passed = false
 
     for (let i = 0; i < numRetries + 1; i++) {
@@ -727,6 +905,10 @@ ${ENDGROUP}`)
           console.error(`${test.file} failed due to ${err}`)
         }
       }
+    }
+
+    if (passed) {
+      recordPassed(test.file)
     }
 
     if (!passed) {
@@ -785,28 +967,16 @@ ${ENDGROUP}`)
     }
   }
 
-  const directorySemas = new Map()
-
   const results = await Promise.allSettled(
     tests.map(async (test) => {
-      const dirName = path.dirname(test.file)
-      let dirSema = directorySemas.get(dirName)
-
-      // we only restrict 1 test per directory for
-      // legacy integration tests
-      if (/^test[/\\]integration/.test(test.file) && dirSema === undefined) {
-        directorySemas.set(dirName, (dirSema = new Sema(1)))
-      }
-      // TODO: Use explicit resource managment instead of this acquire/release pattern
-      // once CI runs with Node.js 24+.
-      if (dirSema) await dirSema.acquire()
+      // TODO: Use explicit resource management instead of this acquire/release
+      // pattern once CI runs with Node.js 24+.
       await sema.acquire()
 
       try {
         await runTest(test)
       } finally {
         sema.release()
-        if (dirSema) dirSema.release()
       }
     })
   )
@@ -815,6 +985,21 @@ ${ENDGROUP}`)
     if (result.status === 'rejected') {
       hadFailures = true
       console.error(result.reason)
+    }
+  }
+
+  if (passedTestsFd !== null) {
+    try {
+      fs.closeSync(passedTestsFd)
+    } catch {}
+  }
+
+  if (cachedPassedTests.size > 0) {
+    const skipped = tests.filter((t) => cachedPassedTests.has(t.file)).length
+    if (skipped > 0) {
+      console.log(
+        `Test result cache: skipped ${skipped} cached, re-ran ${tests.length - skipped}`
+      )
     }
   }
 
@@ -857,7 +1042,7 @@ ${ENDGROUP}`)
 
           // Clean up stale timings for deleted tests
           for (const test of Object.keys(newTimings)) {
-            if (!existsSync(path.join(__dirname, test))) {
+            if (!fs.existsSync(path.join(__dirname, test))) {
               console.log('removing stale timing', test)
               delete newTimings[test]
             }

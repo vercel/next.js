@@ -1,22 +1,22 @@
 use std::{
     any::Any,
     fmt::Debug,
-    future::IntoFuture,
     hash::{Hash, Hasher},
     marker::PhantomData,
-    mem::transmute,
     ops::Deref,
+    slice,
 };
 
 use anyhow::Result;
 use bincode::{Decode, Encode};
 use serde::{Deserialize, Serialize};
 
+#[cfg(debug_assertions)]
+use crate::debug::{ValueDebug, ValueDebugFormat, ValueDebugFormatString};
 use crate::{
     RawVc, Upcast, UpcastStrict, VcRead, VcTransparentRead, VcValueTrait, VcValueType,
-    debug::{ValueDebug, ValueDebugFormat, ValueDebugFormatString},
     trace::{TraceRawVcs, TraceRawVcsContext},
-    vc::Vc,
+    vc::{Vc, into_future},
 };
 
 /// A "subtype" (via [`Deref`]) of [`Vc`] that represents a specific [`Vc::cell`]/`.cell()` or
@@ -151,24 +151,9 @@ where
     }
 }
 
-macro_rules! into_future {
-    ($ty:ty) => {
-        impl<T> IntoFuture for $ty
-        where
-            T: VcValueType,
-        {
-            type Output = <Vc<T> as IntoFuture>::Output;
-            type IntoFuture = <Vc<T> as IntoFuture>::IntoFuture;
-            fn into_future(self) -> Self::IntoFuture {
-                (*self).into_future()
-            }
-        }
-    };
-}
-
-into_future!(ResolvedVc<T>);
-into_future!(&ResolvedVc<T>);
-into_future!(&mut ResolvedVc<T>);
+into_future!(ResolvedVc<T>, |this| (*this).into_future());
+into_future!(&ResolvedVc<T>, |this| (*this).into_future());
+into_future!(&mut ResolvedVc<T>, |this| (*this).into_future());
 
 impl<T> ResolvedVc<T>
 where
@@ -246,15 +231,16 @@ where
     /// Cheaply converts a Vec of resolved Vcs to a Vec of Vcs.
     pub fn deref_vec(vec: Vec<ResolvedVc<T>>) -> Vec<Vc<T>> {
         debug_assert!(size_of::<ResolvedVc<T>>() == size_of::<Vc<T>>());
+        let (ptr, len, capacity) = vec.into_raw_parts();
         // Safety: The memory layout of `ResolvedVc<T>` and `Vc<T>` is the same.
-        unsafe { transmute::<Vec<ResolvedVc<T>>, Vec<Vc<T>>>(vec) }
+        unsafe { Vec::from_raw_parts(ptr as *mut Vc<T>, len, capacity) }
     }
 
     /// Cheaply converts a slice of resolved Vcs to a slice of Vcs.
-    pub fn deref_slice(slice: &[ResolvedVc<T>]) -> &[Vc<T>] {
+    pub fn deref_slice(s: &[ResolvedVc<T>]) -> &[Vc<T>] {
         debug_assert!(size_of::<ResolvedVc<T>>() == size_of::<Vc<T>>());
         // Safety: The memory layout of `ResolvedVc<T>` and `Vc<T>` is the same.
-        unsafe { transmute::<&[ResolvedVc<T>], &[Vc<T>]>(slice) }
+        unsafe { slice::from_raw_parts(s.as_ptr() as *const Vc<T>, s.len()) }
     }
 }
 
@@ -349,6 +335,7 @@ where
     }
 }
 
+#[cfg(debug_assertions)]
 impl<T> ValueDebugFormat for ResolvedVc<T>
 where
     T: UpcastStrict<Box<dyn ValueDebug>> + Send + Sync + ?Sized,
@@ -365,7 +352,7 @@ where
     type Error = anyhow::Error;
 
     fn try_from(raw: RawVc) -> Result<Self> {
-        if !matches!(raw, RawVc::TaskCell(..)) {
+        if raw.as_task_cell().is_none() {
             anyhow::bail!("Given RawVc {raw:?} is not a TaskCell");
         }
         Ok(Self {

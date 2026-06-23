@@ -70,7 +70,11 @@ Optionally, a config object can be exported alongside the Proxy function. This o
 
 ### Matcher
 
-The `matcher` option allows you to target specific paths for the Proxy to run on. You can specify these paths in several ways:
+The `matcher` option allows you to target specific paths for the Proxy to run on.
+
+Without a `matcher`, Proxy runs on **every request**, including static files (`_next/static`), image optimizations (`_next/image`), and assets in the `public/` folder. Consider using a [negative match pattern](#negative-matching) to exclude these paths, otherwise auth logic or redirects can unintentionally block CSS, JS, or images from loading.
+
+You can specify paths in several ways:
 
 - For a single path: Directly use a string to define the path, like `'/about'`.
 - For multiple paths: Use an array to list multiple paths, such as `matcher: ['/about', '/contact']`, which applies the Proxy to both `/about` and `/contact`.
@@ -740,7 +744,7 @@ Next.js is moving forward to provide better APIs with better ergonomics so that 
 
 ### Why "Proxy"
 
-The name Proxy clarifies what Middleware is capable of. The term "proxy" implies that it has a network boundary in front of the app, which is the behavior of Middleware. Also, Middleware defaults to run at the [Edge Runtime](/docs/app/api-reference/edge), which can run closer to the client, separated from the app's region. These behaviors align better with the term "proxy" and provide a clearer purpose of the feature.
+The name Proxy clarifies what Middleware is capable of. The term "proxy" implies a network boundary in front of the app, which is how this feature behaves. It can run outside of your application’s main runtime and handle requests before they reach your app. These characteristics align better with the term "proxy" and provide a clearer purpose for the feature.
 
 ### How to Migrate
 
@@ -767,7 +771,7 @@ The codemod will rename the file and the function name from `middleware` to `pro
 
 | Version   | Changes                                                                                       |
 | --------- | --------------------------------------------------------------------------------------------- |
-| `v16.0.0` | Middleware is deprecated and renamed to Proxy                                                 |
+| `v16.0.0` | Middleware is deprecated and renamed to Proxy. Proxy defaults to the Node.js runtime          |
 | `v15.5.0` | Middleware can now use the Node.js runtime (stable)                                           |
 | `v15.2.0` | Middleware can now use the Node.js runtime (experimental)                                     |
 | `v13.1.0` | Advanced Middleware flags added                                                               |

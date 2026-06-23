@@ -20,7 +20,7 @@ swc_core = { workspace = true }
 serde_json = { workspace = true }
 tokio = { workspace = true, features = ["full"] }
 tokio-stream = "0.1.15"
-tracing = "0.1"
+tracing = { workspace = true }
 tracing-subscriber = "0.3"
 turbo-rcstr = { workspace = true }
 turbo-tasks = { workspace = true }

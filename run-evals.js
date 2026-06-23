@@ -25,13 +25,6 @@ const { execFileSync, spawnSync } = require('child_process')
 
 const ROOT = __dirname
 
-// Sandbox + agent API keys. agent-eval looks for .env.local in its own cwd
-// (evals/), but `vc env pull` writes to the repo root. Load it here so the
-// vars are already in process.env when we spawn the child.
-try {
-  process.loadEnvFile(path.join(ROOT, '.env.local'))
-} catch {}
-
 const EVALS_DIR = path.join(ROOT, 'evals')
 const FIXTURES_DIR = path.join(EVALS_DIR, 'evals')
 const EXPERIMENTS_DIR = path.join(EVALS_DIR, 'experiments')
@@ -160,6 +153,20 @@ function main() {
     pack()
     const mb = (fs.statSync(TARBALL).size / 1024 / 1024).toFixed(1)
     console.log(`  ${TARBALL} (${mb} MB)`)
+  }
+
+  // agent-eval loads .env / .env.local from its own cwd (evals/). `vc env pull`
+  // writes to the repo root, so symlink them into evals/ for agent-eval to find.
+  for (const envFile of ['.env', '.env.local']) {
+    const src = path.join(ROOT, envFile)
+    const dest = path.join(EVALS_DIR, envFile)
+    try {
+      // Remove stale symlink or file before creating a fresh one.
+      fs.rmSync(dest, { force: true })
+      if (fs.existsSync(src)) {
+        fs.symlinkSync(src, dest)
+      }
+    } catch {}
   }
 
   writeExperiments(evalName)

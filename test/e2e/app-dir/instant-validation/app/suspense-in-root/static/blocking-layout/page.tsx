@@ -1,6 +1,6 @@
 import Link from 'next/link'
 
-export const unstable_instant = { prefetch: 'static' }
+export const instant = { level: 'experimental-error' }
 
 export default async function Page() {
   return (

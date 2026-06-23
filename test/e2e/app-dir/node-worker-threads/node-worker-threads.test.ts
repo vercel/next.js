@@ -28,6 +28,14 @@ describe('node-worker-threads', () => {
     expect(data.message).toBe('pong from simple worker')
   })
 
+  it('should handle worker with new URL(..., import.meta.url)', async () => {
+    const res = await next.fetch('/api/url-worker-test')
+    const data = await res.json()
+    expect(res.status).toBe(200)
+    expect(data.success).toBe(true)
+    expect(data.message).toBe('pong from url worker')
+  })
+
   it('should handle self-referencing worker with __filename', async () => {
     const res = await next.fetch('/api/worker-test')
     const data = await res.json()
@@ -87,8 +95,11 @@ describe('node-worker-threads', () => {
       /\/_next\/static.*\/test-image\.[0-9a-z_-]+\.png/
     )
     if (!isNextDev) {
-      expect(next.assetToken).toMatch(/.+/)
-      expect(url.searchParams.get('dpl')).toBe(next.assetToken)
+      if (next.assetToken) {
+        expect(url.searchParams.get('dpl')).toBe(next.assetToken)
+      } else {
+        expect(url.searchParams.get('dpl')).toBeNull()
+      }
     }
 
     // Now fetch the PNG URL from the client to verify it's accessible

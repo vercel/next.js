@@ -25,6 +25,7 @@ import type { PagesManifest } from '../../build/webpack/plugins/pages-manifest-p
 import * as React from 'react'
 import fs from 'fs'
 import { Worker } from 'next/dist/compiled/jest-worker'
+import { installUseCacheProbe } from './use-cache-probe-pool'
 import { join as pathJoin } from 'path'
 import { PUBLIC_DIR_MIDDLEWARE_CONFLICT } from '../../lib/constants'
 import { findPagesDir } from '../../lib/find-pages-dir'
@@ -71,7 +72,6 @@ import { DefaultFileReader } from '../route-matcher-providers/dev/helpers/file-r
 import { LRUCache } from '../lib/lru-cache'
 import { getMiddlewareRouteMatcher } from '../../shared/lib/router/utils/middleware-route-matcher'
 import { DetachedPromise } from '../../lib/detached-promise'
-import { isPostpone } from '../lib/router-utils/is-postpone'
 import { generateInterceptionRoutesRewrites } from '../../lib/generate-interception-routes-rewrites'
 import { buildCustomRoute } from '../../lib/build-custom-route'
 import { decorateServerError } from '../../shared/lib/error-source'
@@ -214,6 +214,13 @@ export default class DevServer extends Server {
         }
       )
     }
+
+    installUseCacheProbe({
+      distDir: this.distDir,
+      buildId: this.buildId,
+      deploymentId: this.deploymentId,
+      nextConfig: this.nextConfig,
+    })
   }
 
   protected override getServerComponentsHmrCache() {
@@ -337,11 +344,6 @@ export default class DevServer extends Server {
     }
 
     process.on('unhandledRejection', (reason) => {
-      if (isPostpone(reason)) {
-        // React postpones that are unhandled might end up logged here but they're
-        // not really errors. They're just part of rendering.
-        return
-      }
       this.logErrorWithOriginalStack(reason, 'unhandledRejection')
     })
     process.on('uncaughtException', (err) => {
@@ -798,9 +800,6 @@ export default class DevServer extends Server {
           distDir: this.distDir,
           pathname,
           config: {
-            pprConfig: this.nextConfig.experimental.ppr,
-            partialFallbacks:
-              this.nextConfig.experimental.partialFallbacks === true,
             configFileName,
             cacheComponents: Boolean(this.nextConfig.cacheComponents),
           },
@@ -818,7 +817,11 @@ export default class DevServer extends Server {
           cacheMaxMemorySize: this.nextConfig.cacheMaxMemorySize,
           nextConfigOutput: this.nextConfig.output,
           buildId: this.buildId,
+          deploymentId: this.deploymentId,
           authInterrupts: Boolean(this.nextConfig.experimental.authInterrupts),
+          useCacheTimeout: this.nextConfig.experimental.useCacheTimeout,
+          staticPageGenerationTimeout:
+            this.nextConfig.staticPageGenerationTimeout,
           sriEnabled: Boolean(this.nextConfig.experimental.sri?.algorithm),
         })
         return pathsResult

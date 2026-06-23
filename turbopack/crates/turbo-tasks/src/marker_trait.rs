@@ -82,7 +82,6 @@ macro_rules! impl_auto_marker_trait {
             <<T as $crate::VcValueType>::Read as $crate::VcRead<T>>::Target: $trait
         {}
         unsafe impl<T: $trait> $trait for $crate::State<T> {}
-        unsafe impl<T: $trait> $trait for $crate::TransientState<T> {}
         unsafe impl<T: $trait> $trait for $crate::TransientValue<T> {}
         unsafe impl<T: $trait> $trait for $crate::TransientInstance<T> {}
         unsafe impl $trait for $crate::event::Event {}

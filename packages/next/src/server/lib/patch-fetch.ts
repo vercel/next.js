@@ -30,6 +30,7 @@ import {
 import { cloneResponse } from './clone-response'
 import type { IncrementalCache } from './incremental-cache'
 import { RenderStage } from '../app-render/staged-rendering'
+import { encodeCacheTag } from './encode-cache-tag'
 
 const isEdgeRuntime = process.env.NEXT_RUNTIME === 'edge'
 
@@ -95,7 +96,10 @@ export function validateTags(tags: any[], description: string) {
         reason: `exceeded max length of ${NEXT_CACHE_TAG_MAX_LENGTH}`,
       })
     } else {
-      validTags.push(tag)
+      // Encode so a non-ASCII tag can be safely serialized into the
+      // `x-next-cache-tags` HTTP header without tripping Node's header
+      // validation. Length is checked on the raw input above.
+      validTags.push(encodeCacheTag(tag))
     }
 
     if (validTags.length > NEXT_CACHE_TAG_MAX_ITEMS) {
@@ -365,7 +369,6 @@ export function createPatchedFetcher(
             // TODO: Stop accumulating tags in client prerender. (fallthrough)
             case 'prerender-client':
             case 'validation-client':
-            case 'prerender-ppr':
             case 'prerender-legacy':
             case 'cache':
             case 'private-cache':
@@ -408,7 +411,6 @@ export function createPatchedFetcher(
             case 'prerender-client':
             case 'validation-client':
             case 'prerender-runtime':
-            case 'prerender-ppr':
             case 'prerender-legacy':
             case 'request':
             case 'cache':
@@ -580,7 +582,6 @@ export function createPatchedFetcher(
                 )
               }
               break
-            case 'prerender-ppr':
             case 'prerender-legacy':
             case 'cache':
             case 'private-cache':
@@ -713,7 +714,6 @@ export function createPatchedFetcher(
                     )
                   }
                   break
-                case 'prerender-ppr':
                 case 'prerender-legacy':
                 case 'cache':
                 case 'private-cache':
@@ -760,7 +760,6 @@ export function createPatchedFetcher(
             case 'prerender-client':
             case 'validation-client':
             case 'prerender-runtime':
-            case 'prerender-ppr':
             case 'prerender-legacy':
             case 'unstable-cache':
             case 'generate-static-params':
@@ -913,7 +912,6 @@ export function createPatchedFetcher(
                       )
                     }
                   // fallthrough
-                  case 'prerender-ppr':
                   case 'prerender-legacy':
                   case 'cache':
                   case 'private-cache':
@@ -997,7 +995,6 @@ export function createPatchedFetcher(
                     )
                   }
                   break
-                case 'prerender-ppr':
                 case 'prerender-legacy':
                 case 'cache':
                 case 'private-cache':
@@ -1127,7 +1124,6 @@ export function createPatchedFetcher(
                     )
                   }
                   break
-                case 'prerender-ppr':
                 case 'prerender-legacy':
                 case 'cache':
                 case 'private-cache':
@@ -1179,7 +1175,6 @@ export function createPatchedFetcher(
                   case 'private-cache':
                   case 'unstable-cache':
                   case 'prerender-legacy':
-                  case 'prerender-ppr':
                   case 'generate-static-params':
                     break
                   default:

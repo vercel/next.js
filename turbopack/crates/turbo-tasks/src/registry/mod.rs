@@ -1,7 +1,7 @@
-use std::{cell::SyncUnsafeCell, num::NonZeroU16};
+use std::{cell::SyncUnsafeCell, num::NonZeroU16, sync::LazyLock};
 
 use anyhow::Error;
-use once_cell::sync::Lazy;
+use scattered_collect::slice::ScatteredSlice;
 
 use crate::{
     TraitType, ValueType,
@@ -13,14 +13,9 @@ mod registry_type;
 
 pub use registry_type::RegistryType;
 
-/// Declare a type as a compile-time-collected registry item.
-///
-/// Generates pointer-based `Eq`, `PartialEq`, `Hash`, `Ord`, `PartialOrd` impls
-/// and an `inventory::collect!` call for `&'static $ty`.
-macro_rules! turbo_registry {
-    ($name:literal, $ty:ty) => {
-        inventory::collect!(&'static $ty);
-
+/// Generates pointer-based `Eq`, `PartialEq`, `Hash`, `Ord`, `PartialOrd` impls.
+macro_rules! impl_ptr_identity {
+    ($ty:ty) => {
         impl ::core::cmp::Eq for $ty {}
         impl ::core::cmp::PartialEq for $ty {
             fn eq(&self, other: &$ty) -> bool {
@@ -45,21 +40,66 @@ macro_rules! turbo_registry {
     };
 }
 
-pub(crate) use turbo_registry;
+pub(crate) use impl_ptr_identity;
 
+// Link-time gather slices, one per registry.
+#[doc(hidden)]
+#[scattered_collect::gather]
+pub static FUNCTIONS_SLICE: ScatteredSlice<&'static NativeFunction>;
+
+#[doc(hidden)]
+#[scattered_collect::gather]
+pub static VALUES_SLICE: ScatteredSlice<&'static ValueType>;
+
+#[doc(hidden)]
+#[scattered_collect::gather]
+pub static TRAITS_SLICE: ScatteredSlice<&'static TraitType>;
+
+/// Register a [`NativeFunction`] definition into the link-time [`FUNCTIONS_SLICE`].
 #[macro_export]
 #[doc(hidden)]
-macro_rules! turbo_register {
-    ($name:ident : $ty:ty = $value:expr) => {
-        static $name: $ty = $value;
-        $crate::macro_helpers::inventory_submit! { &$name }
+macro_rules! register_function {
+    ($name:ident = $value:expr) => {
+        static $name: $crate::macro_helpers::NativeFunction = $value;
+        $crate::macro_helpers::scattered_collect::declarative::scatter! {
+            #[scatter($crate::registry::FUNCTIONS_SLICE)]
+            const _: &'static $crate::macro_helpers::NativeFunction = &$name;
+        }
     };
-    ($reg:ty => $name:ident : $ty:ty = $value:expr) => {
-        static $name: $ty = $value;
-        $crate::macro_helpers::inventory_submit! { &$name }
+}
 
-        impl $crate::macro_helpers::RegistryDef<$ty> for $reg {
-            const DEF: &'static $ty = &$name;
+/// Register a [`ValueType`] definition into the link-time [`VALUES_SLICE`], and provide its
+/// `RegistryDef` so the impl macros can recover the `&'static ValueType` for a Vc type.
+#[macro_export]
+#[doc(hidden)]
+macro_rules! register_value {
+    ($reg:ty => $name:ident = $value:expr) => {
+        static $name: $crate::ValueType = $value;
+        $crate::macro_helpers::scattered_collect::declarative::scatter! {
+            #[scatter($crate::registry::VALUES_SLICE)]
+            const _: &'static $crate::ValueType = &$name;
+        }
+
+        impl $crate::macro_helpers::RegistryDef<$crate::ValueType> for $reg {
+            const DEF: &'static $crate::ValueType = &$name;
+        }
+    };
+}
+
+/// Register a [`TraitType`] definition into the link-time [`TRAITS_SLICE`], and provide its
+/// `RegistryDef` so the impl macros can recover the `&'static TraitType` for a `Box<dyn Trait>`.
+#[macro_export]
+#[doc(hidden)]
+macro_rules! register_trait {
+    ($reg:ty => $name:ident = $value:expr) => {
+        static $name: $crate::TraitType = $value;
+        $crate::macro_helpers::scattered_collect::declarative::scatter! {
+            #[scatter($crate::registry::TRAITS_SLICE)]
+            const _: &'static $crate::TraitType = &$name;
+        }
+
+        impl $crate::macro_helpers::RegistryDef<$crate::TraitType> for $reg {
+            const DEF: &'static $crate::TraitType = &$name;
         }
     };
 }
@@ -78,6 +118,9 @@ trait Registerable: 'static + Eq + std::hash::Hash {
     type Id: Copy + From<NonZeroU16> + std::ops::Deref<Target = u16> + std::fmt::Display;
     const TYPE_NAME: &'static str;
 
+    /// The largest id that may be assigned to this registry item.
+    const MAX_ID: u16 = u16::MAX;
+
     /// Get the global registry type used for sorting and uniqueness validation
     fn ty(&self) -> &RegistryType;
 }
@@ -94,6 +137,7 @@ impl Registerable for NativeFunction {
 impl Registerable for ValueType {
     type Id = ValueTypeId;
     const TYPE_NAME: &'static str = "Value";
+    const MAX_ID: u16 = ValueTypeId::MAX.to_primitive();
     fn ty(&self) -> &RegistryType {
         &self.ty
     }
@@ -124,6 +168,12 @@ fn init_registry<T: Registerable>(mut items: Vec<&'static T>) -> Box<[&'static T
             );
         }
         prev_name = Some(global_name);
+        assert!(
+            u16::from(id) <= T::MAX_ID,
+            "too many {ty} items registered: id {id} exceeds the cap of {max}",
+            ty = T::TYPE_NAME,
+            max = T::MAX_ID,
+        );
         // SAFETY: Single-threaded during Lazy init; no concurrent readers yet.
         unsafe { std::ptr::write(SyncUnsafeCell::raw_get(&item.ty().id), u16::from(id)) };
         id = id.checked_add(1).expect("overflowing item ids");
@@ -134,16 +184,19 @@ fn init_registry<T: Registerable>(mut items: Vec<&'static T>) -> Box<[&'static T
 
 /// Get an item by its ID from a registry slice
 #[inline]
-fn get_item<T: Registerable>(registry: &Lazy<Box<[&'static T]>>, id: T::Id) -> &'static T {
+fn get_item<T: Registerable>(registry: &LazyLock<Box<[&'static T]>>, id: T::Id) -> &'static T {
     registry[*id as usize - 1]
 }
 
-/// Get the ID for a registered item. Forces registry init if needed, which
-/// assigns IDs to all items as a side effect.
+/// Read an item's assigned id directly, without touching `LazyLock`.
+///
+/// # Safety
+///
+/// Caller must guarantee that `init_registry` has already written the id for this `item`.
 #[inline]
-fn get_id<T: Registerable>(registry: &Lazy<Box<[&'static T]>>, item: &'static T) -> T::Id {
-    Lazy::force(registry);
-    // SAFETY: The ID write happens-before this read thanks to the fence inside of Lazy
+unsafe fn get_id_unchecked<T: Registerable>(item: &'static T) -> T::Id {
+    // SAFETY: caller guarantees the id has been written. The write and this read are both
+    // inside the registry's single-threaded lazy init.
     let n = unsafe { std::ptr::read(item.ty().id.get()) };
     let Some(id) = NonZeroU16::new(n) else {
         panic!(
@@ -155,8 +208,20 @@ fn get_id<T: Registerable>(registry: &Lazy<Box<[&'static T]>>, item: &'static T)
     T::Id::from(id)
 }
 
+/// Get the ID for a registered item. Forces registry init if needed, which
+/// assigns IDs to all items as a side effect.
+#[inline]
+fn get_id<T: Registerable>(registry: &LazyLock<Box<[&'static T]>>, item: &'static T) -> T::Id {
+    LazyLock::force(registry);
+    // SAFETY: The ID write happens-before this read thanks to the fence inside of LazyLock
+    unsafe { get_id_unchecked(item) }
+}
+
 /// Validate that an ID is within the valid range
-fn validate_id<T: Registerable>(registry: &Lazy<Box<[&'static T]>>, id: T::Id) -> Option<Error> {
+fn validate_id<T: Registerable>(
+    registry: &LazyLock<Box<[&'static T]>>,
+    id: T::Id,
+) -> Option<Error> {
     let len = registry.len();
     if *id as usize <= len {
         None
@@ -168,14 +233,8 @@ fn validate_id<T: Registerable>(registry: &Lazy<Box<[&'static T]>>, id: T::Id) -
     }
 }
 
-static FUNCTIONS: Lazy<Box<[&'static NativeFunction]>> = Lazy::new(|| {
-    init_registry(
-        inventory::iter::<&'static NativeFunction>
-            .into_iter()
-            .copied()
-            .collect(),
-    )
-});
+static FUNCTIONS: LazyLock<Box<[&'static NativeFunction]>> =
+    LazyLock::new(|| init_registry(FUNCTIONS_SLICE.iter().copied().collect()));
 
 #[inline]
 pub fn get_native_function(id: FunctionId) -> &'static NativeFunction {
@@ -191,20 +250,28 @@ pub fn validate_function_id(id: FunctionId) -> Option<Error> {
     validate_id(&FUNCTIONS, id)
 }
 
-pub(crate) static VALUES: Lazy<Box<[&'static ValueType]>> = Lazy::new(|| {
-    let items = init_registry(
-        inventory::iter::<&'static ValueType>
-            .into_iter()
-            .copied()
-            .collect(),
-    );
-    crate::value_type::register_all_trait_methods(&items);
+static VALUES: LazyLock<Box<[&'static ValueType]>> = LazyLock::new(|| {
+    let items = init_registry(VALUES_SLICE.iter().copied().collect());
+    crate::value_type::register_all_trait_methods();
     items
 });
 
 #[inline]
 pub fn get_value_type_id(value: &'static ValueType) -> ValueTypeId {
     get_id(&VALUES, value)
+}
+
+/// Read a `ValueType`'s assigned id directly, without touching `LazyLock`. See
+/// [`get_id_unchecked`] for the safety contract.
+///
+/// # Safety
+///
+/// The only legitimate caller is [`crate::value_type::register_all_trait_methods`],
+/// which runs inside the `VALUES` `LazyLock` initializer, after `init_registry` has assigned ids.
+/// Calling `get_value_type_id` from there would re-enter `LazyLock::force` and deadlock.
+#[inline]
+pub(crate) unsafe fn get_value_type_id_unchecked(value: &'static ValueType) -> ValueTypeId {
+    unsafe { get_id_unchecked(value) }
 }
 
 #[inline]
@@ -222,14 +289,8 @@ pub(crate) fn trait_type_count() -> usize {
     TRAITS.len()
 }
 
-static TRAITS: Lazy<Box<[&'static TraitType]>> = Lazy::new(|| {
-    init_registry(
-        inventory::iter::<&'static TraitType>
-            .into_iter()
-            .copied()
-            .collect(),
-    )
-});
+static TRAITS: LazyLock<Box<[&'static TraitType]>> =
+    LazyLock::new(|| init_registry(TRAITS_SLICE.iter().copied().collect()));
 
 #[inline]
 pub fn get_trait_type_id(trait_type: &'static TraitType) -> TraitTypeId {

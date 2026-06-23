@@ -6,6 +6,8 @@ description: >
   next-server.ts, export/worker.ts, or module.compiled.js. Covers type
   declaration, zod schema, build-time injection, runtime env plumbing,
   and the decision between runtime env-var branching vs separate bundle variants.
+metadata:
+  internal: true
 ---
 
 # Feature Flags
@@ -18,7 +20,7 @@ All flags need: `config-shared.ts` (type) → `config-schema.ts` (zod). If the f
 
 ## Where the Flag Is Consumed
 
-**Client/bundled code only** (e.g. `__NEXT_PPR` in client components): `define-env.ts` is sufficient. Webpack/Turbopack replaces `process.env.X` at the user's build time.
+**Client/bundled code only** (e.g. `__NEXT_CACHE_COMPONENTS` in client components): `define-env.ts` is sufficient. Webpack/Turbopack replaces `process.env.X` at the user's build time.
 
 **Pre-compiled runtime bundles** (e.g. code in `app-render.tsx`): The flag must also be set as a real `process.env` var at runtime, because `app-render.tsx` runs from pre-compiled bundles where `define-env.ts` doesn't reach. Two approaches:
 

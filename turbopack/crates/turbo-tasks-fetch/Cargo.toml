@@ -13,6 +13,7 @@ workspace = true
 
 [dependencies]
 anyhow = { workspace = true }
+async-trait = { workspace = true }
 quick_cache = { workspace = true }
 serde = { workspace = true }
 tokio = { workspace = true }

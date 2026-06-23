@@ -32,7 +32,6 @@ export function instrumentParamsForClientValidation<TPArams extends Params>(
       case 'prerender-runtime':
       case 'prerender-client':
       case 'prerender-legacy':
-      case 'prerender-ppr':
       case 'prerender':
       case 'cache':
       case 'request':
@@ -61,7 +60,7 @@ export function expectCompleteParamsInClientValidation(
             const missingParams = Array.from(fallbackParams.keys())
             trackMissingSampleErrorAndThrow(
               new InstantValidationError(
-                `Route "${workStore.route}" called ${expression} but param${missingParams.length > 1 ? 's' : ''} ${missingParams.map((p) => `"${p}"`).join(', ')} ${missingParams.length > 1 ? 'are' : 'is'} not defined in the \`samples\` of \`unstable_instant\`. ` +
+                `Route "${workStore.route}" called ${expression} but param${missingParams.length > 1 ? 's' : ''} ${missingParams.map((p) => `"${p}"`).join(', ')} ${missingParams.length > 1 ? 'are' : 'is'} not defined in the \`unstable_samples\` of \`instant\`. ` +
                   `${expression} requires all route params to be provided.`
               )
             )
@@ -72,7 +71,6 @@ export function expectCompleteParamsInClientValidation(
       case 'prerender-runtime':
       case 'prerender-client':
       case 'prerender-legacy':
-      case 'prerender-ppr':
       case 'prerender':
       case 'cache':
       case 'request':
@@ -109,7 +107,6 @@ export function instrumentSearchParamsForClientValidation(
       case 'prerender-runtime':
       case 'prerender-client':
       case 'prerender-legacy':
-      case 'prerender-ppr':
       case 'prerender':
       case 'cache':
       case 'request':

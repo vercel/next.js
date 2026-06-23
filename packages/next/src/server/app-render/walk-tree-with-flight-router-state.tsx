@@ -63,6 +63,8 @@ export async function walkTreeWithFlightRouterState({
     workStore,
   } = ctx
   const prefetchInliningEnabled = Boolean(experimental.prefetchInlining)
+  const cacheComponents = ctx.renderOpts.cacheComponents
+  const partialPrefetching = ctx.renderOpts.partialPrefetching
   const isStaticGeneration = workStore.isStaticGeneration
   const isBuildTimePrerendering =
     ctx.renderOpts.isBuildTimePrerendering ?? false
@@ -132,7 +134,7 @@ export async function walkTreeWithFlightRouterState({
 
   if (
     isInsideSharedLayout &&
-    !experimental.isRoutePPREnabled &&
+    !cacheComponents &&
     // If PPR is disabled, and this is a request for the route tree, then we
     // never render any components. Only send the router state.
     (parsedRequestHeaders.isRouteTreePrefetchRequest ||
@@ -161,18 +163,24 @@ export async function walkTreeWithFlightRouterState({
           loaderTreeToFilter,
           hintTree,
           prefetchInliningEnabled,
+          cacheComponents,
+          partialPrefetching,
           isStaticGeneration,
           isBuildTimePrerendering,
-          getDynamicParamFromSegment
+          getDynamicParamFromSegment,
+          rootLayoutIncluded
         )
       : await createFlightRouterStateFromLoaderTree(
           loaderTreeToFilter,
           hintTree,
           prefetchInliningEnabled,
+          cacheComponents,
+          partialPrefetching,
           isStaticGeneration,
           isBuildTimePrerendering,
           getDynamicParamFromSegment,
-          query
+          query,
+          rootLayoutIncluded
         )
 
     return [
@@ -199,6 +207,8 @@ export async function walkTreeWithFlightRouterState({
           loaderTreeToFilter,
           hintTree,
           prefetchInliningEnabled,
+          cacheComponents,
+          partialPrefetching,
           isStaticGeneration,
           isBuildTimePrerendering,
           getDynamicParamFromSegment
@@ -207,10 +217,13 @@ export async function walkTreeWithFlightRouterState({
           loaderTreeToFilter,
           hintTree,
           prefetchInliningEnabled,
+          cacheComponents,
+          partialPrefetching,
           isStaticGeneration,
           isBuildTimePrerendering,
           getDynamicParamFromSegment,
-          query
+          query,
+          rootLayoutIncluded
         )
     return [
       [
@@ -238,10 +251,13 @@ export async function walkTreeWithFlightRouterState({
       loaderTreeToFilter,
       hintTree,
       prefetchInliningEnabled,
+      cacheComponents,
+      partialPrefetching,
       isStaticGeneration,
       isBuildTimePrerendering,
       getDynamicParamFromSegment,
-      query
+      query,
+      rootLayoutIncluded
     )
 
     // Create component tree using the slice of the loaderTree
@@ -369,6 +385,8 @@ export async function createFullTreeFlightDataForNavigation({
     loaderTree,
     hintTreeForInitialRender,
     Boolean(experimental.prefetchInlining),
+    ctx.renderOpts.cacheComponents,
+    ctx.renderOpts.partialPrefetching,
     workStoreForInitialRender.isStaticGeneration,
     ctx.renderOpts.isBuildTimePrerendering ?? false,
     getDynamicParamFromSegment,
