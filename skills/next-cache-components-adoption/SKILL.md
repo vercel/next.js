@@ -15,20 +15,21 @@ Enable Cache Components on an app and walk it to a clean build. This skill **seq
 
 ## requires
 
-**App Router only.** Cache Components is an App Router feature; `cacheComponents: true` does nothing for `pages/` routes. If the project has a `pages/` or `src/pages/` tree but no `app/` or `src/app/` tree, stop and tell the user — Pages → App migration is its own project, not part of this skill. A hybrid app (both `pages/` and `app/`) is fine: the flag affects the `app/` routes; `pages/` routes are unaffected and don't need opt-outs.
+Confirm each item before starting milestone A. The skill won't apply cleanly if any are unmet.
 
-Next.js **16.3+**. That release is where the pieces this skill relies on land: top-level `cacheComponents`, `export const instant`, the dev-overlay instant-navigation validation warnings (including `link-prefetch-partial`), and the `cache-components-instant-false` codemod.
+- **App Router project.** Cache Components is an App Router feature; `cacheComponents: true` does nothing for `pages/` routes. If the project has a `pages/` or `src/pages/` tree but no `app/` or `src/app/` tree, stop and tell the user — Pages → App migration is its own project, not part of this skill. A hybrid app (both `pages/` and `app/`) is fine: the flag affects the `app/` routes; `pages/` routes are unaffected and don't need opt-outs.
 
-If `next --version` reports below 16.3, upgrade first:
+- **Next.js 16.3 or later.** That release is where the pieces this skill relies on land: top-level `cacheComponents`, `export const instant`, the dev-overlay instant-navigation validation warnings, and the `cache-components-instant-false` codemod. If `next --version` reports below 16.3, upgrade first:
+  - `npx @next/codemod@latest upgrade latest` to apply the version-to-version codemods.
+  - Read the relevant [version upgrade guide](https://nextjs.org/docs/app/guides/upgrading) (e.g. [Version 16](https://nextjs.org/docs/app/guides/upgrading/version-16)) for what the codemod doesn't cover.
 
-- `npx @next/codemod@latest upgrade latest` to apply the version-to-version codemods.
-- Read the relevant [version upgrade guide](https://nextjs.org/docs/app/guides/upgrading) (e.g. [Version 16](https://nextjs.org/docs/app/guides/upgrading/version-16)) for what the codemod doesn't cover.
+- **No incompatible config keys.** `cacheComponents: true` errors on any page that still exports `dynamic`. Other legacy route segment configs (`revalidate`, `fetchCache`) and the renamed `experimental.dynamicIO` / `experimental.useCache` should also be migrated. Resolve them via the [migration guide's "Enable Cache Components" section](https://nextjs.org/docs/app/guides/migrating-to-cache-components#enable-cache-components) before starting.
 
-This skill also assumes a clean starting point. If the app still uses `experimental.dynamicIO` / `experimental.useCache`, route segment configs (`dynamic`, `revalidate`, `fetchCache`), or `unstable_cache()`, work those out first via the [migration guide](https://nextjs.org/docs/app/guides/migrating-to-cache-components), then come back here.
+### notes
 
-**If the app already uses `"use cache"`**, there is no green build before `cacheComponents: true` — the pre-flag build errors with `please enable the feature flag cacheComponents`. Enabling the flag is the first step of milestone A, not a thing to do _after_ getting green; the green baseline comes from milestone A (blanket the opt-outs in), not from before it. Note this in your starting summary so it doesn't read as a regression.
+- **No green baseline before the flag.** If the app already uses `"use cache"`, the pre-flag build errors with `please enable the feature flag cacheComponents`. Enabling the flag is the first step of milestone A, not a thing to do _after_ getting green; the green baseline comes from milestone A (blanket the opt-outs in), not from before it. Note this in your starting summary so it doesn't read as a regression.
 
-Offline copies of guide links live under `node_modules/next/dist/docs/`, with the directory layout numbered for ordering (e.g. `node_modules/next/dist/docs/01-app/02-guides/migrating-to-cache-components.md`). The trailing filename matches the slug. If you can't predict the numbered prefix, `find node_modules/next/dist/docs -name '<slug>.md'` resolves it. The `/docs/messages/*` error pages are not bundled. If offline docs are missing entirely, run `npx @next/codemod@latest agents-md` to write a version-matched index into `AGENTS.md` / `CLAUDE.md`.
+- **Offline docs.** Offline copies of guide links live under `node_modules/next/dist/docs/`, with the directory layout numbered for ordering (e.g. `node_modules/next/dist/docs/01-app/02-guides/migrating-to-cache-components.md`). The trailing filename matches the slug. If you can't predict the numbered prefix, `find node_modules/next/dist/docs -name '<slug>.md'` resolves it. The `/docs/messages/*` error pages are not bundled. If offline docs are missing entirely, run `npx @next/codemod@latest agents-md` to write a version-matched index into `AGENTS.md` / `CLAUDE.md`.
 
 ## the shape of the work
 
@@ -83,6 +84,8 @@ Ask the user; don't assume. **In a non-interactive run** (no way to prompt), def
 ```bash
 npx @next/codemod@canary cache-components-instant-false ./app
 ```
+
+If `@next/codemod@latest` reports `Invalid transform choice`, try `@canary` — new transforms land there first.
 
 Inserts `export const instant = false` (with a `// TODO: Cache Components adoption` comment) into every `app/**/{page,layout,default}` file, skipping files that already declare `instant` and any module marked `"use client"` or `"use server"`. Then set `cacheComponents: true`. The TODO comments are the work queue for milestone B.
 
