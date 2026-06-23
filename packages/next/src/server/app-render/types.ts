@@ -149,11 +149,6 @@ export interface RenderOptsPartial {
   isPrefetch?: boolean
   htmlLimitedBots: string | undefined
   experimental: {
-    /**
-     * When true, it indicates that the current page supports partial
-     * prerendering.
-     */
-    isRoutePPREnabled?: boolean
     expireTime: number | undefined
     staleTimes: ExperimentalConfig['staleTimes'] | undefined
     clientTraceMetadata: string[] | undefined
@@ -170,7 +165,7 @@ export interface RenderOptsPartial {
     prefetchInlining: PrefetchInliningConfig
     authInterrupts: boolean
     useCacheTimeout: number
-    cachedNavigations: boolean
+    cachedNavigations: boolean | 'allow-runtime'
     appShells: ExperimentalConfig['appShells']
 
     /**
@@ -230,6 +225,15 @@ export interface RenderOptsPartial {
    * instant.unstable_samples and is independent of actual route params.
    */
   runInstantValidation?: boolean
+
+  /**
+   * When true, a fallback shell produced for this render could later be
+   * upgraded to a concrete version (at least one of its fallback params is a
+   * candidate enumerated by `generateStaticParams`). Only such shells are
+   * flagged `isUpgradeableISRFallback` so the client retries the prefetch; a route that
+   * can never upgrade (no `generateStaticParams`) is left unflagged.
+   */
+  isFallbackUpgradeable?: boolean
 }
 
 export type RenderOpts = LoadComponentsReturnType<AppPageModule> &

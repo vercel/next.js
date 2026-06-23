@@ -61,6 +61,7 @@ import { isDynamicRoute } from '../shared/lib/router/utils'
 import { execOnce } from '../shared/lib/utils'
 import { isBlockedPage } from './utils'
 import { getBotType, isBot } from '../shared/lib/router/utils/is-bot'
+import { getRouteRegex } from '../shared/lib/router/utils/route-regex'
 import RenderResult from './render-result'
 import { removeTrailingSlash } from '../shared/lib/router/utils/remove-trailing-slash'
 import { denormalizePagePath } from '../shared/lib/page-path/denormalize-page-path'
@@ -133,7 +134,6 @@ import { toRoute } from './lib/to-route'
 import type { DeepReadonly } from '../shared/lib/deep-readonly'
 import { isNodeNextRequest, isNodeNextResponse } from './base-http/helpers'
 import { patchSetHeaderWithCookieSupport } from './lib/patch-set-header'
-import { checkIsAppPPREnabled } from './lib/experimental/ppr'
 import {
   getBuiltinRequestContext,
   type WaitUntil,
@@ -431,7 +431,7 @@ export default abstract class Server<
     readonly data: NextDataPathnameNormalizer | undefined
   }
 
-  private readonly isAppPPREnabled: boolean
+  private readonly isAppCacheComponentsEnabled: boolean
 
   /**
    * This is used to persist cache scopes across
@@ -517,9 +517,8 @@ export default abstract class Server<
 
     this.enabledDirectories = this.getEnabledDirectories(dev)
 
-    this.isAppPPREnabled =
-      this.enabledDirectories.app &&
-      checkIsAppPPREnabled(this.nextConfig.experimental.ppr)
+    this.isAppCacheComponentsEnabled =
+      this.enabledDirectories.app && Boolean(this.nextConfig.cacheComponents)
 
     this.normalizers = {
       // We should normalize the pathname from the RSC prefix only in minimal
@@ -1096,7 +1095,7 @@ export default abstract class Server<
           // It's important to execute the following block even it the request
           // matches a pages data route from above.
           if (
-            this.isAppPPREnabled &&
+            this.isAppCacheComponentsEnabled &&
             this.minimalMode &&
             req.headers[NEXT_RESUME_HEADER] === '1' &&
             req.method === 'POST'
@@ -2218,7 +2217,7 @@ export default abstract class Server<
      * enabled, then the given route _could_ support PPR.
      */
     const couldSupportPPR: boolean =
-      this.isAppPPREnabled &&
+      this.isAppCacheComponentsEnabled &&
       typeof routeModule !== 'undefined' &&
       isAppPageRouteModule(routeModule)
 
@@ -2384,26 +2383,44 @@ export default abstract class Server<
 
       if (isAppPath && this.nextConfig.cacheComponents) {
         if (pathsResults.prerenderedRoutes?.length) {
-          let smallestFallbackRouteParams = null
+          // Replicate, on demand, the per-URL fallback set a production build
+          // writes to the prerender manifest. Production matches the requested
+          // URL to the most-specific prerendered route and defers that route's
+          // `fallbackRouteParams` (so `generateStaticParams`-covered params
+          // resolve in the static shell and only the uncovered ones are
+          // deferred). The dev prerender manifest isn't populated for these
+          // ad-hoc routes, but `getStaticPaths` already computed every
+          // prerendered route here, so we do the same match: among the routes
+          // whose canonical regex matches this URL, pick the one with the
+          // fewest fallback params (the most-specific) and thread it via the
+          // `fallbackParams` meta. A fully-covered concrete route (e.g.
+          // `/blog/a`) has zero fallback params and is the most-specific match
+          // for its own URL, so it must be considered alongside the others: it
+          // wins over the base dynamic route (`/blog/[slug]`) and leaves its
+          // statically-known params out of the deferred set.
+          let perUrlFallbackRouteParams: NonNullable<
+            (typeof pathsResults.prerenderedRoutes)[number]['fallbackRouteParams']
+          > | null = null
           for (const route of pathsResults.prerenderedRoutes) {
-            const fallbackRouteParams = route.fallbackRouteParams
-            if (!fallbackRouteParams || fallbackRouteParams.length === 0) {
-              // There are no fallback route params so we don't need to continue
-              smallestFallbackRouteParams = null
-              break
+            const fallbackRouteParams = route.fallbackRouteParams ?? []
+            if (!getRouteRegex(route.pathname).re.test(urlPathname)) {
+              continue
             }
             if (
-              smallestFallbackRouteParams === null ||
-              fallbackRouteParams.length < smallestFallbackRouteParams.length
+              perUrlFallbackRouteParams === null ||
+              fallbackRouteParams.length < perUrlFallbackRouteParams.length
             ) {
-              smallestFallbackRouteParams = fallbackRouteParams
+              perUrlFallbackRouteParams = fallbackRouteParams
             }
           }
-          if (smallestFallbackRouteParams) {
+          if (
+            perUrlFallbackRouteParams &&
+            perUrlFallbackRouteParams.length > 0
+          ) {
             addRequestMeta(
               req,
               'fallbackParams',
-              createOpaqueFallbackRouteParams(smallestFallbackRouteParams)!
+              createOpaqueFallbackRouteParams(perUrlFallbackRouteParams)!
             )
           }
         }

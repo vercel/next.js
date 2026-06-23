@@ -166,7 +166,6 @@ async function requestHandler(
       cacheComponents: Boolean(nextConfig.cacheComponents),
       validationLevel: nextConfig.experimental.instantInsights.validationLevel,
       experimental: {
-        isRoutePPREnabled: false,
         expireTime: nextConfig.expireTime,
         staleTimes: nextConfig.experimental.staleTimes,
         dynamicOnHover: Boolean(nextConfig.experimental.dynamicOnHover),
@@ -175,7 +174,7 @@ async function requestHandler(
         prefetchInlining: nextConfig.experimental.prefetchInlining ?? false,
         authInterrupts: Boolean(nextConfig.experimental.authInterrupts),
         useCacheTimeout: nextConfig.experimental.useCacheTimeout,
-        cachedNavigations: Boolean(nextConfig.experimental.cachedNavigations),
+        cachedNavigations: nextConfig.experimental.cachedNavigations ?? false,
         appShells: nextConfig.experimental.appShells,
         clientTraceMetadata:
           nextConfig.experimental.clientTraceMetadata || ([] as any),

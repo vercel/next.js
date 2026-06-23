@@ -31,4 +31,7 @@
 .draggable-content {
   flex: 1;
   overflow: auto;
+  border-radius: inherit;
+  border-top-left-radius: 0;
+  border-top-right-radius: 0;
 }

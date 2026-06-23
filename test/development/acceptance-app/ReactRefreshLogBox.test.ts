@@ -629,7 +629,7 @@ describe('ReactRefreshLogBox app', () => {
            "Index.useCallback[boom] index.js (5:11)",
            "button <anonymous>",
            "Index index.js (9:7)",
-           "Page index.js (9:30)",
+           "Page app/page.js (4:10)",
          ],
        }
       `)
@@ -708,7 +708,7 @@ describe('ReactRefreshLogBox app', () => {
            "Index.useCallback[boom] index.js (5:11)",
            "button <anonymous>",
            "Index index.js (9:7)",
-           "Page index.js (9:30)",
+           "Page app/page.js (4:10)",
          ],
        }
       `)
@@ -786,7 +786,7 @@ describe('ReactRefreshLogBox app', () => {
            "Index.useCallback[boom] index.js (5:11)",
            "button <anonymous>",
            "Index index.js (9:7)",
-           "Page index.js (9:30)",
+           "Page app/page.js (4:10)",
          ],
        }
       `)
@@ -864,7 +864,7 @@ describe('ReactRefreshLogBox app', () => {
            "Index.useCallback[boom] index.js (5:11)",
            "button <anonymous>",
            "Index index.js (9:7)",
-           "Page index.js (9:30)",
+           "Page app/page.js (4:10)",
          ],
        }
       `)
@@ -1049,7 +1049,7 @@ describe('ReactRefreshLogBox app', () => {
            |           ^",
          "stack": [
            "{default export} index.js (3:11)",
-           "Page app/page.js (2:1)",
+           "Page app/page.js (4:10)",
          ],
        }
       `)
@@ -1164,7 +1164,7 @@ describe('ReactRefreshLogBox app', () => {
            |                                            ^",
          "stack": [
            "Index index.js (2:44)",
-           "Page index.js (16:8)",
+           "Page app/page.js (4:10)",
          ],
        }
       `)

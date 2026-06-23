@@ -190,10 +190,7 @@ export async function fetchServerResponse(
 
     // Typically, during a navigation, we decode the response using Flight's
     // `createFromFetch` API, which accepts a `fetch` promise.
-    // TODO: Remove this check once the old PPR flag is removed
-    const isLegacyPPR =
-      process.env.__NEXT_PPR && !process.env.__NEXT_CACHE_COMPONENTS
-    const shouldImmediatelyDecode = !isLegacyPPR
+    const shouldImmediatelyDecode = true
     const res = await createFetch<NavigationFlightResponse>(
       url,
       headers,
