@@ -13,11 +13,7 @@ describe('use-cache-metadata-route-handler', () => {
     if (isNextStart) {
       const [buildStatus] = next.cliOutput.match(/. \/opengraph-image/)
 
-      // TODO: Should always be `○ /opengraph-image`.
-      expect(buildStatus).toBeOneOf([
-        '○ /opengraph-image',
-        'ƒ /opengraph-image',
-      ])
+      expect(buildStatus).toBe('○ /opengraph-image')
     }
   })
 
@@ -29,8 +25,31 @@ describe('use-cache-metadata-route-handler', () => {
     if (isNextStart) {
       const [buildStatus] = next.cliOutput.match(/. \/icon/)
 
-      // TODO: Should always be `○ /icon`.
-      expect(buildStatus).toBeOneOf(['○ /icon', 'ƒ /icon'])
+      expect(buildStatus).toBe('○ /icon')
+    }
+  })
+
+  it('should statically prerender an image whose component uses "use cache" directly', async () => {
+    const res = await next.fetch('/apple-icon')
+    expect(res.status).toBe(200)
+    expect(res.headers.get('content-type')).toBe('image/png')
+
+    if (isNextStart) {
+      const [buildStatus] = next.cliOutput.match(/. \/apple-icon/)
+
+      expect(buildStatus).toBe('○ /apple-icon')
+    }
+  })
+
+  it('should treat a twitter image that reads request data as dynamic', async () => {
+    const res = await next.fetch('/twitter-image')
+    expect(res.status).toBe(200)
+    expect(res.headers.get('content-type')).toBe('image/png')
+
+    if (isNextStart) {
+      const [buildStatus] = next.cliOutput.match(/. \/twitter-image/)
+
+      expect(buildStatus).toBe('ƒ /twitter-image')
     }
   })
 

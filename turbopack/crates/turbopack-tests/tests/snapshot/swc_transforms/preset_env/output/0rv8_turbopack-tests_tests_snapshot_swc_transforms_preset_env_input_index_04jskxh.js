@@ -12,6 +12,9 @@ var RELATIVE_ROOT_PATH = "../../../../../../..";
 var RUNTIME_PUBLIC_PATH = "";
 var ASSET_SUFFIX = "";
 var CROSS_ORIGIN = null;
+var CHUNK_LOAD_RETRY_MAX_ATTEMPTS = 1;
+var CHUNK_LOAD_RETRY_BASE_DELAY_MS = 200;
+var CHUNK_LOAD_RETRY_MAX_JITTER_MS = 400;
 /**
  * This file contains runtime types and functions that are shared between all
  * TurboPack ECMAScript runtimes.
@@ -1276,6 +1279,14 @@ function _async_to_generator(fn) {
         });
     };
 }
+function _instanceof(left, right) {
+    "@swc/helpers - instanceof";
+    if (right != null && typeof Symbol !== "undefined" && right[Symbol.hasInstance]) {
+        return !!right[Symbol.hasInstance](left);
+    } else {
+        return left instanceof right;
+    }
+}
 function _ts_generator(thisArg, body) {
     var f, y, t, _ = {
         label: 0,
@@ -1491,6 +1502,7 @@ var BACKEND;
             resolver = {
                 resolved: false,
                 loadingStarted: false,
+                retryAttempts: 0,
                 promise: promise,
                 resolve: function resolve1() {
                     resolver.resolved = true;
@@ -1501,6 +1513,46 @@ var BACKEND;
             chunkResolvers.set(chunkUrl, resolver);
         }
         return resolver;
+    }
+    /**
+   * Rejects a chunk resolver and drops it from the cache.
+   * We don't want to cache failed chunk loads: a later
+   * request for the same chunk should try again.
+   */ function rejectChunkResolver(chunkUrl, resolver, error) {
+        if (chunkResolvers.get(chunkUrl) === resolver) {
+            chunkResolvers.delete(chunkUrl);
+        }
+        resolver.reject(error);
+    }
+    function getChunkLoadRetryDelayMs() {
+        var jitter = Math.floor(Math.random() * (CHUNK_LOAD_RETRY_MAX_JITTER_MS + 1));
+        return CHUNK_LOAD_RETRY_BASE_DELAY_MS + jitter;
+    }
+    function isRetryableChunkLoadError(error) {
+        return error == null || _instanceof(error, DOMException) && error.name === 'NetworkError';
+    }
+    /**
+   * Handles a failed chunk load: retries the load once after a short delay.
+   */ function onChunkLoadError(sourceType, chunkUrl, resolver, error, reload) {
+        if (!isRetryableChunkLoadError(error) || resolver.retryAttempts >= CHUNK_LOAD_RETRY_MAX_ATTEMPTS || chunkResolvers.get(chunkUrl) !== resolver) {
+            rejectChunkResolver(chunkUrl, resolver, error);
+            return;
+        }
+        resolver.retryAttempts++;
+        setTimeout(function() {
+            // if this chunk is being fetched multiple times, and one of those
+            // attempts succeeds. or, if this chunk has another resolver
+            // mapped to it - it's safe to skip retrying.
+            if (resolver.resolved || chunkResolvers.get(chunkUrl) !== resolver) {
+                return;
+            }
+            if (reload) {
+                reload();
+            } else {
+                resolver.loadingStarted = false;
+                doLoadChunk(sourceType, chunkUrl);
+            }
+        }, getChunkLoadRetryDelayMs());
     }
     /**
    * Loads the given chunk, and returns a promise that resolves once the chunk
@@ -1530,7 +1582,11 @@ var BACKEND;
             // ignore
             } else if (isJs(chunkUrl)) {
                 self.TURBOPACK_NEXT_CHUNK_URLS.push(chunkUrl);
-                importScripts(chunkUrl);
+                try {
+                    importScripts(chunkUrl);
+                } catch (error) {
+                    onChunkLoadError(sourceType, chunkUrl, resolver, error);
+                }
             } else {
                 throw new Error(`can't infer type of chunk from URL ${chunkUrl} in worker`);
             }
@@ -1544,34 +1600,46 @@ var BACKEND;
                     // loaded instantly.
                     resolver.resolve();
                 } else {
-                    var link = document.createElement('link');
-                    link.rel = 'stylesheet';
-                    link.crossOrigin = CROSS_ORIGIN;
-                    link.href = chunkUrl;
-                    link.onerror = function() {
-                        resolver.reject();
-                    };
-                    link.onload = function() {
-                        // CSS chunks do not register themselves, and as such must be marked as
-                        // loaded instantly.
-                        resolver.resolve();
+                    var createLink = function createLink1() {
+                        var link = document.createElement('link');
+                        link.rel = 'stylesheet';
+                        link.crossOrigin = CROSS_ORIGIN;
+                        link.href = chunkUrl;
+                        link.onerror = function() {
+                            // Re-insert a fresh tag at the same position on retry to preserve
+                            // cascade order.
+                            var anchor = document.createComment('');
+                            link.replaceWith(anchor);
+                            onChunkLoadError(sourceType, chunkUrl, resolver, undefined, function() {
+                                return anchor.replaceWith(createLink());
+                            });
+                        };
+                        link.onload = function() {
+                            // CSS chunks do not register themselves, and as such must be marked as
+                            // loaded instantly.
+                            resolver.resolve();
+                        };
+                        return link;
                     };
                     // Append to the `head` for webpack compatibility.
-                    document.head.appendChild(link);
+                    document.head.appendChild(createLink());
                 }
             } else if (isJs(chunkUrl)) {
                 var previousScripts = document.querySelectorAll(`script[src="${chunkUrl}"],script[src^="${chunkUrl}?"],script[src="${decodedChunkUrl}"],script[src^="${decodedChunkUrl}?"]`);
                 if (previousScripts.length > 0) {
                     var _iteratorNormalCompletion = true, _didIteratorError = false, _iteratorError = undefined;
                     try {
-                        // There is this edge where the script already failed loading, but we
-                        // can't detect that. The Promise will never resolve in this case.
-                        for(var _iterator = Array.from(previousScripts)[Symbol.iterator](), _step; !(_iteratorNormalCompletion = (_step = _iterator.next()).done); _iteratorNormalCompletion = true){
+                        var _loop = function() {
                             var script = _step.value;
                             script.addEventListener('error', function() {
-                                resolver.reject();
+                                // Drop the failed tag so a retry can re-add it cleanly.
+                                script.remove();
+                                onChunkLoadError(sourceType, chunkUrl, resolver);
+                            }, {
+                                once: true
                             });
-                        }
+                        };
+                        for(var _iterator = Array.from(previousScripts)[Symbol.iterator](), _step; !(_iteratorNormalCompletion = (_step = _iterator.next()).done); _iteratorNormalCompletion = true)_loop();
                     } catch (err) {
                         _didIteratorError = true;
                         _iteratorError = err;
@@ -1587,17 +1655,19 @@ var BACKEND;
                         }
                     }
                 } else {
-                    var script1 = document.createElement('script');
-                    script1.crossOrigin = CROSS_ORIGIN;
-                    script1.src = chunkUrl;
+                    var script = document.createElement('script');
+                    script.crossOrigin = CROSS_ORIGIN;
+                    script.src = chunkUrl;
                     // We'll only mark the chunk as loaded once the script has been executed,
                     // which happens in `registerChunk`. Hence the absence of `resolve()` in
                     // this branch.
-                    script1.onerror = function() {
-                        resolver.reject();
+                    script.onerror = function() {
+                        // Drop the failed tag so a retry can re-add it cleanly.
+                        script.remove();
+                        onChunkLoadError(sourceType, chunkUrl, resolver);
                     };
                     // Append to the `head` for webpack compatibility.
-                    document.head.appendChild(script1);
+                    document.head.appendChild(script);
                 }
             } else {
                 throw new Error(`can't infer type of chunk from URL ${chunkUrl}`);

@@ -880,9 +880,11 @@ async function exportAppImpl(
   }
 
   // Export mode provide static outputs that are not compatible with PPR mode.
-  if (!options.buildExport && nextConfig.experimental.ppr) {
+  if (!options.buildExport && nextConfig.cacheComponents) {
     // TODO: add message
-    throw new Error('Invariant: PPR cannot be enabled in export mode')
+    throw new Error(
+      'Invariant: Cache Components cannot be enabled in export mode'
+    )
   }
 
   // copy prerendered routes to outDir
