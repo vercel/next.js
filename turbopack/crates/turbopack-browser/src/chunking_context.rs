@@ -239,6 +239,7 @@ impl BrowserChunkingContextBuilder {
 
     pub fn chunk_load_retry(mut self, chunk_load_retry: ChunkLoadRetry) -> Self {
         self.chunking_context.chunk_load_retry = chunk_load_retry;
+        self
     }
 
     pub async fn single_chunk(mut self) -> Result<Self> {
