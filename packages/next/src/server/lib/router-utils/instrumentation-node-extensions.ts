@@ -49,66 +49,103 @@ function extendTracerProviderForCacheComponents(): void {
   // to exit the workUnitAsyncStorage context when generating spans.
   const originalGetTracer = provider.getTracer.bind(provider)
   provider.getTracer = (...args) => {
-    const tracer = originalGetTracer.apply(provider, args)
-    if (WeakTracers.has(tracer)) {
-      return tracer
+    return instrumentTracerForCacheComponents(
+      originalGetTracer.apply(provider, args)
+    )
+  }
+
+  // Tracers acquired before a delegate provider was registered are
+  // ProxyTracers. This is the standard pattern of OTel instrumentation
+  // libraries: `InstrumentationAbstract` calls `trace.getTracer()` in its
+  // constructor, and SDKs (e.g. @sentry/node, @vercel/otel with custom
+  // instrumentations) construct instrumentations before registering the
+  // provider. A ProxyTracer resolves the actual tracer lazily through
+  // `ProxyTracerProvider.getDelegateTracer()`, which does not go through the
+  // patched `getTracer` above, so we need to instrument that resolution path
+  // as well. (On current @opentelemetry/api versions the proxy provider's
+  // `getTracer` routes through this method internally, so the patch above is
+  // subsumed by this one whenever the global provider is a proxy — the
+  // WeakSet makes the double instrumentation a no-op. We keep both patches so
+  // we don't depend on that internal routing detail and still cover non-proxy
+  // global providers.)
+  const proxyProvider = provider as typeof provider & {
+    getDelegateTracer?: (
+      name: string,
+      version?: string,
+      options?: unknown
+    ) => Tracer | undefined
+  }
+  if (typeof proxyProvider.getDelegateTracer === 'function') {
+    const originalGetDelegateTracer =
+      proxyProvider.getDelegateTracer.bind(proxyProvider)
+    proxyProvider.getDelegateTracer = (...args) => {
+      const tracer = originalGetDelegateTracer(...args)
+      return tracer === undefined
+        ? undefined
+        : instrumentTracerForCacheComponents(tracer)
     }
-    const originalStartSpan = tracer.startSpan
-    tracer.startSpan = (...startSpanArgs) => {
-      return workUnitAsyncStorage.exit(() =>
-        originalStartSpan.apply(tracer, startSpanArgs)
+  }
+}
+
+function instrumentTracerForCacheComponents(tracer: Tracer): Tracer {
+  if (WeakTracers.has(tracer)) {
+    return tracer
+  }
+  const originalStartSpan = tracer.startSpan
+  tracer.startSpan = (...startSpanArgs) => {
+    return workUnitAsyncStorage.exit(() =>
+      originalStartSpan.apply(tracer, startSpanArgs)
+    )
+  }
+
+  const originalStartActiveSpan = tracer.startActiveSpan
+  // @ts-ignore TS doesn't recognize the overloads correctly
+  tracer.startActiveSpan = (...startActiveSpanArgs: any[]) => {
+    const workUnitStore = workUnitAsyncStorage.getStore()
+    if (!workUnitStore) {
+      // @ts-ignore TS doesn't recognize the overloads correctly
+      return originalStartActiveSpan.apply(tracer, startActiveSpanArgs)
+    }
+
+    let fnIdx: number = 0
+    if (
+      startActiveSpanArgs.length === 2 &&
+      typeof startActiveSpanArgs[1] === 'function'
+    ) {
+      fnIdx = 1
+    } else if (
+      startActiveSpanArgs.length === 3 &&
+      typeof startActiveSpanArgs[2] === 'function'
+    ) {
+      fnIdx = 2
+    } else if (
+      startActiveSpanArgs.length > 3 &&
+      typeof startActiveSpanArgs[3] === 'function'
+    ) {
+      fnIdx = 3
+    }
+
+    if (fnIdx) {
+      const originalFn = startActiveSpanArgs[fnIdx]
+      if (isUseCacheFunction(originalFn)) {
+        console.error(
+          'A Cache Function (`use cache`) was passed to startActiveSpan which means it will receive a Span argument with a possibly random ID on every invocation leading to cache misses. Provide a wrapping function around the Cache Function that does not forward the Span argument to avoid this issue.'
+        )
+      }
+      startActiveSpanArgs[fnIdx] = withWorkUnitContext(
+        workUnitStore,
+        originalFn
       )
     }
 
-    const originalStartActiveSpan = tracer.startActiveSpan
-    // @ts-ignore TS doesn't recognize the overloads correctly
-    tracer.startActiveSpan = (...startActiveSpanArgs: any[]) => {
-      const workUnitStore = workUnitAsyncStorage.getStore()
-      if (!workUnitStore) {
-        // @ts-ignore TS doesn't recognize the overloads correctly
-        return originalStartActiveSpan.apply(tracer, startActiveSpanArgs)
-      }
-
-      let fnIdx: number = 0
-      if (
-        startActiveSpanArgs.length === 2 &&
-        typeof startActiveSpanArgs[1] === 'function'
-      ) {
-        fnIdx = 1
-      } else if (
-        startActiveSpanArgs.length === 3 &&
-        typeof startActiveSpanArgs[2] === 'function'
-      ) {
-        fnIdx = 2
-      } else if (
-        startActiveSpanArgs.length > 3 &&
-        typeof startActiveSpanArgs[3] === 'function'
-      ) {
-        fnIdx = 3
-      }
-
-      if (fnIdx) {
-        const originalFn = startActiveSpanArgs[fnIdx]
-        if (isUseCacheFunction(originalFn)) {
-          console.error(
-            'A Cache Function (`use cache`) was passed to startActiveSpan which means it will receive a Span argument with a possibly random ID on every invocation leading to cache misses. Provide a wrapping function around the Cache Function that does not forward the Span argument to avoid this issue.'
-          )
-        }
-        startActiveSpanArgs[fnIdx] = withWorkUnitContext(
-          workUnitStore,
-          originalFn
-        )
-      }
-
-      return workUnitAsyncStorage.exit(() => {
-        // @ts-ignore TS doesn't recognize the overloads correctly
-        return originalStartActiveSpan.apply(tracer, startActiveSpanArgs)
-      })
-    }
-
-    WeakTracers.add(tracer)
-    return tracer
+    return workUnitAsyncStorage.exit(() => {
+      // @ts-ignore TS doesn't recognize the overloads correctly
+      return originalStartActiveSpan.apply(tracer, startActiveSpanArgs)
+    })
   }
+
+  WeakTracers.add(tracer)
+  return tracer
 }
 
 const WeakTracers = new WeakSet<Tracer>()

@@ -7,6 +7,7 @@ import {
   InnerTraceActiveSpan,
   CachedTracedComponentActiveSpan,
   TracedComponentActiveSpan,
+  TracedComponentEarlyTracerActiveSpan,
 } from '../../traced-work'
 
 export function generateStaticParams() {
@@ -31,6 +32,7 @@ export default async function Page({
       <InnerTraceActiveSpan />
       <CachedTracedComponentActiveSpan />
       <TracedComponentActiveSpan />
+      <TracedComponentEarlyTracerActiveSpan />
     </>
   )
 }

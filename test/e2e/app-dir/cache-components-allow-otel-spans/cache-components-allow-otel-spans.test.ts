@@ -56,8 +56,12 @@ describe('cache-components OTEL spans', () => {
       const t8 = await browser.elementByCss('#t8 .span')
       expect(parseInt(await t8.textContent())).not.toEqual(0)
 
+      const t9 = await browser.elementByCss('#t9 .span')
+      expect(parseInt(await t9.textContent())).not.toEqual(0)
+
       console.log('t7', await t7.textContent())
       console.log('t8', await t8.textContent())
+      console.log('t9', await t9.textContent())
     })
     it('should allow creating spans during cache component validation without triggering sync IO bailouts - inside a Cache Component - with prerendering the page', async () => {
       // In dev there really isn't any prerendering but since this test case exists for prod testing I want to keep it exercised in the dev pathway too
@@ -106,8 +110,12 @@ describe('cache-components OTEL spans', () => {
       const t8 = await browser.elementByCss('#t8 .span')
       expect(parseInt(await t8.textContent())).not.toEqual(0)
 
+      const t9 = await browser.elementByCss('#t9 .span')
+      expect(parseInt(await t9.textContent())).not.toEqual(0)
+
       console.log('t7', await t7.textContent())
       console.log('t8', await t8.textContent())
+      console.log('t9', await t9.textContent())
     })
     it('should allow creating spans during cache component validation without triggering sync IO bailouts - inside a Server Component - without prerendering the page', async () => {
       const browser = await next.browser('/novel/server')
@@ -125,7 +133,7 @@ describe('cache-components OTEL spans', () => {
              "<anonymous> app/traced-work.tsx (26:19)",
              "Inner app/traced-work.tsx (97:26)",
              "CachedInnerTraceActiveSpan app/traced-work.tsx (104:9)",
-             "Page app/[slug]/server/page.tsx (29:7)",
+             "Page app/[slug]/server/page.tsx (30:7)",
            ],
          }
         `)
@@ -143,7 +151,7 @@ describe('cache-components OTEL spans', () => {
              "eval app/traced-work.tsx (26:19)",
              "Inner app/traced-work.tsx (97:26)",
              "CachedInnerTraceActiveSpan app/traced-work.tsx (104:9)",
-             "Page app/[slug]/server/page.tsx (29:7)",
+             "Page app/[slug]/server/page.tsx (30:7)",
            ],
          }
         `)
@@ -157,8 +165,12 @@ describe('cache-components OTEL spans', () => {
       const t8 = await browser.elementByCss('#t8 .span')
       expect(parseInt(await t8.textContent())).not.toEqual(0)
 
+      const t9 = await browser.elementByCss('#t9 .span')
+      expect(parseInt(await t9.textContent())).not.toEqual(0)
+
       console.log('t7', await t7.textContent())
       console.log('t8', await t8.textContent())
+      console.log('t9', await t9.textContent())
     })
     it('should allow creating spans during cache component validation without triggering sync IO bailouts - inside a Server Component - with prerendering the page', async () => {
       // In dev there really isn't any prerendering but since this test case exists for prod testing I want to keep it exercised in the dev pathway too
@@ -177,7 +189,7 @@ describe('cache-components OTEL spans', () => {
              "<anonymous> app/traced-work.tsx (26:19)",
              "Inner app/traced-work.tsx (97:26)",
              "CachedInnerTraceActiveSpan app/traced-work.tsx (104:9)",
-             "Page app/[slug]/server/page.tsx (29:7)",
+             "Page app/[slug]/server/page.tsx (30:7)",
            ],
          }
         `)
@@ -195,7 +207,7 @@ describe('cache-components OTEL spans', () => {
              "eval app/traced-work.tsx (26:19)",
              "Inner app/traced-work.tsx (97:26)",
              "CachedInnerTraceActiveSpan app/traced-work.tsx (104:9)",
-             "Page app/[slug]/server/page.tsx (29:7)",
+             "Page app/[slug]/server/page.tsx (30:7)",
            ],
          }
         `)
@@ -209,8 +221,12 @@ describe('cache-components OTEL spans', () => {
       const t8 = await browser.elementByCss('#t8 .span')
       expect(parseInt(await t8.textContent())).not.toEqual(0)
 
+      const t9 = await browser.elementByCss('#t9 .span')
+      expect(parseInt(await t9.textContent())).not.toEqual(0)
+
       console.log('t7', await t7.textContent())
       console.log('t8', await t8.textContent())
+      console.log('t9', await t9.textContent())
     })
   } else {
     it('should allow creating Spans during prerendering during the build - inside a Cache Components', async () => {
@@ -222,6 +238,9 @@ describe('cache-components OTEL spans', () => {
         const t8 = await browser.elementByCss('#t8 .span')
         // the span was prerendered during the build
         expect(parseInt(await t8.textContent())).toEqual(0)
+        const t9 = await browser.elementByCss('#t9 .span')
+        // the span was prerendered during the build
+        expect(parseInt(await t9.textContent())).toEqual(0)
 
         // load again
         await browser.loadPage(`${next.url}/prerendered/cache`)
@@ -231,6 +250,9 @@ describe('cache-components OTEL spans', () => {
         const t8again = await browser.elementByCss('#t8 .span')
         // the span was prerendered during the build
         expect(parseInt(await t8again.textContent())).toEqual(0)
+        const t9again = await browser.elementByCss('#t9 .span')
+        // the span was prerendered during the build
+        expect(parseInt(await t9again.textContent())).toEqual(0)
       }
 
       {
@@ -241,6 +263,9 @@ describe('cache-components OTEL spans', () => {
         const t8 = await browser.elementByCss('#t8 .span')
         // the span was prerendered during the build
         expect(parseInt(await t8.textContent())).toEqual(0)
+        const t9 = await browser.elementByCss('#t9 .span')
+        // the span was prerendered during the build
+        expect(parseInt(await t9.textContent())).toEqual(0)
 
         // load again
         await browser.loadPage(`${next.url}/prerendered/server`)
@@ -250,6 +275,9 @@ describe('cache-components OTEL spans', () => {
         const t8again = await browser.elementByCss('#t8 .span')
         // the span was prerendered during the build
         expect(parseInt(await t8again.textContent())).toEqual(0)
+        const t9again = await browser.elementByCss('#t9 .span')
+        // the span was prerendered during the build
+        expect(parseInt(await t9again.textContent())).toEqual(0)
       }
 
       {
@@ -260,6 +288,9 @@ describe('cache-components OTEL spans', () => {
         const t8 = await browser.elementByCss('#t8 .span')
         // the span was prerendered during the build
         expect(parseInt(await t8.textContent())).toEqual(0)
+        const t9 = await browser.elementByCss('#t9 .span')
+        // the span was prerendered during the build
+        expect(parseInt(await t9.textContent())).toEqual(0)
 
         // load again
         await browser.loadPage(`${next.url}/prerendered/fallback`)
@@ -269,6 +300,9 @@ describe('cache-components OTEL spans', () => {
         const t8again = await browser.elementByCss('#t8 .span')
         // the span was prerendered during the build
         expect(parseInt(await t8again.textContent())).toEqual(0)
+        const t9again = await browser.elementByCss('#t9 .span')
+        // the span was prerendered during the build
+        expect(parseInt(await t9again.textContent())).toEqual(0)
       }
     })
     it('should allow creating Spans during prerendering at runtime - inside a Cache Components', async () => {
@@ -283,6 +317,10 @@ describe('cache-components OTEL spans', () => {
         const t8value = parseInt(await t8.textContent())
         // the span was prerendered at runtime
         expect(t8value).not.toEqual(0)
+        const t9 = await browser.elementByCss('#t9 .span')
+        const t9value = parseInt(await t9.textContent())
+        // the span was prerendered at runtime
+        expect(t9value).not.toEqual(0)
 
         // load again
         await browser.loadPage(`${next.url}/novel/cache`)
@@ -295,6 +333,10 @@ describe('cache-components OTEL spans', () => {
         const t8againValue = parseInt(await t8again.textContent())
         // this page was cached so the span should be cached too
         expect(t8againValue).toEqual(t8value)
+        const t9again = await browser.elementByCss('#t9 .span')
+        const t9againValue = parseInt(await t9again.textContent())
+        // this page was cached so the span should be cached too
+        expect(t9againValue).toEqual(t9value)
       }
 
       {
@@ -307,6 +349,10 @@ describe('cache-components OTEL spans', () => {
         const t8value = parseInt(await t8.textContent())
         // the span was prerendered at runtime
         expect(t8value).not.toEqual(0)
+        const t9 = await browser.elementByCss('#t9 .span')
+        const t9value = parseInt(await t9.textContent())
+        // the span was prerendered at runtime
+        expect(t9value).not.toEqual(0)
 
         // load again
         await browser.loadPage(`${next.url}/novel/server`)
@@ -318,6 +364,10 @@ describe('cache-components OTEL spans', () => {
         const t8againValue = parseInt(await t8again.textContent())
         // this page was cached so the span should be cached too
         expect(t8againValue).toEqual(t8value)
+        const t9again = await browser.elementByCss('#t9 .span')
+        const t9againValue = parseInt(await t9again.textContent())
+        // this page was cached so the span should be cached too
+        expect(t9againValue).toEqual(t9value)
       }
     })
     it('should allow creating Spans during resuming a fallback - inside a Cache Component', async () => {
@@ -331,6 +381,10 @@ describe('cache-components OTEL spans', () => {
         const t8value = parseInt(await t8.textContent())
         // the span was prerendered at runtime
         expect(t8value).not.toEqual(0)
+        const t9 = await browser.elementByCss('#t9 .span')
+        const t9value = parseInt(await t9.textContent())
+        // the span was prerendered at runtime
+        expect(t9value).not.toEqual(0)
 
         // load again
         await browser.loadPage(`${next.url}/novel/fallback`)
@@ -345,6 +399,11 @@ describe('cache-components OTEL spans', () => {
         // this page renders the spans in the resume on each request
         expect(t8againValue).not.toEqual(t8value)
         expect(t8againValue).not.toEqual(0)
+        const t9again = await browser.elementByCss('#t9 .span')
+        const t9againValue = parseInt(await t9again.textContent())
+        // this page renders the spans in the resume on each request
+        expect(t9againValue).not.toEqual(t9value)
+        expect(t9againValue).not.toEqual(0)
       }
     })
   }
