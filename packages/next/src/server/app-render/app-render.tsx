@@ -9035,6 +9035,25 @@ async function collectSegmentData(
     }
   }
 
+  // Whether this render is a fallback shell, i.e. it was prerendered with
+  // unknown (opaque) route params rather than concrete ones. The per-segment
+  // responses generated below are stamped with this so the client knows to
+  // retry the prefetch — a more complete version may become available once
+  // the server's background regeneration finishes.
+  //
+  // Only flag the shell when it could actually be upgraded
+  // (`isFallbackUpgradeable`): at least one fallback param is a candidate
+  // enumerated by `generateStaticParams`. A route with no `generateStaticParams`
+  // never upgrades, so flagging it would trigger pointless client retries.
+  const fallbackRouteParams =
+    'fallbackRouteParams' in prerenderStore
+      ? prerenderStore.fallbackRouteParams
+      : null
+  const isUpgradeableISRFallback =
+    fallbackRouteParams != null &&
+    fallbackRouteParams.size > 0 &&
+    renderOpts.isFallbackUpgradeable === true
+
   // Pass the resolved hints so collectSegmentData can union them into
   // the TreePrefetch. During the initial build the FlightRouterState in
   // the buffer doesn't have inlining hints yet (they were just computed
@@ -9047,7 +9066,8 @@ async function collectSegmentData(
     clientModules,
     serverConsumerManifest,
     Boolean(renderOpts.experimental.prefetchInlining),
-    hints
+    hints,
+    isUpgradeableISRFallback
   )
 }
 

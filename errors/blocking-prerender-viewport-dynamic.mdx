@@ -33,6 +33,8 @@ Request-bound reads ([`cookies()`](/docs/app/api-reference/functions/cookies), [
 
 Choose this fix when the viewport values come from an external source (database, CMS) but don't need to change on every request. Add the [`use cache`](/docs/app/api-reference/directives/use-cache) directive as the first statement inside [`generateViewport()`](/docs/app/api-reference/functions/generate-viewport). Next.js caches the returned viewport object and includes it in the prerender.
 
+This fix does not apply to [`connection()`](/docs/app/api-reference/functions/connection). The point of `connection()` is to opt into per-request rendering, so caching it would defeat the purpose. Use [Allow blocking route](#allow-blocking-route) instead.
+
 ### Patterns
 
 #### Add `use cache` to `generateViewport`
