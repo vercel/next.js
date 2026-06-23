@@ -55,7 +55,10 @@
 //!   item is treated as `+infinity` cost.
 
 use std::{
-    sync::atomic::{AtomicU64, Ordering},
+    sync::{
+        LazyLock,
+        atomic::{AtomicU64, Ordering},
+    },
     time::{SystemTime, UNIX_EPOCH},
 };
 
@@ -153,7 +156,7 @@ pub async fn compute_style_groups_graph(
 
     // Optional debug dump controlled by `TURBOPACK_DEBUG_CSS_CHUNKING`. Failures here are
     // logged and otherwise swallowed so a debug toggle never breaks the build.
-    if debug_dump_enabled()
+    if *DEBUG_DUMP_ENABLED
         && let Err(err) = write_debug_dump(
             &chunk_groups,
             &modules_in_order,
@@ -174,12 +177,11 @@ pub async fn compute_style_groups_graph(
         .await
 }
 
-fn debug_dump_enabled() -> bool {
-    match std::env::var("TURBOPACK_DEBUG_CSS_CHUNKING") {
+static DEBUG_DUMP_ENABLED: LazyLock<bool> =
+    LazyLock::new(|| match std::env::var("TURBOPACK_DEBUG_CSS_CHUNKING") {
         Ok(v) => !v.is_empty() && v != "0" && !v.eq_ignore_ascii_case("false"),
         Err(_) => false,
-    }
-}
+    });
 
 /// Write a JSON snapshot of the inputs and outputs of the graph-based CSS chunker to the
 /// current working directory. Each invocation produces a uniquely named file so concurrent or
