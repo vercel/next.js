@@ -1136,12 +1136,28 @@ export abstract class RouteModule<
     isMinimalMode: boolean
   }) {
     const responseCache = this.getResponseCache(req)
+    // The prefetch-serves-fallback-shell behavior is gated behind the
+    // `appShells` experimental flag. When it's off, Next.js Segment Cache
+    // prefetches keep the previous (non-prefetch) response-cache behavior so
+    // existing suites that incidentally depend on it are unaffected.
+    const appShells = nextConfig.experimental.appShells === true
     const cacheEntry = await responseCache.get(cacheKey, responseGenerator, {
       routeKind,
       isFallback,
       isRoutePPREnabled,
       isOnDemandRevalidate,
-      isPrefetch: req.headers.purpose === 'prefetch',
+      appShells,
+      // A Next.js Segment Cache prefetch uses the `Next-Router-Prefetch`
+      // header (surfaced as the `isPrefetchRSCRequest` request meta), not the
+      // standard browser `purpose: prefetch` header. Recognize both so the
+      // response cache treats segment prefetches as prefetches — most
+      // importantly, so a prefetch that misses serves a fallback shell rather
+      // than joining an in-flight background (concrete) revalidation. The
+      // Next.js-prefetch arm is gated on `appShells`; with the flag off, only
+      // the standard browser prefetch header is recognized (unchanged).
+      isPrefetch:
+        req.headers.purpose === 'prefetch' ||
+        (appShells && getRequestMeta(req, 'isPrefetchRSCRequest') === true),
       // Use x-invocation-id header to scope the in-memory cache to a single
       // revalidation request in minimal mode.
       invocationID: req.headers['x-invocation-id'] as string | undefined,

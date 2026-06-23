@@ -204,6 +204,11 @@ export default class ResponseCache implements ResponseCacheBase {
       routeKind: RouteKind
       isOnDemandRevalidate?: boolean
       isPrefetch?: boolean
+      /**
+       * Whether the `appShells` experimental flag is enabled. Gates the
+       * prefetch-miss-serves-fallback-shell behavior in `handleGet`.
+       */
+      appShells?: boolean
       incrementalCache: IncrementalResponseCache
       isRoutePPREnabled?: boolean
       isFallback?: boolean
@@ -265,6 +270,7 @@ export default class ResponseCache implements ResponseCacheBase {
       isFallback = false,
       isRoutePPREnabled = false,
       isPrefetch = false,
+      appShells = false,
       waitUntil,
       routeKind,
       invocationID,
@@ -282,6 +288,7 @@ export default class ResponseCache implements ResponseCacheBase {
             isFallback,
             isRoutePPREnabled,
             isPrefetch,
+            appShells,
             routeKind,
             invocationID,
           },
@@ -324,6 +331,7 @@ export default class ResponseCache implements ResponseCacheBase {
       isFallback: boolean
       isRoutePPREnabled: boolean
       isPrefetch: boolean
+      appShells: boolean
       routeKind: RouteKind
       invocationID: string | undefined
     },
@@ -362,16 +370,42 @@ export default class ResponseCache implements ResponseCacheBase {
         }
       }
 
-      // Revalidate the cache entry
-      const incrementalResponseCacheEntry = await this.revalidate(
-        key,
-        context.incrementalCache,
-        context.isRoutePPREnabled,
-        context.isFallback,
-        responseGenerator,
-        previousIncrementalCacheEntry,
-        resolved
-      )
+      // Revalidate the cache entry.
+      //
+      // A prefetch request that missed must run its own response generator
+      // rather than joining an in-flight revalidation through the batcher. A
+      // background revalidation may be regenerating the concrete (non-fallback)
+      // entry for this route — e.g. an ISR fallback-shell upgrade scheduled by
+      // an earlier prefetch sub-request. Joining it would serve that concrete
+      // result to the prefetch instead of the fallback shell, and which segment
+      // wins would depend purely on request timing. Running the generator
+      // directly lets every prefetch segment take the same fallback-shell path,
+      // independent of any concurrent background upgrade.
+      //
+      // Gated on `appShells`: with the flag off, prefetch misses keep the
+      // previous batch-join behavior so existing suites are unaffected.
+      const incrementalResponseCacheEntry =
+        context.isPrefetch &&
+        context.appShells &&
+        previousIncrementalCacheEntry === null
+          ? await this.handleRevalidate(
+              key,
+              context.incrementalCache,
+              context.isRoutePPREnabled,
+              context.isFallback,
+              responseGenerator,
+              previousIncrementalCacheEntry,
+              resolved
+            )
+          : await this.revalidate(
+              key,
+              context.incrementalCache,
+              context.isRoutePPREnabled,
+              context.isFallback,
+              responseGenerator,
+              previousIncrementalCacheEntry,
+              resolved
+            )
 
       // Handle null response
       if (!incrementalResponseCacheEntry) {

@@ -94,6 +94,19 @@ export type TreePrefetch = {
 export type SegmentPrefetchResponse = {
   buildId: string
   data: Array<SegmentPrefetch | null>
+  /**
+   * True if this response was generated from a fallback shell render (i.e. the
+   * page had not yet been prerendered with concrete params, so it was rendered
+   * with `fallbackRouteParams`). The client uses this to schedule a retry,
+   * since a more complete version may become available once the server's
+   * background regeneration finishes.
+   *
+   * Note: this is distinct from per-segment `isPartial`. A fully-prerendered
+   * PPR page can have partial segments (dynamic holes filled by runtime
+   * requests); those should not be retried. `isUpgradeableISRFallback` specifically means a
+   * more complete *static* version may become available.
+   */
+  isUpgradeableISRFallback: boolean
 }
 
 export type SegmentPrefetch = {
@@ -187,7 +200,8 @@ export async function collectSegmentData(
   clientModules: ManifestNode,
   serverConsumerManifest: any,
   prefetchInlining: boolean,
-  hints: PrefetchHints | null
+  hints: PrefetchHints | null,
+  isUpgradeableISRFallback: boolean
 ): Promise<Map<SegmentRequestKey, Buffer>> {
   // Traverse the router tree and generate a prefetch response for each segment.
 
@@ -237,6 +251,7 @@ export async function collectSegmentData(
       onCompletedProcessingRouteTree={onCompletedProcessingRouteTree}
       prefetchInlining={prefetchInlining}
       hints={hints}
+      isUpgradeableISRFallback={isUpgradeableISRFallback}
     />,
     clientModules,
     {
@@ -343,7 +358,10 @@ export async function collectPrefetchHints(
     HEAD_REQUEST_KEY,
     headVaryParams,
     clientModules,
-    null
+    null,
+    // This pass only measures gzip sizes for inlining hints; fallback-ness
+    // doesn't affect size, so pass false.
+    false
   )
   const headGzipSize = await getGzipSize(headBuffer)
 
@@ -456,7 +474,9 @@ async function collectPrefetchHintsImpl(
       requestKey,
       varyParams,
       clientModules,
-      null
+      null,
+      // Size-measurement pass only; fallback-ness is irrelevant here.
+      false
     )
     currentGzipSize = await getGzipSize(buffer)
   }
@@ -673,6 +693,7 @@ async function PrefetchTreeData({
   onCompletedProcessingRouteTree,
   prefetchInlining,
   hints,
+  isUpgradeableISRFallback,
 }: {
   isClientParamParsingEnabled: boolean
   fullPageDataBuffer: Buffer
@@ -683,6 +704,7 @@ async function PrefetchTreeData({
   onCompletedProcessingRouteTree: () => void
   prefetchInlining: boolean
   hints: PrefetchHints | null
+  isUpgradeableISRFallback: boolean
 }): Promise<RootTreePrefetch | null> {
   // We're currently rendering a Flight response for the route tree prefetch.
   // Inside this component, decode the Flight stream for the whole page. This is
@@ -742,7 +764,8 @@ async function PrefetchTreeData({
     hints,
     null,
     headBundle,
-    rootVaryParamsIterable
+    rootVaryParamsIterable,
+    isUpgradeableISRFallback
   )
 
   // Spawn a task to produce a prefetch response for the "head" segment,
@@ -757,7 +780,8 @@ async function PrefetchTreeData({
           HEAD_REQUEST_KEY,
           headVaryParams,
           clientModules,
-          null
+          null,
+          isUpgradeableISRFallback
         )
       )
     )
@@ -792,7 +816,8 @@ function collectSegmentDataImpl(
   hintTree: PrefetchHints | null,
   parentBundle: SegmentBundleNode | null,
   headBundle: SegmentBundleNode | null,
-  rootVaryParamsIterable: VaryParamsIterable | null
+  rootVaryParamsIterable: VaryParamsIterable | null,
+  isUpgradeableISRFallback: boolean
 ): TreePrefetch {
   // Union the hints already embedded in the FlightRouterState with the
   // separately-computed build-time hints. During the initial build, the
@@ -869,7 +894,8 @@ function collectSegmentDataImpl(
             requestKey,
             varyParams,
             clientModules,
-            bundle
+            bundle,
+            isUpgradeableISRFallback
           )
         )
       )
@@ -913,7 +939,8 @@ function collectSegmentDataImpl(
       childHintTree,
       childBundle,
       headBundle,
-      rootVaryParamsIterable
+      rootVaryParamsIterable,
+      isUpgradeableISRFallback
     )
     if (slotMetadata === null) {
       slotMetadata = {}
@@ -955,7 +982,8 @@ async function renderSegmentPrefetch(
   requestKey: SegmentRequestKey,
   varyParams: Set<string> | null,
   clientModules: ManifestNode,
-  bundle: SegmentBundleNode | null
+  bundle: SegmentBundleNode | null,
+  isUpgradeableISRFallback: boolean
 ): Promise<[SegmentRequestKey, Buffer]> {
   // Build the SegmentPrefetch for the terminal (requested) segment.
   // The terminal always has non-null rsc data — disabled segments are
@@ -992,9 +1020,13 @@ async function renderSegmentPrefetch(
   }
 
   // Wrap in the response envelope with the build ID at the top level.
+  // isUpgradeableISRFallback tells the client whether this came from a fallback shell
+  // render (so it knows to retry — a more complete version may become
+  // available once the server's background regeneration finishes).
   const payload: SegmentPrefetchResponse = {
     buildId: buildId ?? '',
     data,
+    isUpgradeableISRFallback,
   }
   // Since all we're doing is decoding and re-encoding a cached prerender, if
   // it takes longer than a microtask, it must because of hanging promises
