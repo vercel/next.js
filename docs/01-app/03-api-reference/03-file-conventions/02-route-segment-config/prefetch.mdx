@@ -11,8 +11,6 @@ related:
 
 The `prefetch` route segment config controls how a segment is prefetched during client-side navigation. By default, the framework manages the strategy based on the app's [`partialPrefetching`](/docs/app/api-reference/config/next-config-js/partialPrefetching) setting. To override per segment, set this export to one of the values below.
 
-When you do set this export, consider pairing it with [`instant`](/docs/app/api-reference/file-conventions/route-segment-config/instant) so validation can confirm that navigations to this segment actually produce an instant UI from the prefetched data. This is especially important for runtime prefetching.
-
 > **Good to know**:
 >
 > - The `prefetch` export only works when [`cacheComponents`](/docs/app/api-reference/config/next-config-js/cacheComponents) is enabled.
@@ -75,16 +73,12 @@ A destination can't know which links target it, so the segment config caps what 
 
 `<Link prefetch={false}>` skips prefetching at the link level regardless of how the destination is configured.
 
-> **Good to know**: A prefetch may be served from a CDN cache, reuse a cached App Shell, or run a fresh server render. Wider prefetches lean toward fresh server work; the cost shows up as server CPU per page view.
+> **Good to know**: A prefetch may be served from a CDN cache, reuse a cached App Shell, or run a fresh server render. Wider prefetches lean toward fresh server work and cost more server CPU per page view.
 
 ## TypeScript
 
 ```tsx
-type Prefetch =
-  | 'auto'
-  | 'allow-runtime'
-  | 'partial'
-  | 'force-disabled'
+type Prefetch = 'auto' | 'allow-runtime' | 'partial' | 'force-disabled'
 
 export const prefetch: Prefetch = 'allow-runtime'
 ```

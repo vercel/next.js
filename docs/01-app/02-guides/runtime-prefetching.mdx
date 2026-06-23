@@ -16,7 +16,7 @@ related:
 
 The router prefetches an [App Shell](/docs/app/glossary#app-shell) per route as visible `<Link>` components enter the viewport. Runtime prefetching lets the prefetch also include content that depends on the request: cookies, headers, `searchParams`, and `params` not resolved by [`generateStaticParams`](/docs/app/api-reference/functions/generate-static-params). On a direct visit, the `<Suspense>` boundaries around runtime data render their fallbacks and the content streams in. Uncached reads stay behind their fallback boundaries either way.
 
-This guide assumes you've structured your route for instant navigation. If you haven't, start with the [Instant navigation guide](/docs/app/guides/instant-navigation) to validate the route's caching structure first. Runtime prefetching costs a per-link server invocation; it only pays off when there's content past the App Shell worth resolving before the click.
+This guide assumes you've structured your route for instant navigation. If you haven't, start with the [Instant navigation guide](/docs/app/guides/instant-navigation) to validate the route's caching structure first. Runtime prefetching costs a per-link server invocation. It only pays off when there's content past the App Shell worth resolving before the click.
 
 ## What runtime prefetching does
 
