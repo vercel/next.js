@@ -11,7 +11,6 @@ import type { WEB_VITALS } from '../shared/lib/utils'
 import type { NextParsedUrlQuery } from './request-meta'
 import type { SizeLimit } from '../types'
 import type { SupportedTestRunners } from '../cli/next-test'
-import type { ExperimentalPPRConfig } from './lib/experimental/ppr'
 import { INFINITE_CACHE } from '../lib/constants'
 import type { FallbackRouteParam } from '../build/static-paths/types'
 import type { MemoryEvictionMode } from '../build/swc/types'
@@ -48,6 +47,8 @@ export type NextConfigComplete = Required<Omit<NextConfig, 'configFile'>> & {
   // since development builds use `{distDir}/dev`. This is used to ensure that the bundler doesn't
   // traverse into the output directory.
   distDirRoot: string
+  // The repository root, regardless of overwritten outputFileTracingRoot or turbopack.root.
+  repoRoot: string
 }
 
 export type I18NDomains = readonly DomainLocale[]
@@ -471,10 +472,19 @@ export interface ExperimentalConfig {
    * rewrites will get the rewrite headers.
    */
   clientParamParsingOrigins?: string[]
-  cachedNavigations?: boolean
+  /**
+   * Caches subsets of a route, seeded from actual navigations, so subsequent
+   * navigations to the same or similar pages can be served instantly. Requires
+   * Cache Components. `true` caches the static stage only (the runtime stage is
+   * opted into per segment via `export const prefetch = 'allow-runtime'`).
+   * `'allow-runtime'` additionally treats every segment as runtime-cached,
+   * regardless of its per-segment `prefetch` config.
+   */
+  cachedNavigations?: boolean | 'allow-runtime'
   dynamicOnHover?: boolean
   useOffline?: boolean
   optimisticRouting?: boolean
+  instrumentationClientRouterTransitionEvents?: boolean
   /**
    * Enables App Shell prefetching: a route's reusable, param-free loading
    * state is prefetched once per session and served instantly for any
@@ -963,16 +973,28 @@ export interface ExperimentalConfig {
   clientTraceMetadata?: string[]
 
   /**
-   * @deprecated This configuration option has been merged into `cacheComponents`.
-   * The Partial Prerendering feature is still available via `cacheComponents`.
-   */
-  ppr?: ExperimentalPPRConfig
-
-  /**
    * Enables experimental taint APIs in React.
    * Using this feature will enable the `react@experimental` for the `app` directory.
    */
   taint?: boolean
+
+  /**
+   * Enables blocking server-side rendering for the `app` directory: React emits
+   * a `<link rel="expect">` tag that holds the browser's first paint until the
+   * streamed shell is coherent, avoiding the layout shift / flicker that can
+   * occur while a partially-streamed HTML document is painted. Note that
+   * `rel="expect"` is currently only implemented by Chromium-based browsers.
+   *
+   * This feature is currently only available in React's experimental release
+   * channel, so enabling it opts the `app` directory into `react@experimental`
+   * (the same channel used by `taint`, `transitionIndicator`, and
+   * `gestureTransition`). The name mirrors React's underlying feature flag.
+   *
+   * This is an opt-in only. Setting it to `false` does not disable the
+   * experimental channel when another feature (such as `taint`,
+   * `transitionIndicator`, or `gestureTransition`) requires it.
+   */
+  blockingSSR?: boolean
 
   /**
    * Uninstalls all "unhandledRejection" and "uncaughtException" listeners from
@@ -1165,6 +1187,12 @@ export interface ExperimentalConfig {
   globalNotFound?: boolean
 
   /**
+   * @experimental Use the Rust port of the React compiler (Turbopack only).
+   * Requires `reactCompiler` to be enabled.
+   */
+  turbopackRustReactCompiler?: boolean
+
+  /**
    * Enable debug information to be forwarded from browser to dev server stdout/stderr.
    *
    * - `'warn'` (default): Forward warnings and errors to terminal
@@ -1329,11 +1357,6 @@ export type ExportPathMap = {
     _isDynamicError?: boolean
 
     /**
-     * @internal
-     */
-    _isRoutePPREnabled?: boolean
-
-    /**
      * When true, the page is prerendered as a fallback shell, while allowing
      * any dynamic accesses to result in an empty shell. This is the case when
      * the app has `experimental.ppr` and `cacheComponents` enabled, and
@@ -1353,6 +1376,17 @@ export type ExportPathMap = {
      * @internal
      */
     _runInstantValidation?: boolean
+
+    /**
+     * When true, a fallback shell produced for this export path could later be
+     * upgraded to a concrete version (at least one fallback param is a
+     * `generateStaticParams` candidate). Threaded into
+     * `renderOpts.isFallbackUpgradeable` so the build-baked shell carries the
+     * gated `isUpgradeableISRFallback` value.
+     *
+     * @internal
+     */
+    _isFallbackUpgradeable?: boolean
   }
 }
 
@@ -1936,7 +1970,7 @@ export const defaultConfig = Object.freeze({
   staticPageGenerationTimeout: 60,
   output: !!process.env.NEXT_PRIVATE_STANDALONE ? 'standalone' : undefined,
   modularizeImports: undefined,
-  outputFileTracingRoot: process.env.NEXT_PRIVATE_OUTPUT_TRACE_ROOT || '',
+  outputFileTracingRoot: '',
   allowedDevOrigins: undefined,
   enablePrerenderSourceMaps: true,
   cacheComponents: false,
@@ -1999,6 +2033,7 @@ export const defaultConfig = Object.freeze({
     useOffline: false,
     varyParams: true,
     optimisticRouting: true,
+    instrumentationClientRouterTransitionEvents: false,
     prefetchInlining: true,
     preloadEntriesOnStart: true,
     clientRouterFilter: true,
@@ -2041,7 +2076,6 @@ export const defaultConfig = Object.freeze({
     clientTraceMetadata: undefined,
     parallelServerCompiles: false,
     parallelServerBuildTraces: false,
-    ppr: false,
     authInterrupts: false,
     webpackBuildWorker: undefined,
     webpackMemoryOptimizations: false,
@@ -2106,7 +2140,6 @@ export async function normalizeConfig(phase: string, config: any) {
 //     cacheComponents?: boolean;
 //     clientParamParsingOrigins?: string[];
 //     clientSegmentCache?: boolean;
-//     ppr?: boolean | 'incremental';
 //     serverActions?: Record<string, never>;
 //   };
 // };
@@ -2149,7 +2182,6 @@ export interface NextConfigRuntime {
 
   experimental: Pick<
     NextConfigComplete['experimental'],
-    | 'ppr'
     | 'taint'
     | 'serverActions'
     | 'staleTimes'
@@ -2217,7 +2249,6 @@ export function getNextConfigRuntime(
   }
 
   const experimental = {
-    ppr: ex.ppr,
     taint: ex.taint,
     serverActions: ex.serverActions,
     staleTimes: ex.staleTimes,

@@ -229,6 +229,7 @@ pub mod test_utils {
 mod tests {
     use std::{mem::take, path::PathBuf, sync::Arc, time::Instant};
 
+    use bumpalo::boxed::Box as BumpBox;
     use parking_lot::Mutex;
     use rustc_hash::FxHashMap;
     use swc_core::{
@@ -253,7 +254,7 @@ mod tests {
     };
 
     use super::{
-        JsValue,
+        BumpVec, JsValue,
         graph::{ConditionalKind, Effect, EffectArg, EvalContext, VarGraph, create_graph},
         linker::link,
     };
@@ -468,7 +469,7 @@ mod tests {
                 let start = Instant::now();
                 async fn handle_args<'a>(
                     arena: &'a ThreadLocal<Bump>,
-                    args: Vec<EffectArg<'a>>,
+                    args: BumpVec<'a, EffectArg<'a>>,
                     queue: &mut Vec<(usize, Effect<'a>)>,
                     var_graph: &VarGraph<'a>,
                     var_cache: &Mutex<FxHashMap<Id, JsValue<'a>>>,
@@ -502,7 +503,12 @@ mod tests {
                                     .await
                                     .0,
                                 );
-                                queue.extend(effects.effects.into_iter().rev().map(|e| (i, e)));
+                                queue.extend(
+                                    BumpVec::from(BumpBox::into_inner(effects).effects)
+                                        .into_iter()
+                                        .rev()
+                                        .map(|e| (i, e)),
+                                );
                             }
                             EffectArg::Spread => {
                                 new_args.push(JsValue::unknown_empty(true, rcstr!("spread")));
@@ -526,31 +532,66 @@ mod tests {
                         )
                         .await;
                         resolved.push((format!("{parent} -> {i} conditional"), condition));
-                        match *kind {
+                        match BumpBox::into_inner(kind) {
                             ConditionalKind::If { then } => {
-                                queue.extend(then.effects.into_iter().rev().map(|e| (i, e)));
+                                queue.extend(
+                                    BumpVec::from(then.effects)
+                                        .into_iter()
+                                        .rev()
+                                        .map(|e| (i, e)),
+                                );
                             }
                             ConditionalKind::Else { r#else } => {
-                                queue.extend(r#else.effects.into_iter().rev().map(|e| (i, e)));
+                                queue.extend(
+                                    BumpVec::from(r#else.effects)
+                                        .into_iter()
+                                        .rev()
+                                        .map(|e| (i, e)),
+                                );
                             }
                             ConditionalKind::IfElse { then, r#else }
                             | ConditionalKind::Ternary { then, r#else } => {
-                                queue.extend(r#else.effects.into_iter().rev().map(|e| (i, e)));
-                                queue.extend(then.effects.into_iter().rev().map(|e| (i, e)));
+                                queue.extend(
+                                    BumpVec::from(r#else.effects)
+                                        .into_iter()
+                                        .rev()
+                                        .map(|e| (i, e)),
+                                );
+                                queue.extend(
+                                    BumpVec::from(then.effects)
+                                        .into_iter()
+                                        .rev()
+                                        .map(|e| (i, e)),
+                                );
                             }
                             ConditionalKind::IfElseMultiple { then, r#else } => {
-                                for then in then {
-                                    queue.extend(then.effects.into_iter().rev().map(|e| (i, e)));
+                                for then in BumpVec::from(then) {
+                                    queue.extend(
+                                        BumpVec::from(then.effects)
+                                            .into_iter()
+                                            .rev()
+                                            .map(|e| (i, e)),
+                                    );
                                 }
-                                for r#else in r#else {
-                                    queue.extend(r#else.effects.into_iter().rev().map(|e| (i, e)));
+                                for r#else in BumpVec::from(r#else) {
+                                    queue.extend(
+                                        BumpVec::from(r#else.effects)
+                                            .into_iter()
+                                            .rev()
+                                            .map(|e| (i, e)),
+                                    );
                                 }
                             }
                             ConditionalKind::And { expr }
                             | ConditionalKind::Or { expr }
                             | ConditionalKind::NullishCoalescing { expr }
                             | ConditionalKind::Labeled { body: expr } => {
-                                queue.extend(expr.effects.into_iter().rev().map(|e| (i, e)));
+                                queue.extend(
+                                    BumpVec::from(expr.effects)
+                                        .into_iter()
+                                        .rev()
+                                        .map(|e| (i, e)),
+                                );
                             }
                         };
                         steps

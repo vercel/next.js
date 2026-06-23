@@ -13,6 +13,7 @@ import { getRevalidateReason } from '../../server/instrumentation/utils' with { 
 import {
   getTracer,
   SpanKind,
+  SpanStatusCode,
   type Span,
 } from '../../server/lib/trace/tracer' with { 'turbopack-transition': 'next-server-utility' }
 import type { RequestMeta } from '../../server/request-meta'
@@ -28,7 +29,6 @@ import {
   NodeNextRequest,
   NodeNextResponse,
 } from '../../server/base-http/node' with { 'turbopack-transition': 'next-server-utility' }
-import { checkIsAppPPREnabled } from '../../server/lib/experimental/ppr' with { 'turbopack-transition': 'next-server-utility' }
 import { isRSCRequestHeader } from '../../server/lib/is-rsc-request' with { 'turbopack-transition': 'next-server-utility' }
 import {
   getFallbackRouteParams,
@@ -118,7 +118,6 @@ import * as entryBase from '../../server/app-render/entry-base' with { 'turbopac
 import { RedirectStatusCode } from '../../client/components/redirect-status-code' with { 'turbopack-transition': 'next-server-utility' }
 import { InvariantError } from '../../shared/lib/invariant-error' with { 'turbopack-transition': 'next-server-utility' }
 import { scheduleOnNextTick } from '../../lib/scheduler' with { 'turbopack-transition': 'next-server-utility' }
-import { isInterceptionRouteAppPath } from '../../shared/lib/router/utils/interception-routes' with { 'turbopack-transition': 'next-server-utility' }
 import { getSegmentParam } from '../../shared/lib/router/utils/get-segment-param' with { 'turbopack-transition': 'next-server-utility' }
 
 export * from '../../server/app-render/entry-base' with { 'turbopack-transition': 'next-server-utility' }
@@ -191,6 +190,19 @@ function buildCompletedShellCacheKey(
   )
 }
 
+let srcPage = 'VAR_DEFINITION_PAGE'
+// turbopack doesn't normalize `/index` in the page name
+// so we need to to process dynamic routes properly
+// TODO: fix turbopack providing differing value from webpack
+if (process.env.TURBOPACK) {
+  srcPage = srcPage.replace(/\/index$/, '') || '/'
+} else if (srcPage === '/index') {
+  // we always normalize /index specifically
+  srcPage = '/'
+}
+
+const normalizedSrcPage = normalizeAppPath(srcPage)
+
 export async function handler(
   req: IncomingMessage,
   res: ServerResponse,
@@ -208,17 +220,12 @@ export async function handler(
   }
   const isMinimalMode = Boolean(getRequestMeta(req, 'minimalMode'))
 
-  let srcPage = 'VAR_DEFINITION_PAGE'
+  // Capture the request target before `prepare()` runs, since route
+  // normalization (e.g. `normalizeCdnUrl`) rewrites `req.url` and would
+  // otherwise change the `http.target` span attribute. This mirrors
+  // `BaseServer.handleRequest`, which records the target before normalization.
+  const httpTarget = req.url
 
-  // turbopack doesn't normalize `/index` in the page name
-  // so we need to to process dynamic routes properly
-  // TODO: fix turbopack providing differing value from webpack
-  if (process.env.TURBOPACK) {
-    srcPage = srcPage.replace(/\/index$/, '') || '/'
-  } else if (srcPage === '/index') {
-    // we always normalize /index specifically
-    srcPage = '/'
-  }
   const multiZoneDraftMode = process.env
     .__NEXT_MULTI_ZONE_DRAFT_MODE as any as boolean
 
@@ -258,23 +265,13 @@ export async function handler(
     clientAssetToken,
   } = prepareResult
 
-  const normalizedSrcPage = normalizeAppPath(srcPage)
-
   let { isOnDemandRevalidate } = prepareResult
 
   // We use the resolvedPathname instead of the parsedUrl.pathname because it
   // is not rewritten as resolvedPathname is. This will ensure that the correct
   // prerender info is used instead of using the original pathname as the
-  // source. If however PPR is enabled and cacheComponents is disabled, we
-  // treat the pathname as dynamic. Currently, there's a bug in the PPR
-  // implementation that incorrectly leaves %%drp placeholders in the output of
-  // parallel routes. This is addressed with cacheComponents.
-  const prerenderMatch =
-    nextConfig.experimental.ppr &&
-    !nextConfig.cacheComponents &&
-    isInterceptionRouteAppPath(resolvedPathname)
-      ? null
-      : routeModule.match(resolvedPathname, prerenderManifest)
+  // source.
+  const prerenderMatch = routeModule.match(resolvedPathname, prerenderManifest)
   const prerenderInfo = prerenderMatch?.route ?? null
 
   const isPrerendered = !!prerenderManifest.routes[resolvedPathname]
@@ -303,9 +300,7 @@ export async function handler(
    * If the route being rendered is an app page, and the ppr feature has been
    * enabled, then the given route _could_ support PPR.
    */
-  const couldSupportPPR: boolean = checkIsAppPPREnabled(
-    nextConfig.experimental.ppr
-  )
+  const couldSupportPPR = Boolean(nextConfig.cacheComponents)
 
   // Stash postponed state for server actions when in minimal mode.
   // We extract it here so the RDC is available for the re-render after the action completes.
@@ -721,8 +716,18 @@ export async function handler(
 
         span.setAttributes({
           'http.status_code': res.statusCode,
-          'next.rsc': false,
+          'next.rsc': isRSCRequest,
         })
+
+        if (res.statusCode && res.statusCode >= 500) {
+          // For 5xx status codes: SHOULD be set to 'Error' span status.
+          // x-ref: https://opentelemetry.io/docs/specs/semconv/http/http-spans/#status
+          span.setStatus({
+            code: SpanStatusCode.ERROR,
+          })
+          // For span status 'Error', SHOULD set 'error.type' attribute.
+          span.setAttribute('error.type', res.statusCode.toString())
+        }
 
         const rootSpanAttributes = tracer.getRootSpanAttributes()
         // We were unable to get attributes, probably OTEL is not enabled
@@ -743,7 +748,9 @@ export async function handler(
         }
 
         const route = rootSpanAttributes.get('next.route') || normalizedSrcPage
-        const name = `${method} ${route}`
+        const name = isRSCRequest
+          ? `RSC ${method} ${route}`
+          : `${method} ${route}`
 
         span.setAttributes({
           'next.route': route,
@@ -884,10 +891,14 @@ export async function handler(
             : {}),
           cacheComponents: Boolean(nextConfig.cacheComponents),
           partialPrefetching: nextConfig.partialPrefetching,
+          // A fallback shell can only be upgraded to a concrete version if at
+          // least one of its fallback params is a `generateStaticParams`
+          // candidate (`remainingPrerenderableParams`). This gates whether the
+          // per-segment prefetch responses are flagged `isUpgradeableISRFallback`.
+          isFallbackUpgradeable: remainingPrerenderableParams.length > 0,
           validationLevel:
             nextConfig.experimental.instantInsights.validationLevel,
           experimental: {
-            isRoutePPREnabled,
             expireTime: nextConfig.expireTime,
             staleTimes: nextConfig.experimental.staleTimes,
             dynamicOnHover: Boolean(nextConfig.experimental.dynamicOnHover),
@@ -898,9 +909,8 @@ export async function handler(
             prefetchInlining: nextConfig.experimental.prefetchInlining ?? false,
             authInterrupts: Boolean(nextConfig.experimental.authInterrupts),
             useCacheTimeout: nextConfig.experimental.useCacheTimeout,
-            cachedNavigations: Boolean(
-              nextConfig.experimental.cachedNavigations
-            ),
+            cachedNavigations:
+              nextConfig.experimental.cachedNavigations ?? false,
             appShells: nextConfig.experimental.appShells,
             clientTraceMetadata:
               nextConfig.experimental.clientTraceMetadata || ([] as any),
@@ -1998,7 +2008,7 @@ export async function handler(
               kind: SpanKind.SERVER,
               attributes: {
                 'http.method': method,
-                'http.target': req.url,
+                'http.target': httpTarget,
               },
             },
             handleResponse

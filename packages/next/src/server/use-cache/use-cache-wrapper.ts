@@ -34,7 +34,6 @@ import {
   getCacheSignal,
   isHmrRefresh,
   getServerComponentsHmrCache,
-  getStagedRenderingController,
 } from '../app-render/work-unit-async-storage.external'
 
 import {
@@ -42,8 +41,6 @@ import {
   makeDevtoolsIOAwarePromise,
   makeHangingPromise,
   getSessionDataStage,
-  getRuntimeLinkDataStage,
-  getStaticLinkDataStage,
 } from '../dynamic-rendering-utils'
 
 import type { ClientReferenceManifest } from '../../build/webpack/plugins/flight-manifest-plugin'
@@ -64,8 +61,15 @@ import { createDigestWithErrorCode } from '../../lib/error-telemetry-utils'
 import stringHash from 'next/dist/compiled/string-hash'
 import { DYNAMIC_EXPIRE, DYNAMIC_STALE } from './constants'
 import { NEXT_CACHE_ROOT_PARAM_TAG_ID } from '../../lib/constants'
-import type { CacheHandler } from '../lib/cache-handlers/types'
-import { getCacheHandler, getPrivateCacheHandler } from './handlers'
+import {
+  getCacheHandler,
+  getDevTieredCacheHandler,
+  getPrivateCacheHandler,
+  isCustomCacheHandler,
+  isMemoryCacheDisabled,
+} from './handlers'
+import type { CacheReadWriteHandler } from './tiered-cache-handler'
+import { cloneCacheEntry } from './clone-cache-entry'
 import {
   NEXT_HMR_REFRESH_HASH_COOKIE,
   NEXT_INSTANT_TEST_COOKIE,
@@ -79,7 +83,6 @@ import {
 } from './use-cache-errors'
 import {
   createHangingInputAbortSignal,
-  postponeWithTracking,
   throwToInterruptStaticGeneration,
 } from '../app-render/dynamic-rendering'
 import {
@@ -499,7 +502,7 @@ function saveSharedCacheEntryToResumeDataCache(
 }
 
 function saveToCacheHandler(
-  cacheHandler: CacheHandler,
+  cacheHandler: CacheReadWriteHandler,
   workStore: WorkStore,
   id: string,
   cacheHandlerKeyBase: string,
@@ -682,7 +685,6 @@ function createUseCacheStore(
         break
       case 'prerender-runtime':
       case 'prerender':
-      case 'prerender-ppr':
       case 'prerender-legacy':
       case 'unstable-cache':
       case 'generate-static-params':
@@ -742,7 +744,6 @@ function captureOuterOwnerStack(
     case 'unstable-cache':
     case 'request':
     case 'prerender':
-    case 'prerender-ppr':
     case 'prerender-legacy':
     case 'prerender-runtime':
     case 'prerender-client':
@@ -912,7 +913,6 @@ function propagateCacheEntryMetadata(
       case 'private-cache':
       case 'prerender':
       case 'prerender-runtime':
-      case 'prerender-ppr':
       case 'prerender-legacy':
         propagateCacheLifeAndTagsToRevalidateStore(
           cacheContext.outerWorkUnitStore,
@@ -977,8 +977,7 @@ function maybePropagateCacheEntryMetadata(
     case 'private-cache':
     case 'cache':
     case 'unstable-cache':
-    case 'prerender-legacy':
-    case 'prerender-ppr': {
+    case 'prerender-legacy': {
       propagateCacheEntryMetadata(cacheContext, metadata)
       break
     }
@@ -1076,25 +1075,36 @@ async function collectResult(
 
   const collectedTags = innerCacheStore.tags
 
-  // In development, private caches are forced to `revalidate: 0` and an
-  // `expire` of `DYNAMIC_EXPIRE` (5 minutes), the shortest expire not treated
-  // as dynamically shortened. The zero revalidate makes every read serve
-  // stale-while-revalidate (re-warming a fresh entry in the background) so warm
-  // reloads stay fast. The expire bounds how long an entry lingers in the dev
-  // in-memory cache.
   const isPrivateCacheInDev = Boolean(
     process.env.__NEXT_DEV_SERVER && cacheContext.kind === 'private'
   )
 
+  // In development, force a dynamic cache life (`revalidate: 0`, `expire:
+  // DYNAMIC_EXPIRE`) for caches that have no real backing: private caches, and
+  // any built-in (non-custom) kind when the in-memory cache is disabled
+  // (`cacheMaxMemorySize: 0`). The zero revalidate makes every read serve
+  // stale-while-revalidate (re-warming a fresh entry in the background) so warm
+  // reloads stay fast, and `DYNAMIC_EXPIRE` (5 minutes, the shortest expire not
+  // treated as dynamically shortened) bounds how long an entry lingers in the
+  // dev in-memory cache. Custom kinds keep their real cache life, since their
+  // backing handler owns it.
+  const forceDynamicCacheLifeInDev =
+    isPrivateCacheInDev ||
+    Boolean(
+      process.env.__NEXT_DEV_SERVER &&
+        isMemoryCacheDisabled() &&
+        !isCustomCacheHandler(cacheContext.kind)
+    )
+
   // If cacheLife() was used to set an explicit revalidate/expire/stale time we
   // use that. Otherwise, we use the lowest of all inner fetch(),
   // unstable_cache() or nested "use cache", if they're lower than our default.
-  const collectedRevalidate = isPrivateCacheInDev
+  const collectedRevalidate = forceDynamicCacheLifeInDev
     ? 0
     : innerCacheStore.explicitRevalidate !== undefined
       ? innerCacheStore.explicitRevalidate
       : innerCacheStore.revalidate
-  const collectedExpire = isPrivateCacheInDev
+  const collectedExpire = forceDynamicCacheLifeInDev
     ? DYNAMIC_EXPIRE
     : innerCacheStore.explicitExpire !== undefined
       ? innerCacheStore.explicitExpire
@@ -1208,7 +1218,6 @@ async function generateCacheEntryImpl(
                     }
                   })
                   break
-                case 'prerender-ppr':
                 case 'prerender-legacy':
                 case 'request':
                 case 'cache':
@@ -1464,7 +1473,6 @@ async function generateCacheEntryImpl(
         }
       }
     // fallthrough
-    case 'prerender-ppr':
     case 'prerender-legacy':
     case 'cache':
     case 'private-cache':
@@ -1512,20 +1520,6 @@ async function generateCacheEntryImpl(
     stream: returnStream,
     pendingCacheResult,
   }
-}
-
-function cloneCacheEntry(entry: CacheEntry): [CacheEntry, CacheEntry] {
-  const [streamA, streamB] = entry.value.tee()
-  entry.value = streamA
-  const clonedEntry: CacheEntry = {
-    value: streamB,
-    timestamp: entry.timestamp,
-    revalidate: entry.revalidate,
-    expire: entry.expire,
-    stale: entry.stale,
-    tags: entry.tags,
-  }
-  return [entry, clonedEntry]
 }
 
 function cloneCacheResult(
@@ -1635,7 +1629,7 @@ export async function cache(
   // Probe re-executions (the dev-server's hang-detection worker) short-circuit
   // further down before any handler is consulted, so we skip handler selection
   // entirely and the worker can boot without registering handlers at all.
-  let cacheHandler: CacheHandler | undefined
+  let cacheHandler: CacheReadWriteHandler | undefined
   if (workStore.useCacheProbeMode === undefined) {
     if (isPrivate) {
       // Private caches normally go to the Resume Data Cache (RDC), not a cache
@@ -1645,9 +1639,30 @@ export async function cache(
         cacheHandler = getPrivateCacheHandler()
       }
     } else {
-      cacheHandler = getCacheHandler(kind)
-      if (!cacheHandler) {
+      const handler = getCacheHandler(kind)
+      if (!handler) {
         throw new Error('Unknown cache handler: ' + kind)
+      }
+
+      // In development, a user-configured (custom) handler may be slow or
+      // remote, so we read through a tiered handler that puts a built-in
+      // in-memory front in front of it to keep warm reads microtask-fast.
+      // Built-in handlers (the default handler, and its size-0 replacement) are
+      // already in-memory and used directly.
+      if (process.env.__NEXT_DEV_SERVER && isCustomCacheHandler(kind)) {
+        // A custom kind always has a dev tiered handler: it is created in the
+        // same `setCacheHandler` call that makes `isCustomCacheHandler` true.
+        const tieredCacheHandler = getDevTieredCacheHandler(kind)
+
+        if (!tieredCacheHandler) {
+          throw new InvariantError(
+            `Expected a dev tiered cache handler for kind "${kind}".`
+          )
+        }
+
+        cacheHandler = tieredCacheHandler
+      } else {
+        cacheHandler = handler
       }
     }
   }
@@ -1702,12 +1717,6 @@ export async function cache(
           workUnitStore.renderSignal,
           workStore.route,
           expression
-        )
-      case 'prerender-ppr':
-        return postponeWithTracking(
-          workStore.route,
-          expression,
-          workUnitStore.dynamicTracking
         )
       case 'prerender-legacy':
         return throwToInterruptStaticGeneration(
@@ -1796,7 +1805,6 @@ export async function cache(
       }
       case 'prerender':
       case 'prerender-runtime':
-      case 'prerender-ppr':
       case 'prerender-legacy':
       case 'request':
       case 'private-cache':
@@ -2052,7 +2060,6 @@ export async function cache(
         break
       }
     // fallthrough
-    case 'prerender-ppr':
     case 'prerender-legacy':
     case 'request':
     // TODO(restart-on-cache-miss): We need to handle params/searchParams on page components.
@@ -2191,7 +2198,6 @@ export async function cache(
             workStore.route,
             'dynamic "use cache"'
           )
-        case 'prerender-ppr':
         case 'prerender-legacy':
         case 'request':
         case 'cache':
@@ -2346,7 +2352,6 @@ export async function cache(
               }
               break
             }
-            case 'prerender-ppr':
             case 'prerender-legacy':
             case 'cache':
             case 'private-cache':
@@ -2400,7 +2405,6 @@ export async function cache(
               }
               break
             }
-            case 'prerender-ppr':
             case 'prerender-legacy':
             case 'cache':
             case 'private-cache':
@@ -2409,51 +2413,6 @@ export async function cache(
               break
             default:
               workUnitStore satisfies never
-          }
-        }
-
-        // If we're doing staged rendering with shells and the cache accessed root params,
-        // we should exclude it from the shell, because root params are also excluded.
-        const stagedRendering = getStagedRenderingController(workUnitStore)
-        if (
-          process.env.__NEXT_APP_SHELLS &&
-          stagedRendering &&
-          rootParams &&
-          rdcResult.readRootParamNames &&
-          rdcResult.readRootParamNames.size > 0
-        ) {
-          switch (workUnitStore.type) {
-            case 'prerender': {
-              await stagedRendering.waitForStage(
-                getStaticLinkDataStage(stagedRendering)
-              )
-              break
-            }
-            case 'prerender-runtime': {
-              // If we're rendering with shells, this is when params should resolve
-              await stagedRendering.waitForStage(
-                getRuntimeLinkDataStage(stagedRendering)
-              )
-              break
-            }
-            case 'request': {
-              // For a staged dynamic request, assume we're recovering a static shell --
-              // If a session shell is needed, we do it in a separate render
-              await stagedRendering.waitForStage(
-                getStaticLinkDataStage(stagedRendering)
-              )
-              break
-            }
-            case 'cache':
-            case 'private-cache':
-            case 'prerender-legacy':
-            case 'prerender-ppr':
-            case 'generate-static-params': {
-              break
-            }
-            default: {
-              workUnitStore satisfies never
-            }
           }
         }
       }
@@ -2553,7 +2512,6 @@ export async function cache(
             )
           }
           break
-        case 'prerender-ppr':
         case 'prerender-legacy':
         case 'request':
         case 'cache':
@@ -2916,7 +2874,6 @@ export async function cache(
               break
             }
             case 'prerender-runtime':
-            case 'prerender-ppr':
             case 'prerender-legacy':
             case 'cache':
             case 'private-cache':
@@ -2952,7 +2909,6 @@ export async function cache(
             }
             case 'prerender':
             case 'prerender-runtime':
-            case 'prerender-ppr':
             case 'prerender-legacy':
             case 'cache':
             case 'private-cache':
@@ -3298,7 +3254,6 @@ function shouldForceRevalidate(
       case 'prerender':
       case 'prerender-client':
       case 'validation-client':
-      case 'prerender-ppr':
       case 'prerender-legacy':
       case 'unstable-cache':
       case 'generate-static-params':
@@ -3342,7 +3297,6 @@ function shouldDiscardCacheEntry(
     case 'prerender-runtime':
     case 'prerender-client':
     case 'validation-client':
-    case 'prerender-ppr':
     case 'prerender-legacy':
     case 'request':
     case 'cache':

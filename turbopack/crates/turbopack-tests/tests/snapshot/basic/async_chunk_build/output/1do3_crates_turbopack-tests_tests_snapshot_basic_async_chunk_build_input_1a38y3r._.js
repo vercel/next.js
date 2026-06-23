@@ -1,18 +1,13 @@
 module.exports = [
-"[project]/turbopack/crates/turbopack-tests/tests/snapshot/basic/async_chunk_build/input/node_modules/bar/index.js [test] (ecmascript)", ((__turbopack_context__) => {
-"use strict";
+"[project]/turbopack/crates/turbopack-tests/tests/snapshot/basic/async_chunk_build/input/import.js [test] (ecmascript, async loader)", ((__turbopack_context__) => {
 
-__turbopack_context__.s([
-    "bar",
-    ()=>bar
-]);
-function bar(value) {
-    console.assert(value);
-}
-}),
-"[project]/turbopack/crates/turbopack-tests/tests/snapshot/basic/async_chunk_build/input/shared.js [test] (ecmascript)", ((__turbopack_context__, module, exports) => {
-
-// shared package
+__turbopack_context__.v((parentImport) => {
+    return Promise.all([
+  "output/1do3_crates_turbopack-tests_tests_snapshot_basic_async_chunk_build_input_0aldyki._.js"
+].map((chunk) => __turbopack_context__.l(chunk))).then(() => {
+        return parentImport("[project]/turbopack/crates/turbopack-tests/tests/snapshot/basic/async_chunk_build/input/import.js [test] (ecmascript)");
+    });
+});
 }),
 "[project]/turbopack/crates/turbopack-tests/tests/snapshot/basic/async_chunk_build/input/index.js [test] (ecmascript)", ((__turbopack_context__) => {
 "use strict";
@@ -27,15 +22,20 @@ __turbopack_context__.A("[project]/turbopack/crates/turbopack-tests/tests/snapsh
     foo(true);
 });
 }),
-"[project]/turbopack/crates/turbopack-tests/tests/snapshot/basic/async_chunk_build/input/import.js [test] (ecmascript, async loader)", ((__turbopack_context__) => {
+"[project]/turbopack/crates/turbopack-tests/tests/snapshot/basic/async_chunk_build/input/node_modules/bar/index.js [test] (ecmascript)", ((__turbopack_context__) => {
+"use strict";
 
-__turbopack_context__.v((parentImport) => {
-    return Promise.all([
-  "output/1do3_crates_turbopack-tests_tests_snapshot_basic_async_chunk_build_input_0aldyki._.js"
-].map((chunk) => __turbopack_context__.l(chunk))).then(() => {
-        return parentImport("[project]/turbopack/crates/turbopack-tests/tests/snapshot/basic/async_chunk_build/input/import.js [test] (ecmascript)");
-    });
-});
+__turbopack_context__.s([
+    "bar",
+    ()=>bar
+]);
+function bar(value) {
+    console.assert(value);
+}
+}),
+"[project]/turbopack/crates/turbopack-tests/tests/snapshot/basic/async_chunk_build/input/shared.js [test] (ecmascript)", ((__turbopack_context__, module, exports) => {
+
+// shared package
 }),
 ];
 

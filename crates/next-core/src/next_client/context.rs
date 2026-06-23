@@ -14,8 +14,8 @@ use turbopack_browser::{
 };
 use turbopack_core::{
     chunk::{
-        AssetSuffix, ChunkingConfig, ChunkingContext, ContentHashing, CrossOrigin, MangleType,
-        MinifyType, SourceMapSourceType, SourceMapsType, UnusedReferences, UrlBehavior,
+        AssetSuffix, ChunkLoadRetry, ChunkingConfig, ChunkingContext, ContentHashing, CrossOrigin,
+        MangleType, MinifyType, SourceMapSourceType, SourceMapsType, UnusedReferences, UrlBehavior,
         chunk_id_strategy::ModuleIdStrategy,
     },
     compile_time_info::{CompileTimeDefines, CompileTimeInfo, FreeVarReference, FreeVarReferences},
@@ -29,8 +29,10 @@ use turbopack_core::{
 };
 use turbopack_css::chunk::CssChunkType;
 use turbopack_ecmascript::{
-    AnalyzeMode, TypeofWindow, chunk::EcmascriptChunkType, references::esm::UrlRewriteBehavior,
-    transform::PresetEnvConfig,
+    AnalyzeMode, TypeofWindow,
+    chunk::EcmascriptChunkType,
+    references::esm::UrlRewriteBehavior,
+    transform::{PresetEnvConfig, ReactCompilerTarget},
 };
 use turbopack_node::{
     execution_context::ExecutionContext,
@@ -53,7 +55,10 @@ use crate::{
     },
     next_shared::{
         resolve::NextSharedRuntimeResolvePlugin,
-        webpack_rules::{WebpackLoaderBuiltinCondition, webpack_loader_options},
+        webpack_rules::{
+            WebpackLoaderBuiltinCondition, babel::detect_react_compiler_target,
+            webpack_loader_options,
+        },
     },
     transform_options::{
         get_decorators_transform_options, get_jsx_transform_options,
@@ -343,6 +348,16 @@ pub async fn get_client_module_options_context(
             .resolved_cell()
         });
 
+    let enable_rust_react_compiler = *next_config.rust_react_compiler().await?;
+    let rust_react_compiler_target = if enable_rust_react_compiler.is_some() {
+        match detect_react_compiler_target(&project_path).await? {
+            Some(ReactCompilerTarget::React18) => ReactCompilerTarget::React18,
+            _ => ReactCompilerTarget::React19,
+        }
+    } else {
+        ReactCompilerTarget::React19
+    };
+
     let module_options_context = ModuleOptionsContext {
         ecmascript: EcmascriptOptionsContext {
             esm_url_rewrite_behavior: Some(UrlRewriteBehavior::Relative),
@@ -371,14 +386,7 @@ pub async fn get_client_module_options_context(
                 .await?,
         ),
         keep_last_successful_parse: next_mode.is_development(),
-        analyze_mode: if next_mode.is_development() {
-            AnalyzeMode::CodeGeneration
-        } else {
-            // Technically, this doesn't need to tracing for the client context. But this will
-            // result in more cache hits for the analysis for modules which are loaded for both ssr
-            // and client
-            AnalyzeMode::CodeGenerationAndTracing
-        },
+        analyze_mode: AnalyzeMode::CodeGeneration,
         ..Default::default()
     };
 
@@ -423,6 +431,8 @@ pub async fn get_client_module_options_context(
             enable_jsx: Some(jsx_runtime_options),
             enable_typescript_transform: Some(tsconfig),
             enable_decorators: Some(decorators_options.to_resolved().await?),
+            enable_rust_react_compiler,
+            rust_react_compiler_target,
             ..module_options_context.ecmascript.clone()
         },
         enable_webpack_loaders,
@@ -472,6 +482,14 @@ pub struct ClientChunkingContextOptions {
     pub chunk_loading_global: Vc<Option<RcStr>>,
     pub style_groups_algorithm: StyleGroupsAlgorithm,
 }
+
+/// Next.js' chunk-load retry policy for the Turbopack browser runtime.
+/// Webpack does not currently support chunk-load retrying.
+const NEXT_CHUNK_LOAD_RETRY: ChunkLoadRetry = ChunkLoadRetry {
+    max_retry_attempts: 1,
+    base_delay_ms: 200,
+    max_jitter_ms: 400,
+};
 
 #[turbo_tasks::function]
 pub async fn get_client_chunking_context(
@@ -533,6 +551,7 @@ pub async fn get_client_chunking_context(
     .asset_base_path(Some(asset_prefix))
     .current_chunk_method(CurrentChunkMethod::DocumentCurrentScript)
     .cross_origin(cross_origin_loading)
+    .chunk_load_retry(NEXT_CHUNK_LOAD_RETRY)
     .export_usage(*export_usage.await?)
     .unused_references(unused_references.to_resolved().await?)
     .module_id_strategy(module_id_strategy.to_resolved().await?)

@@ -81,7 +81,7 @@ describe('Cache Components Errors - Client Components', () => {
 
           await expect(browser).toDisplayCollapsedRedbox(`
            {
-             "code": "E1318",
+             "code": "E1373",
              "description": "Next.js encountered uncached data during prerendering.",
              "environmentLabel": "Server",
              "label": "Blocking Route",
@@ -118,10 +118,8 @@ describe('Cache Components Errors - Client Components', () => {
                Ways to fix this:
                  - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
                    https://nextjs.org/docs/messages/blocking-prerender-dynamic#wrap-in-or-move-into-suspense
-                 - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\`
+                 - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\` (does not apply to \`connection()\`)
                    https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
-                 - [cache] For \`params\`: if the params are known, prerender them with \`generateStaticParams\`
-                   https://nextjs.org/docs/messages/blocking-prerender-runtime#for-known-params-prerender
                  - [block] Set \`export const instant = false\` to silence this warning and allow a blocking route
                    https://nextjs.org/docs/messages/blocking-prerender-dynamic#allow-blocking-route
                    at Client (app/client-awaited-io/client.tsx:6:19)
@@ -148,10 +146,8 @@ describe('Cache Components Errors - Client Components', () => {
                Ways to fix this:
                  - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
                    https://nextjs.org/docs/messages/blocking-prerender-dynamic#wrap-in-or-move-into-suspense
-                 - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\`
+                 - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\` (does not apply to \`connection()\`)
                    https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
-                 - [cache] For \`params\`: if the params are known, prerender them with \`generateStaticParams\`
-                   https://nextjs.org/docs/messages/blocking-prerender-runtime#for-known-params-prerender
                  - [block] Set \`export const instant = false\` to silence this warning and allow a blocking route
                    https://nextjs.org/docs/messages/blocking-prerender-dynamic#allow-blocking-route
                    at <unknown> (app/client-awaited-io/client.tsx:5:26)
@@ -181,10 +177,8 @@ describe('Cache Components Errors - Client Components', () => {
                Ways to fix this:
                  - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
                    https://nextjs.org/docs/messages/blocking-prerender-dynamic#wrap-in-or-move-into-suspense
-                 - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\`
+                 - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\` (does not apply to \`connection()\`)
                    https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
-                 - [cache] For \`params\`: if the params are known, prerender them with \`generateStaticParams\`
-                   https://nextjs.org/docs/messages/blocking-prerender-runtime#for-known-params-prerender
                  - [block] Set \`export const instant = false\` to silence this warning and allow a blocking route
                    https://nextjs.org/docs/messages/blocking-prerender-dynamic#allow-blocking-route
                    at Client (webpack:///app/client-awaited-io/client.tsx:6:19)
@@ -211,10 +205,8 @@ describe('Cache Components Errors - Client Components', () => {
                Ways to fix this:
                  - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
                    https://nextjs.org/docs/messages/blocking-prerender-dynamic#wrap-in-or-move-into-suspense
-                 - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\`
+                 - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\` (does not apply to \`connection()\`)
                    https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
-                 - [cache] For \`params\`: if the params are known, prerender them with \`generateStaticParams\`
-                   https://nextjs.org/docs/messages/blocking-prerender-runtime#for-known-params-prerender
                  - [block] Set \`export const instant = false\` to silence this warning and allow a blocking route
                    https://nextjs.org/docs/messages/blocking-prerender-dynamic#allow-blocking-route
                    at a (<next-dist-dir>)
@@ -411,7 +403,7 @@ describe('Cache Components Errors - Client Components', () => {
 
           await expect(browser).toDisplayCollapsedRedbox(`
            {
-             "code": "E1315",
+             "code": "E1316",
              "description": "Next.js encountered URL data usePathname() in a Client Component outside of Suspense.",
              "environmentLabel": "Server",
              "label": "Blocking Route",

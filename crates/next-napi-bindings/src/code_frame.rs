@@ -1,6 +1,8 @@
 use napi::bindgen_prelude::*;
 use napi_derive::napi;
-use next_code_frame::{CodeFrameLocation, CodeFrameOptions, Language, Location, render_code_frame};
+use next_code_frame::{
+    CodeFrameColorMode, CodeFrameLocation, CodeFrameOptions, Language, Location, render_code_frame,
+};
 
 /// Default max width when the caller doesn't provide one (e.g., no terminal).
 const DEFAULT_MAX_WIDTH: u32 = 100;
@@ -35,6 +37,14 @@ impl From<NapiCodeFrameLocation> for CodeFrameLocation {
     }
 }
 
+#[napi]
+#[derive(PartialEq, Eq)]
+pub enum NapiCodeFrameColorMode {
+    Error,
+    Warning,
+    Info,
+}
+
 #[napi(object)]
 #[derive(Default)]
 pub struct NapiCodeFrameOptions {
@@ -45,7 +55,7 @@ pub struct NapiCodeFrameOptions {
     /// Maximum width of the output in columns (default: 100)
     pub max_width: Option<u32>,
     /// Whether to use ANSI colors (default: false)
-    pub color: Option<bool>,
+    pub color: Option<Either<NapiCodeFrameColorMode, bool>>,
     /// Whether to highlight code syntax (default: follows color)
     ///
     /// This might be useful if syntax highlighting is very expensive or known to be useless for
@@ -67,12 +77,22 @@ fn parse_language(s: &Option<String>) -> Language {
 
 impl From<NapiCodeFrameOptions> for CodeFrameOptions {
     fn from(opts: NapiCodeFrameOptions) -> Self {
+        let color = match opts.color {
+            None | Some(Either::B(false)) => CodeFrameColorMode::None,
+            Some(Either::A(NapiCodeFrameColorMode::Error)) | Some(Either::B(true)) => {
+                CodeFrameColorMode::Error
+            }
+            Some(Either::A(NapiCodeFrameColorMode::Warning)) => CodeFrameColorMode::Warning,
+            Some(Either::A(NapiCodeFrameColorMode::Info)) => CodeFrameColorMode::Info,
+        };
         CodeFrameOptions {
             lines_above: opts.lines_above.unwrap_or(2) as usize,
             lines_below: opts.lines_below.unwrap_or(3) as usize,
             max_width: opts.max_width.unwrap_or(DEFAULT_MAX_WIDTH) as usize,
-            color: opts.color.unwrap_or(false),
-            highlight_code: opts.highlight_code.unwrap_or(opts.color.unwrap_or(false)),
+            color,
+            highlight_code: opts
+                .highlight_code
+                .unwrap_or(color != CodeFrameColorMode::None),
             message: opts.message,
             language: parse_language(&opts.language),
         }

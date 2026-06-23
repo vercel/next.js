@@ -1,3 +1,4 @@
+import stripAnsi from 'next/dist/compiled/strip-ansi'
 import type {
   Issue,
   PlainTraceItem,
@@ -36,10 +37,10 @@ describe('formatIssue', () => {
       ...baseIssue,
       importTraces: [trace],
     }
-    const output = formatIssue(issue)
+    const output = stripAnsi(formatIssue(issue))
     expect(output).toBe(`\
 ./src/app/page.ts
-Module not found
+Error: Module not found
 Import trace:
   client:
     ./src/app/page.ts
@@ -63,10 +64,10 @@ https://nextjs.org/docs/messages/module-not-found
       ...baseIssue,
       importTraces: [trace1, trace2],
     }
-    const output = formatIssue(issue)
+    const output = stripAnsi(formatIssue(issue))
     expect(output).toBe(`\
 ./src/app/page.ts
-Module not found
+Error: Module not found
 Import traces:
   client:
     ./src/app/page.ts
@@ -94,10 +95,10 @@ https://nextjs.org/docs/messages/module-not-found
       ...baseIssue,
       importTraces: [trace1, trace2],
     }
-    const output = formatIssue(issue)
+    const output = stripAnsi(formatIssue(issue))
     expect(output).toBe(`\
 ./src/app/page.ts
-Module not found
+Error: Module not found
 Import traces:
   #1 [client]:
     ./src/app/page.ts
@@ -133,10 +134,10 @@ https://nextjs.org/docs/messages/module-not-found
       ...baseIssue,
       importTraces: [trace],
     }
-    const output = formatIssue(issue)
+    const output = stripAnsi(formatIssue(issue))
     expect(output).toBe(`\
 ./src/app/page.ts
-Module not found
+Error: Module not found
 Import trace:
   ./src/app/page.ts
   ./src/lib/foo.ts

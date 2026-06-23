@@ -41,8 +41,8 @@ const zExportMap: zod.ZodType<ExportPathMap> = z.record(
     _fallbackRouteParams: z.array(z.any()).optional(),
     _isAppDir: z.boolean().optional(),
     _isDynamicError: z.boolean().optional(),
-    _isRoutePPREnabled: z.boolean().optional(),
     _allowEmptyStaticShell: z.boolean().optional(),
+    _isFallbackUpgradeable: z.boolean().optional(),
   })
 )
 
@@ -220,10 +220,13 @@ export const experimentalSchema = {
   craCompat: z.boolean().optional(),
   caseSensitiveRoutes: z.boolean().optional(),
   clientParamParsingOrigins: z.array(z.string()).optional(),
-  cachedNavigations: z.boolean().optional(),
+  cachedNavigations: z
+    .union([z.boolean(), z.literal('allow-runtime')])
+    .optional(),
   dynamicOnHover: z.boolean().optional(),
   useOffline: z.boolean().optional(),
   optimisticRouting: z.boolean().optional(),
+  instrumentationClientRouterTransitionEvents: z.boolean().optional(),
   appShells: z.boolean().optional(),
   varyParams: z.boolean().optional(),
   prefetchInlining: z
@@ -299,6 +302,7 @@ export const experimentalSchema = {
     .readonly()
     .optional(),
   taint: z.boolean().optional(),
+  blockingSSR: z.boolean().optional(),
   prerenderEarlyExit: z.boolean().optional(),
   proxyTimeout: z.number().gte(0).optional(),
   rootParams: z.boolean().optional(),
@@ -435,6 +439,7 @@ export const experimentalSchema = {
     })
     .optional(),
   globalNotFound: z.boolean().optional(),
+  turbopackRustReactCompiler: z.boolean().optional(),
   browserDebugInfoInTerminal: z
     .union([
       z.boolean(),

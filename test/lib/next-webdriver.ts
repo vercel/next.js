@@ -93,6 +93,13 @@ export interface WebdriverOptions {
   pushErrorAsConsoleLog?: boolean
 
   /**
+   * Suppress the harness from echoing the browser's console output to the
+   * test's terminal (the `Browser Log:` lines). Browser logs are still
+   * collected and available via `browser.log()`.
+   */
+  disableBrowserLog?: boolean
+
+  /**
    * Override the user agent
    */
   userAgent?: string
@@ -134,6 +141,7 @@ export default async function webdriver(
     headless,
     cpuThrottleRate,
     pushErrorAsConsoleLog,
+    disableBrowserLog,
     userAgent,
     waitUntil,
     baseUrl,
@@ -173,6 +181,7 @@ export default async function webdriver(
     beforePageLoad,
     extraHTTPHeaders,
     pushErrorAsConsoleLog,
+    disableBrowserLog,
     waitUntil,
   })
   debugPrint(`Loaded browser with ${fullUrl}`)

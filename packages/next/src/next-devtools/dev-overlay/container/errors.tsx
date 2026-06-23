@@ -40,6 +40,7 @@ import { CodeFrame } from '../components/code-frame/code-frame'
 import { ErrorOverlayCallStack } from '../components/errors/error-overlay-call-stack/error-overlay-call-stack'
 import { ErrorCause } from './runtime-error/error-cause'
 import { useFrames } from '../utils/get-error-by-type'
+import stripAnsi from 'next/dist/compiled/strip-ansi'
 import type { ErrorOverlayPaginationControls } from '../components/errors/error-overlay-pagination/error-overlay-pagination'
 
 interface ErrorsProps extends ErrorBaseProps {
@@ -262,6 +263,24 @@ function getHydrationErrorDetails(
   }
 }
 
+// Detect `connection()` as the trigger by sniffing the highlighted line of the code frame.
+export function deriveCauseFromCodeFrame(
+  kind: GuidanceKind,
+  variant: GuidanceVariant,
+  codeFrame: string | null | undefined
+): 'connection' | undefined {
+  if (variant !== 'dynamic') return undefined
+  if (kind !== 'blocking-route' && kind !== 'metadata' && kind !== 'viewport')
+    return undefined
+  if (!codeFrame) return undefined
+  for (const line of stripAnsi(codeFrame).split('\n')) {
+    if (/^\s*>/.test(line) && /\bconnection\s*\(/.test(line)) {
+      return 'connection'
+    }
+  }
+  return undefined
+}
+
 function InstantRuntimeError({
   error,
   variant,
@@ -293,6 +312,10 @@ function InstantRuntimeError({
     return frames[idx] ?? null
   }, [frames])
 
+  const derivedCause =
+    cause ??
+    deriveCauseFromCodeFrame(kind, variant, firstFrame?.originalCodeFrame)
+
   return (
     <>
       {firstFrame && (
@@ -305,7 +328,7 @@ function InstantRuntimeError({
         variant={variant}
         kind={kind}
         explanation={explanation}
-        cause={cause}
+        cause={derivedCause}
         showExplanation={showExplanation}
         generateErrorInfo={generateErrorInfo}
       />
@@ -1272,21 +1295,24 @@ export const styles = `
   }
   .nextjs__container_errors__error_title {
     display: flex;
-    align-items: start;
-    justify-content: space-between;
-    gap: 12px;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
     position: relative;
+  }
+  .nextjs__container_errors__error_title__row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 8px;
+    width: 100%;
   }
   .error-overlay-notes-container {
     margin: 8px 2px;
   }
   .error-overlay-notes-container p {
     white-space: pre-wrap;
-  }
-  @media (max-width: 767px) {
-    .nextjs__container_errors__error_title {
-      flex-direction: column-reverse;
-    }
   }
   .external-link, .external-link:hover {
     color:inherit;

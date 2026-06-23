@@ -1171,15 +1171,17 @@ export async function handleAction({
 
           return {
             type: 'done',
-            result: await generateFlight(req, ctx, requestStore, {
-              actionResult: Promise.resolve(actionResult),
-              skipPageRendering,
-              temporaryReferences,
-              waitUntil:
-                maybeRevalidatesPromise === false
-                  ? undefined
-                  : maybeRevalidatesPromise,
-            }),
+            result: await actionAsyncStorage.exit(() =>
+              generateFlight(req, ctx, requestStore, {
+                actionResult: Promise.resolve(actionResult),
+                skipPageRendering,
+                temporaryReferences,
+                waitUntil:
+                  maybeRevalidatesPromise === false
+                    ? undefined
+                    : maybeRevalidatesPromise,
+              })
+            ),
           }
         } else {
           // TODO: this shouldn't be reachable, because all non-fetch codepaths return early.

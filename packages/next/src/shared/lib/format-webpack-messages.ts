@@ -44,7 +44,7 @@ function formatMessage(
 ) {
   // TODO: Replace this once webpack 5 is stable
   if (typeof message === 'object' && message.message) {
-    const filteredModuleTrace =
+    let filteredModuleTrace =
       message.moduleTrace &&
       message.moduleTrace.filter(
         (trace: any) =>

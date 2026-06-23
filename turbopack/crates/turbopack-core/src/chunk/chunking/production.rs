@@ -265,7 +265,7 @@ pub async fn make_production_chunks(
                             let b_groups = other.chunk_groups_len() as i64;
                             let b_size = other.size as i64;
                             let o_groups = overlap as i64;
-                            let groups = a_groups.max(b_groups);
+                            let groups = a_groups + b_groups - o_groups;
                             let a_rem = a_groups - o_groups;
                             let b_rem = b_groups - o_groups;
 
@@ -287,7 +287,7 @@ pub async fn make_production_chunks(
 
                             /*
                                 For our calculations we assume that there is a probability of 2/3 that we request exactly 1 chunk group (`N = 1`)
-                                and a probability of 2/3 that we request 2 chunk groups (`N = 2`).
+                                and a probability of 1/3 that we request 2 chunk groups (`N = 2`).
                                 This is a simplification, but it should be good enough for our purposes.
 
                                 We want to compute the expected request count `e_req` and the expected total requested size `e_size` for the unmerged and merged case.
@@ -316,18 +316,18 @@ pub async fn make_production_chunks(
                             */
 
                             /*
-                                To compute `e_size` and `e_req` we need to determine all cases and there probabilities.
+                                To compute `e_size` and `e_req` we need to determine all cases and their probabilities.
 
                                 UNMERGED CASE (N = 1):
 
-                                case X (p = a_rem/groups): size = b_size, requests = 1
-                                case Y (p = r_rem/groups): size = a_size, requests = 1
+                                case X (p = a_rem/groups): size = a_size, requests = 1
+                                case Y (p = b_rem/groups): size = b_size, requests = 1
                                 case Z (p = o_groups/groups): size = a_size + b_size, requests = 2
 
                                 MERGED CASE (N = 1):
 
-                                case X (p = a_rem/groups): size = b_size, requests = 1
-                                case Y (p = r_rem/groups): size = a_size, requests = 1
+                                case X (p = a_rem/groups): size = a_size, requests = 1
+                                case Y (p = b_rem/groups): size = b_size, requests = 1
                                 case Z (p = o_groups/groups): size = a_size + b_size, requests = 1
                             */
 
@@ -338,103 +338,103 @@ pub async fn make_production_chunks(
 
                                 The only difference is in case Z in the request count. That case has `p = o_groups/groups`:
 
-                                d_req(N = 1) = o_groups / groups * (2 - 1)
+                                d_req(N = 1) = (o_groups / groups) * (2 - 1)
                                 d_req(N = 1) = o_groups / groups
 
                                 d(N = 1) = d_req(N = 1) * c_req + d_size(N = 1)
-                                         = o_groups / groups * c_req
+                                         = (o_groups * c_req) / groups
                             */
 
                             /*
                                 The N = 2 case is more complicated, since we have to consider all possible combinations of the cases X, Y and Z for the two chunk groups:
 
                                 p_x = a_rem/groups
-                                p_y = r_rem/groups
+                                p_y = b_rem/groups
                                 p_z = o_groups/groups
 
                                 The chunk groups remaining after the first one has been picked
                                 rem_g = groups - 1
 
                                 UNMERGED CASE (N = 2):
-                                case X + X (p = (a_rem/groups) * ((a_rem - 1)/rem_g)): size = b_size, requests = 1
-                                case Y + Y (p = (b_rem/groups) * ((b_rem - 1)/rem_g)): size = a_size, requests = 1
+                                case X + X (p = (a_rem/groups) * ((a_rem - 1)/rem_g)): size = a_size, requests = 1
+                                case Y + Y (p = (b_rem/groups) * ((b_rem - 1)/rem_g)): size = b_size, requests = 1
                                 case Z + Z (p = (o_groups/groups) * (o_groups - 1)/rem_g): size = a_size + b_size, requests = 2
                                 case X + Y (p = (a_rem/groups) * (b_rem/rem_g) + (b_rem/groups) * (a_rem/rem_g)): size = a_size + b_size, requests = 2
                                 case X + Z (p = (a_rem/groups) * (o_groups/rem_g) + (o_groups/groups) * (a_rem/rem_g)): size = a_size + b_size, requests = 2
                                 case Y + Z (p = (b_rem/groups) * (o_groups/rem_g) + (o_groups/groups) * (b_rem/rem_g)): size = a_size + b_size, requests = 2
 
                                 MERGED CASE (N = 2):
-                                case X + X (p = (a_rem/groups) * ((a_rem - 1)/rem_g)): size = b_size, requests = 1
-                                case Y + Y (p = (b_rem/groups) * ((b_rem - 1)/rem_g)): size = a_size, requests = 1
+                                case X + X (p = (a_rem/groups) * ((a_rem - 1)/rem_g)): size = a_size, requests = 1
+                                case Y + Y (p = (b_rem/groups) * ((b_rem - 1)/rem_g)): size = b_size, requests = 1
                                 case Z + Z (p = (o_groups/groups) * (o_groups - 1)/rem_g): size = (a_size + b_size), requests = 1
                                 case X + Y (p = (a_rem/groups) * (b_rem/rem_g) + (b_rem/groups) * (a_rem/rem_g)): size = a_size + b_size, requests = 2
-                                case X + Z (p = (a_rem/groups) * (o_groups/rem_g) + (o_groups/groups) * (a_rem/rem_g)): size = b_size + (a_size + b_size), requests = 3
-                                case Y + Z (p = (b_rem/groups) * (o_groups/rem_g) + (o_groups/groups) * (b_rem/rem_g)): size = a_size + (a_size + b_size), requests = 3
+                                case X + Z (p = (a_rem/groups) * (o_groups/rem_g) + (o_groups/groups) * (a_rem/rem_g)): size = a_size + (a_size + b_size), requests = 2
+                                case Y + Z (p = (b_rem/groups) * (o_groups/rem_g) + (o_groups/groups) * (b_rem/rem_g)): size = b_size + (a_size + b_size), requests = 2
 
-                                Request count is different in these cases: Z + Z (better), X + Z (worse), Y + Z (worse)
+                                Request count is different in this case: Z + Z (better)
                                 Requests size is different (worse) in these cases: X + Z, Y + Z
 
                                 d_req_z_z = ((o_groups/groups) * (o_groups - 1)/rem_g) * (2 - 1)
                                           = o_groups * (o_groups - 1) / (groups * rem_g)
-                                d_req_x_z = ((a_rem/groups) * (o_groups/rem_g) + (o_groups/groups) * (a_rem/rem_g)) * (2 - 3)
-                                          = -2 * o_groups * a_rem / (groups * rem_g)
-                                d_req_y_z = ((b_rem/groups) * (o_groups/rem_g) + (o_groups/groups) * (b_rem/rem_g)) * (2 - 3)
-                                          = -2 * o_groups * b_rem / (groups * rem_g)
+                                d_req_x_z = ((a_rem/groups) * (o_groups/rem_g) + (o_groups/groups) * (a_rem/rem_g)) * (2 - 2)
+                                          = 0
+                                d_req_y_z = ((b_rem/groups) * (o_groups/rem_g) + (o_groups/groups) * (b_rem/rem_g)) * (2 - 2)
+                                          = 0
 
-                                d_req(N = 2) = o_groups * (o_groups - 1 - 2 * a_rem - 2 * b_rem) / (groups * rem_g)
-                                             = o_groups * (o_groups - 1 - 2 * (a_groups - o_groups) - 2 * (b_groups - o_groups)) / (groups * rem_g)
-                                             = o_groups * (5 * o_groups - 2 * a_groups - 2 * b_groups - 1) / (groups * rem_g)
+                                d_req(N = 2) = o_groups * (o_groups - 1) / (groups * rem_g)
 
-                                d_size_x_z = ((a_rem/groups) * (o_groups/rem_g) + (o_groups/groups) * (a_rem/rem_g)) * (a_size + b_size - (b_size + (a_size + b_size)))
-                                           = (2 * a_rem * o_groups / groups / rem_g)) * (-b_size)
-                                           = -2 * a_rem * b_size * o_groups / (groups * rem_g)
-                                d_size_y_z = -2 * b_rem * a_size * o_groups / (groups * rem_g)
+                                d_size_x_z = ((a_rem/groups) * (o_groups/rem_g) + (o_groups/groups) * (a_rem/rem_g)) * (a_size + b_size - (a_size + (a_size + b_size)))
+                                           = ((2 * a_rem * o_groups) / (groups * rem_g)) * (-a_size)
+                                           = -2 * a_rem * a_size * o_groups / (groups * rem_g)
+                                d_size_y_z = -2 * b_rem * b_size * o_groups / (groups * rem_g)
 
-                                d_size(N = 2) = -2 * (a_rem * b_size + b_rem * a_size) * o_groups / (groups * rem_g)
+                                d_size(N = 2) = -2 * (a_rem * a_size + b_rem * b_size) * o_groups / (groups * rem_g)
 
 
                                 d(N = 2) = d_req(N = 2) * c_req + d_size(N = 2)
-                                         = o_groups * (5 * o_groups - 2 * a_groups - 2 * b_groups - 1) / (groups * rem_g) * c_req + 2 * (a_rem * b_size + b_rem * a_size) * o_groups) / (groups * rem_g)
-                                         = ((o_groups * (5 * o_groups - 2 * a_groups - 2 * b_groups - 1) * c_req - 2 * (a_rem * b_size + b_rem * a_size) * o_groups)) / (groups * rem_g)
+                                         = (o_groups * (o_groups - 1) * c_req) / (groups * rem_g) - (2 * (a_rem * a_size + b_rem * b_size) * o_groups) / (groups * rem_g)
+                                         = (o_groups * (o_groups - 1) * c_req - 2 * (a_rem * a_size + b_rem * b_size) * o_groups) / (groups * rem_g)
                             */
 
                             /*
                                 d  = 2/3 * d(N = 1) + 1/3 * d(N = 2)
-                                3d = 2 * o_groups / groups * c_req + (o_groups * (5 * o_groups - 2 * a_groups - 2 * b_groups - 1)) * c_req - 2 * (a_rem * b_size + b_rem * a_size) * o_groups) / (groups * rem_g)
-                                   = c_req * (2 * o_groups / groups + o_groups * (5 * o_groups - 2 * a_groups - 2 * b_groups - 1) / (groups * rem_g)) - 2 * (a_rem * b_size + b_rem * a_size) * o_groups / (groups * rem_g)
-                                   = c_req * (o_groups / groups) * (2 + (5 * o_groups - 2 * a_groups - 2 * b_groups - 1) / rem_g) - 2 * (a_rem * b_size + b_rem * a_size) * o_groups / (groups * rem_g)
+                                3d = 2 * (o_groups * c_req) / groups + (o_groups * (o_groups - 1) * c_req - 2 * (a_rem * a_size + b_rem * b_size) * o_groups) / (groups * rem_g)
+                                   = c_req * (2 * o_groups / groups + o_groups * (o_groups - 1) / (groups * rem_g)) - 2 * (a_rem * a_size + b_rem * b_size) * o_groups / (groups * rem_g)
+                                   = c_req * (o_groups / groups) * (2 + (o_groups - 1) / rem_g) - 2 * (a_rem * a_size + b_rem * b_size) * o_groups / (groups * rem_g)
 
                                 We pull out some factors:
-                                3d = (c_req * (2 * rem_g + (5 * o_groups - 2 * a_groups - 2 * b_groups - 1)) - 2 * (a_rem * b_size + b_rem * a_size)) * o_groups / (rem_g * groups)
+                                3d = (c_req * (2 * rem_g + (o_groups - 1)) - 2 * (a_rem * a_size + b_rem * b_size)) * o_groups / (rem_g * groups)
                             */
 
                             /*
-                               Note that d_size < 0. So we can make a quick check if d_req is positive.
+                               Recall from above:
+                               3d = c_req * (2 * o_groups / groups + o_groups * (o_groups - 1) / (groups * rem_g)) - 2 * (a_rem * a_size + b_rem * b_size) * o_groups / (groups * rem_g)
+                               d = d_req * c_req + d_size
 
-                               c_req * (o_groups / groups + o_groups * (5 * o_groups - 2 * a_groups - 2 * b_groups - 1) / (groups * rem_g)) > 0
-                               o_groups + o_groups * (5 * o_groups - 2 * a_groups - 2 * b_groups - 1) / rem_g > 0
-                               o_groups + o_groups * 5 * o_groups / rem_g - o_groups * (2 * a_groups + 2 * b_groups + 1) / rem_g > 0
-                               o_groups * rem_g + o_groups * 5 * o_groups - o_groups * (2 * a_groups + 2 * b_groups + 1) > 0
-                               o_groups * rem_g + o_groups * 5 * o_groups > o_groups * (2 * a_groups + 2 * b_groups + 1)
-                               rem_g + 5 * o_groups > 2 * a_groups + 2 * b_groups + 1
-                               rem_g + 5 * o_groups > 2 * (a_rem + o_groups) + 2 * (b_rem + o_groups) + 1
-                               rem_g + 5 * o_groups > 2 * a_rem + 2 * b_rem + 4 * o_groups + 1
-                               rem_g + o_groups > 2 * a_rem + 2 * b_rem + 1
-                               rem_g + o_groups > 2 * (a_rem + b_rem) + 1
-                               groups - 1 + o_groups > 2 * (a_rem + b_rem) + 1
-                               groups + o_groups > 2 * (a_rem + b_rem) + 2
+                               `d_size` is always <= 0, for d > 0, d_req * c_req must be positive:
+
+                               3d > 0
+                               d > 0
+                               d_req * c_req > 0
+                               (2 * o_groups / groups + o_groups * (o_groups - 1) / (groups * rem_g)) * c_req > 0
+                               2 * o_groups / groups + o_groups * (o_groups - 1) / (groups * rem_g) > 0
+                               2 * o_groups * rem_g + o_groups * (o_groups - 1) > 0
+                               o_groups * (2 * rem_g + o_groups - 1) > 0
+                               o_groups > 0 && 2 * rem_g + o_groups - 1 > 0
+                               o_groups > 0 && 2 * (groups - 1) + o_groups - 1 > 0
+                               o_groups > 0 && groups >= 2
                             */
 
-                            // It need to have some request count benefit
-                            if groups + o_groups <= 2 * (a_rem + b_rem) + 2 {
+                            // It need to have some request count benefit, the
+                            // check for that has been derived above:
+                            if o_groups == 0 || groups < 2 {
                                 continue;
                             }
                             let rem_g = groups - 1;
                             let c_req = 200000;
                             // d3 = 3 * d
-                            let pre_d3 = c_req
-                                * (2 * rem_g + (5 * o_groups - 2 * a_groups - 2 * b_groups - 1))
-                                - 2 * (a_rem * b_size + b_rem * a_size);
+                            let pre_d3 = c_req * (2 * rem_g + (o_groups - 1))
+                                - 2 * (a_rem * a_size + b_rem * b_size);
                             // It need to have some runtime benefit of merging the chunks
                             if pre_d3 < 0 {
                                 continue;
