@@ -2782,7 +2782,7 @@ describe('instant validation', () => {
     })
 
     describe('route groups', () => {
-      it('invalid - config on route group layout - cookies() blocks below', async () => {
+      it('invalid - config on route group layout - connection() blocks below', async () => {
         if (isNextDev) {
           const browser = await navigateTo(
             '/suspense-in-root/static/route-group-config-only'
@@ -4211,6 +4211,53 @@ describe('instant validation', () => {
                     - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
                   Stopping prerender due to instant validation errors."
                 `)
+            expect(result.exitCode).toBe(1)
+          }
+        })
+
+        it('invalid - session data unblocks new contents in shell but runtime prefetching is disabled', async () => {
+          if (isNextDev) {
+            const browser = await navigateTo(
+              '/shells/invalid-static-prefetch-worse-than-shell'
+            )
+            await expect(browser).toDisplayCollapsedRedbox(`
+             {
+               "cause": [
+                 {
+                   "label": "Caused by: Instant Validation",
+                   "source": "app/shells/(default)/invalid-static-prefetch-worse-than-shell/page.tsx (5:33) @ instant
+             > 5 | export const instant: Instant = {
+                 |                                 ^",
+                   "stack": [
+                     "instant app/shells/(default)/invalid-static-prefetch-worse-than-shell/page.tsx (5:33)",
+                   ],
+                 },
+               ],
+               "description": "THIS IS A PLACEHOLDER ERROR
+             Segment [project]/app/shells/(default)/invalid-static-prefetch-worse-than-shell/page.tsx used session data in its shell but does not have \`prefetch = "allow-runtime"\`. It will be skipped when used with <Link prefetch={true} />",
+               "environmentLabel": "Server",
+               "label": "Console Error",
+               "source": "app/shells/(default)/invalid-static-prefetch-worse-than-shell/page.tsx (5:33) @ instant
+             > 5 | export const instant: Instant = {
+                 |                                 ^",
+               "stack": [],
+             }
+            `)
+          } else {
+            const result = await prerender(
+              '/shells/(default)/invalid-static-prefetch-worse-than-shell'
+            )
+            expect(extractBuildValidationError(result.cliOutput))
+              .toMatchInlineSnapshot(`
+             "Error: THIS IS A PLACEHOLDER ERROR
+             Segment [project]/app/shells/(default)/invalid-static-prefetch-worse-than-shell/page.tsx used session data in its shell but does not have \`prefetch = "allow-runtime"\`. It will be skipped when used with <Link prefetch={true} />
+                 at ignore-listed frames
+             Build-time instant validation failed for route "/shells/invalid-static-prefetch-worse-than-shell".
+             To get a more detailed stack trace and pinpoint the issue, try one of the following:
+               - Start the app in development mode by running \`next dev\`, then open "/shells/invalid-static-prefetch-worse-than-shell" in your browser to investigate the error.
+               - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
+             Stopping prerender due to instant validation errors."
+            `)
             expect(result.exitCode).toBe(1)
           }
         })
