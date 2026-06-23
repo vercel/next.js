@@ -179,7 +179,7 @@ fn do_compact(
         max_merge_segment_count,
         ..COMPACT_CONFIG
     })?;
-    if stats.is_some() {
+    if let Some(stats) = stats {
         let elapsed = start.elapsed();
         // avoid spamming the event queue with information about fast operations
         if elapsed > Duration::from_secs(10) {
@@ -196,7 +196,16 @@ fn do_compact(
             "turbopack-compaction",
             wall_start_ms,
             wall_end_ms,
-            vec![],
+            vec![
+                (
+                    "bytes_written",
+                    serde_json::Value::from(stats.bytes_written),
+                ),
+                (
+                    "bytes_deleted",
+                    serde_json::Value::from(stats.bytes_deleted),
+                ),
+            ],
         )));
     }
     Ok(stats)
