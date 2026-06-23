@@ -148,7 +148,6 @@ impl Asset for EcmascriptBrowserSingleEntryChunk {
 
 #[turbo_tasks::value_impl]
 impl GenerateSourceMap for EcmascriptBrowserSingleEntryChunk {
-    #[turbo_tasks::function]
     fn generate_source_map(self: Vc<Self>) -> Vc<FileContent> {
         self.code().generate_source_map()
     }
