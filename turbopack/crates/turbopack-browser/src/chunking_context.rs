@@ -1081,10 +1081,17 @@ impl ChunkingContext for BrowserChunkingContext {
         module_graph: Vc<ModuleGraph>,
         availability_info: AvailabilityInfo,
     ) -> Result<Vc<Box<dyn ChunkItem>>> {
-        if self.await?.single_chunk {
-            bail!("async loaders are not produced in single-chunk (service-worker) mode");
-        }
         let chunking_context = ResolvedVc::upcast::<Box<dyn ChunkingContext>>(self);
+        if self.await?.single_chunk {
+            // Single-chunk (eg. service-workers) entries cannot split a
+            // separate async chunk.
+            SingleChunkAsyncLoaderIssue {
+                path: module.ident().await?.path.clone(),
+            }
+            .resolved_cell()
+            .emit();
+            return Ok(module.as_chunk_item(module_graph, *chunking_context));
+        }
         Ok(if self.await?.manifest_chunks {
             let manifest_asset = ManifestAsyncModule::new(
                 module,
@@ -1215,5 +1222,40 @@ impl Issue for SingleChunkProducedMultipleChunksIssue {
                  (e.g. CSS, image or font imports), which cannot be inlined into a single chunk."
             )),
         ])))
+    }
+}
+
+#[turbo_tasks::value(shared)]
+struct SingleChunkAsyncLoaderIssue {
+    path: FileSystemPath,
+}
+
+#[async_trait]
+#[turbo_tasks::value_impl]
+impl Issue for SingleChunkAsyncLoaderIssue {
+    fn severity(&self) -> IssueSeverity {
+        IssueSeverity::Error
+    }
+
+    async fn file_path(&self) -> Result<FileSystemPath> {
+        Ok(self.path.clone())
+    }
+
+    fn stage(&self) -> IssueStage {
+        IssueStage::CodeGen
+    }
+
+    async fn title(&self) -> Result<StyledString> {
+        Ok(StyledString::Text(rcstr!(
+            "Async loaders are not supported in single-chunk mode"
+        )))
+    }
+
+    async fn description(&self) -> Result<Option<StyledString>> {
+        Ok(Some(StyledString::Stack(vec![StyledString::Text(rcstr!(
+            "The dynamically imported module is inlined into the single chunk and cannot be \
+             code-split. Remove the dynamic import (import the module statically) if separate \
+             loading is not required."
+        ))])))
     }
 }
