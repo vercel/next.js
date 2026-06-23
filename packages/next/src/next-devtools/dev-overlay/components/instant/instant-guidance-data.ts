@@ -122,18 +122,6 @@ const clientHookCards: FixCard[] = [clientHookSuspenseCard, clientHookBlockCard]
 
 const dynamicCards: FixCard[] = [
   {
-    id: 'cache-the-component-or-data',
-    title: 'Cache the component or data',
-    group: 'cache',
-    link: 'https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data',
-    snippets: [
-      { text: 'async function Posts() {' },
-      { text: '  "use cache"', highlight: true },
-      { text: '  return <List items={…} />' },
-    ],
-    copyable: true,
-  },
-  {
     id: 'wrap-in-or-move-into-suspense',
     title: 'Wrap in or move into Suspense',
     group: 'stream',
@@ -142,6 +130,18 @@ const dynamicCards: FixCard[] = [
       { text: '<Suspense fallback={…}>', highlight: true },
       { text: '  <DataChild />' },
       { text: '</Suspense>', highlight: true },
+    ],
+    copyable: true,
+  },
+  {
+    id: 'cache-the-component-or-data',
+    title: 'Cache the component or data',
+    group: 'cache',
+    link: 'https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data',
+    snippets: [
+      { text: 'async function Posts() {' },
+      { text: '  "use cache"', highlight: true },
+      { text: '  return <List items={…} />' },
     ],
     copyable: true,
   },
