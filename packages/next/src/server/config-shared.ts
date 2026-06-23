@@ -17,6 +17,7 @@ import type { FallbackRouteParam } from '../build/static-paths/types'
 import type { MemoryEvictionMode } from '../build/swc/types'
 import { isStableBuild } from '../shared/lib/errors/canary-only-config-error'
 import { isCI } from './ci-info'
+import type { IncomingMessage, ServerResponse } from 'http'
 
 /**
  * Resolved form of the prefetchInlining config after normalization in
@@ -1324,6 +1325,14 @@ export interface ExperimentalConfig {
    * Only supported for Turbopack.
    */
   reportSystemEnvInlining?: 'error' | 'warn'
+
+  /**
+   * Intercept requests in development before they are processed by Next.js.
+   */
+  beforeDevRequest?(
+    req: IncomingMessage,
+    res: ServerResponse
+  ): Promise<void> | void
 }
 
 export type ExportPathMap = {

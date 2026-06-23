@@ -18,7 +18,7 @@ import {
 import type { DevBundlerService } from '../lib/dev-bundler-service'
 import type { IncrementalCache } from '../lib/incremental-cache'
 import type { UnwrapPromise } from '../../lib/coalesced-function'
-import type { NodeNextResponse, NodeNextRequest } from '../base-http/node'
+import { NodeNextRequest, NodeNextResponse } from '../base-http/node'
 import type { RouteEnsurer } from '../route-matcher-managers/dev-route-matcher-manager'
 import type { PagesManifest } from '../../build/webpack/plugins/pages-manifest-plugin'
 
@@ -89,6 +89,7 @@ import type { PrerenderManifest } from '../../build'
 import { getRouteRegex } from '../../shared/lib/router/utils/route-regex'
 import type { PrerenderedRoute } from '../../build/static-paths/types'
 import { HMR_MESSAGE_SENT_TO_BROWSER } from './hot-reloader-types'
+import { ServerResponse } from 'http'
 
 // Load ReactDevOverlay only when needed
 let PagesDevOverlayBridgeImpl: PagesDevOverlayBridgeType
@@ -501,7 +502,25 @@ export default class DevServer extends Server {
   public getRequestHandler(): NodeRequestHandler {
     const handler = super.getRequestHandler()
 
-    return (req, res, parsedUrl) => {
+    return async (req, res, parsedUrl) => {
+      {
+        let beforeDevRequest = this.nextConfig.experimental?.beforeDevRequest
+        if (beforeDevRequest) {
+          // TODO can we get rid of NodeNextRequest and NodeNextResponse
+          // @ts-expect-error _req is private
+          let internalReq = req instanceof NodeNextRequest ? req._req : req
+          // @ts-expect-error _res is private
+          let internalRes = res instanceof NodeNextResponse ? res._res : res
+          await beforeDevRequest(internalReq, internalRes)
+          if (
+            (res instanceof ServerResponse && res.headersSent) ||
+            (res instanceof NodeNextResponse && res.sent)
+          ) {
+            return
+          }
+        }
+      }
+
       const request = this.normalizeReq(req)
       const response = this.normalizeRes(res)
       const loggingConfig = this.nextConfig.logging
