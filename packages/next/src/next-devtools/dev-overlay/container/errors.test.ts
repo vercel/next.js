@@ -329,8 +329,8 @@ describe('card sets for all error families', () => {
     expect(
       getCards('blocking-route', 'dynamic').map((card) => card.id)
     ).toEqual([
-      'cache-the-component-or-data',
       'wrap-in-or-move-into-suspense',
+      'cache-the-component-or-data',
       'allow-blocking-route',
     ])
   })
@@ -344,21 +344,21 @@ describe('card sets for all error families', () => {
   it('metadata runtime', () => {
     expect(getCards('metadata', 'runtime').map((card) => card.id)).toEqual([
       'use-static-metadata',
-      'render-page-at-request-time',
+      'mark-the-route-as-dynamic',
     ])
   })
 
   it('metadata dynamic', () => {
     expect(getCards('metadata', 'dynamic').map((card) => card.id)).toEqual([
       'cache-the-metadata',
-      'render-page-at-request-time',
+      'mark-the-route-as-dynamic',
     ])
   })
 
   it('metadata dynamic with connection() drops the cache card', () => {
     expect(
       getCards('metadata', 'dynamic', 'connection').map((card) => card.id)
-    ).toEqual(['render-page-at-request-time'])
+    ).toEqual(['mark-the-route-as-dynamic'])
   })
 
   it('viewport runtime', () => {
@@ -370,7 +370,7 @@ describe('card sets for all error families', () => {
 
   it('viewport dynamic', () => {
     expect(getCards('viewport', 'dynamic').map((card) => card.id)).toEqual([
-      'cache-viewport-data',
+      'cache-the-viewport-data',
       'allow-blocking-route',
     ])
   })

@@ -65,8 +65,6 @@ export type Snippet = {
   parts?: SnippetPart[]
 }
 
-// ── Blocking-route cards ──────────────────────────
-
 const runtimeCards: FixCard[] = [
   {
     id: 'wrap-in-or-move-into-suspense',
@@ -158,8 +156,6 @@ const dynamicCards: FixCard[] = [
   },
 ]
 
-// ── Unrendered-segment cards ──────────────────────
-
 const unrenderedSegmentCards: FixCard[] = [
   {
     id: 'render-the-dropped-segment',
@@ -201,8 +197,6 @@ const unrenderedSegmentCards: FixCard[] = [
   },
 ]
 
-// ── Metadata cards ────────────────────────────────
-
 const metadataRuntimeCards: FixCard[] = [
   {
     id: 'use-static-metadata',
@@ -217,7 +211,7 @@ const metadataRuntimeCards: FixCard[] = [
     copyable: true,
   },
   {
-    id: 'render-page-at-request-time',
+    id: 'mark-the-route-as-dynamic',
     title: 'Mark the route as dynamic',
     group: 'dynamic',
     link: 'https://nextjs.org/docs/messages/blocking-prerender-metadata-runtime#mark-the-route-as-dynamic',
@@ -243,7 +237,7 @@ const metadataDynamicCards: FixCard[] = [
     copyable: true,
   },
   {
-    id: 'render-page-at-request-time',
+    id: 'mark-the-route-as-dynamic',
     title: 'Mark the route as dynamic',
     group: 'dynamic',
     link: 'https://nextjs.org/docs/messages/blocking-prerender-metadata-dynamic#mark-the-route-as-dynamic',
@@ -254,8 +248,6 @@ const metadataDynamicCards: FixCard[] = [
     copyable: true,
   },
 ]
-
-// ── Viewport cards ────────────────────────────────
 
 const viewportRuntimeCards: FixCard[] = [
   {
@@ -285,7 +277,7 @@ const viewportRuntimeCards: FixCard[] = [
 
 const viewportDynamicCards: FixCard[] = [
   {
-    id: 'cache-viewport-data',
+    id: 'cache-the-viewport-data',
     title: 'Cache the viewport data',
     group: 'cache',
     link: 'https://nextjs.org/docs/messages/blocking-prerender-viewport-dynamic#cache-the-viewport-data',
@@ -308,8 +300,6 @@ const viewportDynamicCards: FixCard[] = [
     copyable: true,
   },
 ]
-
-// ── Sync IO cards (per API) ───────────────────────
 
 const syncMathCards: FixCard[] = [
   {
@@ -440,8 +430,6 @@ const syncCryptoCards: FixCard[] = [
   },
 ]
 
-// ── Client sync IO cards (no Suspense above) ──────
-
 const syncClientDateCards: FixCard[] = [
   {
     id: 'wrap-in-or-move-into-suspense',
@@ -534,8 +522,6 @@ const syncClientCryptoCards: FixCard[] = [
     copyable: true,
   },
 ]
-
-// ── Card lookup ───────────────────────────────────
 
 export type GuidanceKind =
   | 'blocking-route'
