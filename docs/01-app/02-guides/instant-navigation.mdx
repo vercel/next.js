@@ -216,12 +216,12 @@ const nextConfig: NextConfig = {
 export default nextConfig
 ```
 
-Open the Next.js DevTools and select **Navigation Inspector**, then click **Start Capturing**. The panel shows **Awaiting navigation...** While capturing is active:
+Open the Next.js DevTools and select **Navigation Inspector**, then toggle **Pause on navigations**. The panel shows **Awaiting navigation...** While the toggle is on:
 
-- Refresh the page to freeze the **static shell**, the route's prerendered UI before any dynamic data streams in. The panel labels this **Page load**.
-- Click a link to freeze the **prefetched UI** for the destination route. The panel labels this **Navigation** and shows the source URL the click came from.
+- Refresh the page to freeze the **static shell**, the route's prerendered UI before any dynamic data streams in. The panel shows **Loading shell** labeled **Page load**, along with the target URL.
+- Click a link to freeze the **prefetched UI** for the destination route. The panel shows **Loading shell** labeled **Client nav**, along with both source and target URLs.
 
-When the UI is frozen, click **Continue Rendering** to let the current navigation finish while keeping the Navigation Inspector in capturing mode. Click **Stop Capturing** when you are done inspecting loading states.
+When the UI is frozen, click **Resume** to complete the navigation. As long as the **Pause on navigations** toggle stays on, further navigations pause too. Toggle it off when you're done inspecting loading states.
 
 Try refreshing the product page. Two separate fallbacks appear: "Loading product..." and "Checking availability...". On the first visit the cache is cold and both fallbacks are visible. Navigate to the page again and the product name appears immediately from cache.
 
