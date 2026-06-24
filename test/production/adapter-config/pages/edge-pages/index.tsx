@@ -1,5 +1,6 @@
 export const config = {
   runtime: 'experimental-edge',
+  maxDuration: 60,
 }
 
 export default function Page() {
