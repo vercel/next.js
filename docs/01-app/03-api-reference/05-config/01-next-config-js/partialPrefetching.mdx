@@ -44,13 +44,17 @@ module.exports = {
 
 ## How prefetches resolve
 
-With `partialPrefetching` enabled:
+Before Partial Prefetching, Next.js prefetched per visible link: a page with N links to N routes produced ~N route prefetches as those links entered the viewport.
 
-- **Plain `<Link>`** prefetches the route's [App Shell](/docs/app/glossary#app-shell), shared across every link to the route.
-- **`<Link prefetch={true}>`** prefetches the route's static shell with its cached content.
-- **`<Link prefetch={true}>` + per-segment `prefetch = 'allow-runtime'`** prefetches a [runtime prerender](/docs/app/guides/runtime-prefetching) that includes cached content gated by runtime data.
+With `partialPrefetching: true`, Next.js prefetches one reusable [App Shell](/docs/app/glossary#app-shell) per route instead. The shell carries the route's rendered output minus per-link data; specifics like params and search-bound data fill in after navigation. Shells are cached on the client, so a route is fetched once even if many links on the page point at it.
 
-See the [runtime prefetching guide](/docs/app/guides/runtime-prefetching) for the per-link behavior in detail.
+The pattern is similar to per-route code splitting in single-page apps: one artifact per route, shared by every link that points to it.
+
+> **Good to know**: Routes that read `cookies()` or `headers()` produce an App Shell that includes session data. The framework auto-detects this, and the shell is cached per session on the client, not shared across users.
+
+A link can ask for more than the App Shell with [`<Link prefetch={true}>`](/docs/app/api-reference/components/link#prefetch). If the destination opts into [`prefetch = 'allow-runtime'`](/docs/app/api-reference/file-conventions/route-segment-config/prefetch#allow-runtime), the prefetch includes runtime data like cookies, headers, and search params.
+
+> **Good to know**: If you use `<Link prefetch={true}>` to a route that hasn't opted into Partial Prefetching, a dev console error suggests enabling `partialPrefetching` app-wide or `prefetch = 'partial'` on the segment. The [dev warning Insight](/docs/messages/instant-link-prefetch-partial) covers each fix in detail.
 
 ## Per-segment overrides
 

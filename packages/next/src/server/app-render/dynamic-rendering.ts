@@ -78,6 +78,7 @@ import {
   allRequiredBoundariesRendered,
 } from './instant-validation/boundary-tracking'
 import type { InstantValidationSampleTracking } from './instant-validation/instant-samples'
+import { createUnrenderedSegmentError } from '../../shared/lib/instant-messages'
 
 const hasPostpone = typeof React.unstable_postpone === 'function'
 
@@ -1538,21 +1539,7 @@ export function getNavigationDisallowedDynamicReasons(
         }
       }
       missingFiles.sort()
-      let message = `Route "${workStore.route}": Could not validate that a segment in your UI has instant navigation.`
-      if (missingFiles.length > 0) {
-        const label =
-          missingFiles.length === 1 ? 'Dropped segment' : 'Dropped segments'
-        message +=
-          `\n\nThis segment was dropped from rendering. Issues that would prevent instant navigation will go undetected.` +
-          `\n\n${label}:\n${missingFiles.map((p) => `  ${p}`).join('\n')}` +
-          `\n\nWays to fix this:` +
-          `\n  - [render] Render the dropped segment` +
-          `\n    https://nextjs.org/docs/messages/instant-unrendered-segment#render-the-dropped-segment` +
-          `\n  - [ignore] Set \`export const instant = false\` on the dropped segment to skip validation` +
-          `\n    https://nextjs.org/docs/messages/instant-unrendered-segment#skip-validation-on-the-segment`
-      }
-      const error = new Error(message)
-      return error
+      return createUnrenderedSegmentError(workStore.route, missingFiles)
     } else if (process.env.__NEXT_DEV_SERVER && devRenderDidError) {
       // Errors outside the boundary likely blocked it from rendering,
       // but they're already being reported to the user via the dev
