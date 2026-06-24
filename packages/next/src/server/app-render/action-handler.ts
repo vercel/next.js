@@ -586,6 +586,20 @@ export async function handleAction({
     }
   }
 
+  const handleMalformedActionRequest = (): HandleActionResult => {
+    // React's flight decoders throw a `SyntaxError` when the request body
+    // isn't valid JSON. That's a malformed request from the client (commonly
+    // vulnerability scanners probing Server Action endpoints, e.g. around
+    // CVE-2025-55182), so we respond with 400 Bad Request instead of letting
+    // it bubble up to the generic catch below as a 500. (#86945)
+    res.statusCode = 400
+    metadata.statusCode = 400
+    return {
+      type: 'done',
+      result: RenderResult.fromStatic('Bad Request', 'text/plain'),
+    }
+  }
+
   // If it can't be a Server Action, skip handling.
   // Note that this can be a false positive -- any multipart/urlencoded POST can get us here,
   // But won't know if it's an MPA action or not until we call `decodeAction` below.
@@ -780,11 +794,18 @@ export async function handleAction({
                 return handleUnrecognizedFetchAction(err)
               }
 
-              boundActionArguments = await decodeReply(
-                formData,
-                serverModuleMap,
-                { temporaryReferences }
-              )
+              try {
+                boundActionArguments = await decodeReply(
+                  formData,
+                  serverModuleMap,
+                  { temporaryReferences }
+                )
+              } catch (err) {
+                if (err instanceof SyntaxError) {
+                  return handleMalformedActionRequest()
+                }
+                throw err
+              }
             } else {
               // Multipart POST, but not a fetch action.
               // Potentially an MPA action, we have to try decoding it to check.
@@ -861,11 +882,18 @@ export async function handleAction({
 
             const actionData = Buffer.concat(chunks).toString('utf-8')
 
-            boundActionArguments = await decodeReply(
-              actionData,
-              serverModuleMap,
-              { temporaryReferences }
-            )
+            try {
+              boundActionArguments = await decodeReply(
+                actionData,
+                serverModuleMap,
+                { temporaryReferences }
+              )
+            } catch (err) {
+              if (err instanceof SyntaxError) {
+                return handleMalformedActionRequest()
+              }
+              throw err
+            }
           }
         } else if (
           // The type check here ensures that `req` is correctly typed, and the
@@ -960,6 +988,9 @@ export async function handleAction({
                 ])
               } catch (err) {
                 abortController.abort()
+                if (err instanceof SyntaxError) {
+                  return handleMalformedActionRequest()
+                }
                 throw err
               }
             } else {
@@ -1070,11 +1101,18 @@ export async function handleAction({
 
             const actionData = Buffer.concat(chunks).toString('utf-8')
 
-            boundActionArguments = await decodeReply(
-              actionData,
-              serverModuleMap,
-              { temporaryReferences }
-            )
+            try {
+              boundActionArguments = await decodeReply(
+                actionData,
+                serverModuleMap,
+                { temporaryReferences }
+              )
+            } catch (err) {
+              if (err instanceof SyntaxError) {
+                return handleMalformedActionRequest()
+              }
+              throw err
+            }
           }
         } else {
           throw new Error('Invariant: Unknown request type.')
