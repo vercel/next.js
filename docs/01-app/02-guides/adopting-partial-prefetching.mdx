@@ -75,6 +75,8 @@ export default function Page() {
 
 A `<Link>` pointing at a route with `prefetch = 'partial'` loads the App Shell only, even when `partialPrefetching` is not set in `next.config.ts`.
 
+> **Good to know**: Adopting per-route first also preserves the dev-only `<Link prefetch={true}>` warning, which points at `<Link prefetch={true}>` calls whose destinations haven't adopted yet. Enabling the global flag first marks every route as adopted, which silences the warning and removes the signal for the [audit below](#auditing-existing-link-prefetchtrue-calls).
+
 Once every route in scope has `prefetch = 'partial'`, enable the config and remove the per-route exports:
 
 ```ts filename="next.config.ts" highlight={5}
@@ -94,11 +96,13 @@ When `partialPrefetching` is enabled, `<Link prefetch={true}>` now prefetches th
 
 Previously, `<Link prefetch={true}>` also prefetched dynamic data.
 
-| Destination                                                                                 | Recommendation                                                                                                                               |
-| ------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
-| Fully static (no `"use cache"`, no Suspense)                                                | Drop `prefetch={true}`. The default `<Link>` already loads the full page because the App Shell is the page.                                  |
-| Has cached content worth shipping ahead of the click                                        | Keep `prefetch={true}`. The cached parts come with the App Shell.                                                                            |
-| Reads request data (`cookies()`, `headers()`, `searchParams`) the user will need on arrival | Keep `prefetch={true}` and opt the route into [runtime prefetching](/docs/app/guides/runtime-prefetching) with `prefetch = 'allow-runtime'`. |
+| Destination                                                                                 | Recommendation                                                                                                                                                                       |
+| ------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Fully static (no `"use cache"`, no Suspense)                                                | Drop `prefetch={true}`. The default `<Link>` already loads the full page because the App Shell is the page.                                                                          |
+| Has cached content worth shipping ahead of the click                                        | Keep `prefetch={true}`. The cached parts come with the App Shell.                                                                                                                    |
+| Reads request data (`cookies()`, `headers()`, `searchParams`) the user will need on arrival | Keep `prefetch={true}`. Optionally enhance it with [runtime prefetching](/docs/app/guides/runtime-prefetching) (`prefetch = 'allow-runtime'`) so the request data is prefetched too. |
+
+> **Good to know**: `prefetch = 'allow-runtime'` is an _enhancement_ that adds runtime prefetching of request data. It is not a way to silence the dev `<Link prefetch={true}>` warning. That warning means the link does a legacy full prefetch of a route that hasn't adopted Partial Prefetching. The per-route opt-in for Partial Prefetching is `prefetch = 'partial'`, which is separate from `'allow-runtime'`.
 
 Before:
 

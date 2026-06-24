@@ -78,7 +78,7 @@ Learn more: [Streaming with Suspense](/docs/app/guides/streaming).
 
 ### Trade-off
 
-The component shows the fallback during SSR and the first paint. For above-the-fold UI this can be visible. Pick a fallback that matches the final layout to minimize visual jump.
+The component shows the fallback during SSR and the first paint. For above-the-fold UI this can be visible. Pick a fallback that matches the final layout to minimize visual jump. See [CLS-safe skeleton fallback guidance](/docs/app/guides/streaming#cls-cumulative-layout-shift).
 
 ### Gotchas
 
@@ -217,14 +217,9 @@ export default async function Layout({ children }) {
 
 Learn more: [`Date.now()` during prerendering](/docs/messages/blocking-prerender-current-time).
 
-## Don't want this validation?
+## Why `instant = false` doesn't clear this error
 
-Instant-navigation validation runs by default in [Cache Components](/docs/app/api-reference/config/next-config-js/cacheComponents) apps and is what surfaces this error.
-
-- **One segment**: add [`export const instant = false`](/docs/app/api-reference/file-conventions/route-segment-config/instant) to the page or layout file. This opts out the segment itself. Child segments are still validated during client navigations.
-- **Entire app**: set [`experimental.instantInsights.validationLevel`](/docs/app/api-reference/file-conventions/route-segment-config/instant#configuring-validation-defaults) to `'manual-warning'` in `next.config`. This limits validation to segments that explicitly export `instant`.
-
-See [Ensuring instant navigations](/docs/app/guides/instant-navigation) for the full model.
+This error fires from the prerender, not from instant-navigation validation. `new Date()` and `Date.now()` return a different value on every render, so the prerender can't bake them into a static shell regardless of the segment's `instant` config or [`experimental.instantInsights.validationLevel`](/docs/app/api-reference/file-conventions/route-segment-config/instant#configuring-validation-defaults). Use one of the fixes above.
 
 ## Useful links
 
