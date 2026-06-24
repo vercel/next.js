@@ -915,8 +915,8 @@ export type ValidationPayloadResult = {
 export enum ValidationPrefetchKind {
   /** App Shells, for `<Link>` without `prefetch={true}` */
   Shell = 1,
-  // TODO(app-shells): validate speculative prefetches
-  // Speculative = 2,
+  /** App Shells, for `<Link prefetch={true}>` */
+  Speculative = 2,
   /** Pre-appShells behavior. */
   LegacySpeculative = 3,
 }
@@ -944,6 +944,7 @@ export async function createCombinedPayloadAtDepth(
   }
   const { validationLevel, route } = workStore
 
+  let hasShellSegments = false
   let hasStaticSegments = false
   let hasRuntimeSegments = false
 
@@ -1235,6 +1236,7 @@ export async function createCombinedPayloadAtDepth(
         // because they do not affect shell prefetches.
         break
       }
+      case ValidationPrefetchKind.Speculative:
       case ValidationPrefetchKind.LegacySpeculative: {
         const segmentHasRuntimePrefetch = prefetchConfig === 'allow-runtime'
 
@@ -1246,9 +1248,23 @@ export async function createCombinedPayloadAtDepth(
             if (useRuntimeStageForPartialSegments) {
               stage = RenderStage.Runtime
             } else {
-              // In legacy speculative prefetches, we always use static
-              // for segments that aren't under an allow-runtime boundary.
-              stage = RenderStage.Static
+              switch (prefetchKind) {
+                case ValidationPrefetchKind.Speculative: {
+                  // App Shells speculative prefetch of a non-"allow-runtime" segment.
+                  // TODO(app-shells): This is not the actual router behavior.
+                  // For now, we just assume that the prefetch is skipped.
+                  // We should check
+                  // - is the segment fully static? (safe to prefetch, not worse than shell)
+                  // - does the shell shell use session data but the page isn't allow-runtime?
+                  stage = RenderStage.ShellRuntime
+                  break
+                }
+                case ValidationPrefetchKind.LegacySpeculative: {
+                  // In legacy speculative prefetches, we always use static
+                  // for segments that aren't under an allow-runtime boundary.
+                  stage = RenderStage.Static
+                }
+              }
             }
           }
         } else {
@@ -1264,6 +1280,7 @@ export async function createCombinedPayloadAtDepth(
         break
       }
       case RenderStage.ShellRuntime: {
+        hasShellSegments = true
         break
       }
       case RenderStage.Runtime: {
@@ -1384,6 +1401,15 @@ export async function createCombinedPayloadAtDepth(
       }
       break
     }
+    case ValidationPrefetchKind.Speculative: {
+      // TODO(app-shells): Simulating skipping of prefetches if there's no "allow-runtime".
+      // Similarly to buildNewTreeSeedData, this does not currently account for fully
+      // static generateMetadata that uses generateStaticParams (and thus is partial in ShellRuntime)
+      headStage = hasRuntimeSegments
+        ? RenderStage.Runtime
+        : RenderStage.ShellRuntime
+      break
+    }
     case ValidationPrefetchKind.LegacySpeculative: {
       headStage = hasRuntimeSegments ? RenderStage.Runtime : RenderStage.Static
       break
@@ -1399,6 +1425,10 @@ export async function createCombinedPayloadAtDepth(
       // unless we're already overriding and using the runtime stage,
       // which resolves link data.
       hasAmbiguousErrors = !useRuntimeStageForPartialSegments
+      break
+    }
+    case ValidationPrefetchKind.Speculative: {
+      hasAmbiguousErrors = hasStaticSegments || hasShellSegments
       break
     }
     case ValidationPrefetchKind.LegacySpeculative: {

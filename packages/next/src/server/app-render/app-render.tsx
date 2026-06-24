@@ -6509,6 +6509,7 @@ async function validateInstantConfigs(
           : DynamicHoleKind.Dynamic
         break
       }
+      case ValidationPrefetchKind.Speculative:
       case ValidationPrefetchKind.LegacySpeculative: {
         dynamicHoleKind = payloadResult.hasAmbiguousErrors
           ? DynamicHoleKind.Runtime
@@ -6671,58 +6672,63 @@ async function validateInstantConfigs(
 
   let impairedValidation: null | Error | AggregateError = null
 
-  const prefetchKind =
+  // With appShells, we need to validate both shell and speculative prefetches.
+  const prefetchKinds =
     prefetchMode === PrefetchingMode.Partial
-      ? ValidationPrefetchKind.Shell
-      : ValidationPrefetchKind.LegacySpeculative
+      ? [ValidationPrefetchKind.Shell, ValidationPrefetchKind.Speculative]
+      : [ValidationPrefetchKind.LegacySpeculative]
 
-  for (let depth = maxDepth - 1; depth >= 0; depth--) {
-    const maxGroupDepth = groupDepthsByUrlDepth[depth]
+  for (const prefetchKind of prefetchKinds) {
+    for (let depth = maxDepth - 1; depth >= 0; depth--) {
+      const maxGroupDepth = groupDepthsByUrlDepth[depth]
 
-    for (
-      let currentGroupDepth = maxGroupDepth;
-      currentGroupDepth >= 0;
-      currentGroupDepth--
-    ) {
-      const debugKind = ValidationPrefetchKind[prefetchKind]
-      debug?.(
-        `Trying ${debugKind} at depth ${depth}` +
-          (currentGroupDepth > 0
-            ? ` + groupDepth ${currentGroupDepth}...`
-            : '...')
-      )
+      for (
+        let currentGroupDepth = maxGroupDepth;
+        currentGroupDepth >= 0;
+        currentGroupDepth--
+      ) {
+        const debugKind = ValidationPrefetchKind[prefetchKind]
+        debug?.(
+          `Trying ${debugKind} at depth ${depth}` +
+            (currentGroupDepth > 0
+              ? ` + groupDepth ${currentGroupDepth}...`
+              : '...')
+        )
 
-      const result = await validateAtDepth(
-        prefetchKind,
-        depth,
-        currentGroupDepth
-      )
+        const result = await validateAtDepth(
+          prefetchKind,
+          depth,
+          currentGroupDepth
+        )
 
-      if (Array.isArray(result)) {
-        const errors: Array<Error> = result
-        // Validation completed at least partially.
-        if (errors.length > 0) {
-          // There were issues with producing an instant UI for this attempted navigation
+        if (Array.isArray(result)) {
+          const errors: Array<Error> = result
+          // Validation completed at least partially.
+          if (errors.length > 0) {
+            // There were issues with producing an instant UI for this attempted navigation
+            debug?.(
+              `  ${debugKind} at depth ${depth}+${currentGroupDepth}: ❌ Failed (${errors.length} errors)`
+            )
+            return errors
+          } else {
+            // There is nothing blocking instant UI for this simluated navigation
+            debug?.(
+              `  ${debugKind} at depth ${depth}+${currentGroupDepth}: ✅ Passed`
+            )
+          }
+        } else if (result === null) {
+          // There was no validation to perform at this level
           debug?.(
-            `  ${debugKind} at depth ${depth}+${currentGroupDepth}: ❌ Failed (${errors.length} errors)`
+            `  No config at depth ${depth}+${currentGroupDepth}, skipping.`
           )
-          return errors
         } else {
-          // There is nothing blocking instant UI for this simluated navigation
-          debug?.(
-            `  ${debugKind} at depth ${depth}+${currentGroupDepth}: ✅ Passed`
-          )
+          // Something prevented this level from fully validating but there
+          // were no detected errors. Always overwrite — prefer the
+          // shallowest deferred fallback. If a high-level layout drops
+          // children, everything below is unreachable; the shallowest
+          // unrendered segment is closest to the actual cause.
+          impairedValidation = result
         }
-      } else if (result === null) {
-        // There was no validation to perform at this level
-        debug?.(`  No config at depth ${depth}+${currentGroupDepth}, skipping.`)
-      } else {
-        // Something prevented this level from fully validating but there
-        // were no detected errors. Always overwrite — prefer the
-        // shallowest deferred fallback. If a high-level layout drops
-        // children, everything below is unreachable; the shallowest
-        // unrendered segment is closest to the actual cause.
-        impairedValidation = result
       }
     }
   }
