@@ -18,13 +18,28 @@ When [Cache Components](/docs/app/api-reference/config/next-config-js/cacheCompo
 
 The migration is driven by **instant navigation validation**. With Cache Components enabled, Next.js validates in development whether navigating into each route renders instantly, and surfaces the code that would block it as an error or insight.
 
-Start by removing the route segment configs (`dynamic`, `revalidate`, `fetchCache`), then follow the validation insights and errors. Each one names the code to fix, most often uncached data to cache with [`use cache`](/docs/app/api-reference/directives/use-cache) or runtime data to wrap in [`<Suspense>`](https://react.dev/reference/react/Suspense). If a route needs more work than you want to take on right now, you can [opt it out of validation](#opting-out-of-validation) and come back to it later.
+## Use the adoption skill (recommended)
 
-> **Good to know:** For agents working on larger apps, the [`next-cache-components-adoption`](https://github.com/vercel/next.js/tree/canary/skills/next-cache-components-adoption) skill drives this guide route by route. It can blanket-opt-out the app with `instant = false` to unblock the build, work each opt-out back off, help decide what becomes instant and what stays blocking, and walk the dev-overlay validation insights with you. Install with:
->
-> ```bash filename="Terminal"
-> npx skills add https://github.com/vercel/next.js/tree/canary/skills/next-cache-components-adoption
-> ```
+The [`next-cache-components-adoption`](https://github.com/vercel/next.js/tree/canary/skills/next-cache-components-adoption) skill drives this migration with a coding agent, one feature at a time, checking in at every feature boundary. It supports two modes:
+
+- **Incremental.** Opens a single mechanical PR that opts every route out of validation, then ships each feature as a follow-up PR.
+- **Direct.** Adopts every route in place on one branch.
+
+Install the skill:
+
+```bash filename="Terminal"
+npx skills add vercel/next.js --skill next-cache-components-adoption
+```
+
+Prompt the agent:
+
+```text
+Adopt Cache Components in this project using the next-cache-components-adoption skill.
+```
+
+## Or migrate by hand
+
+Start by removing the route segment configs (`dynamic`, `revalidate`, `fetchCache`), then follow the validation insights and errors. Each one names the code to fix, most often uncached data to cache with [`use cache`](/docs/app/api-reference/directives/use-cache) or runtime data to wrap in [`<Suspense>`](https://react.dev/reference/react/Suspense). If a route needs more work than you want to take on right now, you can [opt it out of validation](#opting-out-of-validation) and come back to it later.
 
 Your existing `fetch` and `unstable_cache` caching keeps working as a separate layer, so let the insights and errors guide what to change.
 
