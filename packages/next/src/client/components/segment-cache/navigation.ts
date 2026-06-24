@@ -256,12 +256,17 @@ export function navigateToKnownRoute(
     // where we don't prefetch, the warning only appears when you actually
     // navigate to the route — existing apps with many `prefetch={true}` links
     // aren't flooded with warnings the moment they enable Cache Components.
+    //
+    // The warning is suppressed if any segment on the target route exports
+    // `instant = false`, which is the explicit API for opting a route out of
+    // this validation.
     const link = getLinkForCurrentNavigation()
     if (
       link !== null &&
       link.fetchStrategy === FetchStrategy.Full &&
       (navigationSeed.routeTree.prefetchHints &
-        PrefetchHint.SubtreeHasPartialPrefetching) ===
+        (PrefetchHint.SubtreeHasPartialPrefetching |
+          PrefetchHint.SubtreeHasInstantFalse)) ===
         0
     ) {
       const error = createLinkPrefetchPartialError(url.pathname)
