@@ -134,6 +134,8 @@ After running the codemod, **confirm the root layout got an opt-out** (`grep -n 
 
 Set `cacheComponents: true` and collect the errors. The reported routes are the work queue; there are no opt-outs to remove.
 
+**Direct is about strategy, not verification.** Picking Direct doesn't let you swap `next dev` + the dev loop for `next build`. The build confirms milestone A is _done_; it doesn't tell you which content ended up in the static shell vs streamed per request (see [verifying each fix at runtime](#verifying-each-fix-at-runtime)). "Small app, I already grepped the blockers, the build came back green" is exactly the situation where a top-level `<Suspense>` can silently push the page body out of the shell and the build still reports `◐`. Use `next dev` route-by-route the same way Blanket does.
+
 ## step 2: remove opt-outs, one subtree at a time
 
 The route tree is the work queue. Pick one subtree (`app/dashboard/**`, or a top-level app if the repo has several — marketing, app, docs), finish it end-to-end, ship it, then start the next. Each subtree is an independent, mergeable change. Don't fan out across the whole app in one pass — the point of milestone A's blanket was to make the loop incremental, not optional.
@@ -162,6 +164,8 @@ A checklist, not new adoption work. This is where the user signs off on the subt
 - **Show the user the rendered result.** A screenshot or the visible content you observed, per route. The build can't tell whether the streamed-in loading state, the fallback, or the final layout matches what the user wants. Adoption changes the _experience_, so the person who owns the product should sign off on each piece.
 
 **A route flipping from `ƒ` to `◐` in the build's route table is the adoption landing.** `◐ (Partial Prerender)` means a static shell prerenders and the request-time content streams in — the goal state for any route that reads `cookies()`, `headers()`, `params`, or `searchParams`. Some routes will legitimately stay `ƒ` when they do request-time work through a documented escape hatch (e.g. a layout that uses `await connection()`); the page is no longer _opted out_, it's genuinely dynamic. Don't rip the escape hatch back out chasing a `◐`. The inverse also holds: `instant = false` does **not** force a route to be `ƒ`. The glyph reflects what the route does at prerender time, not which validation knobs it exports.
+
+**`◐` tells you a shell exists, not what's in it.** A `<Suspense>` boundary placed too high — e.g. wrapping the entire page body, or a `<Suspense fallback={null}>` around the article content — will push the visible content out of the static shell into the streamed payload, and the build still reports `◐` because _some_ shell prerendered (often only `<html><body>` with framework markup). The route table can't tell you which content is in the shell vs streamed; only a live browser can. **Drive the route with `next-dev-loop` (or a real browser) and confirm the visible content the user sees on first paint is what you intended to be in the shell.** If the shell is empty and everything streams, pull the `<Suspense>` boundary down (closer to the actual dynamic read) so the prerenderable content lands in the shell.
 
 When the subtree passes and the user is happy with each route, **summarize and ask**: open a PR and move to the next subtree, or stop here?
 
