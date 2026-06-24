@@ -285,9 +285,10 @@ async function getCachedImageResponseArrayBuffer(
  * their raw bytes; objects are walked in sorted-key order.
  *
  * `ImageResponse` options are plain data: numbers, strings, booleans, nested
- * plain objects/arrays, and binary font data. Exotic objects such as `Date` or
- * `Map` aren't special-cased (they'd hash via their enumerable own keys), since
- * options never contain them.
+ * plain objects/arrays, and binary font data. Exotic objects such as `Map` or
+ * `Date` keep their state outside their enumerable own keys, so the key walk
+ * below would hash them incorrectly. Options never contain these, but we warn
+ * if one ever shows up so a mis-keyed cache can be reported.
  *
  * The encoding is self-delimiting: every node starts with a type tag, and
  * variable-length parts (byte runs, primitives, keys) are length-prefixed,
@@ -334,6 +335,26 @@ function updateHashWithOptions(hash: Hash, value: unknown): void {
       updateHashWithOptions(hash, item)
     }
     return
+  }
+
+  // The key walk below captures a plain object faithfully, but an exotic object
+  // keeps its state elsewhere (a `Map`'s/`Set`'s entries, a `Date`'s time), so
+  // two different values would hash the same and could return the wrong cached
+  // image. This shouldn't happen for `ImageResponse` options, so we warn rather
+  // than fail, then hash best-effort, so it can be reported. Not gated on
+  // `NODE_ENV`: this runs during the production `next build` prerender, where
+  // the warning is most useful.
+  const prototype = Object.getPrototypeOf(value)
+  if (prototype !== Object.prototype && prototype !== null) {
+    const typeName =
+      (value as { constructor?: { name?: string } }).constructor?.name ??
+      'object'
+    console.warn(
+      `Cannot reliably include an \`ImageResponse\` option of type ` +
+        `\`${typeName}\` in the cache key, so different images may collide and ` +
+        `return an incorrect cached result. Please report this to the Next.js ` +
+        `team.`
+    )
   }
 
   const keys = Object.keys(value).sort()
