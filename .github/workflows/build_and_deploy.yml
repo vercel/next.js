@@ -136,9 +136,6 @@ jobs:
     runs-on: ubuntu-latest
     env:
       NEXT_TELEMETRY_DISABLED: 1
-      # we build a dev binary for use in CI so skip downloading
-      # canary next-swc binaries in the monorepo
-      NEXT_SKIP_NATIVE_POSTINSTALL: 1
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:

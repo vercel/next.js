@@ -22,6 +22,10 @@ jobs:
     timeout-minutes: 120
     env:
       NEXT_TELEMETRY_DISABLED: 1
+      # This job runs `pnpm build` (JS only) and runs the example apps, so it
+      # needs the published next-swc binary. Opt back into the download since CI
+      # skips it by default (see scripts/install-native.mjs).
+      NEXT_SKIP_NATIVE_POSTINSTALL: 0
     strategy:
       fail-fast: false
       matrix:

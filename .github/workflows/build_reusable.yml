@@ -123,8 +123,10 @@ env:
   TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
 
   NEXT_TELEMETRY_DISABLED: 1
-  # allow not skipping install-native postinstall script if we don't have a binary available already
-  NEXT_SKIP_NATIVE_POSTINSTALL: ${{ inputs.skipNativeInstall == 'yes' && '1' || '' }}
+  # `skipNativeInstall: 'no'` must force the download even though CI otherwise
+  # skips it by default (see scripts/install-native.mjs), so emit an explicit
+  # '0' rather than an empty value.
+  NEXT_SKIP_NATIVE_POSTINSTALL: ${{ inputs.skipNativeInstall == 'yes' && '1' || '0' }}
   DATADOG_API_KEY: ${{ secrets.DATA_DOG_API_KEY }}
   NEXT_JUNIT_TEST_REPORT: 'true'
   DD_ENV: 'ci'

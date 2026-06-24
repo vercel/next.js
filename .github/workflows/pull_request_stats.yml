@@ -23,9 +23,6 @@ env:
   TURBO_CACHE: 'local:rw,remote:rw'
   TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
   NEXT_TELEMETRY_DISABLED: 1
-  # we build a dev binary for use in CI so skip downloading
-  # canary next-swc binaries in the monorepo
-  NEXT_SKIP_NATIVE_POSTINSTALL: 1
   # Vercel KV Store for test timings
   KV_REST_API_URL: ${{ secrets.KV_REST_API_URL }}
   KV_REST_API_TOKEN: ${{ secrets.KV_REST_API_TOKEN }}
