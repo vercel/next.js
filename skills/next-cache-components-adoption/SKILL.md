@@ -50,25 +50,31 @@ Adoption has two milestones. Each is shippable on its own:
 
 ## surfacing errors
 
-Two surfaces; they show different things.
-
-**`next build` — detection only.** Use it to confirm milestone A (green build) and to spot-check milestone B (no route opted out). It stops at the first blocking route, so it's poor for sizing the work. Two flags help when iterating: `--debug-build-paths` builds only the routes you name (comma-separated glob patterns of **file paths relative to the project root**, e.g. `--debug-build-paths="app/admin/**/page.tsx"` or `--debug-build-paths="app/(marketing)/about/page.tsx"` — not URL paths; `--debug-build-paths=/admin` matches nothing and silently exits 0) and `--debug-prerender` (dev-only) prints a fuller stack trace so the error names the originating file and line.
+**Prefer `next dev`, but build-only works too.** The dev overlay surfaces blocking errors one route at a time with full stack traces and fix cards, which makes iteration faster. If you can't run a dev server (no long-running process, no browser, restricted environment), you can complete both milestones with `next build` alone — it just takes more passes because the build stops at the first blocking route. The verification step below has a build-only fallback.
 
 **`next dev` — the working surface.** Visit a route; its blocking errors surface in the dev overlay with full stack traces and fix cards linking the per-error docs. Work one route at a time — errors don't accumulate in one place. The route itself still returns HTTP 200, so don't gate on status codes; read the overlay (or `.next-dev.log` if you can't drive a browser yet).
 
-**Verifying a fix at runtime.** A green build or a cleared overlay isn't proof the route actually behaves — Cache Components is a runtime concern (a static shell with streamed data). Load the route in a real browser, wait for streaming to settle, and confirm it renders. Three ways, in order of preference:
+**`next build` — milestone check, and a viable working surface when dev isn't available.** Confirms milestone A (green build) and spot-checks milestone B (no route opted out). It stops at the first blocking route, so iterating purely on builds means fixing → rebuilding → next error, one at a time. Two flags help: `--debug-build-paths` builds only the routes you name (comma-separated glob patterns of **file paths relative to the project root**, e.g. `--debug-build-paths="app/admin/**/page.tsx"` or `--debug-build-paths="app/(marketing)/about/page.tsx"` — not URL paths; `--debug-build-paths=/admin` matches nothing and silently exits 0) and `--debug-prerender` (dev-only) prints a fuller stack trace so the error names the originating file and line.
 
-1. **The [`next-dev-loop`](https://github.com/vercel/next.js/tree/canary/skills/next-dev-loop) skill** is the fastest path: it cross-checks `/_next/mcp` against the live browser. Install if your agent doesn't have it:
+**Verifying a fix at runtime.** A green build or a cleared overlay isn't proof the route actually behaves — Cache Components is a runtime concern (a static shell with streamed data). Load the route in a real browser, wait for streaming to settle, and confirm it renders. **`next-dev-loop` is the recommended way to do this** — fall back to other approaches only when it isn't available.
+
+1. **Strongly preferred: [`next-dev-loop`](https://github.com/vercel/next.js/tree/canary/skills/next-dev-loop).** It cross-checks `/_next/mcp` against the live browser via `agent-browser` and surfaces both compile and runtime issues in one pass. Use it for every route, not just the tricky ones. **Before starting milestone B**, check whether you can invoke `next-dev-loop`. If you can't, and the project is running a local dev server (or could), ask the user:
+
+   > I'd like to use the `next-dev-loop` skill to verify each fix against the running app. It's the most reliable way to catch Cache Components issues that don't show up in the build. It needs `agent-browser` (a CLI for driving a real Chrome instance) and adds about a minute of setup. Want me to install it before we start?
+
+   To install:
 
    ```bash
    npx skills add https://github.com/vercel/next.js/tree/canary/skills/next-dev-loop
    ```
 
-   It has its own hard prerequisites (Turbopack and `agent-browser >= 0.27.0`) and will tell you how to set those up.
+   The skill has its own hard prerequisites (Turbopack and `agent-browser >= 0.27.0`) and will walk the user through them.
 
-2. **A browser you can drive yourself** (Playwright, agent-browser, any browser-automation tool). `next-dev-loop` is an accelerator, not a prerequisite.
+2. **Fallback: a browser you can drive yourself** (Playwright, `agent-browser` directly, any browser-automation tool). Use this only if `next-dev-loop` isn't installed and the user declined. You'll miss the framework-side checks (`/_next/mcp`), so be more cautious about what you call "verified" — DOM assertions alone don't catch every Cache Components regression.
 
-3. **No browser at all?** Ask the user. Either ask them to drive the dev server and report what the overlay shows, or commit the milestone you've reached and hand off. **Don't silently stop at A or B and call it done** — the runtime behavior won't surface in the build. Be explicit about what you couldn't verify.
+3. **Build-only verification.** If you can't run a dev server at all, you can still complete the work: `next build` will fail on any blocking route the codemod missed, and a green build with no `instant = false` on the routes you care about is a real (if narrower) signal. You'll miss runtime regressions that don't surface in the build, so flag any route you couldn't load in a browser when you report back. Don't pretend a green build covers behavioral verification.
+
+4. **No browser and no build either?** Ask the user. Either ask them to run the dev server (or build) and report what they see, or commit the milestone you've reached and hand off. **Don't silently stop at A or B and call it done** — be explicit about what you couldn't verify.
 
 Verify after every fix, not only at the end. Don't fall back to grepping source or trusting the build alone.
 
