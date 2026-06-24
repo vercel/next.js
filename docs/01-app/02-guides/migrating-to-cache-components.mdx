@@ -18,20 +18,20 @@ When [Cache Components](/docs/app/api-reference/config/next-config-js/cacheCompo
 
 The migration is driven by **instant navigation validation**. With Cache Components enabled, Next.js validates in development whether navigating into each route renders instantly, and surfaces the code that would block it as an error or insight.
 
-## Use the migration skill (recommended)
+## Use the adoption skill (recommended)
 
-The [`next-cache-components-adoption`](https://github.com/vercel/next.js/tree/canary/skills/next-cache-components-adoption) skill lets an agent drive the migration with you. It runs in two steps:
+The [`next-cache-components-adoption`](https://github.com/vercel/next.js/tree/canary/skills/next-cache-components-adoption) skill drives this migration with a coding agent, one feature at a time, checking in at every feature boundary. It supports two modes:
 
-1. **Get the build green.** The agent runs a codemod that adds `export const instant = false` to every page and layout. Each opt-out gets a `// TODO: Cache Components adoption` comment as a marker. You can merge this as a standalone PR and tackle step 2 incrementally.
-2. **Remove the opt-outs one at a time.** For each route, the agent walks the subtree top-down, applies the fix the dev overlay points at (cache the data with [`use cache`](/docs/app/api-reference/directives/use-cache), wrap the dynamic part in [`<Suspense>`](https://react.dev/reference/react/Suspense), or leave the route opted out with a comment explaining why), and checks in with you before moving on.
+- **Incremental.** Opens a single mechanical PR that opts every route out of validation, then ships each feature as a follow-up PR.
+- **Direct.** Adopts every route in place on one branch.
 
-Install with:
+Install the skill:
 
 ```bash filename="Terminal"
 npx skills add vercel/next.js --skill next-cache-components-adoption
 ```
 
-Then prompt your agent with something like:
+Prompt the agent:
 
 ```text
 Adopt Cache Components in this project using the next-cache-components-adoption skill.
