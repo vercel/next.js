@@ -114,6 +114,9 @@ export function getErrorTypeLabel(
   if (errorDetails.type === 'unrendered-segment') {
     return `Instant`
   }
+  if (errorDetails.type === 'link-prefetch-partial') {
+    return `Instant`
+  }
   if (type === 'recoverable') {
     return `Recoverable ${error.name}`
   }
@@ -133,6 +136,7 @@ type ErrorDetails =
   | SyncIOErrorDetails
   | SyncIOClientErrorDetails
   | UnrenderedSegmentErrorDetails
+  | LinkPrefetchPartialErrorDetails
 
 type NoErrorDetails = {
   type: 'empty'
@@ -182,6 +186,11 @@ type UnrenderedSegmentErrorDetails = {
   files: string[]
 }
 
+type LinkPrefetchPartialErrorDetails = {
+  type: 'link-prefetch-partial'
+  pathname: string
+}
+
 const noErrorDetails: ErrorDetails = {
   type: 'empty',
 }
@@ -211,6 +220,11 @@ export function useErrorDetails(
     const unrenderedSegmentDetails = getUnrenderedSegmentErrorDetails(error)
     if (unrenderedSegmentDetails) {
       return unrenderedSegmentDetails
+    }
+
+    const linkPrefetchPartialDetails = getLinkPrefetchPartialErrorDetails(error)
+    if (linkPrefetchPartialDetails) {
+      return linkPrefetchPartialDetails
     }
 
     return noErrorDetails
@@ -494,9 +508,26 @@ export function getUnrenderedSegmentErrorDetails(
   }
 }
 
+export function getLinkPrefetchPartialErrorDetails(
+  error: Error
+): LinkPrefetchPartialErrorDetails | null {
+  const message = error.message
+  if (typeof message !== 'string') return null
+  const match =
+    /^Next\.js encountered dynamic data during prefetching for "([^"]+)"\./.exec(
+      message
+    )
+  if (!match) return null
+  return {
+    type: 'link-prefetch-partial',
+    pathname: match[1],
+  }
+}
+
 export function isInstantNavigationError(error: Error): boolean {
   // Unrendered-segment errors are always instant-only
   if (getUnrenderedSegmentErrorDetails(error)) return true
+  if (getLinkPrefetchPartialErrorDetails(error)) return true
   const details = getBlockingRouteErrorDetails(error)
   return details?.type === 'blocking-route' && details.inNavigation
 }
@@ -1136,6 +1167,43 @@ export function Errors({
             variant="dynamic"
             showExplanation={false}
           />
+        </ErrorOverlayLayout>
+      )
+    case 'link-prefetch-partial':
+      return (
+        <ErrorOverlayLayout
+          errorCode={errorCode}
+          errorType={errorType}
+          errorMessage="Next.js encountered dynamic data during prefetching."
+          headerChildren={
+            <InstantHeaderExplanation kind="link-prefetch-partial" />
+          }
+          renderTabBar={renderTabBar}
+          canGoPrevious={canGoPrevious}
+          canGoNext={canGoNext}
+          onPrevious={handlePrevious}
+          onNext={handleNext}
+          onClose={isServerError ? undefined : onClose}
+          debugInfo={debugInfo}
+          error={error}
+          runtimeErrors={activeErrors}
+          activeIdx={activeIdx}
+          setActiveIndex={setActiveIndex}
+          dialogResizerRef={dialogResizerRef}
+          generateErrorInfo={generateErrorInfo}
+          {...props}
+        >
+          <Suspense fallback={<div data-nextjs-error-suspended />}>
+            <InstantRuntimeError
+              key={activeError.id.toString()}
+              error={activeError}
+              variant="runtime"
+              kind="link-prefetch-partial"
+              showExplanation={false}
+              dialogResizerRef={dialogResizerRef}
+              generateErrorInfo={generateErrorInfo}
+            />
+          </Suspense>
         </ErrorOverlayLayout>
       )
     case 'empty':

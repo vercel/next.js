@@ -92,7 +92,7 @@ export default nextConfig
 
 ## Auditing existing `<Link prefetch={true}>` calls
 
-When `partialPrefetching` is enabled, `<Link prefetch={true}>` now prefetches the App Shell plus cached content, but not dynamic data. Review each existing usage and decide whether the prop is still providing value.
+When `partialPrefetching` is enabled, `<Link prefetch={true}>` now prefetches the App Shell plus cached content, but not dynamic data. Review each existing usage and decide whether the prop is still providing value. In [`next dev`](/docs/app/api-reference/cli/next#next-dev-options), the dev overlay surfaces a [**link-prefetch-partial** insight](/docs/messages/instant-link-prefetch-partial) for each call that points at a route without Partial Prefetching, so you can work through them one at a time.
 
 Previously, `<Link prefetch={true}>` also prefetched dynamic data.
 
