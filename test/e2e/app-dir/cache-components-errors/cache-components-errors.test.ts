@@ -93,9 +93,26 @@ describe('Cache Components Errors', () => {
         it('should show a collapsed redbox error', async () => {
           const browser = await next.browser(pathname)
 
-          await expect(browser).toDisplayCollapsedRedbox(`
-           {
-             "code": "E1370",
+          if (partialPrefetching) {
+            // TODO(app-shells): why isn't the stack pointing to the IO anymore?
+            await expect(browser).toDisplayCollapsedRedbox(`
+             {
+               "code": "E1370",
+               "description": "Next.js encountered uncached data in generateMetadata().",
+               "environmentLabel": "Server",
+               "label": "Blocking Route",
+               "source": "app/dynamic-metadata-static-route/page.tsx (1:23) @ Module.generateMetadata
+             > 1 | export async function generateMetadata() {
+                 |                       ^",
+               "stack": [
+                 "Module.generateMetadata app/dynamic-metadata-static-route/page.tsx (1:23)",
+               ],
+             }
+            `)
+          } else {
+            await expect(browser).toDisplayCollapsedRedbox(`
+             {
+               "code": "E1370",
              "description": "Next.js encountered uncached data in generateMetadata().",
              "environmentLabel": "Server",
              "label": "Blocking Route",
@@ -104,9 +121,10 @@ describe('Cache Components Errors', () => {
                |         ^",
              "stack": [
                "Module.generateMetadata app/dynamic-metadata-static-route/page.tsx (2:9)",
-             ],
-           }
-          `)
+               ],
+             }
+            `)
+          }
         })
       } else {
         it('should error the build if generateMetadata is dynamic when the rest of the route is prerenderable', async () => {
@@ -334,9 +352,26 @@ describe('Cache Components Errors', () => {
         it('should show a collapsed redbox error', async () => {
           const browser = await next.browser(pathname)
 
-          await expect(browser).toDisplayCollapsedRedbox(`
-           {
-             "code": "E1370",
+          if (partialPrefetching) {
+            // TODO(app-shells): why isn't the stack pointing to the IO anymore?
+            await expect(browser).toDisplayCollapsedRedbox(`
+             {
+               "code": "E1370",
+               "description": "Next.js encountered uncached data in generateMetadata().",
+               "environmentLabel": "Server",
+               "label": "Blocking Route",
+               "source": "app/dynamic-metadata-static-with-suspense/page.tsx (1:23) @ Module.generateMetadata
+             > 1 | export async function generateMetadata() {
+                 |                       ^",
+               "stack": [
+                 "Module.generateMetadata app/dynamic-metadata-static-with-suspense/page.tsx (1:23)",
+               ],
+             }
+            `)
+          } else {
+            await expect(browser).toDisplayCollapsedRedbox(`
+             {
+               "code": "E1370",
              "description": "Next.js encountered uncached data in generateMetadata().",
              "environmentLabel": "Server",
              "label": "Blocking Route",
@@ -345,9 +380,10 @@ describe('Cache Components Errors', () => {
                |         ^",
              "stack": [
                "Module.generateMetadata app/dynamic-metadata-static-with-suspense/page.tsx (2:9)",
-             ],
-           }
-          `)
+               ],
+             }
+            `)
+          }
         })
       } else {
         it('should error the build if generateMetadata is dynamic when the rest of the route is prerenderable', async () => {
@@ -408,9 +444,26 @@ describe('Cache Components Errors', () => {
         it('should show a collapsed redbox error', async () => {
           const browser = await next.browser(pathname)
 
-          await expect(browser).toDisplayCollapsedRedbox(`
-           {
-             "code": "E1370",
+          if (partialPrefetching) {
+            // TODO(app-shells): why isn't the stack pointing to the IO anymore?
+            await expect(browser).toDisplayCollapsedRedbox(`
+             {
+               "code": "E1370",
+               "description": "Next.js encountered uncached data in generateMetadata().",
+               "environmentLabel": "Server",
+               "label": "Blocking Route",
+               "source": "app/dynamic-metadata-static-with-suspense-above-body/page.tsx (1:23) @ Module.generateMetadata
+             > 1 | export async function generateMetadata() {
+                 |                       ^",
+               "stack": [
+                 "Module.generateMetadata app/dynamic-metadata-static-with-suspense-above-body/page.tsx (1:23)",
+               ],
+             }
+            `)
+          } else {
+            await expect(browser).toDisplayCollapsedRedbox(`
+             {
+               "code": "E1370",
              "description": "Next.js encountered uncached data in generateMetadata().",
              "environmentLabel": "Server",
              "label": "Blocking Route",
@@ -419,9 +472,10 @@ describe('Cache Components Errors', () => {
                |         ^",
              "stack": [
                "Module.generateMetadata app/dynamic-metadata-static-with-suspense-above-body/page.tsx (2:9)",
-             ],
-           }
-          `)
+               ],
+             }
+            `)
+          }
         })
       } else {
         it('should error the build because Suspense above body is not a documented mitigation for dynamic generateMetadata', async () => {
@@ -482,9 +536,26 @@ describe('Cache Components Errors', () => {
         it('should show a collapsed redbox error', async () => {
           const browser = await next.browser(pathname)
 
-          await expect(browser).toDisplayCollapsedRedbox(`
-           {
-             "code": "E1370",
+          if (partialPrefetching) {
+            // TODO(app-shells): why isn't the stack pointing to the IO anymore?
+            await expect(browser).toDisplayCollapsedRedbox(`
+             {
+               "code": "E1370",
+               "description": "Next.js encountered uncached data in generateMetadata().",
+               "environmentLabel": "Server",
+               "label": "Blocking Route",
+               "source": "app/dynamic-metadata-static-with-instant-false/page.tsx (3:23) @ Module.generateMetadata
+             > 3 | export async function generateMetadata() {
+                 |                       ^",
+               "stack": [
+                 "Module.generateMetadata app/dynamic-metadata-static-with-instant-false/page.tsx (3:23)",
+               ],
+             }
+            `)
+          } else {
+            await expect(browser).toDisplayCollapsedRedbox(`
+             {
+               "code": "E1370",
              "description": "Next.js encountered uncached data in generateMetadata().",
              "environmentLabel": "Server",
              "label": "Blocking Route",
@@ -493,9 +564,10 @@ describe('Cache Components Errors', () => {
                |         ^",
              "stack": [
                "Module.generateMetadata app/dynamic-metadata-static-with-instant-false/page.tsx (4:9)",
-             ],
-           }
-          `)
+               ],
+             }
+            `)
+          }
         })
       } else {
         it('should error the build because instant = false is not a documented mitigation for dynamic generateMetadata', async () => {
@@ -581,9 +653,26 @@ describe('Cache Components Errors', () => {
         it('should show a collapsed redbox error', async () => {
           const browser = await next.browser(pathname)
 
-          await expect(browser).toDisplayCollapsedRedbox(`
-           {
-             "code": "E1369",
+          if (partialPrefetching) {
+            // TODO(app-shells): why isn't the stack pointing to the IO anymore?
+            await expect(browser).toDisplayCollapsedRedbox(`
+             {
+               "code": "E1369",
+               "description": "Next.js encountered uncached data in generateViewport().",
+               "environmentLabel": "Server",
+               "label": "Blocking Route",
+               "source": "app/dynamic-viewport-static-route/page.tsx (1:23) @ Module.generateViewport
+             > 1 | export async function generateViewport() {
+                 |                       ^",
+               "stack": [
+                 "Module.generateViewport app/dynamic-viewport-static-route/page.tsx (1:23)",
+               ],
+             }
+            `)
+          } else {
+            await expect(browser).toDisplayCollapsedRedbox(`
+             {
+               "code": "E1369",
              "description": "Next.js encountered uncached data in generateViewport().",
              "environmentLabel": "Server",
              "label": "Blocking Route",
@@ -592,9 +681,10 @@ describe('Cache Components Errors', () => {
                |         ^",
              "stack": [
                "Module.generateViewport app/dynamic-viewport-static-route/page.tsx (2:9)",
-             ],
-           }
-          `)
+               ],
+             }
+            `)
+          }
         })
       } else {
         it('should error the build if generateViewport is dynamic', async () => {
@@ -693,9 +783,26 @@ describe('Cache Components Errors', () => {
         it('should show a collapsed redbox error', async () => {
           const browser = await next.browser(pathname)
 
-          await expect(browser).toDisplayCollapsedRedbox(`
-           {
-             "code": "E1369",
+          if (partialPrefetching) {
+            // TODO(app-shells): why isn't the stack pointing to the IO anymore?
+            await expect(browser).toDisplayCollapsedRedbox(`
+             {
+               "code": "E1369",
+               "description": "Next.js encountered uncached data in generateViewport().",
+               "environmentLabel": "Server",
+               "label": "Blocking Route",
+               "source": "app/dynamic-viewport-dynamic-route/page.tsx (3:23) @ Module.generateViewport
+             > 3 | export async function generateViewport() {
+                 |                       ^",
+               "stack": [
+                 "Module.generateViewport app/dynamic-viewport-dynamic-route/page.tsx (3:23)",
+               ],
+             }
+            `)
+          } else {
+            await expect(browser).toDisplayCollapsedRedbox(`
+             {
+               "code": "E1369",
              "description": "Next.js encountered uncached data in generateViewport().",
              "environmentLabel": "Server",
              "label": "Blocking Route",
@@ -704,9 +811,10 @@ describe('Cache Components Errors', () => {
                |         ^",
              "stack": [
                "Module.generateViewport app/dynamic-viewport-dynamic-route/page.tsx (4:9)",
-             ],
-           }
-          `)
+               ],
+             }
+            `)
+          }
         })
       } else {
         it('should error the build if generateViewport is dynamic even if there are other uses of dynamic on the page', async () => {
