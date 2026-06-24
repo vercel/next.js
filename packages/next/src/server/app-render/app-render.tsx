@@ -4935,10 +4935,10 @@ async function renderWithWarmCachesForValidationInDev(
   const environmentName = () =>
     getEnvironmentNameForStage(stageController.currentStage)
 
-  let startTime = -Infinity
   const rscPayload = await getPayload(requestStore)
 
-  const { accumulatedChunksPromise } = await runInSequentialTasks(
+  let startTime = -Infinity
+  const accumulatedChunks = await runInSequentialTasks(
     () => {
       stageController.advanceStage(RenderStage.ShellEarlyStatic)
       startTime = performance.now() + performance.timeOrigin
@@ -4958,13 +4958,7 @@ async function renderWithWarmCachesForValidationInDev(
         }
       ) as Readable
 
-      return {
-        accumulatedChunksPromise: accumulateStreamChunks(
-          sourceStream,
-          stageController,
-          null
-        ),
-      }
+      return accumulateStreamChunks(sourceStream, stageController, null)
     },
     () => stageController.advanceStage(RenderStage.ShellStatic),
     () => stageController.advanceStage(RenderStage.EarlyStatic),
@@ -4975,11 +4969,6 @@ async function renderWithWarmCachesForValidationInDev(
     () => stageController.advanceStage(RenderStage.Runtime),
     () => stageController.advanceStage(RenderStage.Dynamic)
   )
-
-  // The render isn't complete until its stream has finished; reading the
-  // accumulation here (rather than handing back a promise) keeps a late
-  // `syncInterruptReason` from the dynamic stage final.
-  const accumulatedChunks = await accumulatedChunksPromise
 
   return {
     accumulatedChunks,
