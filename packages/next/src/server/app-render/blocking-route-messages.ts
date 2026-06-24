@@ -36,6 +36,18 @@ export function createRuntimeBodyErrorInNavigation(route: string): Error {
   )
 }
 
+export function createLinkBodyErrorInNavigation(route: string): Error {
+  return new Error(
+    `Route "${route}": Next.js encountered link data during prerendering or a navigation.\n\n` +
+      `\`params\` or \`searchParams\` accessed outside of \`<Suspense>\` prevents the navigation from being instant, leading to a slower user experience.\n\n` +
+      `Ways to fix this:\n` +
+      `  - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access\n` +
+      `    https://nextjs.org/docs/messages/blocking-prerender-runtime#wrap-in-or-move-into-suspense\n` +
+      `  - [block] Set \`export const instant = false\` to silence this warning and allow a blocking route\n` +
+      `    https://nextjs.org/docs/messages/blocking-prerender-runtime#allow-blocking-route`
+  )
+}
+
 export function createDynamicBodyErrorInNavigation(route: string): Error {
   return new Error(
     `Route "${route}": Next.js encountered uncached data during prerendering or a navigation.\n\n` +
@@ -69,6 +81,18 @@ export function createDynamicOrRuntimeBodyError(route: string): Error {
   )
 }
 
+export function createLinkMetadataError(route: string): Error {
+  return new Error(
+    `Route "${route}": Next.js encountered link data in \`generateMetadata()\`.\n\n` +
+      `This route's metadata is blocked, but the rest of its content can be prefetched. \`params\` or \`searchParams\` accessed in \`generateMetadata()\` prevent it from being prefetched.\n\n` +
+      `Ways to fix this:\n` +
+      `  - [static] Use a static metadata export instead of \`generateMetadata()\`\n` +
+      `    https://nextjs.org/docs/messages/blocking-prerender-metadata-runtime#use-static-metadata\n` +
+      `  - [dynamic] Render a marker component that calls \`await connection()\` inside \`<Suspense>\` on the page\n` +
+      `    https://nextjs.org/docs/messages/blocking-prerender-metadata-runtime#mark-the-route-as-dynamic`
+  )
+}
+
 export function createRuntimeMetadataError(route: string): Error {
   return new Error(
     `Route "${route}": Next.js encountered runtime data in \`generateMetadata()\`.\n\n` +
@@ -90,6 +114,18 @@ export function createDynamicMetadataError(route: string): Error {
       `    https://nextjs.org/docs/messages/blocking-prerender-metadata-dynamic#cache-the-metadata\n` +
       `  - [dynamic] Render a marker component that calls \`await connection()\` inside \`<Suspense>\` on the page\n` +
       `    https://nextjs.org/docs/messages/blocking-prerender-metadata-dynamic#mark-the-route-as-dynamic`
+  )
+}
+
+export function createLinkViewportError(route: string): Error {
+  return new Error(
+    `Route "${route}": Next.js encountered link data in \`generateViewport()\`.\n\n` +
+      `\`params\`, or \`searchParams\` in \`generateViewport()\` prevents the page from being prerendered, leading to a slower user experience.\n\n` +
+      `Ways to fix this:\n` +
+      `  - [static] Use a static viewport export instead of \`generateViewport()\`\n` +
+      `    https://nextjs.org/docs/messages/blocking-prerender-viewport-runtime#use-static-viewport\n` +
+      `  - [block] Set \`export const instant = false\` to silence this warning and allow a blocking route\n` +
+      `    https://nextjs.org/docs/messages/blocking-prerender-viewport-runtime#allow-blocking-route`
   )
 }
 
