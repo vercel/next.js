@@ -2,7 +2,7 @@ import React from 'react';
 import { DynamicServerError } from '../../client/components/hooks-server-context';
 import { StaticGenBailoutError } from '../../client/components/static-generation-bailout';
 import { getPathname } from '../../lib/url';
-const hasUnnamed = typeof React.unstable_unnamed === 'function';
+const hasPostpone = typeof React.unstable_postpone === 'function';
 export function createPrerenderState(isDebugSkeleton) {
     return {
         isDebugSkeleton,
@@ -16,7 +16,7 @@ export function markCurrentScopeAsDynamic(store, expression) {
     } else if (store.dynamicShouldError) {
         throw new StaticGenBailoutError(`Route ${pathname} with \`dynamic = "error"\` couldn't be rendered statically because it used \`${expression}\`. See more info here: https://nextjs.org/docs/app/building-your-application/rendering/static-and-dynamic#dynamic-rendering`);
     } else if (store.prerenderState) {
-        markPrerenderState(store.prerenderState, expression, pathname);
+        postponeWithTracking(store.prerenderState, expression, pathname);
     } else {
         store.revalidate = 0;
         if (store.isStaticGeneration) {
@@ -34,7 +34,7 @@ export function trackDynamicDataAccessed(store, expression) {
     } else if (store.dynamicShouldError) {
         throw new StaticGenBailoutError(`Route ${pathname} with \`dynamic = "error"\` couldn't be rendered statically because it used \`${expression}\`. See more info here: https://nextjs.org/docs/app/building-your-application/rendering/static-and-dynamic#dynamic-rendering`);
     } else if (store.prerenderState) {
-        markPrerenderState(store.prerenderState, expression, pathname);
+        postponeWithTracking(store.prerenderState, expression, pathname);
     } else {
         store.revalidate = 0;
         if (store.isStaticGeneration) {
@@ -45,21 +45,21 @@ export function trackDynamicDataAccessed(store, expression) {
         }
     }
 }
-export function ApiThatShallNotBeNamed({ reason, prerenderState, pathname }) {
-    markPrerenderState(prerenderState, reason, pathname);
+export function Postpone({ reason, prerenderState, pathname }) {
+    postponeWithTracking(prerenderState, reason, pathname);
 }
 export function trackDynamicFetch(store, expression) {
     if (!store.prerenderState || store.isUnstableCacheCallback) return;
-    markPrerenderState(store.prerenderState, expression, store.urlPathname);
+    postponeWithTracking(store.prerenderState, expression, store.urlPathname);
 }
-function markPrerenderState(prerenderState, expression, pathname) {
-    assertUnnamed();
+function postponeWithTracking(prerenderState, expression, pathname) {
+    assertPostpone();
     const reason = `Route ${pathname} needs to bail out of prerendering at this point because it used ${expression}. ` + `React throws this special object to indicate where. It should not be caught by ` + `your own try/catch. Learn more: https://nextjs.org/docs/messages/ppr-caught-error`;
     prerenderState.dynamicAccesses.push({
         stack: prerenderState.isDebugSkeleton ? new Error().stack : undefined,
         expression
     });
-    React.unstable_unnamed(reason);
+    React.unstable_postpone(reason);
 }
 export function usedDynamicAPIs(prerenderState) {
     return prerenderState.dynamicAccesses.length > 0;
@@ -81,16 +81,16 @@ export function formatDynamicAPIAccesses(prerenderState) {
         return `Dynamic API Usage Debug - ${expression}:\n${stack}`;
     });
 }
-function assertUnnamed() {
-    if (!hasUnnamed) {
-        throw new Error(`Invariant: React.unstable_unnamed is not defined. This suggests the wrong version of React was loaded. This is a bug in Next.js`);
+function assertPostpone() {
+    if (!hasPostpone) {
+        throw new Error(`Invariant: React.unstable_postpone is not defined. This suggests the wrong version of React was loaded. This is a bug in Next.js`);
     }
 }
-export function createUnnamedAbortSignal(reason) {
-    assertUnnamed();
+export function createPostponedAbortSignal(reason) {
+    assertPostpone();
     const controller = new AbortController();
     try {
-        React.unstable_unnamed(reason);
+        React.unstable_postpone(reason);
     } catch (x) {
         controller.abort(x);
     }

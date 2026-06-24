@@ -34,7 +34,7 @@ export type WorkStoreContext = {
     pendingWaitUntil?: Promise<any>
     experimental: Pick<
       RenderOpts['experimental'],
-      'authInterrupts' | 'useCacheTimeout'
+      'isRoutePPREnabled' | 'authInterrupts' | 'useCacheTimeout'
     >
 
     /**

@@ -24,6 +24,7 @@ import { pathHasPrefix } from '../../shared/lib/router/utils/path-has-prefix'
 import { removePathPrefix } from '../../shared/lib/router/utils/remove-path-prefix'
 import setupCompression from 'next/dist/compiled/compression'
 import { signalFromNodeResponse } from '../web/spec-extension/adapters/next-request'
+import { isPostpone } from './router-utils/is-postpone'
 import { parseUrl as parseUrlUtil } from '../../shared/lib/router/utils/parse-url'
 
 import {
@@ -794,6 +795,11 @@ export async function initialize(opts: {
     type: 'uncaughtException' | 'unhandledRejection',
     err: Error | undefined
   ) => {
+    if (isPostpone(err)) {
+      // React postpones that are unhandled might end up logged here but they're
+      // not really errors. They're just part of rendering.
+      return
+    }
     if (type === 'unhandledRejection') {
       Log.error('unhandledRejection: ', err)
     } else if (type === 'uncaughtException') {
