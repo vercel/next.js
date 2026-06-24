@@ -155,3 +155,23 @@ export function expectBuildValidationSkipped(result: PrerenderResult) {
   expect(parseValidationMessages(result.cliOutput)).toHaveLength(0)
   expect(result.exitCode).toBe(0)
 }
+
+export function prerenderOrShell(partialPrefetching: boolean) {
+  return (environmentLabel: string | null) => {
+    if (environmentLabel === null) {
+      return null
+    }
+    // In some snapshots, the environment label varies depending on
+    // whether we're running with `appShells` or not. We don't want to
+    // duplicate the snapshots just for this, so we check that it's
+    // the exected one and either return a abstracted form (that makes
+    // the snapshot work for both) or something that will cause the
+    // snapshot to fail.
+    const expected = partialPrefetching ? 'Shell' : 'Prerender'
+    if (environmentLabel === expected) {
+      return '<Prerender or Shell, depending on appShells>'
+    } else {
+      return `<expected '${expected}' because of appShells=${partialPrefetching}, got: '${environmentLabel}'>`
+    }
+  }
+}

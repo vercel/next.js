@@ -73,6 +73,7 @@ declare global {
 
 interface ErrorSnapshotOptions {
   label?: boolean
+  transformEnvironmentLabel?: (environmentLabel: string | null) => string | null
 }
 
 interface SanitizedCauseEntry {
@@ -185,7 +186,10 @@ function sanitizeStack(
 async function createErrorSnapshot(
   browser: Playwright,
   next: NextInstance | null,
-  { label: includeLabel = true }: ErrorSnapshotOptions = {}
+  {
+    label: includeLabel = true,
+    transformEnvironmentLabel,
+  }: ErrorSnapshotOptions = {}
 ): Promise<ErrorSnapshot> {
   const [
     label,
@@ -245,7 +249,9 @@ async function createErrorSnapshot(
   }
 
   const snapshot: ErrorSnapshot = {
-    environmentLabel,
+    environmentLabel: transformEnvironmentLabel
+      ? transformEnvironmentLabel(environmentLabel)
+      : environmentLabel,
     label: label ?? '<FIXME-excluded-label>',
     source: focusedSource,
     stack: sanitizeStack(stack, next),

@@ -5,6 +5,7 @@ import {
   waitForNoErrorToast,
 } from 'next-test-utils'
 import { getDeterministicOutput, getPrerenderOutput } from './utils'
+import { prerenderOrShell } from 'e2e-utils/instant-validation'
 
 const partialPrefetching = !!process.env.__NEXT_PARTIAL_PREFETCHING
 
@@ -1571,10 +1572,11 @@ describe('Cache Components Errors', () => {
           it('should show a collapsed redbox with a sync access error', async () => {
             const browser = await next.browser(`${pathname}?foo=test`)
 
-            await expect(browser).toDisplayCollapsedRedbox(`
+            await expect(browser).toDisplayCollapsedRedbox(
+              `
              {
                "description": "Route "/sync-server-search" used \`searchParams.foo\`. \`searchParams\` is a Promise and must be unwrapped with \`await\` or \`React.use()\` before accessing its properties. Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis",
-               "environmentLabel": "Prerender",
+               "environmentLabel": "<Prerender or Shell, depending on appShells>",
                "label": "Console Error",
                "source": "app/sync-server-search/page.tsx (29:42) @ SearchParamsReadingComponent
              > 29 |   const fooParam = (searchParams as any).foo
@@ -1584,7 +1586,12 @@ describe('Cache Components Errors', () => {
                  "Page app/sync-server-search/page.tsx (15:7)",
                ],
              }
-            `)
+            `,
+
+              {
+                transformEnvironmentLabel: prerenderOrShell(partialPrefetching),
+              }
+            )
           })
         }
       })
@@ -1601,11 +1608,12 @@ describe('Cache Components Errors', () => {
             const browser = await next.browser(`${pathname}`)
 
             if (isTurbopack) {
-              await expect(browser).toDisplayRedbox(`
+              await expect(browser).toDisplayRedbox(
+                `
                [
                  {
                    "description": "Route "/sync-cookies" used \`cookies().get\`. \`cookies()\` returns a Promise and must be unwrapped with \`await\` or \`React.use()\` before accessing its properties. Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis",
-                   "environmentLabel": "Prerender",
+                   "environmentLabel": "<Prerender or Shell, depending on appShells>",
                    "label": "Console Error",
                    "source": "app/sync-cookies/page.tsx (18:25) @ CookiesReadingComponent
                > 18 |   const token = (cookies() as any).get('token')
@@ -1617,7 +1625,7 @@ describe('Cache Components Errors', () => {
                  },
                  {
                    "description": "<turbopack-module-id>.cookies(...).get is not a function",
-                   "environmentLabel": "Prerender",
+                   "environmentLabel": "<Prerender or Shell, depending on appShells>",
                    "label": "Runtime TypeError",
                    "source": "app/sync-cookies/page.tsx (18:36) @ CookiesReadingComponent
                > 18 |   const token = (cookies() as any).get('token')
@@ -1627,13 +1635,20 @@ describe('Cache Components Errors', () => {
                    ],
                  },
                ]
-              `)
+              `,
+
+                {
+                  transformEnvironmentLabel:
+                    prerenderOrShell(partialPrefetching),
+                }
+              )
             } else if (isRspack) {
-              await expect(browser).toDisplayRedbox(`
+              await expect(browser).toDisplayRedbox(
+                `
                [
                  {
                    "description": "Route "/sync-cookies" used \`cookies().get\`. \`cookies()\` returns a Promise and must be unwrapped with \`await\` or \`React.use()\` before accessing its properties. Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis",
-                   "environmentLabel": "Prerender",
+                   "environmentLabel": "<Prerender or Shell, depending on appShells>",
                    "label": "Console Error",
                    "source": "app/sync-cookies/page.tsx (18:25) @ CookiesReadingComponent
                > 18 |   const token = (cookies() as any).get('token')
@@ -1645,7 +1660,7 @@ describe('Cache Components Errors', () => {
                  },
                  {
                    "description": "(0 , next_headers__rspack_import_1.cookies)(...).get is not a function",
-                   "environmentLabel": "Prerender",
+                   "environmentLabel": "<Prerender or Shell, depending on appShells>",
                    "label": "Runtime TypeError",
                    "source": "app/sync-cookies/page.tsx (18:36) @ CookiesReadingComponent
                > 18 |   const token = (cookies() as any).get('token')
@@ -1655,13 +1670,20 @@ describe('Cache Components Errors', () => {
                    ],
                  },
                ]
-              `)
+              `,
+
+                {
+                  transformEnvironmentLabel:
+                    prerenderOrShell(partialPrefetching),
+                }
+              )
             } else {
-              await expect(browser).toDisplayRedbox(`
+              await expect(browser).toDisplayRedbox(
+                `
                [
                  {
                    "description": "Route "/sync-cookies" used \`cookies().get\`. \`cookies()\` returns a Promise and must be unwrapped with \`await\` or \`React.use()\` before accessing its properties. Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis",
-                   "environmentLabel": "Prerender",
+                   "environmentLabel": "<Prerender or Shell, depending on appShells>",
                    "label": "Console Error",
                    "source": "app/sync-cookies/page.tsx (18:17) @ CookiesReadingComponent
                > 18 |   const token = (cookies() as any).get('token')
@@ -1673,7 +1695,7 @@ describe('Cache Components Errors', () => {
                  },
                  {
                    "description": "(0 , <webpack-module-id>.cookies)(...).get is not a function",
-                   "environmentLabel": "Prerender",
+                   "environmentLabel": "<Prerender or Shell, depending on appShells>",
                    "label": "Runtime TypeError",
                    "source": "app/sync-cookies/page.tsx (18:36) @ CookiesReadingComponent
                > 18 |   const token = (cookies() as any).get('token')
@@ -1683,7 +1705,13 @@ describe('Cache Components Errors', () => {
                    ],
                  },
                ]
-              `)
+              `,
+
+                {
+                  transformEnvironmentLabel:
+                    prerenderOrShell(partialPrefetching),
+                }
+              )
             }
           })
         } else {
@@ -1887,10 +1915,11 @@ describe('Cache Components Errors', () => {
             const browser = await next.browser(`${pathname}`)
 
             if (isTurbopack || isRspack) {
-              await expect(browser).toDisplayCollapsedRedbox(`
+              await expect(browser).toDisplayCollapsedRedbox(
+                `
                {
                  "description": "Route "/sync-draft-mode" used \`draftMode().isEnabled\`. \`draftMode()\` returns a Promise and must be unwrapped with \`await\` or \`React.use()\` before accessing its properties. Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis",
-                 "environmentLabel": "Prerender",
+                 "environmentLabel": "<Prerender or Shell, depending on appShells>",
                  "label": "Console Error",
                  "source": "app/sync-draft-mode/page.tsx (24:31) @ DraftModeReadingComponent
                > 24 |   const isEnabled = (draftMode() as any).isEnabled
@@ -1900,12 +1929,19 @@ describe('Cache Components Errors', () => {
                    "Page app/sync-draft-mode/page.tsx (13:7)",
                  ],
                }
-              `)
+              `,
+
+                {
+                  transformEnvironmentLabel:
+                    prerenderOrShell(partialPrefetching),
+                }
+              )
             } else {
-              await expect(browser).toDisplayCollapsedRedbox(`
+              await expect(browser).toDisplayCollapsedRedbox(
+                `
                {
                  "description": "Route "/sync-draft-mode" used \`draftMode().isEnabled\`. \`draftMode()\` returns a Promise and must be unwrapped with \`await\` or \`React.use()\` before accessing its properties. Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis",
-                 "environmentLabel": "Prerender",
+                 "environmentLabel": "<Prerender or Shell, depending on appShells>",
                  "label": "Console Error",
                  "source": "app/sync-draft-mode/page.tsx (24:21) @ DraftModeReadingComponent
                > 24 |   const isEnabled = (draftMode() as any).isEnabled
@@ -1915,7 +1951,13 @@ describe('Cache Components Errors', () => {
                    "Page app/sync-draft-mode/page.tsx (13:7)",
                  ],
                }
-              `)
+              `,
+
+                {
+                  transformEnvironmentLabel:
+                    prerenderOrShell(partialPrefetching),
+                }
+              )
             }
           })
         }
@@ -1933,11 +1975,12 @@ describe('Cache Components Errors', () => {
             const browser = await next.browser(`${pathname}`)
 
             if (isTurbopack) {
-              await expect(browser).toDisplayRedbox(`
+              await expect(browser).toDisplayRedbox(
+                `
                [
                  {
                    "description": "Route "/sync-headers" used \`headers().get\`. \`headers()\` returns a Promise and must be unwrapped with \`await\` or \`React.use()\` before accessing its properties. Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis",
-                   "environmentLabel": "Prerender",
+                   "environmentLabel": "<Prerender or Shell, depending on appShells>",
                    "label": "Console Error",
                    "source": "app/sync-headers/page.tsx (18:29) @ HeadersReadingComponent
                > 18 |   const userAgent = (headers() as any).get('user-agent')
@@ -1949,7 +1992,7 @@ describe('Cache Components Errors', () => {
                  },
                  {
                    "description": "<turbopack-module-id>.headers(...).get is not a function",
-                   "environmentLabel": "Prerender",
+                   "environmentLabel": "<Prerender or Shell, depending on appShells>",
                    "label": "Runtime TypeError",
                    "source": "app/sync-headers/page.tsx (18:40) @ HeadersReadingComponent
                > 18 |   const userAgent = (headers() as any).get('user-agent')
@@ -1959,13 +2002,20 @@ describe('Cache Components Errors', () => {
                    ],
                  },
                ]
-              `)
+              `,
+
+                {
+                  transformEnvironmentLabel:
+                    prerenderOrShell(partialPrefetching),
+                }
+              )
             } else if (isRspack) {
-              await expect(browser).toDisplayRedbox(`
+              await expect(browser).toDisplayRedbox(
+                `
                [
                  {
                    "description": "Route "/sync-headers" used \`headers().get\`. \`headers()\` returns a Promise and must be unwrapped with \`await\` or \`React.use()\` before accessing its properties. Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis",
-                   "environmentLabel": "Prerender",
+                   "environmentLabel": "<Prerender or Shell, depending on appShells>",
                    "label": "Console Error",
                    "source": "app/sync-headers/page.tsx (18:29) @ HeadersReadingComponent
                > 18 |   const userAgent = (headers() as any).get('user-agent')
@@ -1977,7 +2027,7 @@ describe('Cache Components Errors', () => {
                  },
                  {
                    "description": "(0 , next_headers__rspack_import_1.headers)(...).get is not a function",
-                   "environmentLabel": "Prerender",
+                   "environmentLabel": "<Prerender or Shell, depending on appShells>",
                    "label": "Runtime TypeError",
                    "source": "app/sync-headers/page.tsx (18:40) @ HeadersReadingComponent
                > 18 |   const userAgent = (headers() as any).get('user-agent')
@@ -1987,13 +2037,20 @@ describe('Cache Components Errors', () => {
                    ],
                  },
                ]
-              `)
+              `,
+
+                {
+                  transformEnvironmentLabel:
+                    prerenderOrShell(partialPrefetching),
+                }
+              )
             } else {
-              await expect(browser).toDisplayRedbox(`
+              await expect(browser).toDisplayRedbox(
+                `
                [
                  {
                    "description": "Route "/sync-headers" used \`headers().get\`. \`headers()\` returns a Promise and must be unwrapped with \`await\` or \`React.use()\` before accessing its properties. Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis",
-                   "environmentLabel": "Prerender",
+                   "environmentLabel": "<Prerender or Shell, depending on appShells>",
                    "label": "Console Error",
                    "source": "app/sync-headers/page.tsx (18:21) @ HeadersReadingComponent
                > 18 |   const userAgent = (headers() as any).get('user-agent')
@@ -2005,7 +2062,7 @@ describe('Cache Components Errors', () => {
                  },
                  {
                    "description": "(0 , <webpack-module-id>.headers)(...).get is not a function",
-                   "environmentLabel": "Prerender",
+                   "environmentLabel": "<Prerender or Shell, depending on appShells>",
                    "label": "Runtime TypeError",
                    "source": "app/sync-headers/page.tsx (18:40) @ HeadersReadingComponent
                > 18 |   const userAgent = (headers() as any).get('user-agent')
@@ -2015,7 +2072,13 @@ describe('Cache Components Errors', () => {
                    ],
                  },
                ]
-              `)
+              `,
+
+                {
+                  transformEnvironmentLabel:
+                    prerenderOrShell(partialPrefetching),
+                }
+              )
             }
           })
         } else {
@@ -2252,10 +2315,11 @@ describe('Cache Components Errors', () => {
           it('should show a collapsed redbox with a sync access error', async () => {
             const browser = await next.browser(`${pathname}/test`)
 
-            await expect(browser).toDisplayCollapsedRedbox(`
+            await expect(browser).toDisplayCollapsedRedbox(
+              `
              {
                "description": "Route "/sync-server-params/[slug]" used \`params.slug\`. \`params\` is a Promise and must be unwrapped with \`await\` or \`React.use()\` before accessing its properties. Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis",
-               "environmentLabel": "Prerender",
+               "environmentLabel": "<Prerender or Shell, depending on appShells>",
                "label": "Console Error",
                "source": "app/sync-server-params/[slug]/page.tsx (24:39) @ ParamsReadingComponent
              > 24 |       <span id="param">{String(params.slug)}</span>
@@ -2265,7 +2329,12 @@ describe('Cache Components Errors', () => {
                  "Page app/sync-server-params/[slug]/page.tsx (12:7)",
                ],
              }
-            `)
+            `,
+
+              {
+                transformEnvironmentLabel: prerenderOrShell(partialPrefetching),
+              }
+            )
           })
         }
       })
