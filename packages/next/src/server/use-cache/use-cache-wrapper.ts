@@ -3159,7 +3159,6 @@ export async function cache(
               case 'prerender-legacy':
               case 'unstable-cache':
               case 'generate-static-params':
-              case 'prerender-ppr':
                 break
               default:
                 workUnitStore satisfies never
