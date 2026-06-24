@@ -1859,6 +1859,25 @@ export async function handler(
       // In dev mode, also inject self.__next_r so the HMR WebSocket and
       // debug channel can initialize.
       if (isInstantNavigationTest && isDebugStaticShell) {
+        // If the static shell came back empty, the page reads a dynamic value
+        // (e.g. `await cookies()`) at the root with no Suspense boundary above
+        // it, so there is nothing to render before the first dynamic hole.
+        // Serving it would be a blank document with no DevTools, leaving the
+        // user unable to release the instant navigation lock. Throw so we
+        // surface an error page instead; the catch below clears the instant
+        // navigation cookie so the next reload renders normally. The empty
+        // prelude marker is carried in the postponed state, so this works for
+        // both fresh dev renders and prebuilt production shells.
+        if (
+          typeof cachedData.postponed === 'string' &&
+          entryBase.isEmptyHTMLPrelude(cachedData.postponed)
+        ) {
+          throw new Error(
+            `The Navigation Inspector was active, but you attempted to load a blocking route. Reload the page to reset the inspector.\n\n` +
+              `To identify why this route is blocking, refer to the Instant Navigation docs: https://preview.nextjs.org/docs/app/guides/instant-navigation`
+          )
+        }
+
         const instantTestRequestId =
           routeModule.isDev === true ? crypto.randomUUID() : null
         body.pipeThrough(
@@ -2031,6 +2050,19 @@ export async function handler(
       )
     }
   } catch (err) {
+    // If an Instant Navigation Testing document render fails (e.g. the page
+    // blocks at the root with no Suspense boundary above it, producing an empty
+    // or bailed-out static shell), clear the instant navigation cookie before
+    // serving the error page. Otherwise the cookie would persist and every
+    // reload would re-render the same broken shell, leaving the user stuck
+    // without a way to release the lock.
+    if (isInstantNavigationTest && !res.headersSent) {
+      res.setHeader(
+        'Set-Cookie',
+        `${NEXT_INSTANT_TEST_COOKIE}=; Path=/; Max-Age=0`
+      )
+    }
+
     if (!(err instanceof NoFallbackError)) {
       const silenceLog = false
       await routeModule.onRequestError(

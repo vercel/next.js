@@ -63,6 +63,12 @@ export default function HomePage() {
       <a href="/client-fetch-page" id="plain-link-to-client-fetch">
         Go to client fetch page (MPA)
       </a>
+      <Link href="/root-blocking-page" id="link-to-root-blocking">
+        Go to blocking route (no static shell)
+      </Link>
+      <a href="/root-blocking-page" id="plain-link-to-root-blocking">
+        Go to blocking route (no static shell) (MPA)
+      </a>
     </div>
   )
 }
