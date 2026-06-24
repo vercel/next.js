@@ -147,8 +147,6 @@ jobs:
     runs-on: ubuntu-latest
     needs: ['changes']
     if: ${{ needs.changes.outputs.docs-only == 'false' }}
-    env:
-      NEXT_SKIP_NATIVE_POSTINSTALL: 1
     steps:
       - name: Setup Node.js
         uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0

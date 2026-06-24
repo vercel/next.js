@@ -5,9 +5,17 @@ import fs from 'fs'
 import fsp from 'fs/promises'
 import { outdent } from 'outdent'
 ;(async function () {
-  if (process.env.NEXT_SKIP_NATIVE_POSTINSTALL) {
+  // Automatically installing native bindings is opt-in in CI and opt-out in local development.
+  // Most CI jobs use native bindings built from the commit they run on anyway.
+  const rawSkip = process.env.NEXT_SKIP_NATIVE_POSTINSTALL
+  const skipNativePostinstall =
+    rawSkip == null || rawSkip === ''
+      ? process.env.CI === 'true'
+      : rawSkip !== '0' && rawSkip !== 'false'
+
+  if (skipNativePostinstall) {
     console.log(
-      `Skipping next-swc postinstall due to NEXT_SKIP_NATIVE_POSTINSTALL env`
+      `Skipping next-swc postinstall (NEXT_SKIP_NATIVE_POSTINSTALL=${String(JSON.stringify(rawSkip))}, CI=${String(JSON.stringify(process.env.CI))})`
     )
     return
   }
