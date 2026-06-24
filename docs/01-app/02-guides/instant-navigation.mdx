@@ -107,9 +107,11 @@ The `@next/playwright` package provides an [`instant()`](/docs/app/api-reference
 
 ### Inspect loading states
 
-The **Navigation Inspector** in the Next.js DevTools freezes the page at the static shell for direct visits and client navigations. Use it as a feedback loop while you develop: is a loading fallback covering too much? Can a `<Suspense>` boundary move closer to the data? See [Maximizing the static shell](/docs/app/getting-started/caching#maximizing-the-static-shell) for the structural pattern.
+The **Navigation Inspector** in the Next.js DevTools freezes the page at its initial loading state, showing the static shell on direct visits and the prefetched destination on client navigations. Use the inspector to see how much meaningful content lands in the shell.
 
 Pair it with the React DevTools Suspense panel to see exactly which boundary covers which part of the page. See [Visualize loading states with the Next.js DevTools](#visualize-loading-states-with-the-nextjs-devtools) for the workflow.
+
+See [Maximizing the static shell](/docs/app/getting-started/caching#maximizing-the-static-shell) for patterns to reduce fallback coverage and pull more content into the shell.
 
 ## A page that navigates instantly
 
@@ -214,14 +216,16 @@ const nextConfig: NextConfig = {
 export default nextConfig
 ```
 
-Open the Next.js DevTools and select **Navigation Inspector**, then click **Start Capturing**. While capturing is active:
+Open the Next.js DevTools and select **Navigation Inspector**, then toggle **Pause on navigations**. The panel shows **Awaiting navigation...** While the toggle is on:
 
-- Refresh the page to freeze the initial static UI generated for the route, before any dynamic data streams in.
-- Click a link to freeze the prefetched UI for the destination route.
+- Refresh the page to freeze the **static shell**, the route's prerendered UI before any dynamic data streams in. The panel shows **Loading shell** labeled **Page load**, along with the target URL.
+- Click a link to freeze the **prefetched UI** for the destination route. The panel shows **Loading shell** labeled **Client nav**, along with both source and target URLs.
 
-When the UI is frozen, click **Continue Rendering** to let the current navigation finish while keeping the Navigation Inspector in capturing mode. Click **Stop Capturing** when you are done inspecting loading states.
+When the UI is frozen, click **Resume** to complete the navigation. As long as the **Pause on navigations** toggle stays on, further navigations pause too. Toggle it off when you're done inspecting loading states.
 
 Try refreshing the product page. Two separate fallbacks appear: "Loading product..." and "Checking availability...". On the first visit the cache is cold and both fallbacks are visible. Navigate to the page again and the product name appears immediately from cache.
+
+> **Good to know**: When `next dev` renders against an empty cache, the dev indicator turns orange ("Rendering (cold cache)") and leaves a dismissible "Cold cache" badge afterward. A "Cache disabled" variant appears when caches are bypassed. Reload once caches are warm to see a production-representative view.
 
 {/* TODO: screenshot — Navigation Inspector frozen at the static shell on a page refresh, showing both "Loading product..." and "Checking availability..." fallbacks */}
 
