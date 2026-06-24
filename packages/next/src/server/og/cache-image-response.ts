@@ -76,6 +76,7 @@ async function getCachedImageResponseArrayBuffer(
     case 'prerender-runtime':
     case 'prerender-client':
     case 'validation-client':
+    case 'prerender-ppr':
     case 'prerender-legacy':
     case 'generate-static-params':
       return renderImageResponseArrayBuffer(args)

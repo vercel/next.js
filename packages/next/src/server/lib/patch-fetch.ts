@@ -369,6 +369,7 @@ export function createPatchedFetcher(
             // TODO: Stop accumulating tags in client prerender. (fallthrough)
             case 'prerender-client':
             case 'validation-client':
+            case 'prerender-ppr':
             case 'prerender-legacy':
             case 'cache':
             case 'private-cache':
@@ -411,6 +412,7 @@ export function createPatchedFetcher(
             case 'prerender-client':
             case 'validation-client':
             case 'prerender-runtime':
+            case 'prerender-ppr':
             case 'prerender-legacy':
             case 'request':
             case 'cache':
@@ -582,6 +584,7 @@ export function createPatchedFetcher(
                 )
               }
               break
+            case 'prerender-ppr':
             case 'prerender-legacy':
             case 'cache':
             case 'private-cache':
@@ -714,6 +717,7 @@ export function createPatchedFetcher(
                     )
                   }
                   break
+                case 'prerender-ppr':
                 case 'prerender-legacy':
                 case 'cache':
                 case 'private-cache':
@@ -760,6 +764,7 @@ export function createPatchedFetcher(
             case 'prerender-client':
             case 'validation-client':
             case 'prerender-runtime':
+            case 'prerender-ppr':
             case 'prerender-legacy':
             case 'unstable-cache':
             case 'generate-static-params':
@@ -912,6 +917,7 @@ export function createPatchedFetcher(
                       )
                     }
                   // fallthrough
+                  case 'prerender-ppr':
                   case 'prerender-legacy':
                   case 'cache':
                   case 'private-cache':
@@ -995,6 +1001,7 @@ export function createPatchedFetcher(
                     )
                   }
                   break
+                case 'prerender-ppr':
                 case 'prerender-legacy':
                 case 'cache':
                 case 'private-cache':
@@ -1124,6 +1131,7 @@ export function createPatchedFetcher(
                     )
                   }
                   break
+                case 'prerender-ppr':
                 case 'prerender-legacy':
                 case 'cache':
                 case 'private-cache':
@@ -1175,6 +1183,7 @@ export function createPatchedFetcher(
                   case 'private-cache':
                   case 'unstable-cache':
                   case 'prerender-legacy':
+                  case 'prerender-ppr':
                   case 'generate-static-params':
                     break
                   default:

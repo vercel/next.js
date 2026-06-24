@@ -29,6 +29,7 @@ import type {
   PrerenderStoreModernServer,
 } from '../app-render/work-unit-async-storage.external'
 
+// Once postpone is in stable we should switch to importing the postpone export directly
 import React from 'react'
 
 import { DynamicServerError } from '../../client/components/hooks-server-context'
@@ -77,6 +78,8 @@ import {
   allRequiredBoundariesRendered,
 } from './instant-validation/boundary-tracking'
 import type { InstantValidationSampleTracking } from './instant-validation/instant-samples'
+
+const hasPostpone = typeof React.unstable_postpone === 'function'
 
 export type DynamicAccess = {
   /**
@@ -179,6 +182,7 @@ export function markCurrentScopeAsDynamic(
         // A private cache scope is already dynamic by definition.
         return
       case 'prerender-legacy':
+      case 'prerender-ppr':
       case 'request':
       case 'generate-static-params':
         break
@@ -200,6 +204,12 @@ export function markCurrentScopeAsDynamic(
 
   if (workUnitStore) {
     switch (workUnitStore.type) {
+      case 'prerender-ppr':
+        return postponeWithTracking(
+          store.route,
+          expression,
+          workUnitStore.dynamicTracking
+        )
       case 'prerender-legacy':
         workUnitStore.revalidate = 0
 
@@ -271,6 +281,7 @@ export function trackDynamicDataInDynamicRender(workUnitStore: WorkUnitStore) {
     case 'prerender':
     case 'prerender-runtime':
     case 'prerender-legacy':
+    case 'prerender-ppr':
     case 'prerender-client':
     case 'validation-client':
     case 'generate-static-params':
@@ -368,6 +379,78 @@ export function abortAndThrowOnSynchronousRequestDataAccess(
   )
 }
 
+/**
+ * This component will call `React.postpone` that throws the postponed error.
+ */
+type PostponeProps = {
+  reason: string
+  route: string
+}
+export function Postpone({ reason, route }: PostponeProps): never {
+  const prerenderStore = workUnitAsyncStorage.getStore()
+  const dynamicTracking =
+    prerenderStore && prerenderStore.type === 'prerender-ppr'
+      ? prerenderStore.dynamicTracking
+      : null
+  postponeWithTracking(route, reason, dynamicTracking)
+}
+
+export function postponeWithTracking(
+  route: string,
+  expression: string,
+  dynamicTracking: null | DynamicTrackingState
+): never {
+  assertPostpone()
+  if (dynamicTracking) {
+    dynamicTracking.dynamicAccesses.push({
+      // When we aren't debugging, we don't need to create another error for the
+      // stack trace.
+      stack: dynamicTracking.isDebugDynamicAccesses
+        ? new Error().stack
+        : undefined,
+      expression,
+    })
+  }
+
+  React.unstable_postpone(createPostponeReason(route, expression))
+}
+
+function createPostponeReason(route: string, expression: string) {
+  return (
+    `Route ${route} needs to bail out of prerendering at this point because it used ${expression}. ` +
+    `React throws this special object to indicate where. It should not be caught by ` +
+    `your own try/catch. Learn more: https://nextjs.org/docs/messages/ppr-caught-error`
+  )
+}
+
+export function isDynamicPostpone(err: unknown) {
+  if (
+    typeof err === 'object' &&
+    err !== null &&
+    typeof (err as any).message === 'string'
+  ) {
+    return isDynamicPostponeReason((err as any).message)
+  }
+  return false
+}
+
+function isDynamicPostponeReason(reason: string) {
+  return (
+    reason.includes(
+      'needs to bail out of prerendering at this point because it used'
+    ) &&
+    reason.includes(
+      'Learn more: https://nextjs.org/docs/messages/ppr-caught-error'
+    )
+  )
+}
+
+if (isDynamicPostponeReason(createPostponeReason('%%%', '^^^')) === false) {
+  throw new Error(
+    'Invariant: isDynamicPostpone misidentified a postpone reason. This is a bug in Next.js'
+  )
+}
+
 const NEXT_PRERENDER_INTERRUPTED = 'NEXT_PRERENDER_INTERRUPTED'
 
 function createPrerenderInterruptedError(message: string): Error {
@@ -448,6 +531,18 @@ export function formatDynamicAPIAccesses(
     })
 }
 
+function assertPostpone() {
+  if (!hasPostpone) {
+    throw new Error(
+      `Invariant: React.unstable_postpone is not defined. This suggests the wrong version of React was loaded. This is a bug in Next.js`
+    )
+  }
+}
+
+/**
+ * This is a bit of a hack to allow us to abort a render using a Postpone instance instead of an Error which changes React's
+ * abort semantics slightly.
+ */
 export function createRenderInBrowserAbortSignal(): AbortSignal {
   const controller = new AbortController()
   controller.abort(new BailoutToCSRError('Render in Browser'))
@@ -505,6 +600,7 @@ export function createHangingInputAbortSignal(
       return controller.signal
     case 'prerender-client':
     case 'validation-client':
+    case 'prerender-ppr':
     case 'prerender-legacy':
     case 'request':
     case 'cache':
@@ -559,6 +655,17 @@ export function useDynamicRouteParams(expression: string) {
         throw new InvariantError(
           `\`${expression}\` was called from a Server Component. Next.js should be preventing ${expression} from being included in server components statically, but did not in this case.`
         )
+      case 'prerender-ppr': {
+        const fallbackParams = workUnitStore.fallbackRouteParams
+        if (fallbackParams && fallbackParams.size > 0) {
+          return postponeWithTracking(
+            workStore.route,
+            expression,
+            workUnitStore.dynamicTracking
+          )
+        }
+        break
+      }
       case 'validation-client': {
         // Don't check fallbackRouteParams here. We handle params that weren't
         // provided in the samples using a proxy that throws when accessed.
@@ -614,7 +721,8 @@ export function useDynamicSearchParams(expression: string) {
       )
       break
     }
-    case 'prerender-legacy': {
+    case 'prerender-legacy':
+    case 'prerender-ppr': {
       if (workStore.forceStatic) {
         return
       }
