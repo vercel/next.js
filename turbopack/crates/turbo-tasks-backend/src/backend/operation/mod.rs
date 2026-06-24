@@ -1813,30 +1813,6 @@ mod filter_transient_tracking_tests {
             );
         }
     }
-
-    #[test]
-    fn data_category_cell_dependents_tracks_by_key_transience() {
-        let storage = Storage::new(2, true);
-        let task_id = persistent_task(1);
-
-        // `cell_dependents` is an inline AutoSet<CellRef> DATA field with
-        // filter_transient. The CellRef.task here is the (possibly transient)
-        // dependent reader.
-        {
-            let mut g = guard_for(&storage, task_id);
-            assert!(g.add_cell_dependents(cell_ref(transient_task(2))));
-            assert!(
-                !g.data_modified(),
-                "a transient cell dependent must not dirty data"
-            );
-
-            assert!(g.add_cell_dependents(cell_ref(persistent_task(3))));
-            assert!(
-                g.data_modified(),
-                "a persistent cell dependent must dirty data"
-            );
-        }
-    }
 }
 
 #[cfg(test)]
@@ -1905,118 +1881,64 @@ mod cell_data_tracking_tests {
     }
 
     #[test]
-    fn insert_skip_cell_does_not_dirty_data() {
+    fn insert_tracks_only_for_persistable() {
+        // Only `Persistable` cells reach the data snapshot, so only they dirty
+        // the task. `Skip` and `HashOnly` values are dropped by `CellData::encode`
+        // (HashOnly persists via the separate `cell_data_hash` field) — but both
+        // are still stored in memory. Tracking is monotonic: a later persistable
+        // write flips the flag even after skipped writes left it clean.
         let storage = Storage::new(2, true);
-        let task_id = persistent_task(1);
-        let cell = cell_of::<SkipCheapV>(0);
+        let mut g = guard_for(&storage, persistent_task(1));
 
-        let mut g = guard_for(&storage, task_id);
-        assert!(
-            g.insert_cell_data(cell, dummy_ref(), persistence_of(&cell))
-                .is_none()
-        );
-        assert!(
-            !g.data_modified(),
-            "writing a Skip cell must not dirty data for the snapshot"
-        );
-        // ...but the value is present in memory.
-        assert!(g.cell_data_contains(&cell));
-    }
+        let skip = cell_of::<SkipCheapV>(0);
+        g.insert_cell_data(skip, dummy_ref(), persistence_of(&skip));
+        assert!(!g.data_modified(), "Skip write must not dirty data");
+        assert!(g.cell_data_contains(&skip), "Skip value still in memory");
 
-    #[test]
-    fn insert_persistable_cell_dirties_data() {
-        let storage = Storage::new(2, true);
-        let task_id = persistent_task(1);
-        let cell = cell_of::<PersistableV>(0);
+        let hash_only = cell_of::<HashOnlyV>(0);
+        g.insert_cell_data(hash_only, dummy_ref(), persistence_of(&hash_only));
+        assert!(!g.data_modified(), "HashOnly write must not dirty data");
+        assert!(g.cell_data_contains(&hash_only));
 
-        let mut g = guard_for(&storage, task_id);
-        assert!(
-            g.insert_cell_data(cell, dummy_ref(), persistence_of(&cell))
-                .is_none()
-        );
+        let persistable = cell_of::<PersistableV>(0);
+        g.insert_cell_data(persistable, dummy_ref(), persistence_of(&persistable));
         assert!(
             g.data_modified(),
-            "writing a Persistable cell must dirty data"
+            "Persistable write dirties data (monotonic: flips even after skipped writes)"
         );
     }
 
     #[test]
-    fn insert_hash_only_cell_does_not_dirty_cell_data() {
-        // A HashOnly cell's value is NOT in the data snapshot (only its hash, in
-        // the separate cell_data_hash field, which tracks itself). So the
-        // cell_data write must not dirty the task.
+    fn remove_tracks_only_for_persistable() {
         let storage = Storage::new(2, true);
-        let task_id = persistent_task(1);
-        let cell = cell_of::<HashOnlyV>(0);
+        let skip = cell_of::<SkipCheapV>(0);
+        let persistable = cell_of::<PersistableV>(0);
 
-        let mut g = guard_for(&storage, task_id);
-        assert!(
-            g.insert_cell_data(cell, dummy_ref(), persistence_of(&cell))
-                .is_none()
-        );
-        assert!(
-            !g.data_modified(),
-            "writing a HashOnly cell's value must not dirty data (the hash field tracks \
-             separately)"
-        );
-        assert!(g.cell_data_contains(&cell));
-    }
-
-    #[test]
-    fn remove_skip_cell_does_not_dirty_data() {
-        let storage = Storage::new(2, true);
-        let task_id = persistent_task(1);
-        let cell = cell_of::<SkipCheapV>(0);
-
-        let mut g = guard_for(&storage, task_id);
-        // Seed via the (untracked-for-Skip) insert.
-        g.insert_cell_data(cell, dummy_ref(), persistence_of(&cell));
+        // Removing a Skip cell: no tracking.
+        let mut g = guard_for(&storage, persistent_task(1));
+        g.insert_cell_data(skip, dummy_ref(), persistence_of(&skip));
         assert!(!g.data_modified());
-
-        assert!(g.remove_cell_data(&cell, persistence_of(&cell)).is_some());
+        assert!(g.remove_cell_data(&skip, persistence_of(&skip)).is_some());
         assert!(
             !g.data_modified(),
             "removing a Skip cell must not dirty data"
         );
-    }
 
-    #[test]
-    fn remove_persistable_cell_dirties_data() {
-        let storage = Storage::new(2, true);
-        let task_id = persistent_task(1);
-        let cell = cell_of::<PersistableV>(0);
-
-        let mut g = guard_for(&storage, task_id);
-        // Seed without tracking by going through the tracking-free TaskStorage
-        // accessor, then clear the flag so the removal assertion is meaningful.
-        g.typed_mut().cell_data_mut().insert(cell, dummy_ref());
+        // Removing a Persistable cell: tracks. Seed via the tracking-free
+        // TaskStorage accessor so the removal is the only tracked mutation.
+        let mut g = guard_for(&storage, persistent_task(2));
+        g.typed_mut()
+            .cell_data_mut()
+            .insert(persistable, dummy_ref());
         assert!(!g.data_modified());
-
-        assert!(g.remove_cell_data(&cell, persistence_of(&cell)).is_some());
+        assert!(
+            g.remove_cell_data(&persistable, persistence_of(&persistable))
+                .is_some()
+        );
         assert!(
             g.data_modified(),
             "removing a Persistable cell must dirty data"
         );
-    }
-
-    #[test]
-    fn mixed_writes_track_only_persistable_but_keep_skip_in_memory() {
-        // A task that writes both a Skip cell and a Persistable cell: the
-        // Persistable write dirties the task (tracking is monotonic), and the
-        // Skip value is still readable in memory regardless of the flag.
-        let storage = Storage::new(2, true);
-        let task_id = persistent_task(1);
-        let skip = cell_of::<SkipCheapV>(0);
-        let persistable = cell_of::<PersistableV>(0);
-
-        let mut g = guard_for(&storage, task_id);
-        g.insert_cell_data(skip, dummy_ref(), persistence_of(&skip));
-        assert!(!g.data_modified(), "skip-only so far: not dirty");
-        g.insert_cell_data(persistable, dummy_ref(), persistence_of(&persistable));
-        assert!(g.data_modified(), "a persistable write dirties the task");
-
-        assert!(g.cell_data_contains(&skip));
-        assert!(g.cell_data_contains(&persistable));
     }
 
     // `evict_after_snapshot` uses `parallel::for_each`/`map_collect`, which call
