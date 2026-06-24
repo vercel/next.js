@@ -147,6 +147,7 @@ describe('instant-guidance-data card links', () => {
       ['viewport', 'runtime'],
       ['viewport', 'dynamic'],
       ['unrendered-segment', 'runtime'],
+      ['link-prefetch-partial', 'runtime'],
     ]
     for (const [kind, variant] of variants) {
       for (const card of getCards(kind, variant)) {
@@ -172,6 +173,7 @@ describe('instant-guidance-data card invariants', () => {
       ['viewport', 'dynamic'],
       ['viewport', 'dynamic', 'connection'],
       ['unrendered-segment', 'runtime'],
+      ['link-prefetch-partial', 'runtime'],
     ]
     for (const [kind, variant, cause] of variants) {
       cards.push(...getCards(kind, variant, cause))
@@ -236,6 +238,7 @@ describe('instant-guidance-data dispatcher', () => {
       ['viewport', 'runtime'],
       ['viewport', 'dynamic'],
       ['unrendered-segment', 'runtime'],
+      ['link-prefetch-partial', 'runtime'],
     ]
     for (const [kind, variant] of variants) {
       for (const card of getCards(kind, variant)) used.add(card.group)
