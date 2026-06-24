@@ -105,15 +105,15 @@ describe('instant validation causes', () => {
            ],
          },
        ],
-       "code": "E1372",
-       "description": "Next.js encountered runtime data during a navigation.",
+       "code": "E1375",
+       "description": "Next.js encountered uncached data during a navigation.",
        "environmentLabel": "Server",
        "label": "Instant",
-       "source": "app/named-export/page.tsx (7:16) @ Page
-     >  7 |   await cookies()
-          |                ^",
+       "source": "app/named-export/page.tsx (7:19) @ Page
+     >  7 |   await connection()
+          |                   ^",
        "stack": [
-         "Page app/named-export/page.tsx (7:16)",
+         "Page app/named-export/page.tsx (7:19)",
        ],
      }
     `)
@@ -136,15 +136,15 @@ describe('instant validation causes', () => {
            ],
          },
        ],
-       "code": "E1372",
-       "description": "Next.js encountered runtime data during a navigation.",
+       "code": "E1375",
+       "description": "Next.js encountered uncached data during a navigation.",
        "environmentLabel": "Server",
        "label": "Instant",
-       "source": "app/aliased-export/page.tsx (7:16) @ Page
-     >  7 |   await cookies()
-          |                ^",
+       "source": "app/aliased-export/page.tsx (7:19) @ Page
+     >  7 |   await connection()
+          |                   ^",
        "stack": [
-         "Page app/aliased-export/page.tsx (7:16)",
+         "Page app/aliased-export/page.tsx (7:19)",
        ],
      }
     `)
@@ -167,15 +167,15 @@ describe('instant validation causes', () => {
            ],
          },
        ],
-       "code": "E1372",
-       "description": "Next.js encountered runtime data during a navigation.",
+       "code": "E1375",
+       "description": "Next.js encountered uncached data during a navigation.",
        "environmentLabel": "Server",
        "label": "Instant",
-       "source": "app/reexport/page.tsx (6:16) @ Page
-     > 6 |   await cookies()
-         |                ^",
+       "source": "app/reexport/page.tsx (6:19) @ Page
+     > 6 |   await connection()
+         |                   ^",
        "stack": [
-         "Page app/reexport/page.tsx (6:16)",
+         "Page app/reexport/page.tsx (6:19)",
        ],
      }
     `)
@@ -201,15 +201,15 @@ describe('instant validation causes', () => {
            ],
          },
        ],
-       "code": "E1372",
-       "description": "Next.js encountered runtime data during a navigation.",
+       "code": "E1375",
+       "description": "Next.js encountered uncached data during a navigation.",
        "environmentLabel": "Server",
        "label": "Instant",
-       "source": "app/indirect-export/page.tsx (8:16) @ Page
-     >  8 |   await cookies()
-          |                ^",
+       "source": "app/indirect-export/page.tsx (8:19) @ Page
+     >  8 |   await connection()
+          |                   ^",
        "stack": [
-         "Page app/indirect-export/page.tsx (8:16)",
+         "Page app/indirect-export/page.tsx (8:19)",
        ],
      }
     `)
