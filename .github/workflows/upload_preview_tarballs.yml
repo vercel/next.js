@@ -13,6 +13,11 @@ permissions:
   actions: read
   contents: read
 
+env:
+  # Not needed. Just breaks the job needlessly while a new canary version is
+  # being published.
+  NEXT_SKIP_NATIVE_POSTINSTALL: 1
+
 jobs:
   upload:
     name: Upload preview tarballs to Blob
