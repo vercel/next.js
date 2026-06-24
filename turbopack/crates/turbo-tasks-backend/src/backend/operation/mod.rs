@@ -1566,6 +1566,10 @@ mod filter_transient_tracking_tests {
     //! [`TaskGuardImpl`] over a [`Storage`], asserting the modified flag is only
     //! set for non-transient mutations. Tracking is monotonic: a persistent
     //! mutation still sets the flag even after a transient one was skipped.
+    //!
+    //! These live here (rather than next to the schema in `storage_schema.rs`)
+    //! because the tracking accessors are only implemented by [`TaskGuardImpl`],
+    //! whose fields are private to this module.
     use turbo_tasks::{CellId, TRANSIENT_TASK_BIT, TaskId, ValueTypeId};
 
     use super::*;
@@ -1825,6 +1829,10 @@ mod cell_data_tracking_tests {
     //! (by `Evictability`), independent of the modified flag — so a Skip cell that
     //! must stay in memory survives eviction even though the task was never marked
     //! modified.
+    //!
+    //! Like [`super::filter_transient_tracking_tests`], these live here because
+    //! the `cell_data` mutators are hand-written on [`TaskGuardImpl`] (private to
+    //! this module), not in `storage_schema.rs`.
     use turbo_tasks::{
         self as turbo_tasks, CellId, TRANSIENT_TASK_BIT, TaskId, ValueTypePersistence, VcValueType,
         registry,
