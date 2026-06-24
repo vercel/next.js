@@ -46,6 +46,7 @@ import { ScrollBehavior } from '../router-reducer/router-reducer-types'
 import { computeChangedPath } from '../router-reducer/compute-changed-path'
 import { isJavaScriptURLString } from '../../lib/javascript-url'
 import { UnknownDynamicStaleTime, computeDynamicStaleAt } from './bfcache'
+import { createLinkPrefetchPartialError } from '../../../shared/lib/instant-messages'
 
 /**
  * Navigate to a new URL, using the Segment Cache to construct a response.
@@ -263,13 +264,7 @@ export function navigateToKnownRoute(
         PrefetchHint.SubtreeHasPartialPrefetching) ===
         0
     ) {
-      const error = new Error(
-        `A <Link prefetch={true}> navigated to "${url.pathname}", but Partial ` +
-          `Prefetching is not enabled for that route, so its dynamic data was ` +
-          `included in the prefetch. Enable Partial Prefetching app-wide by ` +
-          `setting \`partialPrefetching: true\` in next.config, or per-route by ` +
-          `exporting \`const prefetch = 'partial'\` from the page or layout.`
-      )
+      const error = createLinkPrefetchPartialError(url.pathname)
       const ownerStack = 'ownerStack' in link ? link.ownerStack : undefined
       if (ownerStack === undefined) {
         console.error(
