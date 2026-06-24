@@ -26,7 +26,7 @@ const MAX_COUNT_BEFORE_YIELD: usize = 1000;
 const BASE_LEAF_DISTANCE_BUFFER: u32 = 128;
 
 /// An leaf distance update job that is enqueued.
-#[derive(Encode, Decode, Clone)]
+#[derive(Debug, Encode, Decode, Clone)]
 struct LeafDistanceUpdate {
     dependencies_distance: u32,
     dependencies_max_distance_in_buffer: u32,
@@ -48,17 +48,13 @@ impl LeafDistanceUpdate {
 /// A queue of leaf distance update jobs.
 /// It will execute these jobs in order of their minimum dependency leaf distance.
 /// This ensures that we never have to re-process a task.
-#[derive(Default, Encode, Decode, Clone)]
+#[derive(Debug, Default, Encode, Decode, Clone)]
 pub struct LeafDistanceUpdateQueue {
     queue: BinaryHeap<(Reverse<u32>, TaskId)>,
     leaf_distance_updates: FxHashMap<TaskId, LeafDistanceUpdate>,
 }
 
 impl LeafDistanceUpdateQueue {
-    pub fn new() -> Self {
-        Self::default()
-    }
-
     pub fn is_empty(&self) -> bool {
         self.queue.is_empty()
     }
@@ -90,7 +86,7 @@ impl LeafDistanceUpdateQueue {
     }
 
     /// Executes a single step of the queue. Returns true, when the queue is empty.
-    pub fn process(&mut self, ctx: &mut impl ExecuteContext) -> bool {
+    pub fn process(&mut self, ctx: &mut impl ExecuteContext<'_>) -> bool {
         let mut remaining = MAX_COUNT_BEFORE_YIELD;
         while remaining > 0 {
             if let Some((Reverse(queue_dependencies_distance), task_id)) = self.queue.pop() {
@@ -126,7 +122,7 @@ impl LeafDistanceUpdateQueue {
 
     fn update_leaf_distance(
         &mut self,
-        ctx: &mut impl ExecuteContext,
+        ctx: &mut impl ExecuteContext<'_>,
         task_id: TaskId,
         dependencies_distance: u32,
         dependencies_max_distance_in_buffer: u32,

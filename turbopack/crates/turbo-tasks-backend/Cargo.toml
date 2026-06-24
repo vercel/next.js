@@ -32,7 +32,7 @@ trace_task_completion = []
 trace_task_modification = []
 trace_task_dirty = ["trace_aggregation_update_queue", "task_dirty_cause"]
 trace_task_output_dependencies = []
-trace_task_details = []
+trace_task_details = ["dep:either"]
 trace_prepare_tasks = []
 
 [dependencies]
@@ -42,6 +42,7 @@ auto-hash-map = { workspace = true }
 bitfield = { workspace = true }
 crossbeam-utils = { workspace = true }
 dashmap = { workspace = true, features = ["raw-api"]}
+either = { workspace = true, optional = true }
 hashbrown = { workspace = true, features = ["raw"] }
 indexmap = { workspace = true }
 lzzzz = { workspace = true, optional = true }

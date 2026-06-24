@@ -1,6 +1,6 @@
 mod cell_data;
 mod counter_map;
-mod operation;
+pub(crate) mod operation;
 mod snapshot_coordinator;
 mod storage;
 pub mod storage_schema;
@@ -60,9 +60,8 @@ use crate::{
         operation::{
             AggregationUpdateJob, AggregationUpdateQueue, ChildExecuteContext,
             CleanupOldEdgesOperation, ConnectChildOperation, ExecuteContext, ExecuteContextImpl,
-            LeafDistanceUpdateQueue, Operation, OutdatedEdge, TaskGuard, TaskType, TaskTypeRef,
-            connect_children, get_aggregation_number, get_uppers, make_task_dirty_internal,
-            prepare_new_children,
+            Operation, OutdatedEdge, TaskGuard, TaskType, TaskTypeRef, connect_children,
+            get_aggregation_number, get_uppers, make_task_dirty_internal, prepare_new_children,
         },
         snapshot_coordinator::{OperationGuard, SnapshotCoordinator},
         storage::Storage,
@@ -493,8 +492,7 @@ impl TurboTasksBackend {
             task: &impl TaskGuard,
             reader_description: Option<EventDescription>,
             tracking: ReadTracking,
-        ) -> Option<std::result::Result<std::result::Result<RawVc, EventListener>, anyhow::Error>>
-        {
+        ) -> Option<Result<std::result::Result<RawVc, EventListener>>> {
             match task.get_in_progress() {
                 Some(InProgressState::Scheduled { done_event, .. }) => Some(Ok(Err(
                     listen_to_done_event(reader_description, tracking, done_event),
@@ -704,19 +702,35 @@ impl TurboTasksBackend {
                     dependent_task = ?reader
                 )
                 .entered();
-                let mut queue = LeafDistanceUpdateQueue::new();
                 let reader = reader.unwrap();
-                if task.add_output_dependent(reader) {
+                if task.add_output_dependent(reader)
+                    // Immutable producers are excluded: they never re-execute so we don't need to defer our invalidations relative to their leaf distance.
+                    && !task.immutable()
+                {
                     // Ensure that dependent leaf distance is strictly monotonic increasing
                     let leaf_distance = task.get_leaf_distance().copied().unwrap_or_default();
                     let reader_leaf_distance =
                         reader_task.get_leaf_distance().copied().unwrap_or_default();
                     if reader_leaf_distance.distance <= leaf_distance.distance {
-                        queue.push(
-                            reader,
-                            leaf_distance.distance,
-                            leaf_distance.max_distance_in_buffer,
+                        // Accumulate the dependencies leaf distance in the in_progress state, it
+                        // will be finalized during our task completion.
+                        let in_progress = reader_task.get_in_progress_mut();
+                        debug_assert!(
+                            matches!(in_progress, Some(InProgressState::InProgress(_))),
+                            "a tracked read implies the reader is in progress, but it was \
+                             {in_progress:?}"
                         );
+                        if let Some(InProgressState::InProgress(box InProgressStateInner {
+                            leaf_distance_update_queue,
+                            ..
+                        })) = in_progress
+                        {
+                            leaf_distance_update_queue.push(
+                                reader,
+                                leaf_distance.distance,
+                                leaf_distance.max_distance_in_buffer,
+                            );
+                        }
                     }
                 }
 
@@ -731,8 +745,6 @@ impl TurboTasksBackend {
                     let _ = reader_task.add_output_dependencies(task_id);
                 }
                 drop(reader_task);
-
-                queue.execute(&mut ctx);
             } else {
                 drop(task);
             }
@@ -1893,6 +1905,7 @@ impl TurboTasksBackend {
                     done_event,
                     marked_as_completed: false,
                     new_children: Default::default(),
+                    leaf_distance_update_queue: Default::default(),
                 },
             )));
             debug_assert!(old.is_none(), "InProgress already exists");
@@ -2155,14 +2168,38 @@ impl TurboTasksBackend {
                 is_session_dependent,
             });
         }
-        let &mut InProgressState::InProgress(box InProgressStateInner {
-            stale,
-            ref mut new_children,
-            once_task: is_once_task,
-            ..
-        }) = in_progress
+        // Capture the Copy fields and take the accumulated leaf distance update queue before
+        // computing the leaf distance, so the borrow of `in_progress` is released and `task` can be
+        // mutated below.
+        let (stale, is_once_task, leaf_distance_update_queue) = {
+            let InProgressState::InProgress(box InProgressStateInner {
+                stale,
+                once_task: is_once_task,
+                leaf_distance_update_queue,
+                ..
+            }) = in_progress
+            else {
+                panic!("Task execution completed, but task is not in progress: {task:#?}");
+            };
+            (*stale, *is_once_task, take(leaf_distance_update_queue))
+        };
+
+        // Execute the leaf distance updates that were accumulated while the task executed: this
+        // updates the task's own leaf distance and propagates the change to its (already completed)
+        // output dependents. This is done here, before the stale check below, so that
+        // `compute_stale_priority` reads the freshly computed value. The queue re-locks the task
+        // internally, so the current lock must be released first.
+        if !leaf_distance_update_queue.is_empty() {
+            drop(task);
+            leaf_distance_update_queue.execute(ctx);
+            task = ctx.task(task_id, TaskDataCategory::All);
+        }
+
+        // Re-borrow the in-progress children for the rest of completion.
+        let Some(InProgressState::InProgress(box InProgressStateInner { new_children, .. })) =
+            task.get_in_progress_mut()
         else {
-            panic!("Task execution completed, but task is not in progress: {task:#?}");
+            unreachable!("checked above");
         };
 
         // If the task is stale, reschedule it
@@ -2666,6 +2703,7 @@ impl TurboTasksBackend {
             stale,
             marked_as_completed: _,
             new_children,
+            leaf_distance_update_queue: _,
         }) = in_progress
         else {
             panic!("Task execution completed, but task is not in progress: {task:#?}");

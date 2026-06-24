@@ -16,7 +16,7 @@ use turbo_tasks::{
     event::{Event, EventDescription, EventListener},
 };
 
-use crate::error::TaskError;
+use crate::{backend::operation::LeafDistanceUpdateQueue, error::TaskError};
 
 // this traits are needed for the transient variants of `CachedDataItem`
 // transient variants are never cloned or compared
@@ -253,6 +253,11 @@ pub struct InProgressStateInner {
     /// Children that should be connected to the task and have their active_count decremented
     /// once the task completes.
     pub new_children: FxHashSet<TaskId>,
+    /// Leaf distance updates accumulated while the task executes. Each dependency read pushes the
+    /// dependency's leaf distance here (keyed by this task); the queue is executed once at
+    /// completion to update this task's leaf distance and propagate the change to its dependents.
+    /// Deferring the execution to completion avoids redundant per-read propagation.
+    pub leaf_distance_update_queue: LeafDistanceUpdateQueue,
 }
 
 #[derive(Debug)]
