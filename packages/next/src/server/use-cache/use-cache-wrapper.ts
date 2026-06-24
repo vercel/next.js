@@ -3137,6 +3137,7 @@ export async function cache(
               case 'private-cache':
               case 'prerender':
               case 'prerender-runtime':
+              case 'prerender-ppr':
               case 'prerender-legacy':
               case 'unstable-cache':
               case 'generate-static-params':
