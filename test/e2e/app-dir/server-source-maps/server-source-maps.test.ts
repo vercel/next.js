@@ -652,7 +652,7 @@ describe('app-dir - server source maps', () => {
         await expect(browser).toDisplayCollapsedRedbox(`
          {
            "description": "module-evaluation",
-           "environmentLabel": "Prerender",
+           "environmentLabel": "Shell",
            "label": "Console Error",
            "source": "app/module-evaluation/module.js (1:22) @ module evaluation
          > 1 | export const error = new Error('module-evaluation')
@@ -744,7 +744,7 @@ describe('app-dir - server source maps', () => {
          [
            {
              "description": "rsc-anonymous-stack-frame-sandwich: external",
-             "environmentLabel": "Prerender",
+             "environmentLabel": "Shell",
              "label": "Console Error",
              "source": "app/rsc-anonymous-stack-frame-sandwich/page.js (5:29) @ Page
          > 5 |   runHiddenSetOfSetsExternal('rsc-anonymous-stack-frame-sandwich: external')
@@ -758,7 +758,7 @@ describe('app-dir - server source maps', () => {
            },
            {
              "description": "rsc-anonymous-stack-frame-sandwich: internal",
-             "environmentLabel": "Prerender",
+             "environmentLabel": "Shell",
              "label": "Console Error",
              "source": "app/rsc-anonymous-stack-frame-sandwich/page.js (6:29) @ Page
          > 6 |   runHiddenSetOfSetsInternal('rsc-anonymous-stack-frame-sandwich: internal')
