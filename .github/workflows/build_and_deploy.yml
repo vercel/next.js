@@ -96,6 +96,9 @@ jobs:
               elif [[ "$RELEASE_VERSION" == *-rc.* ]];
               then
                 RELEASE_ENVIRONMENT="release-release-candidate"
+              elif [[ "$RELEASE_VERSION" == *-preview.* ]];
+              then
+                RELEASE_ENVIRONMENT="release-preview"
               elif [[ "$RELEASE_VERSION" != *-* ]];
               then
                 RELEASE_ENVIRONMENT="release-stable"
