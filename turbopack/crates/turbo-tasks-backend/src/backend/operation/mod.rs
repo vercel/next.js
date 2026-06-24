@@ -19,7 +19,7 @@ use tracing::info_span;
 use tracing::trace_span;
 use turbo_tasks::{
     CellId, DynTaskInputs, FxIndexMap, RawVc, SharedReference, TaskExecutionReason, TaskId,
-    TaskPriority, TurboTasks, TurboTasksCallApi, backend::CachedTaskTypeArc,
+    TaskPriority, TurboTasks, TurboTasksCallApi, ValueTypePersistence, backend::CachedTaskTypeArc,
     macro_helpers::NativeFunction,
 };
 
@@ -1240,9 +1240,57 @@ pub trait TaskGuard: Debug + TaskStorageAccessors {
             .unwrap_or_default();
         dirty_count > clean_count
     }
-    /// Add new cell data. Panics if the cell already had a value.
-    fn add_cell_data(&mut self, cell: CellId, value: SharedReference) {
-        let old = self.insert_cell_data(cell, value);
+    /// Insert cell data, returning the old value if present.
+    ///
+    /// Tracks a Data-category modification (dirtying the task for the next
+    /// persistence snapshot) only when the cell's value type actually persists
+    /// something. A `ValueTypePersistence::Skip` cell is dropped by
+    /// `CellData::encode`, so writing one changes zero persistable bytes and
+    /// must not dirty the task; `Persistable`/`HashOnly` cells do persist
+    /// (`HashOnly` via the separate `cell_data_hash` field) and are tracked.
+    ///
+    /// This is hand-written rather than macro-generated (`cell_data` carries
+    /// `custom_mutators`) so the tracking decision can read the persistence the
+    /// caller already resolved, avoiding a per-write registry lookup. It writes
+    /// through `cell_data_mut()`, which is documented to NOT track on its own.
+    fn insert_cell_data(
+        &mut self,
+        cell: CellId,
+        value: SharedReference,
+        persistence: &ValueTypePersistence,
+    ) -> Option<SharedReference> {
+        self.check_access(SpecificTaskDataCategory::Data);
+        if !matches!(persistence, ValueTypePersistence::Skip) {
+            self.track_modification(SpecificTaskDataCategory::Data, "cell_data");
+        }
+        self.typed_mut().cell_data_mut().insert(cell, value)
+    }
+
+    /// Remove cell data, returning the old value if present. See
+    /// [`insert_cell_data`](Self::insert_cell_data) for the tracking rationale.
+    fn remove_cell_data(
+        &mut self,
+        cell: &CellId,
+        persistence: &ValueTypePersistence,
+    ) -> Option<SharedReference> {
+        self.check_access(SpecificTaskDataCategory::Data);
+        // Only track when something persistable is actually removed: the entry
+        // must exist AND not be a Skip cell (Skip cells were never persisted).
+        if !matches!(persistence, ValueTypePersistence::Skip) && self.cell_data_contains(cell) {
+            self.track_modification(SpecificTaskDataCategory::Data, "cell_data");
+        }
+        self.typed_mut().cell_data_mut().remove(cell)
+    }
+
+    /// Add new cell data. Panics if the cell already had a value. See
+    /// [`insert_cell_data`](Self::insert_cell_data) for the tracking rationale.
+    fn add_cell_data(
+        &mut self,
+        cell: CellId,
+        value: SharedReference,
+        persistence: &ValueTypePersistence,
+    ) {
+        let old = self.insert_cell_data(cell, value, persistence);
         assert!(old.is_none(), "Cell data already exists for {cell:?}");
     }
 
@@ -1507,3 +1555,441 @@ pub use self::{
     prepare_new_children::prepare_new_children,
     update_collectible::UpdateCollectibleOperation,
 };
+
+#[cfg(test)]
+mod filter_transient_tracking_tests {
+    //! `filter_transient` fields drop transient entries at encode time, so a
+    //! mutation that only touches a transient key/value changes zero persistable
+    //! bytes and must NOT dirty the (persistent) task for the snapshot. These
+    //! tests exercise the macro-generated guarded `track_modification` on a real
+    //! [`TaskGuardImpl`] over a [`Storage`], asserting the modified flag is only
+    //! set for non-transient mutations. Tracking is monotonic: a persistent
+    //! mutation still sets the flag even after a transient one was skipped.
+    use turbo_tasks::{CellId, TRANSIENT_TASK_BIT, TaskId, ValueTypeId};
+
+    use super::*;
+    use crate::{
+        backend::{TaskDataCategory, storage::Storage},
+        data::{CellRef, OutputValue},
+    };
+
+    fn persistent_task(id: u32) -> TaskId {
+        assert!(id & TRANSIENT_TASK_BIT == 0);
+        TaskId::new(id).unwrap()
+    }
+
+    fn transient_task(id: u32) -> TaskId {
+        TaskId::new(id | TRANSIENT_TASK_BIT).unwrap()
+    }
+
+    fn cell_ref(task: TaskId) -> CellRef {
+        CellRef {
+            task,
+            cell: CellId::new(unsafe { ValueTypeId::new_unchecked(1) }, 0),
+        }
+    }
+
+    /// Build a `TaskGuardImpl` for a persistent task, fully restored and with
+    /// `All` category so `check_access` passes for both data and meta fields.
+    /// The guard must be dropped before `storage` (enforced by the borrow).
+    fn guard_for(storage: &Storage, task_id: TaskId) -> TaskGuardImpl<'_> {
+        let mut write = storage.access_mut(task_id);
+        write.flags.set_restored(TaskDataCategory::All);
+        TaskGuardImpl {
+            task: write,
+            task_id,
+            #[cfg(debug_assertions)]
+            category: TaskDataCategory::All,
+            task_lock_counter: TaskLockCounter::new(),
+        }
+    }
+
+    #[test]
+    fn autoset_add_remove_only_tracks_persistent_keys() {
+        let storage = Storage::new(2, true);
+        let task_id = persistent_task(1);
+
+        // `children` is an AutoSet<TaskId> meta field with filter_transient.
+        {
+            let mut g = guard_for(&storage, task_id);
+            assert!(g.add_children(transient_task(2)));
+            assert!(
+                !g.meta_modified(),
+                "adding a transient child must not dirty meta"
+            );
+            // The entry is still stored in memory.
+            assert!(g.children_contains(&transient_task(2)));
+
+            assert!(g.add_children(persistent_task(3)));
+            assert!(
+                g.meta_modified(),
+                "adding a persistent child must dirty meta"
+            );
+        }
+
+        // Fresh task: removing a transient entry must not dirty; removing a
+        // persistent entry must.
+        let task_id = persistent_task(10);
+        {
+            let mut g = guard_for(&storage, task_id);
+            // Seed via the tracked accessors, then clear the flag so the removal
+            // assertions below start from a clean state. (`children_mut` is not
+            // accessible cross-module, so we can't seed untracked here.)
+            assert!(g.add_children(transient_task(11)));
+            assert!(g.add_children(persistent_task(12)));
+            g.task.flags.set_meta_modified(false);
+            assert!(!g.meta_modified());
+
+            assert!(g.remove_children(&transient_task(11)));
+            assert!(
+                !g.meta_modified(),
+                "removing a transient child must not dirty meta"
+            );
+
+            assert!(g.remove_children(&persistent_task(12)));
+            assert!(
+                g.meta_modified(),
+                "removing a persistent child must dirty meta"
+            );
+        }
+    }
+
+    #[test]
+    fn autoset_extend_tracks_iff_any_persistent() {
+        let storage = Storage::new(2, true);
+
+        // Extend with only transient children: no meta modification.
+        let task_id = persistent_task(1);
+        {
+            let mut g = guard_for(&storage, task_id);
+            g.extend_children([transient_task(2), transient_task(3)]);
+            assert!(g.children_contains(&transient_task(2)));
+            assert!(
+                !g.meta_modified(),
+                "extending with only transient children must not dirty meta"
+            );
+        }
+
+        // Extend with a mix: meta modification.
+        let task_id = persistent_task(10);
+        {
+            let mut g = guard_for(&storage, task_id);
+            g.extend_children([transient_task(11), persistent_task(12)]);
+            assert!(
+                g.meta_modified(),
+                "extending with at least one persistent child must dirty meta"
+            );
+        }
+    }
+
+    #[test]
+    fn countermap_update_count_only_tracks_persistent_keys() {
+        let storage = Storage::new(2, true);
+        let task_id = persistent_task(1);
+
+        // `upper` is a CounterMap<TaskId> meta field with filter_transient.
+        {
+            let mut g = guard_for(&storage, task_id);
+            let _ = g.update_upper_count(transient_task(2), 1);
+            assert!(
+                !g.meta_modified(),
+                "bumping a transient upper must not dirty meta"
+            );
+            assert_eq!(g.get_upper(&transient_task(2)), Some(&1));
+
+            let _ = g.update_upper_count(persistent_task(3), 1);
+            assert!(
+                g.meta_modified(),
+                "bumping a persistent upper must dirty meta"
+            );
+        }
+    }
+
+    #[test]
+    fn countermap_update_counts_batch_tracks_iff_any_persistent() {
+        let storage = Storage::new(2, true);
+
+        // followers: CounterMap<TaskId>, filter_transient, has update_counts.
+        let task_id = persistent_task(1);
+        {
+            let mut g = guard_for(&storage, task_id);
+            g.update_followers_counts([transient_task(2), transient_task(3)].into_iter(), 1);
+            assert!(
+                !g.meta_modified(),
+                "batch of only transient followers must not dirty meta"
+            );
+        }
+
+        let task_id = persistent_task(10);
+        {
+            let mut g = guard_for(&storage, task_id);
+            g.update_followers_counts([transient_task(11), persistent_task(12)].into_iter(), 1);
+            assert!(
+                g.meta_modified(),
+                "batch with a persistent follower must dirty meta"
+            );
+        }
+    }
+
+    #[test]
+    fn direct_option_set_take_tracks_by_value_transience() {
+        let storage = Storage::new(2, true);
+
+        // `output` is a direct Option<OutputValue> meta field with filter_transient.
+        // Setting a transient output: no meta modification.
+        let task_id = persistent_task(1);
+        {
+            let mut g = guard_for(&storage, task_id);
+            g.set_output(OutputValue::Output(transient_task(2)));
+            assert!(
+                !g.meta_modified(),
+                "setting a transient output must not dirty meta"
+            );
+            assert!(g.get_output().is_some());
+            // Taking a transient output: still no meta modification.
+            assert!(g.take_output().is_some());
+            assert!(
+                !g.meta_modified(),
+                "taking a transient output must not dirty meta"
+            );
+        }
+
+        // Setting a persistent output: meta modification.
+        let task_id = persistent_task(10);
+        {
+            let mut g = guard_for(&storage, task_id);
+            g.set_output(OutputValue::Output(persistent_task(11)));
+            assert!(
+                g.meta_modified(),
+                "setting a persistent output must dirty meta"
+            );
+        }
+
+        // Taking a persistent output dirties meta (seed untracked first).
+        let task_id = persistent_task(20);
+        {
+            let mut g = guard_for(&storage, task_id);
+            g.typed_mut()
+                .set_output(OutputValue::Cell(cell_ref(persistent_task(21))));
+            assert!(!g.meta_modified());
+            assert!(g.take_output().is_some());
+            assert!(
+                g.meta_modified(),
+                "taking a persistent output must dirty meta"
+            );
+        }
+    }
+
+    #[test]
+    fn data_category_cell_dependents_tracks_by_key_transience() {
+        let storage = Storage::new(2, true);
+        let task_id = persistent_task(1);
+
+        // `cell_dependents` is an inline AutoSet<CellRef> DATA field with
+        // filter_transient. The CellRef.task here is the (possibly transient)
+        // dependent reader.
+        {
+            let mut g = guard_for(&storage, task_id);
+            assert!(g.add_cell_dependents(cell_ref(transient_task(2))));
+            assert!(
+                !g.data_modified(),
+                "a transient cell dependent must not dirty data"
+            );
+
+            assert!(g.add_cell_dependents(cell_ref(persistent_task(3))));
+            assert!(
+                g.data_modified(),
+                "a persistent cell dependent must dirty data"
+            );
+        }
+    }
+}
+
+#[cfg(test)]
+mod cell_data_tracking_tests {
+    //! `cell_data` writes track a Data modification only when the cell's value
+    //! type persists something. A `ValueTypePersistence::Skip` cell is dropped by
+    //! `CellData::encode`, so writing one changes zero persistable bytes and must
+    //! not dirty the (persistent) task; `Persistable`/`HashOnly` cells do persist
+    //! and are tracked. In-memory retention is governed by `CellData::drop_partial`
+    //! (by `Evictability`), independent of the modified flag — so a Skip cell that
+    //! must stay in memory survives eviction even though the task was never marked
+    //! modified.
+    use turbo_tasks::{
+        self as turbo_tasks, CellId, TRANSIENT_TASK_BIT, TaskId, ValueTypePersistence, VcValueType,
+        registry,
+    };
+
+    use super::*;
+    use crate::backend::{
+        TaskDataCategory, storage::Storage, storage_schema::TaskStorageAccessors,
+    };
+
+    #[turbo_tasks::value]
+    struct PersistableV(#[allow(dead_code)] u32);
+
+    #[turbo_tasks::value(serialization = "skip")]
+    struct SkipCheapV(
+        #[turbo_tasks(trace_ignore)]
+        #[allow(dead_code)]
+        u32,
+    );
+
+    #[turbo_tasks::value(serialization = "skip", evict = "never", cell = "new", eq = "manual")]
+    struct SkipNeverV;
+
+    fn persistent_task(id: u32) -> TaskId {
+        assert!(id & TRANSIENT_TASK_BIT == 0);
+        TaskId::new(id).unwrap()
+    }
+
+    fn cell_of<V: VcValueType>(index: u32) -> CellId {
+        CellId::new(V::get_value_type_id(), index)
+    }
+
+    fn persistence_of(cell: &CellId) -> &'static ValueTypePersistence {
+        &registry::get_value_type(cell.type_id()).persistence
+    }
+
+    fn dummy_ref() -> SharedReference {
+        SharedReference::new(triomphe::Arc::new(0u32))
+    }
+
+    fn guard_for(storage: &Storage, task_id: TaskId) -> TaskGuardImpl<'_> {
+        let mut write = storage.access_mut(task_id);
+        write.flags.set_restored(TaskDataCategory::All);
+        TaskGuardImpl {
+            task: write,
+            task_id,
+            #[cfg(debug_assertions)]
+            category: TaskDataCategory::All,
+            task_lock_counter: TaskLockCounter::new(),
+        }
+    }
+
+    #[test]
+    fn insert_skip_cell_does_not_dirty_data() {
+        let storage = Storage::new(2, true);
+        let task_id = persistent_task(1);
+        let cell = cell_of::<SkipCheapV>(0);
+
+        let mut g = guard_for(&storage, task_id);
+        assert!(
+            g.insert_cell_data(cell, dummy_ref(), persistence_of(&cell))
+                .is_none()
+        );
+        assert!(
+            !g.data_modified(),
+            "writing a Skip cell must not dirty data for the snapshot"
+        );
+        // ...but the value is present in memory.
+        assert!(g.cell_data_contains(&cell));
+    }
+
+    #[test]
+    fn insert_persistable_cell_dirties_data() {
+        let storage = Storage::new(2, true);
+        let task_id = persistent_task(1);
+        let cell = cell_of::<PersistableV>(0);
+
+        let mut g = guard_for(&storage, task_id);
+        assert!(
+            g.insert_cell_data(cell, dummy_ref(), persistence_of(&cell))
+                .is_none()
+        );
+        assert!(
+            g.data_modified(),
+            "writing a Persistable cell must dirty data"
+        );
+    }
+
+    #[test]
+    fn remove_skip_cell_does_not_dirty_data() {
+        let storage = Storage::new(2, true);
+        let task_id = persistent_task(1);
+        let cell = cell_of::<SkipCheapV>(0);
+
+        let mut g = guard_for(&storage, task_id);
+        // Seed via the (untracked-for-Skip) insert.
+        g.insert_cell_data(cell, dummy_ref(), persistence_of(&cell));
+        assert!(!g.data_modified());
+
+        assert!(g.remove_cell_data(&cell, persistence_of(&cell)).is_some());
+        assert!(
+            !g.data_modified(),
+            "removing a Skip cell must not dirty data"
+        );
+    }
+
+    #[test]
+    fn remove_persistable_cell_dirties_data() {
+        let storage = Storage::new(2, true);
+        let task_id = persistent_task(1);
+        let cell = cell_of::<PersistableV>(0);
+
+        let mut g = guard_for(&storage, task_id);
+        // Seed without tracking by going through the tracking-free TaskStorage
+        // accessor, then clear the flag so the removal assertion is meaningful.
+        g.typed_mut().cell_data_mut().insert(cell, dummy_ref());
+        assert!(!g.data_modified());
+
+        assert!(g.remove_cell_data(&cell, persistence_of(&cell)).is_some());
+        assert!(
+            g.data_modified(),
+            "removing a Persistable cell must dirty data"
+        );
+    }
+
+    #[test]
+    fn mixed_writes_track_only_persistable_but_keep_skip_in_memory() {
+        // A task that writes both a Skip cell and a Persistable cell: the
+        // Persistable write dirties the task (tracking is monotonic), and the
+        // Skip value is still readable in memory regardless of the flag.
+        let storage = Storage::new(2, true);
+        let task_id = persistent_task(1);
+        let skip = cell_of::<SkipCheapV>(0);
+        let persistable = cell_of::<PersistableV>(0);
+
+        let mut g = guard_for(&storage, task_id);
+        g.insert_cell_data(skip, dummy_ref(), persistence_of(&skip));
+        assert!(!g.data_modified(), "skip-only so far: not dirty");
+        g.insert_cell_data(persistable, dummy_ref(), persistence_of(&persistable));
+        assert!(g.data_modified(), "a persistable write dirties the task");
+
+        assert!(g.cell_data_contains(&skip));
+        assert!(g.cell_data_contains(&persistable));
+    }
+
+    // `evict_after_snapshot` uses `parallel::for_each`/`map_collect`, which call
+    // `block_in_place` internally and require a multi-threaded Tokio runtime.
+    #[tokio::test(flavor = "multi_thread")]
+    async fn skip_never_cell_survives_eviction_without_modified_flag() {
+        // A Skip + evict="never" cell must be retained in memory by
+        // `drop_partial` (which keys on Evictability, not the modified flag), so
+        // a task that only wrote such a cell is both evictable-clean AND keeps the
+        // value. This is the core safety property of not tracking Skip writes.
+        let storage = Storage::new(2, true);
+        let task_id = persistent_task(1);
+        let cell = cell_of::<SkipNeverV>(0);
+
+        {
+            let mut g = guard_for(&storage, task_id);
+            g.insert_cell_data(cell, dummy_ref(), persistence_of(&cell));
+            assert!(
+                !g.data_modified(),
+                "a Skip cell write must leave the task clean for the snapshot"
+            );
+        }
+
+        // Run the post-snapshot eviction sweep: the task is clean (not modified),
+        // so data is eligible to drop, but the Skip+never value is retained as
+        // residue. The entry stays in the map with the value still present.
+        storage.evict_after_snapshot(None);
+
+        let g = guard_for(&storage, task_id);
+        assert!(
+            g.cell_data_contains(&cell),
+            "Skip + evict=never cell must survive eviction even though the task was never modified"
+        );
+    }
+}
