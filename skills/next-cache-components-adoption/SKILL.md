@@ -11,7 +11,7 @@ description: >
 
 # next-cache-components-adoption
 
-Enable Cache Components on an app and walk it to a clean build. This skill **sequences** the work; per-error recipes live in the dev overlay fix cards, stack traces, and `/docs/messages/blocking-prerender-*` pages.
+Enable Cache Components on an app and walk it to a clean build. This skill **sequences** the work; per-error recipes live in the dev overlay fix cards and the build's terminal output.
 
 ## requires
 
@@ -45,8 +45,6 @@ Adoption has two milestones. Each is shippable on its own:
 ## background
 
 `cacheComponents: true` requires every route to be prerenderable. A route that reads request-time data outside `<Suspense>` is "blocking" and **fails the build**. `export const instant = false` marks a route as allowed to block, which clears it in both dev and build; on a layout it covers the whole subtree beneath it.
-
-**`instant = false` does not clear sync-IO errors.** Unstable values evaluated at module/render time — `new Date()`, `Date.now()`, `Math.random()`, `crypto.randomUUID()` — still fail the prerender (`blocking-prerender-current-time` / `-random` / `-crypto`) even with the opt-out, because they produce a different result on every render and can't be baked into a static shell. So the blanket codemod gets the build green **only if no shared layout or page calls one of these directly**; if one does, you must fix it regardless of `instant = false`. Follow the fix cards on the error page itself — they own the per-API recipe. This most often bites in a shared layout, where one `new Date()` blocks every route under it.
 
 ## surfacing errors
 
@@ -87,11 +85,15 @@ Ask the user; don't assume. **In a non-interactive run** (no way to prompt), def
 
 ### blanket
 
+**Blanket only clears `instant = false` errors. Sync-IO reads in a shared layout will still fail the build after the codemod runs.** Before invoking the codemod, grep the app for `new Date()`, `Date.now()`, `Math.random()`, and `crypto.randomUUID()` in any `app/**/layout.{js,jsx,ts,tsx}`. Each match has to be fixed using the recipe from its `blocking-prerender-*` error card before milestone A can go green; a layout with two distinct reads (e.g. a copyright year and a "last updated" stamp) usually needs two distinct fixes (cache for the stable one, `await connection()` + `<Suspense>` for the per-request one).
+
+The codemod refuses to run on a dirty working tree. Before invoking it, commit or stash unrelated work — or be ready to pass `--force` (which lets the codemod's edits land alongside your WIP).
+
 ```bash
 npx @next/codemod@canary cache-components-instant-false ./app
 ```
 
-If `@next/codemod@latest` reports `Invalid transform choice`, try `@canary` — new transforms land there first. The codemod refuses to run on a dirty working tree; commit or stash unrelated work first, or pass `--force` to override (the codemod's own edits then land alongside your WIP).
+If `@next/codemod@latest` reports `Invalid transform choice`, try `@canary` — new transforms land there first.
 
 Inserts `export const instant = false` (with a `// TODO: Cache Components adoption` comment) into every `app/**/{page,layout,default}` file, skipping files that already declare `instant` and any module marked `"use client"` or `"use server"`. Then set `cacheComponents: true`. The TODO comments are the work queue for milestone B.
 
