@@ -95,6 +95,8 @@ fn split_simple(
     request_cost: f32,
 ) -> Vec<Vec<usize>> {
     let count = global_order.len();
+    // The cost-to-next metric on each tuple is exercised by the production dump, not these
+    // structural assertions, so drop it and keep the bare chunk lists.
     split_into_chunks(
         global_order,
         chunk_groups,
@@ -106,6 +108,9 @@ fn split_simple(
         0.0,
         0,
     )
+    .into_iter()
+    .map(|(chunk, _cost)| chunk)
+    .collect()
 }
 
 // ---------------------------------------------------------------------------

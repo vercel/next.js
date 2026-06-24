@@ -27,6 +27,7 @@ pub async fn get_browser_runtime_code(
     cross_origin: Vc<CrossOrigin>,
     chunk_load_retry: Vc<ChunkLoadRetry>,
     has_async_modules: bool,
+    chunk_loading: Vc<ChunkLoading>,
 ) -> Result<Vc<Code>> {
     let asset_context = *asset_context;
     let environment = asset_context.compile_time_info().environment();
@@ -50,21 +51,19 @@ pub async fn get_browser_runtime_code(
         }
     }
 
-    let chunk_loading = &*asset_context
-        .compile_time_info()
-        .environment()
-        .chunk_loading()
-        .await?;
+    let chunk_loading = &*chunk_loading.await?;
 
     let mut runtime_backend_code = vec![];
     match (chunk_loading, runtime_type) {
-        (ChunkLoading::Edge, RuntimeType::Development) => {
+        // The self-contained backend performs no runtime chunk loading and registers chunks only
+        // via `globalThis`/`self` (no DOM).
+        (ChunkLoading::Edge | ChunkLoading::SingleChunk, RuntimeType::Development) => {
             runtime_backend_code
                 .push("browser/runtime/self-contained/runtime-backend-self-contained.ts");
             runtime_backend_code
                 .push("browser/runtime/self-contained/dev-backend-self-contained.ts");
         }
-        (ChunkLoading::Edge, RuntimeType::Production) => {
+        (ChunkLoading::Edge | ChunkLoading::SingleChunk, RuntimeType::Production) => {
             runtime_backend_code
                 .push("browser/runtime/self-contained/runtime-backend-self-contained.ts");
         }
@@ -141,8 +140,11 @@ pub async fn get_browser_runtime_code(
             )?;
         }
         AssetSuffix::Inferred => {
-            if chunk_loading == &ChunkLoading::Edge {
-                panic!("AssetSuffix::Inferred is not supported in Edge runtimes");
+            if matches!(
+                chunk_loading,
+                ChunkLoading::Edge | ChunkLoading::SingleChunk
+            ) {
+                panic!("AssetSuffix::Inferred is not supported in Edge or single-chunk runtimes");
             }
             writedoc!(
                 code,
