@@ -1,16 +1,4 @@
 (globalThis["TURBOPACK"] || (globalThis["TURBOPACK"] = [])).push(["output/1do3_crates_turbopack-tests_tests_snapshot_basic_single-chunk-entry_input_0085tus._.js",
-"[project]/turbopack/crates/turbopack-tests/tests/snapshot/basic/single-chunk-entry/input/dep2.js [test] (ecmascript)", ((__turbopack_context__) => {
-"use strict";
-
-// Leaf module reached via the nested `import('./dep2')`.
-__turbopack_context__.s([
-    "dep2",
-    ()=>dep2
-]);
-function dep2() {
-    console.log('dep2');
-}
-}),
 "[project]/turbopack/crates/turbopack-tests/tests/snapshot/basic/single-chunk-entry/input/dep1.js [test] (ecmascript)", ((__turbopack_context__) => {
 "use strict";
 
@@ -25,6 +13,18 @@ function dep1() {
     Promise.resolve().then(()=>__turbopack_context__.i("[project]/turbopack/crates/turbopack-tests/tests/snapshot/basic/single-chunk-entry/input/dep2.js [test] (ecmascript)")).then(({ dep2 })=>{
         dep2();
     });
+}
+}),
+"[project]/turbopack/crates/turbopack-tests/tests/snapshot/basic/single-chunk-entry/input/dep2.js [test] (ecmascript)", ((__turbopack_context__) => {
+"use strict";
+
+// Leaf module reached via the nested `import('./dep2')`.
+__turbopack_context__.s([
+    "dep2",
+    ()=>dep2
+]);
+function dep2() {
+    console.log('dep2');
 }
 }),
 "[project]/turbopack/crates/turbopack-tests/tests/snapshot/basic/single-chunk-entry/input/index.js [test] (ecmascript)", ((__turbopack_context__, module, exports) => {
