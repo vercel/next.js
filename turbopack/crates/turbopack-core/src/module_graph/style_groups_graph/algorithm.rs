@@ -538,6 +538,13 @@ impl PartialOrd for OrdF32 {
 ///   * `module_factor_cost` — see module-level docs.
 ///   * `max_chunk_size` — bytes; merges that produce a multi-item chunk above this are forbidden
 ///     (`+infinity`). `0` disables the cap.
+///
+/// Returns one `(chunk, merge_cost_to_next)` tuple per chunk, in global order. `merge_cost_to_next`
+/// is the surviving split's metric — the cost-delta of merging this chunk with the following one
+/// (`cost(merged) - cost(this) - cost(next)`, always `>= 0` since every negative metric was merged
+/// away). It is `None` for the last chunk, which has no following neighbour. These metrics are
+/// surfaced by the `TURBOPACK_DEBUG_CSS_CHUNKING` dump so a boundary that was close to merging can
+/// be told apart from one held back by a hard constraint (`+infinity`).
 pub(super) fn split_into_chunks(
     global_order: &[NodeIndex],
     chunk_groups: &[Vec<usize>],
@@ -546,7 +553,7 @@ pub(super) fn split_into_chunks(
     request_cost: f32,
     module_factor_cost: f32,
     max_chunk_size: u64,
-) -> Vec<Vec<usize>> {
+) -> Vec<(Vec<usize>, Option<f32>)> {
     if global_order.is_empty() {
         return Vec::new();
     }
@@ -641,12 +648,14 @@ pub(super) fn split_into_chunks(
     }
 
     // Materialize chunks by walking `order` and starting a new chunk on each true split point.
-    let mut result: Vec<Vec<usize>> = vec![vec![order[0]]];
+    // When a split closes the current chunk, record its metric as that chunk's cost-to-next.
+    let mut result: Vec<(Vec<usize>, Option<f32>)> = vec![(vec![order[0]], None)];
     for i in 1..n {
         if split_points[i - 1] {
-            result.push(vec![order[i]]);
+            result.last_mut().unwrap().1 = metrics[i - 1];
+            result.push((vec![order[i]], None));
         } else {
-            result.last_mut().unwrap().push(order[i]);
+            result.last_mut().unwrap().0.push(order[i]);
         }
     }
     result
