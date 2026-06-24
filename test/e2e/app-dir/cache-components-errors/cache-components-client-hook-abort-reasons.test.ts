@@ -110,7 +110,7 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
                  ],
                },
                {
-                 "code": "E1405",
+                 "code": "E1373",
                  "description": "Next.js encountered uncached data during prerendering.",
                  "environmentLabel": "Server",
                  "label": "Blocking Route",
@@ -147,7 +147,7 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
                  ],
                },
                {
-                 "code": "E1405",
+                 "code": "E1373",
                  "description": "Next.js encountered uncached data during prerendering.",
                  "environmentLabel": "Server",
                  "label": "Blocking Route",
@@ -184,7 +184,7 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
                  ],
                },
                {
-                 "code": "E1405",
+                 "code": "E1373",
                  "description": "Next.js encountered uncached data during prerendering.",
                  "environmentLabel": "Server",
                  "label": "Blocking Route",
@@ -221,7 +221,7 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
                  ],
                },
                {
-                 "code": "E1405",
+                 "code": "E1373",
                  "description": "Next.js encountered uncached data during prerendering.",
                  "environmentLabel": "Server",
                  "label": "Blocking Route",
@@ -258,7 +258,7 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
                  ],
                },
                {
-                 "code": "E1405",
+                 "code": "E1373",
                  "description": "Next.js encountered uncached data during prerendering.",
                  "environmentLabel": "Server",
                  "label": "Blocking Route",
@@ -1871,7 +1871,7 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
                  ],
                },
                {
-                 "code": "E1405",
+                 "code": "E1373",
                  "description": "Next.js encountered uncached data during prerendering.",
                  "environmentLabel": "Server",
                  "label": "Blocking Route",
@@ -1921,7 +1921,7 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
                  ],
                },
                {
-                 "code": "E1405",
+                 "code": "E1373",
                  "description": "Next.js encountered uncached data during prerendering.",
                  "environmentLabel": "Server",
                  "label": "Blocking Route",

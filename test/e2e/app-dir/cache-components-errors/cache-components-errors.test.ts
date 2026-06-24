@@ -164,7 +164,7 @@ describe('Cache Components Errors', () => {
 
           await expect(browser).toDisplayCollapsedRedbox(`
            {
-             "code": "E1405",
+             "code": "E1373",
              "description": "Next.js encountered uncached data during prerendering.",
              "environmentLabel": "Server",
              "label": "Blocking Route",
@@ -784,7 +784,7 @@ describe('Cache Components Errors', () => {
           await expect(browser).toDisplayCollapsedRedbox(`
            [
              {
-               "code": "E1405",
+               "code": "E1373",
                "description": "Next.js encountered uncached data during prerendering.",
                "environmentLabel": "Server",
                "label": "Blocking Route",
@@ -798,7 +798,7 @@ describe('Cache Components Errors', () => {
                ],
              },
              {
-               "code": "E1405",
+               "code": "E1373",
                "description": "Next.js encountered uncached data during prerendering.",
                "environmentLabel": "Server",
                "label": "Blocking Route",
@@ -4744,7 +4744,7 @@ Ways to fix this:
 
             await expect(browser).toDisplayRedbox(`
              {
-               "code": "E1407",
+               "code": "E1394",
                "description": "\`"use cache: private"\` can't be nested inside \`"use cache"\`. It can only be nested inside another \`"use cache: private"\`.
              Learn more: https://nextjs.org/docs/app/api-reference/directives/use-cache-private",
                "environmentLabel": "Cache",

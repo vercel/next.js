@@ -93,7 +93,7 @@ describe('instant validation - level manual-warning', () => {
                  ],
                },
              ],
-             "code": "E1407",
+             "code": "E1375",
              "description": "Next.js encountered uncached data during a navigation.",
              "environmentLabel": "Server",
              "label": "Instant",
@@ -125,7 +125,7 @@ describe('instant validation - level manual-warning', () => {
                  ],
                },
              ],
-             "code": "E1407",
+             "code": "E1375",
              "description": "Next.js encountered uncached data during a navigation.",
              "environmentLabel": "Server",
              "label": "Instant",
@@ -157,7 +157,7 @@ describe('instant validation - level manual-warning', () => {
                  ],
                },
              ],
-             "code": "E1407",
+             "code": "E1375",
              "description": "Next.js encountered uncached data during a navigation.",
              "environmentLabel": "Server",
              "label": "Instant",
@@ -230,7 +230,7 @@ describe('instant validation - level manual-warning', () => {
           // did not run under 'manual-warning'.
           await expect(browser).toDisplayCollapsedRedbox(`
            {
-             "code": "E1405",
+             "code": "E1373",
              "description": "Next.js encountered uncached data during prerendering.",
              "environmentLabel": "Server",
              "label": "Blocking Route",
@@ -250,7 +250,7 @@ describe('instant validation - level manual-warning', () => {
           )
           await expect(browser).toDisplayCollapsedRedbox(`
            {
-             "code": "E1405",
+             "code": "E1373",
              "description": "Next.js encountered uncached data during prerendering.",
              "environmentLabel": "Server",
              "label": "Blocking Route",
@@ -270,7 +270,7 @@ describe('instant validation - level manual-warning', () => {
           )
           await expect(browser).toDisplayCollapsedRedbox(`
            {
-             "code": "E1405",
+             "code": "E1373",
              "description": "Next.js encountered uncached data during prerendering.",
              "environmentLabel": "Server",
              "label": "Blocking Route",
@@ -290,7 +290,7 @@ describe('instant validation - level manual-warning', () => {
           )
           await expect(browser).toDisplayCollapsedRedbox(`
            {
-             "code": "E1405",
+             "code": "E1373",
              "description": "Next.js encountered uncached data during prerendering.",
              "environmentLabel": "Server",
              "label": "Blocking Route",

@@ -81,7 +81,7 @@ describe('Cache Components Errors - Client Components', () => {
 
           await expect(browser).toDisplayCollapsedRedbox(`
            {
-             "code": "E1405",
+             "code": "E1373",
              "description": "Next.js encountered uncached data during prerendering.",
              "environmentLabel": "Server",
              "label": "Blocking Route",
