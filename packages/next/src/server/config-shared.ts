@@ -11,7 +11,6 @@ import type { WEB_VITALS } from '../shared/lib/utils'
 import type { NextParsedUrlQuery } from './request-meta'
 import type { SizeLimit } from '../types'
 import type { SupportedTestRunners } from '../cli/next-test'
-import type { ExperimentalPPRConfig } from './lib/experimental/ppr'
 import { INFINITE_CACHE } from '../lib/constants'
 import type { FallbackRouteParam } from '../build/static-paths/types'
 import type { MemoryEvictionMode } from '../build/swc/types'
@@ -473,7 +472,15 @@ export interface ExperimentalConfig {
    * rewrites will get the rewrite headers.
    */
   clientParamParsingOrigins?: string[]
-  cachedNavigations?: boolean
+  /**
+   * Caches subsets of a route, seeded from actual navigations, so subsequent
+   * navigations to the same or similar pages can be served instantly. Requires
+   * Cache Components. `true` caches the static stage only (the runtime stage is
+   * opted into per segment via `export const prefetch = 'allow-runtime'`).
+   * `'allow-runtime'` additionally treats every segment as runtime-cached,
+   * regardless of its per-segment `prefetch` config.
+   */
+  cachedNavigations?: boolean | 'allow-runtime'
   dynamicOnHover?: boolean
   useOffline?: boolean
   optimisticRouting?: boolean
@@ -966,12 +973,6 @@ export interface ExperimentalConfig {
   clientTraceMetadata?: string[]
 
   /**
-   * @deprecated This configuration option has been merged into `cacheComponents`.
-   * The Partial Prerendering feature is still available via `cacheComponents`.
-   */
-  ppr?: ExperimentalPPRConfig
-
-  /**
    * Enables experimental taint APIs in React.
    * Using this feature will enable the `react@experimental` for the `app` directory.
    */
@@ -1356,11 +1357,6 @@ export type ExportPathMap = {
     _isDynamicError?: boolean
 
     /**
-     * @internal
-     */
-    _isRoutePPREnabled?: boolean
-
-    /**
      * When true, the page is prerendered as a fallback shell, while allowing
      * any dynamic accesses to result in an empty shell. This is the case when
      * the app has `experimental.ppr` and `cacheComponents` enabled, and
@@ -1380,6 +1376,17 @@ export type ExportPathMap = {
      * @internal
      */
     _runInstantValidation?: boolean
+
+    /**
+     * When true, a fallback shell produced for this export path could later be
+     * upgraded to a concrete version (at least one fallback param is a
+     * `generateStaticParams` candidate). Threaded into
+     * `renderOpts.isFallbackUpgradeable` so the build-baked shell carries the
+     * gated `isUpgradeableISRFallback` value.
+     *
+     * @internal
+     */
+    _isFallbackUpgradeable?: boolean
   }
 }
 
@@ -2069,7 +2076,6 @@ export const defaultConfig = Object.freeze({
     clientTraceMetadata: undefined,
     parallelServerCompiles: false,
     parallelServerBuildTraces: false,
-    ppr: false,
     authInterrupts: false,
     webpackBuildWorker: undefined,
     webpackMemoryOptimizations: false,
@@ -2134,7 +2140,6 @@ export async function normalizeConfig(phase: string, config: any) {
 //     cacheComponents?: boolean;
 //     clientParamParsingOrigins?: string[];
 //     clientSegmentCache?: boolean;
-//     ppr?: boolean | 'incremental';
 //     serverActions?: Record<string, never>;
 //   };
 // };
@@ -2177,7 +2182,6 @@ export interface NextConfigRuntime {
 
   experimental: Pick<
     NextConfigComplete['experimental'],
-    | 'ppr'
     | 'taint'
     | 'serverActions'
     | 'staleTimes'
@@ -2245,7 +2249,6 @@ export function getNextConfigRuntime(
   }
 
   const experimental = {
-    ppr: ex.ppr,
     taint: ex.taint,
     serverActions: ex.serverActions,
     staleTimes: ex.staleTimes,

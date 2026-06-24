@@ -36,7 +36,6 @@ import { exportAppPage } from './routes/app-page'
 import { exportPagesPage } from './routes/pages'
 import { getParams } from './helpers/get-params'
 import { createIncrementalCache } from './helpers/create-incremental-cache'
-import { isPostpone } from '../server/lib/router-utils/is-postpone'
 import { isDynamicUsageError } from './helpers/is-dynamic-usage-error'
 import { isBailoutToCSRError } from '../shared/lib/lazy-dynamic/bailout-to-csr'
 import {
@@ -109,16 +108,16 @@ async function exportPageImpl(
     // Check if this should error when dynamic usage is detected.
     _isDynamicError: isDynamicError = false,
 
-    // If this page supports partial prerendering, then we need to pass that to
-    // the renderOpts.
-    _isRoutePPREnabled: isRoutePPREnabled,
-
     // Configure the rendering of the page to allow that an empty static shell
     // is generated while rendering using PPR and Cache Components.
     _allowEmptyStaticShell: allowEmptyStaticShell = false,
 
     // When true, attempt to run build-time instant validation for this export path.
     _runInstantValidation: runInstantValidation = false,
+
+    // When true, a fallback shell for this path could later be upgraded to a
+    // concrete version (it has a `generateStaticParams` candidate param).
+    _isFallbackUpgradeable: isFallbackUpgradeable = false,
 
     // Pull the original query out.
     query: originalQuery = {},
@@ -275,10 +274,7 @@ async function exportPageImpl(
     serveStreamingMetadata: true,
     allowEmptyStaticShell,
     runInstantValidation,
-    experimental: {
-      ...commonRenderOpts.experimental,
-      isRoutePPREnabled,
-    },
+    isFallbackUpgradeable,
     renderResumeDataCache,
   }
 
@@ -614,12 +610,6 @@ async function exportPage(
 }
 
 process.on('unhandledRejection', (err: unknown) => {
-  // if it's a postpone error, it'll be handled later
-  // when the postponed promise is actually awaited.
-  if (isPostpone(err)) {
-    return
-  }
-
   // we don't want to log these errors
   if (isDynamicUsageError(err)) {
     return

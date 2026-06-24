@@ -44,6 +44,8 @@ This error can also appear during a client-side navigation when the data access 
 
 Choose this fix when the data does not need to be regenerated on every request. Move the call into a function and add the [`use cache`](/docs/app/api-reference/directives/use-cache) directive as the first statement of the function body. The function still runs the underlying query, but Next.js caches the result for the configured lifetime and the surrounding route becomes prerenderable.
 
+This fix does not apply to [`connection()`](/docs/app/api-reference/functions/connection). The whole point of `connection()` is to opt into per-request rendering for the wrapped subtree, so caching it would defeat the purpose. Use [Wrap in or move into Suspense](#wrap-in-or-move-into-suspense) instead.
+
 ### Patterns
 
 #### Cache the data-access function
