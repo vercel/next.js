@@ -13,6 +13,15 @@ describe('react-performance-track', () => {
     files: __dirname,
   })
 
+  const RUNTIME_ENV = 'Prefetchable'
+  const SHELL_ENV = partialPrefetching ? 'Shell' : 'Prerender'
+  const SESSION_DATA_ENV = partialPrefetching ? 'Shell' : RUNTIME_ENV
+  const RUNTIME_LINK_DATA_ENV = RUNTIME_ENV
+
+  function nameWithLabel(name: string, environmentLabel: string) {
+    return `\u200b${name} [${environmentLabel}]`
+  }
+
   it('should show setTimeout', async () => {
     const browser = await next.browser('/set-timeout', { extraHTTPHeaders })
     await browser.elementByCss('[data-react-server-requests-done]', {
@@ -60,7 +69,7 @@ describe('react-performance-track', () => {
     expect(track).toEqual(
       expect.arrayContaining([
         {
-          name: '\u200bparams [Prefetchable]',
+          name: nameWithLabel('params', RUNTIME_LINK_DATA_ENV),
           properties: [],
         },
       ])
@@ -79,7 +88,7 @@ describe('react-performance-track', () => {
     expect(track).toEqual(
       expect.arrayContaining([
         {
-          name: '\u200bsearchParams [Prefetchable]',
+          name: nameWithLabel('searchParams', RUNTIME_LINK_DATA_ENV),
           properties: [],
         },
       ])
@@ -96,7 +105,7 @@ describe('react-performance-track', () => {
     expect(track).toEqual(
       expect.arrayContaining([
         {
-          name: '\u200bcookies [Prefetchable]',
+          name: nameWithLabel('cookies', SESSION_DATA_ENV),
           properties: [],
         },
       ])
@@ -117,7 +126,7 @@ describe('react-performance-track', () => {
     expect(track).toEqual(
       expect.arrayContaining([
         {
-          name: '\u200b [Prerender]',
+          name: nameWithLabel('', SHELL_ENV),
           properties: [],
         },
       ])
@@ -142,7 +151,7 @@ describe('react-performance-track', () => {
     expect(track).toEqual(
       expect.arrayContaining([
         {
-          name: '\u200bheaders [Prefetchable]',
+          name: nameWithLabel('headers', SESSION_DATA_ENV),
           properties: [],
         },
       ])

@@ -27,7 +27,7 @@ describe.each([
     ) {
       // Match logs that contain the message, with any environment.
       const logPattern = new RegExp(
-        `^(?=.*\\b${message}\\b)(?=.*\\b(Cache|Prerender|Prefetch|Prefetchable|Server)\\b).*`
+        `^(?=.*\\b${message}\\b)(?=.*\\b(Cache|Shell|Prerender|Prefetch|Prefetchable|Server)\\b).*`
       )
       const logMessages = logs.map((log) => log.message)
       const messages = logMessages.filter((message) => logPattern.test(message))
@@ -155,6 +155,8 @@ describe.each([
     }
 
     const RUNTIME_ENV = hasRuntimePrefetch ? 'Prefetch' : 'Prefetchable'
+    const SHELL_ENV = partialPrefetching ? 'Shell' : 'Prerender'
+    const SESSION_DATA_ENV = partialPrefetching ? 'Shell' : RUNTIME_ENV
 
     describe.each([
       { description: 'initial load', isInitialLoad: true },
@@ -164,13 +166,17 @@ describe.each([
         const path = '/simple'
         const assertLogs = async (browser: Playwright) => {
           const logs = await browser.log()
-          assertLog(logs, 'after immediate - static - layout', 'Prerender')
-          assertLog(logs, 'after immediate - static - page', 'Prerender')
+          assertLog(logs, 'after immediate - static - layout', SHELL_ENV)
+          assertLog(logs, 'after immediate - static - page', SHELL_ENV)
 
-          assertLog(logs, 'after cookies - layout', RUNTIME_ENV)
-          assertLog(logs, 'after cookies - page', RUNTIME_ENV)
-          assertLog(logs, 'after immediate - runtime - layout', RUNTIME_ENV)
-          assertLog(logs, 'after immediate - runtime - page', RUNTIME_ENV)
+          assertLog(logs, 'after cookies - layout', SESSION_DATA_ENV)
+          assertLog(logs, 'after cookies - page', SESSION_DATA_ENV)
+          assertLog(
+            logs,
+            'after immediate - runtime - layout',
+            SESSION_DATA_ENV
+          )
+          assertLog(logs, 'after immediate - runtime - page', SESSION_DATA_ENV)
 
           assertLog(logs, 'after connection - layout', 'Server')
           assertLog(logs, 'after connection - page', 'Server')
