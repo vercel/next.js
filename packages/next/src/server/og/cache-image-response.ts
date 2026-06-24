@@ -1,4 +1,5 @@
 import { Readable } from 'node:stream'
+import { createHash, type Hash } from 'node:crypto'
 
 import { InvariantError } from '../../shared/lib/invariant-error'
 import { workAsyncStorage } from '../app-render/work-async-storage.external'
@@ -98,6 +99,8 @@ async function getCachedImageResponseArrayBuffer(
     )
   }
 
+  const [element, options] = args
+
   // `createHangingInputAbortSignal` aborts once the prerender's cache-sourced
   // input is ready, so anything the serialization below is still awaiting past
   // that point can be treated as dynamic (non-cache) input. In the prospective
@@ -162,7 +165,11 @@ async function getCachedImageResponseArrayBuffer(
   const { clientModules, rscModuleMapping } = getClientReferenceManifest()
 
   try {
-    const { prelude } = await prerenderToNodeStream(args, clientModules, {
+    // We serialize only the `element`. It's the part that needs Flight, to run
+    // its async Server Components once and to surface any dynamic input. The
+    // `options` are already-resolved plain data; they're folded into the cache
+    // key directly and passed to satori as-is below.
+    const { prelude } = await prerenderToNodeStream(element, clientModules, {
       signal: hangingInputAbortSignal,
       filterStackFrame: undefined,
       onError(error) {
@@ -203,10 +210,19 @@ async function getCachedImageResponseArrayBuffer(
       chunks.push(chunk)
     }
 
-    const buffer = Buffer.concat(chunks)
-    // Base64-encode the serialized output to use it as a stable string key
-    // (the Flight stream is binary, so it isn't safe to treat as UTF-8 text).
-    const cacheKey = buffer.toString('base64')
+    const elementBuffer = Buffer.concat(chunks)
+
+    // Derive a stable cache key from the serialized element plus the options.
+    // We hash rather than reuse the raw serialized bytes so the key stays
+    // compact even for large inputs (e.g. embedded fonts), and we fold the
+    // options in by content so two images that differ only in their options
+    // (size, fonts, ...) don't collide. The options are hashed directly here,
+    // never serialized through Flight, which would both bloat the key and apply
+    // `Buffer.prototype .toJSON` to font data.
+    const hash = createHash('sha256')
+    hash.update(elementBuffer)
+    updateHashWithOptions(hash, options)
+    const cacheKey = hash.digest('base64')
 
     const cached = resumeDataCache.imageResponses.get(cacheKey)
 
@@ -214,28 +230,35 @@ async function getCachedImageResponseArrayBuffer(
       return await cached
     }
 
-    // Deserialize the resolved tree and hand it to satori. Because the user's
+    // Deserialize the element and hand it to satori. Because the user's
     // components already ran during serialization, satori only walks resolved
     // host elements and never re-runs them, confining user-space I/O to the
     // in-store serialization above.
-    //
+    const deserializedElement = await createFromNodeStream(
+      Readable.from([elementBuffer]),
+      {
+        // We don't want to trigger preloads of client references here.
+        moduleLoading: null,
+        moduleMap: rscModuleMapping,
+        serverModuleMap: getServerModuleMap(),
+      },
+      { findSourceMapURL: undefined }
+    )
+
     // The Flight client hands back the output of an async Server Component as
     // a `React.lazy` (sync components and plain host elements are inlined).
     // satori can't unwrap lazies, so we resolve them into plain elements first.
     // We only reach here once the serialization completed, so every lazy is
     // already resolved and `_init` returns synchronously.
-    const resolvedArgs = resolveFlightLazies(
-      await createFromNodeStream(
-        Readable.from([buffer]),
-        {
-          // We don't want to trigger preloads of client references here.
-          moduleLoading: null,
-          moduleMap: rscModuleMapping,
-          serverModuleMap: getServerModuleMap(),
-        },
-        { findSourceMapURL: undefined }
-      )
-    ) as ImageResponseArgs
+    const resolvedElement = resolveFlightLazies(deserializedElement)
+
+    // Pair the resolved element with the original, in-memory `options`, which
+    // never went through Flight. This keeps the font `Buffer` intact: had it
+    // been serialized, Flight would apply the `toJSON` method that Node's
+    // `Buffer` carries, turning it into a `{ type: 'Buffer', data: [...] }`
+    // object that satori's font parser rejects (it needs an `ArrayBuffer` or a
+    // typed array).
+    const resolvedArgs = [resolvedElement, options] as ImageResponseArgs
 
     // Render satori outside the prerender work-unit store. It does uncached
     // `fetch` calls (e.g. loading a font), and inside a Cache Components
@@ -254,6 +277,103 @@ async function getCachedImageResponseArrayBuffer(
   } finally {
     endReadIfStarted()
   }
+}
+
+/**
+ * Updates a hash with a stable encoding of the `ImageResponse` options so they
+ * can participate in the cache key without being serialized through Flight.
+ * Binary values (font `Buffer`s, `ArrayBuffer`s, typed arrays) are hashed by
+ * their raw bytes; objects are walked in sorted-key order.
+ *
+ * `ImageResponse` options are plain data: numbers, strings, booleans, nested
+ * plain objects/arrays, and binary font data. Exotic objects such as `Map` or
+ * `Date` keep their state outside their enumerable own keys, so the key walk
+ * below would hash them incorrectly. Options never contain these, but we warn
+ * if one ever shows up so a mis-keyed cache can be reported.
+ *
+ * The encoding is self-delimiting: every node starts with a type tag, and
+ * variable-length parts (byte runs, primitives, keys) are length-prefixed,
+ * while arrays and objects are count-prefixed. This makes it injective, so no
+ * concatenation of values can be mistaken for a differently shaped input.
+ */
+function updateHashWithOptions(hash: Hash, value: unknown): void {
+  if (value === undefined) {
+    hash.update('u')
+    return
+  }
+
+  if (value === null) {
+    hash.update('n')
+    return
+  }
+
+  const type = typeof value
+
+  if (type !== 'object') {
+    // Tag with the primitive type so e.g. the number `1` and the string `'1'`
+    // don't hash the same.
+    updateHashWithBytes(hash, 'p', Buffer.from(`${type}:${String(value)}`))
+    return
+  }
+
+  if (value instanceof ArrayBuffer) {
+    updateHashWithBytes(hash, 'a', new Uint8Array(value))
+    return
+  }
+
+  if (ArrayBuffer.isView(value)) {
+    updateHashWithBytes(
+      hash,
+      'v',
+      new Uint8Array(value.buffer, value.byteOffset, value.byteLength)
+    )
+    return
+  }
+
+  if (Array.isArray(value)) {
+    hash.update(`[${value.length},`)
+    for (const item of value) {
+      updateHashWithOptions(hash, item)
+    }
+    return
+  }
+
+  // The key walk below captures a plain object faithfully, but an exotic object
+  // keeps its state elsewhere (a `Map`'s/`Set`'s entries, a `Date`'s time), so
+  // two different values would hash the same and could return the wrong cached
+  // image. This shouldn't happen for `ImageResponse` options, so we warn rather
+  // than fail, then hash best-effort, so it can be reported. Not gated on
+  // `NODE_ENV`: this runs during the production `next build` prerender, where
+  // the warning is most useful.
+  const prototype = Object.getPrototypeOf(value)
+  if (prototype !== Object.prototype && prototype !== null) {
+    const typeName =
+      (value as { constructor?: { name?: string } }).constructor?.name ??
+      'object'
+    console.warn(
+      `Cannot reliably include an \`ImageResponse\` option of type ` +
+        `\`${typeName}\` in the cache key, so different images may collide and ` +
+        `return an incorrect cached result. Please report this to the Next.js ` +
+        `team.`
+    )
+  }
+
+  const keys = Object.keys(value).sort()
+  hash.update(`{${keys.length},`)
+  for (const key of keys) {
+    updateHashWithBytes(hash, 'k', Buffer.from(key))
+    updateHashWithOptions(hash, (value as Record<string, unknown>)[key])
+  }
+}
+
+/**
+ * Hashes a length-prefixed, tagged byte run: `<tag><byteLength>:<bytes>`. The
+ * length prefix keeps the run self-delimiting so it can't blend into adjacent
+ * nodes.
+ */
+function updateHashWithBytes(hash: Hash, tag: string, bytes: Uint8Array): void {
+  hash.update(`${tag}${bytes.byteLength}:`)
+  hash.update(bytes)
 }
 
 async function renderImageResponseArrayBuffer(
