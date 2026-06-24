@@ -2184,11 +2184,17 @@ impl TurboTasksBackend {
             (*stale, *is_once_task, take(leaf_distance_update_queue))
         };
 
-        // Execute the leaf distance updates that were accumulated while the task executed: this
-        // updates the task's own leaf distance and propagates the change to its (already completed)
-        // output dependents. This is done here, before the stale check below, so that
-        // `compute_stale_priority` reads the freshly computed value. The queue re-locks the task
-        // internally, so the current lock must be released first.
+        // Leaf distance only feeds invalidation/re-execution scheduling priority, so it is only
+        // accumulated when dependency tracking is on (see the read path: the reader is only locked
+        // when `should_track_dependencies()`). With tracking off nothing should ever be pushed.
+        debug_assert!(
+            self.should_track_dependencies() || leaf_distance_update_queue.is_empty(),
+            "leaf distance updates were accumulated without dependency tracking enabled"
+        );
+        // We also expect the queue to be empty for immutable tasks.
+
+        // Execute the leaf distance updates that were accumulated while the task executed, this
+        // needs to run before the 'stale' reexecution logic below.
         if !leaf_distance_update_queue.is_empty() {
             drop(task);
             leaf_distance_update_queue.execute(ctx);
