@@ -1241,22 +1241,14 @@ pub trait TaskGuard: Debug + TaskStorageAccessors {
         dirty_count > clean_count
     }
     /// Insert cell data, returning the old value if present.
-    ///
-    /// Only `Persistable` cells are written to the data snapshot
-    /// (`CellData::encode` drops `Skip` and `HashOnly`), so we dirty the task
-    /// only for those. A `HashOnly` cell's persisted state lives in the separate
-    /// `cell_data_hash` field, which tracks its own modifications.
-    ///
-    /// Hand-written rather than macro-generated (`cell_data` has
-    /// `custom_mutators`) so the decision reads the caller-supplied persistence
-    /// instead of a per-write registry lookup. Writes through `cell_data_mut()`,
-    /// which does not track on its own.
     fn insert_cell_data(
         &mut self,
         cell: CellId,
         value: SharedReference,
         persistence: &ValueTypePersistence,
     ) -> Option<SharedReference> {
+        // We implement this here instead of in the generated code to optimize how mutations are
+        // tracked
         self.check_access(SpecificTaskDataCategory::Data);
         if matches!(persistence, ValueTypePersistence::Persistable(..)) {
             self.track_modification(SpecificTaskDataCategory::Data, "cell_data");
@@ -1264,8 +1256,7 @@ pub trait TaskGuard: Debug + TaskStorageAccessors {
         self.typed_mut().cell_data_mut().insert(cell, value)
     }
 
-    /// Remove cell data, returning the old value if present. See
-    /// [`insert_cell_data`](Self::insert_cell_data) for the tracking rationale.
+    /// Remove cell data, returning the old value if present.
     fn remove_cell_data(
         &mut self,
         cell: &CellId,
