@@ -63,15 +63,15 @@ In preference order:
 
 1. **[`next-dev-loop`](https://github.com/vercel/next.js/tree/canary/skills/next-dev-loop) — strongly preferred.** Cross-checks `/_next/mcp` against the live browser via `agent-browser` and surfaces both compile and runtime issues in one pass. The diagnostics (React tree, suspense boundaries, console + network) are orders of magnitude richer than poking at `next dev` by hand.
 
-   **Before starting milestone B**, install it if you can't already invoke it:
+   **Install it before starting milestone B.** Don't wait until you hit something `next dev` alone can't explain. Run:
 
    ```bash
    npx skills add https://github.com/vercel/next.js/tree/canary/skills/next-dev-loop
    ```
 
-   Ask the user first if one's available. Otherwise just install it — the diagnostic uplift is worth the minute. Skip only when there's a real technical blocker (no network, no npm, read-only filesystem, explicit no-new-deps policy).
+   The skill requires Turbopack and `agent-browser >= 0.27.0` and walks you through both.
 
-   Requires Turbopack and `agent-browser >= 0.27.0`; the skill walks you through them.
+   **You don't need permission to install it.** It's a tool, like installing a dev dependency. If a user is on the line, briefly tell them you're installing it for verification. In a non-interactive run (CI, dashboard, sandbox), install it without asking — "can't prompt the user" is not a reason to skip. The only legitimate skip is a real technical blocker: no network, no npm, read-only filesystem, or a stated no-new-deps policy. If you skip, name the specific blocker in your final report.
 
 2. **A browser you can drive yourself.** Playwright, `agent-browser` directly, any browser-automation tool. Use only when `next-dev-loop` is genuinely blocked. You'll miss the framework-side checks (`/_next/mcp`), so DOM assertions alone don't catch every regression — be more cautious about what you call "verified."
 
