@@ -1083,14 +1083,15 @@ async function collectResult(
   // DYNAMIC_EXPIRE`) for private caches, which have no real backing handler.
   // The zero revalidate makes every read serve stale-while-revalidate
   // (regenerating a fresh entry in the background), and `DYNAMIC_EXPIRE` (5
-  // minutes, the shortest expire not treated as dynamically shortened) bounds
-  // how long an entry lingers in the dedicated in-memory private handler. The
-  // size-0 case (`cacheMaxMemorySize: 0`) deliberately does NOT force this: it
-  // keeps its resolved cache life so that the cache entry can be considered
-  // prerenderable instead of being misread as a dynamic hole, and a separate
-  // dev revalidation (see the cache-hit path below) keeps its reloads showing a
-  // fresh value. Custom kinds keep their real cache life too, since their
-  // backing handler owns it.
+  // minutes) caps how long an entry lingers in the dedicated in-memory private
+  // handler. It is the shortest `expire` that isn't treated as dynamic; a
+  // smaller `expire` would exclude the entry from prerenders. The size-0 case
+  // (`cacheMaxMemorySize: 0`) deliberately does NOT force this: it keeps its
+  // resolved cache life so that the cache entry can be considered prerenderable
+  // instead of being misread as a dynamic hole, and a separate dev revalidation
+  // (see the cache-hit path below) keeps its reloads showing a fresh value.
+  // Custom kinds keep their real cache life too, since their backing handler
+  // owns it.
   const forceDynamicCacheLifeInDev = isPrivateCacheInDev
 
   // If cacheLife() was used to set an explicit revalidate/expire/stale time we
@@ -3113,10 +3114,10 @@ export async function cache(
           // `revalidate`), so the next read gets a fresh value without blocking
           // this one. In development with the in-memory cache disabled
           // (`cacheMaxMemorySize: 0`), built-in entries keep their resolved
-          // (potentially non-dynamic) cache life, so a warm hit from the dev
-          // in-memory cache is normally fresh and wouldn't revalidate;
-          // revalidate those on every dynamic request render too, so each
-          // reload still shows a fresh value.
+          // (potentially non-dynamic) cache life, so an entry read back from
+          // the dev in-memory cache is normally still fresh and wouldn't
+          // revalidate on its own; revalidate those on every dynamic request
+          // render too, so each reload still shows a fresh value.
           let shouldTriggerBackgroundRevalidation =
             currentTime > entry.timestamp + entry.revalidate * 1000
           if (
