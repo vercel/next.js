@@ -251,6 +251,7 @@ export function applyOwnerStack(error: Error): Error {
       case 'unstable-cache':
       case 'request':
       case 'prerender':
+      case 'prerender-ppr':
       case 'prerender-legacy':
       case 'prerender-runtime':
       case 'prerender-client':

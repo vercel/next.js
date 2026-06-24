@@ -166,6 +166,7 @@ async function requestHandler(
       cacheComponents: Boolean(nextConfig.cacheComponents),
       validationLevel: nextConfig.experimental.instantInsights.validationLevel,
       experimental: {
+        isRoutePPREnabled: false,
         expireTime: nextConfig.expireTime,
         staleTimes: nextConfig.experimental.staleTimes,
         dynamicOnHover: Boolean(nextConfig.experimental.dynamicOnHover),

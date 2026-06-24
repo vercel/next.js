@@ -90,6 +90,7 @@ export function io(expression: string, type: SyncIOApiType) {
       break
     }
     case 'validation-client':
+    case 'prerender-ppr':
     case 'prerender-legacy':
     case 'cache':
     case 'private-cache':

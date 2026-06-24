@@ -575,7 +575,7 @@ function assignDefaultsAndValidate(
     }
   }
 
-  if ((result.experimental as any).ppr) {
+  if (result.experimental.ppr) {
     throw new HardDeprecatedConfigError(
       `\`experimental.ppr\` has been merged into \`cacheComponents\`. The Partial Prerendering feature is still available, but is now enabled via \`cacheComponents\`. Please update your ${configFileName} accordingly.`
     )
@@ -1568,6 +1568,11 @@ function assignDefaultsAndValidate(
     process.env.__NEXT_EXPERIMENTAL_MCP_SERVER === 'true'
   ) {
     result.experimental.mcpServer = true
+  }
+
+  if (result.cacheComponents) {
+    // TODO: remove once we've finished migrating internally to cacheComponents.
+    result.experimental.ppr = true
   }
 
   // "use cache" was originally implicitly enabled with the cacheComponents flag, so

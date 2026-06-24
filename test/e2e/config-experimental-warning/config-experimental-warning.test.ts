@@ -159,7 +159,7 @@ describe('Config Experimental Warning', () => {
         nextConfig: {
           experimental: {
             ppr: 'incremental',
-          } as any,
+          },
         },
       })
 

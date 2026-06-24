@@ -315,6 +315,7 @@ export async function adapter(
                 // TODO: remove validationLevel and other global config from renderOpts
                 validationLevel: 'warning',
                 experimental: {
+                  isRoutePPREnabled: false,
                   authInterrupts:
                     !!params.request.nextConfig?.experimental?.authInterrupts,
                   // Proxy doesn't fill Cache Components entries, so this value
