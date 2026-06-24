@@ -97,6 +97,8 @@ struct SnapshotOptions {
     #[serde(default)]
     production_chunking: bool,
     #[serde(default)]
+    single_chunk: bool,
+    #[serde(default)]
     enable_debug_ids: bool,
     #[serde(default)]
     source_map_source_type: SourceMapSourceType,
@@ -134,6 +136,7 @@ impl Default for SnapshotOptions {
             remove_unused_exports: false,
             scope_hoisting: false,
             production_chunking: false,
+            single_chunk: false,
             enable_debug_ids: false,
             source_map_source_type: SourceMapSourceType::default(),
             chunk_loading_global: default_chunk_loading_global(),
@@ -518,6 +521,10 @@ async fn run_test_operation(resource: RcStr) -> Result<Vc<FileSystemPath>> {
             .source_map_source_type(options.source_map_source_type)
             .chunk_loading_global(options.chunk_loading_global.into());
 
+            if options.single_chunk {
+                builder = builder.single_chunk().await?;
+            }
+
             if options.remove_unused_imports {
                 builder = builder.unused_references(
                     binding_usage
@@ -595,6 +602,27 @@ async fn run_test_operation(resource: RcStr) -> Result<Vc<FileSystemPath>> {
 
     // TODO: Load runtime entries from snapshots
     let chunks = match options.runtime {
+        Runtime::Browser if options.single_chunk => OutputAssetsWithReferenced {
+            assets: ResolvedVc::cell(vec![
+                chunking_context
+                    .entry_chunk_group(
+                        // `expected` expects a completely flat output directory.
+                        chunk_root_path
+                            .join(entry_module.ident().await?.path.file_stem().unwrap())?
+                            .with_extension("entry.js"),
+                        ChunkGroup::Entry(entry_modules),
+                        module_graph,
+                        OutputAssets::empty(),
+                        OutputAssets::empty(),
+                        AvailabilityInfo::root(),
+                    )
+                    .await?
+                    .asset,
+            ]),
+            referenced_assets: ResolvedVc::cell(vec![]),
+            references: ResolvedVc::cell(vec![]),
+        }
+        .cell(),
         Runtime::Browser => chunking_context.evaluated_chunk_group_assets(
             entry_module.ident(),
             ChunkGroup::Entry(entry_modules.into_iter().collect()),

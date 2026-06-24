@@ -13,7 +13,7 @@ use crate::{
         ChunkItem, ChunkType, ChunkableModule, availability_info::AvailabilityInfo,
         chunk_id_strategy::ModuleIdStrategy,
     },
-    environment::Environment,
+    environment::{ChunkLoading, Environment},
     ident::AssetIdent,
     module::Module,
     module_graph::{
@@ -319,6 +319,11 @@ pub trait ChunkingContext {
     /// paths.
     #[turbo_tasks::function]
     fn chunk_root_path(self: Vc<Self>) -> Vc<FileSystemPath>;
+
+    #[turbo_tasks::function]
+    fn chunk_loading(self: Vc<Self>) -> Vc<ChunkLoading> {
+        self.environment().chunk_loading()
+    }
 
     // TODO(alexkirsz) Remove this from the chunking context. This should be at the
     // discretion of chunking context implementors. However, we currently use this

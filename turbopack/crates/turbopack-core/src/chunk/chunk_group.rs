@@ -19,7 +19,6 @@ use crate::{
         available_modules::{AvailableModuleItem, AvailableModulesSet},
         chunk_item_batch::{ChunkItemBatchGroup, ChunkItemOrBatchWithAsyncModuleInfo},
     },
-    environment::ChunkLoading,
     module_graph::{
         GraphTraversalAction, ModuleGraph,
         chunk_group_info::ChunkGroup,
@@ -46,10 +45,7 @@ pub async fn make_chunk_group(
     chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
     availability_info: AvailabilityInfo,
 ) -> Result<MakeChunkGroupResult> {
-    let can_split_async = !matches!(
-        *chunking_context.environment().chunk_loading().await?,
-        ChunkLoading::Edge
-    );
+    let can_split_async = chunking_context.chunk_loading().await?.can_split_async();
     let is_nested_async_availability_enabled = *chunking_context
         .is_nested_async_availability_enabled()
         .await?;

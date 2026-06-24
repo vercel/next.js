@@ -72,7 +72,7 @@ impl EcmascriptBrowserChunkContent {
     }
 
     #[turbo_tasks::function]
-    async fn code(self: Vc<Self>) -> Result<Vc<Code>> {
+    pub(crate) async fn code(self: Vc<Self>) -> Result<Vc<Code>> {
         let this = self.await?;
         let source_maps = *this
             .chunking_context
