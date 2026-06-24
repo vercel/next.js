@@ -90,7 +90,7 @@ describe('Cache Components Errors', () => {
 
           await expect(browser).toDisplayCollapsedRedbox(`
            {
-             "code": "E1402",
+             "code": "E1370",
              "description": "Next.js encountered uncached data in generateMetadata().",
              "environmentLabel": "Server",
              "label": "Blocking Route",
@@ -331,7 +331,7 @@ describe('Cache Components Errors', () => {
 
           await expect(browser).toDisplayCollapsedRedbox(`
            {
-             "code": "E1402",
+             "code": "E1370",
              "description": "Next.js encountered uncached data in generateMetadata().",
              "environmentLabel": "Server",
              "label": "Blocking Route",
@@ -405,7 +405,7 @@ describe('Cache Components Errors', () => {
 
           await expect(browser).toDisplayCollapsedRedbox(`
            {
-             "code": "E1402",
+             "code": "E1370",
              "description": "Next.js encountered uncached data in generateMetadata().",
              "environmentLabel": "Server",
              "label": "Blocking Route",
@@ -479,7 +479,7 @@ describe('Cache Components Errors', () => {
 
           await expect(browser).toDisplayCollapsedRedbox(`
            {
-             "code": "E1402",
+             "code": "E1370",
              "description": "Next.js encountered uncached data in generateMetadata().",
              "environmentLabel": "Server",
              "label": "Blocking Route",
@@ -578,7 +578,7 @@ describe('Cache Components Errors', () => {
 
           await expect(browser).toDisplayCollapsedRedbox(`
            {
-             "code": "E1401",
+             "code": "E1369",
              "description": "Next.js encountered uncached data in generateViewport().",
              "environmentLabel": "Server",
              "label": "Blocking Route",
@@ -690,7 +690,7 @@ describe('Cache Components Errors', () => {
 
           await expect(browser).toDisplayCollapsedRedbox(`
            {
-             "code": "E1401",
+             "code": "E1369",
              "description": "Next.js encountered uncached data in generateViewport().",
              "environmentLabel": "Server",
              "label": "Blocking Route",
