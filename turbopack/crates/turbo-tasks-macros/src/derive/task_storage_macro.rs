@@ -90,14 +90,10 @@ struct FieldInfo {
     ///
     /// When absent, the macro parses the outer field type directly.
     as_type: Option<Type>,
-    /// If true, the macro does NOT generate the mutating accessors
-    /// (`insert_*`/`remove_*`) for this field on the `TaskGuard`/
-    /// `TaskStorageAccessors` trait; the read accessors and the inline
-    /// `<field>_mut()` on `TaskStorage` are still generated. The mutators are
-    /// instead hand-written so they can own a custom `track_modification`
-    /// decision. Currently used by `cell_data`, whose write tracking depends on
-    /// the cell's `ValueTypePersistence` (a `Skip` cell persists nothing, so it
-    /// must not dirty the task). Only supported for `auto_map` fields.
+    /// If true, the macro skips generating the mutating accessors
+    /// (`insert_*`/`remove_*`); read accessors and `<field>_mut()` are still
+    /// generated. Lets the mutators be hand-written with a custom
+    /// `track_modification` decision (used by `cell_data`). `auto_map` only.
     custom_mutators: bool,
 }
 
@@ -145,25 +141,13 @@ impl FieldInfo {
         }
     }
 
-    /// Like [`track_modification_call`], but for `filter_transient` fields the
-    /// emitted tracking is guarded so it only fires when the entry being
-    /// mutated is *not* transient.
-    ///
-    /// A `filter_transient` field drops transient entries at encode time (see
-    /// [`generate_filter_predicate`]), so adding/removing a transient entry
-    /// changes zero persistable bytes and must not dirty the task for the
-    /// persistence snapshot. This is safe because modification tracking is
-    /// monotonic: we only ever *omit* setting the modified flag here; a later
-    /// persistent-keyed mutation still sets it via the same path.
-    ///
-    /// `key_expr` must evaluate to the entry whose transience decides tracking
-    /// (the inserted/removed key, or the value for a direct `Option` field). It
-    /// is matched against `.is_transient()` using the same inherent-or-trait
-    /// method-call convention as [`generate_filter_predicate`] (the `IsTransient`
-    /// trait from `storage_schema` is in scope wherever this macro expands).
-    ///
-    /// For non-`filter_transient` fields this is identical to
-    /// [`track_modification_call`].
+    /// [`track_modification_call`], but for `filter_transient` fields it only
+    /// fires when `key_expr` is not transient — transient entries are dropped at
+    /// encode (see [`generate_filter_predicate`]), so mutating one changes no
+    /// persistable bytes. Safe because tracking is monotonic (we only omit, never
+    /// clear). `key_expr` is the entry whose transience decides tracking and is
+    /// matched with `.is_transient()`. Identical to [`track_modification_call`]
+    /// for non-`filter_transient` fields.
     fn track_modification_call_guarded(&self, key_expr: TokenStream) -> TokenStream {
         if !self.filter_transient || self.is_transient() {
             return self.track_modification_call();
@@ -1828,13 +1812,6 @@ fn generate_direct_accessors(field: &FieldInfo) -> TokenStream {
     let field_type = &field.field_type;
     let check_access = field.check_access_call();
     let track_modification = field.track_modification_call();
-    // For a `filter_transient` direct `Option` field (`output`), `set` tracks only
-    // when the new value is non-transient (a transient output is dropped at
-    // encode, so it changes zero persistable bytes). `take` is handled inline
-    // below, gated on the *old* value's transience. For non-filter_transient
-    // fields these equal `track_modification`.
-    let track_modification_value = field.track_modification_call_guarded(quote! { value });
-    let track_modification_old = field.track_modification_call_guarded(quote! { old });
 
     // Use FieldInfo helpers for TaskStorage delegation
     let get_expr = field.direct_get_expr();
@@ -1904,6 +1881,26 @@ fn generate_direct_accessors(field: &FieldInfo) -> TokenStream {
         }
     };
 
+    // `track_modification` must run BEFORE the field is mutated: under snapshot
+    // mode it clones the pre-mutation state into the snapshot, so a value being
+    // overwritten/removed would otherwise be lost from the in-flight snapshot.
+    //
+    // For `filter_transient` fields, transient entries are dropped at encode, so
+    // a write only changes persistable bytes when a non-transient value is
+    // involved. For `set` (a replace) that means EITHER the new value OR the
+    // value being overwritten is non-transient; for `take` it means the removed
+    // value is non-transient. `gen_track` builds the gated call from a boolean
+    // expression that must be evaluated before mutating; non-filter_transient
+    // fields track unconditionally.
+    let gen_track = |persistent_cond: TokenStream| -> TokenStream {
+        if field.filter_transient && !field.is_transient() {
+            let track = field.track_modification_call();
+            quote! { if #persistent_cond { #track } }
+        } else {
+            field.track_modification_call()
+        }
+    };
+
     let set_body = if field.is_transient() {
         quote! {
             #set_expr(value)
@@ -1915,26 +1912,46 @@ fn generate_direct_accessors(field: &FieldInfo) -> TokenStream {
         let extractor = field.lazy_extractor_closure();
         let unwraper = field.lazy_unwrap_closure();
         let constructor = field.lazy_constructor(quote! { value });
+        // Replace branch. For filter_transient fields we must capture the
+        // old/new transience into a bool BEFORE the `&mut self` track call so the
+        // immutable borrow of `old_ref` has ended; non-filter_transient fields
+        // just track unconditionally.
+        let replace_track = if field.filter_transient {
+            let track = field.track_modification_call();
+            quote! {
+                let should_track = !value.is_transient() || !old_ref.is_transient();
+                if should_track { #track }
+            }
+        } else {
+            field.track_modification_call()
+        };
+        // Fresh insert: only the new value matters.
+        let track_insert = gen_track(quote! { !value.is_transient() });
         quote! {
             if let Some((idx, old_ref)) = self.typed().find_lazy_ref(#extractor) {
                 if old_ref == &value {
                     return None;
                 }
-                #track_modification_value
+                #replace_track
                 let old = std::mem::replace(&mut self.typed_mut().lazy[idx], #constructor);
                 Some((#unwraper)(old))
             } else {
-                #track_modification_value
+                #track_insert
                 self.typed_mut().lazy.push(#constructor);
                 None
             }
         }
     } else {
+        // Inline replace: track if the new OR the existing value is non-transient.
+        // `#get_expr` is `Option<&T>`; read it before `#set_expr` mutates.
+        let track_replace = gen_track(
+            quote! { !value.is_transient() || #get_expr.is_some_and(|old| !old.is_transient()) },
+        );
         quote! {
             if #get_expr.is_some_and(|old| old == &value) {
                 return None;
             }
-            #track_modification_value
+            #track_replace
             #set_expr(value)
         }
     };
@@ -1949,24 +1966,32 @@ fn generate_direct_accessors(field: &FieldInfo) -> TokenStream {
         // scans again via take_lazy).
         let extractor = field.lazy_extractor_closure();
         let unwraper = field.lazy_unwrap_closure();
+        // Track before taking. For filter_transient fields, capture the removed
+        // value's transience into a bool before the `&mut self` track call so the
+        // `old_ref` borrow has ended.
+        let take_track = if field.filter_transient {
+            let track = field.track_modification_call();
+            quote! {
+                let should_track = !old_ref.is_transient();
+                if should_track { #track }
+            }
+        } else {
+            field.track_modification_call()
+        };
         quote! {
-            let (idx, _) = self.typed().find_lazy_ref(#extractor)?;
-            let old = self.typed_mut().lazy_take_at(idx, #unwraper);
-            // Track on the removed value's transience: removing a transient entry
-            // changes nothing persistable (it was filtered at encode).
-            #track_modification_old
-            Some(old)
+            let (idx, old_ref) = self.typed().find_lazy_ref(#extractor)?;
+            #take_track
+            Some(self.typed_mut().lazy_take_at(idx, #unwraper))
         }
     } else {
+        // Track before taking, gated on the existing value's transience.
+        let track_take = gen_track(quote! { #get_expr.is_some_and(|old| !old.is_transient()) });
         quote! {
-            let old = #take_expr;
-            if let Some(old) = old.as_ref() {
-                // Track on the removed value's transience: removing a transient
-                // entry changes nothing persistable (filtered at encode). For
-                // non-filter_transient fields this tracks unconditionally.
-                #track_modification_old
+            if #get_expr.is_none() {
+                return None;
             }
-            old
+            #track_take
+            #take_expr
         }
     };
 
@@ -2182,33 +2207,35 @@ fn generate_autoset_ops(field: &FieldInfo) -> TokenStream {
         // Extend: use peekable iterator to avoid Vec allocation.
         // For lazy fields, look up the set once via find_lazy_ref to avoid repeated scans.
         //
-        // `filter_transient` fields take a different shape: the batch tracks once
-        // for a mix of entries, so we must track iff at least one *newly inserted*
-        // entry is non-transient (transient entries are dropped at encode and
-        // change zero persistable bytes). We insert one by one and set the modified
-        // flag lazily on the first non-transient new entry. This is slightly less
-        // allocation-optimal than the non-filter path, but `filter_transient`
-        // extend has a single caller (`extend_children`).
+        // `filter_transient` fields track once for the batch, and must do so
+        // BEFORE mutating (under snapshot mode `track_modification` clones the
+        // pre-mutation state). Tracking is needed iff the batch will actually add
+        // a non-transient entry (a transient entry is dropped at encode; an entry
+        // already present changes nothing). So materialize the items, decide
+        // against the current set via a read borrow, track if needed, then insert.
+        // `filter_transient` extend has a single caller (`extend_children`).
         extend_body = if field.filter_transient {
-            // `track_modification` is the unconditional call here; we gate it
-            // ourselves on `inserted_persistent` below. `#mut_expr`
-            // (`<field>_mut()`) get-or-creates the inner set for lazy fields and
-            // returns it directly for inline ones, so a single form covers both.
+            // Membership probe differs by storage shape: lazy `#ref_expr` is
+            // `Option<&set>`, inline is `&set`.
+            let contains_probe = if is_option {
+                quote! { #ref_expr.is_some_and(|set| set.contains(item)) }
+            } else {
+                quote! { #ref_expr.contains(item) }
+            };
             quote! {
-                let mut iter = items.into_iter().peekable();
-                if iter.peek().is_none() {
+                let items: Vec<_> = items.into_iter().collect();
+                if items.is_empty() {
                     return;
                 }
-                let mut inserted_persistent = false;
-                let set = #mut_expr;
-                for item in iter {
-                    let is_transient = item.is_transient();
-                    if set.insert(item) && !is_transient {
-                        inserted_persistent = true;
-                    }
-                }
-                if inserted_persistent {
+                let should_track = items
+                    .iter()
+                    .any(|item| !item.is_transient() && !(#contains_probe));
+                if should_track {
                     #track_modification
+                }
+                let set = #mut_expr;
+                for item in items {
+                    set.insert(item);
                 }
             }
         } else if is_option {
@@ -2483,24 +2510,22 @@ fn generate_countermap_ops(field: &FieldInfo) -> TokenStream {
             }
         }
     } else if field.filter_transient {
-        // Batch update: track iff at least one applied key is non-transient
-        // (transient entries are dropped at encode). `update_count` returns
-        // whether the count crossed zero, which is irrelevant here; we gate
-        // tracking on the key's transience, decided before the loop body runs.
+        // Batch update: track once, iff at least one key is non-transient
+        // (transient entries are dropped at encode). We must decide and track
+        // BEFORE mutating: under snapshot mode `track_modification` clones the
+        // pre-mutation state. So materialize the keys, check transience, track,
+        // then apply.
         quote! {
             if delta == 0 {
                 return;
             }
-            let mut applied_persistent = false;
+            let keys: Vec<_> = keys.collect();
+            if keys.iter().any(|key| !key.is_transient()) {
+                #track_modification
+            }
             let map = #mut_expr;
             for key in keys {
-                if !key.is_transient() {
-                    applied_persistent = true;
-                }
                 map.update_count(key, delta);
-            }
-            if applied_persistent {
-                #track_modification
             }
         }
     } else {

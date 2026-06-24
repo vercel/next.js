@@ -1242,17 +1242,15 @@ pub trait TaskGuard: Debug + TaskStorageAccessors {
     }
     /// Insert cell data, returning the old value if present.
     ///
-    /// Tracks a Data-category modification (dirtying the task for the next
-    /// persistence snapshot) only when the cell's value type actually persists
-    /// something. A `ValueTypePersistence::Skip` cell is dropped by
-    /// `CellData::encode`, so writing one changes zero persistable bytes and
-    /// must not dirty the task; `Persistable`/`HashOnly` cells do persist
-    /// (`HashOnly` via the separate `cell_data_hash` field) and are tracked.
+    /// Only `Persistable` cells are written to the data snapshot
+    /// (`CellData::encode` drops `Skip` and `HashOnly`), so we dirty the task
+    /// only for those. A `HashOnly` cell's persisted state lives in the separate
+    /// `cell_data_hash` field, which tracks its own modifications.
     ///
-    /// This is hand-written rather than macro-generated (`cell_data` carries
-    /// `custom_mutators`) so the tracking decision can read the persistence the
-    /// caller already resolved, avoiding a per-write registry lookup. It writes
-    /// through `cell_data_mut()`, which is documented to NOT track on its own.
+    /// Hand-written rather than macro-generated (`cell_data` has
+    /// `custom_mutators`) so the decision reads the caller-supplied persistence
+    /// instead of a per-write registry lookup. Writes through `cell_data_mut()`,
+    /// which does not track on its own.
     fn insert_cell_data(
         &mut self,
         cell: CellId,
@@ -1260,7 +1258,7 @@ pub trait TaskGuard: Debug + TaskStorageAccessors {
         persistence: &ValueTypePersistence,
     ) -> Option<SharedReference> {
         self.check_access(SpecificTaskDataCategory::Data);
-        if !matches!(persistence, ValueTypePersistence::Skip) {
+        if matches!(persistence, ValueTypePersistence::Persistable(..)) {
             self.track_modification(SpecificTaskDataCategory::Data, "cell_data");
         }
         self.typed_mut().cell_data_mut().insert(cell, value)
@@ -1274,9 +1272,12 @@ pub trait TaskGuard: Debug + TaskStorageAccessors {
         persistence: &ValueTypePersistence,
     ) -> Option<SharedReference> {
         self.check_access(SpecificTaskDataCategory::Data);
-        // Only track when something persistable is actually removed: the entry
-        // must exist AND not be a Skip cell (Skip cells were never persisted).
-        if !matches!(persistence, ValueTypePersistence::Skip) && self.cell_data_contains(cell) {
+        // Track only when a persistable entry is actually removed (the entry must
+        // exist and be Persistable; Skip/HashOnly cells contribute nothing to the
+        // data snapshot).
+        if matches!(persistence, ValueTypePersistence::Persistable(..))
+            && self.cell_data_contains(cell)
+        {
             self.track_modification(SpecificTaskDataCategory::Data, "cell_data");
         }
         self.typed_mut().cell_data_mut().remove(cell)
@@ -1778,6 +1779,39 @@ mod filter_transient_tracking_tests {
                 "taking a persistent output must dirty meta"
             );
         }
+
+        // REPLACE persistent -> transient must dirty meta: the old persistent
+        // value was in the snapshot and is being removed, so the persisted form
+        // changes even though the new value is transient. (Seed the persistent
+        // value untracked, clear the flag, then replace.)
+        let task_id = persistent_task(30);
+        {
+            let mut g = guard_for(&storage, task_id);
+            g.typed_mut()
+                .set_output(OutputValue::Output(persistent_task(31)));
+            g.task.flags.set_meta_modified(false);
+            assert!(!g.meta_modified());
+
+            g.set_output(OutputValue::Output(transient_task(32)));
+            assert!(
+                g.meta_modified(),
+                "replacing a persistent output with a transient one must dirty meta"
+            );
+        }
+
+        // REPLACE transient -> transient must NOT dirty meta (neither value
+        // persists).
+        let task_id = persistent_task(40);
+        {
+            let mut g = guard_for(&storage, task_id);
+            g.set_output(OutputValue::Output(transient_task(41)));
+            assert!(!g.meta_modified());
+            g.set_output(OutputValue::Output(transient_task(42)));
+            assert!(
+                !g.meta_modified(),
+                "replacing one transient output with another must not dirty meta"
+            );
+        }
     }
 
     #[test]
@@ -1837,6 +1871,9 @@ mod cell_data_tracking_tests {
 
     #[turbo_tasks::value(serialization = "skip", evict = "never", cell = "new", eq = "manual")]
     struct SkipNeverV;
+
+    #[turbo_tasks::value(serialization = "hash")]
+    struct HashOnlyV(#[allow(dead_code)] u32);
 
     fn persistent_task(id: u32) -> TaskId {
         assert!(id & TRANSIENT_TASK_BIT == 0);
@@ -1901,6 +1938,28 @@ mod cell_data_tracking_tests {
             g.data_modified(),
             "writing a Persistable cell must dirty data"
         );
+    }
+
+    #[test]
+    fn insert_hash_only_cell_does_not_dirty_cell_data() {
+        // A HashOnly cell's value is NOT in the data snapshot (only its hash, in
+        // the separate cell_data_hash field, which tracks itself). So the
+        // cell_data write must not dirty the task.
+        let storage = Storage::new(2, true);
+        let task_id = persistent_task(1);
+        let cell = cell_of::<HashOnlyV>(0);
+
+        let mut g = guard_for(&storage, task_id);
+        assert!(
+            g.insert_cell_data(cell, dummy_ref(), persistence_of(&cell))
+                .is_none()
+        );
+        assert!(
+            !g.data_modified(),
+            "writing a HashOnly cell's value must not dirty data (the hash field tracks \
+             separately)"
+        );
+        assert!(g.cell_data_contains(&cell));
     }
 
     #[test]
