@@ -44,6 +44,7 @@ import {
   addSearchParamsIfPageSegment,
   PAGE_SEGMENT_KEY,
 } from '../../../shared/lib/segment'
+import { searchStringToRecord } from '../../../shared/lib/router/utils/search-string-to-record'
 import type { SegmentRequestKey } from '../../../shared/lib/segment-cache/segment-value-encoding'
 import { cleanup } from './lru'
 
@@ -2000,7 +2001,7 @@ function doesCurrentSegmentMatchCachedSegment(
       currentSegment ===
       addSearchParamsIfPageSegment(
         PAGE_SEGMENT_KEY,
-        Object.fromEntries(new URLSearchParams(route.renderedSearch))
+        searchStringToRecord(route.renderedSearch)
       )
     )
   }
