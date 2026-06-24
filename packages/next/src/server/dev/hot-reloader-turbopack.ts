@@ -304,6 +304,8 @@ function getSourceMapFromTurbopack(
   }
 }
 
+const ensuredPages = new Set()
+
 export async function createHotReloaderTurbopack(
   opts: SetupOpts & { isSrcDir: boolean },
   serverFields: ServerFields,
@@ -1666,6 +1668,10 @@ export async function createHotReloaderTurbopack(
           if (BLOCKED_PAGES.includes(inputPage) && inputPage !== '/_error') {
             return
           }
+          if (ensuredPages.has(inputPage)) {
+            return
+          }
+          ensuredPages.add(inputPage)
 
           await currentEntriesHandling
 
