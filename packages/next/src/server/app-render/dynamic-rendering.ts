@@ -66,6 +66,9 @@ import {
   createDynamicOrRuntimeViewportError,
   createDynamicOrRuntimeMetadataError,
   logBuildDebugHint,
+  createLinkBodyErrorInNavigation,
+  createLinkMetadataError,
+  createLinkViewportError,
 } from './blocking-route-messages'
 import { InvariantError } from '../../shared/lib/invariant-error'
 import {
@@ -905,10 +908,12 @@ export function trackAllowedDynamicAccess(
 }
 
 export enum DynamicHoleKind {
+  /** We know that this hole is caused by link data. */
+  Link = 1,
   /** We know that this hole is caused by runtime data. */
-  Runtime = 1,
+  Runtime = 2,
   /** We know that this hole is caused by dynamic data. */
-  Dynamic = 2,
+  Dynamic = 3,
 }
 
 /** Stores dynamic reasons used during an SSR render in instant validation. */
@@ -967,9 +972,11 @@ export function trackDynamicHoleInNavigation(
 
   if (hasMetadataRegex.test(componentStack)) {
     const error = addErrorContext(
-      kind === DynamicHoleKind.Runtime
-        ? createRuntimeMetadataError(workStore.route)
-        : createDynamicMetadataError(workStore.route),
+      kind === DynamicHoleKind.Link
+        ? createLinkMetadataError(workStore.route)
+        : kind === DynamicHoleKind.Runtime
+          ? createRuntimeMetadataError(workStore.route)
+          : createDynamicMetadataError(workStore.route),
       componentStack,
       effectiveCreateInstantStack
     )
@@ -978,9 +985,11 @@ export function trackDynamicHoleInNavigation(
   }
   if (hasViewportRegex.test(componentStack)) {
     const error = addErrorContext(
-      kind === DynamicHoleKind.Runtime
-        ? createRuntimeViewportError(workStore.route)
-        : createDynamicViewportError(workStore.route),
+      kind === DynamicHoleKind.Link
+        ? createLinkViewportError(workStore.route)
+        : kind === DynamicHoleKind.Runtime
+          ? createRuntimeViewportError(workStore.route)
+          : createDynamicViewportError(workStore.route),
       componentStack,
       effectiveCreateInstantStack
     )
@@ -1072,9 +1081,11 @@ export function trackDynamicHoleInNavigation(
   }
 
   const error = addErrorContext(
-    kind === DynamicHoleKind.Runtime
-      ? createRuntimeBodyErrorInNavigation(workStore.route)
-      : createDynamicBodyErrorInNavigation(workStore.route),
+    kind === DynamicHoleKind.Link
+      ? createLinkBodyErrorInNavigation(workStore.route)
+      : kind === DynamicHoleKind.Runtime
+        ? createRuntimeBodyErrorInNavigation(workStore.route)
+        : createDynamicBodyErrorInNavigation(workStore.route),
     componentStack,
     effectiveCreateInstantStack
   )

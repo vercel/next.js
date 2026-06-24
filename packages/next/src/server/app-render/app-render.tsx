@@ -291,6 +291,7 @@ import { ResponseCookies } from '../web/spec-extension/cookies'
 import { isInstantValidationError } from './instant-validation/instant-validation-error'
 import { createPromiseWithResolvers } from '../../shared/lib/promise-with-resolvers'
 import { RENDER_STAGES_BY_DATA_KIND } from '../dynamic-rendering-utils'
+import type { ValidationPrefetchKind } from './instant-validation/instant-validation'
 
 export type GetDynamicParamFromSegment = (
   // The LoaderTree to extract the dynamic param from
@@ -6001,6 +6002,7 @@ async function validateInstantConfigs(
     createCombinedPayloadStream,
     collectStagedSegmentData,
     discoverValidationDepths,
+    ValidationPrefetchKind,
   } = ctx.componentMod.InstantValidation()!
 
   const { createValidationSampleTracking } =
@@ -6009,6 +6011,11 @@ async function validateInstantConfigs(
   debug?.('\nStarting depth-based instant validation...')
 
   const loaderTree = ctx.componentMod.routeModule.userland.loaderTree
+  const prefetchMode =
+    !!ctx.renderOpts.partialPrefetching ||
+    (await anySegmentHasPartialPrefetchingEnabled(loaderTree))
+      ? PrefetchingMode.Partial
+      : PrefetchingMode.LegacySpeculative
 
   // Only affects a debug environment name label, not functional behavior.
   const hasRuntimePrefetch = true
@@ -6031,6 +6038,7 @@ async function validateInstantConfigs(
     renderFlightStream,
     {
       [RenderStage.Static]: accumulatedChunks.staticChunks,
+      [RenderStage.ShellRuntime]: accumulatedChunks.shellRuntimeChunks,
       [RenderStage.Runtime]: accumulatedChunks.runtimeChunks,
       [RenderStage.Dynamic]: accumulatedChunks.dynamicChunks,
     },
@@ -6045,13 +6053,20 @@ async function validateInstantConfigs(
   const isDebugChannelEnabled = !!ctx.renderOpts.setReactDebugChannel
 
   async function validateAtDepth(
+    prefetchKind: ValidationPrefetchKind,
     depth: number,
     groupDepthForValidation: number
   ): Promise<null | NavigationValidationResult> {
-    return validateAtDepthImpl(depth, groupDepthForValidation, null)
+    return validateAtDepthImpl(
+      prefetchKind,
+      depth,
+      groupDepthForValidation,
+      null
+    )
   }
 
   async function validateAtDepthImpl(
+    prefetchKind: ValidationPrefetchKind,
     depth: number,
     groupDepthForValidation: number,
     previousBoundaryState: null | ValidationBoundaryTracking
@@ -6069,6 +6084,7 @@ async function validateInstantConfigs(
     }
 
     const payloadResult = await createCombinedPayloadAtDepth(
+      prefetchKind,
       initialRscPayload,
       cache,
       loaderTree,
@@ -6136,6 +6152,22 @@ async function validateInstantConfigs(
       validationSampleTracking,
     }
 
+    let dynamicHoleKind: DynamicHoleKind
+    switch (prefetchKind) {
+      case ValidationPrefetchKind.Shell: {
+        dynamicHoleKind = payloadResult.hasAmbiguousErrors
+          ? DynamicHoleKind.Link
+          : DynamicHoleKind.Dynamic
+        break
+      }
+      case ValidationPrefetchKind.LegacySpeculative: {
+        dynamicHoleKind = payloadResult.hasAmbiguousErrors
+          ? DynamicHoleKind.Runtime
+          : DynamicHoleKind.Dynamic
+        break
+      }
+    }
+
     let result: NavigationValidationResult
     try {
       const { prelude: unprocessedPrelude } = await runInSequentialTasks(
@@ -6168,9 +6200,7 @@ async function validateInstantConfigs(
                       componentStack,
                       instantValidationState,
                       clientDynamicTracking,
-                      payloadResult.hasAmbiguousErrors
-                        ? DynamicHoleKind.Runtime
-                        : DynamicHoleKind.Dynamic,
+                      dynamicHoleKind,
                       boundaryState
                     )
                   }
@@ -6268,6 +6298,7 @@ async function validateInstantConfigs(
       // This is the first validation attempt. we prepared a payload where dynamic holes might be runtime data dependencies
       // or dynamic data dependencies. We do a followup validation using a payload with only Runtime segments to discriminate
       const dynamicOnlyResult = await validateAtDepthImpl(
+        prefetchKind,
         depth,
         groupDepthForValidation,
         boundaryState
@@ -6291,6 +6322,11 @@ async function validateInstantConfigs(
 
   let impairedValidation: null | Error | AggregateError = null
 
+  const prefetchKind =
+    prefetchMode === PrefetchingMode.Partial
+      ? ValidationPrefetchKind.Shell
+      : ValidationPrefetchKind.LegacySpeculative
+
   for (let depth = maxDepth - 1; depth >= 0; depth--) {
     const maxGroupDepth = groupDepthsByUrlDepth[depth]
 
@@ -6299,14 +6335,19 @@ async function validateInstantConfigs(
       currentGroupDepth >= 0;
       currentGroupDepth--
     ) {
+      const debugKind = ValidationPrefetchKind[prefetchKind]
       debug?.(
-        `Trying depth ${depth}` +
+        `Trying ${debugKind} at depth ${depth}` +
           (currentGroupDepth > 0
             ? ` + groupDepth ${currentGroupDepth}...`
             : '...')
       )
 
-      const result = await validateAtDepth(depth, currentGroupDepth)
+      const result = await validateAtDepth(
+        prefetchKind,
+        depth,
+        currentGroupDepth
+      )
 
       if (Array.isArray(result)) {
         const errors: Array<Error> = result
@@ -6314,12 +6355,14 @@ async function validateInstantConfigs(
         if (errors.length > 0) {
           // There were issues with producing an instant UI for this attempted navigation
           debug?.(
-            `  Depth ${depth}+${currentGroupDepth}: ❌ Failed (${errors.length} errors)`
+            `  ${debugKind} at depth ${depth}+${currentGroupDepth}: ❌ Failed (${errors.length} errors)`
           )
           return errors
         } else {
           // There is nothing blocking instant UI for this simluated navigation
-          debug?.(`  Depth ${depth}+${currentGroupDepth}: ✅ Passed`)
+          debug?.(
+            `  ${debugKind} at depth ${depth}+${currentGroupDepth}: ✅ Passed`
+          )
         }
       } else if (result === null) {
         // There was no validation to perform at this level
