@@ -11,7 +11,7 @@ description: >
 
 # next-cache-components-adoption
 
-Enable Cache Components on an app and walk it to a clean build. This skill **sequences** the work; per-error recipes live in the dev overlay fix cards and the build's terminal output.
+Enable Cache Components on an app and walk it to a clean build. This skill **sequences** the work; per-error recipes live in the dev overlay fix cards and the build's terminal output. The [migrating to Cache Components guide](https://nextjs.org/docs/app/guides/migrating-to-cache-components) is the canonical reference for the concepts and per-API recipes this skill applies — consult it whenever the skill steps reference a pattern (`"use cache"`, `cacheLife`, `<Suspense>` placement, etc.) and you want the full explanation.
 
 ## requires
 
@@ -23,7 +23,7 @@ Confirm each item before starting milestone A. The skill won't apply cleanly if 
   - `npx @next/codemod@latest upgrade latest` to apply the version-to-version codemods.
   - Read the relevant [version upgrade guide](https://nextjs.org/docs/app/guides/upgrading) (e.g. [Version 16](https://nextjs.org/docs/app/guides/upgrading/version-16)) for what the codemod doesn't cover.
 
-- **No incompatible config keys.** `cacheComponents: true` errors on any file that still exports `dynamic`, `revalidate`, or `fetchCache`. That covers pages and layouts, route handlers (`route.ts`), and metadata routes (`opengraph-image`, `icon`, `apple-icon`, `sitemap`, `manifest`, `robots`). The renamed `experimental.dynamicIO` / `experimental.useCache` should also be migrated. Resolve them via the [migration guide's "Enable Cache Components" section](https://nextjs.org/docs/app/guides/migrating-to-cache-components#enable-cache-components) before starting.
+- **No incompatible config keys.** `cacheComponents: true` errors on any file that still exports `dynamic`, `revalidate`, or `fetchCache`, and the renamed `experimental.dynamicIO` / `experimental.useCache` are a hard config error on 16.3+. If any of these are present, migrate them via the [migration guide's "Enable Cache Components" section](https://nextjs.org/docs/app/guides/migrating-to-cache-components#enable-cache-components) before starting — it's the source of truth for the per-key mappings.
 
 ### notes
 
@@ -44,37 +44,40 @@ Adoption has two milestones. Each is shippable on its own:
 
 ## background
 
-`cacheComponents: true` requires every route to be prerenderable. A route that reads request-time data outside `<Suspense>` is "blocking" and **fails the build**. `export const instant = false` marks a route as allowed to block, which clears it in both dev and build; on a layout it covers the whole subtree beneath it.
+`cacheComponents: true` requires every route to be prerenderable. A route that reads request-time data outside `<Suspense>` is "blocking" and **fails the build**. `export const instant = false` marks a route as allowed to block, which clears it in both dev and build; on a layout it covers the whole subtree beneath it. Reads wrapped in a [`"use cache"`](https://nextjs.org/docs/app/api-reference/directives/use-cache) function count as cache boundaries, not blocking reads.
 
-## surfacing errors
+## working surfaces
 
-**Prefer `next dev`, but build-only works too.** The dev overlay surfaces blocking errors one route at a time with full stack traces and fix cards, which makes iteration faster. If you can't run a dev server (no long-running process, no browser, restricted environment), you can complete both milestones with `next build` alone — it just takes more passes because the build stops at the first blocking route. The verification step below has a build-only fallback.
+### finding blocking routes
 
-**`next dev` — the working surface.** Visit a route; its blocking errors surface in the dev overlay with full stack traces and fix cards linking the per-error docs. Work one route at a time — errors don't accumulate in one place. The route itself still returns HTTP 200, so don't gate on status codes; read the overlay (or `.next-dev.log` if you can't drive a browser yet).
+Prefer `next dev` over `next build` while you work.
 
-**`next build` — milestone check, and a viable working surface when dev isn't available.** Confirms milestone A (green build) and spot-checks milestone B (no route opted out). It stops at the first blocking route, so iterating purely on builds means fixing → rebuilding → next error, one at a time. Two flags help: `--debug-build-paths` builds only the routes you name (comma-separated glob patterns of **file paths relative to the project root**, e.g. `--debug-build-paths="app/admin/**/page.tsx"` or `--debug-build-paths="app/(marketing)/about/page.tsx"` — not URL paths; `--debug-build-paths=/admin` matches nothing and silently exits 0) and `--debug-prerender` (dev-only) prints a fuller stack trace so the error names the originating file and line.
+- **`next dev`** — the dev overlay surfaces blocking errors one route at a time, with full stack traces and fix cards linking the per-error docs. Work one route at a time; the route itself still returns HTTP 200, so read the overlay (or `.next-dev.log`), not status codes.
+- **`next build`** — confirms milestone A (green build) and spot-checks milestone B (no opt-outs left). Useful when `next dev` isn't available, but it stops at the first blocking route, so iterating purely on builds means fix → rebuild → next error. Two flags help: `--debug-build-paths` builds only the routes you name (comma-separated file-path globs relative to the project root, e.g. `app/admin/**/page.tsx` — not URL paths) and `--debug-prerender` prints a fuller stack trace so the error names the originating file and line.
 
-**Verifying a fix at runtime.** A green build or a cleared overlay isn't proof the route actually behaves — Cache Components is a runtime concern (a static shell with streamed data). Load the route in a real browser, wait for streaming to settle, and confirm it renders. **`next-dev-loop` is the recommended way to do this** — fall back to other approaches only when it isn't available.
+### verifying each fix at runtime
 
-1. **Strongly preferred: [`next-dev-loop`](https://github.com/vercel/next.js/tree/canary/skills/next-dev-loop).** It cross-checks `/_next/mcp` against the live browser via `agent-browser` and surfaces both compile and runtime issues in one pass. Use it for every route, not just the tricky ones. **Before starting milestone B**, check whether you can invoke `next-dev-loop`. If you can't, and the project is running a local dev server (or could), ask the user:
+A green build or a cleared overlay isn't proof the route actually behaves — Cache Components is a runtime concern (a static shell with streamed data). Load the route in a real browser, wait for streaming to settle, confirm it renders. **Verify after every fix, not only at the end.**
 
-   > I'd like to use the `next-dev-loop` skill to verify each fix against the running app. It's the most reliable way to catch Cache Components issues that don't show up in the build. It needs `agent-browser` (a CLI for driving a real Chrome instance) and adds about a minute of setup. Want me to install it before we start?
+In preference order:
 
-   To install:
+1. **[`next-dev-loop`](https://github.com/vercel/next.js/tree/canary/skills/next-dev-loop) — strongly preferred.** Cross-checks `/_next/mcp` against the live browser via `agent-browser` and surfaces both compile and runtime issues in one pass. The diagnostics (React tree, suspense boundaries, console + network) are orders of magnitude richer than poking at `next dev` by hand.
+
+   **Before starting milestone B**, install it if you can't already invoke it:
 
    ```bash
    npx skills add https://github.com/vercel/next.js/tree/canary/skills/next-dev-loop
    ```
 
-   The skill has its own hard prerequisites (Turbopack and `agent-browser >= 0.27.0`) and will walk the user through them.
+   Ask the user first if one's available. Otherwise just install it — the diagnostic uplift is worth the minute. Skip only when there's a real technical blocker (no network, no npm, read-only filesystem, explicit no-new-deps policy).
 
-2. **Fallback: a browser you can drive yourself** (Playwright, `agent-browser` directly, any browser-automation tool). Use this only if `next-dev-loop` isn't installed and the user declined. You'll miss the framework-side checks (`/_next/mcp`), so be more cautious about what you call "verified" — DOM assertions alone don't catch every Cache Components regression.
+   Requires Turbopack and `agent-browser >= 0.27.0`; the skill walks you through them.
 
-3. **Build-only verification.** If you can't run a dev server at all, you can still complete the work: `next build` will fail on any blocking route the codemod missed, and a green build with no `instant = false` on the routes you care about is a real (if narrower) signal. You'll miss runtime regressions that don't surface in the build, so flag any route you couldn't load in a browser when you report back. Don't pretend a green build covers behavioral verification.
+2. **A browser you can drive yourself.** Playwright, `agent-browser` directly, any browser-automation tool. Use only when `next-dev-loop` is genuinely blocked. You'll miss the framework-side checks (`/_next/mcp`), so DOM assertions alone don't catch every regression — be more cautious about what you call "verified."
 
-4. **No browser and no build either?** Ask the user. Either ask them to run the dev server (or build) and report what they see, or commit the milestone you've reached and hand off. **Don't silently stop at A or B and call it done** — be explicit about what you couldn't verify.
+3. **Build-only.** If you can't run a dev server at all, the build is your only signal. `○ (Static)` routes with no `<Suspense>` are fully verified by the build (nothing streamed to test). `◐ (Partial Prerender)` routes are only shell-verified — flag them when you report back. Don't pretend a green build covers behavioral verification of streamed content.
 
-Verify after every fix, not only at the end. Don't fall back to grepping source or trusting the build alone.
+4. **No tooling at all.** Ask the user to run the dev server (or build) and report what they see, or commit the milestone you've reached and hand off. Be explicit about what you couldn't verify.
 
 ## step 1: choose a strategy
 
@@ -85,15 +88,15 @@ Ask the user; don't assume. **In a non-interactive run** (no way to prompt), def
 
 ### blanket
 
-**Blanket only clears `instant = false` errors. Sync-IO reads in a shared layout will still fail the build after the codemod runs.** Before invoking the codemod, grep the app for `new Date()`, `Date.now()`, `Math.random()`, and `crypto.randomUUID()` in any `app/**/layout.{js,jsx,ts,tsx}`. Each match has to be fixed using the recipe from its `blocking-prerender-*` error card before milestone A can go green; a layout with two distinct reads (e.g. a copyright year and a "last updated" stamp) usually needs two distinct fixes (cache for the stable one, `await connection()` + `<Suspense>` for the per-request one).
+**Blanket only clears `instant = false` errors. Sync-IO reads in a shared layout will still fail the build after the codemod runs.** Before invoking the codemod, grep the whole repo for `new Date()`, `Date.now()`, `Math.random()`, and `crypto.randomUUID()` — not just `app/**/layout.{js,jsx,ts,tsx}`. The blocking read might live in any component imported by a layout (e.g. `components/site-footer.tsx`); the build error names the leaf file, but the layout is what blocks. Each match has to be fixed using the recipe from its `blocking-prerender-*` error card before milestone A can go green; a layout with two distinct reads (e.g. a copyright year and a "last updated" stamp) usually needs two distinct fixes (cache for the stable one, `await connection()` + `<Suspense>` for the per-request one).
 
-The codemod refuses to run on a dirty working tree. Before invoking it, commit or stash unrelated work — or be ready to pass `--force` (which lets the codemod's edits land alongside your WIP).
+The codemod refuses to run on a dirty working tree. Before invoking it, commit or stash unrelated work — or be ready to pass `--force` (which lets the codemod's edits land alongside your WIP). Common false positive: if you just upgraded Next.js, `package.json` and the lockfile will already be dirty; commit those first.
 
 ```bash
 npx @next/codemod@canary cache-components-instant-false ./app
 ```
 
-If `@next/codemod@latest` reports `Invalid transform choice`, try `@canary` — new transforms land there first.
+If `@next/codemod@latest` reports `Invalid transform choice`, the transform hasn't reached the stable channel yet — re-run with `@canary`. Don't bother trying `@latest` first if you're on a canary `next` build; new transforms land on `@canary` first by design.
 
 Inserts `export const instant = false` (with a `// TODO: Cache Components adoption` comment) into every `app/**/{page,layout,default}` file, skipping files that already declare `instant` and any module marked `"use client"` or `"use server"`. Then set `cacheComponents: true`. The TODO comments are the work queue for milestone B.
 
@@ -119,6 +122,8 @@ After running the codemod, **confirm the root layout got an opt-out** (`grep -n 
 
 **Client Components (`"use client"` pages/layouts) get no opt-out** — the codemod skips them on purpose. `instant` is a Server Component route segment config; exporting it from a client module is a build error (`E1344`). They don't need one anyway: a client page is covered by its nearest server layout's opt-out, and a client page can't read server request data (`cookies()`, `headers()`, `await params`) itself, so it rarely blocks on its own. If a route with a client page still blocks, the cause is server-side data in an ancestor layout — fix the opt-out or the read there, not on the client page.
 
+**Files with a top-level `"use cache"` directive get no opt-out either.** A file-level `"use cache"` makes the whole module a cached scope; `export const instant = false` errors with `Only async functions are allowed to be exported in a "use cache" file`. The codemod doesn't detect this case, so if you see that error after running it, look for a `"use cache"` directive at the top of the offending file. The directive is almost certainly wrong for that route — a page that reads `cookies()` / `headers()` / `await params` can't be cached wholesale. Remove the top-level `"use cache"` before applying the opt-out, and let milestone B introduce caching at the right boundary (a nested function, not the whole file).
+
 ### direct
 
 Set `cacheComponents: true` and collect the errors. The reported routes are the work queue; there are no opt-outs to remove.
@@ -136,6 +141,7 @@ For each route in the subtree:
 1. Remove its `instant = false` (Blanket) or target the failing route (Direct).
 2. Reload it in dev or rebuild only that route. If it's clean, the route was already prerenderable — move on.
 3. If it still blocks, read the error in the dev overlay and apply the fix it points at. When the call gets ambiguous — you're not sure which fix fits, the blocking code looks security-sensitive, or the user might want to keep the route blocking on purpose — read **[references/per-page-decisions.md](./references/per-page-decisions.md)** before editing. Those cases are user check-in moments, not agent judgment calls.
+   - **Dynamic route gotcha:** `await params` and `searchParams` access are themselves blocking reads. Caching the downstream fetch (`getThing(id)`) isn't enough — if `await params` runs at the top of the page body, the route still blocks. Push the param read into a `<Suspense>`-wrapped child component along with whatever it fetches.
 4. Re-check the route. If your fix touched shared code (a layout, a sidebar component), re-check sibling routes too — a shared-shell change can fix the route you're on and break a sibling. Then move to the next route.
 
 Keep a todo list of the subtree's routes and work it to completion; don't truncate. When every route in the subtree is clean, move to **step 3** to verify and hand the subtree off to the user.
