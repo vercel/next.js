@@ -1559,17 +1559,12 @@ pub use self::{
 
 #[cfg(test)]
 mod filter_transient_tracking_tests {
-    //! `filter_transient` fields drop transient entries at encode time, so a
-    //! mutation that only touches a transient key/value changes zero persistable
-    //! bytes and must NOT dirty the (persistent) task for the snapshot. These
-    //! tests exercise the macro-generated guarded `track_modification` on a real
-    //! [`TaskGuardImpl`] over a [`Storage`], asserting the modified flag is only
-    //! set for non-transient mutations. Tracking is monotonic: a persistent
-    //! mutation still sets the flag even after a transient one was skipped.
+    //! Test that changes to transient data inside of `filter_transient` fields does not call
+    //! `track_modification`.
     //!
-    //! These live here (rather than next to the schema in `storage_schema.rs`)
-    //! because the tracking accessors are only implemented by [`TaskGuardImpl`],
-    //! whose fields are private to this module.
+    //! These live here (rather than next to the schema in
+    //! `storage_schema.rs`) because the tracking accessors are only implemented by
+    //! [`TaskGuardImpl`], whose fields are private to this module.
     use turbo_tasks::{CellId, TRANSIENT_TASK_BIT, TaskId, ValueTypeId};
 
     use super::*;
@@ -1822,17 +1817,7 @@ mod filter_transient_tracking_tests {
 #[cfg(test)]
 mod cell_data_tracking_tests {
     //! `cell_data` writes track a Data modification only when the cell's value
-    //! type persists something. A `ValueTypePersistence::Skip` cell is dropped by
-    //! `CellData::encode`, so writing one changes zero persistable bytes and must
-    //! not dirty the (persistent) task; `Persistable`/`HashOnly` cells do persist
-    //! and are tracked. In-memory retention is governed by `CellData::drop_partial`
-    //! (by `Evictability`), independent of the modified flag — so a Skip cell that
-    //! must stay in memory survives eviction even though the task was never marked
-    //! modified.
-    //!
-    //! Like [`super::filter_transient_tracking_tests`], these live here because
-    //! the `cell_data` mutators are hand-written on [`TaskGuardImpl`] (private to
-    //! this module), not in `storage_schema.rs`.
+    //! type persists something.
     use turbo_tasks::{
         self as turbo_tasks, CellId, TRANSIENT_TASK_BIT, TaskId, ValueTypePersistence, VcValueType,
         registry,
