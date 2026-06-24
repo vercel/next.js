@@ -3344,7 +3344,7 @@ describe('instant validation', () => {
            Ways to fix this:
              - [render] Render the dropped segment
                https://nextjs.org/docs/messages/instant-unrendered-segment#render-the-dropped-segment
-             - [ignore] Set \`export const instant = false\` on the dropped segment to skip validation
+             - [ignore] Set \`export const instant = false\` to silence this warning and opt the dropped segment out of instant-navigation validation
                https://nextjs.org/docs/messages/instant-unrendered-segment#skip-validation-on-the-segment
                at ignore-listed frames
            Build-time instant validation failed for route "/suspense-in-root/static/multi-depth-deferred-fallback/inner".
@@ -3402,7 +3402,7 @@ describe('instant validation', () => {
            Ways to fix this:
              - [render] Render the dropped segment
                https://nextjs.org/docs/messages/instant-unrendered-segment#render-the-dropped-segment
-             - [ignore] Set \`export const instant = false\` on the dropped segment to skip validation
+             - [ignore] Set \`export const instant = false\` to silence this warning and opt the dropped segment out of instant-navigation validation
                https://nextjs.org/docs/messages/instant-unrendered-segment#skip-validation-on-the-segment
                at ignore-listed frames
            Build-time instant validation failed for route "/suspense-in-root/static/test-firstmod/inter/inner".
@@ -3460,7 +3460,7 @@ describe('instant validation', () => {
            Ways to fix this:
              - [render] Render the dropped segment
                https://nextjs.org/docs/messages/instant-unrendered-segment#render-the-dropped-segment
-             - [ignore] Set \`export const instant = false\` on the dropped segment to skip validation
+             - [ignore] Set \`export const instant = false\` to silence this warning and opt the dropped segment out of instant-navigation validation
                https://nextjs.org/docs/messages/instant-unrendered-segment#skip-validation-on-the-segment
                at ignore-listed frames
            Build-time instant validation failed for route "/suspense-in-root/static/test-multi-unrendered".

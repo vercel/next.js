@@ -8,6 +8,7 @@ import {
   createRuntimeViewportError,
   createDynamicViewportError,
 } from '../../../../server/app-render/blocking-route-messages'
+import { createLinkPrefetchPartialError } from '../../../../shared/lib/instant-messages'
 import {
   FIX_CARD_GROUPS,
   SYNC_IO_DOCS,
@@ -79,6 +80,12 @@ describe('instant-guidance-data card ordering', () => {
       'viewport',
       'dynamic',
     ],
+    [
+      'link-prefetch-partial',
+      createLinkPrefetchPartialError('/x').message,
+      'link-prefetch-partial',
+      'runtime',
+    ],
   ] as const)(
     'console tags and overlay card groups agree for %s',
     (_name, message, kind, variant) => {
@@ -129,6 +136,12 @@ describe('instant-guidance-data card links', () => {
       'viewport',
       'dynamic',
     ],
+    [
+      'link-prefetch-partial',
+      createLinkPrefetchPartialError('/x').message,
+      'link-prefetch-partial',
+      'runtime',
+    ],
   ] as const)(
     'console URLs and overlay card links agree for %s',
     (_name, message, kind, variant) => {
@@ -147,6 +160,7 @@ describe('instant-guidance-data card links', () => {
       ['viewport', 'runtime'],
       ['viewport', 'dynamic'],
       ['unrendered-segment', 'runtime'],
+      ['link-prefetch-partial', 'runtime'],
     ]
     for (const [kind, variant] of variants) {
       for (const card of getCards(kind, variant)) {
@@ -172,6 +186,7 @@ describe('instant-guidance-data card invariants', () => {
       ['viewport', 'dynamic'],
       ['viewport', 'dynamic', 'connection'],
       ['unrendered-segment', 'runtime'],
+      ['link-prefetch-partial', 'runtime'],
     ]
     for (const [kind, variant, cause] of variants) {
       cards.push(...getCards(kind, variant, cause))
@@ -236,6 +251,7 @@ describe('instant-guidance-data dispatcher', () => {
       ['viewport', 'runtime'],
       ['viewport', 'dynamic'],
       ['unrendered-segment', 'runtime'],
+      ['link-prefetch-partial', 'runtime'],
     ]
     for (const [kind, variant] of variants) {
       for (const card of getCards(kind, variant)) used.add(card.group)
