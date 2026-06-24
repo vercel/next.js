@@ -2,10 +2,10 @@ import { nextTestSetup } from 'e2e-utils'
 
 // TODO(NAR-423): Migrate to Cache Components.
 describe.skip('static-shell-debugging', () => {
-  const cacheComponents = Boolean(process.env.__NEXT_CACHE_COMPONENTS)
+  const ppr = Boolean(process.env.__NEXT_CACHE_COMPONENTS)
   const context = {
-    cacheComponents,
-    debugging: cacheComponents,
+    ppr,
+    debugging: ppr,
   }
 
   const { next, skipped, isNextDev } = nextTestSetup({
@@ -19,13 +19,13 @@ describe.skip('static-shell-debugging', () => {
         : undefined,
     },
     nextConfig: {
-      cacheComponents: context.cacheComponents,
+      experimental: { ppr: context.ppr },
     },
   })
 
   if (skipped) return
 
-  if (context.debugging && context.cacheComponents) {
+  if (context.debugging && context.ppr) {
     it('should only render the static shell', async () => {
       const res = await next.fetch('/?__nextppronly=1')
       expect(res.status).toBe(200)

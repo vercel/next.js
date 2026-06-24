@@ -34,6 +34,7 @@ export interface GenerateRoutesManifestOptions {
   onMatchHeaders: CustomRoutes['headers']
   rewrites: CustomRoutes['rewrites']
   restrictedRedirectPaths: string[]
+  isAppPPREnabled: boolean
   appType: 'pages' | 'app' | 'hybrid'
   deploymentId?: string
 }
@@ -60,6 +61,7 @@ export function generateRoutesManifest(
     onMatchHeaders,
     rewrites,
     restrictedRedirectPaths,
+    isAppPPREnabled,
     appType,
     deploymentId,
   } = options
@@ -91,8 +93,6 @@ export function generateRoutesManifest(
       staticRoutes.push(pageToRoute(route))
     }
   }
-
-  const enableCacheComponents = Boolean(config.cacheComponents)
 
   const routesManifest: RoutesManifest = {
     version: 3,
@@ -130,9 +130,9 @@ export function generateRoutesManifest(
       prefetchSegmentHeader: NEXT_ROUTER_SEGMENT_PREFETCH_HEADER,
       prefetchSegmentSuffix: RSC_SEGMENT_SUFFIX,
       prefetchSegmentDirSuffix: RSC_SEGMENTS_DIR_SUFFIX,
-      clientParamParsing: enableCacheComponents,
+      clientParamParsing: config.cacheComponents ?? false,
       clientParamParsingOrigins: config.experimental.clientParamParsingOrigins,
-      dynamicRSCPrerender: enableCacheComponents,
+      dynamicRSCPrerender: isAppPPREnabled && config.cacheComponents === true,
     },
     rewriteHeaders: {
       pathHeader: NEXT_REWRITTEN_PATH_HEADER,
@@ -140,7 +140,7 @@ export function generateRoutesManifest(
     },
     skipProxyUrlNormalize: config.skipProxyUrlNormalize,
     deploymentId: deploymentId || undefined,
-    ppr: enableCacheComponents
+    ppr: isAppPPREnabled
       ? {
           chain: {
             headers: {

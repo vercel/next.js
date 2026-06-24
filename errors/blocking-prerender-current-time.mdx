@@ -83,11 +83,24 @@ export async function UpdatedAt() {
 }
 ```
 
-Learn more: [Streaming patterns and boundary placement](/docs/app/guides/streaming).
+#### Alternative: `await io()`
+
+To avoid tying the read to an HTTP request context, use [`io()`](/docs/app/api-reference/functions/io) from `next/cache`. It marks the read as request-time IO and behaves like `connection()` for streaming, with the added benefit that it also works inside `"use cache"` scopes and Client Components, where `connection()` throws.
+
+```jsx filename="app/dashboard/updated-at.js"
+import { io } from 'next/cache'
+
+export async function UpdatedAt() {
+  await io()
+  return <small>Updated at {new Date().toLocaleString()}</small>
+}
+```
+
+Learn more: [`io`](/docs/app/api-reference/functions/io), [Streaming patterns and boundary placement](/docs/app/guides/streaming).
 
 ### Trade-off
 
-The route renders on every request. The shell still ships instantly because of the [`<Suspense>`](https://react.dev/reference/react/Suspense) boundary, but the dynamic region waits on the server render before it paints.
+The route renders on every request. The shell still ships instantly because of the [`<Suspense>`](https://react.dev/reference/react/Suspense) boundary, but the dynamic region waits on the server render before it paints. Design the fallback so it approximates the final layout. A generic spinner or empty box causes the page to visibly jump when the content arrives. See [CLS-safe skeleton fallback guidance](/docs/app/guides/streaming#cls-cumulative-layout-shift).
 
 ### Gotchas
 
@@ -266,14 +279,9 @@ Learn more: [`performance.now()`](https://developer.mozilla.org/en-US/docs/Web/A
 - Don't pass a [`performance.now()`](https://developer.mozilla.org/en-US/docs/Web/API/Performance/now) value into the rendered output or into a cached function. The high-resolution timestamp is non-deterministic and shouldn't influence what's prerendered.
 - For absolute time in an observability tool, use `performance.timeOrigin + performance.now()` to get a wall-clock timestamp without tripping this error.
 
-## Don't want this validation?
+## Why `instant = false` doesn't clear this error
 
-Instant-navigation validation runs by default in [Cache Components](/docs/app/api-reference/config/next-config-js/cacheComponents) apps and is what surfaces this error.
-
-- **One segment**: add [`export const instant = false`](/docs/app/api-reference/file-conventions/route-segment-config/instant) to the page or layout file. This opts out the segment itself. Child segments are still validated during client navigations.
-- **Entire app**: set [`experimental.instantInsights.validationLevel`](/docs/app/api-reference/file-conventions/route-segment-config/instant#configuring-validation-defaults) to `'manual-warning'` in `next.config`. This limits validation to segments that explicitly export `instant`.
-
-See [Ensuring instant navigations](/docs/app/guides/instant-navigation) for the full model.
+This error fires from the prerender, not from instant-navigation validation. `new Date()` and `Date.now()` return a different value on every render, so the prerender can't bake them into a static shell regardless of the segment's `instant` config or [`experimental.instantInsights.validationLevel`](/docs/app/api-reference/file-conventions/route-segment-config/instant#configuring-validation-defaults). Use one of the fixes above.
 
 ## Useful links
 
