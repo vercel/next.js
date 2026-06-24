@@ -13,7 +13,7 @@ export function generateStaticParams() {
 async function getCachedValue(slug: string) {
   'use cache'
 
-  // A slow generation, so a warm reload that serves the stale entry is
+  // A slow generation, so a warm reload that serves the cached entry is
   // observably faster than a cold load that has to generate, and so a cold read
   // is still pending at a staged-render boundary (which surfaces the cold cache
   // indicator). The slug keys the entry; the value itself is just a timestamp.
