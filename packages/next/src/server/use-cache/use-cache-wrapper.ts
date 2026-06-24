@@ -3124,7 +3124,7 @@ export async function cache(
             !shouldTriggerBackgroundRevalidation &&
             process.env.__NEXT_DEV_SERVER &&
             isMemoryCacheDisabled() &&
-            !isCustomCacheHandler(cacheContext.kind)
+            !isCustomCacheHandler(kind)
           ) {
             switch (workUnitStore.type) {
               case 'request':
