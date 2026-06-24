@@ -1570,6 +1570,11 @@ function assignDefaultsAndValidate(
     result.experimental.mcpServer = true
   }
 
+  if (result.cacheComponents) {
+    // TODO: Kept for backwards compatibility with legacy builders.
+    result.experimental.cacheComponents = true
+  }
+
   // "use cache" was originally implicitly enabled with the cacheComponents flag, so
   // we transfer the value for cacheComponents to the explicit useCache flag to ensure
   // backwards compatibility.
