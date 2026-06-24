@@ -1,3 +1,5 @@
+import { isPostpone } from '../lib/router-utils/is-postpone'
+
 let _global = globalThis as typeof globalThis & {
   nextInitializedProcessErrorHandlers?: boolean
 }
@@ -54,6 +56,11 @@ export function installProcessErrorHandlers(
 
   // Install a new handler to prevent the process from crashing.
   process.on('unhandledRejection', (reason: unknown) => {
+    if (isPostpone(reason)) {
+      // React postpones that are unhandled might end up logged here but they're
+      // not really errors. They're just part of rendering.
+      return
+    }
     // Immediately log the error.
     // TODO: Ideally, if we knew that this error was triggered by application
     // code, we would suppress it entirely without logging. We can't reliably
@@ -74,6 +81,9 @@ export function installProcessErrorHandlers(
   // is unrelated to the late-awaiting pattern. However, for similar reasons,
   // we still shouldn't crash the process. Just log it.
   process.on('uncaughtException', (reason: unknown) => {
+    if (isPostpone(reason)) {
+      return
+    }
     console.error(reason)
   })
 }

@@ -170,6 +170,7 @@ A useful rule: **push the boundary as low as possible** while keeping the fallba
 - Boundary placement affects client navigations between sibling routes differently than initial page loads. Validation surfaces this in the dev server and at build time. See [Ensuring instant navigations](/docs/app/guides/instant-navigation) for the full model.
 - The function returned by [`cookies()`](/docs/app/api-reference/functions/cookies) and [`headers()`](/docs/app/api-reference/functions/headers) is async. Make sure the component reading them is async too, and `await` the call.
 - The `params` and `searchParams` props are also async promises. Treat them like any other awaited value when deciding where the boundary goes.
+- Root-element attributes (`<html lang>`, `<html dir>`, `<html data-theme>`) can't be wrapped in `<Suspense>`. You can't suspend the document root, and a boundary inside `<html>` still leaves the attribute itself server-cookie-dependent. Move the read to a pre-paint client script per [Preventing flash before hydration](/docs/app/guides/preventing-flash-before-hydration) and add `suppressHydrationWarning` on `<html>` so React doesn't flag the script's mutation as a mismatch.
 
 ## Allow blocking route
 

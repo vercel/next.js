@@ -32,6 +32,7 @@ export function instrumentParamsForClientValidation<TPArams extends Params>(
       case 'prerender-runtime':
       case 'prerender-client':
       case 'prerender-legacy':
+      case 'prerender-ppr':
       case 'prerender':
       case 'cache':
       case 'request':
@@ -71,6 +72,7 @@ export function expectCompleteParamsInClientValidation(
       case 'prerender-runtime':
       case 'prerender-client':
       case 'prerender-legacy':
+      case 'prerender-ppr':
       case 'prerender':
       case 'cache':
       case 'request':
@@ -107,6 +109,7 @@ export function instrumentSearchParamsForClientValidation(
       case 'prerender-runtime':
       case 'prerender-client':
       case 'prerender-legacy':
+      case 'prerender-ppr':
       case 'prerender':
       case 'cache':
       case 'request':

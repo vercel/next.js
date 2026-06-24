@@ -90,6 +90,7 @@ import {
 } from './use-cache-messages'
 import {
   createHangingInputAbortSignal,
+  postponeWithTracking,
   throwToInterruptStaticGeneration,
 } from '../app-render/dynamic-rendering'
 import {
@@ -676,6 +677,7 @@ function createUseCacheStore(
         break
       case 'prerender-runtime':
       case 'prerender':
+      case 'prerender-ppr':
       case 'prerender-legacy':
       case 'unstable-cache':
       case 'generate-static-params':
@@ -735,6 +737,7 @@ function captureOuterOwnerStack(
     case 'unstable-cache':
     case 'request':
     case 'prerender':
+    case 'prerender-ppr':
     case 'prerender-legacy':
     case 'prerender-runtime':
     case 'prerender-client':
@@ -904,6 +907,7 @@ function propagateCacheEntryMetadata(
       case 'private-cache':
       case 'prerender':
       case 'prerender-runtime':
+      case 'prerender-ppr':
       case 'prerender-legacy':
         propagateCacheLifeAndTagsToRevalidateStore(
           cacheContext.outerWorkUnitStore,
@@ -968,7 +972,8 @@ function maybePropagateCacheEntryMetadata(
     case 'private-cache':
     case 'cache':
     case 'unstable-cache':
-    case 'prerender-legacy': {
+    case 'prerender-legacy':
+    case 'prerender-ppr': {
       propagateCacheEntryMetadata(cacheContext, metadata)
       break
     }
@@ -1071,21 +1076,19 @@ async function collectResult(
   )
 
   // In development, force a dynamic cache life (`revalidate: 0`, `expire:
-  // DYNAMIC_EXPIRE`) for caches that have no real backing: private caches, and
-  // any built-in (non-custom) kind when the in-memory cache is disabled
-  // (`cacheMaxMemorySize: 0`). The zero revalidate makes every read serve
-  // stale-while-revalidate (re-warming a fresh entry in the background) so warm
-  // reloads stay fast, and `DYNAMIC_EXPIRE` (5 minutes, the shortest expire not
-  // treated as dynamically shortened) bounds how long an entry lingers in the
-  // dev in-memory cache. Custom kinds keep their real cache life, since their
-  // backing handler owns it.
-  const forceDynamicCacheLifeInDev =
-    isPrivateCacheInDev ||
-    Boolean(
-      process.env.__NEXT_DEV_SERVER &&
-        isMemoryCacheDisabled() &&
-        !isCustomCacheHandler(cacheContext.kind)
-    )
+  // DYNAMIC_EXPIRE`) for private caches, which have no real backing handler.
+  // The zero revalidate makes every read serve stale-while-revalidate
+  // (regenerating a fresh entry in the background), and `DYNAMIC_EXPIRE` (5
+  // minutes) caps how long an entry lingers in the dedicated in-memory private
+  // handler. It is the shortest `expire` that isn't treated as dynamic; a
+  // smaller `expire` would exclude the entry from prerenders. The size-0 case
+  // (`cacheMaxMemorySize: 0`) deliberately does NOT force this: it keeps its
+  // resolved cache life so that the cache entry can be considered prerenderable
+  // instead of being misread as a dynamic hole, and a separate dev revalidation
+  // (see the cache-hit path below) keeps its reloads showing a fresh value.
+  // Custom kinds keep their real cache life too, since their backing handler
+  // owns it.
+  const forceDynamicCacheLifeInDev = isPrivateCacheInDev
 
   // If cacheLife() was used to set an explicit revalidate/expire/stale time we
   // use that. Otherwise, we use the lowest of all inner fetch(),
@@ -1209,6 +1212,7 @@ async function generateCacheEntryImpl(
                     }
                   })
                   break
+                case 'prerender-ppr':
                 case 'prerender-legacy':
                 case 'request':
                 case 'cache':
@@ -1464,6 +1468,7 @@ async function generateCacheEntryImpl(
         }
       }
     // fallthrough
+    case 'prerender-ppr':
     case 'prerender-legacy':
     case 'cache':
     case 'private-cache':
@@ -1709,6 +1714,12 @@ export async function cache(
           workStore.route,
           expression
         )
+      case 'prerender-ppr':
+        return postponeWithTracking(
+          workStore.route,
+          expression,
+          workUnitStore.dynamicTracking
+        )
       case 'prerender-legacy':
         return throwToInterruptStaticGeneration(
           expression,
@@ -1787,6 +1798,7 @@ export async function cache(
       }
       case 'prerender':
       case 'prerender-runtime':
+      case 'prerender-ppr':
       case 'prerender-legacy':
       case 'request':
       case 'private-cache':
@@ -2042,6 +2054,7 @@ export async function cache(
         break
       }
     // fallthrough
+    case 'prerender-ppr':
     case 'prerender-legacy':
     case 'request':
     // TODO(restart-on-cache-miss): We need to handle params/searchParams on page components.
@@ -2180,6 +2193,7 @@ export async function cache(
             workStore.route,
             'dynamic "use cache"'
           )
+        case 'prerender-ppr':
         case 'prerender-legacy':
         case 'request':
         case 'cache':
@@ -2334,6 +2348,7 @@ export async function cache(
               }
               break
             }
+            case 'prerender-ppr':
             case 'prerender-legacy':
             case 'cache':
             case 'private-cache':
@@ -2387,6 +2402,7 @@ export async function cache(
               }
               break
             }
+            case 'prerender-ppr':
             case 'prerender-legacy':
             case 'cache':
             case 'private-cache':
@@ -2494,6 +2510,7 @@ export async function cache(
             )
           }
           break
+        case 'prerender-ppr':
         case 'prerender-legacy':
         case 'request':
         case 'cache':
@@ -2856,6 +2873,7 @@ export async function cache(
               break
             }
             case 'prerender-runtime':
+            case 'prerender-ppr':
             case 'prerender-legacy':
             case 'cache':
             case 'private-cache':
@@ -2891,6 +2909,7 @@ export async function cache(
             }
             case 'prerender':
             case 'prerender-runtime':
+            case 'prerender-ppr':
             case 'prerender-legacy':
             case 'cache':
             case 'private-cache':
@@ -3094,10 +3113,40 @@ export async function cache(
             entry: sharedCacheEntry,
           })
 
-          if (currentTime > entry.timestamp + entry.revalidate * 1000) {
-            // If this is stale, and we're not in a prerender (i.e. this is
-            // dynamic render), then we should warm up the cache with a fresh
-            // revalidated entry.
+          // Trigger a background revalidation when the entry is stale (past its
+          // `revalidate`), so the next read gets a fresh value without blocking
+          // this one. In development with the in-memory cache disabled
+          // (`cacheMaxMemorySize: 0`), built-in entries keep their resolved
+          // (potentially non-dynamic) cache life, so an entry read back from
+          // the dev in-memory cache is normally still fresh and wouldn't
+          // revalidate on its own; revalidate those on every dynamic request
+          // render too, so each reload still shows a fresh value.
+          let shouldTriggerBackgroundRevalidation =
+            currentTime > entry.timestamp + entry.revalidate * 1000
+          if (
+            !shouldTriggerBackgroundRevalidation &&
+            process.env.__NEXT_DEV_SERVER &&
+            isMemoryCacheDisabled() &&
+            !isCustomCacheHandler(kind)
+          ) {
+            switch (workUnitStore.type) {
+              case 'request':
+                shouldTriggerBackgroundRevalidation = true
+                break
+              case 'cache':
+              case 'private-cache':
+              case 'prerender':
+              case 'prerender-runtime':
+              case 'prerender-legacy':
+              case 'unstable-cache':
+              case 'generate-static-params':
+                break
+              default:
+                workUnitStore satisfies never
+            }
+          }
+
+          if (shouldTriggerBackgroundRevalidation) {
             const revalidateCacheHandlerKey = cacheHandlerKey
             const revalidatePromise = generateCacheEntry(
               workStore,
@@ -3236,6 +3285,7 @@ function shouldForceRevalidate(
       case 'prerender':
       case 'prerender-client':
       case 'validation-client':
+      case 'prerender-ppr':
       case 'prerender-legacy':
       case 'unstable-cache':
       case 'generate-static-params':
@@ -3279,6 +3329,7 @@ function shouldDiscardCacheEntry(
     case 'prerender-runtime':
     case 'prerender-client':
     case 'validation-client':
+    case 'prerender-ppr':
     case 'prerender-legacy':
     case 'request':
     case 'cache':

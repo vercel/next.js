@@ -11,7 +11,10 @@ import type { OpaqueFallbackRouteParams } from '../request/fallback-params'
 // Share the instance module in the next-shared layer
 import { workUnitAsyncStorageInstance } from './work-unit-async-storage-instance' with { 'turbopack-transition': 'next-shared' }
 import type { ServerComponentsHmrCache } from '../response-cache'
-import type { ResumeDataCache } from '../resume-data-cache/resume-data-cache'
+import type {
+  PrerenderResumeDataCache,
+  ResumeDataCache,
+} from '../resume-data-cache/resume-data-cache'
 import type { Params } from '../request/params'
 import type { ImplicitTags } from '../lib/implicit-tags'
 import type { WorkStore } from './work-async-storage.external'
@@ -280,6 +283,25 @@ interface StaticPrerenderStoreCommon {
   readonly fallbackRouteParams: OpaqueFallbackRouteParams | null
 }
 
+export interface PrerenderStorePPR
+  extends CommonWorkUnitStore,
+    RevalidateStore {
+  readonly type: 'prerender-ppr'
+  readonly rootParams: Params
+  readonly dynamicTracking: null | DynamicTrackingState
+
+  /**
+   * The set of unknown route parameters. Accessing these will be tracked as
+   * a dynamic access.
+   */
+  readonly fallbackRouteParams: OpaqueFallbackRouteParams | null
+
+  /**
+   * The resume data cache for this prerender. Always mutable in PPR mode.
+   */
+  resumeDataCache: PrerenderResumeDataCache
+}
+
 export interface PrerenderStoreLegacy
   extends CommonWorkUnitStore,
     RevalidateStore {
@@ -287,7 +309,10 @@ export interface PrerenderStoreLegacy
   readonly rootParams: Params
 }
 
-export type PrerenderStore = PrerenderStoreLegacy | PrerenderStoreModern
+export type PrerenderStore =
+  | PrerenderStoreLegacy
+  | PrerenderStorePPR
+  | PrerenderStoreModern
 
 // /** Like `PrerenderStoreModern`, but only including static prerenders (i.e. not runtime prerenders) */
 export type StaticPrerenderStore = Exclude<
@@ -423,6 +448,7 @@ export function getResumeDataCache(
     case 'prerender-runtime':
     case 'prerender-client':
     case 'validation-client':
+    case 'prerender-ppr':
       return workUnitStore.resumeDataCache
     case 'cache':
     case 'private-cache':
@@ -449,6 +475,7 @@ export function getHmrRefreshHash(
         return workUnitStore.cookies.get(NEXT_HMR_REFRESH_HASH_COOKIE)?.value
       case 'prerender-client':
       case 'validation-client':
+      case 'prerender-ppr':
       case 'prerender-legacy':
       case 'unstable-cache':
       case 'generate-static-params':
@@ -472,6 +499,7 @@ export function isHmrRefresh(workUnitStore: WorkUnitStore): boolean {
       case 'prerender-client':
       case 'validation-client':
       case 'prerender-runtime':
+      case 'prerender-ppr':
       case 'prerender-legacy':
       case 'unstable-cache':
       case 'generate-static-params':
@@ -497,6 +525,7 @@ export function getServerComponentsHmrCache(
       case 'prerender-client':
       case 'validation-client':
       case 'prerender-runtime':
+      case 'prerender-ppr':
       case 'prerender-legacy':
       case 'unstable-cache':
       case 'generate-static-params':
@@ -527,6 +556,7 @@ export function getDraftModeProviderForCacheScope(
       case 'prerender':
       case 'prerender-client':
       case 'validation-client':
+      case 'prerender-ppr':
       case 'prerender-legacy':
       case 'generate-static-params':
         break
@@ -548,6 +578,7 @@ export function getStagedRenderingController(
       return workUnitStore.stagedRendering ?? null
     case 'prerender-client':
     case 'validation-client':
+    case 'prerender-ppr':
     case 'prerender-legacy':
     case 'cache':
     case 'private-cache':
@@ -575,6 +606,7 @@ export function getCacheSignal(
       }
       // fallthrough
     }
+    case 'prerender-ppr':
     case 'prerender-legacy':
     case 'cache':
     case 'private-cache':
@@ -595,6 +627,7 @@ export function getVaryParamsAccumulator(
     case 'request': {
       return workUnitStore.varyParamsAccumulator ?? null
     }
+    case 'prerender-ppr':
     case 'prerender-legacy':
     case 'cache':
     case 'private-cache':
