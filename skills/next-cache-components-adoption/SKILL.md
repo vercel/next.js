@@ -92,11 +92,11 @@ Ask the user; don't assume. **In a non-interactive run** (no way to prompt), def
 
 The codemod refuses to run on a dirty working tree. Before invoking it, commit or stash unrelated work — or be ready to pass `--force` (which lets the codemod's edits land alongside your WIP). Common false positive: if you just upgraded Next.js, `package.json` and the lockfile will already be dirty; commit those first.
 
+**Use the `@canary` channel, not `@latest`.** The `cache-components-instant-false` transform isn't in the stable `@next/codemod` release yet; `@next/codemod@latest` will error with `Invalid transform choice`. Use the command exactly as written below.
+
 ```bash
 npx @next/codemod@canary cache-components-instant-false ./app
 ```
-
-If `@next/codemod@latest` reports `Invalid transform choice`, the transform hasn't reached the stable channel yet — re-run with `@canary`. Don't bother trying `@latest` first if you're on a canary `next` build; new transforms land on `@canary` first by design.
 
 Inserts `export const instant = false` (with a `// TODO: Cache Components adoption` comment) into every `app/**/{page,layout,default}` file, skipping files that already declare `instant` and any module marked `"use client"` or `"use server"`. Then set `cacheComponents: true`. The TODO comments are the work queue for milestone B.
 
