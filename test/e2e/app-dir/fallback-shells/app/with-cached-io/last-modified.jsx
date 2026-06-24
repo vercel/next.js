@@ -1,6 +1,7 @@
 import { getSentinelValue } from './sentinel'
 
 export async function LastModified({ params }) {
+  // TODO(app-shells): link data behaves differently now
   const { slug } = await params
 
   return (

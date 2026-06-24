@@ -33,6 +33,7 @@ export default async function Page({
 }: {
   params: Promise<{ slug: string }>
 }) {
+  // TODO(app-shells): link data behaves differently now
   const { slug } = await params
 
   return (
