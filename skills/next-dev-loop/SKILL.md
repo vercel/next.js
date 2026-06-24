@@ -124,6 +124,14 @@ manual rather than from memory.
   server say it rendered cleanly, a stale or misdirected browser
   session is the likelier cause than a real bug — reconcile the
   views (see the agent-browser manual) before debugging the app.
+- **After any click or navigation, use `wait --load networkidle`
+  unless you know the exact path suffix.** The manual's
+  `wait --url "**/dashboard"` glob only matches URLs whose path
+  _ends_ with `/dashboard`; a generic placeholder like `**/slug`
+  never matches a real URL (e.g. `http://localhost:3000/posts/my-post`
+  → 25 s timeout). Prefer `--load networkidle` — it always works.
+  Use `--url` only with a literal suffix you can read from the link:
+  `wait --url "**/posts/my-post"`.
 - React introspection output is stale after navigation. Re-run.
 - Non-3000 dev server: read the `next dev` banner; set
   `NEXT_MCP_URL=http://localhost:<port>/_next/mcp`.
