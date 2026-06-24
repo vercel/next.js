@@ -808,6 +808,33 @@ describe('instant-navigation-testing-api', () => {
     )
     expect(instantCookie).toBeUndefined()
   })
+
+  // A page that reads a dynamic value (e.g. `await cookies()`) at the root with
+  // no Suspense boundary above it produces an empty static shell. During
+  // Instant Navigation Testing that shell is served directly, so an empty shell
+  // would be a blank document with no DevTools — leaving the user unable to
+  // release the instant navigation lock. Instead the server clears the instant
+  // cookie (so the next reload renders normally) and surfaces an error page.
+  it('clears the instant cookie and serves an error when the static shell is empty', async () => {
+    const res = await next.fetch('/root-blocking-page', {
+      headers: { cookie: 'next-instant-navigation-testing=[0]' },
+    })
+
+    // An error response is served instead of a blank document. (The exact body
+    // differs by mode — a dev error overlay vs. a minimal production error —
+    // but the 500 status is what distinguishes it from the empty 200 shell.)
+    expect(res.status).toBe(500)
+
+    // The instant cookie is cleared so the next reload renders normally.
+    const setCookie = res.headers.get('set-cookie') ?? ''
+    expect(setCookie).toContain('next-instant-navigation-testing=')
+    expect(setCookie).toMatch(/Max-Age=0|expires=/i)
+
+    // The response is a real, non-empty error response — not a blank shell.
+    const body = await res.text()
+    expect(body.length).toBeGreaterThan(0)
+    expect(body).toMatch(/error/i)
+  })
 })
 
 describe('instant-navigation-testing-api - root params', () => {
