@@ -46,6 +46,12 @@ Adoption has two milestones. Each is shippable on its own:
 
 `cacheComponents: true` requires every route to be prerenderable. A route that reads request-time data outside `<Suspense>` is "blocking" and **fails the build**. `export const instant = false` marks a route as allowed to block, which clears it in both dev and build; on a layout it covers the whole subtree beneath it. Reads wrapped in a [`"use cache"`](https://nextjs.org/docs/app/api-reference/directives/use-cache) function count as cache boundaries, not blocking reads.
 
+Three classes of blocker bite agents in this order — know them before you run anything, not after a build fails:
+
+1. **Request-time reads** (`cookies()`, `headers()`, `await params`, `await searchParams`). All four block when awaited at the top of a page or layout. `params` and `searchParams` are easy to miss because they're not framed as "request data" the way cookies and headers are. The fix is to push the read into a `<Suspense>`-wrapped child — and for `params`/`searchParams`, **forward the promise into the child and await it there**, don't `await` at the page top.
+2. **Sync-IO at module/render time** (`new Date()`, `Date.now()`, `Math.random()`, `crypto.randomUUID()`). These fail the build even _with_ `instant = false` — the opt-out doesn't suppress them. If they're in a shared layout, they block every route under it. The codemod can't fix them; you have to translate each one (cache it with `"use cache"` if it's stable, or wrap it in `await connection()` + `<Suspense>` if it's per-request) before milestone A can go green. Grep the whole repo for these calls before running anything else.
+3. **`"use cache"` files that read request data.** A file with a top-level `"use cache"` directive can't export `instant`; combining the two errors with `Only async functions are allowed to be exported in a "use cache" file.` and means the directive was wrong for that route. Remove it before the blanket.
+
 ## working surfaces
 
 ### finding blocking routes
@@ -88,7 +94,7 @@ Ask the user; don't assume. **In a non-interactive run** (no way to prompt), def
 
 ### blanket
 
-**Blanket only clears `instant = false` errors. Sync-IO reads in a shared layout will still fail the build after the codemod runs.** Before invoking the codemod, grep the whole repo for `new Date()`, `Date.now()`, `Math.random()`, and `crypto.randomUUID()` — not just `app/**/layout.{js,jsx,ts,tsx}`. The blocking read might live in any component imported by a layout (e.g. `components/site-footer.tsx`); the build error names the leaf file, but the layout is what blocks. Each match has to be fixed using the recipe from its `blocking-prerender-*` error card before milestone A can go green; a layout with two distinct reads (e.g. a copyright year and a "last updated" stamp) usually needs two distinct fixes (cache for the stable one, `await connection()` + `<Suspense>` for the per-request one).
+**Before invoking the codemod, fix the blockers from [background](#background) that the codemod can't.** Grep the whole repo for `new Date()`, `Date.now()`, `Math.random()`, and `crypto.randomUUID()` (not just `app/**/layout.{js,jsx,ts,tsx}` — the read might live in any component imported by a layout). Each match has to be translated using the recipe from its `blocking-prerender-*` error card before milestone A can go green. A layout with two distinct reads (e.g. a copyright year and a "last updated" stamp) usually needs two distinct fixes: cache the stable one with `"use cache"`, wrap the per-request one in `await connection()` + `<Suspense>`.
 
 The codemod refuses to run on a dirty working tree. Before invoking it, commit or stash unrelated work — or be ready to pass `--force` (which lets the codemod's edits land alongside your WIP). Common false positive: if you just upgraded Next.js, `package.json` and the lockfile will already be dirty; commit those first.
 
@@ -122,8 +128,6 @@ After running the codemod, **confirm the root layout got an opt-out** (`grep -n 
 
 **Client Components (`"use client"` pages/layouts) get no opt-out** — the codemod skips them on purpose. `instant` is a Server Component route segment config; exporting it from a client module is a build error (`E1344`). They don't need one anyway: a client page is covered by its nearest server layout's opt-out, and a client page can't read server request data (`cookies()`, `headers()`, `await params`) itself, so it rarely blocks on its own. If a route with a client page still blocks, the cause is server-side data in an ancestor layout — fix the opt-out or the read there, not on the client page.
 
-**Files with a top-level `"use cache"` directive get no opt-out either.** A file-level `"use cache"` makes the whole module a cached scope; `export const instant = false` errors with `Only async functions are allowed to be exported in a "use cache" file.` The codemod doesn't detect this case, so if you see that error after running it, look for a `"use cache"` directive at the top of the offending file. The directive is almost certainly wrong for that route — a page that reads `cookies()` / `headers()` / `await params` can't be cached wholesale. Remove the top-level `"use cache"` before applying the opt-out, and let milestone B introduce caching at the right boundary (a nested function, not the whole file).
-
 ### direct
 
 Set `cacheComponents: true` and collect the errors. The reported routes are the work queue; there are no opt-outs to remove.
@@ -141,7 +145,7 @@ For each route in the subtree:
 1. Remove its `instant = false` (Blanket) or target the failing route (Direct).
 2. Reload it in dev or rebuild only that route. If it's clean, the route was already prerenderable — move on.
 3. If it still blocks, read the error in the dev overlay and apply the fix it points at. When the call gets ambiguous — you're not sure which fix fits, the blocking code looks security-sensitive, or the user might want to keep the route blocking on purpose — read **[references/per-page-decisions.md](./references/per-page-decisions.md)** before editing. Those cases are user check-in moments, not agent judgment calls.
-   - **Dynamic route gotcha:** `await params` and `searchParams` access are themselves blocking reads. Caching the downstream fetch (`getThing(id)`) isn't enough — if `await params` runs at the top of the page body, the route still blocks. Push the param read into a `<Suspense>`-wrapped child component along with whatever it fetches.
+   - **Reminder:** the [three blocker classes from background](#background) are easy to miss when fixing in place. Caching a downstream fetch (`getThing(id)`) doesn't clear an `await params` at the top of the page body — push the param promise into the `<Suspense>`-wrapped child.
 4. Re-check the route. If your fix touched shared code (a layout, a sidebar component), re-check sibling routes too — a shared-shell change can fix the route you're on and break a sibling. Then move to the next route.
 
 Keep a todo list of the subtree's routes and work it to completion; don't truncate. When every route in the subtree is clean, move to **step 3** to verify and hand the subtree off to the user.
