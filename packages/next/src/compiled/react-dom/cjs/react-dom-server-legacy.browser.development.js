@@ -9742,7 +9742,7 @@
                 break;
               default:
                 if (resumableState.moduleUnknownResources.hasOwnProperty(as)) {
-                  var resources = resumableState.unknownResources[as];
+                  var resources = resumableState.moduleUnknownResources[as];
                   if (resources.hasOwnProperty(href)) return;
                 } else
                   (resources = {}),
@@ -10270,5 +10270,5 @@
         'The server used "renderToString" which does not support Suspense. If you intended for this Suspense boundary to render the fallback content on the server consider throwing an Error somewhere within the Suspense boundary. If you intended to have the server wait for the suspended component please switch to "renderToReadableStream" which supports Suspense on the server'
       );
     };
-    exports.version = "19.3.0-canary-b1786c31-20260618";
+    exports.version = "19.3.0-canary-247fbb45-20260622";
   })();

@@ -903,6 +903,11 @@ export async function handler(
             : {}),
           cacheComponents: Boolean(nextConfig.cacheComponents),
           partialPrefetching: nextConfig.partialPrefetching,
+          // A fallback shell can only be upgraded to a concrete version if at
+          // least one of its fallback params is a `generateStaticParams`
+          // candidate (`remainingPrerenderableParams`). This gates whether the
+          // per-segment prefetch responses are flagged `isUpgradeableISRFallback`.
+          isFallbackUpgradeable: remainingPrerenderableParams.length > 0,
           validationLevel:
             nextConfig.experimental.instantInsights.validationLevel,
           experimental: {
@@ -917,9 +922,8 @@ export async function handler(
             prefetchInlining: nextConfig.experimental.prefetchInlining ?? false,
             authInterrupts: Boolean(nextConfig.experimental.authInterrupts),
             useCacheTimeout: nextConfig.experimental.useCacheTimeout,
-            cachedNavigations: Boolean(
-              nextConfig.experimental.cachedNavigations
-            ),
+            cachedNavigations:
+              nextConfig.experimental.cachedNavigations ?? false,
             appShells: nextConfig.experimental.appShells,
             clientTraceMetadata:
               nextConfig.experimental.clientTraceMetadata || ([] as any),

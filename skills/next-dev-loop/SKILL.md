@@ -41,7 +41,9 @@ at the versions above.
   Docs: https://nextjs.org/docs/app/getting-started/upgrading
   (version-16 guide:
   https://nextjs.org/docs/app/guides/upgrading/version-16)
-- Upgrade `agent-browser`: `npm i -g agent-browser@latest`.
+- Install or upgrade `agent-browser`: `npm i -g agent-browser@latest`.
+  If the CLI isn't on `PATH`, install it before continuing — preflight
+  expects to invoke it directly.
 
 ## preflight
 
@@ -49,12 +51,16 @@ Once per session, confirm both views are live.
 
 1. **Open `agent-browser` at the target URL, restoring saved
    login state when present.** Build the `open` command from:
-   - `--session-name <slug>` where `<slug>` is the project
+   - `--session <name>` where `<name>` is the project
      directory basename.
-   - `--state ~/.agent-browser/sessions/<slug>-default.json` if
+   - `--state ~/.agent-browser/sessions/<name>-default.json` if
      that file exists. Omit on first run — a missing path fails
      the open.
-   - `--headed --enable react-devtools`.
+   - `--headed --enable react-devtools`. **If the `agent-browser`
+     daemon is already running from a previous session**, launch
+     flags like `--headed` are ignored and a warning is printed
+     (`⚠ --headed ignored: daemon already running`). To change
+     them, run `agent-browser close` first, then re-open.
 
    The browser is the user's. If state was not restored (first
    run, expired session) and the page is gated, the user drives
@@ -133,7 +139,7 @@ get_compilation_issues       Turbopack only; errors on webpack
 
 ## teardown
 
-Close the `agent-browser` session — `--session-name` writes state
+Close the `agent-browser` session — `--session` writes state
 to disk so the next loop's `--state` restores login. Leave
 `next dev` up for the next loop.
 

@@ -33,6 +33,16 @@ export default function Home() {
             Go to runtime-prefetchable page
           </Link>
         </li>
+        <li>
+          <Link href="/prefetch-partial" prefetch={false}>
+            Go to prefetch=partial page
+          </Link>
+        </li>
+        <li>
+          <Link href="/prefetch-eager" prefetch={false}>
+            Go to prefetch=unstable_eager page
+          </Link>
+        </li>
       </ul>
     </main>
   )

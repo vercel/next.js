@@ -3,9 +3,13 @@ name: build-and-deploy
 
 on:
   push:
-    # Don't run when tags or graphite base branches are pushed
+    # Don't run when graphite base branches are pushed
     branches-ignore:
       - 'graphite-base/**'
+    # Run on release tags so publishing is driven by the tag push rather than
+    # the release-commit branch push (see the deploy-target step).
+    tags:
+      - 'v*'
   # we need the preview tarball for deploy tests
   pull_request:
     types: [opened, synchronize]
@@ -13,8 +17,11 @@ on:
 
 concurrency:
   # Limit concurrent runs to 1 per PR,
-  # but allow concurrent runs on push if they potentially use different source code
-  group: ${{ github.event_name == 'pull_request' && format('{0}-pr-{1}', github.workflow, github.ref_name) || format('{0}-sha-{1}', github.workflow, github.sha) }}
+  # but allow concurrent runs on push if they potentially use different source code.
+  # The push group includes github.ref so that the branch push and tag push of
+  # the same release commit (same sha) don't share a group -- otherwise the
+  # skipped branch run could cancel the production tag run.
+  group: ${{ github.event_name == 'pull_request' && format('{0}-pr-{1}', github.workflow, github.ref_name) || format('{0}-{1}-{2}', github.workflow, github.ref, github.sha) }}
   cancel-in-progress: true
 
 env:
@@ -72,26 +79,34 @@ jobs:
 
           if [[ "$RELEASE_VERSION" == v* ]];
           then
-            echo "value=production" >> $GITHUB_OUTPUT
-            if [[ "$RELEASE_VERSION" == *-canary.* ]];
+            if [[ "$GIT_REF" != refs/tags/* ]];
             then
-              RELEASE_ENVIRONMENT="release-canary"
-            elif [[ "$RELEASE_VERSION" == *-beta.* ]];
-            then
-              RELEASE_ENVIRONMENT="release-beta"
-            elif [[ "$RELEASE_VERSION" == *-rc.* ]];
-            then
-              RELEASE_ENVIRONMENT="release-release-candidate"
-            elif [[ "$RELEASE_VERSION" != *-* ]];
-            then
-              RELEASE_ENVIRONMENT="release-stable"
+              # The release commit reached a branch (e.g. its push to canary).
+              # Publishing is driven by the tag push for that same commit, so
+              # skip here to avoid a duplicate production build on the same sha.
+              echo "value=skipped" >> $GITHUB_OUTPUT
+            else
+              echo "value=production" >> $GITHUB_OUTPUT
+              if [[ "$RELEASE_VERSION" == *-canary.* ]];
+              then
+                RELEASE_ENVIRONMENT="release-canary"
+              elif [[ "$RELEASE_VERSION" == *-beta.* ]];
+              then
+                RELEASE_ENVIRONMENT="release-beta"
+              elif [[ "$RELEASE_VERSION" == *-rc.* ]];
+              then
+                RELEASE_ENVIRONMENT="release-release-candidate"
+              elif [[ "$RELEASE_VERSION" != *-* ]];
+              then
+                RELEASE_ENVIRONMENT="release-stable"
+              fi
+              if [[ -z "$RELEASE_ENVIRONMENT" ]];
+              then
+                echo "::error::Missing release environment for $RELEASE_VERSION"
+                exit 1
+              fi
+              echo "release_environment=$RELEASE_ENVIRONMENT" >> $GITHUB_OUTPUT
             fi
-            if [[ -z "$RELEASE_ENVIRONMENT" ]];
-            then
-              echo "::error::Missing release environment for $RELEASE_VERSION"
-              exit 1
-            fi
-            echo "release_environment=$RELEASE_ENVIRONMENT" >> $GITHUB_OUTPUT
           elif [ ''"${GIT_REF}"'' == 'refs/heads/canary' ]
           then
             echo "value=staging" >> $GITHUB_OUTPUT

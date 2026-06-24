@@ -26,6 +26,7 @@ import type {
   PrerenderStoreLegacy,
   PrerenderStoreModern,
   ValidationStoreClient,
+  PrerenderStoreModernServer,
 } from '../app-render/work-unit-async-storage.external'
 
 // Once postpone is in stable we should switch to importing the postpone export directly
@@ -43,7 +44,6 @@ import {
   ClientHookDynamicError,
   isClientHookDynamicError,
   makeClientHookHangingPromise,
-  ParamClientHookDynamicError,
 } from '../dynamic-rendering-utils'
 import {
   METADATA_BOUNDARY_NAME,
@@ -555,6 +555,12 @@ export function createRenderInBrowserAbortSignal(): AbortSignal {
  * case we need to abort the encoding of arguments since they'll never complete.
  */
 export function createHangingInputAbortSignal(
+  workUnitStore: PrerenderStoreModernServer
+): AbortSignal
+export function createHangingInputAbortSignal(
+  workUnitStore: WorkUnitStore
+): AbortSignal | undefined
+export function createHangingInputAbortSignal(
   workUnitStore: WorkUnitStore
 ): AbortSignal | undefined {
   switch (workUnitStore.type) {
@@ -639,7 +645,7 @@ export function useDynamicRouteParams(expression: string) {
           React.use(
             makeClientHookHangingPromise(
               workUnitStore.renderSignal,
-              new ParamClientHookDynamicError(workStore.route, expression)
+              new ClientHookDynamicError(workStore.route, expression)
             )
           )
         }

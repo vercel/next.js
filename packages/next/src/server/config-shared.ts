@@ -473,7 +473,15 @@ export interface ExperimentalConfig {
    * rewrites will get the rewrite headers.
    */
   clientParamParsingOrigins?: string[]
-  cachedNavigations?: boolean
+  /**
+   * Caches subsets of a route, seeded from actual navigations, so subsequent
+   * navigations to the same or similar pages can be served instantly. Requires
+   * Cache Components. `true` caches the static stage only (the runtime stage is
+   * opted into per segment via `export const prefetch = 'allow-runtime'`).
+   * `'allow-runtime'` additionally treats every segment as runtime-cached,
+   * regardless of its per-segment `prefetch` config.
+   */
+  cachedNavigations?: boolean | 'allow-runtime'
   dynamicOnHover?: boolean
   useOffline?: boolean
   optimisticRouting?: boolean
@@ -1380,6 +1388,17 @@ export type ExportPathMap = {
      * @internal
      */
     _runInstantValidation?: boolean
+
+    /**
+     * When true, a fallback shell produced for this export path could later be
+     * upgraded to a concrete version (at least one fallback param is a
+     * `generateStaticParams` candidate). Threaded into
+     * `renderOpts.isFallbackUpgradeable` so the build-baked shell carries the
+     * gated `isUpgradeableISRFallback` value.
+     *
+     * @internal
+     */
+    _isFallbackUpgradeable?: boolean
   }
 }
 
