@@ -22,7 +22,11 @@ You verify through two views of the same running app:
   `tools/list` for the current surface.
 - **`agent-browser`** — a CLI that drives a real Chrome. Knows
   framework-agnostic browser things: DOM, console, network, React
-  fiber, vitals. Run `agent-browser --help` for the current surface.
+  fiber, vitals. Before using it, run
+  `agent-browser skills get core --full` once — its version-matched
+  manual covers the snapshot/ref workflow, sessions, tabs, the full
+  command reference, and examples. Prefer it over `--help` or
+  recalling flags from memory.
 
 The two views cross-check each other.
 
@@ -52,7 +56,12 @@ Once per session, confirm both views are live.
 1. **Open `agent-browser` at the target URL, restoring saved
    login state when present.** Build the `open` command from:
    - `--session <name>` where `<name>` is the project
-     directory basename.
+     directory basename. **Pass this same `--session <name>` on
+     every later `agent-browser` command, not only `open`.** Each
+     invocation is a separate process; the flag is how it finds the
+     browser you opened. Omit it and the command falls back to a
+     different, empty default browser — so reads come back blank and
+     a working page looks broken.
    - `--state ~/.agent-browser/sessions/<name>-default.json` if
      that file exists. Omit on first run — a missing path fails
      the open.
@@ -105,11 +114,16 @@ Four failure modes. Check each:
   server/client boundary shifts, suspense fallbacks) — DOM asserts
   alone miss them.
 
-Pick the specific tool from `tools/list` or `agent-browser
---help` rather than from memory.
+Pick the specific tool from `tools/list` or the agent-browser
+manual rather than from memory.
 
 ## gotchas
 
+- **When the two views disagree, suspect the tooling first.** If
+  `agent-browser` says a route is broken but `/_next/mcp` and the
+  server say it rendered cleanly, a stale or misdirected browser
+  session is the likelier cause than a real bug — reconcile the
+  views (see the agent-browser manual) before debugging the app.
 - React introspection output is stale after navigation. Re-run.
 - Non-3000 dev server: read the `next dev` banner; set
   `NEXT_MCP_URL=http://localhost:<port>/_next/mcp`.
@@ -139,9 +153,10 @@ get_compilation_issues       Turbopack only; errors on webpack
 
 ## teardown
 
-Close the `agent-browser` session — `--session` writes state
-to disk so the next loop's `--state` restores login. Leave
-`next dev` up for the next loop.
+Close the session: `agent-browser --session <name> close` — the
+same `--session` every command uses (preflight step 1). `close` also
+writes that session's state to disk so the next loop's `--state`
+restores login. Leave `next dev` up for the next loop.
 
 ---
 
