@@ -23,7 +23,7 @@ Confirm each item before starting milestone A. The skill won't apply cleanly if 
   - `npx @next/codemod@latest upgrade latest` to apply the version-to-version codemods.
   - Read the relevant [version upgrade guide](https://nextjs.org/docs/app/guides/upgrading) (e.g. [Version 16](https://nextjs.org/docs/app/guides/upgrading/version-16)) for what the codemod doesn't cover.
 
-- **No incompatible config keys.** `cacheComponents: true` errors on any page that still exports `dynamic`. Other legacy route segment configs (`revalidate`, `fetchCache`) and the renamed `experimental.dynamicIO` / `experimental.useCache` should also be migrated. Resolve them via the [migration guide's "Enable Cache Components" section](https://nextjs.org/docs/app/guides/migrating-to-cache-components#enable-cache-components) before starting.
+- **No incompatible config keys.** `cacheComponents: true` errors on any file that still exports `dynamic`, `revalidate`, or `fetchCache`. That covers pages and layouts, route handlers (`route.ts`), and metadata routes (`opengraph-image`, `icon`, `apple-icon`, `sitemap`, `manifest`, `robots`). The renamed `experimental.dynamicIO` / `experimental.useCache` should also be migrated. Resolve them via the [migration guide's "Enable Cache Components" section](https://nextjs.org/docs/app/guides/migrating-to-cache-components#enable-cache-components) before starting.
 
 ### notes
 
@@ -85,7 +85,7 @@ Ask the user; don't assume. **In a non-interactive run** (no way to prompt), def
 npx @next/codemod@canary cache-components-instant-false ./app
 ```
 
-If `@next/codemod@latest` reports `Invalid transform choice`, try `@canary` — new transforms land there first.
+If `@next/codemod@latest` reports `Invalid transform choice`, try `@canary` — new transforms land there first. The codemod refuses to run on a dirty working tree; commit or stash unrelated work first, or pass `--force` to override (the codemod's own edits then land alongside your WIP).
 
 Inserts `export const instant = false` (with a `// TODO: Cache Components adoption` comment) into every `app/**/{page,layout,default}` file, skipping files that already declare `instant` and any module marked `"use client"` or `"use server"`. Then set `cacheComponents: true`. The TODO comments are the work queue for milestone B.
 

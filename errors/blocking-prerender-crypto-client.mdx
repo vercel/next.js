@@ -66,7 +66,7 @@ Learn more: [Streaming with Suspense](/docs/app/guides/streaming).
 
 ### Trade-off
 
-The component shows the fallback during SSR and the first paint. For above-the-fold UI this can be visible.
+The component shows the fallback during SSR and the first paint. For above-the-fold UI this can be visible. Pick a fallback that matches the final layout so the page doesn't visibly jump when the component hydrates. See [CLS-safe skeleton fallback guidance](/docs/app/guides/streaming#cls-cumulative-layout-shift).
 
 ### Gotchas
 
@@ -174,14 +174,9 @@ The user sees the placeholder briefly before the real value. For interactions th
 - Only [Web Crypto](https://developer.mozilla.org/en-US/docs/Web/API/Crypto) ships to the browser. Node-only APIs (`crypto.randomBytes`, `crypto.generateKeyPairSync`) are not available on the client. If you're seeing this error for one of those, the call lives on the server: see [Crypto APIs during prerendering](/docs/messages/blocking-prerender-crypto).
 - When you call `setState` from inside [`useEffect`](https://react.dev/reference/react/useEffect), wrap it in [`startTransition`](https://react.dev/reference/react/startTransition). Cascading state updates during hydration can cause an outer [`<Suspense>`](https://react.dev/reference/react/Suspense) boundary's fallback to briefly flash. `startTransition` marks the update as non-blocking so React keeps the existing UI in place while the new value resolves.
 
-## Don't want this validation?
+## Why `instant = false` doesn't clear this error
 
-Instant-navigation validation runs by default in [Cache Components](/docs/app/api-reference/config/next-config-js/cacheComponents) apps and is what surfaces this error.
-
-- **One segment**: add [`export const instant = false`](/docs/app/api-reference/file-conventions/route-segment-config/instant) to the page or layout file. This opts out the segment itself. Child segments are still validated during client navigations.
-- **Entire app**: set [`experimental.instantInsights.validationLevel`](/docs/app/api-reference/file-conventions/route-segment-config/instant#configuring-validation-defaults) to `'manual-warning'` in `next.config`. This limits validation to segments that explicitly export `instant`.
-
-See [Ensuring instant navigations](/docs/app/guides/instant-navigation) for the full model.
+This error fires from the prerender, not from instant-navigation validation. `crypto.randomUUID()` and related APIs return a different value on every call, so the prerender can't bake them into a static shell regardless of the segment's `instant` config or [`experimental.instantInsights.validationLevel`](/docs/app/api-reference/file-conventions/route-segment-config/instant#configuring-validation-defaults). Use one of the fixes above.
 
 ## Useful links
 
