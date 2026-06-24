@@ -85,7 +85,7 @@ export async function UpdatedAt() {
 
 #### Alternative: `await io()`
 
-If you'd rather not tie the read to an HTTP request context, use [`io()`](/docs/app/api-reference/functions/io) from `next/cache`. It signals a request-time IO read and works the same way as `connection()` in the streaming case, plus inside `"use cache"` scopes and Client Components where `connection()` throws.
+To avoid tying the read to an HTTP request context, use [`io()`](/docs/app/api-reference/functions/io) from `next/cache`. It marks the read as request-time IO and behaves like `connection()` for streaming, with the added benefit that it also works inside `"use cache"` scopes and Client Components, where `connection()` throws.
 
 ```jsx filename="app/dashboard/updated-at.js"
 import { io } from 'next/cache'
