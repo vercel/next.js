@@ -1,19 +1,29 @@
 /**
- * Drain `items` through `worker` with an adaptive concurrency limit.
+ * Drain work through `worker` with an adaptive concurrency limit.
  *
- * Re-reads the cap from `getConcurrency()` on every scheduling pass so the
- * caller can grow the limit as items complete.
+ * Pulls items from `getNextItem()` until it returns `undefined`, which
+ * signals "no more items right now" — at that point the function waits
+ * for the in-flight set to drain and returns.  The caller can then call
+ * `runWithConcurrency` again (e.g. after persisting state) to resume
+ * with whatever items `getNextItem()` is now willing to hand out.
+ *
+ * `getNextItem()` is invoked synchronously every time a worker slot
+ * opens up, so it doubles as both the queue source and the "is there
+ * more work right now?" gate.
+ *
+ * Re-reads the cap from `getConcurrency()` on every scheduling pass so
+ * the caller can grow the limit as items complete.
  *
  * Aborts the entire drain (waiting for in-flight units to settle, then
  * rethrowing) when:
  *   - `worker` rejects on any item, OR
  *   - the caller's `signal` aborts (the rejection uses `signal.reason`).
  *
- * If you want to tolerate per-item errors, have your `worker` catch them
- * internally.
+ * If you want to tolerate per-item errors, have your `worker` catch
+ * them internally.
  */
 export async function runWithConcurrency<T>(
-  items: ReadonlyArray<T>,
+  getNextItem: () => T | undefined,
   worker: (item: T) => Promise<void>,
   options: {
     getConcurrency: () => number
@@ -21,7 +31,6 @@ export async function runWithConcurrency<T>(
   }
 ): Promise<void> {
   const { getConcurrency, signal } = options
-  const queue = [...items]
   // Promises currently being awaited.  Each one removes itself from the set
   // in `.finally()` once it settles.
   const active = new Set<Promise<void>>()
@@ -35,10 +44,13 @@ export async function runWithConcurrency<T>(
     if (workerError === undefined) workerError = err
   }
 
-  // Outer loop: keeps going until both the queue is empty *and* nothing is
-  // in flight.  Each iteration either tops up the active set (inner loop
-  // below) or waits for at least one in-flight unit to settle.
-  while (queue.length > 0 || active.size > 0) {
+  // We pull the next item lazily — once `getNextItem()` returns `undefined`
+  // we stop trying for the rest of this call.  Tracked separately from
+  // `active.size` so a momentarily-empty inflight set doesn't fool us into
+  // asking again after the caller already signalled "done for now".
+  let exhausted = false
+
+  while (!exhausted || active.size > 0) {
     // Stop scheduling on abort or worker error.  Drain the in-flight set
     // so side effects (e.g. cache writes) settle, then rethrow.  Each
     // promise in `active` already swallows its own rejection via
@@ -49,10 +61,14 @@ export async function runWithConcurrency<T>(
       throw signal!.reason
     }
 
-    // Inner loop: top up the active set until either we hit the current
-    // concurrency cap or run out of queued items.
-    while (queue.length > 0 && active.size < getConcurrency()) {
-      const item = queue.shift()!
+    // Top up the active set until we either hit the current concurrency
+    // cap or `getNextItem()` tells us the queue is dry for now.
+    while (!exhausted && active.size < getConcurrency()) {
+      const item = getNextItem()
+      if (item === undefined) {
+        exhausted = true
+        break
+      }
       const p: Promise<void> = worker(item)
         .catch(recordError)
         .finally(() => {
@@ -61,9 +77,9 @@ export async function runWithConcurrency<T>(
       active.add(p)
     }
 
-    // Wait for at least one unit to settle before re-checking the queue.
-    // Without this `await`, the outer loop would spin synchronously when
-    // the queue is full but more items are queued.
+    // Wait for at least one in-flight unit to settle before checking again.
+    // Without this `await`, a fully-saturated active set would spin
+    // synchronously.
     if (active.size > 0) {
       await Promise.race(active)
     }

@@ -153,33 +153,34 @@ export async function prewarmDevServer(opts: { dir: string }): Promise<void> {
   const startTime = Date.now()
   let nextPersistAt = startTime + FIRST_PERSIST_DELAY_MS
 
-  // Split units into time-bounded batches and process each batch with
-  // `runWithConcurrency`.  When the deadline for the next persist passes
-  // mid-batch, we let the current batch finish (so persisting sees a
-  // quiescent system), persist, then schedule the next deadline before
-  // starting the next batch.
+  // Drive `runWithConcurrency` via a single queue: it pulls items lazily,
+  // and when we want to break for a persist we just stop handing items
+  // out.  `runWithConcurrency` then waits for the in-flight set to drain
+  // and returns; we persist, advance the deadline, and call it again to
+  // resume.  This keeps the "no compilation in flight while persisting"
+  // invariant without us having to slice arrays.
   let cursor = 0
-  while (cursor < units.length) {
-    // Slice the next batch: include units until we've crossed the next
-    // persist deadline, or we run out of units.
-    const batchStart = cursor
-    while (cursor < units.length && Date.now() < nextPersistAt) {
-      cursor++
-    }
-    // Always pull at least one unit per batch — guards against pathological
-    // schedules (e.g. a clock skew) producing empty batches.
-    if (cursor === batchStart) cursor++
-    const batch = units.slice(batchStart, cursor)
+  // Ensures at least one unit is yielded per `runWithConcurrency` pass
+  // even when the deadline has already passed by the time we get there
+  // (e.g. on a tiny initial concurrency cap or a slow first compile).
+  // Reset to `false` at the top of every outer-loop iteration; flipped
+  // to `true` as soon as we hand out the first unit of that pass.
+  let yieldedThisPass = false
+  const getNextItem = (): PrewarmUnit | undefined => {
+    if (cursor >= units.length) return undefined
+    if (yieldedThisPass && Date.now() >= nextPersistAt) return undefined
+    yieldedThisPass = true
+    return units[cursor++]
+  }
 
-    // `runWithConcurrency` doesn't return until every promise in this
-    // batch has settled, so once it resolves there's no compilation in
-    // flight — safe to persist.
-    await runWithConcurrency(batch, compile, { getConcurrency })
+  while (cursor < units.length) {
+    yieldedThisPass = false
+    await runWithConcurrency(getNextItem, compile, { getConcurrency })
 
     if (cursor < units.length) {
-      // More work to do — persist, then update the deadline.  We do NOT
-      // persist after the very last batch: `prewarmDevServer` always
-      // performs a final persist below to flush the trailing work.
+      // More work to do — persist, then advance the deadline.  We do NOT
+      // persist after the very last unit: the function below performs a
+      // final persist for that.
       await persistCache(hotReloader)
       nextPersistAt = 2 * Date.now() - startTime
     }

@@ -870,12 +870,11 @@ function bindingToApi(
      *
      * This drains the `ExitHandler::on_exit` queue (today: trace/profiling
      * teardown — but notably NOT the persistent-cache writer; use
-     * `persistCache()` for that).  Despite the underlying napi name
-     * `projectOnExit`, the project remains alive after this returns.
-     * The underlying receiver is consumed on the first call, so this
-     * must only be invoked once per project.
+     * `persistCache()` for that).  Despite the verb, the project remains
+     * alive after this returns.  The underlying receiver is consumed on
+     * the first call, so this must only be invoked once per project.
      */
-    runExitHandlers(): Promise<void> {
+    onExit(): Promise<void> {
       return binding.projectOnExit(this._nativeProject)
     }
   }

@@ -369,7 +369,7 @@ export interface Project {
    * teardown).  Does NOT write the persistent cache — use
    * `persistCache()` for that.  Must be called at most once per project.
    */
-  runExitHandlers(): Promise<void>
+  onExit(): Promise<void>
 }
 
 export type Route =
