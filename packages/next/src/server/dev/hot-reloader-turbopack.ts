@@ -137,6 +137,17 @@ import {
   setErrorsRscStreamForHtmlRequest,
 } from './serialized-errors'
 
+/**
+ * The Turbopack hot reloader, extended with extra helpers used by the
+ * `next internal prewarm-dev` command.
+ */
+export type TurbopackHotReloader = NextJsHotReloaderInterface & {
+  /** Returns a snapshot of the current set of known route entrypoints. */
+  getCurrentEntrypoints(): Entrypoints
+  /** Resolves once the first batch of entrypoints has been processed. */
+  awaitEntrypoints(): Promise<void>
+}
+
 const wsServer = new ws.Server({ noServer: true })
 const isTestMode = !!(
   process.env.NEXT_TEST_MODE ||
@@ -311,7 +322,7 @@ export async function createHotReloaderTurbopack(
   resetFetch: () => void,
   lockfile: Lockfile | undefined,
   serverFastRefresh?: boolean
-): Promise<NextJsHotReloaderInterface> {
+): Promise<TurbopackHotReloader> {
   const dev = true
   const buildId = 'development'
   const { nextConfig, dir: projectPath } = opts
@@ -1978,5 +1989,19 @@ export async function createHotReloaderTurbopack(
     })
   }
 
-  return hotReloader
+  const turbopackHotReloader: TurbopackHotReloader = Object.assign(
+    hotReloader,
+    {
+      /** Returns a snapshot of the current set of known route entrypoints. */
+      getCurrentEntrypoints(): Entrypoints {
+        return currentEntrypoints
+      },
+      /** Resolves once the first batch of entrypoints has been processed. */
+      awaitEntrypoints(): Promise<void> {
+        return currentEntriesHandling as Promise<void>
+      },
+    }
+  )
+
+  return turbopackHotReloader
 }

@@ -652,6 +652,16 @@ if (process.env.NEXT_PRIVATE_WORKER && process.send) {
         defaultParentSpanId: startServerSpan.getId(),
       })
 
+      if (process.env.__NEXT_PRIVATE_PREWARM_DEV) {
+        await startServerSpan.traceAsyncFn(() => {
+          const { prewarmDevServer } =
+            require('./prewarm-dev-server') as typeof import('./prewarm-dev-server')
+          return prewarmDevServer({ dir: msg.nextWorkerOptions.dir })
+        })
+        process.send({ nextPrewarmDone: true })
+        process.exit(0)
+      }
+
       const result = await startServerSpan.traceAsyncFn(() =>
         startServer(msg.nextWorkerOptions)
       )

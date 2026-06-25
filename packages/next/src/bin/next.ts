@@ -760,4 +760,24 @@ internal
   )
   .usage('[directory] [options]')
 
+internal
+  .command('prewarm-dev')
+  .description(
+    'Seed the Turbopack dev persistent cache by compiling all routes. ' +
+      'Run this before `next dev` to speed up cold-start compilation. ' +
+      'Turbopack only.'
+  )
+  .argument(
+    '[directory]',
+    `A directory to prewarm. ${italic(
+      'If no directory is provided, the current directory will be used.'
+    )}`
+  )
+  .action((directory: string | undefined) => {
+    return import('../cli/internal/prewarm-dev.js').then((mod) =>
+      mod.prewarmDev(directory)
+    )
+  })
+  .usage('[directory]')
+
 program.parse(process.argv)
