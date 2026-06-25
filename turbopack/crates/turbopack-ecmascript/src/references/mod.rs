@@ -16,6 +16,7 @@ pub mod node;
 pub mod pattern_mapping;
 pub mod raw;
 pub mod require_context;
+pub mod service_worker;
 pub mod type_issue;
 pub mod typescript;
 pub mod unreachable;
