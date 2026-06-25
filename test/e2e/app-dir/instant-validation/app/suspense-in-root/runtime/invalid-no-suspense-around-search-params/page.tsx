@@ -1,5 +1,5 @@
 import { connection } from 'next/server'
-import { Suspense, Fragment } from 'react'
+import { Suspense } from 'react'
 
 export const instant = {
   level: 'experimental-error',
@@ -15,10 +15,11 @@ export default async function Page({
   return (
     <main>
       <div>
-        <p>Params don't need a suspense boundary when runtime-prefetched:</p>
-        <SuspenseInPartialPrefetching>
-          <LinkData searchParams={searchParams} />
-        </SuspenseInPartialPrefetching>
+        <p>
+          Search Params need a suspense boundary even with allow-runtime because
+          we need a valid App Shell
+        </p>
+        <LinkData searchParams={searchParams} />
       </div>
 
       <div>
@@ -30,10 +31,6 @@ export default async function Page({
     </main>
   )
 }
-
-const SuspenseInPartialPrefetching = process.env.__NEXT_PARTIAL_PREFETCHING
-  ? Suspense
-  : Fragment
 
 async function LinkData({
   searchParams,

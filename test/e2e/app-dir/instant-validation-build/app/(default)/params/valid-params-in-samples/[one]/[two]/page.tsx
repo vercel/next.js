@@ -1,6 +1,6 @@
 import type { Instant } from 'next'
 import assert from 'node:assert/strict'
-import { Fragment, Suspense } from 'react'
+import { Suspense } from 'react'
 
 export const instant: Instant = {
   level: 'experimental-error',
@@ -26,16 +26,12 @@ export default async function Page({
         When validated in build, the page should receive the params specified in
         the sample.
       </p>
-      <SuspenseInPartialPrefetching>
+      <Suspense>
         <TestParams params={params} />
-      </SuspenseInPartialPrefetching>
+      </Suspense>
     </main>
   )
 }
-
-const SuspenseInPartialPrefetching = process.env.__NEXT_PARTIAL_PREFETCHING
-  ? Suspense
-  : Fragment
 
 async function TestParams({
   params,

@@ -1,6 +1,6 @@
 import type { Instant } from 'next'
 import assert from 'node:assert/strict'
-import { Fragment, Suspense } from 'react'
+import { Suspense } from 'react'
 
 export const instant: Instant = {
   level: 'experimental-error',
@@ -15,9 +15,9 @@ export default async function Page({
 }) {
   return (
     <main>
-      <SuspenseInPartialPrefetching>
+      <Suspense>
         <Inner params={params} />
-      </SuspenseInPartialPrefetching>
+      </Suspense>
     </main>
   )
 }
@@ -25,10 +25,6 @@ export default async function Page({
 async function Inner({ params }: { params: Promise<Record<string, string>> }) {
   return <CachedChild params={await params} />
 }
-
-const SuspenseInPartialPrefetching = process.env.__NEXT_PARTIAL_PREFETCHING
-  ? Suspense
-  : Fragment
 
 async function CachedChild({ params }: { params: Record<string, string> }) {
   'use cache'
