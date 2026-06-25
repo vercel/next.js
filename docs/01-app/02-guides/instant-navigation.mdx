@@ -326,7 +326,19 @@ Two `fetch()` calls block at the top level: an uncached featured-list fetch and 
 
 ### Step 1: Move the slug-dependent work into Suspense
 
-Validation surfaces the per-slug product fetch first. Extract the slug-dependent work into a sub-component and wrap it with `<Suspense>`:
+Validation surfaces the per-slug product fetch first.
+
+<div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.5rem' }}>
+  <Image
+    alt="Dev overlay insight for a blocking-route, showing the uncached data access on app/products/[slug]/page.tsx with Stream, Cache, and Block fix cards"
+    srcLight="/docs/light/instant-insight.png"
+    srcDark="/docs/dark/instant-insight.png"
+    width="960"
+    height="760"
+  />
+</div>
+
+Extract the slug-dependent work into a sub-component and wrap it with `<Suspense>`:
 
 ```tsx filename="app/products/[slug]/page.tsx" highlight={21-23}
 import { Suspense } from 'react'
@@ -361,7 +373,19 @@ Now `await props.params` and the product fetch suspend together. The product-fet
 
 ### Step 2: Cache the featured fetch
 
-Validation now fires on `getFeatured()`. Wrap the fetching function with `"use cache"`:
+Validation now fires on `getFeatured()`.
+
+<div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.5rem' }}>
+  <Image
+    alt="Dev overlay insight for the uncached getFeatured() fetch, with Stream, Cache, and Block fix cards"
+    srcLight="/docs/light/instant-insight-4.png"
+    srcDark="/docs/dark/instant-insight-4.png"
+    width="960"
+    height="760"
+  />
+</div>
+
+Add a `"use cache"` directive to the fetching function:
 
 ```tsx filename="app/products/[slug]/page.tsx"
 async function getFeatured() {
@@ -448,4 +472,3 @@ For opted-out segments, the navigation blocks on the server. If the content depe
 - [Caching](/docs/app/getting-started/caching) for background on `use cache`, Suspense, and Partial Prerendering
 - [Revalidating](/docs/app/getting-started/revalidating) for how to expire cached data with `cacheLife` and `updateTag`
 
-{/* Ensure we include instant navs skill learnings: see https://github.com/vercel/next.js/pull/94152 */}
