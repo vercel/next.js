@@ -38,6 +38,7 @@ import {
   type PrefetchTask,
   type PrefetchSubtaskResult,
 } from './scheduler'
+import type { NavigationLockPrefetch } from './navigation-testing-lock'
 import {
   type RouteVaryPath,
   type SegmentVaryPath,
@@ -513,9 +514,65 @@ export function readSegmentCacheEntry(
  */
 export function readSegmentCacheEntryForNavigation(
   now: number,
-  varyPath: SegmentVaryPath
+  varyPath: SegmentVaryPath,
+  restrictToShell: boolean = false
 ): SegmentCacheEntry | null {
   const isRevalidation = false
+
+  if (process.env.__NEXT_EXPOSE_TESTING_API) {
+    const { getCurrentNavigationLock } =
+      require('./navigation-testing-lock') as typeof import('./navigation-testing-lock')
+    const lock = getCurrentNavigationLock()
+    if (lock !== null) {
+      // Instant Navigation Testing API
+      //
+      // Modify the lookup logic to simulate the behavior that we would expect
+      // to mostly realistically happen in a production environment with a
+      // warm prefetch cache.
+
+      // If restrictToShell is true, it means we're navigating to a link that
+      // 1) has Partial Prefetching enabled, and 2) does not have a prefetch
+      // prop set. We should only allow the shell to render, not anything that
+      // varies on concrete route params.
+      const lookupVaryPath = restrictToShell
+        ? getShellSegmentVaryPath(varyPath)
+        : varyPath
+
+      // To prevent the test navigation from being "polluted" by earlier
+      // prefetches, we'll also only match entries that were created during
+      // the current lock scope. This is tracked by the `ownedEntries` set.
+      const ownedEntries = lock.ownedEntries
+
+      // Besides that, the rest of the logic is the same as production.
+      const fulfilled = getFromCacheMap(
+        now,
+        getCurrentSegmentCacheVersion(),
+        segmentCacheMap,
+        lookupVaryPath,
+        isRevalidation,
+        true
+      )
+      if (fulfilled !== null && ownedEntries.has(fulfilled)) {
+        return fulfilled
+      }
+      const entry = getFromCacheMap(
+        now,
+        getCurrentSegmentCacheVersion(),
+        segmentCacheMap,
+        lookupVaryPath,
+        isRevalidation,
+        false
+      )
+      if (entry !== null && ownedEntries.has(entry)) {
+        return entry
+      }
+      return null
+    }
+  }
+
+  // Prefer a Fulfilled entry (e.g. a cached shell) over a more-specific
+  // Pending/Rejected one so it renders immediately instead of blocking on an
+  // in-flight entry.
   const fulfilled = getFromCacheMap(
     now,
     getCurrentSegmentCacheVersion(),
@@ -807,12 +864,34 @@ function deprecated_createOptimisticRouteTree(
 export function readOrCreateSegmentCacheEntry(
   now: number,
   fetchStrategy: FetchStrategy,
-  tree: RouteTree
+  tree: RouteTree,
+  // Non-null when this read is part of a locked navigation's prefetch (Instant
+  // Navigation Testing API only; always null in production). See below.
+  navigationLockPrefetch: NavigationLockPrefetch | null
 ): SegmentCacheEntry {
   const existingEntry = readSegmentCacheEntry(now, tree.varyPath)
   if (existingEntry !== null) {
-    return existingEntry
+    if (
+      process.env.__NEXT_EXPOSE_TESTING_API &&
+      navigationLockPrefetch !== null
+    ) {
+      // Locked navigation: ignore entries that predate the lock so each
+      // navigation reads only data (re)fetched within the lock scope — a
+      // "clean read." But an entry we already created within this scope is
+      // reused like normal; otherwise the prefetch would discard the entry it
+      // just fetched on every scheduler pass and refetch forever. See
+      // navigation-testing-lock.ts.
+      const { getCurrentNavigationLock } =
+        require('./navigation-testing-lock') as typeof import('./navigation-testing-lock')
+      const lock = getCurrentNavigationLock()
+      if (lock !== null && lock.ownedEntries.has(existingEntry)) {
+        return existingEntry
+      }
+    } else {
+      return existingEntry
+    }
   }
+  // No reusable entry, or a locked navigation discarding a pre-lock entry.
   // Create a pending entry and add it to the cache. The stale time is set to a
   // default value; the actual stale time will be set when the entry is
   // fulfilled with data from the server response.
@@ -981,12 +1060,21 @@ export function createDetachedSegmentCacheEntry(
     staleAt,
     version: 0,
   }
+  if (process.env.__NEXT_EXPOSE_TESTING_API) {
+    // Instant Navigation Testing API: mark entries created during a lock scope
+    // as owned, so locked navigations match only data (re)fetched within the
+    // scope. No-op when no lock is held (always in production).
+    const { recordNavigationLockOwnedEntry } =
+      require('./navigation-testing-lock') as typeof import('./navigation-testing-lock')
+    recordNavigationLockOwnedEntry(emptyEntry)
+  }
   return emptyEntry
 }
 
 export function upgradeToPendingSegment(
   emptyEntry: EmptySegmentCacheEntry,
-  fetchStrategy: FetchStrategy
+  fetchStrategy: FetchStrategy,
+  navigationLockPrefetch: NavigationLockPrefetch | null
 ): PendingSegmentCacheEntry {
   const pendingEntry: PendingSegmentCacheEntry = emptyEntry as any
   pendingEntry.status = EntryStatus.Pending
@@ -1005,6 +1093,23 @@ export function upgradeToPendingSegment(
   // than when receiving the response, because it's guaranteed to happen
   // before the data is read on the server.
   pendingEntry.version = getCurrentSegmentCacheVersion()
+
+  if (
+    process.env.__NEXT_EXPOSE_TESTING_API &&
+    // Instant Navigation Testing API only. Non-null when the requesting
+    // prefetch is driving a locked navigation, in which case the
+    // freshly-spawned pending entry is tracked against that navigation's
+    // prefetch state so the navigation waits for it to fulfill before reading
+    // it. Null at non-scheduler call sites (BFCache fulfillment, response
+    // processing), which don't spawn an in-flight request to wait on, and
+    // always in production.
+    navigationLockPrefetch !== null
+  ) {
+    const { trackNavigationLockPrefetchEntry } =
+      require('./navigation-testing-lock') as typeof import('./navigation-testing-lock')
+    trackNavigationLockPrefetchEntry(navigationLockPrefetch, pendingEntry)
+  }
+
   return pendingEntry
 }
 
@@ -1038,7 +1143,13 @@ export function attemptToFulfillDynamicSegmentFromBFCache(
       return null
     }
 
-    const pendingSegment = upgradeToPendingSegment(segment, FetchStrategy.Full)
+    const pendingSegment = upgradeToPendingSegment(
+      segment,
+      FetchStrategy.Full,
+      // Fulfilled synchronously from the BFCache; nothing for a locked
+      // navigation to wait on.
+      null
+    )
     const isPartial = false
     return fulfillSegmentCacheEntry(
       pendingSegment,
@@ -1072,7 +1183,10 @@ export function attemptToUpgradeSegmentFromBFCache(
     }
     const pendingSegment = upgradeToPendingSegment(
       createDetachedSegmentCacheEntry(now),
-      FetchStrategy.Full
+      FetchStrategy.Full,
+      // Fulfilled synchronously from the BFCache; nothing for a locked
+      // navigation to wait on.
+      null
     )
     const isPartial = false
     const newEntry = fulfillSegmentCacheEntry(
@@ -2250,7 +2364,8 @@ function writeSegmentBundleResponse(
       // to upsert it into the canonical slot.
       const detachedEntry = createDetachedSegmentCacheEntry(now)
       fulfilled = fulfillSegmentCacheEntry(
-        upgradeToPendingSegment(detachedEntry, FetchStrategy.PPR),
+        // Response-write path, not a locked-navigation prefetch.
+        upgradeToPendingSegment(detachedEntry, FetchStrategy.PPR, null),
         data.rsc,
         entryStaleAt,
         data.isPartial,
@@ -3036,17 +3151,20 @@ function fulfillEntrySpawnedByRuntimePrefetch(
       )
     }
   } else {
-    // There's no matching entry. Attempt to create a new one.
+    // There's no matching entry. Attempt to create a new one. This is a
+    // response-write path, not a locked-navigation prefetch.
     const possiblyNewEntry = readOrCreateSegmentCacheEntry(
       now,
       fetchStrategy,
-      tree
+      tree,
+      null
     )
     if (possiblyNewEntry.status === EntryStatus.Empty) {
       // Confirmed this is a new entry. We can fulfill it.
       const newEntry = possiblyNewEntry
       const fulfilledEntry = fulfillSegmentCacheEntry(
-        upgradeToPendingSegment(newEntry, fetchStrategy),
+        // Response-write path, not a locked-navigation prefetch.
+        upgradeToPendingSegment(newEntry, fetchStrategy, null),
         rsc,
         staleAt,
         isPartial,
@@ -3068,7 +3186,9 @@ function fulfillEntrySpawnedByRuntimePrefetch(
       const newEntry = fulfillSegmentCacheEntry(
         upgradeToPendingSegment(
           createDetachedSegmentCacheEntry(now),
-          fetchStrategy
+          fetchStrategy,
+          // Response-write path, not a locked-navigation prefetch.
+          null
         ),
         rsc,
         staleAt,
