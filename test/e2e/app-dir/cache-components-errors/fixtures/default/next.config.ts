@@ -1,4 +1,4 @@
-import type { NextConfig } from 'next'
+import { NextConfig } from 'next'
 
 const partialPrefetching = !!process.env.__NEXT_PARTIAL_PREFETCHING
 
@@ -9,10 +9,6 @@ const nextConfig: NextConfig = {
     instantInsights: {
       validationLevel: 'manual-warning',
     },
-  },
-  productionBrowserSourceMaps: true,
-  typescript: {
-    ignoreBuildErrors: true,
   },
 }
 

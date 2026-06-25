@@ -6,11 +6,16 @@ import {
   parseValidationMessages,
 } from 'e2e-utils/instant-validation'
 
+const partialPrefetching = !!process.env.__NEXT_PARTIAL_PREFETCHING
+
 describe('instant-validation-build', () => {
   const { next, skipped, isNextStart, isTurbopack } = nextTestSetup({
     files: __dirname,
     skipStart: true,
     skipDeployment: true,
+    env: {
+      __NEXT_PARTIAL_PREFETCHING: partialPrefetching ? 'true' : '',
+    },
   })
 
   if (skipped) {

@@ -1,12 +1,15 @@
 import { nextTestSetup } from 'e2e-utils'
 import { retry } from '../../../lib/next-test-utils'
 
+const partialPrefetching = !!process.env.__NEXT_PARTIAL_PREFETCHING
+
 describe('instant validation causes', () => {
   const { next, skipped, isNextDev } = nextTestSetup({
     files: __dirname,
     skipDeployment: true,
     env: {
       NEXT_TEST_LOG_VALIDATION: '1',
+      __NEXT_PARTIAL_PREFETCHING: partialPrefetching ? 'true' : '',
     },
   })
   if (skipped) return

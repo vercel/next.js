@@ -6,11 +6,16 @@ import {
 } from 'next-test-utils'
 import { getDeterministicOutput, getPrerenderOutput } from './utils'
 
+const partialPrefetching = !!process.env.__NEXT_PARTIAL_PREFETCHING
+
 describe('Cache Components Errors', () => {
   const { next, isTurbopack, isNextStart, skipped, isRspack } = nextTestSetup({
     files: __dirname + '/fixtures/default',
     skipStart: !isNextDev,
     skipDeployment: true,
+    env: {
+      __NEXT_PARTIAL_PREFETCHING: partialPrefetching ? 'true' : '',
+    },
   })
 
   if (skipped) {

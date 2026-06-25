@@ -18,12 +18,15 @@ import {
 } from '../../../lib/add-redbox-matchers'
 import { getDeterministicOutput } from '../cache-components-errors/utils'
 
+const partialPrefetching = !!process.env.__NEXT_PARTIAL_PREFETCHING
+
 describe('instant validation', () => {
   const { next, skipped, isNextDev, isNextStart, isTurbopack } = nextTestSetup({
     files: __dirname,
     skipStart: true,
     skipDeployment: true,
     env: {
+      __NEXT_PARTIAL_PREFETCHING: partialPrefetching ? 'true' : '',
       NEXT_TEST_LOG_VALIDATION: '1',
     },
   })
