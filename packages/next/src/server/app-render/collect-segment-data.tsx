@@ -41,6 +41,7 @@ import {
   printDebugThrownValueForProspectiveRender,
 } from './prospective-render-utils'
 import { workAsyncStorage } from './work-async-storage.external'
+import { InvariantError } from '../../shared/lib/invariant-error'
 
 // Contains metadata about the route tree. The client must fetch this before
 // it can fetch any actual segment data.
@@ -219,7 +220,13 @@ export async function collectSegmentData(
       serverConsumerManifest,
     })
     await waitAtLeastOneReactRenderTask()
-  } catch {}
+  } catch (err) {
+    console.error(
+      new InvariantError('Unexpected error in collectSegmentData', {
+        cause: err,
+      })
+    )
+  }
 
   // Create an abort controller that we'll use to stop the stream.
   const abortController = new AbortController()
@@ -322,16 +329,31 @@ export async function collectPrefetchHints(
       serverConsumerManifest,
     })
     await waitAtLeastOneReactRenderTask()
-  } catch {}
+  } catch (err) {
+    console.error(
+      new InvariantError('Unexpected error in collectPrefetchHints', {
+        cause: err,
+      })
+    )
+  }
 
   // Decode the Flight data to walk the route tree.
-  const initialRSCPayload: InitialRSCPayload = await createFromReadableStream(
-    createUnclosingPrefetchStream(streamFromBuffer(fullPageDataBuffer)),
-    {
-      findSourceMapURL,
-      serverConsumerManifest,
-    }
-  )
+  const initialRSCPayload: InitialRSCPayload | null = await Promise.race([
+    createFromReadableStream<InitialRSCPayload>(
+      createUnclosingPrefetchStream(streamFromBuffer(fullPageDataBuffer)),
+      {
+        findSourceMapURL,
+        serverConsumerManifest,
+      }
+    ),
+    // If we can't get the root microtaskily, then it must be blocked.
+    waitAtLeastOneReactRenderTask().then(() => null),
+  ])
+
+  // If the root is blocked, we can't produce hints
+  if (initialRSCPayload === null) {
+    return { hints: 0, slots: null }
+  }
 
   const flightData = extractFlightData(initialRSCPayload)
   if (flightData === null) {
@@ -711,13 +733,21 @@ async function PrefetchTreeData({
   // a hack to transfer the side effects from the original Flight stream (e.g.
   // Float preloads) onto the Flight stream for the tree prefetch.
   // TODO: React needs a better way to do this. Needed for Server Actions, too.
-  const initialRSCPayload: InitialRSCPayload = await createFromReadableStream(
-    createUnclosingPrefetchStream(streamFromBuffer(fullPageDataBuffer)),
-    {
-      findSourceMapURL,
-      serverConsumerManifest,
-    }
-  )
+  const initialRSCPayload: InitialRSCPayload | null = await Promise.race([
+    createFromReadableStream<InitialRSCPayload>(
+      createUnclosingPrefetchStream(streamFromBuffer(fullPageDataBuffer)),
+      {
+        findSourceMapURL,
+        serverConsumerManifest,
+      }
+    ),
+    waitAtLeastOneReactRenderTask().then(() => null),
+  ])
+
+  // If the root is blocked, we can't produce a segment.
+  if (initialRSCPayload === null) {
+    return null
+  }
 
   const flightData = extractFlightData(initialRSCPayload)
   if (flightData === null) {
