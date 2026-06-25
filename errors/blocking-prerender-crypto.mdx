@@ -75,7 +75,7 @@ export async function CsrfToken() {
 
 #### Alternative: `await io()`
 
-To avoid tying the read to an HTTP request context, use [`io()`](/docs/app/api-reference/functions/io) from `next/cache`. It marks the read as request-time IO and behaves like `connection()` for streaming, with the added benefit that it also works inside `"use cache"` scopes and Client Components, where `connection()` throws.
+Use [`io()`](/docs/app/api-reference/functions/io) from `next/cache` to keep the read out of the static shell. Unlike [`connection()`](/docs/app/api-reference/functions/connection), `io()` doesn't block prefetches and works inside `"use cache"` scopes and Client Components.
 
 ```jsx filename="app/dashboard/csrf-token.js"
 import { io } from 'next/cache'
