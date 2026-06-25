@@ -16,7 +16,9 @@ import Watchpack from 'next/dist/compiled/watchpack'
 import findUp from 'next/dist/compiled/find-up'
 import { buildCustomRoute } from './filesystem'
 import * as Log from '../../../build/output/log'
-import { setGlobal } from '../../../trace/shared'
+import { setGlobal, traceGlobals } from '../../../trace/shared'
+import { trace, type Span } from '../../../trace'
+import { findPagesDir } from '../../../lib/find-pages-dir'
 import type { Telemetry } from '../../../telemetry/storage'
 import type { IncomingMessage, ServerResponse } from 'http'
 import { createValidFileMatcher } from '../find-page-file'
@@ -1347,5 +1349,82 @@ export async function setupDevBundler(opts: SetupOpts) {
 }
 
 export type DevBundler = Awaited<ReturnType<typeof setupDevBundler>>
+
+/**
+ * Bootstrap the dev bundler.
+ *
+ * Centralises the dev-only setup that's shared between `next dev` (via
+ * `router-server.ts`) and `next internal prewarm-dev` (via
+ * `prewarm-dev-server.ts`): creates the telemetry sink, locates the
+ * pages/app dirs, then invokes `setupDevBundler` under a dedicated trace
+ * span.
+ *
+ * The caller is responsible for providing `resetFetch` because the testProxy
+ * mode in `router-server.ts` later mutates the captured `originalFetch`
+ * variable through closure; baking `resetFetch` into this helper would break
+ * that.
+ */
+export async function bootstrapDevBundler({
+  dir,
+  config,
+  fsChecker,
+  renderServer,
+  port,
+  cliCommand,
+  isCustomServer,
+  onDevServerCleanup,
+  serverFastRefresh,
+  resetFetch,
+  span,
+}: {
+  dir: string
+  config: NextConfigComplete
+  fsChecker: SetupOpts['fsChecker']
+  renderServer: LazyRenderServerInstance
+  port: number
+  cliCommand?: string
+  isCustomServer?: boolean
+  onDevServerCleanup?: SetupOpts['onDevServerCleanup']
+  serverFastRefresh?: boolean
+  resetFetch: () => void
+  span?: Span
+}): Promise<{
+  developmentBundler: DevBundler
+  pagesDir: string | undefined
+  appDir: string | undefined
+  telemetry: Telemetry
+}> {
+  const { Telemetry: TelemetryImpl } =
+    require('../../../telemetry/storage') as typeof import('../../../telemetry/storage')
+  const telemetry = new TelemetryImpl({
+    distDir: path.join(dir, config.distDir),
+  })
+  traceGlobals.set('telemetry', telemetry)
+
+  const { pagesDir, appDir } = findPagesDir(dir)
+
+  const setupSpan = span
+    ? span.traceChild('setup-dev-bundler')
+    : trace('setup-dev-bundler')
+  const developmentBundler = await setupSpan.traceAsyncFn(() =>
+    setupDevBundler({
+      renderServer,
+      appDir,
+      pagesDir,
+      telemetry,
+      fsChecker,
+      dir,
+      nextConfig: config,
+      isCustomServer: isCustomServer ?? false,
+      turbo: !!process.env.TURBOPACK,
+      port,
+      onDevServerCleanup,
+      resetFetch,
+      serverFastRefresh,
+      cliCommand,
+    })
+  )
+  return { developmentBundler, pagesDir, appDir, telemetry }
+}
 
 // Returns a trace rewritten through Turbopack's sourcemaps

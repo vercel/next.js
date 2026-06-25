@@ -14,7 +14,6 @@ import { serveStatic } from '../serve-static'
 import setupDebug from 'next/dist/compiled/debug'
 import * as Log from '../../build/output/log'
 import { DecodeError } from '../../shared/lib/utils'
-import { findPagesDir } from '../../lib/find-pages-dir'
 import { setupFsCheck } from './router-utils/filesystem'
 import { proxyRequest } from './router-utils/proxy-request'
 import { isAbortError, pipeToNodeResponse } from '../pipe-readable'
@@ -34,7 +33,7 @@ import {
 } from '../../shared/lib/constants'
 import { RedirectStatusCode } from '../../client/components/redirect-status-code'
 import { DevBundlerService } from './dev-bundler-service'
-import { type Span, trace } from '../../trace'
+import type { Span } from '../../trace'
 import { ensureLeadingSlash } from '../../shared/lib/page-path/ensure-leading-slash'
 import { getNextPathnameInfo } from '../../shared/lib/router/utils/get-next-pathname-info'
 import { getHostname } from '../../shared/lib/get-hostname'
@@ -49,7 +48,6 @@ import { NEXT_PATCH_SYMBOL } from './patch-fetch'
 import type { ServerInitResult } from './render-server'
 import { filterInternalHeaders } from './server-ipc/utils'
 import { blockCrossSiteDEV } from './router-utils/block-cross-site-dev'
-import { traceGlobals } from '../../trace/shared'
 import { NoFallbackError } from '../../shared/lib/no-fallback-error.external'
 import {
   RouterServerContextSymbol,
@@ -136,30 +134,18 @@ export async function initialize(opts: {
       }
     | undefined = undefined
 
+  // Captured here (and `let`-bound) so the testProxy block below can reassign
+  // it: when testProxy intercepts global `fetch`, the new fetch becomes the
+  // "original" that the bundler's HMR `resetFetch` should restore to.
   let originalFetch = globalThis.fetch
+  const resetFetch = () => {
+    globalThis.fetch = originalFetch
+    ;(globalThis as Record<symbol, unknown>)[NEXT_PATCH_SYMBOL] = false
+  }
 
   if (opts.dev) {
-    const { Telemetry } =
-      require('../../telemetry/storage') as typeof import('../../telemetry/storage')
-
-    const telemetry = new Telemetry({
-      distDir: path.join(opts.dir, config.distDir),
-    })
-    traceGlobals.set('telemetry', telemetry)
-
-    const { pagesDir, appDir } = findPagesDir(opts.dir)
-
-    const { setupDevBundler } =
+    const { bootstrapDevBundler } =
       require('./router-utils/setup-dev-bundler') as typeof import('./router-utils/setup-dev-bundler')
-
-    const resetFetch = () => {
-      globalThis.fetch = originalFetch
-      ;(globalThis as Record<symbol, unknown>)[NEXT_PATCH_SYMBOL] = false
-    }
-
-    const setupDevBundlerSpan = opts.startServerSpan
-      ? opts.startServerSpan.traceChild('setup-dev-bundler')
-      : trace('setup-dev-bundler')
 
     // In development, it's always the complete config.
     let developmentConfig = config as NextConfigComplete
@@ -185,24 +171,20 @@ export async function initialize(opts: {
         cliServerFastRefresh ?? configServerFastRefresh ?? true
     }
 
-    let developmentBundler = await setupDevBundlerSpan.traceAsyncFn(() =>
-      setupDevBundler({
-        // Passed here but the initialization of this object happens below, doing the initialization before the setupDev call breaks.
-        renderServer,
-        appDir,
-        pagesDir,
-        telemetry,
-        fsChecker,
-        dir: opts.dir,
-        nextConfig: developmentConfig,
-        isCustomServer: opts.customServer,
-        turbo: !!process.env.TURBOPACK,
-        port: opts.port,
-        onDevServerCleanup: opts.onDevServerCleanup,
-        resetFetch,
-        serverFastRefresh: effectiveServerFastRefresh,
-      })
-    )
+    const { developmentBundler } = await bootstrapDevBundler({
+      // Passed here but the initialization of this object happens below; doing
+      // the initialization before this call breaks.
+      renderServer,
+      dir: opts.dir,
+      config: developmentConfig,
+      fsChecker,
+      port: opts.port,
+      isCustomServer: opts.customServer,
+      onDevServerCleanup: opts.onDevServerCleanup,
+      serverFastRefresh: effectiveServerFastRefresh,
+      resetFetch,
+      span: opts.startServerSpan,
+    })
 
     let devBundlerService = new DevBundlerService(
       developmentBundler,

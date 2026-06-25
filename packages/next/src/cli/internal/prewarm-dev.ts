@@ -33,9 +33,9 @@ export async function prewarmDev(directory?: string): Promise<void> {
  * `next dev` uses, but with `__NEXT_PRIVATE_PREWARM_DEV=1` so the worker
  * dispatches to `prewarmDevServer` instead of starting an HTTP server.
  *
- * Resolves when the worker signals `nextPrewarmDone` (or exits with code 0);
- * rejects with the worker's exit info on a non-zero exit.  The child's stdio
- * is inherited so any error output is already visible to the user.
+ * Resolves when the worker exits with code 0; rejects with the worker's
+ * exit info on a non-zero exit.  The child's stdio is inherited so any error
+ * output is already visible to the user.
  */
 function runPrewarmWorker(dir: string): Promise<void> {
   const startServerPath = require.resolve('../../server/lib/start-server')
@@ -54,27 +54,18 @@ function runPrewarmWorker(dir: string): Promise<void> {
       },
     })
 
-    // Forward signals to the child.  When the user hits Ctrl+C in a terminal,
-    // both processes receive SIGINT directly via the process group, so this
-    // is mostly relevant for SIGTERM from supervisors.  After forwarding we
-    // wait for the child to clean up and exit on its own.
-    let forceCount = 0
-    const handleSignal = (signal: NodeJS.Signals) => {
-      child.kill(signal)
-      forceCount++
-      if (forceCount >= 3) process.exit(128)
-    }
-    process.on('SIGINT', () => handleSignal('SIGINT'))
-    process.on('SIGTERM', () => handleSignal('SIGTERM'))
+    // When run from a terminal, Ctrl+C delivers SIGINT to the entire process
+    // group, so the child receives it directly.  This forwarder is here for
+    // the SIGTERM-from-supervisor case (e.g. systemd, Docker stop).  After
+    // forwarding we just wait for the child to exit on its own.
+    const forward = (signal: NodeJS.Signals) => () => child.kill(signal)
+    process.on('SIGINT', forward('SIGINT'))
+    process.on('SIGTERM', forward('SIGTERM'))
 
     child.on('message', (msg: any) => {
-      if (msg && typeof msg === 'object') {
-        if (msg.nextWorkerReady) {
-          // Worker is up — send it the prewarm options.
-          child.send({ nextWorkerOptions: { dir } })
-        } else if (msg.nextPrewarmDone) {
-          resolve()
-        }
+      if (msg && typeof msg === 'object' && msg.nextWorkerReady) {
+        // Worker is up — send it the prewarm options.
+        child.send({ nextWorkerOptions: { dir } })
       }
     })
 

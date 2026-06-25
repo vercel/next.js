@@ -666,7 +666,6 @@ if (process.env.NEXT_PRIVATE_WORKER && process.send) {
           console.error(err)
           process.exit(1)
         }
-        process.send({ nextPrewarmDone: true })
         process.exit(0)
       }
 

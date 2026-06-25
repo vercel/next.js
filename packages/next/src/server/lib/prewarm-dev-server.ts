@@ -4,10 +4,10 @@
  * This module is invoked by the `next internal prewarm-dev` CLI command when
  * the child worker process detects `__NEXT_PRIVATE_PREWARM_DEV=1`.  It sets up
  * the Turbopack dev bundler (without starting an HTTP server), enumerates all
- * entrypoints (app + pages routes, pages globals, middleware, instrumentation),
- * compiles each one, periodically flushes the cache to disk in growing
- * batches, and finally shuts the project down so the persistent cache is
- * fully written.
+ * entrypoints (app + pages routes, pages globals when there are pages routes,
+ * middleware, instrumentation), compiles each one, periodically flushes the
+ * cache to disk in growing batches, and finally shuts the project down so the
+ * persistent cache is fully written.
  */
 
 // This must come first as it includes require hooks.
@@ -15,18 +15,15 @@ import '../node-environment'
 import '../require-hook'
 
 import os from 'os'
-import path from 'path'
 
 import type { Endpoint } from '../../build/swc/types'
 import * as Log from '../../build/output/log'
-import { findPagesDir } from '../../lib/find-pages-dir'
 import { setupFsCheck } from './router-utils/filesystem'
 import { PHASE_DEVELOPMENT_SERVER } from '../../shared/lib/constants'
 import loadConfig from '../config'
 import type { TurbopackHotReloader } from '../dev/hot-reloader-turbopack'
-import { NEXT_PATCH_SYMBOL } from './patch-fetch'
 import { isFileSystemCacheEnabledForDev } from '../../shared/lib/turbopack/utils'
-import { traceGlobals } from '../../trace/shared'
+import { runWithConcurrency } from '../../lib/run-with-concurrency'
 
 // ---------------------------------------------------------------------------
 // Constants — tweak these to adjust the prewarm behaviour.
@@ -67,15 +64,10 @@ const BATCH_SIZE_MULTIPLIER = 2
  */
 type PrewarmUnit =
   | { kind: 'app' | 'pages'; page: string }
-  // Pages-router globals: _app, _document, _error.  These are also implicitly
-  // compiled when we ensure any pages route, but we list them explicitly so
-  // they're prewarmed even when there are no user-defined pages routes.
+  // Pages-router globals: _app, _document, _error.  Only emitted when the
+  // project has user-defined pages routes; for app-only projects these
+  // would compile unused defaults.
   | { kind: 'pages-global'; name: string; endpoint: Endpoint }
-  // Middleware and instrumentation are eagerly compiled by `handleEntrypoints`
-  // during `awaitEntrypoints()`.  We still list them so the count of
-  // "prewarmed units" reflects everything that's been seeded.
-  | { kind: 'middleware'; endpoint: Endpoint }
-  | { kind: 'instrumentation'; runtime: 'nodeJs' | 'edge'; endpoint: Endpoint }
 
 /**
  * Entry point for the prewarm worker.  Throws on fatal errors (no
@@ -86,9 +78,16 @@ export async function prewarmDevServer(opts: { dir: string }): Promise<void> {
   const { dir } = opts
 
   if (!process.env.NODE_ENV) {
-    // @ts-expect-error not readonly
+    // @ts-ignore not readonly
     process.env.NODE_ENV = 'development'
   }
+
+  // Hard-exit on Ctrl+C: we want to abandon any in-flight compilation
+  // immediately rather than try to gracefully persist.  An interrupted
+  // prewarm leaves the cache empty (or only partially seeded if a flush
+  // already happened), which is fine — the user will just rerun the
+  // command.
+  installHardExitSignalHandlers()
 
   Log.info('Starting Turbopack dev bundler for cache prewarming…')
 
@@ -101,52 +100,57 @@ export async function prewarmDevServer(opts: { dir: string }): Promise<void> {
   // on `next dev` anyway.
   await hotReloader.awaitEntrypoints()
 
-  // Install signal handlers BEFORE starting the long-running compilation
-  // loop so a Ctrl+C can flush whatever we've already compiled.
-  const abort = installSignalHandlers()
+  // Middleware and instrumentation are eagerly compiled by `handleEntrypoints`
+  // during `awaitEntrypoints()` above, so they're already part of the cache.
+  // We track that count here so the final summary reflects everything that
+  // has been seeded without triggering redundant `writeToDisk()` calls.
+  const ep = hotReloader.getCurrentEntrypoints()
+  let prewarmedDuringSetup = 0
+  if (ep.global.middleware) prewarmedDuringSetup++
+  if (ep.global.instrumentation) prewarmedDuringSetup += 2 // nodeJs + edge
 
   const units = collectUnits(hotReloader)
-  if (units.length === 0) {
+  if (units.length === 0 && prewarmedDuringSetup === 0) {
     // The project has no entrypoints at all.  This is unexpected — at
-    // minimum a Next.js project should expose pages globals.  Treat as
-    // a fatal error rather than silently exiting.
+    // minimum a Next.js project should expose pages globals or an app dir.
     throw new Error(
       'next internal prewarm-dev: no entrypoints discovered in this project. ' +
         'Make sure the project has an `app/` or `pages/` directory.'
     )
   }
 
-  const total = units.length
+  const total = units.length + prewarmedDuringSetup
   Log.info(`Prewarming ${total} entrypoints…`)
 
-  let completed = 0
+  let completed = prewarmedDuringSetup
   let failed = 0
   let concurrency = INITIAL_CONCURRENCY
   let batchSize = INITIAL_BATCH_SIZE
-  let lastFlushAt = 0
+  let lastFlushAt = completed
 
-  // Single-slot serialized flush queue.  Calling `scheduleFlush()` chains a
+  // Single-slot serialised flush queue.  Calling `scheduleFlush()` chains a
   // new flush onto the previous one; intermediate flushes never overlap with
   // each other or with the final shutdown.  The first error from any flush
-  // is captured and rethrown by `awaitPendingFlush()`.
+  // is captured, aborts the scheduling loop, and is rethrown by
+  // `awaitPendingFlush()`.
   let pendingFlush: Promise<void> = Promise.resolve()
-  let flushError: unknown
+  const fatalError = new AbortController()
 
   function scheduleFlush(label: string): void {
     pendingFlush = pendingFlush.then(async () => {
-      if (flushError !== undefined) return
+      if (fatalError.signal.aborted) return
       try {
         await persistCache(hotReloader, 'flush')
         Log.info(label)
       } catch (err) {
-        flushError = err
+        fatalError.abort(err)
       }
     })
   }
 
   async function awaitPendingFlush(): Promise<void> {
     await pendingFlush
-    if (flushError !== undefined) throw flushError
+    if (fatalError.signal.aborted) throw fatalError.signal.reason
   }
 
   async function compile(unit: PrewarmUnit): Promise<void> {
@@ -162,41 +166,36 @@ export async function prewarmDevServer(opts: { dir: string }): Promise<void> {
     // few compiles run sequentially (cheap when the cache is warm) but we
     // ramp up quickly when there's real work to do.
     if (concurrency < MAX_CONCURRENCY) concurrency++
-    maybeScheduleFlush()
+    if (completed - lastFlushAt >= batchSize) {
+      lastFlushAt = completed
+      batchSize = Math.min(batchSize * BATCH_SIZE_MULTIPLIER, total)
+      scheduleFlush(
+        `Persisted Turbopack cache (${completed} / ${total} entrypoints).`
+      )
+    }
   }
 
-  function maybeScheduleFlush(): void {
-    if (completed - lastFlushAt < batchSize) return
-    lastFlushAt = completed
-    batchSize = Math.min(batchSize * BATCH_SIZE_MULTIPLIER, total)
-    scheduleFlush(
-      `Persisted Turbopack cache (${completed} / ${total} entrypoints).`
-    )
+  // Always run the final shutdown — even when the scheduling loop aborts
+  // (e.g. on a flush failure) we still want to persist whatever made it
+  // into the cache, mirroring `turbopack-build/impl.ts`.
+  let runError: unknown
+  try {
+    await runWithConcurrency(units, compile, {
+      getConcurrency: () => concurrency,
+      signal: fatalError.signal,
+    })
+    await awaitPendingFlush()
+  } catch (err) {
+    runError = err
   }
-
-  await runWithConcurrency(
-    units,
-    compile,
-    () => concurrency,
-    abort,
-    () => (flushError !== undefined ? flushError : undefined)
-  )
-
-  // Wait for any in-flight intermediate flush to finish (and surface any
-  // error) before doing the final shutdown.  Calling `project.shutdown()`
-  // while a flush is still running can lead to unspecified behaviour per
-  // Turbopack's docs.
-  await awaitPendingFlush()
 
   Log.info('Persisting Turbopack cache to disk…')
-  await persistCache(hotReloader, 'shutdown')
-
-  if (abort.aborted) {
-    Log.warn(
-      `Prewarm aborted by signal — persisted cache for ${completed} / ${total} entrypoints.`
-    )
-    return
+  try {
+    await persistCache(hotReloader, 'shutdown')
+  } catch (shutdownErr) {
+    if (runError === undefined) runError = shutdownErr
   }
+  if (runError !== undefined) throw runError
 
   if (failed > 0) {
     Log.warn(
@@ -210,7 +209,7 @@ export async function prewarmDevServer(opts: { dir: string }): Promise<void> {
 /**
  * Set up the Turbopack dev bundler without starting an HTTP server.
  *
- * Note: this calls into `setupDevBundler`, which:
+ * Note: the underlying `bootstrapDevBundler` helper:
  *   - records a telemetry session labeled `cliCommand: 'prewarm-dev'`
  *   - acquires the dev lockfile (when `experimental.lockDistDir` is set)
  *     under the owner string `next prewarm-dev`, so an active `next dev`
@@ -228,13 +227,6 @@ async function setupBundler(dir: string): Promise<TurbopackHotReloader> {
     )
   }
 
-  const distDir = path.join(dir, config.distDir)
-
-  const { Telemetry } =
-    require('../../telemetry/storage') as typeof import('../../telemetry/storage')
-  const telemetry = new Telemetry({ distDir })
-  traceGlobals.set('telemetry', telemetry)
-
   const fsChecker = await setupFsCheck({
     dev: true,
     dir,
@@ -242,37 +234,31 @@ async function setupBundler(dir: string): Promise<TurbopackHotReloader> {
     minimalMode: false,
   })
 
-  const { pagesDir, appDir } = findPagesDir(dir)
+  // Force Turbopack for prewarm.  `bootstrapDevBundler` reads `TURBOPACK`
+  // from the env, which the CLI already sets, but we're defensive here.
+  process.env.TURBOPACK = '1'
 
   const originalFetch = globalThis.fetch
   const resetFetch = () => {
     globalThis.fetch = originalFetch
-    ;(globalThis as Record<symbol, unknown>)[NEXT_PATCH_SYMBOL] = false
   }
 
-  const { setupDevBundler } =
+  const { bootstrapDevBundler } =
     require('./router-utils/setup-dev-bundler') as typeof import('./router-utils/setup-dev-bundler')
 
-  const developmentBundler = await setupDevBundler({
+  const { developmentBundler } = await bootstrapDevBundler({
+    dir,
+    config,
+    fsChecker,
     // Prewarm only compiles, never renders, so an empty render server slot
     // (which `setupDevBundler` populates lazily) is enough.
     renderServer: {},
-    appDir,
-    pagesDir,
-    telemetry,
-    fsChecker,
-    dir,
-    nextConfig: config,
-    isCustomServer: false,
-    turbo: true, // prewarm is Turbopack-only
     port: 0,
-    onDevServerCleanup: undefined,
-    resetFetch,
-    serverFastRefresh: undefined,
     cliCommand: 'prewarm-dev',
+    resetFetch,
   })
 
-  // We forced `turbo: true`, so `developmentBundler.hotReloader` must be a
+  // We forced `TURBOPACK=1`, so `developmentBundler.hotReloader` must be a
   // Turbopack hot reloader.  The static type is the narrower
   // `NextJsHotReloaderInterface`; runtime-check the prewarm helpers before
   // narrowing the cast.
@@ -288,44 +274,43 @@ async function setupBundler(dir: string): Promise<TurbopackHotReloader> {
 
 /**
  * Snapshot every compilable unit from the Turbopack entrypoints.  Order is
- * stable: globals first (small and shared), then pages routes, then app
- * routes — so the early flushes write commonly-shared chunks.
+ * stable: pages globals first (small and shared), then pages routes, then
+ * app routes — so the early flushes write commonly-shared chunks.
+ *
+ * Middleware and instrumentation are NOT included here; they are eagerly
+ * compiled by `handleEntrypoints` during `awaitEntrypoints()` and don't need
+ * a second `writeToDisk()` call.
  */
 function collectUnits(hotReloader: TurbopackHotReloader): PrewarmUnit[] {
   const ep = hotReloader.getCurrentEntrypoints()
   const units: PrewarmUnit[] = []
 
-  if (ep.global.middleware) {
-    units.push({ kind: 'middleware', endpoint: ep.global.middleware.endpoint })
-  }
-  if (ep.global.instrumentation) {
-    units.push({
-      kind: 'instrumentation',
-      runtime: 'nodeJs',
-      endpoint: ep.global.instrumentation.nodeJs,
-    })
-    units.push({
-      kind: 'instrumentation',
-      runtime: 'edge',
-      endpoint: ep.global.instrumentation.edge,
-    })
-  }
-  if (ep.global.app) {
-    units.push({ kind: 'pages-global', name: '/_app', endpoint: ep.global.app })
-  }
-  if (ep.global.document) {
-    units.push({
-      kind: 'pages-global',
-      name: '/_document',
-      endpoint: ep.global.document,
-    })
-  }
-  if (ep.global.error) {
-    units.push({
-      kind: 'pages-global',
-      name: '/_error',
-      endpoint: ep.global.error,
-    })
+  // Only prewarm pages globals if the project actually has pages routes,
+  // otherwise we'd compile unused default _app/_document/_error stubs in
+  // app-only projects.
+  const hasPagesRoutes = ep.page.size > 0
+  if (hasPagesRoutes) {
+    if (ep.global.app) {
+      units.push({
+        kind: 'pages-global',
+        name: '/_app',
+        endpoint: ep.global.app,
+      })
+    }
+    if (ep.global.document) {
+      units.push({
+        kind: 'pages-global',
+        name: '/_document',
+        endpoint: ep.global.document,
+      })
+    }
+    if (ep.global.error) {
+      units.push({
+        kind: 'pages-global',
+        name: '/_error',
+        endpoint: ep.global.error,
+      })
+    }
   }
 
   for (const [page] of ep.page) units.push({ kind: 'pages', page })
@@ -349,63 +334,14 @@ function compileUnit(
         definition: undefined,
       })
     case 'pages-global':
-    case 'middleware':
-    case 'instrumentation':
       // Globals don't go through `ensurePage`; we call `writeToDisk()`
       // directly.  This bypasses manifest/issue bookkeeping (we don't need
       // it for prewarm) but still seeds the persistent cache.
       return unit.endpoint.writeToDisk()
-    default:
-      unit satisfies never
-      throw new Error(
-        `Unknown prewarm unit kind: ${(unit as PrewarmUnit).kind}`
-      )
-  }
-}
-
-/**
- * Drain `items` through `worker` with an adaptive concurrency limit.  Reads
- * the current cap from `getConcurrency()` on each scheduling pass so the
- * caller can grow the limit as units complete.
- *
- * Worker functions are expected to handle their own errors (this drain loop
- * does not abort on a single rejection).  However the scheduler does abort
- * when:
- *   - `abort.aborted` flips to true (signal received), or
- *   - `getFatalError()` returns a non-undefined value (e.g. a flush failure).
- */
-async function runWithConcurrency<T>(
-  items: ReadonlyArray<T>,
-  worker: (item: T) => Promise<void>,
-  getConcurrency: () => number,
-  abort: { aborted: boolean },
-  getFatalError: () => unknown
-): Promise<void> {
-  const queue = [...items]
-  const active = new Set<Promise<void>>()
-
-  while (queue.length > 0 || active.size > 0) {
-    if (abort.aborted || getFatalError() !== undefined) {
-      // Stop scheduling new work.  Wait for in-flight units to finish so
-      // the cache is in a consistent state, then return.
-      while (active.size > 0) await Promise.race(active)
-      const err = getFatalError()
-      if (err !== undefined) throw err
-      return
-    }
-    while (queue.length > 0 && active.size < getConcurrency()) {
-      const item = queue.shift()!
-      const p = worker(item)
-        .catch(() => {
-          // worker is contractually non-throwing; defensive catch only.
-        })
-        .finally(() => {
-          active.delete(p)
-        })
-      active.add(p)
-    }
-    if (active.size > 0) {
-      await Promise.race(active)
+    default: {
+      const _exhaustive: never = unit
+      const kind = (_exhaustive as { kind: string }).kind
+      throw new Error(`Unknown prewarm unit kind: ${kind}`)
     }
   }
 }
@@ -429,31 +365,15 @@ async function persistCache(
 }
 
 /**
- * Install SIGINT/SIGTERM handlers that mark the prewarm as aborted so the
- * scheduler stops queueing new work and the main flow proceeds to a final
- * `project.shutdown()` to persist whatever has been compiled so far.
- *
- * A second signal forces an immediate exit (the persistent cache may be
- * incomplete in that case).
+ * Install SIGINT/SIGTERM handlers that exit the worker immediately.  We do
+ * not attempt to gracefully persist on signal — Ctrl+C should feel like
+ * Ctrl+C — so the cache is left in whatever state the most recent flush
+ * reached.
  */
-function installSignalHandlers(): { aborted: boolean } {
-  const state = { aborted: false }
-  let forceCount = 0
+function installHardExitSignalHandlers(): void {
   const onSignal = (signal: NodeJS.Signals) => {
-    if (state.aborted) {
-      forceCount++
-      if (forceCount >= 1) {
-        Log.warn('Forcing exit — Turbopack cache may be incomplete.')
-        process.exit(signal === 'SIGTERM' ? 143 : 130)
-      }
-      return
-    }
-    state.aborted = true
-    Log.warn(
-      `\nReceived ${signal} — finishing in-flight compilations and persisting cache. Press again to force exit.`
-    )
+    process.exit(signal === 'SIGTERM' ? 143 : 130)
   }
   process.on('SIGINT', () => onSignal('SIGINT'))
   process.on('SIGTERM', () => onSignal('SIGTERM'))
-  return state
 }
