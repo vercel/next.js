@@ -281,114 +281,85 @@ Focus these tests on the user flows that matter most. Run them against your dev 
 
 ## Fixing a navigation that blocks
 
-Consider a different route, `/shop/[slug]`, with the same data requirements as `/store/[slug]` but implemented without local `<Suspense>` boundaries or caching:
+Consider a different route, `/products/[slug]`, that fetches product data from a public API and shows a featured list alongside:
 
-```tsx filename="app/shop/[slug]/page.tsx"
-import { db } from '@/lib/db'
-
-export default async function ProductPage(props: PageProps<'/shop/[slug]'>) {
+```tsx filename="app/products/[slug]/page.tsx"
+export default async function ProductPage(props: PageProps<'/products/[slug]'>) {
+  const featured = await getFeatured()
   const { slug } = await props.params
-  const product = await db.products.findBySlug(slug)
-  const item = await db.inventory.findBySlug(slug)
+  const res = await fetch(`https://next-recipe-api.vercel.dev/products/${slug}`)
+  const product = await res.json()
+
   return (
     <div>
+      <FeaturedSection items={featured} />
       <h1>{product.name}</h1>
       <p>${product.price}</p>
-      <p>{item.count} in stock</p>
+      <p>{product.description}</p>
     </div>
   )
 }
-```
 
-The root layout wraps `{children}` in a `<Suspense>` boundary:
-
-```tsx filename="app/layout.tsx" highlight={9}
-export default function RootLayout({
-  children,
-}: {
-  children: React.ReactNode
-}) {
-  return (
-    <html lang="en">
-      <body>
-        <Suspense fallback={<p>Loading...</p>}>{children}</Suspense>
-      </body>
-    </html>
-  )
+async function getFeatured() {
+  const res = await fetch('https://next-recipe-api.vercel.dev/products?limit=3')
+  return res.json()
 }
 ```
 
-On an initial page load, the root `<Suspense>` catches the async work and streams the page in behind the fallback.
+Two things block at the top level: an uncached `fetch()` for the featured list, and `await props.params` for the slug. Both stall the prefetch and the in-flight navigation.
 
-Everything appears to work. But on a client navigation from `/shop/shoes` to `/shop/hats`, the shared layout is `/shop` and only the content below it re-renders. The root `<Suspense>` boundary is above that layout and is not triggered for this navigation. The page fetches uncached data with no local `<Suspense>` boundary, blocking the navigation until the server finishes rendering.
+### Step 1: Cache the uncached fetch
 
-You can see this with the DevTools. Try a **page load**: the root `<Suspense>` catches everything and **"Loading..."** appears. Now try a **client navigation** between two `/shop/` pages: there is no fallback UI to show for the destination because no `<Suspense>` boundary sits below the shared layout. The navigation blocks until the server completes. Navigations from other routes into `/shop/` also block.
+Validation surfaces the uncached fetch first. Wrap the fetching function with `"use cache"`:
 
-### Step 1: See what validation catches
+```tsx filename="app/products/[slug]/page.tsx"
+async function getFeatured() {
+  'use cache'
+  const res = await fetch('https://next-recipe-api.vercel.dev/products?limit=3')
+  return res.json()
+}
+```
 
-Cache Components simulates navigations at every shared layout boundary in this route. The page awaits `params` and accesses uncached data at the top level, with no `<Suspense>` boundary around any of it. The first thing validation catches is the `await params` at the top level.
+The result is cached at the fetch level. Featured products no longer block the prefetch and ship with the App Shell.
 
-{/* TODO: screenshot — Next.js dev overlay surfacing the blocking-route insight on the broken /shop/[slug] route, with the await params at the top level highlighted */}
+> **Good to know:** In serverless deployments, in-memory caching with `"use cache"` will not persist across instances. Consider using [`"use cache: remote"`](/docs/app/api-reference/directives/use-cache-remote) for persistent caching.
 
-### Step 2: Fix the validation error
+### Step 2: Move the param await into Suspense
 
-There is no `generateStaticParams` here, `slug` is only known at request time. Because awaiting `params` suspends, the page component can't do it at the top level. Instead, move the `await params` into separate components, pass `params` to each, and wrap them with `<Suspense>`.
+The page still awaits `props.params` at the top level. Extract the slug-dependent work into a sub-component and wrap it with `<Suspense>`:
 
-For each component, decide:
+```tsx filename="app/products/[slug]/page.tsx" highlight={3-12,16-21}
+import { Suspense } from 'react'
 
-**Product details** (name, price) rarely change. Cache the data function with `use cache`:
-
-```tsx filename="app/shop/[slug]/page.tsx"
 async function ProductInfo({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params
-  const product = await getProduct(slug)
+  const res = await fetch(`https://next-recipe-api.vercel.dev/products/${slug}`)
+  const product = await res.json()
   return (
     <>
       <h1>{product.name}</h1>
       <p>${product.price}</p>
+      <p>{product.description}</p>
     </>
   )
 }
 
-async function getProduct(slug: string) {
-  'use cache'
-  return db.products.findBySlug(slug)
-}
-```
-
-> **Good to know:** In serverless deployments, in-memory caching with `"use cache"` will not persist across instances. Consider using [`"use cache: remote"`](/docs/app/api-reference/directives/use-cache-remote) for persistent caching.
-
-**Inventory** must be fresh each request. Leave it uncached:
-
-```tsx filename="app/shop/[slug]/page.tsx"
-async function Inventory({ params }: { params: Promise<{ slug: string }> }) {
-  const { slug } = await params
-  const item = await db.inventory.findBySlug(slug)
-  return <p>{item.count} in stock</p>
-}
-```
-
-The page passes `params` to each component and wraps them with `<Suspense>`:
-
-```tsx filename="app/shop/[slug]/page.tsx" highlight={7-12}
-import { Suspense } from 'react'
-import { db } from '@/lib/db'
-
-export default function ProductPage(props: PageProps<'/shop/[slug]'>) {
+export default async function ProductPage(props: PageProps<'/products/[slug]'>) {
+  const featured = await getFeatured()
   return (
     <div>
+      <FeaturedSection items={featured} />
       <Suspense fallback={<p>Loading product...</p>}>
         <ProductInfo params={props.params} />
-      </Suspense>
-      <Suspense fallback={<p>Checking availability...</p>}>
-        <Inventory params={props.params} />
       </Suspense>
     </div>
   )
 }
 ```
 
-Validation passes. Open the DevTools and try a client navigation. The product name and price appear immediately, and **"Checking availability..."** shows where inventory will stream in.
+`await props.params` and the product fetch now suspend together. The featured section renders from cache as part of the App Shell. The product details stream in under their `<Suspense>` boundary.
+
+Validation passes. Open the DevTools and try a client navigation. The featured section appears immediately, and **"Loading product..."** shows where the product details will stream in.
 
 ### Iterate on loading states
 
