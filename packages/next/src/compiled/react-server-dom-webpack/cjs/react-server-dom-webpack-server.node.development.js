@@ -2314,22 +2314,27 @@
         originalValue === jsonValue ||
         originalValue instanceof Date ||
         callWithDebugContextInDEV(request, task, function () {
-          "Object" !== objectName(originalValue)
-            ? "string" === typeof jsxChildrenParents.get(parent)
-              ? console.error(
-                  "%s objects cannot be rendered as text children. Try formatting it using toString().%s",
-                  objectName(originalValue),
-                  describeObjectForErrorMessage(parent, parentPropertyName)
-                )
-              : console.error(
-                  "Only plain objects can be passed to Client Components from Server Components. %s objects are not supported.%s",
-                  objectName(originalValue),
-                  describeObjectForErrorMessage(parent, parentPropertyName)
-                )
-            : console.error(
-                "Only plain objects can be passed to Client Components from Server Components. Objects with toJSON methods are not supported. Convert it manually to a simple value before passing it to props.%s",
+          ArrayBuffer.isView(originalValue)
+            ? console.error(
+                "Binary data with a toJSON method, such as a Node.js Buffer, is serialized through toJSON instead of as binary. Pass a Uint8Array or ArrayBuffer to send binary data.%s",
                 describeObjectForErrorMessage(parent, parentPropertyName)
-              );
+              )
+            : "Object" !== objectName(originalValue)
+              ? "string" === typeof jsxChildrenParents.get(parent)
+                ? console.error(
+                    "%s objects cannot be rendered as text children. Try formatting it using toString().%s",
+                    objectName(originalValue),
+                    describeObjectForErrorMessage(parent, parentPropertyName)
+                  )
+                : console.error(
+                    "Only plain objects can be passed to Client Components from Server Components. %s objects are not supported.%s",
+                    objectName(originalValue),
+                    describeObjectForErrorMessage(parent, parentPropertyName)
+                  )
+              : console.error(
+                  "Only plain objects can be passed to Client Components from Server Components. Objects with toJSON methods are not supported. Convert it manually to a simple value before passing it to props.%s",
+                  describeObjectForErrorMessage(parent, parentPropertyName)
+                );
         });
       value = renderModel(request, task, parent, parentPropertyName, jsonValue);
       if (null === value || "object" !== typeof value) return value;
