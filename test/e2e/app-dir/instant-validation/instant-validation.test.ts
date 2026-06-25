@@ -2545,74 +2545,62 @@ describe('instant validation', () => {
         }
       })
 
-      it('invalid - static prefetch - runtime generateViewport blocks navigation', async () => {
+      it('invalid - shell prefetch - link data in generateViewport blocks navigation', async () => {
         if (isNextDev) {
           // if generateViewport uses runtime data and we use a static prefetch,
           // we won't have it available when navigating, so we'll block and should fail validation.
           const browser = await navigateTo(
             '/suspense-in-root/head/invalid-runtime-viewport-in-static'
           )
-          if (partialPrefetching) {
-            // This page uses a runtime shell, so it can use cookies
-            // TODO(app-shells): missing "allow-runtime"
-            await expectNoDevValidationErrors(browser, await browser.url())
-          } else {
-            await expect(browser).toDisplayCollapsedRedbox(`
-             {
-               "cause": [
-                 {
-                   "label": "Caused by: Instant Validation",
-                   "source": "app/suspense-in-root/head/invalid-runtime-viewport-in-static/page.tsx (8:24) @ instant
-             >  8 | export const instant = { level: 'experimental-error' }
-                  |                        ^",
-                   "stack": [
-                     "instant app/suspense-in-root/head/invalid-runtime-viewport-in-static/page.tsx (8:24)",
-                     "Set.forEach <anonymous>",
-                   ],
-                 },
-               ],
-               "code": "E1293",
-               "description": "Next.js encountered runtime data in generateViewport().",
-               "environmentLabel": "Server",
-               "label": "Blocking Route",
-               "source": "app/suspense-in-root/head/invalid-runtime-viewport-in-static/page.tsx (11:16) @ Module.generateViewport
-             > 11 |   await cookies()
-                  |                ^",
-               "stack": [
-                 "Module.generateViewport app/suspense-in-root/head/invalid-runtime-viewport-in-static/page.tsx (11:16)",
-               ],
-             }
-            `)
-          }
+          await expect(browser).toDisplayCollapsedRedbox(`
+           {
+             "cause": [
+               {
+                 "label": "Caused by: Instant Validation",
+                 "source": "app/suspense-in-root/head/invalid-runtime-viewport-in-static/page.tsx (9:24) @ instant
+           >  9 | export const instant = { level: 'experimental-error' }
+                |                        ^",
+                 "stack": [
+                   "instant app/suspense-in-root/head/invalid-runtime-viewport-in-static/page.tsx (9:24)",
+                   "Set.forEach <anonymous>",
+                 ],
+               },
+             ],
+             "code": "E1390",
+             "description": "Next.js encountered link data in generateViewport().",
+             "environmentLabel": "Server",
+             "label": "Blocking Route",
+             "source": "app/suspense-in-root/head/invalid-runtime-viewport-in-static/page.tsx (16:3) @ Module.generateViewport
+           > 16 |   await searchParams
+                |   ^",
+             "stack": [
+               "Module.generateViewport app/suspense-in-root/head/invalid-runtime-viewport-in-static/page.tsx (16:3)",
+             ],
+           }
+          `)
         } else {
           const result = await prerender(
             '/suspense-in-root/head/invalid-runtime-viewport-in-static'
           )
-          if (partialPrefetching) {
-            // This page uses a runtime shell, so it can use cookies
-            // TODO(app-shells): missing "allow-runtime"
-            expectNoBuildValidationErrors(result)
-          } else {
-            expect(extractBuildValidationError(result.cliOutput))
-              .toMatchInlineSnapshot(`
-             "Error: Route "/suspense-in-root/head/invalid-runtime-viewport-in-static": Next.js encountered runtime data in \`generateViewport()\`.
+          expect(extractBuildValidationError(result.cliOutput))
+            .toMatchInlineSnapshot(`
+            "Error: Route "/suspense-in-root/head/invalid-runtime-viewport-in-static": Next.js encountered link data in \`generateViewport()\`.
 
-             \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` in \`generateViewport()\` prevents the page from being prerendered, leading to a slower user experience.
+            \`params\`, or \`searchParams\` in \`generateViewport()\` prevents the page from being prerendered, leading to a slower user experience.
 
-             Ways to fix this:
-               - [static] Use a static viewport export instead of \`generateViewport()\`
-                 https://nextjs.org/docs/messages/blocking-prerender-viewport-runtime#use-static-viewport
-               - [block] Set \`export const instant = false\` to silence this warning and allow a blocking route
-                 https://nextjs.org/docs/messages/blocking-prerender-viewport-runtime#allow-blocking-route
-                 at ignore-listed frames
-             Build-time instant validation failed for route "/suspense-in-root/head/invalid-runtime-viewport-in-static".
-             To get a more detailed stack trace and pinpoint the issue, try one of the following:
-               - Start the app in development mode by running \`next dev\`, then open "/suspense-in-root/head/invalid-runtime-viewport-in-static" in your browser to investigate the error.
-               - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
-             Stopping prerender due to instant validation errors."
-            `)
-            expect(result.exitCode).toBe(1)
-          }
+            Ways to fix this:
+              - [static] Use a static viewport export instead of \`generateViewport()\`
+                https://nextjs.org/docs/messages/blocking-prerender-viewport-runtime#use-static-viewport
+              - [block] Set \`export const instant = false\` to silence this warning and allow a blocking route
+                https://nextjs.org/docs/messages/blocking-prerender-viewport-runtime#allow-blocking-route
+                at ignore-listed frames
+            Build-time instant validation failed for route "/suspense-in-root/head/invalid-runtime-viewport-in-static".
+            To get a more detailed stack trace and pinpoint the issue, try one of the following:
+              - Start the app in development mode by running \`next dev\`, then open "/suspense-in-root/head/invalid-runtime-viewport-in-static" in your browser to investigate the error.
+              - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
+            Stopping prerender due to instant validation errors."
+          `)
+          expect(result.exitCode).toBe(1)
         }
       })
 
@@ -3395,6 +3383,7 @@ describe('instant validation', () => {
     // above the config use static prefetching and suggest either
     // moving the config up or adding Suspense around the runtime
     // data in the parent layout.
+    // TODO(app-shells): figure out if this test is still relevant (app shells can access cookies)
     it.skip('invalid - static layout above runtime config blocks navigation', async () => {
       if (isNextDev) {
         const browser = await navigateTo(
