@@ -1,0 +1,11 @@
+{
+  "name": "dual-pkg",
+  "version": "1.0.0",
+  "main": "./flat.js",
+  "exports": {
+    ".": {
+      "module": "./modern/index.mjs",
+      "default": "./flat.js"
+    }
+  }
+}
