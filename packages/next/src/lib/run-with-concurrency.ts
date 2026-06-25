@@ -40,10 +40,11 @@ export async function runWithConcurrency<T>(
   // below) or waits for at least one in-flight unit to settle.
   while (queue.length > 0 || active.size > 0) {
     // Stop scheduling on abort or worker error.  Drain the in-flight set
-    // so the cache (and any other side effects) end up in a consistent
-    // state, then rethrow.
+    // so side effects (e.g. cache writes) settle, then rethrow.  Each
+    // promise in `active` already swallows its own rejection via
+    // `.catch(recordError)`, so `allSettled` never rejects itself.
     if (signal?.aborted || workerError !== undefined) {
-      while (active.size > 0) await Promise.race(active)
+      await Promise.allSettled(active)
       if (workerError !== undefined) throw workerError
       throw signal!.reason
     }

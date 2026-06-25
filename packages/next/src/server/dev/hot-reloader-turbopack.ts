@@ -1213,11 +1213,19 @@ export async function createHotReloaderTurbopack(
     }
   }
 
-  const hotReloader: NextJsHotReloaderInterface = {
+  const hotReloader: TurbopackHotReloader = {
     turbopackProject: project,
     activeWebpackConfigs: undefined,
     serverStats: null,
     edgeServerStats: null,
+    async getEntrypoints(): Promise<Entrypoints> {
+      // Wait for the in-flight subscription event to finish processing so
+      // the snapshot is consistent.  This resolves on the FIRST event
+      // (after the initial scan); entrypoints discovered later will not
+      // be reflected.
+      await currentEntriesHandling
+      return currentEntrypoints
+    },
     async run(req, res, _parsedUrl) {
       // intercept page chunks request and ensure them with turbopack
       if (req.url?.startsWith('/_next/static/chunks/pages/')) {
@@ -1992,19 +2000,5 @@ export async function createHotReloaderTurbopack(
     })
   }
 
-  const turbopackHotReloader: TurbopackHotReloader = Object.assign(
-    hotReloader,
-    {
-      async getEntrypoints(): Promise<Entrypoints> {
-        // Wait for the in-flight subscription event to finish processing so
-        // the snapshot is consistent.  This resolves on the FIRST event
-        // (after the initial scan); entrypoints discovered later will not
-        // be reflected.
-        await currentEntriesHandling
-        return currentEntrypoints
-      },
-    }
-  )
-
-  return turbopackHotReloader
+  return hotReloader
 }
