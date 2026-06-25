@@ -18,6 +18,12 @@ import {
  */
 const INDICATOR_TRANSITION_MS = 200
 
+// The cold-cache badge is gated behind an experimental flag while its UI/UX is
+// iterated on. This is a build-time constant (DefinePlugin replaces it), and a
+// Next config change restarts the dev server, so reading it once at module
+// scope is safe.
+const coldCacheBadgeEnabled = !!process.env.__NEXT_EXPERIMENTAL_COLD_CACHE_BADGE
+
 type CacheBadge = 'cold' | 'bypass'
 
 /**
@@ -55,7 +61,13 @@ function computeIntent(
   if (status !== Status.None) {
     return { kind: 'pill', status }
   }
-  if (cacheIndicator === 'cold' || cacheIndicator === 'bypass') {
+  // The transient cold-cache rendering pill above is shown regardless of the
+  // flag; only the persistent cold badge is gated. The pre-existing "Cache
+  // disabled" (bypass) badge is unaffected.
+  if (
+    cacheIndicator === 'bypass' ||
+    (cacheIndicator === 'cold' && coldCacheBadgeEnabled)
+  ) {
     return { kind: 'badge', cache: cacheIndicator }
   }
   return { kind: 'idle' }
