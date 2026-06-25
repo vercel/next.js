@@ -5,9 +5,16 @@
  * the child worker process detects `__NEXT_PRIVATE_PREWARM_DEV=1`.  It sets up
  * the Turbopack dev bundler (without starting an HTTP server), enumerates all
  * entrypoints (app + pages routes, pages globals when there are pages routes,
- * middleware, instrumentation), compiles each one with adaptive concurrency,
- * waits for Turbopack's idle-snapshot scheduler to flush the persistent
- * cache to disk, then runs the project's exit handlers and returns.
+ * middleware, instrumentation), then drains them in batches: each batch is
+ * compiled with adaptive concurrency, then we wait for the in-flight
+ * compilations to finish (no new tasks scheduled in the meantime), persist
+ * the cache, and start the next batch.
+ *
+ * The batch boundaries are time-based — the persist schedule is described
+ * inline in `prewarmDevServer` below.  We run the persistent backend in
+ * `StorageMode::ReadWriteOnShutdown` (via `isShortSession: true`) so the
+ * idle-snapshot scheduler is disabled and persistence is driven entirely
+ * from JS via `Project.persistCache()`.
  */
 
 // This must come first as it includes require hooks.
@@ -15,8 +22,6 @@ import '../node-environment'
 import '../require-hook'
 
 import os from 'os'
-import path from 'path'
-import { promises as fs } from 'fs'
 
 import type { Endpoint, Entrypoints } from '../../build/swc/types'
 import * as Log from '../../build/output/log'
@@ -43,6 +48,12 @@ const INITIAL_CONCURRENCY = 1
  */
 const MAX_CONCURRENCY = os.cpus().length
 
+/**
+ * Delay before the first persist.  Subsequent persist intervals grow over
+ * time — see `nextPersistAt` below.
+ */
+const FIRST_PERSIST_DELAY_MS = 10_000
+
 // ---------------------------------------------------------------------------
 
 /**
@@ -60,8 +71,8 @@ type PrewarmUnit =
 
 /**
  * Entry point for the prewarm worker.  Throws on fatal errors (no
- * entrypoints discovered, persistent flush failure, etc.) so the parent
- * process can surface them.
+ * entrypoints discovered, persist failure, etc.) so the parent process
+ * can surface them.
  */
 export async function prewarmDevServer(opts: { dir: string }): Promise<void> {
   const { dir } = opts
@@ -129,25 +140,57 @@ export async function prewarmDevServer(opts: { dir: string }): Promise<void> {
   // captures the mutable `concurrency` variable.
   const getConcurrency = () => concurrency
 
-  let runError: unknown
-  try {
-    await runWithConcurrency(units, compile, { getConcurrency })
-  } catch (err) {
-    runError = err
+  // ----- Time-driven persist schedule -----
+  // We persist when wall-clock time crosses a moving target.  The target
+  // starts at `startTime + FIRST_PERSIST_DELAY_MS`; after each persist
+  // finishes the next target is set to
+  //   nextPersist = 2 * lastPersistFinishedAt - startTime
+  // which is equivalent to doubling the elapsed time from start to the
+  // last persist.  This way later batches (which are usually cheaper —
+  // most shared chunks are cached after the first persist) accumulate
+  // more work between persists, while the first batch persists quickly so
+  // users see partial cache state if they abort early.
+  const startTime = Date.now()
+  let nextPersistAt = startTime + FIRST_PERSIST_DELAY_MS
+
+  // Split units into time-bounded batches and process each batch with
+  // `runWithConcurrency`.  When the deadline for the next persist passes
+  // mid-batch, we let the current batch finish (so persisting sees a
+  // quiescent system), persist, then schedule the next deadline before
+  // starting the next batch.
+  let cursor = 0
+  while (cursor < units.length) {
+    // Slice the next batch: include units until we've crossed the next
+    // persist deadline, or we run out of units.
+    const batchStart = cursor
+    while (cursor < units.length && Date.now() < nextPersistAt) {
+      cursor++
+    }
+    // Always pull at least one unit per batch — guards against pathological
+    // schedules (e.g. a clock skew) producing empty batches.
+    if (cursor === batchStart) cursor++
+    const batch = units.slice(batchStart, cursor)
+
+    // `runWithConcurrency` doesn't return until every promise in this
+    // batch has settled, so once it resolves there's no compilation in
+    // flight — safe to persist.
+    await runWithConcurrency(batch, compile, { getConcurrency })
+
+    if (cursor < units.length) {
+      // More work to do — persist, then update the deadline.  We do NOT
+      // persist after the very last batch: `prewarmDevServer` always
+      // performs a final persist below to flush the trailing work.
+      await persistCache(hotReloader)
+      nextPersistAt = 2 * Date.now() - startTime
+    }
   }
 
-  // Wait for Turbopack's idle-snapshot scheduler to flush the persistent
-  // cache to disk, then run on-exit handlers and exit.  See the comment on
-  // `waitForCachePersisted` below for the full story on why we don't just
-  // call `project.shutdown()`.
+  // Final persist: flush whatever the last batch produced.  This is the
+  // call that guarantees the on-disk cache reflects every unit we
+  // compiled, even when no time-driven persist fired in the loop above
+  // (e.g. for tiny projects that finish before the first deadline).
   Log.info('Persisting Turbopack cache to disk…')
-  try {
-    await waitForCachePersisted(dir)
-    await runProjectExitHandlers(hotReloader)
-  } catch (persistErr) {
-    if (runError === undefined) runError = persistErr
-  }
-  if (runError !== undefined) throw runError
+  await persistCache(hotReloader)
 
   if (failed > 0) {
     Log.warn(
@@ -222,6 +265,10 @@ async function setupBundler(dir: string): Promise<TurbopackHotReloader> {
     renderServer: {},
     port: 0,
     cliCommand: 'prewarm-dev',
+    // Disable the idle-snapshot scheduler.  Prewarm drives persistence
+    // explicitly via `Project.persistCache()` on a time-based schedule
+    // — see the persist loop in `prewarmDevServer` for the details.
+    isShortSession: true,
     resetFetch,
   })
 
@@ -313,126 +360,26 @@ function compileUnit(
 }
 
 /**
- * Wait for Turbopack's idle-snapshot scheduler to flush the persistent
- * cache to disk by polling the cache directory until it has been stable
- * for a few consecutive readings.
+ * Trigger a snapshot+persist cycle on the underlying Turbopack project.
  *
- * Why this is needed (and not just `project.shutdown()`):
+ * Wraps `Project.persistCache()` (the napi `project_persist_cache`
+ * binding), which synchronously drives `backend.snapshot_and_persist`
+ * regardless of idle state.  The project remains usable afterwards and
+ * the call may be repeated.
  *
- *   The persistent cache is written exclusively by `backend.stop()` in
- *   `turbo-tasks-backend`, which is invoked from two places:
+ * The caller is responsible for ensuring no compilation is in flight
+ * before invoking this — the snapshot suspends concurrent operations
+ * via the snapshot coordinator, so calling it mid-batch is incorrect.
  *
- *   1. The idle-snapshot scheduler (`turbo-tasks-backend/.../backend/mod.rs`,
- *      look for `IDLE_TIMEOUT`) — runs while the project is alive, snapshots
- *      the cache when the system has been idle for `IDLE_TIMEOUT` (env-tunable
- *      via `TURBO_ENGINE_SNAPSHOT_IDLE_TIMEOUT_MILLIS`, default 2s).
- *
- *   2. `project_shutdown` — calls `turbo_tasks().stop_and_wait()` which
- *      drains every foreground/background job and *then* invokes
- *      `backend.stop()`.  This is what `next build` uses, but it hangs
- *      forever in dev mode because the dev hot reloader's
- *      `entrypointsSubscribe` async loop keeps a foreground task alive for
- *      the lifetime of the project (see the doc comment on
- *      `project_shutdown` in `crates/next-napi-bindings/.../project.rs`:
- *      "skipped in the development server").
- *
- *   The prewarm worker uses the dev hot reloader (so we get `ensurePage`,
- *   `_app`/`_document`/`_error` handling, etc.), which means option 2 is
- *   off the table.  So we lean on option 1: after compilation the system
- *   goes idle, the scheduler kicks in after `IDLE_TIMEOUT`, and writes the
- *   cache to disk.  We poll the cache directory until the snapshot
- *   completes before exiting.
+ * We're free to call this (instead of relying on the background
+ * scheduler) because the prewarm bundler is configured with
+ * `isShortSession: true`, which puts the backend in
+ * `StorageMode::ReadWriteOnShutdown` and disables the idle scheduler.
  */
-async function waitForCachePersisted(projectDir: string): Promise<void> {
-  // Same path Turbopack uses internally (`<distDir>/cache/turbopack` for
-  // build, `<distDir>/dev/cache/turbopack` for dev — we always run with
-  // `isDev=true` so we want the latter).  We compare against the parent
-  // because Turbopack creates a versioned subdirectory inside.
-  const cacheDir = path.join(projectDir, '.next', 'dev', 'cache', 'turbopack')
-
-  const POLL_INTERVAL_MS = 500
-  const STABLE_READINGS_REQUIRED = 3
-  const MAX_WAIT_MS = 5 * 60 * 1000
-
-  const idleTimeoutMs = parseInt(
-    process.env.TURBO_ENGINE_SNAPSHOT_IDLE_TIMEOUT_MILLIS ?? '',
-    10
-  )
-  // Wait at least 2× the idle timeout before we start polling, so the
-  // scheduler has had a fair chance to actually start writing.  Fall back
-  // to the Rust default (2s) plus a buffer when unset.
-  const initialDelayMs = Number.isFinite(idleTimeoutMs)
-    ? Math.max(idleTimeoutMs * 2, 1000)
-    : 4000
-
-  await sleep(initialDelayMs)
-
-  const startedAt = Date.now()
-  let lastSize = await getDirSize(cacheDir)
-  let stable = 0
-  while (Date.now() - startedAt < MAX_WAIT_MS) {
-    await sleep(POLL_INTERVAL_MS)
-    const size = await getDirSize(cacheDir)
-    if (size > 0 && size === lastSize) {
-      stable++
-      if (stable >= STABLE_READINGS_REQUIRED) return
-    } else {
-      stable = 0
-      lastSize = size
-    }
-  }
-  Log.warn(
-    `Cache size never stabilised after ${MAX_WAIT_MS / 1000}s; exiting anyway.`
-  )
-}
-
-function sleep(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms))
-}
-
-async function getDirSize(dir: string): Promise<number> {
-  let total = 0
-  try {
-    const entries = await fs.readdir(dir, {
-      recursive: true,
-      withFileTypes: true,
-    })
-    for (const entry of entries) {
-      if (entry.isFile()) {
-        const filePath = path.join(entry.parentPath ?? entry.path, entry.name)
-        try {
-          const stat = await fs.stat(filePath)
-          total += stat.size
-        } catch {
-          // File disappeared between readdir and stat — Turbopack may be
-          // mid-write.  Ignore and let the next poll see it.
-        }
-      }
-    }
-  } catch {
-    // Directory doesn't exist yet — cache is empty.
-  }
-  return total
-}
-
-/**
- * Run Turbopack's exit handlers.
- *
- * Wraps `Project.runExitHandlers()` (the napi `project_on_exit` binding).
- * In `next dev`, the only handlers registered today are trace/profiling
- * cleanup — the persistent cache is NOT written here (see the comment on
- * `waitForCachePersisted` for the full story).  We still run them for
- * symmetry with `next dev`'s cleanup path.
- *
- * Can only be called once per project: the underlying Rust receiver is
- * consumed on the first invocation.
- */
-async function runProjectExitHandlers(
-  hotReloader: TurbopackHotReloader
-): Promise<void> {
+async function persistCache(hotReloader: TurbopackHotReloader): Promise<void> {
   const project = hotReloader.turbopackProject
   if (!project) return
-  await project.runExitHandlers()
+  await project.persistCache()
 }
 
 /**

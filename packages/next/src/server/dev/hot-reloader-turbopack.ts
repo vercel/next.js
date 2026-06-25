@@ -433,7 +433,12 @@ export async function createHotReloaderTurbopack(
     {
       turbopackMemoryEviction:
         opts.nextConfig.experimental.turbopackMemoryEvictionMode,
-      isShortSession: false,
+      // `isShortSession: true` flips the persistent backend into
+      // `ReadWriteOnShutdown` mode, which disables the idle-snapshot
+      // scheduler so the caller is fully in charge of when to persist.
+      // Used by `next internal prewarm-dev`, which drives persistence on
+      // its own time-based schedule via `Project.persistCache()`.
+      isShortSession: opts.isShortSession ?? false,
     }
   )
   backgroundLogCompilationEvents(project, {

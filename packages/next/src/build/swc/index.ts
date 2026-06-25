@@ -853,11 +853,27 @@ function bindingToApi(
     }
 
     /**
-     * Run the project's registered exit handlers — most importantly, flush
-     * the persistent cache to disk.  Despite the underlying napi name, the
-     * project remains usable after this returns and the call is safe to
-     * repeat.  Returning to this name is intentional: it's the JS-facing
-     * verb for what `projectOnExit` actually does for the caller.
+     * Drive a snapshot+persist cycle on demand.
+     *
+     * Forces Turbopack to write its in-memory persistent cache to disk
+     * *now*, regardless of idle state.  The project remains usable
+     * afterwards and this can be called repeatedly.  Intended for
+     * callers that drive persistence on their own schedule (e.g.
+     * `next internal prewarm-dev`).
+     */
+    persistCache(): Promise<void> {
+      return binding.projectPersistCache(this._nativeProject)
+    }
+
+    /**
+     * Run the project's registered exit handlers.
+     *
+     * This drains the `ExitHandler::on_exit` queue (today: trace/profiling
+     * teardown — but notably NOT the persistent-cache writer; use
+     * `persistCache()` for that).  Despite the underlying napi name
+     * `projectOnExit`, the project remains alive after this returns.
+     * The underlying receiver is consumed on the first call, so this
+     * must only be invoked once per project.
      */
     runExitHandlers(): Promise<void> {
       return binding.projectOnExit(this._nativeProject)

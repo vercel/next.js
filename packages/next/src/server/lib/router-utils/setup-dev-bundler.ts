@@ -127,6 +127,13 @@ export type SetupOpts = {
    * process tries to acquire the lock).  Defaults to `'dev'` (`next dev`).
    */
   cliCommand?: string
+  /**
+   * When `true`, configure the persistent backend in `ReadWriteOnShutdown`
+   * mode (disables the idle-snapshot scheduler).  The caller becomes
+   * responsible for triggering persistence via `Project.persistCache()`.
+   * Used by `next internal prewarm-dev`.  Defaults to `false`.
+   */
+  isShortSession?: boolean
 }
 
 export interface DevRoutesManifest {
@@ -1372,6 +1379,7 @@ export async function bootstrapDevBundler({
   port,
   cliCommand,
   isCustomServer,
+  isShortSession,
   onDevServerCleanup,
   serverFastRefresh,
   resetFetch,
@@ -1384,6 +1392,7 @@ export async function bootstrapDevBundler({
   port: number
   cliCommand?: string
   isCustomServer?: boolean
+  isShortSession?: boolean
   onDevServerCleanup?: SetupOpts['onDevServerCleanup']
   serverFastRefresh?: boolean
   resetFetch: () => void
@@ -1422,6 +1431,7 @@ export async function bootstrapDevBundler({
       resetFetch,
       serverFastRefresh,
       cliCommand,
+      isShortSession,
     })
   )
   return { developmentBundler, pagesDir, appDir, telemetry }

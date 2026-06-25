@@ -466,17 +466,18 @@ for (const cacheEnabled of [false, true]) {
               force: true,
             })
 
-            // Mirror the env vars used by the build/dev scripts in this
-            // fixture's package.json: `ENABLE_CACHING=1` flips the
-            // `experimental.turbopackFileSystemCacheForDev` flag, and the
-            // turbo-engine vars keep persistence timing deterministic.
+            // `ENABLE_CACHING=1` flips the
+            // `experimental.turbopackFileSystemCacheForDev` flag (the
+            // fixture's `next.config.js` gates it on this env var).
+            // `TURBO_ENGINE_IGNORE_DIRTY=1` matches the build/dev scripts
+            // in the fixture's package.json — without it the cache refuses
+            // to load on a dirty git tree.
             const result = await next.runCommand(['internal', 'prewarm-dev'], {
               env: {
                 TURBOPACK: '1',
                 ENABLE_CACHING: '1',
                 NODE_ENV: 'development',
                 TURBO_ENGINE_IGNORE_DIRTY: '1',
-                TURBO_ENGINE_SNAPSHOT_IDLE_TIMEOUT_MILLIS: '500',
               },
             })
 
