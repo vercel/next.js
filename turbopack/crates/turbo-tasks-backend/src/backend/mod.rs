@@ -343,12 +343,18 @@ impl TurboTasksBackend {
         (had_new_data, counts)
     }
 
-    /// Run a snapshot+persist cycle synchronously, on demand.
+    /// Run a snapshot+persist+evict cycle synchronously, on demand.
     ///
     /// Unlike the background snapshot job (which is gated on idle timeouts
     /// and the `ReadWrite` storage mode), this method runs the snapshot
     /// regardless of idle state and works in any storage mode that has
     /// `should_persist() == true` (`ReadWrite` and `ReadWriteOnShutdown`).
+    ///
+    /// After a successful persist this also evicts in-memory task entries
+    /// that have been written out, mirroring `snapshot_and_evict_for_testing`
+    /// — without eviction the in-memory heap would just keep growing across
+    /// successive explicit persists.  Eviction is skipped if the persist
+    /// failed, so we don't drop data that isn't on disk yet.
     ///
     /// Intended for callers like `next internal prewarm-dev` that drive
     /// persistence on their own schedule and disable the idle scheduler
@@ -361,8 +367,12 @@ impl TurboTasksBackend {
             self.should_persist(),
             "snapshot_and_persist_now requires persistence"
         );
-        self.snapshot_and_persist(None, SnapshotReason::Explicit, turbo_tasks)
-            .map(|_| ())
+        self.snapshot_and_persist(None, SnapshotReason::Explicit, turbo_tasks)?;
+        // Persist succeeded — safe to drop the in-memory copies of what
+        // we just wrote out.  Eviction never fails; the return value is
+        // a counts struct we don't currently surface.
+        self.storage.evict_after_snapshot(None);
+        Ok(())
     }
 
     fn should_restore(&self) -> bool {

@@ -490,7 +490,9 @@ for (const cacheEnabled of [false, true]) {
             }
 
             expect(result.cliOutput).toContain('Prewarming')
-            expect(result.cliOutput).toContain('prewarmed successfully')
+            expect(result.cliOutput).toContain(
+              'prewarmed and persisted to disk'
+            )
 
             // After prewarm the dev persistent cache directory should
             // exist and contain a non-trivial amount of data.

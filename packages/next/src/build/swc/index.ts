@@ -853,10 +853,12 @@ function bindingToApi(
     }
 
     /**
-     * Drive a snapshot+persist cycle on demand.
+     * Drive a snapshot+persist+evict cycle on demand.
      *
      * Forces Turbopack to write its in-memory persistent cache to disk
-     * *now*, regardless of idle state.  The project remains usable
+     * *now*, regardless of idle state, and then evicts the in-memory
+     * task entries that were just persisted so the heap doesn't grow
+     * unbounded across repeated calls.  The project remains usable
      * afterwards and this can be called repeatedly.  Intended for
      * callers that drive persistence on their own schedule (e.g.
      * `next internal prewarm-dev`).

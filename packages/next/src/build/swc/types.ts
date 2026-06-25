@@ -357,10 +357,10 @@ export interface Project {
   shutdown(): Promise<void>
 
   /**
-   * Drive a snapshot+persist cycle on demand.  Forces the in-memory
-   * persistent cache to be written to disk regardless of idle state;
-   * the project remains usable afterwards.  Used by
-   * `next internal prewarm-dev`.
+   * Drive a snapshot+persist+evict cycle on demand.  Forces the in-memory
+   * persistent cache to be written to disk regardless of idle state, then
+   * evicts the persisted entries from the heap.  The project remains
+   * usable afterwards.  Used by `next internal prewarm-dev`.
    */
   persistCache(): Promise<void>
 
