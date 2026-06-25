@@ -11,7 +11,9 @@ During a request, inside cached scopes, in the browser, and apps without Cache C
 
 ## Usage
 
-In a Server Component, call `await io()` before reading a per-request value like `new Date()`, `Math.random()`, `crypto.randomUUID()`, or a synchronous database driver such as [`node:sqlite`](https://nodejs.org/api/sqlite.html):
+Call `io()` to inform Next.js that an IO operation follows.
+
+In a Server Component, call `await io()` before reading a value like `new Date()`, `Math.random()`, `crypto.randomUUID()`, or a synchronous database driver such as [`node:sqlite`](https://nodejs.org/api/sqlite.html):
 
 ```tsx filename="app/page.tsx" highlight={13} switcher
 import { Suspense } from 'react'
@@ -49,7 +51,7 @@ async function CurrentTime() {
 }
 ```
 
-The example wraps `CurrentTime` in a `<Suspense>` boundary, so `io()` suspends and the fallback ships in the static shell. If `CurrentTime` were rendered inside a [`"use cache"`](/docs/app/api-reference/directives/use-cache) scope instead, `io()` would be a no-op, so the value is captured when the cache fills and no `<Suspense>` boundary is required.
+In this route `CurrentTime` is wrapped in a `<Suspense>` boundary, during prerender, the `await io()` suspends and the fallback ships in the static shell. If `CurrentTime` were rendered inside a [`"use cache"`](/docs/app/api-reference/directives/use-cache) scope instead, `io()` would be a no-op, the value is captured into the static shell and no `<Suspense>` boundary is required.
 
 In a Client Component, call `io()` with React's [`use`](https://react.dev/reference/react/use) hook before reading a synchronous source like `Date.now()`. Client Components prerender on the server during SSR, where the read would otherwise be included in the static shell:
 
@@ -82,7 +84,7 @@ export function CurrentTime() {
 
 ## How `io()` differs from `connection()`
 
-[`connection()`](/docs/app/api-reference/functions/connection) also excludes the code that follows it from the static shell, but it stays suspended until a full user navigation reaches the server, so it also blocks [prefetches](/docs/app/guides/prefetching). `io()` suspends like any other asynchronous function, so the code after it can be wrapped in [`"use cache"`](/docs/app/api-reference/directives/use-cache) and prefetched and cached on the client. Prefer `io()` over `connection()`, and reach for `connection()` only when you need to wait for a real user request.
+The [`connection()`](/docs/app/api-reference/functions/connection) function excludes the code that follows it from the static shell, but it stays suspended until a full user navigation reaches the server, so it also blocks [prefetches](/docs/app/guides/prefetching). `io()` suspends like any other asynchronous function, so the code after it can be wrapped in [`"use cache"`](/docs/app/api-reference/directives/use-cache) and prefetched and cached on the client. Prefer `io()` over `connection()`, and reach for `connection()` only when you need to wait for a real user request.
 
 ## Reference
 
