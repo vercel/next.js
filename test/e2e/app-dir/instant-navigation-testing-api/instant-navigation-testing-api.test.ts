@@ -641,18 +641,21 @@ describe('instant-navigation-testing-api', () => {
     })
   })
 
-  // A route mixing a `generateStaticParams`-covered param (`lang`) with an
-  // uncovered one (`slug`), `prefetch='allow-runtime'`. The two tests below
-  // differ only in whether the link opts into prefetching.
+  // Two routes mix a `generateStaticParams`-covered param (`lang`) with an
+  // uncovered one (`slug`); they differ in prefetch capability, which is what
+  // each test exercises.
   //
-  // Normal navigation (no runtime prefetch): the static prefetch carries only
-  // the covered `lang`, so inside the instant scope `lang` is shown and the
-  // uncovered `slug` stays deferred behind its Suspense fallback.
+  // `mixed-params` does NOT opt into runtime prefetching, so a normal (no
+  // `prefetch` prop) navigation carries only the covered `lang` in the static
+  // shell. Inside the instant scope `lang` is shown while the uncovered `slug`
+  // and the request-time `connection()` sibling both stay deferred behind their
+  // Suspense fallbacks. Because the route can never runtime-prefetch, `slug` is
+  // deferred here.
   it('shows only the static param in the instant shell on a normal navigation to a mixed route', async () => {
     const page = await openPage(next, '/')
 
     await instant(page, async () => {
-      await page.click('#link-to-mixed-params-runtime-no-prefetch')
+      await page.click('#link-to-mixed-params')
 
       // The covered `lang` comes from the static shell.
       const lang = page.locator('[data-testid="mixed-lang"]')
@@ -667,18 +670,31 @@ describe('instant-navigation-testing-api', () => {
       expect(
         await page.locator('[data-testid="mixed-slug-value"]').count()
       ).toBe(0)
+
+      // The request-time `connection()` sibling likewise stays on its fallback
+      // and must not leak into the instant scope.
+      await page
+        .locator('[data-testid="mixed-dynamic-fallback"]')
+        .waitFor({ state: 'visible' })
+      expect(
+        await page.locator('[data-testid="mixed-dynamic-value"]').count()
+      ).toBe(0)
     })
 
-    // After the lock releases, the uncovered `slug` streams in.
+    // After the lock releases, the uncovered `slug` and the request-time
+    // content stream in.
     const slug = page.locator('[data-testid="mixed-slug-value"]')
     await slug.waitFor({ state: 'visible' })
     expect(await slug.textContent()).toContain('slug: anything')
+    await page
+      .locator('[data-testid="mixed-dynamic-value"]')
+      .waitFor({ state: 'visible' })
   })
 
-  // With `prefetch` on the link, the runtime prefetch ('2') resolves ALL params,
-  // so inside the instant scope both `lang` (static shell) and `slug` (runtime
-  // prefetch) are shown, while the genuinely request-time `connection()` sibling
-  // stays deferred until the lock releases.
+  // With `prefetch` on the link, the runtime prefetch ('2') resolves ALL
+  // params, so inside the instant scope both `lang` (static shell) and `slug`
+  // (runtime prefetch) are shown, while the genuinely request-time
+  // `connection()` sibling stays deferred until the lock releases.
   it('resolves the covered param from the static shell and the uncovered param from the runtime prefetch in a mixed route', async () => {
     const page = await openPage(next, '/')
 

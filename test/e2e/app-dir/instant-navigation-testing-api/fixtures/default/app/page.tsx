@@ -75,11 +75,8 @@ export default function HomePage() {
           </Link>
         </li>
         <li>
-          <Link
-            href="/mixed-params-runtime/en/anything"
-            id="link-to-mixed-params-runtime-no-prefetch"
-          >
-            Go to mixed params runtime page (no prefetch)
+          <Link href="/mixed-params/en/anything" id="link-to-mixed-params">
+            Go to mixed params page (no runtime)
           </Link>
         </li>
         <li>
