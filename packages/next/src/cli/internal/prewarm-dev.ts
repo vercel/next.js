@@ -9,6 +9,7 @@
  */
 
 import { fork } from 'child_process'
+import os from 'os'
 import { initialEnv } from '@next/env'
 
 import * as Log from '../../build/output/log'
@@ -20,28 +21,50 @@ export async function prewarmDev(directory?: string): Promise<void> {
   const dir = getProjectDir(directory)
 
   const startTime = Date.now()
-  await runPrewarmWorker(dir)
-  const durationMs = Date.now() - startTime
+  const result = await runPrewarmWorker(dir)
 
-  // Detailed success/abort/failure messages are already logged by the worker;
+  if (result.kind === 'signal' || result.kind === 'sigint-exit') {
+    // The user (or a supervisor) interrupted us — exit silently with the
+    // same code the child reported, no stack trace.  Conventionally
+    // `128 + signal` for signal terminations.
+    const exitCode =
+      result.kind === 'sigint-exit'
+        ? result.code
+        : 128 + (os.constants.signals[result.signal] ?? 0)
+    process.exit(exitCode)
+  }
+  if (result.kind === 'error') throw result.error
+
+  const durationMs = Date.now() - startTime
+  // Detailed success messages are already logged by the worker;
   // the parent just adds the wall-clock duration.
   Log.info(`Prewarm finished in ${(durationMs / 1000).toFixed(1)}s.`)
 }
+
+type PrewarmResult =
+  | { kind: 'ok' }
+  // Killed by signal (no exit code reported by the child).
+  | { kind: 'signal'; signal: NodeJS.Signals }
+  // Exited cleanly with a SIGINT/SIGTERM exit code (128 + N).  The prewarm
+  // worker installs hard-exit signal handlers that exit with this code, so
+  // we see a `code` rather than a `signal` here.
+  | { kind: 'sigint-exit'; code: 130 | 143 }
+  | { kind: 'error'; error: Error }
 
 /**
  * Fork a child worker that reuses the same `start-server` bootstrap path that
  * `next dev` uses, but with `__NEXT_PRIVATE_PREWARM_DEV=1` so the worker
  * dispatches to `prewarmDevServer` instead of starting an HTTP server.
  *
- * Resolves when the worker exits with code 0; rejects with the worker's
- * exit info on a non-zero exit.  The child's stdio is inherited so any error
- * output is already visible to the user.
+ * Resolves with a tagged result describing how the child exited.  Signal
+ * terminations are surfaced separately so the caller can exit silently
+ * rather than throwing a noisy stack trace at the user.
  */
-function runPrewarmWorker(dir: string): Promise<void> {
+function runPrewarmWorker(dir: string): Promise<PrewarmResult> {
   const startServerPath = require.resolve('../../server/lib/start-server')
   const defaultEnv = (initialEnv || process.env) as typeof process.env
 
-  return new Promise<void>((resolve, reject) => {
+  return new Promise<PrewarmResult>((resolve) => {
     const child = fork(startServerPath, {
       stdio: 'inherit',
       env: {
@@ -69,14 +92,19 @@ function runPrewarmWorker(dir: string): Promise<void> {
       }
     })
 
-    child.on('error', reject)
+    child.on('error', (error) => resolve({ kind: 'error', error }))
     child.on('exit', (code, signal) => {
       if (code === 0) {
-        resolve()
+        resolve({ kind: 'ok' })
       } else if (signal) {
-        reject(new Error(`Prewarm worker terminated by signal ${signal}.`))
+        resolve({ kind: 'signal', signal })
+      } else if (code === 130 || code === 143) {
+        resolve({ kind: 'sigint-exit', code })
       } else {
-        reject(new Error(`Prewarm worker exited with code ${code}.`))
+        resolve({
+          kind: 'error',
+          error: new Error(`Prewarm worker exited with code ${code}.`),
+        })
       }
     })
   })
