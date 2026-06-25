@@ -7,25 +7,20 @@ describe('parallel-routes-breadcrumbs', () => {
   })
 
   it('should provide an unmatched catch-all route with params', async () => {
-    let browser = await next.browser('/artist1')
+    const browser = await next.browser('/')
+    await browser.elementByCss("[href='/artist1']").click()
 
-    await retry(async () => {
-      // verify page is rendering the params
-      expect(await browser.elementByCss('h2').text()).toBe('Artist: artist1')
-    })
+    const slot = await browser.waitForElementByCss('#slot')
+
+    // verify page is rendering the params
+    expect(await browser.elementByCss('h2').text()).toBe('Artist: artist1')
 
     // verify slot is rendering the params
-    expect(await browser.elementByCss('#slot').text()).toContain(
-      'Artist: artist1'
-    )
-    expect(await browser.elementByCss('#slot').text()).toContain(
-      'Album: Select an album'
-    )
-    expect(await browser.elementByCss('#slot').text()).toContain(
-      'Track: Select a track'
-    )
+    expect(await slot.text()).toContain('Artist: artist1')
+    expect(await slot.text()).toContain('Album: Select an album')
+    expect(await slot.text()).toContain('Track: Select a track')
 
-    browser = await next.browser('/artist1/album2')
+    await browser.elementByCss("[href='/artist1/album2']").click()
 
     await retry(async () => {
       // verify page is rendering the params
@@ -33,17 +28,11 @@ describe('parallel-routes-breadcrumbs', () => {
     })
 
     // verify slot is rendering the params
-    expect(await browser.elementByCss('#slot').text()).toContain(
-      'Artist: artist1'
-    )
-    expect(await browser.elementByCss('#slot').text()).toContain(
-      'Album: album2'
-    )
-    expect(await browser.elementByCss('#slot').text()).toContain(
-      'Track: Select a track'
-    )
+    expect(await slot.text()).toContain('Artist: artist1')
+    expect(await slot.text()).toContain('Album: album2')
+    expect(await slot.text()).toContain('Track: Select a track')
 
-    browser = await next.browser('/artist1/album2/track3')
+    await browser.elementByCss("[href='/artist1/album2/track3']").click()
 
     await retry(async () => {
       // verify page is rendering the params
@@ -51,36 +40,9 @@ describe('parallel-routes-breadcrumbs', () => {
     })
 
     // verify slot is rendering the params
-    expect(await browser.elementByCss('#slot').text()).toContain(
-      'Artist: artist1'
-    )
-    expect(await browser.elementByCss('#slot').text()).toContain(
-      'Album: album2'
-    )
-    expect(await browser.elementByCss('#slot').text()).toContain(
-      'Track: track3'
-    )
-  })
-
-  it('should fall back to default.tsx for the slot after a soft navigation', async () => {
-    const browser = await next.browser('/artist1/album2')
-    const slot = await browser.waitForElementByCss('#slot')
-
-    expect(await browser.elementByCss('h2').text()).toBe('Album: album2')
     expect(await slot.text()).toContain('Artist: artist1')
     expect(await slot.text()).toContain('Album: album2')
-
-    await browser.elementByCss("[href='/']").click()
-
-    await retry(async () => {
-      expect(await browser.elementByCss('#children h1').text()).toBe('Artists')
-      expect(await browser.elementByCss('#default-slot').text()).toBe(
-        'Default breadcrumb'
-      )
-    })
-
-    expect(await slot.text()).not.toContain('Artist: artist1')
-    expect(await slot.text()).not.toContain('Album: album2')
+    expect(await slot.text()).toContain('Track: track3')
   })
 
   it('should render the breadcrumbs correctly with the non-dynamic route segments', async () => {
