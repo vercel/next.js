@@ -1,36 +1,31 @@
 /**
  * `next internal prewarm-dev [directory]`
  *
- * Seeds the Turbopack dev persistent cache by compiling every route in the
- * project.  After this command completes, subsequent `next dev` cold starts
- * are faster because the Turbopack cache is already populated.
+ * Seeds the Turbopack dev persistent cache by compiling every entrypoint
+ * in the project.  After this command completes, subsequent `next dev`
+ * cold starts are faster because the Turbopack cache is already populated.
  *
  * Turbopack only — the command always forces `TURBOPACK=1` for the worker.
  */
 
 import { fork } from 'child_process'
-import { existsSync } from 'fs'
 import { initialEnv } from '@next/env'
 
 import * as Log from '../../build/output/log'
 import { getProjectDir } from '../../lib/get-project-dir'
-import { printAndExit } from '../../server/lib/utils'
 
 export async function prewarmDev(directory?: string): Promise<void> {
+  // `getProjectDir` already exits with a friendly message when the directory
+  // doesn't exist, so we don't need a separate `existsSync` check here.
   const dir = getProjectDir(directory)
 
-  if (!existsSync(dir)) {
-    printAndExit(`> No such directory exists as the project root: ${dir}`)
-  }
-
   const startTime = Date.now()
-  await runPrewarmWorker(dir, startTime)
+  await runPrewarmWorker(dir)
   const durationMs = Date.now() - startTime
 
-  Log.event(
-    `Prewarm completed in ${(durationMs / 1000).toFixed(1)}s. ` +
-      `The Turbopack dev cache is now seeded.`
-  )
+  // Detailed success/abort/failure messages are already logged by the worker;
+  // the parent just adds the wall-clock duration.
+  Log.info(`Prewarm finished in ${(durationMs / 1000).toFixed(1)}s.`)
 }
 
 /**
@@ -39,9 +34,10 @@ export async function prewarmDev(directory?: string): Promise<void> {
  * dispatches to `prewarmDevServer` instead of starting an HTTP server.
  *
  * Resolves when the worker signals `nextPrewarmDone` (or exits with code 0);
- * rejects on a non-zero exit.
+ * rejects with the worker's exit info on a non-zero exit.  The child's stdio
+ * is inherited so any error output is already visible to the user.
  */
-function runPrewarmWorker(dir: string, startTime: number): Promise<void> {
+function runPrewarmWorker(dir: string): Promise<void> {
   const startServerPath = require.resolve('../../server/lib/start-server')
   const defaultEnv = (initialEnv || process.env) as typeof process.env
 
@@ -55,18 +51,27 @@ function runPrewarmWorker(dir: string, startTime: number): Promise<void> {
         NEXT_PRIVATE_WORKER: '1',
         __NEXT_PRIVATE_PREWARM_DEV: '1',
         __NEXT_DEV_SERVER: '1',
-        NEXT_PRIVATE_START_TIME: String(startTime),
-        PORT: '0',
       },
     })
+
+    // Forward signals to the child.  When the user hits Ctrl+C in a terminal,
+    // both processes receive SIGINT directly via the process group, so this
+    // is mostly relevant for SIGTERM from supervisors.  After forwarding we
+    // wait for the child to clean up and exit on its own.
+    let forceCount = 0
+    const handleSignal = (signal: NodeJS.Signals) => {
+      child.kill(signal)
+      forceCount++
+      if (forceCount >= 3) process.exit(128)
+    }
+    process.on('SIGINT', () => handleSignal('SIGINT'))
+    process.on('SIGTERM', () => handleSignal('SIGTERM'))
 
     child.on('message', (msg: any) => {
       if (msg && typeof msg === 'object') {
         if (msg.nextWorkerReady) {
           // Worker is up — send it the prewarm options.
-          child.send({
-            nextWorkerOptions: { dir, port: 0, isDev: true },
-          })
+          child.send({ nextWorkerOptions: { dir } })
         } else if (msg.nextPrewarmDone) {
           resolve()
         }
@@ -74,9 +79,14 @@ function runPrewarmWorker(dir: string, startTime: number): Promise<void> {
     })
 
     child.on('error', reject)
-    child.on('exit', (code) => {
-      if (code === 0) resolve()
-      else reject(new Error(`Prewarm worker exited with code ${code}`))
+    child.on('exit', (code, signal) => {
+      if (code === 0) {
+        resolve()
+      } else if (signal) {
+        reject(new Error(`Prewarm worker terminated by signal ${signal}.`))
+      } else {
+        reject(new Error(`Prewarm worker exited with code ${code}.`))
+      }
     })
   })
 }

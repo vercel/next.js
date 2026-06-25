@@ -119,6 +119,12 @@ export type SetupOpts = {
   onDevServerCleanup: ((listener: () => Promise<void>) => void) | undefined
   resetFetch: () => void
   serverFastRefresh?: boolean
+  /**
+   * The CLI command driving this dev bundler.  Labels telemetry events and is
+   * used as the lockfile owner string (i.e. the message shown when another
+   * process tries to acquire the lock).  Defaults to `'dev'` (`next dev`).
+   */
+  cliCommand?: string
 }
 
 export interface DevRoutesManifest {
@@ -211,7 +217,7 @@ async function startWatcher(
 
     lockfile = await Lockfile.acquireWithRetriesOrExit(
       path.join(distDir, 'lock'),
-      'next dev',
+      `next ${opts.cliCommand ?? 'dev'}`,
       true,
       JSON.stringify(serverInfo),
       opts.dir,
@@ -1320,7 +1326,7 @@ export async function setupDevBundler(opts: SetupOpts) {
       webpackVersion: 5,
       isSrcDir,
       turboFlag: !!opts.turbo,
-      cliCommand: 'dev',
+      cliCommand: opts.cliCommand ?? 'dev',
       appDir: !!opts.appDir,
       pagesDir: !!opts.pagesDir,
       isCustomServer: !!opts.isCustomServer,
