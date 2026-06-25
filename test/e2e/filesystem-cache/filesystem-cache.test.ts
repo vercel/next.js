@@ -449,11 +449,60 @@ for (const cacheEnabled of [false, true]) {
         )
       }
 
-      // TODO(prewarm-dev): add a full end-to-end test that compiles every
-      // entrypoint and asserts the persistent cache directory is non-empty.
-      // First attempt at this consistently hung the prewarm subprocess
-      // when invoked from this test's start-mode setup; needs further
-      // investigation before re-enabling.
+      if (cacheEnabled) {
+        ;(process.env.IS_TURBOPACK_TEST ? it : it.skip)(
+          'compiles every entrypoint and seeds the persistent cache',
+          async () => {
+            // Stop any in-flight dev/start server from `beforeEach` so the
+            // prewarm worker can acquire the dev lockfile.
+            await stop()
+
+            // Wipe the persistent cache so we can verify prewarm-dev
+            // populates it from scratch.  The dev cache lives under
+            // `.next/dev/cache/turbopack` (`getCacheSize` looks at
+            // `.next/cache/turbopack`, the build path), so we wipe both.
+            await fs.rm(path.join(next.testDir, '.next'), {
+              recursive: true,
+              force: true,
+            })
+
+            // Mirror the env vars used by the build/dev scripts in this
+            // fixture's package.json: `ENABLE_CACHING=1` flips the
+            // `experimental.turbopackFileSystemCacheForDev` flag, and the
+            // turbo-engine vars keep persistence timing deterministic.
+            const result = await next.runCommand(['internal', 'prewarm-dev'], {
+              env: {
+                TURBOPACK: '1',
+                ENABLE_CACHING: '1',
+                NODE_ENV: 'development',
+                TURBO_ENGINE_IGNORE_DIRTY: '1',
+                TURBO_ENGINE_SNAPSHOT_IDLE_TIMEOUT_MILLIS: '500',
+              },
+            })
+
+            if (result.exitCode !== 0) {
+              throw new Error(
+                `\`next internal prewarm-dev\` failed with exit code ${result.exitCode}.\n` +
+                  `--- stdout ---\n${result.stdout}\n` +
+                  `--- stderr ---\n${result.stderr}`
+              )
+            }
+
+            expect(result.cliOutput).toContain('Prewarming')
+            expect(result.cliOutput).toContain('prewarmed successfully')
+
+            // After prewarm the dev persistent cache directory should
+            // exist and contain a non-trivial amount of data.
+            const devCacheSize = await getDirectorySize(
+              path.join(next.testDir, '.next', 'dev', 'cache', 'turbopack')
+            )
+            expect(devCacheSize).toBeGreaterThan(0)
+          },
+          // Compiling all 14 routes and waiting for the cache snapshot to
+          // settle can take a while in CI.
+          200000
+        )
+      }
     })
 
     if (cacheEnabled) {

@@ -5,9 +5,9 @@
  * the child worker process detects `__NEXT_PRIVATE_PREWARM_DEV=1`.  It sets up
  * the Turbopack dev bundler (without starting an HTTP server), enumerates all
  * entrypoints (app + pages routes, pages globals when there are pages routes,
- * middleware, instrumentation), compiles each one in growing batches, flushes
- * the persistent cache to disk between batches, and finally shuts the project
- * down so the cache is fully written.
+ * middleware, instrumentation), compiles each one with adaptive concurrency,
+ * waits for Turbopack's idle-snapshot scheduler to flush the persistent
+ * cache to disk, then runs the project's exit handlers and returns.
  */
 
 // This must come first as it includes require hooks.
@@ -15,6 +15,8 @@ import '../node-environment'
 import '../require-hook'
 
 import os from 'os'
+import path from 'path'
+import { promises as fs } from 'fs'
 
 import type { Endpoint, Entrypoints } from '../../build/swc/types'
 import * as Log from '../../build/output/log'
@@ -40,19 +42,6 @@ const INITIAL_CONCURRENCY = 1
  * Defaults to the number of logical CPUs on the machine.
  */
 const MAX_CONCURRENCY = os.cpus().length
-
-/**
- * Size of the first compilation batch.  After each batch finishes the cache
- * is flushed to disk; the next batch is twice as big as the previous one.
- * So flushes happen after 10, 30, 70, 150, … units.
- */
-const INITIAL_BATCH_SIZE = 10
-
-/**
- * Multiplier applied to the batch size after each batch finishes.
- * E.g. 10 → 20 → 40 → …
- */
-const BATCH_SIZE_MULTIPLIER = 2
 
 // ---------------------------------------------------------------------------
 
@@ -114,7 +103,6 @@ export async function prewarmDevServer(opts: { dir: string }): Promise<void> {
   const total = units.length + prewarmedDuringSetup
   Log.info(`Prewarming ${total} entrypoints…`)
 
-  let completed = prewarmedDuringSetup
   let failed = 0
   let concurrency = INITIAL_CONCURRENCY
 
@@ -126,7 +114,6 @@ export async function prewarmDevServer(opts: { dir: string }): Promise<void> {
       // output and the count is reported in the final summary.
       failed++
     }
-    completed++
     // Grow the concurrency cap one unit at a time so the very first
     // compiles are sequential.  Rationale: when the cache is cold the
     // first page tends to compile a lot of shared modules; doing it
@@ -142,39 +129,23 @@ export async function prewarmDevServer(opts: { dir: string }): Promise<void> {
   // captures the mutable `concurrency` variable.
   const getConcurrency = () => concurrency
 
-  // Process units in growing batches.  After each batch finishes (no
-  // compilations in flight), flush the persistent cache to disk.  The very
-  // last flush is performed by the `closeProject` call below, so we skip
-  // the intermediate flush after the final batch.
-  //
-  // TODO(prewarm-dev): the batch size is currently unit-count based.  Some
-  // routes are orders of magnitude more expensive than others, so a wall-
-  // clock-based heuristic ("flush after N seconds of compilation") would
-  // give a more consistent interval between flushes.  A memory-pressure
-  // signal (to also trigger eviction between batches) is another option.
   let runError: unknown
   try {
-    for (const batch of batchUnits(units)) {
-      await runWithConcurrency(batch, compile, { getConcurrency })
-      if (completed < total) {
-        await flushPersistentCache(hotReloader)
-        Log.info(
-          `Persisted Turbopack cache (${completed} / ${total} entrypoints).`
-        )
-      }
-    }
+    await runWithConcurrency(units, compile, { getConcurrency })
   } catch (err) {
     runError = err
   }
 
-  // Always close the project so we persist whatever made it into the cache,
-  // even when the run loop aborted (e.g. on a worker error).  Mirrors
-  // `turbopack-build/impl.ts`.
+  // Wait for Turbopack's idle-snapshot scheduler to flush the persistent
+  // cache to disk, then run on-exit handlers and exit.  See the comment on
+  // `waitForCachePersisted` below for the full story on why we don't just
+  // call `project.shutdown()`.
   Log.info('Persisting Turbopack cache to disk…')
   try {
-    await closeProject(hotReloader)
-  } catch (closeErr) {
-    if (runError === undefined) runError = closeErr
+    await waitForCachePersisted(dir)
+    await runProjectExitHandlers(hotReloader)
+  } catch (persistErr) {
+    if (runError === undefined) runError = persistErr
   }
   if (runError !== undefined) throw runError
 
@@ -184,23 +155,6 @@ export async function prewarmDevServer(opts: { dir: string }): Promise<void> {
     )
   } else {
     Log.event(`All ${total} entrypoints prewarmed successfully.`)
-  }
-}
-
-/**
- * Yield successive batches of `units` with sizes
- * INITIAL_BATCH_SIZE, INITIAL_BATCH_SIZE * MULTIPLIER, … until exhausted.
- */
-function* batchUnits(
-  units: ReadonlyArray<PrewarmUnit>
-): Iterable<PrewarmUnit[]> {
-  let cursor = 0
-  let batchSize = INITIAL_BATCH_SIZE
-  while (cursor < units.length) {
-    const end = Math.min(cursor + batchSize, units.length)
-    yield units.slice(cursor, end)
-    cursor = end
-    batchSize *= BATCH_SIZE_MULTIPLIER
   }
 }
 
@@ -359,30 +313,126 @@ function compileUnit(
 }
 
 /**
- * Persist the Turbopack cache to disk while keeping the project alive.
+ * Wait for Turbopack's idle-snapshot scheduler to flush the persistent
+ * cache to disk by polling the cache directory until it has been stable
+ * for a few consecutive readings.
  *
- * The JS `Project.runExitHandlers()` wrapper drives the same code path the
- * dev server uses on shutdown — writing the in-memory persistent cache to
- * disk — without tearing the project down, so it's safe to call repeatedly
- * during a single prewarm run.
+ * Why this is needed (and not just `project.shutdown()`):
+ *
+ *   The persistent cache is written exclusively by `backend.stop()` in
+ *   `turbo-tasks-backend`, which is invoked from two places:
+ *
+ *   1. The idle-snapshot scheduler (`turbo-tasks-backend/.../backend/mod.rs`,
+ *      look for `IDLE_TIMEOUT`) — runs while the project is alive, snapshots
+ *      the cache when the system has been idle for `IDLE_TIMEOUT` (env-tunable
+ *      via `TURBO_ENGINE_SNAPSHOT_IDLE_TIMEOUT_MILLIS`, default 2s).
+ *
+ *   2. `project_shutdown` — calls `turbo_tasks().stop_and_wait()` which
+ *      drains every foreground/background job and *then* invokes
+ *      `backend.stop()`.  This is what `next build` uses, but it hangs
+ *      forever in dev mode because the dev hot reloader's
+ *      `entrypointsSubscribe` async loop keeps a foreground task alive for
+ *      the lifetime of the project (see the doc comment on
+ *      `project_shutdown` in `crates/next-napi-bindings/.../project.rs`:
+ *      "skipped in the development server").
+ *
+ *   The prewarm worker uses the dev hot reloader (so we get `ensurePage`,
+ *   `_app`/`_document`/`_error` handling, etc.), which means option 2 is
+ *   off the table.  So we lean on option 1: after compilation the system
+ *   goes idle, the scheduler kicks in after `IDLE_TIMEOUT`, and writes the
+ *   cache to disk.  We poll the cache directory until the snapshot
+ *   completes before exiting.
  */
-async function flushPersistentCache(
+async function waitForCachePersisted(projectDir: string): Promise<void> {
+  // Same path Turbopack uses internally (`<distDir>/cache/turbopack` for
+  // build, `<distDir>/dev/cache/turbopack` for dev — we always run with
+  // `isDev=true` so we want the latter).  We compare against the parent
+  // because Turbopack creates a versioned subdirectory inside.
+  const cacheDir = path.join(projectDir, '.next', 'dev', 'cache', 'turbopack')
+
+  const POLL_INTERVAL_MS = 500
+  const STABLE_READINGS_REQUIRED = 3
+  const MAX_WAIT_MS = 5 * 60 * 1000
+
+  const idleTimeoutMs = parseInt(
+    process.env.TURBO_ENGINE_SNAPSHOT_IDLE_TIMEOUT_MILLIS ?? '',
+    10
+  )
+  // Wait at least 2× the idle timeout before we start polling, so the
+  // scheduler has had a fair chance to actually start writing.  Fall back
+  // to the Rust default (2s) plus a buffer when unset.
+  const initialDelayMs = Number.isFinite(idleTimeoutMs)
+    ? Math.max(idleTimeoutMs * 2, 1000)
+    : 4000
+
+  await sleep(initialDelayMs)
+
+  const startedAt = Date.now()
+  let lastSize = await getDirSize(cacheDir)
+  let stable = 0
+  while (Date.now() - startedAt < MAX_WAIT_MS) {
+    await sleep(POLL_INTERVAL_MS)
+    const size = await getDirSize(cacheDir)
+    if (size > 0 && size === lastSize) {
+      stable++
+      if (stable >= STABLE_READINGS_REQUIRED) return
+    } else {
+      stable = 0
+      lastSize = size
+    }
+  }
+  Log.warn(
+    `Cache size never stabilised after ${MAX_WAIT_MS / 1000}s; exiting anyway.`
+  )
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms))
+}
+
+async function getDirSize(dir: string): Promise<number> {
+  let total = 0
+  try {
+    const entries = await fs.readdir(dir, {
+      recursive: true,
+      withFileTypes: true,
+    })
+    for (const entry of entries) {
+      if (entry.isFile()) {
+        const filePath = path.join(entry.parentPath ?? entry.path, entry.name)
+        try {
+          const stat = await fs.stat(filePath)
+          total += stat.size
+        } catch {
+          // File disappeared between readdir and stat — Turbopack may be
+          // mid-write.  Ignore and let the next poll see it.
+        }
+      }
+    }
+  } catch {
+    // Directory doesn't exist yet — cache is empty.
+  }
+  return total
+}
+
+/**
+ * Run Turbopack's exit handlers.
+ *
+ * Wraps `Project.runExitHandlers()` (the napi `project_on_exit` binding).
+ * In `next dev`, the only handlers registered today are trace/profiling
+ * cleanup — the persistent cache is NOT written here (see the comment on
+ * `waitForCachePersisted` for the full story).  We still run them for
+ * symmetry with `next dev`'s cleanup path.
+ *
+ * Can only be called once per project: the underlying Rust receiver is
+ * consumed on the first invocation.
+ */
+async function runProjectExitHandlers(
   hotReloader: TurbopackHotReloader
 ): Promise<void> {
   const project = hotReloader.turbopackProject
   if (!project) return
   await project.runExitHandlers()
-}
-
-/**
- * Tear down the Turbopack project and wait for the persistent cache to be
- * fully written.  Called once at the very end of prewarming; after this
- * the project is no longer usable.
- */
-async function closeProject(hotReloader: TurbopackHotReloader): Promise<void> {
-  const project = hotReloader.turbopackProject
-  if (!project) return
-  await project.shutdown()
 }
 
 /**
