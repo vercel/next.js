@@ -222,8 +222,6 @@ Refresh the product page. The Inspector freezes and shows **Loading shell** labe
 
 {/* TODO: screenshot — Navigation Inspector panel showing "Loading shell" labeled "Page load" with the target URL */}
 
-> **Good to know**: When `next dev` renders against an empty cache, the dev indicator turns orange ("Rendering (cold cache)") and leaves a dismissible "Cold cache" badge afterward. A "Cache disabled" variant appears when caches are bypassed. Reload once caches are warm to see a production-representative view.
-
 Click **Resume** to complete the navigation. Refresh again, and the product name appears immediately from cache.
 
 Now click a link from `/store/shoes` to `/store/hats`. The Inspector shows **Loading shell** labeled **Client nav** with both source and target URLs. In the app, the product name and price appear immediately (cached). "Checking availability..." shows where inventory will stream in.
