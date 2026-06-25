@@ -333,7 +333,7 @@ describe('dynamic-data inside cache scope', () => {
       try {
         await expect(browser).toDisplayRedbox(`
          {
-           "code": "E1382",
+           "code": "E1402",
            "description": "Route "/connection": \`connection()\` can't be used inside \`unstable_cache()\`. A cache entry can be built before any request exists, so it can't depend on one.
          Learn more: https://nextjs.org/docs/app/api-reference/functions/unstable_cache",
            "environmentLabel": "Server",
