@@ -18,7 +18,7 @@ export const RSC_CONTENT_TYPE_HEADER = 'text/x-component' as const
 
 // Cookie for the Instant Navigation Testing API. Sent automatically with all
 // requests while a navigation lock is held; the server uses its presence to
-// render only the static shell. Not exposed in production builds by default.
+// render only the shell. Not exposed in production builds by default.
 export const NEXT_INSTANT_TEST_COOKIE =
   'next-instant-navigation-testing' as const
 

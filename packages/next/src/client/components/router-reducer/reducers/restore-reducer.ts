@@ -73,7 +73,9 @@ export function restoreReducer(
     null,
     restoreSeed.dynamicStaleAt,
     false,
-    accumulation
+    accumulation,
+    // A history-traversal restore never restricts to the shell.
+    false
   )
 
   if (task === null) {

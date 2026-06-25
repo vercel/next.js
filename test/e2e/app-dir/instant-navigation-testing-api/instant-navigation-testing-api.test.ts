@@ -167,7 +167,7 @@ describe('instant-navigation-testing-api', () => {
     })
   })
 
-  it('renders static shell on page reload', async () => {
+  it('renders shell on page reload', async () => {
     const page = await openPage(next, '/target-page')
 
     // Wait for the page to fully load with dynamic content
@@ -196,7 +196,7 @@ describe('instant-navigation-testing-api', () => {
     )
   })
 
-  it('renders static shell on MPA navigation via plain anchor', async () => {
+  it('renders shell on MPA navigation via plain anchor', async () => {
     const page = await openPage(next, '/')
 
     await instant(page, async () => {
@@ -281,7 +281,7 @@ describe('instant-navigation-testing-api', () => {
       // Fourth MPA navigation: go to target page again
       await page.click('#plain-link-to-target')
 
-      // Still shows static shell, dynamic content still blocked
+      // Still shows shell, dynamic content still blocked
       await loadingShell.waitFor({ state: 'visible' })
       expect(await dynamicContent.count()).toBe(0)
     })
@@ -856,6 +856,81 @@ describe('instant-navigation-testing-api - root params', () => {
       // The root param value is still visible (it's statically known)
       await langValue.waitFor({ state: 'visible' })
       expect(await langValue.textContent()).toContain('lang: en')
+    })
+  })
+})
+
+describe('instant-navigation-testing-api - partial prefetching (App Shells)', () => {
+  const { next } = nextTestSetup({
+    files: join(__dirname, 'fixtures', 'partial-prefetch'),
+    skipDeployment: true,
+    // Skew protection (deployment-id asset versioning) is orthogonal to the
+    // shell-restriction behavior under test. Disable it so the suite exercises
+    // only the navigation-lock behavior.
+    disableAutoSkewProtection: true,
+  })
+
+  // Under Partial Prefetching with App Shells, an auto (partial) prefetch only
+  // warms the shell — the concrete-param entry is not speculatively
+  // prefetched. The testing lock simulates that warm cache: a navigation may
+  // only match the shell entry, never an entry that varies on concrete route
+  // params, even if such an entry happens to be warm in the cache (here, from a
+  // sibling prefetch={true} link). Without the restriction, the navigation
+  // would match the warm `slug: hello` entry and show it instantly.
+  it('restricts navigation to the shell even when a concrete-param entry is warm', async () => {
+    const page = await openPage(next, '/')
+
+    // Warm both entries for /dynamic-params/hello:
+    //  - the prefetch={true} sibling link does a speculative (whole-route)
+    //    prefetch, warming the concrete slug=hello segment entry, and
+    //  - the default link does a partial prefetch, warming the shell entry
+    //    (params -> Fallback) that the restricted navigation should render.
+    await page.hover('#full-link')
+    await page.hover('#partial-link')
+    await page.waitForTimeout(3000)
+
+    await instant(page, async () => {
+      // Navigate via the default (partial) link. Even though the concrete
+      // slug=hello entry is warm, the lock restricts the read to the shell.
+      await page.click('#partial-link')
+
+      // A shell boundary is shown — either the route-level loading.tsx or the
+      // page's inner Suspense fallback — proving the navigation rendered the
+      // shell rather than the warm concrete entry.
+      const shell = page.locator(
+        '[data-testid="route-loading"], [data-testid="params-fallback"]'
+      )
+      await shell.first().waitFor({ state: 'visible' })
+
+      // The concrete param value is NOT matched.
+      const paramValue = page.locator('[data-testid="param-value"]')
+      expect(await paramValue.count()).toBe(0)
+    })
+
+    // After the instant scope exits, the concrete value streams in normally.
+    const paramValue = page.locator('[data-testid="param-value"]')
+    await paramValue.waitFor({ state: 'visible' })
+    expect(await paramValue.textContent()).toContain('slug: hello')
+  })
+
+  // A prefetch={true} link triggers a speculative (whole-route) prefetch, so
+  // the concrete-param entry IS prefetched. In that case the lock must NOT
+  // restrict to the shell — the navigation is allowed to match the concrete
+  // entry, since that's what a warm cache would actually contain.
+  it('allows matching concrete params when the link uses prefetch={true}', async () => {
+    const page = await openPage(next, '/')
+
+    await instant(page, async () => {
+      await page.click('#full-link')
+
+      // The concrete param value is matched and shown instantly.
+      const paramValue = page.locator('[data-testid="param-value"]')
+      await paramValue.waitFor({ state: 'visible' })
+      expect(await paramValue.textContent()).toContain('slug: hello')
+
+      // The Suspense fallback (shell) is NOT shown.
+      const fallback = page.locator('[data-testid="params-fallback"]')
+      expect(await fallback.count()).toBe(0)
     })
   })
 })
