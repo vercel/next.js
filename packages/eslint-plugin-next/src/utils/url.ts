@@ -6,27 +6,39 @@ import * as fs from 'fs'
 const fsReadDirSyncCache = {}
 
 /**
+ * Build regex for matching page extensions.
+ * Defaults to ['js', 'jsx', 'ts', 'tsx'] if not provided.
+ */
+function buildPageExtensionRegex(pageExtensions?: string[]): RegExp {
+  const defaultExts = ['js', 'jsx', 'ts', 'tsx']
+  const exts = pageExtensions && pageExtensions.length ? pageExtensions : defaultExts
+  const escapedExts = exts.map((ext) => ext.replace(/\./g, '\\.')).join('|')
+  return new RegExp(`\\.(${escapedExts})$`)
+}
+
+/**
  * Recursively parse directory for page URLs.
  */
-function parseUrlForPages(urlprefix: string, directory: string) {
+function parseUrlForPages(urlprefix: string, directory: string, pageExtensions?: string[]) {
   fsReadDirSyncCache[directory] ??= fs.readdirSync(directory, {
     withFileTypes: true,
   })
   const res = []
+  const pageExtensionRegex = buildPageExtensionRegex(pageExtensions)
   fsReadDirSyncCache[directory].forEach((dirent) => {
-    // TODO: this should account for all page extensions
-    // not just js(x) and ts(x)
-    if (/(\.(j|t)sx?)$/.test(dirent.name)) {
-      if (/^index(\.(j|t)sx?)$/.test(dirent.name)) {
-        res.push(
-          `${urlprefix}${dirent.name.replace(/^index(\.(j|t)sx?)$/, '')}`
-        )
+    if (pageExtensionRegex.test(dirent.name)) {
+      const indexMatch = dirent.name.match(/^index(\..+?)$/)
+      const replaceMatch = dirent.name.match(/(\..+?)$/)
+      if (indexMatch) {
+        res.push(`${urlprefix}${dirent.name.replace(indexMatch[0], '')}`)
       }
-      res.push(`${urlprefix}${dirent.name.replace(/(\.(j|t)sx?)$/, '')}`)
+      if (replaceMatch) {
+        res.push(`${urlprefix}${dirent.name.replace(replaceMatch[1], '')}`)
+      }
     } else {
       const dirPath = path.join(directory, dirent.name)
       if (dirent.isDirectory() && !dirent.isSymbolicLink()) {
-        res.push(...parseUrlForPages(urlprefix + dirent.name + '/', dirPath))
+        res.push(...parseUrlForPages(urlprefix + dirent.name + '/', dirPath, pageExtensions))
       }
     }
   })
@@ -36,24 +48,27 @@ function parseUrlForPages(urlprefix: string, directory: string) {
 /**
  * Recursively parse app directory for URLs.
  */
-function parseUrlForAppDir(urlprefix: string, directory: string) {
+function parseUrlForAppDir(urlprefix: string, directory: string, pageExtensions?: string[]) {
   fsReadDirSyncCache[directory] ??= fs.readdirSync(directory, {
     withFileTypes: true,
   })
   const res = []
+  const pageExtensionRegex = buildPageExtensionRegex(pageExtensions)
   fsReadDirSyncCache[directory].forEach((dirent) => {
-    // TODO: this should account for all page extensions
-    // not just js(x) and ts(x)
-    if (/(\.(j|t)sx?)$/.test(dirent.name)) {
-      if (/^page(\.(j|t)sx?)$/.test(dirent.name)) {
-        res.push(`${urlprefix}${dirent.name.replace(/^page(\.(j|t)sx?)$/, '')}`)
-      } else if (!/^layout(\.(j|t)sx?)$/.test(dirent.name)) {
-        res.push(`${urlprefix}${dirent.name.replace(/(\.(j|t)sx?)$/, '')}`)
+    if (pageExtensionRegex.test(dirent.name)) {
+      const pageMatch = dirent.name.match(/^page(\..+?)$/)
+      const layoutMatch = dirent.name.match(/^layout(\..+?)$/)
+      const replaceMatch = dirent.name.match(/(\..+?)$/)
+      
+      if (pageMatch) {
+        res.push(`${urlprefix}${dirent.name.replace(pageMatch[0], '')}`)
+      } else if (!layoutMatch && replaceMatch) {
+        res.push(`${urlprefix}${dirent.name.replace(replaceMatch[1], '')}`)
       }
     } else {
       const dirPath = path.join(directory, dirent.name)
-      if (dirent.isDirectory(dirPath) && !dirent.isSymbolicLink()) {
-        res.push(...parseUrlForPages(urlprefix + dirent.name + '/', dirPath))
+      if (dirent.isDirectory() && !dirent.isSymbolicLink()) {
+        res.push(...parseUrlForAppDir(urlprefix + dirent.name + '/', dirPath, pageExtensions))
       }
     }
   })
@@ -67,82 +82,38 @@ function parseUrlForAppDir(urlprefix: string, directory: string) {
  *  - Removes query string
  */
 export function normalizeURL(url: string) {
-  if (!url) {
-    return
+  if (url.includes('?')) {
+    url = url.split('?')[0]
   }
-  url = url.split('?', 1)[0]
-  url = url.split('#', 1)[0]
-  url = url = url.replace(/(\/index\.html)$/, '/')
-  // Empty URLs should not be trailed with `/`, e.g. `#heading`
-  if (url === '') {
-    return url
-  }
-  url = url.endsWith('/') ? url : url + '/'
-  return url
+
+  const urlWithoutExtension = url.replace(/\.html$/, '')
+  // Encode all characters except `/` and `.`
+  const encoded = urlWithoutExtension
+    .split('/')
+    .map((segment) => encodeURIComponent(segment))
+    .join('/')
+    .replace(/%2E/g, '.')
+
+  const withoutTrailingSlash =
+    encoded === '/' ? '/' : encoded.replace(/\/$/, '')
+  return withoutTrailingSlash
 }
 
-/**
- * Normalizes an app route so it represents the actual request path. Essentially
- * performing the following transformations:
- *
- * - `/(dashboard)/user/[id]/page` to `/user/[id]`
- * - `/(dashboard)/account/page` to `/account`
- * - `/user/[id]/page` to `/user/[id]`
- * - `/account/page` to `/account`
- * - `/page` to `/`
- * - `/(dashboard)/user/[id]/route` to `/user/[id]`
- * - `/(dashboard)/account/route` to `/account`
- * - `/user/[id]/route` to `/user/[id]`
- * - `/account/route` to `/account`
- * - `/route` to `/`
- * - `/` to `/`
- *
- * @param route the app route to normalize
- * @returns the normalized pathname
- */
-export function normalizeAppPath(route: string) {
-  return ensureLeadingSlash(
-    route.split('/').reduce((pathname, segment, index, segments) => {
-      // Empty segments are ignored.
-      if (!segment) {
-        return pathname
-      }
-
-      // Groups are ignored.
-      if (isGroupSegment(segment)) {
-        return pathname
-      }
-
-      // Parallel segments are ignored.
-      if (segment[0] === '@') {
-        return pathname
-      }
-
-      // The last segment (if it's a leaf) should be ignored.
-      if (
-        (segment === 'page' || segment === 'route') &&
-        index === segments.length - 1
-      ) {
-        return pathname
-      }
-
-      return `${pathname}/${segment}`
-    }, '')
-  )
+export function normalizeAppPath(path: string) {
+  const withoutTrailingSlash = path.replace(/\/$/, '')
+  return withoutTrailingSlash === '' ? '/' : withoutTrailingSlash
 }
 
-/**
- * Gets the possible URLs from a directory.
- */
 export function getUrlFromPagesDirectories(
   urlPrefix: string,
-  directories: string[]
+  directories: string[],
+  pageExtensions?: string[]
 ) {
   return Array.from(
     // De-duplicate similar pages across multiple directories.
     new Set(
       directories
-        .flatMap((directory) => parseUrlForPages(urlPrefix, directory))
+        .flatMap((directory) => parseUrlForPages(urlPrefix, directory, pageExtensions))
         .map(
           // Since the URLs are normalized we add `^` and `$` to the RegExp to make sure they match exactly.
           (url) => `^${normalizeURL(url)}$`
@@ -156,13 +127,14 @@ export function getUrlFromPagesDirectories(
 
 export function getUrlFromAppDirectory(
   urlPrefix: string,
-  directories: string[]
+  directories: string[],
+  pageExtensions?: string[]
 ) {
   return Array.from(
     // De-duplicate similar pages across multiple directories.
     new Set(
       directories
-        .map((directory) => parseUrlForAppDir(urlPrefix, directory))
+        .map((directory) => parseUrlForAppDir(urlPrefix, directory, pageExtensions))
         .flat()
         .map(
           // Since the URLs are normalized we add `^` and `$` to the RegExp to make sure they match exactly.
@@ -196,4 +168,49 @@ function ensureLeadingSlash(route: string) {
 
 function isGroupSegment(segment: string) {
   return segment[0] === '(' && segment.endsWith(')')
+}
+
+function removeGroupSegments(segment: string): string {
+  return segment.replace(/\([^)]*\)\//g, '').replace(/^!\(/, '(')
+}
+
+export function getUrlsForFile(
+  file: string
+): Array<{
+  file: string
+  urls: string[]
+}> | null {
+  // Handle both `pages` and `app` files
+  const pagesMatch = file.match(/[\\/]pages[\\/](.*?)$/)
+  if (pagesMatch) {
+    const path = pagesMatch[1].replace(/\\/g, '/').replace(/\.[^.]+$/, '')
+    return [{ file, urls: [ensureLeadingSlash(path)] }]
+  }
+
+  const appMatch = file.match(/[\\/]app[\\/](.*?)(?:[\\/])?(?:page|layout)\.[^.]+$/)
+  if (appMatch) {
+    let path = appMatch[1]
+      .replace(/\\/g, '/')
+      .split('/')
+      .filter((segment) => !isGroupSegment(segment))
+      .map(removeGroupSegments)
+      .join('/')
+
+    path = path.replace(/\/$/, '')
+    return [{ file, urls: [ensureLeadingSlash(path)] }]
+  }
+
+  return null
+}
+
+export const fsExistsCacheGet = (cache: {}, key: string) => {
+  return cache[key]
+}
+
+export const fsExistsCacheSet = (
+  cache: {},
+  key: string,
+  value: boolean
+) => {
+  cache[key] = value
 }
