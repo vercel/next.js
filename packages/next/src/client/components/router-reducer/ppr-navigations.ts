@@ -12,6 +12,7 @@ import {
   NOT_FOUND_SEGMENT_KEY,
 } from '../../../shared/lib/segment'
 import { matchSegment } from '../match-segments'
+import type { NavigationLockState } from '../segment-cache/navigation-testing-lock'
 import { createHrefFromUrl } from './create-href-from-url'
 import { fetchServerResponse } from './fetch-server-response'
 import { dispatchAppRouterAction } from '../use-action-queue'
@@ -30,12 +31,12 @@ import {
   type RefreshState,
   type FulfilledRouteCacheEntry,
   convertReusedFlightRouterStateToRouteTree,
-  readSegmentCacheEntry,
+  readSegmentCacheEntryForNavigation,
   waitForSegmentCacheEntry,
   markRouteEntryAsDynamicRewrite,
   invalidateRouteCacheEntries,
   getStaleAt,
-  writeStaticStageResponseIntoCache,
+  writePrerenderResponseIntoCache,
   processRuntimePrefetchStream,
   writeDynamicRenderResponseIntoCache,
   EntryStatus,
@@ -127,6 +128,8 @@ export type NavigationRequestAccumulation = {
   scrollRef: ScrollRef | null
 }
 
+export type NavigationLock = NavigationLockState | null
+
 const noop = () => {}
 
 export function createInitialCacheNodeForHydration(
@@ -142,6 +145,7 @@ export function createInitialCacheNodeForHydration(
     separateRefreshUrls: null,
     scrollRef: null,
   }
+  const restrictToShell = false
   const task = createCacheNodeOnNavigation(
     navigatedAt,
     initialTree,
@@ -151,7 +155,8 @@ export function createInitialCacheNodeForHydration(
     seedHead,
     seedDynamicStaleAt,
     false,
-    accumulation
+    accumulation,
+    restrictToShell
   )
   return task
 }
@@ -198,9 +203,11 @@ export function startPPRNavigation(
   seedHead: HeadData | null,
   seedDynamicStaleAt: number,
   isSamePageNavigation: boolean,
-  accumulation: NavigationRequestAccumulation
+  accumulation: NavigationRequestAccumulation,
+  // Instant Navigation Testing API only — restricts segment reads to shell
+  // entries. Always false outside the testing API. See navigation-testing-lock.
+  restrictToShell: boolean
 ): NavigationTask | null {
-  const didFindRootLayout = false
   const parentNeedsDynamicRequest = false
   const parentRefreshState = null
   const oldRootRefreshState: RefreshState = {
@@ -215,7 +222,6 @@ export function startPPRNavigation(
     newRouteTree,
     newMetadataVaryPath,
     freshness,
-    didFindRootLayout,
     seedData,
     seedHead,
     seedDynamicStaleAt,
@@ -223,7 +229,8 @@ export function startPPRNavigation(
     parentNeedsDynamicRequest,
     oldRootRefreshState,
     parentRefreshState,
-    accumulation
+    accumulation,
+    restrictToShell
   )
 }
 
@@ -235,7 +242,6 @@ function updateCacheNodeOnNavigation(
   newRouteTree: RouteTree,
   newMetadataVaryPath: PageVaryPath | null,
   freshness: FreshnessPolicy,
-  didFindRootLayout: boolean,
   seedData: CacheNodeSeedData | null,
   seedHead: HeadData | null,
   seedDynamicStaleAt: number,
@@ -243,12 +249,19 @@ function updateCacheNodeOnNavigation(
   parentNeedsDynamicRequest: boolean,
   oldRootRefreshState: RefreshState,
   parentRefreshState: RefreshState | null,
-  accumulation: NavigationRequestAccumulation
+  accumulation: NavigationRequestAccumulation,
+  // Instant Navigation Testing API only — restricts segment reads to shell
+  // entries. Always false outside the testing API. See navigation-testing-lock.
+  restrictToShell: boolean
 ): NavigationTask | null {
-  // Check if this segment matches the one in the previous route.
+  // Check if this segment matches the one in the previous route. A
+  // search-param-only difference at a page segment falls through to the
+  // matched branch — the CacheNode is rebuilt (so data refetches), but the
+  // bfcacheId carries forward as if the segment had matched.
   const oldSegment = oldRouterState[0]
   const newSegment = createSegmentFromRouteTree(newRouteTree)
-  if (!matchSegment(newSegment, oldSegment)) {
+  const segmentMatchKind = compareSegments(newSegment, oldSegment)
+  if (segmentMatchKind === SegmentMatchKind.Change) {
     // This segment does not match the previous route. We're now entering the
     // new part of the target route. Switch to the "create" path.
     if (
@@ -269,11 +282,12 @@ function updateCacheNodeOnNavigation(
       //
       // Refer to isNavigatingToNewRootLayout for details.
       //
-      // Note that we only have to perform this extra traversal if we didn't
-      // already discover a root layout in the part of the tree that is
-      // unchanged. We also only need to compare the subtree that is not
+      // Note that we only have to perform this extra traversal if this changed
+      // segment is still at or above the root layout (IsRootLayoutOrAbove);
+      // once we've descended past the root layout, a segment change can't alter
+      // the root layout. We also only need to compare the subtree that is not
       // shared. In the common case, this branch is skipped completely.
-      (!didFindRootLayout &&
+      ((newRouteTree.prefetchHints & PrefetchHint.IsRootLayoutOrAbove) !== 0 &&
         isNavigatingToNewRootLayout(oldRouterState, newRouteTree)) ||
       // The global Not Found route (app/global-not-found.tsx) is a special
       // case, because it acts like a root layout, but in the router tree, it
@@ -298,20 +312,14 @@ function updateCacheNodeOnNavigation(
       seedHead,
       seedDynamicStaleAt,
       parentNeedsDynamicRequest,
-      accumulation
+      accumulation,
+      restrictToShell
     )
   }
 
   const newSlots = newRouteTree.slots
   const oldRouterStateChildren = oldRouterState[1]
   const seedDataChildren = seedData !== null ? seedData[1] : null
-
-  // We're currently traversing the part of the tree that was also part of
-  // the previous route. If we discover a root layout, then we don't need to
-  // trigger an MPA navigation.
-  const childDidFindRootLayout =
-    didFindRootLayout ||
-    (newRouteTree.prefetchHints & PrefetchHint.IsRootLayout) !== 0
 
   let shouldRefreshDynamicData: boolean = false
   switch (freshness) {
@@ -347,7 +355,11 @@ function updateCacheNodeOnNavigation(
     oldCacheNode !== undefined &&
     !shouldRefreshDynamicData &&
     // During a same-page navigation, we always refetch the page segments
-    !(isLeafSegment && isSamePageNavigation)
+    !(isLeafSegment && isSamePageNavigation) &&
+    // A search-param-only change is treated as a refresh of the page segment.
+    // The internal cache key of the data is different, but the identity of
+    // the node in the route tree is the same.
+    segmentMatchKind !== SegmentMatchKind.SearchParamOnlyChange
   ) {
     // Reuse the existing CacheNode
     const dropPrefetchRsc = false
@@ -364,18 +376,35 @@ function updateCacheNodeOnNavigation(
       newMetadataVaryPath,
       seedHead,
       freshness,
-      seedDynamicStaleAt
+      seedDynamicStaleAt,
+      // Carry forward the existing bfcacheId when there's a prior CacheNode:
+      // even though the data is being refreshed, the state identity of the
+      // route hasn't changed. Otherwise (no prior node) mint a fresh one.
+      oldCacheNode !== undefined
+        ? oldCacheNode.bfcacheId
+        : generateBFCacheId(freshness),
+      restrictToShell
     )
     newCacheNode = result.cacheNode
     needsDynamicRequest = result.needsDynamicRequest
 
-    // Carry forward the old node's scrollRef. This preserves scroll
-    // intent when a prior navigation's cache node is replaced by a
-    // refresh before the scroll handler has had a chance to fire —
-    // e.g. when router.push() and router.refresh() are called in the
-    // same startTransition batch.
-    if (oldCacheNode !== undefined) {
-      newCacheNode.scrollRef = oldCacheNode.scrollRef
+    // Scroll handling
+    if (
+      isLeafSegment &&
+      segmentMatchKind === SegmentMatchKind.SearchParamOnlyChange
+    ) {
+      // Special case: A search param change mostly acts the same as a
+      // refresh, except it does trigger a scroll.
+      accumulateScrollRef(freshness, newCacheNode, accumulation)
+    } else {
+      // Normal case: This is a refresh of an existing segment. Carry forward
+      // the old node's scrollRef. This preserves scroll intent when a prior
+      // navigation's CacheNode is replaced by a refresh before the scroll
+      // handler has had a chance to fire — e.g. when router.push() and
+      // router.refresh() are called in the same startTransition batch.
+      if (oldCacheNode !== undefined) {
+        newCacheNode.scrollRef = oldCacheNode.scrollRef
+      }
     }
   }
 
@@ -491,7 +520,6 @@ function updateCacheNodeOnNavigation(
         newRouteTreeChild,
         newMetadataVaryPath,
         freshness,
-        childDidFindRootLayout,
         seedDataChild ?? null,
         seedHeadChild,
         seedDynamicStaleAt,
@@ -499,7 +527,8 @@ function updateCacheNodeOnNavigation(
         parentNeedsDynamicRequest || needsDynamicRequest,
         oldRootRefreshState,
         refreshState,
-        accumulation
+        accumulation,
+        restrictToShell
       )
 
       if (taskChild === null) {
@@ -611,7 +640,10 @@ function createCacheNodeOnNavigation(
   seedHead: HeadData | null,
   seedDynamicStaleAt: number,
   parentNeedsDynamicRequest: boolean,
-  accumulation: NavigationRequestAccumulation
+  accumulation: NavigationRequestAccumulation,
+  // Instant Navigation Testing API only — restricts segment reads to shell
+  // entries. Always false outside the testing API. See navigation-testing-lock.
+  restrictToShell: boolean
 ): NavigationTask {
   // Same traversal as updateCacheNodeNavigation, but simpler. We switch to this
   // path once we reach the part of the tree that was not in the previous route.
@@ -636,7 +668,11 @@ function createCacheNodeOnNavigation(
     newMetadataVaryPath,
     seedHead,
     freshness,
-    seedDynamicStaleAt
+    seedDynamicStaleAt,
+    // This segment was not part of the previous route, so mint a fresh
+    // bfcacheId.
+    generateBFCacheId(freshness),
+    restrictToShell
   )
   const newCacheNode = result.cacheNode
   const needsDynamicRequest = result.needsDynamicRequest
@@ -674,7 +710,8 @@ function createCacheNodeOnNavigation(
         seedHead,
         seedDynamicStaleAt,
         parentNeedsDynamicRequest || needsDynamicRequest,
-        accumulation
+        accumulation,
+        restrictToShell
       )
 
       taskChildren.set(parallelRouteKey, taskChild)
@@ -879,11 +916,14 @@ function reuseSharedCacheNode(
   // Clone the CacheNode that was already present in the previous tree.
   // Carry forward the scrollRef so scroll intent from a prior navigation
   // survives tree rebuilds (e.g. push + refresh in the same batch).
+  // Carry forward the bfcacheId so shared-layout segments retain stable
+  // identity across navigations.
   return createCacheNode(
     existingCacheNode.rsc,
     dropPrefetchRsc ? null : existingCacheNode.prefetchRsc,
     existingCacheNode.head,
     dropPrefetchRsc ? null : existingCacheNode.prefetchHead,
+    existingCacheNode.bfcacheId,
     existingCacheNode.scrollRef
   )
 }
@@ -895,7 +935,11 @@ function createCacheNodeForSegment(
   metadataVaryPath: PageVaryPath | null,
   seedHead: HeadData | null,
   freshness: FreshnessPolicy,
-  dynamicStaleAt: number
+  dynamicStaleAt: number,
+  bfcacheId: number,
+  // Instant Navigation Testing API only — restricts segment reads to shell
+  // entries. Always false outside the testing API. See navigation-testing-lock.
+  restrictToShell: boolean
 ): { cacheNode: CacheNode; needsDynamicRequest: boolean } {
   // Construct a new CacheNode using data from the BFCache, the client's
   // Segment Cache, or seeded from a server response.
@@ -927,12 +971,17 @@ function createCacheNodeForSegment(
         tree.varyPath
       )
       if (bfcacheEntry !== null) {
+        // A regular navigation that happens to read cached data is still a
+        // fresh navigation, so we use the caller-supplied bfcacheId — the
+        // BFCacheEntry's id is only restored on history-traversal
+        // navigations.
         return {
           cacheNode: createCacheNode(
             bfcacheEntry.rsc,
             bfcacheEntry.prefetchRsc,
             bfcacheEntry.head,
-            bfcacheEntry.prefetchHead
+            bfcacheEntry.prefetchHead,
+            bfcacheId
           ),
           needsDynamicRequest: false,
         }
@@ -967,7 +1016,8 @@ function createCacheNodeForSegment(
         prefetchRsc,
         head,
         prefetchHead,
-        dynamicStaleAt
+        dynamicStaleAt,
+        bfcacheId
       )
       if (isPage && metadataVaryPath !== null) {
         writeHeadToBFCache(
@@ -975,11 +1025,18 @@ function createCacheNodeForSegment(
           metadataVaryPath,
           head,
           prefetchHead,
-          dynamicStaleAt
+          dynamicStaleAt,
+          bfcacheId
         )
       }
       return {
-        cacheNode: createCacheNode(rsc, prefetchRsc, head, prefetchHead),
+        cacheNode: createCacheNode(
+          rsc,
+          prefetchRsc,
+          head,
+          prefetchHead,
+          bfcacheId
+        ),
         needsDynamicRequest: false,
       }
     }
@@ -1000,12 +1057,16 @@ function createCacheNodeForSegment(
         const oldRscDidResolve =
           !isDeferredRsc(oldRsc) || oldRsc.status !== 'pending'
         const dropPrefetchRsc = oldRscDidResolve
+        // Restore the bfcacheId from the cached entry so that back/forward
+        // navigations preserve the original id, regardless of whether
+        // `cacheComponents` Activity preservation is enabled.
         return {
           cacheNode: createCacheNode(
             bfcacheEntry.rsc,
             dropPrefetchRsc ? null : bfcacheEntry.prefetchRsc,
             bfcacheEntry.head,
-            dropPrefetchRsc ? null : bfcacheEntry.prefetchHead
+            dropPrefetchRsc ? null : bfcacheEntry.prefetchHead,
+            bfcacheEntry.bfcacheId
           ),
           needsDynamicRequest: false,
         }
@@ -1024,7 +1085,11 @@ function createCacheNodeForSegment(
   let cachedRsc: React.ReactNode | null = null
   let isCachedRscPartial: boolean = true
 
-  const segmentEntry = readSegmentCacheEntry(now, tree.varyPath)
+  const segmentEntry = readSegmentCacheEntryForNavigation(
+    now,
+    tree.varyPath,
+    restrictToShell
+  )
   if (segmentEntry !== null) {
     switch (segmentEntry.status) {
       case EntryStatus.Fulfilled: {
@@ -1127,7 +1192,11 @@ function createCacheNodeForSegment(
     let cachedHead: HeadData | null = null
     let isCachedHeadPartial: boolean = true
     if (metadataVaryPath !== null) {
-      const metadataEntry = readSegmentCacheEntry(now, metadataVaryPath)
+      const metadataEntry = readSegmentCacheEntryForNavigation(
+        now,
+        metadataVaryPath,
+        restrictToShell
+      )
       if (metadataEntry !== null) {
         switch (metadataEntry.status) {
           case EntryStatus.Fulfilled: {
@@ -1208,7 +1277,8 @@ function createCacheNodeForSegment(
       prefetchRsc,
       head,
       prefetchHead,
-      dynamicStaleAt
+      dynamicStaleAt,
+      bfcacheId
     )
     if (isPage && metadataVaryPath !== null) {
       writeHeadToBFCache(
@@ -1216,13 +1286,14 @@ function createCacheNodeForSegment(
         metadataVaryPath,
         head,
         prefetchHead,
-        dynamicStaleAt
+        dynamicStaleAt,
+        bfcacheId
       )
     }
   }
 
   return {
-    cacheNode: createCacheNode(rsc, prefetchRsc, head, prefetchHead),
+    cacheNode: createCacheNode(rsc, prefetchRsc, head, prefetchHead, bfcacheId),
     // TODO: We should store this field on the CacheNode itself. I think we can
     // probably unify NavigationTask, CacheNode, and DeferredRsc into a
     // single type. Or at least CacheNode and DeferredRsc.
@@ -1236,6 +1307,7 @@ function createCacheNode(
   prefetchRsc: React.ReactNode | null,
   head: React.ReactNode | null,
   prefetchHead: HeadData | null,
+  bfcacheId: number,
   scrollRef: ScrollRef | null = null
 ): CacheNode {
   return {
@@ -1245,7 +1317,54 @@ function createCacheNode(
     prefetchHead,
     slots: null,
     scrollRef,
+    bfcacheId,
   }
+}
+
+// Globally-unique counter for fresh bfcacheIds. Incremented every time a new
+// CacheNode is created on the client. The id surfaces to user code as a
+// string via `useRouter().bfcacheId`.
+let nextBFCacheId = 0
+
+function generateBFCacheId(freshness: FreshnessPolicy): number {
+  // Server-side rendering and the initial client-side hydration tree both
+  // use a fixed sentinel so they reconcile cleanly across hydration. The
+  // counter only advances on real client-side navigations after hydration.
+  if (typeof window === 'undefined') return 0
+  if (freshness === FreshnessPolicy.Hydration) return 0
+  return ++nextBFCacheId
+}
+
+const enum SegmentMatchKind {
+  // Two segments are equivalent: the CacheNode can be reused as-is.
+  Match,
+  // The segments differ in the parts that determine the route (segment kind,
+  // dynamic param value, etc.). The CacheNode must be created fresh.
+  Change,
+  // Two page segments differ only in their search params. Conceptually this
+  // is a refresh of the current page rather than a navigation to a new
+  // route — search params don't contribute to the LayoutRouter state key,
+  // and they shouldn't change the bfcacheId either. The CacheNode is rebuilt
+  // (so data refetches) but the bfcacheId carries forward.
+  SearchParamOnlyChange,
+}
+
+function compareSegments(
+  newSegment: Segment,
+  oldSegment: Segment
+): SegmentMatchKind {
+  if (matchSegment(newSegment, oldSegment)) {
+    return SegmentMatchKind.Match
+  }
+  if (
+    typeof newSegment === 'string' &&
+    typeof oldSegment === 'string' &&
+    newSegment.startsWith(PAGE_SEGMENT_KEY) &&
+    oldSegment.startsWith(PAGE_SEGMENT_KEY)
+  ) {
+    return SegmentMatchKind.SearchParamOnlyChange
+  }
+  return SegmentMatchKind.Change
 }
 
 // Represents whether the previuos navigation resulted in a route tree mismatch.
@@ -1282,7 +1401,8 @@ export function spawnDynamicRequests(
   // The original navigation's push/replace intent. Threaded through to the
   // server-patch retry logic so it can inherit the intent if the original
   // transition hasn't committed yet.
-  navigateType: 'push' | 'replace'
+  navigateType: 'push' | 'replace',
+  navigationLock: NavigationLock
 ): void {
   const dynamicRequestTree = task.dynamicRequestTree
   if (dynamicRequestTree === null) {
@@ -1306,7 +1426,8 @@ export function spawnDynamicRequests(
     primaryUrl,
     nextUrl,
     freshnessPolicy,
-    routeCacheEntry
+    routeCacheEntry,
+    navigationLock
   )
 
   const separateRefreshUrls = accumulation.separateRefreshUrls
@@ -1358,7 +1479,8 @@ export function spawnDynamicRequests(
             // hard refresh.
             nextUrl,
             freshnessPolicy,
-            routeCacheEntry
+            routeCacheEntry,
+            navigationLock
           )
         )
       }
@@ -1535,6 +1657,7 @@ function dispatchRetryDueToTreeMismatch(
       discoverKnownRoute(
         now,
         retryUrl.pathname,
+        retryUrl.search as NormalizedSearch,
         retryNextUrl,
         null,
         seed.routeTree,
@@ -1595,7 +1718,8 @@ async function fetchMissingDynamicData(
   url: URL,
   nextUrl: string | null,
   freshnessPolicy: FreshnessPolicy,
-  routeCacheEntry: FulfilledRouteCacheEntry | null
+  routeCacheEntry: FulfilledRouteCacheEntry | null,
+  navigationLock: NavigationLock
 ): Promise<{
   exitStatus: NavigationTaskExitStatus
   url: URL
@@ -1632,9 +1756,12 @@ async function fetchMissingDynamicData(
     // writing the dynamic data. This allows tests to assert on the prefetched
     // UI state.
     if (process.env.__NEXT_EXPOSE_TESTING_API) {
-      await waitForNavigationLock()
+      await waitForNavigationLock(navigationLock)
     }
 
+    // TODO: Implement Shell extraction as part of Cached Navigations.
+    // Intentionally holding off on doing this until we decide how the Cached
+    // Navigations behavior should work in combination with App Shells.
     if (routeCacheEntry !== null && result.staticStageData !== null) {
       const { response: staticStageResponse, isResponsePartial } =
         result.staticStageData
@@ -1645,11 +1772,13 @@ async function fetchMissingDynamicData(
             result.responseHeaders.get(NEXT_NAV_DEPLOYMENT_ID_HEADER) ??
             staticStageResponse.b
 
-          writeStaticStageResponseIntoCache(
+          writePrerenderResponseIntoCache(
             now,
+            FetchStrategy.PPR,
             staticStageResponse.f,
             buildId,
             staticStageResponse.h,
+            staticStageResponse.r ?? null,
             staleAt,
             dynamicRequestTree,
             result.renderedSearch,
@@ -1678,6 +1807,7 @@ async function fetchMissingDynamicData(
               processed.buildId,
               processed.isResponsePartial,
               processed.headVaryParams,
+              processed.rootVaryParamsIterable,
               processed.staleAt,
               processed.navigationSeed,
               null
@@ -1700,7 +1830,8 @@ async function fetchMissingDynamicData(
       seed.data,
       seed.head,
       dynamicStaleAt,
-      result.debugInfo
+      result.debugInfo,
+      result.revealAfter
     )
 
     return {
@@ -1728,11 +1859,18 @@ function writeDynamicDataIntoNavigationTask(
   dynamicData: CacheNodeSeedData | null,
   dynamicHead: HeadData,
   dynamicStaleAt: number,
-  debugInfo: Array<any> | null
+  debugInfo: Array<any> | null,
+  revealAfter: Promise<void> | null
 ): boolean {
   if (task.status === NavigationTaskStatus.Pending && dynamicData !== null) {
     task.status = NavigationTaskStatus.Fulfilled
-    finishPendingCacheNode(task.node, dynamicData, dynamicHead, debugInfo)
+    finishPendingCacheNode(
+      task.node,
+      dynamicData,
+      dynamicHead,
+      debugInfo,
+      revealAfter
+    )
 
     // Update the BFCache entry's staleAt for this segment with the value
     // from the dynamic response. This applies the per-page
@@ -1791,7 +1929,8 @@ function writeDynamicDataIntoNavigationTask(
                 dynamicDataChild,
                 dynamicHead,
                 dynamicStaleAt,
-                debugInfo
+                debugInfo,
+                revealAfter
               )
             if (childDidReceiveUnknownParallelRoute) {
               didReceiveUnknownParallelRoute = true
@@ -1814,7 +1953,8 @@ function finishPendingCacheNode(
   cacheNode: CacheNode,
   dynamicData: CacheNodeSeedData,
   dynamicHead: HeadData,
-  debugInfo: Array<any> | null
+  debugInfo: Array<any> | null,
+  revealAfter: Promise<void> | null
 ): void {
   // Writes a dynamic response into an existing Cache Node tree. This does _not_
   // create a new tree, it updates the existing tree in-place. So it must follow
@@ -1847,7 +1987,21 @@ function finishPendingCacheNode(
     // This is a deferred RSC promise. We can fulfill it with the data we just
     // received from the server. If it was already resolved by a different
     // navigation, then this does nothing because we can't overwrite data.
-    rsc.resolve(dynamicSegmentData, debugInfo)
+    //
+    // In the streaming dev render, defer the fill until `revealAfter` settles,
+    // so React doesn't render the boundary's children before their row has been
+    // decoded (otherwise it suspends on the still-pending children and commits
+    // a premature fallback). Outside that render `revealAfter` is null and we
+    // resolve immediately.
+    if (revealAfter !== null) {
+      const resolveRsc = () => rsc.resolve(dynamicSegmentData, debugInfo)
+      // Use the same callback for both outcomes: we don't expect `revealAfter`
+      // to reject, but if it ever did (e.g. a connection drop mid-stream) we'd
+      // still want to resolve the RSC.
+      revealAfter.then(resolveRsc, resolveRsc)
+    } else {
+      rsc.resolve(dynamicSegmentData, debugInfo)
+    }
   } else {
     // This is not a deferred RSC promise, nor is it empty, so it must have
     // been populated by a different navigation. We must not overwrite it.
@@ -2046,16 +2200,25 @@ function createDeferredRsc<
 }
 
 /**
- * Helper for the Instant Navigation Testing API. Waits for the navigation lock
- * to be released before returning. The network request has already completed by
- * the time this is called, so this only delays writing the dynamic data.
+ * Helper for the Instant Navigation Testing API. Snapshots the lock that is
+ * active when a navigation starts, so the navigation can wait for the same lock
+ * even if another lock is acquired before its dynamic response is applied.
  *
  * Not exposed in production builds by default.
  */
-async function waitForNavigationLock(): Promise<void> {
+export function getCurrentNavigationLock(): NavigationLock {
+  if (process.env.__NEXT_EXPOSE_TESTING_API) {
+    const { getCurrentNavigationLock: getCurrentLock } =
+      require('../segment-cache/navigation-testing-lock') as typeof import('../segment-cache/navigation-testing-lock')
+    return getCurrentLock()
+  }
+  return null
+}
+
+async function waitForNavigationLock(lock: NavigationLock): Promise<void> {
   if (process.env.__NEXT_EXPOSE_TESTING_API) {
     const { waitForNavigationLockIfActive } =
       require('../segment-cache/navigation-testing-lock') as typeof import('../segment-cache/navigation-testing-lock')
-    await waitForNavigationLockIfActive()
+    await waitForNavigationLockIfActive(lock)
   }
 }

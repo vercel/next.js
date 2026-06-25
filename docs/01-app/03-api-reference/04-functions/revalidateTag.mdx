@@ -1,6 +1,9 @@
 ---
 title: revalidateTag
 description: API Reference for the revalidateTag function.
+related:
+  links:
+    - app/guides/server-actions
 ---
 
 `revalidateTag` allows you to invalidate cached data on-demand for a specific cache tag.

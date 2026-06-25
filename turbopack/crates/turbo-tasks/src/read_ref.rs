@@ -3,7 +3,6 @@ use std::{
     fmt::{self, Debug, Display},
     hash::{Hash, Hasher},
     marker::PhantomData,
-    mem::transmute_copy,
     ops::Deref,
 };
 
@@ -141,6 +140,7 @@ where
     }
 }
 
+/// Iterate by reference over a [`ReadRef`].
 impl<'a, T, I, J: Iterator<Item = I>> IntoIterator for &'a ReadRef<T>
 where
     T: VcValueType,
@@ -155,44 +155,63 @@ where
     }
 }
 
-impl<T, I: 'static, J: Iterator<Item = I>> IntoIterator for ReadRef<T>
+impl<T, I, J> IntoIterator for ReadRef<T>
 where
     T: VcValueType,
-    &'static VcReadTarget<T>: IntoIterator<Item = I, IntoIter = J>,
+    I: Copy + 'static,
+    J: Iterator<Item = &'static I> + 'static,
+    &'static VcReadTarget<T>: IntoIterator<Item = &'static I, IntoIter = J>,
 {
     type Item = I;
-
     type IntoIter = ReadRefIter<T, I, J>;
 
     fn into_iter(self) -> Self::IntoIter {
-        let r = &*self;
-        // # Safety
-        // The reference will we valid as long as the ReadRef is valid.
-        let r = unsafe { transmute_copy::<&'_ VcReadTarget<T>, &'static VcReadTarget<T>>(&r) };
+        let r: &VcReadTarget<T> = &self;
+        // SAFETY: The `&'static` reference fabricated here is only stored in
+        // `iter`, which lives inside the returned `ReadRefIter` alongside the
+        // `ReadRef` that owns the data. The public `Iterator::next` only
+        // returns `Copy`-ed-out values — no reference (with the fake `'static`
+        // lifetime or otherwise) ever leaves the iterator. Struct-field drop
+        // order (`iter` then `_read_ref`) drops any references still held by
+        // `iter` before the backing storage.
+        let r = unsafe { std::mem::transmute::<&VcReadTarget<T>, &'static VcReadTarget<T>>(r) };
         ReadRefIter {
-            read_ref: self,
             iter: r.into_iter(),
+            _read_ref: self,
         }
     }
 }
 
-pub struct ReadRefIter<T, I: 'static, J: Iterator<Item = I>>
+/// Consuming iteration over a [`ReadRef`], yielding items by **copy**.
+///
+/// `Iterator::Item` is a fixed associated type — it cannot borrow from
+/// `&mut self`.
+///
+/// The iterator owns the original [`ReadRef`], borrows into the underlying value, and
+/// `Iterator::next` simply copies each element out of that borrow. This restricts the impl to
+/// element types that are [`Copy`] — typically `ResolvedVc<_>`, integer ids, etc. For
+/// non-`Copy` element types (or if you want zero-copy iteration over
+/// borrows), iterate by reference instead: `for item in &read_ref { ... }`.
+pub struct ReadRefIter<T, I, J>
 where
     T: VcValueType,
+    I: Copy + 'static,
+    J: Iterator<Item = &'static I>,
 {
     iter: J,
-    #[allow(dead_code)]
-    read_ref: ReadRef<T>,
+    _read_ref: ReadRef<T>,
 }
 
-impl<T, I: 'static, J: Iterator<Item = I>> Iterator for ReadRefIter<T, I, J>
+impl<T, I, J> Iterator for ReadRefIter<T, I, J>
 where
     T: VcValueType,
+    I: Copy + 'static,
+    J: Iterator<Item = &'static I>,
 {
     type Item = I;
 
-    fn next(&mut self) -> Option<Self::Item> {
-        self.iter.next()
+    fn next(&mut self) -> Option<I> {
+        self.iter.next().copied()
     }
 }
 

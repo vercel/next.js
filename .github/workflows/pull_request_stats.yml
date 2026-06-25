@@ -15,7 +15,6 @@ concurrency:
 env:
   NAPI_CLI_VERSION: 2.18.4
   TURBO_VERSION: 2.9.4
-  NODE_LTS_VERSION: 20
   TEST_CONCURRENCY: 6
 
   TURBO_TEAM: 'vtest314-next-adapter-e2e-tests'
@@ -24,9 +23,6 @@ env:
   TURBO_CACHE: 'local:rw,remote:rw'
   TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
   NEXT_TELEMETRY_DISABLED: 1
-  # we build a dev binary for use in CI so skip downloading
-  # canary next-swc binaries in the monorepo
-  NEXT_SKIP_NATIVE_POSTINSTALL: 1
   # Vercel KV Store for test timings
   KV_REST_API_URL: ${{ secrets.KV_REST_API_URL }}
   KV_REST_API_TOKEN: ${{ secrets.KV_REST_API_TOKEN }}
@@ -96,9 +92,10 @@ jobs:
         bundler: [webpack, turbopack]
     runs-on: ubuntu-latest-16-core-oss
     steps:
-      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           fetch-depth: 25
+          persist-credentials: false
 
       - name: Check non-docs only change
         run: echo "DOCS_CHANGE<<EOF" >> $GITHUB_OUTPUT; echo "$(node scripts/run-for-change.mjs --not --type docs --exec echo 'nope')" >> $GITHUB_OUTPUT; echo 'EOF' >> $GITHUB_OUTPUT
@@ -137,9 +134,10 @@ jobs:
     if: always() && needs.stats.result != 'cancelled'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           fetch-depth: 25
+          persist-credentials: false
 
       - name: Check non-docs only change
         run: echo "DOCS_CHANGE<<EOF" >> $GITHUB_OUTPUT; echo "$(node scripts/run-for-change.mjs --not --type docs --exec echo 'nope')" >> $GITHUB_OUTPUT; echo 'EOF' >> $GITHUB_OUTPUT
@@ -155,9 +153,10 @@ jobs:
 
       - name: Setup Node.js
         if: ${{ steps.docs-change.outputs.DOCS_CHANGE == 'nope' }}
-        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
         with:
-          node-version: ${{ env.NODE_LTS_VERSION }}
+          node-version-file: .node-version
+          package-manager-cache: false
 
       - name: Install dependencies
         if: ${{ steps.docs-change.outputs.DOCS_CHANGE == 'nope' }}

@@ -195,7 +195,7 @@ Although the `worker` strategy does not require any additional configuration to 
 
 If you would like to add additional configuration options, you can include it within the `<Head />` component used in a [custom `_document.js`](/docs/pages/building-your-application/routing/custom-document):
 
-```jsx filename="_pages/document.jsx"
+```jsx filename="pages/_document.js"
 import { Html, Head, Main, NextScript } from 'next/document'
 
 export default function Document() {

@@ -78,6 +78,40 @@ describe('non-root-project-monorepo', () => {
       }
       await browser.close()
     })
+
+    // Verifies that non-URL-safe characters in file paths (here: a literal
+    // space) are correctly percent-encoded in the resulting `file://` URI.
+    describe('non-url-safe characters', () => {
+      it('should encode special chars during RSC', async () => {
+        const $ = await next.render$('/import-meta-url-encoded-rsc')
+        expect($('p').text()).toMatch(
+          /^file:\/\/.*\/next-install-[^/]+\/apps\/web\/app\/import-meta-url-encoded-rsc\/with%20space.ts$/
+        )
+      })
+
+      it('should encode special chars during SSR', async () => {
+        const $ = await next.render$('/import-meta-url-encoded-ssr')
+        expect($('p').text()).toMatch(
+          /^file:\/\/.*\/next-install-[^/]+\/apps\/web\/app\/import-meta-url-encoded-ssr\/with%20space.ts$/
+        )
+      })
+
+      it('should encode special chars on client-side', async () => {
+        const browser = await next.browser('/import-meta-url-encoded-ssr')
+        await waitForNoRedbox(browser)
+        if (isTurbopack) {
+          // Turbopack intentionally doesn't expose the full path to the browser bundles
+          expect(await browser.elementByCss('p').text()).toBe(
+            'file:///ROOT/apps/web/app/import-meta-url-encoded-ssr/with%20space.ts'
+          )
+        } else {
+          expect(await browser.elementByCss('p').text()).toMatch(
+            /^file:\/\/.*\/next-install-[^/]+\/apps\/web\/app\/import-meta-url-encoded-ssr\/with%20space.ts$/
+          )
+        }
+        await browser.close()
+      })
+    })
   })
 
   if (isNextDev) {

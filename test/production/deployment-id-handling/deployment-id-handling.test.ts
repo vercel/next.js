@@ -201,7 +201,10 @@ describe.each([
         expect(immutableAssets).not.toBeEmpty()
         expect(immutableAssets).toSatisfyAll(
           (f) =>
-            // Should be same hash as in the filename, for better build performance
+            // Should be same hash as in the filename, for better build performance.
+            // This check also ensure that we don't accidentally forget to content hash sourcemap
+            // files (i.e. 0cz1d0mv5g_q7.js is content hashed, but 0cz1d0mv5g_q7.js.map is not a
+            // content hash of itself)..
             f.immutableHash && f.pathname.includes(f.immutableHash.slice(0, 13))
         )
       })

@@ -31,9 +31,10 @@ jobs:
     permissions:
       contents: read
     steps:
-      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           fetch-depth: 25
+          persist-credentials: false
 
       - name: check for docs only change
         id: docs-change
@@ -148,10 +149,11 @@ jobs:
     if: ${{ needs.changes.outputs.docs-only == 'false' }}
     steps:
       - name: Setup Node.js
-        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
         with:
           node-version: ${{ env.NODE_LTS_VERSION }}
           check-latest: true
+          package-manager-cache: false
 
       - name: Setup pnpm
         run: |
@@ -159,20 +161,19 @@ jobs:
           corepack enable
 
       - name: Checkout
-        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           fetch-depth: 25
+          persist-credentials: false
 
       # Match the reusable workflow's pnpm-store cache path so this setup-only
       # job does not bottleneck the larger test matrix.
       - name: Get pnpm store directory
-        if: ${{ runner.environment == 'github-hosted' }}
         id: get-store-path
         run: echo STORE_PATH="$(pnpm store path)" >> "$GITHUB_OUTPUT"
 
       - name: Cache pnpm store
-        if: ${{ runner.environment == 'github-hosted' }}
-        uses: actions/cache@v5
+        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
         timeout-minutes: 5
         id: cache-pnpm-store
         with:
@@ -224,10 +225,13 @@ jobs:
   validate-docs-links:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
         with:
           node-version: 20
+          package-manager-cache: false
       - name: Setup corepack
         run: |
           npm i -g corepack@0.31
@@ -304,7 +308,9 @@ jobs:
     runs-on: ubuntu-latest
     name: ast-grep lint
     steps:
-      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
       - name: ast-grep lint step
         uses: ast-grep/action@cf62e780f0c88301228978d593a7784427a097a6 # v1.5.0
         with:
@@ -388,59 +394,6 @@ jobs:
       stepName: 'test-turbopack-dev-react-${{ matrix.react }}-${{ matrix.group }}'
     secrets: inherit
 
-  test-turbopack-integration:
-    name: test turbopack integration
-    needs:
-      [
-        'optimize-ci',
-        'changes',
-        'build-native',
-        'build-next',
-        'fetch-test-timings',
-      ]
-    if: ${{ needs.optimize-ci.outputs.skip == 'false' && needs.changes.outputs.docs-only == 'false' }}
-
-    strategy:
-      fail-fast: false
-      matrix:
-        group:
-          - 1/13
-          - 2/13
-          - 3/13
-          - 4/13
-          - 5/13
-          - 6/13
-          - 7/13
-          - 8/13
-          - 9/13
-          - 10/13
-          - 11/13
-          - 12/13
-          - 13/13
-        # Empty value uses default
-        # TODO: Run with React 18.
-        # Integration tests use the installed React version in next/package.json.
-        # We can't easily switch like we do for e2e tests.
-        # Skipping this dimension until we can figure out a way to test multiple React versions.
-        react: ['']
-    uses: ./.github/workflows/build_reusable.yml
-    with:
-      nodeVersion: 20.9.0
-      afterBuild: |
-        export IS_TURBOPACK_TEST=1
-        export NEXT_TEST_REACT_VERSION="${{ matrix.react }}"
-        export __NEXT_EXPERIMENTAL_STRICT_ROUTE_TYPES=true
-        export RUST_BACKTRACE=1
-
-        node run-tests.js \
-          --timings \
-          --require-timings \
-          -g ${{ matrix.group }} \
-          --type integration
-      testTimingsArtifact: 'test-timings'
-      stepName: 'test-turbopack-integration-react-${{ matrix.react }}-${{ matrix.group }}'
-    secrets: inherit
-
   test-turbopack-production:
     name: test turbopack production
     needs:
@@ -500,6 +453,7 @@ jobs:
         react: ['', '18.3.1']
     uses: ./.github/workflows/build_reusable.yml
     with:
+      nodeVersion: 20.19.x
       afterBuild: |
         export NEXT_EXTERNAL_TESTS_FILTERS="$(pwd)/test/rspack-dev-tests-manifest.json"
         export NEXT_TEST_MODE=dev
@@ -521,52 +475,6 @@ jobs:
           -g ${{ matrix.group }}
       testTimingsArtifact: 'test-timings'
       stepName: 'test-rspack-dev-react-${{ matrix.react }}-${{ matrix.group }}'
-    secrets: inherit
-
-  test-rspack-integration:
-    name: test rspack development integration
-    needs:
-      [
-        'optimize-ci',
-        'changes',
-        'build-next',
-        'build-native',
-        'fetch-test-timings',
-      ]
-    if: ${{ needs.optimize-ci.outputs.skip == 'false' && needs.changes.outputs.docs-only == 'false' && needs.changes.outputs.rspack == 'true' }}
-    strategy:
-      fail-fast: false
-      matrix:
-        group: [1/6, 2/6, 3/6, 4/6, 5/6, 6/6]
-        # Empty value uses default
-        # TODO: Run with React 18.
-        # Integration tests use the installed React version in next/package.json.
-        # We can't easily switch like we do for e2e tests.
-        # Skipping this dimension until we can figure out a way to test multiple React versions.
-        react: ['']
-    uses: ./.github/workflows/build_reusable.yml
-    with:
-      nodeVersion: 20.9.0
-      afterBuild: |
-        export NEXT_EXTERNAL_TESTS_FILTERS="$(pwd)/test/rspack-dev-tests-manifest.json"
-        export NEXT_TEST_REACT_VERSION="${{ matrix.react }}"
-        export __NEXT_EXPERIMENTAL_STRICT_ROUTE_TYPES=true
-
-        # rspack flags
-        export NEXT_RSPACK=1
-        export NEXT_TEST_USE_RSPACK=1
-
-        # HACK: Despite the name, this environment variable is only used to gate
-        # tests, so it's applicable to rspack
-        export TURBOPACK_DEV=1
-
-        node run-tests.js \
-          --timings \
-          --require-timings \
-          -g ${{ matrix.group }} \
-          --type integration
-      testTimingsArtifact: 'test-timings'
-      stepName: 'test-rspack-integration-react-${{ matrix.react }}-${{ matrix.group }}'
     secrets: inherit
 
   test-rspack-production:
@@ -591,7 +499,7 @@ jobs:
         react: ['', '18.3.1']
     uses: ./.github/workflows/build_reusable.yml
     with:
-      nodeVersion: 20.9.0
+      nodeVersion: 20.19.x
       afterBuild: |
         export NEXT_EXTERNAL_TESTS_FILTERS="$(pwd)/test/rspack-build-tests-manifest.json"
         export NEXT_TEST_MODE=start
@@ -609,52 +517,6 @@ jobs:
         node run-tests.js --timings --require-timings -g ${{ matrix.group }} --type production
       testTimingsArtifact: 'test-timings'
       stepName: 'test-rspack-production-react-${{ matrix.react }}-${{ matrix.group }}'
-    secrets: inherit
-
-  test-rspack-production-integration:
-    name: test rspack production integration
-    needs:
-      [
-        'optimize-ci',
-        'changes',
-        'build-next',
-        'build-native',
-        'fetch-test-timings',
-      ]
-    if: ${{ needs.optimize-ci.outputs.skip == 'false' && needs.changes.outputs.docs-only == 'false' && needs.changes.outputs.rspack == 'true' }}
-    strategy:
-      fail-fast: false
-      matrix:
-        group: [1/7, 2/7, 3/7, 4/7, 5/7, 6/7, 7/7]
-        # Empty value uses default
-        # TODO: Run with React 18.
-        # Integration tests use the installed React version in next/package.json.
-        # We can't easily switch like we do for e2e tests.
-        # Skipping this dimension until we can figure out a way to test multiple React versions.
-        react: ['']
-    uses: ./.github/workflows/build_reusable.yml
-    with:
-      nodeVersion: 20.9.0
-      afterBuild: |
-        export NEXT_EXTERNAL_TESTS_FILTERS="$(pwd)/test/rspack-build-tests-manifest.json"
-        export NEXT_TEST_REACT_VERSION="${{ matrix.react }}"
-        export __NEXT_EXPERIMENTAL_STRICT_ROUTE_TYPES=true
-
-        # rspack flags
-        export NEXT_RSPACK=1
-        export NEXT_TEST_USE_RSPACK=1
-
-        # HACK: Despite the name, this environment variable is only used to gate
-        # tests, so it's applicable to rspack
-        export TURBOPACK_BUILD=1
-
-        node run-tests.js \
-          --timings \
-          --require-timings \
-          -g ${{ matrix.group }} \
-          --type integration
-      testTimingsArtifact: 'test-timings'
-      stepName: 'test-rspack-production-integration-react-${{ matrix.react }}-${{ matrix.group }}'
     secrets: inherit
 
   test-next-swc-wasm:
@@ -729,7 +591,10 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        node: [22, 24]
+        # Playwright hangs on Node 24.16+, we can remove this exact node version
+        # pin once we update to playwright 1.60.0 or newer.
+        # https://github.com/microsoft/playwright/issues/40724
+        node: [22, '24.15.0']
 
     uses: ./.github/workflows/build_reusable.yml
     with:
@@ -751,7 +616,9 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        node: [22, 24]
+        # Playwright hangs on Node 24.16+, we can remove this exact node version
+        # pin once we update to playwright 1.60.0 or newer.
+        node: [22, '24.15.0']
 
     uses: ./.github/workflows/build_reusable.yml
     with:
@@ -807,7 +674,7 @@ jobs:
           --group ${{ matrix.group }} \
           --preview-builds-base-url "${{ vars.PREVIEW_BUILDS_BASE_URL }}"
       stepName: 'test-new-tests-dev-${{matrix.group}}'
-      timeout_minutes: 60 # Increase the default timeout as tests are intentionally run multiple times to detect flakes
+      timeout_minutes: 120 # Increase the default timeout as tests are intentionally run multiple times to detect flakes
 
     secrets: inherit
 
@@ -833,7 +700,7 @@ jobs:
           --group ${{ matrix.group }} \
           --preview-builds-base-url "${{ vars.PREVIEW_BUILDS_BASE_URL }}"
       stepName: 'test-new-tests-start-${{matrix.group}}'
-      timeout_minutes: 60 # Increase the default timeout as tests are intentionally run multiple times to detect flakes
+      timeout_minutes: 120 # Increase the default timeout as tests are intentionally run multiple times to detect flakes
     secrets: inherit
 
   test-new-tests-deploy:
@@ -944,11 +811,11 @@ jobs:
 
     uses: ./.github/workflows/build_reusable.yml
     with:
-      # Should this be using turbopack? a variation?
       afterBuild: |
         export NEXT_TEST_MODE=dev
-        export IS_WEBPACK_TEST=1
         export __NEXT_EXPERIMENTAL_STRICT_ROUTE_TYPES=true
+        export IS_TURBOPACK_TEST=1
+        export TURBOPACK_DEV=1
 
         node run-tests.js \
           test/e2e/app-dir/app/index.test.ts \
@@ -969,15 +836,18 @@ jobs:
     with:
       nodeVersion: 20.9.0
       afterBuild: |
-        export IS_WEBPACK_TEST=1
+        export NEXT_TEST_MODE=start
         export __NEXT_EXPERIMENTAL_STRICT_ROUTE_TYPES=true
-        node run-tests.js \
+        export IS_TURBOPACK_TEST=1
+        export TURBOPACK_BUILD=1
+
+        node run-tests.js --type production \
           --concurrency 4 \
           test/production/pages-dir/production/test/index.test.ts \
-          test/integration/css-client-nav/test/index.test.ts \
-          test/integration/rewrites-has-condition/test/index.test.ts \
-          test/integration/create-next-app/index.test.ts \
-          test/integration/create-next-app/package-manager/pnpm.test.ts
+          test/e2e/css-client-nav/css-client-nav.test.ts \
+          test/e2e/rewrites-has-condition/rewrites-has-condition.test.ts \
+          test/production/create-next-app/index.test.ts \
+          test/production/create-next-app/package-manager/pnpm.test.ts
       stepName: 'test-integration-windows'
       runs_on_labels: '["windows-latest-8-core-oss"]'
       buildNativeTarget: 'x86_64-pc-windows-msvc'
@@ -992,8 +862,9 @@ jobs:
     with:
       afterBuild: |
         export NEXT_TEST_MODE=start
-        export IS_WEBPACK_TEST=1
         export __NEXT_EXPERIMENTAL_STRICT_ROUTE_TYPES=true
+        export IS_TURBOPACK_TEST=1
+        export TURBOPACK_BUILD=1
 
         node run-tests.js --type production \
           test/e2e/app-dir/app/index.test.ts \
@@ -1040,58 +911,6 @@ jobs:
       stepName: 'test-prod-react-${{ matrix.react }}-${{ matrix.group }}'
     secrets: inherit
 
-  test-integration:
-    name: test integration
-    needs:
-      [
-        'optimize-ci',
-        'changes',
-        'build-native',
-        'build-next',
-        'fetch-test-timings',
-      ]
-    if: ${{ needs.optimize-ci.outputs.skip == 'false' && needs.changes.outputs.docs-only == 'false' }}
-
-    strategy:
-      fail-fast: false
-      matrix:
-        group:
-          - 1/13
-          - 2/13
-          - 3/13
-          - 4/13
-          - 5/13
-          - 6/13
-          - 7/13
-          - 8/13
-          - 9/13
-          - 10/13
-          - 11/13
-          - 12/13
-          - 13/13
-        # Empty value uses default
-        # TODO: Run with React 18.
-        # Integration tests use the installed React version in next/package.json.
-        # We can't easily switch like we do for e2e tests.
-        # Skipping this dimension until we can figure out a way to test multiple React versions.
-        react: ['']
-    uses: ./.github/workflows/build_reusable.yml
-    with:
-      nodeVersion: 20.9.0
-      afterBuild: |
-        export IS_WEBPACK_TEST=1
-        export NEXT_TEST_REACT_VERSION="${{ matrix.react }}"
-        export __NEXT_EXPERIMENTAL_STRICT_ROUTE_TYPES=true
-
-        node run-tests.js \
-          --timings \
-          --require-timings \
-          -g ${{ matrix.group }} \
-          --type integration
-      testTimingsArtifact: 'test-timings'
-      stepName: 'test-integration-${{ matrix.group }}-react-${{ matrix.react }}'
-    secrets: inherit
-
   test-firefox-safari:
     name: test firefox and safari
     needs: ['optimize-ci', 'changes', 'build-native', 'build-next']
@@ -1109,10 +928,12 @@ jobs:
           test/production/chunk-load-failure/chunk-load-failure.test.ts
 
         TURBOPACK_DEV=1 NEXT_TEST_MODE=dev BROWSER_NAME=firefox node run-tests.js \
-          test/e2e/app-dir/scss/hmr-module/hmr-module.test.ts
+          test/e2e/app-dir/scss/hmr-module/hmr-module.test.ts \
+          test/e2e/app-dir/bfcache-regression/bfcache-regression.test.ts
 
         TURBOPACK_DEV=1 NEXT_TEST_MODE=dev BROWSER_NAME=safari node run-tests.js \
-          test/e2e/app-dir/scss/hmr-module/hmr-module.test.ts
+          test/e2e/app-dir/scss/hmr-module/hmr-module.test.ts \
+          test/e2e/app-dir/bfcache-regression/bfcache-regression.test.ts
 
         TURBOPACK_BUILD=1 NEXT_TEST_MODE=start BROWSER_NAME=safari node run-tests.js \
           test/production/pages-dir/production/test/index.test.ts \
@@ -1123,28 +944,6 @@ jobs:
         TURBOPACK_BUILD=1 NEXT_TEST_MODE=start BROWSER_NAME=safari DEVICE_NAME='iPhone XR' node run-tests.js \
           test/production/prerender-prefetch/index.test.ts
       stepName: 'test-firefox-safari'
-    secrets: inherit
-
-  # Manifest generated via: https://gist.github.com/wyattjoh/2ceaebd82a5bcff4819600fd60126431
-  test-cache-components-integration:
-    name: test cache components integration
-    needs: ['optimize-ci', 'changes', 'build-native', 'build-next']
-    if: ${{ needs.optimize-ci.outputs.skip == 'false' && needs.changes.outputs.docs-only == 'false' }}
-
-    uses: ./.github/workflows/build_reusable.yml
-    with:
-      nodeVersion: 20.9.0
-      afterBuild: |
-        export __NEXT_CACHE_COMPONENTS=true
-        export __NEXT_EXPERIMENTAL_CACHED_NAVIGATIONS=true
-        export __NEXT_EXPERIMENTAL_APP_NEW_SCROLL_HANDLER=true
-        export NEXT_EXTERNAL_TESTS_FILTERS="test/cache-components-tests-manifest.json"
-        export IS_WEBPACK_TEST=1
-
-        node run-tests.js \
-          --timings \
-          --type integration
-      stepName: 'test-cache-components-integration'
     secrets: inherit
 
   test-cache-components-dev:
@@ -1171,7 +970,8 @@ jobs:
         export __NEXT_EXPERIMENTAL_APP_NEW_SCROLL_HANDLER=true
         export NEXT_EXTERNAL_TESTS_FILTERS="test/cache-components-tests-manifest.json"
         export NEXT_TEST_MODE=dev
-        export IS_WEBPACK_TEST=1
+        export IS_TURBOPACK_TEST=1
+        export TURBOPACK_DEV=1
 
         node run-tests.js \
           --timings \
@@ -1206,7 +1006,8 @@ jobs:
         export __NEXT_EXPERIMENTAL_APP_NEW_SCROLL_HANDLER=true
         export NEXT_EXTERNAL_TESTS_FILTERS="test/cache-components-tests-manifest.json"
         export NEXT_TEST_MODE=start
-        export IS_WEBPACK_TEST=1
+        export IS_TURBOPACK_TEST=1
+        export TURBOPACK_BUILD=1
 
         node run-tests.js \
           --timings \
@@ -1215,132 +1016,6 @@ jobs:
           --type production
       testTimingsArtifact: 'test-timings'
       stepName: 'test-cache-components-prod-${{ matrix.group }}'
-    secrets: inherit
-
-  test-node-streams-cache-components-dev:
-    name: test node streams cache components dev
-    needs:
-      [
-        'optimize-ci',
-        'changes',
-        'build-native',
-        'build-next',
-        'fetch-test-timings',
-      ]
-    if: ${{ needs.optimize-ci.outputs.skip == 'false' && needs.changes.outputs.docs-only == 'false' }}
-
-    strategy:
-      fail-fast: false
-      matrix:
-        group: [1/6, 2/6, 3/6, 4/6, 5/6, 6/6]
-    uses: ./.github/workflows/build_reusable.yml
-    with:
-      afterBuild: |
-        export __NEXT_USE_NODE_STREAMS=true
-        export __NEXT_CACHE_COMPONENTS=true
-        export __NEXT_EXPERIMENTAL_CACHED_NAVIGATIONS=true
-        export __NEXT_EXPERIMENTAL_APP_NEW_SCROLL_HANDLER=true
-        export NEXT_EXTERNAL_TESTS_FILTERS="test/cache-components-tests-manifest.json"
-        export NEXT_TEST_MODE=dev
-        export IS_WEBPACK_TEST=1
-
-        node run-tests.js \
-          --timings \
-          --require-timings \
-          -g ${{ matrix.group }} \
-          --type development
-      testTimingsArtifact: 'test-timings'
-      stepName: 'test-node-streams-cache-components-dev-${{ matrix.group }}'
-    secrets: inherit
-
-  test-node-streams-cache-components-prod:
-    name: test node streams cache components prod
-    needs:
-      [
-        'optimize-ci',
-        'changes',
-        'build-native',
-        'build-next',
-        'fetch-test-timings',
-      ]
-    if: ${{ needs.optimize-ci.outputs.skip == 'false' && needs.changes.outputs.docs-only == 'false' }}
-
-    strategy:
-      fail-fast: false
-      matrix:
-        group: [1/7, 2/7, 3/7, 4/7, 5/7, 6/7, 7/7]
-    uses: ./.github/workflows/build_reusable.yml
-    with:
-      afterBuild: |
-        export __NEXT_USE_NODE_STREAMS=true
-        export __NEXT_CACHE_COMPONENTS=true
-        export __NEXT_EXPERIMENTAL_CACHED_NAVIGATIONS=true
-        export __NEXT_EXPERIMENTAL_APP_NEW_SCROLL_HANDLER=true
-        export NEXT_EXTERNAL_TESTS_FILTERS="test/cache-components-tests-manifest.json"
-        export NEXT_TEST_MODE=start
-        export IS_WEBPACK_TEST=1
-
-        node run-tests.js \
-          --timings \
-          --require-timings \
-          -g ${{ matrix.group }} \
-          --type production
-      testTimingsArtifact: 'test-timings'
-      stepName: 'test-node-streams-cache-components-prod-${{ matrix.group }}'
-    secrets: inherit
-
-  test-node-streams-dev:
-    name: test node streams dev
-    needs: ['optimize-ci', 'changes', 'build-native', 'build-next']
-    if: ${{ needs.optimize-ci.outputs.skip == 'false' && needs.changes.outputs.docs-only == 'false' }}
-
-    strategy:
-      fail-fast: false
-      matrix:
-        group: [1/6, 2/6, 3/6, 4/6, 5/6, 6/6]
-    uses: ./.github/workflows/build_reusable.yml
-    with:
-      afterBuild: |
-        export __NEXT_USE_NODE_STREAMS=true
-        export NEXT_EXTERNAL_TESTS_FILTERS="test/cache-components-tests-manifest.json,test/use-node-streams-tests-manifest.json"
-        export NEXT_TEST_MODE=dev
-        export IS_TURBOPACK_TEST=1
-        export TURBOPACK_DEV=1
-        export __NEXT_EXPERIMENTAL_STRICT_ROUTE_TYPES=true
-        export RUST_BACKTRACE=1
-
-        node run-tests.js \
-          --timings \
-          -g ${{ matrix.group }} \
-          --type development
-      stepName: 'test-node-streams-dev-${{ matrix.group }}'
-    secrets: inherit
-
-  test-node-streams-prod:
-    name: test node streams prod
-    needs: ['optimize-ci', 'changes', 'build-native', 'build-next']
-    if: ${{ needs.optimize-ci.outputs.skip == 'false' && needs.changes.outputs.docs-only == 'false' }}
-
-    strategy:
-      fail-fast: false
-      matrix:
-        group: [1/7, 2/7, 3/7, 4/7, 5/7, 6/7, 7/7]
-    uses: ./.github/workflows/build_reusable.yml
-    with:
-      afterBuild: |
-        export __NEXT_USE_NODE_STREAMS=true
-        export NEXT_EXTERNAL_TESTS_FILTERS="test/cache-components-tests-manifest.json,test/use-node-streams-tests-manifest.json"
-        export NEXT_TEST_MODE=start
-        export IS_TURBOPACK_TEST=1
-        export TURBOPACK_BUILD=1
-        export __NEXT_EXPERIMENTAL_STRICT_ROUTE_TYPES=true
-        export RUST_BACKTRACE=1
-
-        node run-tests.js \
-          --timings \
-          -g ${{ matrix.group }} \
-          --type production
-      stepName: 'test-node-streams-prod-${{ matrix.group }}'
     secrets: inherit
 
   tests-pass:
@@ -1356,21 +1031,14 @@ jobs:
         'test-next-config-ts-native-ts-prod',
         'test-dev',
         'test-prod',
-        'test-integration',
         'test-firefox-safari',
         'test-cache-components-dev',
         'test-cache-components-prod',
-        'test-cache-components-integration',
-        'test-node-streams-cache-components-dev',
-        'test-node-streams-cache-components-prod',
-        'test-node-streams-dev',
-        'test-node-streams-prod',
         'test-cargo-unit',
         'rust-check',
         'rustdoc-check',
         'test-next-swc-wasm',
         'test-turbopack-dev',
-        'test-turbopack-integration',
         'test-new-tests-dev',
         'test-new-tests-start',
         'test-new-tests-deploy',

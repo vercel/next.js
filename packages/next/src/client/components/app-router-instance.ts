@@ -35,9 +35,10 @@ import type {
   PrefetchOptions,
 } from '../../shared/lib/app-router-context.shared-runtime'
 import { setLinkForCurrentNavigation, type LinkInstance } from './links'
-import type { ClientInstrumentationHooks } from '../app-index'
+import type { RouterTransitionPrefetchIntent } from '../router-transition-types'
 import type { GlobalErrorComponent } from './builtin/global-error'
 import { isJavaScriptURLString } from '../lib/javascript-url'
+import { startRouterTransition } from './router-transition'
 
 export type DispatchStatePromise = React.Dispatch<ReducerState>
 
@@ -45,10 +46,6 @@ export type AppRouterActionQueue = {
   state: AppRouterState
   dispatch: (payload: ReducerActions, setState: DispatchStatePromise) => void
   action: (state: AppRouterState, action: ReducerActions) => ReducerState
-
-  onRouterTransitionStart:
-    | ((url: string, type: 'push' | 'replace' | 'traverse') => void)
-    | null
 
   pending: ActionQueueNode | null
   needsRefresh?: boolean
@@ -218,8 +215,7 @@ function dispatchAction(
 let globalActionQueue: AppRouterActionQueue | null = null
 
 export function createMutableActionQueue(
-  initialState: AppRouterState,
-  instrumentationHooks: ClientInstrumentationHooks | null
+  initialState: AppRouterState
 ): AppRouterActionQueue {
   const actionQueue: AppRouterActionQueue = {
     state: initialState,
@@ -231,12 +227,6 @@ export function createMutableActionQueue(
     },
     pending: null,
     last: null,
-    onRouterTransitionStart:
-      instrumentationHooks !== null &&
-      typeof instrumentationHooks.onRouterTransitionStart === 'function'
-        ? // This profiling hook will be called at the start of every navigation.
-          instrumentationHooks.onRouterTransitionStart
-        : null,
   }
 
   if (typeof window !== 'undefined') {
@@ -268,19 +258,13 @@ function getAppRouterActionQueue(): AppRouterActionQueue {
   return globalActionQueue
 }
 
-function getProfilingHookForOnNavigationStart() {
-  if (globalActionQueue !== null) {
-    return globalActionQueue.onRouterTransitionStart
-  }
-  return null
-}
-
 export function dispatchNavigateAction(
   href: string,
   navigateType: NavigateAction['navigateType'],
   scrollBehavior: ScrollBehavior,
   linkInstanceRef: LinkInstance | null,
-  transitionTypes: string[] | undefined
+  transitionTypes: string[] | undefined,
+  prefetchIntent: RouterTransitionPrefetchIntent | null
 ): void {
   // TODO: This stuff could just go into the reducer. Leaving as-is for now
   // since we're about to rewrite all the router reducer stuff anyway.
@@ -297,11 +281,12 @@ export function dispatchNavigateAction(
   }
 
   setLinkForCurrentNavigation(linkInstanceRef)
-
-  const onRouterTransitionStart = getProfilingHookForOnNavigationStart()
-  if (onRouterTransitionStart !== null) {
-    onRouterTransitionStart(href, navigateType)
-  }
+  startRouterTransition(
+    href,
+    navigateType,
+    getAppRouterActionQueue().state.tree,
+    prefetchIntent
+  )
 
   dispatchAppRouterAction({
     type: ACTION_NAVIGATE,
@@ -317,10 +302,12 @@ export function dispatchTraverseAction(
   href: string,
   historyState: AppHistoryState | undefined
 ) {
-  const onRouterTransitionStart = getProfilingHookForOnNavigationStart()
-  if (onRouterTransitionStart !== null) {
-    onRouterTransitionStart(href, 'traverse')
-  }
+  startRouterTransition(
+    href,
+    'traverse',
+    getAppRouterActionQueue().state.tree,
+    null
+  )
   dispatchAppRouterAction({
     type: ACTION_RESTORE,
     url: new URL(href),
@@ -450,7 +437,8 @@ export const publicAppRouterInstance: AppRouterInstance = {
           ? ScrollBehavior.NoScroll
           : ScrollBehavior.Default,
         null,
-        options?.transitionTypes
+        options?.transitionTypes,
+        null
       )
     })
   },
@@ -468,7 +456,8 @@ export const publicAppRouterInstance: AppRouterInstance = {
           ? ScrollBehavior.NoScroll
           : ScrollBehavior.Default,
         null,
-        options?.transitionTypes
+        options?.transitionTypes,
+        null
       )
     })
   },
@@ -495,6 +484,9 @@ export const publicAppRouterInstance: AppRouterInstance = {
       })
     }
   },
+  // Default value. Each route segment provides its own value at runtime. Refer
+  // to `useRouter()`.
+  bfcacheId: '0',
 }
 
 // Conditionally add experimental_gesturePush when gestureTransition is enabled

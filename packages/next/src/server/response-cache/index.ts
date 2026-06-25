@@ -204,6 +204,11 @@ export default class ResponseCache implements ResponseCacheBase {
       routeKind: RouteKind
       isOnDemandRevalidate?: boolean
       isPrefetch?: boolean
+      /**
+       * Whether the `appShells` experimental flag is enabled. Gates the
+       * prefetch-miss-serves-fallback-shell behavior in `handleGet`.
+       */
+      appShells?: boolean
       incrementalCache: IncrementalResponseCache
       isRoutePPREnabled?: boolean
       isFallback?: boolean
@@ -265,6 +270,7 @@ export default class ResponseCache implements ResponseCacheBase {
       isFallback = false,
       isRoutePPREnabled = false,
       isPrefetch = false,
+      appShells = false,
       waitUntil,
       routeKind,
       invocationID,
@@ -282,6 +288,7 @@ export default class ResponseCache implements ResponseCacheBase {
             isFallback,
             isRoutePPREnabled,
             isPrefetch,
+            appShells,
             routeKind,
             invocationID,
           },
@@ -294,6 +301,14 @@ export default class ResponseCache implements ResponseCacheBase {
         return promise
       }
     )
+
+    if (this.minimal_mode && response?.cacheControl) {
+      const cacheKey = createCacheKey(key, invocationID)
+      this.cache.set(cacheKey, {
+        entry: response,
+        expiresAt: Date.now() + this.ttl,
+      })
+    }
 
     return toResponseCacheEntry(response)
   }
@@ -316,6 +331,7 @@ export default class ResponseCache implements ResponseCacheBase {
       isFallback: boolean
       isRoutePPREnabled: boolean
       isPrefetch: boolean
+      appShells: boolean
       routeKind: RouteKind
       invocationID: string | undefined
     },
@@ -354,18 +370,42 @@ export default class ResponseCache implements ResponseCacheBase {
         }
       }
 
-      // Revalidate the cache entry
-      const incrementalResponseCacheEntry = await this.revalidate(
-        key,
-        context.incrementalCache,
-        context.isRoutePPREnabled,
-        context.isFallback,
-        responseGenerator,
-        previousIncrementalCacheEntry,
-        resolved,
-        undefined,
-        context.invocationID
-      )
+      // Revalidate the cache entry.
+      //
+      // A prefetch request that missed must run its own response generator
+      // rather than joining an in-flight revalidation through the batcher. A
+      // background revalidation may be regenerating the concrete (non-fallback)
+      // entry for this route — e.g. an ISR fallback-shell upgrade scheduled by
+      // an earlier prefetch sub-request. Joining it would serve that concrete
+      // result to the prefetch instead of the fallback shell, and which segment
+      // wins would depend purely on request timing. Running the generator
+      // directly lets every prefetch segment take the same fallback-shell path,
+      // independent of any concurrent background upgrade.
+      //
+      // Gated on `appShells`: with the flag off, prefetch misses keep the
+      // previous batch-join behavior so existing suites are unaffected.
+      const incrementalResponseCacheEntry =
+        context.isPrefetch &&
+        context.appShells &&
+        previousIncrementalCacheEntry === null
+          ? await this.handleRevalidate(
+              key,
+              context.incrementalCache,
+              context.isRoutePPREnabled,
+              context.isFallback,
+              responseGenerator,
+              previousIncrementalCacheEntry,
+              resolved
+            )
+          : await this.revalidate(
+              key,
+              context.incrementalCache,
+              context.isRoutePPREnabled,
+              context.isFallback,
+              responseGenerator,
+              previousIncrementalCacheEntry,
+              resolved
+            )
 
       // Handle null response
       if (!incrementalResponseCacheEntry) {
@@ -417,8 +457,7 @@ export default class ResponseCache implements ResponseCacheBase {
     responseGenerator: ResponseGenerator,
     previousIncrementalCacheEntry: IncrementalResponseCacheEntry | null,
     hasResolved: boolean,
-    waitUntil?: (prom: Promise<any>) => void,
-    invocationID?: string
+    waitUntil?: (prom: Promise<any>) => void
   ) {
     return this.revalidateBatcher.batch(key, () => {
       const promise = this.handleRevalidate(
@@ -428,8 +467,7 @@ export default class ResponseCache implements ResponseCacheBase {
         isFallback,
         responseGenerator,
         previousIncrementalCacheEntry,
-        hasResolved,
-        invocationID
+        hasResolved
       )
 
       // We need to ensure background revalidates are passed to waitUntil.
@@ -446,8 +484,7 @@ export default class ResponseCache implements ResponseCacheBase {
     isFallback: boolean,
     responseGenerator: ResponseGenerator,
     previousIncrementalCacheEntry: IncrementalResponseCacheEntry | null,
-    hasResolved: boolean,
-    invocationID: string | undefined
+    hasResolved: boolean
   ) {
     try {
       // Generate the response cache entry using the response generator.
@@ -467,24 +504,14 @@ export default class ResponseCache implements ResponseCacheBase {
       })
 
       // We want to persist the result only if it has a cache control value
-      // defined.
-      if (incrementalResponseCacheEntry.cacheControl) {
-        if (this.minimal_mode) {
-          // Set TTL expiration for cache hit validation. Entries are validated
-          // by invocationID when available, with TTL as a fallback for providers
-          // that don't send x-invocation-id. Memory is managed by LRU eviction.
-          const cacheKey = createCacheKey(key, invocationID)
-          this.cache.set(cacheKey, {
-            entry: incrementalResponseCacheEntry,
-            expiresAt: Date.now() + this.ttl,
-          })
-        } else {
-          await incrementalCache.set(key, incrementalResponseCacheEntry.value, {
-            cacheControl: incrementalResponseCacheEntry.cacheControl,
-            isRoutePPREnabled,
-            isFallback,
-          })
-        }
+      // defined. The minimal mode LRU write is handled in get() so that
+      // every caller — including batched invocations — populates the cache.
+      if (incrementalResponseCacheEntry.cacheControl && !this.minimal_mode) {
+        await incrementalCache.set(key, incrementalResponseCacheEntry.value, {
+          cacheControl: incrementalResponseCacheEntry.cacheControl,
+          isRoutePPREnabled,
+          isFallback,
+        })
       }
 
       return incrementalResponseCacheEntry

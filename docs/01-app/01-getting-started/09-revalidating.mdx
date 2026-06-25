@@ -35,14 +35,15 @@ export async function getProducts() {
 
 `cacheLife` accepts a profile name or a custom configuration object:
 
-| Profile   | `stale` | `revalidate` | `expire`    |
-| --------- | ------- | ------------ | ----------- |
-| `seconds` | 0       | 1s           | 60s         |
-| `minutes` | 5m      | 1m           | 1h          |
-| `hours`   | 5m      | 1h           | 1d          |
-| `days`    | 5m      | 1d           | 1w          |
-| `weeks`   | 5m      | 1w           | 30d         |
-| `max`     | 5m      | 30d          | ~indefinite |
+| Profile   | `stale` | `revalidate` | `expire` |
+| --------- | ------- | ------------ | -------- |
+| `default` | 5m      | 15m          | never    |
+| `seconds` | 30s     | 1s           | 60s      |
+| `minutes` | 5m      | 1m           | 1h       |
+| `hours`   | 5m      | 1h           | 1d       |
+| `days`    | 5m      | 1d           | 1w       |
+| `weeks`   | 5m      | 1w           | 30d      |
+| `max`     | 5m      | 30d          | 1y       |
 
 For fine-grained control, pass an object:
 
@@ -117,7 +118,7 @@ See the [`revalidateTag` API reference](/docs/app/api-reference/functions/revali
 
 ## `updateTag`
 
-`updateTag` immediately expires cached data for read-your-own-writes scenarios — the user sees their change right away instead of stale content. Unlike `revalidateTag`, it can only be used in [Server Actions](/docs/app/getting-started/mutating-data).
+`updateTag` immediately expires cached data for read-your-own-writes scenarios — the user sees their change right away instead of stale content. Unlike `revalidateTag`, it can only be used in [Server Actions](/docs/app/guides/server-actions).
 
 ```tsx filename="app/lib/actions.ts" highlight={1,12} switcher
 import { updateTag } from 'next/cache'
@@ -191,6 +192,6 @@ See the [`revalidatePath` API reference](/docs/app/api-reference/functions/reval
 
 Cache data that doesn't depend on [runtime data](/docs/app/getting-started/caching#working-with-runtime-apis) and that you're OK serving from cache for a period of time. Use `use cache` with `cacheLife` to describe that behavior.
 
-For content management systems with update mechanisms, use tags with longer cache durations and rely on `revalidateTag` to refresh content when it actually changes, rather than expiring the cache preemptively.
+When content doesn't need time-based revalidation, for example data from a CMS, use [`cacheTag`](#cachetag) and a long [`cacheLife`](#cachelife) like `max` to keep it in the static shell. Configure the content source to trigger a webhook, or other notification, that calls [`revalidateTag`](#revalidatetag) when the content changes. This reduces unnecessary time-based revalidation for content that hasn't changed.
 
 > **Good to know:** In serverless environments, in-memory cache entries may not persist across revalidations. See [runtime caching considerations](/docs/app/api-reference/directives/use-cache#runtime-caching-considerations) for details.

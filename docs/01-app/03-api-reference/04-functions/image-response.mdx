@@ -174,13 +174,15 @@ export const size = {
 
 export const contentType = 'image/png'
 
+// Load the font once at module scope. process.cwd() is the Next.js project
+// directory. Reading it inside the component would be treated as dynamic I/O
+// under Cache Components and opt the route out of static generation.
+const interSemiBold = await readFile(
+  join(process.cwd(), 'assets/Inter-SemiBold.ttf')
+)
+
 // Image generation
 export default async function Image() {
-  // Font loading, process.cwd() is Next.js project directory
-  const interSemiBold = await readFile(
-    join(process.cwd(), 'assets/Inter-SemiBold.ttf')
-  )
-
   return new ImageResponse(
     (
       // ...

@@ -4,6 +4,7 @@ description: API Reference for the redirect function.
 related:
   links:
     - app/api-reference/functions/permanentRedirect
+    - app/guides/server-actions
 ---
 
 The `redirect` function allows you to redirect the user to another URL. `redirect` can be used while rendering in [Server and Client Components](/docs/app/getting-started/server-and-client-components), [Route Handlers](/docs/app/api-reference/file-conventions/route), and [Server Functions](/docs/app/getting-started/mutating-data).

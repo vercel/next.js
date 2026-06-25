@@ -113,7 +113,7 @@ export async function proxy(request) {
 
 ## Linking between zones
 
-Links to paths in a different zone should use an `a` tag instead of the Next.js [`<Link>`](/docs/pages/api-reference/components/link) component. This is because Next.js will try to prefetch and soft navigate to any relative path in `<Link>` component, which will not work across zones.
+Links to paths in a different zone should use an `a` tag instead of the Next.js [`<Link>`](/docs/app/api-reference/components/link) component. This is because Next.js will try to prefetch and soft navigate to any relative path in `<Link>` component, which will not work across zones.
 
 ## Sharing code
 
