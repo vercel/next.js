@@ -3,7 +3,7 @@ import { retry } from 'next-test-utils'
 import { computeCacheBustingSearchParam } from 'next/dist/shared/lib/router/utils/cache-busting-search-param'
 
 describe('resume-data-cache', () => {
-  const { next, isNextDev } = nextTestSetup({
+  const { next, isNextDev, isNextDeploy } = nextTestSetup({
     files: __dirname,
   })
 
@@ -18,6 +18,19 @@ describe('resume-data-cache', () => {
   ])(
     'should have consistent data between static and dynamic renders with $name',
     async ({ id }) => {
+      const prefetchRscUrl = new URL('/', 'http://localhost')
+
+      prefetchRscUrl.searchParams.set(
+        '_rsc',
+        await computeCacheBustingSearchParam(
+          '1',
+          '/__PAGE__',
+          undefined,
+          undefined
+        )
+      )
+      const prefetchRscHref = prefetchRscUrl.toString()
+
       // First render the page statically, getting the random number from the
       // HTML.
       let $ = await next.render$('/')
@@ -26,20 +39,8 @@ describe('resume-data-cache', () => {
       // Then get the Prefetch RSC and validate that it also contains the same
       // random number.
       await retry(async () => {
-        const url = new URL('/', 'http://localhost')
-
-        url.searchParams.set(
-          '_rsc',
-          await computeCacheBustingSearchParam(
-            '1',
-            '/__PAGE__',
-            undefined,
-            undefined
-          )
-        )
-
         const rsc = await next
-          .fetch(url.toString(), {
+          .fetch(prefetchRscHref, {
             headers: {
               RSC: '1',
               'Next-Router-Prefetch': '1',
@@ -98,38 +99,38 @@ describe('resume-data-cache', () => {
       // (RDC) from the static render to ensure that the data is consistent
       // between the static and dynamic renders. Let's now try to render the
       // page statically and see that the random number changes.
+      //
+      // When deployed, HTML, prefetch RSC, and dynamic RSC cache entries can
+      // settle asynchronously after tag revalidation, so retry all reads
+      // together until they agree on the same fresh value.
+      await retry(
+        async () => {
+          $ = await next.render$('/')
+          const random2 = $(`p#${id}`).text()
+          expect(random2).not.toBe(first)
 
-      $ = await next.render$('/')
-      const random2 = $(`p#${id}`).text()
-      expect(random2).not.toBe(first)
+          const prefetchRsc = await next
+            .fetch(prefetchRscHref, {
+              headers: {
+                RSC: '1',
+                'Next-Router-Prefetch': '1',
+                'Next-Router-Segment-Prefetch': '/__PAGE__',
+              },
+            })
+            .then((res) => res.text())
+          expect(prefetchRsc).toContain(random2)
 
-      // Then get the Prefetch RSC and validate that it also contains the new
-      // random number.
-      await retry(async () => {
-        const rsc = await next
-          .fetch('/', {
-            headers: {
-              RSC: '1',
-              'Next-Router-Prefetch': '1',
-              'Next-Router-Segment-Prefetch': '/__PAGE__',
-            },
-          })
-          .then((res) => res.text())
-        expect(rsc).toContain(random2)
-      })
-
-      // Then get the dynamic RSC again and validate that it also contains the
-      // new random number.
-      await retry(async () => {
-        const rsc = await next
-          .fetch('/', {
-            headers: {
-              RSC: '1',
-            },
-          })
-          .then((res) => res.text())
-        expect(rsc).toContain(random2)
-      })
+          const dynamicRsc = await next
+            .fetch('/', {
+              headers: {
+                RSC: '1',
+              },
+            })
+            .then((res) => res.text())
+          expect(dynamicRsc).toContain(random2)
+        },
+        isNextDeploy ? 15000 : 3000
+      )
 
       // This proves that the dynamic RSC was able to use the resume data cache
       // (RDC) from the static render to ensure that the data is consistent
