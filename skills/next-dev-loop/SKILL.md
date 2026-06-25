@@ -116,13 +116,12 @@ manual rather than from memory.
 
 ## gotchas
 
-- **Every `agent-browser` call is a separate process, so each one
-  needs your session** — without it the command hits a different,
-  empty default browser (blank reads; a working page looks broken).
-  Put `--session <name>` _before_ the subcommand (`agent-browser
---session <name> get url`, never `get url --session <name>` — some
-  subcommands can't take it after), or `export AGENT_BROWSER_SESSION=<name>`
-  to skip the placement issue entirely.
+- **Every `agent-browser` command must know your session, or it
+  silently uses a different, empty default browser (blank reads; a
+  working page looks broken).** Easiest: `export
+AGENT_BROWSER_SESSION=<name>` at the top of each shell you run
+  agent-browser in; then every command there uses it, with no
+  per-command `--session` flag to repeat.
 - **When the two views disagree, suspect the tooling first.** If
   `agent-browser` says a route is broken but `/_next/mcp` and the
   server say it rendered cleanly, a stale or misdirected browser
