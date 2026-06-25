@@ -172,32 +172,25 @@ export async function prewarmDevServer(opts: { dir: string }): Promise<void> {
   }
 
   // Each loop iteration compiles a time-bounded batch and then persists.
-  // Intermediate persists print a progress line; the final persist
-  // (queue drained) prints the summary line instead so we don't end up
-  // with two stacked messages.
   while (cursor < units.length) {
     yieldedThisPass = false
     await runWithConcurrency(getNextItem, compile, { getConcurrency })
 
-    const isFinalPersist = cursor >= units.length
-    if (!isFinalPersist) {
-      const compiled = cursor + prewarmedDuringSetup - failed
-      const failedPart = failed > 0 ? `, ${failed} failed` : ''
-      Log.info(
-        `Persisting Turbopack cache to disk… (${compiled} / ${total}${failedPart})`
-      )
-    }
+    const compiled = cursor + prewarmedDuringSetup - failed
+    const failedPart = failed > 0 ? `, ${failed} failed` : ''
+    Log.info(
+      `Persisting Turbopack cache to disk… (${compiled} / ${total}${failedPart})`
+    )
     await persistCache(hotReloader)
-    if (isFinalPersist) {
-      if (failed > 0) {
-        Log.warn(
-          `Prewarmed ${total - failed} / ${total} entrypoints and persisted to disk — ${failed} failed.`
-        )
-      } else {
-        Log.event(`All ${total} entrypoints prewarmed and persisted to disk.`)
-      }
-    }
     nextPersistAt = 2 * Date.now() - startTime
+  }
+
+  if (failed > 0) {
+    Log.warn(
+      `Prewarmed ${total - failed} / ${total} entrypoints and persisted to disk — ${failed} failed.`
+    )
+  } else {
+    Log.event(`All ${total} entrypoints prewarmed and persisted to disk.`)
   }
 }
 
