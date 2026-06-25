@@ -94,7 +94,7 @@ jobs:
         run: echo "LATEST_COMMIT=$(git rev-parse HEAD)" >> $GITHUB_ENV
 
       - name: Check if new commits since last tag
-        if: ${{ github.event.inputs.releaseType != 'stable' && github.event.inputs.force != true }}
+        if: ${{ github.event.inputs.releaseType != 'stable' && inputs.force != true }}
         run: |
           if [ "$LATEST_TAG_COMMIT" = "$LATEST_COMMIT" ]; then
             echo "No new commits. Exiting..."

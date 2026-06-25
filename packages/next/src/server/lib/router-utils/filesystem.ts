@@ -55,6 +55,7 @@ export type FsOutput = {
     | 'publicFolder'
     | 'nextStaticFolder'
     | 'legacyStaticFolder'
+    | 'serviceWorker'
     | 'devVirtualFsItem'
 
   itemPath: string
@@ -131,6 +132,7 @@ export async function setupFsCheck(opts: {
   const publicFolderItems = new Set<string>()
   const nextStaticFolderItems = new Set<string>()
   const legacyStaticFolderItems = new Set<string>()
+  const serviceWorkerItems = new Set<string>()
 
   const appFiles = new Set<string>()
   const pageFiles = new Set<string>()
@@ -153,6 +155,7 @@ export async function setupFsCheck(opts: {
   const publicFolderPath = path.join(opts.dir, 'public')
   const nextStaticFolderPath = path.join(distDir, 'static')
   const legacyStaticFolderPath = path.join(opts.dir, 'static')
+  const serviceWorkerFolderPath = path.join(distDir, 'service-worker')
   let customRoutes: UnwrapPromise<ReturnType<typeof loadCustomRoutes>> = {
     redirects: [],
     rewrites: {
@@ -214,6 +217,16 @@ export async function setupFsCheck(opts: {
       }
     } catch (err) {
       if (opts.config.output !== 'standalone') throw err
+    }
+
+    try {
+      for (const file of await recursiveReadDir(serviceWorkerFolderPath)) {
+        serviceWorkerItems.add(encodeURIPath(normalizePathSep(file)))
+      }
+    } catch (err: any) {
+      if (err.code !== 'ENOENT') {
+        throw err
+      }
     }
 
     const routesManifestPath = path.join(distDir, ROUTES_MANIFEST)
@@ -425,6 +438,7 @@ export async function setupFsCheck(opts: {
   debug('customRoutes', customRoutes)
   debug('publicFolderItems', publicFolderItems)
   debug('nextStaticFolderItems', nextStaticFolderItems)
+  debug('serviceWorkerItems', serviceWorkerItems)
   debug('pageFiles', pageFiles)
   debug('appFiles', appFiles)
 
@@ -526,6 +540,7 @@ export async function setupFsCheck(opts: {
 
       const itemsToCheck: Array<[Set<string>, FsOutput['type']]> = [
         [this.devVirtualFsItems, 'devVirtualFsItem'],
+        [serviceWorkerItems, 'serviceWorker'],
         [nextStaticFolderItems, 'nextStaticFolder'],
         [legacyStaticFolderItems, 'legacyStaticFolder'],
         [publicFolderItems, 'publicFolder'],
@@ -649,6 +664,10 @@ export async function setupFsCheck(opts: {
               itemsRoot = publicFolderPath
               break
             }
+            case 'serviceWorker': {
+              itemsRoot = serviceWorkerFolderPath
+              break
+            }
             case 'appFile':
             case 'pageFile':
             case 'nextImage':
@@ -672,6 +691,7 @@ export async function setupFsCheck(opts: {
                 'nextStaticFolder',
                 'publicFolder',
                 'legacyStaticFolder',
+                'serviceWorker',
               ] as (typeof type)[]
             ).includes(type)
 
