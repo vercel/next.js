@@ -329,9 +329,25 @@ Note the persistence difference. The `fetch` Data Cache persists cached response
 
 For example, this `unstable_cache` call:
 
-```ts
-const getUser = unstable_cache(
+```tsx filename="app/lib/data.ts" switcher
+import { unstable_cache } from 'next/cache'
+import { db } from '@/lib/db'
+
+export const getUser = unstable_cache(
   async (id: string) => {
+    return db.query.users.findFirst({ where: eq(users.id, id) })
+  },
+  ['user'],
+  { tags: ['users'], revalidate: 3600 }
+)
+```
+
+```js filename="app/lib/data.js" switcher
+import { unstable_cache } from 'next/cache'
+import { db } from '@/lib/db'
+
+export const getUser = unstable_cache(
+  async (id) => {
     return db.query.users.findFirst({ where: eq(users.id, id) })
   },
   ['user'],
@@ -341,52 +357,7 @@ const getUser = unstable_cache(
 
 can be rewritten as a function that uses the `'use cache'` directive:
 
-```ts
-import { cacheLife, cacheTag } from 'next/cache'
-
-export async function getUser(id: string) {
-  'use cache'
-  cacheLife('hours')
-  cacheTag('users')
-
-  return db.query.users.findFirst({ where: eq(users.id, id) })
-}
-```
-
-The wrapped function becomes the body of the cached function. The `options.revalidate` value becomes `cacheLife()`, and `options.tags` becomes `cacheTag()`. With `'use cache'`, the cache key is derived automatically from the function’s arguments and captured closure variables.
-
-> **Good to know:** If the preset profiles do not closely match your `revalidate` option, use an [[inline profile](https://chatgpt.com/docs/app/api-reference/functions/cacheLife#inline-cache-profiles)](/docs/app/api-reference/functions/cacheLife#inline-cache-profiles).
-
 ```tsx filename="app/lib/data.ts" switcher
-// Before
-import { unstable_cache } from 'next/cache'
-import { db } from '@/lib/db'
-
-export const getUser = unstable_cache(
-  async (id: string) => {
-    return db.query.users.findFirst({ where: eq(users.id, id) })
-  },
-  ['user'], // cache key prefix
-  { tags: ['users'], revalidate: 3600 }
-)
-```
-
-```js filename="app/lib/data.js" switcher
-// Before
-import { unstable_cache } from 'next/cache'
-import { db } from '@/lib/db'
-
-export const getUser = unstable_cache(
-  async (id) => {
-    return db.query.users.findFirst({ where: eq(users.id, id) })
-  },
-  ['user'], // cache key prefix
-  { tags: ['users'], revalidate: 3600 }
-)
-```
-
-```tsx filename="app/lib/data.ts" switcher
-// After
 import { cacheLife, cacheTag } from 'next/cache'
 import { db } from '@/lib/db'
 
@@ -399,7 +370,6 @@ export async function getUser(id: string) {
 ```
 
 ```js filename="app/lib/data.js" switcher
-// After
 import { cacheLife, cacheTag } from 'next/cache'
 import { db } from '@/lib/db'
 
@@ -411,9 +381,9 @@ export async function getUser(id) {
 }
 ```
 
-Like the `fetch` Data Cache, `unstable_cache` persists cached values across deployments and serverless instances, while `use cache` does not. See [`fetch` cache options](#fetch-cache-options) above for the storage details.
+The wrapped function becomes the body of the cached function. `options.revalidate` becomes [`cacheLife()`](/docs/app/api-reference/functions/cacheLife), and `options.tags` becomes [`cacheTag()`](/docs/app/api-reference/functions/cacheTag). With `'use cache'`, the cache key is derived automatically from the function's arguments and captured closure variables, so `keyParts` is no longer needed.
 
-For durable, shared caching across instances, use [`use cache: remote`](/docs/app/api-reference/directives/use-cache-remote) or a [custom cache handler](/docs/app/api-reference/config/next-config-js/cacheHandlers). Remote cache keys include the `deploymentId` (when configured) or the `buildId`, so new deploys produce cache misses you wouldn't see with `unstable_cache`, which didn't use that keying. There's also added lookup latency and platform cost, so use it where the durability is worth it, not as a drop-in default. A custom cache handler can persist entries across deployments.
+> **Good to know:** If the preset profiles don't closely match your `revalidate` option, use an [inline profile](/docs/app/api-reference/functions/cacheLife#inline-cache-profiles).
 
 ## On-demand revalidation (`revalidateTag`, `revalidatePath`, `updateTag`)
 
