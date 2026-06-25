@@ -349,34 +349,46 @@ describe('instant-navigation-testing-api', () => {
   // (withheld) param before it reaches the cookie. On a full page load the
   // document render defers the cookie regardless.
   describe('cookies in the instant shell', () => {
-    // Skipped: this asserts the app shell's cookie value survives into the
-    // captured instant shell, but the current App Shells implementation can
-    // regress it. A route's app shell carries session data such as cookies,
-    // while a speculative static prefetch for the same URL keeps the cookie
-    // behind its <Suspense> boundary; the captured shell therefore includes the
-    // cookie only when it settles on the app shell rather than the static one,
-    // which is racy in production. The planned fix is to detect a `cookies()`
-    // access while generating the app shell and opt the route into runtime
-    // prefetching, so the cookie is carried regardless of which prefetch
-    // settles first. Re-enable this test once that detection lands.
-    it.skip('includes app-shell cookie values in the instant shell during client navigation', async () => {
-      const page = await openPage(next, '/', {
-        cookies: [{ name: 'testCookie', value: 'hello' }],
-      })
+    // Marked failing: `/cookies-page` is a non-partial route (it opts into
+    // neither `partialPrefetching` nor a per-route `prefetch`/`instant`
+    // config), so its speculative static prefetch is fuller than the app-shell
+    // render and supersedes it in the segment cache. The cookie that only the
+    // app shell carries is dropped before it reaches the instant shell, and
+    // #95150's shell handling only engages under partial prefetching, so it
+    // does not cover this case.
+    //
+    // If we later detect that a route reads cookies during app-shell
+    // generation, we should opt it into either partial prefetching, so that
+    // only the app shell is fetched on the client, or runtime prefetching, so
+    // that a speculative prefetch can never regress the content an app shell
+    // initially showed, and cookie-dependent content is not removed once a
+    // speculative prefetch (for a link whose instant app shell we already
+    // displayed) has settled.
+    it.failing(
+      'includes app-shell cookie values in the instant shell during client navigation',
+      async () => {
+        const page = await openPage(next, '/', {
+          cookies: [{ name: 'testCookie', value: 'hello' }],
+        })
 
-      await instant(page, async () => {
-        await page.click('#link-to-cookies-page')
+        await instant(page, async () => {
+          await page.click('#link-to-cookies-page')
 
-        const title = page.locator('[data-testid="cookies-page-title"]')
-        await title.waitFor({ state: 'visible' })
+          const title = page.locator('[data-testid="cookies-page-title"]')
+          await title.waitFor({ state: 'visible' })
 
-        // Cookies are session data in the app shell, and nothing gates them,
-        // so the value is available inside the instant scope.
-        const cookieValue = page.locator('[data-testid="cookie-value"]')
-        await cookieValue.waitFor({ state: 'visible' })
-        expect(await cookieValue.textContent()).toContain('testCookie: hello')
-      })
-    })
+          // Cookies are session data in the app shell, and nothing gates them,
+          // so the value should be available inside the instant scope.
+          const cookieValue = page.locator('[data-testid="cookie-value"]')
+          // Expected-failing today (see the note above): the cookie never reaches
+          // the shell, so cap the wait rather than spend the default 60s on a
+          // known timeout. A real fix puts the cookie in the same captured shell
+          // as the title above, so it surfaces well within this.
+          await cookieValue.waitFor({ state: 'visible', timeout: 3000 })
+          expect(await cookieValue.textContent()).toContain('testCookie: hello')
+        })
+      }
+    )
 
     it('excludes a cookie read after a param access from the instant shell during client navigation', async () => {
       const page = await openPage(next, '/', {
