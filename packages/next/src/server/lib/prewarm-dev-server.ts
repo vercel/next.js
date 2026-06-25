@@ -88,8 +88,6 @@ export async function prewarmDevServer(opts: { dir: string }): Promise<void> {
   // reached, which is fine — the user just reruns.
   installHardExitSignalHandlers()
 
-  Log.info('Starting Turbopack dev bundler for cache prewarming…')
-
   const hotReloader = await setupBundler(dir)
   const entrypoints = await hotReloader.getEntrypoints()
 
@@ -173,32 +171,33 @@ export async function prewarmDevServer(opts: { dir: string }): Promise<void> {
     return units[cursor++]
   }
 
+  // Each loop iteration compiles a time-bounded batch and then persists.
+  // Intermediate persists print a progress line; the final persist
+  // (queue drained) prints the summary line instead so we don't end up
+  // with two stacked messages.
   while (cursor < units.length) {
     yieldedThisPass = false
     await runWithConcurrency(getNextItem, compile, { getConcurrency })
 
-    if (cursor < units.length) {
-      // More work to do — persist, then advance the deadline.  We do NOT
-      // persist after the very last unit: the function below performs a
-      // final persist for that.
-      await persistCache(hotReloader)
-      nextPersistAt = 2 * Date.now() - startTime
+    const isFinalPersist = cursor >= units.length
+    if (!isFinalPersist) {
+      const compiled = cursor + prewarmedDuringSetup - failed
+      const failedPart = failed > 0 ? `, ${failed} failed` : ''
+      Log.info(
+        `Persisting Turbopack cache to disk… (${compiled} / ${total}${failedPart})`
+      )
     }
-  }
-
-  // Final persist: flush whatever the last batch produced.  This is the
-  // call that guarantees the on-disk cache reflects every unit we
-  // compiled, even when no time-driven persist fired in the loop above
-  // (e.g. for tiny projects that finish before the first deadline).
-  Log.info('Persisting Turbopack cache to disk…')
-  await persistCache(hotReloader)
-
-  if (failed > 0) {
-    Log.warn(
-      `Prewarmed ${total - failed} / ${total} entrypoints — ${failed} failed.`
-    )
-  } else {
-    Log.event(`All ${total} entrypoints prewarmed successfully.`)
+    await persistCache(hotReloader)
+    if (isFinalPersist) {
+      if (failed > 0) {
+        Log.warn(
+          `Prewarmed ${total - failed} / ${total} entrypoints and persisted to disk — ${failed} failed.`
+        )
+      } else {
+        Log.event(`All ${total} entrypoints prewarmed and persisted to disk.`)
+      }
+    }
+    nextPersistAt = 2 * Date.now() - startTime
   }
 }
 

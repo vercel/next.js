@@ -675,38 +675,46 @@ export async function createHotReloaderTurbopack(
 
   const buildingIds = new Set()
 
-  const startBuilding: StartBuilding = (id, requestUrl, forceRebuild) => {
-    if (!forceRebuild && readyIds.has(id)) {
-      return () => {}
-    }
-    if (buildingIds.size === 0) {
-      consoleStore.setState(
-        {
-          loading: true,
-          trigger: id,
-          url: requestUrl,
-        } as OutputState,
-        true
-      )
-    }
-    buildingIds.add(id)
-    return function finishBuilding() {
-      if (buildingIds.size === 0) {
-        return
-      }
-      readyIds.add(id)
-      buildingIds.delete(id)
-      if (buildingIds.size === 0) {
-        hmrEventHappened = false
-        consoleStore.setState(
-          {
-            loading: false,
-          } as OutputState,
-          true
-        )
-      }
-    }
-  }
+  // Prewarm compiles every entrypoint up front; surfacing a "Compiling
+  // <route>..." line for each one would just be noise.  Skip the
+  // building-state bookkeeping entirely in that case — `finishBuilding`
+  // becomes a no-op, the loading spinner never flips on, and the
+  // store's per-route log stays quiet.
+  const startBuilding: StartBuilding =
+    opts.cliCommand === 'prewarm-dev'
+      ? () => () => {}
+      : (id, requestUrl, forceRebuild) => {
+          if (!forceRebuild && readyIds.has(id)) {
+            return () => {}
+          }
+          if (buildingIds.size === 0) {
+            consoleStore.setState(
+              {
+                loading: true,
+                trigger: id,
+                url: requestUrl,
+              } as OutputState,
+              true
+            )
+          }
+          buildingIds.add(id)
+          return function finishBuilding() {
+            if (buildingIds.size === 0) {
+              return
+            }
+            readyIds.add(id)
+            buildingIds.delete(id)
+            if (buildingIds.size === 0) {
+              hmrEventHappened = false
+              consoleStore.setState(
+                {
+                  loading: false,
+                } as OutputState,
+                true
+              )
+            }
+          }
+        }
 
   let serverHmrSubscriptions: ServerHmrSubscriptions | undefined
 
