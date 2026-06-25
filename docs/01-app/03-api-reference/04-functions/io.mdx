@@ -1,14 +1,13 @@
 ---
 title: io
 description: API Reference for the io function.
-version: draft
 ---
 
 When [Cache Components](/docs/app/api-reference/config/next-config-js/cacheComponents) is enabled, Next.js needs you to decide whether to capture a synchronous value like `new Date()` or `Math.random()` once and reuse it for every visitor, or produce it fresh for each request.
 
-To capture the value in the [static shell](/docs/app/glossary#static-shell), wrap it in [`"use cache"`](/docs/app/api-reference/directives/use-cache). To keep it out of the static shell, use `await io()`, which suspends during the build-time prerender.
+To capture the value in the [static shell](/docs/app/glossary#static-shell), wrap it in [`"use cache"`](/docs/app/api-reference/directives/use-cache). To keep it out of the static shell, use `await io()`, which suspends during prerendering.
 
-The `io` function returns a promise that suspends during the build-time prerender. Everywhere else, it resolves immediately and does nothing: at request time, inside a cache, in the browser, and in apps without Cache Components (including the Pages Router).
+During a request, inside cached scopes, in the browser, and apps without Cache Components (including the Pages Router), calling `io()` resolves immediately.
 
 ## Usage
 
