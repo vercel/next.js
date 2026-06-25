@@ -10,7 +10,6 @@ const nextConfig: NextConfig = {
       validationLevel: 'manual-warning',
     },
   },
-  productionBrowserSourceMaps: true,
   typescript: {
     ignoreBuildErrors: true,
   },
