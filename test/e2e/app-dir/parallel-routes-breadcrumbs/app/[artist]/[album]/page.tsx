@@ -14,6 +14,7 @@ export default async function Page({ params }) {
         ))}
       </ul>
       <Link href={`/${artist}`}>Back to artist</Link>
+      <Link href="/">Home</Link>
     </div>
   )
 }

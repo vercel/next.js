@@ -8,7 +8,6 @@ import type { HeadData, ScrollRef } from '../../../shared/lib/app-router-types'
 import { PrefetchHint } from '../../../shared/lib/app-router-types'
 import {
   PAGE_SEGMENT_KEY,
-  DEFAULT_SEGMENT_KEY,
   NOT_FOUND_SEGMENT_KEY,
 } from '../../../shared/lib/segment'
 import { matchSegment } from '../match-segments'
@@ -29,7 +28,6 @@ import {
   type RouteTree,
   type RefreshState,
   type FulfilledRouteCacheEntry,
-  convertReusedFlightRouterStateToRouteTree,
   readSegmentCacheEntryForNavigation,
   waitForSegmentCacheEntry,
   markRouteEntryAsDynamicRewrite,
@@ -464,36 +462,9 @@ function updateCacheNodeOnNavigation(
         // server response. Trigger a full-page navigation.
         return null
       }
-
-      let seedDataChild: CacheNodeSeedData | void | null =
+      const seedDataChild: CacheNodeSeedData | void | null =
         seedDataChildren !== null ? seedDataChildren[parallelRouteKey] : null
-
-      const oldSegmentChild = oldRouterStateChild[0]
-      let newSegmentChild = createSegmentFromRouteTree(newRouteTreeChild)
       let seedHeadChild = seedHead
-      if (
-        // Skip this branch during a history traversal. We restore the tree that
-        // was stashed in the history entry as-is.
-        freshness !== FreshnessPolicy.HistoryTraversal &&
-        newSegmentChild === DEFAULT_SEGMENT_KEY &&
-        oldSegmentChild !== DEFAULT_SEGMENT_KEY
-      ) {
-        // This is a "default" segment. These are never sent by the server during
-        // a soft navigation; instead, the client reuses whatever segment was
-        // already active in that slot on the previous route.
-        newRouteTreeChild = reuseActiveSegmentInDefaultSlot(
-          newRouteTree,
-          parallelRouteKey,
-          oldRootRefreshState,
-          oldRouterStateChild
-        )
-        newSegmentChild = createSegmentFromRouteTree(newRouteTreeChild)
-
-        // Since we're switching to a different route tree, these are no
-        // longer valid, because they correspond to the outer tree.
-        seedDataChild = null
-        seedHeadChild = null
-      }
 
       const oldCacheNodeChild =
         oldCacheNodeSlots !== null
@@ -846,49 +817,6 @@ function accumulateRefreshUrl(
   } else {
     separateRefreshUrls.add(refreshUrl)
   }
-}
-
-function reuseActiveSegmentInDefaultSlot(
-  parentRouteTree: RouteTree,
-  parallelRouteKey: string,
-  oldRootRefreshState: RefreshState,
-  oldRouterState: FlightRouterState
-): RouteTree {
-  // This is a "default" segment. These are never sent by the server during a
-  // soft navigation; instead, the client reuses whatever segment was already
-  // active in that slot on the previous route. This means if we later need to
-  // refresh the segment, it will have to be refetched from the previous route's
-  // URL. We store it in the Flight Router State.
-
-  let reusedUrl: string
-  let reusedRenderedSearch: NormalizedSearch
-  const oldRefreshState = oldRouterState[2]
-  if (oldRefreshState !== undefined && oldRefreshState !== null) {
-    // This segment was already reused from an even older route. Keep its
-    // existing URL and refresh state.
-    reusedUrl = oldRefreshState[0]
-    reusedRenderedSearch = oldRefreshState[1] as NormalizedSearch
-  } else {
-    // Since this route didn't already have a refresh state, it must have been
-    // reachable from the root of the old route. So we use the refresh state
-    // that represents the old route.
-    reusedUrl = oldRootRefreshState.canonicalUrl
-    reusedRenderedSearch = oldRootRefreshState.renderedSearch
-  }
-
-  const acc = { metadataVaryPath: null }
-  const reusedRouteTree = convertReusedFlightRouterStateToRouteTree(
-    parentRouteTree,
-    parallelRouteKey,
-    oldRouterState,
-    reusedRenderedSearch,
-    acc
-  )
-  reusedRouteTree.refreshState = {
-    canonicalUrl: reusedUrl,
-    renderedSearch: reusedRenderedSearch,
-  }
-  return reusedRouteTree
 }
 
 function reuseSharedCacheNode(
