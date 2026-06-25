@@ -167,6 +167,40 @@ The user sees the placeholder briefly before the real value. For interactions th
 - If the value needs to be hydration-stable (the SSR HTML and the hydrated render must match exactly), use [Wrap in or move into Suspense](#wrap-in-or-move-into-suspense) instead.
 - When you call `setState` from inside [`useEffect`](https://react.dev/reference/react/useEffect), wrap it in [`startTransition`](https://react.dev/reference/react/startTransition). Cascading state updates during hydration can cause an outer [`<Suspense>`](https://react.dev/reference/react/Suspense) boundary's fallback to briefly flash. `startTransition` marks the update as non-blocking so React keeps the existing UI in place while the new value resolves.
 
+## Other options
+
+### Suspend with `use(io())`
+
+When the read genuinely needs to happen per visit and you can't move it to an effect or event, call [`io()`](/docs/app/api-reference/functions/io) from `next/cache` before the read with React's [`use`](https://react.dev/reference/react/use) hook. Client Components prerender on the server during SSR, where the read would otherwise be included in the static shell. `use(io())` suspends the prerender so the component is excluded from the shell and rendered on every request from the nearest [`<Suspense>`](https://react.dev/reference/react/Suspense) boundary.
+
+```jsx filename="app/components/random-banner.js"
+'use client'
+import { use } from 'react'
+import { io } from 'next/cache'
+
+export function RandomBanner() {
+  use(io())
+  return <span>Banner #{Math.floor(Math.random() * 100)}</span>
+}
+```
+
+Wrap the component in `<Suspense>` so the surrounding shell stays prerendered.
+
+```jsx filename="app/page.js"
+import { Suspense } from 'react'
+import { RandomBanner } from './components/random-banner'
+
+export default function Page() {
+  return (
+    <Suspense fallback={null}>
+      <RandomBanner />
+    </Suspense>
+  )
+}
+```
+
+Learn more: [`io()`](/docs/app/api-reference/functions/io).
+
 ## Why `instant = false` doesn't clear this error
 
 This error fires from the prerender, not from instant-navigation validation. `Math.random()` returns a different value on every render, so the prerender can't bake it into a static shell regardless of the segment's `instant` config or [`experimental.instantInsights.validationLevel`](/docs/app/api-reference/file-conventions/route-segment-config/instant#configuring-validation-defaults). Use one of the fixes above.
