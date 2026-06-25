@@ -327,11 +327,35 @@ Note the persistence difference. The `fetch` Data Cache persists cached response
 
 `unstable_cache` is replaced by the [`use cache`](/docs/app/api-reference/directives/use-cache) directive.
 
-Turn the wrapped function into a function with the `'use cache'` directive. The cache key is derived automatically from the function's arguments and closure variables, and the `options` object maps to [`cacheLife`](/docs/app/api-reference/functions/cacheLife) and [`cacheTag`](/docs/app/api-reference/functions/cacheTag):
+For example, this `unstable_cache` call:
 
-- **`revalidate`** → [`cacheLife()`](/docs/app/api-reference/functions/cacheLife) with a [preset](/docs/app/api-reference/functions/cacheLife#preset-cache-profiles), or an [inline profile](/docs/app/api-reference/functions/cacheLife#inline-cache-profiles) for an exact duration in seconds.
-- **`tags`** → [`cacheTag()`](/docs/app/api-reference/functions/cacheTag) with the same strings.
-- **`keyParts`** → omit. The cache key comes from the function's arguments and closure.
+```ts
+const getUser = unstable_cache(
+  async (id: string) => {
+    return db.query.users.findFirst({ where: eq(users.id, id) })
+  },
+  ['user'],
+  { tags: ['users'], revalidate: 3600 }
+)
+```
+
+can be rewritten as a function that uses the `'use cache'` directive:
+
+```ts
+import { cacheLife, cacheTag } from 'next/cache'
+
+export async function getUser(id: string) {
+  'use cache'
+  cacheLife('hours')
+  cacheTag('users')
+
+  return db.query.users.findFirst({ where: eq(users.id, id) })
+}
+```
+
+The wrapped function becomes the body of the cached function. The `options.revalidate` value becomes `cacheLife()`, and `options.tags` becomes `cacheTag()`. With `'use cache'`, the cache key is derived automatically from the function’s arguments and captured closure variables.
+
+> **Good to know:** If the preset profiles do not closely match your `revalidate` option, use an [[inline profile](https://chatgpt.com/docs/app/api-reference/functions/cacheLife#inline-cache-profiles)](/docs/app/api-reference/functions/cacheLife#inline-cache-profiles).
 
 ```tsx filename="app/lib/data.ts" switcher
 // Before
