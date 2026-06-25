@@ -22,7 +22,9 @@ You verify through two views of the same running app:
   `tools/list` for the current surface.
 - **`agent-browser`** — a CLI that drives a real Chrome. Knows
   framework-agnostic browser things: DOM, console, network, React
-  fiber, vitals. Run `agent-browser --help` for the current surface.
+  fiber, vitals. Before driving it, run `agent-browser skills get core`
+  once for the version-matched usage guide — don't guess subcommands
+  from memory.
 
 The two views cross-check each other.
 
@@ -30,7 +32,8 @@ The two views cross-check each other.
 
 - Next.js **16.3+** with **Turbopack** — `/_next/mcp` plus the
   proactive compile check via `get_compilation_issues`.
-- `agent-browser` **>= 0.27.0** — when React introspection landed.
+- `agent-browser` **>= 0.30.1** — React introspection plus `wait --url`
+  matching full dev-server URLs.
 
 These are hard floors, not soft preferences. If anything is missing,
 tell the user how to upgrade and stop. Don't fall back to grepping
@@ -51,16 +54,20 @@ Once per session, confirm both views are live.
 
 1. **Open `agent-browser` at the target URL, restoring saved
    login state when present.** Build the `open` command from:
-   - `--session <name>` where `<name>` is the project
-     directory basename.
+   - `--session <name>` — you'll reuse this exact name on every later
+     `agent-browser` command, so make it unique to this checkout and
+     stable. Build it from a fixed formula so it never varies between
+     calls: `"$(basename "$PWD")-$(pwd -P | shasum | cut -c1-8)"`. The
+     bare basename collides across parallel worktrees or copies.
    - `--state ~/.agent-browser/sessions/<name>-default.json` if
      that file exists. Omit on first run — a missing path fails
      the open.
-   - `--headed --enable react-devtools`. **If the `agent-browser`
-     daemon is already running from a previous session**, launch
-     flags like `--headed` are ignored and a warning is printed
-     (`⚠ --headed ignored: daemon already running`). To change
-     them, run `agent-browser close` first, then re-open.
+   - `--headed --enable react-devtools` — always pass both on `open`.
+     A running daemon won't reapply launch flags, so you will often see
+     `⚠ --headed ignored: daemon already running`; that's expected.
+     Assuming you always run the daemon with these flags, you can ignore
+     this warning. Only if you're sure the flags of the running daemon
+     are wrong, you may run `agent-browser close` first, then re-open.
 
    The browser is the user's. If state was not restored (first
    run, expired session) and the page is gated, the user drives
@@ -69,17 +76,16 @@ Once per session, confirm both views are live.
    open, and `cookies set` on a not-yet-opened session creates a
    sessionless cookie that silently fails to apply.
 
-2. POST `tools/list` to `/_next/mcp`. Send
-   `Accept: application/json, text/event-stream`; responses are
-   SSE-framed, strip the `data: ` prefix before parsing JSON.
+2. Probe `/_next/mcp` (`tools/list`) — confirm it's reachable and
+   lists `get_compilation_issues`:
    - Unreachable → either `next dev` isn't running, or Next.js is
      below 16.3. Check `package.json` to disambiguate, then refuse.
    - `get_compilation_issues` not in the list → Next.js below 16.3.
      Refuse and tell the user to upgrade.
-3. `mcp get_compilation_issues` doubles as a Turbopack probe.
-   An error response of `"Turbopack project is not available..."`
-   means the user is on webpack. Refuse — Turbopack is required.
-4. `mcp get_routes` → your route map for the rest of the session.
+3. `get_compilation_issues` doubles as a Turbopack probe. An error
+   response of `"Turbopack project is not available..."` means the
+   user is on webpack. Refuse — Turbopack is required.
+4. `get_routes` → your route map for the rest of the session.
 
 ## loop
 
@@ -94,7 +100,7 @@ search doesn't.
 
 Four failure modes. Check each:
 
-- **Compiles** — `mcp get_compilation_issues`.
+- **Compiles** — `get_compilation_issues`.
 - **Runs without errors** — `/_next/mcp` (server and bubbled-up
   browser errors both surface here).
 - **Behaves as intended** — `agent-browser` drives the page; assert
@@ -105,12 +111,38 @@ Four failure modes. Check each:
   server/client boundary shifts, suspense fallbacks) — DOM asserts
   alone miss them.
 
-Pick the specific tool from `tools/list` or `agent-browser
---help` rather than from memory.
+Pick the specific tool from `tools/list` or the agent-browser
+manual rather than from memory.
 
 ## gotchas
 
+- **Every `agent-browser` command must know your session, or it
+  silently uses a different, empty default browser (blank reads; a
+  working page looks broken).** Easiest: `export
+AGENT_BROWSER_SESSION=<name>` at the top of each shell you run
+  agent-browser in; then every command there uses it, with no
+  per-command `--session` flag to repeat.
+- **When the two views disagree, suspect the tooling first.** If
+  `agent-browser` says a route is broken but `/_next/mcp` and the
+  server say it rendered cleanly, a stale or misdirected browser
+  session is the likelier cause than a real bug — reconcile the views
+  before debugging the app.
+- Confirming a click or navigation: the page settles a beat later, so
+  wait with `wait --load networkidle` (no path to get wrong), then
+  snapshot/read to confirm the page. Avoid `wait --url` unless you pass
+  the link's exact href — a guessed or placeholder path won't match the
+  real URL and times out after 25s.
+- A blank read, empty snapshot, `about:blank`, or a "no browser
+  session" error — right after `open` or after a click (even if `open`
+  reported the page) — is the browser dropping the page (a stale
+  daemon), not a broken route. Reopen your session at the URL and
+  re-snapshot; if still blank, run `agent-browser --session <name>
+close`, then open again. Don't fall back to `curl`; it bypasses the
+  browser you're testing.
 - React introspection output is stale after navigation. Re-run.
+- `/_next/mcp` replies are SSE — read the JSON off the `data:` line
+  with `sed -n 's/^data: //p'` (a plain `sed 's/^data: //'` leaves the
+  `event:` line and the parse fails).
 - Non-3000 dev server: read the `next dev` banner; set
   `NEXT_MCP_URL=http://localhost:<port>/_next/mcp`.
 - `get_errors` and `get_page_metadata` need at least one navigation
@@ -139,9 +171,10 @@ get_compilation_issues       Turbopack only; errors on webpack
 
 ## teardown
 
-Close the `agent-browser` session — `--session` writes state
-to disk so the next loop's `--state` restores login. Leave
-`next dev` up for the next loop.
+Close the session: `agent-browser --session <name> close` — the same
+`--session` every command used. `close` writes that session's state to
+disk so the next loop's `--state` restores login. Leave `next dev` up
+for the next loop.
 
 ---
 
