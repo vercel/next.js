@@ -121,7 +121,7 @@ manual rather than from memory.
   empty default browser (blank reads; a working page looks broken).
   Put `--session <name>` _before_ the subcommand (`agent-browser
 --session <name> get url`, never `get url --session <name>` — some
-  subcommands reject it after), or `export AGENT_BROWSER_SESSION=<name>`
+  subcommands can't take it after), or `export AGENT_BROWSER_SESSION=<name>`
   to skip the placement issue entirely.
 - **When the two views disagree, suspect the tooling first.** If
   `agent-browser` says a route is broken but `/_next/mcp` and the
