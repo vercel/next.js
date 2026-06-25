@@ -216,22 +216,21 @@ const nextConfig: NextConfig = {
 export default nextConfig
 ```
 
-Open the Next.js DevTools and select **Navigation Inspector**, then toggle **Pause on navigations**. The panel shows **Awaiting navigation...** While the toggle is on:
+Open the Next.js DevTools and select **Navigation Inspector**, then toggle **Pause on navigations**. The panel shows **Awaiting navigation...** With the toggle on, the next refresh or link click freezes the page so you can inspect the shell.
 
-- Refresh the page to freeze the **static shell**, the route's prerendered UI before any dynamic data streams in. The panel shows **Loading shell** labeled **Page load**, along with the target URL.
-- Click a link to freeze the **prefetched UI** for the destination route. The panel shows **Loading shell** labeled **Client nav**, along with both source and target URLs.
+Refresh the product page. The Inspector freezes and shows **Loading shell** labeled **Page load** with the target URL. In the app, two fallbacks appear: "Loading product..." and "Checking availability...". On the first visit the cache is cold and both are visible.
 
-When the UI is frozen, click **Resume** to complete the navigation. As long as the **Pause on navigations** toggle stays on, further navigations pause too. Toggle it off when you're done inspecting loading states.
-
-Try refreshing the product page. Two separate fallbacks appear: "Loading product..." and "Checking availability...". On the first visit the cache is cold and both fallbacks are visible. Navigate to the page again and the product name appears immediately from cache.
+{/* TODO: screenshot — Navigation Inspector panel showing "Loading shell" labeled "Page load" with the target URL */}
 
 > **Good to know**: When `next dev` renders against an empty cache, the dev indicator turns orange ("Rendering (cold cache)") and leaves a dismissible "Cold cache" badge afterward. A "Cache disabled" variant appears when caches are bypassed. Reload once caches are warm to see a production-representative view.
 
-{/* TODO: screenshot — Navigation Inspector frozen at the static shell on a page refresh, showing both "Loading product..." and "Checking availability..." fallbacks */}
+Click **Resume** to complete the navigation. Refresh again, and the product name appears immediately from cache.
 
-Now click a link from `/store/shoes` to `/store/hats`. The product name and price appear immediately (cached). "Checking availability..." shows where inventory will stream in.
+Now click a link from `/store/shoes` to `/store/hats`. The Inspector shows **Loading shell** labeled **Client nav** with both source and target URLs. In the app, the product name and price appear immediately (cached). "Checking availability..." shows where inventory will stream in.
 
-{/* TODO: screenshot — Navigation Inspector frozen at the prefetched destination on a client navigation, showing cached product name + price with "Checking availability..." fallback */}
+{/* TODO: screenshot — Navigation Inspector panel showing "Loading shell" labeled "Client nav" with source and target URLs */}
+
+Toggle **Pause on navigations** off when you're done inspecting loading states. Each navigation pauses as long as the toggle is on.
 
 > **Good to know:** Page loads and client navigations can produce different shells. Client-side hooks like `useSearchParams` suspend on page loads (search params are not known at build time) but resolve synchronously on client navigations (the router already has the params).
 
