@@ -852,7 +852,14 @@ function bindingToApi(
       return binding.projectShutdown(this._nativeProject)
     }
 
-    onExit(): Promise<void> {
+    /**
+     * Run the project's registered exit handlers — most importantly, flush
+     * the persistent cache to disk.  Despite the underlying napi name, the
+     * project remains usable after this returns and the call is safe to
+     * repeat.  Returning to this name is intentional: it's the JS-facing
+     * verb for what `projectOnExit` actually does for the caller.
+     */
+    runExitHandlers(): Promise<void> {
       return binding.projectOnExit(this._nativeProject)
     }
   }

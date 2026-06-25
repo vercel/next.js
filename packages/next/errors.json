@@ -1393,5 +1393,6 @@
   "1392": "Prewarm worker terminated by signal %s.",
   "1393": "next internal prewarm-dev: no entrypoints discovered in this project. Make sure the project has an `app/` or `pages/` directory.",
   "1394": "`next internal prewarm-dev` requires the Turbopack persistent dev cache. Enable it with `experimental.turbopackFileSystemCacheForDev: true` in next.config.",
-  "1395": "`next internal prewarm-dev` requires Turbopack; Rspack is not supported."
+  "1395": "`next internal prewarm-dev` requires Turbopack; Rspack is not supported.",
+  "1396": "Assertion failed: prewarmDevServer must be invoked with TURBOPACK=1 in the env."
 }

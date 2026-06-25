@@ -127,9 +127,14 @@ export async function prewarmDevServer(opts: { dir: string }): Promise<void> {
       failed++
     }
     completed++
-    // Grow the concurrency cap by 1 after each completed unit so the first
-    // few compiles run sequentially (cheap when the cache is warm) but we
-    // ramp up quickly when there's real work to do.
+    // Grow the concurrency cap one unit at a time so the very first
+    // compiles are sequential.  Rationale: when the cache is cold the
+    // first page tends to compile a lot of shared modules; doing it
+    // solo lets every subsequent page (which is mostly already covered
+    // by those shared turbo-tasks) finish quickly without N parallel
+    // compiles racing each other for the same uncached work.  After a
+    // few pages the shared graph is mostly cached and we can fan out
+    // up to MAX_CONCURRENCY safely.
     if (concurrency < MAX_CONCURRENCY) concurrency++
   }
 
@@ -141,6 +146,12 @@ export async function prewarmDevServer(opts: { dir: string }): Promise<void> {
   // compilations in flight), flush the persistent cache to disk.  The very
   // last flush is performed by the `closeProject` call below, so we skip
   // the intermediate flush after the final batch.
+  //
+  // TODO(prewarm-dev): the batch size is currently unit-count based.  Some
+  // routes are orders of magnitude more expensive than others, so a wall-
+  // clock-based heuristic ("flush after N seconds of compilation") would
+  // give a more consistent interval between flushes.  A memory-pressure
+  // signal (to also trigger eviction between batches) is another option.
   let runError: unknown
   try {
     for (const batch of batchUnits(units)) {
@@ -231,9 +242,14 @@ async function setupBundler(dir: string): Promise<TurbopackHotReloader> {
     minimalMode: false,
   })
 
-  // Force Turbopack for prewarm.  `bootstrapDevBundler` reads `TURBOPACK`
-  // from the env, which the CLI already sets, but we're defensive here.
-  process.env.TURBOPACK = '1'
+  // The CLI sets `TURBOPACK=1` on the worker env; assert it here so a
+  // direct (mis)invocation of this function fails loudly instead of
+  // silently falling back to webpack via `bootstrapDevBundler`.
+  if (!process.env.TURBOPACK) {
+    throw new Error(
+      'Assertion failed: prewarmDevServer must be invoked with TURBOPACK=1 in the env.'
+    )
+  }
 
   const originalFetch = globalThis.fetch
   const resetFetch = () => {
@@ -345,17 +361,17 @@ function compileUnit(
 /**
  * Persist the Turbopack cache to disk while keeping the project alive.
  *
- * Internally this triggers Turbopack's `project.onExit()` API, which runs
- * the registered exit handlers — those write the in-memory persistent cache
- * to disk.  Despite the underlying name, the project remains usable and
- * this can be called multiple times during a single run.
+ * The JS `Project.runExitHandlers()` wrapper drives the same code path the
+ * dev server uses on shutdown — writing the in-memory persistent cache to
+ * disk — without tearing the project down, so it's safe to call repeatedly
+ * during a single prewarm run.
  */
 async function flushPersistentCache(
   hotReloader: TurbopackHotReloader
 ): Promise<void> {
   const project = hotReloader.turbopackProject
   if (!project) return
-  await project.onExit()
+  await project.runExitHandlers()
 }
 
 /**

@@ -356,7 +356,12 @@ export interface Project {
 
   shutdown(): Promise<void>
 
-  onExit(): Promise<void>
+  /**
+   * Run the project's registered exit handlers (e.g. flushing the
+   * persistent cache to disk).  The project remains usable after this
+   * returns and the call is safe to repeat.
+   */
+  runExitHandlers(): Promise<void>
 }
 
 export type Route =

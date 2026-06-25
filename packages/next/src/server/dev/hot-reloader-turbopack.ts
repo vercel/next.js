@@ -456,7 +456,7 @@ export async function createHotReloaderTurbopack(
 
   opts.onDevServerCleanup?.(async () => {
     setBundlerFindSourceMapImplementation(() => undefined)
-    await project.onExit()
+    await project.runExitHandlers()
     await lockfile?.unlock()
   })
   const entrypointsSubscription = project.entrypointsSubscribe()
