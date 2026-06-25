@@ -1696,7 +1696,7 @@ describe('instant validation', () => {
                 |                   ^",
              "stack": [
                "FetchesClientData app/suspense-in-root/static/invalid-client-data-blocks-validation/client.tsx (12:19)",
-               "Layout app/suspense-in-root/static/invalid-client-data-blocks-validation/layout.tsx (17:9)",
+               "Layout app/suspense-in-root/static/invalid-client-data-blocks-validation/layout.tsx (21:11)",
              ],
            }
           `)
