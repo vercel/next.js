@@ -32,6 +32,7 @@ export function restoreReducer(
   let treeToRestore: FlightRouterState | undefined
   let renderedSearch: string | undefined
   const historyState = action.historyState
+
   if (historyState) {
     treeToRestore = historyState.tree
     renderedSearch = historyState.renderedSearch
@@ -42,6 +43,9 @@ export function restoreReducer(
 
   const currentUrl = new URL(state.canonicalUrl, location.origin)
   const restoredUrl = action.url
+  if (!historyState) {
+    return completeHardNavigation(state, restoredUrl, 'replace')
+  }
   const restoredNextUrl =
     extractPathFromFlightRouterState(treeToRestore) ?? restoredUrl.pathname
   const navigationLock = getCurrentNavigationLock()

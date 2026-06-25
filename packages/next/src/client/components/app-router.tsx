@@ -305,20 +305,21 @@ function Router({
     const originalReplaceState = window.history.replaceState.bind(
       window.history
     )
-
     // Ensure the canonical URL in the Next.js Router is updated when the URL is changed so that `usePathname` and `useSearchParams` hold the pushed values.
     const applyUrlFromHistoryPushReplace = (
       url: string | URL | null | undefined
     ) => {
       const href = window.location.href
-      const appHistoryState: AppHistoryState | undefined =
-        window.history.state?.__PRIVATE_NEXTJS_INTERNALS_TREE
 
       startTransition(() => {
         dispatchAppRouterAction({
           type: ACTION_RESTORE,
           url: new URL(url ?? href, href),
-          historyState: appHistoryState,
+          // Do not pass the current historyState: it belongs to the previous URL,
+          // not the new one being pushed. Passing it would cause the router to
+          // restore the old tree and revert the URL change made by external
+          // pushState calls (e.g. nuqs).
+          historyState: undefined,
         })
       })
     }
