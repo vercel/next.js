@@ -9,7 +9,7 @@ Uncached data accesses ([`fetch()`](https://developer.mozilla.org/en-US/docs/Web
 
 This error can also appear during a client-side navigation when the data access sits inside a [`<Suspense>`](https://react.dev/reference/react/Suspense) boundary from a parent layout but that boundary is too high. It wraps the entire segment instead of only the dynamic part, so the navigation still blocks. Push the boundary closer to the data access so the rest of the segment stays in the [static shell](/docs/app/glossary#static-shell). See [Choosing where to place the boundary](#choosing-where-to-place-the-boundary).
 
-> **Good to know**: In [`next dev`](/docs/app/api-reference/cli/next#next-dev-options), the error overlay points at the failing component with file paths and line numbers. The default `next build` output is more abbreviated — the stack often shows only anonymous HTML elements without user file paths. Run `next build --debug-prerender` to get the full list of blocking routes with user-frame stack traces, and `next build --debug-build-paths /dashboard /settings` to iterate on specific routes.
+> **Good to know**: In [`next dev`](/docs/app/api-reference/cli/next#next-dev-options), the error overlay points at the failing component with file paths and line numbers. The default `next build` output is more abbreviated: the stack often shows only anonymous HTML elements without user file paths. Run `next build --debug-prerender` to get the full list of blocking routes with user-frame stack traces, and `next build --debug-build-paths /dashboard /settings` to iterate on specific routes.
 
 ## Ways to fix this
 
