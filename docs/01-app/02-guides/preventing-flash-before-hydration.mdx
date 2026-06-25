@@ -246,11 +246,7 @@ export default async function Page() {
 Your page may be server-rendered with a default theme (e.g. light), but the user has a saved preference in `localStorage`. The same inline script technique works: read the value and set a `data-theme` attribute on `<html>` before the browser paints.
 
 ```tsx filename="app/layout.tsx" switcher
-export default function RootLayout({
-  children,
-}: {
-  children: React.ReactNode
-}) {
+export default function RootLayout({ children }: LayoutProps<'/'>) {
   return (
     <html lang="en" data-theme="light" suppressHydrationWarning>
       <head>
@@ -296,6 +292,52 @@ export default function RootLayout({ children }) {
 ```
 
 The script runs in `<head>`, so the correct theme is applied before any content is painted. The `try/catch` handles cases where `localStorage` is unavailable.
+
+### Storing the theme in a cookie
+
+Unlike `localStorage`, a cookie is sent with every request, so the server _can_ read it with [`cookies()`](/docs/app/api-reference/functions/cookies). But reading it in the root layout opts the entire app out of static prerendering (and under [Cache Components](/docs/app/api-reference/config/next-config-js/cacheComponents), forces blocking every segment under the layout). To keep the page statically prerendered with a generic default and still avoid the flash, read the cookie in the inline script instead:
+
+```tsx filename="app/layout.tsx" switcher
+export default function RootLayout({ children }: LayoutProps<'/'>) {
+  return (
+    <html lang="en" data-theme="light" suppressHydrationWarning>
+      <head>
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `(function(){try{var m=document.cookie.match(/(?:^|; )theme=([^;]*)/);if(m)document.documentElement.setAttribute("data-theme",decodeURIComponent(m[1]))}catch(e){}})()`,
+          }}
+        />
+      </head>
+      <body>{children}</body>
+    </html>
+  )
+}
+```
+
+```jsx filename="app/layout.js" switcher
+export default function RootLayout({ children }) {
+  return (
+    <html lang="en" data-theme="light" suppressHydrationWarning>
+      <head>
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `(function(){try{var m=document.cookie.match(/(?:^|; )theme=([^;]*)/);if(m)document.documentElement.setAttribute("data-theme",decodeURIComponent(m[1]))}catch(e){}})()`,
+          }}
+        />
+      </head>
+      <body>{children}</body>
+    </html>
+  )
+}
+```
+
+To switch themes, set the attribute on `<html>` and persist the choice to the cookie:
+
+```js
+const theme = 'dark'
+document.documentElement.setAttribute('data-theme', theme)
+document.cookie = `theme=${encodeURIComponent(theme)}; path=/; max-age=31536000; SameSite=Lax`
+```
 
 ## Syncing with React state
 

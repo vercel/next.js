@@ -739,6 +739,8 @@ async function Results({ searchParams }) {
 }
 ```
 
+> **Good to know**: When a cookie or header value drives an attribute on the `<html>` element in the root layout (`lang`, `dir`, `data-theme`, etc.), reading it on the server makes the whole subtree request-bound, so there's no child to wrap in `<Suspense>`. An inline `<script>` in `<head>` that sets the attribute before paint keeps the shell static; see [Preventing flash before hydration](/docs/app/guides/preventing-flash-before-hydration) for the pattern.
+
 ## Route Handlers (`GET`)
 
 **Replace `dynamic = 'force-static'` with `use cache`.**
