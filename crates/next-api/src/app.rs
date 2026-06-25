@@ -87,6 +87,7 @@ use crate::{
         AppPageRoute, Endpoint, EndpointOutput, EndpointOutputPaths, ModuleGraphs, Route, Routes,
     },
     server_actions::{build_server_actions_loader, create_server_actions_manifest},
+    service_worker::service_worker_output_assets,
     sri_manifest::get_sri_manifest_asset,
 };
 
@@ -1418,6 +1419,15 @@ impl AppEndpoint {
         } else {
             None
         };
+
+        // Compile any service workers registered via `navigator.serviceWorker.register(new
+        // URL(...), { scope })` reachable from this endpoint.
+        client_assets.extend(
+            service_worker_output_assets(project, *module_graphs.base)
+                .await?
+                .iter()
+                .copied(),
+        );
 
         let client_assets: ResolvedVc<OutputAssets> =
             ResolvedVc::cell(client_assets.into_iter().collect::<Vec<_>>());
