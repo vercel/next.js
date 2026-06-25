@@ -548,24 +548,20 @@ impl TaskStorage {
     pub fn evictability(&self) -> (KeyEvictability, ValueEvictability) {
         let flags = &self.flags;
 
-        let key_evictability = if flags.new_task() {
-            KeyEvictability::Unevictable
-        } else {
-            match &self.persistent_task_type {
-                None => KeyEvictability::Unevictable,
-                // strong_count == 1: only this TaskStorage holds this Arc, so no task_cache entry
-                // references it. It must have been already evicted on a prior cycle.
-                Some(arc) if arc.count() == 1 => KeyEvictability::AlreadyEvicted,
-                Some(_) => KeyEvictability::Evictable,
-            }
-        };
         // === Absolute blockers ===
         if flags.new_task() {
             return (
-                key_evictability,
+                KeyEvictability::Unevictable,
                 ValueEvictability::Unevictable(UnevictableReason::Modified),
             );
         }
+        let key_evictability = match &self.persistent_task_type {
+            None => KeyEvictability::Unevictable,
+            // strong_count == 1: only this TaskStorage holds this Arc, so no task_cache entry
+            // references it. It must have been already evicted on a prior cycle.
+            Some(arc) if arc.count() == 1 => KeyEvictability::AlreadyEvicted,
+            Some(_) => KeyEvictability::Evictable,
+        };
         // All these flags imply that the task is currently being used in some way
         // either literally executing, or about to
         if self.get_in_progress().is_some()
