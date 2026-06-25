@@ -142,10 +142,13 @@ import {
  * `next internal prewarm-dev` command.
  */
 export type TurbopackHotReloader = NextJsHotReloaderInterface & {
-  /** Returns a snapshot of the current set of known route entrypoints. */
-  getCurrentEntrypoints(): Entrypoints
-  /** Resolves once the first batch of entrypoints has been processed. */
-  awaitEntrypoints(): Promise<void>
+  /**
+   * Returns the current set of route entrypoints.  Awaits the in-flight
+   * entrypoints subscription processing first, so the returned snapshot
+   * reflects everything seen by the bundler up to (and including) the
+   * first subscription event.
+   */
+  getEntrypoints(): Promise<Entrypoints>
 }
 
 const wsServer = new ws.Server({ noServer: true })
@@ -1992,13 +1995,13 @@ export async function createHotReloaderTurbopack(
   const turbopackHotReloader: TurbopackHotReloader = Object.assign(
     hotReloader,
     {
-      /** Returns a snapshot of the current set of known route entrypoints. */
-      getCurrentEntrypoints(): Entrypoints {
+      async getEntrypoints(): Promise<Entrypoints> {
+        // Wait for the in-flight subscription event to finish processing so
+        // the snapshot is consistent.  This resolves on the FIRST event
+        // (after the initial scan); entrypoints discovered later will not
+        // be reflected.
+        await currentEntriesHandling
         return currentEntrypoints
-      },
-      /** Resolves once the first batch of entrypoints has been processed. */
-      awaitEntrypoints(): Promise<void> {
-        return currentEntriesHandling as Promise<void>
       },
     }
   )

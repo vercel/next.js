@@ -5,9 +5,9 @@
  * the child worker process detects `__NEXT_PRIVATE_PREWARM_DEV=1`.  It sets up
  * the Turbopack dev bundler (without starting an HTTP server), enumerates all
  * entrypoints (app + pages routes, pages globals when there are pages routes,
- * middleware, instrumentation), compiles each one, periodically flushes the
- * cache to disk in growing batches, and finally shuts the project down so the
- * persistent cache is fully written.
+ * middleware, instrumentation), compiles each one in growing batches, flushes
+ * the persistent cache to disk between batches, and finally shuts the project
+ * down so the cache is fully written.
  */
 
 // This must come first as it includes require hooks.
@@ -16,7 +16,7 @@ import '../require-hook'
 
 import os from 'os'
 
-import type { Endpoint } from '../../build/swc/types'
+import type { Endpoint, Entrypoints } from '../../build/swc/types'
 import * as Log from '../../build/output/log'
 import { setupFsCheck } from './router-utils/filesystem'
 import { PHASE_DEVELOPMENT_SERVER } from '../../shared/lib/constants'
@@ -42,14 +42,14 @@ const INITIAL_CONCURRENCY = 1
 const MAX_CONCURRENCY = os.cpus().length
 
 /**
- * Number of units compiled before the Turbopack cache is flushed to disk for
- * the first time (via `project.onExit()`).  The batch size doubles after each
- * intermediate flush, so flushes happen after 10, 30, 70, 150, … units.
+ * Size of the first compilation batch.  After each batch finishes the cache
+ * is flushed to disk; the next batch is twice as big as the previous one.
+ * So flushes happen after 10, 30, 70, 150, … units.
  */
 const INITIAL_BATCH_SIZE = 10
 
 /**
- * The batch size is multiplied by this factor after every intermediate flush.
+ * Multiplier applied to the batch size after each batch finishes.
  * E.g. 10 → 20 → 40 → …
  */
 const BATCH_SIZE_MULTIPLIER = 2
@@ -84,32 +84,24 @@ export async function prewarmDevServer(opts: { dir: string }): Promise<void> {
 
   // Hard-exit on Ctrl+C: we want to abandon any in-flight compilation
   // immediately rather than try to gracefully persist.  An interrupted
-  // prewarm leaves the cache empty (or only partially seeded if a flush
-  // already happened), which is fine — the user will just rerun the
-  // command.
+  // prewarm leaves the cache in whatever state the most recent batch flush
+  // reached, which is fine — the user just reruns.
   installHardExitSignalHandlers()
 
   Log.info('Starting Turbopack dev bundler for cache prewarming…')
 
   const hotReloader = await setupBundler(dir)
-
-  // Wait for the initial entrypoints subscription to be processed.  This
-  // resolves only on the FIRST batch — entrypoints discovered later (e.g.
-  // from a slow filesystem scan) won't be included in the snapshot below.
-  // For prewarm that's acceptable: any new file is going to need recompile
-  // on `next dev` anyway.
-  await hotReloader.awaitEntrypoints()
+  const entrypoints = await hotReloader.getEntrypoints()
 
   // Middleware and instrumentation are eagerly compiled by `handleEntrypoints`
-  // during `awaitEntrypoints()` above, so they're already part of the cache.
-  // We track that count here so the final summary reflects everything that
-  // has been seeded without triggering redundant `writeToDisk()` calls.
-  const ep = hotReloader.getCurrentEntrypoints()
+  // during `getEntrypoints()` above, so they're already part of the cache.
+  // Track the count here so the final summary reflects everything that has
+  // been seeded without triggering redundant `writeToDisk()` calls.
   let prewarmedDuringSetup = 0
-  if (ep.global.middleware) prewarmedDuringSetup++
-  if (ep.global.instrumentation) prewarmedDuringSetup += 2 // nodeJs + edge
+  if (entrypoints.global.middleware) prewarmedDuringSetup++
+  if (entrypoints.global.instrumentation) prewarmedDuringSetup += 2 // nodeJs + edge
 
-  const units = collectUnits(hotReloader)
+  const units = collectUnits(entrypoints)
   if (units.length === 0 && prewarmedDuringSetup === 0) {
     // The project has no entrypoints at all.  This is unexpected — at
     // minimum a Next.js project should expose pages globals or an app dir.
@@ -125,33 +117,6 @@ export async function prewarmDevServer(opts: { dir: string }): Promise<void> {
   let completed = prewarmedDuringSetup
   let failed = 0
   let concurrency = INITIAL_CONCURRENCY
-  let batchSize = INITIAL_BATCH_SIZE
-  let lastFlushAt = completed
-
-  // Single-slot serialised flush queue.  Calling `scheduleFlush()` chains a
-  // new flush onto the previous one; intermediate flushes never overlap with
-  // each other or with the final shutdown.  The first error from any flush
-  // is captured, aborts the scheduling loop, and is rethrown by
-  // `awaitPendingFlush()`.
-  let pendingFlush: Promise<void> = Promise.resolve()
-  const fatalError = new AbortController()
-
-  function scheduleFlush(label: string): void {
-    pendingFlush = pendingFlush.then(async () => {
-      if (fatalError.signal.aborted) return
-      try {
-        await persistCache(hotReloader, 'flush')
-        Log.info(label)
-      } catch (err) {
-        fatalError.abort(err)
-      }
-    })
-  }
-
-  async function awaitPendingFlush(): Promise<void> {
-    await pendingFlush
-    if (fatalError.signal.aborted) throw fatalError.signal.reason
-  }
 
   async function compile(unit: PrewarmUnit): Promise<void> {
     try {
@@ -166,34 +131,39 @@ export async function prewarmDevServer(opts: { dir: string }): Promise<void> {
     // few compiles run sequentially (cheap when the cache is warm) but we
     // ramp up quickly when there's real work to do.
     if (concurrency < MAX_CONCURRENCY) concurrency++
-    if (completed - lastFlushAt >= batchSize) {
-      lastFlushAt = completed
-      batchSize = Math.min(batchSize * BATCH_SIZE_MULTIPLIER, total)
-      scheduleFlush(
-        `Persisted Turbopack cache (${completed} / ${total} entrypoints).`
-      )
-    }
   }
 
-  // Always run the final shutdown — even when the scheduling loop aborts
-  // (e.g. on a flush failure) we still want to persist whatever made it
-  // into the cache, mirroring `turbopack-build/impl.ts`.
+  // Hoisted out of the loop body for ESLint's `no-loop-func`: the closure
+  // captures the mutable `concurrency` variable.
+  const getConcurrency = () => concurrency
+
+  // Process units in growing batches.  After each batch finishes (no
+  // compilations in flight), flush the persistent cache to disk.  The very
+  // last flush is performed by the `closeProject` call below, so we skip
+  // the intermediate flush after the final batch.
   let runError: unknown
   try {
-    await runWithConcurrency(units, compile, {
-      getConcurrency: () => concurrency,
-      signal: fatalError.signal,
-    })
-    await awaitPendingFlush()
+    for (const batch of batchUnits(units)) {
+      await runWithConcurrency(batch, compile, { getConcurrency })
+      if (completed < total) {
+        await flushPersistentCache(hotReloader)
+        Log.info(
+          `Persisted Turbopack cache (${completed} / ${total} entrypoints).`
+        )
+      }
+    }
   } catch (err) {
     runError = err
   }
 
+  // Always close the project so we persist whatever made it into the cache,
+  // even when the run loop aborted (e.g. on a worker error).  Mirrors
+  // `turbopack-build/impl.ts`.
   Log.info('Persisting Turbopack cache to disk…')
   try {
-    await persistCache(hotReloader, 'shutdown')
-  } catch (shutdownErr) {
-    if (runError === undefined) runError = shutdownErr
+    await closeProject(hotReloader)
+  } catch (closeErr) {
+    if (runError === undefined) runError = closeErr
   }
   if (runError !== undefined) throw runError
 
@@ -207,23 +177,50 @@ export async function prewarmDevServer(opts: { dir: string }): Promise<void> {
 }
 
 /**
+ * Yield successive batches of `units` with sizes
+ * INITIAL_BATCH_SIZE, INITIAL_BATCH_SIZE * MULTIPLIER, … until exhausted.
+ */
+function* batchUnits(
+  units: ReadonlyArray<PrewarmUnit>
+): Iterable<PrewarmUnit[]> {
+  let cursor = 0
+  let batchSize = INITIAL_BATCH_SIZE
+  while (cursor < units.length) {
+    const end = Math.min(cursor + batchSize, units.length)
+    yield units.slice(cursor, end)
+    cursor = end
+    batchSize *= BATCH_SIZE_MULTIPLIER
+  }
+}
+
+/**
  * Set up the Turbopack dev bundler without starting an HTTP server.
  *
- * Note: the underlying `bootstrapDevBundler` helper:
+ * Errors out early when:
+ *   - the user has chosen Rspack via `NEXT_RSPACK=1` (prewarm is
+ *     Turbopack-only), or
+ *   - the project doesn't enable the persistent dev cache (the whole point
+ *     of prewarming).
+ *
+ * The underlying `bootstrapDevBundler` helper:
  *   - records a telemetry session labeled `cliCommand: 'prewarm-dev'`
  *   - acquires the dev lockfile (when `experimental.lockDistDir` is set)
  *     under the owner string `next prewarm-dev`, so an active `next dev`
  *     will refuse to start while a prewarm is running, and vice versa.
  */
 async function setupBundler(dir: string): Promise<TurbopackHotReloader> {
+  if (process.env.NEXT_RSPACK) {
+    throw new Error(
+      '`next internal prewarm-dev` requires Turbopack; Rspack is not supported.'
+    )
+  }
+
   const config = await loadConfig(PHASE_DEVELOPMENT_SERVER, dir)
 
   if (!isFileSystemCacheEnabledForDev(config)) {
-    Log.warn(
-      'Turbopack persistent dev cache is not enabled for this project. ' +
-        'Prewarming will still compile entrypoints, but no on-disk cache ' +
-        'will be written. Enable it with ' +
-        '`experimental.turbopackFileSystemCacheForDev: true` in next.config.'
+    throw new Error(
+      '`next internal prewarm-dev` requires the Turbopack persistent dev cache. ' +
+        'Enable it with `experimental.turbopackFileSystemCacheForDev: true` in next.config.'
     )
   }
 
@@ -260,10 +257,10 @@ async function setupBundler(dir: string): Promise<TurbopackHotReloader> {
 
   // We forced `TURBOPACK=1`, so `developmentBundler.hotReloader` must be a
   // Turbopack hot reloader.  The static type is the narrower
-  // `NextJsHotReloaderInterface`; runtime-check the prewarm helpers before
+  // `NextJsHotReloaderInterface`; runtime-check the prewarm helper before
   // narrowing the cast.
   const hotReloader = developmentBundler.hotReloader
-  if (!('getCurrentEntrypoints' in hotReloader)) {
+  if (!('getEntrypoints' in hotReloader)) {
     throw new Error(
       '`next internal prewarm-dev` requires Turbopack. ' +
         'Make sure the project is configured to use Turbopack (this is the default).'
@@ -278,43 +275,42 @@ async function setupBundler(dir: string): Promise<TurbopackHotReloader> {
  * app routes — so the early flushes write commonly-shared chunks.
  *
  * Middleware and instrumentation are NOT included here; they are eagerly
- * compiled by `handleEntrypoints` during `awaitEntrypoints()` and don't need
+ * compiled by `handleEntrypoints` during `getEntrypoints()` and don't need
  * a second `writeToDisk()` call.
  */
-function collectUnits(hotReloader: TurbopackHotReloader): PrewarmUnit[] {
-  const ep = hotReloader.getCurrentEntrypoints()
+function collectUnits(entrypoints: Entrypoints): PrewarmUnit[] {
   const units: PrewarmUnit[] = []
 
   // Only prewarm pages globals if the project actually has pages routes,
   // otherwise we'd compile unused default _app/_document/_error stubs in
   // app-only projects.
-  const hasPagesRoutes = ep.page.size > 0
+  const hasPagesRoutes = entrypoints.page.size > 0
   if (hasPagesRoutes) {
-    if (ep.global.app) {
+    if (entrypoints.global.app) {
       units.push({
         kind: 'pages-global',
         name: '/_app',
-        endpoint: ep.global.app,
+        endpoint: entrypoints.global.app,
       })
     }
-    if (ep.global.document) {
+    if (entrypoints.global.document) {
       units.push({
         kind: 'pages-global',
         name: '/_document',
-        endpoint: ep.global.document,
+        endpoint: entrypoints.global.document,
       })
     }
-    if (ep.global.error) {
+    if (entrypoints.global.error) {
       units.push({
         kind: 'pages-global',
         name: '/_error',
-        endpoint: ep.global.error,
+        endpoint: entrypoints.global.error,
       })
     }
   }
 
-  for (const [page] of ep.page) units.push({ kind: 'pages', page })
-  for (const [page] of ep.app) units.push({ kind: 'app', page })
+  for (const [page] of entrypoints.page) units.push({ kind: 'pages', page })
+  for (const [page] of entrypoints.app) units.push({ kind: 'app', page })
 
   return units
 }
@@ -347,21 +343,30 @@ function compileUnit(
 }
 
 /**
- * Persist the Turbopack cache to disk.
+ * Persist the Turbopack cache to disk while keeping the project alive.
  *
- * - `mode: 'flush'`  – calls `project.onExit()`, which runs the registered
- *   exit handlers (writing the DB to disk) without tearing down turbo-tasks.
- *   Used for intermediate batch persists during prewarm.
- * - `mode: 'shutdown'` – calls `project.shutdown()`, which runs exit handlers
- *   AND waits for turbo-tasks to fully persist.  Called once at the very end.
+ * Internally this triggers Turbopack's `project.onExit()` API, which runs
+ * the registered exit handlers — those write the in-memory persistent cache
+ * to disk.  Despite the underlying name, the project remains usable and
+ * this can be called multiple times during a single run.
  */
-async function persistCache(
-  hotReloader: TurbopackHotReloader,
-  mode: 'flush' | 'shutdown'
+async function flushPersistentCache(
+  hotReloader: TurbopackHotReloader
 ): Promise<void> {
   const project = hotReloader.turbopackProject
   if (!project) return
-  await (mode === 'shutdown' ? project.shutdown() : project.onExit())
+  await project.onExit()
+}
+
+/**
+ * Tear down the Turbopack project and wait for the persistent cache to be
+ * fully written.  Called once at the very end of prewarming; after this
+ * the project is no longer usable.
+ */
+async function closeProject(hotReloader: TurbopackHotReloader): Promise<void> {
+  const project = hotReloader.turbopackProject
+  if (!project) return
+  await project.shutdown()
 }
 
 /**
@@ -369,10 +374,14 @@ async function persistCache(
  * not attempt to gracefully persist on signal — Ctrl+C should feel like
  * Ctrl+C — so the cache is left in whatever state the most recent flush
  * reached.
+ *
+ * Exit code follows the Unix convention of `128 + signal number` so callers
+ * (and shells) can distinguish signal-terminated processes from regular
+ * non-zero exits.
  */
 function installHardExitSignalHandlers(): void {
   const onSignal = (signal: NodeJS.Signals) => {
-    process.exit(signal === 'SIGTERM' ? 143 : 130)
+    process.exit(128 + os.constants.signals[signal])
   }
   process.on('SIGINT', () => onSignal('SIGINT'))
   process.on('SIGTERM', () => onSignal('SIGTERM'))
