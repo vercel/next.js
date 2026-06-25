@@ -12,7 +12,7 @@ The Next.js router introduced in version 13, built on top of React Server Compon
 
 ## App Shell
 
-A per-route prerender containing only the generic, reusable parts of a page: what Next.js can produce without any URL-specific data. Used as the loading state of last resort by [ISR with Cache Components](/docs/app/guides/incremental-static-regeneration-cache-components) and [runtime prefetching](/docs/app/guides/runtime-prefetching).
+A per-route prerender containing the parts of a page that don't depend on URL-specific data. Routes that read `cookies()` or `headers()` produce a session-personalized variant, cached per session on the client. Used as the prefetch payload during client navigations, the loading state during [runtime prefetching](/docs/app/guides/runtime-prefetching), and the fallback for [ISR with Cache Components](/docs/app/guides/incremental-static-regeneration-cache-components).
 
 # B
 
@@ -162,7 +162,7 @@ A pattern that allows simultaneously or conditionally rendering multiple pages w
 
 ## Partial Prefetching
 
-A prefetching strategy for [Cache Components](#cache-components) routes where `<Link>` loads only a per-route [App Shell](#app-shell) by default. The page's cached content is downloaded only when the link sets `prefetch={true}`, and dynamic content is never prefetched. Enable with [`partialPrefetching: true`](/docs/app/api-reference/config/next-config-js/partialPrefetching) in `next.config.ts`. Learn more in the [Adopting Partial Prefetching guide](/docs/app/guides/adopting-partial-prefetching).
+A prefetching strategy for [Cache Components](#cache-components) routes where `<Link>` loads a per-route [App Shell](#app-shell) by default. The page's cached content is downloaded only when the link sets `prefetch={true}`, and uncached reads stay behind their `<Suspense>` boundaries until navigation completes. Enable with [`partialPrefetching: true`](/docs/app/api-reference/config/next-config-js/partialPrefetching) in `next.config.ts`. Learn more in the [Adopting Partial Prefetching guide](/docs/app/guides/adopting-partial-prefetching).
 
 ## Partial Prerendering (PPR)
 

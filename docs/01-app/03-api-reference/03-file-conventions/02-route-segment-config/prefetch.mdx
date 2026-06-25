@@ -37,7 +37,7 @@ export default function Page() {
 
 ### `'allow-runtime'`
 
-Allows Next.js to prefetch this segment at runtime. Today, setting this option causes Next.js to issue a runtime prefetch request, so the server can render a fresh response that includes runtime data like cookies, headers, and search params. Use this for personalized content when the latency and cost of runtime prefetching are appropriate for the segment.
+Allows Next.js to prefetch this segment at runtime. Setting this option lets the server render a fresh response that resolves per-link runtime data: `params`, `searchParams`, and the full URL. Cookies and headers don't need `'allow-runtime'`. The framework already includes them in the [App Shell](/docs/app/glossary#app-shell) when the route reads them. Use this for personalized content when the latency and cost of runtime prefetching are appropriate for the segment.
 
 > **Good to know**: When Next.js runtime-prefetches a segment, all downstream segments are included in the same runtime prefetch request. Segments deeper in the tree that are configured with `'force-disabled'` will still be prefetched as part of the runtime response.
 
@@ -67,7 +67,7 @@ A prefetch starts with a `<Link>` that expresses intent (should this destination
 
 A destination can't know which links target it, so the segment config caps what any `<Link prefetch={true}>` pulls:
 
-- [`'allow-runtime'`](#allow-runtime): App Shell plus runtime data (cookies, headers, search params).
+- [`'allow-runtime'`](#allow-runtime): App Shell plus per-link runtime data (`params`, `searchParams`, the full URL).
 - [`'partial'`](#partial): App Shell only.
 - [`'force-disabled'`](#force-disabled): skip segment data entirely.
 
