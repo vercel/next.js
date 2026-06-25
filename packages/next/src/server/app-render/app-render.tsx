@@ -1347,6 +1347,12 @@ async function generateDynamicFlightRenderResultWithStagesInDev(
       setCacheStatus('ready', htmlRequestId)
     }
 
+    const prefetchMode =
+      !!renderOpts.partialPrefetching ||
+      (await anySegmentHasPartialPrefetchingEnabled(loaderTree))
+        ? PrefetchingMode.Partial
+        : PrefetchingMode.LegacySpeculative
+
     // A client navigation into a runtime-prefetch route extends the shell
     // through the runtime-prefetchable content: it has already settled on the
     // client (via the prefetch) by the time it navigates, so it belongs in this
@@ -1354,11 +1360,23 @@ async function generateDynamicFlightRenderResultWithStagesInDev(
     // load: plain navigations, and HMR refreshes (a fresh render of the current
     // page, with no settled prefetch to draw on). Dynamic content always
     // streams in after the shell.
-    const revealAfterStage =
-      initialRequestStore.isHmrRefresh !== true &&
-      (await anySegmentHasRuntimePrefetchEnabled(loaderTree))
-        ? RenderStage.Runtime
-        : RenderStage.Static
+    let prefetchStage: StreamRevealStage
+
+    if (initialRequestStore.isHmrRefresh === true) {
+      prefetchStage = RenderStage.Static
+    } else {
+      if (prefetchMode === PrefetchingMode.Partial) {
+        // TODO(app-shells): model `partialPrefetching: "unstable_eager"`
+        // TODO(app-shells): if this navigation came from <Link prefetch={true} />,
+        // we should show the shell for a speculative prefetch
+        // (which can have more data than the app shell)
+        prefetchStage = RenderStage.ShellRuntime
+      } else {
+        prefetchStage = (await anySegmentHasRuntimePrefetchEnabled(loaderTree))
+          ? RenderStage.Runtime
+          : RenderStage.Static
+      }
+    }
 
     const result = await stagedRenderWithCachesInDev({
       ctx,
@@ -1369,11 +1387,10 @@ async function generateDynamicFlightRenderResultWithStagesInDev(
       shouldValidate,
       fallbackRouteParams: fallbackParams,
       getDevRenderDidError: () => didErrorObservably,
-      revealAfterStage,
-      // This stream goes to the browser, which gates revealing the response on
-      // the payload's `_revealAfter`, so release it live and let the browser
-      // process chunks as they arrive instead of holding it server-side.
-      holdStreamUntilRevealed: false,
+      navigationKind: {
+        type: 'prefetched-client',
+        prefetchStage,
+      },
     })
     stream = result.stream
     debugChannel = result.debugChannel
@@ -3437,12 +3454,9 @@ async function renderToStream(
               getDevRenderDidError: () => didErrorObservably,
               // An initial HTML load serves the static shell; runtime and
               // dynamic content stream in afterward.
-              revealAfterStage: RenderStage.Static,
-              // Hold the stream until the shell content has flushed so the
-              // streamed HTML reflects the prerendered shell rather than a
-              // premature shell-stage Suspense fallback (see
-              // `holdStreamUntilRevealed`).
-              holdStreamUntilRevealed: true,
+              navigationKind: {
+                type: 'initial-load',
+              },
             })
 
           reactServerResult = new ReactServerResult(serverStream)
@@ -4545,6 +4559,11 @@ interface StagedDevRenderSetup {
   readonly environmentName: () => string
 }
 
+enum PrefetchingMode {
+  LegacySpeculative = 1,
+  Partial = 2,
+}
+
 /**
  * Per-render setup shared by the streaming dev Cache Components renders: a
  * cache signal (so caches fill in the background), a prerender resume data
@@ -4613,9 +4632,17 @@ interface StagedDevRenderOptions {
   ctx: AppRenderContext
   requestStore: RequestStore
   onError: (error: unknown) => void
-  revealAfterStage: RenderStage.Static | RenderStage.Runtime
-  holdStreamUntilRevealed: boolean
+  navigationKind: DevNavigationKind
 }
+
+type DevNavigationKind =
+  | { type: 'initial-load' }
+  | { type: 'prefetched-client'; prefetchStage: StreamRevealStage }
+
+type StreamRevealStage =
+  | RenderStage.Static
+  | RenderStage.ShellRuntime
+  | RenderStage.Runtime
 
 interface StreamStagedRenderInDevOptions extends StagedDevRenderOptions {
   rscPayload: RSCPayload
@@ -4647,12 +4674,31 @@ async function streamStagedRenderInDev({
   environmentName,
   onError,
   debugChannel,
-  revealAfterStage,
-  holdStreamUntilRevealed,
+  navigationKind,
 }: StreamStagedRenderInDevOptions): Promise<{
   stream: Readable
   resultPromise: Promise<StagedDevRenderResult>
 }> {
+  let holdStreamUntilRevealed: boolean
+  let revealAfterStage: StreamRevealStage
+  switch (navigationKind.type) {
+    case 'initial-load': {
+      // Hold the stream until the shell content has flushed so the
+      // streamed HTML reflects the prerendered HTML shell
+      holdStreamUntilRevealed = true
+      revealAfterStage = RenderStage.Static
+      break
+    }
+    case 'prefetched-client': {
+      // This stream goes to the browser, which gates revealing the response on
+      // the payload's `_revealAfter`, so release it live and let the browser
+      // process chunks as they arrive instead of holding it server-side.
+      holdStreamUntilRevealed = false
+      revealAfterStage = navigationKind.prefetchStage
+      break
+    }
+  }
+
   const { ComponentMod } = ctx.renderOpts
   const { clientModules } = getClientReferenceManifest()
 
@@ -4724,6 +4770,19 @@ async function streamStagedRenderInDev({
     return hadCacheMiss
   }
 
+  const checkCacheMissAndAdvance = (stage: AdvanceableRenderStage) => {
+    if (checkForCacheMiss()) {
+      revealAfter.resolve()
+    }
+    stageController.advanceStage(stage)
+  }
+
+  const checkReveal = (stage: AdvanceableRenderStage) => {
+    if (checkForCacheMiss() || revealAfterStage === stage) {
+      revealAfter.resolve()
+    }
+  }
+
   // The render runs to completion; it never aborts. The first task starts the
   // render in the `ShellEarlyStatic` stage and creates the stream (one replay
   // for the response, one to accumulate the chunks). The later tasks advance
@@ -4762,68 +4821,22 @@ async function streamStagedRenderInDev({
         ),
       })
     },
+    () => checkCacheMissAndAdvance(RenderStage.ShellStatic),
+
+    () => checkCacheMissAndAdvance(RenderStage.EarlyStatic),
+    () => checkCacheMissAndAdvance(RenderStage.Static),
+    () => checkReveal(RenderStage.Static),
+
+    () => checkCacheMissAndAdvance(RenderStage.ShellEarlyRuntime),
+    () => checkCacheMissAndAdvance(RenderStage.ShellRuntime),
+    () => checkReveal(RenderStage.ShellRuntime),
+
+    () => checkCacheMissAndAdvance(RenderStage.EarlyRuntime),
+    () => checkCacheMissAndAdvance(RenderStage.Runtime),
+    () => checkReveal(RenderStage.Runtime),
+
     () => {
-      if (checkForCacheMiss()) {
-        revealAfter.resolve()
-      }
-      stageController.advanceStage(RenderStage.ShellStatic)
-    },
-    () => {
-      if (checkForCacheMiss()) {
-        revealAfter.resolve()
-      }
-      stageController.advanceStage(RenderStage.EarlyStatic)
-    },
-    () => {
-      if (checkForCacheMiss()) {
-        revealAfter.resolve()
-      }
-      stageController.advanceStage(RenderStage.Static)
-    },
-    () => {
-      // Reveal on a cache miss, or at the static-shell boundary: the static
-      // stage's chunks flushed in the previous task, so the static shell is on
-      // the stream now. `checkForCacheMiss()` is the left operand so its side
-      // effect (tracking the miss / updating the dev overlay) always runs.
-      if (checkForCacheMiss() || revealAfterStage === RenderStage.Static) {
-        revealAfter.resolve()
-      }
-      stageController.advanceStage(RenderStage.ShellEarlyRuntime)
-    },
-    () => {
-      if (checkForCacheMiss()) {
-        revealAfter.resolve()
-      }
-      stageController.advanceStage(RenderStage.ShellRuntime)
-    },
-    () => {
-      if (checkForCacheMiss()) {
-        revealAfter.resolve()
-      }
-      stageController.advanceStage(RenderStage.EarlyRuntime)
-    },
-    () => {
-      if (checkForCacheMiss()) {
-        revealAfter.resolve()
-      }
-      stageController.advanceStage(RenderStage.Runtime)
-    },
-    () => {
-      // Reveal on a cache miss, or at the runtime-shell boundary: the runtime
-      // stage's chunks flushed in the previous task, so the runtime shell is on
-      // the stream now. `checkForCacheMiss()` is the left operand so its side
-      // effect (tracking the miss / updating the dev overlay) always runs.
-      if (checkForCacheMiss() || revealAfterStage === RenderStage.Runtime) {
-        revealAfter.resolve()
-      }
-    },
-    () => {
-      // Advance to the dynamic stage in the next task, after the `revealAfter`
-      // resolution row from the previous task has flushed: that way the row
-      // precedes any dynamic chunks, so the client unblocks as soon as the
-      // shell is ready, not only while the dynamic content streams.
-      //
-      // Advance as early as possible, even while caches are still filling, so
+      // Advance to the dynamic stage even while caches are still filling, so
       // dynamic content streams to the browser right away instead of being
       // withheld until the slowest cache fill completes. Streaming that content
       // promptly is the whole point of the streaming dev render.
@@ -5003,8 +5016,7 @@ async function stagedRenderWithCachesInDev({
   shouldValidate,
   fallbackRouteParams,
   getDevRenderDidError,
-  revealAfterStage,
-  holdStreamUntilRevealed,
+  navigationKind,
 }: StagedRenderWithCachesInDevOptions): Promise<{
   stream: Readable
   debugChannel: NodeDebugChannelPair | undefined
@@ -5041,8 +5053,7 @@ async function stagedRenderWithCachesInDev({
     environmentName,
     onError,
     debugChannel,
-    revealAfterStage,
-    holdStreamUntilRevealed,
+    navigationKind,
   })
 
   if (shouldValidate) {
