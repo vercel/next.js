@@ -342,8 +342,9 @@ export default function RootLayout({ children }) {
 To switch themes, set the attribute on `<html>` and persist the choice to the cookie:
 
 ```js
-document.documentElement.setAttribute('data-theme', 'dark')
-document.cookie = `theme=dark; path=/; max-age=31536000; SameSite=Lax`
+const theme = 'dark'
+document.documentElement.setAttribute('data-theme', theme)
+document.cookie = `theme=${encodeURIComponent(theme)}; path=/; max-age=31536000; SameSite=Lax`
 ```
 
 ## Syncing with React state
