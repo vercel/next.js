@@ -2869,7 +2869,7 @@ impl TurboTasksBackend {
                         // Begin (or continue) timing if we're not idle. Transitions below
                         // keep this in sync via the idle events.
                         if !turbo_tasks.is_idle() {
-                            active_time.start(std::time::Instant::now());
+                            active_time.start();
                         }
 
                         let until = last_snapshot + time;
@@ -2890,13 +2890,13 @@ impl TurboTasksBackend {
                                     },
                                     _ = &mut idle_start_listener => {
                                         // Became idle: stop accumulating active time.
-                                        active_time.stop(std::time::Instant::now());
+                                        active_time.stop();
                                         idle_time = Instant::now() + idle_timeout;
                                         idle_start_listener = self.idle_start_event.listen()
                                     },
                                     _ = &mut idle_end_listener => {
                                         // Became active: resume accumulating active time.
-                                        active_time.start(std::time::Instant::now());
+                                        active_time.start();
                                         idle_time = far_future();
                                         idle_end_listener = self.idle_end_event.listen()
                                     },
@@ -2919,9 +2919,7 @@ impl TurboTasksBackend {
                         // flush, but they don't run through this loop (Stop is handled in
                         // stop(), Test in snapshot_and_evict_for_testing), so every reason
                         // reaching here is subject to the threshold.
-                        if active_time.elapsed(std::time::Instant::now())
-                            < *MIN_SNAPSHOT_ACTIVE_TIME
-                        {
+                        if active_time.elapsed() < *MIN_SNAPSHOT_ACTIVE_TIME {
                             // Not enough compilation time accumulated — skip the (potentially
                             // expensive) snapshot. Advance scheduling state as if we had run,
                             // but keep active_time running so it carries toward the next cycle.
@@ -2959,7 +2957,7 @@ impl TurboTasksBackend {
                                 // state. Either way, reset so stale time doesn't carry into the
                                 // next cycle. If still timing an active period, reset() keeps it
                                 // running from now so time before this snapshot isn't counted.
-                                active_time.reset(std::time::Instant::now());
+                                active_time.reset();
 
                                 // Polls the idle-end event without blocking. Returns
                                 // `true` and refreshes the listener if idle has ended,
