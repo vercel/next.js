@@ -1985,11 +1985,8 @@ fn generate_direct_accessors(field: &FieldInfo) -> TokenStream {
         }
     } else {
         // Track before taking, gated on the existing value's transience.
-        let track_take = gen_track(quote! { #get_expr.is_some_and(|old| !old.is_transient()) });
+        let track_take = gen_track(quote! { !#get_expr?.is_transient() });
         quote! {
-            if #get_expr.is_none() {
-                return None;
-            }
             #track_take
             #take_expr
         }
