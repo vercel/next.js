@@ -50,6 +50,7 @@ use turbo_tasks::{
 };
 #[cfg(feature = "task_dirty_cause")]
 use turbo_tasks::{FunctionId, TaskDirtyCause};
+use turbo_tasks_malloc::TurboMalloc;
 
 pub use self::{
     operation::AnyOperation,
@@ -114,6 +115,139 @@ pub enum StorageMode {
     ReadWriteOnShutdown,
 }
 
+/// Strategy for evicting evictable tasks from in-memory storage after a
+/// snapshot. This is an EXPERIMENTAL FEATURE under development.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum EvictionMode {
+    /// Never evict.
+    Off,
+    /// Evict after a snapshot only once enough memory has been allocated since
+    /// the last eviction to justify the cost of restoring evicted tasks on
+    /// demand. Uses allocator statistics to estimate reclaimable memory.
+    /// See [`EvictionControl::auto_threshold_exceeded`].
+    Auto,
+    /// After every snapshot, evict all evictable tasks from memory, reloading
+    /// them from disk on demand.
+    Full,
+}
+
+/// Owns the eviction policy for the background snapshot loop: the configured
+/// [`EvictionMode`] plus the threshold bookkeeping for [`EvictionMode::Auto`].
+///
+/// The loop consults [`EvictionControl::should_evict`] once per snapshot cycle
+/// and calls [`EvictionControl::record_eviction`] after a sweep. All
+/// mode-specific decisions live here so the loop doesn't have to branch on the
+/// mode itself.
+///
+/// For [`EvictionMode::Auto`]: eviction reclaims memory but forces evicted tasks
+/// to be restored from disk on next access. A sweep is only worth that churn if
+/// it reclaims a meaningful amount of memory. We can't measure reclaimable memory
+/// directly, so we use the net bytes allocated since the last eviction (via
+/// [`TurboMalloc::memory_usage`]) as a proxy and require it to exceed a threshold.
+struct EvictionControl {
+    mode: EvictionMode,
+    /// Global net live bytes ([`TurboMalloc::memory_usage`]) sampled immediately
+    /// after the most recent eviction, or `None` before the first eviction.
+    /// Only meaningful in [`EvictionMode::Auto`].
+    memory_at_last_eviction: Option<usize>,
+}
+
+impl EvictionControl {
+    fn new(mode: EvictionMode) -> Self {
+        Self {
+            mode,
+            memory_at_last_eviction: None,
+        }
+    }
+
+    /// Whether any prior cycle has evicted. Derived from the recorded baseline,
+    /// which [`EvictionControl::record_eviction`] sets after each sweep.
+    fn has_evicted_before(&self) -> bool {
+        self.memory_at_last_eviction.is_some()
+    }
+
+    /// Whether to run an eviction sweep this snapshot cycle.
+    ///
+    /// `snapshot_had_new_data` is whether the just-completed snapshot persisted
+    /// new data. We only evict when there's new data to persist (the common case)
+    /// or on the very first eviction after startup (data was already on disk from
+    /// a prior run, so `snapshot_had_new_data` may be false but in-memory state
+    /// can still be evicted).
+    ///
+    /// Within that, `Off` never evicts, `Full` always evicts, and `Auto` requires
+    /// enough net memory allocated since the last eviction to justify the
+    /// restore-then-re-evict churn (always evicting the first time, since there's
+    /// no prior baseline).
+    fn should_evict(&self, snapshot_had_new_data: bool) -> bool {
+        // Only evict when there's new data to persist, or on the very first
+        // eviction after startup (restored on-disk state can be reclaimed even
+        // when this snapshot had no new data).
+        if !snapshot_had_new_data && self.has_evicted_before() {
+            return false;
+        }
+        match self.mode {
+            EvictionMode::Off => false,
+            EvictionMode::Full => true,
+            EvictionMode::Auto => self.auto_threshold_exceeded(),
+        }
+    }
+
+    /// For [`EvictionMode::Auto`]: whether enough net memory has been allocated
+    /// since the last eviction to justify another sweep. Always evicts the first
+    /// time (no prior baseline). The threshold scales down under OS memory
+    /// pressure so we evict more eagerly when memory is tight.
+    fn auto_threshold_exceeded(&self) -> bool {
+        /// Minimum net bytes ([`TurboMalloc::memory_usage`] delta) that must be
+        /// allocated since the last eviction before another is worthwhile.
+        /// Allocated bytes are the proxy for how much a sweep would reclaim.
+        /// Default 128 MiB; overridable via `TURBO_ENGINE_EVICT_MIN_BYTES`.
+        static MIN_EVICT_BYTES: LazyLock<usize> = LazyLock::new(|| {
+            std::env::var("TURBO_ENGINE_EVICT_MIN_BYTES")
+                .ok()
+                .and_then(|v| v.parse::<usize>().ok())
+                .unwrap_or(128 * 1024 * 1024)
+        });
+        /// At full pressure the threshold shrinks to `(1 - 0.75) = 25%` of base.
+        const MAX_PRESSURE_REDUCTION: f64 = 0.75;
+
+        let Some(last) = self.memory_at_last_eviction else {
+            // First eviction: no baseline to compare against, so always evict.
+            return true;
+        };
+        let current = TurboMalloc::memory_usage();
+        // saturating: if memory shrank since the last eviction there is nothing
+        // new to reclaim, so the delta is 0 and we skip.
+        let allocated_since = current.saturating_sub(last);
+        let threshold = scale_threshold(
+            *MIN_EVICT_BYTES,
+            TurboMalloc::memory_pressure(),
+            MAX_PRESSURE_REDUCTION,
+        );
+        allocated_since >= threshold
+    }
+
+    /// Record the post-eviction memory floor as the new baseline.
+    fn record_eviction(&mut self) {
+        self.memory_at_last_eviction = Some(TurboMalloc::memory_usage());
+    }
+}
+
+/// Scale a base eviction threshold down according to OS memory pressure.
+///
+/// `factor = 1.0 - (pressure / 100) * max_reduction`. At pressure 0 the base is
+/// unchanged; at pressure 100 it is reduced by at most `max_reduction`. The
+/// result never reaches zero, so we always require *some* allocation before
+/// evicting. When pressure is unavailable (`None`) the base is returned unchanged.
+fn scale_threshold(base: usize, pressure: Option<u8>, max_reduction: f64) -> usize {
+    match pressure {
+        Some(p) => {
+            let p = (p.min(100) as f64) / 100.0;
+            (base as f64 * (1.0 - p * max_reduction)) as usize
+        }
+        None => base,
+    }
+}
+
 pub struct BackendOptions {
     /// Enables dependency tracking.
     ///
@@ -138,10 +272,10 @@ pub struct BackendOptions {
     /// Avoid big preallocations for faster startup. Should only be used for testing purposes.
     pub small_preallocation: bool,
 
-    /// When enabled, evict all evictable tasks from in-memory storage after every snapshot.
+    /// Strategy for evicting evictable tasks from in-memory storage after a snapshot.
     /// This reclaims memory by clearing persisted data that can be re-loaded from disk on demand.
     /// This is an EXPERIMENTAL FEATURE under development
-    pub evict_after_snapshot: bool,
+    pub eviction_mode: EvictionMode,
 }
 
 impl Default for BackendOptions {
@@ -152,7 +286,7 @@ impl Default for BackendOptions {
             storage_mode: Some(StorageMode::ReadWrite),
             num_workers: None,
             small_preallocation: false,
-            evict_after_snapshot: false,
+            eviction_mode: EvictionMode::Off,
         }
     }
 }
@@ -295,10 +429,6 @@ impl TurboTasksBackend {
             self.options.storage_mode,
             Some(StorageMode::ReadWrite) | Some(StorageMode::ReadWriteOnShutdown)
         )
-    }
-
-    fn should_evict(&self) -> bool {
-        self.options.evict_after_snapshot && self.should_persist()
     }
 
     /// Perform a snapshot and then evict all evictable tasks from memory.
@@ -2841,8 +2971,10 @@ impl TurboTasksBackend {
                     // Whether to immediately set an idle timeout if possible.
                     // Set to false if we don't persist anything in a cycle.
                     let mut fresh_idle = true;
-                    let mut evicted = false;
                     let mut is_first = true;
+                    // Owns the eviction policy (mode + threshold state); decides each
+                    // cycle whether an eviction sweep is worthwhile.
+                    let mut eviction_control = EvictionControl::new(self.options.eviction_mode);
                     // Accumulated compilation (non-idle) time since the last persisted
                     // snapshot. Runs while not idle, stops while idle. Used to skip periodic
                     // snapshots that wouldn't save enough work to justify their fixed
@@ -2970,30 +3102,27 @@ impl TurboTasksBackend {
                                 // Like compaction, this runs after snapshot_and_persist
                                 // as a separate concern.
                                 //
-                                // TODO: improve eviction policy — current approach is a full sweep
-                                // after every snapshot. Better strategies to consider:
-                                //   - Memory pressure signals: only evict when RSS exceeds a
-                                //     threshold rather than unconditionally.
+                                // TODO: improve the eviction policy further. Better
+                                // strategies to consider:
                                 //   - Recency data: track last-access time per task and evict
                                 //     least-recently-used entries first rather than all at once.
                                 //   - Eviction intensity: partial sweeps (evict a fraction of
                                 //     eligible tasks per cycle) to reduce latency spikes.
-                                // Evict when there is new data to persist (the common
-                                // case) or on the very first snapshot after startup
-                                // (data was already on disk from a prior run, so
-                                // new_data may be false but in-memory state can still
-                                // be evicted).
-                                let mut ran_eviction = false;
-                                if self.should_evict() && (new_data || !evicted) {
-                                    if check_idle_ended!() {
-                                        // need to start all the way over so we catch the next
-                                        // signal
-                                        continue 'outer;
-                                    }
-                                    evicted = true;
-                                    ran_eviction = true;
+                                // `eviction_control` owns the mode + threshold decision. On a
+                                // skipped cycle its baseline and `ran_eviction` stay untouched
+                                // so growth accumulates toward the next cycle.
+                                let ran_eviction = if eviction_control.should_evict(new_data) {
+                                    // NOTE: we do not check for idle here, eviction is fast and
+                                    // when enabled we should expect it to reclaim substantial
+                                    // memory so racing with execution is as likely to save time as
+                                    // cost it.
                                     self.storage.evict_after_snapshot(background_span.id());
-                                }
+                                    // Sample the post-eviction floor as the new baseline.
+                                    eviction_control.record_eviction();
+                                    true
+                                } else {
+                                    false
+                                };
 
                                 // Compact while idle (up to limit), regardless of
                                 // whether the snapshot had new data.
@@ -3033,15 +3162,14 @@ impl TurboTasksBackend {
                                         }
                                     }
                                 }
-                                if check_idle_ended!() {
-                                    continue 'outer;
-                                }
                                 // After running snapshotting/eviction/compaction we have churned a
                                 // _lot_ of memory if we are still
                                 // idle tell `mimalloc` that now would be a good time to release
                                 // memory back to the OS
-                                if new_data || ran_compaction || ran_eviction {
-                                    turbo_tasks_malloc::TurboMalloc::collect(true);
+                                if !check_idle_ended!()
+                                    && (new_data || ran_compaction || ran_eviction)
+                                {
+                                    TurboMalloc::collect(true);
                                 }
                             }
                         }
@@ -3871,4 +3999,102 @@ fn encode_task_data(
             })?;
     }
     Ok(SmallVec::from_slice(scratch_buffer))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{EvictionControl, EvictionMode, scale_threshold};
+
+    const BASE: usize = 128 * 1024 * 1024;
+    const MAX_REDUCTION: f64 = 0.75;
+
+    #[test]
+    fn off_mode_never_evicts() {
+        let mut control = EvictionControl::new(EvictionMode::Off);
+        for &new_data in &[true, false] {
+            assert!(!control.should_evict(new_data));
+            // Even after a (forced) eviction, Off never evicts.
+            control.record_eviction();
+            assert!(!control.should_evict(new_data));
+        }
+    }
+
+    #[test]
+    fn full_mode_evicts_on_new_data() {
+        let mut control = EvictionControl::new(EvictionMode::Full);
+        // New data → always evict, before and after a prior eviction.
+        assert!(control.should_evict(true));
+        control.record_eviction();
+        assert!(control.should_evict(true));
+    }
+
+    #[test]
+    fn full_mode_evicts_first_time_without_new_data() {
+        let mut control = EvictionControl::new(EvictionMode::Full);
+        // No new data, but never evicted before → first eviction still runs.
+        assert!(control.should_evict(false));
+        // No new data and already evicted → skip.
+        control.record_eviction();
+        assert!(!control.should_evict(false));
+    }
+
+    #[test]
+    fn auto_mode_evicts_first_time() {
+        // Fresh control has no baseline, so the first eligible cycle always
+        // evicts regardless of the memory threshold.
+        let mut control = EvictionControl::new(EvictionMode::Auto);
+        assert!(control.should_evict(true));
+        assert!(control.should_evict(false));
+        // But still respects the new-data/first-time trigger once it has evicted.
+        control.record_eviction();
+        assert!(!control.should_evict(false));
+    }
+
+    #[test]
+    fn scale_threshold_unavailable_pressure_uses_base() {
+        assert_eq!(scale_threshold(BASE, None, MAX_REDUCTION), BASE);
+    }
+
+    #[test]
+    fn scale_threshold_zero_pressure_uses_base() {
+        assert_eq!(scale_threshold(BASE, Some(0), MAX_REDUCTION), BASE);
+    }
+
+    #[test]
+    fn scale_threshold_full_pressure_applies_max_reduction() {
+        // At pressure 100 the threshold is (1 - 0.75) = 25% of base.
+        assert_eq!(scale_threshold(BASE, Some(100), MAX_REDUCTION), BASE / 4);
+    }
+
+    #[test]
+    fn scale_threshold_clamps_pressure_over_100() {
+        // Pressure is documented as 0..=100; values above clamp to 100.
+        assert_eq!(
+            scale_threshold(BASE, Some(200), MAX_REDUCTION),
+            scale_threshold(BASE, Some(100), MAX_REDUCTION)
+        );
+    }
+
+    #[test]
+    fn scale_threshold_is_monotonic_non_increasing() {
+        let mut prev = scale_threshold(BASE, Some(0), MAX_REDUCTION);
+        for p in 1..=100u8 {
+            let cur = scale_threshold(BASE, Some(p), MAX_REDUCTION);
+            assert!(
+                cur <= prev,
+                "threshold should not increase with pressure: p={p}, cur={cur}, prev={prev}"
+            );
+            prev = cur;
+        }
+    }
+
+    #[test]
+    fn scale_threshold_never_zero_for_nonzero_base() {
+        for p in 0..=100u8 {
+            assert!(
+                scale_threshold(BASE, Some(p), MAX_REDUCTION) > 0,
+                "threshold reached zero at pressure {p}"
+            );
+        }
+    }
 }

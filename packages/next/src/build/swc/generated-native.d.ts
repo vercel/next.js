@@ -550,6 +550,11 @@ export const enum MemoryEvictionMode {
    * them from disk on demand.
    */
   Full = 'full',
+  /**
+   * Evict after a snapshot only once enough memory has been allocated since
+   * the last eviction to justify the cost of restoring evicted tasks.
+   */
+  Auto = 'auto',
 }
 export declare function rootTaskDispose(rootTask: {
   __napiType: 'RootTask'
