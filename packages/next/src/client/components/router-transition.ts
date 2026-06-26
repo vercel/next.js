@@ -91,11 +91,20 @@ export function startRouterTransition(
   url: string,
   type: RouterTransitionType,
   fromTree: FlightRouterState,
-  prefetchIntent: RouterTransitionPrefetchIntent | null
+  prefetchIntent: RouterTransitionPrefetchIntent | null,
+  onlyHashChange: boolean
 ): string | null {
   // Positive flag check so the instrumentation-only path is removed by DCE when disabled.
   if (process.env.__NEXT_INSTRUMENTATION_CLIENT_ROUTER_TRANSITION_EVENTS) {
     if (!hasLifecycleInstrumentation()) {
+      return null
+    }
+
+    // A hash-only navigation (e.g. an in-page anchor link) does not change the
+    // route or fetch any data — the browser just scrolls. Skip the lifecycle so
+    // these near-instant, empty transitions don't inflate the metrics. The
+    // legacy two-argument start hook (the `else` branch below) is unaffected.
+    if (onlyHashChange) {
       return null
     }
 

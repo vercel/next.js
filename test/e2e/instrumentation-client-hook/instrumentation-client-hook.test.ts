@@ -331,6 +331,28 @@ describe('Instrumentation Client Hook', () => {
       expect(firstTerminalEvent.phase).toBe('abort')
       expect(firstTerminalEvent.event.reason).toBe('superseded')
     })
+
+    it('does not emit transition events for a hash-only navigation', async () => {
+      const browser = await next.browser('/')
+
+      // A hash-only navigation (in-page anchor) only scrolls — it is not a
+      // route transition and must not produce any lifecycle events.
+      await browser.elementById('push-hash').click()
+      await retry(async () => {
+        expect(await browser.eval('location.hash')).toBe('#section')
+      })
+      expect(await getTransitionEvents(browser)).toEqual([])
+
+      // A subsequent real navigation still instruments, proving the hooks are
+      // installed and the empty result above is the hash-skip, not a dead hook.
+      await browser.elementByCss('a[href="/some-page"]').click()
+      await browser.elementById('some-page')
+      await retry(async () => {
+        expect(
+          (await getTransitionEvents(browser)).map((e) => e.phase)
+        ).toEqual(['start', 'commit', 'settled'])
+      })
+    })
   })
 
   describe.each([

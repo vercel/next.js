@@ -271,6 +271,22 @@ function getAppRouterActionQueue(): AppRouterActionQueue {
   return globalActionQueue
 }
 
+// A hash-only navigation changes nothing but the URL fragment (same pathname
+// and query). The browser just scrolls — no new route is loaded and no data is
+// fetched — so it is not a real router transition. Mirrors the `onlyHashChange`
+// check the navigate reducer uses (segment-cache/navigation.ts).
+function isHashOnlyNavigation(
+  currentCanonicalUrl: string,
+  target: URL
+): boolean {
+  const current = new URL(currentCanonicalUrl, target)
+  return (
+    current.pathname === target.pathname &&
+    current.search === target.search &&
+    current.hash !== target.hash
+  )
+}
+
 export function dispatchNavigateAction(
   href: string,
   navigateType: NavigateAction['navigateType'],
@@ -294,11 +310,13 @@ export function dispatchNavigateAction(
   }
 
   setLinkForCurrentNavigation(linkInstanceRef)
+  const { state } = getAppRouterActionQueue()
   const transitionId = startRouterTransition(
     href,
     navigateType,
-    getAppRouterActionQueue().state.tree,
-    prefetchIntent
+    state.tree,
+    prefetchIntent,
+    isHashOnlyNavigation(state.canonicalUrl, url)
   )
 
   dispatchAppRouterAction({
@@ -316,15 +334,18 @@ export function dispatchTraverseAction(
   href: string,
   historyState: AppHistoryState | undefined
 ) {
+  const url = new URL(href)
+  const { state } = getAppRouterActionQueue()
   const transitionId = startRouterTransition(
     href,
     'traverse',
-    getAppRouterActionQueue().state.tree,
-    null
+    state.tree,
+    null,
+    isHashOnlyNavigation(state.canonicalUrl, url)
   )
   dispatchAppRouterAction({
     type: ACTION_RESTORE,
-    url: new URL(href),
+    url,
     historyState,
     transitionId,
   })
