@@ -1362,7 +1362,6 @@ pub async fn project_write_all_entrypoints_to_disk(
                 let DeferredEntrypointInfo(entrypoints, deferred_entries) =
                     &*deferred_entrypoint_info_operation(container)
                         .read_strongly_consistent()
-                        .final_read_hint()
                         .await?;
 
                 Ok(compute_deferred_phase_build_paths(
@@ -1708,7 +1707,6 @@ pub async fn project_entrypoints(
                 effects: _,
             } = &*entrypoints_with_issues_op
                 .read_strongly_consistent()
-                .final_read_hint()
                 .await?;
 
             Ok((entrypoints.clone(), issues.clone()))
@@ -1815,10 +1813,7 @@ async fn hmr_update_with_issues_operation(
     // consumers in `hot-reloader-turbopack.ts` (`subscribeToServerHmr` and
     // `subscribeToClientHmrEvents`) rely on this read *throwing* on build-graph
     // failures to trigger their recovery paths
-    let update = update_op
-        .read_strongly_consistent()
-        .final_read_hint()
-        .await?;
+    let update = update_op.read_strongly_consistent().await?;
     let filter = project.issue_filter().await?;
     let issues = get_issues(update_op, &filter).await?;
     let effects = Arc::new(take_effects(update_op).await?);
@@ -2487,6 +2482,16 @@ async fn get_all_compilation_issues_inner_operation(
     Ok(Vc::cell(()))
 }
 
+#[turbo_tasks::function(operation, root)]
+async fn get_all_compilation_issues_operation(
+    container: ResolvedVc<ProjectContainer>,
+) -> Result<Vc<OperationResult>> {
+    let inner_op = get_all_compilation_issues_inner_operation(container);
+    let filter = container.project().issue_filter().await?;
+    let (_, issues, effects) = strongly_consistent_catch_collectables(inner_op, &filter).await?;
+    Ok(OperationResult { issues, effects }.cell())
+}
+
 /// Returns the build-feature-usage telemetry summary for this project — the set of
 /// `(featureName, invocationCount)` pairs reported to the Next.js telemetry service.
 ///
@@ -2528,24 +2533,13 @@ pub async fn project_feature_usage(
 pub async fn project_get_all_compilation_issues(
     #[napi(ts_arg_type = "{ __napiType: \"Project\" }")] project: External<ProjectInstance>,
 ) -> napi::Result<TurbopackResult<()>> {
-    #[turbo_tasks::function(operation, root)]
-    async fn get_all_compilation_issues_operation(
-        container: ResolvedVc<ProjectContainer>,
-    ) -> Result<Vc<OperationResult>> {
-        let inner_op = get_all_compilation_issues_inner_operation(container);
-        let filter = container.project().issue_filter().await?;
-        let (_, issues, effects) =
-            strongly_consistent_catch_collectables(inner_op, &filter).await?;
-        Ok(OperationResult { issues, effects }.cell())
-    }
     let container = project.container;
     let issues = project
         .turbopack_ctx
         .turbo_tasks()
         .run_once(async move {
             let op = get_all_compilation_issues_operation(container);
-            let OperationResult { issues, effects: _ } =
-                &*op.read_strongly_consistent().final_read_hint().await?;
+            let OperationResult { issues, effects: _ } = &*op.read_strongly_consistent().await?;
             Ok(issues.clone())
         })
         .await
