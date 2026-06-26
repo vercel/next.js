@@ -127,17 +127,9 @@ impl SpecificTaskDataCategory {
 
 /// Records exactly what a `track_modification` call changed, so that
 /// [`StorageWriteGuard::undo_track_modification`] can reverse it precisely when the mutation it
-/// guarded turns out to be a no-op.
-///
-/// The "track before mutate" ordering requirement (snapshot mode clones pre-mutation state) means
-/// mutators can't use a data structure's native "did anything change" return value to decide
-/// whether to track. Instead they track first, mutate using that native signal, and undo if the
-/// mutation changed nothing. Undo is only ever applied while the same map shard write lock is
-/// still held, so no other thread can have observed the tracked state in between.
-///
-/// This is a plain owned value (no borrow of the guard) on purpose; see
-/// [`StorageWriteGuard::undo_track_modification`] for why a lifetime can't encode the
-/// "same guard, lock held" invariant.
+/// guarded turns out to be a no-op.  This allows us to track modifications 'optimistically' and
+/// undo it if the modification turned out to be a no op.  Useful when dealing with datastructures
+/// like `AutoSet` that can efficiently say whether or not they were modified.
 #[must_use = "a no-op mutation must undo its TrackOutcome; dropping it leaks an over-track"]
 pub enum TrackOutcome {
     /// Nothing was tracked: either the category was already modified, or (in snapshot mode) it was
@@ -696,10 +688,6 @@ pub struct StorageWriteGuard<'a> {
 
 impl StorageWriteGuard<'_> {
     /// Tracks mutation of this task.
-    ///
-    /// Returns a [`TrackOutcome`] describing exactly what changed. If the mutation this call
-    /// guards turns out to be a no-op, pass the outcome to [`Self::undo_track_modification`] to
-    /// reverse it. Otherwise the outcome may be dropped (it carries no resources).
     #[inline(always)]
     pub fn track_modification(
         &mut self,
@@ -754,49 +742,45 @@ impl StorageWriteGuard<'_> {
                 TrackOutcome::NoChange
             }
             (true, false) => {
-                self.track_during_snapshot(category, /* part_of_snapshot */ false)
+                // In snapshot mode and item is unmodified (so it's not part of the snapshot)
+                // Mark it so it gets re-added as Modified after this snapshot completes.
+                // Insert a None entry into snapshots so end_snapshot discovers this task
+                // and promotes its _during_snapshot flags.
+                let inserted_snapshot = !flags.any_modified_during_snapshot();
+                if inserted_snapshot {
+                    self.storage.snapshots.insert(*self.inner.key(), None);
+                }
+                self.inner
+                    .flags
+                    .set_modified_during_snapshot(category, true);
+                TrackOutcome::TrackedDuringSnapshot {
+                    category,
+                    inserted_snapshot,
+                }
             }
-            (true, true) => self.track_during_snapshot(category, /* part_of_snapshot */ true),
-        }
-    }
-
-    /// Slow path of [`Self::track_modification_internal`] for the two snapshot-mode arms.
-    ///
-    /// `part_of_snapshot` distinguishes `(true, true)` (the category is already modified, so the
-    /// pre-mutation state is part of the in-flight snapshot and must be cloned) from
-    /// `(true, false)` (not part of the snapshot, so only a `None` marker is needed).
-    #[cold]
-    fn track_during_snapshot(
-        &mut self,
-        category: SpecificTaskDataCategory,
-        part_of_snapshot: bool,
-    ) -> TrackOutcome {
-        let flags = &self.inner.flags;
-        // Insert the snapshots entry only the first time the task is touched during this snapshot.
-        let inserted_snapshot = !flags.any_modified_during_snapshot();
-        if inserted_snapshot {
-            let entry = if part_of_snapshot {
-                // The category is part of the snapshot: store the original version so the iterator
-                // serializes the pre-mutation state. Carry the modified bits into the copy so the
-                // iterator knows which categories to persist.
-                let mut snapshot = self.inner.clone_snapshot();
-                snapshot.flags.set_data_modified(flags.data_modified());
-                snapshot.flags.set_meta_modified(flags.meta_modified());
-                snapshot.flags.set_new_task(flags.new_task());
-                Some(Box::new(snapshot))
-            } else {
-                // Not part of the snapshot: a None marker so end_snapshot discovers this task and
-                // promotes its _during_snapshot flags.
-                None
-            };
-            self.storage.snapshots.insert(*self.inner.key(), entry);
-        }
-        self.inner
-            .flags
-            .set_modified_during_snapshot(category, true);
-        TrackOutcome::TrackedDuringSnapshot {
-            category,
-            inserted_snapshot,
+            (true, true) => {
+                // In snapshot mode and item is modified (so it's part of the snapshot)
+                // We need to store the original version that is part of the snapshot
+                let inserted_snapshot = !flags.any_modified_during_snapshot();
+                if inserted_snapshot {
+                    // Snapshot all non-transient fields, carrying the modified bits into
+                    // the copy so the iterator knows which categories to persist.
+                    let mut snapshot = self.inner.clone_snapshot();
+                    snapshot.flags.set_data_modified(flags.data_modified());
+                    snapshot.flags.set_meta_modified(flags.meta_modified());
+                    snapshot.flags.set_new_task(flags.new_task());
+                    self.storage
+                        .snapshots
+                        .insert(*self.inner.key(), Some(Box::new(snapshot)));
+                }
+                self.inner
+                    .flags
+                    .set_modified_during_snapshot(category, true);
+                TrackOutcome::TrackedDuringSnapshot {
+                    category,
+                    inserted_snapshot,
+                }
+            }
         }
     }
 
@@ -813,12 +797,6 @@ impl StorageWriteGuard<'_> {
     /// `snapshots` entry are only mutated under that lock). Because those flags record whether
     /// *this* call created the state, undo never clears a flag, counter, or snapshot entry that a
     /// prior modification owns.
-    ///
-    /// This invariant is intentionally **not** encoded as a borrow on `TrackOutcome`: a lifetime
-    /// tying the outcome to `&mut self` would forbid the mutation between track and undo (it also
-    /// needs `&mut self`), which is the entire reason the API is split this way. The constraint is
-    /// instead upheld structurally — every caller is a single mutator body holding one guard.
-    #[cold]
     pub fn undo_track_modification(&mut self, outcome: TrackOutcome) {
         match outcome {
             TrackOutcome::NoChange => {}
@@ -1349,13 +1327,6 @@ mod tests {
         assert_eq!(items[0].task_id, modified_id);
     }
 
-    // ==========================================================================
-    // undo_track_modification
-    // ==========================================================================
-
-    /// Non-snapshot path: tracking an unmodified task sets the modified flag and bumps the shard
-    /// counter; undo reverses both, leaving the task exactly as it was (no modifications visible to
-    /// the next snapshot cycle).
     #[tokio::test(flavor = "multi_thread")]
     async fn undo_non_snapshot_reverses_flag_and_counter() {
         let storage = Storage::new(2, true);

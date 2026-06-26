@@ -2796,25 +2796,33 @@ fn generate_automap_ops(field: &FieldInfo) -> TokenStream {
     // Generate remove body - for lazy fields, avoid allocation if map doesn't exist.
     // Only track modification if the key exists (check before mutating).
     // For transient fields, skip guards since track_modification is a no-op.
+    // `remove` returns `Option<V>` natively, so (like AutoSet / CounterMap remove) we track BEFORE
+    // mutating (snapshot mode clones pre-mutation state), use that return to learn whether anything
+    // was removed, and undo the track if the key was absent — dropping the redundant membership
+    // probe. `insert` stays an unconditional track: callers only ever insert distinct values, so an
+    // equality check would pay `PartialEq` on every insert to catch a no-op that never happens.
+    let remove_outcome = field.track_modification_outcome_expr();
+    let remove_undo = field.track_modification_undo_expr(quote! { _track_outcome });
     let remove_body = if field.is_transient() {
         quote! {
             #mut_expr.remove(key)
         }
     } else if is_option {
+        // Lazy: still locate the map without allocating it, but drop the separate membership probe.
         let extractor = field.lazy_extractor_closure();
         quote! {
-            let (idx, val) = self.typed().find_lazy_ref(#extractor)?;
-            val.get(key)?;
-            #track_modification
-            self.typed_mut().lazy_at_mut(idx, #extractor).remove(key)
+            let (idx, _) = self.typed().find_lazy_ref(#extractor)?;
+            let _track_outcome = #remove_outcome;
+            let removed = self.typed_mut().lazy_at_mut(idx, #extractor).remove(key);
+            if removed.is_none() { #remove_undo }
+            removed
         }
     } else {
         quote! {
-            if !self.#has_entry_name(key) {
-                return None;
-            }
-            #track_modification
-            #mut_expr.remove(key)
+            let _track_outcome = #remove_outcome;
+            let removed = #mut_expr.remove(key);
+            if removed.is_none() { #remove_undo }
+            removed
         }
     };
 
