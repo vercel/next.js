@@ -305,6 +305,7 @@ export default defineConfig([
         {
           additionalTestBlockFunctions: [
             'retry',
+            'itSkipDeploy',
             'itCI',
             'itHeaded',
             'itTurbopack',
