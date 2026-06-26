@@ -963,7 +963,13 @@ Learn more about [styling with Tailwind CSS](/docs/app/getting-started/css#tailw
 
 When navigating between routes served by the different Next.js routers, there will be a hard navigation. Automatic link prefetching with `next/link` will not prefetch across routers.
 
-Instead, you can [optimize navigations](https://vercel.com/guides/optimizing-hard-navigations) between App Router and Pages Router to retain the prefetched and fast page transitions. [Learn more](https://vercel.com/guides/optimizing-hard-navigations).
+> **Good to know**:
+>
+> Next.js uses a compact client router filter, implemented as a Bloom filter, to detect when a navigation from the Pages Router should be handled by the App Router. For dynamic App Router routes, the filter records the fixed path prefix before the first dynamic segment. For example, `app/shop/[locale]/about/page.tsx` uses the prefix `/shop`.
+>
+> A route that starts with a dynamic segment, such as `app/[locale]/about/page.tsx`, has no fixed prefix. Next.js cannot automatically identify it as an App Router destination during client-side navigation. If an overlapping dynamic Pages Router route also matches the URL, the Pages Router may handle the navigation instead.
+>
+> For links from the Pages Router to these routes, use a standard `<a>` element to force a hard navigation, or organize the App Router routes under a fixed prefix.
 
 ## Codemods
 
