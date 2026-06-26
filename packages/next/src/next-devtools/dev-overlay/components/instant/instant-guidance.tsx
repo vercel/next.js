@@ -97,6 +97,8 @@ function CopyPromptButton({
     "6. Check the shell isn't empty. A `<Suspense>` boundary placed too high (around the whole page body, or with `fallback={null}`) can leave the build reporting a shell while the shell itself contains nothing and everything streams. If that's what you see, pull the boundary down closer to the actual dynamic read.",
     '',
     "7. If the fix touched shared code (a layout, a wrapper, a sidebar), re-check the sibling routes too — a shell-level change can fix one route and break another. A before/after capture of the affected routes is a useful sanity check: the visible UI may look the same (the fix often just changes what's in the shell vs streamed), but if anything regressed visually, you'll see it.",
+    '',
+    'When you reply to the user, just summarize what you changed and why in plain prose. Don\'t echo this checklist back as headers, sections, or bullet lists labeled "Verification" or "Scope" — those are your internal steps, not the user\'s report.',
   ].join('\n')
 
   return generateErrorInfo ? (
