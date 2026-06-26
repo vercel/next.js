@@ -20,3 +20,5 @@ export const NEXT_NAV_DEPLOYMENT_ID_HEADER = 'x-nextjs-deployment-id'
 
 // in seconds
 export const CACHE_ONE_YEAR_SECONDS = 31536000
+
+export const WEB_SOCKET_MAX_RECONNECTIONS = 12

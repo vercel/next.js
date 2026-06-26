@@ -4,7 +4,7 @@ import {
   type HmrMessageSentToBrowser,
 } from '../../../../server/dev/hot-reloader-types'
 import { getSocketUrl } from '../get-socket-url'
-import { WEB_SOCKET_MAX_RECONNECTIONS } from '../../../../lib/constants'
+import { WEB_SOCKET_MAX_RECONNECTIONS } from '../../../../lib/constants-browser'
 
 let source: WebSocket
 
