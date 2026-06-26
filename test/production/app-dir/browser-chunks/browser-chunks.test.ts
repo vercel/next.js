@@ -63,46 +63,93 @@ describe('browser-chunks', () => {
       )
     ).sort()
 
-    // Turbopack and webpack diverge here: webpack's browser chunks contain none
-    // of these server modules, while Turbopack still pulls in a set we haven't
-    // acted on yet. Snapshot each bundler separately so regressions are caught
-    // in both without forcing them to agree.
+    // This set varies along two axes, so snapshot each combination separately
+    // rather than forcing them to agree:
+    //   - bundler: webpack's browser chunks contain none of these; Turbopack
+    //     still pulls in a set we haven't acted on yet.
+    //   - cache components: enabling it pulls additional server modules
+    //     (instant-validation, async storage, dynamic rendering) into the
+    //     client render path. CI runs this suite both with and without it
+    //     (see test/cache-components-tests-manifest.json).
+    const cacheComponents = process.env.__NEXT_CACHE_COMPONENTS === 'true'
     if (process.env.IS_TURBOPACK_TEST) {
-      expect(serverSources).toMatchInlineSnapshot(`
-       [
-         "src/server/app-render/action-async-storage-instance.ts",
-         "src/server/app-render/action-async-storage.external.ts",
-         "src/server/app-render/after-task-async-storage-instance.ts",
-         "src/server/app-render/after-task-async-storage.external.ts",
-         "src/server/app-render/async-local-storage.ts",
-         "src/server/app-render/blocking-route-messages.ts",
-         "src/server/app-render/dynamic-access-async-storage-instance.ts",
-         "src/server/app-render/dynamic-access-async-storage.external.ts",
-         "src/server/app-render/dynamic-rendering.ts",
-         "src/server/app-render/instant-validation/boundary-constants.ts",
-         "src/server/app-render/instant-validation/boundary-tracking.tsx",
-         "src/server/app-render/instant-validation/instant-samples.ts",
-         "src/server/app-render/instant-validation/instant-validation-error.ts",
-         "src/server/app-render/staged-rendering.ts",
-         "src/server/app-render/vary-params.ts",
-         "src/server/app-render/work-async-storage-instance.ts",
-         "src/server/app-render/work-async-storage.external.ts",
-         "src/server/app-render/work-unit-async-storage-instance.ts",
-         "src/server/app-render/work-unit-async-storage.external.ts",
-         "src/server/create-deduped-by-callsite-server-error-logger.ts",
-         "src/server/dynamic-rendering-utils.ts",
-         "src/server/request/params.ts",
-         "src/server/request/search-params.ts",
-         "src/server/request/utils.ts",
-         "src/server/runtime-reacts.external.ts",
-         "src/server/web/spec-extension/adapters/headers.ts",
-         "src/server/web/spec-extension/adapters/reflect.ts",
-         "src/server/web/spec-extension/adapters/request-cookies.ts",
-         "src/server/web/spec-extension/cookies.ts",
-       ]
-      `)
+      if (cacheComponents) {
+        expect(serverSources).toMatchInlineSnapshot(`
+         [
+           "src/server/app-render/action-async-storage-instance.ts",
+           "src/server/app-render/action-async-storage.external.ts",
+           "src/server/app-render/after-task-async-storage-instance.ts",
+           "src/server/app-render/after-task-async-storage.external.ts",
+           "src/server/app-render/async-local-storage.ts",
+           "src/server/app-render/blocking-route-messages.ts",
+           "src/server/app-render/dynamic-access-async-storage-instance.ts",
+           "src/server/app-render/dynamic-access-async-storage.external.ts",
+           "src/server/app-render/dynamic-rendering.ts",
+           "src/server/app-render/instant-validation/boundary-constants.ts",
+           "src/server/app-render/instant-validation/boundary-impl.tsx",
+           "src/server/app-render/instant-validation/boundary-tracking.tsx",
+           "src/server/app-render/instant-validation/instant-samples-client.ts",
+           "src/server/app-render/instant-validation/instant-samples.ts",
+           "src/server/app-render/instant-validation/instant-validation-error.ts",
+           "src/server/app-render/staged-rendering.ts",
+           "src/server/app-render/vary-params.ts",
+           "src/server/app-render/work-async-storage-instance.ts",
+           "src/server/app-render/work-async-storage.external.ts",
+           "src/server/app-render/work-unit-async-storage-instance.ts",
+           "src/server/app-render/work-unit-async-storage.external.ts",
+           "src/server/create-deduped-by-callsite-server-error-logger.ts",
+           "src/server/dynamic-rendering-utils.ts",
+           "src/server/request/params.ts",
+           "src/server/request/search-params.ts",
+           "src/server/request/utils.ts",
+           "src/server/runtime-reacts.external.ts",
+           "src/server/web/spec-extension/adapters/headers.ts",
+           "src/server/web/spec-extension/adapters/reflect.ts",
+           "src/server/web/spec-extension/adapters/request-cookies.ts",
+           "src/server/web/spec-extension/cookies.ts",
+         ]
+        `)
+      } else {
+        expect(serverSources).toMatchInlineSnapshot(`
+         [
+           "src/server/app-render/action-async-storage-instance.ts",
+           "src/server/app-render/action-async-storage.external.ts",
+           "src/server/app-render/after-task-async-storage-instance.ts",
+           "src/server/app-render/after-task-async-storage.external.ts",
+           "src/server/app-render/async-local-storage.ts",
+           "src/server/app-render/blocking-route-messages.ts",
+           "src/server/app-render/dynamic-access-async-storage-instance.ts",
+           "src/server/app-render/dynamic-access-async-storage.external.ts",
+           "src/server/app-render/dynamic-rendering.ts",
+           "src/server/app-render/instant-validation/boundary-constants.ts",
+           "src/server/app-render/instant-validation/boundary-tracking.tsx",
+           "src/server/app-render/instant-validation/instant-samples.ts",
+           "src/server/app-render/instant-validation/instant-validation-error.ts",
+           "src/server/app-render/staged-rendering.ts",
+           "src/server/app-render/vary-params.ts",
+           "src/server/app-render/work-async-storage-instance.ts",
+           "src/server/app-render/work-async-storage.external.ts",
+           "src/server/app-render/work-unit-async-storage-instance.ts",
+           "src/server/app-render/work-unit-async-storage.external.ts",
+           "src/server/create-deduped-by-callsite-server-error-logger.ts",
+           "src/server/dynamic-rendering-utils.ts",
+           "src/server/request/params.ts",
+           "src/server/request/search-params.ts",
+           "src/server/request/utils.ts",
+           "src/server/runtime-reacts.external.ts",
+           "src/server/web/spec-extension/adapters/headers.ts",
+           "src/server/web/spec-extension/adapters/reflect.ts",
+           "src/server/web/spec-extension/adapters/request-cookies.ts",
+           "src/server/web/spec-extension/cookies.ts",
+         ]
+        `)
+      }
     } else {
-      expect(serverSources).toMatchInlineSnapshot(`[]`)
+      if (cacheComponents) {
+        expect(serverSources).toMatchInlineSnapshot(`[]`)
+      } else {
+        expect(serverSources).toMatchInlineSnapshot(`[]`)
+      }
     }
   })
 
