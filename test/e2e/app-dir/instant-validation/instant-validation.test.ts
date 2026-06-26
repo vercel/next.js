@@ -205,7 +205,7 @@ describe('instant validation', () => {
          Ways to fix this:
            - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
              https://nextjs.org/docs/messages/blocking-prerender-runtime#wrap-in-or-move-into-suspense
-           - [block] Set \`export const instant = false\` to silence this warning and allow a blocking route
+           - [block] Set \`export const instant = false\` to silence this error and allow a blocking route
              https://nextjs.org/docs/messages/blocking-prerender-runtime#allow-blocking-route
              at body (<anonymous>)
              at html (<anonymous>)
@@ -266,7 +266,7 @@ describe('instant validation', () => {
              https://nextjs.org/docs/messages/blocking-prerender-dynamic#wrap-in-or-move-into-suspense
            - [cache] Cache the data access with \`"use cache"\` (does not apply to \`connection()\`)
              https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
-           - [block] Set \`export const instant = false\` to silence this warning and allow a blocking route
+           - [block] Set \`export const instant = false\` to silence this error and allow a blocking route
              https://nextjs.org/docs/messages/blocking-prerender-dynamic#allow-blocking-route
              at body (<anonymous>)
              at html (<anonymous>)
@@ -328,7 +328,7 @@ describe('instant validation', () => {
              https://nextjs.org/docs/messages/blocking-prerender-dynamic#wrap-in-or-move-into-suspense
            - [cache] Cache the data access with \`"use cache"\` (does not apply to \`connection()\`)
              https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
-           - [block] Set \`export const instant = false\` to silence this warning and allow a blocking route
+           - [block] Set \`export const instant = false\` to silence this error and allow a blocking route
              https://nextjs.org/docs/messages/blocking-prerender-dynamic#allow-blocking-route
              at div (<anonymous>)
              at main (<anonymous>)
@@ -389,7 +389,7 @@ describe('instant validation', () => {
          Ways to fix this:
            - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
              https://nextjs.org/docs/messages/blocking-prerender-runtime#wrap-in-or-move-into-suspense
-           - [block] Set \`export const instant = false\` to silence this warning and allow a blocking route
+           - [block] Set \`export const instant = false\` to silence this error and allow a blocking route
              https://nextjs.org/docs/messages/blocking-prerender-runtime#allow-blocking-route
              at body (<anonymous>)
              at html (<anonymous>)
@@ -450,7 +450,7 @@ describe('instant validation', () => {
              https://nextjs.org/docs/messages/blocking-prerender-dynamic#wrap-in-or-move-into-suspense
            - [cache] Cache the data access with \`"use cache"\` (does not apply to \`connection()\`)
              https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
-           - [block] Set \`export const instant = false\` to silence this warning and allow a blocking route
+           - [block] Set \`export const instant = false\` to silence this error and allow a blocking route
              https://nextjs.org/docs/messages/blocking-prerender-dynamic#allow-blocking-route
              at body (<anonymous>)
              at html (<anonymous>)
@@ -560,7 +560,7 @@ describe('instant validation', () => {
          Ways to fix this:
            - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
              https://nextjs.org/docs/messages/blocking-prerender-runtime#wrap-in-or-move-into-suspense
-           - [block] Set \`export const instant = false\` to silence this warning and allow a blocking route
+           - [block] Set \`export const instant = false\` to silence this error and allow a blocking route
              https://nextjs.org/docs/messages/blocking-prerender-runtime#allow-blocking-route
              at body (<anonymous>)
              at html (<anonymous>)
@@ -654,7 +654,7 @@ describe('instant validation', () => {
          Ways to fix this:
            - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
              https://nextjs.org/docs/messages/blocking-prerender-runtime#wrap-in-or-move-into-suspense
-           - [block] Set \`export const instant = false\` to silence this warning and allow a blocking route
+           - [block] Set \`export const instant = false\` to silence this error and allow a blocking route
              https://nextjs.org/docs/messages/blocking-prerender-runtime#allow-blocking-route
              at a (<anonymous>)
              at div (<anonymous>)
@@ -719,7 +719,7 @@ describe('instant validation', () => {
              https://nextjs.org/docs/messages/blocking-prerender-dynamic#wrap-in-or-move-into-suspense
            - [cache] Cache the data access with \`"use cache"\` (does not apply to \`connection()\`)
              https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
-           - [block] Set \`export const instant = false\` to silence this warning and allow a blocking route
+           - [block] Set \`export const instant = false\` to silence this error and allow a blocking route
              https://nextjs.org/docs/messages/blocking-prerender-dynamic#allow-blocking-route
              at div (<anonymous>)
              at main (<anonymous>)
@@ -1176,7 +1176,7 @@ describe('instant validation', () => {
              https://nextjs.org/docs/messages/blocking-prerender-dynamic#wrap-in-or-move-into-suspense
            - [cache] Cache the data access with \`"use cache"\` (does not apply to \`connection()\`)
              https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
-           - [block] Set \`export const instant = false\` to silence this warning and allow a blocking route
+           - [block] Set \`export const instant = false\` to silence this error and allow a blocking route
              https://nextjs.org/docs/messages/blocking-prerender-dynamic#allow-blocking-route
              at div (<anonymous>)
              at main (<anonymous>)
@@ -1241,7 +1241,7 @@ describe('instant validation', () => {
              https://nextjs.org/docs/messages/blocking-prerender-dynamic#wrap-in-or-move-into-suspense
            - [cache] Cache the data access with \`"use cache"\` (does not apply to \`connection()\`)
              https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
-           - [block] Set \`export const instant = false\` to silence this warning and allow a blocking route
+           - [block] Set \`export const instant = false\` to silence this error and allow a blocking route
              https://nextjs.org/docs/messages/blocking-prerender-dynamic#allow-blocking-route
              at div (<anonymous>)
              at body (<anonymous>)
@@ -1316,7 +1316,7 @@ describe('instant validation', () => {
            Ways to fix this:
              - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
                https://nextjs.org/docs/messages/blocking-prerender-runtime#wrap-in-or-move-into-suspense
-             - [block] Set \`export const instant = false\` to silence this warning and allow a blocking route
+             - [block] Set \`export const instant = false\` to silence this error and allow a blocking route
                https://nextjs.org/docs/messages/blocking-prerender-runtime#allow-blocking-route
                at body (<anonymous>)
                at html (<anonymous>)
@@ -1403,7 +1403,7 @@ describe('instant validation', () => {
            Ways to fix this:
              - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
                https://nextjs.org/docs/messages/blocking-prerender-runtime#wrap-in-or-move-into-suspense
-             - [block] Set \`export const instant = false\` to silence this warning and allow a blocking route
+             - [block] Set \`export const instant = false\` to silence this error and allow a blocking route
                https://nextjs.org/docs/messages/blocking-prerender-runtime#allow-blocking-route
                at div (<anonymous>)
                at body (<anonymous>)
@@ -1465,7 +1465,7 @@ describe('instant validation', () => {
                https://nextjs.org/docs/messages/blocking-prerender-dynamic#wrap-in-or-move-into-suspense
              - [cache] Cache the data access with \`"use cache"\` (does not apply to \`connection()\`)
                https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
-             - [block] Set \`export const instant = false\` to silence this warning and allow a blocking route
+             - [block] Set \`export const instant = false\` to silence this error and allow a blocking route
                https://nextjs.org/docs/messages/blocking-prerender-dynamic#allow-blocking-route
                at div (<anonymous>)
                at body (<anonymous>)
@@ -1528,7 +1528,7 @@ describe('instant validation', () => {
            Ways to fix this:
              - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
                https://nextjs.org/docs/messages/blocking-prerender-runtime#wrap-in-or-move-into-suspense
-             - [block] Set \`export const instant = false\` to silence this warning and allow a blocking route
+             - [block] Set \`export const instant = false\` to silence this error and allow a blocking route
                https://nextjs.org/docs/messages/blocking-prerender-runtime#allow-blocking-route
                at div (<anonymous>)
                at div (<anonymous>)
@@ -1589,7 +1589,7 @@ describe('instant validation', () => {
            Ways to fix this:
              - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
                https://nextjs.org/docs/messages/blocking-prerender-runtime#wrap-in-or-move-into-suspense
-             - [block] Set \`export const instant = false\` to silence this warning and allow a blocking route
+             - [block] Set \`export const instant = false\` to silence this error and allow a blocking route
                https://nextjs.org/docs/messages/blocking-prerender-runtime#allow-blocking-route
                at div (<anonymous>)
                at div (<anonymous>)
@@ -1650,7 +1650,7 @@ describe('instant validation', () => {
            Ways to fix this:
              - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
                https://nextjs.org/docs/messages/blocking-prerender-runtime#wrap-in-or-move-into-suspense
-             - [block] Set \`export const instant = false\` to silence this warning and allow a blocking route
+             - [block] Set \`export const instant = false\` to silence this error and allow a blocking route
                https://nextjs.org/docs/messages/blocking-prerender-runtime#allow-blocking-route
                at div (<anonymous>)
                at body (<anonymous>)
@@ -2302,7 +2302,7 @@ describe('instant validation', () => {
            Ways to fix this:
              - [static] Use a static viewport export instead of \`generateViewport()\`
                https://nextjs.org/docs/messages/blocking-prerender-viewport-runtime#use-static-viewport
-             - [block] Set \`export const instant = false\` to silence this warning and allow a blocking route
+             - [block] Set \`export const instant = false\` to silence this error and allow a blocking route
                https://nextjs.org/docs/messages/blocking-prerender-viewport-runtime#allow-blocking-route
                at ignore-listed frames
            Build-time instant validation failed for route "/suspense-in-root/head/invalid-runtime-viewport-in-static".
@@ -2361,7 +2361,7 @@ describe('instant validation', () => {
            Ways to fix this:
              - [cache] Cache the viewport data with \`"use cache"\` in \`generateViewport()\` (does not apply to \`connection()\`)
                https://nextjs.org/docs/messages/blocking-prerender-viewport-dynamic#cache-the-viewport-data
-             - [block] Set \`export const instant = false\` to silence this warning and allow a blocking route
+             - [block] Set \`export const instant = false\` to silence this error and allow a blocking route
                https://nextjs.org/docs/messages/blocking-prerender-viewport-dynamic#allow-blocking-route
                at ignore-listed frames
            Build-time instant validation failed for route "/suspense-in-root/head/invalid-dynamic-viewport-in-runtime".
@@ -2458,7 +2458,7 @@ describe('instant validation', () => {
            Ways to fix this:
              - [cache] Cache the viewport data with \`"use cache"\` in \`generateViewport()\` (does not apply to \`connection()\`)
                https://nextjs.org/docs/messages/blocking-prerender-viewport-dynamic#cache-the-viewport-data
-             - [block] Set \`export const instant = false\` to silence this warning and allow a blocking route
+             - [block] Set \`export const instant = false\` to silence this error and allow a blocking route
                https://nextjs.org/docs/messages/blocking-prerender-viewport-dynamic#allow-blocking-route
                at ignore-listed frames
            Build-time instant validation failed for route "/suspense-in-root/head/invalid-dynamic-viewport-in-blocking-inside-static".
@@ -2517,7 +2517,7 @@ describe('instant validation', () => {
            Ways to fix this:
              - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
                https://nextjs.org/docs/messages/blocking-prerender-runtime#wrap-in-or-move-into-suspense
-             - [block] Set \`export const instant = false\` to silence this warning and allow a blocking route
+             - [block] Set \`export const instant = false\` to silence this error and allow a blocking route
                https://nextjs.org/docs/messages/blocking-prerender-runtime#allow-blocking-route
                at div (<anonymous>)
                at body (<anonymous>)
@@ -2577,7 +2577,7 @@ describe('instant validation', () => {
            Ways to fix this:
              - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
                https://nextjs.org/docs/messages/blocking-prerender-runtime#wrap-in-or-move-into-suspense
-             - [block] Set \`export const instant = false\` to silence this warning and allow a blocking route
+             - [block] Set \`export const instant = false\` to silence this error and allow a blocking route
                https://nextjs.org/docs/messages/blocking-prerender-runtime#allow-blocking-route
                at div (<anonymous>)
                at div (<anonymous>)
@@ -2638,7 +2638,7 @@ describe('instant validation', () => {
            Ways to fix this:
              - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
                https://nextjs.org/docs/messages/blocking-prerender-runtime#wrap-in-or-move-into-suspense
-             - [block] Set \`export const instant = false\` to silence this warning and allow a blocking route
+             - [block] Set \`export const instant = false\` to silence this error and allow a blocking route
                https://nextjs.org/docs/messages/blocking-prerender-runtime#allow-blocking-route
                at div (<anonymous>)
                at div (<anonymous>)
@@ -2699,7 +2699,7 @@ describe('instant validation', () => {
            Ways to fix this:
              - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
                https://nextjs.org/docs/messages/blocking-prerender-runtime#wrap-in-or-move-into-suspense
-             - [block] Set \`export const instant = false\` to silence this warning and allow a blocking route
+             - [block] Set \`export const instant = false\` to silence this error and allow a blocking route
                https://nextjs.org/docs/messages/blocking-prerender-runtime#allow-blocking-route
                at div (<anonymous>)
                at div (<anonymous>)
@@ -2760,7 +2760,7 @@ describe('instant validation', () => {
            Ways to fix this:
              - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
                https://nextjs.org/docs/messages/blocking-prerender-runtime#wrap-in-or-move-into-suspense
-             - [block] Set \`export const instant = false\` to silence this warning and allow a blocking route
+             - [block] Set \`export const instant = false\` to silence this error and allow a blocking route
                https://nextjs.org/docs/messages/blocking-prerender-runtime#allow-blocking-route
                at div (<anonymous>)
                at div (<anonymous>)
@@ -2828,7 +2828,7 @@ describe('instant validation', () => {
            Ways to fix this:
              - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
                https://nextjs.org/docs/messages/blocking-prerender-runtime#wrap-in-or-move-into-suspense
-             - [block] Set \`export const instant = false\` to silence this warning and allow a blocking route
+             - [block] Set \`export const instant = false\` to silence this error and allow a blocking route
                https://nextjs.org/docs/messages/blocking-prerender-runtime#allow-blocking-route
                at a (<anonymous>)
                at div (<anonymous>)
@@ -2903,7 +2903,7 @@ describe('instant validation', () => {
            Ways to fix this:
              - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
                https://nextjs.org/docs/messages/blocking-prerender-runtime#wrap-in-or-move-into-suspense
-             - [block] Set \`export const instant = false\` to silence this warning and allow a blocking route
+             - [block] Set \`export const instant = false\` to silence this error and allow a blocking route
                https://nextjs.org/docs/messages/blocking-prerender-runtime#allow-blocking-route
                at div (<anonymous>)
                at div (<anonymous>)
@@ -2972,7 +2972,7 @@ describe('instant validation', () => {
            Ways to fix this:
              - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
                https://nextjs.org/docs/messages/blocking-prerender-runtime#wrap-in-or-move-into-suspense
-             - [block] Set \`export const instant = false\` to silence this warning and allow a blocking route
+             - [block] Set \`export const instant = false\` to silence this error and allow a blocking route
                https://nextjs.org/docs/messages/blocking-prerender-runtime#allow-blocking-route
                at div (<anonymous>)
                at body (<anonymous>)
@@ -3042,7 +3042,7 @@ describe('instant validation', () => {
          Ways to fix this:
            - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
              https://nextjs.org/docs/messages/blocking-prerender-runtime#wrap-in-or-move-into-suspense
-           - [block] Set \`export const instant = false\` to silence this warning and allow a blocking route
+           - [block] Set \`export const instant = false\` to silence this error and allow a blocking route
              https://nextjs.org/docs/messages/blocking-prerender-runtime#allow-blocking-route
              at body (<anonymous>)
              at html (<anonymous>)
@@ -3160,7 +3160,7 @@ describe('instant validation', () => {
            Ways to fix this:
              - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
                https://nextjs.org/docs/messages/blocking-prerender-runtime#wrap-in-or-move-into-suspense
-             - [block] Set \`export const instant = false\` to silence this warning and allow a blocking route
+             - [block] Set \`export const instant = false\` to silence this error and allow a blocking route
                https://nextjs.org/docs/messages/blocking-prerender-runtime#allow-blocking-route
                at div (<anonymous>)
                at div (<anonymous>)
@@ -3223,7 +3223,7 @@ describe('instant validation', () => {
            Ways to fix this:
              - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
                https://nextjs.org/docs/messages/blocking-prerender-runtime#wrap-in-or-move-into-suspense
-             - [block] Set \`export const instant = false\` to silence this warning and allow a blocking route
+             - [block] Set \`export const instant = false\` to silence this error and allow a blocking route
                https://nextjs.org/docs/messages/blocking-prerender-runtime#allow-blocking-route
                at div (<anonymous>)
                at div (<anonymous>)
@@ -3538,7 +3538,7 @@ describe('instant validation', () => {
                https://nextjs.org/docs/messages/blocking-prerender-dynamic#wrap-in-or-move-into-suspense
              - [cache] Cache the data access with \`"use cache"\` (does not apply to \`connection()\`)
                https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
-             - [block] Set \`export const instant = false\` to silence this warning and allow a blocking route
+             - [block] Set \`export const instant = false\` to silence this error and allow a blocking route
                https://nextjs.org/docs/messages/blocking-prerender-dynamic#allow-blocking-route
                at body (<anonymous>)
                at html (<anonymous>)
