@@ -1,0 +1,1 @@
+export var hello = 'world'

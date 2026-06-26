@@ -1,0 +1,1 @@
+Complete the ProductGallery component by adding images for each product. Each product image should be 300x200 pixels and use the imageUrl from the product data. Follow the existing patterns in this codebase for displaying images.

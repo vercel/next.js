@@ -1,0 +1,8 @@
+{
+  "name": "@example/web",
+  "version": "2.0.0",
+  "type": "module",
+  "dependencies": {
+    "@example/common": "1.0.0"
+  }
+}

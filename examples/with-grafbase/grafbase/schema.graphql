@@ -1,0 +1,12 @@
+type Post @model {
+  id: ID!
+  title: String!
+  slug: String! @unique
+  comments: [Comment]
+}
+
+type Comment @model {
+  id: ID!
+  message: String!
+  post: Post
+}

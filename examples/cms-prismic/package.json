@@ -1,0 +1,29 @@
+{
+  "private": true,
+  "scripts": {
+    "dev": "next",
+    "build": "next build",
+    "start": "next start",
+    "slicemachine": "start-slicemachine"
+  },
+  "dependencies": {
+    "@prismicio/client": "^6.7.1",
+    "@prismicio/helpers": "^2.3.3",
+    "@prismicio/next": "^0.1.5",
+    "@prismicio/react": "^2.5.0",
+    "@prismicio/slice-simulator-react": "^0.2.2",
+    "@prismicio/types": "^0.2.3",
+    "classnames": "2.3.2",
+    "next": "latest",
+    "prismic-ts-codegen": "^0.1.5",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0"
+  },
+  "devDependencies": {
+    "autoprefixer": "10.4.10",
+    "postcss": "8.4.31",
+    "slice-machine-ui": "^0.4.2",
+    "tailwindcss": "^3.1.8",
+    "typescript": "^4.8.3"
+  }
+}

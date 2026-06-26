@@ -1,0 +1,12 @@
+{
+  "name": "fuzzponent",
+  "bin": {
+    "fuzzponent": "./bin/fuzzponent.js"
+  },
+  "dependencies": {
+    "@babel/types": "7.18.0",
+    "@babel/generator": "7.18.0",
+    "random-seed": "0.3.0",
+    "yargs": "16.2.0"
+  }
+}

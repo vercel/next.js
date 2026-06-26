@@ -1,0 +1,22 @@
+*arrow function 276* = (...) => new HelloWorld()
+
+*arrow function 362* = (...) => helloWorld["hi"]()
+
+*arrow function 471* = (...) => undefined
+
+HelloWorld = ???*0*
+- *0* unsupported expression
+  ⚠️  This value might have side effects
+
+Home = (...) => module<https://esm.sh/preact/jsx-runtime, {}>["jsx"](
+    "button",
+    {"onClick": *arrow function 362*, "children": "Click me"}
+)
+
+cb = ???*0*
+- *0* arguments[0]
+  ⚠️  function calls are not analyzed yet
+
+helloWorld = module<react, {}>["useMemo"]((...) => ???*0*, [])
+- *0* new HelloWorld()
+  ⚠️  nested operation

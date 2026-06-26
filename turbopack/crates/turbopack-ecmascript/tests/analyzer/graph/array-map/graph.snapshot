@@ -1,0 +1,264 @@
+[
+    (
+        "*anonymous function 170*",
+        Function(
+            3,
+            170,
+            Array {
+                total_nodes: 2,
+                items: [
+                    Variable(
+                        (
+                            "file",
+                            #4,
+                        ),
+                    ),
+                ],
+                mutable: true,
+            },
+        ),
+    ),
+    (
+        "*anonymous function 254*",
+        Function(
+            5,
+            254,
+            MemberCall(
+                4,
+                FreeVar(
+                    "require",
+                ),
+                Constant(
+                    Str(
+                        Atom(
+                            "resolve",
+                        ),
+                    ),
+                ),
+                [
+                    Variable(
+                        (
+                            "file",
+                            #5,
+                        ),
+                    ),
+                ],
+            ),
+        ),
+    ),
+    (
+        "*anonymous function 88*",
+        Function(
+            2,
+            88,
+            Variable(
+                (
+                    "file",
+                    #3,
+                ),
+            ),
+        ),
+    ),
+    (
+        "a",
+        Array {
+            total_nodes: 3,
+            items: [
+                Constant(
+                    Str(
+                        Atom(
+                            "../lib/a.js",
+                        ),
+                    ),
+                ),
+                Constant(
+                    Str(
+                        Atom(
+                            "../lib/b.js",
+                        ),
+                    ),
+                ),
+            ],
+            mutable: true,
+        },
+    ),
+    (
+        "b",
+        MemberCall(
+            6,
+            Array {
+                total_nodes: 3,
+                items: [
+                    Constant(
+                        Str(
+                            Atom(
+                                "../lib/a.js",
+                            ),
+                        ),
+                    ),
+                    Constant(
+                        Str(
+                            Atom(
+                                "../lib/b.js",
+                            ),
+                        ),
+                    ),
+                ],
+                mutable: true,
+            },
+            Constant(
+                Str(
+                    Atom(
+                        "map",
+                    ),
+                ),
+            ),
+            [
+                Variable(
+                    (
+                        "*anonymous function 88*",
+                        #0,
+                    ),
+                ),
+            ],
+        ),
+    ),
+    (
+        "c",
+        MemberCall(
+            6,
+            Array {
+                total_nodes: 3,
+                items: [
+                    Constant(
+                        Str(
+                            Atom(
+                                "../lib/a.js",
+                            ),
+                        ),
+                    ),
+                    Constant(
+                        Str(
+                            Atom(
+                                "../lib/b.js",
+                            ),
+                        ),
+                    ),
+                ],
+                mutable: true,
+            },
+            Constant(
+                Str(
+                    Atom(
+                        "map",
+                    ),
+                ),
+            ),
+            [
+                Variable(
+                    (
+                        "*anonymous function 170*",
+                        #0,
+                    ),
+                ),
+            ],
+        ),
+    ),
+    (
+        "d",
+        MemberCall(
+            6,
+            Array {
+                total_nodes: 3,
+                items: [
+                    Constant(
+                        Str(
+                            Atom(
+                                "../lib/a.js",
+                            ),
+                        ),
+                    ),
+                    Constant(
+                        Str(
+                            Atom(
+                                "../lib/b.js",
+                            ),
+                        ),
+                    ),
+                ],
+                mutable: true,
+            },
+            Constant(
+                Str(
+                    Atom(
+                        "map",
+                    ),
+                ),
+            ),
+            [
+                Variable(
+                    (
+                        "*anonymous function 254*",
+                        #0,
+                    ),
+                ),
+            ],
+        ),
+    ),
+    (
+        "file#3",
+        Argument(
+            88,
+            0,
+        ),
+    ),
+    (
+        "file#4",
+        Argument(
+            170,
+            0,
+        ),
+    ),
+    (
+        "file#5",
+        Argument(
+            254,
+            0,
+        ),
+    ),
+    (
+        "file#6",
+        Argument(
+            308,
+            0,
+        ),
+    ),
+    (
+        "func",
+        Function(
+            5,
+            308,
+            MemberCall(
+                4,
+                FreeVar(
+                    "require",
+                ),
+                Constant(
+                    Str(
+                        Atom(
+                            "resolve",
+                        ),
+                    ),
+                ),
+                [
+                    Variable(
+                        (
+                            "file",
+                            #6,
+                        ),
+                    ),
+                ],
+            ),
+        ),
+    ),
+]

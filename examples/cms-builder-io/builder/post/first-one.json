@@ -1,0 +1,283 @@
+{
+  "createdBy": "4FFFg0MNRJT0z0nW4uUizDHfHJV2",
+  "createdDate": 1613015962185,
+  "data": {
+    "author": {
+      "@type": "@builder.io/core:Reference",
+      "id": "d50fe8eced654b2dae22c738dbeabcee",
+      "model": "author"
+    },
+    "image": "https://cdn.builder.io/api/v1/image/assets%2F8f6bae86bfa3487eb1a18f263118c832%2F79e961dbf6d54a9a8f189c5bd48454d8",
+    "inputs": [],
+    "intro": "pellentesque nec nam aliquam. Tincidunt id aliquet risus feugiat in ante metus dictum at. Nascetur ridiculus mus mauris vitae ultricies leo integer malesuada nunc. Tellus cras adipiscing enim eu turpis. Ultrices eros in cursus turpis massa tincidunt dui. Feugiat nisl pretium fusce id. Mauris augue neque gravida infermentum et. Sed elementum tempus egestas sed. At consectetur lorem donec massa sapien faucibus et.",
+    "slug": "first-one",
+    "title": "Now howoiofweewf",
+    "blocks": [
+      {
+        "@type": "@builder.io/sdk:Element",
+        "@version": 2,
+        "id": "builder-73d17ca4f7bc472dbd5b146c075d7976",
+        "component": {
+          "name": "Core:Section",
+          "options": {
+            "maxWidth": 1200
+          }
+        },
+        "children": [
+          {
+            "@type": "@builder.io/sdk:Element",
+            "@version": 2,
+            "id": "builder-2ac544bf3b9941b2b4e629e34e44c069",
+            "component": {
+              "name": "Columns",
+              "options": {
+                "columns": [
+                  {
+                    "blocks": [
+                      {
+                        "@type": "@builder.io/sdk:Element",
+                        "@version": 2,
+                        "layerName": "Centered Box",
+                        "id": "builder-90ecefea6830467787059c4a74a67bc9",
+                        "children": [
+                          {
+                            "@type": "@builder.io/sdk:Element",
+                            "@version": 2,
+                            "layerName": "Title",
+                            "id": "builder-86d8df34f7924d90b1f0326f644f3dd6",
+                            "component": {
+                              "name": "Text",
+                              "options": {
+                                "text": "<p>Something Great to Say</p>"
+                              }
+                            },
+                            "responsiveStyles": {
+                              "large": {
+                                "display": "flex",
+                                "flexDirection": "column",
+                                "alignItems": "stretch",
+                                "flexShrink": "0",
+                                "position": "relative",
+                                "marginTop": "-1.65625px",
+                                "textAlign": "center",
+                                "lineHeight": "normal",
+                                "height": "auto",
+                                "fontSize": "33px"
+                              },
+                              "medium": {
+                                "marginTop": "29.34375px",
+                                "textAlign": "center"
+                              },
+                              "small": {
+                                "fontSize": "25px"
+                              }
+                            }
+                          },
+                          {
+                            "@type": "@builder.io/sdk:Element",
+                            "@version": 2,
+                            "layerName": "Subtitle",
+                            "id": "builder-796f2f44186e4206ad59bde67dcd969c",
+                            "component": {
+                              "name": "Text",
+                              "options": {
+                                "text": "<p>Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Orci sagittis eu volutpat odio facilisis mauris. Commodo nulla facilisi nullam vehicula. Tellus cras adipiscing enim eu. Morbi blandit cursus risus at ultrices mi tempus imperdiet nulla. Tempus quam pellentesque nec nam aliquam. Tincidunt id aliquet risus feugiat in ante metus dictum at. Nascetur ridiculus mus mauris vitae ultricies leo integer malesuada nunc. Tellus cras adipiscing enim eu turpis. Ultrices eros in cursus turpis massa tincidunt dui. Feugiat nisl pretium fusce id. Mauris augue neque gravida infermentum et. Sed elementum tempus egestas sed. At consectetur lorem donec massa sapien faucibus et. Tellus pellentesque eu tincidunt tortor. Blandit turpis cursus in hac habitasse. Dui nunc mattis enim ut tellus elementum sagittis vitae.</p>"
+                              }
+                            },
+                            "responsiveStyles": {
+                              "large": {
+                                "display": "flex",
+                                "flexDirection": "column",
+                                "alignItems": "stretch",
+                                "flexShrink": "0",
+                                "position": "relative",
+                                "marginTop": "25.59375px",
+                                "textAlign": "center",
+                                "lineHeight": "normal",
+                                "height": "auto",
+                                "fontSize": "17px",
+                                "color": "rgba(86, 86, 86, 1)"
+                              },
+                              "medium": {
+                                "textAlign": "center"
+                              },
+                              "small": {
+                                "fontSize": "15px"
+                              }
+                            }
+                          },
+                          {
+                            "@type": "@builder.io/sdk:Element",
+                            "@version": 2,
+                            "id": "builder-f299f4294fbb46659a49c44f230ae1e0",
+                            "component": {
+                              "name": "Core:Button",
+                              "options": {
+                                "text": "Let's go"
+                              }
+                            },
+                            "responsiveStyles": {
+                              "large": {
+                                "display": "flex",
+                                "flexDirection": "column",
+                                "alignItems": "stretch",
+                                "position": "relative",
+                                "flexShrink": "0",
+                                "boxSizing": "border-box",
+                                "marginTop": "26px",
+                                "appearance": "none",
+                                "paddingTop": "15px",
+                                "paddingBottom": "15px",
+                                "paddingLeft": "31px",
+                                "paddingRight": "31px",
+                                "backgroundColor": "rgba(50, 50, 50, 1)",
+                                "color": "white",
+                                "borderRadius": "4px",
+                                "textAlign": "center",
+                                "marginLeft": "auto",
+                                "marginRight": "auto",
+                                "cursor": "pointer"
+                              },
+                              "medium": {
+                                "marginLeft": "auto",
+                                "marginRight": "auto"
+                              }
+                            }
+                          }
+                        ],
+                        "responsiveStyles": {
+                          "large": {
+                            "display": "flex",
+                            "flexDirection": "column",
+                            "alignItems": "stretch",
+                            "position": "relative",
+                            "flexShrink": "0",
+                            "boxSizing": "border-box",
+                            "marginTop": "auto",
+                            "marginBottom": "auto",
+                            "paddingBottom": "16px"
+                          }
+                        }
+                      }
+                    ]
+                  },
+                  {
+                    "blocks": [
+                      {
+                        "@type": "@builder.io/sdk:Element",
+                        "@version": 2,
+                        "id": "builder-104a7e15a7d648e6896fbc98cc9b17ed",
+                        "component": {
+                          "name": "Image",
+                          "options": {
+                            "image": "https://cdn.builder.io/api/v1/image/assets%2FagZ9n5CUKRfbL9t6CaJOyVSK4Es2%2F975106936a734566974059059f54ec8d?width=2000&height=1000",
+                            "backgroundPosition": "center",
+                            "backgroundSize": "cover",
+                            "aspectRatio": 0.7004048582995948
+                          }
+                        },
+                        "responsiveStyles": {
+                          "large": {
+                            "display": "flex",
+                            "flexDirection": "column",
+                            "alignItems": "stretch",
+                            "flexShrink": "0",
+                            "position": "relative",
+                            "marginTop": "-2.5px",
+                            "textAlign": "center",
+                            "lineHeight": "normal",
+                            "height": "auto"
+                          }
+                        }
+                      }
+                    ]
+                  }
+                ],
+                "space": 42,
+                "stackColumnsAt": "tablet",
+                "reverseColumnsWhenStacked": true
+              }
+            },
+            "responsiveStyles": {
+              "large": {
+                "display": "flex",
+                "flexDirection": "column",
+                "alignItems": "stretch",
+                "position": "relative",
+                "flexShrink": "0",
+                "boxSizing": "border-box",
+                "marginTop": "2.34375px",
+                "paddingLeft": "0px",
+                "paddingRight": "0px"
+              }
+            }
+          }
+        ],
+        "responsiveStyles": {
+          "large": {
+            "display": "flex",
+            "flexDirection": "column",
+            "alignItems": "stretch",
+            "position": "relative",
+            "flexShrink": "0",
+            "boxSizing": "border-box",
+            "marginTop": "0px",
+            "paddingLeft": "20px",
+            "paddingRight": "20px",
+            "paddingTop": "50px",
+            "paddingBottom": "50px",
+            "width": "100vw",
+            "marginLeft": "calc(50% - 50vw)"
+          }
+        }
+      },
+      {
+        "id": "builder-pixel-3zydvairp32",
+        "@type": "@builder.io/sdk:Element",
+        "tagName": "img",
+        "properties": {
+          "src": "https://cdn.builder.io/api/v1/pixel?apiKey=8f6bae86bfa3487eb1a18f263118c832",
+          "role": "presentation",
+          "width": "0",
+          "height": "0"
+        },
+        "responsiveStyles": {
+          "large": {
+            "height": "0",
+            "width": "0",
+            "display": "inline-block",
+            "opacity": "0",
+            "overflow": "hidden",
+            "pointerEvents": "none"
+          }
+        }
+      }
+    ],
+    "state": {
+      "deviceSize": "large",
+      "location": {
+        "path": "",
+        "query": {}
+      }
+    }
+  },
+  "id": "006452f51b414da189e8ccc576d9805b",
+  "lastUpdatedBy": "agZ9n5CUKRfbL9t6CaJOyVSK4Es2",
+  "meta": {
+    "hasLinks": false,
+    "kind": "component",
+    "needsHydration": false
+  },
+  "modelId": "3f6eda812cf2484088b1451a2150d38f",
+  "name": "first one",
+  "published": "published",
+  "query": [],
+  "testRatio": 1,
+  "variations": {},
+  "lastUpdated": 1613035917446,
+  "screenshot": "https://cdn.builder.io/api/v1/image/assets%2F8f6bae86bfa3487eb1a18f263118c832%2Ffb7a0bb3ded54a8cbcdd8ddd98d24a7e",
+  "rev": "3mj2dvbqtry",
+  "@originOrg": "8f6bae86bfa3487eb1a18f263118c832",
+  "@originContentId": "e7951ec30b1c496b87b3fa2c98192a79",
+  "@originModelId": "7a732bbf5d964e7bbeff4acef2735c8a"
+}

@@ -1,0 +1,10 @@
+{
+  "version": 3,
+  "sources": [],
+  "sections": [
+    {"offset": {"line": 4, "column": 0}, "map": {"version":3,"sources":["turbopack:///[project]/turbopack/crates/turbopack-tests/tests/snapshot/css/chained-attributes/input/c.css"],"sourcesContent":[".imported {\n  color: red;\n}\n"],"names":[],"mappings":"AAAA"}},
+    {"offset": {"line": 16, "column": 0}, "map": {"version":3,"sources":["turbopack:///[project]/turbopack/crates/turbopack-tests/tests/snapshot/css/chained-attributes/input/c.css"],"sourcesContent":[".imported {\n  color: red;\n}\n"],"names":[],"mappings":"AAAA"}},
+    {"offset": {"line": 28, "column": 0}, "map": {"version":3,"sources":["turbopack:///[project]/turbopack/crates/turbopack-tests/tests/snapshot/css/chained-attributes/input/b.css"],"sourcesContent":["@import url('./c.css') layer(foo) (orientation: landscape);\n@import url('./c.css') layer(bar) (orientation: portrait);\n\n.imported {\n  color: orange;\n}\n"],"names":[],"mappings":"AAGA"}},
+    {"offset": {"line": 40, "column": 0}, "map": {"version":3,"sources":["turbopack:///[project]/turbopack/crates/turbopack-tests/tests/snapshot/css/chained-attributes/input/a.css"],"sourcesContent":["@import url('./b.css') supports(font-format(woff2));\n\n.imported {\n  color: cyan;\n}\n"],"names":[],"mappings":"AAEA"}},
+    {"offset": {"line": 49, "column": 0}, "map": {"version":3,"sources":["turbopack:///[project]/turbopack/crates/turbopack-tests/tests/snapshot/css/chained-attributes/input/style.css"],"sourcesContent":["@import url('./a.css') layer(layer) supports(not(display: inline-grid)) print;\n\n.style {\n  color: yellow;\n}\n"],"names":[],"mappings":"AAEA"}}]
+}

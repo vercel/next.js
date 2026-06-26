@@ -1,0 +1,97 @@
+@import "@sass/abstracts/vars";
+@import "@sass/abstracts/mixins";
+
+.twitter-typeahead {
+  display: inline-block;
+  vertical-align: middle;
+  max-width: 100%;
+  width: 100%;
+}
+.tt-menu {
+  background: $bg-basic-color;
+  width: 100%;
+  border: 1px solid $border-gray;
+}
+.tt-hint {
+  color: $tt-color;
+}
+.tt-dropdown-menu {
+  width: 250px;
+  margin-top: 5px;
+  background-color: $tt-dropdown-bg;
+  border: 1px solid $tt-dropdown-border;
+  max-height: 300px;
+  overflow-y: auto;
+  box-shadow:
+    0 3px 8px 0 rgba(0, 0, 0, 0.2),
+    0 0 0 1px rgba(0, 0, 0, 0.08);
+}
+.tt-suggestion {
+  padding: 4px 10px;
+  color: $tt-color;
+  overflow: hidden;
+  a {
+    text-decoration: none;
+  }
+  &:last-child {
+    border: none;
+  }
+  .field-image {
+    width: 100px;
+    float: left;
+    margin-right: 10px;
+  }
+  .field-make {
+    font-size: 15px;
+    float: left;
+    margin-right: 5px;
+  }
+  .field-model {
+    margin-left: 4px;
+    font-size: 15px;
+    font-weight: bold;
+    width: 100%;
+  }
+  .field-priceformatted {
+    float: right;
+    font-size: 15px;
+    color: $tt-price-color;
+    margin-top: -20px;
+  }
+}
+.tt-suggestion.tt-cursor {
+  color: $tt-color-active;
+  background-color: $tt-suggestion-bg-active;
+  cursor: pointer;
+}
+.loading-in-progress {
+  .tt-dropdown-menu {
+    display: block !important;
+    min-height: 50px;
+    position: relative;
+    &:after {
+      content: "";
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      margin-top: -20px;
+      margin-left: -20px;
+      height: 40px;
+      width: 50px;
+      display: block;
+      @include loading-gif();
+      z-index: 11;
+    }
+    &:before {
+      content: "";
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background-color: $tt-dropdown-bg;
+      opacity: 0.8;
+      z-index: 10;
+    }
+  }
+}

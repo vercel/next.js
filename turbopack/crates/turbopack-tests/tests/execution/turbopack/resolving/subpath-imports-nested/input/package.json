@@ -1,0 +1,6 @@
+{
+  "name": "subpath-imports",
+  "imports": {
+    "#foo": "./foo.js"
+  }
+}

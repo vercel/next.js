@@ -1,0 +1,11 @@
+@import url('https://cdn.jsdelivr.net/npm/modern-css-reset/dist/reset.min.css')
+layer(default);
+/* Any external stylesheet should work. Using this css-reset because it is very small and backed by CDN */
+
+@layer default, new;
+
+@layer new {
+  h1 {
+    margin: 5px;
+  }
+}

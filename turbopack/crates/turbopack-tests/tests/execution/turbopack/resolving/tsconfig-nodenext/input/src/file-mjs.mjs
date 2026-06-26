@@ -1,0 +1,1 @@
+export default 'file-mjs'

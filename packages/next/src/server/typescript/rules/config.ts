@@ -1,0 +1,690 @@
+// This module provides intellisense for page and layout's exported configs.
+
+import {
+  getSource,
+  isPositionInsideNode,
+  getTs,
+  removeStringQuotes,
+  getTypeChecker,
+} from '../utils'
+import { NEXT_TS_ERRORS, ALLOWED_EXPORTS } from '../constant'
+import type tsModule from 'typescript/lib/tsserverlibrary'
+import type { AppSegmentConfig } from '../../../build/segment-config/app/app-segment-config'
+
+const API_DOCS: Record<
+  string,
+  {
+    description: string
+    options?: Record<string, string>
+    link?: string
+    type?: string
+    isValid?: (value: string) => boolean
+    getHint?: (value: any) => string | undefined
+    insertText?: string
+  }
+> = {
+  dynamic: {
+    description:
+      'The `dynamic` option provides a few ways to opt in or out of dynamic behavior.',
+    options: {
+      '"auto"':
+        "Heuristic to cache as much as possible but doesn't prevent any component to opt-in to dynamic behavior.",
+      '"force-dynamic"':
+        'This disables all caching of fetches and always revalidates. (This is equivalent to `getServerSideProps`.)',
+      '"error"':
+        'This errors if any dynamic Hooks or fetches are used. (This is equivalent to `getStaticProps`.)',
+      '"force-static"':
+        'This forces caching of all fetches and returns empty values from `cookies`, `headers` and `useSearchParams`.',
+    } satisfies DocsOptionsObject<FullAppSegmentConfig['dynamic']>,
+    link: 'https://nextjs.org/docs/app/api-reference/file-conventions/route-segment-config#dynamic',
+  },
+  fetchCache: {
+    description:
+      "The `fetchCache` option controls how Next.js statically caches fetches. By default it statically caches fetches reachable before any dynamic Hooks are used, and it doesn't cache fetches that are discovered after that.",
+    options: {
+      '"force-no-store"':
+        "This lets you intentionally opt-out of all caching of data. This option forces all fetches to be refetched every request even if the `cache: 'force-cache'` option is passed to `fetch()`.",
+      '"only-no-store"':
+        "This lets you enforce that all data opts out of caching. This option makes `fetch()` reject with an error if `cache: 'force-cache'` is provided. It also changes the default to `no-store`.",
+      '"default-no-store"':
+        "Allows any explicit `cache` option to be passed to `fetch()` but if `'default'`, or no option, is provided then it defaults to `'no-store'`. This means that even fetches before a dynamic Hook are considered dynamic.",
+      '"auto"':
+        "This is the default option. It caches any fetches with the default `cache` option provided, that happened before a dynamic Hook is used and don't cache any such fetches if they're issued after a dynamic Hook.",
+      '"default-cache"':
+        "Allows any explicit `cache` option to be passed to `fetch()` but if `'default'`, or no option, is provided then it defaults to `'force-cache'`. This means that even fetches before a dynamic Hook are considered dynamic.",
+      '"only-cache"':
+        "This lets you enforce that all data opts into caching. This option makes `fetch()` reject with an error if `cache: 'force-cache'` is provided. It also changes the default to `force-cache`. This error can be discovered early during static builds - or dynamically during Edge rendering.",
+      '"force-cache"':
+        "This lets you intentionally opt-in to all caching of data. This option forces all fetches to be cache even if the `cache: 'no-store'` option is passed to `fetch()`.",
+    } satisfies DocsOptionsObject<FullAppSegmentConfig['fetchCache']>,
+    link: 'https://nextjs.org/docs/app/api-reference/file-conventions/route-segment-config#fetchcache',
+  },
+  preferredRegion: {
+    description:
+      '@deprecated\\n\\nThe `preferredRegion` route segment config is deprecated. Remove this export.',
+    options: {
+      '"auto"':
+        '@deprecated\\n\\nNext.js will first deploy to the `"home"` region. Then if it doesn\'t detect any waterfall requests after a few requests, it can upgrade that route, to be deployed globally. If it detects any waterfall requests after that, it can eventually downgrade back to `"home`".',
+      '"global"': '@deprecated\\n\\nPrefer deploying globally.',
+      '"home"': '@deprecated\\n\\nPrefer deploying to the Home region.',
+    },
+    link: 'https://nextjs.org/docs/app/api-reference/file-conventions/route-segment-config#preferredregion',
+    isValid: (value: string) => {
+      try {
+        const parsed = JSON.parse(value)
+        return (
+          typeof parsed === 'string' ||
+          (Array.isArray(parsed) && !parsed.some((v) => typeof v !== 'string'))
+        )
+      } catch (err) {
+        return false
+      }
+    },
+    getHint: (value: any) => {
+      if (value === 'auto') return `Automatically chosen by Next.js.`
+      if (value === 'global') return `Prefer deploying globally.`
+      if (value === 'home') return `Prefer deploying to the Home region.`
+      if (Array.isArray(value)) return `Deploy to regions: ${value.join(', ')}.`
+      if (typeof value === 'string') return `Deploy to region: ${value}.`
+    },
+  },
+  revalidate: {
+    description:
+      "The `revalidate` option sets the default revalidation time for that layout or page. Note that it doesn't override the value specify by each `fetch()`.",
+    type: 'mixed',
+    options: {
+      false:
+        'This is the default and changes the fetch cache to indefinitely cache anything that uses force-cache or is fetched before a dynamic Hook/fetch.',
+      0: 'Specifying `0` implies that this layout or page should never be static.',
+      30: 'Set the revalidation time to `30` seconds. The value can be `0` or any positive number.',
+    },
+    link: 'https://nextjs.org/docs/app/api-reference/file-conventions/route-segment-config#revalidate',
+    isValid: (value: string) => {
+      return value === 'false' || Number(value.replace(/_/g, '')) >= 0
+    },
+    getHint: (value: any) => {
+      return `Set the default revalidation time to \`${value}\` seconds.`
+    },
+  },
+  dynamicParams: {
+    description:
+      '`dynamicParams` replaces the `fallback` option of `getStaticPaths`. It controls whether we allow `dynamicParams` beyond the generated static params from `generateStaticParams`.',
+    options: {
+      true: 'Allow rendering dynamic params that are not generated by `generateStaticParams`.',
+      false:
+        'Disallow rendering dynamic params that are not generated by `generateStaticParams`.',
+    } satisfies DocsOptionsObject<FullAppSegmentConfig['dynamicParams']>,
+    link: 'https://nextjs.org/docs/app/api-reference/file-conventions/route-segment-config#dynamicparams',
+    isValid: (value: string) => {
+      return value === 'true' || value === 'false'
+    },
+  },
+  runtime: {
+    description:
+      'The `runtime` option controls the preferred runtime to render this route.',
+    options: {
+      '"nodejs"': 'Prefer the Node.js runtime.',
+      '"edge"': `@deprecated\n\nThe Edge Runtime is deprecated. Use \`"nodejs"\` instead.`,
+      '"experimental-edge"': `@deprecated\n\nThis option is no longer experimental. Use \`edge\` instead.`,
+    } satisfies DocsOptionsObject<
+      FullAppSegmentConfig['runtime'] | 'experimental-edge'
+    >,
+    link: 'https://nextjs.org/docs/app/api-reference/file-conventions/route-segment-config#runtime',
+  },
+  metadata: {
+    description: 'Next.js Metadata configurations',
+    link: 'https://nextjs.org/docs/app/building-your-application/optimizing/metadata',
+    insertText: 'metadata: Metadata = {};',
+  },
+  generateMetadata: {
+    description: 'Next.js generateMetadata configurations',
+    link: 'https://nextjs.org/docs/app/api-reference/functions/generate-metadata',
+    insertText: 'generateMetadata = (): Metadata => { return {} };',
+  },
+  maxDuration: {
+    description:
+      '`maxDuration` allows you to set max default execution time for your function. If it is not specified, the default value is dependent on your deployment platform and plan.',
+    link: 'https://nextjs.org/docs/app/api-reference/file-conventions/route-segment-config#maxduration',
+  },
+  unstable_instant: {
+    description: `Enables instant navigation validation for this segment. This configuration is currently under development and will change.`,
+    link: '(docs coming soon)',
+    type: 'true | object | false',
+    // TODO: ideally, we'd validate the config object somehow, but this is difficult to do
+    // with the way this plugin is currently structured.
+    // For now, since we don't provide an `options` here, we won't do any validation in
+    // `getSemanticDiagnosticsForExportVariableStatement` below, and only provide hover a tooltip + autocomplete.
+    insertText: 'unstable_instant = true;',
+  },
+  unstable_prefetch: {
+    description: `Controls prefetching behavior for this segment. This configuration is currently under development and will change.`,
+    link: '(docs coming soon)',
+    type: `"auto" | "force-disabled" | "force-static" | "force-runtime"`,
+    options: {
+      auto: 'Default. Framework decides based on instant validation and segment configuration. You do not need to set this explicitly.',
+      'force-disabled': 'Never prefetch this segment.',
+      'force-static': 'Always prefetch this segment statically.',
+      'force-runtime': 'Always prefetch this segment at runtime.',
+    },
+    insertText: `unstable_prefetch = 'force-runtime';`,
+  },
+  unstable_dynamicStaleTime: {
+    description: `Controls how long the client-side router cache retains dynamic page data (in seconds). Pages only — not allowed in layouts. Cannot be combined with \`unstable_instant\`.`,
+    link: '(docs coming soon)',
+    type: 'number',
+    isValid: (value: string) => {
+      return Number(value.replace(/_/g, '')) >= 0
+    },
+    getHint: (value: any) => {
+      return `Set the dynamic stale time to \`${value}\` seconds.`
+    },
+  },
+}
+
+type FullAppSegmentConfig = Required<AppSegmentConfig>
+
+/**
+ * Maps a type for a config value to a docs object that lists all its values.
+ * This ensures that all the valid options are listed.
+ * Note that values that aren't primitives are skipped.
+ *
+ * ```
+ * DocsOptionsObject<0 | false | "yes"> = { 0: string, false: string, '"yes"': string }
+ * ```
+ */
+type DocsOptionsObject<T> = {
+  [Value in T as AsObjectKey<Value>]: string
+}
+
+type AsObjectKey<Value> = Value extends string
+  ? `"${Value}"`
+  : Value extends number | boolean | null | undefined
+    ? `${Value}`
+    : never
+
+function visitEntryConfig(
+  fileName: string,
+  position: number,
+  callback: (entryEonfig: string, value: tsModule.VariableDeclaration) => void
+) {
+  const source = getSource(fileName)
+  if (source) {
+    const ts = getTs()
+    ts.forEachChild(source, function visit(node) {
+      // Covered by this node
+      if (isPositionInsideNode(position, node)) {
+        // Export variable
+        if (
+          ts.isVariableStatement(node) &&
+          node.modifiers?.some((m) => m.kind === ts.SyntaxKind.ExportKeyword)
+        ) {
+          if (ts.isVariableDeclarationList(node.declarationList)) {
+            for (const declaration of node.declarationList.declarations) {
+              if (isPositionInsideNode(position, declaration)) {
+                // `export const ... = ...`
+                const text = declaration.name.getText()
+                callback(text, declaration)
+              }
+            }
+          }
+        }
+      }
+    })
+  }
+}
+
+function createAutoCompletionOptionName(sort: number, name: string) {
+  const ts = getTs()
+
+  return {
+    name,
+    insertText: API_DOCS[name].insertText,
+    sortText: '!' + sort,
+    kind: ts.ScriptElementKind.constElement,
+    kindModifiers: ts.ScriptElementKindModifier.exportedModifier,
+    labelDetails: {
+      description: `Next.js ${name} option`,
+    },
+    data: {
+      exportName: name,
+      moduleSpecifier: 'next/typescript/entry_option_name',
+    },
+  } as tsModule.CompletionEntry
+}
+
+function createAutoCompletionOptionValue(
+  sort: number,
+  name: string,
+  apiName: string
+) {
+  const ts = getTs()
+  const isString = name.startsWith('"')
+  return {
+    name,
+    insertText: removeStringQuotes(name),
+    sortText: '' + sort,
+    kind: isString ? ts.ScriptElementKind.string : ts.ScriptElementKind.unknown,
+    kindModifiers: ts.ScriptElementKindModifier.none,
+    labelDetails: {
+      description: `Next.js ${apiName} option`,
+    },
+    data: {
+      exportName: apiName,
+      moduleSpecifier: 'next/typescript/entry_option_value',
+    },
+  } as tsModule.CompletionEntry
+}
+
+function getAPIDescription(api: string): string {
+  return (
+    API_DOCS[api].description +
+    '\n\n' +
+    Object.entries(API_DOCS[api].options || {})
+      .map(([key, value]) => `- \`${key}\`: ${value}`)
+      .join('\n')
+  )
+}
+
+const config = {
+  // Auto completion for entry exported configs.
+  addCompletionsAtPosition(
+    fileName: string,
+    position: number,
+    prior: tsModule.WithMetadata<tsModule.CompletionInfo>
+  ) {
+    visitEntryConfig(fileName, position, (entryConfig, declaration) => {
+      if (!API_DOCS[entryConfig]) {
+        if (isPositionInsideNode(position, declaration.name)) {
+          prior.entries.push(
+            ...Object.keys(API_DOCS).map((name, index) => {
+              return createAutoCompletionOptionName(index, name)
+            })
+          )
+        }
+        return
+      }
+
+      prior.entries.push(
+        ...Object.keys(API_DOCS[entryConfig].options || {}).map(
+          (name, index) => {
+            return createAutoCompletionOptionValue(index, name, entryConfig)
+          }
+        )
+      )
+    })
+  },
+
+  // Show docs when hovering on the exported configs.
+  getQuickInfoAtPosition(fileName: string, position: number) {
+    const ts = getTs()
+
+    let overridden: tsModule.QuickInfo | undefined
+    visitEntryConfig(fileName, position, (entryConfig, declaration) => {
+      if (!API_DOCS[entryConfig]) return
+
+      const name = declaration.name
+      const value = declaration.initializer
+
+      const docsLink = {
+        kind: 'text',
+        text:
+          `\n\nRead more about the "${entryConfig}" option: ` +
+          API_DOCS[entryConfig].link,
+      }
+
+      // When the value is a flexible type (like a function), also compute its
+      // inferred type so we can surface it alongside the docs. This is useful
+      // even when the value is considered invalid by the config validation,
+      // as long as it's not a direct literal export.
+      let displayParts: tsModule.SymbolDisplayPart[] = []
+      const typeChecker = getTypeChecker()
+      const isString = !!value && ts.isStringLiteral(value)
+      const isFunctionValue =
+        !!value &&
+        !isString &&
+        (ts.isArrowFunction(value) ||
+          ts.isFunctionExpression(value) ||
+          ts.isFunctionDeclaration(value))
+
+      if (typeChecker && value && isFunctionValue) {
+        try {
+          // If we're hovering the config identifier, ask for the type at the
+          // identifier; otherwise, ask at the value node. This makes sure
+          // highlighting `generateMetadata` itself also shows the inferred type.
+          const typeTarget = isPositionInsideNode(position, name) ? name : value
+          const type = typeChecker.getTypeAtLocation(typeTarget)
+          if (type) {
+            const typeString = typeChecker.typeToString(type, typeTarget)
+            if (typeString) {
+              displayParts = [
+                {
+                  text: typeString,
+                  kind: 'typeName',
+                },
+              ]
+            }
+          }
+        } catch {
+          // If type checking fails, continue without type info.
+        }
+      }
+
+      // For non-function values (like literals), hovering the value should show
+      // option-specific docs. For function-valued configs (e.g. `generateMetadata`),
+      // we let TypeScript handle hover anywhere in the initializer except for the
+      // export identifier itself.
+      if (value && !isFunctionValue && isPositionInsideNode(position, value)) {
+        // Hovering the value of the config
+        const text = removeStringQuotes(value.getText())
+        const key = isString ? `"${text}"` : text
+
+        const isValid = API_DOCS[entryConfig].isValid
+          ? API_DOCS[entryConfig].isValid?.(key)
+          : !!API_DOCS[entryConfig].options?.[key]
+
+        if (isValid) {
+          overridden = {
+            kind: ts.ScriptElementKind.enumElement,
+            kindModifiers: ts.ScriptElementKindModifier.none,
+            textSpan: {
+              start: value.getStart(),
+              length: value.getWidth(),
+            },
+            displayParts: [],
+            documentation: [
+              {
+                kind: 'text',
+                text:
+                  API_DOCS[entryConfig].options?.[key] ||
+                  API_DOCS[entryConfig].getHint?.(key) ||
+                  '',
+              },
+              docsLink,
+            ],
+          }
+        } else {
+          // Wrong value: still show the docs link, and when available, the
+          // inferred type for non-literal (i.e. non-direct) exports.
+          overridden = {
+            kind: ts.ScriptElementKind.enumElement,
+            kindModifiers: ts.ScriptElementKindModifier.none,
+            textSpan: {
+              start: value.getStart(),
+              length: value.getWidth(),
+            },
+            displayParts,
+            documentation: [docsLink],
+          }
+        }
+      } else {
+        // For function-valued configs, if we're hovering anywhere within the
+        // initializer (including `async`, parameters, or the body) but not on
+        // the export identifier itself, don't override TypeScript's default
+        // hover. We only want to override when hovering the config identifier
+        // (e.g. `generateMetadata`), not arbitrary tokens within the function.
+        if (
+          isFunctionValue &&
+          isPositionInsideNode(position, value) && // hover is somewhere within the function initializer
+          !isPositionInsideNode(position, name) // ...but not on the export identifier itself
+        ) {
+          return
+        }
+        // Hovers the name of the config
+        overridden = {
+          kind: ts.ScriptElementKind.enumElement,
+          kindModifiers: ts.ScriptElementKindModifier.none,
+          textSpan: {
+            start: name.getStart(),
+            length: name.getWidth(),
+          },
+          displayParts,
+          documentation: [
+            {
+              kind: 'text',
+              text: getAPIDescription(entryConfig),
+            },
+            docsLink,
+          ],
+        }
+      }
+    })
+    return overridden
+  },
+
+  // Show details on the side when auto completing.
+  getCompletionEntryDetails(
+    entryName: string,
+    data: tsModule.CompletionEntryData,
+    fileName: string
+  ): tsModule.CompletionEntryDetails | undefined {
+    const ts = getTs()
+    if (
+      data &&
+      data.moduleSpecifier &&
+      data.moduleSpecifier.startsWith('next/typescript')
+    ) {
+      let content = ''
+      if (data.moduleSpecifier === 'next/typescript/entry_option_name') {
+        content = getAPIDescription(entryName)
+      } else {
+        const options = API_DOCS[data.exportName].options
+        if (!options) return
+        content = options[entryName]
+      }
+
+      if (entryName === 'metadata' || entryName === 'generateMetadata') {
+        const sourceFile = getSource(fileName)
+        let start = 0
+        let foundMetadataImport = false
+
+        if (sourceFile) {
+          const visitor: tsModule.Visitor = (node) => {
+            // Check for top directive
+            if (
+              ts.isExpressionStatement(node) &&
+              ts.isStringLiteral(node.expression) &&
+              node.expression.getStart() === 0
+            ) {
+              const text = node.expression.text
+              if (text.startsWith('use ')) {
+                start = node.end + 1
+                return node // Continue traversal
+              }
+            }
+
+            // Check for Metadata import
+            if (
+              ts.isImportDeclaration(node) &&
+              (node.moduleSpecifier.getText() === '"next"' ||
+                node.moduleSpecifier.getText() === "'next'")
+            ) {
+              const namedImports = node.importClause?.namedBindings
+              if (namedImports && ts.isNamedImports(namedImports)) {
+                foundMetadataImport = namedImports.elements.some((element) => {
+                  const name = element.name.getText()
+                  const propertyName = element.propertyName?.getText()
+                  return name === 'Metadata' || propertyName === 'Metadata'
+                })
+                if (foundMetadataImport) {
+                  return // Stop traversal
+                }
+              }
+            }
+
+            return node
+          }
+
+          for (const statement of sourceFile.statements) {
+            if (foundMetadataImport) break
+            ts.visitNode(statement, visitor)
+          }
+        }
+
+        return {
+          name: entryName,
+          kind: ts.ScriptElementKind.enumElement,
+          kindModifiers: ts.ScriptElementKindModifier.none,
+          displayParts: [],
+          codeActions: foundMetadataImport
+            ? undefined
+            : [
+                {
+                  description: `Import type 'Metadata' from module 'next'`,
+                  changes: [
+                    {
+                      fileName,
+                      textChanges: [
+                        {
+                          span: { start, length: 0 },
+                          newText: `import type { Metadata } from 'next';\n`,
+                        },
+                      ],
+                    },
+                  ],
+                },
+              ],
+          documentation: [
+            {
+              kind: 'text',
+              text: content,
+            },
+          ],
+        }
+      }
+
+      return {
+        name: entryName,
+        kind: ts.ScriptElementKind.enumElement,
+        kindModifiers: ts.ScriptElementKindModifier.none,
+        displayParts: [],
+        documentation: [
+          {
+            kind: 'text',
+            text: content,
+          },
+        ],
+      }
+    }
+  },
+
+  // Show errors for invalid export fields.
+  getSemanticDiagnosticsForExportVariableStatement(
+    source: tsModule.SourceFile,
+    node: tsModule.VariableStatement
+  ) {
+    const ts = getTs()
+
+    const diagnostics: tsModule.Diagnostic[] = []
+
+    // Check if it has correct option exports
+    if (ts.isVariableDeclarationList(node.declarationList)) {
+      for (const declaration of node.declarationList.declarations) {
+        const name = declaration.name
+        if (ts.isIdentifier(name)) {
+          if (!ALLOWED_EXPORTS.includes(name.text) && !API_DOCS[name.text]) {
+            diagnostics.push({
+              file: source,
+              category: ts.DiagnosticCategory.Error,
+              code: NEXT_TS_ERRORS.INVALID_ENTRY_EXPORT,
+              messageText: `"${name.text}" is not a valid Next.js entry export value.`,
+              start: name.getStart(),
+              length: name.getWidth(),
+            })
+          } else if (API_DOCS[name.text]) {
+            // Check if the value is valid
+            const value = declaration.initializer
+            const options = API_DOCS[name.text].options
+
+            if (value && options) {
+              let displayedValue = ''
+              let errorMessage = ''
+              let isInvalid = false
+
+              if (
+                ts.isStringLiteral(value) ||
+                ts.isNoSubstitutionTemplateLiteral(value)
+              ) {
+                const val = '"' + removeStringQuotes(value.getText()) + '"'
+                const allowedValues = Object.keys(options).filter((v) =>
+                  /^['"]/.test(v)
+                )
+
+                if (
+                  !allowedValues.includes(val) &&
+                  !API_DOCS[name.text].isValid?.(val)
+                ) {
+                  isInvalid = true
+                  displayedValue = val
+                }
+              } else if (
+                ts.isNumericLiteral(value) ||
+                (ts.isPrefixUnaryExpression(value) &&
+                  ts.isMinusToken((value as any).operator) &&
+                  (ts.isNumericLiteral((value as any).operand.kind) ||
+                    (ts.isIdentifier((value as any).operand.kind) &&
+                      (value as any).operand.kind.getText() === 'Infinity'))) ||
+                (ts.isIdentifier(value) && value.getText() === 'Infinity')
+              ) {
+                const v = value.getText()
+                if (!API_DOCS[name.text].isValid?.(v)) {
+                  isInvalid = true
+                  displayedValue = v
+                }
+              } else if (
+                value.kind === ts.SyntaxKind.TrueKeyword ||
+                value.kind === ts.SyntaxKind.FalseKeyword
+              ) {
+                const v = value.getText()
+                if (!API_DOCS[name.text].isValid?.(v)) {
+                  isInvalid = true
+                  displayedValue = v
+                }
+              } else if (ts.isArrayLiteralExpression(value)) {
+                const v = value.getText()
+                if (
+                  !API_DOCS[name.text].isValid?.(
+                    JSON.stringify(value.elements.map((e) => e.getText()))
+                  )
+                ) {
+                  isInvalid = true
+                  displayedValue = v
+                }
+              } else if (
+                // Other literals
+                ts.isBigIntLiteral(value) ||
+                ts.isObjectLiteralExpression(value) ||
+                ts.isRegularExpressionLiteral(value) ||
+                ts.isPrefixUnaryExpression(value)
+              ) {
+                isInvalid = true
+                displayedValue = value.getText()
+              } else {
+                // Not a literal, error because it's not statically analyzable
+                isInvalid = true
+                displayedValue = value.getText()
+                errorMessage = `"${displayedValue}" is not a valid value for the "${name.text}" option. The configuration must be statically analyzable.`
+              }
+
+              if (isInvalid) {
+                diagnostics.push({
+                  file: source,
+                  category: ts.DiagnosticCategory.Error,
+                  code: NEXT_TS_ERRORS.INVALID_OPTION_VALUE,
+                  messageText:
+                    errorMessage ||
+                    `"${displayedValue}" is not a valid value for the "${name.text}" option.`,
+                  start: value.getStart(),
+                  length: value.getWidth(),
+                })
+              }
+            }
+          }
+        }
+      }
+    }
+
+    return diagnostics
+  },
+}
+
+export default config

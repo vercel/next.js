@@ -1,0 +1,69 @@
+name: Poll React Sync
+
+on:
+  schedule:
+    # GitHub runs cronjobs at most every 5 minutes.
+    # Ideally we get 2 minutes or lower which is what we used to have with Vercel cronjobs.
+    - cron: '*/5 * * * *'
+
+concurrency:
+  group: poll-react-sync
+  cancel-in-progress: true
+
+jobs:
+  poll:
+    runs-on: ubuntu-latest
+    permissions:
+      actions: write
+    steps:
+      # We're using react@experimental as a signal for a new React sync because
+      # in facebook/react we publish experimental after canary. If we would just
+      # look at canary, we might update before experimental is published.
+      - name: Fetch latest react@experimental version
+        id: current
+        run: |
+          CURRENT=$(npm --silent view --json react@experimental version | tr -d '"')
+          if [ -z "$CURRENT" ]; then
+            echo "Failed to resolve react@experimental version" >&2
+            exit 1
+          fi
+          echo "version=$CURRENT" >> "$GITHUB_OUTPUT"
+          echo "Current react@experimental: $CURRENT"
+
+      - name: Check whether this version was already seen
+        id: cache
+        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+        with:
+          # The key encodes the version. Cache hit = already processed; cache miss = new version.
+          # The path just needs to exist so the post-step can save the cache entry on a miss.
+          path: .cache/marker
+          key: react-experimental-${{ steps.current.outputs.version }}
+
+      - name: Mark version as seen
+        if: steps.cache.outputs.cache-hit != 'true'
+        run: |
+          mkdir -p .cache
+          printf '%s' '${{ steps.current.outputs.version }}' > .cache/marker
+
+      - name: Resolve corresponding react@canary version
+        id: canary
+        if: steps.cache.outputs.cache-hit != 'true'
+        run: |
+          CANARY=$(npm --silent view --json react@canary version | tr -d '"')
+          if [ -z "$CANARY" ]; then
+            echo "Failed to resolve react@canary version" >&2
+            exit 1
+          fi
+          echo "version=$CANARY" >> "$GITHUB_OUTPUT"
+          echo "Current react@canary: $CANARY"
+
+      - name: Dispatch update_react.yml
+        if: steps.cache.outputs.cache-hit != 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+          EXPERIMENTAL: ${{ steps.current.outputs.version }}
+          CANARY: ${{ steps.canary.outputs.version }}
+        run: |
+          echo "react@experimental changed to $EXPERIMENTAL. Dispatching update_react.yml with react@canary=$CANARY."
+          gh workflow run update_react.yml --ref ${{ github.ref_name }} -f version="$CANARY"

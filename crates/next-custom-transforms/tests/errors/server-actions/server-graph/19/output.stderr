@@ -1,0 +1,8 @@
+  x The "use cache" directive must be at the top of the function body, and cannot be wrapped in parentheses.
+  | 
+   ,-[input.js:3:1]
+ 2 |   console.log('foo')
+ 3 |   ;('use cache')
+   :    ^^^^^^^^^^^^^
+ 4 | }
+   `----

@@ -1,0 +1,16 @@
+error[E0277]: the trait bound `T: NonLocalValue` is not satisfied
+ --> tests/derive_non_local_value/fail_underconstrained_generic.rs:7:12
+  |
+7 |     value: T,
+  |            ^ the trait `NonLocalValue` is not implemented for `T`
+  |
+note: required by a bound in `DeriveNonLocalValueAssertion::<T>::assert_impl_NonLocalValue`
+ --> tests/derive_non_local_value/fail_underconstrained_generic.rs:5:10
+  |
+5 | #[derive(NonLocalValue)]
+  |          ^^^^^^^^^^^^^ required by this bound in `DeriveNonLocalValueAssertion::<T>::assert_impl_NonLocalValue`
+  = note: this error originates in the derive macro `NonLocalValue` (in Nightly builds, run with -Z macro-backtrace for more info)
+help: consider restricting type parameter `T` with trait `NonLocalValue`
+  |
+6 | struct ContainsUnderconstrainedGeneric<T: turbo_tasks::NonLocalValue> {
+  |                                         ++++++++++++++++++++++++++++

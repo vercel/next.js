@@ -1,0 +1,9 @@
+/* __next_internal_action_entry_do_not_use__ {"7fa0c73dd6f5af839e3335c6b19262ecb86cca6af4":{"name":"sampleFunction2"},"7fbd336abe00c3c59da66acb696fc8e151d8e54ea4":{"name":"sampleFunction"},"7fd4f2e95bc745b6500b439c0847003511748c8ece":{"name":"sampleFunction3"},"7ff03b256ee88a51700367acee3082894e25e6e7d9":{"name":"sampleFunction4"}} */ import { createServerReference, callServer, findSourceMapURL } from "private-next-rsc-action-client-wrapper";
+const $$RSC_SERVER_ACTION_0 = /*#__PURE__*/ createServerReference("7fbd336abe00c3c59da66acb696fc8e151d8e54ea4", callServer, void 0, findSourceMapURL, "sampleFunction");
+export { $$RSC_SERVER_ACTION_0 as sampleFunction };
+const $$RSC_SERVER_ACTION_1 = /*#__PURE__*/ createServerReference("7fa0c73dd6f5af839e3335c6b19262ecb86cca6af4", callServer, void 0, findSourceMapURL, "sampleFunction2");
+export { $$RSC_SERVER_ACTION_1 as sampleFunction2 };
+const $$RSC_SERVER_ACTION_2 = /*#__PURE__*/ createServerReference("7fd4f2e95bc745b6500b439c0847003511748c8ece", callServer, void 0, findSourceMapURL, "sampleFunction3");
+export { $$RSC_SERVER_ACTION_2 as sampleFunction3 };
+const $$RSC_SERVER_ACTION_3 = /*#__PURE__*/ createServerReference("7ff03b256ee88a51700367acee3082894e25e6e7d9", callServer, void 0, findSourceMapURL, "sampleFunction4");
+export { $$RSC_SERVER_ACTION_3 as sampleFunction4 };

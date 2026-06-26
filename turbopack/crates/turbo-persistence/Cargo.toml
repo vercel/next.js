@@ -1,0 +1,54 @@
+[package]
+name = "turbo-persistence"
+version = "0.1.0"
+edition = "2024"
+license = "MIT"
+
+[features]
+default = []
+verify_sst_content = []
+strict_checks = []
+stats = ["quick_cache/stats"]
+print_stats = ["stats"]
+verbose_log = []
+
+[dependencies]
+anyhow = { workspace = true }
+bitfield = { workspace = true }
+byteorder = { workspace = true }
+crc32fast = { workspace = true }
+dashmap = { workspace = true}
+either = { workspace = true }
+jiff = "0.2.10"
+lzzzz = { workspace = true }
+memmap2 = "0.9.5"
+nohash-hasher = { workspace = true }
+parking_lot = { workspace = true }
+# See https://github.com/vercel/next.js/issues/91708 for why we need the legacy_x86_64_support feature
+qfilter = { version = "=0.3.0-alpha.4", features = ["serde", "legacy_x86_64_support"] }
+postcard = { workspace = true, features = ["alloc", "use-std"] }
+zerocopy = { version = "0.8", features = ["derive"] }
+quick_cache = { workspace = true }
+rustc-hash = { workspace = true }
+smallvec = { workspace = true }
+thread_local = { workspace = true }
+tracing = { workspace = true }
+xxhash-rust = { workspace = true }
+
+[dev-dependencies]
+criterion = { workspace = true }
+rand = { workspace = true }
+rayon = { workspace = true }
+tempfile = { workspace = true }
+turbo-tasks-malloc = { workspace = true, features = ["custom_allocator"] }
+
+[[bin]]
+name = "sst_inspect"
+path = "src/bin/sst_inspect.rs"
+
+[lints]
+workspace = true
+
+[[bench]]
+name = "mod"
+harness = false

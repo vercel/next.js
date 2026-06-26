@@ -1,0 +1,24 @@
+{
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "xata": "xata codegen",
+    "postinstall": "npx @xata.io/cli@latest schema upload schema.template.json --branch main --create-only --yes"
+  },
+  "devDependencies": {
+    "@types/node": "18.11.10",
+    "@types/react": "18.2.8",
+    "@types/react-dom": "18.0.9",
+    "eslint": "^9",
+    "eslint-config-next": "latest",
+    "typescript": "4.9.3"
+  },
+  "dependencies": {
+    "@xata.io/client": "^0.21.3",
+    "next": "latest",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0"
+  }
+}

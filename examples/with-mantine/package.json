@@ -1,0 +1,23 @@
+{
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start"
+  },
+  "dependencies": {
+    "@mantine/core": "^4.1.4",
+    "@mantine/hooks": "^4.1.4",
+    "@mantine/next": "^4.1.4",
+    "next": "latest",
+    "react": "18.0.0",
+    "react-dom": "18.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "17.0.25",
+    "@types/react": "18.2.8",
+    "@types/react-dom": "18.0.1",
+    "prettier": "2.6.2",
+    "typescript": "4.6.3"
+  }
+}

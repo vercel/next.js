@@ -1,0 +1,41 @@
+0 -> 2 free var = FreeVar(performance)
+
+0 -> 3 member call = ???*0*["now"]()
+- *0* FreeVar(performance)
+  ⚠️  unknown global
+  ⚠️  This value might have side effects
+
+0 -> 6 member call = ???*0*["loadChunk"](???*2*)
+- *0* ???*1*["__next_app__"]
+  ⚠️  unknown object
+- *1* arguments[0]
+  ⚠️  function calls are not analyzed yet
+- *2* spread
+  ⚠️  This value might have side effects
+
+0 -> 7 unreachable = ???*0*
+- *0* unreachable
+  ⚠️  This value might have side effects
+
+0 -> 9 free var = FreeVar(performance)
+
+0 -> 10 member call = ???*0*["now"]()
+- *0* FreeVar(performance)
+  ⚠️  unknown global
+  ⚠️  This value might have side effects
+
+0 -> 11 unreachable = ???*0*
+- *0* unreachable
+  ⚠️  This value might have side effects
+
+0 -> 12 conditional = ((0 | ???*0*) === 0)
+- *0* (???*1* + ???*2*)
+  ⚠️  nested operation
+- *1* clientComponentLoadTimes
+  ⚠️  circular variable reference
+- *2* unsupported expression
+  ⚠️  This value might have side effects
+
+0 -> 14 unreachable = ???*0*
+- *0* unreachable
+  ⚠️  This value might have side effects

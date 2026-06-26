@@ -1,0 +1,33 @@
+  x Route segment config "runtime" is not compatible with `nextConfig.cacheComponents`. Please remove it.
+   ,-[input.js:1:1]
+ 1 | export const runtime = 'edge'
+   :              ^^^^^^^
+ 2 | export const dynamic = 'force-dynamic'
+   `----
+  x Route segment config "dynamic" is not compatible with `nextConfig.cacheComponents`. Please remove it.
+   ,-[input.js:2:1]
+ 1 | export const runtime = 'edge'
+ 2 | export const dynamic = 'force-dynamic'
+   :              ^^^^^^^
+ 3 | export const dynamicParams = false
+   `----
+  x Route segment config "dynamicParams" is not compatible with `nextConfig.cacheComponents`. Please remove it.
+   ,-[input.js:3:1]
+ 2 | export const dynamic = 'force-dynamic'
+ 3 | export const dynamicParams = false
+   :              ^^^^^^^^^^^^^
+ 4 | export const fetchCache = 'force-no-store'
+   `----
+  x Route segment config "fetchCache" is not compatible with `nextConfig.cacheComponents`. Please remove it.
+   ,-[input.js:4:1]
+ 3 | export const dynamicParams = false
+ 4 | export const fetchCache = 'force-no-store'
+   :              ^^^^^^^^^^
+ 5 | export const revalidate = 1
+   `----
+  x Route segment config "revalidate" is not compatible with `nextConfig.cacheComponents`. Please remove it.
+   ,-[input.js:5:1]
+ 4 | export const fetchCache = 'force-no-store'
+ 5 | export const revalidate = 1
+   :              ^^^^^^^^^^
+   `----

@@ -1,0 +1,18 @@
+*arrow function 276* = (...) => new HelloWorld()
+
+*arrow function 362* = (...) => helloWorld["hi"]()
+
+*arrow function 471* = (...) => undefined
+
+HelloWorld (const after eval) = ???*0*
+- *0* unsupported expression
+  ⚠️  This value might have side effects
+
+Home (const after eval) = (...) => module<https://esm.sh/preact/jsx-runtime, {}>["jsx"](
+    "button",
+    {"onClick": *arrow function 362*, "children": "Click me"}
+)
+
+cb = arguments[0]
+
+helloWorld = module<react, {}>["useMemo"](*arrow function 276*, [])

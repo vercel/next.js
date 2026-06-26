@@ -1,0 +1,178 @@
+use std::io::Write;
+
+use anyhow::Result;
+use turbo_rcstr::rcstr;
+use turbo_tasks::{ResolvedVc, ValueToString, Vc};
+use turbo_tasks_fs::{FileSystem, VirtualFileSystem, rope::RopeBuilder};
+use turbopack_core::{
+    asset::{Asset, AssetContent},
+    chunk::{
+        AsyncModuleInfo, ChunkItem, ChunkableModule, ChunkingContext, ChunkingType,
+        EvaluatableAsset,
+    },
+    ident::AssetIdent,
+    module::{Module, ModuleSideEffects},
+    module_graph::ModuleGraph,
+    reference::{ModuleReference, ModuleReferences},
+    resolve::ModuleResolveResult,
+    source::OptionSource,
+};
+use turbopack_ecmascript::{
+    chunk::{
+        EcmascriptChunkItemContent, EcmascriptChunkItemOptions, EcmascriptChunkPlaceable,
+        EcmascriptExports, ecmascript_chunk_item,
+    },
+    runtime_functions::TURBOPACK_REQUIRE,
+    utils::StringifyJs,
+};
+
+/// Each entry point in the HMR system has an ident with a different nested asset.
+/// This produces the 'base' ident for the HMR entry point, which is then modified
+#[turbo_tasks::function]
+async fn hmr_entry_point_base_ident() -> Result<Vc<AssetIdent>> {
+    Ok(AssetIdent::from_path(
+        VirtualFileSystem::new_with_name(rcstr!("hmr-entry"))
+            .root()
+            .await?
+            .join("hmr-entry.js")?,
+    )
+    .into_vc())
+}
+
+#[turbo_tasks::value(shared)]
+pub struct HmrEntryModule {
+    pub ident: ResolvedVc<AssetIdent>,
+    pub module: ResolvedVc<Box<dyn ChunkableModule>>,
+}
+
+#[turbo_tasks::value_impl]
+impl HmrEntryModule {
+    #[turbo_tasks::function]
+    pub fn new(
+        ident: ResolvedVc<AssetIdent>,
+        module: ResolvedVc<Box<dyn ChunkableModule>>,
+    ) -> Vc<Self> {
+        Self { ident, module }.cell()
+    }
+}
+
+#[turbo_tasks::value_impl]
+impl Module for HmrEntryModule {
+    #[turbo_tasks::function]
+    async fn ident(&self) -> Result<Vc<AssetIdent>> {
+        Ok(hmr_entry_point_base_ident()
+            .owned()
+            .await?
+            .with_asset(rcstr!("ENTRY"), self.ident)
+            .into_vc())
+    }
+
+    #[turbo_tasks::function]
+    fn source(&self) -> Vc<OptionSource> {
+        Vc::cell(None)
+    }
+
+    #[turbo_tasks::function]
+    async fn references(&self) -> Result<Vc<ModuleReferences>> {
+        Ok(Vc::cell(vec![ResolvedVc::upcast(
+            HmrEntryModuleReference::new(Vc::upcast(*self.module))
+                .to_resolved()
+                .await?,
+        )]))
+    }
+    #[turbo_tasks::function]
+    fn side_effects(self: Vc<Self>) -> Vc<ModuleSideEffects> {
+        ModuleSideEffects::SideEffectful.cell()
+    }
+}
+
+#[turbo_tasks::value_impl]
+impl ChunkableModule for HmrEntryModule {
+    #[turbo_tasks::function]
+    fn as_chunk_item(
+        self: ResolvedVc<Self>,
+        module_graph: ResolvedVc<ModuleGraph>,
+        chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
+    ) -> Vc<Box<dyn ChunkItem>> {
+        ecmascript_chunk_item(ResolvedVc::upcast(self), module_graph, chunking_context)
+    }
+}
+
+#[turbo_tasks::value_impl]
+impl Asset for HmrEntryModule {
+    #[turbo_tasks::function]
+    fn content(self: Vc<Self>) -> Vc<AssetContent> {
+        todo!("HmrEntryModule doesn't implement content()")
+    }
+}
+
+#[turbo_tasks::value_impl]
+impl EcmascriptChunkPlaceable for HmrEntryModule {
+    #[turbo_tasks::function]
+    fn get_exports(self: Vc<Self>) -> Vc<EcmascriptExports> {
+        EcmascriptExports::None.cell()
+    }
+
+    #[turbo_tasks::function]
+    async fn chunk_item_content(
+        self: Vc<Self>,
+        chunking_context: Vc<Box<dyn ChunkingContext>>,
+        module_graph: Vc<ModuleGraph>,
+        _async_module_info: Option<Vc<AsyncModuleInfo>>,
+        _estimated: bool,
+    ) -> Result<Vc<EcmascriptChunkItemContent>> {
+        let this = self.await?;
+        let module = this.module;
+        let chunk_item = module.as_chunk_item(module_graph, chunking_context);
+        let id = chunking_context
+            .chunk_item_id_strategy()
+            .await?
+            .get_id(chunk_item)
+            .await?;
+
+        let mut code = RopeBuilder::default();
+        writeln!(code, "{TURBOPACK_REQUIRE}({});", StringifyJs(&id))?;
+        Ok(EcmascriptChunkItemContent {
+            inner_code: code.build(),
+            options: EcmascriptChunkItemOptions {
+                strict: true,
+                ..Default::default()
+            },
+            ..Default::default()
+        }
+        .cell())
+    }
+}
+
+#[turbo_tasks::value_impl]
+impl EvaluatableAsset for HmrEntryModule {}
+
+#[turbo_tasks::value]
+#[derive(ValueToString)]
+#[value_to_string("entry")]
+pub struct HmrEntryModuleReference {
+    pub module: ResolvedVc<Box<dyn Module>>,
+}
+
+#[turbo_tasks::value_impl]
+impl HmrEntryModuleReference {
+    #[turbo_tasks::function]
+    pub fn new(module: ResolvedVc<Box<dyn Module>>) -> Vc<Self> {
+        HmrEntryModuleReference { module }.cell()
+    }
+}
+
+#[turbo_tasks::value_impl]
+impl ModuleReference for HmrEntryModuleReference {
+    #[turbo_tasks::function]
+    fn resolve_reference(&self) -> Vc<ModuleResolveResult> {
+        *ModuleResolveResult::module(self.module)
+    }
+
+    fn chunking_type(&self) -> Option<ChunkingType> {
+        Some(ChunkingType::Parallel {
+            inherit_async: false,
+            hoisted: false,
+        })
+    }
+}

@@ -1,0 +1,5 @@
+error: methods taking `self` are not supported with `operation`
+  --> tests/function/fail_operation_method_self_ref.rs:14:17
+   |
+14 |     fn self_ref(&self) -> Vc<()> {
+   |                 ^^^^^

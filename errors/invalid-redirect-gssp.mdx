@@ -1,0 +1,70 @@
+---
+title: 'Invalid Redirect `getStaticProps` / `getServerSideProps`'
+---
+
+## Why This Error Occurred
+
+The `redirect` value returned from your `getStaticProps` or `getServerSideProps` function had invalid values.
+
+## Possible Ways to Fix It
+
+Make sure you return the proper values for the `redirect` value.
+
+```tsx filename="pages/index.tsx" switcher
+import type { InferGetStaticPropsType, GetStaticProps } from 'next'
+
+type Repo = {
+  name: string
+  stargazers_count: number
+}
+
+export const getStaticProps = (async (context) => {
+  const res = await fetch('https://api.github.com/repos/vercel/next.js')
+  const repo = await res.json()
+
+  if (!repo) {
+    return {
+      redirect: {
+        permanent: false, // or true
+        destination: '/404',
+      },
+    }
+  }
+
+  return { props: { repo } }
+}) satisfies GetStaticProps<{
+  repo: Repo
+}>
+
+export default function Page({
+  repo,
+}: InferGetStaticPropsType<typeof getStaticProps>) {
+  return repo.stargazers_count
+}
+```
+
+```jsx filename="pages/index.js" switcher
+export async function getStaticPaths() {
+  const res = await fetch('https://api.github.com/repos/vercel/next.js')
+  const repo = await res.json()
+
+  if (!repo) {
+    return {
+      redirect: {
+        permanent: false, // or true
+        destination: '/404',
+      },
+    }
+  }
+
+  return { props: { repo } }
+}
+
+export default function Page({ repo }) {
+  return repo.stargazers_count
+}
+```
+
+## Useful Links
+
+- [Data Fetching Documentation](/docs/pages/building-your-application/data-fetching/get-static-props)

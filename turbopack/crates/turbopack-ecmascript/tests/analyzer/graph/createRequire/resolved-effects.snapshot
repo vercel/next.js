@@ -1,0 +1,52 @@
+0 -> 1 free var = FreeVar(require)
+
+0 -> 2 call = require*0*("module")
+- *0* require: The require method from CommonJS
+
+0 -> 7 member call = module*0*["createRequire"](import.meta*1*["url"])
+- *0* module: The Node.js `module` module: https://nodejs.org/api/module.html
+- *1* import.meta: The import.meta object
+
+0 -> 8 call = require*0*("./file1")
+- *0* require: The require method from CommonJS
+
+0 -> 12 member call = module*0*["createRequire"](import.meta*1*["url"])
+- *0* module: The Node.js `module` module: https://nodejs.org/api/module.html
+- *1* import.meta: The import.meta object
+
+0 -> 13 call = require*0*("./file2")
+- *0* require: The require method from CommonJS
+
+0 -> 15 free var = FreeVar(__filename)
+
+0 -> 16 member call = module*0*["createRequire"]("__filename")
+- *0* module: The Node.js `module` module: https://nodejs.org/api/module.html
+
+0 -> 17 call = ???*0*("./file3")
+- *0* module.createRequire*1*("__filename")
+  ⚠️  createRequire() non constant
+  ⚠️  This value might have side effects
+- *1* module.createRequire: The Node.js module.createRequire method: https://nodejs.org/api/module.html#modulecreaterequirefilename
+
+0 -> 20 free var = FreeVar(globalThis)
+
+0 -> 21 member call = module*0*["createRequire"](???*1*)
+- *0* module: The Node.js `module` module: https://nodejs.org/api/module.html
+- *1* ???*2*["foo"]
+  ⚠️  unknown object
+  ⚠️  This value might have side effects
+- *2* FreeVar(globalThis)
+  ⚠️  unknown global
+  ⚠️  This value might have side effects
+
+0 -> 22 call = ???*0*("./file4")
+- *0* module.createRequire*1*(???*2*)
+  ⚠️  createRequire() non constant
+  ⚠️  This value might have side effects
+- *1* module.createRequire: The Node.js module.createRequire method: https://nodejs.org/api/module.html#modulecreaterequirefilename
+- *2* ???*3*["foo"]
+  ⚠️  unknown object
+  ⚠️  This value might have side effects
+- *3* FreeVar(globalThis)
+  ⚠️  unknown global
+  ⚠️  This value might have side effects

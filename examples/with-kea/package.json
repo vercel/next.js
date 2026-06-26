@@ -1,0 +1,36 @@
+{
+  "private": true,
+  "scripts": {
+    "dev": "next",
+    "build": "next build",
+    "start": "next start"
+  },
+  "dependencies": {
+    "kea": "^0.28.4",
+    "next": "latest",
+    "next-redux-wrapper": "^2.0.0",
+    "prop-types": "^15.6.0",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "react-redux": "^5.0.6",
+    "redux": "^4.0.0",
+    "reselect": "^3.0.1"
+  },
+  "devDependencies": {
+    "@babel/core": "7.22.5",
+    "@babel/plugin-proposal-decorators": "7.22.5"
+  },
+  "babel": {
+    "presets": [
+      "next/babel"
+    ],
+    "plugins": [
+      [
+        "@babel/plugin-proposal-decorators",
+        {
+          "legacy": true
+        }
+      ]
+    ]
+  }
+}

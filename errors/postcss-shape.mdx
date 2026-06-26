@@ -1,0 +1,131 @@
+---
+title: Invalid PostCSS Configuration
+---
+
+## Why This Error Occurred
+
+PostCSS configuration was provided in an unsupported shape.
+
+## Possible Ways to Fix It
+
+PostCSS configuration must be defined in the following shape:
+
+```js filename="postcss.config.js"
+module.exports = {
+  plugins: [
+    // A plugin that does not require configuration:
+    'simple-plugin-example',
+
+    // A plugin which needs a configuration object:
+    [
+      'plugin-with-configuration',
+      {
+        optionA: '...',
+      },
+    ],
+
+    // A plugin that is toggled on or off based on environment:
+    [
+      'plugin-toggled',
+      process.env.NODE_ENV === 'production'
+        ? {
+            optionA: '...',
+          }
+        : false,
+    ],
+
+    // Boolean expressions are also valid.
+    // `true` enables the plugin, `false` disables the plugin:
+    ['plugin-toggled-2', true /* a === b, etc */],
+  ],
+}
+```
+
+You can [read more about configuring PostCSS in Next.js here](/docs/pages/guides/post-css).
+
+### Common Errors
+
+**Before: plugin is require()'d**
+
+```js filename="postcss.config.js"
+const pluginA = require('postcss-plugin-a')
+module.exports = {
+  plugins: [require('postcss-plugin'), pluginA],
+}
+```
+
+**After**
+
+```js filename="postcss.config.js"
+module.exports = {
+  plugins: ['postcss-plugin', 'postcss-plugin-a'],
+}
+```
+
+---
+
+**Before: plugin is instantiated with configuration**
+
+```js filename="postcss.config.js"
+module.exports = {
+  plugins: [
+    require('postcss-plugin')({
+      optionA: '...',
+    }),
+  ],
+}
+```
+
+**After**
+
+```js filename="postcss.config.js"
+module.exports = {
+  plugins: [
+    // Pay attention to this nested array. The first index is the plugin name,
+    // the second index is the configuration.
+    [
+      'postcss-plugin',
+      {
+        optionA: '...',
+      },
+    ],
+  ],
+}
+```
+
+---
+
+**Before: plugin is missing configuration**
+
+```js filename="postcss.config.js"
+module.exports = {
+  plugins: [
+    [
+      'postcss-plugin-1',
+      {
+        optionA: '...',
+      },
+    ],
+    // This single-entry array is detected as misconfigured because it's
+    // missing the second element. To fix, unwrap the value.
+    ['postcss-plugin-2'],
+  ],
+}
+```
+
+**After**
+
+```js filename="postcss.config.js"
+module.exports = {
+  plugins: [
+    [
+      'postcss-plugin-1',
+      {
+        optionA: '...',
+      },
+    ],
+    // Only string:
+    'postcss-plugin-2',
+  ],
+}
+```

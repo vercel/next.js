@@ -1,0 +1,111 @@
+.segment-boundary-trigger {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 6px;
+  line-height: 16px;
+  font-weight: 500;
+  color: var(--color-gray-1000);
+  border-radius: 999px;
+  border: none;
+  font-size: var(--size-12);
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+
+.segment-boundary-trigger-text {
+  font-size: var(--size-12);
+  font-weight: 500;
+  user-select: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.segment-boundary-trigger-text .plus-icon {
+  transition: transform 0.25s ease;
+}
+
+.segment-boundary-trigger-text:hover .plus-icon {
+  color: var(--color-gray-800);
+}
+
+.segment-boundary-trigger svg {
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+  vertical-align: middle;
+}
+
+.segment-boundary-trigger:hover svg {
+  color: var(--color-gray-700);
+}
+
+.segment-boundary-trigger[disabled] svg,
+.segment-boundary-trigger[disabled]:hover svg {
+  color: var(--color-gray-400);
+  cursor: not-allowed;
+}
+
+.segment-boundary-dropdown {
+  padding: 8px;
+  background: var(--color-background-100);
+  border: 1px solid var(--color-gray-400);
+  border-radius: 16px;
+  min-width: 120px;
+  user-select: none;
+  cursor: default;
+  box-shadow: 0px 4px 8px -4px
+    color-mix(in srgb, var(--color-gray-900) 4%, transparent);
+}
+
+.segment-boundary-dropdown-positioner {
+  z-index: var(--top-z-index);
+}
+
+.segment-boundary-dropdown-item {
+  display: flex;
+  align-items: center;
+  padding: 8px;
+  line-height: 20px;
+  font-size: 14px;
+  border-radius: 6px;
+  color: var(--color-gray-1000);
+  cursor: pointer;
+  min-width: 220px;
+  border: none;
+  background: none;
+  width: 100%;
+}
+
+.segment-boundary-dropdown-item[data-disabled] {
+  color: var(--color-gray-400);
+  cursor: not-allowed;
+}
+
+.segment-boundary-dropdown-item svg {
+  margin-right: 12px;
+  color: currentColor;
+}
+
+.segment-boundary-dropdown-item:hover {
+  background: var(--color-gray-200);
+}
+
+.segment-boundary-dropdown-item:first-child {
+  border-top-left-radius: 4px;
+  border-top-right-radius: 4px;
+}
+
+.segment-boundary-dropdown-item:last-child {
+  border-bottom-left-radius: 4px;
+  border-bottom-right-radius: 4px;
+}
+
+.segment-boundary-group-label {
+  padding: 8px;
+  font-size: 13px;
+  line-height: 16px;
+  font-weight: 400;
+  color: var(--color-gray-900);
+}

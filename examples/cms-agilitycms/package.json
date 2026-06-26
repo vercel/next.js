@@ -1,0 +1,28 @@
+{
+  "private": true,
+  "scripts": {
+    "dev": "next",
+    "build": "next build",
+    "start": "next start"
+  },
+  "dependencies": {
+    "@agility/content-fetch": "^1.1.5",
+    "classnames": "^2.3.1",
+    "date-fns": "^2.29.1",
+    "isomorphic-unfetch": "^3.1.0",
+    "next": "latest",
+    "react": "^18.2.0",
+    "react-datocms": "^3.0.15",
+    "react-dom": "^18.2.0",
+    "react-intersection-observer": "^9.4.0"
+  },
+  "devDependencies": {
+    "@types/node": "^18.6.0",
+    "@types/react": "^18.0.15",
+    "@types/react-dom": "^18.0.6",
+    "autoprefixer": "^10.4.7",
+    "postcss": "^8.4.14",
+    "tailwindcss": "^3.1.6",
+    "typescript": "^4.7.4"
+  }
+}

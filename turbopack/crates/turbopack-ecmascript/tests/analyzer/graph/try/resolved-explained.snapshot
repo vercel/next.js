@@ -1,0 +1,7 @@
+e = ???*0*
+- *0* e
+  ⚠️  pattern without value
+
+pkg = (???*0* | module<packages/not-found, {}> | module<packages/found, {}>)
+- *0* pkg
+  ⚠️  pattern without value

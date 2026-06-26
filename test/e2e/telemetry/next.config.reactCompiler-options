@@ -1,0 +1,6 @@
+module.exports = {
+  reactCompiler: {
+    compilationMode: 'annotation',
+    panicThreshold: 'critical_errors'
+  }
+}

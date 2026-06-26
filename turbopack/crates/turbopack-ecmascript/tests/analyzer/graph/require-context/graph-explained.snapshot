@@ -1,0 +1,9 @@
+a (const after eval) = context["resolve"]("./a")
+
+context (const after eval) = FreeVar(require)["context"]("./test", false, /\.test\.js$/)
+
+importAll (const after eval) = (...) => r["keys"]()["map"](r)
+
+items (const after eval) = importAll(context)
+
+r = arguments[0]
