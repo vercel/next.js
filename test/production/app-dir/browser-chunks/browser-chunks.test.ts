@@ -35,6 +35,7 @@ describe('browser-chunks', () => {
         /webpack:\/\/_N_E\/(\.\.\/)*src\/server\//.test(source) ||
         source.includes('next/dist/esm/server') ||
         source.includes('next/dist/server') ||
+        source.includes('next/src/server') ||
         source.includes('next-devtools/server')
     )
 
