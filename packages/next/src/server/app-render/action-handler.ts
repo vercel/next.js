@@ -818,11 +818,18 @@ export async function handleAction({
               edgeChunks.push(value)
             }
             // Reconstruct a Blob from the buffered chunks and parse formData from it.
-            const edgeBodyBlob = new Blob(edgeChunks as BlobPart[], {
-              type: req.headers['content-type'] ?? '',
-            })
+            // Note: we must pass the original Content-Type as an explicit header
+            // rather than relying on the Blob's `type`. The Blob constructor
+            // normalizes `type` to ASCII lowercase per the File API spec, which
+            // would lowercase the multipart boundary parameter (e.g.
+            // `boundary=----WebKitFormBoundaryAbCdEf`). The body bytes contain the
+            // original mixed-case boundary delimiter, so a lowercased boundary
+            // would fail to match and `formData()` would throw. An explicit header
+            // on the Request takes precedence over the Blob's normalized type.
+            const edgeBodyBlob = new Blob(edgeChunks as BlobPart[])
             const formData = await new Request('http://n/', {
               method: 'POST',
+              headers: { 'content-type': req.headers['content-type'] ?? '' },
               body: edgeBodyBlob,
             }).formData()
             if (isFetchAction) {
