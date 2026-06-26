@@ -1,0 +1,42 @@
+---
+title: supportsImmutableAssets
+description: Enable Immutable Static Assets support
+---
+
+> **Attention**: This flag is mostly relevant for adapter authors.
+> Users of Next.js should only set this flag if they are encountering issues with their adapter.
+>
+> **Enabling this feature even though your provider/adapter does not support it may result in broken deployments.**
+
+Enabling skew protection means that all static assets are requested with a deployment-specific query parameter, e.g.
+
+```plain
+GET https://foo.com/_next/static/chunks/0d_ks0ow7ur6m.js?dpl=<unique-deployment-id>
+```
+
+One downside of this is that browsers have to download even unchanged static assets again after a new deployment.
+
+Immutable static assets is a feature that enables omitting the `?dpl` query parameter for static assets that are guaranteed to be immutable and content-addressed by their filename, allowing browsers to cache them indefinitely. It also enables not uploading unchanged static assets again after a new deployment:
+
+```plain
+GET https://foo.com/_next/static/immutable/chunks/0d_ks0ow7ur6m.js
+```
+
+You can use this config option to opt out of immutable static assets (when your adapter enabled it, otherwise this has no effect):
+
+```js filename="next.config.js"
+/** @type {import('next').NextConfig} */
+const nextConfig = {
+  supportsImmutableAssets: false,
+}
+
+module.exports = nextConfig
+```
+
+See [Supporting immutable static assets](/docs/app/api-reference/adapters/immutable-static-assets) for more information on how to support this feature in an adapter.
+
+## Version History
+
+| Version   | Changes                                                |
+| --------- | ------------------------------------------------------ |
+| `v16.3.0` | Support for immutable static assets feature was added. |
