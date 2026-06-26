@@ -18,4 +18,19 @@ describe('pages-405', () => {
     })
     expect(res.status).toBe(200)
   })
+
+  it('should not return 405 for POST request to a page using getInitialProps', async () => {
+    const res = await next.fetch('/gip', {
+      method: 'POST',
+    })
+    expect(res.status).toBe(200)
+    expect(await res.text()).toContain('POST')
+  })
+
+  it('should return 405 for POST request to a getStaticProps page', async () => {
+    const res = await next.fetch('/ssg', {
+      method: 'POST',
+    })
+    expect(res.status).toBe(405)
+  })
 })
