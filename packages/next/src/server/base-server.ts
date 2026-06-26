@@ -1127,10 +1127,24 @@ export default abstract class Server<
             // The resume body can arrive compressed (e.g. `gzip` behind a
             // proxy). Decode it honoring `Content-Encoding`; reading the raw
             // bytes as UTF-8 would yield an invalid postponed state.
-            const postponed = decodePostponedRequestBody(
-              body,
-              req.headers['content-encoding']
-            )
+            // Decompression is bounded by the postponed-state size limit so a
+            // small payload cannot expand to unbounded memory.
+            let postponed: string
+            try {
+              postponed = decodePostponedRequestBody(
+                body,
+                req.headers['content-encoding'],
+                maxPostponedStateSizeBytes
+              )
+            } catch {
+              res.statusCode = 413
+              res
+                .body(
+                  getPostponedStateExceededErrorMessage(maxPostponedStateSize)
+                )
+                .send()
+              return
+            }
 
             addRequestMeta(req, 'postponed', postponed)
           }

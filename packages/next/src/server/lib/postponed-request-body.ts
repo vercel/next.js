@@ -71,10 +71,15 @@ export async function readBodyWithSizeLimit(
  * magic number is also detected: a valid serialized postponed state always
  * begins with `<len>:` (an ASCII digit or `:`, `0x30`–`0x3a`), so a leading
  * `0x1f 0x8b` is unambiguous and safe to decompress.
+ *
+ * Decompression is bounded by `maxOutputLength` (the same postponed-state size
+ * limit applied to the raw body) so a small compressed payload cannot expand to
+ * an unbounded amount of memory; zlib throws `ERR_BUFFER_TOO_LARGE` if exceeded.
  */
 export function decodePostponedRequestBody(
   body: Buffer,
-  contentEncoding: string | string[] | undefined
+  contentEncoding: string | string[] | undefined,
+  maxOutputLength: number
 ): string {
   const { gunzipSync, brotliDecompressSync, inflateSync } =
     require('node:zlib') as typeof import('node:zlib')
@@ -85,17 +90,17 @@ export function decodePostponedRequestBody(
 
   switch (encoding) {
     case 'gzip':
-      return gunzipSync(body).toString('utf8')
+      return gunzipSync(body, { maxOutputLength }).toString('utf8')
     case 'br':
-      return brotliDecompressSync(body).toString('utf8')
+      return brotliDecompressSync(body, { maxOutputLength }).toString('utf8')
     case 'deflate':
-      return inflateSync(body).toString('utf8')
+      return inflateSync(body, { maxOutputLength }).toString('utf8')
     default:
       break
   }
 
   if (body.length >= 2 && body[0] === 0x1f && body[1] === 0x8b) {
-    return gunzipSync(body).toString('utf8')
+    return gunzipSync(body, { maxOutputLength }).toString('utf8')
   }
 
   return body.toString('utf8')
