@@ -3995,10 +3995,8 @@
     }
     function markOperationEndTime(request, task, timestamp) {
       (request.status === ABORTING && timestamp > request.abortTime) ||
-        (timestamp > task.time
-          ? (emitTimingChunk(request, task.id, timestamp),
-            (task.time = timestamp))
-          : emitTimingChunk(request, task.id, task.time));
+        (emitTimingChunk(request, task.id, timestamp),
+          timestamp > task.time && (task.time = timestamp));
     }
     function emitChunk(request, task, value) {
       var id = task.id;

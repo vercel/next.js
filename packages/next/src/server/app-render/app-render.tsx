@@ -291,6 +291,7 @@ import { ResponseCookies } from '../web/spec-extension/cookies'
 import { isInstantValidationError } from './instant-validation/instant-validation-error'
 import { createPromiseWithResolvers } from '../../shared/lib/promise-with-resolvers'
 import { RENDER_STAGES_BY_DATA_KIND } from '../dynamic-rendering-utils'
+import type { StageEndTimes } from './instant-validation/instant-validation'
 
 export type GetDynamicParamFromSegment = (
   // The LoaderTree to extract the dynamic param from
@@ -5626,6 +5627,10 @@ async function spawnStaticShellValidationInDevImpl(
       accumulatedChunks,
       debugChunks,
       startTime,
+      {
+        [RenderStage.Static]: staticStageEndTime,
+        [RenderStage.Runtime]: runtimeStageEndTime,
+      },
       rootParams,
       fallbackRouteParams,
       ctx,
@@ -5986,6 +5991,7 @@ async function validateInstantConfigs(
   accumulatedChunks: AccumulatedStreamChunks,
   debugChunks: null | Array<Uint8Array>,
   startTime: number,
+  endTimes: StageEndTimes,
   rootParams: Params,
   fallbackRouteParams: OpaqueFallbackRouteParams | null,
   ctx: AppRenderContext,
@@ -6022,11 +6028,7 @@ async function validateInstantConfigs(
     ? createNodeDebugChannel
     : createWebDebugChannel
 
-  const {
-    cache,
-    payload: initialRscPayload,
-    stageEndTimes,
-  } = await collectStagedSegmentData(
+  const { cache, payload: initialRscPayload } = await collectStagedSegmentData(
     ctx.componentMod,
     renderFlightStream,
     {
@@ -6079,7 +6081,7 @@ async function validateInstantConfigs(
       extraChunksController.signal,
       boundaryState,
       clientReferenceManifest,
-      stageEndTimes,
+      endTimes,
       useRuntimeStageForPartialSegments
     )
 
@@ -6147,7 +6149,7 @@ async function validateInstantConfigs(
             <App
               reactServerStream={serverStream}
               reactDebugStream={debugStream ?? undefined}
-              debugEndTime={undefined}
+              debugEndTime={payloadResult.endTime}
               preinitScripts={preinitScripts}
               ServerInsertedHTMLProvider={ServerInsertedHTMLProvider}
               nonce={nonce}
@@ -7029,6 +7031,14 @@ async function validateInstantConfigInBuildWithSample(
       accumulatedChunks,
       debugChunks,
       startTime,
+      {
+        [RenderStage.Static]: stageController.getStageEndTime(
+          RenderStage.Static
+        ),
+        [RenderStage.Runtime]: stageController.getStageEndTime(
+          RenderStage.Runtime
+        ),
+      },
       sampleRootParams,
       fallbackRouteParams,
       validationCtx,
