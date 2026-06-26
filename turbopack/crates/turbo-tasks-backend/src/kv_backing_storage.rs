@@ -8,6 +8,7 @@ use std::{
 use anyhow::{Context, Result};
 use smallvec::SmallVec;
 use turbo_bincode::{new_turbo_bincode_decoder, turbo_bincode_decode, turbo_bincode_encode};
+use turbo_persistence::CommitStats;
 use turbo_tasks::{
     DynTaskInputs, RawVc, TaskId,
     macro_helpers::NativeFunction,
@@ -236,7 +237,7 @@ impl TurboBackingStorage {
 
         {
             let _span = tracing::trace_span!("update task data").entered();
-            let snapshot_meta =
+            let mut snapshot_meta =
                 parallel::map_collect_owned::<_, _, Result<Vec<_>>>(snapshots, |shard: I| {
                     let mut max_new_task_id = 0;
                     let mut data_items = 0;
@@ -282,6 +283,10 @@ impl TurboBackingStorage {
                         data_items,
                         meta_items,
                         task_cache_items,
+                        // The on-disk byte totals aren't known until the batch is committed below;
+                        // they're filled in from `CommitStats` after `batch.commit()`.
+                        bytes_written: 0,
+                        bytes_deleted: 0,
                         max_next_task_id: max_new_task_id,
                     })
                 })?
@@ -306,7 +311,11 @@ impl TurboBackingStorage {
             save_infra(&batch, next_task_id, operations)?;
             {
                 let _span = tracing::trace_span!("commit").entered();
-                batch.commit().context("Unable to commit operations")?;
+                // Byte totals are the physical on-disk bytes (post-compression, including .sst /
+                // .blob / .meta files) produced and removed by the commit.
+                let stats = batch.commit().context("Unable to commit operations")?;
+                snapshot_meta.bytes_written = stats.bytes_written;
+                snapshot_meta.bytes_deleted = stats.bytes_deleted;
             }
             Ok(snapshot_meta)
         }
@@ -395,7 +404,7 @@ impl TurboBackingStorage {
             .collect::<Result<Vec<_>>>()
     }
 
-    pub(crate) fn compact(&self) -> Result<bool> {
+    pub(crate) fn compact(&self) -> Result<Option<CommitStats>> {
         self.inner.database.compact()
     }
 

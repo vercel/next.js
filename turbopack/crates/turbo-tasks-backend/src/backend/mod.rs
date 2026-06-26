@@ -26,7 +26,7 @@ use parking_lot::Mutex;
 use rustc_hash::{FxHashMap, FxHashSet, FxHasher};
 use smallvec::{SmallVec, smallvec};
 use tokio::time::{Duration, Instant};
-use tracing::{Span, trace_span};
+use tracing::{Span, field::display, trace_span};
 use turbo_bincode::{TurboBincodeBuffer, new_turbo_bincode_decoder, new_turbo_bincode_encoder};
 use turbo_tasks::{
     CellId, DynTaskInputsStorage, RawVc, RawVcUnpacked, ReadCellOptions, ReadCellTracking,
@@ -68,7 +68,7 @@ use crate::{
         storage::Storage,
         storage_schema::{TaskStorage, TaskStorageAccessors},
     },
-    backing_storage::{SnapshotItem, SnapshotMeta, compute_task_type_hash},
+    backing_storage::{SnapshotItem, compute_task_type_hash},
     data::{
         ActivenessState, CellRef, CollectibleRef, CollectiblesRef, Dirtyness, InProgressCellState,
         InProgressState, InProgressStateInner, OutputValue, TransientTask,
@@ -1256,100 +1256,88 @@ impl TurboTasksBackend {
             parent: parent_span,
             "persist",
             reason = reason.as_str(),
-            data_items= tracing::field::Empty,
-            meta_items= tracing::field::Empty,
-            task_cache_items= tracing::field::Empty,
-            next_task_id= tracing::field::Empty,)
+            snapshot_meta = tracing::field::Empty,
+        )
         .entered();
+        // Tasks were already consumed by take_snapshot, so a future snapshot
+        // would not re-persist them — returning an error signals to the caller
+        // that further persist attempts would corrupt the task graph in storage.
+        let snapshot_meta = self
+            .backing_storage
+            .save_snapshot(suspended_operations, task_snapshots)?;
+        span.record("snapshot_meta", display(snapshot_meta));
+
+        #[cfg(feature = "print_cache_item_size")]
         {
-            // Tasks were already consumed by take_snapshot, so a future snapshot
-            // would not re-persist them — returning an error signals to the caller
-            // that further persist attempts would corrupt the task graph in storage.
-            let SnapshotMeta {
-                task_cache_items,
-                data_items,
-                meta_items,
-                max_next_task_id,
-            } = self
-                .backing_storage
-                .save_snapshot(suspended_operations, task_snapshots)?;
-            span.record("data_items", data_items);
-            span.record("meta_items", meta_items);
-            span.record("task_cache_items", task_cache_items);
-            span.record("next_task_id", max_next_task_id);
+            let mut task_cache_stats = task_cache_stats
+                .into_inner()
+                .into_iter()
+                .collect::<Vec<_>>();
+            if !task_cache_stats.is_empty() {
+                use turbo_tasks::util::FormatBytes;
 
-            #[cfg(feature = "print_cache_item_size")]
-            {
-                let mut task_cache_stats = task_cache_stats
-                    .into_inner()
-                    .into_iter()
-                    .collect::<Vec<_>>();
-                if !task_cache_stats.is_empty() {
-                    use turbo_tasks::util::FormatBytes;
+                use crate::utils::markdown_table::print_markdown_table;
 
-                    use crate::utils::markdown_table::print_markdown_table;
+                task_cache_stats.sort_unstable_by(|(key_a, stats_a), (key_b, stats_b)| {
+                    (stats_b.sort_key(), key_b).cmp(&(stats_a.sort_key(), key_a))
+                });
 
-                    task_cache_stats.sort_unstable_by(|(key_a, stats_a), (key_b, stats_b)| {
-                        (stats_b.sort_key(), key_b).cmp(&(stats_a.sort_key(), key_a))
-                    });
+                println!(
+                    "Task cache stats: {}",
+                    FormatSizes {
+                        size: task_cache_stats
+                            .iter()
+                            .map(|(_, s)| s.data + s.meta)
+                            .sum::<usize>(),
+                        #[cfg(feature = "print_cache_item_size_with_compressed")]
+                        compressed_size: task_cache_stats
+                            .iter()
+                            .map(|(_, s)| s.data_compressed + s.meta_compressed)
+                            .sum::<usize>()
+                    },
+                );
 
-                    println!(
-                        "Task cache stats: {}",
-                        FormatSizes {
-                            size: task_cache_stats
-                                .iter()
-                                .map(|(_, s)| s.data + s.meta)
-                                .sum::<usize>(),
-                            #[cfg(feature = "print_cache_item_size_with_compressed")]
-                            compressed_size: task_cache_stats
-                                .iter()
-                                .map(|(_, s)| s.data_compressed + s.meta_compressed)
-                                .sum::<usize>()
-                        },
-                    );
-
-                    print_markdown_table(
+                print_markdown_table(
+                    [
+                        "Task",
+                        " Total Size",
+                        " Data Size",
+                        " Data Count x Avg",
+                        " Data Count x Avg",
+                        " Meta Size",
+                        " Meta Count x Avg",
+                        " Meta Count x Avg",
+                        " Uppers",
+                        " Coll",
+                        " Agg Coll",
+                        " Children",
+                        " Followers",
+                        " Coll Deps",
+                        " Agg Dirty",
+                        " Output Size",
+                    ],
+                    task_cache_stats.iter(),
+                    |(task_desc, stats)| {
                         [
-                            "Task",
-                            " Total Size",
-                            " Data Size",
-                            " Data Count x Avg",
-                            " Data Count x Avg",
-                            " Meta Size",
-                            " Meta Count x Avg",
-                            " Meta Count x Avg",
-                            " Uppers",
-                            " Coll",
-                            " Agg Coll",
-                            " Children",
-                            " Followers",
-                            " Coll Deps",
-                            " Agg Dirty",
-                            " Output Size",
-                        ],
-                        task_cache_stats.iter(),
-                        |(task_desc, stats)| {
-                            [
-                                task_desc.to_string(),
-                                format!(" {}", stats.format_total()),
-                                format!(" {}", stats.format_data()),
-                                format!(" {} x", stats.data_count),
-                                format!("{}", stats.format_avg_data()),
-                                format!(" {}", stats.format_meta()),
-                                format!(" {} x", stats.meta_count),
-                                format!("{}", stats.format_avg_meta()),
-                                format!(" {}", stats.upper_count),
-                                format!(" {}", stats.collectibles_count),
-                                format!(" {}", stats.aggregated_collectibles_count),
-                                format!(" {}", stats.children_count),
-                                format!(" {}", stats.followers_count),
-                                format!(" {}", stats.collectibles_dependents_count),
-                                format!(" {}", stats.aggregated_dirty_containers_count),
-                                format!(" {}", FormatBytes(stats.output_size)),
-                            ]
-                        },
-                    );
-                }
+                            task_desc.to_string(),
+                            format!(" {}", stats.format_total()),
+                            format!(" {}", stats.format_data()),
+                            format!(" {} x", stats.data_count),
+                            format!("{}", stats.format_avg_data()),
+                            format!(" {}", stats.format_meta()),
+                            format!(" {} x", stats.meta_count),
+                            format!("{}", stats.format_avg_meta()),
+                            format!(" {}", stats.upper_count),
+                            format!(" {}", stats.collectibles_count),
+                            format!(" {}", stats.aggregated_collectibles_count),
+                            format!(" {}", stats.children_count),
+                            format!(" {}", stats.followers_count),
+                            format!(" {}", stats.collectibles_dependents_count),
+                            format!(" {}", stats.aggregated_dirty_containers_count),
+                            format!(" {}", FormatBytes(stats.output_size)),
+                        ]
+                    },
+                );
             }
         }
 
@@ -1374,18 +1362,20 @@ impl TurboTasksBackend {
             "turbopack-persistence",
             wall_start_ms,
             wall_end_ms,
-            vec![
-                ("reason", serde_json::Value::from(reason.as_str())),
-                (
+            serde_json::json!([
+                ["reason", reason.as_str()],
+                [
                     "snapshot_duration_ms",
-                    serde_json::Value::from(snapshot_duration.as_secs_f64() * 1000.0),
-                ),
-                (
+                    snapshot_duration.as_secs_f64() * 1000.0,
+                ],
+                [
                     "persist_duration_ms",
-                    serde_json::Value::from(persist_duration.as_secs_f64() * 1000.0),
-                ),
-                ("task_count", serde_json::Value::from(task_count)),
-            ],
+                    persist_duration.as_secs_f64() * 1000.0,
+                ],
+                ["task_count", task_count],
+                ["bytes_written", snapshot_meta.bytes_written,],
+                ["bytes_deleted", snapshot_meta.bytes_deleted,]
+            ]),
         )));
 
         Ok((snapshot_time, true))
@@ -2962,16 +2952,18 @@ impl TurboTasksBackend {
                                     // Enter the span only around the synchronous
                                     // compact() call so we never hold an
                                     // `EnteredSpan` across an await point.
-                                    let _compact_span = tracing::info_span!(
+                                    let compact_span = tracing::info_span!(
                                         parent: background_span.id(),
-                                        "compact database"
+                                        "compact database",
+                                        stats = tracing::field::Empty,
                                     )
                                     .entered();
                                     match self.backing_storage.compact() {
-                                        Ok(true) => {
+                                        Ok(Some(stats)) => {
+                                            compact_span.record("stats", display(stats));
                                             ran_compaction = true;
                                         }
-                                        Ok(false) => break,
+                                        Ok(None) => break,
                                         Err(err) => {
                                             eprintln!("Compaction failed: {err:?}");
                                             if self.backing_storage.has_unrecoverable_write_error()

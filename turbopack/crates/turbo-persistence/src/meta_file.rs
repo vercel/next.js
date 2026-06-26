@@ -379,6 +379,11 @@ impl MetaFile {
         self.family
     }
 
+    /// The on-disk size of this meta file in bytes (the length of its memory map).
+    pub fn byte_size(&self) -> u64 {
+        self.mmap.len() as u64
+    }
+
     pub fn entries(&self) -> &[MetaEntry] {
         &self.entries
     }
