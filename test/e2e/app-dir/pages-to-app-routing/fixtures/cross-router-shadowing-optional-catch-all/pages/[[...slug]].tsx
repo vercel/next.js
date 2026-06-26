@@ -21,7 +21,14 @@ export default function OptionalCatchall({ slug }: Props) {
     )
   }
 
-  return <h1 id="page-title">Pages Optional Catchall: {slug.join('/')}</h1>
+  return (
+    <>
+      <h1 id="page-title">Pages Optional Catchall: {slug.join('/')}</h1>
+      <Link id="to-home-link" href="/">
+        To Home
+      </Link>
+    </>
+  )
 }
 
 export async function getServerSideProps({

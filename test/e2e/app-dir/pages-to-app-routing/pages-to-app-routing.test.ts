@@ -38,19 +38,20 @@ describe('pages-to-app-routing', () => {
 // Regression test for https://github.com/vercel/next.js/issues/74696.
 //
 // Route structure:
+//
+// ```
 //   app/[locale]/about/page.tsx         -> App Router
 //   pages/[locale]/some-page/index.tsx  -> Pages Router (start page)
 //   pages/[locale]/[category]/index.tsx -> Pages Router (matches /en/about)
+// ```
 //
-// `/en/about` matches the App Router page `app/[locale]/about`, and it is also
-// matched by the Pages Router dynamic route `pages/[locale]/[category]`. The
-// server pools app and pages routes and ranks them by specificity, so the
-// static `about` segment beats the dynamic `[category]` and the App Router
-// page wins (the same way `some-page` beats `[category]`). A client-side
-// navigation from a Pages Router page must reach that same App Router page.
-// Client-side, the Pages Router ranks only its own routes, so `[category]`
-// shadows the app route; this test guards against that. A hard reload of the
-// same URL always renders the App Router page.
+// `/en/about` is served by the App Router page `app/[locale]/about` even though
+// the Pages Router dynamic route `pages/[locale]/[category]` also matches it:
+// the more specific static `about` segment wins, the same way `/en/some-page`
+// is served by `some-page` rather than `[category]`. A hard reload of
+// `/en/about` renders the App Router page. A client-side navigation to it from
+// a Pages Router page must reach that same App Router page, not the Pages
+// Router `[category]` route.
 //
 // All three pages expose a `#page-title` element with distinct text, so the
 // rendered route is asserted directly on that text.
@@ -107,9 +108,9 @@ describe('pages-to-app-routing with cross-router shadowing', () => {
       )
     }, 15000)
 
-    // `/en/products` is owned by the Pages Router `[category]` route, not an app
-    // route, so the shadow check must not hijack it: the navigation should stay
-    // in the Pages Router rather than hard-navigate.
+    // `/en/products` is owned by the Pages Router `[category]` route, not an
+    // app route, so this navigation must stay a client-side navigation within
+    // the Pages Router rather than hard-navigate.
     expect(await browser.elementByCss('#page-title').text()).toBe(
       'Pages Category: products (en)'
     )
@@ -118,10 +119,10 @@ describe('pages-to-app-routing with cross-router shadowing', () => {
 
 // The shadowing pages route can also be a catch-all. `/en` and `/en/about` are
 // App Router pages (`app/[lang]` and `app/[lang]/about`), but a Pages Router
-// catch-all matches them too. Because a catch-all absorbs a variable number of
-// segments, the matched route has fewer segments than the concrete path, which
-// the single-segment dynamic case does not exercise. The optional catch-all
-// (`[[...slug]]`) additionally owns `/`.
+// catch-all matches them too. A catch-all absorbs a variable number of
+// segments, so these variants exercise both a single-segment (`/en`) and a
+// multi-segment (`/en/about`) target. The optional catch-all (`[[...slug]]`)
+// additionally owns `/`.
 const catchAllVariants = [
   { label: 'catch-all', dir: 'cross-router-shadowing-catch-all' },
   {
@@ -180,9 +181,8 @@ for (const variant of catchAllVariants) {
   })
 }
 
-// Under `basePath`, the concrete path carries the prefix (`/base/en/about`) but
-// the filter stores app routes without it, so the check must strip the basePath
-// before reconstructing candidates. This guards that alignment.
+// The same cross-router navigation must still reach the App Router page when
+// the app is served under a `basePath`.
 describe('pages-to-app-routing with cross-router shadowing under basePath', () => {
   const { next } = nextTestSetup({
     files: join(__dirname, 'fixtures', 'cross-router-shadowing-basepath'),
@@ -209,4 +209,59 @@ describe('pages-to-app-routing with cross-router shadowing under basePath', () =
       'App About: en'
     )
   })
+})
+
+// A pages optional catch-all (`[[...slug]]`) owns `/` by absorbing zero
+// segments, but a root-level dynamic app route (`app/[lang]`) does not own `/`
+// (it requires one segment). Navigating to `/` from a Pages Router page must
+// therefore stay a client-side navigation and must not hard-navigate to the App
+// Router. The page renders correctly either way (the server owns `/`), so the
+// hard navigation is detected from the document request rather than the
+// rendered text.
+describe('pages-to-app-routing with a pages optional catch-all owning the root', () => {
+  const { next, isNextDev } = nextTestSetup({
+    files: join(
+      __dirname,
+      'fixtures',
+      'cross-router-shadowing-optional-catch-all'
+    ),
+  })
+
+  // Production only: in dev, navigating to the optional catch-all index `/`
+  // always hard-navigates because its data response 404s and the Pages Router
+  // falls back to a full reload, which would mask what this test verifies. That
+  // dev-only 404 is a separate pre-existing issue.
+  const skipInDev = isNextDev ? it.skip : it
+
+  skipInDev(
+    'should client-navigate to the root without a hard navigation',
+    async () => {
+      // A two-segment path no app route matches, so it is owned by the pages
+      // optional catch-all (a one-segment path like `/start` would be the app
+      // `/[lang]` route instead).
+      const browser = await next.browser('/start/here')
+      // eslint-disable-next-line jest/no-standalone-expect
+      expect(await browser.elementByCss('#page-title').text()).toBe(
+        'Pages Optional Catchall: start/here'
+      )
+
+      let didHardNavigateToRoot = false
+      browser.on('request', (req) => {
+        if (req.isNavigationRequest() && new URL(req.url()).pathname === '/') {
+          didHardNavigateToRoot = true
+        }
+      })
+
+      await browser.elementByCss('#to-home-link').click()
+
+      await retry(async () => {
+        expect(await browser.elementByCss('#page-title').text()).toBe(
+          'Pages Home'
+        )
+      }, 15000)
+
+      // eslint-disable-next-line jest/no-standalone-expect
+      expect(didHardNavigateToRoot).toBe(false)
+    }
+  )
 })

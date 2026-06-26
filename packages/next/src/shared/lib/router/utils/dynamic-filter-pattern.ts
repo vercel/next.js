@@ -61,6 +61,14 @@ export function hasDynamicFilterCandidate(
   // by the trailing catch-all).
   const dynamicIndices: number[] = []
   for (let i = 1; i < concreteSegments.length; i++) {
+    // An empty concrete segment is not a real path segment (splitting `/`
+    // yields a trailing `''`). A trailing optional catch-all matches it by
+    // absorbing nothing, so it must not be treated as a dynamic position:
+    // otherwise `/` would reconstruct the `/[]` candidate and spuriously match
+    // a root-level dynamic app route such as `/[lang]`, which does not own `/`.
+    if (concreteSegments[i] === '') {
+      continue
+    }
     const routeSegment = routeSegments[i]
     const isStaticSegment =
       routeSegment !== undefined && !routeSegment.startsWith('[')
