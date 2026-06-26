@@ -3,11 +3,29 @@ title: Next.js encountered the unstable value crypto.randomUUID() in a Client Co
 kind: insight
 ---
 
-A [Client Component](/docs/app/getting-started/server-and-client-components#using-client-components) called a synchronous [Web Crypto](https://developer.mozilla.org/en-US/docs/Web/API/Crypto) API that produces a random value ([`crypto.randomUUID()`](https://developer.mozilla.org/en-US/docs/Web/API/Crypto/randomUUID), [`crypto.getRandomValues()`](https://developer.mozilla.org/en-US/docs/Web/API/Crypto/getRandomValues)) inline during render, and the surrounding tree had no [`<Suspense>`](https://react.dev/reference/react/Suspense) boundary. Client Components are server-side rendered on first load, so Next.js can't bake an unpredictable value into the prerendered HTML. The SSR value won't match the value the client computes on hydration, so you need to choose: defer the value behind a [`<Suspense>`](https://react.dev/reference/react/Suspense) boundary so SSR can stream it, or move the call into [`useEffect`](https://react.dev/reference/react/useEffect) (or an event handler) so it only runs on the client.
+<div
+  style={{
+    padding: '1.25rem 1.5rem',
+    border: '1px solid var(--ds-gray-400)',
+    borderRadius: '12px',
+    background: 'var(--ds-background-200)',
+    margin: '1.5rem 0 2rem',
+    fontSize: '0.95rem',
+    lineHeight: '1.6',
+  }}
+>
+  This Insight is part of the [Instant
+  Navigations](https://nextjs.org/blog/next-16-3-instant-navigations) feature
+  introduced in Next.js 16.3. If you're new to it, start with the [Ensuring
+  instant
+  navigations](https://preview.nextjs.org/docs/app/guides/instant-navigation)
+  guide for an overview of what instant navigations are and how Next.js
+  validates them, then come back here for the specific fix.
+</div>
 
-The Server Component case is handled at [Crypto APIs during prerendering](/docs/messages/blocking-prerender-crypto). Other unpredictable client-side APIs ([`Math.random()`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Math/random), [`Date.now()`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Date/now)) have parallel error pages: [`Math.random()` in a Client Component](/docs/messages/blocking-prerender-random-client) and [`Date.now()` in a Client Component](/docs/messages/blocking-prerender-current-time-client).
+A [Client Component](https://preview.nextjs.org/docs/app/getting-started/server-and-client-components#using-client-components) called a synchronous [Web Crypto](https://developer.mozilla.org/en-US/docs/Web/API/Crypto) API that produces a random value ([`crypto.randomUUID()`](https://developer.mozilla.org/en-US/docs/Web/API/Crypto/randomUUID), [`crypto.getRandomValues()`](https://developer.mozilla.org/en-US/docs/Web/API/Crypto/getRandomValues)) inline during render, and the surrounding tree had no [`<Suspense>`](https://react.dev/reference/react/Suspense) boundary. Client Components are server-side rendered on first load, so Next.js can't bake an unpredictable value into the prerendered HTML. The SSR value won't match the value the client computes on hydration, so you need to choose: defer the value behind a [`<Suspense>`](https://react.dev/reference/react/Suspense) boundary so SSR can stream it, or move the call into [`useEffect`](https://react.dev/reference/react/useEffect) (or an event handler) so it only runs on the client.
 
-> **Good to know**: In [`next dev`](/docs/app/api-reference/cli/next#next-dev-options), the error overlay points at the failing component. Run `next build --debug-prerender` to get the full list of blocking routes with stack traces. When iterating on specific routes, use `next build --debug-build-paths /dashboard /settings` to rebuild only those pages.
+The Server Component case is handled at [Crypto APIs during prerendering](https://preview.nextjs.org/docs/messages/blocking-prerender-crypto). Other unpredictable client-side APIs ([`Math.random()`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Math/random), [`Date.now()`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Date/now)) have parallel error pages: [`Math.random()` in a Client Component](https://preview.nextjs.org/docs/messages/blocking-prerender-random-client) and [`Date.now()` in a Client Component](https://preview.nextjs.org/docs/messages/blocking-prerender-current-time-client).
 
 ## Ways to fix this
 
@@ -62,15 +80,15 @@ export function CorrelationId() {
 }
 ```
 
-Learn more: [Streaming with Suspense](/docs/app/guides/streaming).
+Learn more: [Streaming with Suspense](https://preview.nextjs.org/docs/app/guides/streaming).
 
 ### Trade-off
 
-The component shows the fallback during SSR and the first paint. For above-the-fold UI this can be visible. Pick a fallback that matches the final layout so the page doesn't visibly jump when the component hydrates. See [CLS-safe skeleton fallback guidance](/docs/app/guides/streaming#cls-cumulative-layout-shift).
+The component shows the fallback during SSR and the first paint. For above-the-fold UI this can be visible. Pick a fallback that matches the final layout so the page doesn't visibly jump when the component hydrates. See [CLS-safe skeleton fallback guidance](https://preview.nextjs.org/docs/app/guides/streaming#cls-cumulative-layout-shift).
 
 ### Gotchas
 
-- Any UI rendered as part of the prerender shell must be deterministic, including [`<Suspense>`](https://react.dev/reference/react/Suspense) fallbacks, [`loading.js`](/docs/app/api-reference/file-conventions/loading), [`error.js`](/docs/app/api-reference/file-conventions/error), [`not-found.js`](/docs/app/api-reference/file-conventions/not-found), and [`global-error.js`](/docs/app/api-reference/file-conventions/error#global-error). Calling a crypto API in any of them raises this same error. Use stable placeholder content.
+- Any UI rendered as part of the prerender shell must be deterministic, including [`<Suspense>`](https://react.dev/reference/react/Suspense) fallbacks, [`loading.js`](https://preview.nextjs.org/docs/app/api-reference/file-conventions/loading), [`error.js`](https://preview.nextjs.org/docs/app/api-reference/file-conventions/error), [`not-found.js`](https://preview.nextjs.org/docs/app/api-reference/file-conventions/not-found), and [`global-error.js`](https://preview.nextjs.org/docs/app/api-reference/file-conventions/error#global-error). Calling a crypto API in any of them raises this same error. Use stable placeholder content.
 - The inner Client Component still runs during SSR, behind the boundary. If you need to guarantee the value only runs in the browser, use [Move into effect or event handler](#move-into-effect-or-event-handler) instead.
 - A [`<Suspense>`](https://react.dev/reference/react/Suspense) boundary only fixes the prerender/hydration mismatch, not client re-renders. If the component using the crypto API re-renders on the client (a parent state change, a context update), it produces a new value each time. To stabilize the value across re-renders, call the crypto API once in a [`useState`](https://react.dev/reference/react/useState) initializer or [`useRef`](https://react.dev/reference/react/useRef), or compute it on the server and pass it down as a prop.
 
@@ -165,20 +183,20 @@ Learn more: [`useRef`](https://react.dev/reference/react/useRef).
 
 ### Trade-off
 
-The user sees the placeholder briefly before the real value. For interactions the wait is invisible, but for `useEffect`-based values there's a flash of the initial state. See [Preventing flash before hydration](/docs/app/guides/preventing-flash-before-hydration) for techniques that eliminate the flash.
+The user sees the placeholder briefly before the real value. For interactions the wait is invisible, but for `useEffect`-based values there's a flash of the initial state. See [Preventing flash before hydration](https://preview.nextjs.org/docs/app/guides/preventing-flash-before-hydration) for techniques that eliminate the flash.
 
 ### Gotchas
 
 - Don't compute the value inline during render with a lazy initializer like `useState(() => crypto.randomUUID())`. The initializer still runs during SSR and triggers the error.
 - If the value needs to be hydration-stable, use [Wrap in or move into Suspense](#wrap-in-or-move-into-suspense) instead.
-- Only [Web Crypto](https://developer.mozilla.org/en-US/docs/Web/API/Crypto) ships to the browser. Node-only APIs (`crypto.randomBytes`, `crypto.generateKeyPairSync`) are not available on the client. If you're seeing this error for one of those, the call lives on the server: see [Crypto APIs during prerendering](/docs/messages/blocking-prerender-crypto).
+- Only [Web Crypto](https://developer.mozilla.org/en-US/docs/Web/API/Crypto) ships to the browser. Node-only APIs (`crypto.randomBytes`, `crypto.generateKeyPairSync`) are not available on the client. If you're seeing this error for one of those, the call lives on the server: see [Crypto APIs during prerendering](https://preview.nextjs.org/docs/messages/blocking-prerender-crypto).
 - When you call `setState` from inside [`useEffect`](https://react.dev/reference/react/useEffect), wrap it in [`startTransition`](https://react.dev/reference/react/startTransition). Cascading state updates during hydration can cause an outer [`<Suspense>`](https://react.dev/reference/react/Suspense) boundary's fallback to briefly flash. `startTransition` marks the update as non-blocking so React keeps the existing UI in place while the new value resolves.
 
 ## Other options
 
 ### Suspend with `use(io())`
 
-When the read genuinely needs to happen per visit and you can't move it to an effect or event, call [`io()`](/docs/app/api-reference/functions/io) from `next/cache` before the read with React's [`use`](https://react.dev/reference/react/use) hook. Client Components prerender on the server during SSR, where the read would otherwise be included in the static shell. `use(io())` suspends the prerender so the component is excluded from the shell and rendered on every request from the nearest [`<Suspense>`](https://react.dev/reference/react/Suspense) boundary.
+When the read genuinely needs to happen per visit and you can't move it to an effect or event, call [`io()`](https://preview.nextjs.org/docs/app/api-reference/functions/io) from `next/cache` before the read with React's [`use`](https://react.dev/reference/react/use) hook. Client Components prerender on the server during SSR, where the read would otherwise be included in the static shell. `use(io())` suspends the prerender so the component is excluded from the shell and rendered on every request from the nearest [`<Suspense>`](https://react.dev/reference/react/Suspense) boundary.
 
 ```jsx filename="app/components/request-id.js"
 'use client'
@@ -206,17 +224,14 @@ export default function Page() {
 }
 ```
 
-Learn more: [`io()`](/docs/app/api-reference/functions/io).
+Learn more: [`io()`](https://preview.nextjs.org/docs/app/api-reference/functions/io).
+
+## Verifying the fix
+
+After applying a fix, reload the route to confirm the [static shell](https://preview.nextjs.org/docs/app/glossary#static-shell) renders real content. A [`<Suspense>`](https://react.dev/reference/react/Suspense) boundary placed around the whole page body can pass validation with an empty shell, which defeats the point of an instant navigation.
+
+In [`next dev`](https://preview.nextjs.org/docs/app/api-reference/cli/next#next-dev-options), the error overlay points at the failing component with file paths and line numbers. When working from a build instead, the default [`next build`](https://preview.nextjs.org/docs/app/api-reference/cli/next#next-build-options) output is more abbreviated; run `next build --debug-prerender` for full user-frame stack traces and `next build --debug-build-paths /dashboard /settings` to iterate on specific routes.
 
 ## Why `instant = false` doesn't clear this error
 
-This error fires from the prerender, not from instant-navigation validation. `crypto.randomUUID()` and related APIs return a different value on every call, so the prerender can't bake them into a static shell regardless of the segment's `instant` config or [`experimental.instantInsights.validationLevel`](/docs/app/api-reference/file-conventions/route-segment-config/instant#configuring-validation-defaults). Use one of the fixes above.
-
-## Useful links
-
-- [Crypto APIs during prerendering](/docs/messages/blocking-prerender-crypto)
-- [`Math.random()` in a Client Component](/docs/messages/blocking-prerender-random-client)
-- [`Date.now()` in a Client Component](/docs/messages/blocking-prerender-current-time-client)
-- [`useEffect`](https://react.dev/reference/react/useEffect)
-- [Streaming with Suspense](/docs/app/guides/streaming)
-- [Ensuring instant navigations](/docs/app/guides/instant-navigation)
+This error fires from the prerender, not from instant-navigation validation. `crypto.randomUUID()` and related APIs return a different value on every call, so the prerender can't bake them into a static shell regardless of the segment's `instant` config or [`experimental.instantInsights.validationLevel`](https://preview.nextjs.org/docs/app/api-reference/file-conventions/route-segment-config/instant#configuring-validation-defaults). Use one of the fixes above.

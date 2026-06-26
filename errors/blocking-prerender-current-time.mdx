@@ -3,11 +3,29 @@ title: Next.js encountered the unstable value Date.now() while prerendering
 kind: insight
 ---
 
-During [prerendering](/docs/app/glossary#prerendering), a Server Component called [`Date.now()`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Date/now), [`Date()`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Date), or [`new Date()`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Date) outside of [`<Suspense>`](https://react.dev/reference/react/Suspense). With [Cache Components](/docs/app/api-reference/config/next-config-js/cacheComponents) enabled, Next.js can't bake "now" into the prerendered HTML. The timestamp at build time will be stale at runtime, so you need to choose: cache the value (treat it as "now-ish" with a tolerated drift), defer the read behind a [`<Suspense>`](https://react.dev/reference/react/Suspense) boundary so it runs per-request, or move it to the client.
+<div
+  style={{
+    padding: '1.25rem 1.5rem',
+    border: '1px solid var(--ds-gray-400)',
+    borderRadius: '12px',
+    background: 'var(--ds-background-200)',
+    margin: '1.5rem 0 2rem',
+    fontSize: '0.95rem',
+    lineHeight: '1.6',
+  }}
+>
+  This Insight is part of the [Instant
+  Navigations](https://nextjs.org/blog/next-16-3-instant-navigations) feature
+  introduced in Next.js 16.3. If you're new to it, start with the [Ensuring
+  instant
+  navigations](https://preview.nextjs.org/docs/app/guides/instant-navigation)
+  guide for an overview of what instant navigations are and how Next.js
+  validates them, then come back here for the specific fix.
+</div>
 
-Other unpredictable APIs ([`Math.random()`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Math/random), [`crypto.randomUUID()`](https://developer.mozilla.org/en-US/docs/Web/API/Crypto/randomUUID)) have parallel error pages: see [`Math.random()`](/docs/messages/blocking-prerender-random) and [crypto APIs](/docs/messages/blocking-prerender-crypto). The Client Component case is handled at [`Date.now()` in a Client Component](/docs/messages/blocking-prerender-current-time-client).
+During [prerendering](https://preview.nextjs.org/docs/app/glossary#prerendering), a Server Component called [`Date.now()`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Date/now), [`Date()`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Date), or [`new Date()`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Date) outside of [`<Suspense>`](https://react.dev/reference/react/Suspense). With [Cache Components](https://preview.nextjs.org/docs/app/api-reference/config/next-config-js/cacheComponents) enabled, Next.js can't bake "now" into the prerendered HTML. The timestamp at build time will be stale at runtime, so you need to choose: cache the value (treat it as "now-ish" with a tolerated drift), defer the read behind a [`<Suspense>`](https://react.dev/reference/react/Suspense) boundary so it runs per-request, or move it to the client.
 
-> **Good to know**: In [`next dev`](/docs/app/api-reference/cli/next#next-dev-options), the error overlay points at the failing component. Run `next build --debug-prerender` to get the full list of blocking routes with stack traces. When iterating on specific routes, use `next build --debug-build-paths /dashboard /settings` to rebuild only those pages.
+Other unpredictable APIs ([`Math.random()`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Math/random), [`crypto.randomUUID()`](https://developer.mozilla.org/en-US/docs/Web/API/Crypto/randomUUID)) have parallel error pages: see [`Math.random()`](https://preview.nextjs.org/docs/messages/blocking-prerender-random) and [crypto APIs](https://preview.nextjs.org/docs/messages/blocking-prerender-crypto). The Client Component case is handled at [`Date.now()` in a Client Component](https://preview.nextjs.org/docs/messages/blocking-prerender-current-time-client).
 
 ## Ways to fix this
 
@@ -49,13 +67,13 @@ Other unpredictable APIs ([`Math.random()`](https://developer.mozilla.org/en-US/
 
 ## Generate on every request
 
-Choose this fix when the user needs to see the current time. A "last updated at" banner, a server-issued timestamp on a transaction, a "happy new year" banner that flips at midnight. Add [`await connection()`](/docs/app/api-reference/functions/connection) before the call to tell Next.js the surrounding component is request-bound. The component is excluded from the prerender and streamed in from the nearest [`<Suspense>`](https://react.dev/reference/react/Suspense) boundary on each request.
+Choose this fix when the user needs to see the current time. A "last updated at" banner, a server-issued timestamp on a transaction, a "happy new year" banner that flips at midnight. Add [`await connection()`](https://preview.nextjs.org/docs/app/api-reference/functions/connection) before the call to tell Next.js the surrounding component is request-bound. The component is excluded from the prerender and streamed in from the nearest [`<Suspense>`](https://react.dev/reference/react/Suspense) boundary on each request.
 
 ### Patterns
 
 #### Use `await connection()` before the timestamp read
 
-Call [`connection()`](/docs/app/api-reference/functions/connection) before the [`Date.now()`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Date/now) or [`new Date()`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Date) call. Everything after the `await` is request-time. Wrap the component in [`<Suspense>`](https://react.dev/reference/react/Suspense) so the surrounding shell stays prerendered and only the dynamic part streams in.
+Call [`connection()`](https://preview.nextjs.org/docs/app/api-reference/functions/connection) before the [`Date.now()`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Date/now) or [`new Date()`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Date) call. Everything after the `await` is request-time. Wrap the component in [`<Suspense>`](https://react.dev/reference/react/Suspense) so the surrounding shell stays prerendered and only the dynamic part streams in.
 
 Push the [`<Suspense>`](https://react.dev/reference/react/Suspense) boundary as close to the timestamp read as possible. If the parent has cached content (metrics, headers, navigation), isolate the timestamp in its own component so only that piece falls behind the boundary.
 
@@ -85,7 +103,7 @@ export async function UpdatedAt() {
 
 #### Alternative: `await io()`
 
-Use [`io()`](/docs/app/api-reference/functions/io) from `next/cache` to keep the read out of the static shell. Unlike [`connection()`](/docs/app/api-reference/functions/connection), `io()` doesn't block prefetches and works inside `"use cache"` scopes and Client Components.
+Use [`io()`](https://preview.nextjs.org/docs/app/api-reference/functions/io) from `next/cache` to keep the read out of the static shell. Unlike [`connection()`](https://preview.nextjs.org/docs/app/api-reference/functions/connection), `io()` doesn't block prefetches and works inside `"use cache"` scopes and Client Components.
 
 ```jsx filename="app/dashboard/updated-at.js"
 import { io } from 'next/cache'
@@ -96,26 +114,26 @@ export async function UpdatedAt() {
 }
 ```
 
-Learn more: [`io`](/docs/app/api-reference/functions/io), [Streaming patterns and boundary placement](/docs/app/guides/streaming).
+Learn more: [`io`](https://preview.nextjs.org/docs/app/api-reference/functions/io), [Streaming patterns and boundary placement](https://preview.nextjs.org/docs/app/guides/streaming).
 
 ### Trade-off
 
-The route renders on every request. The shell still ships instantly because of the [`<Suspense>`](https://react.dev/reference/react/Suspense) boundary, but the dynamic region waits on the server render before it paints. Design the fallback so it approximates the final layout. A generic spinner or empty box causes the page to visibly jump when the content arrives. See [CLS-safe skeleton fallback guidance](/docs/app/guides/streaming#cls-cumulative-layout-shift).
+The route renders on every request. The shell still ships instantly because of the [`<Suspense>`](https://react.dev/reference/react/Suspense) boundary, but the dynamic region waits on the server render before it paints. Design the fallback so it approximates the final layout. A generic spinner or empty box causes the page to visibly jump when the content arrives. See [CLS-safe skeleton fallback guidance](https://preview.nextjs.org/docs/app/guides/streaming#cls-cumulative-layout-shift).
 
 ### Gotchas
 
-- Any UI rendered as part of the prerender shell must be deterministic. That includes [`<Suspense>`](https://react.dev/reference/react/Suspense) fallbacks, [`loading.js`](/docs/app/api-reference/file-conventions/loading), [`error.js`](/docs/app/api-reference/file-conventions/error), [`not-found.js`](/docs/app/api-reference/file-conventions/not-found), and [`global-error.js`](/docs/app/api-reference/file-conventions/error#global-error). Calling [`Date.now()`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Date/now) in any of them raises this same error.
+- Any UI rendered as part of the prerender shell must be deterministic. That includes [`<Suspense>`](https://react.dev/reference/react/Suspense) fallbacks, [`loading.js`](https://preview.nextjs.org/docs/app/api-reference/file-conventions/loading), [`error.js`](https://preview.nextjs.org/docs/app/api-reference/file-conventions/error), [`not-found.js`](https://preview.nextjs.org/docs/app/api-reference/file-conventions/not-found), and [`global-error.js`](https://preview.nextjs.org/docs/app/api-reference/file-conventions/error#global-error). Calling [`Date.now()`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Date/now) in any of them raises this same error.
 - If you're showing a relative time ("3 minutes ago"), the relative formatting belongs on the client so it can update without a re-render. See [Render on the client](#render-on-the-client).
 
 ## Cache the timestamp
 
-Choose this fix when a stale timestamp is acceptable for the cache window. A "last refreshed" footer on a daily report, an "as of" banner on an hourly chart. Move the [`Date.now()`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Date/now) call into a function with [`use cache`](/docs/app/api-reference/directives/use-cache). Next.js evaluates the function once per cache key and reuses the result.
+Choose this fix when a stale timestamp is acceptable for the cache window. A "last refreshed" footer on a daily report, an "as of" banner on an hourly chart. Move the [`Date.now()`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Date/now) call into a function with [`use cache`](https://preview.nextjs.org/docs/app/api-reference/directives/use-cache). Next.js evaluates the function once per cache key and reuses the result.
 
 ### Patterns
 
 #### Cache the producer function
 
-Wrap the timestamp read in a function with [`use cache`](/docs/app/api-reference/directives/use-cache). The returned value is part of the cache entry, so every consumer sees the same timestamp until the cache is invalidated.
+Wrap the timestamp read in a function with [`use cache`](https://preview.nextjs.org/docs/app/api-reference/directives/use-cache). The returned value is part of the cache entry, so every consumer sees the same timestamp until the cache is invalidated.
 
 ```jsx filename="app/page.js"
 async function getRenderedAt() {
@@ -129,7 +147,7 @@ export default async function Page() {
 }
 ```
 
-Learn more: [Caching with `use cache`](/docs/app/api-reference/directives/use-cache).
+Learn more: [Caching with `use cache`](https://preview.nextjs.org/docs/app/api-reference/directives/use-cache).
 
 #### Cache the timestamp alongside the data it relates to
 
@@ -173,7 +191,7 @@ export default async function Layout({ children }) {
 
 #### Set the rotation window with `cacheLife`
 
-When you want the timestamp to refresh on a schedule, set a [`cacheLife`](/docs/app/api-reference/functions/cacheLife) profile.
+When you want the timestamp to refresh on a schedule, set a [`cacheLife`](https://preview.nextjs.org/docs/app/api-reference/functions/cacheLife) profile.
 
 ```jsx filename="app/page.js"
 import { cacheLife } from 'next/cache'
@@ -185,7 +203,7 @@ async function getHourlyTimestamp() {
 }
 ```
 
-Learn more: [How to configure cache lifetimes](/docs/app/api-reference/functions/cacheLife).
+Learn more: [How to configure cache lifetimes](https://preview.nextjs.org/docs/app/api-reference/functions/cacheLife).
 
 ### Trade-off
 
@@ -194,23 +212,23 @@ Every visitor in the cache window sees the same timestamp. That's fine for "as o
 ### Gotchas
 
 - A cached timestamp is the time of the most recent cache miss, not the time of the current visit. If users expect the displayed time to match their visit, use [Generate on every request](#generate-on-every-request) instead.
-- If you cache a function and still see this error, the [`cacheLife`](/docs/app/api-reference/functions/cacheLife) may be too short to prerender. See [Short-lived caches](#short-lived-caches).
+- If you cache a function and still see this error, the [`cacheLife`](https://preview.nextjs.org/docs/app/api-reference/functions/cacheLife) may be too short to prerender. See [Short-lived caches](#short-lived-caches).
 
 ### Short-lived caches
 
-[`use cache`](/docs/app/api-reference/directives/use-cache) accepts a [`cacheLife`](/docs/app/api-reference/functions/cacheLife) profile. A short profile (such as `"seconds"` or `"minutes"`) whose `revalidate` is shorter than the prerender's effective lifetime prevents the value from being included in the prerender; the segment becomes a dynamic hole instead. The cache entry still helps the [Client Cache](/docs/app/glossary#client-cache) and protects upstream APIs, but the page falls back to streaming.
+[`use cache`](https://preview.nextjs.org/docs/app/api-reference/directives/use-cache) accepts a [`cacheLife`](https://preview.nextjs.org/docs/app/api-reference/functions/cacheLife) profile. A short profile (such as `"seconds"` or `"minutes"`) whose `revalidate` is shorter than the prerender's effective lifetime prevents the value from being included in the prerender; the segment becomes a dynamic hole instead. The cache entry still helps the [Client Cache](https://preview.nextjs.org/docs/app/glossary#client-cache) and protects upstream APIs, but the page falls back to streaming.
 
 To keep the page prerendered, use a profile with a longer revalidate window such as `"default"` (15 minutes), `"hours"`, or `"days"`. If a short profile is intentional, treat the value as dynamic and use [Generate on every request](#generate-on-every-request) instead.
 
 ## Render on the client
 
-Choose this fix when the timestamp belongs to the user's local clock or needs to update while they're on the page. A relative time label that ticks ("3 seconds ago"), a localized time display, a stopwatch. Move the component into a [Client Component](/docs/app/getting-started/server-and-client-components) so the value is produced after hydration.
+Choose this fix when the timestamp belongs to the user's local clock or needs to update while they're on the page. A relative time label that ticks ("3 seconds ago"), a localized time display, a stopwatch. Move the component into a [Client Component](https://preview.nextjs.org/docs/app/getting-started/server-and-client-components) so the value is produced after hydration.
 
 ### Patterns
 
 #### Move the component to the client
 
-Add [`use client`](/docs/app/api-reference/directives/use-client) and compute the timestamp inside the component.
+Add [`use client`](https://preview.nextjs.org/docs/app/api-reference/directives/use-client) and compute the timestamp inside the component.
 
 ```jsx filename="app/now.js"
 'use client'
@@ -237,15 +255,15 @@ export function Now() {
 }
 ```
 
-Learn more: [Client Components](/docs/app/getting-started/server-and-client-components#using-client-components).
+Learn more: [Client Components](https://preview.nextjs.org/docs/app/getting-started/server-and-client-components#using-client-components).
 
 ### Trade-off
 
-The first paint shows the SSR fallback (often `null` or an em-dash), and the timestamp appears only after the browser hydrates the component. That's fine for time-of-day displays but wrong for timestamps that have to be in the prerendered HTML. See [Preventing flash before hydration](/docs/app/guides/preventing-flash-before-hydration) for techniques that eliminate the flash.
+The first paint shows the SSR fallback (often `null` or an em-dash), and the timestamp appears only after the browser hydrates the component. That's fine for time-of-day displays but wrong for timestamps that have to be in the prerendered HTML. See [Preventing flash before hydration](https://preview.nextjs.org/docs/app/guides/preventing-flash-before-hydration) for techniques that eliminate the flash.
 
 ### Gotchas
 
-- A Client Component that calls [`Date.now()`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Date/now) inline during render still trips this error during SSR. See the dedicated [`Date.now()` in a Client Component](/docs/messages/blocking-prerender-current-time-client) page for the [`<Suspense>`](https://react.dev/reference/react/Suspense) and effect-based recipes.
+- A Client Component that calls [`Date.now()`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Date/now) inline during render still trips this error during SSR. See the dedicated [`Date.now()` in a Client Component](https://preview.nextjs.org/docs/messages/blocking-prerender-current-time-client) page for the [`<Suspense>`](https://react.dev/reference/react/Suspense) and effect-based recipes.
 
 ## For telemetry, use a timing API
 
@@ -279,16 +297,12 @@ Learn more: [`performance.now()`](https://developer.mozilla.org/en-US/docs/Web/A
 - Don't pass a [`performance.now()`](https://developer.mozilla.org/en-US/docs/Web/API/Performance/now) value into the rendered output or into a cached function. The high-resolution timestamp is non-deterministic and shouldn't influence what's prerendered.
 - For absolute time in an observability tool, use `performance.timeOrigin + performance.now()` to get a wall-clock timestamp without tripping this error.
 
+## Verifying the fix
+
+After applying a fix, reload the route to confirm the [static shell](https://preview.nextjs.org/docs/app/glossary#static-shell) renders real content. A [`<Suspense>`](https://react.dev/reference/react/Suspense) boundary placed around the whole page body can pass validation with an empty shell, which defeats the point of an instant navigation.
+
+In [`next dev`](https://preview.nextjs.org/docs/app/api-reference/cli/next#next-dev-options), the error overlay points at the failing component with file paths and line numbers. When working from a build instead, the default [`next build`](https://preview.nextjs.org/docs/app/api-reference/cli/next#next-build-options) output is more abbreviated; run `next build --debug-prerender` for full user-frame stack traces and `next build --debug-build-paths /dashboard /settings` to iterate on specific routes.
+
 ## Why `instant = false` doesn't clear this error
 
-This error fires from the prerender, not from instant-navigation validation. `new Date()` and `Date.now()` return a different value on every render, so the prerender can't bake them into a static shell regardless of the segment's `instant` config or [`experimental.instantInsights.validationLevel`](/docs/app/api-reference/file-conventions/route-segment-config/instant#configuring-validation-defaults). Use one of the fixes above.
-
-## Useful links
-
-- [`Date.now()` in a Client Component](/docs/messages/blocking-prerender-current-time-client)
-- [`Math.random()` during prerendering](/docs/messages/blocking-prerender-random)
-- [Crypto APIs during prerendering](/docs/messages/blocking-prerender-crypto)
-- [`use cache` directive](/docs/app/api-reference/directives/use-cache)
-- [`connection` function](/docs/app/api-reference/functions/connection)
-- [`performance.now()`](https://developer.mozilla.org/en-US/docs/Web/API/Performance/now)
-- [Ensuring instant navigations](/docs/app/guides/instant-navigation)
+This error fires from the prerender, not from instant-navigation validation. `new Date()` and `Date.now()` return a different value on every render, so the prerender can't bake them into a static shell regardless of the segment's `instant` config or [`experimental.instantInsights.validationLevel`](https://preview.nextjs.org/docs/app/api-reference/file-conventions/route-segment-config/instant#configuring-validation-defaults). Use one of the fixes above.

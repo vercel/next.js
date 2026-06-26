@@ -3,13 +3,31 @@ title: Next.js encountered runtime data during prerendering or a navigation
 kind: insight
 ---
 
-During [prerendering](/docs/app/glossary#prerendering), [`cookies()`](/docs/app/api-reference/functions/cookies), [`headers()`](/docs/app/api-reference/functions/headers), [`params`](/docs/app/api-reference/file-conventions/page#params-optional), or [`searchParams`](/docs/app/api-reference/file-conventions/page#searchparams-optional) was read outside of [`<Suspense>`](https://react.dev/reference/react/Suspense). With [Cache Components](/docs/app/api-reference/config/next-config-js/cacheComponents) enabled, Next.js can't prerender any part of the tree that depends on a per-request value, so navigations to this route block instead of being [instant](/docs/app/guides/instant-navigation).
+<div
+  style={{
+    padding: '1.25rem 1.5rem',
+    border: '1px solid var(--ds-gray-400)',
+    borderRadius: '12px',
+    background: 'var(--ds-background-200)',
+    margin: '1.5rem 0 2rem',
+    fontSize: '0.95rem',
+    lineHeight: '1.6',
+  }}
+>
+  This Insight is part of the [Instant
+  Navigations](https://nextjs.org/blog/next-16-3-instant-navigations) feature
+  introduced in Next.js 16.3. If you're new to it, start with the [Ensuring
+  instant
+  navigations](https://preview.nextjs.org/docs/app/guides/instant-navigation)
+  guide for an overview of what instant navigations are and how Next.js
+  validates them, then come back here for the specific fix.
+</div>
 
-Uncached data accesses ([`fetch()`](https://developer.mozilla.org/en-US/docs/Web/API/Window/fetch), database calls, [`await connection()`](/docs/app/api-reference/functions/connection)) have different fixes. See [Next.js encountered uncached data during prerendering](/docs/messages/blocking-prerender-dynamic).
+During [prerendering](https://preview.nextjs.org/docs/app/glossary#prerendering), [`cookies()`](https://preview.nextjs.org/docs/app/api-reference/functions/cookies), [`headers()`](https://preview.nextjs.org/docs/app/api-reference/functions/headers), [`params`](https://preview.nextjs.org/docs/app/api-reference/file-conventions/page#params-optional), or [`searchParams`](https://preview.nextjs.org/docs/app/api-reference/file-conventions/page#searchparams-optional) was read outside of [`<Suspense>`](https://react.dev/reference/react/Suspense). With [Cache Components](https://preview.nextjs.org/docs/app/api-reference/config/next-config-js/cacheComponents) enabled, Next.js can't prerender any part of the tree that depends on a per-request value, so navigations to this route block instead of being [instant](https://preview.nextjs.org/docs/app/guides/instant-navigation).
 
-This error can also appear during a client-side navigation when the data access sits inside a [`<Suspense>`](https://react.dev/reference/react/Suspense) boundary from a parent layout but that boundary is too high. It wraps the entire segment instead of only the dynamic part, so the navigation still blocks. Push the boundary closer to the data access so the rest of the segment stays in the [static shell](/docs/app/glossary#static-shell). See [Choosing where to place the boundary](#choosing-where-to-place-the-boundary).
+Uncached data accesses ([`fetch()`](https://developer.mozilla.org/en-US/docs/Web/API/Window/fetch), database calls, [`await connection()`](https://preview.nextjs.org/docs/app/api-reference/functions/connection)) have different fixes. See [Next.js encountered uncached data during prerendering](https://preview.nextjs.org/docs/messages/blocking-prerender-dynamic).
 
-> **Good to know**: In [`next dev`](/docs/app/api-reference/cli/next#next-dev-options), the error overlay points at the failing component with file paths and line numbers. The default `next build` output is more abbreviated: the stack often shows only anonymous HTML elements without user file paths. Run `next build --debug-prerender` to get the full list of blocking routes with user-frame stack traces, and `next build --debug-build-paths /dashboard /settings` to iterate on specific routes.
+This error can also appear during a client-side navigation when the data access sits inside a [`<Suspense>`](https://react.dev/reference/react/Suspense) boundary from a parent layout but that boundary is too high. It wraps the entire segment instead of only the dynamic part, so the navigation still blocks. Push the boundary closer to the data access so the rest of the segment stays in the [static shell](https://preview.nextjs.org/docs/app/glossary#static-shell). See [Choosing where to place the boundary](#choosing-where-to-place-the-boundary).
 
 ## Ways to fix this
 
@@ -33,7 +51,7 @@ This error can also appear during a client-side navigation when the data access 
 
 ## Wrap in or move into Suspense
 
-Choose this fix when the value really is per-request, but the page has parts that don't depend on it. A [`<Suspense>`](https://react.dev/reference/react/Suspense) boundary lets the static shell ship instantly while the dynamic region [streams](/docs/app/glossary#streaming) in once the request value resolves.
+Choose this fix when the value really is per-request, but the page has parts that don't depend on it. A [`<Suspense>`](https://react.dev/reference/react/Suspense) boundary lets the static shell ship instantly while the dynamic region [streams](https://preview.nextjs.org/docs/app/glossary#streaming) in once the request value resolves.
 
 ### Patterns
 
@@ -58,7 +76,7 @@ export default function Page() {
 }
 ```
 
-Learn more: [Streaming with Suspense](/docs/app/guides/streaming).
+Learn more: [Streaming with Suspense](https://preview.nextjs.org/docs/app/guides/streaming).
 
 #### Push the access down to the leaf
 
@@ -88,7 +106,7 @@ export async function UserHeader() {
 }
 ```
 
-Learn more: [Streaming patterns and boundary placement](/docs/app/guides/streaming).
+Learn more: [Streaming patterns and boundary placement](https://preview.nextjs.org/docs/app/guides/streaming).
 
 #### Pass `searchParams` without awaiting
 
@@ -118,11 +136,11 @@ export async function Results({ searchParams }) {
 }
 ```
 
-Learn more: [Using `searchParams` in the App Router](/docs/app/api-reference/file-conventions/page#searchparams-optional).
+Learn more: [Using `searchParams` in the App Router](https://preview.nextjs.org/docs/app/api-reference/file-conventions/page#searchparams-optional).
 
 #### Forward `searchParams` as a promise chain
 
-A variant of the previous pattern when you want to derive a value without awaiting at the top. Treat [`searchParams`](/docs/app/api-reference/file-conventions/page#searchparams-optional) as a promise and `.then()` it to project the shape the child needs.
+A variant of the previous pattern when you want to derive a value without awaiting at the top. Treat [`searchParams`](https://preview.nextjs.org/docs/app/api-reference/file-conventions/page#searchparams-optional) as a promise and `.then()` it to project the shape the child needs.
 
 ```jsx filename="app/dashboard/map/page.js"
 export default function Page({ searchParams }) {
@@ -134,11 +152,11 @@ export default function Page({ searchParams }) {
 }
 ```
 
-Learn more: [Using `searchParams` in the App Router](/docs/app/api-reference/file-conventions/page#searchparams-optional).
+Learn more: [Using `searchParams` in the App Router](https://preview.nextjs.org/docs/app/api-reference/file-conventions/page#searchparams-optional).
 
 #### Use `loading.js` for the whole segment
 
-When every component in the segment reads the same request value and there's nothing static to render above it, a [`loading.js`](/docs/app/api-reference/file-conventions/loading) file in the segment is the shorthand. Next.js wraps `{children}` of the layout in `<Suspense>` automatically.
+When every component in the segment reads the same request value and there's nothing static to render above it, a [`loading.js`](https://preview.nextjs.org/docs/app/api-reference/file-conventions/loading) file in the segment is the shorthand. Next.js wraps `{children}` of the layout in `<Suspense>` automatically.
 
 ```jsx filename="app/dashboard/loading.js"
 export default function Loading() {
@@ -148,11 +166,11 @@ export default function Loading() {
 
 > **Good to know**: A `loading.js` file wraps the segment's `{children}` in one Suspense boundary. Parent layouts above it still prerender, but everything inside the segment sits behind the fallback. If page-level content could be prerendered (a static intro, a known title), use explicit `<Suspense>` boundaries inside `page.js` around only the dynamic parts.
 
-Learn more: [`loading.js` and instant loading states](/docs/app/api-reference/file-conventions/loading).
+Learn more: [`loading.js` and instant loading states](https://preview.nextjs.org/docs/app/api-reference/file-conventions/loading).
 
 ### Trade-off
 
-The shell ships immediately, but the user sees a loading state for the streamed region on every request. Design the fallback so it approximates the final layout. A generic spinner causes the page to visibly jump when content arrives. See [CLS-safe skeleton fallback guidance](/docs/app/guides/streaming#cls-cumulative-layout-shift).
+The shell ships immediately, but the user sees a loading state for the streamed region on every request. Design the fallback so it approximates the final layout. A generic spinner causes the page to visibly jump when content arrives. See [CLS-safe skeleton fallback guidance](https://preview.nextjs.org/docs/app/guides/streaming#cls-cumulative-layout-shift).
 
 ### Choosing where to place the boundary
 
@@ -161,21 +179,21 @@ The location of the boundary controls what the user sees during the navigation:
 - A high boundary (around the whole page) gives one loading state for everything. Less work to set up, but the user loses context about where they were going.
 - A low boundary (around the specific component that reads the runtime API) keeps surrounding content visible and only shows a fallback for the per-request part. Preferred when the surrounding shell has cached content.
 
-A useful rule: **push the boundary as low as possible** while keeping the fallback meaningful. The cached content above the boundary becomes part of the [static shell](/docs/app/glossary#static-shell) on navigation. Wrapping individual pieces or wrapping the whole page in one boundary stream the same way, but a lower boundary keeps more prerendered content visible during the navigation. See [Maximizing the static shell](/docs/app/getting-started/caching#streaming-uncached-data) for the canonical pattern.
+A useful rule: **push the boundary as low as possible** while keeping the fallback meaningful. The cached content above the boundary becomes part of the [static shell](https://preview.nextjs.org/docs/app/glossary#static-shell) on navigation. Wrapping individual pieces or wrapping the whole page in one boundary stream the same way, but a lower boundary keeps more prerendered content visible during the navigation. See [Maximizing the static shell](https://preview.nextjs.org/docs/app/getting-started/caching#streaming-uncached-data) for the canonical pattern.
 
 ### Gotchas
 
-- The fallback must be deterministic. Calling [`Math.random()`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Math/random) or [`Date.now()`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Date/now) inside the fallback raises a separate [Cache Components](/docs/app/api-reference/config/next-config-js/cacheComponents) error during prerendering.
-- Do not pass `{children}` through in the fallback. Child pages may include dynamic reads (for example, `/_not-found` calling [`cookies()`](/docs/app/api-reference/functions/cookies) or [`headers()`](/docs/app/api-reference/functions/headers)) that propagate into what should be a static fallback. Render a placeholder that doesn't include `{children}`.
+- The fallback must be deterministic. Calling [`Math.random()`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Math/random) or [`Date.now()`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Date/now) inside the fallback raises a separate [Cache Components](https://preview.nextjs.org/docs/app/api-reference/config/next-config-js/cacheComponents) error during prerendering.
+- Do not pass `{children}` through in the fallback. Child pages may include dynamic reads (for example, `/_not-found` calling [`cookies()`](https://preview.nextjs.org/docs/app/api-reference/functions/cookies) or [`headers()`](https://preview.nextjs.org/docs/app/api-reference/functions/headers)) that propagate into what should be a static fallback. Render a placeholder that doesn't include `{children}`.
 - If the failing route is `/_not-found` and you don't have a `not-found.tsx` file, the read is in the root layout. `/_not-found` is a real prerendered route that inherits the root layout, so a `cookies()` or `headers()` read there fails on the synthetic route too. Run `next build --debug-prerender` to confirm the originating file, and fix it at the layout, not by adding a `not-found.tsx`.
-- Boundary placement affects client navigations between sibling routes differently than initial page loads. Validation surfaces this in the dev server and at build time. See [Ensuring instant navigations](/docs/app/guides/instant-navigation) for the full model.
-- The function returned by [`cookies()`](/docs/app/api-reference/functions/cookies) and [`headers()`](/docs/app/api-reference/functions/headers) is async. Make sure the component reading them is async too, and `await` the call.
+- Boundary placement affects client navigations between sibling routes differently than initial page loads. Validation surfaces this in the dev server and at build time. See [Ensuring instant navigations](https://preview.nextjs.org/docs/app/guides/instant-navigation) for the full model.
+- The function returned by [`cookies()`](https://preview.nextjs.org/docs/app/api-reference/functions/cookies) and [`headers()`](https://preview.nextjs.org/docs/app/api-reference/functions/headers) is async. Make sure the component reading them is async too, and `await` the call.
 - The `params` and `searchParams` props are also async promises. Treat them like any other awaited value when deciding where the boundary goes.
-- Root-element attributes (`<html lang>`, `<html dir>`, `<html data-theme>`) can't be wrapped in `<Suspense>`. You can't suspend the document root, and a boundary inside `<html>` still leaves the attribute itself server-cookie-dependent. Move the read to a pre-paint client script per [Preventing flash before hydration](/docs/app/guides/preventing-flash-before-hydration) and add `suppressHydrationWarning` on `<html>` so React doesn't flag the script's mutation as a mismatch.
+- Root-element attributes (`<html lang>`, `<html dir>`, `<html data-theme>`) can't be wrapped in `<Suspense>`. You can't suspend the document root, and a boundary inside `<html>` still leaves the attribute itself server-cookie-dependent. Move the read to a pre-paint client script per [Preventing flash before hydration](https://preview.nextjs.org/docs/app/guides/preventing-flash-before-hydration) and add `suppressHydrationWarning` on `<html>` so React doesn't flag the script's mutation as a mismatch.
 
 ## Allow blocking route
 
-Choose this fix when the route renders per-request and there's no useful static shell. Setting [`instant`](/docs/app/api-reference/file-conventions/route-segment-config/instant) to `false` exempts the segment from instant-navigation validation. The page renders on every request and the navigation blocks until that render completes.
+Choose this fix when the route renders per-request and there's no useful static shell. Setting [`instant`](https://preview.nextjs.org/docs/app/api-reference/file-conventions/route-segment-config/instant) to `false` exempts the segment from instant-navigation validation. The page renders on every request and the navigation blocks until that render completes.
 
 ### Patterns
 
@@ -192,11 +210,11 @@ export default async function Page() {
 }
 ```
 
-Learn more: [Ensuring instant navigations](/docs/app/guides/instant-navigation).
+Learn more: [Ensuring instant navigations](https://preview.nextjs.org/docs/app/guides/instant-navigation).
 
 #### Opt the layout out
 
-When the shared layout itself can't ship instantly (it reads [`cookies()`](/docs/app/api-reference/functions/cookies) or [`headers()`](/docs/app/api-reference/functions/headers) of its own), set [`instant`](/docs/app/api-reference/file-conventions/route-segment-config/instant) to `false` on the layout. This allows that layout segment to block while descendant segments remain independently validated.
+When the shared layout itself can't ship instantly (it reads [`cookies()`](https://preview.nextjs.org/docs/app/api-reference/functions/cookies) or [`headers()`](https://preview.nextjs.org/docs/app/api-reference/functions/headers) of its own), set [`instant`](https://preview.nextjs.org/docs/app/api-reference/file-conventions/route-segment-config/instant) to `false` on the layout. This allows that layout segment to block while descendant segments remain independently validated.
 
 ```jsx filename="app/dashboard/layout.js"
 export const instant = false
@@ -206,11 +224,11 @@ export default function DashboardLayout({ children }) {
 }
 ```
 
-Learn more: [Route segment `instant` config](/docs/app/api-reference/file-conventions/route-segment-config/instant).
+Learn more: [Route segment `instant` config](https://preview.nextjs.org/docs/app/api-reference/file-conventions/route-segment-config/instant).
 
 Use either pattern when:
 
-- The route needs request-time data high in the tree to decide what to render (for example auth, tenant, or other gating in a layout), so there is no meaningful [static shell](/docs/app/glossary#static-shell) worth showing first.
+- The route needs request-time data high in the tree to decide what to render (for example auth, tenant, or other gating in a layout), so there is no meaningful [static shell](https://preview.nextjs.org/docs/app/glossary#static-shell) worth showing first.
 - You're migrating a route incrementally and want to defer the lifetime decision without changing how the page renders today.
 
 Don't use this to dismiss the error. Choose [Wrap in or move into Suspense](#wrap-in-or-move-into-suspense) when feasible.
@@ -221,19 +239,20 @@ Navigations to this route are not instant. The user waits for the full server re
 
 ### Gotchas
 
-- Setting [`instant`](/docs/app/api-reference/file-conventions/route-segment-config/instant) to `false` opts only the segment that exports it out. Descendant segments are still validated by the global default.
-- This export does not disable [prerendering](/docs/app/glossary#prerendering). The route still prerenders if it can. It only silences the instant-navigation validation error.
+- Setting [`instant`](https://preview.nextjs.org/docs/app/api-reference/file-conventions/route-segment-config/instant) to `false` opts only the segment that exports it out. Descendant segments are still validated by the global default.
+- This export does not disable [prerendering](https://preview.nextjs.org/docs/app/glossary#prerendering). The route still prerenders if it can. It only silences the instant-navigation validation error.
+
+## Verifying the fix
+
+After applying a fix, reload the route to confirm the [static shell](https://preview.nextjs.org/docs/app/glossary#static-shell) renders real content. A [`<Suspense>`](https://react.dev/reference/react/Suspense) boundary placed around the whole page body can pass validation with an empty shell, which defeats the point of an instant navigation.
+
+In [`next dev`](https://preview.nextjs.org/docs/app/api-reference/cli/next#next-dev-options), the error overlay points at the failing component with file paths and line numbers. When working from a build instead, the default [`next build`](https://preview.nextjs.org/docs/app/api-reference/cli/next#next-build-options) output is more abbreviated; run `next build --debug-prerender` for full user-frame stack traces and `next build --debug-build-paths /dashboard /settings` to iterate on specific routes.
 
 ## Don't want this validation?
 
-Instant-navigation validation runs by default in [Cache Components](/docs/app/api-reference/config/next-config-js/cacheComponents) apps and is what surfaces this error.
+Instant-navigation validation runs by default in [Cache Components](https://preview.nextjs.org/docs/app/api-reference/config/next-config-js/cacheComponents) apps and is what surfaces this error.
 
-- **One segment**: add [`export const instant = false`](/docs/app/api-reference/file-conventions/route-segment-config/instant) to the page or layout file. This opts out the segment itself. Child segments are still validated during client navigations.
-- **Entire app**: set [`experimental.instantInsights.validationLevel`](/docs/app/api-reference/file-conventions/route-segment-config/instant#configuring-validation-defaults) to `'manual-warning'` in `next.config`. This limits validation to segments that explicitly export `instant`.
+- **One segment**: add [`export const instant = false`](https://preview.nextjs.org/docs/app/api-reference/file-conventions/route-segment-config/instant) to the page or layout file. This opts out the segment itself. Child segments are still validated during client navigations.
+- **Entire app**: set [`experimental.instantInsights.validationLevel`](https://preview.nextjs.org/docs/app/api-reference/file-conventions/route-segment-config/instant#configuring-validation-defaults) to `'manual-warning'` in `next.config`. This limits validation to segments that explicitly export `instant`.
 
-See [Ensuring instant navigations](/docs/app/guides/instant-navigation) for the full model.
-
-## Useful links
-
-- [Ensuring instant navigations](/docs/app/guides/instant-navigation)
-- [Next.js encountered uncached data during prerendering](/docs/messages/blocking-prerender-dynamic)
+See [Ensuring instant navigations](https://preview.nextjs.org/docs/app/guides/instant-navigation) for the full model.

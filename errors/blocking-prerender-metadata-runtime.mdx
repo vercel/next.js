@@ -3,15 +3,33 @@ title: Next.js encountered runtime data in generateMetadata()
 kind: insight
 ---
 
-During [prerendering](/docs/app/glossary#prerendering), [`generateMetadata()`](/docs/app/api-reference/functions/generate-metadata) or file-based metadata read a per-request value ([`cookies()`](/docs/app/api-reference/functions/cookies), [`headers()`](/docs/app/api-reference/functions/headers), [`params`](/docs/app/api-reference/file-conventions/page#params-optional), [`searchParams`](/docs/app/api-reference/file-conventions/page#searchparams-optional)). With [Cache Components](/docs/app/api-reference/config/next-config-js/cacheComponents) enabled, Next.js expects metadata to be prerenderable when the rest of the route is. This route's metadata is blocked, but the rest of its content can be prerendered.
+<div
+  style={{
+    padding: '1.25rem 1.5rem',
+    border: '1px solid var(--ds-gray-400)',
+    borderRadius: '12px',
+    background: 'var(--ds-background-200)',
+    margin: '1.5rem 0 2rem',
+    fontSize: '0.95rem',
+    lineHeight: '1.6',
+  }}
+>
+  This Insight is part of the [Instant
+  Navigations](https://nextjs.org/blog/next-16-3-instant-navigations) feature
+  introduced in Next.js 16.3. If you're new to it, start with the [Ensuring
+  instant
+  navigations](https://preview.nextjs.org/docs/app/guides/instant-navigation)
+  guide for an overview of what instant navigations are and how Next.js
+  validates them, then come back here for the specific fix.
+</div>
 
-Uncached data accesses ([`fetch()`](https://developer.mozilla.org/en-US/docs/Web/API/Window/fetch), database calls, [`await connection()`](/docs/app/api-reference/functions/connection)) in `generateMetadata()` have different fixes. See [Next.js encountered uncached data in `generateMetadata()`](/docs/messages/blocking-prerender-metadata-dynamic).
+During [prerendering](https://preview.nextjs.org/docs/app/glossary#prerendering), [`generateMetadata()`](https://preview.nextjs.org/docs/app/api-reference/functions/generate-metadata) or file-based metadata read a per-request value ([`cookies()`](https://preview.nextjs.org/docs/app/api-reference/functions/cookies), [`headers()`](https://preview.nextjs.org/docs/app/api-reference/functions/headers), [`params`](https://preview.nextjs.org/docs/app/api-reference/file-conventions/page#params-optional), [`searchParams`](https://preview.nextjs.org/docs/app/api-reference/file-conventions/page#searchparams-optional)). With [Cache Components](https://preview.nextjs.org/docs/app/api-reference/config/next-config-js/cacheComponents) enabled, Next.js expects metadata to be prerenderable when the rest of the route is. This route's metadata is blocked, but the rest of its content can be prerendered.
 
-The viewport equivalent is handled at [Runtime data in `generateViewport()`](/docs/messages/blocking-prerender-viewport-runtime).
+Uncached data accesses ([`fetch()`](https://developer.mozilla.org/en-US/docs/Web/API/Window/fetch), database calls, [`await connection()`](https://preview.nextjs.org/docs/app/api-reference/functions/connection)) in `generateMetadata()` have different fixes. See [Next.js encountered uncached data in `generateMetadata()`](https://preview.nextjs.org/docs/messages/blocking-prerender-metadata-dynamic).
 
-For errors in the page body rather than metadata, see [Next.js encountered runtime data during prerendering](/docs/messages/blocking-prerender-runtime).
+The viewport equivalent is handled at [Runtime data in `generateViewport()`](https://preview.nextjs.org/docs/messages/blocking-prerender-viewport-runtime).
 
-> **Good to know**: In [`next dev`](/docs/app/api-reference/cli/next#next-dev-options), the error overlay points at the failing component. Run `next build --debug-prerender` to get the full list of blocking routes with stack traces. When iterating on specific routes, use `next build --debug-build-paths /dashboard /settings` to rebuild only those pages.
+For errors in the page body rather than metadata, see [Next.js encountered runtime data during prerendering](https://preview.nextjs.org/docs/messages/blocking-prerender-runtime).
 
 ## Ways to fix this
 
@@ -35,7 +53,7 @@ For errors in the page body rather than metadata, see [Next.js encountered runti
 
 ## Use static metadata
 
-Choose this fix when the metadata values are known at build time and don't change per request. Replace [`generateMetadata()`](/docs/app/api-reference/functions/generate-metadata) with a static [`metadata`](/docs/app/api-reference/functions/generate-metadata#metadata-object) export. The metadata is evaluated once during the build and included in every prerender.
+Choose this fix when the metadata values are known at build time and don't change per request. Replace [`generateMetadata()`](https://preview.nextjs.org/docs/app/api-reference/functions/generate-metadata) with a static [`metadata`](https://preview.nextjs.org/docs/app/api-reference/functions/generate-metadata#metadata-object) export. The metadata is evaluated once during the build and included in every prerender.
 
 ### Patterns
 
@@ -54,11 +72,11 @@ export default function Page() {
 }
 ```
 
-Learn more: [Static metadata](/docs/app/api-reference/functions/generate-metadata#metadata-object).
+Learn more: [Static metadata](https://preview.nextjs.org/docs/app/api-reference/functions/generate-metadata#metadata-object).
 
 #### Use `generateStaticParams` for per-param metadata
 
-When metadata varies by route param (a blog post title, a product name), pair [`generateStaticParams`](/docs/app/api-reference/functions/generate-static-params) with [`generateMetadata`](/docs/app/api-reference/functions/generate-metadata). Each param set is prerendered with its own metadata at build time.
+When metadata varies by route param (a blog post title, a product name), pair [`generateStaticParams`](https://preview.nextjs.org/docs/app/api-reference/functions/generate-static-params) with [`generateMetadata`](https://preview.nextjs.org/docs/app/api-reference/functions/generate-metadata). Each param set is prerendered with its own metadata at build time.
 
 ```jsx filename="app/blog/[slug]/page.js"
 export function generateStaticParams() {
@@ -73,7 +91,7 @@ export async function generateMetadata({ params }) {
 }
 ```
 
-Learn more: [`generateStaticParams`](/docs/app/api-reference/functions/generate-static-params).
+Learn more: [`generateStaticParams`](https://preview.nextjs.org/docs/app/api-reference/functions/generate-static-params).
 
 ### Trade-off
 
@@ -81,12 +99,12 @@ Static metadata can't reflect per-request values like the visitor's locale, A/B 
 
 ### Gotchas
 
-- File-based metadata (e.g. an [`icon.js`](/docs/app/api-reference/file-conventions/metadata/app-icons) or [`opengraph-image.js`](/docs/app/api-reference/file-conventions/metadata/opengraph-image) inside a dynamic segment) implicitly depends on `params`. If the segment is dynamic, Next.js treats the metadata function as dynamic too. Pair with [`generateStaticParams`](/docs/app/api-reference/functions/generate-static-params) or switch to a static file (e.g. `icon.png`).
-- A [`template`](/docs/app/api-reference/functions/generate-metadata#template) in a parent layout's metadata applies at build time. It doesn't introduce a dynamic dependency.
+- File-based metadata (e.g. an [`icon.js`](https://preview.nextjs.org/docs/app/api-reference/file-conventions/metadata/app-icons) or [`opengraph-image.js`](https://preview.nextjs.org/docs/app/api-reference/file-conventions/metadata/opengraph-image) inside a dynamic segment) implicitly depends on `params`. If the segment is dynamic, Next.js treats the metadata function as dynamic too. Pair with [`generateStaticParams`](https://preview.nextjs.org/docs/app/api-reference/functions/generate-static-params) or switch to a static file (e.g. `icon.png`).
+- A [`template`](https://preview.nextjs.org/docs/app/api-reference/functions/generate-metadata#template) in a parent layout's metadata applies at build time. It doesn't introduce a dynamic dependency.
 
 ## Mark the route as dynamic
 
-Choose this fix when the metadata genuinely requires per-request data (a personalized title from a protected API, a theme color from a cookie) and a static export isn't feasible. Add a small component that calls [`await connection()`](/docs/app/api-reference/functions/connection), render `null` from it, and wrap it in [`<Suspense>`](https://react.dev/reference/react/Suspense).
+Choose this fix when the metadata genuinely requires per-request data (a personalized title from a protected API, a theme color from a cookie) and a static export isn't feasible. Add a small component that calls [`await connection()`](https://preview.nextjs.org/docs/app/api-reference/functions/connection), render `null` from it, and wrap it in [`<Suspense>`](https://react.dev/reference/react/Suspense).
 
 This error fires specifically because the metadata is the only dynamic part of an otherwise fully prerenderable route. Adding a dynamic marker is an explicit signal to Next.js that the page has intentional dynamic content streamed alongside the static shell, so the dynamic metadata is allowed.
 
@@ -94,7 +112,7 @@ This error fires specifically because the metadata is the only dynamic part of a
 
 #### Add a dynamic marker component
 
-Create a small component that calls [`connection()`](/docs/app/api-reference/functions/connection) and renders nothing, wrapped in [`<Suspense>`](https://react.dev/reference/react/Suspense). The page content remains prerenderable and only the marker is excluded from the prerender.
+Create a small component that calls [`connection()`](https://preview.nextjs.org/docs/app/api-reference/functions/connection) and renders nothing, wrapped in [`<Suspense>`](https://react.dev/reference/react/Suspense). The page content remains prerenderable and only the marker is excluded from the prerender.
 
 ```jsx filename="app/page.js"
 import { Suspense } from 'react'
@@ -127,7 +145,7 @@ export default function Page() {
 }
 ```
 
-Learn more: [`connection`](/docs/app/api-reference/functions/connection).
+Learn more: [`connection`](https://preview.nextjs.org/docs/app/api-reference/functions/connection).
 
 ### Trade-off
 
@@ -137,23 +155,20 @@ The metadata and the dynamic marker run on every request, so the route cannot be
 
 - The `DynamicMarker` must be wrapped in [`<Suspense>`](https://react.dev/reference/react/Suspense). Without the boundary, the dynamic marker propagates up and the entire page is treated as blocking, surfacing the same blocking-route error this fix is meant to address.
 - This pattern is intentionally verbose. If you find yourself adding a dynamic marker, reconsider whether the metadata can be cached instead. Most metadata doesn't need to be per-request.
-- If the page already has a genuinely dynamic component (one that reads [`cookies()`](/docs/app/api-reference/functions/cookies) or [`headers()`](/docs/app/api-reference/functions/headers) inside a [`<Suspense>`](https://react.dev/reference/react/Suspense) boundary), you won't see this error. The page is already partially dynamic.
-- Framework-synthesized routes (`/_not-found`, `/_global-error`) inherit the root layout's `generateMetadata` and must be statically prerendered. The dynamic marker doesn't help here, because these routes don't have a page body where you can place a Suspense'd marker. If your root layout's `generateMetadata` depends on request data, [Use static metadata](#use-static-metadata) instead, or move to [`global-not-found.js`](/docs/app/api-reference/file-conventions/not-found#global-not-foundjs-experimental), which bypasses the root layout entirely and avoids inheriting its `generateMetadata`.
+- If the page already has a genuinely dynamic component (one that reads [`cookies()`](https://preview.nextjs.org/docs/app/api-reference/functions/cookies) or [`headers()`](https://preview.nextjs.org/docs/app/api-reference/functions/headers) inside a [`<Suspense>`](https://react.dev/reference/react/Suspense) boundary), you won't see this error. The page is already partially dynamic.
+- Framework-synthesized routes (`/_not-found`, `/_global-error`) inherit the root layout's `generateMetadata` and must be statically prerendered. The dynamic marker doesn't help here, because these routes don't have a page body where you can place a Suspense'd marker. If your root layout's `generateMetadata` depends on request data, [Use static metadata](#use-static-metadata) instead, or move to [`global-not-found.js`](https://preview.nextjs.org/docs/app/api-reference/file-conventions/not-found#global-not-foundjs-experimental), which bypasses the root layout entirely and avoids inheriting its `generateMetadata`.
+
+## Verifying the fix
+
+After applying a fix, reload the route to confirm the [static shell](https://preview.nextjs.org/docs/app/glossary#static-shell) renders real content. A [`<Suspense>`](https://react.dev/reference/react/Suspense) boundary placed around the whole page body can pass validation with an empty shell, which defeats the point of an instant navigation.
+
+In [`next dev`](https://preview.nextjs.org/docs/app/api-reference/cli/next#next-dev-options), the error overlay points at the failing component with file paths and line numbers. When working from a build instead, the default [`next build`](https://preview.nextjs.org/docs/app/api-reference/cli/next#next-build-options) output is more abbreviated; run `next build --debug-prerender` for full user-frame stack traces and `next build --debug-build-paths /dashboard /settings` to iterate on specific routes.
 
 ## Don't want this validation?
 
-Instant-navigation validation runs by default in [Cache Components](/docs/app/api-reference/config/next-config-js/cacheComponents) apps and is what surfaces this error.
+Instant-navigation validation runs by default in [Cache Components](https://preview.nextjs.org/docs/app/api-reference/config/next-config-js/cacheComponents) apps and is what surfaces this error.
 
-- **One segment**: add [`export const instant = false`](/docs/app/api-reference/file-conventions/route-segment-config/instant) to the page or layout file. This opts out the segment itself. Child segments are still validated during client navigations.
-- **Entire app**: set [`experimental.instantInsights.validationLevel`](/docs/app/api-reference/file-conventions/route-segment-config/instant#configuring-validation-defaults) to `'manual-warning'` in `next.config`. This limits validation to segments that explicitly export `instant`.
+- **One segment**: add [`export const instant = false`](https://preview.nextjs.org/docs/app/api-reference/file-conventions/route-segment-config/instant) to the page or layout file. This opts out the segment itself. Child segments are still validated during client navigations.
+- **Entire app**: set [`experimental.instantInsights.validationLevel`](https://preview.nextjs.org/docs/app/api-reference/file-conventions/route-segment-config/instant#configuring-validation-defaults) to `'manual-warning'` in `next.config`. This limits validation to segments that explicitly export `instant`.
 
-See [Ensuring instant navigations](/docs/app/guides/instant-navigation) for the full model.
-
-## Useful links
-
-- [`generateMetadata()`](/docs/app/api-reference/functions/generate-metadata)
-- [Uncached data in `generateMetadata()`](/docs/messages/blocking-prerender-metadata-dynamic)
-- [Runtime data in `generateViewport()`](/docs/messages/blocking-prerender-viewport-runtime)
-- [`generateStaticParams`](/docs/app/api-reference/functions/generate-static-params)
-- [`connection` function](/docs/app/api-reference/functions/connection)
-- [Ensuring instant navigations](/docs/app/guides/instant-navigation)
+See [Ensuring instant navigations](https://preview.nextjs.org/docs/app/guides/instant-navigation) for the full model.
