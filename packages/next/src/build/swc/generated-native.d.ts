@@ -541,20 +541,24 @@ export interface TurbopackInternalErrorOpts {
 /**
  * Turbopack's memory eviction strategy for the persistent cache, mirroring the
  * `experimental.turbopackMemoryEviction` config option.
+ *
+ * This is a napi-facing mirror of [`EvictionMode`] (the backend crate can't
+ * depend on napi). Keep the variants in sync; the `From` impl below is
+ * exhaustive, so adding a variant to one enum forces updating the other.
  */
 export const enum MemoryEvictionMode {
   /** Never evict. */
   Off = 'off',
   /**
-   * After every snapshot, evict all evictable tasks from memory, reloading
-   * them from disk on demand.
-   */
-  Full = 'full',
-  /**
    * Evict after a snapshot only once enough memory has been allocated since
    * the last eviction to justify the cost of restoring evicted tasks.
    */
   Auto = 'auto',
+  /**
+   * After every snapshot, evict all evictable tasks from memory, reloading
+   * them from disk on demand.
+   */
+  Full = 'full',
 }
 export declare function rootTaskDispose(rootTask: {
   __napiType: 'RootTask'
