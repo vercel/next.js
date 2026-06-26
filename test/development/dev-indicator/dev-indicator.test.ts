@@ -170,5 +170,36 @@ describe('dev indicator - route type', () => {
         })
       }
     })
+
+    describe('when loading a page that reads searchParams', () => {
+      if (withCacheComponents) {
+        describe('with Cache Components enabled', () => {
+          it('should not show a static indicator', async () => {
+            const browser = await next.browser(
+              '/app/static-indicator/search-params?a=test'
+            )
+            await waitForStaticIndicator(browser, undefined)
+          })
+        })
+      } else {
+        describe('with Cache Components disabled', () => {
+          it('should be marked dynamic on first load', async () => {
+            const browser = await next.browser(
+              '/app/static-indicator/search-params?a=test'
+            )
+
+            await waitForStaticIndicator(browser, 'Dynamic')
+          })
+
+          it('should be marked dynamic even without a query string', async () => {
+            const browser = await next.browser(
+              '/app/static-indicator/search-params'
+            )
+
+            await waitForStaticIndicator(browser, 'Dynamic')
+          })
+        })
+      }
+    })
   })
 })
