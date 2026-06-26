@@ -3,6 +3,7 @@
 import type { Params } from '../../server/request/params'
 import { LayoutRouterContext } from '../../shared/lib/app-router-context.shared-runtime'
 import { use } from 'react'
+import { createClientParams } from './client-boundary-params'
 
 /**
  * When the Page is a client component we send the params to this client wrapper
@@ -35,20 +36,7 @@ export function ClientSegmentRoot({
       layoutRouterContext !== null ? layoutRouterContext.parentParams : {}
   }
 
-  if (typeof window === 'undefined') {
-    const { createParamsFromClient } =
-      // TODO(browser-variant): migrate to a .ts/.browser.ts split so the browser bundle drops the server branch; see scripts/generate-browser-variant-aliases.mjs
-      // ast-grep-ignore: no-typeof-window-require-tsx
-      require('../../server/request/params') as typeof import('../../server/request/params')
-    const clientParams: Promise<Params> = createParamsFromClient(params)
+  const clientParams = createClientParams(params)
 
-    return <Component {...slots} params={clientParams} />
-  } else {
-    const { createRenderParamsFromClient } =
-      // TODO(browser-variant): migrate to a .ts/.browser.ts split so the browser bundle drops the server branch; see scripts/generate-browser-variant-aliases.mjs
-      // ast-grep-ignore: no-typeof-window-require-tsx
-      require('../request/params.browser') as typeof import('../request/params.browser')
-    const clientParams = createRenderParamsFromClient(params)
-    return <Component {...slots} params={clientParams} />
-  }
+  return <Component {...slots} params={clientParams} />
 }

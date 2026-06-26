@@ -6,6 +6,10 @@ import { LayoutRouterContext } from '../../shared/lib/app-router-context.shared-
 import { use } from 'react'
 import { urlSearchParamsToParsedUrlQuery } from '../route-params'
 import { SearchParamsContext } from '../../shared/lib/hooks-client-context.shared-runtime'
+import {
+  createClientParams,
+  createClientSearchParams,
+} from './client-boundary-params'
 
 /**
  * When the Page is a client component we send the params and searchParams to this client wrapper
@@ -46,35 +50,8 @@ export function ClientPageRoot({
     searchParams = urlSearchParamsToParsedUrlQuery(use(SearchParamsContext)!)
   }
 
-  if (typeof window === 'undefined') {
-    let clientSearchParams: Promise<ParsedUrlQuery>
-    let clientParams: Promise<Params>
+  const clientSearchParams = createClientSearchParams(searchParams)
+  const clientParams = createClientParams(params)
 
-    const { createSearchParamsFromClient } =
-      // TODO(browser-variant): migrate to a .ts/.browser.ts split so the browser bundle drops the server branch; see scripts/generate-browser-variant-aliases.mjs
-      // ast-grep-ignore: no-typeof-window-require-tsx
-      require('../../server/request/search-params') as typeof import('../../server/request/search-params')
-    clientSearchParams = createSearchParamsFromClient(searchParams)
-
-    const { createParamsFromClient } =
-      // TODO(browser-variant): migrate to a .ts/.browser.ts split so the browser bundle drops the server branch; see scripts/generate-browser-variant-aliases.mjs
-      // ast-grep-ignore: no-typeof-window-require-tsx
-      require('../../server/request/params') as typeof import('../../server/request/params')
-    clientParams = createParamsFromClient(params)
-
-    return <Component params={clientParams} searchParams={clientSearchParams} />
-  } else {
-    const { createRenderSearchParamsFromClient } =
-      // TODO(browser-variant): migrate to a .ts/.browser.ts split so the browser bundle drops the server branch; see scripts/generate-browser-variant-aliases.mjs
-      // ast-grep-ignore: no-typeof-window-require-tsx
-      require('../request/search-params.browser') as typeof import('../request/search-params.browser')
-    const clientSearchParams = createRenderSearchParamsFromClient(searchParams)
-    const { createRenderParamsFromClient } =
-      // TODO(browser-variant): migrate to a .ts/.browser.ts split so the browser bundle drops the server branch; see scripts/generate-browser-variant-aliases.mjs
-      // ast-grep-ignore: no-typeof-window-require-tsx
-      require('../request/params.browser') as typeof import('../request/params.browser')
-    const clientParams = createRenderParamsFromClient(params)
-
-    return <Component params={clientParams} searchParams={clientSearchParams} />
-  }
+  return <Component params={clientParams} searchParams={clientSearchParams} />
 }
