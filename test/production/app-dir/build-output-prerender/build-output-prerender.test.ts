@@ -299,7 +299,7 @@ describe('build-output-prerender', () => {
              - [measure] If the value is for telemetry, use a timing API such as \`performance.now()\`
                https://nextjs.org/docs/messages/blocking-prerender-current-time-client#for-telemetry-use-a-timing-api
                at Page (webpack:///app/client/page.tsx:4:28)
-               at ClientPageRoot (webpack:///src/client/components/client-page.tsx:61:12)
+               at ClientPageRoot (webpack:///src/client/components/client-page.tsx:65:12)
              2 |
              3 | export default function Page() {
            > 4 |   return <p>Current time: {new Date().toISOString()}</p>

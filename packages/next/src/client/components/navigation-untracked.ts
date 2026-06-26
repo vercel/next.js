@@ -12,6 +12,8 @@ function hasFallbackRouteParams(): boolean {
   if (typeof window === 'undefined') {
     // AsyncLocalStorage should not be included in the client bundle.
     const { workUnitAsyncStorage } =
+      // TODO(browser-variant): migrate to a .ts/.browser.ts split so the browser bundle drops the server branch; see scripts/generate-browser-variant-aliases.mjs
+      // ast-grep-ignore: no-typeof-window-require
       require('../../server/app-render/work-unit-async-storage.external') as typeof import('../../server/app-render/work-unit-async-storage.external')
 
     const workUnitStore = workUnitAsyncStorage.getStore()
