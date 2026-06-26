@@ -59,3 +59,44 @@ export async function readBodyWithSizeLimit(
 
   return Buffer.concat(chunks)
 }
+
+/**
+ * Decodes the postponed-state request body. PPR resume requests can arrive
+ * compressed (e.g. `gzip` applied by a proxy/CDN that issues the resume
+ * request); reading the raw bytes as UTF-8 without decompressing yields an
+ * invalid postponed state.
+ *
+ * The request's `Content-Encoding` is honored when present. Because some
+ * proxies compress the body without forwarding that header, a leading gzip
+ * magic number is also detected: a valid serialized postponed state always
+ * begins with `<len>:` (an ASCII digit or `:`, `0x30`–`0x3a`), so a leading
+ * `0x1f 0x8b` is unambiguous and safe to decompress.
+ */
+export function decodePostponedRequestBody(
+  body: Buffer,
+  contentEncoding: string | string[] | undefined
+): string {
+  const { gunzipSync, brotliDecompressSync, inflateSync } =
+    require('node:zlib') as typeof import('node:zlib')
+
+  const encoding = (
+    Array.isArray(contentEncoding) ? contentEncoding[0] : contentEncoding
+  )?.toLowerCase()
+
+  switch (encoding) {
+    case 'gzip':
+      return gunzipSync(body).toString('utf8')
+    case 'br':
+      return brotliDecompressSync(body).toString('utf8')
+    case 'deflate':
+      return inflateSync(body).toString('utf8')
+    default:
+      break
+  }
+
+  if (body.length >= 2 && body[0] === 0x1f && body[1] === 0x8b) {
+    return gunzipSync(body).toString('utf8')
+  }
+
+  return body.toString('utf8')
+}

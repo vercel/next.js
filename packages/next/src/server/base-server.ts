@@ -154,6 +154,7 @@ import { createOpaqueFallbackRouteParams } from './request/fallback-params'
 import { RouteKind } from './route-kind'
 import type { ErrorModule } from './load-default-error-components'
 import {
+  decodePostponedRequestBody,
   getMaxPostponedStateSize,
   getPostponedStateExceededErrorMessage,
   readBodyWithSizeLimit,
@@ -1123,7 +1124,13 @@ export default abstract class Server<
                 .send()
               return
             }
-            const postponed = body.toString('utf8')
+            // The resume body can arrive compressed (e.g. `gzip` behind a
+            // proxy). Decode it honoring `Content-Encoding`; reading the raw
+            // bytes as UTF-8 would yield an invalid postponed state.
+            const postponed = decodePostponedRequestBody(
+              body,
+              req.headers['content-encoding']
+            )
 
             addRequestMeta(req, 'postponed', postponed)
           }
