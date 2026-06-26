@@ -1362,26 +1362,20 @@ impl TurboTasksBackend {
             "turbopack-persistence",
             wall_start_ms,
             wall_end_ms,
-            vec![
-                ("reason", serde_json::Value::from(reason.as_str())),
-                (
+            serde_json::json!([
+                ["reason", reason.as_str()],
+                [
                     "snapshot_duration_ms",
-                    serde_json::Value::from(snapshot_duration.as_secs_f64() * 1000.0),
-                ),
-                (
+                    snapshot_duration.as_secs_f64() * 1000.0,
+                ],
+                [
                     "persist_duration_ms",
-                    serde_json::Value::from(persist_duration.as_secs_f64() * 1000.0),
-                ),
-                ("task_count", serde_json::Value::from(task_count)),
-                (
-                    "bytes_written",
-                    serde_json::Value::from(snapshot_meta.bytes_written),
-                ),
-                (
-                    "bytes_deleted",
-                    serde_json::Value::from(snapshot_meta.bytes_deleted),
-                ),
-            ],
+                    persist_duration.as_secs_f64() * 1000.0,
+                ],
+                ["task_count", task_count],
+                ["bytes_written", snapshot_meta.bytes_written,],
+                ["bytes_deleted", snapshot_meta.bytes_deleted,]
+            ]),
         )));
 
         Ok((snapshot_time, true))

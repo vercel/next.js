@@ -196,16 +196,10 @@ fn do_compact(
             "turbopack-compaction",
             wall_start_ms,
             wall_end_ms,
-            vec![
-                (
-                    "bytes_written",
-                    serde_json::Value::from(stats.bytes_written),
-                ),
-                (
-                    "bytes_deleted",
-                    serde_json::Value::from(stats.bytes_deleted),
-                ),
-            ],
+            serde_json::json!([
+                ["bytes_written", stats.bytes_written],
+                ["bytes_deleted", stats.bytes_deleted],
+            ]),
         )));
     }
     Ok(stats)

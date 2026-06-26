@@ -59,11 +59,10 @@ pub struct SnapshotMeta {
     pub data_items: usize,
     pub meta_items: usize,
     pub task_cache_items: usize,
-    /// Physical on-disk bytes (post-compression, including `.sst`/`.blob`/`.meta` files) written
-    /// by the commit.
-    pub bytes_written: usize,
-    /// Physical on-disk bytes of files removed/superseded by the commit.
-    pub bytes_deleted: usize,
+    /// Physical on-disk bytes written by the commit.
+    pub bytes_written: u64,
+    /// Physical on-disk bytes of files removed by the commit.
+    pub bytes_deleted: u64,
     pub max_next_task_id: u32,
 }
 
