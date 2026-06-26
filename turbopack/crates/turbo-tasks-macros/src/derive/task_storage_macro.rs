@@ -123,15 +123,19 @@ impl FieldInfo {
         }
     }
 
-    /// Generate the full `self.track_modification(...)` call for this field.
+    /// Generate the full `self.track_modification(...)` call *statement* for this field.
+    ///
+    /// Used by mutators that track unconditionally (a replace/batch/counter update that reaches the
+    /// track call is always a real change), so the returned `TrackOutcome` is discarded with
+    /// `let _ =`. Mutators that track-then-undo use [`track_modification_outcome_expr`] instead.
     fn track_modification_call(&self) -> TokenStream {
         let field_name_str = self.field_name.to_string();
         match self.category {
             Category::Data => {
-                quote! { self.track_modification(crate::backend::storage::SpecificTaskDataCategory::Data, #field_name_str); }
+                quote! { let _the_modification_is_unconditional = self.track_modification(crate::backend::storage::SpecificTaskDataCategory::Data, #field_name_str); }
             }
             Category::Meta => {
-                quote! { self.track_modification(crate::backend::storage::SpecificTaskDataCategory::Meta, #field_name_str); }
+                quote! { let _the_modification_is_unconditional = self.track_modification(crate::backend::storage::SpecificTaskDataCategory::Meta, #field_name_str); }
             }
             Category::Transient => {
                 quote! {
@@ -158,6 +162,46 @@ impl FieldInfo {
                 #track
             }
         }
+    }
+
+    /// An *expression* (no trailing `;`) that calls `self.track_modification(...)` and evaluates to
+    /// a `TrackOutcome`. Used by mutators that track-before-mutate and then undo if the mutation
+    /// was a no-op (see [`track_modification_undo_expr`]). For transient *fields* there is nothing
+    /// to track, so it evaluates to `TrackOutcome::NoChange`.
+    fn track_modification_outcome_expr(&self) -> TokenStream {
+        let field_name_str = self.field_name.to_string();
+        match self.category {
+            Category::Data => {
+                quote! { self.track_modification(crate::backend::storage::SpecificTaskDataCategory::Data, #field_name_str) }
+            }
+            Category::Meta => {
+                quote! { self.track_modification(crate::backend::storage::SpecificTaskDataCategory::Meta, #field_name_str) }
+            }
+            Category::Transient => quote! { crate::backend::storage::TrackOutcome::NoChange },
+        }
+    }
+
+    /// Like [`track_modification_outcome_expr`], but for `filter_transient` fields it only tracks
+    /// when `key_expr` is not transient (transient entries change no persistable bytes), evaluating
+    /// to `TrackOutcome::NoChange` otherwise. Identical to [`track_modification_outcome_expr`] for
+    /// non-`filter_transient` fields.
+    fn track_modification_outcome_expr_guarded(&self, key_expr: TokenStream) -> TokenStream {
+        if !self.filter_transient || self.is_transient() {
+            return self.track_modification_outcome_expr();
+        }
+        let track = self.track_modification_outcome_expr();
+        quote! {
+            if !(#key_expr).is_transient() {
+                #track
+            } else {
+                crate::backend::storage::TrackOutcome::NoChange
+            }
+        }
+    }
+
+    /// The `self.undo_track_modification(<outcome_ident>)` call statement.
+    fn track_modification_undo_expr(&self, outcome_ident: TokenStream) -> TokenStream {
+        quote! { self.undo_track_modification(#outcome_ident); }
     }
 
     /// Whether this field is stored inline (not lazy).
@@ -1618,10 +1662,15 @@ fn generate_task_storage_accessors_trait(grouped_fields: &GroupedFields) -> Toke
 
             #[doc = "Track that a modification occurred for the given category."]
             #[doc = ""]
-            #[doc = "Should be called after confirming that data actually changed."]
-            #[doc = "This is separate from `typed_mut()` to allow optimizations where"]
-            #[doc = "we only track modifications when something actually changes."]
-            fn track_modification(&mut self, category: crate::backend::storage::SpecificTaskDataCategory, name: &str);
+            #[doc = "Returns a `TrackOutcome` recording what changed. Mutators that track *before*"]
+            #[doc = "mutating (to preserve the snapshot-mode ordering invariant) and only afterwards"]
+            #[doc = "learn the mutation was a no-op pass the outcome to `undo_track_modification`."]
+            #[doc = "When the mutation is known to be a real change, the outcome can be dropped."]
+            fn track_modification(&mut self, category: crate::backend::storage::SpecificTaskDataCategory, name: &str) -> crate::backend::storage::TrackOutcome;
+
+            #[doc = "Reverse a `TrackOutcome` from `track_modification` when the guarded mutation"]
+            #[doc = "turned out to change nothing persistable."]
+            fn undo_track_modification(&mut self, outcome: crate::backend::storage::TrackOutcome);
 
             #[doc = "Verify that the task was accessed with the correct category before reading/writing."]
             #[doc = ""]
@@ -2037,12 +2086,9 @@ fn generate_autoset_ops(field: &FieldInfo) -> TokenStream {
     };
 
     let check_access = field.check_access_call();
+    // Used by `set`/`extend` which track unconditionally (a replace/batch that reaches the track
+    // call is always a real change). `add`/`remove` instead track-then-undo (see below).
     let track_modification = field.track_modification_call();
-    // For `filter_transient` fields, tracking on add/remove is guarded so it
-    // only fires for non-transient `item`s (transient entries are dropped at
-    // encode, so they change zero persistable bytes). For non-filter_transient
-    // fields this is identical to `track_modification`.
-    let track_modification_item = field.track_modification_call_guarded(quote! { item });
     let mut_expr = field.collection_mut_expr();
     let ref_expr = field.collection_ref_expr();
 
@@ -2114,58 +2160,43 @@ fn generate_autoset_ops(field: &FieldInfo) -> TokenStream {
             #mut_expr.extend(items);
         };
     } else {
-        // Remove: only track modification if the item exists.
-        // For lazy fields, find the index once and reuse it to avoid double-scanning.
+        // `track_modification` returns a `TrackOutcome`; for `filter_transient` fields it is
+        // `NoChange` when `item` is transient (those change no persistable bytes). We track BEFORE
+        // mutating (snapshot mode clones pre-mutation state) and `undo` if the native return value
+        // of the mutation reveals it changed nothing — avoiding the redundant `contains` probe.
+        let track_item_outcome = field.track_modification_outcome_expr_guarded(quote! { item });
+        let undo = field.track_modification_undo_expr(quote! { _track_outcome });
+
+        // Remove: track, remove (native bool), undo if the item wasn't present.
+        // For lazy fields we still must locate the set without allocating it, but we use the
+        // index found to remove directly and rely on `remove`'s return for the undo decision.
         remove_body = if is_option {
             let extractor = field.lazy_extractor_closure();
             quote! {
-                let Some((idx, val)) = self.typed().find_lazy_ref(#extractor) else {
+                let Some((idx, _)) = self.typed().find_lazy_ref(#extractor) else {
                     return false;
                 };
-                if !val.contains(item) {
-                    return false;
-                }
-                #track_modification_item
-                self.typed_mut().lazy_at_mut(idx, #extractor).remove(item)
+                let _track_outcome = #track_item_outcome;
+                let removed = self.typed_mut().lazy_at_mut(idx, #extractor).remove(item);
+                if !removed { #undo }
+                removed
             }
         } else {
             quote! {
-                if !#ref_expr.contains(item) {
-                    return false;
-                }
-                #track_modification_item
-                #mut_expr.remove(item)
+                let _track_outcome = #track_item_outcome;
+                let removed = #mut_expr.remove(item);
+                if !removed { #undo }
+                removed
             }
         };
 
-        // Add: only track modification if the item is actually new.
-        // For lazy fields, use find_lazy_ref + lazy_at_mut to avoid double-scanning.
-        add_body = if is_option {
-            let extractor = field.lazy_extractor_closure();
-            let ctor = field.lazy_constructor(quote! { set });
-            quote! {
-                if let Some((idx, existing)) = self.typed().find_lazy_ref(#extractor) {
-                    if existing.contains(&item) {
-                        return false;
-                    }
-                    #track_modification_item
-                    self.typed_mut().lazy_at_mut(idx, #extractor).insert(item)
-                } else {
-                    #track_modification_item
-                    let mut set = <#field_type as Default>::default();
-                    set.insert(item);
-                    self.typed_mut().lazy.push(#ctor);
-                    true
-                }
-            }
-        } else {
-            quote! {
-                if #ref_expr.contains(&item) {
-                    return false;
-                }
-                #track_modification_item
-                #mut_expr.insert(item)
-            }
+        // Add: track, insert (native bool), undo if the item already existed.
+        // For lazy fields `#mut_expr` (field_mut) get-or-creates the set in a single scan.
+        add_body = quote! {
+            let _track_outcome = #track_item_outcome;
+            let inserted = #mut_expr.insert(item);
+            if !inserted { #undo }
+            inserted
         };
 
         if is_option {
@@ -2409,28 +2440,35 @@ fn generate_countermap_ops(field: &FieldInfo) -> TokenStream {
         quote! { #ref_expr.get(key) }
     };
 
-    // Generate remove body - for lazy fields, we need to check if the map exists first
-    // without allocating it. For inline fields, we can use the mut_expr directly.
-    // Only track modification if the key exists (check before mutating).
-    // For transient fields, skip guards since track_modification is a no-op.
+    // Generate remove body. `remove` returns `Option<V>` natively, so (like AutoSet remove) we
+    // track BEFORE mutating (snapshot mode clones pre-mutation state), use that return to learn
+    // whether anything was actually removed, and undo the track if the key was absent — avoiding
+    // the redundant `get` probe the check-first form needed. For transient fields tracking is a
+    // no-op so no undo is needed.
+    let remove_outcome = field.track_modification_outcome_expr_guarded(quote! { key });
+    let remove_undo = field.track_modification_undo_expr(quote! { _track_outcome });
     let remove_body = if field.is_transient() {
         quote! {
             #track_modification
             #mut_expr.remove(key)
         }
     } else if is_option {
+        // Lazy: still locate the map without allocating it (a bare `field_mut()` would create an
+        // empty map on a remove), but drop the separate membership probe.
         let extractor = field.lazy_extractor_closure();
         quote! {
-            let (idx, val) = self.typed().find_lazy_ref(#extractor)?;
-            val.get(key)?;
-            #track_modification_key
-            self.typed_mut().lazy_at_mut(idx, #extractor).remove(key)
+            let (idx, _) = self.typed().find_lazy_ref(#extractor)?;
+            let _track_outcome = #remove_outcome;
+            let removed = self.typed_mut().lazy_at_mut(idx, #extractor).remove(key);
+            if removed.is_none() { #remove_undo }
+            removed
         }
     } else {
         quote! {
-            self.#get_name(key)?;
-            #track_modification_key
-            #mut_expr.remove(key)
+            let _track_outcome = #remove_outcome;
+            let removed = #mut_expr.remove(key);
+            if removed.is_none() { #remove_undo }
+            removed
         }
     };
 
@@ -2517,6 +2555,9 @@ fn generate_countermap_ops(field: &FieldInfo) -> TokenStream {
                 return;
             }
             let keys: Vec<_> = keys.collect();
+            if keys.is_empty() {
+                return;
+            }
             if keys.iter().any(|key| !key.is_transient()) {
                 #track_modification
             }
@@ -2755,25 +2796,33 @@ fn generate_automap_ops(field: &FieldInfo) -> TokenStream {
     // Generate remove body - for lazy fields, avoid allocation if map doesn't exist.
     // Only track modification if the key exists (check before mutating).
     // For transient fields, skip guards since track_modification is a no-op.
+    // `remove` returns `Option<V>` natively, so (like AutoSet / CounterMap remove) we track BEFORE
+    // mutating (snapshot mode clones pre-mutation state), use that return to learn whether anything
+    // was removed, and undo the track if the key was absent — dropping the redundant membership
+    // probe. `insert` stays an unconditional track: callers only ever insert distinct values, so an
+    // equality check would pay `PartialEq` on every insert to catch a no-op that never happens.
+    let remove_outcome = field.track_modification_outcome_expr();
+    let remove_undo = field.track_modification_undo_expr(quote! { _track_outcome });
     let remove_body = if field.is_transient() {
         quote! {
             #mut_expr.remove(key)
         }
     } else if is_option {
+        // Lazy: still locate the map without allocating it, but drop the separate membership probe.
         let extractor = field.lazy_extractor_closure();
         quote! {
-            let (idx, val) = self.typed().find_lazy_ref(#extractor)?;
-            val.get(key)?;
-            #track_modification
-            self.typed_mut().lazy_at_mut(idx, #extractor).remove(key)
+            let (idx, _) = self.typed().find_lazy_ref(#extractor)?;
+            let _track_outcome = #remove_outcome;
+            let removed = self.typed_mut().lazy_at_mut(idx, #extractor).remove(key);
+            if removed.is_none() { #remove_undo }
+            removed
         }
     } else {
         quote! {
-            if !self.#has_entry_name(key) {
-                return None;
-            }
-            #track_modification
-            #mut_expr.remove(key)
+            let _track_outcome = #remove_outcome;
+            let removed = #mut_expr.remove(key);
+            if removed.is_none() { #remove_undo }
+            removed
         }
     };
 

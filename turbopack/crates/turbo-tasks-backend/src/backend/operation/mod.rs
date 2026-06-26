@@ -28,7 +28,7 @@ use crate::{
     backend::{
         EventDescription, TaskDataCategory, TurboTasksBackend,
         snapshot_coordinator::OperationGuard,
-        storage::{SpecificTaskDataCategory, StorageWriteGuard},
+        storage::{SpecificTaskDataCategory, StorageWriteGuard, TrackOutcome},
         storage_schema::{TaskStorage, TaskStorageAccessors},
     },
     data::{ActivenessState, CollectibleRef, Dirtyness, InProgressState, TransientTask},
@@ -1251,7 +1251,9 @@ pub trait TaskGuard: Debug + TaskStorageAccessors {
         // tracked
         self.check_access(SpecificTaskDataCategory::Data);
         if matches!(persistence, ValueTypePersistence::Persistable(..)) {
-            self.track_modification(SpecificTaskDataCategory::Data, "cell_data");
+            // Unconditional track when persistable: an insert always changes the data snapshot
+            // (a fresh cell, or a replaced value). No no-op to undo.
+            let _ = self.track_modification(SpecificTaskDataCategory::Data, "cell_data");
         }
         self.typed_mut().cell_data_mut().insert(cell, value)
     }
@@ -1263,15 +1265,20 @@ pub trait TaskGuard: Debug + TaskStorageAccessors {
         persistence: &ValueTypePersistence,
     ) -> Option<SharedReference> {
         self.check_access(SpecificTaskDataCategory::Data);
-        // Track only when a persistable entry is actually removed (the entry must
-        // exist and be Persistable; Skip/HashOnly cells contribute nothing to the
-        // data snapshot).
-        if matches!(persistence, ValueTypePersistence::Persistable(..))
-            && self.cell_data_contains(cell)
-        {
-            self.track_modification(SpecificTaskDataCategory::Data, "cell_data");
+        // Track only when a persistable entry is actually removed (Skip/HashOnly cells contribute
+        // nothing to the data snapshot). Track BEFORE mutating (snapshot mode clones pre-mutation
+        // state), then undo if the entry turned out not to be present — avoiding a redundant
+        // `cell_data_contains` probe.
+        let outcome = if matches!(persistence, ValueTypePersistence::Persistable(..)) {
+            self.track_modification(SpecificTaskDataCategory::Data, "cell_data")
+        } else {
+            TrackOutcome::NoChange
+        };
+        let old = self.typed_mut().cell_data_mut().remove(cell);
+        if old.is_none() {
+            self.undo_track_modification(outcome);
         }
-        self.typed_mut().cell_data_mut().remove(cell)
+        old
     }
 
     /// Add new cell data. Panics if the cell already had a value. See
@@ -1405,9 +1412,12 @@ impl TaskGuard for TaskGuardImpl<'_> {
         // TODO this causes race conditions, since we never know when a value is changed. We can't
         // "snapshot" the value correctly.
         if !self.task_id.is_transient() {
-            self.task
+            // Unconditional track (no mutation to detect a no-op against): always mark dirty.
+            let _ = self
+                .task
                 .track_modification(SpecificTaskDataCategory::Data, "invalidate_serialization");
-            self.task
+            let _ = self
+                .task
                 .track_modification(SpecificTaskDataCategory::Meta, "invalidate_serialization");
         }
     }
@@ -1466,10 +1476,19 @@ impl TaskStorageAccessors for TaskGuardImpl<'_> {
         &mut self,
         category: crate::backend::storage::SpecificTaskDataCategory,
         name: &str,
-    ) {
-        if !self.task_id.is_transient() {
-            self.task.track_modification(category, name);
+    ) -> TrackOutcome {
+        if self.task_id.is_transient() {
+            // Transient tasks are never persisted, so there is nothing to track or undo.
+            TrackOutcome::NoChange
+        } else {
+            self.task.track_modification(category, name)
         }
+    }
+
+    #[inline(always)]
+    fn undo_track_modification(&mut self, outcome: TrackOutcome) {
+        // Transient tasks return `NoChange` above, so undo is harmlessly a no-op for them.
+        self.task.undo_track_modification(outcome);
     }
 
     fn check_access(&self, category: crate::backend::storage::SpecificTaskDataCategory) {
