@@ -92,9 +92,9 @@ function CopyPromptButton({
     '',
     `4. Apply the chosen pattern to the code identified in step 2. Don't narrate the change with new comments — the code should explain itself. Only leave a comment when the *why* isn't clear (e.g. a deliberate Block with a reason).`,
     '',
-    `5. Verify the fix at runtime. The Insight clearing in the dev overlay confirms the build is happy, but not what actually renders. Reload the route in a browser and confirm the static shell still paints first and any new <Suspense> fallback resolves to its real content.`,
+    `5. Verify the fix at runtime. The Insight clearing in the dev overlay confirms the build is happy, but not what actually renders. Reload the route in a browser and confirm the static shell still paints first and any new \`<Suspense>\` fallback resolves to its real content.`,
     '',
-    "6. Check the shell isn't empty. A <Suspense> boundary placed too high (around the whole page body, or with `fallback={null}`) can leave the build reporting a shell while the shell itself contains nothing and everything streams. If that's what you see, pull the boundary down closer to the actual dynamic read.",
+    "6. Check the shell isn't empty. A `<Suspense>` boundary placed too high (around the whole page body, or with `fallback={null}`) can leave the build reporting a shell while the shell itself contains nothing and everything streams. If that's what you see, pull the boundary down closer to the actual dynamic read.",
     '',
     "7. If the fix touched shared code (a layout, a wrapper, a sidebar), re-check the sibling routes too — a shell-level change can fix one route and break another. A before/after capture of the affected routes is a useful sanity check: the visible UI may look the same (the fix often just changes what's in the shell vs streamed), but if anything regressed visually, you'll see it.",
   ].join('\n')
