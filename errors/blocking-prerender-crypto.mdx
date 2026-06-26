@@ -3,11 +3,29 @@ title: Next.js encountered the unstable value crypto.randomUUID() while prerende
 kind: insight
 ---
 
+<div
+  style={{
+    padding: '1.25rem 1.5rem',
+    border: '1px solid var(--ds-gray-400)',
+    borderRadius: '12px',
+    background: 'var(--ds-background-200)',
+    margin: '1.5rem 0 2rem',
+    fontSize: '0.95rem',
+    lineHeight: '1.6',
+  }}
+>
+  This error is part of the [Instant
+  Navigations](https://nextjs.org/blog/next-16-3-instant-navigations) feature
+  introduced in Next.js 16.3. If you're new to it, start with the [Ensuring
+  instant
+  navigations](https://preview.nextjs.org/docs/app/guides/instant-navigation)
+  guide for an overview of what instant navigations are and how Next.js
+  validates them, then come back here for the specific fix.
+</div>
+
 During [prerendering](/docs/app/glossary#prerendering), a Server Component called a synchronous [Web Crypto](https://developer.mozilla.org/en-US/docs/Web/API/Crypto) or Node [`crypto`](https://nodejs.org/api/crypto.html) API that produces a random value ([`crypto.randomUUID()`](https://developer.mozilla.org/en-US/docs/Web/API/Crypto/randomUUID), [`crypto.getRandomValues()`](https://developer.mozilla.org/en-US/docs/Web/API/Crypto/getRandomValues), [`crypto.randomBytes()`](https://nodejs.org/api/crypto.html#cryptorandombytessize-callback), [`crypto.generateKeyPairSync()`](https://nodejs.org/api/crypto.html#cryptogeneratekeypairsynctype-options)) outside of [`<Suspense>`](https://react.dev/reference/react/Suspense). With [Cache Components](/docs/app/api-reference/config/next-config-js/cacheComponents) enabled, Next.js can't bake an unpredictable value into the prerendered HTML. The value at build time will differ from the value at runtime, so you need to choose: cache the generated value so it's stable, defer the call behind a [`<Suspense>`](https://react.dev/reference/react/Suspense) boundary so it runs per-request, or move it to the client.
 
 Other unpredictable APIs ([`Math.random()`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Math/random), [`Date.now()`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Date/now)) have parallel error pages: see [`Math.random()`](/docs/messages/blocking-prerender-random) and [`Date.now()`](/docs/messages/blocking-prerender-current-time). The Client Component case is handled at [Crypto APIs in a Client Component](/docs/messages/blocking-prerender-crypto-client).
-
-> **Good to know**: In [`next dev`](/docs/app/api-reference/cli/next#next-dev-options), the error overlay points at the failing component with file paths and line numbers. After a fix, reload the route to confirm the static shell renders real content — a `<Suspense>` boundary placed around the whole page body can pass validation with an empty shell. When working from a build instead, the default `next build` output is more abbreviated; run `next build --debug-prerender` for full user-frame stack traces and `next build --debug-build-paths /dashboard /settings` to iterate on specific routes.
 
 ## Ways to fix this
 
@@ -221,6 +239,12 @@ The first paint shows the SSR fallback (often `null`), and the value appears onl
 
 - A Client Component that calls a crypto API inline during render still trips this error during SSR. See the dedicated [Crypto APIs in a Client Component](/docs/messages/blocking-prerender-crypto-client) page for the [`<Suspense>`](https://react.dev/reference/react/Suspense) and effect-based recipes.
 - The browser only ships [Web Crypto](https://developer.mozilla.org/en-US/docs/Web/API/Crypto). Node-only APIs (`crypto.randomBytes`, `crypto.generateKeyPairSync`) are not available on the client.
+
+## Verifying the fix
+
+After applying a fix, reload the route to confirm the [static shell](/docs/app/glossary#static-shell) renders real content. A [`<Suspense>`](https://react.dev/reference/react/Suspense) boundary placed around the whole page body can pass validation with an empty shell, which defeats the point of an instant navigation.
+
+In [`next dev`](/docs/app/api-reference/cli/next#next-dev-options), the error overlay points at the failing component with file paths and line numbers. When working from a build instead, the default [`next build`](/docs/app/api-reference/cli/next#next-build-options) output is more abbreviated; run `next build --debug-prerender` for full user-frame stack traces and `next build --debug-build-paths /dashboard /settings` to iterate on specific routes.
 
 ## Why `instant = false` doesn't clear this error
 

@@ -3,11 +3,29 @@ title: Next.js encountered the unstable value Date.now() in a Client Component
 kind: insight
 ---
 
+<div
+  style={{
+    padding: '1.25rem 1.5rem',
+    border: '1px solid var(--ds-gray-400)',
+    borderRadius: '12px',
+    background: 'var(--ds-background-200)',
+    margin: '1.5rem 0 2rem',
+    fontSize: '0.95rem',
+    lineHeight: '1.6',
+  }}
+>
+  This error is part of the [Instant
+  Navigations](https://nextjs.org/blog/next-16-3-instant-navigations) feature
+  introduced in Next.js 16.3. If you're new to it, start with the [Ensuring
+  instant
+  navigations](https://preview.nextjs.org/docs/app/guides/instant-navigation)
+  guide for an overview of what instant navigations are and how Next.js
+  validates them, then come back here for the specific fix.
+</div>
+
 A [Client Component](/docs/app/getting-started/server-and-client-components#using-client-components) called [`Date.now()`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Date/now), [`Date()`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Date), or [`new Date()`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Date) inline during render, and the surrounding tree had no [`<Suspense>`](https://react.dev/reference/react/Suspense) boundary. Client Components are server-side rendered on first load, so Next.js can't bake "now" into the prerendered HTML. The SSR timestamp won't match the value the client computes on hydration, so you need to choose: defer the value behind a [`<Suspense>`](https://react.dev/reference/react/Suspense) boundary so SSR can stream it, or move the call into [`useEffect`](https://react.dev/reference/react/useEffect) (or an event handler) so it only runs on the client.
 
 The Server Component case is handled at [`Date.now()` during prerendering](/docs/messages/blocking-prerender-current-time). Other unpredictable client-side APIs ([`Math.random()`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Math/random), [`crypto.randomUUID()`](https://developer.mozilla.org/en-US/docs/Web/API/Crypto/randomUUID)) have parallel error pages: [`Math.random()` in a Client Component](/docs/messages/blocking-prerender-random-client) and [Crypto APIs in a Client Component](/docs/messages/blocking-prerender-crypto-client).
-
-> **Good to know**: In [`next dev`](/docs/app/api-reference/cli/next#next-dev-options), the error overlay points at the failing component with file paths and line numbers. After a fix, reload the route to confirm the static shell renders real content — a `<Suspense>` boundary placed around the whole page body can pass validation with an empty shell. When working from a build instead, the default `next build` output is more abbreviated; run `next build --debug-prerender` for full user-frame stack traces and `next build --debug-build-paths /dashboard /settings` to iterate on specific routes.
 
 ## Ways to fix this
 
@@ -248,6 +266,12 @@ export default function Page() {
 ```
 
 Learn more: [`io()`](/docs/app/api-reference/functions/io).
+
+## Verifying the fix
+
+After applying a fix, reload the route to confirm the [static shell](/docs/app/glossary#static-shell) renders real content. A [`<Suspense>`](https://react.dev/reference/react/Suspense) boundary placed around the whole page body can pass validation with an empty shell, which defeats the point of an instant navigation.
+
+In [`next dev`](/docs/app/api-reference/cli/next#next-dev-options), the error overlay points at the failing component with file paths and line numbers. When working from a build instead, the default [`next build`](/docs/app/api-reference/cli/next#next-build-options) output is more abbreviated; run `next build --debug-prerender` for full user-frame stack traces and `next build --debug-build-paths /dashboard /settings` to iterate on specific routes.
 
 ## Why `instant = false` doesn't clear this error
 
