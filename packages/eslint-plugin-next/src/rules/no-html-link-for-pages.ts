@@ -74,8 +74,10 @@ export default defineRule({
   create(context) {
     const ruleOptions: (string | string[])[] = context.options
     const [customPagesDirectory] = ruleOptions
+    const nextSettings: { pageExtensions?: string[] } =
+      context.settings?.next || {}
     const pageExtensions =
-      context.settings?.next?.pageExtensions ||
+      nextSettings.pageExtensions ||
       (context.options.length === 2 && typeof context.options[1] === 'string'
         ? [context.options[1]]
         : ['js', 'jsx', 'ts', 'tsx'])
