@@ -10,6 +10,37 @@ import {
   getUrlFromAppDirectory,
 } from '../utils/url'
 
+/**
+ * Reads pageExtensions from next.config.js
+ */
+function getPageExtensions(rootDirs: string[]): string[] {
+  const defaultExtensions = ['js', 'jsx', 'ts', 'tsx']
+  
+  for (const dir of rootDirs) {
+    const configPaths = [
+      path.join(dir, 'next.config.js'),
+      path.join(dir, 'next.config.mjs'),
+      path.join(dir, 'next.config.cjs'),
+    ]
+    
+    for (const configPath of configPaths) {
+      if (fs.existsSync(configPath)) {
+        try {
+          delete require.cache[require.resolve(configPath)]
+          const config = require(configPath)
+          if (config.pageExtensions && Array.isArray(config.pageExtensions)) {
+            return config.pageExtensions
+          }
+        } catch {
+          // ignore errors reading config
+        }
+      }
+    }
+  }
+  
+  return defaultExtensions
+}
+
 const pagesDirWarning = execOnce((pagesDirs) => {
   console.warn(
     `Pages directory cannot be found at ${pagesDirs.join(' or ')}. ` +
@@ -107,8 +138,9 @@ export default defineRule({
       return {}
     }
 
-    const pageUrls = cachedGetUrlFromPagesDirectories('/', foundPagesDirs)
-    const appDirUrls = cachedGetUrlFromAppDirectory('/', foundAppDirs)
+    const pageExtensions = getPageExtensions(rootDirs)
+    const pageUrls = cachedGetUrlFromPagesDirectories('/', foundPagesDirs, pageExtensions)
+    const appDirUrls = cachedGetUrlFromAppDirectory('/', foundAppDirs, pageExtensions)
     const allUrlRegex = [...pageUrls, ...appDirUrls]
 
     return {
