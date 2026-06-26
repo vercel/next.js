@@ -427,6 +427,7 @@ jobs:
           # Add a `nextjs.test_session.name` tag to help identify the job
           if [ -d ./test/test-junit-report ]; then
             "$DATADOG_CI_PATH" junit upload \
+              --skip-git-metadata-upload \
               --service nextjs \
               --tags test.type:nextjs \
               --tags test_session.name:"${{ inputs.stepName }}" \
@@ -435,6 +436,7 @@ jobs:
           fi
           if [ -d ./test/turbopack-test-junit-report ]; then
             "$DATADOG_CI_PATH" junit upload \
+              --skip-git-metadata-upload \
               --service nextjs \
               --tags test.type:turbopack \
               --tags test_session.name:"${{ inputs.stepName }}" \

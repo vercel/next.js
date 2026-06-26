@@ -256,7 +256,7 @@ jobs:
         if: ${{ env.DATADOG_API_KEY != '' }}
         run: |
           if [ -d ./test/test-junit-report ]; then
-            DD_ENV=ci "$DATADOG_CI_PATH" junit upload --tags test.type:deploy --service nextjs ./test/test-junit-report
+            DD_ENV=ci "$DATADOG_CI_PATH" junit upload --skip-git-metadata-upload --tags test.type:deploy --service nextjs ./test/test-junit-report
           fi
 
   upload-adapter-test-results:
