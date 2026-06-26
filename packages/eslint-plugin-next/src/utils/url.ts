@@ -8,7 +8,7 @@ const fsReadDirSyncCache = {}
 /**
  * Recursively parse directory for page URLs.
  */
-function parseUrlForPages(urlprefix: string, directory: string) {
+function parseUrlForPages(urlprefix: string, directory: string, extensions: string[] = ['js', 'jsx', 'ts', 'tsx']) {
   fsReadDirSyncCache[directory] ??= fs.readdirSync(directory, {
     withFileTypes: true,
   })
@@ -26,7 +26,7 @@ function parseUrlForPages(urlprefix: string, directory: string) {
     } else {
       const dirPath = path.join(directory, dirent.name)
       if (dirent.isDirectory() && !dirent.isSymbolicLink()) {
-        res.push(...parseUrlForPages(urlprefix + dirent.name + '/', dirPath))
+        res.push(...parseUrlForPages(urlprefix + dirent.name + '/', dirPath, extensions))
       }
     }
   })
@@ -36,7 +36,7 @@ function parseUrlForPages(urlprefix: string, directory: string) {
 /**
  * Recursively parse app directory for URLs.
  */
-function parseUrlForAppDir(urlprefix: string, directory: string) {
+function parseUrlForAppDir(urlprefix: string, directory: string, extensions: string[] = ['js', 'jsx', 'ts', 'tsx']) {
   fsReadDirSyncCache[directory] ??= fs.readdirSync(directory, {
     withFileTypes: true,
   })
@@ -53,7 +53,7 @@ function parseUrlForAppDir(urlprefix: string, directory: string) {
     } else {
       const dirPath = path.join(directory, dirent.name)
       if (dirent.isDirectory(dirPath) && !dirent.isSymbolicLink()) {
-        res.push(...parseUrlForPages(urlprefix + dirent.name + '/', dirPath))
+        res.push(...parseUrlForPages(urlprefix + dirent.name + '/', dirPath, extensions))
       }
     }
   })
@@ -136,7 +136,8 @@ export function normalizeAppPath(route: string) {
  */
 export function getUrlFromPagesDirectories(
   urlPrefix: string,
-  directories: string[]
+  directories: string[],
+  extensions: string[] = ['js', 'jsx', 'ts', 'tsx']
 ) {
   return Array.from(
     // De-duplicate similar pages across multiple directories.
@@ -156,7 +157,8 @@ export function getUrlFromPagesDirectories(
 
 export function getUrlFromAppDirectory(
   urlPrefix: string,
-  directories: string[]
+  directories: string[],
+  extensions: string[] = ['js', 'jsx', 'ts', 'tsx']
 ) {
   return Array.from(
     // De-duplicate similar pages across multiple directories.
