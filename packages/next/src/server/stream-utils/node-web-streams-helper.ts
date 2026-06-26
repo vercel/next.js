@@ -611,7 +611,6 @@ export async function createInstantTestScriptInsertionTransformStream(
   const requestIdScript =
     requestId !== null ? `self.__next_r=${JSON.stringify(requestId)};` : ''
   const INSTANT_TEST_SCRIPT = `<script>${requestIdScript}self.__next_instant_test=fetch(location.pathname+'?${searchStr}',{credentials:'same-origin',headers:{'${RSC_HEADER}':'1','${NEXT_ROUTER_PREFETCH_HEADER}':'1','${NEXT_ROUTER_SEGMENT_PREFETCH_HEADER}':'${segmentPath}'}})</script>`
-  const encodedInsertion = encoder.encode(INSTANT_TEST_SCRIPT)
 
   let didAlreadyInsert = false
   return new TransformStream({
@@ -640,6 +639,7 @@ export async function createInstantTestScriptInsertionTransformStream(
         return
       }
 
+      const encodedInsertion = encoder.encode(INSTANT_TEST_SCRIPT)
       const insertionPoint = headCloseAngle + 1
       // e.g.
       // chunk = <!DOCTYPE html><html><head><meta charset="utf-8">...
@@ -659,11 +659,6 @@ export async function createInstantTestScriptInsertionTransformStream(
       didAlreadyInsert = true
     },
     flush(controller) {
-      // A postponed static-shell response can be empty, leaving no <head> tag
-      // to insert into. Append the script before the closing tags instead.
-      if (!didAlreadyInsert) {
-        controller.enqueue(encodedInsertion)
-      }
       // Append closing tags so the browser can parse the full document.
       controller.enqueue(ENCODED_TAGS.CLOSED.BODY_AND_HTML)
     },

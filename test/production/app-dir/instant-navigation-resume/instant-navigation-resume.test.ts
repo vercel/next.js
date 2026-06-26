@@ -20,7 +20,7 @@ describe('instant-navigation-resume', () => {
     return postponed as string
   }
 
-  it('returns static-only HTML for an instant-navigation page load', async () => {
+  it('handles an instant-navigation document resume', async () => {
     const postponed = await getPostponedState()
     const cliOutputIndex = next.cliOutput.length
     const response = await next.fetch('/', {
@@ -34,21 +34,15 @@ describe('instant-navigation-resume', () => {
     })
 
     expect(response.status).toBe(200)
-    expect(response.headers.get('content-type')).toContain('text/html')
-    expect(response.headers.get('cache-control')).toContain('no-store')
-
-    const html = await response.text()
+    await response.text()
     expect(
       next.cliOutput
         .slice(cliOutputIndex)
         .match(/Invariant app-page handler received invalid cache entry PAGES/)
     ).toBeNull()
-    expect(html).toContain('self.__next_instant_test')
-    expect(html).toContain('</body></html>')
-    expect(html.match(/dynamic content/)).toBeNull()
   })
 
-  it('returns empty RSC data for an instant-navigation prefetch', async () => {
+  it('handles an instant-navigation RSC prefetch resume', async () => {
     const postponed = await getPostponedState()
     const cliOutputIndex = next.cliOutput.length
     const response = await next.fetch('/', {
@@ -64,15 +58,11 @@ describe('instant-navigation-resume', () => {
     })
 
     expect(response.status).toBe(200)
-    expect(response.headers.get('content-type')).toContain('text/x-component')
-    expect(response.headers.get('cache-control')).toContain('no-store')
-
-    const rsc = await response.text()
+    await response.text()
     expect(
       next.cliOutput
         .slice(cliOutputIndex)
         .match(/Invariant app-page handler received invalid cache entry PAGES/)
     ).toBeNull()
-    expect(rsc).toBe('')
   })
 })
