@@ -22,7 +22,7 @@ import {
   type NavigationRequestAccumulation,
 } from '../router-reducer/ppr-navigations'
 import { createHrefFromUrl } from '../router-reducer/create-href-from-url'
-import { NEXT_NAV_DEPLOYMENT_ID_HEADER } from '../../../lib/constants-browser'
+import { NEXT_NAV_DEPLOYMENT_ID_HEADER } from '../../../shared/lib/constants-browser'
 import {
   EntryStatus,
   readRouteCacheEntry,

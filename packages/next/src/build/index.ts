@@ -38,7 +38,7 @@ import {
   type RSC_SEGMENTS_DIR_SUFFIX,
   type RSC_SEGMENT_SUFFIX,
 } from '../lib/constants'
-import { MATCHED_PATH_HEADER } from '../lib/constants-browser'
+import { MATCHED_PATH_HEADER } from '../shared/lib/constants-browser'
 import { FileType, fileExists } from '../lib/file-exists'
 import { findPagesDir } from '../lib/find-pages-dir'
 import loadCustomRoutes, {

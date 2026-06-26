@@ -40,7 +40,7 @@ import { urlToUrlWithoutFlightMarker } from '../../route-params'
 import type { NormalizedSearch } from '../segment-cache/cache-key'
 import { getDeploymentId } from '../../../shared/lib/deployment-id'
 import { getNavigationBuildId } from '../../navigation-build-id'
-import { NEXT_NAV_DEPLOYMENT_ID_HEADER } from '../../../lib/constants-browser'
+import { NEXT_NAV_DEPLOYMENT_ID_HEADER } from '../../../shared/lib/constants-browser'
 import {
   stripIsPartialByte,
   createNonTaskyPrefetchResponseStream,

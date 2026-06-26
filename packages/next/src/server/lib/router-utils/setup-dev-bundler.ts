@@ -78,7 +78,7 @@ import { getDefineEnv } from '../../../build/define-env'
 import { TurbopackInternalError } from '../../../shared/lib/turbopack/internal-error'
 import { normalizePath } from '../../../lib/normalize-path'
 import { MIDDLEWARE_FILENAME, PROXY_FILENAME } from '../../../lib/constants'
-import { JSON_CONTENT_TYPE_HEADER } from '../../../lib/constants-browser'
+import { JSON_CONTENT_TYPE_HEADER } from '../../../shared/lib/constants-browser'
 import { parseUrl } from '../../../lib/url'
 import {
   createRouteTypesManifest,

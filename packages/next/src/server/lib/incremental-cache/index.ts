@@ -22,7 +22,7 @@ import {
   NEXT_CACHE_TAGS_HEADER,
   PRERENDER_REVALIDATE_HEADER,
 } from '../../../lib/constants'
-import { CACHE_ONE_YEAR_SECONDS } from '../../../lib/constants-browser'
+import { CACHE_ONE_YEAR_SECONDS } from '../../../shared/lib/constants-browser'
 import { toRoute } from '../to-route'
 import { SharedCacheControls } from './shared-cache-controls.external'
 import {

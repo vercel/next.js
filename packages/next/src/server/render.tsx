@@ -56,7 +56,7 @@ import {
 import {
   HTML_CONTENT_TYPE_HEADER,
   JSON_CONTENT_TYPE_HEADER,
-} from '../lib/constants-browser'
+} from '../shared/lib/constants-browser'
 import {
   NEXT_BUILTIN_DOCUMENT,
   SERVER_PROPS_ID,

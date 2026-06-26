@@ -6,7 +6,7 @@ import { escapeStringRegexp } from '../shared/lib/escape-regexp'
 import { tryToParsePath } from './try-to-parse-path'
 import { allowedStatusCodes } from './redirect-status'
 import { isFullStringUrl } from './url'
-import { NEXT_NAV_DEPLOYMENT_ID_HEADER } from './constants-browser'
+import { NEXT_NAV_DEPLOYMENT_ID_HEADER } from '../shared/lib/constants-browser'
 
 export type RouteHas =
   | {

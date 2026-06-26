@@ -22,7 +22,7 @@ import {
 import {
   NEXT_INTERCEPTION_MARKER_PREFIX,
   NEXT_QUERY_PARAM_PREFIX,
-} from '../lib/constants-browser'
+} from '../shared/lib/constants-browser'
 import { normalizeNextQueryParam } from './web/utils'
 import type { IncomingHttpHeaders, IncomingMessage } from 'http'
 import { decodeQueryPathParameter } from './lib/decode-query-path-parameter'

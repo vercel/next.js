@@ -1,6 +1,6 @@
 import type { IncrementalCache } from '../../lib/incremental-cache'
 
-import { CACHE_ONE_YEAR_SECONDS } from '../../../lib/constants-browser'
+import { CACHE_ONE_YEAR_SECONDS } from '../../../shared/lib/constants-browser'
 import { validateRevalidate, validateTags } from '../../lib/patch-fetch'
 import {
   workAsyncStorage,

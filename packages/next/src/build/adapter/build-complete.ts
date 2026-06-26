@@ -40,7 +40,7 @@ import {
   JSON_CONTENT_TYPE_HEADER,
   NEXT_QUERY_PARAM_PREFIX,
   NEXT_RESUME_HEADER,
-} from '../../lib/constants-browser'
+} from '../../shared/lib/constants-browser'
 
 import { normalizeLocalePath } from '../../shared/lib/i18n/normalize-locale-path'
 import { getStaticMetadataPrerenderPathname } from '../../lib/metadata/get-metadata-route'

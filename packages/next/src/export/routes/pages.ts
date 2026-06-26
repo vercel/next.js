@@ -18,7 +18,7 @@ import {
   NEXT_DATA_SUFFIX,
   SERVER_PROPS_EXPORT_ERROR,
 } from '../../lib/constants'
-import { HTML_CONTENT_TYPE_HEADER } from '../../lib/constants-browser'
+import { HTML_CONTENT_TYPE_HEADER } from '../../shared/lib/constants-browser'
 import { isBailoutToCSRError } from '../../shared/lib/lazy-dynamic/bailout-to-csr'
 import { lazyRenderPagesPage } from '../../server/route-modules/pages/module.render'
 import type { MultiFileWriter } from '../../lib/multi-file-writer'

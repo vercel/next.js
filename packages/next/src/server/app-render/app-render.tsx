@@ -224,7 +224,7 @@ import {
 } from './stale-time'
 
 import { INFINITE_CACHE } from '../../lib/constants'
-import { HTML_CONTENT_TYPE_HEADER } from '../../lib/constants-browser'
+import { HTML_CONTENT_TYPE_HEADER } from '../../shared/lib/constants-browser'
 import { createComponentStylesAndScripts } from './create-component-styles-and-scripts'
 import { parseLoaderTree } from '../../shared/lib/router/utils/parse-loader-tree'
 import {

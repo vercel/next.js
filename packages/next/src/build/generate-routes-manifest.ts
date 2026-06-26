@@ -15,7 +15,7 @@ import {
   RSC_SEGMENT_SUFFIX,
   RSC_SEGMENTS_DIR_SUFFIX,
 } from '../lib/constants'
-import { NEXT_RESUME_HEADER } from '../lib/constants-browser'
+import { NEXT_RESUME_HEADER } from '../shared/lib/constants-browser'
 import { isDynamicRoute } from '../shared/lib/router/utils'
 import { buildCustomRoute } from '../lib/build-custom-route'
 import { isReservedPage, pageToRoute } from './utils'
