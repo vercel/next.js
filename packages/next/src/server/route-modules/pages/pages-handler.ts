@@ -32,7 +32,7 @@ import {
   HTML_CONTENT_TYPE_HEADER,
   JSON_CONTENT_TYPE_HEADER,
   NEXT_NAV_DEPLOYMENT_ID_HEADER,
-} from '../../../lib/constants'
+} from '../../../lib/constants-browser'
 import path from 'path'
 import { sendRenderResult } from '../../send-payload'
 import RenderResult from '../../render-result'

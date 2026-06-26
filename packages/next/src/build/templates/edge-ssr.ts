@@ -32,7 +32,7 @@ import {
   type Span,
 } from '../../server/lib/trace/tracer'
 import { BaseServerSpan } from '../../server/lib/trace/constants'
-import { HTML_CONTENT_TYPE_HEADER } from '../../lib/constants'
+import { HTML_CONTENT_TYPE_HEADER } from '../../lib/constants-browser'
 import type { RequestMeta } from '../../server/request-meta'
 import { toNodeOutgoingHttpHeaders } from '../../server/web/utils'
 

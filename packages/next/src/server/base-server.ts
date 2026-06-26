@@ -115,9 +115,9 @@ import { normalizeNextQueryParam } from './web/utils'
 import {
   HTML_CONTENT_TYPE_HEADER,
   JSON_CONTENT_TYPE_HEADER,
-  MATCHED_PATH_HEADER,
   NEXT_RESUME_HEADER,
-} from '../lib/constants'
+} from '../lib/constants-browser'
+import { MATCHED_PATH_HEADER } from '../lib/constants-browser'
 import { normalizeLocalePath } from '../shared/lib/i18n/normalize-locale-path'
 import { matchNextDataPathname } from './lib/match-next-data-pathname'
 import getRouteFromAssetPath from '../shared/lib/router/utils/get-route-from-asset-path'

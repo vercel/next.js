@@ -43,7 +43,7 @@ import {
 } from '../segment-cache/cache'
 import { FetchStrategy } from '../segment-cache/types'
 import { discoverKnownRoute } from '../segment-cache/optimistic-routes'
-import { NEXT_NAV_DEPLOYMENT_ID_HEADER } from '../../../lib/constants'
+import { NEXT_NAV_DEPLOYMENT_ID_HEADER } from '../../../lib/constants-browser'
 import type { NormalizedSearch } from '../segment-cache/cache-key'
 import {
   getRenderedSearchFromVaryPath,

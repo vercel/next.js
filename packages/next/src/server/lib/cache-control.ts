@@ -1,4 +1,4 @@
-import { CACHE_ONE_YEAR_SECONDS } from '../../lib/constants'
+import { CACHE_ONE_YEAR_SECONDS } from '../../lib/constants-browser'
 
 /**
  * The revalidate option used internally for pages. A value of `false` means

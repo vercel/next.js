@@ -6,7 +6,7 @@ import { isResSent } from '../shared/lib/utils'
 import { generateETag } from './lib/etag'
 import fresh from 'next/dist/compiled/fresh'
 import { getCacheControlHeader } from './lib/cache-control'
-import { HTML_CONTENT_TYPE_HEADER } from '../lib/constants'
+import { HTML_CONTENT_TYPE_HEADER } from '../lib/constants-browser'
 
 export function sendEtagResponse(
   req: IncomingMessage,

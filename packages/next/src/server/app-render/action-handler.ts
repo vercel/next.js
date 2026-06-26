@@ -40,8 +40,8 @@ import {
 } from '../lib/server-ipc/utils'
 import { getModifiedCookieValues } from '../web/spec-extension/adapters/request-cookies'
 
+import { JSON_CONTENT_TYPE_HEADER } from '../../lib/constants-browser'
 import {
-  JSON_CONTENT_TYPE_HEADER,
   NEXT_CACHE_REVALIDATED_TAGS_HEADER,
   NEXT_CACHE_REVALIDATE_TAG_TOKEN_HEADER,
 } from '../../lib/constants'

@@ -9,7 +9,7 @@ import {
 
 import RenderResult from '../render-result'
 import { RouteKind } from '../route-kind'
-import { HTML_CONTENT_TYPE_HEADER } from '../../lib/constants'
+import { HTML_CONTENT_TYPE_HEADER } from '../../lib/constants-browser'
 
 export async function fromResponseCacheEntry(
   cacheEntry: ResponseCacheEntry

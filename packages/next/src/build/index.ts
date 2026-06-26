@@ -35,10 +35,10 @@ import {
   PRERENDER_REVALIDATE_ONLY_GENERATED_HEADER,
   NEXT_CACHE_REVALIDATE_TAG_TOKEN_HEADER,
   NEXT_CACHE_REVALIDATED_TAGS_HEADER,
-  MATCHED_PATH_HEADER,
   type RSC_SEGMENTS_DIR_SUFFIX,
   type RSC_SEGMENT_SUFFIX,
 } from '../lib/constants'
+import { MATCHED_PATH_HEADER } from '../lib/constants-browser'
 import { FileType, fileExists } from '../lib/file-exists'
 import { findPagesDir } from '../lib/find-pages-dir'
 import loadCustomRoutes, {

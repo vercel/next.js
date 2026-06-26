@@ -24,10 +24,10 @@ import {
 } from './../index'
 import { getCookieParser } from './../get-cookie-parser'
 import {
-  JSON_CONTENT_TYPE_HEADER,
   PRERENDER_REVALIDATE_HEADER,
   PRERENDER_REVALIDATE_ONLY_GENERATED_HEADER,
 } from '../../../lib/constants'
+import { JSON_CONTENT_TYPE_HEADER } from '../../../lib/constants-browser'
 import { tryGetPreviewData } from './try-get-preview-data'
 import { parseBody } from './parse-body'
 import type { RevalidateFn } from '../../lib/router-utils/router-server-context'

@@ -21,7 +21,7 @@ import type {
   HTML_CONTENT_TYPE_HEADER,
   JSON_CONTENT_TYPE_HEADER,
   TEXT_PLAIN_CONTENT_TYPE_HEADER,
-} from '../lib/constants'
+} from '../lib/constants-browser'
 import type { RSC_CONTENT_TYPE_HEADER } from '../client/components/app-router-headers'
 
 type ContentTypeOption =

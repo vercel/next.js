@@ -5,8 +5,8 @@ import type {
 
 import { AppRenderSpan, NextNodeServerSpan } from './trace/constants'
 import { getTracer, SpanKind } from './trace/tracer'
+import { CACHE_ONE_YEAR_SECONDS } from '../../lib/constants-browser'
 import {
-  CACHE_ONE_YEAR_SECONDS,
   INFINITE_CACHE,
   NEXT_CACHE_TAG_MAX_ITEMS,
   NEXT_CACHE_TAG_MAX_LENGTH,
