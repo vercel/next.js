@@ -212,13 +212,14 @@ export function buildImportChain(
   let currentModuleIndex = startModuleIndex
 
   while (true) {
-    // Get dependents at the module level (sync and async)
+    // Get dependents at the module level (sync, async, and traced)
     const dependentModuleIndices = [
       ...modulesData
         .moduleDependents(currentModuleIndex)
         .map((index: number) => ({
           index,
           async: false,
+          traced: false,
           depth: depthMap.get(index) ?? Infinity,
         })),
       ...modulesData
@@ -226,14 +227,24 @@ export function buildImportChain(
         .map((index: number) => ({
           index,
           async: true,
+          traced: false,
+          depth: depthMap.get(index) ?? Infinity,
+        })),
+      ...modulesData
+        .tracedModuleDependents(currentModuleIndex)
+        .map((index: number) => ({
+          index,
+          async: false,
+          traced: true,
           depth: depthMap.get(index) ?? Infinity,
         })),
     ]
 
     // Filter out dependents that would create a cycle
     const validDependents = dependentModuleIndices.filter(
-      ({ index, depth }) =>
-        !visitedModules.has(index) && (isFinite(depth) || !currentRouteOnly)
+      (dep) =>
+        !visitedModules.has(dep.index) &&
+        (isFinite(dep.depth) || !currentRouteOnly)
     )
 
     if (validDependents.length === 0) {
@@ -242,7 +253,7 @@ export function buildImportChain(
 
     // Build info for each dependent
     const dependentsInfo: DependentInfo[] = validDependents.map(
-      ({ index: moduleIndex, async: isAsync, depth }) => {
+      ({ index: moduleIndex, async: isAsync, traced: isTraced, depth }) => {
         const sourceIndex = getSourceIndexFromModuleIndex(moduleIndex)
         let ident = modulesData.module(moduleIndex)?.ident || ''
         return {
@@ -250,6 +261,7 @@ export function buildImportChain(
           sourceIndex,
           ident,
           isAsync,
+          isTraced,
           depth,
         }
       }

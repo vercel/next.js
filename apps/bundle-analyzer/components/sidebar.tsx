@@ -128,6 +128,11 @@ function SelectionDetails({
     filterSource
   )
 
+  const { compressedSize: asyncOnlyCompressedSize } =
+    analyzeData.getRecursiveAsyncOnlySizes(selectedSourceIndex, filterSource)
+  const asyncOnlyPct =
+    compressedSize > 0 ? (asyncOnlyCompressedSize / compressedSize) * 100 : 0
+
   const chunks =
     selectedSourceIndex != null
       ? analyzeData.sourceChunks(selectedSourceIndex)
@@ -161,6 +166,18 @@ function SelectionDetails({
                 compression like gzip.
               </InlineHelpTooltip>
             </div>
+            {asyncOnlyCompressedSize > 0 ? (
+              <div>
+                <span>{formatBytes(asyncOnlyCompressedSize)}</span>{' '}
+                <span className="text-muted-foreground">
+                  async-only ({asyncOnlyPct.toFixed(1)}%)
+                </span>
+                <InlineHelpTooltip>
+                  Modules in this subtree reachable only via dynamic import on
+                  this route. They won't load until the import resolves.
+                </InlineHelpTooltip>
+              </div>
+            ) : null}
             {hasChildModules && childModuleCount != null ? (
               <div>
                 <span>{childModuleCount} </span>

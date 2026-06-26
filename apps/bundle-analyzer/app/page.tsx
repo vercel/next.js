@@ -173,6 +173,7 @@ export default function Home() {
     server?: boolean
     client?: boolean
     traced?: boolean
+    asyncOnly?: boolean
   } | null>(null)
   const [searchQuery, setSearchQuery] = useState('')
   // Selected source in compare mode, identified by its full source path
@@ -480,6 +481,9 @@ export default function Home() {
                   onHoveredNodeChange={setHoveredNodeInfo}
                   searchQuery={searchQuery}
                   filterSource={filterSource}
+                  isAsyncOnlySource={analyzeData.isAsyncOnlySource.bind(
+                    analyzeData
+                  )}
                   sizeMode={SizeMode.Compressed}
                 />
               )}
@@ -506,8 +510,8 @@ export default function Home() {
       </div>
 
       {analyzeData && !isCompareMode && compareView === CompareView.Treemap ? (
-        <div className="flex-none border-t border-border bg-background px-4 py-2 h-10">
-          <div className="text-sm text-muted-foreground">
+        <div className="flex-none border-t border-border bg-background px-4 py-2 h-10 flex items-center justify-between">
+          <div className="text-sm text-muted-foreground min-w-0 truncate">
             {hoveredNodeInfo ? (
               <>
                 <span className="font-medium text-foreground">
@@ -527,12 +531,23 @@ export default function Home() {
                     {hoveredNodeInfo.traced && (
                       <Badge variant="traced">traced</Badge>
                     )}
+                    {hoveredNodeInfo.asyncOnly && (
+                      <Badge variant="async">async-only</Badge>
+                    )}
                   </span>
                 )}
               </>
             ) : (
               'Hover over a file to see details'
             )}
+          </div>
+          <div className="flex-none ml-4 inline-flex items-center gap-1.5 text-xs text-muted-foreground">
+            <span
+              className="inline-block w-3 h-3 rounded-sm border-2"
+              style={{ borderColor: '#f59e0b' }}
+              aria-hidden
+            />
+            <span>async-only (dynamic import on this route)</span>
           </div>
         </div>
       ) : null}

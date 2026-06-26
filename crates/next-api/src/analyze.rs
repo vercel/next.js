@@ -1,4 +1,4 @@
-use std::{borrow::Cow, io::Write};
+use std::{borrow::Cow, collections::VecDeque, io::Write};
 
 use anyhow::Result;
 use byteorder::{BE, WriteBytesExt};
@@ -24,6 +24,8 @@ use turbopack_core::{
     output::{OutputAsset, OutputAssets, OutputAssetsReference},
     reference::all_assets_from_entries,
 };
+
+use crate::route::ModuleGraphs;
 
 pub struct EdgesData {
     pub offsets: Vec<u32>,
@@ -105,6 +107,11 @@ struct AnalyzeDataHeader {
     pub source_children: EdgesDataReference,
     /// Root level sources, walking their children will reach all sources
     pub source_roots: Vec<u32>,
+    /// Source indices of modules that are only reachable via async (dynamic
+    /// import) edges from this route's entries. Computed per-route against the
+    /// route's module graph, so a module statically imported on another route
+    /// can still be async-only here.
+    pub async_only_sources: Vec<u32>,
 }
 
 #[derive(Serialize)]
@@ -150,6 +157,7 @@ struct AnalyzeDataBuilder {
     source_index_map: FxHashMap<RcStr, u32>,
     chunk_parts: Vec<AnalyzeChunkPart>,
     output_files: Vec<AnalyzeOutputFileBuilder>,
+    async_only_sources: FxHashSet<u32>,
 }
 
 struct ModulesDataBuilder {
@@ -181,6 +189,7 @@ impl AnalyzeDataBuilder {
             source_index_map: FxHashMap::default(),
             chunk_parts: vec![],
             output_files: vec![],
+            async_only_sources: FxHashSet::default(),
         }
     }
 
@@ -229,6 +238,10 @@ impl AnalyzeDataBuilder {
             .push(chunk_part_index);
     }
 
+    fn set_async_only_sources(&mut self, sources: FxHashSet<u32>) {
+        self.async_only_sources = sources;
+    }
+
     fn build(self) -> Rope {
         let source_roots = self
             .sources
@@ -254,6 +267,9 @@ impl AnalyzeDataBuilder {
 
         let mut binary_section = EdgesDataSectionBuilder::new();
 
+        let mut async_only_sources: Vec<u32> = self.async_only_sources.into_iter().collect();
+        async_only_sources.sort_unstable();
+
         let header = AnalyzeDataHeader {
             sources: self.sources.into_iter().map(|s| s.source).collect(),
             chunk_parts: self.chunk_parts,
@@ -266,6 +282,7 @@ impl AnalyzeDataBuilder {
             source_chunk_parts: binary_section.add_edges(&source_chunk_parts),
             source_children: binary_section.add_edges(&source_children),
             source_roots,
+            async_only_sources,
         };
 
         let header_json = serde_json::to_vec(&header).unwrap();
@@ -401,10 +418,363 @@ pub async fn combine_traced_files(
     Ok(Vc::cell(combined))
 }
 
+/// Classified edges from a module graph traversal.
+///
+/// `static_edges`, `async_edges`, and `traced_edges` are `(from, to)` module
+/// pairs. `traced_modules` is the set of modules reached via NFT tracing.
+/// `modules` is every module visited during the traversal (reachable from the
+/// entries).
+struct ClassifiedEdges {
+    modules: FxIndexSet<ResolvedVc<Box<dyn Module>>>,
+    static_edges: FxIndexSet<(ResolvedVc<Box<dyn Module>>, ResolvedVc<Box<dyn Module>>)>,
+    async_edges: FxIndexSet<(ResolvedVc<Box<dyn Module>>, ResolvedVc<Box<dyn Module>>)>,
+    traced_edges: FxIndexSet<(ResolvedVc<Box<dyn Module>>, ResolvedVc<Box<dyn Module>>)>,
+    traced_modules: FxHashSet<ResolvedVc<Box<dyn Module>>>,
+}
+
+/// Traverse `module_graph` from its entries and classify every edge as static,
+/// async, or traced. This is the same logic used by `analyze_module_graphs`,
+/// factored out so the per-route analyzer can reuse it for async-only source
+/// classification.
+fn classify_module_graph_edges(module_graph: &ModuleGraph) -> Result<ClassifiedEdges> {
+    let mut modules = FxIndexSet::default();
+    let mut static_edges = FxIndexSet::default();
+    let mut async_edges = FxIndexSet::default();
+    let mut traced_edges = FxIndexSet::default();
+    let mut traced_modules = FxHashSet::default();
+
+    module_graph.traverse_edges_dfs(
+        module_graph.all_entry_modules(),
+        &mut (),
+        |parent, node, _| {
+            modules.insert(node);
+            let Some((parent_node, reference)) = parent else {
+                return Ok(GraphTraversalAction::Continue);
+            };
+
+            if matches!(
+                reference.chunking_type,
+                ChunkingType::Traced {
+                    mode: TracedMode::Entry
+                }
+            ) || traced_modules.contains(&parent_node)
+            {
+                traced_modules.insert(node);
+                traced_edges.insert((parent_node, node));
+                return Ok(GraphTraversalAction::Continue);
+            };
+
+            match reference.chunking_type {
+                ChunkingType::Async => {
+                    async_edges.insert((parent_node, node));
+                }
+                _ => {
+                    static_edges.insert((parent_node, node));
+                }
+            }
+            Ok(GraphTraversalAction::Continue)
+        },
+        |_, _, _| Ok(()),
+        true,
+    )?;
+
+    Ok(ClassifiedEdges {
+        modules,
+        static_edges,
+        async_edges,
+        traced_edges,
+        traced_modules,
+    })
+}
+
+/// Compute the set of modules reachable from `entries` by following only the
+/// given static edges. Pure and generic over the module identity type so it
+/// can be unit-tested without a real turbo-tasks module graph.
+fn compute_static_reachable<M>(entries: &[M], static_edges: &[(M, M)]) -> FxHashSet<M>
+where
+    M: Copy + Eq + std::hash::Hash,
+{
+    let mut adjacency: FxHashMap<M, Vec<M>> = FxHashMap::default();
+    for (from, to) in static_edges {
+        adjacency.entry(*from).or_default().push(*to);
+    }
+
+    let mut reachable: FxHashSet<M> = FxHashSet::default();
+    let mut queue: VecDeque<M> = VecDeque::new();
+    for entry in entries {
+        if reachable.insert(*entry) {
+            queue.push_back(*entry);
+        }
+    }
+    while let Some(current) = queue.pop_front() {
+        if let Some(neighbors) = adjacency.get(&current) {
+            for to in neighbors {
+                if reachable.insert(*to) {
+                    queue.push_back(*to);
+                }
+            }
+        }
+    }
+    reachable
+}
+
+/// Given the set of all visited modules, the static-reachable set, the traced
+/// set, and a per-module mapping to source indices, return the source indices
+/// that are *exclusively* async-reachable.
+///
+/// A single source path can correspond to multiple module instances (e.g.
+/// client vs ssr layer variants of the same file). The source is async-only
+/// only if it has at least one mapped module AND *every* mapped module
+/// instance is async-only — if any variant is static-reachable or traced, the
+/// source is not exclusively async.
+fn aggregate_async_only_sources<M, I>(
+    all_modules: I,
+    static_reachable: &FxHashSet<M>,
+    traced_modules: &FxHashSet<M>,
+    module_to_source: impl Fn(&M) -> Option<u32>,
+) -> FxHashSet<u32>
+where
+    M: Copy + Eq + std::hash::Hash,
+    I: IntoIterator<Item = M>,
+{
+    #[derive(Default)]
+    struct SourceStatus {
+        has_module: bool,
+        has_static_or_traced: bool,
+    }
+    let mut source_status: FxHashMap<u32, SourceStatus> = FxHashMap::default();
+
+    for module in all_modules {
+        let Some(source_index) = module_to_source(&module) else {
+            continue;
+        };
+        let status = source_status.entry(source_index).or_default();
+        status.has_module = true;
+        if static_reachable.contains(&module) || traced_modules.contains(&module) {
+            status.has_static_or_traced = true;
+        }
+    }
+
+    source_status
+        .into_iter()
+        .filter_map(|(idx, s)| (s.has_module && !s.has_static_or_traced).then_some(idx))
+        .collect()
+}
+
+/// Compute the set of source indices that are only reachable via async (dynamic
+/// import) edges within a single route's module graph(s).
+///
+/// A module is async-only when no path from a route entry to it crosses only
+/// static edges, and it is not traced-only. We BFS from the entries over static
+/// edges to find `static_reachable`, then aggregate per-source via
+/// [`aggregate_async_only_sources`] (a source is async-only only if every
+/// module variant mapping to it is async-only).
+///
+/// When multiple module graphs are provided (a route may have several), a
+/// module is static-reachable if it is static-reachable in *any* graph, and
+/// async-only only if it is async-only in *every* graph that contains it.
+async fn compute_async_only_sources(
+    module_graphs: Vec<ResolvedVc<ModuleGraph>>,
+    source_index_map: &FxHashMap<RcStr, u32>,
+) -> Result<FxHashSet<u32>> {
+    // Union of static-reachable modules across all graphs.
+    let mut static_reachable: FxHashSet<ResolvedVc<Box<dyn Module>>> = FxHashSet::default();
+    // Union of traced modules across all graphs.
+    let mut traced_modules: FxHashSet<ResolvedVc<Box<dyn Module>>> = FxHashSet::default();
+    // Every module visited in any graph.
+    let mut all_modules: FxIndexSet<ResolvedVc<Box<dyn Module>>> = FxIndexSet::default();
+
+    for module_graph_vc in module_graphs {
+        let module_graph = module_graph_vc.await?;
+        let classified = classify_module_graph_edges(&module_graph)?;
+
+        let entries: Vec<_> = module_graph.all_entry_modules().collect();
+        let static_edges: Vec<_> = classified.static_edges.iter().copied().collect();
+        let graph_reachable = compute_static_reachable(&entries, &static_edges);
+        static_reachable.extend(graph_reachable);
+
+        traced_modules.extend(classified.traced_modules.iter().copied());
+        all_modules.extend(classified.modules.iter().copied());
+    }
+
+    // Resolve each module's source path up front so the aggregator closure stays
+    // synchronous.
+    let mut module_to_source: FxHashMap<ResolvedVc<Box<dyn Module>>, u32> = FxHashMap::default();
+    for module in &all_modules {
+        let path = module.ident().await?.path.to_string_ref().await?;
+        if let Some(&source_index) = source_index_map.get(&*path) {
+            module_to_source.insert(*module, source_index);
+        }
+    }
+
+    Ok(aggregate_async_only_sources(
+        all_modules.iter().copied(),
+        &static_reachable,
+        &traced_modules,
+        |module| module_to_source.get(module).copied(),
+    ))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn hs<T: Copy + Eq + std::hash::Hash>(items: &[T]) -> FxHashSet<T> {
+        items.iter().copied().collect()
+    }
+
+    /// Smoke test: BFS reaches transitively-static-imported modules but not
+    /// async-imported ones.
+    #[test]
+    fn static_reachable_basic() {
+        // entry -> a (static) -> b (static); entry -> c (async, NOT a static edge)
+        let entries = [0u32];
+        let static_edges = [(0, 1), (1, 2)];
+        let reachable = compute_static_reachable(&entries, &static_edges);
+        assert_eq!(reachable, hs(&[0, 1, 2]));
+    }
+
+    #[test]
+    fn static_reachable_handles_cycles() {
+        let entries = [0u32];
+        // 0 -> 1 -> 2 -> 0 (cycle)
+        let static_edges = [(0, 1), (1, 2), (2, 0)];
+        let reachable = compute_static_reachable(&entries, &static_edges);
+        assert_eq!(reachable, hs(&[0, 1, 2]));
+    }
+
+    #[test]
+    fn static_reachable_skips_unreachable() {
+        let entries = [0u32];
+        // 0 -> 1; orphan: 2 -> 3
+        let static_edges = [(0, 1), (2, 3)];
+        let reachable = compute_static_reachable(&entries, &static_edges);
+        assert_eq!(reachable, hs(&[0, 1]));
+    }
+
+    /// A module that's only async-reachable yields its source as async-only.
+    #[test]
+    fn async_only_basic() {
+        // module 0 is the entry (static), module 1 is async-only
+        let static_reachable = hs(&[0u32]);
+        let traced = hs::<u32>(&[]);
+        let module_to_source: FxHashMap<u32, u32> = [(0, 100), (1, 101)].into_iter().collect();
+
+        let result = aggregate_async_only_sources([0, 1], &static_reachable, &traced, |m| {
+            module_to_source.get(m).copied()
+        });
+
+        assert_eq!(result, hs(&[101]));
+    }
+
+    /// Regression test for the multi-variant bug: a single source path can map
+    /// to multiple module instances (e.g. client vs ssr layer variants). If
+    /// any variant is static-reachable, the source must NOT be marked
+    /// async-only — even though the other variants are async-only.
+    ///
+    /// In the example: source `head.js` has two module variants (ssr layer +
+    /// client layer). The ssr variant is statically imported via
+    /// `image-component.js`; the client variant is only reachable via async
+    /// chunks. The source must not be marked async-only.
+    #[test]
+    fn async_only_source_with_mixed_variants_is_not_async_only() {
+        // modules 0,1 = ssr variant of head.js, client variant of head.js
+        // module 2 = unrelated async-only module
+        let static_reachable = hs(&[0u32]); // ssr variant is statically reached
+        let traced = hs::<u32>(&[]);
+        let head_source = 100u32;
+        let other_source = 101u32;
+        let module_to_source: FxHashMap<u32, u32> = [
+            (0, head_source), // ssr variant -> head.js source
+            (1, head_source), // client variant -> SAME head.js source
+            (2, other_source),
+        ]
+        .into_iter()
+        .collect();
+
+        let result = aggregate_async_only_sources([0, 1, 2], &static_reachable, &traced, |m| {
+            module_to_source.get(m).copied()
+        });
+
+        // head.js is NOT async-only because one of its variants is
+        // static-reachable. Only the unrelated source is async-only.
+        assert_eq!(result, hs(&[other_source]));
+    }
+
+    /// Symmetric case: if ALL variants of a source are async-only, the source
+    /// IS async-only.
+    #[test]
+    fn async_only_source_when_all_variants_async_only() {
+        // Both module variants 0 and 1 map to the same source and neither is
+        // static-reachable or traced.
+        let static_reachable = hs::<u32>(&[]);
+        let traced = hs::<u32>(&[]);
+        let shared_source = 100u32;
+        let module_to_source: FxHashMap<u32, u32> = [(0, shared_source), (1, shared_source)]
+            .into_iter()
+            .collect();
+
+        let result = aggregate_async_only_sources([0, 1], &static_reachable, &traced, |m| {
+            module_to_source.get(m).copied()
+        });
+
+        assert_eq!(result, hs(&[shared_source]));
+    }
+
+    /// Traced modules are not async-only (traced is a separate category).
+    #[test]
+    fn traced_modules_excluded_from_async_only() {
+        let static_reachable = hs::<u32>(&[]);
+        let traced = hs(&[0u32]);
+        let module_to_source: FxHashMap<u32, u32> = [(0, 100)].into_iter().collect();
+
+        let result = aggregate_async_only_sources([0], &static_reachable, &traced, |m| {
+            module_to_source.get(m).copied()
+        });
+
+        assert!(result.is_empty());
+    }
+
+    /// Mixed traced+async variants: if any variant is traced, the source is
+    /// not async-only.
+    #[test]
+    fn traced_variant_disqualifies_source() {
+        let static_reachable = hs::<u32>(&[]);
+        let traced = hs(&[0u32]); // first variant is traced
+        let shared_source = 100u32;
+        let module_to_source: FxHashMap<u32, u32> = [(0, shared_source), (1, shared_source)]
+            .into_iter()
+            .collect();
+
+        let result = aggregate_async_only_sources([0, 1], &static_reachable, &traced, |m| {
+            module_to_source.get(m).copied()
+        });
+
+        assert!(result.is_empty());
+    }
+
+    /// Modules with no source mapping (e.g. runtime-injected modules) are
+    /// silently skipped and don't produce phantom source entries.
+    #[test]
+    fn modules_without_source_are_skipped() {
+        let static_reachable = hs::<u32>(&[]);
+        let traced = hs::<u32>(&[]);
+        // Module 0 has no source mapping; module 1 does.
+        let module_to_source: FxHashMap<u32, u32> = [(1, 100)].into_iter().collect();
+
+        let result = aggregate_async_only_sources([0, 1], &static_reachable, &traced, |m| {
+            module_to_source.get(m).copied()
+        });
+
+        assert_eq!(result, hs(&[100]));
+    }
+}
+
 #[turbo_tasks::function]
 pub async fn analyze_output_assets(
     output_assets: Vc<OutputAssets>,
     traced_files: Vc<FileSystemPathVec>,
+    module_graphs: Vc<ModuleGraphs>,
 ) -> Result<Vc<FileContent>> {
     let output_assets = all_assets_from_entries(output_assets);
 
@@ -492,6 +862,13 @@ pub async fn analyze_output_assets(
         i += 1;
     }
 
+    let async_only_sources = compute_async_only_sources(
+        module_graphs.await?.iter().copied().collect(),
+        &builder.source_index_map,
+    )
+    .await?;
+    builder.set_async_only_sources(async_only_sources);
+
     let rope = builder.build();
     Ok(FileContent::Content(File::from(rope)).cell())
 }
@@ -500,50 +877,13 @@ pub async fn analyze_output_assets(
 pub async fn analyze_module_graphs(module_graph: Vc<ModuleGraph>) -> Result<Vc<FileContent>> {
     let mut builder = ModulesDataBuilder::new();
 
-    let mut all_modules = FxIndexSet::default();
-    let mut all_edges = FxIndexSet::default();
-    let mut all_async_edges = FxIndexSet::default();
-    let mut all_traced_edges = FxIndexSet::default();
-    let mut traced_modules = FxHashSet::default();
-
     let module_graph = module_graph.await?;
-    module_graph.traverse_edges_dfs(
-        module_graph.all_entry_modules(),
-        &mut (),
-        |parent, node, _| {
-            all_modules.insert(node);
-            let Some((parent_node, reference)) = parent else {
-                return Ok(GraphTraversalAction::Continue);
-            };
+    let classified = classify_module_graph_edges(&module_graph)?;
 
-            // ChunkingType::Traced{TracedMode::Entry}     => target is always traced
-            // ChunkingType::Traced{TracedMode::Transitive}=> target only traced if parent is traced
-            // ChunkingType::*                             => target only traced if parent is traced
-            if matches!(
-                reference.chunking_type,
-                ChunkingType::Traced {
-                    mode: TracedMode::Entry
-                }
-            ) || traced_modules.contains(&parent_node)
-            {
-                traced_modules.insert(node);
-                all_traced_edges.insert((parent_node, node));
-                return Ok(GraphTraversalAction::Continue);
-            };
-
-            match reference.chunking_type {
-                ChunkingType::Async => {
-                    all_async_edges.insert((parent_node, node));
-                }
-                _ => {
-                    all_edges.insert((parent_node, node));
-                }
-            }
-            Ok(GraphTraversalAction::Continue)
-        },
-        |_, _, _| Ok(()),
-        true,
-    )?;
+    let all_modules = classified.modules;
+    let all_edges = classified.static_edges;
+    let all_async_edges = classified.async_edges;
+    let all_traced_edges = classified.traced_edges;
 
     type ModulePair = (ResolvedVc<Box<dyn Module>>, ResolvedVc<Box<dyn Module>>);
     async fn mapper((from, to): ModulePair) -> Result<Option<(RcStr, RcStr)>> {
@@ -637,6 +977,7 @@ pub struct AnalyzeDataOutputAsset {
     pub path: FileSystemPath,
     pub output_assets: ResolvedVc<OutputAssets>,
     pub traced_files: ResolvedVc<FileSystemPathVec>,
+    pub module_graphs: ResolvedVc<ModuleGraphs>,
 }
 
 #[turbo_tasks::value_impl]
@@ -646,11 +987,13 @@ impl AnalyzeDataOutputAsset {
         path: FileSystemPath,
         output_assets: ResolvedVc<OutputAssets>,
         traced_files: ResolvedVc<FileSystemPathVec>,
+        module_graphs: ResolvedVc<ModuleGraphs>,
     ) -> Result<Vc<Self>> {
         Ok(Self {
             path,
             output_assets,
             traced_files,
+            module_graphs,
         }
         .cell())
     }
@@ -660,7 +1003,8 @@ impl AnalyzeDataOutputAsset {
 impl Asset for AnalyzeDataOutputAsset {
     #[turbo_tasks::function]
     fn content(&self) -> Vc<AssetContent> {
-        let file_content = analyze_output_assets(*self.output_assets, *self.traced_files);
+        let file_content =
+            analyze_output_assets(*self.output_assets, *self.traced_files, *self.module_graphs);
         AssetContent::file(file_content)
     }
 }

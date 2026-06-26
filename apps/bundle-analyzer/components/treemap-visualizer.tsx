@@ -30,6 +30,7 @@ interface TreemapVisualizerProps {
   filterSource?: (sourceIndex: number) => boolean
   isModulePolyfillChunk?: (sourceIndex: number) => boolean
   isNoModulePolyfillChunk?: (sourceIndex: number) => boolean
+  isAsyncOnlySource?: (sourceIndex: number) => boolean
   sizeMode?: SizeMode
   /**
    * Optional override for file tile colors. Returning `undefined` falls back
@@ -49,6 +50,8 @@ interface TreemapVisualizerProps {
    */
   overlay?: React.ReactNode
 }
+
+const ASYNC_BORDER_COLOR = '#f59e0b'
 
 function getFileColor(node: {
   js?: boolean
@@ -431,6 +434,14 @@ function drawTreemap(
     ctx.lineWidth = 1
     ctx.strokeRect(rect.x, rect.y, rect.width, rect.height)
 
+    // Async-only modules: draw an amber border on top of the standard border
+    // to flag modules only reachable via dynamic import on this route.
+    if (node.asyncOnly && rect.width >= 4 && rect.height >= 4) {
+      ctx.strokeStyle = ASYNC_BORDER_COLOR
+      ctx.lineWidth = 2
+      ctx.strokeRect(rect.x + 1, rect.y + 1, rect.width - 2, rect.height - 2)
+    }
+
     if (rect.width > 60 && rect.height > 30) {
       const textColor = readableColor(color)
       ctx.fillStyle = textColor
@@ -731,6 +742,7 @@ export function TreemapVisualizer({
   onHoveredNodeChangeDelayed,
   searchQuery = '',
   filterSource,
+  isAsyncOnlySource,
   sizeMode = SizeMode.Compressed,
   getFileColorOverride,
   getFileSizeLabel,
@@ -850,7 +862,8 @@ export function TreemapVisualizer({
         height: dimensions.cssHeight,
       },
       filterSource,
-      sizeMode
+      sizeMode,
+      isAsyncOnlySource
     )
 
     // If we're not at the root, wrap with ancestor title bars
@@ -874,6 +887,7 @@ export function TreemapVisualizer({
     dimensions.cssHeight,
     filterSource,
     sizeMode,
+    isAsyncOnlySource,
   ])
 
   useLayoutEffect(() => {

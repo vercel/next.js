@@ -42,6 +42,7 @@ interface AnalyzeDataHeader {
   source_chunk_parts: EdgesDataReference
   source_children: EdgesDataReference
   source_roots: number[]
+  async_only_sources: number[]
 }
 
 interface ModulesDataHeader {
@@ -209,6 +210,7 @@ export class AnalyzeData {
   private analyzeHeader: AnalyzeDataHeader
   private analyzeBinaryData: DataView
   private pathToSourceIndex: Map<string, SourceIndex>
+  private asyncOnlySourceSet: Set<SourceIndex>
 
   constructor(analyzeArrayBuffer: ArrayBuffer) {
     // Parse analyze.data
@@ -233,6 +235,10 @@ export class AnalyzeData {
       const fullPath = this.getFullSourcePath(i)
       this.pathToSourceIndex.set(fullPath, i)
     }
+
+    this.asyncOnlySourceSet = new Set(
+      this.analyzeHeader.async_only_sources ?? []
+    )
   }
 
   // Accessor methods for header data
@@ -267,6 +273,10 @@ export class AnalyzeData {
 
   sourceRoots(): SourceIndex[] {
     return this.analyzeHeader.source_roots
+  }
+
+  isAsyncOnlySource(index: SourceIndex): boolean {
+    return this.asyncOnlySourceSet.has(index)
   }
 
   // Methods to read edges data from the binary section
@@ -426,6 +436,40 @@ export class AnalyzeData {
         size: childUncompressedSize,
         compressedSize: childCompressedSize,
       } = this.getRecursiveSizes(childIndex, filterSource)
+      size += childUncompressedSize
+      compressedSize += childCompressedSize
+    }
+
+    return {
+      size,
+      compressedSize,
+    }
+  }
+
+  /**
+   * Like {@link getRecursiveSizes} but only sums sources flagged async-only
+   * for this route. Used to surface "X of the subtree is reachable solely
+   * via dynamic import" in the sidebar.
+   */
+  getRecursiveAsyncOnlySizes(
+    index: SourceIndex,
+    filterSource: (sourceIndex: SourceIndex) => boolean
+  ): { size: number; compressedSize: number } {
+    let size = 0
+    let compressedSize = 0
+
+    if (this.isAsyncOnlySource(index) && filterSource(index)) {
+      const { size: ownUncompressedSize, compressedSize: ownCompressedSize } =
+        this.getOwnSizes(index)
+      size += ownUncompressedSize
+      compressedSize += ownCompressedSize
+    }
+
+    for (const childIndex of this.sourceChildren(index)) {
+      const {
+        size: childUncompressedSize,
+        compressedSize: childCompressedSize,
+      } = this.getRecursiveAsyncOnlySizes(childIndex, filterSource)
       size += childUncompressedSize
       compressedSize += childCompressedSize
     }
