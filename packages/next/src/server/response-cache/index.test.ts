@@ -2,7 +2,7 @@ import ResponseCache from './index'
 import { CachedRouteKind, type ResponseCacheEntry } from './types'
 import { RouteKind } from '../route-kind'
 import RenderResult from '../render-result'
-import { HTML_CONTENT_TYPE_HEADER } from '../../lib/constants'
+import { HTML_CONTENT_TYPE_HEADER } from '../../lib/constants-browser'
 
 function mockIncrementalCache() {
   return {
