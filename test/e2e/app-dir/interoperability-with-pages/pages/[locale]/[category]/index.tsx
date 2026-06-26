@@ -23,6 +23,8 @@ export function getStaticPaths() {
     paths: categories.map((category) => ({
       params: { category, locale: 'en' },
     })),
-    fallback: false,
+    // Allow arbitrary category segments such as `/en/about` to resolve to this
+    // dynamic route instead of returning a 404 in production.
+    fallback: 'blocking',
   }
 }
