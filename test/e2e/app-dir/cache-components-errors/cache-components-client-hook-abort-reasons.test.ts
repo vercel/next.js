@@ -315,7 +315,7 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
                      https://nextjs.org/docs/messages/blocking-prerender-client-hook#wrap-in-or-move-into-suspense
                    - [block] Set \`export const instant = false\` to allow a blocking route
                      https://nextjs.org/docs/messages/blocking-prerender-client-hook#allow-blocking-route
-                     at useDynamicSearchParams (webpack:///<next-src>)
+                     at Object.useDynamicSearchParams (webpack:///<next-src>)
                      at useSearchParams (webpack:///<next-src>)
                      at UseSearchParams (webpack:///app/client-hook-abort-reasons/client.tsx:27:18)
                      at Page (webpack:///app/client-hook-abort-reasons/normal/use-search-params/[id]/page.tsx:8:7)
