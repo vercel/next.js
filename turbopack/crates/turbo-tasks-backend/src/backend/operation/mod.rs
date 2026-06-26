@@ -28,7 +28,7 @@ use crate::{
     backend::{
         EventDescription, TaskDataCategory, TurboTasksBackend,
         snapshot_coordinator::OperationGuard,
-        storage::{SpecificTaskDataCategory, StorageWriteGuard},
+        storage::{SpecificTaskDataCategory, StorageWriteGuard, TrackOutcome},
         storage_schema::{TaskStorage, TaskStorageAccessors},
     },
     data::{ActivenessState, CollectibleRef, Dirtyness, InProgressState, TransientTask},
@@ -1272,7 +1272,7 @@ pub trait TaskGuard: Debug + TaskStorageAccessors {
         let outcome = if matches!(persistence, ValueTypePersistence::Persistable(..)) {
             self.track_modification(SpecificTaskDataCategory::Data, "cell_data")
         } else {
-            crate::backend::storage::TrackOutcome::NoChange
+            TrackOutcome::NoChange
         };
         let old = self.typed_mut().cell_data_mut().remove(cell);
         if old.is_none() {
@@ -1476,17 +1476,17 @@ impl TaskStorageAccessors for TaskGuardImpl<'_> {
         &mut self,
         category: crate::backend::storage::SpecificTaskDataCategory,
         name: &str,
-    ) -> crate::backend::storage::TrackOutcome {
+    ) -> TrackOutcome {
         if self.task_id.is_transient() {
             // Transient tasks are never persisted, so there is nothing to track or undo.
-            crate::backend::storage::TrackOutcome::NoChange
+            TrackOutcome::NoChange
         } else {
             self.task.track_modification(category, name)
         }
     }
 
     #[inline(always)]
-    fn undo_track_modification(&mut self, outcome: crate::backend::storage::TrackOutcome) {
+    fn undo_track_modification(&mut self, outcome: TrackOutcome) {
         // Transient tasks return `NoChange` above, so undo is harmlessly a no-op for them.
         self.task.undo_track_modification(outcome);
     }
