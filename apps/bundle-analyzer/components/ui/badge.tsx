@@ -21,6 +21,8 @@ const badgeVariants = cva(
           'border-transparent bg-purple-50 dark:bg-purple-950 text-purple-700 dark:text-purple-300 ring-1 ring-inset ring-purple-700/10 dark:ring-purple-300/20',
         traced:
           'border-transparent bg-grey-50 dark:bg-grey-950 text-grey-700 dark:text-grey-300 ring-1 ring-inset ring-grey-700/10 dark:ring-grey-300/20',
+        async:
+          'border-transparent bg-amber-50 dark:bg-amber-950 text-amber-700 dark:text-amber-300 ring-1 ring-inset ring-amber-700/10 dark:ring-amber-300/20',
         polyfill:
           'border-transparent bg-polyfill/10 dark:bg-polyfill/30 text-polyfill dark:text-polyfill-foreground ring-1 ring-inset ring-polyfill/20',
       },

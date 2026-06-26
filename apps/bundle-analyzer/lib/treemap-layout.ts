@@ -16,6 +16,7 @@ export interface LayoutNodeInfo {
   server?: boolean
   client?: boolean
   traced?: boolean
+  asyncOnly?: boolean
 }
 
 export interface LayoutNode extends LayoutNodeInfo {
@@ -112,7 +113,8 @@ function computeTreemapLayoutFromAnalyzeInternal(
   foldedPath: string,
   rect: LayoutRect,
   metadata: SourceMetadata[],
-  sizeMode: SizeMode
+  sizeMode: SizeMode,
+  isAsyncOnlySource?: (sourceIndex: SourceIndex) => boolean
 ): LayoutNode {
   const source = analyzeData.source(sourceIndex)
   if (!source) {
@@ -138,7 +140,8 @@ function computeTreemapLayoutFromAnalyzeInternal(
         foldedPath + source.path,
         rect,
         metadata,
-        sizeMode
+        sizeMode,
+        isAsyncOnlySource
       )
     }
   }
@@ -157,6 +160,7 @@ function computeTreemapLayoutFromAnalyzeInternal(
       rect,
       sourceIndex,
       specialModuleType: getSpecialModuleType(analyzeData, sourceIndex),
+      asyncOnly: isAsyncOnlySource?.(sourceIndex) ?? false,
       ...analyzeData.getSourceFlags(sourceIndex),
     }
   }
@@ -251,7 +255,8 @@ function computeTreemapLayoutFromAnalyzeInternal(
       '',
       childRects[i],
       metadata,
-      sizeMode
+      sizeMode,
+      isAsyncOnlySource
     )
   )
 
@@ -273,7 +278,8 @@ export function computeTreemapLayoutFromAnalyze(
   sourceIndex: SourceIndex,
   rect: LayoutRect,
   filterSource?: (sourceIndex: SourceIndex) => boolean,
-  sizeMode: SizeMode = SizeMode.Compressed
+  sizeMode: SizeMode = SizeMode.Compressed,
+  isAsyncOnlySource?: (sourceIndex: SourceIndex) => boolean
 ): LayoutNode {
   // Precompute metadata once for entire tree
   const metadata = precomputeSourceMetadata(analyzeData, filterSource)
@@ -285,6 +291,7 @@ export function computeTreemapLayoutFromAnalyze(
     '',
     rect,
     metadata,
-    sizeMode
+    sizeMode,
+    isAsyncOnlySource
   )
 }

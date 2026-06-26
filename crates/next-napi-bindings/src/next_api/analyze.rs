@@ -119,6 +119,7 @@ async fn get_analyze_data_operation(
                     .join("analyze.data")?,
                 output_assets,
                 traced_files,
+                endpoint_group.module_graphs(),
             )
             .to_resolved()
             .await?;
