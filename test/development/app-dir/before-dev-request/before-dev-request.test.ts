@@ -31,4 +31,20 @@ describe('experimental.beforeDevRequest', () => {
     expect(res.status).toBe(200)
     expect(await res.text()).toContain('hello world')
   })
+
+  it('runs before rewrites (intercepts even when a rewrite matches the path)', async () => {
+    // `/intercepted` has a rewrite to `/rewrite-target`, but the hook runs at
+    // the middleware point (before rewrites), so it should still short-circuit
+    // and still see the original `/intercepted` URL.
+    const res = await next.fetch('/intercepted')
+    expect(res.status).toBe(418)
+    expect(res.headers.get('x-seen-url')).toBe('/intercepted')
+    expect(await res.text()).toBe('intercepted by beforeDevRequest')
+  })
+
+  it('lets rewrites apply when the hook does not respond', async () => {
+    const res = await next.fetch('/rewrite-passthrough')
+    expect(res.status).toBe(200)
+    expect(await res.text()).toContain('rewrite target')
+  })
 })

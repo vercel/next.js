@@ -816,7 +816,8 @@ export async function initialize(opts: {
     opts,
     renderServer.instance,
     renderServerOpts,
-    development?.bundler?.ensureMiddleware
+    development?.bundler?.ensureMiddleware,
+    development?.config?.experimental?.beforeDevRequest
   )
 
   const upgradeHandler: WorkerUpgradeHandler = async (req, socket, head) => {

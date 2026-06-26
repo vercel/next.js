@@ -1327,7 +1327,8 @@ export interface ExperimentalConfig {
   reportSystemEnvInlining?: 'error' | 'warn'
 
   /**
-   * Intercept requests in development before they are processed by Next.js.
+   * Intercept requests in development before they are processed by Next.js. This executes just
+   * before any proxy.ts handler, so has the same semantics.
    */
   beforeDevRequest?(
     req: IncomingMessage,

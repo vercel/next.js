@@ -26,6 +26,17 @@ const nextConfig = {
       // Otherwise fall through to normal Next.js handling.
     },
   },
+  async rewrites() {
+    return [
+      // A rewrite exists for the intercepted path. The hook runs *before*
+      // rewrites (at the middleware point), so it should still short-circuit
+      // and still observe the original `/intercepted` URL.
+      { source: '/intercepted', destination: '/rewrite-target' },
+      // A normal rewrite for a path the hook does not respond to: it should
+      // pass through the hook and be served by the rewritten target page.
+      { source: '/rewrite-passthrough', destination: '/rewrite-target' },
+    ]
+  },
 }
 
 module.exports = nextConfig
