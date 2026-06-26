@@ -135,8 +135,6 @@ fn scale_threshold(base: usize, pressure: Option<u8>) -> usize {
 mod tests {
     use super::{EvictionControl, EvictionMode, scale_threshold};
 
-    const BASE: usize = 128 * 1024 * 1024;
-
     #[test]
     fn off_mode_never_evicts() {
         let mut control = EvictionControl::new(EvictionMode::Off);
@@ -180,22 +178,19 @@ mod tests {
     }
 
     #[test]
-    fn scale_threshold() {
-        assert_eq!(scale_threshold(BASE, Some(0)), BASE);
-        assert_eq!(scale_threshold(BASE, Some(50)), BASE / 2);
-        assert_eq!(scale_threshold(BASE, Some(100)), 0);
+    fn scale_threshold_behavior() {
+        assert_eq!(scale_threshold(100, Some(0)), 100);
+        assert_eq!(scale_threshold(100, Some(50)), 50);
+        assert_eq!(scale_threshold(100, Some(100)), 0);
         // Pressure is documented as 0..=100; values above clamp to 100.
-        assert_eq!(
-            scale_threshold(BASE, Some(200)),
-            scale_threshold(BASE, Some(100))
-        );
+        assert_eq!(scale_threshold(100, Some(200)), 0);
     }
 
     #[test]
     fn scale_threshold_is_monotonic_non_increasing() {
-        let mut prev = scale_threshold(BASE, Some(0));
+        let mut prev = scale_threshold(100, Some(0));
         for p in 1..=100u8 {
-            let cur = scale_threshold(BASE, Some(p));
+            let cur = scale_threshold(100, Some(p));
             assert!(
                 cur <= prev,
                 "threshold should not increase with pressure: p={p}, cur={cur}, prev={prev}"
