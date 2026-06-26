@@ -1,0 +1,11 @@
+{
+  "name": "i18n-pkg",
+  "version": "1.0.0",
+  "main": "./index.cjs",
+  "exports": {
+    ".": {
+      "import": "./index.mjs",
+      "require": "./index.cjs"
+    }
+  }
+}

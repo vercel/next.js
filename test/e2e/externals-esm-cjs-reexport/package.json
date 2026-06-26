@@ -1,0 +1,5 @@
+{
+  "dependencies": {
+    "button-pkg": "file:./button-pkg"
+  }
+}
