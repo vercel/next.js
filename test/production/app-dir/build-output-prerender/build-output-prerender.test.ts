@@ -502,5 +502,18 @@ function getPrerenderOutput(cliOutput: string): string {
     }
   }
 
-  return lines.join('\n').trim()
+  const output = lines.join('\n').trim()
+  const summaryIndex = output.indexOf('\n\n> Export encountered errors')
+
+  if (summaryIndex === -1) {
+    return output
+  }
+
+  // Routes prerender concurrently, so their errors can be reported in any order.
+  const errors = output
+    .slice(0, summaryIndex)
+    .split(/(?=^Error: Route )/m)
+    .sort()
+
+  return `${errors.join('')}${output.slice(summaryIndex)}`
 }

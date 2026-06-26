@@ -7,7 +7,7 @@ import { FileRef, nextTestSetup } from 'e2e-utils'
 import escapeStringRegexp from 'escape-string-regexp'
 
 describe('Middleware Rewrite', () => {
-  const { next } = nextTestSetup({
+  const { next, isNextDeploy } = nextTestSetup({
     files: {
       pages: new FileRef(join(__dirname, '../app/pages')),
       'next.config.js': new FileRef(join(__dirname, '../app/next.config.js')),
@@ -99,7 +99,11 @@ describe('Middleware Rewrite', () => {
 
       expect(res.status).toBe(200)
       expect(await res.json()).toEqual({
-        url: '/foo/bar?key=value',
+        // Deployed proxies include query values added while resolving rewrites
+        // in the URL passed to the function. Locally they are only in req.query.
+        url: isNextDeploy
+          ? '/foo/bar?key=value&added=1&extra=2'
+          : '/foo/bar?key=value',
         query: {
           key: 'value',
           added: '1',
