@@ -32,21 +32,21 @@ This error can also appear during a client-side navigation when the data access 
 ## Ways to fix this
 
 <FixOption
-  group="cache"
-  href="#cache-the-component-or-data"
-  title="Cache the component or data"
->
-  Move the data access into a cached function so the result is reused and the
-  route stays prerenderable.
-</FixOption>
-
-<FixOption
   group="stream"
   href="#wrap-in-or-move-into-suspense"
   title="Wrap in or move into Suspense"
 >
   Wrap the data-accessing component in a Suspense boundary. The shell ships
   instantly and the data streams in.
+</FixOption>
+
+<FixOption
+  group="cache"
+  href="#cache-the-component-or-data"
+  title="Cache the component or data"
+>
+  Move the data access into a cached function so the result is reused and the
+  route stays prerenderable.
 </FixOption>
 
 <FixOption
@@ -57,104 +57,6 @@ This error can also appear during a client-side navigation when the data access 
   Opt this segment out of instant navigation. The route has no static shell and
   every navigation blocks until the render completes.
 </FixOption>
-
-## Cache the component or data
-
-Choose this fix when the data does not need to be regenerated on every request. Move the call into a function and add the [`use cache`](https://preview.nextjs.org/docs/app/api-reference/directives/use-cache) directive as the first statement of the function body. The function still runs the underlying query, but Next.js caches the result for the configured lifetime and the surrounding route becomes prerenderable.
-
-This fix does not apply to [`connection()`](https://preview.nextjs.org/docs/app/api-reference/functions/connection). The whole point of `connection()` is to opt into per-request rendering for the wrapped subtree, so caching it would defeat the purpose. Use [Wrap in or move into Suspense](#wrap-in-or-move-into-suspense) instead.
-
-### Patterns
-
-#### Cache the data-access function
-
-Move the [`fetch()`](https://preview.nextjs.org/docs/app/getting-started/fetching-data) or database call into its own function and mark that function with [`use cache`](https://preview.nextjs.org/docs/app/api-reference/directives/use-cache). Arguments to the function and closed-over variables become part of the cache key, so prefer passing the values you depend on as arguments to make the contract explicit.
-
-```jsx filename="app/dashboard/page.js"
-async function getRecentTransactions(limit) {
-  'use cache'
-  return db.transactions.findMany({
-    orderBy: { createdAt: 'desc' },
-    take: limit,
-  })
-}
-
-export default async function Page() {
-  const transactions = await getRecentTransactions(10)
-  return <TransactionList transactions={transactions} />
-}
-```
-
-Learn more: [Fetching data in the App Router](https://preview.nextjs.org/docs/app/getting-started/fetching-data).
-
-#### Cache the whole component
-
-When the component does nothing but read data and render it, mark the [component itself](https://preview.nextjs.org/docs/app/api-reference/directives/use-cache#caching-a-components-output-with-use-cache) with `use cache`. Next.js caches the rendered JSX, which is cheaper to reuse than recomputing it from the cached data.
-
-```jsx filename="app/dashboard/transaction-list.js"
-export async function TransactionList({ limit }) {
-  'use cache'
-  const transactions = await db.transactions.findMany({ take: limit })
-  return (
-    <ul>
-      {transactions.map((transaction) => (
-        <li key={transaction.id}>{transaction.description}</li>
-      ))}
-    </ul>
-  )
-}
-```
-
-Learn more: [Caching with `use cache`](https://preview.nextjs.org/docs/app/api-reference/directives/use-cache#caching-a-components-output-with-use-cache).
-
-#### Tag the cache for targeted invalidation
-
-Choose this when you want control over when the cached value is refreshed. Tag the entry with [`cacheTag`](https://preview.nextjs.org/docs/app/api-reference/functions/cacheTag) and invalidate it on demand: call [`updateTag`](https://preview.nextjs.org/docs/app/api-reference/functions/updateTag) from a [Server Action](https://preview.nextjs.org/docs/app/getting-started/mutating-data) when the user performed the mutation and should see fresh data on the next request, or [`revalidateTag`](https://preview.nextjs.org/docs/app/api-reference/functions/revalidateTag) from a route handler, cron, admin tool, or incoming webhook for stale-while-revalidate refreshes. Tags add an on-demand invalidation path on top of the [`cacheLife`](https://preview.nextjs.org/docs/app/api-reference/functions/cacheLife) expiration window; the two are independent.
-
-```jsx filename="app/dashboard/page.js"
-import { cacheTag } from 'next/cache'
-
-async function getRecentTransactions() {
-  'use cache'
-  cacheTag('dashboard-transactions')
-  return db.transactions.findMany({ take: 10 })
-}
-```
-
-Learn more: [How revalidation works](https://preview.nextjs.org/docs/app/guides/how-revalidation-works).
-
-#### Set an explicit `cacheLife` profile
-
-When the data has a natural shelf-life (hourly metrics, daily aggregates), pick a [`cacheLife`](https://preview.nextjs.org/docs/app/api-reference/functions/cacheLife) profile that matches. Without a profile, Next.js uses the project default.
-
-```jsx filename="app/dashboard/page.js"
-import { cacheLife } from 'next/cache'
-
-async function getDashboard() {
-  'use cache'
-  cacheLife('hours')
-  return db.metrics.summary()
-}
-```
-
-Learn more: [How to configure cache lifetimes](https://preview.nextjs.org/docs/app/api-reference/functions/cacheLife).
-
-### Trade-off
-
-Freshness becomes a property of the cache configuration, not the data source. The cached response is reused until [`cacheLife`](https://preview.nextjs.org/docs/app/api-reference/functions/cacheLife) revalidates or expires, or until [`cacheTag`](https://preview.nextjs.org/docs/app/api-reference/functions/cacheTag) is invalidated. Plan invalidations alongside the code that mutates the data. Call [`updateTag`](https://preview.nextjs.org/docs/app/api-reference/functions/updateTag) from a [Server Action](https://preview.nextjs.org/docs/app/getting-started/mutating-data) when the user performed the mutation and should see fresh data on the next request, or [`revalidateTag`](https://preview.nextjs.org/docs/app/api-reference/functions/revalidateTag) from a route handler, cron, or webhook for stale-while-revalidate refreshes.
-
-### Gotchas
-
-- Variables captured from the surrounding scope are automatically bound as part of the cache key. That keeps cached entries per-value, but it also means a wide closure can balloon the key surface. Prefer passing the dependencies you care about as function arguments so the contract is explicit.
-- The `"use cache"` directive runs on the server. It can't wrap a function that uses runtime APIs such as [`cookies()`](https://preview.nextjs.org/docs/app/api-reference/functions/cookies) or [`headers()`](https://preview.nextjs.org/docs/app/api-reference/functions/headers). Read those outside the cached scope and pass the values as arguments, or use [`"use cache: private"`](https://preview.nextjs.org/docs/app/api-reference/directives/use-cache-private).
-- If you cache a function and still see this error, the `cacheLife` may be too short to prerender. See [Short-lived caches](#short-lived-caches).
-- The default in-memory cache is per-server-instance. If the upstream call is expensive and you want a shared cache across instances, use [`"use cache: remote"`](https://preview.nextjs.org/docs/app/api-reference/directives/use-cache-remote) instead. It trades a network roundtrip for a single cache shared by all servers.
-
-### Short-lived caches
-
-[`"use cache"`](https://preview.nextjs.org/docs/app/api-reference/directives/use-cache) accepts a [`cacheLife`](https://preview.nextjs.org/docs/app/api-reference/functions/cacheLife) profile. A short profile (such as `"seconds"` or `"minutes"`) whose `revalidate` is shorter than the prerender's effective lifetime prevents the value from being included in the prerender; the segment becomes a dynamic hole instead. The cache entry still helps the [Client Cache](https://preview.nextjs.org/docs/app/glossary#client-cache) and protects upstream APIs, but the page falls back to streaming.
-
-To keep the page prerendered, use a profile with a longer revalidate window such as `"default"` (15 minutes), `"hours"`, or `"days"`. If a short profile is intentional, treat the value as dynamic and use [Wrap in or move into Suspense](#wrap-in-or-move-into-suspense) instead.
 
 ## Wrap in or move into Suspense
 
@@ -267,6 +169,104 @@ A useful rule: **push the boundary as low as possible** while keeping the fallba
 - If the failing route is `/_not-found` and you don't have a `not-found.tsx` file, the read is in the root layout. `/_not-found` is a real prerendered route that inherits the root layout, so an uncached read there fails on the synthetic route too. Run `next build --debug-prerender` to confirm the originating file, and fix it at the layout, not by adding a `not-found.tsx`.
 - Boundary placement affects client navigations between sibling routes differently than initial page loads. Validation surfaces this in the dev server and at build time. See [Ensuring instant navigations](https://preview.nextjs.org/docs/app/guides/instant-navigation) for the full model.
 - Root-element attributes (`<html lang>`, `<html dir>`, `<html data-theme>`) can't be wrapped in `<Suspense>`. You can't suspend the document root, and a boundary inside `<html>` still leaves the attribute itself server-cookie-dependent. Move the read to a pre-paint client script per [Preventing flash before hydration](https://preview.nextjs.org/docs/app/guides/preventing-flash-before-hydration) and add `suppressHydrationWarning` on `<html>` so React doesn't flag the script's mutation as a mismatch.
+
+## Cache the component or data
+
+Choose this fix when the data does not need to be regenerated on every request. Move the call into a function and add the [`use cache`](https://preview.nextjs.org/docs/app/api-reference/directives/use-cache) directive as the first statement of the function body. The function still runs the underlying query, but Next.js caches the result for the configured lifetime and the surrounding route becomes prerenderable.
+
+This fix does not apply to [`connection()`](https://preview.nextjs.org/docs/app/api-reference/functions/connection). The whole point of `connection()` is to opt into per-request rendering for the wrapped subtree, so caching it would defeat the purpose. Use [Wrap in or move into Suspense](#wrap-in-or-move-into-suspense) instead.
+
+### Patterns
+
+#### Cache the data-access function
+
+Move the [`fetch()`](https://preview.nextjs.org/docs/app/getting-started/fetching-data) or database call into its own function and mark that function with [`use cache`](https://preview.nextjs.org/docs/app/api-reference/directives/use-cache). Arguments to the function and closed-over variables become part of the cache key, so prefer passing the values you depend on as arguments to make the contract explicit.
+
+```jsx filename="app/dashboard/page.js"
+async function getRecentTransactions(limit) {
+  'use cache'
+  return db.transactions.findMany({
+    orderBy: { createdAt: 'desc' },
+    take: limit,
+  })
+}
+
+export default async function Page() {
+  const transactions = await getRecentTransactions(10)
+  return <TransactionList transactions={transactions} />
+}
+```
+
+Learn more: [Fetching data in the App Router](https://preview.nextjs.org/docs/app/getting-started/fetching-data).
+
+#### Cache the whole component
+
+When the component does nothing but read data and render it, mark the [component itself](https://preview.nextjs.org/docs/app/api-reference/directives/use-cache#caching-a-components-output-with-use-cache) with `use cache`. Next.js caches the rendered JSX, which is cheaper to reuse than recomputing it from the cached data.
+
+```jsx filename="app/dashboard/transaction-list.js"
+export async function TransactionList({ limit }) {
+  'use cache'
+  const transactions = await db.transactions.findMany({ take: limit })
+  return (
+    <ul>
+      {transactions.map((transaction) => (
+        <li key={transaction.id}>{transaction.description}</li>
+      ))}
+    </ul>
+  )
+}
+```
+
+Learn more: [Caching with `use cache`](https://preview.nextjs.org/docs/app/api-reference/directives/use-cache#caching-a-components-output-with-use-cache).
+
+#### Tag the cache for targeted invalidation
+
+Choose this when you want control over when the cached value is refreshed. Tag the entry with [`cacheTag`](https://preview.nextjs.org/docs/app/api-reference/functions/cacheTag) and invalidate it on demand: call [`updateTag`](https://preview.nextjs.org/docs/app/api-reference/functions/updateTag) from a [Server Action](https://preview.nextjs.org/docs/app/getting-started/mutating-data) when the user performed the mutation and should see fresh data on the next request, or [`revalidateTag`](https://preview.nextjs.org/docs/app/api-reference/functions/revalidateTag) from a route handler, cron, admin tool, or incoming webhook for stale-while-revalidate refreshes. Tags add an on-demand invalidation path on top of the [`cacheLife`](https://preview.nextjs.org/docs/app/api-reference/functions/cacheLife) expiration window; the two are independent.
+
+```jsx filename="app/dashboard/page.js"
+import { cacheTag } from 'next/cache'
+
+async function getRecentTransactions() {
+  'use cache'
+  cacheTag('dashboard-transactions')
+  return db.transactions.findMany({ take: 10 })
+}
+```
+
+Learn more: [How revalidation works](https://preview.nextjs.org/docs/app/guides/how-revalidation-works).
+
+#### Set an explicit `cacheLife` profile
+
+When the data has a natural shelf-life (hourly metrics, daily aggregates), pick a [`cacheLife`](https://preview.nextjs.org/docs/app/api-reference/functions/cacheLife) profile that matches. Without a profile, Next.js uses the project default.
+
+```jsx filename="app/dashboard/page.js"
+import { cacheLife } from 'next/cache'
+
+async function getDashboard() {
+  'use cache'
+  cacheLife('hours')
+  return db.metrics.summary()
+}
+```
+
+Learn more: [How to configure cache lifetimes](https://preview.nextjs.org/docs/app/api-reference/functions/cacheLife).
+
+### Trade-off
+
+Freshness becomes a property of the cache configuration, not the data source. The cached response is reused until [`cacheLife`](https://preview.nextjs.org/docs/app/api-reference/functions/cacheLife) revalidates or expires, or until [`cacheTag`](https://preview.nextjs.org/docs/app/api-reference/functions/cacheTag) is invalidated. Plan invalidations alongside the code that mutates the data. Call [`updateTag`](https://preview.nextjs.org/docs/app/api-reference/functions/updateTag) from a [Server Action](https://preview.nextjs.org/docs/app/getting-started/mutating-data) when the user performed the mutation and should see fresh data on the next request, or [`revalidateTag`](https://preview.nextjs.org/docs/app/api-reference/functions/revalidateTag) from a route handler, cron, or webhook for stale-while-revalidate refreshes.
+
+### Gotchas
+
+- Variables captured from the surrounding scope are automatically bound as part of the cache key. That keeps cached entries per-value, but it also means a wide closure can balloon the key surface. Prefer passing the dependencies you care about as function arguments so the contract is explicit.
+- The `"use cache"` directive runs on the server. It can't wrap a function that uses runtime APIs such as [`cookies()`](https://preview.nextjs.org/docs/app/api-reference/functions/cookies) or [`headers()`](https://preview.nextjs.org/docs/app/api-reference/functions/headers). Read those outside the cached scope and pass the values as arguments, or use [`"use cache: private"`](https://preview.nextjs.org/docs/app/api-reference/directives/use-cache-private).
+- If you cache a function and still see this error, the `cacheLife` may be too short to prerender. See [Short-lived caches](#short-lived-caches).
+- The default in-memory cache is per-server-instance. If the upstream call is expensive and you want a shared cache across instances, use [`"use cache: remote"`](https://preview.nextjs.org/docs/app/api-reference/directives/use-cache-remote) instead. It trades a network roundtrip for a single cache shared by all servers.
+
+### Short-lived caches
+
+[`"use cache"`](https://preview.nextjs.org/docs/app/api-reference/directives/use-cache) accepts a [`cacheLife`](https://preview.nextjs.org/docs/app/api-reference/functions/cacheLife) profile. A short profile (such as `"seconds"` or `"minutes"`) whose `revalidate` is shorter than the prerender's effective lifetime prevents the value from being included in the prerender; the segment becomes a dynamic hole instead. The cache entry still helps the [Client Cache](https://preview.nextjs.org/docs/app/glossary#client-cache) and protects upstream APIs, but the page falls back to streaming.
+
+To keep the page prerendered, use a profile with a longer revalidate window such as `"default"` (15 minutes), `"hours"`, or `"days"`. If a short profile is intentional, treat the value as dynamic and use [Wrap in or move into Suspense](#wrap-in-or-move-into-suspense) instead.
 
 ## Allow blocking route
 
