@@ -162,6 +162,7 @@ pub async fn get_client_resolve_options_context(
         .await?;
     let next_client_resolved_map =
         get_next_client_resolved_map(project_path.clone(), project_path.clone(), *mode.await?)
+            .await?
             .to_resolved()
             .await?;
     let mut custom_conditions: Vec<_> = mode.await?.custom_resolve_conditions().collect();

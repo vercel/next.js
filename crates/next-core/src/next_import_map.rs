@@ -7,7 +7,11 @@ use next_taskless::{EDGE_NODE_EXTERNALS, NODE_EXTERNALS};
 use rustc_hash::FxHashMap;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{FxIndexMap, ResolvedVc, Vc, fxindexmap};
-use turbo_tasks_fs::{FileContent, FileSystem, FileSystemPath, to_sys_path};
+use turbo_tasks_fs::{
+    FileContent, FileSystem, FileSystemPath,
+    glob::{Glob, GlobOptions},
+    to_sys_path,
+};
 use turbopack_core::{
     asset::AssetContent,
     issue::{Issue, IssueExt, IssueSeverity, IssueStage, StyledString},
@@ -559,16 +563,36 @@ async fn insert_unsupported_node_internal_aliases(import_map: &mut ImportMap) ->
     Ok(())
 }
 
-pub fn get_next_client_resolved_map(
-    _context: FileSystemPath,
-    _root: FileSystemPath,
+pub async fn get_next_client_resolved_map(
+    context_path: FileSystemPath,
+    root: FileSystemPath,
     _mode: NextMode,
-) -> Vc<ResolvedMap> {
-    let glob_mappings = vec![];
-    ResolvedMap {
+) -> Result<Vc<ResolvedMap>> {
+    // In the browser bundle, swap the default `unstable-rethrow` (which holds the full
+    // server logic) for its `.browser` sibling. The server-only checks can never occur in
+    // the browser, and bundling the default would drag server-only modules into the client
+    // bundle. This is the Turbopack analog of the webpack alias in `create-compiler-aliases.ts`
+    // and is client-only because `get_next_client_resolved_map` is used only by the client
+    // context. Matching is on the resolved file path, so it intercepts the relative import
+    // regardless of which module pulls it in. Anchored at the filesystem root so it matches
+    // wherever `next` resolves from (node_modules, pnpm store, or monorepo `packages/next`).
+    let glob_mappings = vec![(
+        root.root().owned().await?,
+        Glob::new(
+            rcstr!("**/next/dist/client/components/unstable-rethrow.js"),
+            GlobOptions::default(),
+        )
+        .to_resolved()
+        .await?,
+        request_to_import_mapping(
+            context_path,
+            rcstr!("next/dist/client/components/unstable-rethrow.browser"),
+        ),
+    )];
+    Ok(ResolvedMap {
         by_glob: glob_mappings,
     }
-    .cell()
+    .cell())
 }
 
 static NEXT_ALIASES: LazyLock<[(RcStr, RcStr); 23]> = LazyLock::new(|| {

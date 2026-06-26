@@ -91,7 +91,6 @@ describe('browser-chunks', () => {
          "src/server/app-render/work-unit-async-storage.external.ts",
          "src/server/create-deduped-by-callsite-server-error-logger.ts",
          "src/server/dynamic-rendering-utils.ts",
-         "src/server/lib/router-utils/is-postpone.ts",
          "src/server/request/params.ts",
          "src/server/request/search-params.ts",
          "src/server/request/utils.ts",
