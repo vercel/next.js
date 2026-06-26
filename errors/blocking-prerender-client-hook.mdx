@@ -9,7 +9,7 @@ During [prerendering](/docs/app/glossary#prerendering), a Client Component calle
 
 Server-side request-bound reads ([`cookies()`](/docs/app/api-reference/functions/cookies), [`headers()`](/docs/app/api-reference/functions/headers)) have different fixes. See [Next.js encountered runtime data during prerendering](/docs/messages/blocking-prerender-runtime). For unstable values like [`Math.random()`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Math/random) in Client Components, see [Next.js encountered the unstable value Math.random() in a Client Component](/docs/messages/blocking-prerender-random-client).
 
-> **Good to know**: In [`next dev`](/docs/app/api-reference/cli/next#next-dev-options), the error overlay points at the failing component. Run `next build --debug-prerender` to get the full list of blocking routes with stack traces. When iterating on specific routes, use `next build --debug-build-paths /dashboard /settings` to rebuild only those pages.
+> **Good to know**: In [`next dev`](/docs/app/api-reference/cli/next#next-dev-options), the error overlay points at the failing component with file paths and line numbers. After a fix, reload the route to confirm the static shell renders real content — a `<Suspense>` boundary placed around the whole page body can pass validation with an empty shell. When working from a build instead, the default `next build` output is more abbreviated; run `next build --debug-prerender` for full user-frame stack traces and `next build --debug-build-paths /dashboard /settings` to iterate on specific routes.
 
 ## Ways to fix this
 
@@ -232,7 +232,7 @@ Navigations to this route are not instant. The user waits for the full server re
 - Setting [`instant`](/docs/app/api-reference/file-conventions/route-segment-config/instant) to `false` opts only the segment that exports it out. Descendant segments are still validated by the global default.
 - This export does not disable [prerendering](/docs/app/glossary#prerendering). The route still prerenders if it can. It only silences the instant-navigation validation error.
 
-## Don't want this validation?
+## Silencing this error
 
 Instant-navigation validation runs by default in [Cache Components](/docs/app/api-reference/config/next-config-js/cacheComponents) apps and is what surfaces this error.
 
@@ -240,10 +240,3 @@ Instant-navigation validation runs by default in [Cache Components](/docs/app/ap
 - **Entire app**: set [`experimental.instantInsights.validationLevel`](/docs/app/api-reference/file-conventions/route-segment-config/instant#configuring-validation-defaults) to `'manual-warning'` in `next.config`. This limits validation to segments that explicitly export `instant`.
 
 See [Ensuring instant navigations](/docs/app/guides/instant-navigation) for the full model.
-
-## Useful links
-
-- [Ensuring instant navigations](/docs/app/guides/instant-navigation)
-- [Preventing flash before hydration](/docs/app/guides/preventing-flash-before-hydration)
-- [Next.js encountered runtime data during prerendering](/docs/messages/blocking-prerender-runtime)
-- [Next.js encountered the unstable value Math.random() in a Client Component](/docs/messages/blocking-prerender-random-client)

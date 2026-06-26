@@ -7,7 +7,7 @@ A [Client Component](/docs/app/getting-started/server-and-client-components#usin
 
 The Server Component case is handled at [`Math.random()` during prerendering](/docs/messages/blocking-prerender-random). Other unpredictable client-side APIs ([`Date.now()`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Date/now), [`crypto.randomUUID()`](https://developer.mozilla.org/en-US/docs/Web/API/Crypto/randomUUID)) have parallel error pages: [`Date.now()` in a Client Component](/docs/messages/blocking-prerender-current-time-client) and [Crypto APIs in a Client Component](/docs/messages/blocking-prerender-crypto-client).
 
-> **Good to know**: In [`next dev`](/docs/app/api-reference/cli/next#next-dev-options), the error overlay points at the failing component. Run `next build --debug-prerender` to get the full list of blocking routes with stack traces. When iterating on specific routes, use `next build --debug-build-paths /dashboard /settings` to rebuild only those pages.
+> **Good to know**: In [`next dev`](/docs/app/api-reference/cli/next#next-dev-options), the error overlay points at the failing component with file paths and line numbers. After a fix, reload the route to confirm the static shell renders real content — a `<Suspense>` boundary placed around the whole page body can pass validation with an empty shell. When working from a build instead, the default `next build` output is more abbreviated; run `next build --debug-prerender` for full user-frame stack traces and `next build --debug-build-paths /dashboard /settings` to iterate on specific routes.
 
 ## Ways to fix this
 
@@ -204,12 +204,3 @@ Learn more: [`io()`](/docs/app/api-reference/functions/io).
 ## Why `instant = false` doesn't clear this error
 
 This error fires from the prerender, not from instant-navigation validation. `Math.random()` returns a different value on every render, so the prerender can't bake it into a static shell regardless of the segment's `instant` config or [`experimental.instantInsights.validationLevel`](/docs/app/api-reference/file-conventions/route-segment-config/instant#configuring-validation-defaults). Use one of the fixes above.
-
-## Useful links
-
-- [`Math.random()` during prerendering](/docs/messages/blocking-prerender-random)
-- [`Date.now()` in a Client Component](/docs/messages/blocking-prerender-current-time-client)
-- [Crypto APIs in a Client Component](/docs/messages/blocking-prerender-crypto-client)
-- [`useEffect`](https://react.dev/reference/react/useEffect)
-- [Streaming with Suspense](/docs/app/guides/streaming)
-- [Ensuring instant navigations](/docs/app/guides/instant-navigation)

@@ -7,7 +7,7 @@ During [prerendering](/docs/app/glossary#prerendering), [`generateViewport()`](/
 
 Uncached data accesses ([`fetch()`](https://developer.mozilla.org/en-US/docs/Web/API/Window/fetch), database calls, [`await connection()`](/docs/app/api-reference/functions/connection)) in `generateViewport()` have different fixes. See [Next.js encountered uncached data in `generateViewport()`](/docs/messages/blocking-prerender-viewport-dynamic). The metadata equivalent is handled at [Runtime data in `generateMetadata()`](/docs/messages/blocking-prerender-metadata-runtime). For errors in the page body rather than viewport, see [Next.js encountered runtime data during prerendering](/docs/messages/blocking-prerender-runtime).
 
-> **Good to know**: In [`next dev`](/docs/app/api-reference/cli/next#next-dev-options), the error overlay points at the failing component. Run `next build --debug-prerender` to get the full list of blocking routes with stack traces. When iterating on specific routes, use `next build --debug-build-paths /dashboard /settings` to rebuild only those pages.
+> **Good to know**: In [`next dev`](/docs/app/api-reference/cli/next#next-dev-options), the error overlay points at the failing component with file paths and line numbers. After a fix, reload the route to confirm the static shell renders real content — a `<Suspense>` boundary placed around the whole page body can pass validation with an empty shell. When working from a build instead, the default `next build` output is more abbreviated; run `next build --debug-prerender` for full user-frame stack traces and `next build --debug-build-paths /dashboard /settings` to iterate on specific routes.
 
 ## Ways to fix this
 
@@ -115,7 +115,7 @@ Navigations to this route are not instant. The user waits for the full server re
 - If the dynamic viewport is the only reason the route blocks, consider whether a static default covers most users. A static `themeColor` with a client-side correction after hydration may give a better experience than blocking the entire navigation.
 - Framework-synthesized routes (`/_not-found`, `/_global-error`) inherit the root layout's `generateViewport` and must be statically prerendered. [`instant = false`](/docs/app/api-reference/file-conventions/route-segment-config/instant) silences the validation error but does not let those routes through, so the build still fails when they prerender. If your root layout's `generateViewport` depends on request data, [Use static viewport](#use-static-viewport) instead, or move to [`global-not-found.js`](/docs/app/api-reference/file-conventions/not-found#global-not-foundjs-experimental), which bypasses the root layout entirely and avoids inheriting its `generateViewport`.
 
-## Don't want this validation?
+## Silencing this error
 
 Instant-navigation validation runs by default in [Cache Components](/docs/app/api-reference/config/next-config-js/cacheComponents) apps and is what surfaces this error.
 
@@ -123,9 +123,3 @@ Instant-navigation validation runs by default in [Cache Components](/docs/app/ap
 - **Entire app**: set [`experimental.instantInsights.validationLevel`](/docs/app/api-reference/file-conventions/route-segment-config/instant#configuring-validation-defaults) to `'manual-warning'` in `next.config`. This limits validation to segments that explicitly export `instant`.
 
 See [Ensuring instant navigations](/docs/app/guides/instant-navigation) for the full model.
-
-## Useful links
-
-- [Ensuring instant navigations](/docs/app/guides/instant-navigation)
-- [Uncached data in `generateViewport()`](/docs/messages/blocking-prerender-viewport-dynamic)
-- [Runtime data in `generateMetadata()`](/docs/messages/blocking-prerender-metadata-runtime)

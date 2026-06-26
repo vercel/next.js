@@ -11,7 +11,7 @@ The viewport equivalent is handled at [Runtime data in `generateViewport()`](/do
 
 For errors in the page body rather than metadata, see [Next.js encountered runtime data during prerendering](/docs/messages/blocking-prerender-runtime).
 
-> **Good to know**: In [`next dev`](/docs/app/api-reference/cli/next#next-dev-options), the error overlay points at the failing component. Run `next build --debug-prerender` to get the full list of blocking routes with stack traces. When iterating on specific routes, use `next build --debug-build-paths /dashboard /settings` to rebuild only those pages.
+> **Good to know**: In [`next dev`](/docs/app/api-reference/cli/next#next-dev-options), the error overlay points at the failing component with file paths and line numbers. After a fix, reload the route to confirm the static shell renders real content — a `<Suspense>` boundary placed around the whole page body can pass validation with an empty shell. When working from a build instead, the default `next build` output is more abbreviated; run `next build --debug-prerender` for full user-frame stack traces and `next build --debug-build-paths /dashboard /settings` to iterate on specific routes.
 
 ## Ways to fix this
 
@@ -140,7 +140,7 @@ The metadata and the dynamic marker run on every request, so the route cannot be
 - If the page already has a genuinely dynamic component (one that reads [`cookies()`](/docs/app/api-reference/functions/cookies) or [`headers()`](/docs/app/api-reference/functions/headers) inside a [`<Suspense>`](https://react.dev/reference/react/Suspense) boundary), you won't see this error. The page is already partially dynamic.
 - Framework-synthesized routes (`/_not-found`, `/_global-error`) inherit the root layout's `generateMetadata` and must be statically prerendered. The dynamic marker doesn't help here, because these routes don't have a page body where you can place a Suspense'd marker. If your root layout's `generateMetadata` depends on request data, [Use static metadata](#use-static-metadata) instead, or move to [`global-not-found.js`](/docs/app/api-reference/file-conventions/not-found#global-not-foundjs-experimental), which bypasses the root layout entirely and avoids inheriting its `generateMetadata`.
 
-## Don't want this validation?
+## Silencing this error
 
 Instant-navigation validation runs by default in [Cache Components](/docs/app/api-reference/config/next-config-js/cacheComponents) apps and is what surfaces this error.
 
@@ -148,12 +148,3 @@ Instant-navigation validation runs by default in [Cache Components](/docs/app/ap
 - **Entire app**: set [`experimental.instantInsights.validationLevel`](/docs/app/api-reference/file-conventions/route-segment-config/instant#configuring-validation-defaults) to `'manual-warning'` in `next.config`. This limits validation to segments that explicitly export `instant`.
 
 See [Ensuring instant navigations](/docs/app/guides/instant-navigation) for the full model.
-
-## Useful links
-
-- [`generateMetadata()`](/docs/app/api-reference/functions/generate-metadata)
-- [Uncached data in `generateMetadata()`](/docs/messages/blocking-prerender-metadata-dynamic)
-- [Runtime data in `generateViewport()`](/docs/messages/blocking-prerender-viewport-runtime)
-- [`generateStaticParams`](/docs/app/api-reference/functions/generate-static-params)
-- [`connection` function](/docs/app/api-reference/functions/connection)
-- [Ensuring instant navigations](/docs/app/guides/instant-navigation)

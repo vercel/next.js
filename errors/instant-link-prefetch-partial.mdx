@@ -7,7 +7,7 @@ During a [client-side navigation](/docs/app/glossary#client-side-navigation), a 
 
 Routes that opt into Partial Prefetching skip the dynamic data at prefetch time, leaving you free to choose when it loads: at navigation via [streaming](/docs/app/glossary#streaming), ahead of time via [runtime prefetching](/docs/app/guides/runtime-prefetching), or not at all. The check fires at navigation time, not prefetch time, so existing apps that have just enabled Cache Components are not flooded with warnings for every `<Link prefetch={true}>` on the page.
 
-> **Good to know**: In [`next dev`](/docs/app/api-reference/cli/next#next-dev-options), the error overlay points at the failing component. Run `next build --debug-prerender` to get the full list of blocking routes with stack traces. When iterating on specific routes, use `next build --debug-build-paths /dashboard /settings` to rebuild only those pages.
+> **Good to know**: In [`next dev`](/docs/app/api-reference/cli/next#next-dev-options), the error overlay points at the failing component with file paths and line numbers. After a fix, reload the route to confirm the static shell renders real content — a `<Suspense>` boundary placed around the whole page body can pass validation with an empty shell. When working from a build instead, the default `next build` output is more abbreviated; run `next build --debug-prerender` for full user-frame stack traces and `next build --debug-build-paths /dashboard /settings` to iterate on specific routes.
 
 ## Ways to fix this
 
@@ -132,7 +132,7 @@ The link continues to do a full prefetch, including dynamic data, and the warnin
 
 - `instant = false` disables all instant-navigation checks for the route, not only this one. [Blocking-route](/docs/messages/blocking-prerender-runtime) and [unrendered-segment](/docs/messages/instant-unrendered-segment) warnings, and other Insights for the route are silenced too.
 
-## Don't want this validation?
+## Silencing this error
 
 Instant-navigation validation runs by default in [Cache Components](/docs/app/api-reference/config/next-config-js/cacheComponents) apps and surfaces this error.
 
@@ -140,8 +140,3 @@ Instant-navigation validation runs by default in [Cache Components](/docs/app/ap
 - **Entire app**: set [`experimental.instantInsights.validationLevel`](/docs/app/api-reference/file-conventions/route-segment-config/instant#configuring-validation-defaults) to `'manual-warning'` in `next.config`. This limits validation to segments that explicitly export `instant`.
 
 See [Ensuring instant navigations](/docs/app/guides/instant-navigation) for the full model.
-
-## Useful links
-
-- [Adopting Partial Prefetching](/docs/app/guides/adopting-partial-prefetching)
-- [Ensuring instant navigations](/docs/app/guides/instant-navigation)

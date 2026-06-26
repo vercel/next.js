@@ -7,7 +7,7 @@ During [prerendering](/docs/app/glossary#prerendering), a Server Component calle
 
 Other unpredictable APIs ([`Math.random()`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Math/random), [`crypto.randomUUID()`](https://developer.mozilla.org/en-US/docs/Web/API/Crypto/randomUUID)) have parallel error pages: see [`Math.random()`](/docs/messages/blocking-prerender-random) and [crypto APIs](/docs/messages/blocking-prerender-crypto). The Client Component case is handled at [`Date.now()` in a Client Component](/docs/messages/blocking-prerender-current-time-client).
 
-> **Good to know**: In [`next dev`](/docs/app/api-reference/cli/next#next-dev-options), the error overlay points at the failing component. Run `next build --debug-prerender` to get the full list of blocking routes with stack traces. When iterating on specific routes, use `next build --debug-build-paths /dashboard /settings` to rebuild only those pages.
+> **Good to know**: In [`next dev`](/docs/app/api-reference/cli/next#next-dev-options), the error overlay points at the failing component with file paths and line numbers. After a fix, reload the route to confirm the static shell renders real content — a `<Suspense>` boundary placed around the whole page body can pass validation with an empty shell. When working from a build instead, the default `next build` output is more abbreviated; run `next build --debug-prerender` for full user-frame stack traces and `next build --debug-build-paths /dashboard /settings` to iterate on specific routes.
 
 ## Ways to fix this
 
@@ -282,13 +282,3 @@ Learn more: [`performance.now()`](https://developer.mozilla.org/en-US/docs/Web/A
 ## Why `instant = false` doesn't clear this error
 
 This error fires from the prerender, not from instant-navigation validation. `new Date()` and `Date.now()` return a different value on every render, so the prerender can't bake them into a static shell regardless of the segment's `instant` config or [`experimental.instantInsights.validationLevel`](/docs/app/api-reference/file-conventions/route-segment-config/instant#configuring-validation-defaults). Use one of the fixes above.
-
-## Useful links
-
-- [`Date.now()` in a Client Component](/docs/messages/blocking-prerender-current-time-client)
-- [`Math.random()` during prerendering](/docs/messages/blocking-prerender-random)
-- [Crypto APIs during prerendering](/docs/messages/blocking-prerender-crypto)
-- [`use cache` directive](/docs/app/api-reference/directives/use-cache)
-- [`connection` function](/docs/app/api-reference/functions/connection)
-- [`performance.now()`](https://developer.mozilla.org/en-US/docs/Web/API/Performance/now)
-- [Ensuring instant navigations](/docs/app/guides/instant-navigation)
