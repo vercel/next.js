@@ -1344,7 +1344,7 @@ pub async fn project_write_all_entrypoints_to_disk(
     let phase_build_paths = if has_deferred_entrypoints {
         Some(
             tt.run(async move {
-                #[turbo_tasks::value]
+                #[turbo_tasks::value(serialization = "skip")]
                 struct DeferredEntrypointInfo(ReadRef<Entrypoints>, ReadRef<Vec<RcStr>>);
 
                 #[turbo_tasks::function(operation, root)]

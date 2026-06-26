@@ -842,7 +842,7 @@ impl TurboTasksBackend {
         };
 
         let content = if final_read_hint {
-            task.remove_cell_data(&cell)
+            task.remove_cell_data(&cell, &get_value_type(cell.type_id()).persistence)
         } else {
             task.get_cell_data(&cell).cloned()
         };
@@ -2778,7 +2778,9 @@ impl TurboTasksBackend {
                 .collect();
             removed_cell_data.reserve_exact(to_remove.len());
             for cell in to_remove {
-                if let Some(data) = task.remove_cell_data(&cell) {
+                if let Some(data) =
+                    task.remove_cell_data(&cell, &get_value_type(cell.type_id()).persistence)
+                {
                     removed_cell_data.push(data);
                 }
             }

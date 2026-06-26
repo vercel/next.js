@@ -90,6 +90,11 @@ struct FieldInfo {
     ///
     /// When absent, the macro parses the outer field type directly.
     as_type: Option<Type>,
+    /// If true, the macro skips generating the mutating accessors
+    /// (`insert_*`/`remove_*`); read accessors and `<field>_mut()` are still
+    /// generated. Lets the mutators be hand-written with a custom
+    /// `track_modification` decision (used by `cell_data`). `auto_map` only.
+    custom_mutators: bool,
 }
 
 impl FieldInfo {
@@ -132,6 +137,25 @@ impl FieldInfo {
                 quote! {
                     let _we_dont_track_mutations_for_transient_data = ();
                 }
+            }
+        }
+    }
+
+    /// [`track_modification_call`], but for `filter_transient` fields it only
+    /// fires when `key_expr` is not transient — transient entries are dropped at
+    /// encode (see [`generate_filter_predicate`]), so mutating one changes no
+    /// persistable bytes. Safe because tracking is monotonic (we only omit, never
+    /// clear). `key_expr` is the entry whose transience decides tracking and is
+    /// matched with `.is_transient()`. Identical to [`track_modification_call`]
+    /// for non-`filter_transient` fields.
+    fn track_modification_call_guarded(&self, key_expr: TokenStream) -> TokenStream {
+        if !self.filter_transient || self.is_transient() {
+            return self.track_modification_call();
+        }
+        let track = self.track_modification_call();
+        quote! {
+            if !(#key_expr).is_transient() {
+                #track
             }
         }
     }
@@ -385,6 +409,7 @@ fn parse_field_storage_attributes(field: &syn::Field) -> FieldInfo {
     let mut shrink_on_completion = false;
     let mut drop_on_completion_if_immutable = false;
     let mut custom_drop_partial = false;
+    let mut custom_mutators = false;
     let mut as_type: Option<Type> = None;
 
     // Find and parse the field attribute
@@ -508,13 +533,16 @@ fn parse_field_storage_attributes(field: &syn::Field) -> FieldInfo {
                         drop_on_completion_if_immutable = true;
                     } else if ident == "custom_drop_partial" {
                         custom_drop_partial = true;
+                    } else if ident == "custom_mutators" {
+                        custom_mutators = true;
                     } else {
                         meta.span()
                             .unwrap()
                             .error(format!(
                                 "unknown modifier `{ident}`, expected `inline`, \
                                  `filter_transient`, `default`, `shrink_on_completion`, \
-                                 `drop_on_completion_if_immutable`, or `custom_drop_partial`"
+                                 `drop_on_completion_if_immutable`, `custom_drop_partial`, or \
+                                 `custom_mutators`"
                             ))
                             .emit();
                     }
@@ -644,6 +672,17 @@ fn parse_field_storage_attributes(field: &syn::Field) -> FieldInfo {
         }
     }
 
+    if custom_mutators && !matches!(storage_type, StorageType::AutoMap) {
+        field_name
+            .span()
+            .unwrap()
+            .error(format!(
+                "`custom_mutators` on field `{field_name}` is only supported for `auto_map` \
+                 storage (the only consumer is `cell_data`)"
+            ))
+            .emit();
+    }
+
     FieldInfo {
         is_pub,
         field_name,
@@ -658,6 +697,7 @@ fn parse_field_storage_attributes(field: &syn::Field) -> FieldInfo {
         drop_on_completion_if_immutable,
         custom_drop_partial,
         as_type,
+        custom_mutators,
     }
 }
 
@@ -1482,6 +1522,12 @@ fn generate_collection_field_accessors(
     let take_name = field.take_ident();
     let vis = if field.is_pub {
         quote! {pub}
+    } else if field.custom_mutators {
+        // `custom_mutators` fields have their mutating accessors hand-written on
+        // `TaskGuard` in another module; those reach the tracking-free
+        // `<field>_mut()` here, so it must be at least crate-visible even when
+        // the schema field itself is private.
+        quote! {pub(crate)}
     } else {
         quote! {}
     };
@@ -1835,6 +1881,26 @@ fn generate_direct_accessors(field: &FieldInfo) -> TokenStream {
         }
     };
 
+    // `track_modification` must run BEFORE the field is mutated: under snapshot
+    // mode it clones the pre-mutation state into the snapshot, so a value being
+    // overwritten/removed would otherwise be lost from the in-flight snapshot.
+    //
+    // For `filter_transient` fields, transient entries are dropped at encode, so
+    // a write only changes persistable bytes when a non-transient value is
+    // involved. For `set` (a replace) that means EITHER the new value OR the
+    // value being overwritten is non-transient; for `take` it means the removed
+    // value is non-transient. `gen_track` builds the gated call from a boolean
+    // expression that must be evaluated before mutating; non-filter_transient
+    // fields track unconditionally.
+    let gen_track = |persistent_cond: TokenStream| -> TokenStream {
+        if field.filter_transient && !field.is_transient() {
+            let track = field.track_modification_call();
+            quote! { if #persistent_cond { #track } }
+        } else {
+            field.track_modification_call()
+        }
+    };
+
     let set_body = if field.is_transient() {
         quote! {
             #set_expr(value)
@@ -1846,26 +1912,46 @@ fn generate_direct_accessors(field: &FieldInfo) -> TokenStream {
         let extractor = field.lazy_extractor_closure();
         let unwraper = field.lazy_unwrap_closure();
         let constructor = field.lazy_constructor(quote! { value });
+        // Replace branch. For filter_transient fields we must capture the
+        // old/new transience into a bool BEFORE the `&mut self` track call so the
+        // immutable borrow of `old_ref` has ended; non-filter_transient fields
+        // just track unconditionally.
+        let replace_track = if field.filter_transient {
+            let track = field.track_modification_call();
+            quote! {
+                let should_track = !value.is_transient() || !old_ref.is_transient();
+                if should_track { #track }
+            }
+        } else {
+            field.track_modification_call()
+        };
+        // Fresh insert: only the new value matters.
+        let track_insert = gen_track(quote! { !value.is_transient() });
         quote! {
             if let Some((idx, old_ref)) = self.typed().find_lazy_ref(#extractor) {
                 if old_ref == &value {
                     return None;
                 }
-                #track_modification
+                #replace_track
                 let old = std::mem::replace(&mut self.typed_mut().lazy[idx], #constructor);
                 Some((#unwraper)(old))
             } else {
-                #track_modification
+                #track_insert
                 self.typed_mut().lazy.push(#constructor);
                 None
             }
         }
     } else {
+        // Inline replace: track if the new OR the existing value is non-transient.
+        // `#get_expr` is `Option<&T>`; read it before `#set_expr` mutates.
+        let track_replace = gen_track(
+            quote! { !value.is_transient() || #get_expr.is_some_and(|old| !old.is_transient()) },
+        );
         quote! {
             if #get_expr.is_some_and(|old| old == &value) {
                 return None;
             }
-            #track_modification
+            #track_replace
             #set_expr(value)
         }
     };
@@ -1880,19 +1966,29 @@ fn generate_direct_accessors(field: &FieldInfo) -> TokenStream {
         // scans again via take_lazy).
         let extractor = field.lazy_extractor_closure();
         let unwraper = field.lazy_unwrap_closure();
+        // Track before taking. For filter_transient fields, capture the removed
+        // value's transience into a bool before the `&mut self` track call so the
+        // `old_ref` borrow has ended.
+        let take_track = if field.filter_transient {
+            let track = field.track_modification_call();
+            quote! {
+                let should_track = !old_ref.is_transient();
+                if should_track { #track }
+            }
+        } else {
+            field.track_modification_call()
+        };
         quote! {
-            let (idx, _) = self.typed().find_lazy_ref(#extractor)?;
-            #track_modification
+            let (idx, old_ref) = self.typed().find_lazy_ref(#extractor)?;
+            #take_track
             Some(self.typed_mut().lazy_take_at(idx, #unwraper))
         }
     } else {
+        // Track before taking, gated on the existing value's transience.
+        let track_take = gen_track(quote! { !#get_expr?.is_transient() });
         quote! {
-            if #get_expr.is_some() {
-                #track_modification
-                #take_expr
-            } else {
-                None
-            }
+            #track_take
+            #take_expr
         }
     };
 
@@ -1942,6 +2038,11 @@ fn generate_autoset_ops(field: &FieldInfo) -> TokenStream {
 
     let check_access = field.check_access_call();
     let track_modification = field.track_modification_call();
+    // For `filter_transient` fields, tracking on add/remove is guarded so it
+    // only fires for non-transient `item`s (transient entries are dropped at
+    // encode, so they change zero persistable bytes). For non-filter_transient
+    // fields this is identical to `track_modification`.
+    let track_modification_item = field.track_modification_call_guarded(quote! { item });
     let mut_expr = field.collection_mut_expr();
     let ref_expr = field.collection_ref_expr();
 
@@ -2024,7 +2125,7 @@ fn generate_autoset_ops(field: &FieldInfo) -> TokenStream {
                 if !val.contains(item) {
                     return false;
                 }
-                #track_modification
+                #track_modification_item
                 self.typed_mut().lazy_at_mut(idx, #extractor).remove(item)
             }
         } else {
@@ -2032,7 +2133,7 @@ fn generate_autoset_ops(field: &FieldInfo) -> TokenStream {
                 if !#ref_expr.contains(item) {
                     return false;
                 }
-                #track_modification
+                #track_modification_item
                 #mut_expr.remove(item)
             }
         };
@@ -2047,10 +2148,10 @@ fn generate_autoset_ops(field: &FieldInfo) -> TokenStream {
                     if existing.contains(&item) {
                         return false;
                     }
-                    #track_modification
+                    #track_modification_item
                     self.typed_mut().lazy_at_mut(idx, #extractor).insert(item)
                 } else {
-                    #track_modification
+                    #track_modification_item
                     let mut set = <#field_type as Default>::default();
                     set.insert(item);
                     self.typed_mut().lazy.push(#ctor);
@@ -2062,7 +2163,7 @@ fn generate_autoset_ops(field: &FieldInfo) -> TokenStream {
                 if #ref_expr.contains(&item) {
                     return false;
                 }
-                #track_modification
+                #track_modification_item
                 #mut_expr.insert(item)
             }
         };
@@ -2102,7 +2203,39 @@ fn generate_autoset_ops(field: &FieldInfo) -> TokenStream {
 
         // Extend: use peekable iterator to avoid Vec allocation.
         // For lazy fields, look up the set once via find_lazy_ref to avoid repeated scans.
-        extend_body = if is_option {
+        //
+        // `filter_transient` fields track once for the batch, and must do so
+        // BEFORE mutating (under snapshot mode `track_modification` clones the
+        // pre-mutation state). Tracking is needed iff the batch will actually add
+        // a non-transient entry (a transient entry is dropped at encode; an entry
+        // already present changes nothing). So materialize the items, decide
+        // against the current set via a read borrow, track if needed, then insert.
+        // `filter_transient` extend has a single caller (`extend_children`).
+        extend_body = if field.filter_transient {
+            // Membership probe differs by storage shape: lazy `#ref_expr` is
+            // `Option<&set>`, inline is `&set`.
+            let contains_probe = if is_option {
+                quote! { #ref_expr.is_some_and(|set| set.contains(item)) }
+            } else {
+                quote! { #ref_expr.contains(item) }
+            };
+            quote! {
+                let items: Vec<_> = items.into_iter().collect();
+                if items.is_empty() {
+                    return;
+                }
+                let should_track = items
+                    .iter()
+                    .any(|item| !item.is_transient() && !(#contains_probe));
+                if should_track {
+                    #track_modification
+                }
+                let set = #mut_expr;
+                for item in items {
+                    set.insert(item);
+                }
+            }
+        } else if is_option {
             let extractor = field.lazy_extractor_closure();
             let ctor = field.lazy_constructor(quote! { set });
             quote! {
@@ -2249,6 +2382,10 @@ fn generate_countermap_ops(field: &FieldInfo) -> TokenStream {
 
     let check_access = field.check_access_call();
     let track_modification = field.track_modification_call();
+    // For `filter_transient` counter maps, single-key mutators guard tracking on
+    // `key` so it only fires for non-transient keys (transient entries are dropped
+    // at encode). For non-filter_transient fields this equals `track_modification`.
+    let track_modification_key = field.track_modification_call_guarded(quote! { key });
     let mut_expr = field.collection_mut_expr();
     let ref_expr = field.collection_ref_expr();
     let is_option = field.is_option_ref();
@@ -2286,13 +2423,13 @@ fn generate_countermap_ops(field: &FieldInfo) -> TokenStream {
         quote! {
             let (idx, val) = self.typed().find_lazy_ref(#extractor)?;
             val.get(key)?;
-            #track_modification
+            #track_modification_key
             self.typed_mut().lazy_at_mut(idx, #extractor).remove(key)
         }
     } else {
         quote! {
             self.#get_name(key)?;
-            #track_modification
+            #track_modification_key
             #mut_expr.remove(key)
         }
     };
@@ -2330,7 +2467,7 @@ fn generate_countermap_ops(field: &FieldInfo) -> TokenStream {
                 if delta == 0 {
                     return false;
                 }
-                #track_modification
+                #track_modification_key
                 #mut_expr.update_positive_crossing(key, delta)
             }
         };
@@ -2357,13 +2494,32 @@ fn generate_countermap_ops(field: &FieldInfo) -> TokenStream {
             if delta == 0 {
                 return false;
             }
-            #track_modification
+            #track_modification_key
             #mut_expr.update_count(key, delta)
         }
     };
 
     let update_counts_body = if field.is_transient() {
         quote! {
+            let map = #mut_expr;
+            for key in keys {
+                map.update_count(key, delta);
+            }
+        }
+    } else if field.filter_transient {
+        // Batch update: track once, iff at least one key is non-transient
+        // (transient entries are dropped at encode). We must decide and track
+        // BEFORE mutating: under snapshot mode `track_modification` clones the
+        // pre-mutation state. So materialize the keys, check transience, track,
+        // then apply.
+        quote! {
+            if delta == 0 {
+                return;
+            }
+            let keys: Vec<_> = keys.collect();
+            if keys.iter().any(|key| !key.is_transient()) {
+                #track_modification
+            }
             let map = #mut_expr;
             for key in keys {
                 map.update_count(key, delta);
@@ -2391,7 +2547,7 @@ fn generate_countermap_ops(field: &FieldInfo) -> TokenStream {
             if delta == 0 {
                 return self.#get_name(&key).copied().unwrap_or_default();
             }
-            #track_modification
+            #track_modification_key
             #mut_expr.update_and_get(key, delta)
         }
     };
@@ -2412,7 +2568,7 @@ fn generate_countermap_ops(field: &FieldInfo) -> TokenStream {
             };
             let new_value = f(old_value);
             if old_value != new_value {
-                #track_modification
+                #track_modification_key
                 match new_value {
                     Some(value) => {
                         if let Some(position) = position {
@@ -2436,7 +2592,7 @@ fn generate_countermap_ops(field: &FieldInfo) -> TokenStream {
             let old = self.#get_name(&key).copied();
             let new = f(old);
             if old != new {
-                #track_modification
+                #track_modification_key
                 match new {
                     Some(value) => { #mut_expr.insert(key, value); }
                     None => { #mut_expr.remove(&key); }
@@ -2486,7 +2642,7 @@ fn generate_countermap_ops(field: &FieldInfo) -> TokenStream {
         #[doc = "Add a new entry, panicking if the entry already exists."]
         fn #add_entry_name(&mut self, key: #key_type, value: #value_type) {
             #check_access
-            #track_modification
+            #track_modification_key
             #mut_expr.add_entry(key, value)
         }
 
@@ -2648,6 +2804,38 @@ fn generate_automap_ops(field: &FieldInfo) -> TokenStream {
         }
     };
 
+    // The mutating accessors. When `custom_mutators` is set, these are omitted
+    // from the trait and hand-written elsewhere (so they can own a custom
+    // `track_modification` decision — see `cell_data`).
+    let mutators = if field.custom_mutators {
+        quote! {}
+    } else {
+        quote! {
+            #[doc = "Insert an entry, returning the old value if present."]
+            fn #insert_entry_name(&mut self, key: #key_type, value: #value_type) -> Option<#value_type> {
+                #check_access
+                #track_modification
+                #mut_expr.insert(key, value)
+            }
+
+
+            #[doc = "Remove an entry, returning the value if present."]
+            #[doc = "Only tracks modification if an entry was actually removed."]
+            fn #remove_entry_name(&mut self, key: &#key_type) -> Option<#value_type> {
+                #check_access
+                #remove_body
+            }
+
+
+            #[doc = "Remove the full map and return it"]
+            #[doc = "Only tracks modification if the map is non-empty."]
+            fn #take_name(&mut self) -> Option<#field_type> {
+                #check_access
+                #take_body
+            }
+        }
+    };
+
     quote! {
         #[doc = "Get an entry from the map by key"]
         fn #get_entry_name(&self, key: &#key_type) -> Option<&#value_type> {
@@ -2661,28 +2849,7 @@ fn generate_automap_ops(field: &FieldInfo) -> TokenStream {
             #has_entry_body
         }
 
-        #[doc = "Insert an entry, returning the old value if present."]
-        fn #insert_entry_name(&mut self, key: #key_type, value: #value_type) -> Option<#value_type> {
-            #check_access
-            #track_modification
-            #mut_expr.insert(key, value)
-        }
-
-
-        #[doc = "Remove an entry, returning the value if present."]
-        #[doc = "Only tracks modification if an entry was actually removed."]
-        fn #remove_entry_name(&mut self, key: &#key_type) -> Option<#value_type> {
-            #check_access
-            #remove_body
-        }
-
-
-        #[doc = "Remove the full map and return it"]
-        #[doc = "Only tracks modification if the map is non-empty."]
-        fn #take_name(&mut self) -> Option<#field_type> {
-            #check_access
-            #take_body
-        }
+        #mutators
 
         #[doc = "Iterate over all key-value pairs in the map"]
         fn #iter_entries_name(&self) -> impl Iterator<Item = (&#key_type, &#value_type)> + '_ {
