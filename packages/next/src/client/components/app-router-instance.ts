@@ -113,13 +113,15 @@ async function runAction({
         action.payload.type === ACTION_SERVER_ACTION &&
         action.payload.didRevalidate
       ) {
-        // The server action was discarded but it revalidated data,
-        // mark that we need to refresh after all actions complete
+        // The server action was discarded but it revalidated data, so mark that
+        // we need to refresh and run the remaining actions to trigger it.
         actionQueue.needsRefresh = true
+        runRemainingActions(actionQueue, setState)
       }
-      // Still need to run remaining actions even for discarded actions
-      // to potentially trigger the refresh
-      runRemainingActions(actionQueue, setState)
+      // Otherwise there is no state to apply for a discarded action, and we must
+      // NOT call runRemainingActions here: when a Server Action is discarded by a
+      // boundary-gated navigation that is still streaming, dispatching here fires
+      // a setState mid-transition that drops the destination segment (#86151).
       return
     }
 
