@@ -22,7 +22,7 @@ env:
 
 jobs:
   optimize-ci:
-    uses: ./.github/workflows/graphite_ci_optimizer.yml
+    uses: ./.github/workflows/pr_stack_optimizer.yml
     secrets: inherit
 
   changes:
