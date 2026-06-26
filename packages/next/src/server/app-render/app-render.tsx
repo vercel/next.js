@@ -65,6 +65,7 @@ import {
   createNodeInlinedDataStream,
 } from './stream-ops'
 import type { AnyStream } from './stream-ops'
+import { getInstantTestBootstrapScriptContent } from './instant-test-bootstrap'
 import { stripInternalQueries } from '../internal-utils'
 import {
   NEXT_HMR_REFRESH_HEADER,
@@ -3307,9 +3308,19 @@ async function renderToStream(
   // bootstrap script is executed, which depends on it during hydration.
   // For MPA navigations (page reload, direct URL entry), the request ID
   // header is not present, so we generate a random one.
-  const bootstrapScriptContent = process.env.__NEXT_DEV_SERVER
+  let bootstrapScriptContent = process.env.__NEXT_DEV_SERVER
     ? `self.__next_r=${JSON.stringify(requestId ?? crypto.randomUUID())}`
     : undefined
+
+  // Instant Navigation Testing API: embed the cookie-guarded bootstrap so it
+  // runs before the client bootstrap module reads self.__next_instant_test as
+  // its hydration source. This mirrors the prerender path so a dynamically
+  // rendered document carries the same script as the cached static prelude.
+  if (ctx.renderOpts.experimental.exposeTestingApi) {
+    bootstrapScriptContent =
+      (bootstrapScriptContent ? `${bootstrapScriptContent};` : '') +
+      (await getInstantTestBootstrapScriptContent())
+  }
 
   // Create the "render route (app)" span manually so we can keep it open during streaming.
   // This is necessary because errors inside Suspense boundaries are reported asynchronously
@@ -7617,6 +7628,25 @@ async function prerenderToStream(
     page
   )
 
+  // Instant Navigation Testing API: when exposed, embed the cookie-guarded
+  // bootstrap into the prerendered prelude so the cached static shell carries
+  // it and it runs before the client bootstrap module reads
+  // self.__next_instant_test.
+  let bootstrapScriptContent = renderOpts.experimental.exposeTestingApi
+    ? await getInstantTestBootstrapScriptContent()
+    : undefined
+
+  // In development the static shell is served without a dynamic resume, so it
+  // must carry the debug-channel request id (self.__next_r) itself for
+  // app-index to initialize the HMR/debug channel. renderToStream provides this
+  // for dynamic renders; prepend it here so it runs before the bootstrap
+  // module.
+  if (process.env.__NEXT_DEV_SERVER && bootstrapScriptContent) {
+    bootstrapScriptContent =
+      `self.__next_r=${JSON.stringify(ctx.requestId ?? crypto.randomUUID())};` +
+      bootstrapScriptContent
+  }
+
   const { reactServerErrorsByDigest } = workStore
   // We don't report errors during prerendering through our instrumentation hooks
   const reportErrors = !experimental.isRoutePPREnabled
@@ -8415,6 +8445,7 @@ async function prerenderToStream(
                 },
                 onHeaders: finalClientOnHeaders,
                 maxHeadersLength: reactMaxHeadersLength,
+                bootstrapScriptContent,
                 bootstrapScripts: [bootstrapScript],
               }
             )
@@ -8635,6 +8666,7 @@ async function prerenderToStream(
             onError: htmlRendererErrorHandler,
             onHeaders: pprOnHeaders,
             maxHeadersLength: reactMaxHeadersLength,
+            bootstrapScriptContent,
             bootstrapScripts: [bootstrapScript],
           }
         )
@@ -8857,6 +8889,7 @@ async function prerenderToStream(
         {
           onError: htmlRendererErrorHandler,
           nonce,
+          bootstrapScriptContent,
           bootstrapScripts: [bootstrapScript],
         },
         { waitForAllReady: true }

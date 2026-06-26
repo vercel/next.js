@@ -95,23 +95,12 @@ afterEach(async () => {
     // surfaced). Development legitimately logs warnings here (such as a
     // blocking-route prerender insight), so only assert in production.
     if (!isNextDev) {
-      // TODO: Hydration is currently broken on deploy, so skip this check until
-      // it is fixed.
-      if (!isNextDeploy) {
-        await assertNoConsoleErrors(activeBrowser)
-      }
+      await assertNoConsoleErrors(activeBrowser)
     }
     activeBrowser = undefined
   }
 })
 
-// The Instant Navigation lock re-engages on a freshly loaded document via the
-// prerendered-shell bootstrap (`self.__next_instant_test`). That bootstrap is
-// embedded into the prelude in #95222; until then it is missing from the
-// deploy-served document, so any test that drives a full-page load under the
-// lock (a plain-anchor MPA navigation or a reload) engages the lock unreliably
-// on deploy. We skip those in deploy mode and un-skip them in #95222 by turning
-// this back into a plain `it`.
 const itSkipDeploy = isNextDeploy ? it.skip : it
 
 describe('instant-navigation-testing-api', () => {
@@ -351,8 +340,7 @@ describe('instant-navigation-testing-api', () => {
     }
   })
 
-  // prettier-ignore
-  itSkipDeploy('renders shell on page reload', async () => {
+  it('renders shell on page reload', async () => {
     const page = await openPage(next, '/target-page')
 
     // Wait for the page to fully load with dynamic content
@@ -394,8 +382,7 @@ describe('instant-navigation-testing-api', () => {
     expect(navigationRequests.length).toBe(navigationsAtUnlock)
   })
 
-  // prettier-ignore
-  itSkipDeploy('renders shell on MPA navigation via plain anchor', async () => {
+  it('renders shell on MPA navigation via plain anchor', async () => {
     const page = await openPage(next, '/')
 
     await instant(page, async () => {
@@ -422,8 +409,7 @@ describe('instant-navigation-testing-api', () => {
     )
   })
 
-  // prettier-ignore
-  itSkipDeploy('reload followed by MPA navigation, both block dynamic data', async () => {
+  it('reload followed by MPA navigation, both block dynamic data', async () => {
     const page = await openPage(next, '/')
 
     await instant(page, async () => {
@@ -454,7 +440,7 @@ describe('instant-navigation-testing-api', () => {
     )
   })
 
-  itSkipDeploy('successive MPA navigations within instant scope', async () => {
+  it('successive MPA navigations within instant scope', async () => {
     const page = await openPage(next, '/')
 
     await instant(page, async () => {
@@ -565,8 +551,7 @@ describe('instant-navigation-testing-api', () => {
       expect(await cookieValue.textContent()).toContain('testCookie: hello')
     })
 
-    // prettier-ignore
-    itSkipDeploy('does not include cookie values in instant shell during page load', async () => {
+    it('does not include cookie values in instant shell during page load', async () => {
       const page = await openPage(next, '/', {
         cookies: [{ name: 'testCookie', value: 'hello' }],
       })
@@ -631,8 +616,7 @@ describe('instant-navigation-testing-api', () => {
       expect(await searchParamContent.textContent()).toContain('foo: bar')
     })
 
-    // prettier-ignore
-    itSkipDeploy('does not include search param values in instant shell during page load', async () => {
+    it('does not include search param values in instant shell during page load', async () => {
       const page = await openPage(next, '/')
 
       await instant(page, async () => {
@@ -684,8 +668,7 @@ describe('instant-navigation-testing-api', () => {
       })
     })
 
-    // prettier-ignore
-    itSkipDeploy('includes statically generated param values in instant shell during page load', async () => {
+    it('includes statically generated param values in instant shell during page load', async () => {
       const page = await openPage(next, '/')
 
       await instant(page, async () => {
@@ -741,7 +724,7 @@ describe('instant-navigation-testing-api', () => {
       expect(await paramValue.textContent()).toContain('slug: anything')
     })
 
-    itSkipDeploy('during page load', async () => {
+    it('during page load', async () => {
       const page = await openPage(next, '/')
 
       await instant(page, async () => {
@@ -923,8 +906,7 @@ describe('instant-navigation-testing-api', () => {
     ).toContain('slug: anything')
   })
 
-  // prettier-ignore
-  itSkipDeploy('subsequent navigations after instant scope are not locked', async () => {
+  it('subsequent navigations after instant scope are not locked', async () => {
     const page = await openPage(next, '/')
 
     // First, do an MPA navigation within an instant scope
@@ -1054,7 +1036,7 @@ describe('instant-navigation-testing-api', () => {
     }
   })
 
-  itSkipDeploy('clears cookie after instant scope exits', async () => {
+  it('clears cookie after instant scope exits', async () => {
     const page = await openPage(next, '/')
 
     await instant(page, async () => {
@@ -1096,8 +1078,7 @@ describe('instant-navigation-testing-api', () => {
     expect(await fetchedData.textContent()).toContain('api response')
   })
 
-  // prettier-ignore
-  itSkipDeploy('blocks out-of-band client fetch during instant scope (MPA)', async () => {
+  it('blocks out-of-band client fetch during instant scope (MPA)', async () => {
     const page = await openPage(next, '/')
 
     await instant(page, async () => {
@@ -1180,7 +1161,7 @@ describe('instant-navigation-testing-api - root params', () => {
     files: join(__dirname, 'fixtures', 'root-params'),
   })
 
-  itSkipDeploy('includes root param in instant shell', async () => {
+  it('includes root param in instant shell', async () => {
     const page = await openPage(next, '/en')
 
     const langValue = page.locator('[data-testid="lang-value"]')
