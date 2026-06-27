@@ -527,7 +527,7 @@ The `pages` directory uses `getServerSideProps` and `getStaticProps` to fetch da
 export default async function Page() {
   // This request should be cached until manually invalidated.
   // Similar to `getStaticProps`.
-  // `force-cache` is the default and can be omitted.
+  // `force-cache` is no longer the default in Next.js 15.
   const staticData = await fetch(`https://...`, { cache: 'force-cache' })
 
   // This request should be refetched on every request.
@@ -548,7 +548,7 @@ export default async function Page() {
 export default async function Page() {
   // This request should be cached until manually invalidated.
   // Similar to `getStaticProps`.
-  // `force-cache` is the default and can be omitted.
+  // `force-cache` is no longer the default in Next.js 15.
   const staticData = await fetch(`https://...`, { cache: 'force-cache' })
 
   // This request should be refetched on every request.
