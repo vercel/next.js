@@ -1,4 +1,4 @@
-use std::{borrow::Cow, collections::BTreeMap, io::Write};
+use std::{borrow::Cow, collections::BTreeMap, io::Write, sync::LazyLock};
 
 use anyhow::{Context, Result, bail};
 use bincode::{Decode, Encode};
@@ -389,6 +389,28 @@ async fn compute_subtree_content_hash(
             |_, _, _| Ok(()),
             true,
         )?;
+
+        static PRINT_USE_CACHE_SUBTREE: LazyLock<bool> = LazyLock::new(|| {
+            std::env::var_os("TURBOPACK_PRINT_USE_CACHE_SUBTREE")
+                .is_some_and(|v| v == "1" || v == "true")
+        });
+        if *PRINT_USE_CACHE_SUBTREE {
+            println!(
+                "Modules in subtree for {}:\n{}",
+                entry.ident().await?.path,
+                modules
+                    .iter()
+                    .map(async |m| Ok(format!(
+                        "  '{}': {}",
+                        m.ident_string().await?,
+                        module_hash(*module_graph, chunking_context, async_module_info, **m)
+                            .await?
+                    )))
+                    .try_join()
+                    .await?
+                    .join("\n")
+            );
+        }
 
         let hashes = modules
             .into_iter()
