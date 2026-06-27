@@ -108,13 +108,15 @@ export const size = {
 
 export const contentType = 'image/png'
 
+// Load the font once at module scope. process.cwd() is the Next.js project
+// directory. Reading it inside the component would be treated as dynamic I/O
+// under Cache Components and opt the route out of static generation.
+const interSemiBold = await readFile(
+  join(process.cwd(), 'assets/Inter-SemiBold.ttf')
+)
+
 // Image generation
 export default async function Image() {
-  // Font loading, process.cwd() is Next.js project directory
-  const interSemiBold = await readFile(
-    join(process.cwd(), 'assets/Inter-SemiBold.ttf')
-  )
-
   return new ImageResponse(
     (
       // ImageResponse JSX element
@@ -164,13 +166,15 @@ export const size = {
 
 export const contentType = 'image/png'
 
+// Load the font once at module scope. process.cwd() is the Next.js project
+// directory. Reading it inside the component would be treated as dynamic I/O
+// under Cache Components and opt the route out of static generation.
+const interSemiBold = await readFile(
+  join(process.cwd(), 'assets/Inter-SemiBold.ttf')
+)
+
 // Image generation
 export default async function Image() {
-  // Font loading, process.cwd() is Next.js project directory
-  const interSemiBold = await readFile(
-    join(process.cwd(), 'assets/Inter-SemiBold.ttf')
-  )
-
   return new ImageResponse(
     (
       // ImageResponse JSX element
@@ -423,10 +427,13 @@ import { ImageResponse } from 'next/og'
 import { join } from 'node:path'
 import { readFile } from 'node:fs/promises'
 
-export default async function Image() {
-  const logoData = await readFile(join(process.cwd(), 'logo.png'), 'base64')
-  const logoSrc = `data:image/png;base64,${logoData}`
+// Load the asset once at module scope. Reading it inside the component would
+// be treated as dynamic I/O under Cache Components and opt the route out of
+// static generation.
+const logoData = await readFile(join(process.cwd(), 'logo.png'), 'base64')
+const logoSrc = `data:image/png;base64,${logoData}`
 
+export default async function Image() {
   return new ImageResponse(
     (
       <div
@@ -448,10 +455,13 @@ import { ImageResponse } from 'next/og'
 import { join } from 'node:path'
 import { readFile } from 'node:fs/promises'
 
-export default async function Image() {
-  const logoData = await readFile(join(process.cwd(), 'logo.png'), 'base64')
-  const logoSrc = `data:image/png;base64,${logoData}`
+// Load the asset once at module scope. Reading it inside the component would
+// be treated as dynamic I/O under Cache Components and opt the route out of
+// static generation.
+const logoData = await readFile(join(process.cwd(), 'logo.png'), 'base64')
+const logoSrc = `data:image/png;base64,${logoData}`
 
+export default async function Image() {
   return new ImageResponse(
     (
       <div
@@ -475,10 +485,13 @@ import { ImageResponse } from 'next/og'
 import { join } from 'node:path'
 import { readFile } from 'node:fs/promises'
 
-export default async function Image() {
-  const logoData = await readFile(join(process.cwd(), 'logo.png'))
-  const logoSrc = Uint8Array.from(logoData).buffer
+// Load the asset once at module scope. Reading it inside the component would
+// be treated as dynamic I/O under Cache Components and opt the route out of
+// static generation.
+const logoData = await readFile(join(process.cwd(), 'logo.png'))
+const logoSrc = Uint8Array.from(logoData).buffer
 
+export default async function Image() {
   return new ImageResponse(
     (
       <div
@@ -501,10 +514,13 @@ import { ImageResponse } from 'next/og'
 import { join } from 'node:path'
 import { readFile } from 'node:fs/promises'
 
-export default async function Image() {
-  const logoData = await readFile(join(process.cwd(), 'logo.png'))
-  const logoSrc = Uint8Array.from(logoData).buffer
+// Load the asset once at module scope. Reading it inside the component would
+// be treated as dynamic I/O under Cache Components and opt the route out of
+// static generation.
+const logoData = await readFile(join(process.cwd(), 'logo.png'))
+const logoSrc = Uint8Array.from(logoData).buffer
 
+export default async function Image() {
   return new ImageResponse(
     (
       <div
