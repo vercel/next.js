@@ -1755,7 +1755,15 @@ export async function handler(
         ? (getRequestMeta(req, 'onCacheEntryV2') ??
           getRequestMeta(req, 'onCacheEntry'))
         : getRequestMeta(req, 'onCacheEntry')
-      if (onCacheEntry) {
+
+      // `onCacheEntry` lets the platform capture a freshly prerendered result
+      // so the proxy can write it to the ISR cache; on deploy it returns true
+      // and the function returns below. In debug-shell mode the render was
+      // skipped and we only serve the already-cached shell, so there is nothing
+      // to capture, and we need to reach the serve path below to close the
+      // document. `onCacheEntry` is absent in `next start`/dev, so this guard
+      // only affects the deploy (minimalMode) path.
+      if (onCacheEntry && !isDebugStaticShell) {
         const rawCacheEntryUrl = getRequestMeta(req, 'initURL') ?? req.url
         const cacheEntryUrl = rawCacheEntryUrl
           ? (parseUrl(rawCacheEntryUrl)?.pathname ?? rawCacheEntryUrl)
@@ -1875,33 +1883,62 @@ export async function handler(
       // This is a request for HTML data.
       const body = cachedData.html
 
-      // Instant Navigation Testing API: serve the static shell without resuming
-      // the dynamic render. The cookie-guarded bootstrap that sets
-      // self.__next_instant_test is embedded in the prerendered shell via
-      // `bootstrapScriptContent`, so it is already present (in the served shell
-      // for a fresh render, or in the cached prelude on deploy). Since the
-      // render is not resumed, append the closing tags so the browser can parse
-      // a complete document.
+      // Instant Navigation Testing API: under the instant lock we serve the
+      // static shell as a complete document without resuming the dynamic
+      // render, either recovering from an empty (blocking) shell or appending
+      // the closing tags to a non-empty one.
       if (isInstantNavigationTest && isDebugStaticShell) {
-        // If the static shell came back empty, the page reads a dynamic value
-        // (e.g. `await cookies()`) at the root with no Suspense boundary above
-        // it, so there is nothing to render before the first dynamic hole.
-        // Serving it would be a blank document with no DevTools, leaving the
-        // user unable to release the instant navigation lock. Throw so we
-        // surface an error page instead; the catch below clears the instant
-        // navigation cookie so the next reload renders normally. The empty
-        // prelude marker is carried in the postponed state, so this works for
-        // both fresh dev renders and prebuilt production shells.
-        if (
+        const isEmptyPrelude =
           typeof cachedData.postponed === 'string' &&
           entryBase.isEmptyHTMLPrelude(cachedData.postponed)
-        ) {
-          throw new Error(
-            `The Navigation Inspector was active, but you attempted to load a blocking route. Reload the page to reset the inspector.\n\n` +
-              `To identify why this route is blocking, refer to the Instant Navigation docs: https://preview.nextjs.org/docs/app/guides/instant-navigation`
-          )
+
+        if (isEmptyPrelude) {
+          // A blocking route (a Suspense boundary above <body>, or `export
+          // const instant = false`) has an empty static shell. Serving it under
+          // the lock would be a blank document with no way to release the lock,
+          // so every reload would render the same blank shell and leave the
+          // user stuck. We surface the reason instead: in development we throw
+          // so it shows as an error overlay (the catch below clears the instant
+          // cookie via Set-Cookie); in production we serve a minimal document
+          // whose script clears the cookie client-side, since on deploy the
+          // edge has already served the cached shell and committed the response
+          // headers and this function only resumes by appending to the body, so
+          // a Set-Cookie could not take effect. `next start` reuses the same
+          // document, where throwing would render only a generic "Internal
+          // Server Error" page.
+          if (routeModule.isDev === true) {
+            throw new Error(
+              `The Navigation Inspector was active, but you attempted to load a blocking route. Reload the page to reset the inspector.\n\n` +
+                `To identify why this route is blocking, refer to the Instant Navigation docs: https://preview.nextjs.org/docs/app/guides/instant-navigation`
+            )
+          }
+
+          const recoveryHtml =
+            `<!DOCTYPE html><html><head><meta charSet="utf-8"/></head><body>` +
+            `<script>document.cookie="${NEXT_INSTANT_TEST_COOKIE}=; Path=/; Max-Age=0"</script>` +
+            `<p>The Navigation Inspector was active, but you attempted to load a blocking route. Reload the page to reset the inspector.</p>` +
+            `<p>To identify why this route is blocking, refer to the ` +
+            `<a href="https://preview.nextjs.org/docs/app/guides/instant-navigation">Instant Navigation docs</a>.</p>` +
+            `</body></html>`
+
+          return sendRenderResult({
+            req,
+            res,
+            generateEtags: nextConfig.generateEtags,
+            poweredByHeader: nextConfig.poweredByHeader,
+            result: RenderResult.fromStatic(
+              recoveryHtml,
+              HTML_CONTENT_TYPE_HEADER
+            ),
+            cacheControl: { revalidate: 0, expire: undefined },
+          })
         }
 
+        // Non-empty shell: the cookie-guarded bootstrap that sets
+        // self.__next_instant_test is embedded in the prerendered shell via
+        // `bootstrapScriptContent`, so it is already present (in the served
+        // shell for a fresh render, or in the cached prelude on deploy). Append
+        // the closing tags so the browser can parse a complete document.
         body.push(
           new ReadableStream({
             start(controller) {
