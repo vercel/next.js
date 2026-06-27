@@ -1,3 +1,4 @@
+import { gunzipSync, brotliDecompressSync, inflateSync } from 'zlib'
 import {
   DEFAULT_MAX_POSTPONED_STATE_SIZE,
   parseMaxPostponedStateSize,
@@ -39,6 +40,23 @@ export function getPostponedStateExceededErrorMessage(
 
 function toBuffer(chunk: PostponedRequestBodyChunk): Buffer {
   return Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk)
+}
+
+export function decompressBody(
+  body: Buffer,
+  contentEncoding: string | undefined
+): Buffer {
+  if (!contentEncoding) return body
+  switch (contentEncoding) {
+    case 'gzip':
+      return gunzipSync(body)
+    case 'br':
+      return brotliDecompressSync(body)
+    case 'deflate':
+      return inflateSync(body)
+    default:
+      return body
+  }
 }
 
 export async function readBodyWithSizeLimit(

@@ -154,6 +154,7 @@ import { createOpaqueFallbackRouteParams } from './request/fallback-params'
 import { RouteKind } from './route-kind'
 import type { ErrorModule } from './load-default-error-components'
 import {
+  decompressBody,
   getMaxPostponedStateSize,
   getPostponedStateExceededErrorMessage,
   readBodyWithSizeLimit,
@@ -1123,7 +1124,11 @@ export default abstract class Server<
                 .send()
               return
             }
-            const postponed = body.toString('utf8')
+            const decompressed = decompressBody(
+              body,
+              req.headers['content-encoding']
+            )
+            const postponed = decompressed.toString('utf8')
 
             addRequestMeta(req, 'postponed', postponed)
           }
