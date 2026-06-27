@@ -373,7 +373,8 @@ async fn compute_subtree_content_hash(
         let mut modules = FxIndexSet::default();
         module_graph_value.traverse_edges_dfs(
             std::iter::once(entry),
-            &mut (),
+            /* state */ &mut (),
+            /* visit_preorder */
             |_, target, _| {
                 if ResolvedVc::try_downcast_type::<CssClientReferenceModule>(target).is_some() {
                     // Don't include the module at all. There is nothing that executes on the server
@@ -390,8 +391,8 @@ async fn compute_subtree_content_hash(
                     Ok(GraphTraversalAction::Continue)
                 }
             },
-            |_, _, _| Ok(()),
-            true,
+            /* visit_postorder */ |_, _, _| Ok(()),
+            /* include_traced */ true,
         )?;
 
         static PRINT_USE_CACHE_SUBTREE: LazyLock<bool> = LazyLock::new(|| {
@@ -434,7 +435,7 @@ async fn compute_subtree_content_hash(
         Err(e) => Err(e.context(
             turbofmt!(
                 "Failed to compute use-cache code hash {}",
-                entry.ident_string().await?
+                entry.ident_string()
             )
             .await?,
         )),
@@ -451,48 +452,46 @@ async fn module_hash(
     let ident = m.ident();
     let ident_value = ident.await?;
     let ident_str = ident.to_string().await?;
-    Ok(Vc::cell(
-        if let Some(placeable_module) =
-            ResolvedVc::try_downcast::<Box<dyn EcmascriptChunkPlaceable>>(m)
-            && !ident_value
-                .layer
-                .as_ref()
-                .is_some_and(|l| l.name() == "externals-tracing")
-        {
-            // A bundled JS module
-            let chunk_item = placeable_module
-                .as_chunk_item(*module_graph, *chunking_context)
-                .to_resolved()
-                .await?;
-            let chunk_item =
-                ResolvedVc::try_downcast::<Box<dyn EcmascriptChunkItem>>(chunk_item).unwrap();
-            let async_info = if async_module_info.is_async(m).await? {
-                Some(module_graph.referenced_async_modules(*m))
-            } else {
-                None
-            };
-            let code = chunk_item.code(async_info).await?;
-            RcStr::from(deterministic_hash(
-                "",
-                (ident_str, code.source_code()),
-                HashAlgorithm::Xxh3Hash128Hex,
-            ))
+
+    if let Some(placeable_module) = ResolvedVc::try_downcast::<Box<dyn EcmascriptChunkPlaceable>>(m)
+        && !ident_value
+            .layer
+            .as_ref()
+            .is_some_and(|l| l.name() == "externals-tracing")
+    {
+        // A bundled JS module
+        let chunk_item = placeable_module
+            .as_chunk_item(*module_graph, *chunking_context)
+            .to_resolved()
+            .await?;
+        let chunk_item =
+            ResolvedVc::try_downcast::<Box<dyn EcmascriptChunkItem>>(chunk_item).unwrap();
+        let async_info = if async_module_info.is_async(m).await? {
+            Some(module_graph.referenced_async_modules(*m))
         } else {
-            // A non-JS static file or an external module
-            let content_hash = m
-                .source()
-                .await?
-                .with_context(|| format!("failed to get source for module {ident_str}"))?
-                .content()
-                .hash(HashAlgorithm::Xxh3Hash128Hex)
-                .await?;
-            RcStr::from(deterministic_hash(
-                "",
-                (ident_str, content_hash),
-                HashAlgorithm::Xxh3Hash128Hex,
-            ))
-        },
-    ))
+            None
+        };
+        let code = chunk_item.code(async_info);
+        Ok(Vc::cell(RcStr::from(deterministic_hash(
+            "",
+            (ident_str, code.source_code_hash().await?),
+            HashAlgorithm::Xxh3Hash128Hex,
+        ))))
+    } else {
+        // A non-JS static file or an external module
+        let content_hash = m
+            .source()
+            .await?
+            .with_context(|| format!("failed to get source for module {ident_str}"))?
+            .content()
+            .hash(HashAlgorithm::Xxh3Hash128Hex)
+            .await?;
+        Ok(Vc::cell(RcStr::from(deterministic_hash(
+            "",
+            (ident_str, content_hash),
+            HashAlgorithm::Xxh3Hash128Hex,
+        ))))
+    }
 }
 
 /// Server action info for JSON parsing

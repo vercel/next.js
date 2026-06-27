@@ -112,15 +112,6 @@ impl DeterministicHash for [u8] {
     }
 }
 
-impl<T: DeterministicHash, const N: usize> DeterministicHash for [T; N] {
-    fn deterministic_hash<H: DeterministicHasher>(&self, state: &mut H) {
-        state.write_usize(self.len());
-        for v in self {
-            v.deterministic_hash(state);
-        }
-    }
-}
-
 impl DeterministicHash for String {
     fn deterministic_hash<H: DeterministicHasher>(&self, state: &mut H) {
         state.write_usize(self.len());
