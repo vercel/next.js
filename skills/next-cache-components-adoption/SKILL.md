@@ -23,7 +23,7 @@ Enable Cache Components on an app and walk it to a passing build. This skill seq
 
 - **No incompatible config keys.** `cacheComponents: true` errors on any file that still exports `dynamic`, `revalidate`, or `fetchCache`. **Translate, don't delete.** Each export encodes behavior the route needs to keep doing; migrate each one to its Cache Components equivalent via the [migration guide's per-key sections](https://nextjs.org/docs/app/guides/migrating-to-cache-components#enable-cache-components). If a value can't be cleanly translated yet, leave a `// TODO: Cache Components adoption — restore revalidate = 3600` comment so the loop picks it up. The `cache-components-instant-false` codemod does not touch these.
 
-- **`experimental.dynamicIO` is fatal.** It was renamed to top-level `cacheComponents` and the old key now aborts before any build can run \u2014 remove it (or replace with `cacheComponents: true`) first.
+- **`experimental.dynamicIO` is fatal.** It was renamed to top-level `cacheComponents` and the old key now aborts before any build can run — remove it (or replace with `cacheComponents: true`) first.
 
 ### notes
 
@@ -37,7 +37,7 @@ There's one loop: walk the route tree top-down, one feature at a time, adopting 
 
 The choice in step 1 is whether to silence the validation errors first or fix them as you go. Either way the loop is the same:
 
-- **With a quiet pre-step (Incremental).** Run the codemod to opt every page and layout out of validation. Once the codemod's blind spots (sync-IO calls, leftover `revalidate`/`dynamic`/`fetchCache` exports) are translated by hand, the build passes; you ship that as its own PR and then start the loop — removing one opt-out at a time and adopting that route. Picks the work apart into small reviewable PRs.
+- **With a quiet pre-step (Incremental).** Run the codemod to opt every page and layout out of validation. Once you've also fixed what the codemod can't (sync-IO calls, leftover `revalidate`/`dynamic`/`fetchCache` exports), the build passes; you ship that as its own PR and then start the loop — removing one opt-out at a time and adopting that route. Picks the work apart into small reviewable PRs.
 - **Without (Direct).** Enable `cacheComponents` and start the loop on whatever the build flags first. Same loop, but every fix sits on one branch until adoption is complete.
 
 In both, the per-route success bar is the same: **dev loop reports no errors AND `next build` passes**. Check in with the user after every feature. Expect to spend most of the time in the loop, not in the pre-step.
