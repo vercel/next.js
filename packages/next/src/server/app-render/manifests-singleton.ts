@@ -15,6 +15,7 @@ export interface ServerModuleMap {
     readonly name: string
     readonly chunks: Readonly<Array<string>> // currently not used
     readonly async?: boolean
+    readonly codeHash?: string
   }
 }
 
@@ -261,7 +262,9 @@ function createServerModuleMap(): ServerModuleMap {
 
       const workStore = workAsyncStorage.getStore()
 
-      let workerEntry: { moduleId: string | number; async: boolean } | undefined
+      let workerEntry:
+        | { moduleId: string | number; async: boolean; codeHash?: string }
+        | undefined
 
       if (workStore) {
         workerEntry = workers[normalizeWorkerPageName(workStore.page)]
@@ -280,9 +283,9 @@ function createServerModuleMap(): ServerModuleMap {
         throw getActionNotFoundError(id)
       }
 
-      const { moduleId, async } = workerEntry
+      const { moduleId, async, codeHash } = workerEntry
 
-      return { id: moduleId, name: id, chunks: [], async }
+      return { id: moduleId, name: id, chunks: [], async, codeHash }
     },
   })
 }

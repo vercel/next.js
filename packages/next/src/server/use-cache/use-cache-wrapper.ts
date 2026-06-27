@@ -153,9 +153,13 @@ interface PublicCacheContext {
 
 type CacheContext = PrivateCacheContext | PublicCacheContext
 
-export type CacheKeyParts =
-  | [buildId: string, id: string, args: unknown[]]
-  | [buildId: string, id: string, args: unknown[], hmrRefreshHash: string]
+const nextVersion = process.env.__NEXT_VERSION as string
+
+export type CacheKeyParts = [
+  id: string,
+  args: unknown[],
+  implementationHash: unknown,
+]
 
 interface UseCachePageInnerProps {
   params: Promise<Params>
@@ -1285,7 +1289,7 @@ async function generateCacheEntryImpl(
   const temporaryReferences = createServerTemporaryReferenceSet()
   const outerWorkUnitStore = cacheContext.outerWorkUnitStore
 
-  const [, , args] =
+  const [, args] =
     typeof encodedArguments === 'string'
       ? await decodeReply<CacheKeyParts>(
           encodedArguments,
@@ -1982,6 +1986,9 @@ export async function cache(
   // In case getClientReferenceManifestSingleton is implemented using AsyncLocalStorage.
   const clientReferenceManifest = getClientReferenceManifest()
 
+  const serverModuleMap = getServerModuleMap()
+  const codeHash = serverModuleMap?.[id]?.codeHash
+
   // Because the Action ID is not yet unique per implementation of that Action we can't
   // safely reuse the results across builds yet. In the meantime we add the buildId to the
   // arguments as a seed to ensure they're not reused. Remove this once Action IDs hash
@@ -1994,6 +2001,15 @@ export async function cache(
   // also only a temporary solution until Action IDs are unique per
   // implementation. Remove this once Action IDs hash the implementation.
   const hmrRefreshHash = getHmrRefreshHash(workUnitStore)
+
+  // When accurate information is available, use codeHash, otherwise fall back to buildId and/or the
+  // HMR hash.
+  const implementationHash =
+    typeof codeHash === 'string'
+      ? [codeHash, nextVersion]
+      : hmrRefreshHash
+        ? [buildId, hmrRefreshHash]
+        : [buildId]
 
   const hangingInputAbortSignal = createHangingInputAbortSignal(workUnitStore)
 
@@ -2155,9 +2171,7 @@ export async function cache(
   // long as the request. In development private caches are persisted across
   // requests, so `cacheHandlerKeyBase` (below) additionally scopes the handler
   // key by the request's cookies and headers.
-  const cacheKeyParts: CacheKeyParts = hmrRefreshHash
-    ? [buildId, id, args, hmrRefreshHash]
-    : [buildId, id, args]
+  const cacheKeyParts: CacheKeyParts = [id, args, implementationHash]
 
   const encodeCacheKeyParts = () =>
     encodeReply(cacheKeyParts, {
