@@ -62,7 +62,6 @@ import {
   CachedRouteKind,
   IncrementalCacheKind,
   type CachedAppPageValue,
-  type CachedPageValue,
   type ResponseCacheEntry,
   type ResponseGenerator,
 } from '../../server/response-cache' with { 'turbopack-transition': 'next-server-utility' }
@@ -797,8 +796,10 @@ export async function handler(
       postponed,
       fallbackRouteParams,
       forceStaticRender,
+      allowEmptyStaticShell,
     }: {
       span?: Span
+      allowEmptyStaticShell?: boolean
 
       /**
        * The postponed data for this render. This is only provided when resuming
@@ -845,6 +846,7 @@ export async function handler(
           routeModule,
           page: srcPage,
           postponed,
+          allowEmptyStaticShell,
           shouldWaitOnAllReady,
           serveStreamingMetadata,
           supportsDynamicResponse:
@@ -1171,22 +1173,33 @@ export async function handler(
                 fallbackRouteParams = null
               }
             } else {
-              // In dev, the prerender manifest isn't populated for ad-hoc
-              // prefetches. The outer `!isPrerendered` guard means every URL
-              // reaching this block has params not covered by
-              // `generateStaticParams`, so the worst-case fallback set —
-              // every dynamic segment from the loader tree — matches what a
-              // static prerender would use. This keeps the prefetch response
-              // from baking resolved param values into the shell.
-              //
-              // `isDebugStaticShell` covers the `?__nextppronly=1` query and
-              // the Instant Navigation testing cookie; `isDebugFallbackShell`
-              // is the explicit fallback-shell debug flow.
-              if (isDebugStaticShell || isDebugFallbackShell) {
+              // In dev the prerender manifest isn't populated for ad-hoc
+              // prefetches (`fallbackMode` is undefined for not-fully-generated
+              // routes, so the on-demand manifest write is skipped, and
+              // `getPrerenderManifest` is cached regardless). So
+              // `prerenderInfo` is unavailable here. Instead base-server
+              // derives the per-URL fallback set from the dev `getStaticPaths`
+              // result and threads it via the `fallbackParams` request meta —
+              // the most-specific prerendered route matching this URL, so
+              // `generateStaticParams`-covered params resolve in the shell and
+              // only the uncovered ones are deferred, matching what a
+              // production build serves. `isDebugFallbackShell` (the explicit
+              // fallback-shell debug flow) still forces the worst case.
+              if (isDebugFallbackShell) {
                 fallbackRouteParams = getFallbackRouteParams(
                   normalizedSrcPage,
                   routeModule
                 )
+              } else if (isDebugStaticShell) {
+                // base-server threads the per-URL fallback set via the
+                // `fallbackParams` meta for every dev Cache Components dynamic
+                // request, so reuse it as the fallback route params for this
+                // shell render. It only sets the meta for routes that still
+                // have uncovered params, so an absent meta means this URL is
+                // fully covered by `generateStaticParams` and there is nothing
+                // to defer (`null`).
+                fallbackRouteParams =
+                  getRequestMeta(req, 'fallbackParams') ?? null
               } else {
                 fallbackRouteParams = null
               }
@@ -1221,6 +1234,7 @@ export async function handler(
                   // more specific cache entry for later requests.
                   fallbackRouteParams,
                   forceStaticRender: true,
+                  allowEmptyStaticShell: isInstantNavigationTest || undefined,
                 }),
               waitUntil: ctx.waitUntil,
               isMinimalMode,
@@ -1395,7 +1409,8 @@ export async function handler(
         }
 
         // When we're in minimal mode, if we're trying to debug the static shell,
-        // we should just return nothing instead of resuming the dynamic render.
+        // return an empty App Page response instead of resuming the dynamic
+        // render. The static shell has already been streamed by the platform.
         if (
           (isDebugStaticShell || isDebugDynamicAccesses) &&
           typeof postponed !== 'undefined'
@@ -1403,12 +1418,19 @@ export async function handler(
           return {
             cacheControl: { revalidate: 1, expire: undefined },
             value: {
-              kind: CachedRouteKind.PAGES,
-              html: RenderResult.EMPTY,
-              pageData: {},
+              kind: CachedRouteKind.APP_PAGE,
+              html: RenderResult.fromStatic(
+                '',
+                isRSCRequest
+                  ? RSC_CONTENT_TYPE_HEADER
+                  : HTML_CONTENT_TYPE_HEADER
+              ),
+              rscData: undefined,
+              postponed,
+              segmentData: undefined,
               headers: undefined,
               status: undefined,
-            } satisfies CachedPageValue,
+            } satisfies CachedAppPageValue,
           }
         }
 
@@ -1499,6 +1521,7 @@ export async function handler(
           postponed,
           fallbackRouteParams,
           forceStaticRender,
+          allowEmptyStaticShell: isInstantNavigationTest || undefined,
         })
       } catch (err) {
         // if this is a background revalidate we need to report

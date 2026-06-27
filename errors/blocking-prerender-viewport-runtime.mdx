@@ -3,11 +3,29 @@ title: Next.js encountered runtime data in generateViewport()
 kind: insight
 ---
 
-During [prerendering](/docs/app/glossary#prerendering), [`generateViewport()`](/docs/app/api-reference/functions/generate-viewport) read a per-request value ([`cookies()`](/docs/app/api-reference/functions/cookies), [`headers()`](/docs/app/api-reference/functions/headers), [`params`](/docs/app/api-reference/file-conventions/page#params-optional), [`searchParams`](/docs/app/api-reference/file-conventions/page#searchparams-optional)). With [Cache Components](/docs/app/api-reference/config/next-config-js/cacheComponents) enabled, viewport metadata can't be deferred behind a [`<Suspense>`](https://react.dev/reference/react/Suspense) boundary because it affects the initial page load. The page can't be prerendered, so navigations block instead of being [instant](/docs/app/guides/instant-navigation).
+<div
+  style={{
+    padding: '1.25rem 1.5rem',
+    border: '1px solid var(--ds-gray-400)',
+    borderRadius: '12px',
+    background: 'var(--ds-background-200)',
+    margin: '1.5rem 0 2rem',
+    fontSize: '0.95rem',
+    lineHeight: '1.6',
+  }}
+>
+  This Insight is part of the [Instant
+  Navigations](https://nextjs.org/blog/next-16-3-instant-navigations) feature
+  introduced in Next.js 16.3. If you're new to it, start with the [Ensuring
+  instant
+  navigations](https://preview.nextjs.org/docs/app/guides/instant-navigation)
+  guide for an overview of what instant navigations are and how Next.js
+  validates them, then come back here for the specific fix.
+</div>
 
-Uncached data accesses ([`fetch()`](https://developer.mozilla.org/en-US/docs/Web/API/Window/fetch), database calls, [`await connection()`](/docs/app/api-reference/functions/connection)) in `generateViewport()` have different fixes. See [Next.js encountered uncached data in `generateViewport()`](/docs/messages/blocking-prerender-viewport-dynamic). The metadata equivalent is handled at [Runtime data in `generateMetadata()`](/docs/messages/blocking-prerender-metadata-runtime). For errors in the page body rather than viewport, see [Next.js encountered runtime data during prerendering](/docs/messages/blocking-prerender-runtime).
+During [prerendering](https://preview.nextjs.org/docs/app/glossary#prerendering), [`generateViewport()`](https://preview.nextjs.org/docs/app/api-reference/functions/generate-viewport) read a per-request value ([`cookies()`](https://preview.nextjs.org/docs/app/api-reference/functions/cookies), [`headers()`](https://preview.nextjs.org/docs/app/api-reference/functions/headers), [`params`](https://preview.nextjs.org/docs/app/api-reference/file-conventions/page#params-optional), [`searchParams`](https://preview.nextjs.org/docs/app/api-reference/file-conventions/page#searchparams-optional)). With [Cache Components](https://preview.nextjs.org/docs/app/api-reference/config/next-config-js/cacheComponents) enabled, viewport metadata can't be deferred behind a [`<Suspense>`](https://react.dev/reference/react/Suspense) boundary because it affects the initial page load. The page can't be prerendered, so navigations block instead of being [instant](https://preview.nextjs.org/docs/app/guides/instant-navigation).
 
-> **Good to know**: In [`next dev`](/docs/app/api-reference/cli/next#next-dev-options), the error overlay points at the failing component. Run `next build --debug-prerender` to get the full list of blocking routes with stack traces. When iterating on specific routes, use `next build --debug-build-paths /dashboard /settings` to rebuild only those pages.
+Uncached data accesses ([`fetch()`](https://developer.mozilla.org/en-US/docs/Web/API/Window/fetch), database calls, [`await connection()`](https://preview.nextjs.org/docs/app/api-reference/functions/connection)) in `generateViewport()` have different fixes. See [Next.js encountered uncached data in `generateViewport()`](https://preview.nextjs.org/docs/messages/blocking-prerender-viewport-dynamic). The metadata equivalent is handled at [Runtime data in `generateMetadata()`](https://preview.nextjs.org/docs/messages/blocking-prerender-metadata-runtime). For errors in the page body rather than viewport, see [Next.js encountered runtime data during prerendering](https://preview.nextjs.org/docs/messages/blocking-prerender-runtime).
 
 ## Ways to fix this
 
@@ -31,7 +49,7 @@ Uncached data accesses ([`fetch()`](https://developer.mozilla.org/en-US/docs/Web
 
 ## Use static viewport
 
-Choose this fix when the viewport doesn't actually need the per-request data, either because the values are known at build time, or because the dependency on runtime data is accidental and can be refactored away. Replace [`generateViewport()`](/docs/app/api-reference/functions/generate-viewport) with a static [`viewport`](/docs/app/api-reference/functions/generate-viewport#the-viewport-object) export, or rewrite `generateViewport()` so it no longer reads [`cookies()`](/docs/app/api-reference/functions/cookies), [`headers()`](/docs/app/api-reference/functions/headers), or other request-bound APIs. The values are evaluated once during the build.
+Choose this fix when the viewport doesn't actually need the per-request data, either because the values are known at build time, or because the dependency on runtime data is accidental and can be refactored away. Replace [`generateViewport()`](https://preview.nextjs.org/docs/app/api-reference/functions/generate-viewport) with a static [`viewport`](https://preview.nextjs.org/docs/app/api-reference/functions/generate-viewport#the-viewport-object) export, or rewrite `generateViewport()` so it no longer reads [`cookies()`](https://preview.nextjs.org/docs/app/api-reference/functions/cookies), [`headers()`](https://preview.nextjs.org/docs/app/api-reference/functions/headers), or other request-bound APIs. The values are evaluated once during the build.
 
 ### Patterns
 
@@ -55,7 +73,7 @@ export default function RootLayout({ children }) {
 }
 ```
 
-Learn more: [Static viewport](/docs/app/api-reference/functions/generate-viewport#the-viewport-object).
+Learn more: [Static viewport](https://preview.nextjs.org/docs/app/api-reference/functions/generate-viewport#the-viewport-object).
 
 ### Trade-off
 
@@ -64,11 +82,11 @@ Static viewport can't reflect per-request values like a user's preferred theme c
 ### Gotchas
 
 - The `viewport` export is typically set in the root layout. Changing a layout's viewport affects every route in its subtree.
-- [`themeColor`](/docs/app/api-reference/functions/generate-viewport#themecolor) is the most common reason for a dynamic `generateViewport`. Consider whether a single static value covers all cases before resorting to a blocking route.
+- [`themeColor`](https://preview.nextjs.org/docs/app/api-reference/functions/generate-viewport#themecolor) is the most common reason for a dynamic `generateViewport`. Consider whether a single static value covers all cases before resorting to a blocking route.
 
 ## Allow blocking route
 
-Choose this fix when the viewport genuinely requires per-request data (a theme color from a cookie, a user-preferred width) and a static export isn't feasible. Setting [`instant`](/docs/app/api-reference/file-conventions/route-segment-config/instant) to `false` exempts the segment from instant-navigation validation. The page renders on every request and the navigation blocks until that render completes.
+Choose this fix when the viewport genuinely requires per-request data (a theme color from a cookie, a user-preferred width) and a static export isn't feasible. Setting [`instant`](https://preview.nextjs.org/docs/app/api-reference/file-conventions/route-segment-config/instant) to `false` exempts the segment from instant-navigation validation. The page renders on every request and the navigation blocks until that render completes.
 
 Unlike page body content, viewport metadata can't be deferred behind [`<Suspense>`](https://react.dev/reference/react/Suspense) because it affects the initial HTML `<head>`. Making the viewport dynamic means the entire page navigation blocks.
 
@@ -76,7 +94,7 @@ Unlike page body content, viewport metadata can't be deferred behind [`<Suspense
 
 #### Opt the layout out
 
-Set [`instant`](/docs/app/api-reference/file-conventions/route-segment-config/instant) to `false` on the layout that defines `generateViewport`. This allows that layout segment to block while descendant segments remain independently validated. Apply this to the nested layout that owns the dynamic viewport, not the root layout, so the opt-out is scoped to the affected segment.
+Set [`instant`](https://preview.nextjs.org/docs/app/api-reference/file-conventions/route-segment-config/instant) to `false` on the layout that defines `generateViewport`. This allows that layout segment to block while descendant segments remain independently validated. Apply this to the nested layout that owns the dynamic viewport, not the root layout, so the opt-out is scoped to the affected segment.
 
 ```jsx filename="app/dashboard/layout.js"
 import { cookies } from 'next/headers'
@@ -95,7 +113,7 @@ export default function DashboardLayout({ children }) {
 }
 ```
 
-Learn more: [Route segment `instant` config](/docs/app/api-reference/file-conventions/route-segment-config/instant).
+Learn more: [Route segment `instant` config](https://preview.nextjs.org/docs/app/api-reference/file-conventions/route-segment-config/instant).
 
 Use this pattern when:
 
@@ -110,22 +128,22 @@ Navigations to this route are not instant. The user waits for the full server re
 
 ### Gotchas
 
-- Setting [`instant`](/docs/app/api-reference/file-conventions/route-segment-config/instant) to `false` opts only the segment that exports it out. Descendant segments are still validated by the global default.
-- This export does not disable [prerendering](/docs/app/glossary#prerendering). The route still prerenders if it can. It only silences the instant-navigation validation error.
+- Setting [`instant`](https://preview.nextjs.org/docs/app/api-reference/file-conventions/route-segment-config/instant) to `false` opts only the segment that exports it out. Descendant segments are still validated by the global default.
+- This export does not disable [prerendering](https://preview.nextjs.org/docs/app/glossary#prerendering). The route still prerenders if it can. It only silences the instant-navigation validation error.
 - If the dynamic viewport is the only reason the route blocks, consider whether a static default covers most users. A static `themeColor` with a client-side correction after hydration may give a better experience than blocking the entire navigation.
-- Framework-synthesized routes (`/_not-found`, `/_global-error`) inherit the root layout's `generateViewport` and must be statically prerendered. [`instant = false`](/docs/app/api-reference/file-conventions/route-segment-config/instant) silences the validation error but does not let those routes through, so the build still fails when they prerender. If your root layout's `generateViewport` depends on request data, [Use static viewport](#use-static-viewport) instead, or move to [`global-not-found.js`](/docs/app/api-reference/file-conventions/not-found#global-not-foundjs-experimental), which bypasses the root layout entirely and avoids inheriting its `generateViewport`.
+- Framework-synthesized routes (`/_not-found`, `/_global-error`) inherit the root layout's `generateViewport` and must be statically prerendered. [`instant = false`](https://preview.nextjs.org/docs/app/api-reference/file-conventions/route-segment-config/instant) silences the validation error but does not let those routes through, so the build still fails when they prerender. If your root layout's `generateViewport` depends on request data, [Use static viewport](#use-static-viewport) instead, or move to [`global-not-found.js`](https://preview.nextjs.org/docs/app/api-reference/file-conventions/not-found#global-not-foundjs-experimental), which bypasses the root layout entirely and avoids inheriting its `generateViewport`.
+
+## Verifying the fix
+
+After applying a fix, reload the route to confirm the [static shell](https://preview.nextjs.org/docs/app/glossary#static-shell) renders real content. A [`<Suspense>`](https://react.dev/reference/react/Suspense) boundary placed around the whole page body can pass validation with an empty shell, which defeats the point of an instant navigation.
+
+In [`next dev`](https://preview.nextjs.org/docs/app/api-reference/cli/next#next-dev-options), the error overlay points at the failing component with file paths and line numbers. When working from a build instead, the default [`next build`](https://preview.nextjs.org/docs/app/api-reference/cli/next#next-build-options) output is more abbreviated; run `next build --debug-prerender` for full user-frame stack traces and `next build --debug-build-paths /dashboard /settings` to iterate on specific routes.
 
 ## Don't want this validation?
 
-Instant-navigation validation runs by default in [Cache Components](/docs/app/api-reference/config/next-config-js/cacheComponents) apps and is what surfaces this error.
+Instant-navigation validation runs by default in [Cache Components](https://preview.nextjs.org/docs/app/api-reference/config/next-config-js/cacheComponents) apps and is what surfaces this error.
 
-- **One segment**: add [`export const instant = false`](/docs/app/api-reference/file-conventions/route-segment-config/instant) to the page or layout file. This opts out the segment itself. Child segments are still validated during client navigations.
-- **Entire app**: set [`experimental.instantInsights.validationLevel`](/docs/app/api-reference/file-conventions/route-segment-config/instant#configuring-validation-defaults) to `'manual-warning'` in `next.config`. This limits validation to segments that explicitly export `instant`.
+- **One segment**: add [`export const instant = false`](https://preview.nextjs.org/docs/app/api-reference/file-conventions/route-segment-config/instant) to the page or layout file. This opts out the segment itself. Child segments are still validated during client navigations.
+- **Entire app**: set [`experimental.instantInsights.validationLevel`](https://preview.nextjs.org/docs/app/api-reference/file-conventions/route-segment-config/instant#configuring-validation-defaults) to `'manual-warning'` in `next.config`. This limits validation to segments that explicitly export `instant`.
 
-See [Ensuring instant navigations](/docs/app/guides/instant-navigation) for the full model.
-
-## Useful links
-
-- [Ensuring instant navigations](/docs/app/guides/instant-navigation)
-- [Uncached data in `generateViewport()`](/docs/messages/blocking-prerender-viewport-dynamic)
-- [Runtime data in `generateMetadata()`](/docs/messages/blocking-prerender-metadata-runtime)
+See [Ensuring instant navigations](https://preview.nextjs.org/docs/app/guides/instant-navigation) for the full model.

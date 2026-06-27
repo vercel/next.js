@@ -74,7 +74,7 @@ export function navigate(
   // prefetch task has been initiated before proceeding with the navigation.
   // This guarantees that segment data requests are at least pending, even
   // for routes that already have a cached route tree. Without this, the
-  // static shell might be incomplete because some segments were never
+  // shell might be incomplete because some segments were never
   // requested.
   if (process.env.__NEXT_EXPOSE_TESTING_API) {
     const { isNavigationLocked } =
@@ -288,6 +288,21 @@ export function navigateToKnownRoute(
       console.error(error)
     }
   }
+
+  // Instant Navigation Testing API: when the lock is held, restrict segment
+  // reads to shell entries if the target route would only have prefetched
+  // its shell.
+  let restrictToShell = false
+  if (process.env.__NEXT_EXPOSE_TESTING_API) {
+    const { shouldRestrictNavigationToShell } =
+      require('./navigation-testing-lock') as typeof import('./navigation-testing-lock')
+    const link = getLinkForCurrentNavigation()
+    restrictToShell = shouldRestrictNavigationToShell(
+      navigationSeed.routeTree.prefetchHints,
+      link !== null ? link.fetchStrategy : FetchStrategy.PPR
+    )
+  }
+
   const accumulation: NavigationRequestAccumulation = {
     separateRefreshUrls: null,
     scrollRef: null,
@@ -324,7 +339,8 @@ export function navigateToKnownRoute(
     navigationSeed.head,
     navigationSeed.dynamicStaleAt,
     isSamePageNavigation,
-    accumulation
+    accumulation,
+    restrictToShell
   )
   if (task !== null) {
     if (freshnessPolicy !== FreshnessPolicy.Gesture) {
@@ -1055,16 +1071,25 @@ async function ensurePrefetchThenNavigate(
 
   const cacheKey = createCacheKey(url.href, nextUrl)
 
-  await new Promise<void>((resolve) => {
-    schedulePrefetchTask(
-      cacheKey,
-      currentFlightRouterState,
-      fetchStrategy,
-      PrefetchPriority.Default,
-      null, // onInvalidate
-      resolve // _onComplete callback
-    )
-  })
+  // Create this navigation's "wait for prefetch to fulfill" state and schedule
+  // the prefetch as a locked-navigation prefetch. The prefetch's promise
+  // resolves once it has spawned every request and all of them have fulfilled,
+  // so the navigation below reads present data rather than a still-in-flight
+  // entry.
+  const { beginNavigationLockPrefetch } =
+    require('./navigation-testing-lock') as typeof import('./navigation-testing-lock')
+  const navigationLockPrefetch = beginNavigationLockPrefetch()
+  schedulePrefetchTask(
+    cacheKey,
+    currentFlightRouterState,
+    fetchStrategy,
+    PrefetchPriority.Default,
+    null, // onInvalidate
+    navigationLockPrefetch
+  )
+  if (navigationLockPrefetch !== null) {
+    await navigationLockPrefetch.promise
+  }
 
   // Prefetch is complete. Proceed with the normal navigation flow, which
   // will now find the route in the cache.

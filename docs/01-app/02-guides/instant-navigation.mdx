@@ -216,22 +216,55 @@ const nextConfig: NextConfig = {
 export default nextConfig
 ```
 
-Open the Next.js DevTools and select **Navigation Inspector**, then toggle **Pause on navigations**. The panel shows **Awaiting navigation...** While the toggle is on:
+Open the Next.js DevTools and select **Navigation Inspector**, then toggle **Pause on navigations**. The panel shows **Awaiting navigation...** With the toggle on, the next refresh or link click freezes the page so you can inspect the shell.
 
-- Refresh the page to freeze the **static shell**, the route's prerendered UI before any dynamic data streams in. The panel shows **Loading shell** labeled **Page load**, along with the target URL.
-- Click a link to freeze the **prefetched UI** for the destination route. The panel shows **Loading shell** labeled **Client nav**, along with both source and target URLs.
+Refresh the product page. The Inspector freezes and shows **Loading shell** labeled **Page load** with the target URL. In the app, two fallbacks appear: "Loading product..." and "Checking availability...". On the first visit the cache is cold and both are visible.
 
-When the UI is frozen, click **Resume** to complete the navigation. As long as the **Pause on navigations** toggle stays on, further navigations pause too. Toggle it off when you're done inspecting loading states.
+<div
+  style={{
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    gap: '0.5rem',
+  }}
+>
+  <Image
+    alt="Navigation Inspector panel showing 'Loading shell' labeled 'Page load' with the target URL"
+    srcLight="/docs/light/inspector-load.png"
+    srcDark="/docs/dark/inspector-load.png"
+    width="472"
+    height="389"
+  />
+  <span style={{ fontSize: '0.875rem', opacity: 0.7 }}>
+    After a page refresh.
+  </span>
+</div>
 
-Try refreshing the product page. Two separate fallbacks appear: "Loading product..." and "Checking availability...". On the first visit the cache is cold and both fallbacks are visible. Navigate to the page again and the product name appears immediately from cache.
+Click **Resume** to complete the navigation. Refresh again, and the product name appears immediately from cache.
 
-> **Good to know**: When `next dev` renders against an empty cache, the dev indicator turns orange ("Rendering (cold cache)") and leaves a dismissible "Cold cache" badge afterward. A "Cache disabled" variant appears when caches are bypassed. Reload once caches are warm to see a production-representative view.
+Now click a link from `/store/shoes` to `/store/hats`. The Inspector shows **Loading shell** labeled **Client nav** with both source and target URLs. In the app, the product name and price appear immediately (cached). "Checking availability..." shows where inventory will stream in.
 
-{/* TODO: screenshot — Navigation Inspector frozen at the static shell on a page refresh, showing both "Loading product..." and "Checking availability..." fallbacks */}
+<div
+  style={{
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    gap: '0.5rem',
+  }}
+>
+  <Image
+    alt="Navigation Inspector panel showing 'Loading shell' labeled 'Client nav' with source and target URLs"
+    srcLight="/docs/light/inspector-client.png"
+    srcDark="/docs/dark/inspector-client.png"
+    width="481"
+    height="395"
+  />
+  <span style={{ fontSize: '0.875rem', opacity: 0.7 }}>
+    After a client navigation.
+  </span>
+</div>
 
-Now click a link from `/store/shoes` to `/store/hats`. The product name and price appear immediately (cached). "Checking availability..." shows where inventory will stream in.
-
-{/* TODO: screenshot — Navigation Inspector frozen at the prefetched destination on a client navigation, showing cached product name + price with "Checking availability..." fallback */}
+Toggle **Pause on navigations** off when you're done inspecting loading states. Each navigation pauses as long as the toggle is on.
 
 > **Good to know:** Page loads and client navigations can produce different shells. Client-side hooks like `useSearchParams` suspend on page loads (search params are not known at build time) but resolve synchronously on client navigations (the router already has the params).
 
@@ -282,114 +315,127 @@ Focus these tests on the user flows that matter most. Run them against your dev 
 
 ## Fixing a navigation that blocks
 
-Consider a different route, `/shop/[slug]`, with the same data requirements as `/store/[slug]` but implemented without local `<Suspense>` boundaries or caching:
+Consider a different route, `/products/[slug]`, that fetches product data from a public API and shows a featured list alongside:
 
-```tsx filename="app/shop/[slug]/page.tsx"
-import { db } from '@/lib/db'
-
-export default async function ProductPage(props: PageProps<'/shop/[slug]'>) {
+```tsx filename="app/products/[slug]/page.tsx"
+export default async function ProductPage(
+  props: PageProps<'/products/[slug]'>
+) {
+  const featured = await getFeatured()
   const { slug } = await props.params
-  const product = await db.products.findBySlug(slug)
-  const item = await db.inventory.findBySlug(slug)
+  const res = await fetch(`https://next-recipe-api.vercel.dev/products/${slug}`)
+  const product = await res.json()
+
   return (
     <div>
+      <FeaturedSection items={featured} />
       <h1>{product.name}</h1>
       <p>${product.price}</p>
-      <p>{item.count} in stock</p>
+      <p>{product.description}</p>
     </div>
   )
 }
-```
 
-The root layout wraps `{children}` in a `<Suspense>` boundary:
-
-```tsx filename="app/layout.tsx" highlight={9}
-export default function RootLayout({
-  children,
-}: {
-  children: React.ReactNode
-}) {
-  return (
-    <html lang="en">
-      <body>
-        <Suspense fallback={<p>Loading...</p>}>{children}</Suspense>
-      </body>
-    </html>
-  )
+async function getFeatured() {
+  const res = await fetch('https://next-recipe-api.vercel.dev/products?limit=3')
+  return res.json()
 }
 ```
 
-On an initial page load, the root `<Suspense>` catches the async work and streams the page in behind the fallback.
+Two `fetch()` calls block at the top level: an uncached featured-list fetch and a per-slug product fetch (which also awaits `params`). Both will surface as Instant validation errors, one at a time.
 
-Everything appears to work. But on a client navigation from `/shop/shoes` to `/shop/hats`, the shared layout is `/shop` and only the content below it re-renders. The root `<Suspense>` boundary is above that layout and is not triggered for this navigation. The page fetches uncached data with no local `<Suspense>` boundary, blocking the navigation until the server finishes rendering.
+### Step 1: Move the slug-dependent work into Suspense
 
-You can see this with the DevTools. Try a **page load**: the root `<Suspense>` catches everything and **"Loading..."** appears. Now try a **client navigation** between two `/shop/` pages: there is no fallback UI to show for the destination because no `<Suspense>` boundary sits below the shared layout. The navigation blocks until the server completes. Navigations from other routes into `/shop/` also block.
+Validation surfaces the per-slug product fetch first.
 
-### Step 1: See what validation catches
+<div
+  style={{
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    gap: '0.5rem',
+  }}
+>
+  <Image
+    alt="Dev overlay insight for a blocking-route, showing the uncached data access on app/products/[slug]/page.tsx with Stream, Cache, and Block fix cards"
+    srcLight="/docs/light/instant-insight.png"
+    srcDark="/docs/dark/instant-insight.png"
+    width="960"
+    height="760"
+  />
+</div>
 
-Cache Components simulates navigations at every shared layout boundary in this route. The page awaits `params` and accesses uncached data at the top level, with no `<Suspense>` boundary around any of it. The first thing validation catches is the `await params` at the top level.
+Extract the slug-dependent work into a sub-component and wrap it with `<Suspense>`:
 
-{/* TODO: screenshot — Next.js dev overlay surfacing the blocking-route insight on the broken /shop/[slug] route, with the await params at the top level highlighted */}
+```tsx filename="app/products/[slug]/page.tsx" highlight={21-23}
+import { Suspense } from 'react'
 
-### Step 2: Fix the validation error
-
-There is no `generateStaticParams` here, `slug` is only known at request time. Because awaiting `params` suspends, the page component can't do it at the top level. Instead, move the `await params` into separate components, pass `params` to each, and wrap them with `<Suspense>`.
-
-For each component, decide:
-
-**Product details** (name, price) rarely change. Cache the data function with `use cache`:
-
-```tsx filename="app/shop/[slug]/page.tsx"
 async function ProductInfo({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params
-  const product = await getProduct(slug)
+  const res = await fetch(`https://next-recipe-api.vercel.dev/products/${slug}`)
+  const product = await res.json()
   return (
     <>
       <h1>{product.name}</h1>
       <p>${product.price}</p>
+      <p>{product.description}</p>
     </>
   )
 }
 
-async function getProduct(slug: string) {
-  'use cache'
-  return db.products.findBySlug(slug)
-}
-```
-
-> **Good to know:** In serverless deployments, in-memory caching with `"use cache"` will not persist across instances. Consider using [`"use cache: remote"`](/docs/app/api-reference/directives/use-cache-remote) for persistent caching.
-
-**Inventory** must be fresh each request. Leave it uncached:
-
-```tsx filename="app/shop/[slug]/page.tsx"
-async function Inventory({ params }: { params: Promise<{ slug: string }> }) {
-  const { slug } = await params
-  const item = await db.inventory.findBySlug(slug)
-  return <p>{item.count} in stock</p>
-}
-```
-
-The page passes `params` to each component and wraps them with `<Suspense>`:
-
-```tsx filename="app/shop/[slug]/page.tsx" highlight={7-12}
-import { Suspense } from 'react'
-import { db } from '@/lib/db'
-
-export default function ProductPage(props: PageProps<'/shop/[slug]'>) {
+export default async function ProductPage(
+  props: PageProps<'/products/[slug]'>
+) {
+  const featured = await getFeatured()
   return (
     <div>
+      <FeaturedSection items={featured} />
       <Suspense fallback={<p>Loading product...</p>}>
         <ProductInfo params={props.params} />
-      </Suspense>
-      <Suspense fallback={<p>Checking availability...</p>}>
-        <Inventory params={props.params} />
       </Suspense>
     </div>
   )
 }
 ```
 
-Validation passes. Open the DevTools and try a client navigation. The product name and price appear immediately, and **"Checking availability..."** shows where inventory will stream in.
+Now `await props.params` and the product fetch suspend together. The product-fetch error clears, and validation moves on to the next blocker.
+
+### Step 2: Cache the featured fetch
+
+Validation now fires on `getFeatured()`.
+
+<div
+  style={{
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    gap: '0.5rem',
+  }}
+>
+  <Image
+    alt="Dev overlay insight for the uncached getFeatured() fetch, with Stream, Cache, and Block fix cards"
+    srcLight="/docs/light/instant-insight-4.png"
+    srcDark="/docs/dark/instant-insight-4.png"
+    width="960"
+    height="760"
+  />
+</div>
+
+Add a `"use cache"` directive to the fetching function:
+
+```tsx filename="app/products/[slug]/page.tsx"
+async function getFeatured() {
+  'use cache'
+  const res = await fetch('https://next-recipe-api.vercel.dev/products?limit=3')
+  return res.json()
+}
+```
+
+The result is cached at the fetch level. The featured list ships with the App Shell.
+
+> **Good to know:** In serverless deployments, in-memory caching with `"use cache"` will not persist across instances. Consider using [`"use cache: remote"`](/docs/app/api-reference/directives/use-cache-remote) for persistent caching.
+
+Validation passes. Open the DevTools and try a client navigation. The featured section appears immediately, and **"Loading product..."** shows where the product details will stream in.
 
 ### Iterate on loading states
 
@@ -461,5 +507,3 @@ For opted-out segments, the navigation blocks on the server. If the content depe
 - [Runtime prefetching](/docs/app/guides/runtime-prefetching) when parts of your route depend on cookies or headers and you want those in the shell
 - [Caching](/docs/app/getting-started/caching) for background on `use cache`, Suspense, and Partial Prerendering
 - [Revalidating](/docs/app/getting-started/revalidating) for how to expire cached data with `cacheLife` and `updateTag`
-
-{/* Ensure we include instant navs skill learnings: see https://github.com/vercel/next.js/pull/94152 */}

@@ -7,13 +7,28 @@ export default function Root({ children }: { children: ReactNode }) {
       <body>
         <nav>
           <Link href="/">/index</Link> |{' '}
-          <Link href="/params/some-id" prefetch={true}>
-            /params/some-id
-          </Link>{' '}
-          |{' '}
-          <Link href="/private" prefetch={true}>
-            /private
-          </Link>
+          <ul>
+            <li>
+              <ul>
+                <li>
+                  <Link href="/params/prefetch-auto">
+                    /params/prefetch-auto
+                  </Link>
+                </li>
+                <li>
+                  <Link href="/params/prefetch-true" prefetch={true}>
+                    /params/prefetch-true (prefetch=true)
+                  </Link>
+                </li>
+              </ul>
+            </li>
+            <li>
+              <Link href="/cookies">/cookies</Link>
+            </li>
+            <li>
+              <Link href="/private">/private</Link>
+            </li>
+          </ul>
         </nav>
         {children}
       </body>

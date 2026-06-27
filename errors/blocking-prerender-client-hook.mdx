@@ -3,13 +3,31 @@ title: Next.js encountered URL data in a Client Component outside of Suspense
 kind: insight
 ---
 
-During [prerendering](/docs/app/glossary#prerendering), a Client Component called a navigation hook ([`usePathname`](/docs/app/api-reference/functions/use-pathname), [`useParams`](/docs/app/api-reference/functions/use-params), [`useSearchParams`](/docs/app/api-reference/functions/use-search-params#prerendering), [`useSelectedLayoutSegment`](/docs/app/api-reference/functions/use-selected-layout-segment), or [`useSelectedLayoutSegments`](/docs/app/api-reference/functions/use-selected-layout-segments)) outside of a [`<Suspense>`](https://react.dev/reference/react/Suspense) boundary. With [Cache Components](/docs/app/api-reference/config/next-config-js/cacheComponents) enabled, Next.js prerenders as much of a route as possible before a request arrives. These hooks read URL data that is not available during prerendering, so the component needs a fallback to include in the [static shell](/docs/app/glossary#static-shell).
+<div
+  style={{
+    padding: '1.25rem 1.5rem',
+    border: '1px solid var(--ds-gray-400)',
+    borderRadius: '12px',
+    background: 'var(--ds-background-200)',
+    margin: '1.5rem 0 2rem',
+    fontSize: '0.95rem',
+    lineHeight: '1.6',
+  }}
+>
+  This Insight is part of the [Instant
+  Navigations](https://nextjs.org/blog/next-16-3-instant-navigations) feature
+  introduced in Next.js 16.3. If you're new to it, start with the [Ensuring
+  instant
+  navigations](https://preview.nextjs.org/docs/app/guides/instant-navigation)
+  guide for an overview of what instant navigations are and how Next.js
+  validates them, then come back here for the specific fix.
+</div>
+
+During [prerendering](https://preview.nextjs.org/docs/app/glossary#prerendering), a Client Component called a navigation hook ([`usePathname`](https://preview.nextjs.org/docs/app/api-reference/functions/use-pathname), [`useParams`](https://preview.nextjs.org/docs/app/api-reference/functions/use-params), [`useSearchParams`](https://preview.nextjs.org/docs/app/api-reference/functions/use-search-params#prerendering), [`useSelectedLayoutSegment`](https://preview.nextjs.org/docs/app/api-reference/functions/use-selected-layout-segment), or [`useSelectedLayoutSegments`](https://preview.nextjs.org/docs/app/api-reference/functions/use-selected-layout-segments)) outside of a [`<Suspense>`](https://react.dev/reference/react/Suspense) boundary. With [Cache Components](https://preview.nextjs.org/docs/app/api-reference/config/next-config-js/cacheComponents) enabled, Next.js prerenders as much of a route as possible before a request arrives. These hooks read URL data that is not available during prerendering, so the component needs a fallback to include in the [static shell](https://preview.nextjs.org/docs/app/glossary#static-shell).
 
 `useSearchParams` triggers this error on any prerendered route because search params come from the request URL. The other four hooks trigger it when the route has dynamic params and is rendered per-request.
 
-Server-side request-bound reads ([`cookies()`](/docs/app/api-reference/functions/cookies), [`headers()`](/docs/app/api-reference/functions/headers)) have different fixes. See [Next.js encountered runtime data during prerendering](/docs/messages/blocking-prerender-runtime). For unstable values like [`Math.random()`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Math/random) in Client Components, see [Next.js encountered the unstable value Math.random() in a Client Component](/docs/messages/blocking-prerender-random-client).
-
-> **Good to know**: In [`next dev`](/docs/app/api-reference/cli/next#next-dev-options), the error overlay points at the failing component. Run `next build --debug-prerender` to get the full list of blocking routes with stack traces. When iterating on specific routes, use `next build --debug-build-paths /dashboard /settings` to rebuild only those pages.
+Server-side request-bound reads ([`cookies()`](https://preview.nextjs.org/docs/app/api-reference/functions/cookies), [`headers()`](https://preview.nextjs.org/docs/app/api-reference/functions/headers)) have different fixes. See [Next.js encountered runtime data during prerendering](https://preview.nextjs.org/docs/messages/blocking-prerender-runtime). For unstable values like [`Math.random()`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Math/random) in Client Components, see [Next.js encountered the unstable value Math.random() in a Client Component](https://preview.nextjs.org/docs/messages/blocking-prerender-random-client).
 
 ## Ways to fix this
 
@@ -68,7 +86,7 @@ export function Search() {
 }
 ```
 
-Learn more: [`useSearchParams` prerendering behavior](/docs/app/api-reference/functions/use-search-params#prerendering)
+Learn more: [`useSearchParams` prerendering behavior](https://preview.nextjs.org/docs/app/api-reference/functions/use-search-params#prerendering)
 
 #### Push the hook read down to the leaf
 
@@ -128,7 +146,7 @@ The nav links prerender into the static shell with their final `href` and label.
 
 To style the parent `<Link>` itself instead (for example, bolding the active label), have the leaf set `data-active` and read it from the parent with `has-data-active:font-bold`.
 
-Learn more: [`usePathname`](/docs/app/api-reference/functions/use-pathname), [Creating an active link component with `useSelectedLayoutSegment`](/docs/app/api-reference/functions/use-selected-layout-segment#creating-an-active-link-component)
+Learn more: [`usePathname`](https://preview.nextjs.org/docs/app/api-reference/functions/use-pathname), [Creating an active link component with `useSelectedLayoutSegment`](https://preview.nextjs.org/docs/app/api-reference/functions/use-selected-layout-segment#creating-an-active-link-component)
 
 #### Wrap a sibling that uses the hook value
 
@@ -176,15 +194,15 @@ The user sees the fallback on the first paint of the suspended region, then it s
 ### Gotchas
 
 - Place the [`<Suspense>`](https://react.dev/reference/react/Suspense) boundary as close to the hook call as possible. Wrapping a large subtree forces the entire subtree into the fallback and loses prerendered content.
-- The fallback must be synchronous and deterministic. Do not call [`Math.random()`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Math/random), [`Date.now()`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Date/now), [`crypto.randomUUID()`](https://developer.mozilla.org/en-US/docs/Web/API/Crypto/randomUUID), or [`fetch()`](https://developer.mozilla.org/en-US/docs/Web/API/Fetch_API/Using_Fetch) inside it. Each one raises a separate [Cache Components](/docs/app/api-reference/config/next-config-js/cacheComponents) error during prerendering.
-- Do not pass `{children}` through in the fallback. Child pages may include dynamic reads (for example, `/_not-found` calling [`cookies()`](/docs/app/api-reference/functions/cookies) or [`headers()`](/docs/app/api-reference/functions/headers)) that propagate into what should be a static fallback. Render a placeholder that doesn't include `{children}`.
+- The fallback must be synchronous and deterministic. Do not call [`Math.random()`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Math/random), [`Date.now()`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Date/now), [`crypto.randomUUID()`](https://developer.mozilla.org/en-US/docs/Web/API/Crypto/randomUUID), or [`fetch()`](https://developer.mozilla.org/en-US/docs/Web/API/Fetch_API/Using_Fetch) inside it. Each one raises a separate [Cache Components](https://preview.nextjs.org/docs/app/api-reference/config/next-config-js/cacheComponents) error during prerendering.
+- Do not pass `{children}` through in the fallback. Child pages may include dynamic reads (for example, `/_not-found` calling [`cookies()`](https://preview.nextjs.org/docs/app/api-reference/functions/cookies) or [`headers()`](https://preview.nextjs.org/docs/app/api-reference/functions/headers)) that propagate into what should be a static fallback. Render a placeholder that doesn't include `{children}`.
 - A nav rendered in a layout suspends on any page below it that reads URL data the layout's static shell doesn't know. Push the hook read down to the smallest leaf that needs the value so the rest of the nav stays prerendered.
-- The static shell does not include the active state. The fallback paints first, then the indicator hydrates and the active style appears. For active-link patterns where the flash is visible, add an [inline script that runs before paint](/docs/app/guides/preventing-flash-before-hydration) to set the active attribute from `location.pathname` so the correct link is styled on the first paint.
-- [`usePathname`](/docs/app/api-reference/functions/use-pathname#avoid-hydration-mismatch-with-rewrites) reads the source path on the server when the request was rewritten in `next.config` or middleware, while the browser sees the rewritten path. The active state on a rewritten route resolves to the wrong link on the server and corrects itself on hydration. If your app uses rewrites, defer the read until after mount as the [docs recommend](/docs/app/api-reference/functions/use-pathname#avoid-hydration-mismatch-with-rewrites).
+- The static shell does not include the active state. The fallback paints first, then the indicator hydrates and the active style appears. For active-link patterns where the flash is visible, add an [inline script that runs before paint](https://preview.nextjs.org/docs/app/guides/preventing-flash-before-hydration) to set the active attribute from `location.pathname` so the correct link is styled on the first paint.
+- [`usePathname`](https://preview.nextjs.org/docs/app/api-reference/functions/use-pathname#avoid-hydration-mismatch-with-rewrites) reads the source path on the server when the request was rewritten in `next.config` or middleware, while the browser sees the rewritten path. The active state on a rewritten route resolves to the wrong link on the server and corrects itself on hydration. If your app uses rewrites, defer the read until after mount as the [docs recommend](https://preview.nextjs.org/docs/app/api-reference/functions/use-pathname#avoid-hydration-mismatch-with-rewrites).
 
 ## Allow blocking route
 
-Choose this fix when the route renders per-request and there's no useful static shell. Setting [`instant`](/docs/app/api-reference/file-conventions/route-segment-config/instant) to `false` exempts the segment from instant-navigation validation. The page renders on every request and the navigation blocks until that render completes.
+Choose this fix when the route renders per-request and there's no useful static shell. Setting [`instant`](https://preview.nextjs.org/docs/app/api-reference/file-conventions/route-segment-config/instant) to `false` exempts the segment from instant-navigation validation. The page renders on every request and the navigation blocks until that render completes.
 
 ### Patterns
 
@@ -200,11 +218,11 @@ export default function Page() {
 }
 ```
 
-Learn more: [Ensuring instant navigations](/docs/app/guides/instant-navigation).
+Learn more: [Ensuring instant navigations](https://preview.nextjs.org/docs/app/guides/instant-navigation).
 
 #### Opt the layout out
 
-When the shared layout itself can't ship instantly (it reads URL data of its own that has no meaningful fallback), set [`instant`](/docs/app/api-reference/file-conventions/route-segment-config/instant) to `false` on the layout. This allows that layout segment to block while descendant segments remain independently validated.
+When the shared layout itself can't ship instantly (it reads URL data of its own that has no meaningful fallback), set [`instant`](https://preview.nextjs.org/docs/app/api-reference/file-conventions/route-segment-config/instant) to `false` on the layout. This allows that layout segment to block while descendant segments remain independently validated.
 
 ```jsx filename="app/dashboard/layout.js"
 export const instant = false
@@ -214,11 +232,11 @@ export default function DashboardLayout({ children }) {
 }
 ```
 
-Learn more: [Route segment `instant` config](/docs/app/api-reference/file-conventions/route-segment-config/instant).
+Learn more: [Route segment `instant` config](https://preview.nextjs.org/docs/app/api-reference/file-conventions/route-segment-config/instant).
 
 Use either pattern when:
 
-- The route needs request-time data high in the tree to decide what to render, so there is no meaningful [static shell](/docs/app/glossary#static-shell) worth showing first.
+- The route needs request-time data high in the tree to decide what to render, so there is no meaningful [static shell](https://preview.nextjs.org/docs/app/glossary#static-shell) worth showing first.
 - You're migrating a route incrementally and want to defer the lifetime decision without changing how the page renders today.
 
 For a client-hook error this is rarely the right answer. The hook reads a small piece of URL data, and a [`<Suspense>`](https://react.dev/reference/react/Suspense) boundary around that read keeps the rest of the route prerendered. Choose [Wrap in or move into Suspense](#wrap-in-or-move-into-suspense) when feasible.
@@ -229,21 +247,20 @@ Navigations to this route are not instant. The user waits for the full server re
 
 ### Gotchas
 
-- Setting [`instant`](/docs/app/api-reference/file-conventions/route-segment-config/instant) to `false` opts only the segment that exports it out. Descendant segments are still validated by the global default.
-- This export does not disable [prerendering](/docs/app/glossary#prerendering). The route still prerenders if it can. It only silences the instant-navigation validation error.
+- Setting [`instant`](https://preview.nextjs.org/docs/app/api-reference/file-conventions/route-segment-config/instant) to `false` opts only the segment that exports it out. Descendant segments are still validated by the global default.
+- This export does not disable [prerendering](https://preview.nextjs.org/docs/app/glossary#prerendering). The route still prerenders if it can. It only silences the instant-navigation validation error.
+
+## Verifying the fix
+
+After applying a fix, reload the route to confirm the [static shell](https://preview.nextjs.org/docs/app/glossary#static-shell) renders real content. A [`<Suspense>`](https://react.dev/reference/react/Suspense) boundary placed around the whole page body can pass validation with an empty shell, which defeats the point of an instant navigation.
+
+In [`next dev`](https://preview.nextjs.org/docs/app/api-reference/cli/next#next-dev-options), the error overlay points at the failing component with file paths and line numbers. When working from a build instead, the default [`next build`](https://preview.nextjs.org/docs/app/api-reference/cli/next#next-build-options) output is more abbreviated; run `next build --debug-prerender` for full user-frame stack traces and `next build --debug-build-paths /dashboard /settings` to iterate on specific routes.
 
 ## Don't want this validation?
 
-Instant-navigation validation runs by default in [Cache Components](/docs/app/api-reference/config/next-config-js/cacheComponents) apps and is what surfaces this error.
+Instant-navigation validation runs by default in [Cache Components](https://preview.nextjs.org/docs/app/api-reference/config/next-config-js/cacheComponents) apps and is what surfaces this error.
 
-- **One segment**: add [`export const instant = false`](/docs/app/api-reference/file-conventions/route-segment-config/instant) to the page or layout file. This opts out the segment itself. Child segments are still validated during client navigations.
-- **Entire app**: set [`experimental.instantInsights.validationLevel`](/docs/app/api-reference/file-conventions/route-segment-config/instant#configuring-validation-defaults) to `'manual-warning'` in `next.config`. This limits validation to segments that explicitly export `instant`.
+- **One segment**: add [`export const instant = false`](https://preview.nextjs.org/docs/app/api-reference/file-conventions/route-segment-config/instant) to the page or layout file. This opts out the segment itself. Child segments are still validated during client navigations.
+- **Entire app**: set [`experimental.instantInsights.validationLevel`](https://preview.nextjs.org/docs/app/api-reference/file-conventions/route-segment-config/instant#configuring-validation-defaults) to `'manual-warning'` in `next.config`. This limits validation to segments that explicitly export `instant`.
 
-See [Ensuring instant navigations](/docs/app/guides/instant-navigation) for the full model.
-
-## Useful links
-
-- [Ensuring instant navigations](/docs/app/guides/instant-navigation)
-- [Preventing flash before hydration](/docs/app/guides/preventing-flash-before-hydration)
-- [Next.js encountered runtime data during prerendering](/docs/messages/blocking-prerender-runtime)
-- [Next.js encountered the unstable value Math.random() in a Client Component](/docs/messages/blocking-prerender-random-client)
+See [Ensuring instant navigations](https://preview.nextjs.org/docs/app/guides/instant-navigation) for the full model.

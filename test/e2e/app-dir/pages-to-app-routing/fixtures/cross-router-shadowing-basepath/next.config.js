@@ -2,7 +2,7 @@
  * @type {import('next').NextConfig}
  */
 const nextConfig = {
-  cacheComponents: true,
+  basePath: '/base',
 }
 
 module.exports = nextConfig

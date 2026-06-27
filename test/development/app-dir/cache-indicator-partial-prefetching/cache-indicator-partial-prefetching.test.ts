@@ -18,14 +18,13 @@ describe('cache-indicator-partial-prefetching', () => {
     return
   }
 
-  it('shows the Cold cache badge on a cold runtime-prefetch navigation to a route whose cache read follows await params, not on a warm one', async () => {
+  it('cache after session data triggers cold cache indicator', async () => {
     const browser = await next.browser('/')
 
     // Cold navigation: the cache read sits after `await params`, so it resolves
-    // in the runtime stage, part of the runtime shell for this navigation, so a
-    // cold cache there shows the badge.
-    await browser.elementByCss('a[href="/params/some-id"]').click()
-    await browser.elementById('params')
+    // in the app shell for this navigation, so a cold cache there shows the badge.
+    await browser.elementByCss('a[href="/cookies"]').click()
+    await browser.elementById('cookies')
     await retry(async () => {
       expect(await browser.hasElementByCss('[data-cold-cache-badge]')).toBe(
         true
@@ -45,16 +44,70 @@ describe('cache-indicator-partial-prefetching', () => {
     // Warm navigation: the runtime shell is a cache hit, so no badge. An absence
     // can't be retried on, so wait out the replay window, then assert it never
     // appeared.
-    await browser.elementByCss('a[href="/params/some-id"]').click()
-    await browser.elementById('params')
+    await browser.elementByCss('a[href="/cookies"]').click()
+    await browser.elementById('cookies')
     await waitFor(500)
     expect(await browser.hasElementByCss('[data-cold-cache-badge]')).toBe(false)
+  })
+
+  describe('cache after link data', () => {
+    it('does not trigger cold cache indicator without prefetch={true}', async () => {
+      const browser = await next.browser('/')
+
+      // Cold navigation: the cache read sits after `await params`, so it resolves
+      // in the runtime stage, part of the runtime shell for this navigation, so a
+      // cold cache there shows the badge.
+      await browser.elementByCss('a[href="/params/prefetch-auto"]').click()
+      await browser.elementById('params')
+
+      await waitFor(500)
+      expect(await browser.hasElementByCss('[data-cold-cache-badge]')).toBe(
+        false
+      )
+    })
+
+    // TODO(app-shells): simulate `prefetch={true}` behavior
+    it.failing(
+      'triggers cold cache indicator with prefetch={true}',
+      async () => {
+        const browser = await next.browser('/')
+
+        // Cold navigation: the cache read sits after `await params`, so it resolves
+        // in the runtime stage as part of the speculative prefetch shell for this navigation.
+        // a cold cache there shows the badge.
+        await browser.elementByCss('a[href="/params/prefetch-true"]').click()
+        await browser.elementById('params')
+        await retry(async () => {
+          expect(await browser.hasElementByCss('[data-cold-cache-badge]')).toBe(
+            true
+          )
+        })
+
+        // Navigate to the static home (a fresh render clears the badge), then wait
+        // for the background fill to settle so the next navigation is a warm hit.
+        await browser.elementByCss('a[href="/"]').click()
+        await retry(async () => {
+          expect(await browser.hasElementByCss('[data-cold-cache-badge]')).toBe(
+            false
+          )
+        })
+        await waitFor(2000)
+
+        // Warm navigation: the cache is a hit, so no badge.
+        await browser.elementByCss('a[href="/params/prefetch-true"]').click()
+        await browser.elementById('params')
+        await waitFor(500)
+        expect(await browser.hasElementByCss('[data-cold-cache-badge]')).toBe(
+          false
+        )
+      }
+    )
   })
 
   it('shows the Cold cache badge on a cold runtime-prefetch navigation to a private-cache route, not on a warm one', async () => {
     const browser = await next.browser('/')
 
-    // Cold navigation: the private cache resolves in the runtime shell, so a
+    // Cold navigation: the private cache resolves in the app shell, so a
     // cold cache there shows the badge.
     await browser.elementByCss('a[href="/private"]').click()
     await browser.elementById('private')

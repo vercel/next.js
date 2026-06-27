@@ -8,7 +8,8 @@ use std::{
 use anyhow::{Ok, Result};
 use smallvec::SmallVec;
 use turbo_persistence::{
-    ArcBytes, CompactConfig, DbConfig, KeyBase, StoreKey, TurboPersistence, ValueBuffer,
+    ArcBytes, CommitStats, CompactConfig, DbConfig, KeyBase, StoreKey, TurboPersistence,
+    ValueBuffer,
 };
 use turbo_tasks::{
     message_queue::{TimingEvent, TraceEvent},
@@ -125,11 +126,11 @@ impl TurboKeyValueDatabase {
 
     /// Triggers compaction of the database.
     ///
-    /// Returns `Ok(true)` if compaction actually merged files, `Ok(false)` if there was nothing
-    /// to compact.
-    pub fn compact(&self) -> Result<bool> {
+    /// Returns `Ok(Some(stats))` with the bytes written/deleted if compaction actually merged
+    /// files, `Ok(None)` if there was nothing to compact.
+    pub fn compact(&self) -> Result<Option<CommitStats>> {
         if self.is_short_session || self.db.is_empty() {
-            return Ok(false);
+            return Ok(None);
         }
         do_compact(
             &self.db,
@@ -169,16 +170,16 @@ fn do_compact(
     db: &TurboPersistence<TurboTasksParallelScheduler, FAMILIES>,
     message: &'static str,
     max_merge_segment_count: usize,
-) -> Result<bool> {
+) -> Result<Option<CommitStats>> {
     let start = Instant::now();
     // SystemTime for wall-clock timestamps in trace events (Instant has no
     // defined epoch so it can't be used for cross-process trace correlation).
     let wall_start = SystemTime::now();
-    let ran = db.compact(&CompactConfig {
+    let stats = db.compact(&CompactConfig {
         max_merge_segment_count,
         ..COMPACT_CONFIG
     })?;
-    if ran {
+    if let Some(stats) = stats {
         let elapsed = start.elapsed();
         // avoid spamming the event queue with information about fast operations
         if elapsed > Duration::from_secs(10) {
@@ -195,10 +196,13 @@ fn do_compact(
             "turbopack-compaction",
             wall_start_ms,
             wall_end_ms,
-            vec![],
+            serde_json::json!([
+                ["bytes_written", stats.bytes_written],
+                ["bytes_deleted", stats.bytes_deleted],
+            ]),
         )));
     }
-    Ok(ran)
+    Ok(stats)
 }
 
 pub struct TurboWriteBatch<'a> {
@@ -216,9 +220,8 @@ impl<'a> TurboWriteBatch<'a> {
         self.db.get(key_space as usize, &key)
     }
 
-    pub fn commit(self) -> Result<()> {
-        self.db.commit_write_batch(self.batch)?;
-        Ok(())
+    pub fn commit(self) -> Result<CommitStats> {
+        self.db.commit_write_batch(self.batch)
     }
 
     pub fn put(
