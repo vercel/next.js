@@ -58,10 +58,7 @@ impl EvictionControl {
     /// Whether to run an eviction sweep this snapshot cycle.
     ///
     /// `snapshot_had_new_data` is whether the just-completed snapshot persisted
-    /// new data. We only evict when there's new data to persist (the common case)
-    /// or on the very first eviction after startup (data was already on disk from
-    /// a prior run, so `snapshot_had_new_data` may be false but in-memory state
-    /// can still be evicted).
+    /// new data.  Used only by the `full` variant
     ///
     /// Within that, `Off` never evicts, `Full` always evicts, and `Auto` requires
     /// enough net memory allocated since the last eviction to justify the
@@ -75,7 +72,8 @@ impl EvictionControl {
         match self.mode {
             EvictionMode::Off => false,
             EvictionMode::Full => {
-                // In full mode we only skip evicting
+                // In full mode we only skip evicting if we didn't save anything and have already
+                // evicted
                 snapshot_had_new_data || !self.has_evicted_before()
             }
             EvictionMode::Auto => self.auto_threshold_exceeded(),
@@ -94,7 +92,29 @@ impl EvictionControl {
         static MIN_EVICT_BYTES: LazyLock<usize> = LazyLock::new(|| {
             std::env::var("TURBO_ENGINE_EVICT_MIN_BYTES")
                 .ok()
-                .and_then(|v| v.parse::<usize>().ok())
+                .and_then(|s| {
+                    let s = s.trim();
+                    let lower = s.to_ascii_lowercase();
+                    let (num, mult) = if let Some(n) = lower.strip_suffix('g') {
+                        (n, 1024 * 1024 * 1024)
+                    } else if let Some(n) = lower.strip_suffix('m') {
+                        (n, 1024 * 1024)
+                    } else if let Some(n) = lower.strip_suffix('k') {
+                        (n, 1024)
+                    } else {
+                        (lower.as_str(), 1)
+                    };
+                    match num.trim().parse::<usize>() {
+                        Ok(n) => Some(n * mult),
+                        Err(e) => {
+                            eprintln!(
+                                "error: could not parse `TURBO_ENGINE_EVICT_MIN_BYTES` value: \
+                                 {e:?}"
+                            );
+                            None
+                        }
+                    }
+                })
                 .unwrap_or(128 * 1024 * 1024)
         });
 

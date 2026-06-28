@@ -438,7 +438,8 @@ function assignDefaultsAndValidate(
       turbopackMemoryEvictionMode = result.experimental.turbopackMemoryEviction
       break
     case undefined:
-      // Not set by the user: enable eviction in 'auto' mode by default
+    default:
+      // Not set by the user, or an invalid value, use the default.
       turbopackMemoryEvictionMode = 'auto'
   }
   ;(result as NextConfigComplete).experimental.turbopackMemoryEvictionMode =
