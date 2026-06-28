@@ -13,7 +13,10 @@ use next_core::{
     mode::NextMode,
     next_app::{AppPage, AppPath},
     next_client::{
-        ClientChunkingContextOptions, get_client_chunking_context, get_client_compile_time_info,
+        ClientChunkingContextOptions, ClientContextType, ServiceWorkerChunkingContextOptions,
+        get_client_chunking_context, get_client_compile_time_info,
+        get_client_module_options_context, get_client_resolve_options_context,
+        get_service_worker_chunking_context,
     },
     next_config::{
         DIST_PROFILES_DIR_NAME, ModuleIds as ModuleIdStrategyConfig, NextConfig, OutputType,
@@ -1624,6 +1627,52 @@ impl Project {
             chunk_loading_global: self.next_config().turbopack_chunk_loading_global(),
             style_groups_algorithm: self.next_config().css_chunking().owned().await?,
         }))
+    }
+
+    #[turbo_tasks::function]
+    pub(super) async fn service_worker_chunking_context(
+        self: Vc<Self>,
+    ) -> Result<Vc<Box<dyn ChunkingContext>>> {
+        Ok(get_service_worker_chunking_context(
+            ServiceWorkerChunkingContextOptions {
+                mode: self.next_mode(),
+                root_path: self.project_root_path().owned().await?,
+                output_root: self.node_root().owned().await?,
+                output_root_to_root_path: self.node_root_to_root_path().owned().await?,
+                environment: self.client_compile_time_info().environment(),
+                minify: self.next_config().turbo_minify(self.next_mode()),
+                source_maps: self.next_config().client_source_maps(self.next_mode()),
+                no_mangling: self.no_mangling(),
+                hash_salt: self.next_config().output_hash_salt().to_resolved().await?,
+            },
+        ))
+    }
+
+    #[turbo_tasks::function]
+    pub(super) async fn service_worker_asset_context(
+        self: Vc<Self>,
+    ) -> Result<Vc<Box<dyn AssetContext>>> {
+        Ok(Vc::upcast(ModuleAssetContext::new(
+            TransitionOptions::default().cell(),
+            self.client_compile_time_info(),
+            get_client_module_options_context(
+                self.project_path().owned().await?,
+                self.execution_context(),
+                self.client_compile_time_info().environment(),
+                ClientContextType::Other,
+                self.next_mode(),
+                self.next_config(),
+                self.encryption_key(),
+            ),
+            get_client_resolve_options_context(
+                self.project_path().owned().await?,
+                ClientContextType::Other,
+                self.next_mode(),
+                self.next_config(),
+                self.execution_context(),
+            ),
+            Layer::new_with_user_friendly_name(rcstr!("service-worker"), rcstr!("Service Worker")),
+        )))
     }
 
     #[turbo_tasks::function]

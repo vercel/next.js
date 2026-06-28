@@ -1,5 +1,5 @@
 import { nextTestSetup } from 'e2e-utils'
-import { retry, waitFor } from 'next-test-utils'
+import { retry, waitFor, waitForNoErrorToast } from 'next-test-utils'
 
 describe('use-cache-size-zero', () => {
   const { next, skipped } = nextTestSetup({
@@ -34,10 +34,11 @@ describe('use-cache-size-zero', () => {
       .text()
 
     // Warm reload: `cacheMaxMemorySize: 0` still caches in development, so the
-    // reload serves the same (stale) cached value instead of regenerating it.
-    // The forced `revalidate: 0` keeps the value a dynamic hole, so it still
-    // streams behind the loading boundary - but it's the cached value, served
-    // fast, not a fresh generation.
+    // reload serves the previously cached value fast instead of regenerating
+    // it. The entry keeps its default (non-dynamic) cache life, so it's served
+    // straight from the cache rather than treated as a dynamic hole. A
+    // background revalidation regenerates a fresh entry for the next reload
+    // (asserted below).
     await browser.refresh({ waitUntil: 'commit' })
     await retry(async () => {
       expect(
@@ -83,5 +84,24 @@ describe('use-cache-size-zero', () => {
     await browser.elementById('value')
     await waitFor(500)
     expect(await browser.hasElementByCss('[data-cold-cache-badge]')).toBe(false)
+  })
+
+  it('does not surface a blocking-route error on a warm reload of a fully cached route', async () => {
+    const browser = await next.browser('/')
+
+    // Cold load: the page-level `'use cache'` misses and fills in the
+    // background while the result streams in immediately.
+    await retry(async () => {
+      expect(await browser.elementByCss('p').text()).toBe('Hello, world!')
+    })
+
+    // Warm reload (the second request): the dev cache serves the cached value.
+    // The route has no dynamic data, so serving it from cache must not surface
+    // a false-positive blocking-route red box.
+    await browser.refresh()
+    await retry(async () => {
+      expect(await browser.elementByCss('p').text()).toBe('Hello, world!')
+    })
+    await waitForNoErrorToast(browser)
   })
 })

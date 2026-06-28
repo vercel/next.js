@@ -601,6 +601,64 @@ pub async fn get_client_chunking_context(
     Ok(Vc::upcast(builder.build()))
 }
 
+#[turbo_tasks::task_input(contains_unresolved_vcs)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash, TraceRawVcs, Encode, Decode)]
+pub struct ServiceWorkerChunkingContextOptions {
+    pub mode: Vc<NextMode>,
+    pub root_path: FileSystemPath,
+    pub output_root: FileSystemPath,
+    pub output_root_to_root_path: RcStr,
+    pub environment: Vc<Environment>,
+    pub minify: Vc<bool>,
+    pub source_maps: Vc<SourceMapsType>,
+    pub no_mangling: Vc<bool>,
+    pub hash_salt: ResolvedVc<RcStr>,
+}
+
+#[turbo_tasks::function]
+pub async fn get_service_worker_chunking_context(
+    options: ServiceWorkerChunkingContextOptions,
+) -> Result<Vc<Box<dyn ChunkingContext>>> {
+    let ServiceWorkerChunkingContextOptions {
+        mode,
+        root_path,
+        output_root,
+        output_root_to_root_path,
+        environment,
+        minify,
+        source_maps,
+        no_mangling,
+        hash_salt,
+    } = options;
+
+    let next_mode = mode.await?;
+    let builder = BrowserChunkingContext::builder(
+        root_path,
+        output_root.clone(),
+        output_root_to_root_path,
+        output_root.clone(),
+        output_root.join("chunks")?,
+        output_root.join("media")?,
+        environment.to_resolved().await?,
+        next_mode.runtime_type(),
+    )
+    .current_chunk_method(CurrentChunkMethod::StringLiteral)
+    .asset_suffix(AssetSuffix::None.resolved_cell())
+    .minify_type(if *minify.await? {
+        MinifyType::Minify {
+            mangle: (!*no_mangling.await?).then_some(MangleType::OptimalSize),
+        }
+    } else {
+        MinifyType::NoMinify
+    })
+    .source_maps(*source_maps.await?)
+    .hash_salt(hash_salt)
+    .single_chunk()
+    .await?;
+
+    Ok(Vc::upcast(builder.build()))
+}
+
 #[turbo_tasks::function]
 pub async fn get_client_runtime_entries(
     project_root: FileSystemPath,

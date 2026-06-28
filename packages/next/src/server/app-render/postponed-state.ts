@@ -219,3 +219,53 @@ export function getPostponedFromState(state: DynamicHTMLPostponedState) {
   const [preludeState, postponed] = state.data
   return { preludeState, postponed }
 }
+
+/**
+ * Cheaply determines whether a serialized postponed state represents an empty
+ * HTML prelude — i.e. the static shell rendered no bytes before the first
+ * dynamic hole (a blocking dynamic API at the root with no Suspense boundary
+ * above it). Returns false for dynamic-data states or unparseable input.
+ *
+ * Unlike `parsePostponedState`, this does not interpolate fallback route params
+ * or build a resume data cache: it only reads the prelude marker, which is
+ * independent of param values. The Instant Navigation Testing API uses this to
+ * detect the blank-document case in both dev (fresh render) and production
+ * (prebuilt shell), where the marker is persisted in the postponed state.
+ */
+export function isEmptyHTMLPrelude(state: string): boolean {
+  try {
+    const lengthMatch = state.match(/^([0-9]*):/)?.[1]
+    if (!lengthMatch) {
+      return false
+    }
+
+    const length = parseInt(lengthMatch)
+    let postponedString = state.slice(
+      lengthMatch.length + 1,
+      lengthMatch.length + 1 + length
+    )
+
+    // `null` is the dynamic-data case (a full shell was produced).
+    if (postponedString === 'null') {
+      return false
+    }
+
+    // An optional `<n><replacements>` prefix carries fallback route param
+    // replacements; skip it to reach the `[preludeState, postponed]` data.
+    if (/^[0-9]/.test(postponedString)) {
+      const replacementsLengthMatch = postponedString.match(/^([0-9]*)/)?.[1]
+      if (!replacementsLengthMatch) {
+        return false
+      }
+      const replacementsLength = parseInt(replacementsLengthMatch)
+      postponedString = postponedString.slice(
+        replacementsLengthMatch.length + replacementsLength
+      )
+    }
+
+    const data = JSON.parse(postponedString)
+    return Array.isArray(data) && data[0] === DynamicHTMLPreludeState.Empty
+  } catch {
+    return false
+  }
+}

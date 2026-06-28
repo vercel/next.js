@@ -104,6 +104,11 @@ async function createFlightRouterStateFromLoaderTreeImpl(
     (typeof instantConfig === 'object' && instantConfig !== null)
   if (isInstant) {
     prefetchHints |= PrefetchHint.SubtreeHasPartialPrefetching
+  } else if (instantConfig === false) {
+    // The segment explicitly opts out of Partial Prefetching. We don't change
+    // the prefetch behavior, but we record it so the dev-time
+    // `<Link prefetch={true}>` warning can be suppressed for this route.
+    prefetchHints |= PrefetchHint.SubtreeHasInstantFalse
   }
 
   if (prefetchConfig === 'partial') {

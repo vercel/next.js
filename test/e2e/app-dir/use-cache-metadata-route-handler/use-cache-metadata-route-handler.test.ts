@@ -17,6 +17,20 @@ describe('use-cache-metadata-route-handler', () => {
     }
   })
 
+  it('should generate an opengraph image with a custom (local) font', async () => {
+    const res = await next.fetch('/custom-font/opengraph-image')
+    expect(res.status).toBe(200)
+    expect(res.headers.get('content-type')).toBe('image/png')
+
+    if (isNextStart) {
+      const [buildStatus] = next.cliOutput.match(
+        /. \/custom-font\/opengraph-image/
+      )
+
+      expect(buildStatus).toBe('○ /custom-font/opengraph-image')
+    }
+  })
+
   it('should generate an icon image with a metadata route handler that uses "use cache"', async () => {
     const res = await next.fetch('/icon')
     expect(res.status).toBe(200)

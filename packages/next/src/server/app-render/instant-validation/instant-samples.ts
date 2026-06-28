@@ -42,6 +42,7 @@ function getExpectedSampleTracking(): InstantValidationSampleTracking {
       case 'private-cache':
       case 'unstable-cache':
       case 'prerender-legacy':
+      case 'prerender-ppr':
       case 'prerender-client':
       case 'prerender':
       case 'prerender-runtime':

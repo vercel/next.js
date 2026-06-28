@@ -684,7 +684,7 @@ Or run this command again without the --no-install flag to do both automatically
       await execa('git', ['rev-parse', 'HEAD'])
     ).stdout.trim()
 
-    const finalSignedSha = await replayLocalCommitsAsSigned({
+    const { headSha: finalSignedSha } = await replayLocalCommitsAsSigned({
       token: releaseGithubToken,
       owner: repoOwner,
       repo: repoName,

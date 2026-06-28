@@ -41,7 +41,9 @@ const zExportMap: zod.ZodType<ExportPathMap> = z.record(
     _fallbackRouteParams: z.array(z.any()).optional(),
     _isAppDir: z.boolean().optional(),
     _isDynamicError: z.boolean().optional(),
+    _isRoutePPREnabled: z.boolean().optional(),
     _allowEmptyStaticShell: z.boolean().optional(),
+    _isFallbackUpgradeable: z.boolean().optional(),
   })
 )
 
@@ -193,6 +195,7 @@ export const experimentalSchema = {
   after: z.boolean().optional(),
   appNavFailHandling: z.boolean().optional(),
   appNewScrollHandler: z.boolean().optional(),
+  coldCacheBadge: z.boolean().optional(),
   preloadEntriesOnStart: z.boolean().optional(),
   allowedRevalidateHeaderKeys: z.array(z.string()).optional(),
   staleTimes: z
