@@ -117,7 +117,7 @@ impl MergedModuleMap {
 
     /// Returns the hash of the module with the given id, or `None` if the
     /// module is not present in any of the versions.
-    fn get(&self, id: &ModuleId) -> Option<u64> {
+    fn get(&self, id: &ModuleId) -> Option<u128> {
         for version in &self.versions {
             if let Some(hash) = version.entries_hashes.get(id) {
                 return Some(*hash);

@@ -2061,7 +2061,8 @@ impl CurrentCellRef {
             {
                 return None;
             }
-            let content_hash = hash_xxh3_hash128(&new_value);
+            let content_hash = hash_xxh3_hash128(&new_value).to_le_bytes();
+
             Some((new_value, None, Some(content_hash)))
         });
     }
@@ -2085,7 +2086,8 @@ impl CurrentCellRef {
                     return None;
                 }
             }
-            let content_hash = hash_xxh3_hash128(extract_sr_value::<T>(&new_shared_reference));
+            let content_hash =
+                hash_xxh3_hash128(extract_sr_value::<T>(&new_shared_reference)).to_le_bytes();
             Some((new_shared_reference, None, Some(content_hash)))
         });
     }

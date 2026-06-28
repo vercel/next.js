@@ -13,7 +13,7 @@ use turbopack_ecmascript::chunk::{EcmascriptChunkContent, EcmascriptChunkContent
 pub(super) struct EcmascriptBuildNodeChunkVersion {
     pub(super) chunk_path: RcStr,
     pub(super) minify_type: MinifyType,
-    pub(super) entries_hashes: FxIndexMap<ModuleId, u64>,
+    pub(super) entries_hashes: FxIndexMap<ModuleId, u128>,
 }
 
 #[turbo_tasks::value_impl]

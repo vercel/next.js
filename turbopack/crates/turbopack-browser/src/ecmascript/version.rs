@@ -9,7 +9,7 @@ use turbopack_ecmascript::chunk::{EcmascriptChunkContent, EcmascriptChunkContent
 #[turbo_tasks::value(serialization = "skip")]
 pub(super) struct EcmascriptBrowserChunkVersion {
     pub(super) chunk_path: String,
-    pub(super) entries_hashes: FxIndexMap<ModuleId, u64>,
+    pub(super) entries_hashes: FxIndexMap<ModuleId, u128>,
 }
 
 #[turbo_tasks::value_impl]
