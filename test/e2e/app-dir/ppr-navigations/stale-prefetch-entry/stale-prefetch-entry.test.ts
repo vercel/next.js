@@ -1,4 +1,4 @@
-import { createNext } from 'e2e-utils'
+import { nextTestSetup } from 'e2e-utils'
 import { findPort } from 'next-test-utils'
 import { createTestDataServer } from 'test-data-service/writer'
 import { createTestLog } from 'test-log'
@@ -11,10 +11,13 @@ describe('stale-prefetch-entry', () => {
     return
   }
 
+  const { next } = nextTestSetup({
+    files: __dirname,
+    skipStart: true,
+  })
+
   let server
-  let next
-  afterEach(async () => {
-    await next?.destroy()
+  afterEach(() => {
     server?.close()
   })
 
@@ -42,10 +45,8 @@ describe('stale-prefetch-entry', () => {
       })
       const port = await findPort()
       server.listen(port)
-      next = await createNext({
-        files: __dirname,
-        env: { TEST_DATA_SERVICE_URL: `http://localhost:${port}` },
-      })
+      next.env.TEST_DATA_SERVICE_URL = `http://localhost:${port}`
+      await next.start()
       TestLog.assert(['REQUEST: Some data [static]'])
       autoresolveRequests = false
 

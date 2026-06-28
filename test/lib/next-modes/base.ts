@@ -18,7 +18,7 @@ import {
 } from 'next-test-utils'
 import cheerio from 'cheerio'
 import { once } from 'events'
-import { Playwright } from 'next-webdriver'
+import type { Playwright } from '../browsers/playwright'
 import escapeStringRegexp from 'escape-string-regexp'
 import { Page, Response } from 'playwright'
 
@@ -71,7 +71,7 @@ type OmitFirstArgument<F> = F extends (
 
 // Do not rename or format. sync-react script relies on this line.
 // prettier-ignore
-const nextjsReactPeerVersion = "19.2.6";
+const nextjsReactPeerVersion = "19.2.7";
 
 const ROOT_PACKAGE_MANAGER: string =
   require('../../../package.json').packageManager
@@ -371,7 +371,7 @@ export class NextInstance {
 
         if (nextConfigFile && this.nextConfig) {
           throw new Error(
-            `nextConfig provided on "createNext()" and as a file "${nextConfigFile}", use one or the other to continue`
+            `nextConfig provided on "nextTestSetup()" and as a file "${nextConfigFile}", use one or the other to continue`
           )
         }
 
@@ -750,7 +750,10 @@ export class NextInstance {
     }
   }
 
-  public async start(options?: { skipBuild?: boolean }): Promise<void> {}
+  public async start(options?: {
+    skipBuild?: boolean
+    env?: Record<string, string>
+  }): Promise<void> {}
 
   public async stop(
     signal: 'SIGINT' | 'SIGTERM' | 'SIGKILL' = 'SIGKILL'

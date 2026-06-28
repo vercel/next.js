@@ -22,6 +22,8 @@ export type ServerInitResult = {
   experimentalFeatures: ConfiguredExperimentalFeature[]
   // Whether cache components is enabled
   cacheComponents: boolean
+  // Whether partial prefetching is enabled (and its mode)
+  partialPrefetching?: boolean | 'unstable_eager'
   // Whether AGENTS.md / CLAUDE.md auto-generation is enabled (default true)
   agentRules?: boolean
 }
@@ -103,6 +105,7 @@ async function initializeImpl(opts: {
   distDir: string
   experimentalFeatures: ConfiguredExperimentalFeature[]
   cacheComponents: boolean
+  partialPrefetching?: boolean | 'unstable_eager'
 }): Promise<ServerInitResult> {
   const type = process.env.__NEXT_PRIVATE_RENDER_WORKER
   if (type) {
@@ -181,6 +184,7 @@ async function initializeImpl(opts: {
     distDir: opts.distDir,
     experimentalFeatures: opts.experimentalFeatures,
     cacheComponents: opts.cacheComponents,
+    partialPrefetching: opts.partialPrefetching,
   }
 }
 

@@ -71,15 +71,17 @@ describe('build-output-prerender', () => {
         if (isTurbopack) {
           // TODO(veil): Why is the location incomplete unless we enable --no-mangling?
           expect(getPrerenderOutput(next.cliOutput)).toMatchInlineSnapshot(`
-           "Error: Route "/client": Next.js encountered \`new Date()\` in a Client Component.
+           "Error: Route "/client": Next.js encountered the unstable value \`new Date()\` in a Client Component.
 
-           This value would be evaluated during the prerender and fixed at build time, instead of recomputed on each visit.
+           This value would be evaluated during the prerender, instead of recomputed on each visit.
 
            Ways to fix this:
-             - Wrap the Client Component in \`<Suspense fallback={...}>\`
-             - Move the read into a \`useEffect\` or event handler
-
-           Learn more: https://nextjs.org/docs/messages/next-prerender-current-time-client
+             - [stream] Wrap the Client Component in \`<Suspense fallback={...}>\`
+               https://nextjs.org/docs/messages/blocking-prerender-current-time-client#wrap-in-or-move-into-suspense
+             - [defer] Move the read into a \`useEffect\` or event handler
+               https://nextjs.org/docs/messages/blocking-prerender-current-time-client#move-into-effect-or-event-handler
+             - [measure] If the value is for telemetry, use a timing API such as \`performance.now()\`
+               https://nextjs.org/docs/messages/blocking-prerender-current-time-client#for-telemetry-use-a-timing-api
                at <unknown> (app/client/page.tsx:4:28)
              2 |
              3 | export default function Page() {
@@ -95,15 +97,17 @@ describe('build-output-prerender', () => {
           `)
         } else {
           expect(getPrerenderOutput(next.cliOutput)).toMatchInlineSnapshot(`
-           "Error: Route "/client": Next.js encountered \`new Date()\` in a Client Component.
+           "Error: Route "/client": Next.js encountered the unstable value \`new Date()\` in a Client Component.
 
-           This value would be evaluated during the prerender and fixed at build time, instead of recomputed on each visit.
+           This value would be evaluated during the prerender, instead of recomputed on each visit.
 
            Ways to fix this:
-             - Wrap the Client Component in \`<Suspense fallback={...}>\`
-             - Move the read into a \`useEffect\` or event handler
-
-           Learn more: https://nextjs.org/docs/messages/next-prerender-current-time-client
+             - [stream] Wrap the Client Component in \`<Suspense fallback={...}>\`
+               https://nextjs.org/docs/messages/blocking-prerender-current-time-client#wrap-in-or-move-into-suspense
+             - [defer] Move the read into a \`useEffect\` or event handler
+               https://nextjs.org/docs/messages/blocking-prerender-current-time-client#move-into-effect-or-event-handler
+             - [measure] If the value is for telemetry, use a timing API such as \`performance.now()\`
+               https://nextjs.org/docs/messages/blocking-prerender-current-time-client#for-telemetry-use-a-timing-api
                at x (<next-dist-dir>)
            To get a more detailed stack trace and pinpoint the issue, try one of the following:
              - Start the app in development mode by running \`next dev\`, then open "/client" in your browser to investigate the error.
@@ -210,15 +214,17 @@ describe('build-output-prerender', () => {
       it('shows all prerender errors with readable stacks and code frames', async () => {
         if (isTurbopack) {
           expect(getPrerenderOutput(next.cliOutput)).toMatchInlineSnapshot(`
-           "Error: Route "/client": Next.js encountered \`new Date()\` in a Client Component.
+           "Error: Route "/client": Next.js encountered the unstable value \`new Date()\` in a Client Component.
 
-           This value would be evaluated during the prerender and fixed at build time, instead of recomputed on each visit.
+           This value would be evaluated during the prerender, instead of recomputed on each visit.
 
            Ways to fix this:
-             - Wrap the Client Component in \`<Suspense fallback={...}>\`
-             - Move the read into a \`useEffect\` or event handler
-
-           Learn more: https://nextjs.org/docs/messages/next-prerender-current-time-client
+             - [stream] Wrap the Client Component in \`<Suspense fallback={...}>\`
+               https://nextjs.org/docs/messages/blocking-prerender-current-time-client#wrap-in-or-move-into-suspense
+             - [defer] Move the read into a \`useEffect\` or event handler
+               https://nextjs.org/docs/messages/blocking-prerender-current-time-client#move-into-effect-or-event-handler
+             - [measure] If the value is for telemetry, use a timing API such as \`performance.now()\`
+               https://nextjs.org/docs/messages/blocking-prerender-current-time-client#for-telemetry-use-a-timing-api
                at Page (app/client/page.tsx:4:28)
              2 |
              3 | export default function Page() {
@@ -228,16 +234,17 @@ describe('build-output-prerender', () => {
              6 |
            To debug the issue, start the app in development mode by running \`next dev\`, then open "/client" in your browser to investigate the error.
            Error occurred prerendering page "/client". Read more: https://nextjs.org/docs/messages/prerender-error
-           Error: Route "/server": Next.js encountered \`Math.random()\` without an explicit rendering intent.
+           Error: Route "/server": Next.js encountered the unstable value \`Math.random()\` while prerendering.
 
            This value can change between renders, so it must be either prerendered or computed later.
 
            Ways to fix this:
-             - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
-             - Prerender and cache the value with \`"use cache"\`
-             - Render the value on the client with \`"use client"\`
-
-           Learn more: https://nextjs.org/docs/messages/next-prerender-random
+             - [dynamic] Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
+               https://nextjs.org/docs/messages/blocking-prerender-random#generate-on-every-request
+             - [cache] Prerender and cache the value with \`"use cache"\`
+               https://nextjs.org/docs/messages/blocking-prerender-random#cache-the-random-value
+             - [client] Render the value on the client with \`"use client"\`
+               https://nextjs.org/docs/messages/blocking-prerender-random#render-on-the-client
                at Page (app/server/page.tsx:13:27)
                at Page (<anonymous>)
              11 |   await cachedDelay()
@@ -256,15 +263,17 @@ describe('build-output-prerender', () => {
         } else {
           // TODO(veil): Bundler protocols should not appear in stackframes.
           expect(getPrerenderOutput(next.cliOutput)).toMatchInlineSnapshot(`
-           "Error: Route "/client": Next.js encountered \`new Date()\` in a Client Component.
+           "Error: Route "/client": Next.js encountered the unstable value \`new Date()\` in a Client Component.
 
-           This value would be evaluated during the prerender and fixed at build time, instead of recomputed on each visit.
+           This value would be evaluated during the prerender, instead of recomputed on each visit.
 
            Ways to fix this:
-             - Wrap the Client Component in \`<Suspense fallback={...}>\`
-             - Move the read into a \`useEffect\` or event handler
-
-           Learn more: https://nextjs.org/docs/messages/next-prerender-current-time-client
+             - [stream] Wrap the Client Component in \`<Suspense fallback={...}>\`
+               https://nextjs.org/docs/messages/blocking-prerender-current-time-client#wrap-in-or-move-into-suspense
+             - [defer] Move the read into a \`useEffect\` or event handler
+               https://nextjs.org/docs/messages/blocking-prerender-current-time-client#move-into-effect-or-event-handler
+             - [measure] If the value is for telemetry, use a timing API such as \`performance.now()\`
+               https://nextjs.org/docs/messages/blocking-prerender-current-time-client#for-telemetry-use-a-timing-api
                at Page (webpack:///app/client/page.tsx:4:28)
                at ClientPageRoot (webpack:///src/client/components/client-page.tsx:61:12)
              2 |
@@ -275,16 +284,17 @@ describe('build-output-prerender', () => {
              6 |
            To debug the issue, start the app in development mode by running \`next dev\`, then open "/client" in your browser to investigate the error.
            Error occurred prerendering page "/client". Read more: https://nextjs.org/docs/messages/prerender-error
-           Error: Route "/server": Next.js encountered \`Math.random()\` without an explicit rendering intent.
+           Error: Route "/server": Next.js encountered the unstable value \`Math.random()\` while prerendering.
 
            This value can change between renders, so it must be either prerendered or computed later.
 
            Ways to fix this:
-             - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
-             - Prerender and cache the value with \`"use cache"\`
-             - Render the value on the client with \`"use client"\`
-
-           Learn more: https://nextjs.org/docs/messages/next-prerender-random
+             - [dynamic] Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
+               https://nextjs.org/docs/messages/blocking-prerender-random#generate-on-every-request
+             - [cache] Prerender and cache the value with \`"use cache"\`
+               https://nextjs.org/docs/messages/blocking-prerender-random#cache-the-random-value
+             - [client] Render the value on the client with \`"use client"\`
+               https://nextjs.org/docs/messages/blocking-prerender-random#render-on-the-client
                at Page (webpack:///app/server/page.tsx:13:27)
                at Page (<anonymous>)
              11 |   await cachedDelay()
@@ -492,5 +502,18 @@ function getPrerenderOutput(cliOutput: string): string {
     }
   }
 
-  return lines.join('\n').trim()
+  const output = lines.join('\n').trim()
+  const summaryIndex = output.indexOf('\n\n> Export encountered errors')
+
+  if (summaryIndex === -1) {
+    return output
+  }
+
+  // Routes prerender concurrently, so their errors can be reported in any order.
+  const errors = output
+    .slice(0, summaryIndex)
+    .split(/(?=^Error: Route )/m)
+    .sort()
+
+  return `${errors.join('')}${output.slice(summaryIndex)}`
 }

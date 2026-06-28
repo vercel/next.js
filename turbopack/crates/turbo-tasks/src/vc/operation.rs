@@ -109,7 +109,7 @@ impl<T: ?Sized> OperationVc<T> {
     #[deprecated = "This is an internal function. Use #[turbo_tasks::function(operation)] instead."]
     pub fn cell_private(node: Vc<T>) -> Self {
         debug_assert!(
-            matches!(node.node, RawVc::TaskOutput(..)),
+            node.node.as_task_output().is_some(),
             "OperationVc::cell_private must be called on the immediate return value of a task \
              function"
         );
@@ -246,7 +246,7 @@ where
     type Error = anyhow::Error;
 
     fn try_from(raw: RawVc) -> Result<Self> {
-        if !matches!(raw, RawVc::TaskOutput(..)) {
+        if raw.as_task_output().is_none() {
             anyhow::bail!("Given RawVc {raw:?} is not a TaskOutput");
         }
         Ok(Self {

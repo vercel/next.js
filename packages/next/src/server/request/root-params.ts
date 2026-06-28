@@ -108,7 +108,14 @@ export function getRootParam(paramName: string): Promise<ParamValue> {
       }
       break
     }
-    case 'private-cache':
+    case 'private-cache': {
+      // In dev, private caches are persisted and keyed by root params (like
+      // public caches), so we track which ones were read.
+      if (workUnitStore.readRootParamNames) {
+        workUnitStore.readRootParamNames.add(paramName)
+      }
+      break
+    }
     case 'prerender-runtime': {
       break
     }

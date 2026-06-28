@@ -1,9 +1,9 @@
-import { NextInstance, createNext } from 'e2e-utils'
-import { trace } from 'next/dist/trace'
+import { nextTestSetup } from 'e2e-utils'
 import { PHASE_DEVELOPMENT_SERVER } from 'next/constants'
 import { createDefineEnv, loadBindings, HmrTarget } from 'next/dist/build/swc'
 import type {
   Issue,
+  MemoryEvictionMode,
   Project,
   RawEntrypoints,
   StyledString,
@@ -121,39 +121,33 @@ export default () => <div>${text}<Client /></div>;`
 }
 
 describe('next.rs api writeToDisk multiple times', () => {
-  let next: NextInstance
-  afterEach(async () => {
-    await next?.destroy()
-  })
-  it('should allow to write to disk multiple times', async () => {
-    next = await createNext({
-      skipStart: true,
-      files: {
-        'pages/index.js': pagesIndexCode('hello world'),
-        'lib/props.js': 'export default {}',
-        'pages/page-nodejs.js': 'export default () => <div>hello world</div>',
-        'pages/page-edge.js':
-          'export default () => <div>hello world</div>\nexport const config = { runtime: "experimental-edge" }',
-        'pages/api/nodejs.js':
-          'export default () => Response.json({ hello: "world" })',
-        'pages/api/edge.js':
-          'export default () => Response.json({ hello: "world" })\nexport const config = { runtime: "edge" }',
-        'app/layout.tsx':
-          'export default function RootLayout({ children }: { children: any }) { return (<html><body>{children}</body></html>)}',
-        'app/loading.tsx':
-          'export default function Loading() { return <>Loading</> }',
-        'app/app/page.tsx': appPageCode('hello world'),
-        'app/app/client.tsx':
-          '"use client";\nexport default () => <div>hello world</div>',
-        'app/app-edge/page.tsx':
-          'export default () => <div>hello world</div>\nexport const runtime = "edge"',
-        'app/app-nodejs/page.tsx':
-          'export default () => <div>hello world</div>',
-        'app/route-nodejs/route.ts':
-          'export function GET() { return Response.json({ hello: "world" }) }',
-        'app/route-edge/route.ts':
-          'export function GET() { return Response.json({ hello: "world" }) }\nexport const runtime = "edge"',
-        'server.js': `
+  const { next } = nextTestSetup({
+    skipStart: true,
+    files: {
+      'pages/index.js': pagesIndexCode('hello world'),
+      'lib/props.js': 'export default {}',
+      'pages/page-nodejs.js': 'export default () => <div>hello world</div>',
+      'pages/page-edge.js':
+        'export default () => <div>hello world</div>\nexport const config = { runtime: "experimental-edge" }',
+      'pages/api/nodejs.js':
+        'export default () => Response.json({ hello: "world" })',
+      'pages/api/edge.js':
+        'export default () => Response.json({ hello: "world" })\nexport const config = { runtime: "edge" }',
+      'app/layout.tsx':
+        'export default function RootLayout({ children }: { children: any }) { return (<html><body>{children}</body></html>)}',
+      'app/loading.tsx':
+        'export default function Loading() { return <>Loading</> }',
+      'app/app/page.tsx': appPageCode('hello world'),
+      'app/app/client.tsx':
+        '"use client";\nexport default () => <div>hello world</div>',
+      'app/app-edge/page.tsx':
+        'export default () => <div>hello world</div>\nexport const runtime = "edge"',
+      'app/app-nodejs/page.tsx': 'export default () => <div>hello world</div>',
+      'app/route-nodejs/route.ts':
+        'export function GET() { return Response.json({ hello: "world" }) }',
+      'app/route-edge/route.ts':
+        'export function GET() { return Response.json({ hello: "world" }) }\nexport const runtime = "edge"',
+      'server.js': `
 process.title = 'next.rs api run test';
 const path = require('path');
 const { PHASE_DEVELOPMENT_SERVER } = require('next/constants');
@@ -207,6 +201,8 @@ async function main() {
     currentNodeJsVersion: '18.0.0',
     isPersistentCachingEnabled: false,
     nextVersion: '0.0.0',
+  }, {
+    turbopackMemoryEviction: 'off',
   });
 
   const entrypointsSubscription = project.entrypointsSubscribe();
@@ -263,9 +259,10 @@ main()
   });
 
         `,
-      },
-    })
+    },
+  })
 
+  it('should allow to write to disk multiple times', async () => {
     const result = spawnSync(
       'node',
       ['--expose-gc', join(next.testDir, 'server.js')],
@@ -281,41 +278,34 @@ main()
 })
 
 describe('next.rs api', () => {
-  let next: NextInstance
-  beforeAll(async () => {
-    await trace('setup next instance').traceAsyncFn(async (rootSpan) => {
-      next = await createNext({
-        skipStart: true,
-        files: {
-          'pages/index.js': pagesIndexCode('hello world'),
-          'lib/props.js': 'export default {}',
-          'pages/page-nodejs.js': 'export default () => <div>hello world</div>',
-          'pages/page-edge.js':
-            'export default () => <div>hello world</div>\nexport const config = { runtime: "experimental-edge" }',
-          'pages/api/nodejs.js':
-            'export default () => Response.json({ hello: "world" })',
-          'pages/api/edge.js':
-            'export default () => Response.json({ hello: "world" })\nexport const config = { runtime: "edge" }',
-          'app/layout.tsx':
-            'export default function RootLayout({ children }: { children: any }) { return (<html><body>{children}</body></html>)}',
-          'app/loading.tsx':
-            'export default function Loading() { return <>Loading</> }',
-          'app/app/page.tsx': appPageCode('hello world'),
-          'app/app/client.tsx':
-            '"use client";\nexport default () => <div>hello world</div>',
-          'app/app-edge/page.tsx':
-            'export default () => <div>hello world</div>\nexport const runtime = "edge"',
-          'app/app-nodejs/page.tsx':
-            'export default () => <div>hello world</div>',
-          'app/route-nodejs/route.ts':
-            'export function GET() { return Response.json({ hello: "world" }) }',
-          'app/route-edge/route.ts':
-            'export function GET() { return Response.json({ hello: "world" }) }\nexport const runtime = "edge"',
-        },
-      })
-    })
+  const { next } = nextTestSetup({
+    skipStart: true,
+    files: {
+      'pages/index.js': pagesIndexCode('hello world'),
+      'lib/props.js': 'export default {}',
+      'pages/page-nodejs.js': 'export default () => <div>hello world</div>',
+      'pages/page-edge.js':
+        'export default () => <div>hello world</div>\nexport const config = { runtime: "experimental-edge" }',
+      'pages/api/nodejs.js':
+        'export default () => Response.json({ hello: "world" })',
+      'pages/api/edge.js':
+        'export default () => Response.json({ hello: "world" })\nexport const config = { runtime: "edge" }',
+      'app/layout.tsx':
+        'export default function RootLayout({ children }: { children: any }) { return (<html><body>{children}</body></html>)}',
+      'app/loading.tsx':
+        'export default function Loading() { return <>Loading</> }',
+      'app/app/page.tsx': appPageCode('hello world'),
+      'app/app/client.tsx':
+        '"use client";\nexport default () => <div>hello world</div>',
+      'app/app-edge/page.tsx':
+        'export default () => <div>hello world</div>\nexport const runtime = "edge"',
+      'app/app-nodejs/page.tsx': 'export default () => <div>hello world</div>',
+      'app/route-nodejs/route.ts':
+        'export function GET() { return Response.json({ hello: "world" }) }',
+      'app/route-edge/route.ts':
+        'export function GET() { return Response.json({ hello: "world" }) }\nexport const runtime = "edge"',
+    },
   })
-  afterAll(() => next.destroy())
 
   let project: Project
   let projectUpdateSubscription: AsyncIterableIterator<UpdateInfo>
@@ -326,46 +316,51 @@ describe('next.rs api', () => {
       ? path.resolve(__dirname, '../../..')
       : next.testDir
     const distDir = '.next'
-    project = await bindings.turbo.createProject({
-      env: {},
-      nextConfig: nextConfig,
-      rootPath,
-      projectPath: path.relative(rootPath, next.testDir) || '.',
-      distDir,
-      watch: {
-        enable: true,
-      },
-      dev: true,
-      defineEnv: createDefineEnv({
-        projectPath: next.testDir,
-        isTurbopack: true,
-        clientRouterFilters: undefined,
-        config: nextConfig,
-        dev: true,
-        distDir: path.join(rootPath, distDir),
-        fetchCacheKeyPrefix: undefined,
-        hasRewrites: false,
-        middlewareMatchers: undefined,
-        rewrites: {
-          beforeFiles: [],
-          afterFiles: [],
-          fallback: [],
+    project = await bindings.turbo.createProject(
+      {
+        env: {},
+        nextConfig: nextConfig,
+        rootPath,
+        projectPath: path.relative(rootPath, next.testDir) || '.',
+        distDir,
+        watch: {
+          enable: true,
         },
-      }),
-      buildId: 'development',
-      encryptionKey: '12345',
-      previewProps: {
-        previewModeId: 'development',
-        previewModeEncryptionKey: '12345',
-        previewModeSigningKey: '12345',
+        dev: true,
+        defineEnv: createDefineEnv({
+          projectPath: next.testDir,
+          isTurbopack: true,
+          clientRouterFilters: undefined,
+          config: nextConfig,
+          dev: true,
+          distDir: path.join(rootPath, distDir),
+          fetchCacheKeyPrefix: undefined,
+          hasRewrites: false,
+          middlewareMatchers: undefined,
+          rewrites: {
+            beforeFiles: [],
+            afterFiles: [],
+            fallback: [],
+          },
+        }),
+        buildId: 'development',
+        encryptionKey: '12345',
+        previewProps: {
+          previewModeId: 'development',
+          previewModeEncryptionKey: '12345',
+          previewModeSigningKey: '12345',
+        },
+        browserslistQuery: 'last 2 versions',
+        noMangling: false,
+        writeRoutesHashesManifest: false,
+        currentNodeJsVersion: '18.0.0',
+        isPersistentCachingEnabled: false,
+        nextVersion: '0.0.0',
       },
-      browserslistQuery: 'last 2 versions',
-      noMangling: false,
-      writeRoutesHashesManifest: false,
-      currentNodeJsVersion: '18.0.0',
-      isPersistentCachingEnabled: false,
-      nextVersion: '0.0.0',
-    })
+      {
+        turbopackMemoryEviction: 'off' as MemoryEvictionMode,
+      }
+    )
     projectUpdateSubscription = filterMapAsyncIterator(
       project.updateInfoSubscribe(1000),
       (update) => (update.updateType === 'end' ? update.value : undefined)

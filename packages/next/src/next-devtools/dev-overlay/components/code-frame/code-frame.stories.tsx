@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/react'
 import { CodeFrame } from './code-frame'
-import { withShadowPortal } from '../../storybook/with-shadow-portal'
+import { withShadowPortal } from '../../../../../.storybook/decorators/with-shadow-portal'
 
 const meta: Meta<typeof CodeFrame> = {
   component: CodeFrame,

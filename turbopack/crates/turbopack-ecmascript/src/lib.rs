@@ -13,6 +13,7 @@ pub mod async_chunk;
 pub mod bytes_source_transform;
 pub mod chunk;
 pub mod code_gen;
+pub mod embed_js;
 mod errors;
 pub mod json_source_transform;
 pub mod magic_identifier;
@@ -77,9 +78,9 @@ use swc_core::{
 use tracing::{Instrument, Level, instrument};
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
-    FxDashMap, FxIndexMap, NonLocalValue, ReadRef, ResolvedVc, SerializationInvalidator, TaskInput,
-    TryJoinIterExt, Upcast, ValueToString, Vc, get_serialization_invalidator,
-    parking_lot_mutex_bincode, trace::TraceRawVcs, turbofmt,
+    FxDashMap, FxIndexMap, ReadRef, ResolvedVc, SerializationInvalidator, TryJoinIterExt, Upcast,
+    ValueToString, Vc, get_serialization_invalidator, parking_lot_mutex_bincode,
+    trace::TraceRawVcs, turbofmt,
 };
 use turbo_tasks_fs::{FileJsonContent, FileSystemPath, glob::Glob, rope::Rope};
 use turbopack_core::{
@@ -124,26 +125,16 @@ use crate::{
 pub use crate::{
     references::{AnalyzeEcmascriptModuleResult, TURBOPACK_HELPER},
     static_code::StaticEcmascriptCode,
+    swc_comments::swc_comments_to_single_threaded,
     transform::{
         CustomTransformer, EcmascriptInputTransform, EcmascriptInputTransforms, TransformContext,
         TransformPlugin,
     },
 };
 
+#[turbo_tasks::task_input]
 #[derive(
-    Eq,
-    PartialEq,
-    Hash,
-    Debug,
-    Clone,
-    Copy,
-    Default,
-    TaskInput,
-    TraceRawVcs,
-    NonLocalValue,
-    Deserialize,
-    Encode,
-    Decode,
+    Eq, PartialEq, Hash, Debug, Clone, Copy, Default, TraceRawVcs, Deserialize, Encode, Decode,
 )]
 pub enum SpecifiedModuleType {
     #[default]
@@ -152,6 +143,7 @@ pub enum SpecifiedModuleType {
     EcmaScript,
 }
 
+#[turbo_tasks::task_input]
 #[derive(
     PartialOrd,
     Ord,
@@ -163,9 +155,7 @@ pub enum SpecifiedModuleType {
     Copy,
     Default,
     Deserialize,
-    TaskInput,
     TraceRawVcs,
-    NonLocalValue,
     Encode,
     Decode,
 )]
@@ -176,6 +166,7 @@ pub enum TreeShakingMode {
     ReexportsOnly,
 }
 
+#[turbo_tasks::task_input]
 #[derive(
     PartialOrd,
     Ord,
@@ -187,9 +178,7 @@ pub enum TreeShakingMode {
     Copy,
     Default,
     Deserialize,
-    TaskInput,
     TraceRawVcs,
-    NonLocalValue,
     Encode,
     Decode,
 )]
@@ -224,9 +213,8 @@ impl AnalyzeMode {
 pub struct OptionTreeShaking(pub Option<TreeShakingMode>);
 
 /// The constant to replace `typeof window` with.
-#[derive(
-    Copy, Clone, PartialEq, Eq, Debug, Hash, TraceRawVcs, NonLocalValue, TaskInput, Encode, Decode,
-)]
+#[turbo_tasks::task_input]
+#[derive(Copy, Clone, PartialEq, Eq, Debug, Hash, TraceRawVcs, Encode, Decode)]
 pub enum TypeofWindow {
     Object,
     Undefined,
@@ -273,8 +261,8 @@ pub struct EcmascriptOptions {
     pub infer_module_side_effects: bool,
 }
 
-#[turbo_tasks::value]
-#[derive(Hash, Debug, Copy, Clone, TaskInput)]
+#[turbo_tasks::value(task_input)]
+#[derive(Hash, Debug, Copy, Clone)]
 pub enum EcmascriptModuleAssetType {
     /// Module with EcmaScript code
     Ecmascript,
@@ -439,18 +427,14 @@ pub struct EcmascriptModuleAsset {
     pub compile_time_info: ResolvedVc<CompileTimeInfo>,
     pub side_effect_free_packages: Option<ResolvedVc<Glob>>,
     pub inner_assets: Option<ResolvedVc<InnerAssets>>,
+    /// The path of `source`, precomputed so that `ResolveOrigin::origin_path` is synchronous.
+    origin_path: FileSystemPath,
 }
 
 #[turbo_tasks::value_trait]
 pub trait EcmascriptParsable {
     #[turbo_tasks::function]
-    fn failsafe_parse(self: Vc<Self>) -> Result<Vc<ParseResult>>;
-
-    #[turbo_tasks::function]
-    fn parse_original(self: Vc<Self>) -> Result<Vc<ParseResult>>;
-
-    #[turbo_tasks::function]
-    fn ty(self: Vc<Self>) -> Result<Vc<EcmascriptModuleAssetType>>;
+    fn failsafe_parse(self: Vc<Self>) -> Vc<ParseResult>;
 }
 
 #[turbo_tasks::value_trait]
@@ -611,16 +595,6 @@ impl EcmascriptParsable for EcmascriptModuleAsset {
             Ok(real_result)
         }
     }
-
-    #[turbo_tasks::function]
-    fn parse_original(self: Vc<Self>) -> Vc<ParseResult> {
-        self.failsafe_parse()
-    }
-
-    #[turbo_tasks::function]
-    fn ty(&self) -> Vc<EcmascriptModuleAssetType> {
-        self.ty.cell()
-    }
 }
 
 #[turbo_tasks::value_impl]
@@ -717,7 +691,7 @@ async fn determine_module_type_for_directory(
 #[turbo_tasks::value_impl]
 impl EcmascriptModuleAsset {
     #[turbo_tasks::function]
-    fn new(
+    async fn new(
         source: ResolvedVc<Box<dyn Source>>,
         asset_context: ResolvedVc<Box<dyn AssetContext>>,
         ty: EcmascriptModuleAssetType,
@@ -725,8 +699,9 @@ impl EcmascriptModuleAsset {
         options: ResolvedVc<EcmascriptOptions>,
         compile_time_info: ResolvedVc<CompileTimeInfo>,
         side_effect_free_packages: Option<ResolvedVc<Glob>>,
-    ) -> Vc<Self> {
-        Self::cell(EcmascriptModuleAsset {
+    ) -> Result<Vc<Self>> {
+        Ok(Self::cell(EcmascriptModuleAsset {
+            origin_path: source.ident().await?.path.clone(),
             source,
             asset_context,
             ty,
@@ -735,7 +710,7 @@ impl EcmascriptModuleAsset {
             compile_time_info,
             side_effect_free_packages,
             inner_assets: None,
-        })
+        }))
     }
 
     #[turbo_tasks::function]
@@ -761,6 +736,7 @@ impl EcmascriptModuleAsset {
             ))
         } else {
             Ok(Self::cell(EcmascriptModuleAsset {
+                origin_path: source.ident().await?.path.clone(),
                 source,
                 asset_context,
                 ty,
@@ -823,7 +799,7 @@ impl EcmascriptModuleAsset {
             SpecifiedModuleType::Automatic => {}
         }
 
-        determine_module_type_for_directory(self.origin_path().await?.parent()).await
+        determine_module_type_for_directory(this.origin_path.parent()).await
     }
 }
 
@@ -966,14 +942,12 @@ impl EvaluatableAsset for EcmascriptModuleAsset {}
 
 #[turbo_tasks::value_impl]
 impl ResolveOrigin for EcmascriptModuleAsset {
-    #[turbo_tasks::function]
-    async fn origin_path(&self) -> Result<Vc<FileSystemPath>> {
-        Ok(self.source.ident().await?.path.clone().cell())
+    fn origin_path(&self) -> FileSystemPath {
+        self.origin_path.clone()
     }
 
-    #[turbo_tasks::function]
-    fn asset_context(&self) -> Vc<Box<dyn AssetContext>> {
-        *self.asset_context
+    fn asset_context(&self) -> ResolvedVc<Box<dyn AssetContext>> {
+        self.asset_context
     }
 }
 
@@ -988,7 +962,7 @@ pub struct EcmascriptModuleContent {
 }
 
 #[turbo_tasks::value(shared)]
-#[derive(Clone, Debug, Hash, TaskInput)]
+#[derive(Clone, Debug, Hash)]
 pub struct EcmascriptModuleContentOptions {
     module: ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>,
     parsed: Option<ResolvedVc<ParseResult>>,

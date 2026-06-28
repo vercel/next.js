@@ -12,7 +12,7 @@ use swc_core::{
 };
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
-    FxIndexMap, NonLocalValue, ResolvedVc, TaskInput, TryJoinIterExt, Vc, debug::ValueDebugFormat,
+    FxIndexMap, NonLocalValue, ResolvedVc, TryJoinIterExt, Vc, debug::ValueDebugFormat,
     trace::TraceRawVcs,
 };
 use turbopack_core::{
@@ -88,9 +88,8 @@ pub(crate) enum PatternMapping {
     Map(#[bincode(with = "turbo_bincode::indexmap")] FxIndexMap<RcStr, SinglePatternMapping>),
 }
 
-#[derive(
-    Copy, Clone, Debug, Eq, PartialEq, Hash, TraceRawVcs, TaskInput, NonLocalValue, Encode, Decode,
-)]
+#[turbo_tasks::task_input]
+#[derive(Copy, Clone, Debug, Eq, PartialEq, Hash, TraceRawVcs, Encode, Decode)]
 pub(crate) enum ResolveType {
     AsyncChunkLoader,
     ChunkItem,
@@ -355,7 +354,7 @@ async fn to_single_pattern_mapping(
                     .into(),
                 )
                 .resolved_cell(),
-                path: origin.origin_path().owned().await?,
+                path: origin.into_trait_ref().await?.origin_path(),
                 source: None,
             }
             .resolved_cell()
@@ -387,7 +386,7 @@ async fn to_single_pattern_mapping(
             "asset is not placeable in ESM chunks, so it doesn't have a module id"
         ))
         .resolved_cell(),
-        path: origin.origin_path().owned().await?,
+        path: origin.into_trait_ref().await?.origin_path(),
         source: None,
     }
     .resolved_cell()

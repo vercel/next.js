@@ -148,7 +148,7 @@ pub fn value_trait(args: TokenStream, input: TokenStream) -> TokenStream {
                         )
                         .emit();
                 }
-                // Add a dummy implementation that derefences the box and delegates to the
+                // Add a dummy implementation that dereferences the box and delegates to the
                 // actual implementation.  We need to conditionally add an await if it is async
                 dynamic_trait_fns.push(if sig.asyncness.is_some() {
                     quote! {
@@ -217,11 +217,11 @@ pub fn value_trait(args: TokenStream, input: TokenStream) -> TokenStream {
                 is_method: turbo_fn.is_method(),
                 is_self_used,
                 filter_trait_call_args: turbo_fn.filter_trait_call_args(),
-                is_root,
+                is_root: false,
+                is_session_dependent: false,
             };
 
             let native_function_ident = get_trait_default_impl_function_ident(trait_ident, ident);
-            let native_function_ty = native_function.ty();
             let native_function_def = native_function.definition();
 
             let method_name_str = syn::LitStr::new(&ident.to_string(), ident.span());
@@ -255,8 +255,8 @@ pub fn value_trait(args: TokenStream, input: TokenStream) -> TokenStream {
                     #inline_signature #inline_block
                 }
 
-                turbo_tasks::macro_helpers::turbo_register!(
-                    #native_function_ident: #native_function_ty = #native_function_def
+                turbo_tasks::macro_helpers::register_function!(
+                    #native_function_ident = #native_function_def
                 );
             });
 
@@ -327,8 +327,8 @@ pub fn value_trait(args: TokenStream, input: TokenStream) -> TokenStream {
 
         #(#native_functions)*
 
-        turbo_tasks::macro_helpers::turbo_register!(
-            Box<dyn #trait_ident> => #trait_type_ident: turbo_tasks::TraitType =
+        turbo_tasks::macro_helpers::register_trait!(
+            Box<dyn #trait_ident> => #trait_type_ident =
                 turbo_tasks::TraitType::new::<&'static dyn #trait_ident>(
                     stringify!(#trait_ident),
                     #trait_name,
@@ -342,10 +342,10 @@ pub fn value_trait(args: TokenStream, input: TokenStream) -> TokenStream {
             const DEFAULTS: &[Option<&turbo_tasks::macro_helpers::NativeFunction>] = &[#(#default_methods),*];
         }
 
-        // Per-trait `VTableRegistry`, populated during the ctor phase by `value_impl`
-        // expansions. `const`-constructible, so no `LazyLock` / first-access init. Kept
-        // private — the only reference is from the `VcValueTrait::IMPL_VTABLES` assoc const
-        // below.
+        // Per-trait `VTableRegistry`, populated during `register_all_trait_methods` (inside the
+        // `VALUES` `LazyLock` init) from the link-time `TRAIT_IMPLS_SLICE`. `const`-constructible,
+        // so no `LazyLock` / first-access init of its own. Kept private — the only reference is
+        // from the `VcValueTrait::IMPL_VTABLES` assoc const below.
         #[doc(hidden)]
         #[allow(non_upper_case_globals)]
         static #trait_vtable_registry_ident:

@@ -514,11 +514,25 @@ program
       'If no directory is provided, the current directory will be used.'
     )}`
   )
+  .option('--webpack', 'Use webpack when validating next.config.js')
   .action((directory: string, options: NextTypegenOptions) =>
     // ensure process exits after typegen completes so open handles/connections
     // don't cause process to hang
     import('../cli/next-typegen.js').then((mod) =>
-      mod.nextTypegen(options, directory).then(() => process.exit(0))
+      mod
+        .nextTypegen(options, directory)
+        .then(() => process.exit(0))
+        .catch((err: unknown) => {
+          // Without this, a failed typegen (e.g. `next.config` throwing) is
+          // swallowed as an unhandled rejection that exits 0; surface it with a
+          // non-zero exit so `next typegen && tsc` halts instead of running
+          // against missing route types.
+          console.error(
+            '\n> Unexpected error while generating route types. Original error:\n'
+          )
+          console.error(err)
+          process.exit(1)
+        })
     )
   )
   .usage('[directory] [options]')
@@ -656,6 +670,10 @@ internal
       parseValidPositiveInteger
     )
   )
+  .addHelpText('after', ({ command }) => {
+    const port = (command.opts() as { port?: number }).port ?? 5748
+    return `\nExample:\n  next internal query-trace --port ${port} --parent <id>`
+  })
   .action((options) =>
     import('../cli/internal/query-trace.js').then((mod) =>
       mod.queryTraceCli(options)
