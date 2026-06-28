@@ -30,24 +30,29 @@ pub enum EvictionMode {
 /// [`EvictionMode`] plus the threshold bookkeeping for [`EvictionMode::Auto`].
 pub(crate) struct EvictionControl {
     mode: EvictionMode,
-    /// Global net live bytes ([`TurboMalloc::memory_usage`]) sampled immediately
-    /// after the most recent eviction, or `None` before the first eviction.
+    /// The lowest global net live bytes ([`TurboMalloc::memory_usage`]) observed
+    /// since the most recent eviction, or `None` before the first eviction.
     /// Only meaningful in [`EvictionMode::Auto`].
-    memory_at_last_eviction: Option<usize>,
+    ///
+    /// Tracking the running minimum (rather than trusting the single post-eviction sample) matters
+    /// because memory can keep falling *after* a sweep returns typically because some other
+    /// threads are holding onto some Arc managed values that will `drop` once their temporary
+    /// holds are gone.
+    memory_floor: Option<usize>,
 }
 
 impl EvictionControl {
     pub(crate) fn new(mode: EvictionMode) -> Self {
         Self {
             mode,
-            memory_at_last_eviction: None,
+            memory_floor: None,
         }
     }
 
     /// Whether any prior cycle has evicted. Derived from the recorded baseline,
     /// which [`EvictionControl::record_eviction`] sets after each sweep.
     fn has_evicted_before(&self) -> bool {
-        self.memory_at_last_eviction.is_some()
+        self.memory_floor.is_some()
     }
 
     /// Whether to run an eviction sweep this snapshot cycle.
@@ -62,20 +67,16 @@ impl EvictionControl {
     /// enough net memory allocated since the last eviction to justify the
     /// restore-then-re-evict churn (always evicting the first time, since there's
     /// no prior baseline).
-    pub(crate) fn should_evict(&self, snapshot_had_new_data: bool) -> bool {
+    pub(crate) fn should_evict(&mut self, snapshot_had_new_data: bool) -> bool {
         // Only evict when there's new data to persist, or on the very first
         // eviction after startup (restored on-disk state can be reclaimed even
         // when this snapshot had no new data).
-        if !snapshot_had_new_data && self.has_evicted_before() {
-            return false;
-        }
+
         match self.mode {
             EvictionMode::Off => false,
             EvictionMode::Full => {
-                if !snapshot_had_new_data && self.has_evicted_before() {
-                    return false;
-                }
-                true
+                // In full mode we only skip evicting
+                snapshot_had_new_data || !self.has_evicted_before()
             }
             EvictionMode::Auto => self.auto_threshold_exceeded(),
         }
@@ -85,7 +86,7 @@ impl EvictionControl {
     /// since the last eviction to justify another sweep. Always evicts the first
     /// time (no prior baseline). The threshold scales down under OS memory
     /// pressure so we evict more eagerly when memory is tight.
-    fn auto_threshold_exceeded(&self) -> bool {
+    fn auto_threshold_exceeded(&mut self) -> bool {
         /// Minimum net bytes ([`TurboMalloc::memory_usage`] delta) that must be
         /// allocated since the last eviction before another is worthwhile.
         /// Allocated bytes are the proxy for how much a sweep would reclaim.
@@ -96,21 +97,36 @@ impl EvictionControl {
                 .and_then(|v| v.parse::<usize>().ok())
                 .unwrap_or(128 * 1024 * 1024)
         });
-        let Some(last) = self.memory_at_last_eviction else {
-            // First eviction: no baseline to compare against, so always evict.
-            return true;
-        };
+
         let current = TurboMalloc::memory_usage();
-        // saturating: if memory shrank since the last eviction there is nothing
-        // new to reclaim, so the delta is 0 and we skip.
-        let allocated_since = current.saturating_sub(last);
         let threshold = scale_threshold(*MIN_EVICT_BYTES, TurboMalloc::memory_pressure());
-        allocated_since >= threshold
+        let (lowered_floor, evict) = evaluate_threshold(self.memory_floor, current, threshold);
+        // Only a memory drop lowers the floor here; seeding it is left to
+        // `record_eviction` so a decision alone never counts as "has evicted".
+        if let Some(floor) = lowered_floor {
+            self.memory_floor = Some(floor);
+        }
+        evict
     }
 
-    /// Call after completing an eviction cycle.
+    /// Call after completing an eviction cycle. Seeds the memory floor with the
+    /// post-eviction usage; later cycles lower it further as memory settles.
     pub(crate) fn record_eviction(&mut self) {
-        self.memory_at_last_eviction = Some(TurboMalloc::memory_usage());
+        self.memory_floor = Some(TurboMalloc::memory_usage());
+    }
+}
+
+/// The pure decision behind [`EvictionControl::auto_threshold_exceeded`], split
+/// out so it can be unit-tested without touching the allocator.
+fn evaluate_threshold(
+    floor: Option<usize>,
+    current: usize,
+    threshold: usize,
+) -> (Option<usize>, bool) {
+    match floor {
+        None => (None, true),
+        Some(floor) if current < floor => (Some(current), false),
+        Some(floor) => (None, current - floor >= threshold),
     }
 }
 
@@ -123,17 +139,50 @@ impl EvictionControl {
 /// unchanged.
 fn scale_threshold(base: usize, pressure: Option<u8>) -> usize {
     match pressure {
-        // Integer math, multiply before divide to avoid truncation. `p` is
-        // clamped to 0..=100, so `100 - p` never underflows and the result is in
-        // `0..=base`. `base * 100` stays well within usize on 64-bit targets.
-        Some(p) => base * (100 - p.min(100) as usize) / 100,
+        Some(p) => (base as f64 * (1.0 - p.min(100) as f64 / 100.0)).round() as usize,
         None => base,
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use super::{EvictionControl, EvictionMode, scale_threshold};
+    use super::{EvictionControl, EvictionMode, evaluate_threshold, scale_threshold};
+
+    const MIB: usize = 1024 * 1024;
+
+    #[test]
+    fn evaluate_threshold_first_eviction_always_runs() {
+        // No floor yet → evict; floor not seeded here (record_eviction does that).
+        assert_eq!(evaluate_threshold(None, 500 * MIB, 128 * MIB), (None, true));
+    }
+
+    #[test]
+    fn evaluate_threshold_growth_below_threshold_skips() {
+        // Grew 64 MiB since the floor, threshold is 128 MiB → skip, floor unchanged.
+        assert_eq!(
+            evaluate_threshold(Some(900 * MIB), 964 * MIB, 128 * MIB),
+            (None, false)
+        );
+    }
+
+    #[test]
+    fn evaluate_threshold_growth_at_threshold_evicts() {
+        // Grew exactly the threshold → evict, floor unchanged (record_eviction resets it).
+        assert_eq!(
+            evaluate_threshold(Some(900 * MIB), 1028 * MIB, 128 * MIB),
+            (None, true)
+        );
+    }
+
+    #[test]
+    fn evaluate_threshold_drop_below_floor_lowers_floor_and_skips() {
+        // Regression: after a sweep we recorded ~926 MiB, but memory kept falling
+        // to ~677 MiB. The floor must follow memory down and we must not evict.
+        assert_eq!(
+            evaluate_threshold(Some(926 * MIB), 677 * MIB, 56 * MIB),
+            (Some(677 * MIB), false)
+        );
+    }
 
     #[test]
     fn off_mode_never_evicts() {
