@@ -305,6 +305,13 @@ this gate is as machine-checkable as the others. Detail:
 > under the lock on the production-build rig**, not when the code compiles. That
 > GREEN is the deterministic stop for the fix loop; proceed to E.
 
+**When the read can't be pushed down** — an ID minted per request, an
+all-dynamic page, a per-request auth/scope read the whole subtree needs — there
+is no shell to grow. Don't force one: opt the route into **runtime prefetching**
+(`prefetch = 'allow-runtime'` on every leaf segment + a _full_ prefetch on the
+link) so the prefetch runs the dynamic render ahead of the click and the soft
+nav commits the real content. Recipe and gotchas: `reference/patterns.md` #10.
+
 ## E — PARITY: the refactor changed only whether the route is instant
 
 The push-down is a mechanical transform, not a redesign. Afterward the route
