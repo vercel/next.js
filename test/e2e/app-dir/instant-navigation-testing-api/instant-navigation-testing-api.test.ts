@@ -56,7 +56,11 @@ async function openPage(
       }
     },
   })
-  return page!
+  // Lower the per-action timeout below jest's 60s test timeout so a stalling
+  // waitFor fails with its own locator (naming the element that never appeared)
+  // instead of a bare test-level timeout that hides which assertion hung.
+  page.setDefaultTimeout(20_000)
+  return page
 }
 
 describe('instant-navigation-testing-api', () => {
