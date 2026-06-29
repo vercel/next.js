@@ -32,7 +32,27 @@ import type { NextAnalyzeOptions } from '../cli/next-analyze.js'
 import type { NextBuildOptions } from '../cli/next-build.js'
 import type { NextTypegenOptions } from '../cli/next-typegen.js'
 import type { NextPostBuildOptions } from '../cli/next-post-build.js'
-import { mkdirSync } from 'fs'
+import { ensureProfilesDir } from '../lib/profiles-dir'
+
+/**
+ * Create `.next-profiles` (with its `.gitignore`) when profiling/tracing is
+ * enabled — whether via the CLI flags or the env vars directly — so the
+ * gitignore logic lives in one place. Also points CPU profiles at the directory.
+ * Skipped for tracing when `NEXT_TURBOPACK_TRACING_PATH` redirects the output.
+ */
+function setupProfilesDir(dir: string): void {
+  const cpuProf = !!process.env.NEXT_CPU_PROF
+  const turbopackTrace =
+    !!process.env.NEXT_TURBOPACK_TRACING &&
+    !process.env.NEXT_TURBOPACK_TRACING_PATH
+  if (!cpuProf && !turbopackTrace) {
+    return
+  }
+  const profilesDir = ensureProfilesDir(dir)
+  if (cpuProf) {
+    process.env.NEXT_CPU_PROF_DIR = profilesDir
+  }
+}
 
 if (process.env.NEXT_RSPACK) {
   // silent rspack's schema check
@@ -227,11 +247,6 @@ program
     if (options.experimentalCpuProf) {
       process.env.NEXT_CPU_PROF = '1'
       process.env.__NEXT_PRIVATE_CPU_PROFILE = 'build-main'
-      const { join } = require('path') as typeof import('path')
-      const dir = directory || process.cwd()
-      const cpuProfileDir = join(dir, '.next-profiles')
-      mkdirSync(cpuProfileDir, { recursive: true })
-      process.env.NEXT_CPU_PROF_DIR = cpuProfileDir
     }
     if (options.internalTrace) {
       process.env.NEXT_TURBOPACK_TRACING =
@@ -239,6 +254,7 @@ program
           ? 'turbo-tasks'
           : String(options.internalTrace)
     }
+    setupProfilesDir(directory || process.cwd())
 
     // ensure process exits after build completes so open handles/connections
     // don't cause process to hang
@@ -380,11 +396,6 @@ program
       if (options.experimentalCpuProf) {
         process.env.NEXT_CPU_PROF = '1'
         process.env.__NEXT_PRIVATE_CPU_PROFILE = 'dev-main'
-        const { join } = require('path') as typeof import('path')
-        const dir = directory || process.cwd()
-        const cpuProfileDir = join(dir, '.next-profiles')
-        mkdirSync(cpuProfileDir, { recursive: true })
-        process.env.NEXT_CPU_PROF_DIR = cpuProfileDir
       }
       if (options.internalTrace) {
         process.env.NEXT_TURBOPACK_TRACING =
@@ -392,6 +403,7 @@ program
             ? 'turbo-tasks'
             : String(options.internalTrace)
       }
+      setupProfilesDir(directory || process.cwd())
       const portSource = _optionValueSources.port
       import('../cli/next-dev.js').then((mod) =>
         mod.nextDev(options, portSource, directory)
@@ -470,12 +482,8 @@ program
     if (options.experimentalCpuProf) {
       process.env.NEXT_CPU_PROF = '1'
       process.env.__NEXT_PRIVATE_CPU_PROFILE = 'start-main'
-      const { join } = require('path') as typeof import('path')
-      const dir = directory || process.cwd()
-      const cpuProfileDir = join(dir, '.next-profiles')
-      mkdirSync(cpuProfileDir, { recursive: true })
-      process.env.NEXT_CPU_PROF_DIR = cpuProfileDir
     }
+    setupProfilesDir(directory || process.cwd())
     return import('../cli/next-start.js').then((mod) =>
       mod.nextStart(options, directory)
     )
