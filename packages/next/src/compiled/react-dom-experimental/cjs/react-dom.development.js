@@ -411,6 +411,7 @@
                 "string" === typeof options.integrity
                   ? options.integrity
                   : void 0,
+              nonce: "string" === typeof options.nonce ? options.nonce : void 0,
               fetchPriority:
                 "string" === typeof options.fetchPriority
                   ? options.fetchPriority
@@ -430,7 +431,7 @@
     exports.useFormStatus = function () {
       return resolveDispatcher().useHostTransitionStatus();
     };
-    exports.version = "19.3.0-experimental-68631c04-20260626";
+    exports.version = "19.3.0-experimental-92f4fda3-20260629";
     "undefined" !== typeof __REACT_DEVTOOLS_GLOBAL_HOOK__ &&
       "function" ===
         typeof __REACT_DEVTOOLS_GLOBAL_HOOK__.registerInternalModuleStop &&
