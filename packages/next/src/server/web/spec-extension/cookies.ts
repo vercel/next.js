@@ -206,7 +206,26 @@ export class ResponseCookies extends EdgeResponseCookies {
       args.length === 1 ? [args[0].name, args[0].value, args[0]] : args
 
     const parsedCookie = normalizeCookie({ name, value, ...cookie })
-    this._parsed.set(name, [parsedCookie])
+
+    // A Set-Cookie is uniquely identified by its (name, path, domain) tuple, so
+    // multiple cookies can share the same name as long as their path/domain
+    // differ. Only replace an existing cookie that matches the same
+    // path/domain, otherwise append so duplicates are preserved.
+    const existing = this._parsed.get(name)
+    if (!existing) {
+      this._parsed.set(name, [parsedCookie])
+    } else {
+      const index = existing.findIndex(
+        (c) =>
+          (c.path ?? '/') === (parsedCookie.path ?? '/') &&
+          (c.domain ?? undefined) === (parsedCookie.domain ?? undefined)
+      )
+      if (index === -1) {
+        existing.push(parsedCookie)
+      } else {
+        existing[index] = parsedCookie
+      }
+    }
     this._updateHeaders()
     return this
   }
