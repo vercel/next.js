@@ -268,8 +268,6 @@ impl Asset for ServerActionManifestAsset {
                         .async_module_info
                         .is_async(self.chunk_item.module().to_resolved().await?)
                         .await?,
-                    exported_name,
-                    filename: filename.as_ref(),
                 },
             );
 
