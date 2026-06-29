@@ -1131,9 +1131,9 @@ pub async fn get_server_chunking_context_with_client_assets(
             .chunking_config(
                 Vc::<EcmascriptChunkType>::default().to_resolved().await?,
                 ChunkingConfig {
-                    min_chunk_size: 20_000,
-                    max_chunk_count_per_group: 100,
-                    max_merge_chunk_size: 100_000,
+                    min_chunk_size: 100_000,
+                    max_chunk_count_per_group: 20,
+                    max_merge_chunk_size: 500_000,
                     ..Default::default()
                 },
             )
@@ -1236,9 +1236,9 @@ pub async fn get_server_chunking_context(
             .chunking_config(
                 Vc::<EcmascriptChunkType>::default().to_resolved().await?,
                 ChunkingConfig {
-                    min_chunk_size: 20_000,
-                    max_chunk_count_per_group: 100,
-                    max_merge_chunk_size: 100_000,
+                    min_chunk_size: 100_000,
+                    max_chunk_count_per_group: 20,
+                    max_merge_chunk_size: 500_000,
                     ..Default::default()
                 },
             )
