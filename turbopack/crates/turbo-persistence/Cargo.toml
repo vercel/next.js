@@ -40,7 +40,7 @@ criterion = { workspace = true }
 rand = { workspace = true }
 rayon = { workspace = true }
 tempfile = { workspace = true }
-turbo-tasks-malloc = { workspace = true }
+turbo-tasks-malloc = { workspace = true, features = ["custom_allocator"] }
 
 [[bin]]
 name = "sst_inspect"

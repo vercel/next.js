@@ -279,9 +279,18 @@ async function createForwardedActionResponse(
       }
 
       return new FlightRenderResult(response.body!)
-    } else {
-      // Since we aren't consuming the response body, we cancel it to avoid memory leaks
-      response.body?.cancel()
+    }
+
+    // Since we aren't consuming the response body, we cancel it to avoid memory leaks
+    response.body?.cancel()
+
+    // Pass the action-not-found marker through so the client throws
+    // UnrecognizedActionError instead of a generic "unexpected response".
+    if (response.headers.get(NEXT_ACTION_NOT_FOUND_HEADER) === '1') {
+      res.setHeader(NEXT_ACTION_NOT_FOUND_HEADER, '1')
+      res.setHeader('content-type', 'text/plain')
+      res.statusCode = 404
+      return RenderResult.fromStatic('Server action not found.', 'text/plain')
     }
   } catch (err) {
     // we couldn't stream the forwarded response, so we'll just return an empty response
@@ -706,11 +715,15 @@ export async function handleAction({
 
   const actionWasForwarded = Boolean(req.headers['x-action-forwarded'])
 
-  if (actionId) {
+  // Only attempt to forward if this request has not already been forwarded.
+  // Otherwise middleware that rewrites the action POST can cause the receiving
+  // worker to forward again, looping indefinitely.
+  if (actionId && !actionWasForwarded) {
     const forwardedWorker = selectWorkerForForwarding(actionId, page)
 
-    // If forwardedWorker is truthy, it means there isn't a worker for the action
-    // in the current handler, so we forward the request to a worker that has the action.
+    // If forwardedWorker is truthy, it means there isn't a worker for the
+    // action in the current handler, so we forward the request to a worker that
+    // has the action.
     if (forwardedWorker) {
       return {
         type: 'done',
@@ -767,7 +780,7 @@ export async function handleAction({
                 return handleUnrecognizedFetchAction(err)
               }
 
-              boundActionArguments = await decodeReply(
+              boundActionArguments = await decodeReply<unknown[]>(
                 formData,
                 serverModuleMap,
                 { temporaryReferences }
@@ -848,7 +861,7 @@ export async function handleAction({
 
             const actionData = Buffer.concat(chunks).toString('utf-8')
 
-            boundActionArguments = await decodeReply(
+            boundActionArguments = await decodeReply<unknown[]>(
               actionData,
               serverModuleMap,
               { temporaryReferences }
@@ -941,7 +954,7 @@ export async function handleAction({
                   pipeline(body, sizeLimitTransform, busboy, {
                     signal: abortController.signal,
                   }),
-                  decodeReplyFromBusboy(busboy, serverModuleMap, {
+                  decodeReplyFromBusboy<unknown[]>(busboy, serverModuleMap, {
                     temporaryReferences,
                   }),
                 ])
@@ -1057,7 +1070,7 @@ export async function handleAction({
 
             const actionData = Buffer.concat(chunks).toString('utf-8')
 
-            boundActionArguments = await decodeReply(
+            boundActionArguments = await decodeReply<unknown[]>(
               actionData,
               serverModuleMap,
               { temporaryReferences }
@@ -1158,15 +1171,17 @@ export async function handleAction({
 
           return {
             type: 'done',
-            result: await generateFlight(req, ctx, requestStore, {
-              actionResult: Promise.resolve(actionResult),
-              skipPageRendering,
-              temporaryReferences,
-              waitUntil:
-                maybeRevalidatesPromise === false
-                  ? undefined
-                  : maybeRevalidatesPromise,
-            }),
+            result: await actionAsyncStorage.exit(() =>
+              generateFlight(req, ctx, requestStore, {
+                actionResult: Promise.resolve(actionResult),
+                skipPageRendering,
+                temporaryReferences,
+                waitUntil:
+                  maybeRevalidatesPromise === false
+                    ? undefined
+                    : maybeRevalidatesPromise,
+              })
+            ),
           }
         } else {
           // TODO: this shouldn't be reachable, because all non-fetch codepaths return early.

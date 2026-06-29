@@ -5,7 +5,7 @@ use indoc::writedoc;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{ResolvedVc, Vc};
 use turbopack_core::{
-    chunk::{AssetSuffix, CrossOrigin},
+    chunk::{AssetSuffix, ChunkLoadRetry, CrossOrigin},
     code_builder::{Code, CodeBuilder},
     context::AssetContext,
     environment::ChunkLoading,
@@ -20,12 +20,14 @@ pub async fn get_browser_runtime_code(
     asset_context: ResolvedVc<Box<dyn AssetContext>>,
     chunk_base_path: Vc<Option<RcStr>>,
     asset_suffix: Vc<AssetSuffix>,
-    worker_forwarded_globals: Vc<Vec<RcStr>>,
     runtime_type: RuntimeType,
     output_root_to_root_path: RcStr,
     generate_source_map: bool,
     chunk_loading_global: Vc<RcStr>,
     cross_origin: Vc<CrossOrigin>,
+    chunk_load_retry: Vc<ChunkLoadRetry>,
+    has_async_modules: bool,
+    chunk_loading: Vc<ChunkLoading>,
 ) -> Result<Vc<Code>> {
     let asset_context = *asset_context;
     let environment = asset_context.compile_time_info().environment();
@@ -49,20 +51,21 @@ pub async fn get_browser_runtime_code(
         }
     }
 
-    let chunk_loading = &*asset_context
-        .compile_time_info()
-        .environment()
-        .chunk_loading()
-        .await?;
+    let chunk_loading = &*chunk_loading.await?;
 
     let mut runtime_backend_code = vec![];
     match (chunk_loading, runtime_type) {
-        (ChunkLoading::Edge, RuntimeType::Development) => {
-            runtime_backend_code.push("browser/runtime/edge/runtime-backend-edge.ts");
-            runtime_backend_code.push("browser/runtime/edge/dev-backend-edge.ts");
+        // The self-contained backend performs no runtime chunk loading and registers chunks only
+        // via `globalThis`/`self` (no DOM).
+        (ChunkLoading::Edge | ChunkLoading::SingleChunk, RuntimeType::Development) => {
+            runtime_backend_code
+                .push("browser/runtime/self-contained/runtime-backend-self-contained.ts");
+            runtime_backend_code
+                .push("browser/runtime/self-contained/dev-backend-self-contained.ts");
         }
-        (ChunkLoading::Edge, RuntimeType::Production) => {
-            runtime_backend_code.push("browser/runtime/edge/runtime-backend-edge.ts");
+        (ChunkLoading::Edge | ChunkLoading::SingleChunk, RuntimeType::Production) => {
+            runtime_backend_code
+                .push("browser/runtime/self-contained/runtime-backend-self-contained.ts");
         }
         // This case should never be hit.
         (ChunkLoading::NodeJs, _) => {
@@ -89,7 +92,7 @@ pub async fn get_browser_runtime_code(
     let asset_suffix = asset_suffix.await?;
     let chunk_loading_global = chunk_loading_global.await?;
     let cross_origin = *cross_origin.await?;
-    let chunk_lists_global = format!("{}_CHUNK_LISTS", &*chunk_loading_global);
+    let chunk_lists_global = format!("{}_CHUNK_LISTS", chunk_loading_global);
 
     if *environment
         .runtime_versions()
@@ -137,8 +140,11 @@ pub async fn get_browser_runtime_code(
             )?;
         }
         AssetSuffix::Inferred => {
-            if chunk_loading == &ChunkLoading::Edge {
-                panic!("AssetSuffix::Inferred is not supported in Edge runtimes");
+            if matches!(
+                chunk_loading,
+                ChunkLoading::Edge | ChunkLoading::SingleChunk
+            ) {
+                panic!("AssetSuffix::Inferred is not supported in Edge or single-chunk runtimes");
             }
             writedoc!(
                 code,
@@ -167,17 +173,33 @@ pub async fn get_browser_runtime_code(
         StringifyJs(&cross_origin)
     )?;
 
-    // Output the list of global variable names to forward to workers
-    let worker_forwarded_globals = worker_forwarded_globals.await?;
+    // The chunk-load retry policy is owned by the framework (e.g. Next.js) and
+    // passed in via the chunking context, so the runtime never hard-codes it.
+    let chunk_load_retry = *chunk_load_retry.await?;
     writedoc!(
         code,
         r#"
-            var WORKER_FORWARDED_GLOBALS = {};
+            var CHUNK_LOAD_RETRY_MAX_ATTEMPTS = {};
+            var CHUNK_LOAD_RETRY_BASE_DELAY_MS = {};
+            var CHUNK_LOAD_RETRY_MAX_JITTER_MS = {};
         "#,
-        StringifyJs(&*worker_forwarded_globals)
+        chunk_load_retry.max_retry_attempts,
+        chunk_load_retry.base_delay_ms,
+        chunk_load_retry.max_jitter_ms,
     )?;
 
     code.push_code(&*shared_runtime_utils_code.await?);
+    // Only include the async-module (top-level await) machinery when the app uses it.
+    if has_async_modules {
+        code.push_code(
+            &*embed_static_code(
+                asset_context,
+                rcstr!("shared/runtime/async-module.ts"),
+                generate_source_map,
+            )
+            .await?,
+        );
+    }
     for runtime_code in runtime_base_code {
         code.push_code(
             &*embed_static_code(asset_context, runtime_code.into(), generate_source_map).await?,
@@ -204,17 +226,6 @@ pub async fn get_browser_runtime_code(
             .await?,
         );
     }
-    if *environment.supports_wasm().await? {
-        code.push_code(
-            &*embed_static_code(
-                asset_context,
-                rcstr!("shared-node/node-wasm-utils.ts"),
-                generate_source_map,
-            )
-            .await?,
-        );
-    }
-
     for backend_code in runtime_backend_code {
         code.push_code(
             &*embed_static_code(asset_context, backend_code.into(), generate_source_map).await?,

@@ -43,6 +43,42 @@ export function getNextjsVersion(cwd: string): NextjsVersionResult {
   }
 }
 
+interface BundledDocsInfo {
+  docsPath: string
+  version: string
+}
+
+/**
+ * Next.js ships its documentation inside the published package (at
+ * `dist/docs`) since 16.2.0. When the install resolved from `cwd` has
+ * bundled docs, the index can point at them directly instead of
+ * downloading a copy into `.next-docs`.
+ */
+export function getBundledDocsInfo(cwd: string): BundledDocsInfo | null {
+  try {
+    const nextPkgPath = require.resolve('next/package.json', { paths: [cwd] })
+    const pkg = JSON.parse(fs.readFileSync(nextPkgPath, 'utf-8'))
+    const docsPath = path.join(path.dirname(nextPkgPath), 'dist', 'docs')
+    if (!pkg.version || collectDocFiles(docsPath).length === 0) {
+      return null
+    }
+    return { docsPath, version: pkg.version }
+  } catch {
+    return null
+  }
+}
+
+export function getBundledDocsLinkPath(cwd: string, docsPath: string): string {
+  // Prefer the conventional path when it resolves from the project
+  // (covers hoisted installs; pnpm exposes next via a node_modules symlink).
+  const conventional = path.join(cwd, 'node_modules', 'next', 'dist', 'docs')
+  if (fs.existsSync(conventional)) {
+    return './node_modules/next/dist/docs'
+  }
+  const relative = path.relative(cwd, docsPath).replace(/\\/g, '/')
+  return relative.startsWith('.') ? relative : `./${relative}`
+}
+
 function versionToGitHubTag(version: string): string {
   return version.startsWith('v') ? version : `v${version}`
 }

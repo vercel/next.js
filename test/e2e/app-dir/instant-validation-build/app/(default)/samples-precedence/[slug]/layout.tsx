@@ -1,7 +1,8 @@
 import type { Instant } from 'next'
 
-export const unstable_instant: Instant = {
-  samples: [
+export const instant: Instant = {
+  level: 'experimental-error',
+  unstable_samples: [
     {
       params: {
         slug: 'from-layout',

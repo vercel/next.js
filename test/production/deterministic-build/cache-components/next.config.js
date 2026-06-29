@@ -7,4 +7,5 @@ module.exports = {
     // turbopackModuleIds: 'named',
     // turbopackScopeHoisting: false,
   },
+  adapterPath: process.env.NEXT_ADAPTER_PATH,
 }

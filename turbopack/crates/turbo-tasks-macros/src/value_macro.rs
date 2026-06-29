@@ -12,7 +12,11 @@ use syn::{
     spanned::Spanned,
 };
 
-use crate::{global_name::global_name_for_type, ident::get_value_type_ident};
+use crate::{
+    expand::{item_data, task_input_is_transient_body},
+    global_name::global_name_for_type,
+    ident::get_value_type_ident,
+};
 
 enum CellMode {
     KeyedCompare,
@@ -133,6 +137,8 @@ struct ValueArguments {
     transparent: bool,
     /// Should we `#[derive(turbo_tasks::OperationValue)]`?
     operation: Option<Span>,
+    /// Set by `task_input` arg: emit an `impl TaskInput` with a field-walking `is_transient`.
+    task_input: bool,
 }
 
 impl Parse for ValueArguments {
@@ -146,6 +152,7 @@ impl Parse for ValueArguments {
             manual_hash: false,
             transparent: false,
             operation: None,
+            task_input: false,
         };
         let punctuated = input.parse_terminated(Meta::parse, Token![,])?;
         for meta in punctuated {
@@ -234,13 +241,16 @@ impl Parse for ValueArguments {
                 ("operation", Meta::Path(path)) => {
                     result.operation = Some(path.span());
                 }
+                ("task_input", Meta::Path(_)) => {
+                    result.task_input = true;
+                }
                 (_, meta) => {
                     return Err(Error::new_spanned(
                         &meta,
                         format!(
                             "unexpected {meta:?}, expected \"shared\", \"into\", \
                              \"serialization\", \"evict\", \"cell\", \"eq\", \"hash\", \
-                             \"transparent\", or \"operation\""
+                             \"transparent\", \"operation\", or \"task_input\""
                         ),
                     ));
                 }
@@ -262,6 +272,7 @@ pub fn value(args: TokenStream, input: TokenStream) -> TokenStream {
         manual_hash,
         transparent,
         operation,
+        task_input,
     } = parse_macro_input!(args as ValueArguments);
 
     // `serialization = "hash"` only makes sense with `cell = "compare"` (the default).
@@ -286,15 +297,20 @@ pub fn value(args: TokenStream, input: TokenStream) -> TokenStream {
         .into();
     }
 
-    // `evict = "last" | "never"` is only valid when `serialization = "skip"`;
-    // other persistence modes have their own eviction semantics fixed by the
-    // backend (Persistable: evict-and-restore, HashOnly: evict-with-hash-gate).
-    if !matches!(evict_mode, EvictMode::Always)
+    // `evict = "last"` only makes sense for `serialization = "skip"`: it
+    // says "re-deriving this cell is expensive", and re-derivation is the
+    // recovery path only for skip mode. Persistable cells restore from disk
+    // (predictable cost), HashOnly cells short-circuit on unchanged hash.
+    //
+    // `evict = "never"` is allowed with any serialization mode — a value
+    // type can be persistable AND hold session-scoped state that must not
+    // leave memory (e.g. `DiskFileSystem` carrying file watchers).
+    if matches!(evict_mode, EvictMode::Last)
         && !matches!(serialization_mode, SerializationMode::Skip)
     {
         return syn::Error::new(
             proc_macro2::Span::call_site(),
-            "evict = \"last\" | \"never\" is only valid with serialization = \"skip\"",
+            "evict = \"last\" is only valid with serialization = \"skip\"",
         )
         .to_compile_error()
         .into();
@@ -304,7 +320,7 @@ pub fn value(args: TokenStream, input: TokenStream) -> TokenStream {
         #[derive(
             turbo_tasks::ShrinkToFit,
             turbo_tasks::trace::TraceRawVcs,
-            turbo_tasks::NonLocalValue,
+            turbo_tasks::NonLocalValue
         )]
         #[shrink_to_fit(crate = "turbo_tasks::macro_helpers::shrink_to_fit")]
     }];
@@ -469,24 +485,33 @@ pub fn value(args: TokenStream, input: TokenStream) -> TokenStream {
     }
 
     let name = global_name_for_type(ident);
-    // Dispatch to the constructor whose name reflects the persistence +
-    // eviction combo. `evict` is only read when `serialization = Skip`;
-    // other modes ignore it (and the parser rejects non-Always values).
-    let new_value_type = match (&serialization_mode, &evict_mode) {
-        (SerializationMode::Auto | SerializationMode::Custom, _) => quote! {
-            turbo_tasks::ValueType::persistable::<#ident>(#name)
+    // `serialization` and `evict` set independent fields on `ValueType`:
+    // persistence carries the codec (or marks Skip / HashOnly), evictability
+    // controls the in-memory drop policy. The codec-bearing constructor
+    // (`persistable`) is kept distinct so its functions inline at the call
+    // site; non-codec modes go through the generic `new` constructor.
+    let evictability = match evict_mode {
+        EvictMode::Always => quote! { turbo_tasks::Evictability::Always },
+        EvictMode::Last => quote! { turbo_tasks::Evictability::Expensive },
+        EvictMode::Never => quote! { turbo_tasks::Evictability::Never },
+    };
+    let new_value_type = match &serialization_mode {
+        SerializationMode::Auto | SerializationMode::Custom => quote! {
+            turbo_tasks::ValueType::persistable::<#ident>(#name, #evictability)
         },
-        (SerializationMode::Hash, _) => quote! {
-            turbo_tasks::ValueType::hash_only::<#ident>(#name)
+        SerializationMode::Skip => quote! {
+            turbo_tasks::ValueType::new::<#ident>(
+                #name,
+                turbo_tasks::ValueTypePersistence::Skip,
+                #evictability,
+            )
         },
-        (SerializationMode::Skip, EvictMode::Always) => quote! {
-            turbo_tasks::ValueType::skip_persist::<#ident>(#name)
-        },
-        (SerializationMode::Skip, EvictMode::Last) => quote! {
-            turbo_tasks::ValueType::skip_persist_expensive::<#ident>(#name)
-        },
-        (SerializationMode::Skip, EvictMode::Never) => quote! {
-            turbo_tasks::ValueType::session_stateful::<#ident>(#name)
+        SerializationMode::Hash => quote! {
+            turbo_tasks::ValueType::new::<#ident>(
+                #name,
+                turbo_tasks::ValueTypePersistence::HashOnly,
+                #evictability,
+            )
         },
     };
     let has_serialization = match serialization_mode {
@@ -536,6 +561,27 @@ pub fn value(args: TokenStream, input: TokenStream) -> TokenStream {
         has_serialization,
     );
 
+    // Emit an `impl TaskInput for X` only when opted in with
+    // `#[turbo_tasks::value(task_input)]`. Because values are `NonLocalValue` the `is_resolved` and
+    // `resolve_input` use the trivial trait defaults `is_transient` walks fields, because
+    // contained `ResolvedVc`/`OperationVc` can still point to transient cells.
+    let task_input_impl = if task_input {
+        let data = item_data(&item).expect("value macro only accepts struct/enum");
+        let is_transient_impl = task_input_is_transient_body(ident, &data);
+        quote! {
+            #[automatically_derived]
+            impl turbo_tasks::TaskInput for #ident {
+                #[allow(non_snake_case)]
+                #[allow(unreachable_code)]
+                fn is_transient(&self) -> bool {
+                    #is_transient_impl
+                }
+            }
+        }
+    } else {
+        quote! {}
+    };
+
     let expanded = quote! {
         #(#struct_attributes)*
         #item
@@ -543,6 +589,8 @@ pub fn value(args: TokenStream, input: TokenStream) -> TokenStream {
         impl #ident {
             #cell_struct
         }
+
+        #task_input_impl
 
         #value_type_and_register_code
 
@@ -571,8 +619,8 @@ pub fn value_type_and_register(
     };
 
     quote! {
-        turbo_tasks::macro_helpers::turbo_register!(
-            #ty => #value_type_ident: turbo_tasks::ValueType = #new_value_type
+        turbo_tasks::macro_helpers::register_value!(
+            #ty => #value_type_ident = #new_value_type
         );
 
         #[automatically_derived]
@@ -587,6 +635,7 @@ pub fn value_type_and_register(
             fn has_serialization() -> bool {
                 #has_serialization
             }
+
         }
     }
 }

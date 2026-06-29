@@ -19,7 +19,6 @@ import {
   NEXT_ROUTER_PREFETCH_HEADER,
   NEXT_ROUTER_SEGMENT_PREFETCH_HEADER,
   NEXT_RSC_UNION_QUERY,
-  NEXT_INSTANT_PREFETCH_HEADER,
 } from '../../client/components/app-router-headers'
 import { computeCacheBustingSearchParam } from '../../shared/lib/router/utils/cache-busting-search-param'
 import type { AnyStream } from '../app-render/stream-ops'
@@ -142,7 +141,10 @@ function webToReadable(
     if (process.env.TURBOPACK) {
       Readable = (require('node:stream') as typeof import('node:stream'))
         .Readable
-    } else if (process.env.__NEXT_BUNDLER === 'Webpack') {
+    } else if (
+      process.env.__NEXT_BUNDLER === 'Webpack' ||
+      process.env.__NEXT_BUNDLER === 'Rspack'
+    ) {
       Readable = (
         __non_webpack_require__('node:stream') as typeof import('node:stream')
       ).Readable
@@ -176,7 +178,10 @@ export async function streamToUint8Array(stream: AnyStream) {
     if (process.env.TURBOPACK) {
       Readable = (require('node:stream') as typeof import('node:stream'))
         .Readable
-    } else if (process.env.__NEXT_BUNDLER === 'Webpack') {
+    } else if (
+      process.env.__NEXT_BUNDLER === 'Webpack' ||
+      process.env.__NEXT_BUNDLER === 'Rspack'
+    ) {
       Readable = (
         __non_webpack_require__('node:stream') as typeof import('node:stream')
       ).Readable
@@ -590,8 +595,9 @@ export async function createInstantTestScriptInsertionTransformStream(
 ): Promise<TransformStream<Uint8Array, Uint8Array>> {
   // Kick off a fetch for the static RSC payload. This is the hydration
   // source for the locked static shell — same as the __NEXT_CLIENT_RESUME
-  // fetch used for fallback routes, but with NEXT_INSTANT_PREFETCH_HEADER
-  // so the server returns static-only data.
+  // fetch used for fallback routes. The instant test cookie is sent
+  // automatically with the same-origin fetch, so the server returns
+  // static-only data.
   //
   // The fetch promise is stored as self.__next_instant_test, which doubles
   // as the feature flag (truthy = instant test mode). The client processes
@@ -610,7 +616,7 @@ export async function createInstantTestScriptInsertionTransformStream(
   // bootstrapScriptContent.
   const requestIdScript =
     requestId !== null ? `self.__next_r=${JSON.stringify(requestId)};` : ''
-  const INSTANT_TEST_SCRIPT = `<script>${requestIdScript}self.__next_instant_test=fetch(location.pathname+'?${searchStr}',{credentials:'same-origin',headers:{'${RSC_HEADER}':'1','${NEXT_ROUTER_PREFETCH_HEADER}':'1','${NEXT_ROUTER_SEGMENT_PREFETCH_HEADER}':'${segmentPath}','${NEXT_INSTANT_PREFETCH_HEADER}':'1'}})</script>`
+  const INSTANT_TEST_SCRIPT = `<script>${requestIdScript}self.__next_instant_test=fetch(location.pathname+'?${searchStr}',{credentials:'same-origin',headers:{'${RSC_HEADER}':'1','${NEXT_ROUTER_PREFETCH_HEADER}':'1','${NEXT_ROUTER_SEGMENT_PREFETCH_HEADER}':'${segmentPath}'}})</script>`
 
   let didAlreadyInsert = false
   return new TransformStream({

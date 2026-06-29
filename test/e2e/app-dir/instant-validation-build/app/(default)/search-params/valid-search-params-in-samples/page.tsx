@@ -3,8 +3,9 @@ import assert from 'node:assert/strict'
 
 import { Suspense } from 'react'
 
-export const unstable_instant: Instant = {
-  samples: [
+export const instant: Instant = {
+  level: 'experimental-error',
+  unstable_samples: [
     {
       searchParams: {
         // TODO(instant-validation-build): specify and test escaping behavior for spaces etc
@@ -15,7 +16,7 @@ export const unstable_instant: Instant = {
     },
   ],
 }
-export const unstable_prefetch = 'force-runtime'
+export const prefetch = 'allow-runtime'
 
 type SearchParams = Record<string, string | string[]>
 

@@ -1,7 +1,7 @@
 import { cookies } from 'next/headers'
 
-export const unstable_instant = true
-export const unstable_prefetch = 'force-runtime'
+export const instant = { level: 'experimental-error' }
+export const prefetch = 'allow-runtime'
 
 // This page HAS runtime prefetch enabled. cookies() is passed as a promise
 // input to a public "use cache" function. The cache doesn't read the cookies

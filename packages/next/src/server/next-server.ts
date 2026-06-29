@@ -222,9 +222,6 @@ export default class NextNodeServer extends BaseServer<
     if (this.renderOpts.nextScriptWorkers) {
       process.env.__NEXT_SCRIPT_WORKERS = JSON.stringify(true)
     }
-    if (this.nextConfig.experimental.useNodeStreams) {
-      process.env.__NEXT_USE_NODE_STREAMS = 'true'
-    }
 
     if (!this.minimalMode) {
       this.imageResponseCache = new ResponseCache(this.minimalMode)
@@ -586,6 +583,7 @@ export default class NextNodeServer extends BaseServer<
         res: ServerResponse,
         ctx: {
           waitUntil: ReturnType<BaseServer['getWaitUntil']>
+          requestMeta?: RequestMeta
         }
       ) => Promise<void>
     }
@@ -597,6 +595,11 @@ export default class NextNodeServer extends BaseServer<
     addRequestMeta(req.originalRequest, 'distDir', this.distDir)
     await module.handler(req.originalRequest, res.originalResponse, {
       waitUntil: this.getWaitUntil(),
+      requestMeta: {
+        ...getRequestMeta(req.originalRequest),
+        query,
+        params: match.params,
+      },
     })
     return true
   }
@@ -1632,8 +1635,10 @@ export default class NextNodeServer extends BaseServer<
 
     // Middleware is skipped for on-demand revalidate requests
     if (
-      checkIsOnDemandRevalidate(params.request, this.renderOpts.previewProps)
-        .isOnDemandRevalidate
+      checkIsOnDemandRevalidate(
+        params.request.headers,
+        this.renderOpts.previewProps
+      ).isOnDemandRevalidate
     ) {
       return {
         response: new Response(null, { headers: { 'x-middleware-next': '1' } }),

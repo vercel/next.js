@@ -7,6 +7,7 @@ import {
   type ClientLogEntry,
   type LogMethod,
   patchConsoleMethod,
+  wasErrorAlreadyLoggedOnServer,
 } from '../../shared/forward-logs-shared'
 import { preLogSerializationClone, logStringify } from './forward-logs-utils'
 import { getOwnerStack } from './errors/stitched-error'
@@ -218,6 +219,13 @@ export const forwardErrorLog = (args: any[]) => {
 
   const errorObjects = args.filter((arg) => arg instanceof Error)
   const first = errorObjects.at(0)
+  // Skip errors that originated on the server and were already logged there
+  // (e.g. Cache Components validation errors that are also sent to the browser
+  // to show in the dev overlay). Forwarding them back would duplicate them in
+  // the terminal.
+  if (first && wasErrorAlreadyLoggedOnServer(first)) {
+    return
+  }
   if (first) {
     const source = getErrorSource(first)
     if (source) {

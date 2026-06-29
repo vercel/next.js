@@ -756,6 +756,7 @@ export async function initialize(opts: {
     distDir: config.distDir,
     experimentalFeatures,
     cacheComponents: config.cacheComponents,
+    partialPrefetching: config.partialPrefetching,
   }
   renderServerOpts.serverFields.routerServerHandler = requestHandlerImpl
 
@@ -895,12 +896,13 @@ export async function initialize(opts: {
           )
         },
       })
-      const { matchedOutput, parsedUrl } = await resolveRoutes({
-        req,
-        res,
-        isUpgradeReq: true,
-        signal: signalFromNodeResponse(socket),
-      })
+      const { finished, matchedOutput, parsedUrl, statusCode } =
+        await resolveRoutes({
+          req,
+          res,
+          isUpgradeReq: true,
+          signal: signalFromNodeResponse(socket),
+        })
 
       // TODO: allow upgrade requests to pages/app paths?
       // this was not previously supported
@@ -908,8 +910,12 @@ export async function initialize(opts: {
         return socket.end()
       }
 
-      if (parsedUrl.protocol) {
-        return await proxyRequest(req, socket, parsedUrl, head)
+      if (finished && parsedUrl.protocol) {
+        if (!statusCode) {
+          return await proxyRequest(req, socket, parsedUrl, head)
+        }
+
+        return socket.end()
       }
 
       // If there's no matched output, we don't handle the request as user's
@@ -930,6 +936,7 @@ export async function initialize(opts: {
     distDir: config.distDir,
     experimentalFeatures,
     cacheComponents: config.cacheComponents,
+    partialPrefetching: config.partialPrefetching,
     agentRules: config.agentRules,
   }
 }

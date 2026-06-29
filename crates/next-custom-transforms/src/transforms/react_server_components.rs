@@ -3,10 +3,9 @@ use std::{
     iter::FromIterator,
     path::PathBuf,
     rc::Rc,
-    sync::Arc,
+    sync::{Arc, LazyLock},
 };
 
-use once_cell::sync::Lazy;
 use regex::Regex;
 use rustc_hash::FxHashMap;
 use serde::Deserialize;
@@ -566,17 +565,11 @@ fn collect_module_info(
                 }
                 finished_directives = true;
             }
-            ModuleItem::ModuleDecl(ModuleDecl::ExportDefaultDecl(ExportDefaultDecl {
-                decl: _,
-                ..
-            })) => {
+            ModuleItem::ModuleDecl(ModuleDecl::ExportDefaultDecl(ExportDefaultDecl { .. })) => {
                 export_names.push(atom!("default"));
                 finished_directives = true;
             }
-            ModuleItem::ModuleDecl(ModuleDecl::ExportDefaultExpr(ExportDefaultExpr {
-                expr: _,
-                ..
-            })) => {
+            ModuleItem::ModuleDecl(ModuleDecl::ExportDefaultExpr(ExportDefaultExpr { .. })) => {
                 export_names.push(atom!("default"));
                 finished_directives = true;
             }
@@ -678,7 +671,7 @@ impl ReactServerComponentValidator {
                         "useFormState",
                     ],
                 ),
-                (atom!("next/error").into(), vec!["unstable_catchError"]),
+                (atom!("next/error").into(), vec!["catchError"]),
                 (
                     atom!("next/navigation").into(),
                     vec![
@@ -739,7 +732,7 @@ impl ReactServerComponentValidator {
     }
 
     fn is_from_node_modules(&self, filepath: &str) -> bool {
-        static RE: Lazy<Regex> = Lazy::new(|| Regex::new(r"node_modules[\\/]").unwrap());
+        static RE: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"node_modules[\\/]").unwrap());
         RE.is_match(filepath)
     }
 
@@ -909,7 +902,14 @@ impl ReactServerComponentValidator {
             return;
         }
         let ext_pattern = build_page_extensions_regex(&self.page_extensions);
-        let re = Regex::new(&format!(r"[\\/](page|layout|route)\.{ext_pattern}$")).unwrap();
+        // Metadata convention files (e.g. `icon`, `opengraph-image`, `sitemap`)
+        // compile to route handlers and accept the same route segment configs,
+        // so they're subject to the same `cacheComponents`/`useCache`
+        // restrictions as `page`/`layout`/`route` entries.
+        let re = Regex::new(&format!(
+            r"[\\/](page|layout|route|icon\d?|apple-icon\d?|opengraph-image\d?|twitter-image\d?|sitemap|robots|manifest)\.{ext_pattern}$",
+        ))
+        .unwrap();
         let is_app_entry = re.is_match(&self.filepath);
 
         if is_app_entry {
@@ -963,7 +963,7 @@ impl ReactServerComponentValidator {
                             ),
                         );
                     }
-                    "unstable_instant" if !self.cache_components_enabled => {
+                    "instant" if !self.cache_components_enabled => {
                         possibly_invalid_exports.insert(
                             export_name.clone(),
                             (

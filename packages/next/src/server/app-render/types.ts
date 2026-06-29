@@ -4,6 +4,7 @@ import type {
   ExperimentalConfig,
   NextConfigComplete,
   PrefetchInliningConfig,
+  ValidationLevel,
 } from '../../server/config-shared'
 import type { NextFontManifest } from '../../build/webpack/plugins/next-font-manifest-plugin'
 import type { ParsedUrlQuery } from 'querystring'
@@ -96,6 +97,8 @@ export interface RenderOptsPartial {
   err?: Error | null
   basePath: string
   cacheComponents: boolean
+  partialPrefetching?: NextConfigComplete['partialPrefetching']
+  validationLevel: ValidationLevel
   trailingSlash: boolean
   images: ImageConfigComplete
   supportsDynamicResponse: boolean
@@ -167,7 +170,8 @@ export interface RenderOptsPartial {
     prefetchInlining: PrefetchInliningConfig
     authInterrupts: boolean
     useCacheTimeout: number
-    cachedNavigations: boolean
+    cachedNavigations: boolean | 'allow-runtime'
+    appShells: ExperimentalConfig['appShells']
 
     /**
      * The maximum size (in bytes) of the postponed state body for PPR resume
@@ -223,9 +227,18 @@ export interface RenderOptsPartial {
   /**
    * When true, attempt to run build-time instant validation for this prerender.
    * Only the first prerender per page sets this, since validation uses
-   * unstable_instant.samples and is independent of actual route params.
+   * instant.unstable_samples and is independent of actual route params.
    */
   runInstantValidation?: boolean
+
+  /**
+   * When true, a fallback shell produced for this render could later be
+   * upgraded to a concrete version (at least one of its fallback params is a
+   * candidate enumerated by `generateStaticParams`). Only such shells are
+   * flagged `isUpgradeableISRFallback` so the client retries the prefetch; a route that
+   * can never upgrade (no `generateStaticParams`) is left unflagged.
+   */
+  isFallbackUpgradeable?: boolean
 }
 
 export type RenderOpts = LoadComponentsReturnType<AppPageModule> &

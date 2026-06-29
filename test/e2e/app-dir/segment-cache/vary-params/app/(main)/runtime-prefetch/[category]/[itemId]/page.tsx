@@ -11,15 +11,15 @@ import { connection } from 'next/server'
  * This allows cache reuse across different itemId values (same category),
  * providing instant loading feedback when navigating.
  */
-export const unstable_instant: {
-  samples: Array<{ params: { category: string; itemId: string } }>
+export const instant: {
+  unstable_samples: Array<{ params: { category: string; itemId: string } }>
 } = {
-  samples: [
+  unstable_samples: [
     { params: { category: 'electronics', itemId: 'phone' } },
     { params: { category: 'clothing', itemId: 'shirt' } },
   ],
 }
-export const unstable_prefetch = 'force-runtime'
+export const prefetch = 'allow-runtime'
 
 type Params = { category: string; itemId: string }
 

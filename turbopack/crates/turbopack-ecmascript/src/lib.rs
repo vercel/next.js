@@ -13,6 +13,7 @@ pub mod async_chunk;
 pub mod bytes_source_transform;
 pub mod chunk;
 pub mod code_gen;
+pub mod embed_js;
 mod errors;
 pub mod json_source_transform;
 pub mod magic_identifier;
@@ -77,9 +78,9 @@ use swc_core::{
 use tracing::{Instrument, Level, instrument};
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
-    FxDashMap, FxIndexMap, NonLocalValue, ReadRef, ResolvedVc, SerializationInvalidator, TaskInput,
-    TryJoinIterExt, Upcast, ValueToString, Vc, get_serialization_invalidator,
-    parking_lot_mutex_bincode, trace::TraceRawVcs, turbofmt,
+    FxDashMap, FxIndexMap, ReadRef, ResolvedVc, SerializationInvalidator, TryJoinIterExt, Upcast,
+    ValueToString, Vc, get_serialization_invalidator, parking_lot_mutex_bincode,
+    trace::TraceRawVcs, turbofmt,
 };
 use turbo_tasks_fs::{FileJsonContent, FileSystemPath, glob::Glob, rope::Rope};
 use turbopack_core::{
@@ -115,6 +116,7 @@ use crate::{
         analyze_ecmascript_module,
         async_module::OptionAsyncModule,
         esm::{UrlRewriteBehavior, base::EsmAssetReferences, export},
+        exports::compute_ecmascript_module_exports,
     },
     side_effect_optimization::reference::EcmascriptModulePartReference,
     swc_comments::{CowComments, ImmutableComments},
@@ -123,26 +125,16 @@ use crate::{
 pub use crate::{
     references::{AnalyzeEcmascriptModuleResult, TURBOPACK_HELPER},
     static_code::StaticEcmascriptCode,
+    swc_comments::swc_comments_to_single_threaded,
     transform::{
         CustomTransformer, EcmascriptInputTransform, EcmascriptInputTransforms, TransformContext,
         TransformPlugin,
     },
 };
 
+#[turbo_tasks::task_input]
 #[derive(
-    Eq,
-    PartialEq,
-    Hash,
-    Debug,
-    Clone,
-    Copy,
-    Default,
-    TaskInput,
-    TraceRawVcs,
-    NonLocalValue,
-    Deserialize,
-    Encode,
-    Decode,
+    Eq, PartialEq, Hash, Debug, Clone, Copy, Default, TraceRawVcs, Deserialize, Encode, Decode,
 )]
 pub enum SpecifiedModuleType {
     #[default]
@@ -151,6 +143,7 @@ pub enum SpecifiedModuleType {
     EcmaScript,
 }
 
+#[turbo_tasks::task_input]
 #[derive(
     PartialOrd,
     Ord,
@@ -162,9 +155,7 @@ pub enum SpecifiedModuleType {
     Copy,
     Default,
     Deserialize,
-    TaskInput,
     TraceRawVcs,
-    NonLocalValue,
     Encode,
     Decode,
 )]
@@ -175,6 +166,7 @@ pub enum TreeShakingMode {
     ReexportsOnly,
 }
 
+#[turbo_tasks::task_input]
 #[derive(
     PartialOrd,
     Ord,
@@ -186,9 +178,7 @@ pub enum TreeShakingMode {
     Copy,
     Default,
     Deserialize,
-    TaskInput,
     TraceRawVcs,
-    NonLocalValue,
     Encode,
     Decode,
 )]
@@ -223,9 +213,8 @@ impl AnalyzeMode {
 pub struct OptionTreeShaking(pub Option<TreeShakingMode>);
 
 /// The constant to replace `typeof window` with.
-#[derive(
-    Copy, Clone, PartialEq, Eq, Debug, Hash, TraceRawVcs, NonLocalValue, TaskInput, Encode, Decode,
-)]
+#[turbo_tasks::task_input]
+#[derive(Copy, Clone, PartialEq, Eq, Debug, Hash, TraceRawVcs, Encode, Decode)]
 pub enum TypeofWindow {
     Object,
     Undefined,
@@ -272,8 +261,8 @@ pub struct EcmascriptOptions {
     pub infer_module_side_effects: bool,
 }
 
-#[turbo_tasks::value]
-#[derive(Hash, Debug, Copy, Clone, TaskInput)]
+#[turbo_tasks::value(task_input)]
+#[derive(Hash, Debug, Copy, Clone)]
 pub enum EcmascriptModuleAssetType {
     /// Module with EcmaScript code
     Ecmascript,
@@ -438,18 +427,14 @@ pub struct EcmascriptModuleAsset {
     pub compile_time_info: ResolvedVc<CompileTimeInfo>,
     pub side_effect_free_packages: Option<ResolvedVc<Glob>>,
     pub inner_assets: Option<ResolvedVc<InnerAssets>>,
+    /// The path of `source`, precomputed so that `ResolveOrigin::origin_path` is synchronous.
+    origin_path: FileSystemPath,
 }
 
 #[turbo_tasks::value_trait]
 pub trait EcmascriptParsable {
     #[turbo_tasks::function]
-    fn failsafe_parse(self: Vc<Self>) -> Result<Vc<ParseResult>>;
-
-    #[turbo_tasks::function]
-    fn parse_original(self: Vc<Self>) -> Result<Vc<ParseResult>>;
-
-    #[turbo_tasks::function]
-    fn ty(self: Vc<Self>) -> Result<Vc<EcmascriptModuleAssetType>>;
+    fn failsafe_parse(self: Vc<Self>) -> Vc<ParseResult>;
 }
 
 #[turbo_tasks::value_trait]
@@ -610,16 +595,6 @@ impl EcmascriptParsable for EcmascriptModuleAsset {
             Ok(real_result)
         }
     }
-
-    #[turbo_tasks::function]
-    fn parse_original(self: Vc<Self>) -> Vc<ParseResult> {
-        self.failsafe_parse()
-    }
-
-    #[turbo_tasks::function]
-    fn ty(&self) -> Vc<EcmascriptModuleAssetType> {
-        self.ty.cell()
-    }
 }
 
 #[turbo_tasks::value_impl]
@@ -676,7 +651,7 @@ impl EcmascriptAnalyzable for EcmascriptModuleAsset {
             async_module: analyze_ref.async_module,
             generate_source_map,
             original_source_map: analyze_ref.source_map,
-            exports: analyze_ref.exports,
+            exports: self.get_exports().to_resolved().await?,
             async_module_info,
         }
         .cell())
@@ -716,7 +691,7 @@ async fn determine_module_type_for_directory(
 #[turbo_tasks::value_impl]
 impl EcmascriptModuleAsset {
     #[turbo_tasks::function]
-    fn new(
+    async fn new(
         source: ResolvedVc<Box<dyn Source>>,
         asset_context: ResolvedVc<Box<dyn AssetContext>>,
         ty: EcmascriptModuleAssetType,
@@ -724,8 +699,9 @@ impl EcmascriptModuleAsset {
         options: ResolvedVc<EcmascriptOptions>,
         compile_time_info: ResolvedVc<CompileTimeInfo>,
         side_effect_free_packages: Option<ResolvedVc<Glob>>,
-    ) -> Vc<Self> {
-        Self::cell(EcmascriptModuleAsset {
+    ) -> Result<Vc<Self>> {
+        Ok(Self::cell(EcmascriptModuleAsset {
+            origin_path: source.ident().await?.path.clone(),
             source,
             asset_context,
             ty,
@@ -734,7 +710,7 @@ impl EcmascriptModuleAsset {
             compile_time_info,
             side_effect_free_packages,
             inner_assets: None,
-        })
+        }))
     }
 
     #[turbo_tasks::function]
@@ -760,6 +736,7 @@ impl EcmascriptModuleAsset {
             ))
         } else {
             Ok(Self::cell(EcmascriptModuleAsset {
+                origin_path: source.ident().await?.path.clone(),
                 source,
                 asset_context,
                 ty,
@@ -778,17 +755,16 @@ impl EcmascriptModuleAsset {
     }
 
     #[turbo_tasks::function]
-    pub fn analyze(self: Vc<Self>) -> Vc<AnalyzeEcmascriptModuleResult> {
-        analyze_ecmascript_module(self, None)
-    }
-
-    #[turbo_tasks::function]
     pub fn options(&self) -> Vc<EcmascriptOptions> {
         *self.options
     }
 }
 
 impl EcmascriptModuleAsset {
+    pub fn analyze(self: Vc<Self>) -> Vc<AnalyzeEcmascriptModuleResult> {
+        analyze_ecmascript_module(self, None)
+    }
+
     pub async fn parse(&self) -> Result<Vc<ParseResult>> {
         let options = self.options.await?;
         let node_env = self
@@ -823,7 +799,7 @@ impl EcmascriptModuleAsset {
             SpecifiedModuleType::Automatic => {}
         }
 
-        determine_module_type_for_directory(self.origin_path().await?.parent()).await
+        determine_module_type_for_directory(this.origin_path.parent()).await
     }
 }
 
@@ -834,12 +810,13 @@ impl Module for EcmascriptModuleAsset {
         let mut ident = self.source.ident().owned().await?;
         if let Some(inner_assets) = self.inner_assets {
             for (name, asset) in inner_assets.await?.iter() {
-                ident.add_asset(name.clone(), asset.ident().to_resolved().await?);
+                ident = ident.with_asset(name.clone(), asset.ident().to_resolved().await?);
             }
         }
-        ident.add_modifier(rcstr!("ecmascript"));
-        ident.layer = Some(self.asset_context.into_trait_ref().await?.layer());
-        Ok(AssetIdent::new(ident))
+        Ok(ident
+            .with_modifier(rcstr!("ecmascript"))
+            .with_layer(self.asset_context.into_trait_ref().await?.layer())
+            .into_vc())
     }
 
     #[turbo_tasks::function]
@@ -867,7 +844,7 @@ impl Module for EcmascriptModuleAsset {
         // Check package.json first, so that we can skip parsing the module if it's marked that way.
         // We need to respect package.json configuration over any static analysis we might do.
         Ok((match *get_side_effect_free_declaration(
-            self.ident().path().owned().await?,
+            self.ident().await?.path.clone(),
             this.side_effect_free_packages.map(|g| *g),
         )
         .await?
@@ -896,7 +873,7 @@ impl ChunkableModule for EcmascriptModuleAsset {
 impl EcmascriptChunkPlaceable for EcmascriptModuleAsset {
     #[turbo_tasks::function]
     async fn get_exports(self: Vc<Self>) -> Result<Vc<EcmascriptExports>> {
-        Ok(*self.analyze().await?.exports)
+        Ok(*compute_ecmascript_module_exports(self, None).await?.exports)
     }
 
     #[turbo_tasks::function]
@@ -965,14 +942,12 @@ impl EvaluatableAsset for EcmascriptModuleAsset {}
 
 #[turbo_tasks::value_impl]
 impl ResolveOrigin for EcmascriptModuleAsset {
-    #[turbo_tasks::function]
-    fn origin_path(&self) -> Vc<FileSystemPath> {
-        self.source.ident().path()
+    fn origin_path(&self) -> FileSystemPath {
+        self.origin_path.clone()
     }
 
-    #[turbo_tasks::function]
-    fn asset_context(&self) -> Vc<Box<dyn AssetContext>> {
-        *self.asset_context
+    fn asset_context(&self) -> ResolvedVc<Box<dyn AssetContext>> {
+        self.asset_context
     }
 }
 
@@ -987,7 +962,7 @@ pub struct EcmascriptModuleContent {
 }
 
 #[turbo_tasks::value(shared)]
-#[derive(Clone, Debug, Hash, TaskInput)]
+#[derive(Clone, Debug, Hash)]
 pub struct EcmascriptModuleContentOptions {
     module: ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>,
     parsed: Option<ResolvedVc<ParseResult>>,
@@ -1971,7 +1946,7 @@ async fn process_parse_result(
                         .unwrap_or("".into());
                     let msg = &*turbofmt!(
                         "Could not parse module '{}'\n{error_messages}",
-                        ident.path()
+                        ident.await?.path
                     )
                     .await?;
                     let body = vec![
@@ -1999,9 +1974,11 @@ async fn process_parse_result(
                     }
                 }
                 ParseResult::NotFound => {
-                    let msg =
-                        &*turbofmt!("Could not parse module '{}', file not found", ident.path())
-                            .await?;
+                    let msg = &*turbofmt!(
+                        "Could not parse module '{}', file not found",
+                        ident.await?.path
+                    )
+                    .await?;
                     let body = vec![
                         quote!(
                             "var e = new Error($msg);" as Stmt,
