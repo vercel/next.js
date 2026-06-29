@@ -1049,6 +1049,7 @@ impl ChunkingContext for BrowserChunkingContext {
                             batch_groups: Vec::new(),
                         }
                         .cell(),
+                        Vec::new(),
                     )
                     .to_resolved()
                     .await?

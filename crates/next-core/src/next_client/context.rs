@@ -604,6 +604,10 @@ pub async fn get_client_chunking_context(
                     first_page_load_priority: chunking_first_page_load_priority,
                     priority_boost_percent: chunking_priority_boost_percent,
                     request_cost: chunking_request_cost,
+                    // Generate component chunks alongside the merged chunk so that the browser
+                    // runtime can fetch an already-cached one instead of the whole merged chunk.
+                    generate_component_chunks: true,
+                    min_component_chunk_size: 20_000,
                     ..Default::default()
                 },
             )

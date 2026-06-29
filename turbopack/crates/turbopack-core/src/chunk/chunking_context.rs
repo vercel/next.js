@@ -255,6 +255,16 @@ pub struct ChunkingConfig {
     /// This makes sure that code in big chunks is not duplicated in multiple chunks.
     pub max_merge_chunk_size: usize,
 
+    /// When enabled, a merged chunk also emits its constituent component chunks (referenced,
+    /// loaded on demand) so the runtime can fetch an individual component chunk instead of the
+    /// whole merged chunk when it is already cached.
+    pub generate_component_chunks: bool,
+
+    /// Minimum size for a component chunk to be emitted on its own when
+    /// `generate_component_chunks` is enabled. Component chunks smaller than this are folded
+    /// into a single remainder component chunk.
+    pub min_component_chunk_size: usize,
+
     /// Selects the algorithm used to compute
     /// [`crate::module_graph::style_groups::StyleGroups`]. Only consulted for the CSS chunk
     /// type.
