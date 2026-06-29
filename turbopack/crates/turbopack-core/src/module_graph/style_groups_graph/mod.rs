@@ -28,9 +28,9 @@
 //!
 //! ```text
 //! cost_per_group(chunk, group)
-//!   = chunk_size
-//!   + (chunk_size / group_total_size) * module_factor_cost
-//!   + request_cost
+//!   = chunk_group_weight * (chunk_size + request_cost)
+//!
+//! chunk_group_weight = group_total_size ^ (-weight_distribution)
 //! ```
 //!
 //! where `chunk_size` is the sum of module byte sizes in the chunk and `group_total_size` is the
@@ -40,11 +40,13 @@
 //! `request_cost` (in bytes — same unit as module sizes) charges for every CSS request a chunk
 //! group makes. Larger values bias toward fewer, larger shared chunks.
 //!
-//! `module_factor_cost` controls how much the algorithm cares about small chunk groups:
+//! `weight_distribution` controls how a chunk's cost is distributed across the chunk groups that
+//! load it, via the per-group weight `group_total_size ^ (-weight_distribution)`:
 //!
-//! * `0` distributes overshipped bytes evenly across chunk groups.
-//! * Higher values penalize overshipping in small chunk groups proportionally more, so small pages
-//!   ship fewer unrelated styles at the expense of more requests overall.
+//! * `0` weights every chunk group equally (the chunk's bytes/requests are spread evenly).
+//! * Higher values give smaller chunk groups a larger weight, so the algorithm cares proportionally
+//!   more about what it ships to them and overships less to small pages — at the expense of more
+//!   requests overall.
 //!
 //! # Constraints
 //!
@@ -116,7 +118,7 @@ pub async fn compute_style_groups_graph(
     module_graph: Vc<ModuleGraph>,
     chunking_context: Vc<Box<dyn ChunkingContext>>,
     request_cost: f32,
-    module_factor_cost: f32,
+    weight_distribution: f32,
     max_chunk_size: u64,
 ) -> Result<Vc<StyleGroups>> {
     // 1. Walk every chunk group post-order and collect, for each group, the ordered list of CSS
@@ -149,7 +151,7 @@ pub async fn compute_style_groups_graph(
             &module_sizes,
             &module_style_types,
             request_cost,
-            module_factor_cost,
+            weight_distribution,
             max_chunk_size,
         )
     });

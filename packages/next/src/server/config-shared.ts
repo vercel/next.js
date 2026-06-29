@@ -423,7 +423,7 @@ export type CssChunkingConfig =
   | 'graph'
   | { type: 'strict' }
   | { type: 'loose' }
-  | { type: 'graph'; requestCost?: number; moduleFactorCost?: number }
+  | { type: 'graph'; requestCost?: number; weightDistribution?: number }
 
 /**
  * Normalize any [`CssChunkingConfig`] value to one of the four modes the build pipeline cares
@@ -440,7 +440,7 @@ export function resolveCssChunkingMode(
   if (value === undefined || value === false) return 'off'
   if (value === true || value === 'loose') return 'loose'
   if (value === 'strict' || value === 'graph') return value
-  // Object form. `requestCost` and `moduleFactorCost` are validated by the schema.
+  // Object form. `requestCost` and `weightDistribution` are validated by the schema.
   if (value.type === 'strict') return 'strict'
   if (value.type === 'graph') return 'graph'
   return 'loose'
@@ -575,18 +575,19 @@ export interface ExperimentalConfig {
    * - `'strict'` / `{ type: 'strict' }` — preserve correct ordering as much as possible, even
    *   when this leads to many requests. Webpack only.
    * - `false` — disable chunking; emit one chunk per CSS module. Webpack only.
-   * - `'graph'` / `{ type: 'graph', requestCost?, moduleFactorCost? }` — Turbopack only.
+   * - `'graph'` / `{ type: 'graph', requestCost?, weightDistribution? }` — Turbopack only.
    *   Selects a CSS chunking strategy that analyzes the most common style orderings across the
    *   application and produces shared chunks accordingly. Compared to the default mode it
    *   intentionally overships some styles in order to reduce the number of CSS requests per
    *   page. Cost overrides:
-   *     - `requestCost` (bytes, default `20000`) — additional cost charged for every CSS
+   *     - `requestCost` (bytes, default `100000`) — additional cost charged for every CSS
    *       request a chunk group makes. Larger values bias the algorithm toward fewer, larger
    *       shared chunks; smaller values toward more, smaller chunks.
-   *     - `moduleFactorCost` (default `1`) — controls how much the algorithm cares about
-   *       small chunk groups. `0` distributes overshipped bytes evenly across chunk groups.
-   *       Higher values penalize overshipping in small chunk groups proportionally more, so
-   *       small pages ship fewer unrelated styles at the expense of more requests overall.
+   *     - `weightDistribution` (default `0.1`) — controls how a chunk's cost is distributed across
+   *       the chunk groups that load it, via a per-group weight of
+   *       `groupSize ^ (-weightDistribution)`. `0` weights every chunk group equally; higher
+   *       values give smaller chunk groups more weight, so small pages ship fewer unrelated
+   *       styles at the expense of more requests overall.
    */
   cssChunking?: CssChunkingConfig
   disablePostcssPresetEnv?: boolean

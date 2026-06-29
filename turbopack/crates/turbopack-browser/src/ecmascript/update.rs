@@ -11,8 +11,8 @@ pub(super) enum EcmascriptChunkUpdate {
 }
 
 pub(super) struct EcmascriptChunkPartialUpdate {
-    pub added: FxIndexMap<ModuleId, (u64, ResolvedVc<Code>)>,
-    pub deleted: FxIndexMap<ModuleId, u64>,
+    pub added: FxIndexMap<ModuleId, (u128, ResolvedVc<Code>)>,
+    pub deleted: FxIndexMap<ModuleId, u128>,
     pub modified: FxIndexMap<ModuleId, ResolvedVc<Code>>,
 }
 
