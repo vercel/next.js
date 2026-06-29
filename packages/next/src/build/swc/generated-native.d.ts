@@ -58,7 +58,7 @@ export interface NapiTaskMessage {
 export declare function recvTaskMessageInWorker(
   workerId: number
 ): Promise<NapiTaskMessage>
-export declare function sendTaskMessage(message: NapiTaskMessage): Promise<void>
+export declare function sendTaskMessage(message: NapiTaskMessage): void
 export interface NapiLocation {
   line: number
   column?: number
