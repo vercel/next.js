@@ -11,9 +11,6 @@ describe('empty-generate-static-params', () => {
     return
   }
 
-  // TODO: The build error has no code frame because generateStaticParams runs
-  // in the page-data worker, which lacks code-frame support. Surface one to
-  // match prerender errors in a follow-up.
   function errorBlock(cliOutput: string) {
     return cliOutput.slice(
       cliOutput.indexOf('When using Cache Components'),
@@ -82,6 +79,12 @@ describe('empty-generate-static-params', () => {
 
          Learn more: https://nextjs.org/docs/messages/empty-generate-static-params
              at generateStaticParams (app/[slug]/page.tsx:10:10)
+            8 |
+            9 | export async function generateStaticParams() {
+         > 10 |   return []
+              |          ^
+           11 | }
+           12 |
 
          > "
         `)
@@ -91,6 +94,12 @@ describe('empty-generate-static-params', () => {
 
          Learn more: https://nextjs.org/docs/messages/empty-generate-static-params
              at generateStaticParams (webpack:///app/[slug]/page.tsx:10:10)
+            8 |
+            9 | export async function generateStaticParams() {
+         > 10 |   return []
+              |          ^
+           11 | }
+           12 |
 
          > "
         `)
@@ -105,6 +114,13 @@ describe('empty-generate-static-params', () => {
 
          Learn more: https://nextjs.org/docs/messages/empty-generate-static-params
              at generateStaticParams (app/computed/[slug]/page.tsx:9:8)
+            7 | }
+            8 |
+         >  9 | export async function generateStaticParams() {
+              |        ^
+           10 |   // Empty at runtime but not statically analyzable, so it falls back to the
+           11 |   // factory stack anchored at the declaration.
+           12 |   const items: string[] = []
 
          > "
         `)
@@ -114,6 +130,13 @@ describe('empty-generate-static-params', () => {
 
          Learn more: https://nextjs.org/docs/messages/empty-generate-static-params
              at generateStaticParams (webpack:///app/computed/[slug]/page.tsx:9:8)
+            7 | }
+            8 |
+         >  9 | export async function generateStaticParams() {
+              |        ^
+           10 |   // Empty at runtime but not statically analyzable, so it falls back to the
+           11 |   // factory stack anchored at the declaration.
+           12 |   const items: string[] = []
 
          > "
         `)
