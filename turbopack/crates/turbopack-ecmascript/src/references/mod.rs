@@ -101,8 +101,8 @@ use crate::{
     ModuleTypeResult, TreeShakingMode, TypeofWindow,
     analyzer::{
         Bump, BumpVec, ConstantNumber, ConstantString, ConstantValue as JsConstantValue, JsValue,
-        JsValueUrlKind, ObjectPart, RequireContextValue, ThreadLocal, WellKnownFunctionKind,
-        WellKnownObjectKind,
+        JsValueUrlKind, Modified, ObjectPart, RequireContextValue, ThreadLocal,
+        WellKnownFunctionKind, WellKnownObjectKind,
         builtin::{early_replace_builtin, replace_builtin},
         graph::{ConditionalKind, Effect, EffectArg, VarGraph, create_graph},
         imports::{ImportAnnotations, ImportAttributes, ImportMap},
@@ -3538,7 +3538,7 @@ fn require_resolve(path: FileSystemPath) -> String {
 async fn early_value_visitor<'a>(
     _arena: &'a ThreadLocal<Bump>,
     mut v: JsValue<'a>,
-) -> Result<(JsValue<'a>, bool)> {
+) -> Result<(JsValue<'a>, Modified)> {
     let modified = early_replace_builtin(&mut v);
     Ok((v, modified))
 }
@@ -3553,7 +3553,7 @@ async fn value_visitor<'a>(
     var_graph: &VarGraph<'a>,
     attributes: &ImportAttributes,
     allow_project_root_tracing: bool,
-) -> Result<(JsValue<'a>, bool)> {
+) -> Result<(JsValue<'a>, Modified)> {
     let (mut v, modified) = value_visitor_inner(
         arena,
         origin,
@@ -3580,14 +3580,14 @@ async fn value_visitor_inner<'a>(
     var_graph: &VarGraph<'a>,
     attributes: &ImportAttributes,
     allow_project_root_tracing: bool,
-) -> Result<(JsValue<'a>, bool)> {
+) -> Result<(JsValue<'a>, Modified)> {
     let ImportAttributes { ignore, .. } = *attributes;
     if let Some((name, _)) = v.get_definable_name(Some(var_graph))
         && let Some(value) = compile_time_info_ref.defines.get(&name).await?
     {
         return Ok((
             JsValue::from_compile_time_define_value_in(arena.get_or_default(), &value)?,
-            true,
+            Modified::Yes,
         ));
     }
     let value = match v {
@@ -3691,10 +3691,10 @@ async fn value_visitor_inner<'a>(
             if ignore {
                 return Ok((
                     JsValue::unknown(v, true, rcstr!("ignored well known function")),
-                    true,
+                    Modified::Yes,
                 ));
             } else {
-                return Ok((v, false));
+                return Ok((v, Modified::No));
             }
         }
         JsValue::FreeVar(ref kind) => match &**kind {
@@ -3731,7 +3731,7 @@ async fn value_visitor_inner<'a>(
             "Object" => JsValue::WellKnownObject(WellKnownObjectKind::GlobalObject),
             "Buffer" => JsValue::WellKnownObject(WellKnownObjectKind::NodeBuffer),
             "navigator" => JsValue::WellKnownObject(WellKnownObjectKind::Navigator),
-            _ => return Ok((v, false)),
+            _ => return Ok((v, Modified::No)),
         },
         JsValue::Module(ref mv) => compile_time_info
             .environment()
@@ -3750,12 +3750,16 @@ async fn value_visitor_inner<'a>(
         _ => {
             let (mut v, mut modified) =
                 replace_well_known(arena, v, compile_time_info, allow_project_root_tracing).await?;
-            modified = replace_builtin(arena.get_or_default(), &mut v) || modified;
-            modified = modified || v.make_nested_operations_unknown();
+            if replace_builtin(arena.get_or_default(), &mut v).is_modified() {
+                modified = Modified::Yes;
+            }
+            if !modified.is_modified() {
+                modified = Modified::from(v.make_nested_operations_unknown());
+            }
             return Ok((v, modified));
         }
     };
-    Ok((value, true))
+    Ok((value, Modified::Yes))
 }
 
 async fn require_resolve_visitor<'a>(

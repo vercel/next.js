@@ -29,6 +29,33 @@ fn is_unresolved_id(i: &Id, unresolved_mark: Mark) -> bool {
     i.1.outer() == unresolved_mark
 }
 
+/// Whether a visitor — or one of the builtin / well-known rewrite helpers —
+/// changed the `JsValue` it was given. Returned alongside the (possibly
+/// rewritten) value. [`Modified::Yes`] makes the linker re-enter the value for
+/// further processing; [`Modified::No`] means it is final.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Modified {
+    Yes,
+    No,
+}
+
+impl Modified {
+    /// `true` if the value was modified.
+    pub fn is_modified(self) -> bool {
+        matches!(self, Modified::Yes)
+    }
+}
+
+impl From<bool> for Modified {
+    fn from(modified: bool) -> Self {
+        if modified {
+            Modified::Yes
+        } else {
+            Modified::No
+        }
+    }
+}
+
 #[doc(hidden)]
 pub mod test_utils {
     use anyhow::Result;
@@ -37,7 +64,7 @@ pub mod test_utils {
     use turbopack_core::compile_time_info::CompileTimeInfo;
 
     use super::{
-        ConstantValue, JsValue, JsValueUrlKind, ModuleValue, WellKnownFunctionKind,
+        ConstantValue, JsValue, JsValueUrlKind, Modified, ModuleValue, WellKnownFunctionKind,
         WellKnownObjectKind, builtin::early_replace_builtin, well_known::replace_well_known,
     };
     use crate::{
@@ -51,7 +78,7 @@ pub mod test_utils {
     pub async fn early_visitor<'a>(
         _arena: &'a ThreadLocal<Bump>,
         mut v: JsValue<'a>,
-    ) -> Result<(JsValue<'a>, bool)> {
+    ) -> Result<(JsValue<'a>, Modified)> {
         let m = early_replace_builtin(&mut v);
         Ok((v, m))
     }
@@ -63,7 +90,7 @@ pub mod test_utils {
         v: JsValue<'a>,
         compile_time_info: Vc<CompileTimeInfo>,
         attributes: &ImportAttributes,
-    ) -> Result<(JsValue<'a>, bool)> {
+    ) -> Result<(JsValue<'a>, Modified)> {
         let ImportAttributes { ignore, .. } = *attributes;
         let mut new_value = match v {
             JsValue::Call(_, ref call)
@@ -210,18 +237,22 @@ pub mod test_utils {
                 if let Some(wko) = module_value_to_well_known_object(mv) {
                     wko
                 } else {
-                    return Ok((v, false));
+                    return Ok((v, Modified::No));
                 }
             }
             _ => {
                 let (mut v, m1) = replace_well_known(arena, v, compile_time_info, true).await?;
                 let m2 = replace_builtin(arena.get_or_default(), &mut v);
-                let m = m1 || m2 || v.make_nested_operations_unknown();
+                let m = if m1.is_modified() || m2.is_modified() {
+                    Modified::Yes
+                } else {
+                    Modified::from(v.make_nested_operations_unknown())
+                };
                 return Ok((v, m));
             }
         };
         new_value.normalize_shallow(arena.get_or_default());
-        Ok((new_value, true))
+        Ok((new_value, Modified::Yes))
     }
 }
 
