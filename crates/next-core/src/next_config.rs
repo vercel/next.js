@@ -1042,7 +1042,7 @@ pub struct TurbopackIgnoreIssueRule {
 /// * `false` — disabled chunking.
 /// * `"strict"` / `"loose"` / `"graph"` — string shorthands.
 /// * `{ type: "strict" }` / `{ type: "loose" }` — object form for the legacy modes.
-/// * `{ type: "graph", requestCost?, moduleFactorCost? }` — object form for the graph algorithm.
+/// * `{ type: "graph", requestCost?, weightDistribution? }` — object form for the graph algorithm.
 #[derive(
     Clone, Debug, PartialEq, Deserialize, TraceRawVcs, NonLocalValue, OperationValue, Encode, Decode,
 )]
@@ -1106,7 +1106,7 @@ pub enum CssChunkingObject {
 #[serde(rename_all = "camelCase")]
 pub struct CssChunkingGraphOptions {
     pub request_cost: Option<f32>,
-    pub module_factor_cost: Option<f32>,
+    pub weight_distribution: Option<f32>,
 }
 
 impl CssChunkingConfig {
@@ -1127,9 +1127,9 @@ impl CssChunkingConfig {
 }
 
 /// Default `requestCost` for the graph algorithm (in bytes).
-const DEFAULT_REQUEST_COST: f32 = 20_000.0;
-/// Default `moduleFactorCost` for the graph algorithm.
-const DEFAULT_MODULE_FACTOR_COST: f32 = 1.0;
+const DEFAULT_REQUEST_COST: f32 = 100_000.0;
+/// Default `weightDistribution` for the graph algorithm.
+const DEFAULT_WEIGHT_DISTRIBUTION: f32 = 0.1;
 
 /// Resolve `experimental.cssChunking` to the [`StyleGroupsAlgorithm`] Turbopack should use.
 ///
@@ -1158,8 +1158,8 @@ fn resolve_css_chunking_algorithm(
         CssChunkingObject::Loose => StyleGroupsAlgorithm::Default,
         CssChunkingObject::Graph(opts) => StyleGroupsAlgorithm::graph(
             opts.request_cost.unwrap_or(DEFAULT_REQUEST_COST),
-            opts.module_factor_cost
-                .unwrap_or(DEFAULT_MODULE_FACTOR_COST),
+            opts.weight_distribution
+                .unwrap_or(DEFAULT_WEIGHT_DISTRIBUTION),
         ),
     })
 }

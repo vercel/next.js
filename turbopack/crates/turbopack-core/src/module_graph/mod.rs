@@ -846,14 +846,14 @@ impl ModuleGraph {
                 compute_style_groups(self, chunking_context, &config).await
             }
             StyleGroupsAlgorithm::Graph {
-                module_factor_cost,
+                weight_distribution,
                 request_cost,
             } => {
                 compute_style_groups_graph(
                     self,
                     chunking_context,
                     request_cost.get(),
-                    module_factor_cost.get(),
+                    weight_distribution.get(),
                     config.max_chunk_size as u64,
                 )
                 .await

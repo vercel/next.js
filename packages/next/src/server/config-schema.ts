@@ -289,7 +289,7 @@ export const experimentalSchema = {
       z.strictObject({
         type: z.literal('graph'),
         requestCost: z.number().nonnegative().finite().optional(),
-        moduleFactorCost: z.number().nonnegative().finite().optional(),
+        weightDistribution: z.number().nonnegative().finite().optional(),
       }),
     ])
     .optional(),
