@@ -9,15 +9,11 @@
  *   - Turbopack: crates/next-core/src/next_import_map.rs
  *
  * Both consumers read the generated lists produced here so the set stays in
- * sync with the filesystem. Run with `--check` (used in CI) to verify the
- * committed lists are up to date without writing.
- *
- * Usage:
- *   node scripts/generate-browser-variant-aliases.mjs           # write
- *   node scripts/generate-browser-variant-aliases.mjs --check   # verify
+ * sync with the filesystem. CI runs this script followed by `git diff
+ * --exit-code` to ensure the committed lists are up to date.
  */
 import { execFileSync } from 'child_process'
-import { readFileSync, writeFileSync, existsSync } from 'fs'
+import { writeFileSync } from 'fs'
 import { join, dirname } from 'path'
 import { fileURLToPath } from 'url'
 
@@ -93,47 +89,9 @@ ${entries}
 `
 }
 
-/** Extract the quoted module list from a generated file for comparison. */
-function parseModules(contents) {
-  // Quoted strings only appear as list entries; doc comments use backticks.
-  return [...contents.matchAll(/["']([^"']+)["']/g)].map((m) => m[1]).sort()
-}
-
 const modules = collectModules()
-const check = process.argv.includes('--check')
-
-if (check) {
-  let ok = true
-  for (const [out, label] of [
-    [tsOut, 'TypeScript'],
-    [rsOut, 'Rust'],
-  ]) {
-    const onDisk = existsSync(out)
-      ? parseModules(readFileSync(out, 'utf8'))
-      : []
-    if (JSON.stringify(onDisk) !== JSON.stringify(modules)) {
-      ok = false
-      console.error(
-        `${label} browser-variant list is out of date (${out}).\n` +
-          `  expected: ${JSON.stringify(modules)}\n` +
-          `  on disk:  ${JSON.stringify(onDisk)}`
-      )
-    }
-  }
-  if (!ok) {
-    console.error(
-      '\nThe browser-variant module lists are out of date with the filesystem.\n' +
-        'To fix: run `pnpm generate-browser-variant-aliases` and commit the updated\n' +
-        'packages/next/src/build/browser-variant-modules.ts and\n' +
-        'crates/next-core/src/browser_variant_modules.rs.'
-    )
-    process.exit(1)
-  }
-  console.log('browser-variant lists are up to date.')
-} else {
-  writeFileSync(tsOut, renderTs(modules))
-  writeFileSync(rsOut, renderRust(modules))
-  console.log(
-    `Generated ${modules.length} browser-variant module(s):\n  ${modules.join('\n  ')}`
-  )
-}
+writeFileSync(tsOut, renderTs(modules))
+writeFileSync(rsOut, renderRust(modules))
+console.log(
+  `Generated ${modules.length} browser-variant module(s):\n  ${modules.join('\n  ')}`
+)
