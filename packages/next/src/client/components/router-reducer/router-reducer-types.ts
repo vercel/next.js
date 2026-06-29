@@ -2,6 +2,7 @@ import type { CacheNode, ScrollRef } from '../../../shared/lib/app-router-types'
 import type { FlightRouterState } from '../../../shared/lib/app-router-types'
 import type { NavigationSeed } from '../segment-cache/navigation'
 import type { FetchServerResponseResult } from './fetch-server-response'
+import type { FreshnessPolicy } from './ppr-navigations'
 
 export const ACTION_REFRESH = 'refresh'
 export const ACTION_NAVIGATE = 'navigate'
@@ -125,6 +126,13 @@ export interface ServerPatchAction {
   seed: NavigationSeed | null
   mpa: boolean
   navigateType: 'push' | 'replace'
+  /**
+   * Freshness policy for the retry navigation. `RefreshAll` re-fetches the
+   * tree's dynamic data (genuine tree mismatch). `HistoryTraversal` reuses the
+   * data already in the tree (when only the URL needs correcting after a
+   * redirect).
+   */
+  freshnessPolicy: FreshnessPolicy.RefreshAll | FreshnessPolicy.HistoryTraversal
 }
 
 /**

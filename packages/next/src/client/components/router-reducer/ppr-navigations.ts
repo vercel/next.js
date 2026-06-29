@@ -109,7 +109,7 @@ const enum NavigationTaskExitStatus {
   Done = 0,
   /**
    * Some data failed to load, presumably due to a route tree mismatch. Perform
-   * a soft retry to reload the entire tree.
+   * a soft retry to reload the entire tree (re-fetching the dynamic data).
    */
   SoftRetry = 1,
   /**
@@ -117,6 +117,14 @@ const enum NavigationTaskExitStatus {
    * parallel route. Fall back to a hard (MPA-style) retry.
    */
   HardRetry = 2,
+  /**
+   * The route tree matched, but the request was redirected, so the navigation
+   * committed the wrong canonical URL. The route cache is no longer reliable
+   * (the redirect implies a server change the prediction couldn't account for),
+   * so we re-resolve the route — but the data we already received is correct, so
+   * the retry reuses it instead of re-fetching.
+   */
+  RedirectRetry = 3,
 }
 
 export type NavigationRequestAccumulation = {
@@ -1536,7 +1544,8 @@ async function finishNavigationTask(
       return
     }
     case NavigationTaskExitStatus.SoftRetry: {
-      // Some data failed to finish loading. Trigger a soft retry.
+      // Some data failed to finish loading. Trigger a soft retry that re-fetches
+      // the tree's dynamic data.
       // TODO: As an extra precaution against soft retry loops, consider
       // tracking whether a navigation was itself triggered by a retry. If two
       // happen in a row, fall back to a hard retry.
@@ -1549,7 +1558,27 @@ async function finishNavigationTask(
         primaryRequestResult.seed,
         task.route,
         routeCacheEntry,
-        navigateType
+        navigateType,
+        FreshnessPolicy.RefreshAll
+      )
+      return
+    }
+    case NavigationTaskExitStatus.RedirectRetry: {
+      // The route matched, but the request was redirected, so we committed the
+      // wrong canonical URL. Re-resolve the route to invalidate the now-stale
+      // route cache and correct the URL — but reuse the data we already received
+      // (HistoryTraversal) instead of re-fetching it. See issue #95195.
+      const isHardRetry = false
+      const primaryRequestResult = await primaryRequestPromise
+      dispatchRetryDueToTreeMismatch(
+        isHardRetry,
+        primaryRequestResult.url,
+        nextUrl,
+        primaryRequestResult.seed,
+        task.route,
+        routeCacheEntry,
+        navigateType,
+        FreshnessPolicy.HistoryTraversal
       )
       return
     }
@@ -1571,7 +1600,8 @@ async function finishNavigationTask(
         primaryRequestResult.seed,
         task.route,
         routeCacheEntry,
-        navigateType
+        navigateType,
+        FreshnessPolicy.RefreshAll
       )
       return
     }
@@ -1641,7 +1671,14 @@ function dispatchRetryDueToTreeMismatch(
   // a dynamic rewrite so future predictions bail out.
   routeCacheEntry: FulfilledRouteCacheEntry | null,
   // The original navigation's push/replace intent.
-  originalNavigateType: 'push' | 'replace'
+  originalNavigateType: 'push' | 'replace',
+  // Freshness policy for the retry navigation. `RefreshAll` re-fetches the
+  // tree's dynamic data (used for genuine tree mismatches). `HistoryTraversal`
+  // reuses the data already in the tree (used when only the URL needs
+  // correcting after a redirect).
+  retryFreshnessPolicy:
+    | FreshnessPolicy.RefreshAll
+    | FreshnessPolicy.HistoryTraversal
 ) {
   // If the navigation used a route prediction, mark it as having a dynamic
   // rewrite since it resulted in a mismatch.
@@ -1709,6 +1746,7 @@ function dispatchRetryDueToTreeMismatch(
     seed,
     mpa: isHardRetry,
     navigateType: retryNavigateType,
+    freshnessPolicy: retryFreshnessPolicy,
   }
   dispatchAppRouterAction(retryAction)
 }
@@ -1835,11 +1873,43 @@ async function fetchMissingDynamicData(
       result.revealAfter
     )
 
+    const resolvedUrl = new URL(result.canonicalUrl, location.origin)
+
+    // Decide whether the navigation needs to be retried.
+    //
+    // - A tree mismatch (unknown parallel route) means the data is incomplete,
+    //   so we soft-retry and re-fetch the whole tree.
+    // - Otherwise, the navigation committed the canonical URL from the route
+    //   cache entry it used (a prediction or prefetch). If the request resolved
+    //   to a *different* canonical URL — e.g. a middleware/proxy redirect the
+    //   prediction didn't account for — then the committed URL is wrong and the
+    //   route cache it came from is no longer reliable (the redirect implies a
+    //   server change the prediction couldn't know about, like logging in or
+    //   out). We re-resolve the route to invalidate the stale cache and correct
+    //   the browser URL, reusing the data we just received rather than
+    //   re-fetching it. When the entry already reflects the redirect (e.g. a
+    //   prefetch that followed it), the committed URL matches and no retry is
+    //   needed. See issue #95195.
+    let didCommitWrongUrl = false
+    if (routeCacheEntry !== null) {
+      const committedUrl = new URL(
+        routeCacheEntry.canonicalUrl,
+        location.origin
+      )
+      didCommitWrongUrl =
+        committedUrl.pathname !== resolvedUrl.pathname ||
+        committedUrl.search !== resolvedUrl.search
+    }
+
+    const exitStatus = didReceiveUnknownParallelRoute
+      ? NavigationTaskExitStatus.SoftRetry
+      : didCommitWrongUrl
+        ? NavigationTaskExitStatus.RedirectRetry
+        : NavigationTaskExitStatus.Done
+
     return {
-      exitStatus: didReceiveUnknownParallelRoute
-        ? NavigationTaskExitStatus.SoftRetry
-        : NavigationTaskExitStatus.Done,
-      url: new URL(result.canonicalUrl, location.origin),
+      exitStatus,
+      url: resolvedUrl,
       seed,
     }
   } catch {
