@@ -1,5 +1,4 @@
 use anyhow::{Result, bail};
-use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{ResolvedVc, TryJoinIterExt, ValueDefault, ValueToString, Vc};
 use turbopack_core::chunk::{
     AsyncModuleInfo, Chunk, ChunkItem, ChunkItemBatchGroup, ChunkItemOrBatchWithAsyncModuleInfo,
@@ -10,16 +9,9 @@ use super::{EcmascriptChunk, EcmascriptChunkContent, EcmascriptChunkItem};
 use crate::chunk::batch::{EcmascriptChunkItemBatchGroup, EcmascriptChunkItemOrBatchWithAsyncInfo};
 
 #[turbo_tasks::value]
-#[derive(Default)]
+#[derive(Default, ValueToString)]
+#[value_to_string("ecmascript")]
 pub struct EcmascriptChunkType {}
-
-#[turbo_tasks::value_impl]
-impl ValueToString for EcmascriptChunkType {
-    #[turbo_tasks::function]
-    fn to_string(&self) -> Vc<RcStr> {
-        Vc::cell(rcstr!("ecmascript"))
-    }
-}
 
 #[turbo_tasks::value_impl]
 impl ChunkType for EcmascriptChunkType {
@@ -65,12 +57,18 @@ impl ChunkType for EcmascriptChunkType {
         else {
             bail!("Chunk item is not an ecmascript chunk item but reporting chunk type ecmascript");
         };
-        Ok(Vc::cell(
-            chunk_item
-                .content_with_async_module_info(async_module_info, true)
-                .await
-                .map_or(0, |content| round_chunk_item_size(content.inner_code.len())),
-        ))
+        let chunk_item = chunk_item.into_trait_ref().await?;
+        let size = match chunk_item
+            .content_with_async_module_info(async_module_info, true)
+            .await
+        {
+            Ok(content) => {
+                let content = content.await?;
+                round_chunk_item_size(content.inner_code.len())
+            }
+            Err(_) => 0,
+        };
+        Ok(Vc::cell(size))
     }
 }
 

@@ -1,13 +1,35 @@
-use std::{borrow::Cow, cell::RefCell, mem::take};
+use std::{borrow::Cow, cell::RefCell, mem::take, rc::Rc};
 
 use rustc_hash::FxHashMap;
 use swc_core::{
     base::SwcComments,
     common::{
         BytePos,
-        comments::{Comment, CommentKind, Comments},
+        comments::{Comment, CommentKind, Comments, SingleThreadedComments},
     },
 };
+
+use crate::source_map::extract_source_mapping_url;
+
+/// Converts multi-threaded [`SwcComments`] into [`SingleThreadedComments`] by
+/// copying all entries. Required when APIs (e.g. `swc_ecma_react_compiler`)
+/// only accept the single-threaded variant.
+pub fn swc_comments_to_single_threaded(comments: &SwcComments) -> SingleThreadedComments {
+    let mut leading = FxHashMap::default();
+    for entry in comments.leading.as_ref() {
+        leading.insert(*entry.key(), entry.value().clone());
+    }
+
+    let mut trailing = FxHashMap::default();
+    for entry in comments.trailing.as_ref() {
+        trailing.insert(*entry.key(), entry.value().clone());
+    }
+
+    SingleThreadedComments::from_leading_and_trailing(
+        Rc::new(RefCell::new(leading)),
+        Rc::new(RefCell::new(trailing)),
+    )
+}
 
 /// Immutable version of [SwcComments] which doesn't allow mutation. The `take`
 /// variants are still implemented, but do not mutate the content. They are used
@@ -38,6 +60,60 @@ impl ImmutableComments {
                 })
                 .collect(),
         }
+    }
+
+    /// Creates a new ImmutableComments from SwcComments, extracting and removing
+    /// any sourceMappingURL comment. Returns the comments and the extracted URL if found.
+    /// If multiple sourceMappingURL comments exist, the one with the highest position
+    /// (last in the file) is selected per the ECMAScript spec.
+    pub fn new_with_source_mapping_url(comments: SwcComments) -> (Self, Option<String>) {
+        let mut source_mapping_url_by_pos: Vec<(BytePos, String)> = Vec::new();
+
+        let leading: FxHashMap<BytePos, Vec<Comment>> = comments
+            .leading
+            .iter_mut()
+            .filter_map(|mut r| {
+                let pos = *r.key();
+                let mut c = take(r.value_mut());
+                // Extract and remove sourceMappingURL comments
+                c.retain(|comment| {
+                    if let Some(url) = extract_source_mapping_url(comment) {
+                        source_mapping_url_by_pos.push((pos, url.to_string()));
+                        false
+                    } else {
+                        true
+                    }
+                });
+                (!c.is_empty()).then_some((pos, c))
+            })
+            .collect();
+
+        let trailing: FxHashMap<BytePos, Vec<Comment>> = comments
+            .trailing
+            .iter_mut()
+            .filter_map(|mut r| {
+                let pos = *r.key();
+                let mut c = take(r.value_mut());
+                // Extract and remove sourceMappingURL comments
+                c.retain(|comment| {
+                    if let Some(url) = extract_source_mapping_url(comment) {
+                        source_mapping_url_by_pos.push((pos, url.to_string()));
+                        false
+                    } else {
+                        true
+                    }
+                });
+                (!c.is_empty()).then_some((pos, c))
+            })
+            .collect();
+
+        // Select the sourceMappingURL with the highest position (last one in the file)
+        let source_mapping_url = source_mapping_url_by_pos
+            .into_iter()
+            .max_by_key(|&(pos, _)| pos)
+            .map(|(_, url)| url);
+
+        (Self { leading, trailing }, source_mapping_url)
     }
 
     pub fn into_consumable(self) -> CowComments<'static> {

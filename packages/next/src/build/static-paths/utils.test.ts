@@ -1,5 +1,5 @@
 import type { Params } from '../../server/request/params'
-import { parseAppRoute } from '../../shared/lib/router/routes/app'
+import { parseNormalizedAppRoute } from '../../shared/lib/router/routes/app'
 import type { FallbackRouteParam } from './types'
 import { resolveRouteParamsFromTree } from './utils'
 
@@ -8,6 +8,7 @@ type TestLoaderTree = [
   segment: string,
   parallelRoutes: { [key: string]: TestLoaderTree },
   modules: Record<string, unknown>,
+  staticSiblings: readonly string[] | null,
 ]
 
 function createLoaderTree(
@@ -16,7 +17,7 @@ function createLoaderTree(
   children?: TestLoaderTree
 ): TestLoaderTree {
   const routes = children ? { ...parallelRoutes, children } : parallelRoutes
-  return [segment, routes, {}]
+  return [segment, routes, {}, null]
 }
 
 describe('resolveRouteParamsFromTree', () => {
@@ -27,7 +28,7 @@ describe('resolveRouteParamsFromTree', () => {
         sidebar: createLoaderTree('[existingParam]'),
       })
       const params: Params = { existingParam: 'value' }
-      const route = parseAppRoute('/some/path', true)
+      const route = parseNormalizedAppRoute('/some/path')
       const fallbackRouteParams: FallbackRouteParam[] = []
 
       resolveRouteParamsFromTree(loaderTree, params, route, fallbackRouteParams)
@@ -43,7 +44,7 @@ describe('resolveRouteParamsFromTree', () => {
         modal: createLoaderTree('[...param2]'),
       })
       const params: Params = { param1: 'value1', param2: ['a', 'b'] }
-      const route = parseAppRoute('/some/path', true)
+      const route = parseNormalizedAppRoute('/some/path')
       const fallbackRouteParams: FallbackRouteParam[] = []
 
       resolveRouteParamsFromTree(loaderTree, params, route, fallbackRouteParams)
@@ -62,7 +63,7 @@ describe('resolveRouteParamsFromTree', () => {
         sidebar: createLoaderTree('[dynamicParam]'),
       })
       const params: Params = {}
-      const route = parseAppRoute('/some/path', true)
+      const route = parseNormalizedAppRoute('/some/path')
       const fallbackRouteParams: FallbackRouteParam[] = []
 
       resolveRouteParamsFromTree(loaderTree, params, route, fallbackRouteParams)
@@ -79,7 +80,7 @@ describe('resolveRouteParamsFromTree', () => {
         sidebar: createLoaderTree('[category]'),
       })
       const params: Params = {}
-      const route = parseAppRoute('/photo/123', true)
+      const route = parseNormalizedAppRoute('/photo/123')
       const fallbackRouteParams: FallbackRouteParam[] = []
 
       resolveRouteParamsFromTree(loaderTree, params, route, fallbackRouteParams)
@@ -96,7 +97,7 @@ describe('resolveRouteParamsFromTree', () => {
         sidebar: createLoaderTree('[category]'),
       })
       const params: Params = {}
-      const route = parseAppRoute('/tech', true)
+      const route = parseNormalizedAppRoute('/tech')
       const fallbackRouteParams: FallbackRouteParam[] = []
 
       resolveRouteParamsFromTree(loaderTree, params, route, fallbackRouteParams)
@@ -115,7 +116,7 @@ describe('resolveRouteParamsFromTree', () => {
         })
       )
       const params: Params = {}
-      const route = parseAppRoute('/blog/tech', true)
+      const route = parseNormalizedAppRoute('/blog/tech')
       const fallbackRouteParams: FallbackRouteParam[] = []
 
       resolveRouteParamsFromTree(loaderTree, params, route, fallbackRouteParams)
@@ -132,7 +133,7 @@ describe('resolveRouteParamsFromTree', () => {
         sidebar: createLoaderTree('[category]'),
       })
       const params: Params = {}
-      const route = parseAppRoute('/tech', true)
+      const route = parseNormalizedAppRoute('/tech')
       const fallbackRouteParams: FallbackRouteParam[] = [
         { paramName: 'slug', paramType: 'dynamic' },
       ]
@@ -158,7 +159,7 @@ describe('resolveRouteParamsFromTree', () => {
         )
       )
       const params: Params = {}
-      const route = parseAppRoute('/blog', true)
+      const route = parseNormalizedAppRoute('/blog')
       const fallbackRouteParams: FallbackRouteParam[] = []
 
       resolveRouteParamsFromTree(loaderTree, params, route, fallbackRouteParams)
@@ -181,7 +182,7 @@ describe('resolveRouteParamsFromTree', () => {
         })
       )
       const params: Params = { lang: 'en' }
-      const route = parseAppRoute('/en/tech', true)
+      const route = parseNormalizedAppRoute('/en/tech')
       const fallbackRouteParams: FallbackRouteParam[] = []
 
       resolveRouteParamsFromTree(loaderTree, params, route, fallbackRouteParams)
@@ -207,7 +208,7 @@ describe('resolveRouteParamsFromTree', () => {
         )
       )
       const params: Params = { lang: 'en' }
-      const route = parseAppRoute('/en/products/[category]', true)
+      const route = parseNormalizedAppRoute('/en/products/[category]')
       const fallbackRouteParams: FallbackRouteParam[] = [
         { paramName: 'category', paramType: 'dynamic' },
       ]
@@ -239,7 +240,7 @@ describe('resolveRouteParamsFromTree', () => {
         )
       )
       const params: Params = { lang: 'en' }
-      const route = parseAppRoute('/en/products/[category]', true)
+      const route = parseNormalizedAppRoute('/en/products/[category]')
       const fallbackRouteParams: FallbackRouteParam[] = [
         { paramName: 'category', paramType: 'dynamic' },
       ]
@@ -268,7 +269,7 @@ describe('resolveRouteParamsFromTree', () => {
         })
       )
       const params: Params = {}
-      const route = parseAppRoute('/blog/2023/posts/my-article', true)
+      const route = parseNormalizedAppRoute('/blog/2023/posts/my-article')
       const fallbackRouteParams: FallbackRouteParam[] = []
 
       resolveRouteParamsFromTree(loaderTree, params, route, fallbackRouteParams)
@@ -284,7 +285,7 @@ describe('resolveRouteParamsFromTree', () => {
         sidebar: createLoaderTree('[...catchallParam]'),
       })
       const params: Params = {}
-      const route = parseAppRoute('/blog/2023/posts', true)
+      const route = parseNormalizedAppRoute('/blog/2023/posts')
       const fallbackRouteParams: FallbackRouteParam[] = []
 
       resolveRouteParamsFromTree(loaderTree, params, route, fallbackRouteParams)
@@ -308,7 +309,9 @@ describe('resolveRouteParamsFromTree', () => {
         )
       )
       const params: Params = { category: 'electronics' }
-      const route = parseAppRoute('/products/electronics/phones/iphone', true)
+      const route = parseNormalizedAppRoute(
+        '/products/electronics/phones/iphone'
+      )
       const fallbackRouteParams: FallbackRouteParam[] = []
 
       resolveRouteParamsFromTree(loaderTree, params, route, fallbackRouteParams)
@@ -324,7 +327,7 @@ describe('resolveRouteParamsFromTree', () => {
         sidebar: createLoaderTree('[...catchallParam]'),
       })
       const params: Params = {}
-      const route = parseAppRoute('/single', true)
+      const route = parseNormalizedAppRoute('/single')
       const fallbackRouteParams: FallbackRouteParam[] = []
 
       resolveRouteParamsFromTree(loaderTree, params, route, fallbackRouteParams)
@@ -346,7 +349,7 @@ describe('resolveRouteParamsFromTree', () => {
         })
       )
       const params: Params = {}
-      const route = parseAppRoute('/blog/post', true)
+      const route = parseNormalizedAppRoute('/blog/post')
       const fallbackRouteParams: FallbackRouteParam[] = []
 
       resolveRouteParamsFromTree(loaderTree, params, route, fallbackRouteParams)
@@ -374,7 +377,7 @@ describe('resolveRouteParamsFromTree', () => {
         )
       )
       const params: Params = {}
-      const route = parseAppRoute('/blog/2023/posts', true)
+      const route = parseNormalizedAppRoute('/blog/2023/posts')
       const fallbackRouteParams: FallbackRouteParam[] = []
 
       resolveRouteParamsFromTree(loaderTree, params, route, fallbackRouteParams)
@@ -392,7 +395,7 @@ describe('resolveRouteParamsFromTree', () => {
         sidebar: createLoaderTree('[[...optionalCatchall]]'),
       })
       const params: Params = {}
-      const route = parseAppRoute('/', true)
+      const route = parseNormalizedAppRoute('/')
       const fallbackRouteParams: FallbackRouteParam[] = []
 
       resolveRouteParamsFromTree(loaderTree, params, route, fallbackRouteParams)
@@ -411,7 +414,7 @@ describe('resolveRouteParamsFromTree', () => {
         })
       )
       const params: Params = {}
-      const route = parseAppRoute('/blog', true)
+      const route = parseNormalizedAppRoute('/blog')
       const fallbackRouteParams: FallbackRouteParam[] = []
 
       resolveRouteParamsFromTree(loaderTree, params, route, fallbackRouteParams)
@@ -428,7 +431,7 @@ describe('resolveRouteParamsFromTree', () => {
         sidebar: createLoaderTree('[[...optionalCatchall]]'),
       })
       const params: Params = {}
-      const route = parseAppRoute('/api/v1/users', true)
+      const route = parseNormalizedAppRoute('/api/v1/users')
       const fallbackRouteParams: FallbackRouteParam[] = []
 
       resolveRouteParamsFromTree(loaderTree, params, route, fallbackRouteParams)
@@ -446,7 +449,7 @@ describe('resolveRouteParamsFromTree', () => {
         modal: createLoaderTree('[...path]'),
       })
       const params: Params = {}
-      const route = parseAppRoute('/photos/album/2023', true)
+      const route = parseNormalizedAppRoute('/photos/album/2023')
       const fallbackRouteParams: FallbackRouteParam[] = []
 
       resolveRouteParamsFromTree(loaderTree, params, route, fallbackRouteParams)
@@ -464,7 +467,7 @@ describe('resolveRouteParamsFromTree', () => {
         sidebar: createLoaderTree('[...catchallParam]'),
       })
       const params: Params = {}
-      const route = parseAppRoute('/', true)
+      const route = parseNormalizedAppRoute('/')
       const fallbackRouteParams: FallbackRouteParam[] = []
 
       expect(() =>
@@ -492,7 +495,7 @@ describe('resolveRouteParamsFromTree', () => {
         )
       )
       const params: Params = {}
-      const route = parseAppRoute('/blog', true)
+      const route = parseNormalizedAppRoute('/blog')
       const fallbackRouteParams: FallbackRouteParam[] = []
 
       expect(() =>
@@ -514,7 +517,7 @@ describe('resolveRouteParamsFromTree', () => {
         modal: createLoaderTree('[[...modalPath]]'),
       })
       const params: Params = {}
-      const route = parseAppRoute('/products/electronics', true)
+      const route = parseNormalizedAppRoute('/products/electronics')
       const fallbackRouteParams: FallbackRouteParam[] = []
 
       resolveRouteParamsFromTree(loaderTree, params, route, fallbackRouteParams)
@@ -534,7 +537,7 @@ describe('resolveRouteParamsFromTree', () => {
         })
       )
       const params: Params = { lang: 'en' }
-      const route = parseAppRoute('/en/blog/post', true)
+      const route = parseNormalizedAppRoute('/en/blog/post')
       const fallbackRouteParams: FallbackRouteParam[] = []
 
       resolveRouteParamsFromTree(loaderTree, params, route, fallbackRouteParams)
@@ -554,7 +557,7 @@ describe('resolveRouteParamsFromTree', () => {
         createLoaderTree('blog')
       )
       const params: Params = {}
-      const route = parseAppRoute('/blog/post', true)
+      const route = parseNormalizedAppRoute('/blog/post')
       const fallbackRouteParams: FallbackRouteParam[] = []
 
       resolveRouteParamsFromTree(loaderTree, params, route, fallbackRouteParams)
@@ -577,7 +580,7 @@ describe('resolveRouteParamsFromTree', () => {
         })
       )
       const params: Params = {}
-      const route = parseAppRoute('/photo/123/details', true)
+      const route = parseNormalizedAppRoute('/photo/123/details')
       const fallbackRouteParams: FallbackRouteParam[] = []
 
       resolveRouteParamsFromTree(loaderTree, params, route, fallbackRouteParams)
@@ -601,7 +604,7 @@ describe('resolveRouteParamsFromTree', () => {
         )
       )
       const params: Params = {}
-      const route = parseAppRoute('/gallery/photo/123', true)
+      const route = parseNormalizedAppRoute('/gallery/photo/123')
       const fallbackRouteParams: FallbackRouteParam[] = []
 
       resolveRouteParamsFromTree(loaderTree, params, route, fallbackRouteParams)
@@ -629,7 +632,7 @@ describe('resolveRouteParamsFromTree', () => {
         )
       )
       const params: Params = {}
-      const route = parseAppRoute('/app/gallery/photo/2023/album', true)
+      const route = parseNormalizedAppRoute('/app/gallery/photo/2023/album')
       const fallbackRouteParams: FallbackRouteParam[] = []
 
       resolveRouteParamsFromTree(loaderTree, params, route, fallbackRouteParams)
@@ -657,7 +660,7 @@ describe('resolveRouteParamsFromTree', () => {
         )
       )
       const params: Params = {}
-      const route = parseAppRoute('/a/b/photo/nature', true)
+      const route = parseNormalizedAppRoute('/a/b/photo/nature')
       const fallbackRouteParams: FallbackRouteParam[] = []
 
       resolveRouteParamsFromTree(loaderTree, params, route, fallbackRouteParams)
@@ -686,7 +689,7 @@ describe('resolveRouteParamsFromTree', () => {
         })
       )
 
-      const route = parseAppRoute('/photo/123', true)
+      const route = parseNormalizedAppRoute('/photo/123')
 
       // Route group - should NOT increment depth
       const routeGroupParams: Params = {}
@@ -721,7 +724,7 @@ describe('resolveRouteParamsFromTree', () => {
         modal: createLoaderTree('[id]'),
       })
       const params: Params = {}
-      const route = parseAppRoute('/', true)
+      const route = parseNormalizedAppRoute('/')
       const fallbackRouteParams: FallbackRouteParam[] = []
 
       resolveRouteParamsFromTree(loaderTree, params, route, fallbackRouteParams)
@@ -741,7 +744,7 @@ describe('resolveRouteParamsFromTree', () => {
         sidebar: createLoaderTree('[filter]'),
       })
       const params: Params = {}
-      const route = parseAppRoute('/', true)
+      const route = parseNormalizedAppRoute('/')
       const fallbackRouteParams: FallbackRouteParam[] = []
 
       resolveRouteParamsFromTree(loaderTree, params, route, fallbackRouteParams)
@@ -769,7 +772,7 @@ describe('resolveRouteParamsFromTree', () => {
         })
       )
       const params: Params = {}
-      const route = parseAppRoute('/blog', true)
+      const route = parseNormalizedAppRoute('/blog')
       const fallbackRouteParams: FallbackRouteParam[] = []
 
       resolveRouteParamsFromTree(loaderTree, params, route, fallbackRouteParams)
@@ -792,7 +795,7 @@ describe('resolveRouteParamsFromTree', () => {
         sidebar: createLoaderTree('[...path]'),
       })
       const params: Params = {}
-      const route = parseAppRoute('/blog/[category]/tech', true)
+      const route = parseNormalizedAppRoute('/blog/[category]/tech')
       const fallbackRouteParams: FallbackRouteParam[] = [
         { paramName: 'category', paramType: 'dynamic' },
       ]
@@ -819,7 +822,7 @@ describe('resolveRouteParamsFromTree', () => {
         })
       )
       const params: Params = { lang: 'en' }
-      const route = parseAppRoute('/en/blog/[category]', true)
+      const route = parseNormalizedAppRoute('/en/blog/[category]')
       const fallbackRouteParams: FallbackRouteParam[] = []
 
       resolveRouteParamsFromTree(loaderTree, params, route, fallbackRouteParams)
@@ -847,9 +850,8 @@ describe('resolveRouteParamsFromTree', () => {
         )
       )
       const params: Params = { category: 'electronics' }
-      const route = parseAppRoute(
-        '/products/electronics/brand/apple/price/high',
-        true
+      const route = parseNormalizedAppRoute(
+        '/products/electronics/brand/apple/price/high'
       )
       const fallbackRouteParams: FallbackRouteParam[] = []
 
@@ -877,7 +879,7 @@ describe('resolveRouteParamsFromTree', () => {
         )
       )
       const params: Params = {}
-      const route = parseAppRoute('/gallery/photo/123', true)
+      const route = parseNormalizedAppRoute('/gallery/photo/123')
       const fallbackRouteParams: FallbackRouteParam[] = []
 
       resolveRouteParamsFromTree(loaderTree, params, route, fallbackRouteParams)
@@ -906,7 +908,7 @@ describe('resolveRouteParamsFromTree', () => {
         )
       )
       const params: Params = {}
-      const route = parseAppRoute('/gallery/photo/2023/album', true)
+      const route = parseNormalizedAppRoute('/gallery/photo/2023/album')
       const fallbackRouteParams: FallbackRouteParam[] = []
 
       resolveRouteParamsFromTree(loaderTree, params, route, fallbackRouteParams)
@@ -929,7 +931,7 @@ describe('resolveRouteParamsFromTree', () => {
         })
       )
       const params: Params = { lang: 'en' }
-      const route = parseAppRoute('/en/tech/react/nextjs', true)
+      const route = parseNormalizedAppRoute('/en/tech/react/nextjs')
       const fallbackRouteParams: FallbackRouteParam[] = []
 
       resolveRouteParamsFromTree(loaderTree, params, route, fallbackRouteParams)
@@ -959,7 +961,7 @@ describe('resolveRouteParamsFromTree', () => {
         )
       )
       const params: Params = {}
-      const route = parseAppRoute('/app/modal/photo/image-123', true)
+      const route = parseNormalizedAppRoute('/app/modal/photo/image-123')
       const fallbackRouteParams: FallbackRouteParam[] = []
 
       resolveRouteParamsFromTree(loaderTree, params, route, fallbackRouteParams)

@@ -2,6 +2,7 @@
 dist
 !.github/actions/*/dist
 .next
+.next-profiles
 target
 packages/next/wasm/@next
 tarballs/
@@ -25,6 +26,7 @@ test/node_modules
 pids
 *.cpuprofile
 *.heapsnapshot
+.next-profiles
 
 # coverage
 .nyc_output
@@ -47,7 +49,10 @@ test/traces
 
 # examples
 examples/**/out/*
-examples/**/.env*.local
+
+# env
+.env*.local
+evals/.env
 
 pr-stats.md
 test-timings.json
@@ -63,3 +68,23 @@ test-timings.json
 
 # Storybook
 *storybook.log
+
+# Claude Code (local settings and session files)
+.claude/settings.local.json
+.claude/plans/
+.claude/todos.json
+.claude/worktrees
+.claude/scheduled_tasks.lock
+CLAUDE.local.md
+
+# Conductor (worktrees created by Conductor app, but keep scripts/)
+.conductor/*/
+!.conductor/scripts/
+
+index.scip
+
+# Evals
+evals/.tarballs/
+evals/experiments/
+evals/results/
+evals/agent-results.json

@@ -74,16 +74,16 @@ export class DevBundlerService {
 
   public async revalidate({
     urlPath,
-    revalidateHeaders,
+    headers,
     opts: revalidateOpts,
   }: {
     urlPath: string
-    revalidateHeaders: IncomingMessage['headers']
+    headers: IncomingMessage['headers']
     opts: any
   }) {
     const mocked = createRequestResponseMocks({
       url: urlPath,
-      headers: revalidateHeaders,
+      headers,
     })
 
     await this.handler(mocked.req, mocked.res)

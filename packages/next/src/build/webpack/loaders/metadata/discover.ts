@@ -36,9 +36,7 @@ async function enumMetadataFiles(
   )
   for (const name of possibleFileNames) {
     const resolved = await metadataResolver(dir, name, extensions)
-    if (resolved) {
-      collectedFiles.push(resolved)
-    }
+    collectedFiles.push(...resolved)
   }
 
   return collectedFiles

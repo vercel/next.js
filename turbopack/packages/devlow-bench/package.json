@@ -1,6 +1,6 @@
 {
   "name": "@vercel/devlow-bench",
-  "version": "0.3.5",
+  "version": "0.4.0",
   "description": "Benchmarking tool for the developer workflow",
   "repository": {
     "type": "git",
@@ -45,10 +45,11 @@
   "dependencies": {
     "@datadog/datadog-api-client": "^1.13.0",
     "inquirer": "^9.2.7",
+    "jstat": "^1.9.6",
     "minimist": "^1.2.8",
     "picocolors": "1.0.1",
     "pidusage-tree": "^2.0.5",
-    "playwright-chromium": "1.48.0",
+    "playwright-chromium": "1.61.0",
     "split2": "^4.2.0",
     "tree-kill": "^1.2.2"
   }

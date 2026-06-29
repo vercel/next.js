@@ -2,6 +2,8 @@ use std::{collections::VecDeque, fmt::Write as _};
 
 use difference::{Changeset, Difference};
 
+// Still used by turbopack/crates/turbopack-tracing/tests/node-file-trace.rs
+#[allow(dead_code)]
 pub fn print_changeset(changeset: &Changeset) -> String {
     assert!(changeset.split == "\n");
     let mut result = String::from("--- DIFF ---\n- Expected\n+ Actual\n------------\n");

@@ -3,20 +3,21 @@
 #![allow(clippy::needless_return)] // tokio macro-generated code doesn't respect this
 
 use anyhow::Result;
-use turbo_tasks::{State, Vc};
+use turbo_tasks::{State, Vc, unmark_top_level_task_may_leak_eventually_consistent_state};
 use turbo_tasks_testing::{Registration, register, run_once};
 
 static REGISTRATION: Registration = register!();
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn hidden_mutate() {
+async fn test_hidden_mutate() {
     run_once(&REGISTRATION, || async {
-        let input = create_input().resolve().await?;
+        unmark_top_level_task_may_leak_eventually_consistent_state();
+        let input = *create_input().to_resolved().await?;
         input.await?.state.set(1);
         let changing_value = compute(input);
         assert_eq!(changing_value.await?.value, 1);
 
-        let changing_value_resolved = changing_value.resolve().await?;
+        let changing_value_resolved = *changing_value.to_resolved().await?;
         let read_input = read_input(changing_value_resolved);
         let static_immutable = immutable_fn(changing_value_resolved);
         let read_self = changing_value_resolved.read_self();
@@ -67,7 +68,7 @@ async fn create_input() -> Result<Vc<ChangingInput>> {
     .cell())
 }
 
-#[turbo_tasks::function]
+#[turbo_tasks::function(root)]
 async fn compute(input: Vc<ChangingInput>) -> Result<Vc<Value>> {
     println!("compute()");
     let input = input.await?;
@@ -75,14 +76,14 @@ async fn compute(input: Vc<ChangingInput>) -> Result<Vc<Value>> {
     Ok(Value { value: *value }.cell())
 }
 
-#[turbo_tasks::function]
+#[turbo_tasks::function(root)]
 async fn read_input(input: Vc<Value>) -> Result<Vc<u32>> {
     println!("read_input()");
     let value = input.await?;
     Ok(Vc::cell(value.value))
 }
 
-#[turbo_tasks::function]
+#[turbo_tasks::function(root)]
 fn immutable_fn(input: Vc<Value>) -> Vc<u32> {
     let _ = input;
     println!("immutable_fn()");
@@ -91,13 +92,13 @@ fn immutable_fn(input: Vc<Value>) -> Vc<u32> {
 
 #[turbo_tasks::value_impl]
 impl Value {
-    #[turbo_tasks::function]
+    #[turbo_tasks::function(root)]
     fn read_self(&self) -> Vc<u32> {
         println!("read_self()");
         Vc::cell(self.value)
     }
 
-    #[turbo_tasks::function]
+    #[turbo_tasks::function(root)]
     fn immutable_self_fn(self: Vc<Value>) -> Vc<u32> {
         let _ = self;
         println!("immutable_self_fn()");

@@ -6,17 +6,23 @@ describe('rewrite-with-search-params', () => {
   })
 
   it('should not contain params in search params after rewrite', async () => {
+    const deploymentHost = isNextDeploy ? new URL(next.url).hostname : null
+    const shouldForceHostHeader =
+      !isNextDeploy ||
+      deploymentHost === 'localhost' ||
+      deploymentHost === '127.0.0.1'
+
     const $ = await next.render$(
       '/galleries/123',
       {
         param: 'value',
       },
       {
-        headers: isNextDeploy
-          ? undefined
-          : {
+        headers: shouldForceHostHeader
+          ? {
               host: 'vercel-test.vercel.app',
-            },
+            }
+          : undefined,
       }
     )
 

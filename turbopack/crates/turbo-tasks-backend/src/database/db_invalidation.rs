@@ -33,8 +33,7 @@ struct InvalidationFile<'a> {
 /// If the cache was invalidated, the application may choose to show a warning to the user or log it
 /// to telemetry.
 ///
-/// This value is returned by [`crate::turbo_backing_storage`] and
-/// [`crate::default_backing_storage`].
+/// This value is returned by [`crate::turbo_backing_storage`].
 pub enum StartupCacheState {
     NoCache,
     Cached,

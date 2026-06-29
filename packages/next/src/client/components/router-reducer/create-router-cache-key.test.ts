@@ -6,14 +6,14 @@ describe('createRouterCacheKey', () => {
   })
 
   it('should support dynamic segment', () => {
-    expect(createRouterCacheKey(['slug', 'hello-world', 'd'])).toEqual(
+    expect(createRouterCacheKey(['slug', 'hello-world', 'd', null])).toEqual(
       'slug|hello-world|d'
     )
   })
 
   it('should support catch all segment', () => {
-    expect(createRouterCacheKey(['slug', 'blog/hello-world', 'c'])).toEqual(
-      'slug|blog/hello-world|c'
-    )
+    expect(
+      createRouterCacheKey(['slug', 'blog/hello-world', 'c', null])
+    ).toEqual('slug|blog/hello-world|c')
   })
 })

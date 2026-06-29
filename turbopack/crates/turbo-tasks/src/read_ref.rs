@@ -3,7 +3,6 @@ use std::{
     fmt::{self, Debug, Display},
     hash::{Hash, Hasher},
     marker::PhantomData,
-    mem::transmute_copy,
     ops::Deref,
 };
 
@@ -17,11 +16,11 @@ use bincode::{
 use serde::{Deserialize, Serialize};
 use turbo_tasks_hash::DeterministicHash;
 
+#[cfg(debug_assertions)]
+use crate::debug::{ValueDebugFormat, ValueDebugFormatString};
 use crate::{
-    SharedReference, Vc, VcRead, VcValueType,
-    debug::{ValueDebugFormat, ValueDebugFormatString},
+    ResolvedVc, SharedReference, Vc, VcRead, VcValueType,
     trace::{TraceRawVcs, TraceRawVcsContext},
-    triomphe_utils::unchecked_sidecast_triomphe_arc,
     vc::VcCellMode,
 };
 
@@ -32,7 +31,7 @@ type VcReadTarget<T> = <<T as VcValueType>::Read as VcRead<T>>::Target;
 /// certain point in time.
 ///
 /// Internally it stores a reference counted reference to a value on the heap.
-pub struct ReadRef<T>(triomphe::Arc<T>);
+pub struct ReadRef<T>(pub(crate) triomphe::Arc<T>);
 
 impl<T> Clone for ReadRef<T> {
     fn clone(&self) -> Self {
@@ -79,6 +78,7 @@ where
     }
 }
 
+#[cfg(debug_assertions)]
 impl<T> ValueDebugFormat for ReadRef<T>
 where
     T: VcValueType,
@@ -92,10 +92,11 @@ where
 
 impl<T> PartialEq for ReadRef<T>
 where
-    T: PartialEq,
+    T: Eq,
 {
     fn eq(&self, other: &Self) -> bool {
-        Self::as_raw_ref(self).eq(Self::as_raw_ref(other))
+        // Fast path: if both point to the same allocation, they're equal.
+        Self::ptr_eq(self, other) || Self::as_raw_ref(self).eq(Self::as_raw_ref(other))
     }
 }
 
@@ -103,7 +104,7 @@ impl<T> Eq for ReadRef<T> where T: Eq {}
 
 impl<T> PartialOrd for ReadRef<T>
 where
-    T: PartialOrd,
+    T: PartialOrd + Eq,
 {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
         Self::as_raw_ref(self).partial_cmp(Self::as_raw_ref(other))
@@ -112,7 +113,7 @@ where
 
 impl<T> Ord for ReadRef<T>
 where
-    T: Ord,
+    T: Ord + Eq,
 {
     fn cmp(&self, other: &Self) -> Ordering {
         Self::as_raw_ref(self).cmp(Self::as_raw_ref(other))
@@ -139,6 +140,7 @@ where
     }
 }
 
+/// Iterate by reference over a [`ReadRef`].
 impl<'a, T, I, J: Iterator<Item = I>> IntoIterator for &'a ReadRef<T>
 where
     T: VcValueType,
@@ -153,44 +155,63 @@ where
     }
 }
 
-impl<T, I: 'static, J: Iterator<Item = I>> IntoIterator for ReadRef<T>
+impl<T, I, J> IntoIterator for ReadRef<T>
 where
     T: VcValueType,
-    &'static VcReadTarget<T>: IntoIterator<Item = I, IntoIter = J>,
+    I: Copy + 'static,
+    J: Iterator<Item = &'static I> + 'static,
+    &'static VcReadTarget<T>: IntoIterator<Item = &'static I, IntoIter = J>,
 {
     type Item = I;
-
     type IntoIter = ReadRefIter<T, I, J>;
 
     fn into_iter(self) -> Self::IntoIter {
-        let r = &*self;
-        // # Safety
-        // The reference will we valid as long as the ReadRef is valid.
-        let r = unsafe { transmute_copy::<&'_ VcReadTarget<T>, &'static VcReadTarget<T>>(&r) };
+        let r: &VcReadTarget<T> = &self;
+        // SAFETY: The `&'static` reference fabricated here is only stored in
+        // `iter`, which lives inside the returned `ReadRefIter` alongside the
+        // `ReadRef` that owns the data. The public `Iterator::next` only
+        // returns `Copy`-ed-out values — no reference (with the fake `'static`
+        // lifetime or otherwise) ever leaves the iterator. Struct-field drop
+        // order (`iter` then `_read_ref`) drops any references still held by
+        // `iter` before the backing storage.
+        let r = unsafe { std::mem::transmute::<&VcReadTarget<T>, &'static VcReadTarget<T>>(r) };
         ReadRefIter {
-            read_ref: self,
             iter: r.into_iter(),
+            _read_ref: self,
         }
     }
 }
 
-pub struct ReadRefIter<T, I: 'static, J: Iterator<Item = I>>
+/// Consuming iteration over a [`ReadRef`], yielding items by **copy**.
+///
+/// `Iterator::Item` is a fixed associated type — it cannot borrow from
+/// `&mut self`.
+///
+/// The iterator owns the original [`ReadRef`], borrows into the underlying value, and
+/// `Iterator::next` simply copies each element out of that borrow. This restricts the impl to
+/// element types that are [`Copy`] — typically `ResolvedVc<_>`, integer ids, etc. For
+/// non-`Copy` element types (or if you want zero-copy iteration over
+/// borrows), iterate by reference instead: `for item in &read_ref { ... }`.
+pub struct ReadRefIter<T, I, J>
 where
     T: VcValueType,
+    I: Copy + 'static,
+    J: Iterator<Item = &'static I>,
 {
     iter: J,
-    #[allow(dead_code)]
-    read_ref: ReadRef<T>,
+    _read_ref: ReadRef<T>,
 }
 
-impl<T, I: 'static, J: Iterator<Item = I>> Iterator for ReadRefIter<T, I, J>
+impl<T, I, J> Iterator for ReadRefIter<T, I, J>
 where
     T: VcValueType,
+    I: Copy + 'static,
+    J: Iterator<Item = &'static I>,
 {
     type Item = I;
 
-    fn next(&mut self) -> Option<Self::Item> {
-        self.iter.next()
+    fn next(&mut self) -> Option<I> {
+        self.iter.next().copied()
     }
 }
 
@@ -255,6 +276,11 @@ impl<T> ReadRef<T> {
         &this.0
     }
 
+    /// Returns the inner `Arc<T>`.
+    pub fn into_raw_arc(self) -> triomphe::Arc<T> {
+        self.0
+    }
+
     pub fn ptr_eq(&self, other: &ReadRef<T>) -> bool {
         triomphe::Arc::ptr_eq(&self.0, &other.0)
     }
@@ -268,20 +294,21 @@ impl<T> ReadRef<T>
 where
     T: VcValueType,
 {
-    /// Returns a new cell that points to the same value as the given
-    /// reference.
+    /// Returns a new [`Vc`] that points to the same value as the given reference.
     pub fn cell(read_ref: ReadRef<T>) -> Vc<T> {
         let type_id = T::get_value_type_id();
-        // SAFETY: `T` and `T::Read::Repr` must have equivalent memory representations,
-        // guaranteed by the unsafe implementation of `VcValueType`.
-        let value = unsafe {
-            unchecked_sidecast_triomphe_arc::<T, <T::Read as VcRead<T>>::Repr>(read_ref.0)
-        };
         Vc {
             node: <T::CellMode as VcCellMode<T>>::raw_cell(
-                SharedReference::new(value).into_typed(type_id),
+                SharedReference::new(read_ref.0).into_typed(type_id),
             ),
             _t: PhantomData,
+        }
+    }
+
+    /// Returns a new [`ResolvedVc`] that points to the same value as the given reference.
+    pub fn resolved_cell(read_ref: ReadRef<T>) -> ResolvedVc<T> {
+        ResolvedVc {
+            node: ReadRef::cell(read_ref),
         }
     }
 }

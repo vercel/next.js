@@ -1,5 +1,6 @@
 import { useReducer } from 'react'
 
+import type { FlightRouterState } from '../../shared/lib/app-router-types'
 import type { VersionInfo } from '../../server/dev/parse-version-info'
 import type { SupportedErrorEvent } from './container/runtime-error/render-error'
 import type { DebugInfo } from '../shared/types'
@@ -7,6 +8,10 @@ import type { DevIndicatorServerState } from '../../server/dev/dev-indicator-ser
 import { parseStack } from '../../server/lib/parse-stack'
 import { isConsoleError } from '../shared/console-error'
 import type { CacheIndicatorState } from './cache-indicator'
+import { readInstantNavCookieState } from './components/instant-navs/instant-nav-cookie'
+import { isBlockingRouteInNavError } from './container/errors'
+import { isDynamicRoute } from '../../shared/lib/router/utils/is-dynamic'
+import { getRouteRegex } from '../../shared/lib/router/utils/route-regex'
 
 export type DevToolsConfig = {
   theme?: 'light' | 'dark' | 'system'
@@ -68,8 +73,10 @@ export interface OverlayState {
   >
   readonly scale: number
   readonly page: string
+  readonly tree: FlightRouterState | null
   readonly theme: 'light' | 'dark' | 'system'
   readonly hideShortcut: string | null
+  readonly instantNavs: boolean
 }
 type DevtoolsPanelName = string
 export type OverlayDispatch = React.Dispatch<DispatcherEvent>
@@ -101,6 +108,9 @@ export const ACTION_DEVTOOLS_PANEL_POSITION = 'devtools-panel-position'
 export const ACTION_DEVTOOLS_SCALE = 'devtools-scale'
 
 export const ACTION_DEVTOOLS_CONFIG = 'devtools-config'
+export const ACTION_INSTANT_NAVS_TOGGLE = 'instant-navs-toggle'
+export const ACTION_INSTANT_NAVS_RESET = 'instant-navs-reset'
+export const ACTION_INSTANT_ERRORS_CLEAR = 'instant-errors-clear'
 
 export const STORAGE_KEY_PANEL_POSITION_PREFIX =
   '__nextjs-dev-tools-panel-position'
@@ -209,11 +219,25 @@ interface DevToolsScaleAction {
 interface DevToolUpdateRouteStateAction {
   type: typeof ACTION_DEVTOOL_UPDATE_ROUTE_STATE
   page: string
+  tree: FlightRouterState | null
 }
 
 interface DevToolsConfigAction {
   type: typeof ACTION_DEVTOOLS_CONFIG
   devToolsConfig: DevToolsConfig
+}
+
+interface CacheOnlyToggleAction {
+  type: typeof ACTION_INSTANT_NAVS_TOGGLE
+}
+
+interface InstantNavResetAction {
+  type: typeof ACTION_INSTANT_NAVS_RESET
+}
+
+interface InstantErrorsClearAction {
+  type: typeof ACTION_INSTANT_ERRORS_CLEAR
+  currentPath: string
 }
 
 export type DispatcherEvent =
@@ -241,6 +265,9 @@ export type DispatcherEvent =
   | DevToolUpdateRouteStateAction
   | DevIndicatorSetAction
   | DevToolsConfigAction
+  | CacheOnlyToggleAction
+  | InstantNavResetAction
+  | InstantErrorsClearAction
 
 const REACT_ERROR_STACK_BOTTOM_FRAME_REGEX =
   // 1st group: new frame + v8
@@ -257,11 +284,38 @@ function getStackIgnoringStrictMode(stack: string | undefined) {
   return stack?.split(REACT_ERROR_STACK_BOTTOM_FRAME_REGEX)[0]
 }
 
+export function getInstantErrorRoute(error: unknown): string | null {
+  if (!error || typeof error !== 'object') return null
+  const message = (error as Error).message
+  if (typeof message !== 'string') return null
+  if (!isBlockingRouteInNavError(message)) return null
+  const prefixMatch = /^Route "([^"]+)":/.exec(message)
+  return prefixMatch ? prefixMatch[1] : null
+}
+
+// The route stored on an instant error is the route *template* from
+// `workStore.route` (e.g. `/foo/[slug]`), but the page we track in dev
+// overlay state is the resolved URL (e.g. `/foo/123`). For dynamic routes
+// we compile the template to a regex so the clear-on-nav reducer keeps
+// errors whose template matches the page the user just landed on.
+export function routeTemplateMatchesPath(
+  template: string,
+  path: string
+): boolean {
+  if (template === path) return true
+  if (!isDynamicRoute(template)) return false
+  return getRouteRegex(template).re.test(path)
+}
+
 const shouldDisableDevIndicator =
   process.env.__NEXT_DEV_INDICATOR?.toString() === 'false'
 
 const devToolsInitialPositionFromNextConfig = (process.env
   .__NEXT_DEV_INDICATOR_POSITION ?? 'bottom-left') as Corners
+
+const hasInstantNavsCookie =
+  !!process.env.__NEXT_INSTANT_NAV_TOGGLE &&
+  readInstantNavCookieState() !== null
 
 export const INITIAL_OVERLAY_STATE: Omit<
   OverlayState,
@@ -274,12 +328,15 @@ export const INITIAL_OVERLAY_STATE: Omit<
   renderingIndicator: false,
   cacheIndicator: 'disabled',
   staticIndicator: 'disabled',
-  /* 
+  /*
     This is set to `true` when we can reliably know
-    whether the indicator is in disabled state or not.  
+    whether the indicator is in disabled state or not.
     Otherwise the surface would flicker because the disabled flag loads from the config.
   */
-  showIndicator: false,
+  // When instant nav is active, show the indicator immediately so the user
+  // can toggle it off. Normally this is set to true by the HMR connection,
+  // but the HMR WebSocket is only created during hydration.
+  showIndicator: hasInstantNavsCookie,
   disableDevIndicator: false,
   buildingIndicator: false,
   refreshState: { type: 'idle' },
@@ -292,8 +349,10 @@ export const INITIAL_OVERLAY_STATE: Omit<
   devToolsPanelSize: {},
   scale: NEXT_DEV_TOOLS_SCALE.Medium,
   page: '',
+  tree: null,
   theme: 'system',
   hideShortcut: null,
+  instantNavs: hasInstantNavsCookie,
 }
 
 function getInitialState(
@@ -479,7 +538,7 @@ export function useErrorOverlayReducer(
           return { ...state, scale: action.scale }
         }
         case ACTION_DEVTOOL_UPDATE_ROUTE_STATE: {
-          return { ...state, page: action.page }
+          return { ...state, page: action.page, tree: action.tree }
         }
         case ACTION_DEVTOOLS_CONFIG: {
           const {
@@ -506,6 +565,23 @@ export function useErrorOverlayReducer(
               // hideShortcut can be null.
               hideShortcut !== undefined ? hideShortcut : state.hideShortcut,
           }
+        }
+        case ACTION_INSTANT_NAVS_TOGGLE: {
+          return { ...state, instantNavs: !state.instantNavs }
+        }
+        case ACTION_INSTANT_NAVS_RESET: {
+          return { ...state, instantNavs: false }
+        }
+        case ACTION_INSTANT_ERRORS_CLEAR: {
+          const remaining = state.errors.filter((event) => {
+            const route = getInstantErrorRoute(event.error)
+            if (route === null) return true
+            return routeTemplateMatchesPath(route, action.currentPath)
+          })
+          if (remaining.length === state.errors.length) {
+            return state
+          }
+          return { ...state, errors: remaining }
         }
         default: {
           return state

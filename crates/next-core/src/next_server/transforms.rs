@@ -4,7 +4,7 @@ use turbo_rcstr::RcStr;
 use turbo_tasks::{ResolvedVc, Vc};
 use turbopack::module_options::{ModuleRule, ModuleRuleEffect, RuleCondition};
 use turbopack_core::reference_type::{
-    CssReferenceSubType, EntryReferenceSubType, ReferenceType, UrlReferenceSubType,
+    CssReferenceSubType, EntryReferenceSubType, ReferenceTypeCondition,
 };
 
 use crate::{
@@ -12,10 +12,11 @@ use crate::{
     next_config::NextConfig,
     next_server::context::ServerContextType,
     next_shared::transforms::{
-        get_import_type_bytes_rule, get_next_dynamic_transform_rule, get_next_font_transform_rule,
-        get_next_image_rule, get_next_lint_transform_rule, get_next_modularize_imports_rule,
-        get_next_pages_transforms_rule, get_next_track_dynamic_imports_transform_rule,
-        get_server_actions_transform_rule, next_cjs_optimizer::get_next_cjs_optimizer_rule,
+        get_next_debug_instant_stack_rule, get_next_dynamic_transform_rule,
+        get_next_font_transform_rule, get_next_image_rule, get_next_lint_transform_rule,
+        get_next_modularize_imports_rule, get_next_pages_transforms_rule,
+        get_next_track_dynamic_imports_transform_rule, get_server_actions_transform_rule,
+        next_cjs_optimizer::get_next_cjs_optimizer_rule,
         next_disallow_re_export_all_in_page::get_next_disallow_export_all_in_page_rule,
         next_edge_node_api_assert::next_edge_node_api_assert,
         next_middleware_dynamic_assert::get_middleware_dynamic_assert_rule,
@@ -36,29 +37,28 @@ pub async fn get_next_server_transforms_rules(
 ) -> Result<Vec<ModuleRule>> {
     let mut rules = vec![];
 
-    let modularize_imports_config = &next_config.modularize_imports().await?;
-    let mdx_rs = next_config.mdx_rs().await?.is_some();
+    let modularize_imports_config = next_config.modularize_imports();
+    let mdx_rs: bool = next_config.mdx_rs().await?.is_some();
 
     if !foreign_code {
-        rules.push(get_next_lint_transform_rule(mdx_rs));
+        rules.push(get_next_lint_transform_rule(mdx_rs).await?);
     }
 
-    if !modularize_imports_config.is_empty() {
-        rules.push(get_next_modularize_imports_rule(
-            modularize_imports_config,
-            mdx_rs,
-        ));
+    if !modularize_imports_config.await?.is_empty() {
+        rules.push(get_next_modularize_imports_rule(modularize_imports_config, mdx_rs).await?);
     }
-    rules.push(get_next_font_transform_rule(mdx_rs));
+    rules.push(get_next_font_transform_rule(mdx_rs).await?);
 
     if !matches!(context_ty, ServerContextType::AppRSC { .. }) {
         rules.extend([
-            // Ignore the inner ModuleCssAsset -> CssModuleAsset references
+            // Ignore the inner EcmascriptCssModule -> CssModule references
             // The CSS Module module itself (and the Analyze reference) is still needed to generate
             // the class names object.
             ModuleRule::new(
                 RuleCondition::all(vec![
-                    RuleCondition::ReferenceType(ReferenceType::Css(CssReferenceSubType::Inner)),
+                    RuleCondition::ReferenceType(ReferenceTypeCondition::Css(Some(
+                        CssReferenceSubType::Inner,
+                    ))),
                     module_styles_rule_condition(),
                 ]),
                 vec![ModuleRuleEffect::Ignore],
@@ -75,18 +75,21 @@ pub async fn get_next_server_transforms_rules(
     let is_server_components = match &context_ty {
         ServerContextType::Pages { pages_dir } | ServerContextType::PagesApi { pages_dir } => {
             if !foreign_code {
-                rules.push(get_next_disallow_export_all_in_page_rule(
-                    mdx_rs,
-                    pages_dir.clone(),
-                ));
-                rules.push(get_next_pages_transforms_rule(
-                    pages_dir.clone(),
-                    ExportFilter::StripDefaultExport,
-                    mdx_rs,
-                    vec![RuleCondition::ReferenceType(ReferenceType::Entry(
-                        EntryReferenceSubType::PageData,
-                    ))],
-                )?);
+                rules.push(
+                    get_next_disallow_export_all_in_page_rule(mdx_rs, pages_dir.clone()).await?,
+                );
+                rules.push(
+                    get_next_pages_transforms_rule(
+                        pages_dir.clone(),
+                        ExportFilter::StripDefaultExport,
+                        mdx_rs,
+                        vec![RuleCondition::ReferenceType(ReferenceTypeCondition::Entry(
+                            Some(EntryReferenceSubType::PageData),
+                        ))],
+                        &next_config.page_extensions().await?,
+                    )
+                    .await?,
+                );
             }
             false
         }
@@ -147,13 +150,17 @@ pub async fn get_next_server_transforms_rules(
         ServerContextType::Middleware { .. } | ServerContextType::Instrumentation { .. } => false,
     };
 
+    if is_app_dir {
+        rules.push(get_next_debug_instant_stack_rule(mdx_rs, next_config.page_extensions()).await?);
+    }
+
     if is_app_dir &&
         // `cacheComponents` is not supported in the edge runtime.
         // (also, the code generated by the dynamic imports transform relies on `CacheSignal`, which uses nodejs-specific APIs)
         next_runtime != NextRuntime::Edge &&
         *next_config.enable_cache_components().await?
     {
-        rules.push(get_next_track_dynamic_imports_transform_rule(mdx_rs));
+        rules.push(get_next_track_dynamic_imports_transform_rule(mdx_rs).await?);
     }
 
     if !foreign_code {
@@ -162,8 +169,8 @@ pub async fn get_next_server_transforms_rules(
                 .await?,
         );
 
-        rules.push(get_next_cjs_optimizer_rule(mdx_rs));
-        rules.push(get_next_pure_rule(mdx_rs));
+        rules.push(get_next_cjs_optimizer_rule(mdx_rs).await?);
+        rules.push(get_next_pure_rule(mdx_rs).await?);
 
         // [NOTE]: this rule only works in prod config
         // https://github.com/vercel/next.js/blob/a1d0259ea06592c5ca6df882e9b1d0d0121c5083/packages/next/src/build/swc/options.ts#L409
@@ -177,16 +184,19 @@ pub async fn get_next_server_transforms_rules(
         let mode = *mode.await?;
 
         if mode == NextMode::Development {
-            rules.push(get_middleware_dynamic_assert_rule(mdx_rs));
+            rules.push(get_middleware_dynamic_assert_rule(mdx_rs).await?);
         }
 
         if !foreign_code {
-            rules.push(next_edge_node_api_assert(
-                mdx_rs,
-                matches!(context_ty, ServerContextType::Middleware { .. })
-                    && mode == NextMode::Build,
-                mode == NextMode::Build,
-            ));
+            rules.push(
+                next_edge_node_api_assert(
+                    mdx_rs,
+                    matches!(context_ty, ServerContextType::Middleware { .. })
+                        && mode == NextMode::Build,
+                    mode == NextMode::Build,
+                )
+                .await?,
+            );
         }
 
         if matches!(context_ty, ServerContextType::AppRoute { .. }) {
@@ -194,8 +204,8 @@ pub async fn get_next_server_transforms_rules(
             // (i.e. for pages), while still allowing `new URL(..., import.meta.url)`
             rules.push(ModuleRule::new(
                 RuleCondition::all(vec![
-                    RuleCondition::not(RuleCondition::ReferenceType(ReferenceType::Url(
-                        UrlReferenceSubType::Undefined,
+                    RuleCondition::not(RuleCondition::ReferenceType(ReferenceTypeCondition::Url(
+                        None,
                     ))),
                     RuleCondition::any(vec![
                         RuleCondition::ResourcePathEndsWith(".apng".to_string()),
@@ -215,10 +225,6 @@ pub async fn get_next_server_transforms_rules(
         }
     }
 
-    if *next_config.turbopack_import_type_bytes().await? {
-        rules.push(get_import_type_bytes_rule());
-    }
-
     Ok(rules)
 }
 
@@ -233,14 +239,14 @@ pub async fn get_next_server_internal_transforms_rules(
     match context_ty {
         ServerContextType::Pages { .. } => {
             // Apply next/font transforms to foreign code
-            rules.push(get_next_font_transform_rule(mdx_rs));
+            rules.push(get_next_font_transform_rule(mdx_rs).await?);
         }
         ServerContextType::PagesApi { .. } => {}
         ServerContextType::AppSSR { .. } => {
-            rules.push(get_next_font_transform_rule(mdx_rs));
+            rules.push(get_next_font_transform_rule(mdx_rs).await?);
         }
         ServerContextType::AppRSC { .. } => {
-            rules.push(get_next_font_transform_rule(mdx_rs));
+            rules.push(get_next_font_transform_rule(mdx_rs).await?);
         }
         ServerContextType::AppRoute { .. } => {}
         ServerContextType::Middleware { .. } => {}

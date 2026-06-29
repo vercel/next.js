@@ -103,7 +103,6 @@ describe('omitUnusedArgs', () => {
       'arg3',
       undefined,
       'arg5',
-      undefined,
     ])
   })
 
@@ -162,8 +161,6 @@ describe('omitUnusedArgs', () => {
       'arg4',
       'arg5',
       'arg6',
-      undefined,
-      undefined,
     ])
   })
 

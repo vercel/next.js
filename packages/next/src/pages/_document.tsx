@@ -14,7 +14,7 @@ import type { NextFontManifest } from '../build/webpack/plugins/next-font-manife
 
 import { getPageFiles } from '../server/get-page-files'
 import type { BuildManifest } from '../server/get-page-files'
-import { htmlEscapeJsonString } from '../server/htmlescape'
+import { htmlEscapeJsonString } from '../shared/lib/htmlescape'
 import isError from '../lib/is-error'
 
 import {
@@ -138,6 +138,7 @@ function getScripts(
     buildManifest,
     isDevelopment,
     assetQueryString,
+    mutableAssetQueryString,
     disableOptimizedLoading,
     crossOrigin,
   } = context
@@ -148,10 +149,15 @@ function getScripts(
   )
 
   return [...normalScripts, ...lowPriorityScripts].map((file) => {
+    // static/immutable/chunks/51e975e7b637a580.js should use the immutable id, while
+    // static/Yj152X97rfGgF7NPcJEZs/_ssgManifest.js should use the deployment id
+    const query = file.startsWith('static/immutable/chunks')
+      ? assetQueryString
+      : mutableAssetQueryString
     return (
       <script
         key={file}
-        src={`${assetPrefix}/_next/${encodeURIPath(file)}${assetQueryString}`}
+        src={`${assetPrefix}/_next/${encodeURIPath(file)}${query}`}
         nonce={props.nonce}
         async={!isDevelopment && disableOptimizedLoading}
         defer={!disableOptimizedLoading}
@@ -311,7 +317,8 @@ function getHeadHTMLProps(props: HeadProps) {
 function getNextFontLinkTags(
   nextFontManifest: DeepReadonly<NextFontManifest> | undefined,
   dangerousAsPath: string,
-  assetPrefix: string = ''
+  assetPrefix: string = '',
+  assetQueryString: string = ''
 ) {
   if (!nextFontManifest) {
     return {
@@ -351,7 +358,7 @@ function getNextFontLinkTags(
             <link
               key={fontFile}
               rel="preload"
-              href={`${assetPrefix}/_next/${encodeURIPath(fontFile)}`}
+              href={`${assetPrefix}/_next/${encodeURIPath(fontFile)}${assetQueryString}`}
               as="font"
               type={`font/${ext}`}
               crossOrigin="anonymous"
@@ -377,7 +384,7 @@ export class Head extends React.Component<HeadProps> {
   getCssLinks(files: DocumentFiles): JSX.Element[] | null {
     const {
       assetPrefix,
-      assetQueryString,
+      cssAssetQueryString,
       dynamicImports,
       dynamicCssManifest,
       crossOrigin,
@@ -415,7 +422,7 @@ export class Head extends React.Component<HeadProps> {
             rel="preload"
             href={`${assetPrefix}/_next/${encodeURIPath(
               file
-            )}${assetQueryString}`}
+            )}${cssAssetQueryString}`}
             as="style"
             crossOrigin={this.props.crossOrigin || crossOrigin}
           />
@@ -429,7 +436,7 @@ export class Head extends React.Component<HeadProps> {
           rel="stylesheet"
           href={`${assetPrefix}/_next/${encodeURIPath(
             file
-          )}${assetQueryString}`}
+          )}${cssAssetQueryString}`}
           crossOrigin={this.props.crossOrigin || crossOrigin}
           data-n-g={isUnmanagedFile ? undefined : isSharedFile ? '' : undefined}
           data-n-p={
@@ -582,6 +589,7 @@ export class Head extends React.Component<HeadProps> {
       optimizeCss,
       assetPrefix,
       nextFontManifest,
+      cssAssetQueryString,
     } = this.context
 
     const disableRuntimeJS = unstable_runtimeJS === false
@@ -650,7 +658,8 @@ export class Head extends React.Component<HeadProps> {
     const nextFontLinkTags = getNextFontLinkTags(
       nextFontManifest,
       dangerousAsPath,
-      assetPrefix
+      assetPrefix,
+      cssAssetQueryString
     )
 
     const tracingMetadata = getTracedMetadata(
@@ -928,13 +937,24 @@ export function Html(
     HTMLHtmlElement
   >
 ) {
-  const { docComponentsRendered, locale, scriptLoader, __NEXT_DATA__ } =
-    useHtmlContext()
+  const {
+    docComponentsRendered,
+    locale,
+    scriptLoader,
+    deploymentId,
+    __NEXT_DATA__,
+  } = useHtmlContext()
 
   docComponentsRendered.Html = true
   handleDocumentScriptLoaderItems(scriptLoader, __NEXT_DATA__, props)
 
-  return <html {...props} lang={props.lang || locale || undefined} />
+  return (
+    <html
+      {...props}
+      lang={props.lang || locale || undefined}
+      data-dpl-id={deploymentId || undefined}
+    />
+  )
 }
 
 export function Main() {

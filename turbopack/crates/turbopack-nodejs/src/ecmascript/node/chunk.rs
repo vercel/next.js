@@ -17,6 +17,8 @@ use crate::NodeJsChunkingContext;
 
 /// Production Ecmascript chunk targeting Node.js.
 #[turbo_tasks::value(shared)]
+#[derive(ValueToString)]
+#[value_to_string("Ecmascript Build Node Chunk")]
 pub(crate) struct EcmascriptBuildNodeChunk {
     chunking_context: ResolvedVc<NodeJsChunkingContext>,
     chunk: ResolvedVc<EcmascriptChunk>,
@@ -42,17 +44,14 @@ impl EcmascriptBuildNodeChunk {
         let this = self.await?;
         Ok(SourceMapAsset::new(
             Vc::upcast(*this.chunking_context),
-            this.chunk.ident().with_modifier(modifier()),
+            this.chunk
+                .ident()
+                .owned()
+                .await?
+                .with_modifier(modifier())
+                .into_vc(),
             Vc::upcast(self),
         ))
-    }
-}
-
-#[turbo_tasks::value_impl]
-impl ValueToString for EcmascriptBuildNodeChunk {
-    #[turbo_tasks::function]
-    fn to_string(&self) -> Vc<RcStr> {
-        Vc::cell(rcstr!("Ecmascript Build Node Chunk"))
     }
 }
 
@@ -108,7 +107,13 @@ impl OutputAsset for EcmascriptBuildNodeChunk {
     #[turbo_tasks::function]
     async fn path(self: Vc<Self>) -> Result<Vc<FileSystemPath>> {
         let this = self.await?;
-        let ident = this.chunk.ident().with_modifier(modifier());
+        let ident = this
+            .chunk
+            .ident()
+            .owned()
+            .await?
+            .with_modifier(modifier())
+            .into_vc();
         Ok(this
             .chunking_context
             .chunk_path(Some(Vc::upcast(self)), ident, None, rcstr!(".js")))

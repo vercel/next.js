@@ -12,8 +12,7 @@ use bincode::{
     enc::Encoder,
     error::{DecodeError, EncodeError},
 };
-use futures::{Stream as StreamTrait, StreamExt, TryStreamExt};
-use serde::{Deserialize, Deserializer, Serialize, Serializer};
+use futures::{Stream as StreamTrait, StreamExt};
 
 /// Streams allow for streaming values from source to sink.
 ///
@@ -78,22 +77,6 @@ impl<T: Clone + Send> Stream<T> {
     }
 }
 
-impl<T: Clone + Send, E: Clone + Send> Stream<Result<T, E>> {
-    /// Converts a TryStream into a single value when possible.
-    pub async fn try_into_single(&self) -> Result<SingleValue<T>, E> {
-        let mut stream = self.read();
-        let Some(first) = stream.try_next().await? else {
-            return Ok(SingleValue::None);
-        };
-
-        if stream.try_next().await?.is_some() {
-            return Ok(SingleValue::Multiple);
-        }
-
-        Ok(SingleValue::Single(first))
-    }
-}
-
 pub enum SingleValue<T> {
     /// The Stream did not hold a value.
     None,
@@ -152,27 +135,6 @@ impl<T: Clone + PartialEq + Send> PartialEq for Stream<T> {
     }
 }
 impl<T: Clone + Eq + Send> Eq for Stream<T> {}
-
-impl<T: Clone + Serialize + Send> Serialize for Stream<T> {
-    fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
-        use serde::ser::Error;
-        let lock = self.inner.lock().map_err(Error::custom)?;
-        match &*lock {
-            StreamState {
-                pulled,
-                source: None,
-            } => pulled.serialize(serializer),
-            _ => Err(Error::custom("cannot serialize open stream")),
-        }
-    }
-}
-
-impl<'de, T: Clone + Send + Deserialize<'de>> Deserialize<'de> for Stream<T> {
-    fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
-        let data = <Vec<T>>::deserialize(deserializer)?;
-        Ok(Stream::new_closed(data))
-    }
-}
 
 impl<T: Clone + Encode + Send> Encode for Stream<T> {
     fn encode<E: Encoder>(&self, encoder: &mut E) -> Result<(), EncodeError> {

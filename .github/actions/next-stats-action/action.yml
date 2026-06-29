@@ -1,0 +1,12 @@
+name: 'Next.js PR Stats'
+description: 'Compare PR stats with canary'
+inputs:
+  bundler:
+    description: 'Bundler to benchmark (webpack|turbopack|both)'
+    default: 'both'
+    required: false
+runs:
+  using: 'docker'
+  # this dockerfile must be located in the parent directory, otherwise
+  # `pnpm deploy` can't read the pnpm-lock.yaml
+  image: '../../next-stats-action.Dockerfile'

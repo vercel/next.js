@@ -11,14 +11,17 @@ import getChangedTests from './get-changed-tests.mjs'
  * --flake-detection: run tests multiple times to detect flaky
  */
 async function main() {
-  let argv = await yargs(process.argv.slice(2))
+  const argv = await yargs(process.argv.slice(2))
     .string('mode')
     .string('group')
+    .string('preview-builds-base-url')
     .boolean('flake-detection').argv
 
-  let testMode = argv.mode
+  const testMode = argv.mode
   const isFlakeDetectionMode = argv['flake-detection']
   const attempts = isFlakeDetectionMode ? 3 : 1
+  const previewBuildsBaseUrl =
+    argv['preview-builds-base-url'] || 'https://vercel-packages.vercel.app/next'
 
   if (testMode && !['dev', 'deploy', 'start'].includes(testMode)) {
     throw new Error(
@@ -41,9 +44,15 @@ async function main() {
   /** @type import('execa').Options */
   const EXECA_OPTS_STDIO = { ...EXECA_OPTS, stdio: 'inherit' }
 
-  const { devTests, prodTests, commitSha } = await getChangedTests()
+  const { devTests, prodTests, deployTests, commitSha } =
+    await getChangedTests()
 
-  let currentTests = testMode === 'dev' ? devTests : prodTests
+  let currentTests =
+    testMode === 'dev'
+      ? devTests
+      : testMode === 'deploy'
+        ? deployTests
+        : prodTests
 
   /**
     @type {Array<string[]>}
@@ -79,15 +88,14 @@ async function main() {
   }
 
   const RUN_TESTS_ARGS = ['run-tests.js', '-c', '1', '--retries', '0']
-  const PR_NUMBER = process.env.GH_PR_NUMBER
   // Only override the test version for deploy tests, as they need to run against
   // the artifacts for the pull request. Otherwise, we don't need to specify this property,
-  // as tests will run against the local version of Next.js
+  // as tests will run against the local version of Next.js.
+  // Always use the commit SHA endpoint to avoid GitHub API rate limits on the
+  // PR number endpoint (which resolves the PR to a SHA on every request).
   const nextTestVersion =
     testMode === 'deploy'
-      ? PR_NUMBER
-        ? `https://vercel-packages.vercel.app/next/prs/${PR_NUMBER}/next`
-        : `https://vercel-packages.vercel.app/next/commits/${commitSha}/next`
+      ? `${previewBuildsBaseUrl}/commits/${commitSha}/next`
       : undefined
 
   if (nextTestVersion) {
@@ -143,7 +151,7 @@ async function main() {
     )
   }
 
-  if (isFlakeDetectionMode && testMode !== 'deploy') {
+  if (isFlakeDetectionMode) {
     for (let i = 0; i < attempts; i++) {
       console.log(
         `\n\nRun ${i + 1}/${attempts} for ${testMode} tests (Turbopack)`
@@ -154,8 +162,11 @@ async function main() {
           ...process.env,
           NEXT_TEST_MODE: testMode,
           NEXT_TEST_VERSION: nextTestVersion,
+          NEXT_EXTERNAL_TESTS_FILTERS,
+          NEXT_FLAKE_DETECTION: '1',
           IS_TURBOPACK_TEST: '1',
-          TURBOPACK_BUILD: testMode === 'start' ? '1' : undefined,
+          TURBOPACK_BUILD:
+            testMode === 'start' || testMode === 'deploy' ? '1' : undefined,
           TURBOPACK_DEV: testMode === 'dev' ? '1' : undefined,
         },
       })
@@ -172,6 +183,7 @@ async function main() {
           NEXT_TEST_MODE: testMode,
           NEXT_TEST_VERSION: nextTestVersion,
           IS_WEBPACK_TEST: '1',
+          NEXT_TEST_SKIP_RESULT_CACHE: '1',
         },
       })
     }

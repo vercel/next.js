@@ -55,17 +55,22 @@ macro_rules! impl_auto_marker_trait {
         unsafe impl<T: $trait, S, const I: usize> $trait for ::auto_hash_map::AutoSet<T, S, I> {}
         unsafe impl<T: $trait> $trait for ::std::collections::BTreeSet<T> {}
         unsafe impl<T: $trait, S> $trait for ::indexmap::IndexSet<T, S> {}
+        unsafe impl<T: $trait> $trait for ::turbo_frozenmap::FrozenSet<T> {}
         unsafe impl<K: $trait, V: $trait, S> $trait for ::std::collections::HashMap<K, V, S> {}
         unsafe impl<K: $trait, V: $trait, S, const I: usize> $trait
             for ::auto_hash_map::AutoMap<K, V, S, I> {}
         unsafe impl<K: $trait, V: $trait> $trait for ::std::collections::BTreeMap<K, V> {}
         unsafe impl<K: $trait, V: $trait, S> $trait for ::indexmap::IndexMap<K, V, S> {}
+        unsafe impl<K: $trait, V: $trait> $trait for ::turbo_frozenmap::FrozenMap<K, V> {}
+        unsafe impl<T> $trait for ::std::pin::Pin<T>
+            where T: ::std::ops::Deref, <T as ::std::ops::Deref>::Target: $trait {}
         unsafe impl<T: $trait + ?Sized> $trait for ::std::boxed::Box<T> {}
         unsafe impl<T: $trait + ?Sized> $trait for ::std::sync::Arc<T> {}
         unsafe impl<B: $trait + ::std::borrow::ToOwned + ?Sized> $trait
             for ::std::borrow::Cow<'_, B> {}
         unsafe impl<T: $trait, E: $trait> $trait for ::std::result::Result<T, E> {}
         unsafe impl<T: $trait + ?Sized> $trait for ::std::sync::Mutex<T> {}
+        unsafe impl<T: $trait + ?Sized> $trait for ::parking_lot::Mutex<T> {}
         unsafe impl<T: $trait + ?Sized> $trait for ::std::cell::RefCell<T> {}
         unsafe impl<T: ?Sized> $trait for ::std::marker::PhantomData<T> {}
         unsafe impl<L: $trait, R: $trait> $trait for ::either::Either<L, R> {}
@@ -77,9 +82,9 @@ macro_rules! impl_auto_marker_trait {
             <<T as $crate::VcValueType>::Read as $crate::VcRead<T>>::Target: $trait
         {}
         unsafe impl<T: $trait> $trait for $crate::State<T> {}
-        unsafe impl<T: $trait> $trait for $crate::TransientState<T> {}
         unsafe impl<T: $trait> $trait for $crate::TransientValue<T> {}
         unsafe impl<T: $trait> $trait for $crate::TransientInstance<T> {}
+        unsafe impl $trait for $crate::event::Event {}
 
         unsafe impl<T: $trait + ?Sized> $trait for &T {}
         unsafe impl<T: $trait + ?Sized> $trait for &mut T {}

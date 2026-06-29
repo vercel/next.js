@@ -6,11 +6,9 @@ import { removeTrailingSlash } from './remove-trailing-slash'
 import { normalizeLocalePath } from '../../i18n/normalize-locale-path'
 import { removeBasePath } from '../../../../client/remove-base-path'
 import { parseRelativeUrl, type ParsedRelativeUrl } from './parse-relative-url'
+import type { ParsedUrl } from './parse-url'
 
-interface ParsedAs extends Omit<ParsedRelativeUrl, 'slashes'> {
-  slashes: boolean | undefined
-}
-
+type ParsedAs = ParsedRelativeUrl | ParsedUrl
 export default function resolveRewrites(
   asPath: string,
   pages: string[],

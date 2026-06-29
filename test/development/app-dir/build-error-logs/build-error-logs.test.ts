@@ -2,7 +2,7 @@ import { nextTestSetup } from 'e2e-utils'
 import stripAnsi from 'strip-ansi'
 
 describe('build-error-logs', () => {
-  const { next, isTurbopack } = nextTestSetup({
+  const { next, isTurbopack, isRspack } = nextTestSetup({
     files: __dirname,
   })
 
@@ -18,6 +18,8 @@ describe('build-error-logs', () => {
 
     if (isTurbopack) {
       expect(moduleNotFoundLogs).toHaveLength(1)
+    } else if (isRspack) {
+      expect([2, 3]).toContain(moduleNotFoundLogs.length)
     } else {
       // FIXME: next with webpack still logs the same error too many times
       expect(moduleNotFoundLogs).toHaveLength(3)

@@ -65,40 +65,76 @@ import { lruPut, updateLruSize, deleteFromLru } from './lru'
  * should prefer to put it in cache.ts.
  */
 
-type MapEntryShared<V extends MapValue> = {
-  parent: MapEntry<V> | null
-  key: any
-  map: Map<any, MapEntry<V>> | null
-
-  // LRU-related fields
-  prev: MapEntry<any> | null
-  next: MapEntry<any> | null
-  size: number
+/**
+ * Tracks the status of a cache entry as it progresses from no data (Empty),
+ * waiting for server data (Pending), and finished (either Fulfilled or
+ * Rejected depending on the response from the server.
+ *
+ * This is defined here, rather than in cache.ts, because cache-map.ts needs to
+ * inspect the status when performing a `onlyMatchFulfilled` lookup.
+ */
+export const enum EntryStatus {
+  Empty = 0,
+  Pending = 1,
+  Fulfilled = 2,
+  Rejected = 3,
 }
 
-type EmptyMapEntry<V extends MapValue> = MapEntryShared<V> & {
-  value: null
-}
-
-type FullMapEntry<V extends MapValue> = MapEntryShared<V> & {
-  value: V
-}
-
-export type MapEntry<V extends MapValue> = EmptyMapEntry<V> | FullMapEntry<V>
-
-// The CacheMap type is just the root entry of the map.
-export type CacheMap<V extends MapValue> = MapEntry<V>
-
-// The protocol that values must implement. In practice, the only two types that
-// we ever actually deal with in this module are RouteCacheEntry and
-// SegmentCacheEntry; this is just to keep track of the coupling so we don't
-// leak concerns between the modules unnecessarily.
+// The protocol that values must implement. In practice, the only types that
+// we ever actually deal with in this module are RouteCacheEntry,
+// SegmentCacheEntry, and BFCacheEntry; this is just to keep track of the
+// coupling so we don't leak concerns between the modules unnecessarily.
 export interface MapValue {
-  ref: MapEntry<any> | null
+  ref: UnknownMapEntry | null
   size: number
   staleAt: number
   version: number
+  status: EntryStatus
 }
+
+/**
+ * Represents a node in the cache map and LRU.
+ * MapEntry<V> structurally satisfies this interface for any V extends MapValue.
+ *
+ * The LRU can contain entries of different value types
+ * (e.g., both RouteCacheEntry and SegmentCacheEntry). This interface captures
+ * the common structure needed for cache map and LRU operations without
+ * requiring knowledge of the specific value type.
+ */
+export interface MapEntry<V extends MapValue> {
+  // Cache map structure fields
+  parent: MapEntry<V> | null
+  key: unknown
+  map: Map<unknown, MapEntry<V>> | null
+  value: V | null
+
+  // LRU linked list fields
+  prev: MapEntry<V> | null
+  next: MapEntry<V> | null
+  size: number
+}
+
+/**
+ * A looser type for MapEntry
+ * This allows the LRU to work with entries of different
+ * value types while still providing type safety.
+ *
+ * The `map` field lets Map<unknown, MapEntry<V>> be assignable to this
+ * type since we're only reading from the map, not inserting into it.
+ */
+export type UnknownMapEntry = {
+  parent: UnknownMapEntry | null
+  key: unknown
+  map: Pick<Map<unknown, UnknownMapEntry>, 'get' | 'delete' | 'size'> | null
+  value: MapValue | null
+
+  prev: UnknownMapEntry | null
+  next: UnknownMapEntry | null
+  size: number
+}
+
+// The CacheMap type is just the root entry of the map.
+export type CacheMap<V extends MapValue> = MapEntry<V>
 
 export type FallbackType = { __brand: 'Fallback' }
 export const Fallback = {} as FallbackType
@@ -172,7 +208,7 @@ function getOrInitialize<V extends MapValue>(
       entry.map = map
     }
     // No entry exists yet at this level. Create a new one.
-    const newEntry: EmptyMapEntry<V> = {
+    const newEntry: MapEntry<V> = {
       parent: entry,
       key,
       value: null,
@@ -195,7 +231,14 @@ export function getFromCacheMap<V extends MapValue>(
   currentCacheVersion: number,
   rootEntry: CacheMap<V>,
   keys: VaryPath,
-  isRevalidation: boolean
+  isRevalidation: boolean,
+  // When true, terminal entries whose status is not Fulfilled are skipped, so
+  // the lookup falls through to a less-specific Fallback entry. Use this
+  // during a navigation to prefer a Fulfilled shell entry over a more-specific
+  // Pending entry that may still be in-flight. Callers that want to also
+  // accept non-Fulfilled entries should perform a second lookup with this set
+  // to false.
+  onlyMatchFulfilled: boolean
 ): V | null {
   const entry = getEntryWithFallbackImpl(
     now,
@@ -203,7 +246,8 @@ export function getFromCacheMap<V extends MapValue>(
     rootEntry,
     keys,
     isRevalidation,
-    0
+    0,
+    onlyMatchFulfilled
   )
   if (entry === null || entry.value === null) {
     return null
@@ -213,10 +257,10 @@ export function getFromCacheMap<V extends MapValue>(
   return entry.value
 }
 
-export function isValueExpired<V extends MapValue>(
+export function isValueExpired(
   now: number,
   currentCacheVersion: number,
-  value: V
+  value: MapValue
 ): boolean {
   return value.staleAt <= now || value.version < currentCacheVersion
 }
@@ -224,7 +268,8 @@ export function isValueExpired<V extends MapValue>(
 function lazilyEvictIfNeeded<V extends MapValue>(
   now: number,
   currentCacheVersion: number,
-  entry: MapEntry<V>
+  entry: MapEntry<V>,
+  onlyMatchFulfilled: boolean
 ) {
   // We have a matching entry, but before we can return it, we need to check if
   // it's still fresh. Otherwise it should be treated the same as a cache miss.
@@ -242,6 +287,12 @@ function lazilyEvictIfNeeded<V extends MapValue>(
     return null
   }
 
+  if (onlyMatchFulfilled && value.status !== EntryStatus.Fulfilled) {
+    // The entry is fresh but is not Fulfilled. Treat as a non-match so the
+    // recursion can continue and try a Fallback entry.
+    return null
+  }
+
   // The matched entry has not expired. Return it.
   return entry
 }
@@ -252,7 +303,8 @@ function getEntryWithFallbackImpl<V extends MapValue>(
   entry: MapEntry<V>,
   keys: VaryPath | null,
   isRevalidation: boolean,
-  previousKey: unknown | null
+  previousKey: unknown | null,
+  onlyMatchFulfilled: boolean
 ): MapEntry<V> | null {
   // This is similar to getExactEntry, but if an exact match is not found for
   // a key, it will return the fallback entry instead. This is recursive at
@@ -260,6 +312,10 @@ function getEntryWithFallbackImpl<V extends MapValue>(
   // valid match for [a, b, c, d].
   //
   // It will return the most specific match available.
+  //
+  // When `onlyMatchFulfilled` is true, terminal entries that aren't Fulfilled
+  // are treated as non-matches, so the recursion will continue searching for
+  // a Fallback match. See getFromCacheMap for the rationale.
   let key
   let remainingKeys: VaryPath | null
   if (keys !== null) {
@@ -272,27 +328,26 @@ function getEntryWithFallbackImpl<V extends MapValue>(
     remainingKeys = null
   } else {
     // There are no more keys. This is the terminal entry.
-
-    // TODO: When performing a lookup during a navigation, as opposed to a
-    // prefetch, we may want to skip entries that are Pending if there's also
-    // a Fulfilled fallback entry. Tricky to say, though, since if it's
-    // already pending, it's likely to stream in soon. Maybe we could do this
-    // just on slow connections and offline mode.
-
-    return lazilyEvictIfNeeded(now, currentCacheVersion, entry)
+    return lazilyEvictIfNeeded(
+      now,
+      currentCacheVersion,
+      entry,
+      onlyMatchFulfilled
+    )
   }
   const map = entry.map
   if (map !== null) {
     const existingEntry = map.get(key)
     if (existingEntry !== undefined) {
       // Found an exact match for this key. Keep searching.
-      const result = getEntryWithFallbackImpl<V>(
+      const result = getEntryWithFallbackImpl(
         now,
         currentCacheVersion,
         existingEntry,
         remainingKeys,
         isRevalidation,
-        key
+        key,
+        onlyMatchFulfilled
       )
       if (result !== null) {
         return result
@@ -308,7 +363,8 @@ function getEntryWithFallbackImpl<V extends MapValue>(
         fallbackEntry,
         remainingKeys,
         isRevalidation,
-        key
+        key,
+        onlyMatchFulfilled
       )
     }
   }
@@ -332,38 +388,23 @@ export function setInCacheMap<V extends MapValue>(
   updateLruSize(entry, value.size)
 }
 
-function setMapEntryValue<V extends MapValue>(
-  entry: MapEntry<V>,
-  value: V
-): void {
+function setMapEntryValue(entry: UnknownMapEntry, value: MapValue): void {
   if (entry.value !== null) {
     // There's already a value at the given keypath. Disconnect the old value
     // from the map. We're not calling `deleteMapEntry` here because the
     // entry itself is still in the map. We just want to overwrite its value.
     dropRef(entry.value)
-
-    // Fill the entry with the updated value.
-    const emptyEntry: EmptyMapEntry<V> = entry as any
-    emptyEntry.value = null
-    fillEmptyReference(emptyEntry, value)
-  } else {
-    fillEmptyReference(entry as any, value)
+    entry.value = null
   }
-}
 
-function fillEmptyReference<V extends MapValue>(
-  entry: EmptyMapEntry<V>,
-  value: V
-): void {
   // This value may already be in the map at a different keypath.
   // Grab a reference before we overwrite it.
   const oldEntry = value.ref
 
-  const fullEntry: FullMapEntry<V> = entry as any
-  fullEntry.value = value
-  value.ref = fullEntry
+  entry.value = value
+  value.ref = entry
 
-  updateLruSize(fullEntry, value.size)
+  updateLruSize(entry, value.size)
 
   if (oldEntry !== null && oldEntry !== entry && oldEntry.value === value) {
     // This value is already in the map at a different keypath in the map.
@@ -377,7 +418,7 @@ function fillEmptyReference<V extends MapValue>(
   }
 }
 
-export function deleteFromCacheMap<V extends MapValue>(value: V): void {
+export function deleteFromCacheMap(value: MapValue): void {
   const entry = value.ref
   if (entry === null) {
     // This value is not a member of any map.
@@ -388,7 +429,7 @@ export function deleteFromCacheMap<V extends MapValue>(value: V): void {
   deleteMapEntry(entry)
 }
 
-function dropRef<V extends MapValue>(value: V): void {
+function dropRef(value: MapValue): void {
   // Drop the value from the map by setting its `ref` backpointer to
   // null. This is a separate operation from `deleteMapEntry` because when
   // re-keying a value we need to be able to delete the old, internal map
@@ -396,21 +437,20 @@ function dropRef<V extends MapValue>(value: V): void {
   value.ref = null
 }
 
-function deleteMapEntry<V extends MapValue>(entry: MapEntry<V>): void {
+export function deleteMapEntry(entry: UnknownMapEntry): void {
   // Delete the entry from the cache.
-  const emptyEntry: EmptyMapEntry<V> = entry as any
-  emptyEntry.value = null
+  entry.value = null
 
   deleteFromLru(entry)
 
   // Check if we can garbage collect the entry.
-  const map = emptyEntry.map
+  const map = entry.map
   if (map === null) {
     // Since this entry has no value, and also no child entries, we can
     // garbage collect it. Remove it from its parent, and keep garbage
     // collecting the parents until we reach a non-empty entry.
-    let parent = emptyEntry.parent
-    let key = emptyEntry.key
+    let parent = entry.parent
+    let key = entry.key
     while (parent !== null) {
       const parentMap = parent.map
       if (parentMap !== null) {
@@ -435,7 +475,7 @@ function deleteMapEntry<V extends MapValue>(entry: MapEntry<V>): void {
     // "normal" entry, since the normal one was just deleted.
     const revalidatingEntry = map.get(Revalidation)
     if (revalidatingEntry !== undefined && revalidatingEntry.value !== null) {
-      setMapEntryValue(emptyEntry, revalidatingEntry.value)
+      setMapEntryValue(entry, revalidatingEntry.value)
     }
   }
 }

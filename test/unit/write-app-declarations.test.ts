@@ -24,6 +24,8 @@ describe('find config', () => {
         : '') +
       `import "./.next/types/routes.d.ts";` +
       eol +
+      `import "./.next/types/root-params.d.ts";` +
+      eol +
       eol +
       '// NOTE: This file should not be edited' +
       eol +
@@ -38,6 +40,8 @@ describe('find config', () => {
       imageImportsEnabled,
       hasPagesDir: false,
       hasAppDir: false,
+      strictRouteTypes: false,
+      typedRoutes: true,
     })
     expect(await fs.readFile(declarationFile, 'utf8')).toBe(content)
   })
@@ -52,6 +56,8 @@ describe('find config', () => {
         : '') +
       `import "./.next/types/routes.d.ts";` +
       eol +
+      `import "./.next/types/root-params.d.ts";` +
+      eol +
       eol +
       '// NOTE: This file should not be edited' +
       eol +
@@ -66,6 +72,8 @@ describe('find config', () => {
       imageImportsEnabled,
       hasPagesDir: false,
       hasAppDir: false,
+      strictRouteTypes: false,
+      typedRoutes: true,
     })
     expect(await fs.readFile(declarationFile, 'utf8')).toBe(content)
   })
@@ -80,6 +88,8 @@ describe('find config', () => {
         : '') +
       `import "./.next/types/routes.d.ts";` +
       eol +
+      `import "./.next/types/root-params.d.ts";` +
+      eol +
       eol +
       '// NOTE: This file should not be edited' +
       eol +
@@ -92,6 +102,8 @@ describe('find config', () => {
       imageImportsEnabled,
       hasPagesDir: false,
       hasAppDir: false,
+      strictRouteTypes: false,
+      typedRoutes: true,
     })
     expect(await fs.readFile(declarationFile, 'utf8')).toBe(content)
   })
@@ -103,6 +115,8 @@ describe('find config', () => {
       imageImportsEnabled,
       hasPagesDir: false,
       hasAppDir: true,
+      strictRouteTypes: false,
+      typedRoutes: true,
     })
 
     await expect(fs.readFile(declarationFile, 'utf8')).resolves.not.toContain(
@@ -115,6 +129,8 @@ describe('find config', () => {
       imageImportsEnabled,
       hasPagesDir: true,
       hasAppDir: true,
+      strictRouteTypes: false,
+      typedRoutes: true,
     })
 
     await expect(fs.readFile(declarationFile, 'utf8')).resolves.toContain(

@@ -89,4 +89,29 @@ export const PSEUDO_HTML_DIFF_STYLES = `
   .error-overlay-hydration-error-diff-minus-icon {
     color: var(--color-red-900);
   }
+  [data-nextjs-hydration-diff-header] {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 12px 0 0;
+  }
+  [data-nextjs-hydration-diff-badge] {
+    display: flex;
+    gap: 8px;
+    font-size: var(--size-12);
+  }
+  [data-nextjs-hydration-diff-badge-item] {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    color: var(--color-gray-900);
+  }
+  [data-nextjs-hydration-diff-badge-item='client'] span:first-child {
+    color: var(--color-green-900);
+    font-weight: bold;
+  }
+  [data-nextjs-hydration-diff-badge-item='server'] span:first-child {
+    color: var(--color-red-900);
+    font-weight: bold;
+  }
 `

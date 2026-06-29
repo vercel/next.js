@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 
-export async function middleware(request) {
+export default async function middleware(request) {
   const url = request.nextUrl
 
   // this is needed for tests to get the BUILD_ID

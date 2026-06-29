@@ -9,14 +9,13 @@ const { linkPackages } =
 
 const PREFER_OFFLINE = process.env.NEXT_TEST_PREFER_OFFLINE === '1'
 const useRspack = process.env.NEXT_TEST_USE_RSPACK === '1'
+const ROOT_PACKAGE_MANAGER = require('../../package.json').packageManager
 
 async function installDependencies(cwd, tmpDir) {
   const args = [
     'install',
     '--strict-peer-dependencies=false',
     '--no-frozen-lockfile',
-    // For the testing installation, use a separate cache directory
-    // to avoid local testing grows pnpm's default cache indefinitely with test packages.
     `--config.cacheDir=${tmpDir}`,
   ]
 
@@ -27,7 +26,17 @@ async function installDependencies(cwd, tmpDir) {
   await execa('pnpm', args, {
     cwd,
     stdio: ['ignore', 'inherit', 'inherit'],
-    env: process.env,
+    env: {
+      ...process.env,
+      // pnpm reads this despite claims it ignores `npm_config_*` env variables.
+      // This isn't set in CI but some local environments set this from the
+      // pnpm-workspace.yaml for unknown reasons.
+      // minimumReleaseAgeExclude is not propagated with environment variables
+      // so some installs would just fail.
+      // TODO: ideally every test fixture would run with minimumReleaseAgeExclude but
+      // that requires some work in monorepo test suites.
+      npm_config_minimum_release_age: undefined,
+    },
   })
 }
 
@@ -40,9 +49,8 @@ async function installDependencies(cwd, tmpDir) {
  * @param { ((ctx: { dependencies: { [key: string]: string } }) => string) | string | null} [param0.installCommand]
  * @param {object} [param0.packageJson]
  * @param {string} [param0.subDir]
- * @param {boolean} [param0.keepRepoDir]
- * @param {(span: import('@next/telemetry').Span, installDir: string) => Promise<void>} param0.beforeInstall
- * @returns {Promise<{installDir: string, pkgPaths: Map<string, string>, tmpRepoDir: string | undefined}>}
+ * @param {(span: import('@next/telemetry').Span, installDir: string) => Promise<void>} [param0.beforeInstall]
+ * @returns {Promise<{installDir: string, pkgPaths: Map<string, string>}>}
  */
 async function createNextInstall({
   parentSpan,
@@ -51,7 +59,6 @@ async function createNextInstall({
   installCommand = null,
   packageJson = {},
   subDir = '',
-  keepRepoDir = false,
   beforeInstall,
 }) {
   const tmpDir = await fs.realpath(process.env.NEXT_TEST_DIR || os.tmpdir())
@@ -65,7 +72,6 @@ async function createNextInstall({
         `next-install-${randomBytes(32).toString('hex')}`,
         subDir
       )
-      let tmpRepoDir
       require('console').log('Creating next instance in:')
       require('console').log(installDir)
 
@@ -76,39 +82,26 @@ async function createNextInstall({
         pkgPaths = new Map(JSON.parse(pkgPathsEnv))
         require('console').log('using provided pkg paths')
       } else {
-        tmpRepoDir = path.join(
-          tmpDir,
-          `next-repo-${randomBytes(32).toString('hex')}`,
-          subDir
+        await rootSpan.traceChild('turbo-run-pack').traceAsyncFn(() =>
+          execa(
+            'pnpm',
+            [
+              'turbo',
+              'run',
+              'pack-for-isolated-tests',
+              '--output-logs',
+              'new-only',
+              // Jest tui can't handle Turborepo tui. But we're cutting off stdin
+              // so Turborepo's tui isn't interactive anyway.
+              '--ui',
+              'stream',
+            ],
+            {
+              cwd: origRepoDir,
+              stdio: ['ignore', 'inherit', 'inherit'],
+            }
+          )
         )
-        require('console').log('Creating temp repo dir', tmpRepoDir)
-
-        for (const item of [
-          'package.json',
-          'packages',
-          // Otherwise pnpm will not recognize workspaces
-          'pnpm-workspace.yaml',
-        ]) {
-          await rootSpan
-            .traceChild(`copy ${item} to temp dir`)
-            .traceAsyncFn(() =>
-              fs.copy(
-                path.join(origRepoDir, item),
-                path.join(tmpRepoDir, item),
-                {
-                  filter: (item) => {
-                    return (
-                      !item.includes('node_modules') &&
-                      !item.includes('pnpm-lock.yaml') &&
-                      !item.includes('.DS_Store') &&
-                      // Exclude Rust compilation files
-                      !/packages[\\/]next-swc/.test(item)
-                    )
-                  },
-                }
-              )
-            )
-        }
 
         if (process.env.NEXT_TEST_WASM) {
           const wasmPath = path.join(origRepoDir, 'crates', 'wasm', 'pkg')
@@ -138,20 +131,16 @@ async function createNextInstall({
           }
         }
 
-        // log for clarity of which version we're using
         require('console').log({
           swcNativeDirectory: process.env.NEXT_TEST_NATIVE_DIR,
           swcWasmDirectory: process.env.NEXT_TEST_WASM_DIR,
         })
 
-        pkgPaths = await rootSpan
-          .traceChild('linkPackages')
-          .traceAsyncFn((span) =>
-            linkPackages({
-              repoDir: tmpRepoDir,
-              parentSpan: span,
-            })
-          )
+        pkgPaths = await rootSpan.traceChild('linkPackages').traceAsyncFn(() =>
+          linkPackages({
+            repoDir: origRepoDir,
+          })
+        )
       }
 
       const combinedDependencies = {
@@ -167,23 +156,67 @@ async function createNextInstall({
         combinedDependencies['next-rspack'] = pkgPaths.get('next-rspack')
       }
 
+      // Build overrides to resolve transitive workspace deps from local
+      // tarballs. Write all three formats so npm, pnpm, and yarn all work.
+      const workspacePkgOverrides = {}
+      for (const [name, tarballPath] of pkgPaths.entries()) {
+        if (!combinedDependencies[name]) {
+          workspacePkgOverrides[name] = tarballPath
+        }
+      }
+
       const scripts = {
         debug: `NEXT_PRIVATE_SKIP_CANARY_CHECK=1 NEXT_TELEMETRY_DISABLED=1 NEXT_TEST_NATIVE_DIR=${process.env.NEXT_TEST_NATIVE_DIR} node --inspect --trace-deprecation --enable-source-maps node_modules/next/dist/bin/next`,
         'debug-brk': `NEXT_PRIVATE_SKIP_CANARY_CHECK=1 NEXT_TELEMETRY_DISABLED=1 NEXT_TEST_NATIVE_DIR=${process.env.NEXT_TEST_NATIVE_DIR} node --inspect-brk --trace-deprecation --enable-source-maps node_modules/next/dist/bin/next`,
         ...packageJson.scripts,
       }
 
+      // Pin the same pnpm version the repo uses so corepack resolves a
+      // consistent pnpm across isolated test dirs. Without this, `pnpm` may
+      // fall back to whatever version is installed at the system level, which
+      // can disagree with the repo's `packageManager` field and cause mismatch
+      // errors (e.g. pnpm-workspace.yaml written for v10 parsed by v9).
+      //
+      // Only fall back to the root `packageManager` for the default pnpm
+      // install path. Tests that provide their own `installCommand` (e.g.
+      // yarn-pnp) need to switch package managers themselves and would be
+      // blocked by corepack if the file already pinned `pnpm@...`.
+      const rootPackageManager = require(
+        path.join(__dirname, '../../package.json')
+      ).packageManager
+      const packageManagerField =
+        packageJson.packageManager ||
+        (installCommand ? undefined : rootPackageManager)
+
       await fs.ensureDir(installDir)
       await fs.writeFile(
         path.join(installDir, 'package.json'),
         JSON.stringify(
           {
+            // Pin packageManager so corepack doesn't auto-inject a reference
+            // to the latest version (and rewrite this file mid-test).
+            // Callers can override via packageJson.packageManager.
+            packageManager: ROOT_PACKAGE_MANAGER,
             ...packageJson,
+            ...(packageManagerField && { packageManager: packageManagerField }),
             scripts,
             dependencies: combinedDependencies,
             private: true,
-            // Add resolutions if provided.
-            ...(resolutions ? { resolutions } : {}),
+            overrides: {
+              ...workspacePkgOverrides,
+              ...(packageJson.overrides || {}),
+            },
+            pnpm: {
+              ...(packageJson.pnpm || {}),
+              overrides: {
+                ...workspacePkgOverrides,
+                ...(packageJson.pnpm?.overrides || {}),
+              },
+            },
+            resolutions: {
+              ...workspacePkgOverrides,
+              ...(resolutions || {}),
+            },
           },
           null,
           2
@@ -221,8 +254,6 @@ async function createNextInstall({
       }
 
       if (useRspack) {
-        // This is what the next-rspack plugin does.
-        // TODO: Load the plugin properly during test
         process.env.NEXT_RSPACK = 'true'
         process.env.RSPACK_CONFIG_VALIDATE = 'loose-silent'
       }
@@ -230,7 +261,6 @@ async function createNextInstall({
       return {
         installDir,
         pkgPaths,
-        tmpRepoDir,
       }
     })
 }

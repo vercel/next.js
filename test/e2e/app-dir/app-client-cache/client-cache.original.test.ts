@@ -1,6 +1,5 @@
-import { nextTestSetup } from 'e2e-utils'
+import { nextTestSetup, type Playwright } from 'e2e-utils'
 import { retry } from 'next-test-utils'
-import { Playwright } from 'next-webdriver'
 import {
   browserConfigWithFixedTime,
   createRequestsListener,
@@ -11,12 +10,15 @@ import path from 'path'
 
 // This preserves existing tests for the 30s/5min heuristic (previous router defaults)
 describe('app dir client cache semantics (30s/5min)', () => {
-  const { next, isNextDev } = nextTestSetup({
+  const { next, isNextDev, skipped } = nextTestSetup({
     files: path.join(__dirname, 'fixtures', 'regular'),
     nextConfig: {
       experimental: { staleTimes: { dynamic: 30, static: 180 } },
     },
+    // Assertions don't apply to deploy mode (output differs vs. local Next.js server).
+    skipDeployment: true,
   })
+  if (skipped) return
 
   if (isNextDev) {
     // dev doesn't support prefetch={true}, so this just performs a basic test to make sure data is reused for 30s
@@ -360,6 +362,9 @@ describe('app dir client cache semantics (30s/5min)', () => {
         expect(newNumber).not.toBe(randomNumber)
       })
       it('should refetch the full page after 5 mins', async () => {
+        // Wait for initial prefetch to complete before clicking
+        await browser.waitForIdleNetwork()
+
         const randomLoadingNumber = await browser
           .elementByCss('[href="/1?timeout=1000"]')
           .click()
@@ -376,6 +381,10 @@ describe('app dir client cache semantics (30s/5min)', () => {
           .elementByCss('[href="/"]')
           .click()
           .waitForElementByCss('[href="/1?timeout=1000"]')
+
+        // Wait for prefetch requests to complete before clicking, otherwise
+        // clicking during an in-flight prefetch aborts it and skips loading state
+        await browser.waitForIdleNetwork()
 
         const newLoadingNumber = await browser
           .elementByCss('[href="/1?timeout=1000"]')

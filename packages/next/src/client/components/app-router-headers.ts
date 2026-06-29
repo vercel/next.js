@@ -16,6 +16,12 @@ export const NEXT_HMR_REFRESH_HASH_COOKIE = '__next_hmr_refresh_hash__' as const
 export const NEXT_URL = 'next-url' as const
 export const RSC_CONTENT_TYPE_HEADER = 'text/x-component' as const
 
+// Cookie for the Instant Navigation Testing API. Sent automatically with all
+// requests while a navigation lock is held; the server uses its presence to
+// render only the shell. Not exposed in production builds by default.
+export const NEXT_INSTANT_TEST_COOKIE =
+  'next-instant-navigation-testing' as const
+
 export const FLIGHT_HEADERS = [
   RSC_HEADER,
   NEXT_ROUTER_STATE_TREE_HEADER,
@@ -34,3 +40,6 @@ export const NEXT_IS_PRERENDER_HEADER = 'x-nextjs-prerender' as const
 export const NEXT_ACTION_NOT_FOUND_HEADER = 'x-nextjs-action-not-found' as const
 export const NEXT_REQUEST_ID_HEADER = 'x-nextjs-request-id' as const
 export const NEXT_HTML_REQUEST_ID_HEADER = 'x-nextjs-html-request-id' as const
+
+// TODO: Should this include nextjs in the name, like the others?
+export const NEXT_ACTION_REVALIDATED_HEADER = 'x-action-revalidated' as const

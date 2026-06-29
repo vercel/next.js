@@ -1,11 +1,11 @@
 use std::{env, sync::MutexGuard};
 
-use anyhow::{Context, Result, anyhow};
+use anyhow::{Context, Result};
 use turbo_rcstr::RcStr;
-use turbo_tasks::{FxIndexMap, ReadRef, ResolvedVc, Vc};
+use turbo_tasks::{FxIndexMap, ReadRef, ResolvedVc, Vc, turbofmt};
 use turbo_tasks_fs::{FileContent, FileSystemPath};
 
-use crate::{EnvMap, GLOBAL_ENV_LOCK, ProcessEnv, sorted_env_vars};
+use crate::{GLOBAL_ENV_LOCK, ProcessEnv, TransientEnvMap, sorted_env_vars};
 
 /// Load the environment variables defined via a dotenv file, with an
 /// optional prior state that we can lookup already defined variables
@@ -24,19 +24,21 @@ impl DotenvProcessEnv {
     }
 
     #[turbo_tasks::function]
-    pub fn read_prior(&self) -> Vc<EnvMap> {
+    pub fn read_prior(&self) -> Vc<TransientEnvMap> {
         match self.prior {
-            None => EnvMap::empty(),
+            None => TransientEnvMap::empty(),
             Some(p) => p.read_all(),
         }
     }
 
     #[turbo_tasks::function]
-    pub async fn read_all_with_prior(self: Vc<Self>, prior: Vc<EnvMap>) -> Result<Vc<EnvMap>> {
-        let this = self.await?;
+    pub async fn read_all_with_prior(
+        &self,
+        prior: Vc<TransientEnvMap>,
+    ) -> Result<Vc<TransientEnvMap>> {
         let prior = prior.await?;
 
-        let file = this.path.read().await?;
+        let file = self.path.read().await?;
         if let FileContent::Content(f) = &*file {
             let res;
             let vars;
@@ -60,10 +62,9 @@ impl DotenvProcessEnv {
             }
 
             if let Err(e) = res {
-                return Err(e).context(anyhow!(
-                    "unable to read {} for env vars",
-                    this.path.value_to_string().await?
-                ));
+                // ast-grep-ignore: no-context-turbofmt
+                return Err(e)
+                    .context(turbofmt!("unable to read {} for env vars", self.path).await?);
             }
 
             Ok(Vc::cell(vars))
@@ -78,7 +79,7 @@ impl DotenvProcessEnv {
 #[turbo_tasks::value_impl]
 impl ProcessEnv for DotenvProcessEnv {
     #[turbo_tasks::function]
-    fn read_all(self: Vc<Self>) -> Vc<EnvMap> {
+    fn read_all(self: Vc<Self>) -> Vc<TransientEnvMap> {
         let prior = self.read_prior();
         self.read_all_with_prior(prior)
     }

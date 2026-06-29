@@ -14,7 +14,9 @@ use turbopack_core::{
     issue::IssueSource,
     reference::ModuleReference,
     reference_type::{CssReferenceSubType, ImportContext, ReferenceType},
-    resolve::{ModuleResolveResult, origin::ResolveOrigin, parse::Request, url_resolve},
+    resolve::{
+        ModuleResolveResult, ResolveErrorMode, origin::ResolveOrigin, parse::Request, url_resolve,
+    },
     source::Source,
     source_pos::SourcePos,
 };
@@ -103,15 +105,12 @@ impl Visitor<'_> for ModuleReferencesVisitor<'_> {
                     Request::parse(RcStr::from(src).into()),
                     ImportAttributes::new_from_lightningcss(&i.clone().into_owned()).cell(),
                     self.import_context.map(|ctx| *ctx),
-                    IssueSource::from_line_col(
+                    IssueSource::from_single_line_col(
                         self.source,
                         SourcePos {
-                            line: issue_span.line as _,
-                            column: issue_span.column as _,
-                        },
-                        SourcePos {
-                            line: issue_span.line as _,
-                            column: issue_span.column as _,
+                            // lightningcss::rules::Location is 1-based for column only
+                            line: issue_span.line,
+                            column: issue_span.column - 1,
                         },
                     ),
                 )));
@@ -138,15 +137,12 @@ impl Visitor<'_> for ModuleReferencesVisitor<'_> {
             let vc = UrlAssetReference::new(
                 *self.origin,
                 Request::parse(RcStr::from(src).into()),
-                IssueSource::from_line_col(
+                IssueSource::from_single_line_col(
                     self.source,
                     SourcePos {
-                        line: issue_span.line as _,
-                        column: issue_span.column as _,
-                    },
-                    SourcePos {
-                        line: issue_span.line as _,
-                        column: issue_span.column as _,
+                        // lightningcss::dependencies::Location is 1-based for both line and column
+                        line: issue_span.line - 1,
+                        column: issue_span.column - 1,
                     },
                 ),
             );
@@ -178,5 +174,11 @@ pub fn css_resolve(
     ty: CssReferenceSubType,
     issue_source: Option<IssueSource>,
 ) -> Vc<ModuleResolveResult> {
-    url_resolve(origin, request, ReferenceType::Css(ty), issue_source, false)
+    url_resolve(
+        origin,
+        request,
+        ReferenceType::Css(ty),
+        issue_source,
+        ResolveErrorMode::Error,
+    )
 }

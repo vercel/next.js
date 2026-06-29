@@ -26,7 +26,7 @@ import { collectRootParamKeys } from '../../build/segment-config/app/collect-roo
 import { buildAppStaticPaths } from '../../build/static-paths/app'
 import { buildPagesStaticPaths } from '../../build/static-paths/pages'
 import { createIncrementalCache } from '../../export/helpers/create-incremental-cache'
-import { parseAppRoute } from '../../shared/lib/router/routes/app'
+import { parseNormalizedAppRoute } from '../../shared/lib/router/routes/app'
 
 type RuntimeConfig = {
   pprConfig: ExperimentalPPRConfig | undefined
@@ -56,7 +56,10 @@ export async function loadStaticPaths({
   cacheLifeProfiles,
   nextConfigOutput,
   buildId,
+  deploymentId,
   authInterrupts,
+  useCacheTimeout,
+  staticPageGenerationTimeout,
   sriEnabled,
 }: {
   dir: string
@@ -79,7 +82,10 @@ export async function loadStaticPaths({
   }
   nextConfigOutput: 'standalone' | 'export' | undefined
   buildId: string
+  deploymentId: string
   authInterrupts: boolean
+  useCacheTimeout: number
+  staticPageGenerationTimeout: number
   sriEnabled: boolean
 }): Promise<StaticPathsResult> {
   // this needs to be initialized before loadComponents otherwise
@@ -118,7 +124,7 @@ export async function loadStaticPaths({
       routeModule as AppPageRouteModule | AppRouteRouteModule
     )
 
-    const route = parseAppRoute(pathname, true)
+    const route = parseNormalizedAppRoute(pathname)
     if (route.dynamicSegments.length === 0) {
       throw new InvariantError(
         `Expected a dynamic route, but got a static route: ${pathname}`
@@ -148,7 +154,10 @@ export async function loadStaticPaths({
       nextConfigOutput,
       isRoutePPREnabled,
       buildId,
+      deploymentId,
       authInterrupts,
+      useCacheTimeout,
+      staticPageGenerationTimeout,
       rootParamKeys,
     })
   } else if (!components.getStaticPaths) {

@@ -26,9 +26,26 @@ export function getModuleBuildInfo(webpackModule: webpack.Module) {
   return webpackModule.buildInfo as ModuleBuildInfo
 }
 
+/**
+ * Location info for a server action (1-indexed line and column)
+ */
+export interface ServerActionLocation {
+  line: number
+  col: number
+}
+
+/**
+ * Server action info including name and optional source location
+ */
+export interface ServerActionInfo {
+  name: string
+  loc?: ServerActionLocation
+}
+
 export interface RSCMeta {
   type: RSCModuleType
-  actionIds?: Record<string, string>
+  /** Map of action ID to export name (old format) or action info (new format with location) */
+  actionIds?: Record<string, string | ServerActionInfo>
   clientRefs?: string[]
   clientEntryType?: 'cjs' | 'auto'
   isClientRef?: boolean

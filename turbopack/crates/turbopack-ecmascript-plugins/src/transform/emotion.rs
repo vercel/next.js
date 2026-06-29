@@ -29,7 +29,6 @@ use turbopack_ecmascript::{CustomTransformer, TransformContext};
     Eq,
     Debug,
     TraceRawVcs,
-    Serialize,
     Deserialize,
     NonLocalValue,
     OperationValue,
@@ -75,7 +74,7 @@ impl From<&EmotionItemSpecifier> for swc_emotion::ItemSpecifier {
 pub type EmotionImportMapValue = IndexMap<RcStr, EmotionImportItemConfig, FxBuildHasher>;
 
 #[turbo_tasks::value(shared, operation)]
-#[derive(Default, Clone, Debug)]
+#[derive(Default, Clone, Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct EmotionTransformConfig {
     pub sourcemap: Option<bool>,
@@ -83,20 +82,6 @@ pub struct EmotionTransformConfig {
     pub auto_label: Option<EmotionLabelKind>,
     #[bincode(with_serde)]
     pub import_map: Option<IndexMap<RcStr, EmotionImportMapValue, FxBuildHasher>>,
-}
-
-#[turbo_tasks::value_impl]
-impl EmotionTransformConfig {
-    #[turbo_tasks::function]
-    pub fn default_private() -> Vc<Self> {
-        Self::cell(Default::default())
-    }
-}
-
-impl ValueDefault for EmotionTransformConfig {
-    fn value_default() -> Vc<Self> {
-        EmotionTransformConfig::default_private()
-    }
 }
 
 #[derive(Debug)]

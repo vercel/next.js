@@ -25,7 +25,8 @@ Create a `proxy.ts` (or `.js`) file in the project root, or inside `src` if appl
 If you’ve customized [`pageExtensions`](/docs/app/api-reference/config/next-config-js/pageExtensions), for example to `.page.ts` or `.page.js`, name your file `proxy.page.ts` or `proxy.page.js` accordingly.
 
 ```tsx filename="proxy.ts" switcher
-import { NextResponse, NextRequest } from 'next/server'
+import { NextResponse } from 'next/server'
+import type { NextRequest } from 'next/server'
 
 // This function can be marked `async` if using `await` inside
 export function proxy(request: NextRequest) {
@@ -69,7 +70,11 @@ Optionally, a config object can be exported alongside the Proxy function. This o
 
 ### Matcher
 
-The `matcher` option allows you to target specific paths for the Proxy to run on. You can specify these paths in several ways:
+The `matcher` option allows you to target specific paths for the Proxy to run on.
+
+Without a `matcher`, Proxy runs on **every request**, including static files (`_next/static`), image optimizations (`_next/image`), and assets in the `public/` folder. Consider using a [negative match pattern](#negative-matching) to exclude these paths, otherwise auth logic or redirects can unintentionally block CSS, JS, or images from loading.
+
+You can specify paths in several ways:
 
 - For a single path: Directly use a string to define the path, like `'/about'`.
 - For multiple paths: Use an array to list multiple paths, such as `matcher: ['/about', '/contact']`, which applies the Proxy to both `/about` and `/contact`.
@@ -116,7 +121,7 @@ export const config = {
 }
 ```
 
-Configured matchers:
+The `source` path patterns:
 
 1. MUST start with `/`
 2. Can include named parameters: `/about/:path` matches `/about/a` and `/about/b` but not `/about/a/c`
@@ -148,6 +153,17 @@ export function proxy(request: NextRequest) {
 ```js filename="proxy.js" switcher
 export function proxy(request) {
   // Proxy logic goes here
+}
+```
+
+If you prefer a shorthand, you can use the `NextProxy` type. It infers the parameter types for both `request` (`NextRequest`) and `event` (`NextFetchEvent`) automatically:
+
+```tsx filename="proxy.ts"
+import type { NextProxy } from 'next/server'
+
+export const proxy: NextProxy = (request, event) => {
+  event.waitUntil(Promise.resolve())
+  return Response.json({ pathname: request.nextUrl.pathname })
 }
 ```
 
@@ -198,13 +214,17 @@ Proxy will be invoked for **every route in your project**. Given this, it's cruc
 7. Dynamic Routes (`/blog/[slug]`)
 8. `fallback` (`rewrites`) from `next.config.js`
 
+> **Good to know:** [Server Functions](/docs/app/api-reference/directives/use-server) are not separate routes in this chain. They are handled as POST requests to the route where they are used, so a Proxy matcher that excludes a path will also skip Server Function calls on that path.
+>
+> A matcher change or a refactor that moves a Server Function to a different route can silently remove Proxy coverage. Always verify authentication and authorization inside each Server Function rather than relying on Proxy alone. See the [Data Security guide](/docs/app/guides/data-security#authentication-and-authorization) for recommended patterns.
+
 ## Runtime
 
-Proxy defaults to using the Node.js runtime. The [`runtime`](/docs/app/api-reference/file-conventions/route-segment-config#runtime) config option is not available in Proxy files. Setting the `runtime` config option in Proxy will throw an error.
+Proxy defaults to using the Node.js runtime. The [`runtime`](/docs/app/api-reference/file-conventions/route-segment-config/runtime) config option is not available in Proxy files. Setting the `runtime` config option in Proxy will throw an error.
 
 ## Advanced Proxy flags
 
-In `v13.1` of Next.js two additional flags were introduced for proxy, `skipMiddlewareUrlNormalize` and `skipTrailingSlashRedirect` to handle advanced use cases.
+In `v13.1` of Next.js two additional flags were introduced for proxy, `skipProxyUrlNormalize` (formerly `skipMiddlewareUrlNormalize`) and `skipTrailingSlashRedirect` to handle advanced use cases.
 
 `skipTrailingSlashRedirect` disables Next.js redirects for adding or removing trailing slashes. This allows custom handling inside proxy to maintain the trailing slash for some paths but not others, which can make incremental migrations easier.
 
@@ -236,11 +256,11 @@ export default async function proxy(req) {
 }
 ```
 
-`skipMiddlewareUrlNormalize` allows for disabling the URL normalization in Next.js to make handling direct visits and client-transitions the same. In some advanced cases, this option provides full control by using the original URL.
+`skipProxyUrlNormalize` allows for disabling the URL normalization in Next.js to make handling direct visits and client-transitions the same. In some advanced cases, this option provides full control by using the original URL.
 
 ```js filename="next.config.js"
 module.exports = {
-  skipMiddlewareUrlNormalize: true,
+  skipProxyUrlNormalize: true,
 }
 ```
 
@@ -417,12 +437,29 @@ Learn more in [NextResponse headers in Proxy](/docs/app/api-reference/functions/
 
 > **Good to know**: Avoid setting large headers as it might cause [431 Request Header Fields Too Large](https://developer.mozilla.org/docs/Web/HTTP/Status/431) error depending on your backend web server configuration.
 
+#### RSC requests and rewrites
+
+During RSC requests, Next.js strips internal Flight headers from the `request` instance in Proxy. For example, headers like `rsc`, `next-router-state-tree`, and `next-router-prefetch` are not exposed through `request.headers`. This is to prevent accidentally handling an RSC request differently than the HTML request as both need to align.
+
+When you use `NextResponse.rewrite()`, Next.js automatically propagates the required RSC rewrite headers upstream.
+
+If you implement custom rewrite logic with `fetch()` instead of `NextResponse.rewrite()`, you can run into missing RSC headers unless you forward them manually.
+
+For custom `fetch` rewrite setups, you can also enable `skipProxyUrlNormalize` in `next.config.js` so your rewrite logic can receive the necessary URL shape and RSC headers from the provided request object:
+
+```js filename="next.config.js"
+module.exports = {
+  skipProxyUrlNormalize: true,
+}
+```
+
 ### CORS
 
 You can set CORS headers in Proxy to allow cross-origin requests, including [simple](https://developer.mozilla.org/en-US/docs/Web/HTTP/CORS#simple_requests) and [preflighted](https://developer.mozilla.org/en-US/docs/Web/HTTP/CORS#preflighted_requests) requests.
 
 ```tsx filename="proxy.ts" switcher
-import { NextRequest, NextResponse } from 'next/server'
+import { NextResponse } from 'next/server'
+import type { NextRequest } from 'next/server'
 
 const allowedOrigins = ['https://acme.com', 'https://my-app.org']
 
@@ -707,7 +744,7 @@ Next.js is moving forward to provide better APIs with better ergonomics so that 
 
 ### Why "Proxy"
 
-The name Proxy clarifies what Middleware is capable of. The term "proxy" implies that it has a network boundary in front of the app, which is the behavior of Middleware. Also, Middleware defaults to run at the [Edge Runtime](/docs/app/api-reference/edge), which can run closer to the client, separated from the app's region. These behaviors align better with the term "proxy" and provide a clearer purpose of the feature.
+The name Proxy clarifies what Middleware is capable of. The term "proxy" implies a network boundary in front of the app, which is how this feature behaves. It can run outside of your application’s main runtime and handle requests before they reach your app. These characteristics align better with the term "proxy" and provide a clearer purpose for the feature.
 
 ### How to Migrate
 
@@ -734,7 +771,7 @@ The codemod will rename the file and the function name from `middleware` to `pro
 
 | Version   | Changes                                                                                       |
 | --------- | --------------------------------------------------------------------------------------------- |
-| `v16.0.0` | Middleware is deprecated and renamed to Proxy                                                 |
+| `v16.0.0` | Middleware is deprecated and renamed to Proxy. Proxy defaults to the Node.js runtime          |
 | `v15.5.0` | Middleware can now use the Node.js runtime (stable)                                           |
 | `v15.2.0` | Middleware can now use the Node.js runtime (experimental)                                     |
 | `v13.1.0` | Advanced Middleware flags added                                                               |

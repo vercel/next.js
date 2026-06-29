@@ -10,21 +10,31 @@ autobenches = false
 bench = false
 
 [dependencies]
-rspack-libmimalloc-sys = { version = "0.2.4", default-features = false, features = [], optional = true }
 
-[target.'cfg(not(any(target_os = "linux", target_family = "wasm", target_env = "musl")))'.dependencies]
-mimalloc-rspack = { version = "0.2.4", features = [
-  "v3",
-  "extended"
+[target.'cfg(not(target_family = "wasm"))'.dependencies]
+libmimalloc-sys = { version = "0.1.44", features = [
+  "extended",
 ], optional = true }
 
-[target.'cfg(all(target_os = "linux", not(any(target_family = "wasm", target_env = "musl"))))'.dependencies]
-mimalloc-rspack = { version = "0.2.4", features = [
+[target.'cfg(not(any(target_os = "linux", target_family = "wasm")))'.dependencies]
+mimalloc = { version = "0.1.48", features = [
+  "v3",
+  "extended",
+], optional = true }
+
+[target.'cfg(all(target_os = "linux", not(target_family = "wasm")))'.dependencies]
+mimalloc = { version = "0.1.48", features = [
   "v3",
   "extended",
   "local_dynamic_tls",
 ], optional = true }
 
+[target.'cfg(target_os = "macos")'.dependencies]
+libc = "0.2"
+
+[target.'cfg(windows)'.dependencies]
+windows-sys = { version = "0.60", features = ["Win32_System_SystemInformation"] }
+
 [features]
-custom_allocator = ["dep:mimalloc-rspack", "dep:rspack-libmimalloc-sys"]
+custom_allocator = ["dep:mimalloc", "dep:libmimalloc-sys"]
 default = ["custom_allocator"]

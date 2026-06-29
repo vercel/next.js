@@ -8,28 +8,25 @@ import {
   getPageFileFromPagesManifest,
   check,
   fetchViaHTTP,
+  listClientChunks,
 } from 'next-test-utils'
-import webdriver from 'next-webdriver'
 import {
   BUILD_MANIFEST,
   PAGES_MANIFEST,
   REACT_LOADABLE_MANIFEST,
 } from 'next/constants'
-import { recursiveReadDir } from 'next/dist/lib/recursive-readdir'
 import path, { join, sep } from 'path'
 import dynamicImportTests from './dynamic'
 import processEnv from './process-env'
 import security from './security'
 import { promisify } from 'util'
-import { nextTestSetup } from 'e2e-utils'
+import { isReact18, nextTestSetup } from 'e2e-utils'
 
 const glob = promisify(globOriginal)
 
-if (process.env.NEXT_TEST_WASM) {
+if (process.env.NEXT_TEST_WASM || process.env.NEXT_TEST_WASM_AFTER_JEST) {
   jest.setTimeout(120 * 1000)
 }
-
-const isReact18 = parseInt(process.env.NEXT_TEST_REACT_VERSION) === 18
 
 describe('Production Usage', () => {
   const { next } = nextTestSetup({
@@ -41,7 +38,7 @@ describe('Production Usage', () => {
   })
 
   it('should navigate through history after query update', async () => {
-    const browser = await webdriver(next.appPort, '/')
+    const browser = await next.browser('/')
     await browser.eval('window.next.router.push("/about?a=b")')
     await browser.waitForElementByCss('.about-page')
     await browser.waitForCondition(`!!window.next.router.isReady`)
@@ -75,10 +72,7 @@ describe('Production Usage', () => {
     ])(
       'should handle query/hash correctly during query updating $hash $search',
       async ({ hash, search, query }) => {
-        const browser = await webdriver(
-          next.appPort,
-          `/${search || ''}${hash || ''}`
-        )
+        const browser = await next.browser(`/${search || ''}${hash || ''}`)
 
         await check(
           () =>
@@ -375,12 +369,12 @@ describe('Production Usage', () => {
 
     if (global.browserName === 'internet explorer') {
       it('should handle bad Promise polyfill', async () => {
-        const browser = await webdriver(next.appPort, '/bad-promise')
+        const browser = await next.browser('/bad-promise')
         expect(await browser.eval('window.didRender')).toBe(true)
       })
 
       it('should polyfill RegExp successfully', async () => {
-        const browser = await webdriver(next.appPort, '/regexp-polyfill')
+        const browser = await next.browser('/regexp-polyfill')
         expect(await browser.eval('window.didRender')).toBe(true)
         // wait a second for the script to be loaded
         await waitFor(1000)
@@ -392,7 +386,7 @@ describe('Production Usage', () => {
     }
 
     it('should polyfill Node.js modules', async () => {
-      const browser = await webdriver(next.appPort, '/node-browser-polyfills')
+      const browser = await next.browser('/node-browser-polyfills')
       await browser.waitForCondition('window.didRender')
 
       const data = await browser
@@ -538,7 +532,7 @@ describe('Production Usage', () => {
       for (const file of files) {
         const res = await fetchViaHTTP(
           `http://localhost:${next.appPort}`,
-          `/_next/${encodeURI(file)}`,
+          `/_next/${encodeURI(file)}${next.getAssetQuery()}`,
           undefined,
           {
             method: 'GET',
@@ -561,7 +555,7 @@ describe('Production Usage', () => {
       for (const file of files) {
         const res = await fetchViaHTTP(
           `http://localhost:${next.appPort}`,
-          `/_next/${encodeURI(file)}`,
+          `/_next/${encodeURI(file)}${next.getAssetQuery()}`,
           undefined,
           {
             method: 'GET',
@@ -613,29 +607,28 @@ describe('Production Usage', () => {
         resources.add('/' + item)
       }
 
-      const cssStaticAssets = await recursiveReadDir(
-        join(next.testDir, '.next', 'static'),
-        { pathnameFilter: (f) => /\.css$/.test(f) }
-      )
+      const assets = await listClientChunks(join(next.testDir, '.next'))
+
+      const cssStaticAssets = assets.filter((f) => /\.css$/.test(f))
       expect(cssStaticAssets.length).toBeGreaterThanOrEqual(1)
       if (!process.env.IS_TURBOPACK_TEST) {
         expect(cssStaticAssets[0]).toMatch(/[\\/]css[\\/]/)
       }
-      const mediaStaticAssets = await recursiveReadDir(
-        join(next.testDir, '.next', 'static'),
-        { pathnameFilter: (f) => /\.svg$/.test(f) }
-      )
+      const mediaStaticAssets = assets.filter((f) => /\.svg$/.test(f))
       expect(mediaStaticAssets.length).toBeGreaterThanOrEqual(1)
       if (!process.env.IS_TURBOPACK_TEST) {
         expect(mediaStaticAssets[0]).toMatch(/[\\/]media[\\/]/)
       }
       ;[...cssStaticAssets, ...mediaStaticAssets].forEach((asset) => {
-        resources.add(`/static${asset.replace(/\\+/g, '/')}`)
+        resources.add(`/${asset.replace(/\\+/g, '/')}`)
       })
 
       const responses = await Promise.all(
         [...resources].map((resource) =>
-          fetchViaHTTP(url, join('/_next', encodeURI(resource)))
+          fetchViaHTTP(
+            url,
+            `/_next/${encodeURI(resource)}${next.getAssetQuery()}`
+          )
         )
       )
 
@@ -723,7 +716,7 @@ describe('Production Usage', () => {
 
   describe('With navigation', () => {
     it('should navigate via client side', async () => {
-      const browser = await webdriver(next.appPort, '/')
+      const browser = await next.browser('/')
       const text = await browser
         .elementByCss('a')
         .click()
@@ -736,7 +729,7 @@ describe('Production Usage', () => {
     })
 
     it('should navigate to nested index via client side', async () => {
-      const browser = await webdriver(next.appPort, '/another')
+      const browser = await next.browser('/another')
       await browser.eval('window.beforeNav = 1')
 
       const text = await browser
@@ -752,7 +745,7 @@ describe('Production Usage', () => {
     })
 
     it('should reload page successfully (on bad link)', async () => {
-      const browser = await webdriver(next.appPort, '/to-nonexistent')
+      const browser = await next.browser('/to-nonexistent')
       await browser.eval(function setup() {
         // @ts-expect-error Exists on window
         window.__DATA_BE_GONE = 'true'
@@ -765,7 +758,7 @@ describe('Production Usage', () => {
     })
 
     it('should reload page successfully (on bad data fetch)', async () => {
-      const browser = await webdriver(next.appPort, '/to-shadowed-page')
+      const browser = await next.browser('/to-shadowed-page')
       await browser.eval(function setup() {
         // @ts-expect-error Exists on window
         window.__DATA_BE_GONE = 'true'
@@ -779,7 +772,7 @@ describe('Production Usage', () => {
   })
 
   it('should navigate to external site and back', async () => {
-    const browser = await webdriver(next.appPort, '/external-and-back')
+    const browser = await next.browser('/external-and-back')
     const initialText = await browser.elementByCss('p').text()
     expect(initialText).toBe('server')
 
@@ -797,7 +790,7 @@ describe('Production Usage', () => {
   })
 
   it('should navigate to page with CSS and back', async () => {
-    const browser = await webdriver(next.appPort, '/css-and-back')
+    const browser = await next.browser('/css-and-back')
     const initialText = await browser.elementByCss('p').text()
     expect(initialText).toBe('server')
 
@@ -814,10 +807,7 @@ describe('Production Usage', () => {
   })
 
   it('should navigate to external site and back (with query)', async () => {
-    const browser = await webdriver(
-      next.appPort,
-      '/external-and-back?hello=world'
-    )
+    const browser = await next.browser('/external-and-back?hello=world')
     const initialText = await browser.elementByCss('p').text()
     expect(initialText).toBe('server')
 
@@ -834,7 +824,7 @@ describe('Production Usage', () => {
   })
 
   it('should change query correctly', async () => {
-    const browser = await webdriver(next.appPort, '/query?id=0')
+    const browser = await next.browser('/query?id=0')
     let id = await browser.elementByCss('#q0').text()
     expect(id).toBe('0')
 
@@ -851,7 +841,7 @@ describe('Production Usage', () => {
 
   describe('Runtime errors', () => {
     it('should render a server side error on the client side', async () => {
-      const browser = await webdriver(next.appPort, '/error-in-ssr-render')
+      const browser = await next.browser('/error-in-ssr-render')
       await waitFor(2000)
       const text = await browser.elementByCss('body').text()
       // this makes sure we don't leak the actual error to the client side in production
@@ -863,7 +853,7 @@ describe('Production Usage', () => {
     })
 
     it('should render a client side component error', async () => {
-      const browser = await webdriver(next.appPort, '/error-in-browser-render')
+      const browser = await next.browser('/error-in-browser-render')
       await waitFor(2000)
       const text = await browser.elementByCss('body').text()
       expect(text).toMatch(
@@ -873,10 +863,7 @@ describe('Production Usage', () => {
     })
 
     it('should call getInitialProps on _error page during a client side component error', async () => {
-      const browser = await webdriver(
-        next.appPort,
-        '/error-in-browser-render-status-code'
-      )
+      const browser = await next.browser('/error-in-browser-render-status-code')
       await waitFor(2000)
       const text = await browser.elementByCss('body').text()
       expect(text).toMatch(/This page could not be found\./)
@@ -914,7 +901,7 @@ describe('Production Usage', () => {
     // a bug as other browsers do not behave this way.
     if (global.browserName !== 'firefox') {
       it('should reload the page on page script error', async () => {
-        const browser = await webdriver(next.appPort, '/counter')
+        const browser = await next.browser('/counter')
         const counter = await browser
           .elementByCss('#increase')
           .click()
@@ -960,7 +947,7 @@ describe('Production Usage', () => {
     })
 
     it('should add prefetch tags when Link prefetch prop is used', async () => {
-      const browser = await webdriver(next.appPort, '/prefetch')
+      const browser = await next.browser('/prefetch')
 
       if (global.browserName === 'internet explorer') {
         // IntersectionObserver isn't present so we need to trigger manually
@@ -997,7 +984,7 @@ describe('Production Usage', () => {
     // This is a workaround to fix https://github.com/vercel/next.js/issues/5860
     // TODO: remove this workaround when https://bugs.webkit.org/show_bug.cgi?id=187726 is fixed.
     it('It does not add a timestamp to link tags with prefetch attribute', async () => {
-      const browser = await webdriver(next.appPort, '/prefetch')
+      const browser = await next.browser('/prefetch')
       const links = await browser.elementsByCss('link[rel=prefetch]')
 
       for (const element of links) {
@@ -1015,7 +1002,7 @@ describe('Production Usage', () => {
 
     if (global.browserName === 'chrome') {
       it('should reload the page on page script error with prefetch', async () => {
-        const browser = await webdriver(next.appPort, '/counter')
+        const browser = await next.browser('/counter')
         if (global.browserName !== 'chrome') return
         const counter = await browser
           .elementByCss('#increase')
@@ -1112,7 +1099,7 @@ describe('Production Usage', () => {
     if (global.browserName !== 'chrome') return
     let browser
     try {
-      browser = await webdriver(next.appPort, '/development-logs')
+      browser = await next.browser('/development-logs')
       const browserLogs = await browser.log()
       let found = false
       browserLogs.forEach((log) => {
@@ -1137,7 +1124,7 @@ describe('Production Usage', () => {
   it('should contain the Next.js version in window export', async () => {
     let browser
     try {
-      browser = await webdriver(next.appPort, '/about')
+      browser = await next.browser('/about')
       const version = await browser.eval('window.next.version')
       expect(version).toBeTruthy()
       expect(version).toBe(
@@ -1160,7 +1147,7 @@ describe('Production Usage', () => {
   it('should clear all core performance marks', async () => {
     let browser
     try {
-      browser = await webdriver(next.appPort, '/fully-dynamic')
+      browser = await next.browser('/fully-dynamic')
 
       const currentPerfMarks = await browser.eval(
         `window.performance.getEntriesByType('mark')`
@@ -1187,7 +1174,7 @@ describe('Production Usage', () => {
   it('should not clear custom performance marks', async () => {
     let browser
     try {
-      browser = await webdriver(next.appPort, '/mark-in-head')
+      browser = await next.browser('/mark-in-head')
 
       const customMarkFound = await browser.eval(
         `window.performance.getEntriesByType('mark').filter(function(e) {
@@ -1230,7 +1217,7 @@ describe('Production Usage', () => {
 
   if (global.browserName !== 'internet explorer') {
     it('should preserve query when hard navigating from page 404', async () => {
-      const browser = await webdriver(next.appPort, '/')
+      const browser = await next.browser('/')
       await browser.eval(`(function() {
       window.beforeNav = 1
       window.next.router.push({
@@ -1254,7 +1241,7 @@ describe('Production Usage', () => {
   }
 
   it('should remove placeholder for next/image correctly', async () => {
-    const browser = await webdriver(next.appPort, '/')
+    const browser = await next.browser('/')
 
     await browser.eval(`(function() {
       window.beforeNav = 1

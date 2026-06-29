@@ -281,11 +281,11 @@ describe('ReactRefreshLogBox app', () => {
     if (isTurbopack) {
       await expect(browser).toDisplayRedbox(`
        {
-         "description": "Parsing ecmascript source code failed",
+         "description": "Unexpected token. Did you mean \`{'}'}\` or \`&rbrace;\`?",
          "environmentLabel": null,
          "label": "Build Error",
          "source": "./index.js (7:1)
-       Parsing ecmascript source code failed
+       Error: Unexpected token. Did you mean \`{'}'}\` or \`&rbrace;\`?
        > 7 | }
            | ^",
          "stack": [],
@@ -294,11 +294,10 @@ describe('ReactRefreshLogBox app', () => {
     } else if (isRspack) {
       await expect({ browser, next }).toDisplayRedbox(`
        {
-         "description": "  × Module build failed:",
+         "description": "  ╰─▶   × Error:   x Unexpected token. Did you mean \`{'}'}\` or \`&rbrace;\`?",
          "environmentLabel": null,
          "label": "Build Error",
          "source": "./index.js
-         × Module build failed:
          ╰─▶   × Error:   x Unexpected token. Did you mean \`{'}'}\` or \`&rbrace;\`?
                │    ,-[7:1]
                │  4 |       <p>lol</p>
@@ -486,7 +485,7 @@ describe('ReactRefreshLogBox app', () => {
          "environmentLabel": null,
          "label": "Build Error",
          "source": "./index.module.css (1:8)
-       Parsing CSS source code failed
+       Error: Parsing CSS source code failed
        > 1 | .button
            |        ^",
          "stack": [],
@@ -495,14 +494,13 @@ describe('ReactRefreshLogBox app', () => {
     } else if (isRspack) {
       await expect({ browser, next }).toDisplayRedbox(`
        {
-         "description": "  × Module build failed:",
+         "description": "  ╰─▶   × SyntaxError",
          "environmentLabel": null,
          "label": "Build Error",
          "source": "./index.module.css
-         × Module build failed:
          ╰─▶   × SyntaxError
                │
-               │ (1:1) <FIXME-project-root>/index.module.css Unknown word
+               │ (1:1) <FIXME-project-root>/index.module.css Unknown word .button
                │
                │ > 1 | .button
                │     | ^
@@ -517,11 +515,11 @@ describe('ReactRefreshLogBox app', () => {
     } else {
       await expect({ browser, next }).toDisplayRedbox(`
        {
-         "description": "Syntax error: <FIXME-project-root>/index.module.css Unknown word",
+         "description": "Syntax error: <FIXME-project-root>/index.module.css Unknown word .button",
          "environmentLabel": null,
          "label": "Build Error",
          "source": "./index.module.css (1:1)
-       Syntax error: <FIXME-project-root>/index.module.css Unknown word
+       Syntax error: <FIXME-project-root>/index.module.css Unknown word .button
        > 1 | .button
            | ^",
          "stack": [],
@@ -540,7 +538,7 @@ describe('ReactRefreshLogBox app', () => {
          "environmentLabel": null,
          "label": "Build Error",
          "source": "./index.module.css
-       Transforming CSS failed
+       Error: Transforming CSS failed
        Selector "button" is not pure. Pure selectors must contain at least one local class or id.
        Import traces:
          Client Component Browser:
@@ -559,11 +557,10 @@ describe('ReactRefreshLogBox app', () => {
     } else if (isRspack) {
       await expect(browser).toDisplayRedbox(`
        {
-         "description": "  × Module build failed:",
+         "description": "  ╰─▶   × CssSyntaxError",
          "environmentLabel": null,
          "label": "Build Error",
          "source": "./index.module.css
-         × Module build failed:
          ╰─▶   × CssSyntaxError
                │
                │ (1:1) Selector "button" is not pure (pure selectors must contain at least one local class or id)
@@ -632,7 +629,7 @@ describe('ReactRefreshLogBox app', () => {
            "Index.useCallback[boom] index.js (5:11)",
            "button <anonymous>",
            "Index index.js (9:7)",
-           "Page index.js (9:30)",
+           "Page app/page.js (4:10)",
          ],
        }
       `)
@@ -711,7 +708,7 @@ describe('ReactRefreshLogBox app', () => {
            "Index.useCallback[boom] index.js (5:11)",
            "button <anonymous>",
            "Index index.js (9:7)",
-           "Page index.js (9:30)",
+           "Page app/page.js (4:10)",
          ],
        }
       `)
@@ -789,7 +786,7 @@ describe('ReactRefreshLogBox app', () => {
            "Index.useCallback[boom] index.js (5:11)",
            "button <anonymous>",
            "Index index.js (9:7)",
-           "Page index.js (9:30)",
+           "Page app/page.js (4:10)",
          ],
        }
       `)
@@ -867,7 +864,7 @@ describe('ReactRefreshLogBox app', () => {
            "Index.useCallback[boom] index.js (5:11)",
            "button <anonymous>",
            "Index index.js (9:7)",
-           "Page index.js (9:30)",
+           "Page app/page.js (4:10)",
          ],
        }
       `)
@@ -1052,7 +1049,22 @@ describe('ReactRefreshLogBox app', () => {
            |           ^",
          "stack": [
            "{default export} index.js (3:11)",
-           "Page app/page.js (2:1)",
+           "Page app/page.js (4:10)",
+         ],
+       }
+      `)
+    } else if (isRspack) {
+      await expect(browser).toDisplayRedbox(`
+       {
+         "description": "test",
+         "environmentLabel": null,
+         "label": "Runtime Error",
+         "source": "index.js (3:11) @ __rspack_default_export
+       > 3 |     throw new Error('test')
+           |           ^",
+         "stack": [
+           "__rspack_default_export index.js (3:11)",
+           "Page app/page.js (4:10)",
          ],
        }
       `)
@@ -1152,7 +1164,7 @@ describe('ReactRefreshLogBox app', () => {
            |                                            ^",
          "stack": [
            "Index index.js (2:44)",
-           "Page index.js (16:8)",
+           "Page app/page.js (4:10)",
          ],
        }
       `)
@@ -1424,7 +1436,7 @@ describe('ReactRefreshLogBox app', () => {
          "environmentLabel": null,
          "label": "Build Error",
          "source": "./app/module.js (1:1)
-       Module not found: Can't resolve 'non-existing-module'
+       Error: Module not found: Can't resolve 'non-existing-module'
        > 1 | import "non-existing-module"
            | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^",
          "stack": [],
@@ -1496,21 +1508,20 @@ describe('ReactRefreshLogBox app', () => {
          "description": "Module not found: Can't resolve './boom.css'",
          "environmentLabel": null,
          "label": "Build Error",
-         "source": "./app/styles2.css (1:2)
-       Module not found: Can't resolve './boom.css'
+         "source": "./app/styles2.css (1:1)
+       Error: Module not found: Can't resolve './boom.css'
        > 1 | @import "./boom.css"
-           |  ^",
+           | ^",
          "stack": [],
        }
       `)
     } else if (isRspack) {
-      await expect(browser).toDisplayRedbox(`
+      await expect({ browser, next }).toDisplayRedbox(`
        {
-         "description": "  ╰─▶   × Error: RspackResolver(NotFound("./boom.css"))",
+         "description": "Failed to compile",
          "environmentLabel": null,
          "label": "Build Error",
-         "source": "× Module build failed:
-         ╰─▶   × Error: RspackResolver(NotFound("./boom.css"))",
+         "source": "╰─▶ × Error: RspackResolver(NotFound("./boom.css"))",
          "stack": [],
        }
       `)
@@ -1547,6 +1558,7 @@ describe('ReactRefreshLogBox app', () => {
       if (isRspack) {
         await expect({ browser, next }).toDisplayRedbox(`
          {
+           "code": "E394",
            "description": "module error",
            "environmentLabel": null,
            "label": "Runtime Error",
@@ -1566,6 +1578,7 @@ describe('ReactRefreshLogBox app', () => {
       } else if (!isTurbopack) {
         await expect({ browser, next }).toDisplayRedbox(`
          {
+           "code": "E394",
            "description": "module error",
            "environmentLabel": null,
            "label": "Runtime Error",

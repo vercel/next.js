@@ -5,11 +5,14 @@ import type { DeepReadonly } from '../../shared/lib/deep-readonly'
 import type { AppSegmentConfig } from '../../build/segment-config/app/app-segment-config'
 import type { AfterContext } from '../after/after-context'
 import type { CacheLife } from '../use-cache/cache-life'
+import type { SharedCacheResult } from '../use-cache/use-cache-wrapper'
+import type { ValidationLevel } from '../config-shared'
 
 // Share the instance module in the next-shared layer
 import { workAsyncStorageInstance } from './work-async-storage-instance' with { 'turbopack-transition': 'next-shared' }
 import type { LazyResult } from '../lib/lazy-result'
 import type { DigestedError } from './create-error-handler'
+import type { ActionRevalidationKind } from '../../shared/lib/action-revalidation-kind'
 
 export interface WorkStore {
   readonly isStaticGeneration: boolean
@@ -27,17 +30,11 @@ export interface WorkStore {
 
   readonly incrementalCache?: IncrementalCache
   readonly cacheLifeProfiles?: { [profile: string]: CacheLife }
+  readonly useCacheTimeout: number
+  readonly staticPageGenerationTimeout: number
 
   readonly isOnDemandRevalidate?: boolean
   readonly isBuildTimePrerendering?: boolean
-
-  /**
-   * This is true when:
-   * - source maps are generated
-   * - source maps are applied
-   * - minification is disabled
-   */
-  readonly hasReadableErrorStacks?: boolean
 
   forceDynamic?: boolean
   fetchCache?: AppSegmentConfig['fetchCache']
@@ -61,7 +58,7 @@ export interface WorkStore {
   invalidDynamicUsageError?: Error
 
   nextFetchId?: number
-  pathWasRevalidated?: boolean
+  pathWasRevalidated?: ActionRevalidationKind
 
   /**
    * Tags that were revalidated during the current request. They need to be sent
@@ -89,10 +86,44 @@ export interface WorkStore {
   fetchMetrics?: FetchMetrics
   shouldTrackFetchMetrics: boolean
 
+  /**
+   * Tracks pending `"use cache"` invocations within the current request scope,
+   * keyed by the serialized cache key (coarse key). Used for intra-request
+   * deduplication: when multiple components call the same cache function within
+   * a single request, only the first one runs (cache handler lookup +
+   * generation), and joiners tee its result stream.
+   * Root params are identical within a request, so the coarse key is sufficient.
+   */
+  pendingCacheInvocations?: Map<string, Promise<SharedCacheResult>>
+
+  /**
+   * Set by the dev-server's hang-detection probe worker (see
+   * `use-cache-probe-worker.ts`) to switch `cache()` into a one-shot fill
+   * path: run `generateCacheEntry` as for a cold fill, drain the resulting
+   * stream, return. No cache-handler or resume-data-cache I/O, no
+   * intra-request leader election — the probe just needs to learn whether
+   * the body completes in module-scope isolation.
+   */
+  readonly useCacheProbeMode?: {
+    /**
+     * Max wall time the probe fill may take. `cache()` enforces this with
+     * `UseCacheTimeoutError`, which the probe worker translates to
+     * `{ outcome: 'hung' }` for the parent process.
+     */
+    readonly timeoutMs: number
+  }
+
   isDraftMode?: boolean
   isUnstableNoStore?: boolean
   isPrefetchRequest?: boolean
 
+  /**
+   * This only exists because it's needed in use-cache-wrapper
+   */
+  deploymentId: string
+  /**
+   * Prefer `sharedContext.buildId` instead. This only exists because it's needed in use-cache-wrapper
+   */
   buildId: string
 
   readonly reactLoadableManifest?: DeepReadonly<
@@ -102,7 +133,7 @@ export interface WorkStore {
   readonly nonce?: string
 
   cacheComponentsEnabled: boolean
-  dev: boolean
+  validationLevel: ValidationLevel
 
   /**
    * Run the given function inside a clean AsyncLocalStorage snapshot. This is

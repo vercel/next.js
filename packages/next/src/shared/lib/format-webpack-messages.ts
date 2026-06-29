@@ -44,7 +44,7 @@ function formatMessage(
 ) {
   // TODO: Replace this once webpack 5 is stable
   if (typeof message === 'object' && message.message) {
-    const filteredModuleTrace =
+    let filteredModuleTrace =
       message.moduleTrace &&
       message.moduleTrace.filter(
         (trace: any) =>
@@ -57,6 +57,18 @@ function formatMessage(
     const breakingChangeIndex = body.indexOf(WEBPACK_BREAKING_CHANGE_POLYFILLS)
     if (breakingChangeIndex >= 0) {
       body = body.slice(0, breakingChangeIndex)
+    }
+
+    // TODO: Rspack currently doesn't populate moduleName correctly in some cases,
+    // fall back to moduleIdentifier as a workaround
+    if (
+      process.env.NEXT_RSPACK &&
+      !message.moduleName &&
+      !message.file &&
+      message.moduleIdentifier
+    ) {
+      const parts = message.moduleIdentifier.split('!')
+      message.moduleName = parts[parts.length - 1]
     }
 
     message =
@@ -74,9 +86,20 @@ function formatMessage(
   }
   let lines = message.split('\n')
 
-  // Strip Webpack-added headers off errors/warnings
+  // Extract loader paths from Webpack-added headers and move them to end.
+  // Original format: "Module build failed (from ./loaders/foo-loader.js):"
+  // The header line is removed and the path is appended at the end as:
+  //   "  (from ./loaders/foo-loader.js)"
   // https://github.com/webpack/webpack/blob/master/lib/ModuleError.js
-  lines = lines.filter((line: string) => !/Module [A-z ]+\(from/.test(line))
+  const loaderPaths: string[] = []
+  lines = lines.filter((line: string) => {
+    const match = /Module [A-z ]+\(from (.+)\):?\s*$/.exec(line)
+    if (match) {
+      loaderPaths.push(match[1])
+      return false
+    }
+    return true
+  })
 
   // Transform parsing error into syntax error
   // TODO: move this to our ESLint formatter?
@@ -168,6 +191,16 @@ function formatMessage(
     )
 
     lines = message.split('\n')
+  }
+
+  // Append loader paths at the end (before any remaining stack trace)
+  if (loaderPaths.length > 0) {
+    for (const loaderPath of loaderPaths) {
+      // Don't show internal Next.js loader paths — they're noise for users
+      if (!/[/\\]next[/\\]dist[/\\]/.test(loaderPath)) {
+        lines.push(`  (from ${loaderPath})`)
+      }
+    }
   }
 
   // Remove duplicated newlines

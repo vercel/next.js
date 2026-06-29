@@ -1,7 +1,10 @@
 import type { BinaryStreamOf } from './app-render'
 import type { Readable } from 'node:stream'
 
-import { htmlEscapeJsonString } from '../htmlescape'
+import {
+  htmlEscapeAttributeString,
+  htmlEscapeJsonString,
+} from '../../shared/lib/htmlescape'
 import { workUnitAsyncStorage } from './work-unit-async-storage.external'
 import { InvariantError } from '../../shared/lib/invariant-error'
 import { getClientReferenceManifest } from './manifests-singleton'
@@ -76,9 +79,17 @@ export function getFlightStream<T>(
       const { Readable } =
         require('node:stream') as typeof import('node:stream')
 
-      // The types of flightStream and debugStream should match.
-      if (debugStream && !(debugStream instanceof Readable)) {
-        throw new InvariantError('Expected debug stream to be a Readable')
+      // Convert debug stream to Readable if it's a ReadableStream.
+      // When __NEXT_USE_NODE_STREAMS is enabled, the debug channel produces
+      // Node Readables natively. Otherwise, it produces web ReadableStreams.
+      let nodeDebugStream: Readable | undefined
+      if (debugStream) {
+        if (debugStream instanceof Readable) {
+          nodeDebugStream = debugStream
+        } else {
+          type WebReadableStream = import('stream/web').ReadableStream
+          nodeDebugStream = Readable.fromWeb(debugStream as WebReadableStream)
+        }
       }
 
       // react-server-dom-webpack/client.edge must not be hoisted for require cache clearing to work correctly
@@ -96,7 +107,7 @@ export function getFlightStream<T>(
         {
           findSourceMapURL,
           nonce,
-          debugChannel: debugStream,
+          debugChannel: nodeDebugStream,
           endTime: debugEndTime,
         }
       )
@@ -114,6 +125,7 @@ export function getFlightStream<T>(
 
     switch (workUnitStore.type) {
       case 'prerender-client':
+      case 'validation-client':
         const responseOnNextTick = new Promise<T>((resolve) => {
           process.nextTick(() => {
             resolve(newResponse)
@@ -129,6 +141,7 @@ export function getFlightStream<T>(
       case 'cache':
       case 'private-cache':
       case 'unstable-cache':
+      case 'generate-static-params':
         break
       default:
         workUnitStore satisfies never
@@ -155,7 +168,7 @@ export function createInlinedDataReadableStream(
   formState: unknown | null
 ): ReadableStream<Uint8Array> {
   const startScriptTag = nonce
-    ? `<script nonce=${JSON.stringify(nonce)}>`
+    ? `<script nonce="${htmlEscapeAttributeString(nonce)}">`
     : '<script>'
 
   const flightReader = flightStream.getReader()
@@ -240,7 +253,14 @@ function writeFlightDataInstruction(
     // Instead let's inline it in base64.
     // Credits to Devon Govett (devongovett) for the technique.
     // https://github.com/devongovett/rsc-html-stream
-    const base64 = btoa(String.fromCodePoint(...chunk))
+    const base64 =
+      typeof Buffer !== 'undefined'
+        ? Buffer.from(
+            chunk.buffer,
+            chunk.byteOffset,
+            chunk.byteLength
+          ).toString('base64')
+        : btoa(String.fromCodePoint(...chunk))
     htmlInlinedData = htmlEscapeJsonString(
       JSON.stringify([INLINE_FLIGHT_PAYLOAD_BINARY, base64])
     )

@@ -1,0 +1,19 @@
+import { connection } from 'next/server'
+import { ReactNode } from 'react'
+
+export const instant = { level: 'experimental-error' }
+export const prefetch = 'allow-runtime'
+
+export default async function Layout({ children }: { children: ReactNode }) {
+  await connection()
+  return (
+    <div>
+      <p>
+        This is a layout that uses dynamic data without a suspense, so it should
+        error the runtime prefetch assertion
+      </p>
+      <hr />
+      {children}
+    </div>
+  )
+}

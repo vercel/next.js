@@ -13,7 +13,7 @@ use swc_core::{
     },
 };
 use turbo_rcstr::RcStr;
-use turbo_tasks::{FxIndexSet, ResolvedVc, ValueToString, Vc};
+use turbo_tasks::{FxIndexSet, ResolvedVc, ValueToString, Vc, turbobail};
 use turbopack_core::{ident::AssetIdent, resolve::ModulePart, source::Source};
 
 use self::graph::{DepGraph, ItemData, ItemId, ItemIdGroupKind, Mode, SplitModuleResult};
@@ -24,12 +24,11 @@ use crate::{
     EcmascriptModuleAsset, EcmascriptParsable, analyzer::graph::EvalContext, parse::ParseResult,
 };
 
-pub mod asset;
-pub mod chunk_item;
 mod graph;
 pub mod merge;
 mod optimizations;
-pub mod side_effect_module;
+pub mod part;
+pub mod side_effects;
 #[cfg(test)]
 mod tests;
 mod util;
@@ -438,7 +437,7 @@ async fn get_part_id(result: &SplitResult, part: &ModulePart) -> Result<u32> {
     )
 }
 
-#[turbo_tasks::value(shared, serialization = "none", eq = "manual")]
+#[turbo_tasks::value(shared, serialization = "skip", eq = "manual")]
 pub(crate) enum SplitResult {
     Ok {
         asset_ident: ResolvedVc<AssetIdent>,
@@ -493,7 +492,6 @@ pub(super) async fn split_module(asset: Vc<EcmascriptModuleAsset>) -> Result<Vc<
     }
 
     let parse_result = parsed.await?;
-    let source = asset.source().to_resolved().await?;
 
     match &*parse_result {
         ParseResult::Ok {
@@ -502,6 +500,7 @@ pub(super) async fn split_module(asset: Vc<EcmascriptModuleAsset>) -> Result<Vc<
             eval_context,
             source_map,
             globals,
+            program_source,
             ..
         } => {
             // If the script file is a common js file, we cannot split the module
@@ -565,14 +564,16 @@ pub(super) async fn split_module(asset: Vc<EcmascriptModuleAsset>) -> Result<Vc<
                 .into_iter()
                 .map(|module| {
                     let program = Program::Module(module);
-                    let eval_context = EvalContext::new(
-                        Some(&program),
-                        eval_context.unresolved_mark,
-                        eval_context.top_level_mark,
-                        eval_context.force_free_values.clone(),
-                        None,
-                        Some(source),
-                    );
+
+                    let eval_context = GLOBALS.set(globals, || {
+                        EvalContext::new(
+                            Some(&program),
+                            eval_context.unresolved_mark,
+                            eval_context.top_level_mark,
+                            eval_context.force_free_values.clone(),
+                            None,
+                        )
+                    });
 
                     ParseResult::resolved_cell(ParseResult::Ok {
                         program,
@@ -580,6 +581,8 @@ pub(super) async fn split_module(asset: Vc<EcmascriptModuleAsset>) -> Result<Vc<
                         comments: comments.clone(),
                         source_map: source_map.clone(),
                         eval_context,
+                        source_mapping_url: None,
+                        program_source: program_source.clone(),
                     })
                 })
                 .collect();
@@ -625,6 +628,7 @@ pub(crate) async fn part_of_module(
                     eval_context,
                     globals,
                     source_map,
+                    program_source,
                     ..
                 } = &*modules[0].await?
                 {
@@ -690,14 +694,15 @@ pub(crate) async fn part_of_module(
                     }));
 
                     let program = Program::Module(module);
-                    let eval_context = EvalContext::new(
-                        Some(&program),
-                        eval_context.unresolved_mark,
-                        eval_context.top_level_mark,
-                        eval_context.force_free_values.clone(),
-                        None,
-                        None,
-                    );
+                    let eval_context = GLOBALS.set(globals, || {
+                        EvalContext::new(
+                            Some(&program),
+                            eval_context.unresolved_mark,
+                            eval_context.top_level_mark,
+                            eval_context.force_free_values.clone(),
+                            None,
+                        )
+                    });
 
                     return Ok(ParseResult::Ok {
                         program,
@@ -705,6 +710,8 @@ pub(crate) async fn part_of_module(
                         eval_context,
                         globals: globals.clone(),
                         source_map: source_map.clone(),
+                        source_mapping_url: None,
+                        program_source: program_source.clone(),
                     }
                     .cell());
                 } else {
@@ -715,11 +722,11 @@ pub(crate) async fn part_of_module(
             let part_id = get_part_id(&split_data, &part).await?;
 
             if part_id as usize >= modules.len() {
-                bail!(
+                turbobail!(
                     "part_id is out of range: {part_id} >= {}; asset = {}; entrypoints = \
                      {entrypoints:?}: part_deps = {deps:?}",
-                    asset_ident.to_string().await?,
                     modules.len(),
+                    *asset_ident
                 );
             }
 

@@ -2,27 +2,32 @@ import { loadEnvConfig } from '@next/env'
 import * as inspector from 'inspector'
 import * as Log from '../../build/output/log'
 import { bold, purple, strikethrough } from '../../lib/picocolors'
-import {
-  PHASE_DEVELOPMENT_SERVER,
-  PHASE_PRODUCTION_BUILD,
-} from '../../shared/lib/constants'
-import loadConfig, { type ConfiguredExperimentalFeature } from '../config'
+import type { ConfiguredExperimentalFeature } from '../config'
 import { experimentalSchema } from '../config-schema'
+import { detectAgent } from '../../telemetry/detect-agent'
+import {
+  hasAgentRulesInstalled,
+  writeAgentFiles,
+  type AgentFilesResult,
+} from './generate-agent-files'
 
+// Re-export the type for consumers
+export type { ConfiguredExperimentalFeature }
+
+/**
+ * Logs basic startup info that doesn't require config.
+ * Called before "Ready in X" to show immediate feedback.
+ */
 export function logStartInfo({
   networkUrl,
   appUrl,
   envInfo,
-  experimentalFeatures,
   logBundler,
-  cacheComponents,
 }: {
   networkUrl: string | null
   appUrl: string | null
   envInfo?: string[]
-  experimentalFeatures?: ConfiguredExperimentalFeature[]
   logBundler: boolean
-  cacheComponents?: boolean
 }) {
   let versionSuffix = ''
   const parts = []
@@ -35,10 +40,6 @@ export function logStartInfo({
     } else {
       parts.push('webpack')
     }
-  }
-
-  if (cacheComponents) {
-    parts.push('Cache Components')
   }
 
   if (parts.length > 0) {
@@ -66,6 +67,30 @@ export function logStartInfo({
     Log.bootstrap(`- Debugger port: ${debugPort}`)
   }
   if (envInfo?.length) Log.bootstrap(`- Environments: ${envInfo.join(', ')}`)
+}
+
+/**
+ * Logs experimental features and config-dependent info.
+ * Called after getRequestHandlers completes.
+ */
+export function logExperimentalInfo({
+  experimentalFeatures,
+  cacheComponents,
+  partialPrefetching,
+}: {
+  experimentalFeatures?: ConfiguredExperimentalFeature[]
+  cacheComponents?: boolean
+  partialPrefetching?: boolean | 'unstable_eager'
+}) {
+  if (cacheComponents) {
+    Log.bootstrap(`- Cache Components enabled`)
+  }
+
+  if (partialPrefetching) {
+    const mode =
+      partialPrefetching === 'unstable_eager' ? ' (unstable_eager)' : ''
+    Log.bootstrap(`- Partial Prefetching enabled${mode}`)
+  }
 
   if (experimentalFeatures?.length) {
     Log.bootstrap(`- Experiments (use with caution):`)
@@ -102,49 +127,27 @@ export function logStartInfo({
   Log.info('')
 }
 
-export async function getStartServerInfo({
-  dir,
-  dev,
-  debugPrerender,
-}: {
-  dir: string
-  dev: boolean
-  debugPrerender?: boolean
-}): Promise<{
-  envInfo?: string[]
-  experimentalFeatures?: ConfiguredExperimentalFeature[]
-  cacheComponents?: boolean
-}> {
-  let experimentalFeatures: ConfiguredExperimentalFeature[] = []
-  let cacheComponents = false
-  const config = await loadConfig(
-    dev ? PHASE_DEVELOPMENT_SERVER : PHASE_PRODUCTION_BUILD,
-    dir,
-    {
-      reportExperimentalFeatures(features) {
-        experimentalFeatures = features.sort(({ key: a }, { key: b }) =>
-          a.localeCompare(b)
-        )
-      },
-      debugPrerender,
-      silent: false,
-    }
-  )
+/**
+ * When `next dev` detects an AI coding agent but the managed
+ * agent-rules block is missing from AGENTS.md / CLAUDE.md,
+ * auto-generate the files so the agent has access to version-matched
+ * docs. Returns the write result when files were generated, or `null`
+ * when no action was needed.
+ *
+ * Callers gate this on `config.agentRules !== false` — opt-out is
+ * declarative in next.config, not inside this function.
+ */
+export function ensureAgentRulesForDev(dir: string): AgentFilesResult | null {
+  if (detectAgent() === null) return null
+  if (hasAgentRulesInstalled(dir)) return null
 
-  cacheComponents = !!config.cacheComponents
+  return writeAgentFiles(dir)
+}
 
-  // we need to reset env if we are going to create
-  // the worker process with the esm loader so that the
-  // initial env state is correct
-  let envInfo: string[] = []
+/**
+ * Gets environment info for logging. Fast operation that doesn't require config.
+ */
+export function getEnvInfo(dir: string): string[] {
   const { loadedEnvFiles } = loadEnvConfig(dir, true, console, false)
-  if (loadedEnvFiles.length > 0) {
-    envInfo = loadedEnvFiles.map((f) => f.path)
-  }
-
-  return {
-    envInfo,
-    experimentalFeatures,
-    cacheComponents,
-  }
+  return loadedEnvFiles.map((f) => f.path)
 }

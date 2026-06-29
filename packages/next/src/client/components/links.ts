@@ -39,11 +39,21 @@ export type FormInstance = LinkOrFormInstanceShared & {
 }
 
 type PrefetchableLinkInstance = LinkOrFormInstanceShared & {
+  // In dev, the Owner Stack captured at the time this Link was rendered, for
+  // configurations where a warning might later fire.
+  // `undefined` means we opted out of capturing the stack.
+  // If you issue a warning, handle the `undefined` case separately
+  // so it's clear in the logs when a warning is missing its source location.
+  // A warning with an undefined ownerStack is considered a bug though so make
+  // sure reaching the log site is a subset of codepaths that lead to capturing
+  // the stack
+  ownerStack: string | null | undefined
   prefetchHref: string
   setOptimisticLinkStatus: (status: { pending: boolean }) => void
 }
 
 type NonPrefetchableLinkInstance = LinkOrFormInstanceShared & {
+  ownerStack: string | null | undefined
   prefetchHref: null
   setOptimisticLinkStatus: (status: { pending: boolean }) => void
 }
@@ -81,6 +91,17 @@ export function unmountLinkForCurrentNavigation(link: LinkInstance) {
   if (linkForMostRecentNavigation === link) {
     linkForMostRecentNavigation = null
   }
+}
+
+/**
+ * Returns the link instance that initiated the most recent navigation.
+ * Returns null if the navigation was not initiated by a link click.
+ *
+ * Used by the Instant Navigation Testing API in dev mode to match the
+ * fetch strategy of the link during cache-miss navigations.
+ */
+export function getLinkForCurrentNavigation(): LinkInstance | null {
+  return linkForMostRecentNavigation
 }
 
 // Use a WeakMap to associate a Link instance with its DOM element. This is
@@ -150,7 +171,8 @@ export function mountLinkInstance(
   router: AppRouterInstance,
   fetchStrategy: PrefetchTaskFetchStrategy,
   prefetchEnabled: boolean,
-  setOptimisticLinkStatus: (status: { pending: boolean }) => void
+  setOptimisticLinkStatus: (status: { pending: boolean }) => void,
+  ownerStack: string | null | undefined
 ): LinkInstance {
   if (prefetchEnabled) {
     const prefetchURL = coercePrefetchableUrl(href)
@@ -162,6 +184,7 @@ export function mountLinkInstance(
         prefetchTask: null,
         prefetchHref: prefetchURL.href,
         setOptimisticLinkStatus,
+        ownerStack,
       }
       // We only observe the link's visibility if it's prefetchable. For
       // example, this excludes links to external URLs.
@@ -178,6 +201,7 @@ export function mountLinkInstance(
     prefetchTask: null,
     prefetchHref: null,
     setOptimisticLinkStatus,
+    ownerStack,
   }
   return instance
 }
@@ -311,7 +335,8 @@ function rescheduleLinkPrefetch(
           treeAtTimeOfPrefetch,
           instance.fetchStrategy,
           priority,
-          null
+          null,
+          null // navigationLockPrefetch
         )
       } else {
         // We already have an old task object that we can reschedule. This is
@@ -356,7 +381,8 @@ export function pingVisibleLinks(
       tree,
       instance.fetchStrategy,
       PrefetchPriority.Default,
-      null
+      null,
+      null // navigationLockPrefetch
     )
   }
 }

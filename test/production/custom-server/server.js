@@ -28,22 +28,20 @@ async function main() {
           // Be sure to pass `true` as the second argument to `url.parse`.
           // This tells it to parse the query portion of the URL.
           const parsedUrl = parse(req.url, true)
-          let { pathname, query } = parsedUrl
+          let { pathname } = parsedUrl
 
           if (conf?.basePath) {
             pathname = pathname.replace(conf.basePath, '') || '/'
           }
 
-          if (pathname === '/a') {
-            await app.render(req, res, '/a', query)
-          } else if (pathname === '/b') {
-            await app.render(req, res, '/page-b', query)
-          } else if (pathname === '/error') {
-            await app.render(req, res, '/page-error')
-          } else {
-            parsedUrl.pathname = pathname
-            await handle(req, res, parsedUrl)
-          }
+          parsedUrl.pathname =
+            pathname === '/b'
+              ? '/page-b'
+              : pathname === '/error'
+                ? '/page-error'
+                : pathname
+          // TODO: Accept WHATWG URLs in Next.js request handlers
+          await handle(req, res, parsedUrl)
         } catch (err) {
           console.error('Error occurred handling', req.url, err)
           res.statusCode = 500

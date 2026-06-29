@@ -9,7 +9,7 @@ use turbopack_core::{
     version::VersionedContentExt,
 };
 
-use super::{
+use crate::source::{
     ContentSource, ContentSourceContent, ContentSourceData, GetContentSourceContent,
     route_tree::{BaseSegment, RouteTree, RouteTrees, RouteType},
 };
@@ -132,7 +132,7 @@ impl Introspectable for StaticAssetsContentSource {
                         }
                         DirectoryEntry::Directory(path) => ResolvedVc::upcast(
                             StaticAssetsContentSource::with_prefix(
-                                Vc::cell(format!("{}{name}/", &*prefix).into()),
+                                Vc::cell(format!("{}{name}/", prefix).into()),
                                 path.clone(),
                             )
                             .to_resolved()

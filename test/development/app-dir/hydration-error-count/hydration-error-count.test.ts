@@ -12,6 +12,7 @@ describe('hydration-error-count', () => {
       await expect(browser).toDisplayCollapsedRedbox(`
        [
          {
+           "code": "E394",
            "componentStack": "...
            <Next.js Internal Component>
              <Next.js Internal Component>
@@ -61,6 +62,7 @@ describe('hydration-error-count', () => {
       await expect(browser).toDisplayCollapsedRedbox(`
        [
          {
+           "code": "E394",
            "componentStack": "...
            <Next.js Internal Component>
              <Next.js Internal Component>
@@ -192,6 +194,7 @@ describe('hydration-error-count', () => {
       await expect(browser).toDisplayCollapsedRedbox(`
        [
          {
+           "code": "E394",
            "componentStack": "...
            <Next.js Internal Component>
              <Next.js Internal Component>
@@ -262,6 +265,7 @@ describe('hydration-error-count', () => {
       await expect(browser).toDisplayCollapsedRedbox(`
        [
          {
+           "code": "E394",
            "componentStack": "...
            <Next.js Internal Component>
              <Next.js Internal Component>
@@ -334,11 +338,12 @@ describe('hydration-error-count', () => {
   it('should display runtime error separately from hydration errors', async () => {
     const browser = await next.browser('/hydration-with-runtime-errors')
 
-    if (process.env.__NEXT_CACHE_COMPONENTS) {
-      await expect(browser).toDisplayRedbox(`
-       [
-         {
-           "componentStack": "...
+    await expect(browser).toDisplayRedbox(`
+     [
+       {
+         "code": "E394",
+         "componentStack": "...
+         <Next.js Internal Component>
            <Next.js Internal Component>
              <Next.js Internal Component>
                <Next.js Internal Component>
@@ -349,55 +354,49 @@ describe('hydration-error-count', () => {
                          <Next.js Internal Component>
                            <Next.js Internal Component>
                              <Next.js Internal Component>
-                               <Next.js Internal Component>
-                               <Next.js Internal Component>
-                                 <Page params={Promise} searchParams={Promise}>
-       >                           <p>
-       >                             <p>
-                             ...
+                             <Next.js Internal Component>
+                               <Page params={Promise} searchParams={Promise}>
+     >                           <p>
+     >                             <p>
                            ...
-                 ...",
-           "description": "In HTML, <p> cannot be a descendant of <p>.
-       This will cause a hydration error.",
-           "environmentLabel": null,
-           "label": "Console Error",
-           "source": "app/hydration-with-runtime-errors/page.tsx (12:14) @ Page
-       > 12 |       sneaky <p>very sneaky</p>
-            |              ^",
-           "stack": [
-             "p <anonymous>",
-             "Page app/hydration-with-runtime-errors/page.tsx (12:14)",
-           ],
-         },
-         {
-           "description": "Hydration failed because the server rendered HTML didn't match the client. As a result this tree will be regenerated on the client. This can happen if a SSR-ed Client Component used:",
-           "environmentLabel": null,
-           "label": "Recoverable Error",
-           "source": "app/hydration-with-runtime-errors/page.tsx (12:14) @ Page
-       > 12 |       sneaky <p>very sneaky</p>
-            |              ^",
-           "stack": [
-             "p <anonymous>",
-             "Page app/hydration-with-runtime-errors/page.tsx (12:14)",
-           ],
-         },
-         {
-           "description": "runtime error",
-           "environmentLabel": null,
-           "label": "Runtime Error",
-           "source": "app/hydration-with-runtime-errors/page.tsx (7:11) @ Page.useEffect
-       >  7 |     throw new Error('runtime error')
-            |           ^",
-           "stack": [
-             "Page.useEffect app/hydration-with-runtime-errors/page.tsx (7:11)",
-           ],
-         },
-       ]
-      `)
-    } else {
-      await expect(browser).toDisplayCollapsedRedbox(
-        `"Redbox is already open. Use \`toDisplayRedbox\` instead."`
-      )
-    }
+                         ...
+               ...",
+         "description": "In HTML, <p> cannot be a descendant of <p>.
+     This will cause a hydration error.",
+         "environmentLabel": null,
+         "label": "Console Error",
+         "source": "app/hydration-with-runtime-errors/page.tsx (12:14) @ Page
+     > 12 |       sneaky <p>very sneaky</p>
+          |              ^",
+         "stack": [
+           "p <anonymous>",
+           "Page app/hydration-with-runtime-errors/page.tsx (12:14)",
+         ],
+       },
+       {
+         "description": "Hydration failed because the server rendered HTML didn't match the client. As a result this tree will be regenerated on the client. This can happen if a SSR-ed Client Component used:",
+         "environmentLabel": null,
+         "label": "Recoverable Error",
+         "source": "app/hydration-with-runtime-errors/page.tsx (12:14) @ Page
+     > 12 |       sneaky <p>very sneaky</p>
+          |              ^",
+         "stack": [
+           "p <anonymous>",
+           "Page app/hydration-with-runtime-errors/page.tsx (12:14)",
+         ],
+       },
+       {
+         "description": "runtime error",
+         "environmentLabel": null,
+         "label": "Runtime Error",
+         "source": "app/hydration-with-runtime-errors/page.tsx (7:11) @ Page.useEffect
+     >  7 |     throw new Error('runtime error')
+          |           ^",
+         "stack": [
+           "Page.useEffect app/hydration-with-runtime-errors/page.tsx (7:11)",
+         ],
+       },
+     ]
+    `)
   })
 })

@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 
 import '../server/lib/cpu-profile'
+import { saveCpuProfile } from '../server/lib/cpu-profile'
 import { existsSync } from 'fs'
 import { italic } from '../lib/picocolors'
 import analyze from '../build/analyze'
@@ -13,15 +14,21 @@ export type NextAnalyzeOptions = {
   profile?: boolean
   mangling: boolean
   port: number
-  serve: boolean
+  output: boolean
   experimentalAppOnly?: boolean
 }
 
 const nextAnalyze = async (options: NextAnalyzeOptions, directory?: string) => {
-  process.on('SIGTERM', () => process.exit(143))
-  process.on('SIGINT', () => process.exit(130))
+  process.on('SIGTERM', () => {
+    saveCpuProfile()
+    process.exit(143)
+  })
+  process.on('SIGINT', () => {
+    saveCpuProfile()
+    process.exit(130)
+  })
 
-  const { profile, mangling, experimentalAppOnly, serve, port } = options
+  const { profile, mangling, experimentalAppOnly, output, port } = options
 
   if (!mangling) {
     warn(
@@ -46,7 +53,7 @@ const nextAnalyze = async (options: NextAnalyzeOptions, directory?: string) => {
     reactProductionProfiling: profile,
     noMangling: !mangling,
     appDirOnly: experimentalAppOnly,
-    serve,
+    output,
     port,
   })
 }

@@ -5,6 +5,14 @@ export function indexOfUint8Array(a: Uint8Array, b: Uint8Array) {
   if (b.length === 0) return 0
   if (a.length === 0 || b.length > a.length) return -1
 
+  // Use Node's native implementation when available.
+  if (typeof Buffer !== 'undefined') {
+    const haystack = Buffer.isBuffer(a)
+      ? a
+      : Buffer.from(a.buffer, a.byteOffset, a.byteLength)
+    return haystack.indexOf(b)
+  }
+
   // start iterating through `a`
   for (let i = 0; i <= a.length - b.length; i++) {
     let completeMatch = true
@@ -50,8 +58,8 @@ export function removeFromUint8Array(a: Uint8Array, b: Uint8Array) {
   if (tagIndex === 0) return a.subarray(b.length)
   if (tagIndex > -1) {
     const removed = new Uint8Array(a.length - b.length)
-    removed.set(a.slice(0, tagIndex))
-    removed.set(a.slice(tagIndex + b.length), tagIndex)
+    removed.set(a.subarray(0, tagIndex))
+    removed.set(a.subarray(tagIndex + b.length), tagIndex)
     return removed
   } else {
     return a

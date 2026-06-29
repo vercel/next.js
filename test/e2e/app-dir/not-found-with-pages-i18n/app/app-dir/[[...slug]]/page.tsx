@@ -22,10 +22,10 @@ async function validateSlug(slug: string[]) {
 export default async function CatchAll({
   params,
 }: {
-  params: Promise<{ slug: string[] }>
+  params: Promise<{ slug?: string[] }>
 }) {
   const { slug } = await params
-  const slugArray = Array.isArray(slug) ? slug : [slug]
+  const slugArray = Array.isArray(slug) ? slug : []
 
   // Validate the slug
   const isValid = await validateSlug(slugArray)

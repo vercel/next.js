@@ -4,7 +4,6 @@ import { nextTestSetup } from 'e2e-utils'
 describe('get_routes MCP tool', () => {
   const { next, skipped } = nextTestSetup({
     files: path.join(__dirname, 'fixtures', 'dynamic-routes-app'),
-    skipDeployment: true,
   })
 
   if (skipped) {

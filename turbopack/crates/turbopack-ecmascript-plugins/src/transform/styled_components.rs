@@ -1,11 +1,11 @@
 use anyhow::Result;
 use async_trait::async_trait;
+use serde::Deserialize;
 use swc_core::{atoms::Wtf8Atom, common::comments::NoopComments, ecma::ast::Program};
-use turbo_tasks::{ValueDefault, Vc};
 use turbopack_ecmascript::{CustomTransformer, TransformContext};
 
 #[turbo_tasks::value(shared, operation)]
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Deserialize)]
 #[serde(default, rename_all = "camelCase")]
 pub struct StyledComponentsTransformConfig {
     pub display_name: bool,
@@ -28,20 +28,6 @@ impl Default for StyledComponentsTransformConfig {
             css_prop: true,
             namespace: None,
         }
-    }
-}
-
-#[turbo_tasks::value_impl]
-impl StyledComponentsTransformConfig {
-    #[turbo_tasks::function]
-    fn default_private() -> Vc<Self> {
-        Self::cell(Default::default())
-    }
-}
-
-impl ValueDefault for StyledComponentsTransformConfig {
-    fn value_default() -> Vc<Self> {
-        StyledComponentsTransformConfig::default_private()
     }
 }
 

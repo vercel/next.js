@@ -117,6 +117,7 @@ declare module 'react-server-dom-webpack/client.browser' {
     debugChannel?: { readable?: ReadableStream; writable?: WritableStream }
     startTime?: number
     endTime?: number
+    unstable_allowPartialStream?: boolean
   }
 
   export function createFromFetch<T>(
@@ -169,6 +170,7 @@ declare module 'react-server-dom-webpack/server.edge' {
       onError?: (error: unknown) => void
       signal?: AbortSignal
       debugChannel?: { readable?: ReadableStream; writable?: WritableStream }
+      startTime?: number
     }
   ): ReadableStream<Uint8Array>
 
@@ -222,6 +224,35 @@ declare module 'react-server-dom-webpack/server.node' {
     registerServerReference,
     renderToReadableStream,
   } from 'react-server-dom-webpack/server.edge'
+
+  export function renderToPipeableStream(
+    model: any,
+    webpackMap: import('react-server-dom-webpack/server.edge').ClientManifest,
+    options?: {
+      temporaryReferences?: import('react-server-dom-webpack/server.edge').TemporaryReferenceSet
+      environmentName?: string | (() => string)
+      filterStackFrame:
+        | ((
+            url: string,
+            functionName: string,
+            lineNumber: number,
+            columnNumber: number
+          ) => boolean)
+        | undefined
+      onError?: (error: unknown) => void
+      signal?: AbortSignal
+      // React's Node API expects debugChannel to be a Node.js Writable
+      // (has .write()), Duplex (has .read()), or WebSocket (has .send()).
+      // This differs from the web API which expects { readable?, writable? }.
+      debugChannel?: import('node:stream').Writable
+      startTime?: number
+    }
+  ): {
+    pipe<Writable extends NodeJS.WritableStream>(
+      destination: Writable
+    ): Writable
+    abort(reason?: unknown): void
+  }
 
   export type TemporaryReferenceSet = WeakMap<any, string>
 
@@ -304,6 +335,35 @@ declare module 'react-server-dom-webpack/static' {
     }
   ): Promise<{
     prelude: ReadableStream<Uint8Array>
+  }>
+
+  export function prerenderToNodeStream(
+    children: any,
+    webpackMap: {
+      readonly [id: string]: {
+        readonly id: string | number
+        readonly chunks: ReadonlyArray<string>
+        readonly name: string
+        readonly async?: boolean
+      }
+    },
+    options?: {
+      environmentName?: string | (() => string)
+      filterStackFrame:
+        | ((
+            url: string,
+            functionName: string,
+            lineNumber: number,
+            columnNumber: number
+          ) => boolean)
+        | undefined
+      identifierPrefix?: string
+      signal?: AbortSignal
+      temporaryReferences?: TemporaryReferenceSet
+      onError?: (error: unknown) => void
+    }
+  ): Promise<{
+    prelude: import('node:stream').Readable
   }>
 }
 declare module 'react-server-dom-webpack/client.edge' {
@@ -425,9 +485,7 @@ declare module 'next/dist/compiled/@next/react-refresh-utils/dist/ReactRefreshWe
 }
 
 declare module 'next/dist/compiled/commander' {
-  import commander from 'commander'
   export * from 'commander'
-  export default commander
 }
 
 declare module 'next/dist/compiled/node-html-parser' {
@@ -511,11 +569,6 @@ declare module 'next/dist/compiled/@hapi/accept' {
   export = m
 }
 
-declare module 'next/dist/compiled/acorn' {
-  import m from 'acorn'
-  export = m
-}
-
 declare module 'next/dist/compiled/superstruct' {
   import * as m from 'superstruct'
   export = m
@@ -524,10 +577,6 @@ declare module 'next/dist/compiled/async-retry'
 declare module 'next/dist/compiled/async-sema' {
   import m from 'async-sema'
   export = m
-}
-
-declare module 'next/dist/compiled/babel/code-frame' {
-  export * from '@babel/code-frame'
 }
 
 declare module 'next/dist/compiled/@next/font/dist/google' {
@@ -702,14 +751,16 @@ declare module 'next/dist/compiled/strip-ansi' {
   import m from 'strip-ansi'
   export = m
 }
+declare module 'next/dist/compiled/@vercel/blob' {
+  export * from '@vercel/blob'
+}
 declare module 'next/dist/compiled/@vercel/nft' {
   import m from '@vercel/nft'
   export = m
 }
 
 declare module 'next/dist/compiled/tar' {
-  import m from 'tar'
-  export = m
+  export * from 'tar'
 }
 
 declare module 'next/dist/compiled/terser' {
@@ -746,6 +797,16 @@ declare module 'next/dist/compiled/web-vitals' {
   export = m
 }
 declare module 'next/dist/compiled/web-vitals-attribution' {}
+
+declare module 'next/dist/compiled/write-file-atomic' {
+  function writeFileAtomicSync(
+    filename: string,
+    data: string | Buffer,
+    options?: { mode?: number; chown?: { uid: number; gid: number } }
+  ): void
+  export const sync: typeof writeFileAtomicSync
+  export default writeFileAtomicSync
+}
 
 declare module 'next/dist/compiled/ws' {
   import m from 'ws'

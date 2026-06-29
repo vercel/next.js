@@ -49,6 +49,7 @@ export default async function nextFontLoader(this: any) {
       isDev,
       isServer,
       assetPrefix,
+      deploymentId,
       fontLoaderPath,
       postcss: getPostcss,
     } = this.getOptions()
@@ -86,7 +87,7 @@ export default async function nextFontLoader(this: any) {
         }.${ext}`,
         opts
       )
-      const outputPath = `${assetPrefix}/_next/${interpolatedName}`
+      const outputPath = `${assetPrefix}/_next/${interpolatedName}${deploymentId ? `?dpl=${deploymentId}` : ''}`
       // Only the client emits the font file
       if (!isServer) {
         this.emitFile(interpolatedName, content, null)

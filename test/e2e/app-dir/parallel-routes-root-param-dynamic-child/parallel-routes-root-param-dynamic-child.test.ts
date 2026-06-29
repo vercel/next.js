@@ -1,13 +1,23 @@
 import { nextTestSetup } from 'e2e-utils'
 import { createRouterAct } from 'router-act'
 import { setTimeout } from 'node:timers/promises'
+import { retry } from 'next-test-utils'
 
 describe('parallel-routes-root-param-dynamic-child', () => {
   const { next, isNextDev } = nextTestSetup({
     files: __dirname,
   })
 
-  async function createBrowserActor(url: string, errorPage: boolean = false) {
+  async function createBrowserActor(
+    url: string,
+    {
+      errorPage = false,
+      waitForPrefetch = false,
+    }: {
+      errorPage?: boolean
+      waitForPrefetch?: boolean
+    } = {}
+  ) {
     let act: ReturnType<typeof createRouterAct>
     const browser = await next.browser(url, {
       beforePageLoad(page) {
@@ -22,29 +32,39 @@ describe('parallel-routes-root-param-dynamic-child', () => {
       return { act, browser }
     }
 
-    // The page has navigation links that will be automatically prefetched.
-    // Some routes will 404 (like /es which isn't in generateStaticParams),
-    // so we allow 404 status codes. Let's reveal the navigation links and let
-    // the prefetching occur.
-    await act(
-      async () => {
-        await browser.elementByCss('#reveal').click()
+    if (waitForPrefetch) {
+      // The page has navigation links that will be automatically prefetched.
+      // Some routes will 404 (like /es which isn't in generateStaticParams),
+      // so we allow 404 status codes. Let's reveal the navigation links and let
+      // the prefetching occur.
+      await act(
+        async () => {
+          await browser.elementByCss('#reveal').click()
 
-        // Ensure the navigation is visible
-        await browser.elementByCss('#nav')
+          // Ensure the navigation is visible
+          await browser.elementByCss('#nav')
 
-        // Wait for 500ms to ensure all links are visible
-        await setTimeout(500)
+          // Wait for 500ms to ensure all links are visible
+          await setTimeout(500)
 
-        // Scroll to bottom to ensure all links enter viewport and trigger prefetches
-        await browser.eval('window.scrollTo(0, document.body.scrollHeight)')
+          // Scroll to bottom to ensure all links enter viewport and trigger prefetches
+          await browser.eval('window.scrollTo(0, document.body.scrollHeight)')
 
-        // Wait for 500ms to ensure all links are visible
-        await setTimeout(500)
-      },
-      // If we're in development, we don't have any prefetching to wait for.
-      isNextDev ? 'no-requests' : undefined
-    )
+          // Wait for 500ms to ensure all links are visible
+          await setTimeout(500)
+        },
+        // If we're in development, we don't have any prefetching to wait for.
+        isNextDev ? 'no-requests' : undefined
+      )
+    } else {
+      // Most assertions only need the nav revealed, and should not block on
+      // background prefetch request completion.
+      await browser.elementByCss('#reveal').click()
+      await browser.elementByCss('#nav')
+      await setTimeout(500)
+      await browser.eval('window.scrollTo(0, document.body.scrollHeight)')
+      await setTimeout(500)
+    }
 
     return { act, browser }
   }
@@ -52,7 +72,7 @@ describe('parallel-routes-root-param-dynamic-child', () => {
   if (!isNextDev) {
     describe('Prefetching', () => {
       it('prefetches the 404 pages correctly', async () => {
-        await createBrowserActor('/en')
+        await createBrowserActor('/en', { waitForPrefetch: true })
 
         // If we got here without errors, the prefetch responses completed successfully
         // without problematic redirects (like 307). Those will throw because
@@ -67,14 +87,16 @@ describe('parallel-routes-root-param-dynamic-child', () => {
       async (locale) => {
         const { browser } = await createBrowserActor(`/${locale}`)
 
-        expect(await browser.elementByCss('#locale-page').text()).toBe(
-          `Locale: ${locale}`
-        )
+        await retry(async () => {
+          expect(await browser.elementByCss('#locale-page').text()).toBe(
+            `Locale: ${locale}`
+          )
+        })
       }
     )
 
     it('should render a 404 for /es (not in generateStaticParams)', async () => {
-      const { browser } = await createBrowserActor('/es', true)
+      const { browser } = await createBrowserActor('/es', { errorPage: true })
 
       expect(await browser.elementByCss('.next-error-h1').text()).toBe('404')
     })
@@ -92,12 +114,14 @@ describe('parallel-routes-root-param-dynamic-child', () => {
             .click()
         })
 
-        expect(await browser.elementByCss('#story-locale').text()).toBe(
-          `Locale: ${locale}`
-        )
-        expect(await browser.elementByCss('#story-slug').text()).toBe(
-          'Story: dynamic-123'
-        )
+        await retry(async () => {
+          expect(await browser.elementByCss('#story-locale').text()).toBe(
+            `Locale: ${locale}`
+          )
+          expect(await browser.elementByCss('#story-slug').text()).toBe(
+            'Story: dynamic-123'
+          )
+        })
       }
     )
 
@@ -130,12 +154,14 @@ describe('parallel-routes-root-param-dynamic-child', () => {
               .click()
           })
 
-          expect(await browser.elementByCss('#story-locale').text()).toBe(
-            `Locale: ${locale}`
-          )
-          expect(await browser.elementByCss('#story-slug').text()).toBe(
-            'Story: static-123'
-          )
+          await retry(async () => {
+            expect(await browser.elementByCss('#story-locale').text()).toBe(
+              `Locale: ${locale}`
+            )
+            expect(await browser.elementByCss('#story-slug').text()).toBe(
+              'Story: static-123'
+            )
+          })
         }
       )
 
@@ -157,9 +183,11 @@ describe('parallel-routes-root-param-dynamic-child', () => {
               .click()
           })
 
-          expect(await browser.elementByCss('.next-error-h1').text()).toBe(
-            '404'
-          )
+          await retry(async () => {
+            expect(await browser.elementByCss('.next-error-h1').text()).toBe(
+              '404'
+            )
+          })
         }
       )
 

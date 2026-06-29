@@ -1,6 +1,12 @@
 import { NextResponse } from 'next/server'
 
+import { unstable_cache } from 'next/cache'
 import { headers as nextHeaders } from 'next/headers'
+
+const getCachedValue = unstable_cache(
+  async () => Math.random().toString(),
+  ['proxy-cache-probe']
+)
 
 /**
  * @param {import('next/server').NextRequest} request
@@ -78,6 +84,11 @@ export async function proxy(request) {
       },
     })
     return res
+  }
+
+  if (request.nextUrl.pathname === '/unstable-cache') {
+    const value = await getCachedValue()
+    return NextResponse.json({ value })
   }
 
   if (request.nextUrl.pathname === '/test-location-header') {

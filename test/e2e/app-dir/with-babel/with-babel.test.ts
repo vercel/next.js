@@ -26,7 +26,7 @@ describe('with babel', () => {
         await retry(async () => {
           const middleware = await next.readFile('.next/server/middleware.js')
           // @vercel/og default font should be bundled
-          expect(middleware).not.toContain('noto-sans-v27-latin-regular.ttf')
+          expect(middleware).not.toContain('Geist-Regular.ttf')
         })
       }
     )

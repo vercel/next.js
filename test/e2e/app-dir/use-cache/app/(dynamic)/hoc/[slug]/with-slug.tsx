@@ -1,7 +1,9 @@
-export function withSlug<P extends { params: Promise<{ slug: string }> }>(
+export function withSlug(
   Component: React.ComponentType<{ slug: string }>
 ): React.ComponentType<{ params: Promise<{ slug: string }> }> {
-  return async function ComponentWithSlug(props: P) {
+  return async function ComponentWithSlug(props: {
+    params: Promise<{ slug: string }>
+  }) {
     const params = await props.params
     const slug = params.slug
 

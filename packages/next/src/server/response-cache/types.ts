@@ -105,6 +105,7 @@ export interface CachedImageValue {
   upstreamEtag: string
   buffer: Buffer
   extension: string
+  revalidate?: number
   isMiss?: boolean
   isStale?: boolean
 }
@@ -142,6 +143,7 @@ export interface IncrementalResponseCacheEntry {
    */
   isStale?: boolean | -1
   isMiss?: boolean
+  isFallback?: boolean
   value: Exclude<IncrementalCacheValue, CachedFetchValue> | null
 }
 
@@ -177,6 +179,7 @@ export type ResponseCacheEntry = {
   value: ResponseCacheValue | null
   isStale?: boolean | -1
   isMiss?: boolean
+  isFallback?: boolean
 }
 
 /**

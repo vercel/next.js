@@ -7,8 +7,10 @@ describe('isolated-dev-build', () => {
   })
 
   it('should create dev artifacts in .next/dev/ directory', async () => {
-    expect(await next.hasFile('.next/dev')).toBe(true)
-    expect(await next.hasFile('.next/server')).toBe(false)
+    await retry(async () => {
+      expect(await next.hasFile('.next/dev')).toBe(true)
+      expect(await next.hasFile('.next/server')).toBe(false)
+    })
   })
 
   it('should work with HMR', async () => {

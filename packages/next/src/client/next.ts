@@ -1,3 +1,4 @@
+import './register-deployment-id-global'
 import './webpack'
 import '../lib/require-instrumentation-client'
 

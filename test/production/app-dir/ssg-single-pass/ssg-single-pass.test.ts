@@ -3,7 +3,6 @@ import { retry } from 'next-test-utils'
 
 describe('ssg-single-pass', () => {
   const { next, skipped } = nextTestSetup({
-    skipDeployment: true,
     files: __dirname,
   })
 

@@ -35,6 +35,8 @@ import { CloseController } from './web-on-close'
 import { getEdgePreviewProps } from './get-edge-preview-props'
 import { getBuiltinRequestContext } from '../after/builtin-request-context'
 import { getImplicitTags } from '../lib/implicit-tags'
+import { isRSCRequestHeader } from '../lib/is-rsc-request'
+import { setRequestMeta } from '../request-meta'
 
 export class NextRequestHint extends NextRequest {
   sourcePage: string
@@ -146,10 +148,11 @@ export async function adapter(
     buildId = (requestURL as NextURL).buildId || ''
     requestURL.buildId = ''
   }
+  let deploymentId = process.env.NEXT_DEPLOYMENT_ID
 
   const requestHeaders = fromNodeOutgoingHttpHeaders(params.request.headers)
   const isNextDataRequest = requestHeaders.has('x-nextjs-data')
-  const isRSCRequest = requestHeaders.get(RSC_HEADER) === '1'
+  const isRSCRequest = isRSCRequestHeader(requestHeaders.get(RSC_HEADER))
 
   if (isNextDataRequest && requestURL.pathname === '/index') {
     requestURL.pathname = '/'
@@ -158,7 +161,7 @@ export async function adapter(
   const flightHeaders = new Map()
 
   // Headers should only be stripped for middleware
-  if (!isEdgeRendering) {
+  if (!isEdgeRendering && !process.env.__NEXT_NO_MIDDLEWARE_URL_NORMALIZE) {
     for (const header of FLIGHT_HEADERS) {
       const value = requestHeaders.get(header)
       if (value !== null) {
@@ -177,7 +180,9 @@ export async function adapter(
   const request = new NextRequestHint({
     page: params.page,
     // Strip internal query parameters off the request.
-    input: stripInternalSearchParams(normalizeURL).toString(),
+    input: process.env.__NEXT_NO_MIDDLEWARE_URL_NORMALIZE
+      ? normalizeURL.toString()
+      : stripInternalSearchParams(normalizeURL).toString(),
     init: {
       body: params.request.body,
       headers: requestHeaders,
@@ -186,6 +191,10 @@ export async function adapter(
       signal: params.request.signal,
     },
   })
+
+  if (params.request.requestMeta) {
+    setRequestMeta(request, params.request.requestMeta)
+  }
 
   /**
    * This allows to identify the request as a data request. The user doesn't
@@ -278,7 +287,7 @@ export async function adapter(
 
             const implicitTags = await getImplicitTags(
               page,
-              request.nextUrl,
+              request.nextUrl.pathname,
               fallbackRouteParams
             )
 
@@ -295,11 +304,25 @@ export async function adapter(
               renderOpts: {
                 cacheLifeProfiles:
                   params.request.nextConfig?.experimental?.cacheLife,
+                // Proxy doesn't do static generation, so this value does not
+                // apply here. 0 is a sentinel: if something ever reads it,
+                // it'll surface loudly instead of silently using a misleading
+                // default.
+                staticPageGenerationTimeout: 0,
                 cacheComponents: false,
+                // Proxy doesn't run instant validation; the level value is
+                // irrelevant here.
+                // TODO: remove validationLevel and other global config from renderOpts
+                validationLevel: 'warning',
                 experimental: {
                   isRoutePPREnabled: false,
                   authInterrupts:
                     !!params.request.nextConfig?.experimental?.authInterrupts,
+                  // Proxy doesn't fill Cache Components entries, so this value
+                  // is never read. 0 is a sentinel: if something ever reads it,
+                  // the cache fill will time out immediately and surface the
+                  // bug.
+                  useCacheTimeout: 0,
                 },
                 supportsDynamicResponse: true,
                 waitUntil,
@@ -309,6 +332,7 @@ export async function adapter(
               isPrefetchRequest:
                 request.headers.get(NEXT_ROUTER_PREFETCH_HEADER) === '1',
               buildId: buildId ?? '',
+              deploymentId: deploymentId ?? '',
               previouslyRevalidatedTags: [],
             })
 
@@ -455,7 +479,10 @@ export async function adapter(
     if (!process.env.__NEXT_NO_MIDDLEWARE_URL_NORMALIZE) {
       if (redirectURL.host === requestURL.host) {
         redirectURL.buildId = buildId || redirectURL.buildId
-        response.headers.set('Location', redirectURL.toString())
+        response.headers.set(
+          'Location',
+          getRelativeURL(redirectURL, requestURL)
+        )
       }
     }
 

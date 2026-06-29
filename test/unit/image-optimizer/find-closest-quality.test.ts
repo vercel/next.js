@@ -71,6 +71,18 @@ describe('findClosestQuality', () => {
       input: [14, { qualities: [100, 10, 75, 15] }],
       output: 15, // use closet input even when config is out of order
     },
+    {
+      input: [1, { qualities: [75] }],
+      output: 75, // low quality should not return 0
+    },
+    {
+      input: [4, { qualities: [5, 25] }],
+      output: 5, // ensure low quality still rounds up
+    },
+    {
+      input: [6, { qualities: [5, 25] }],
+      output: 5, // ensure low quality still rounds down
+    },
   ])('for quality $input expected $output', ({ input, output }) => {
     expect(findClosestQuality(...input)).toEqual(output)
   })

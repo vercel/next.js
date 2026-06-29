@@ -52,7 +52,6 @@ export function proxy(request: NextRequest) {
 // Alternatively, you can use a default export:
 // export default function proxy(request: NextRequest) { ... }
 
-// See "Matching Paths" below to learn more
 export const config = {
   matcher: '/about/:path*',
 }
@@ -69,10 +68,11 @@ export function proxy(request) {
 // Alternatively, you can use a default export:
 // export default function proxy(request) { ... }
 
-// See "Matching Paths" below to learn more
 export const config = {
   matcher: '/about/:path*',
 }
 ```
+
+The `matcher` config allows you to filter Proxy to run on specific paths. See the [Matcher](/docs/app/api-reference/file-conventions/proxy#matcher) documentation for more details on path matching.
 
 Read more about [using `proxy`](/docs/app/guides/backend-for-frontend#proxy), or refer to the `proxy` [API reference](/docs/app/api-reference/file-conventions/proxy).

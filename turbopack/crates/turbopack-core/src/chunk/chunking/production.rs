@@ -5,14 +5,18 @@ use rustc_hash::FxHasher;
 use smallvec::SmallVec;
 use tracing::{Instrument, field::Empty};
 use turbo_prehash::BuildHasherExt;
-use turbo_tasks::{FxIndexMap, FxIndexSet, ResolvedVc, TryJoinIterExt, Vc};
+use turbo_tasks::{FxIndexMap, FxIndexSet, MappedReadRef, ReadRef, ResolvedVc, TryJoinIterExt, Vc};
 
 use crate::{
     chunk::{
-        ChunkItemBatchGroup, ChunkItemWithAsyncModuleInfo, ChunkingConfig,
+        ChunkItemBatchGroup, ChunkItemBatchWithAsyncModuleInfo, ChunkItemWithAsyncModuleInfo,
+        ChunkingConfig,
         chunking::{ChunkItemOrBatchWithInfo, SplitContext, make_chunk},
     },
-    module_graph::{ModuleGraph, chunk_group_info::RoaringBitmapWrapper},
+    module_graph::{
+        ModuleGraph,
+        chunk_group_info::{ModuleToChunkGroups, RoaringBitmapWrapper},
+    },
 };
 
 pub async fn make_production_chunks(
@@ -26,12 +30,13 @@ pub async fn make_production_chunks(
         "make production chunks",
         chunk_items = chunk_items.len(),
         chunks_before_limits = Empty,
+        merge_iterations = Empty,
         chunks = Empty,
         total_size = Empty
     );
     let span = span_outer.clone();
     async move {
-        let chunk_group_info = module_graph.chunk_group_info().await?;
+        let module_chunk_groups = module_graph.chunk_group_info().module_chunk_groups();
         let merged_modules = module_graph.merged_modules().await?;
 
         #[derive(Default)]
@@ -42,56 +47,59 @@ pub async fn make_production_chunks(
 
         let mut grouped_chunk_items = FxIndexMap::<_, GroupedChunkItems<'_>>::default();
 
+        enum Prepared {
+            ChunkItem(MappedReadRef<ModuleToChunkGroups, RoaringBitmapWrapper>),
+            Batch(ReadRef<ChunkItemBatchWithAsyncModuleInfo>),
+            None,
+        }
+
         // Helper Vec to keep ReadRefs on batches and allow references into them
-        let batch_read_refs = chunk_items
+        let prepared = chunk_items
             .iter()
             .copied()
             .map(async |item| {
-                Ok(
-                    if let ChunkItemOrBatchWithInfo::Batch { batch, .. } = item {
-                        Some(batch.await?)
-                    } else {
-                        None
-                    },
-                )
+                Ok(match item {
+                    &ChunkItemOrBatchWithInfo::ChunkItem {
+                        chunk_item:
+                            ChunkItemWithAsyncModuleInfo {
+                                module: Some(module),
+                                ..
+                            },
+                        ..
+                    } => Prepared::ChunkItem(
+                        if let Some(module_chunk_groups) =
+                            module_chunk_groups.get(&ResolvedVc::upcast(module)).await?
+                        {
+                            module_chunk_groups
+                        } else {
+                            // Merged modules don't have a chunk group in chunk_group_info, so
+                            // lookup using the original module.
+                            let original_module = merged_modules
+                                .get_original_module(ResolvedVc::upcast(module))
+                                .await?
+                                .context("every module should have a chunk group")?;
+                            module_chunk_groups
+                                .get(&original_module)
+                                .await?
+                                .context("every module should have a chunk group")?
+                        },
+                    ),
+                    &ChunkItemOrBatchWithInfo::ChunkItem {
+                        chunk_item: ChunkItemWithAsyncModuleInfo { module: None, .. },
+                        ..
+                    } => Prepared::None,
+                    ChunkItemOrBatchWithInfo::Batch { batch, .. } => Prepared::Batch(batch.await?),
+                })
             })
             .try_join()
             .await?;
 
-        let batch_group_read_refs = batch_groups.iter().try_join().await?;
-
         // Put chunk items into `grouped_chunk_items` based on their chunk groups
-        for (i, chunk_item) in chunk_items.into_iter().enumerate() {
-            let chunk_groups = match chunk_item {
-                &ChunkItemOrBatchWithInfo::ChunkItem {
-                    chunk_item:
-                        ChunkItemWithAsyncModuleInfo {
-                            module: Some(module),
-                            ..
-                        },
-                    ..
-                } => Some(
-                    chunk_group_info
-                        .module_chunk_groups
-                        .get(&ResolvedVc::upcast(module))
-                        .or_else(|| {
-                            // Merged modules don't have a chunk group in chunk_group_info, so
-                            // lookup using the original module.
-                            merged_modules
-                                .get_original_module(ResolvedVc::upcast(module))
-                                .and_then(|module| {
-                                    chunk_group_info.module_chunk_groups.get(&module)
-                                })
-                        })
-                        .context("every module should have a chunk group")?,
-                ),
-                &ChunkItemOrBatchWithInfo::ChunkItem {
-                    chunk_item: ChunkItemWithAsyncModuleInfo { module: None, .. },
-                    ..
-                } => None,
-                ChunkItemOrBatchWithInfo::Batch { .. } => {
-                    batch_read_refs[i].as_ref().unwrap().chunk_groups.as_ref()
-                }
+        for (chunk_item, prepared) in chunk_items.into_iter().zip(prepared.iter()) {
+            let chunk_groups = match prepared {
+                Prepared::None => None,
+                Prepared::ChunkItem(data) => Some(&**data),
+                Prepared::Batch(data) => data.chunk_groups.as_ref(),
             };
             let key = BuildHasherDefault::<FxHasher>::default().prehash(chunk_groups);
             grouped_chunk_items
@@ -101,8 +109,12 @@ pub async fn make_production_chunks(
                 .push(chunk_item);
         }
 
-        for (i, batch_group) in batch_groups.into_iter().enumerate() {
-            let data = &batch_group_read_refs[i].chunk_groups;
+        let batch_group_read_refs = batch_groups.iter().try_join().await?;
+
+        for (batch_group, batch_group_read_ref) in
+            batch_groups.into_iter().zip(batch_group_read_refs.iter())
+        {
+            let data = &batch_group_read_ref.chunk_groups;
             let key = BuildHasherDefault::<FxHasher>::default().prehash(Some(data));
             grouped_chunk_items.entry(key).or_default().batch_group = Some(batch_group);
         }
@@ -197,12 +209,15 @@ pub async fn make_production_chunks(
                     min_chunk_size
                 } else if let Some(smallest) = heap.peek() {
                     smallest.size
-                } else if max_chunk_count_per_group != 0 {
-                    chunks_to_merge_size / max_chunk_count_per_group
+                } else if let Some(merge_threshold) =
+                    chunks_to_merge_size.checked_div(max_chunk_count_per_group)
+                {
+                    merge_threshold
                 } else {
                     unreachable!();
                 };
 
+                let mut iterations = 0;
                 while chunks_to_merge.len() > 1 {
                     // Find best candidate
                     let mut selection: Vec<MergeCandidate<'_>> = Vec::new();
@@ -211,23 +226,35 @@ pub async fn make_production_chunks(
                         // Exist early when no better overlaps are possible
                         if let Some((_, _, best_overlap, _)) = best_combination.as_ref() {
                             let candidate_best_possible_value = candidate.chunk_groups_len();
-                            if *best_overlap >= candidate_best_possible_value {
+
+                            /// Limit combinational complexity
+                            /// When we found a good merge combination we don't want to continue
+                            /// searching forever since the combinational complexity would be
+                            /// O(N^3). This limit makes it O(N * M * M) where M is the max
+                            /// combinational complexity. With a small and constant M this is
+                            /// effectively O(N).
+                            const MAX_COMBINATIONAL_COMPLEXITY: usize = 32;
+
+                            if *best_overlap > candidate_best_possible_value
+                                || selection.len() > MAX_COMBINATIONAL_COMPLEXITY
+                            {
                                 chunks_to_merge.push(candidate);
                                 break;
                             }
                         }
 
+                        let is_big_candidate = candidate.size > merge_threshold;
+
                         // Check all combination with the new candidate
                         for (i, other) in selection.iter().enumerate() {
+                            iterations += 1;
                             let overlap = overlap(&candidate.chunk_groups, &other.chunk_groups);
-                            // It need to have at least two chunk groups in common
-                            if overlap <= 1 {
+                            // It need to have at least one chunk group in common
+                            if overlap < 1 {
                                 continue;
                             }
                             // If the candidate is already big enough, avoid shrinking the sharing
-                            if candidate.size > merge_threshold
-                                && overlap != candidate.chunk_groups_len()
-                            {
+                            if is_big_candidate && overlap != candidate.chunk_groups_len() {
                                 continue;
                             }
                             if other.size > merge_threshold && overlap != other.chunk_groups_len() {
@@ -238,7 +265,7 @@ pub async fn make_production_chunks(
                             let b_groups = other.chunk_groups_len() as i64;
                             let b_size = other.size as i64;
                             let o_groups = overlap as i64;
-                            let groups = a_groups.max(b_groups);
+                            let groups = a_groups + b_groups - o_groups;
                             let a_rem = a_groups - o_groups;
                             let b_rem = b_groups - o_groups;
 
@@ -260,7 +287,7 @@ pub async fn make_production_chunks(
 
                             /*
                                 For our calculations we assume that there is a probability of 2/3 that we request exactly 1 chunk group (`N = 1`)
-                                and a probability of 2/3 that we request 2 chunk groups (`N = 2`).
+                                and a probability of 1/3 that we request 2 chunk groups (`N = 2`).
                                 This is a simplification, but it should be good enough for our purposes.
 
                                 We want to compute the expected request count `e_req` and the expected total requested size `e_size` for the unmerged and merged case.
@@ -289,18 +316,18 @@ pub async fn make_production_chunks(
                             */
 
                             /*
-                                To compute `e_size` and `e_req` we need to determine all cases and there probabilities.
+                                To compute `e_size` and `e_req` we need to determine all cases and their probabilities.
 
                                 UNMERGED CASE (N = 1):
 
-                                case X (p = a_rem/groups): size = b_size, requests = 1
-                                case Y (p = r_rem/groups): size = a_size, requests = 1
+                                case X (p = a_rem/groups): size = a_size, requests = 1
+                                case Y (p = b_rem/groups): size = b_size, requests = 1
                                 case Z (p = o_groups/groups): size = a_size + b_size, requests = 2
 
                                 MERGED CASE (N = 1):
 
-                                case X (p = a_rem/groups): size = b_size, requests = 1
-                                case Y (p = r_rem/groups): size = a_size, requests = 1
+                                case X (p = a_rem/groups): size = a_size, requests = 1
+                                case Y (p = b_rem/groups): size = b_size, requests = 1
                                 case Z (p = o_groups/groups): size = a_size + b_size, requests = 1
                             */
 
@@ -311,103 +338,103 @@ pub async fn make_production_chunks(
 
                                 The only difference is in case Z in the request count. That case has `p = o_groups/groups`:
 
-                                d_req(N = 1) = o_groups / groups * (2 - 1)
+                                d_req(N = 1) = (o_groups / groups) * (2 - 1)
                                 d_req(N = 1) = o_groups / groups
 
                                 d(N = 1) = d_req(N = 1) * c_req + d_size(N = 1)
-                                         = o_groups / groups * c_req
+                                         = (o_groups * c_req) / groups
                             */
 
                             /*
                                 The N = 2 case is more complicated, since we have to consider all possible combinations of the cases X, Y and Z for the two chunk groups:
 
                                 p_x = a_rem/groups
-                                p_y = r_rem/groups
+                                p_y = b_rem/groups
                                 p_z = o_groups/groups
 
                                 The chunk groups remaining after the first one has been picked
                                 rem_g = groups - 1
 
                                 UNMERGED CASE (N = 2):
-                                case X + X (p = (a_rem/groups) * ((a_rem - 1)/rem_g)): size = b_size, requests = 1
-                                case Y + Y (p = (b_rem/groups) * ((b_rem - 1)/rem_g)): size = a_size, requests = 1
+                                case X + X (p = (a_rem/groups) * ((a_rem - 1)/rem_g)): size = a_size, requests = 1
+                                case Y + Y (p = (b_rem/groups) * ((b_rem - 1)/rem_g)): size = b_size, requests = 1
                                 case Z + Z (p = (o_groups/groups) * (o_groups - 1)/rem_g): size = a_size + b_size, requests = 2
                                 case X + Y (p = (a_rem/groups) * (b_rem/rem_g) + (b_rem/groups) * (a_rem/rem_g)): size = a_size + b_size, requests = 2
                                 case X + Z (p = (a_rem/groups) * (o_groups/rem_g) + (o_groups/groups) * (a_rem/rem_g)): size = a_size + b_size, requests = 2
                                 case Y + Z (p = (b_rem/groups) * (o_groups/rem_g) + (o_groups/groups) * (b_rem/rem_g)): size = a_size + b_size, requests = 2
 
                                 MERGED CASE (N = 2):
-                                case X + X (p = (a_rem/groups) * ((a_rem - 1)/rem_g)): size = b_size, requests = 1
-                                case Y + Y (p = (b_rem/groups) * ((b_rem - 1)/rem_g)): size = a_size, requests = 1
+                                case X + X (p = (a_rem/groups) * ((a_rem - 1)/rem_g)): size = a_size, requests = 1
+                                case Y + Y (p = (b_rem/groups) * ((b_rem - 1)/rem_g)): size = b_size, requests = 1
                                 case Z + Z (p = (o_groups/groups) * (o_groups - 1)/rem_g): size = (a_size + b_size), requests = 1
                                 case X + Y (p = (a_rem/groups) * (b_rem/rem_g) + (b_rem/groups) * (a_rem/rem_g)): size = a_size + b_size, requests = 2
-                                case X + Z (p = (a_rem/groups) * (o_groups/rem_g) + (o_groups/groups) * (a_rem/rem_g)): size = b_size + (a_size + b_size), requests = 3
-                                case Y + Z (p = (b_rem/groups) * (o_groups/rem_g) + (o_groups/groups) * (b_rem/rem_g)): size = a_size + (a_size + b_size), requests = 3
+                                case X + Z (p = (a_rem/groups) * (o_groups/rem_g) + (o_groups/groups) * (a_rem/rem_g)): size = a_size + (a_size + b_size), requests = 2
+                                case Y + Z (p = (b_rem/groups) * (o_groups/rem_g) + (o_groups/groups) * (b_rem/rem_g)): size = b_size + (a_size + b_size), requests = 2
 
-                                Request count is different in these cases: Z + Z (better), X + Z (worse), Y + Z (worse)
+                                Request count is different in this case: Z + Z (better)
                                 Requests size is different (worse) in these cases: X + Z, Y + Z
 
                                 d_req_z_z = ((o_groups/groups) * (o_groups - 1)/rem_g) * (2 - 1)
                                           = o_groups * (o_groups - 1) / (groups * rem_g)
-                                d_req_x_z = ((a_rem/groups) * (o_groups/rem_g) + (o_groups/groups) * (a_rem/rem_g)) * (2 - 3)
-                                          = -2 * o_groups * a_rem / (groups * rem_g)
-                                d_req_y_z = ((b_rem/groups) * (o_groups/rem_g) + (o_groups/groups) * (b_rem/rem_g)) * (2 - 3)
-                                          = -2 * o_groups * b_rem / (groups * rem_g)
+                                d_req_x_z = ((a_rem/groups) * (o_groups/rem_g) + (o_groups/groups) * (a_rem/rem_g)) * (2 - 2)
+                                          = 0
+                                d_req_y_z = ((b_rem/groups) * (o_groups/rem_g) + (o_groups/groups) * (b_rem/rem_g)) * (2 - 2)
+                                          = 0
 
-                                d_req(N = 2) = o_groups * (o_groups - 1 - 2 * a_rem - 2 * b_rem) / (groups * rem_g)
-                                             = o_groups * (o_groups - 1 - 2 * (a_groups - o_groups) - 2 * (b_groups - o_groups)) / (groups * rem_g)
-                                             = o_groups * (5 * o_groups - 2 * a_groups - 2 * b_groups - 1) / (groups * rem_g)
+                                d_req(N = 2) = o_groups * (o_groups - 1) / (groups * rem_g)
 
-                                d_size_x_z = ((a_rem/groups) * (o_groups/rem_g) + (o_groups/groups) * (a_rem/rem_g)) * (a_size + b_size - (b_size + (a_size + b_size)))
-                                           = (2 * a_rem * o_groups / groups / rem_g)) * (-b_size)
-                                           = -2 * a_rem * b_size * o_groups / (groups * rem_g)
-                                d_size_y_z = -2 * b_rem * a_size * o_groups / (groups * rem_g)
+                                d_size_x_z = ((a_rem/groups) * (o_groups/rem_g) + (o_groups/groups) * (a_rem/rem_g)) * (a_size + b_size - (a_size + (a_size + b_size)))
+                                           = ((2 * a_rem * o_groups) / (groups * rem_g)) * (-a_size)
+                                           = -2 * a_rem * a_size * o_groups / (groups * rem_g)
+                                d_size_y_z = -2 * b_rem * b_size * o_groups / (groups * rem_g)
 
-                                d_size(N = 2) = -2 * (a_rem * b_size + b_rem * a_size) * o_groups / (groups * rem_g)
+                                d_size(N = 2) = -2 * (a_rem * a_size + b_rem * b_size) * o_groups / (groups * rem_g)
 
 
                                 d(N = 2) = d_req(N = 2) * c_req + d_size(N = 2)
-                                         = o_groups * (5 * o_groups - 2 * a_groups - 2 * b_groups - 1) / (groups * rem_g) * c_req + 2 * (a_rem * b_size + b_rem * a_size) * o_groups) / (groups * rem_g)
-                                         = ((o_groups * (5 * o_groups - 2 * a_groups - 2 * b_groups - 1) * c_req - 2 * (a_rem * b_size + b_rem * a_size) * o_groups)) / (groups * rem_g)
+                                         = (o_groups * (o_groups - 1) * c_req) / (groups * rem_g) - (2 * (a_rem * a_size + b_rem * b_size) * o_groups) / (groups * rem_g)
+                                         = (o_groups * (o_groups - 1) * c_req - 2 * (a_rem * a_size + b_rem * b_size) * o_groups) / (groups * rem_g)
                             */
 
                             /*
                                 d  = 2/3 * d(N = 1) + 1/3 * d(N = 2)
-                                3d = 2 * o_groups / groups * c_req + (o_groups * (5 * o_groups - 2 * a_groups - 2 * b_groups - 1)) * c_req - 2 * (a_rem * b_size + b_rem * a_size) * o_groups) / (groups * rem_g)
-                                   = c_req * (2 * o_groups / groups + o_groups * (5 * o_groups - 2 * a_groups - 2 * b_groups - 1) / (groups * rem_g)) - 2 * (a_rem * b_size + b_rem * a_size) * o_groups / (groups * rem_g)
-                                   = c_req * (o_groups / groups) * (2 + (5 * o_groups - 2 * a_groups - 2 * b_groups - 1) / rem_g) - 2 * (a_rem * b_size + b_rem * a_size) * o_groups / (groups * rem_g)
+                                3d = 2 * (o_groups * c_req) / groups + (o_groups * (o_groups - 1) * c_req - 2 * (a_rem * a_size + b_rem * b_size) * o_groups) / (groups * rem_g)
+                                   = c_req * (2 * o_groups / groups + o_groups * (o_groups - 1) / (groups * rem_g)) - 2 * (a_rem * a_size + b_rem * b_size) * o_groups / (groups * rem_g)
+                                   = c_req * (o_groups / groups) * (2 + (o_groups - 1) / rem_g) - 2 * (a_rem * a_size + b_rem * b_size) * o_groups / (groups * rem_g)
 
                                 We pull out some factors:
-                                3d = (c_req * (2 * rem_g + (5 * o_groups - 2 * a_groups - 2 * b_groups - 1)) - 2 * (a_rem * b_size + b_rem * a_size)) * o_groups / (rem_g * groups)
+                                3d = (c_req * (2 * rem_g + (o_groups - 1)) - 2 * (a_rem * a_size + b_rem * b_size)) * o_groups / (rem_g * groups)
                             */
 
                             /*
-                               Note that d_size < 0. So we can make a quick check if d_req is positive.
+                               Recall from above:
+                               3d = c_req * (2 * o_groups / groups + o_groups * (o_groups - 1) / (groups * rem_g)) - 2 * (a_rem * a_size + b_rem * b_size) * o_groups / (groups * rem_g)
+                               d = d_req * c_req + d_size
 
-                               c_req * (o_groups / groups + o_groups * (5 * o_groups - 2 * a_groups - 2 * b_groups - 1) / (groups * rem_g)) > 0
-                               o_groups + o_groups * (5 * o_groups - 2 * a_groups - 2 * b_groups - 1) / rem_g > 0
-                               o_groups + o_groups * 5 * o_groups / rem_g - o_groups * (2 * a_groups + 2 * b_groups + 1) / rem_g > 0
-                               o_groups * rem_g + o_groups * 5 * o_groups - o_groups * (2 * a_groups + 2 * b_groups + 1) > 0
-                               o_groups * rem_g + o_groups * 5 * o_groups > o_groups * (2 * a_groups + 2 * b_groups + 1)
-                               rem_g + 5 * o_groups > 2 * a_groups + 2 * b_groups + 1
-                               rem_g + 5 * o_groups > 2 * (a_rem + o_groups) + 2 * (b_rem + o_groups) + 1
-                               rem_g + 5 * o_groups > 2 * a_rem + 2 * b_rem + 4 * o_groups + 1
-                               rem_g + o_groups > 2 * a_rem + 2 * b_rem + 1
-                               rem_g + o_groups > 2 * (a_rem + b_rem) + 1
-                               groups - 1 + o_groups > 2 * (a_rem + b_rem) + 1
-                               groups + o_groups > 2 * (a_rem + b_rem) + 2
+                               `d_size` is always <= 0, for d > 0, d_req * c_req must be positive:
+
+                               3d > 0
+                               d > 0
+                               d_req * c_req > 0
+                               (2 * o_groups / groups + o_groups * (o_groups - 1) / (groups * rem_g)) * c_req > 0
+                               2 * o_groups / groups + o_groups * (o_groups - 1) / (groups * rem_g) > 0
+                               2 * o_groups * rem_g + o_groups * (o_groups - 1) > 0
+                               o_groups * (2 * rem_g + o_groups - 1) > 0
+                               o_groups > 0 && 2 * rem_g + o_groups - 1 > 0
+                               o_groups > 0 && 2 * (groups - 1) + o_groups - 1 > 0
+                               o_groups > 0 && groups >= 2
                             */
 
-                            // It need to have some request count benefit
-                            if groups + o_groups <= 2 * (a_rem + b_rem) + 2 {
+                            // It need to have some request count benefit, the
+                            // check for that has been derived above:
+                            if o_groups == 0 || groups < 2 {
                                 continue;
                             }
                             let rem_g = groups - 1;
                             let c_req = 200000;
                             // d3 = 3 * d
-                            let pre_d3 = c_req
-                                * (2 * rem_g + (5 * o_groups - 2 * a_groups - 2 * b_groups - 1))
-                                - 2 * (a_rem * b_size + b_rem * a_size);
+                            let pre_d3 = c_req * (2 * rem_g + (o_groups - 1))
+                                - 2 * (a_rem * a_size + b_rem * b_size);
                             // It need to have some runtime benefit of merging the chunks
                             if pre_d3 < 0 {
                                 continue;
@@ -491,6 +518,7 @@ pub async fn make_production_chunks(
                         break;
                     }
                 }
+                span.record("merge_iterations", iterations);
 
                 let mut remained_size = 0;
                 let mut remained_chunk_items = Vec::new();

@@ -1,12 +1,12 @@
 use rustc_hash::{FxHashMap, FxHashSet};
 use swc_core::{
-    atoms::{atom, Atom, Wtf8Atom},
+    atoms::{Atom, Wtf8Atom, atom},
     ecma::{
         ast::{
             Expr, Id, ImportDecl, ImportNamedSpecifier, ImportSpecifier, MemberExpr, MemberProp,
             Module,
         },
-        visit::{noop_visit_type, Visit, VisitWith},
+        visit::{Visit, VisitWith, noop_visit_type},
     },
 };
 
@@ -22,10 +22,6 @@ pub(crate) struct ImportMap {
 
 #[allow(unused)]
 impl ImportMap {
-    pub fn is_module_imported(&mut self, module: &Wtf8Atom) -> bool {
-        self.imported_modules.contains(module)
-    }
-
     /// Returns true if `e` is an import of `orig_name` from `module`.
     pub fn is_import(&self, e: &Expr, module: &str, orig_name: &str) -> bool {
         match e {

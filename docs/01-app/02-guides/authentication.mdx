@@ -30,7 +30,7 @@ The examples on this page walk through basic username and password auth for educ
 
 ### Sign-up and login functionality
 
-You can use the [`<form>`](https://react.dev/reference/react-dom/components/form) element with React's [Server Actions](/docs/app/getting-started/updating-data) and `useActionState` to capture user credentials, validate form fields, and call your Authentication Provider's API or database.
+You can use the [`<form>`](https://react.dev/reference/react-dom/components/form) element with React's [Server Actions](/docs/app/getting-started/mutating-data) and `useActionState` to capture user credentials, validate form fields, and call your Authentication Provider's API or database.
 
 Since Server Actions always execute on the server, they provide a secure environment for handling authentication logic.
 
@@ -561,7 +561,7 @@ const secretKey = process.env.SESSION_SECRET
 
 #### 2. Encrypting and decrypting sessions
 
-Next, you can use your preferred [session management library](#session-management-libraries) to encrypt and decrypt sessions. Continuing from the previous example, we'll use [Jose](https://www.npmjs.com/package/jose) (compatible with the [Edge Runtime](/docs/app/api-reference/edge)) and React's [`server-only`](https://www.npmjs.com/package/server-only) package to ensure that your session management logic is only executed on the server.
+Next, you can use your preferred [session management library](#session-management-libraries) to encrypt and decrypt sessions. Continuing from the previous example, we'll use [Jose](https://www.npmjs.com/package/jose) and React's [`server-only`](https://www.npmjs.com/package/server-only) package to ensure that your session management logic is only executed on the server.
 
 ```tsx filename="app/lib/session.ts" switcher
 import 'server-only'
@@ -749,16 +749,16 @@ import { cookies } from 'next/headers'
 import { decrypt } from '@/app/lib/session'
 
 export async function updateSession() {
-  const session = (await cookies()).get('session')?.value
+  const cookieStore = await cookies()
+  const session = cookieStore.get('session')?.value
   const payload = await decrypt(session)
 
   if (!session || !payload) {
     return null
   }
 
-  const expires = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)(
-    await cookies()
-  ).set('session', session, {
+  const expires = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
+  cookieStore.set('session', session, {
     httpOnly: true,
     secure: true,
     expires: expires,
@@ -878,7 +878,7 @@ To create and manage database sessions, you'll need to follow these steps:
 For example:
 
 ```ts filename="app/lib/session.ts" switcher
-import cookies from 'next/headers'
+import { cookies } from 'next/headers'
 import { db } from '@/app/lib/db'
 import { encrypt } from '@/app/lib/session'
 
@@ -913,7 +913,7 @@ export async function createSession(id: number) {
 ```
 
 ```js filename="app/lib/session.js" switcher
-import cookies from 'next/headers'
+import { cookies } from 'next/headers'
 import { db } from '@/app/lib/db'
 import { encrypt } from '@/app/lib/session'
 
@@ -1120,8 +1120,8 @@ While Proxy can be useful for initial checks, it should not be your only line of
 
 > **Tips**:
 >
-> - In Proxy, you can also read cookies using `req.cookies.get('session').value`.
-> - Proxy uses the Node.js runtime, check if your Auth library and session management library are compatible. You may need to use [Middleware](https://github.com/vercel/next.js/blob/v15.5.6/docs/01-app/03-api-reference/03-file-conventions/middleware.mdx) if your Auth library only supports [Edge Runtime](/docs/app/api-reference/edge)
+> - In Proxy, you can also read cookies using `req.cookies.get('session')?.value`.
+> - Proxy uses the Node.js runtime, check if your Auth library and session management library are compatible.
 > - You can use the `matcher` property in the Proxy to specify which routes Proxy should run on. Although, for auth, it's recommended Proxy runs on all routes.
 
 <AppOnly>
@@ -1351,9 +1351,17 @@ Due to [Partial Rendering](/docs/app/getting-started/linking-and-navigating#clie
 
 Instead, you should do the checks close to your data source or the component that'll be conditionally rendered.
 
-For example, consider a shared layout that fetches the user data and displays the user image in a nav. Instead of doing the auth check in the layout, you should fetch the user data (`getUser()`) in the layout and do the auth check in your DAL.
+For example, consider a shared layout that fetches the user data and displays the user image in a nav. Instead of doing the auth check in the layout, you should fetch the user data (`getUser()`) in the layout and do the auth check in your [DAL](#creating-a-data-access-layer-dal).
 
-This guarantees that wherever `getUser()` is called within your application, the auth check is performed, and prevents developers forgetting to check the user is authorized to access the data.
+This guarantees that wherever `getUser()` is called within your application, the auth check is performed, and prevents developers from forgetting to check that the user is authorized to access the data.
+
+#### Auth and streaming
+
+Session and user data often appear in shell UI (header, nav) that repeats across routes. A top-level `await` on `cookies()`, `headers()`, or the DAL in a layout delays the first streamed chunk for that segment and holds `{children}` behind that work.
+
+If only part of the shell needs session data (for example, a user menu), move the `await` into a nested Server Component and wrap it in `<Suspense>` so the rest of the page streams first. See [Push dynamic access down](/docs/app/guides/streaming#push-dynamic-access-down) for the pattern.
+
+Client Components can't import the DAL. Run `verifySession()`, `getUser()`, or similar in a parent Server Component, then pass data to client children as props or through a [Context Provider](#context-providers). To share data across multiple Server Components without re-fetching, see [Sharing data with context and `React.cache`](/docs/app/getting-started/fetching-data#sharing-data-with-context-and-reactcache).
 
 #### Auth checks in page components
 
@@ -1448,7 +1456,7 @@ This pattern allows you to show or hide UI elements based on user permissions wh
 
 ### Server Actions
 
-Treat [Server Actions](/docs/app/getting-started/updating-data) with the same security considerations as public-facing API endpoints, and verify if the user is allowed to perform a mutation.
+Treat [Server Actions](/docs/app/guides/server-actions) with the same security considerations as public-facing API endpoints, and verify if the user is allowed to perform a mutation.
 
 In the example below, we check the user's role before allowing the action to proceed:
 
@@ -1542,11 +1550,11 @@ The example above demonstrates a Route Handler with a two-tier security check. I
 
 ## Context Providers
 
-Using context providers for auth works due to [interleaving](/docs/app/getting-started/server-and-client-components#examples#interleaving-server-and-client-components). However, React `context` is not supported in Server Components, making them only applicable to Client Components.
+Using context providers for auth works due to [interleaving](/docs/app/getting-started/server-and-client-components#interleaving-server-and-client-components). However, React `context` is not supported in Server Components, making them only applicable to Client Components.
 
 This works, but any child Server Components will be rendered on the server first, and will not have access to the context provider’s session data:
 
-```tsx filename="app/layout.ts" switcher
+```tsx filename="app/layout.tsx" switcher
 import { ContextProvider } from 'auth-lib'
 
 export default function RootLayout({ children }) {
@@ -1560,8 +1568,8 @@ export default function RootLayout({ children }) {
 }
 ```
 
-```tsx filename="app/ui/profile.ts switcher
-'use client';
+```tsx filename="app/ui/profile.tsx" switcher
+'use client'
 
 import { useSession } from "auth-lib";
 
@@ -1575,8 +1583,8 @@ export default function Profile() {
 }
 ```
 
-```jsx filename="app/ui/profile.js switcher
-'use client';
+```jsx filename="app/ui/profile.jsx" switcher
+'use client'
 
 import { useSession } from "auth-lib";
 

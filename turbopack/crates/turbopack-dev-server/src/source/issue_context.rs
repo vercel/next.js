@@ -4,7 +4,7 @@ use turbo_tasks::{ResolvedVc, Vc};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::introspect::{Introspectable, IntrospectableChildren};
 
-use super::{
+use crate::source::{
     ContentSource, ContentSourceContent, ContentSourceData, ContentSourceDataVary, ContentSources,
     GetContentSourceContent,
     route_tree::{MapGetContentSourceContent, RouteTree},
@@ -27,19 +27,6 @@ impl IssueFilePathContentSource {
     ) -> Vc<Self> {
         IssueFilePathContentSource {
             file_path: Some(file_path),
-            description,
-            source,
-        }
-        .cell()
-    }
-
-    #[turbo_tasks::function]
-    pub fn new_description(
-        description: RcStr,
-        source: ResolvedVc<Box<dyn ContentSource>>,
-    ) -> Vc<Self> {
-        IssueFilePathContentSource {
-            file_path: None,
             description,
             source,
         }

@@ -23,6 +23,7 @@ import { isDynamicRoute } from './utils/is-dynamic'
 import { parseRelativeUrl } from './utils/parse-relative-url'
 import { getRouteMatcher } from './utils/route-matcher'
 import { getRouteRegex } from './utils/route-regex'
+import { hasDynamicFilterCandidate } from './utils/dynamic-filter-pattern'
 import { formatWithValidation } from './utils/format-url'
 import { detectDomainLocale } from '../../../client/detect-domain-locale'
 import { parsePath } from './utils/parse-path'
@@ -42,8 +43,12 @@ import { omit } from './utils/omit'
 import { interpolateAs } from './utils/interpolate-as'
 import { disableSmoothScrollDuringRouteTransition } from './utils/disable-smooth-scroll'
 import type { Params } from '../../../server/request/params'
-import { MATCHED_PATH_HEADER } from '../../../lib/constants'
+import {
+  MATCHED_PATH_HEADER,
+  NEXT_NAV_DEPLOYMENT_ID_HEADER,
+} from '../../../lib/constants'
 import { getDeploymentId } from '../deployment-id'
+import { isJavaScriptURLString } from '../../../client/lib/javascript-url'
 
 let resolveRewrites: typeof import('./utils/resolve-rewrites').default
 if (process.env.__NEXT_HAS_REWRITES) {
@@ -223,9 +228,14 @@ function getMiddlewareData<T extends FetchDataOutput>(
           const parsedSource = getNextPathnameInfo(
             parseRelativeUrl(source).pathname,
             {
-              nextConfig: process.env.__NEXT_HAS_REWRITES
-                ? undefined
-                : nextConfig,
+              // Pass basePath (and trailingSlash) so the basePath prefix is
+              // stripped before the `_next/data/` check, but omit `i18n` so the
+              // locale prefix is preserved here — the rewrite resolver below
+              // handles the locale-prefixed `as`.
+              nextConfig: {
+                basePath: nextConfig.basePath,
+                trailingSlash: nextConfig.trailingSlash,
+              },
               parseData: true,
             }
           )
@@ -552,6 +562,25 @@ function fetchNextData({
               markAssetError(error)
             }
 
+            throw error
+          }
+
+          let dplResponseHeader = response.headers.get(
+            NEXT_NAV_DEPLOYMENT_ID_HEADER
+          )
+          if (dplResponseHeader != null && dplResponseHeader !== deploymentId) {
+            // When not found, or we want to force a MPA navigation because of Skew Protection
+            const error = new Error(
+              `Loaded static props were from an outdated deployment, forcing a hard reload`
+            )
+            /**
+             * We should only trigger a server-side transition if this was
+             * caused on a client-side transition. Otherwise, we'd get into
+             * an infinite loop.
+             */
+            if (!isServerRender) {
+              markAssetError(error)
+            }
             throw error
           }
 
@@ -995,6 +1024,14 @@ export default class Router implements BaseRouter {
    * @param options object you can define `shallow` and other options
    */
   push(url: Url, as?: Url, options: TransitionOptions = {}) {
+    if (
+      isJavaScriptURLString(url.toString()) ||
+      (as && isJavaScriptURLString(as.toString()))
+    ) {
+      throw new Error(
+        'Next.js has blocked a javascript: URL as a security precaution.'
+      )
+    }
     if (process.env.__NEXT_SCROLL_RESTORATION) {
       // TODO: remove in the future when we update history before route change
       // is complete, as the popstate event should handle this capture.
@@ -1019,6 +1056,14 @@ export default class Router implements BaseRouter {
    * @param options object you can define `shallow` and other options
    */
   replace(url: Url, as?: Url, options: TransitionOptions = {}) {
+    if (
+      isJavaScriptURLString(url.toString()) ||
+      (as && isJavaScriptURLString(as.toString()))
+    ) {
+      throw new Error(
+        'Next.js has blocked a javascript: URL as a security precaution.'
+      )
+    }
     ;({ url, as } = prepareUrlAs(this, url, as))
     return this.change('replaceState', url, as, options)
   }
@@ -1471,6 +1516,36 @@ export default class Router implements BaseRouter {
             url = formatWithValidation(parsed)
           }
         }
+      }
+    }
+
+    // The pages client router resolves a navigation against pages routes only.
+    // When it resolves to a dynamic pages route, an app route that begins with
+    // a dynamic segment may be more specific and own this path on the server
+    // (e.g. `/en/about` resolves to the pages route `/[locale]/[category]`, but
+    // the app route `/[locale]/about` should win). Such app routes have no
+    // static prefix for the early `_bfl` check, so reconstruct the candidate
+    // patterns from the resolved route and hard navigate when one is in the
+    // dynamic filter.
+    if (
+      !isQueryUpdating &&
+      !options.shallow &&
+      process.env.__NEXT_CLIENT_ROUTER_FILTER_ENABLED &&
+      this._bfl_d &&
+      isDynamicRoute(pathname)
+    ) {
+      const concretePathname = removeTrailingSlash(
+        parseRelativeUrl(cleanedAs).pathname
+      )
+      const isShadowedByAppRoute = hasDynamicFilterCandidate(
+        pathname,
+        concretePathname,
+        (candidate) => !!this._bfl_d?.contains(candidate)
+      )
+
+      if (isShadowedByAppRoute) {
+        handleHardNavigation({ url: as, router: this })
+        return new Promise(() => {})
       }
     }
 

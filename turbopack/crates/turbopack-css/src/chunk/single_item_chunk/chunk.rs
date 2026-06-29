@@ -81,9 +81,14 @@ impl SingleItemCssChunk {
     }
 
     #[turbo_tasks::function]
-    pub(super) fn ident_for_path(&self) -> Result<Vc<AssetIdent>> {
-        let item = self.item.asset_ident();
-        Ok(item.with_modifier(rcstr!("single item css chunk")))
+    pub(super) async fn ident_for_path(&self) -> Result<Vc<AssetIdent>> {
+        Ok(self
+            .item
+            .asset_ident()
+            .owned()
+            .await?
+            .with_modifier(rcstr!("single item css chunk"))
+            .into_vc())
     }
 }
 
@@ -115,9 +120,7 @@ impl Chunk for SingleItemCssChunk {
     #[turbo_tasks::function]
     async fn ident(self: Vc<Self>) -> Result<Vc<AssetIdent>> {
         let self_as_output_asset: Vc<Box<dyn OutputAsset>> = Vc::upcast(self);
-        Ok(AssetIdent::from_path(
-            self_as_output_asset.path().owned().await?,
-        ))
+        Ok(AssetIdent::from_path(self_as_output_asset.path().owned().await?).into_vc())
     }
 
     #[turbo_tasks::function]
@@ -187,13 +190,12 @@ impl Introspectable for SingleItemCssChunk {
     }
 
     #[turbo_tasks::function]
-    async fn details(self: Vc<Self>) -> Result<Vc<RcStr>> {
-        let this = self.await?;
+    async fn details(&self) -> Result<Vc<RcStr>> {
         let mut details = String::new();
         write!(
             details,
             "Chunk item: {}",
-            this.item.asset_ident().to_string().await?
+            self.item.asset_ident().to_string().await?
         )?;
         Ok(Vc::cell(details.into()))
     }

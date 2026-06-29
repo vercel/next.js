@@ -1,7 +1,7 @@
 use anyhow::Result;
 use indoc::formatdoc;
 use turbo_rcstr::RcStr;
-use turbo_tasks::{FxIndexMap, ResolvedVc, ValueToString, Vc};
+use turbo_tasks::{FxIndexMap, ResolvedVc, ValueToStringRef, Vc};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack::{ModuleAssetContext, transition::Transition};
 use turbopack_core::{
@@ -15,7 +15,7 @@ use turbopack_ecmascript::{magic_identifier, utils::StringifyJs};
 pub struct BaseLoaderTreeBuilder {
     pub inner_assets: FxIndexMap<RcStr, ResolvedVc<Box<dyn Module>>>,
     counter: usize,
-    pub imports: Vec<RcStr>,
+    pub imports: Vec<(u32, RcStr)>,
     pub module_asset_context: ResolvedVc<ModuleAssetContext>,
     pub server_component_transition: ResolvedVc<Box<dyn Transition>>,
 }
@@ -91,21 +91,23 @@ impl BaseLoaderTreeBuilder {
         &mut self,
         module_type: AppDirModuleType,
         path: FileSystemPath,
+        position: u32,
     ) -> Result<String> {
         let name = module_type.name();
         let i = self.unique_number();
         let identifier = magic_identifier::mangle(&format!("{name} #{i}"));
 
-        self.imports.push(
+        self.imports.push((
+            position,
             formatdoc!(
                 r#"
-                const {} = () => require("MODULE_{}");
+                const {} = () => require(/*turbopackChunkingType: shared*/"MODULE_{}");
                 "#,
                 identifier,
                 i
             )
             .into(),
-        );
+        ));
 
         let module = self
             .process_source(Vc::upcast(FileSource::new(path.clone())))
@@ -115,7 +117,10 @@ impl BaseLoaderTreeBuilder {
         self.inner_assets
             .insert(format!("MODULE_{i}").into(), module);
 
-        let module_path = module.ident().path().to_string().await?;
+        // Use the original source path, not the transformed module path.
+        // This is important for MDX files where page.mdx becomes page.mdx.tsx after
+        // transformation, but the font manifest uses the original source path.
+        let module_path = path.to_string_ref().await?;
 
         Ok(format!(
             "[{identifier}, {path}]",

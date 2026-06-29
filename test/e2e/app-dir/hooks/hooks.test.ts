@@ -71,6 +71,26 @@ describe('app dir - hooks', () => {
         expect($('#params-not-real').text()).toBe('N/A')
       })
     }
+
+    it('should be able to use instanceof ReadonlyURLSearchParams', async () => {
+      const browser = await next.browser(
+        '/hooks/use-search-params/instanceof?foo=bar'
+      )
+
+      const [server, client] = await Promise.all([
+        browser
+          .elementByCss('[data-testid="server"]')
+          .then((handle) => handle.text()),
+        browser
+          .elementByCss('[data-testid="client"]')
+          .then((handle) => handle.text()),
+      ])
+
+      expect({ client, server }).toEqual({
+        server: 'PASS instanceof check',
+        client: 'PASS instanceof check',
+      })
+    })
   })
 
   describe('useDraftMode', () => {

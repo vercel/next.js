@@ -102,16 +102,16 @@ pub trait Transition {
     #[turbo_tasks::function]
     async fn process(
         self: Vc<Self>,
-        asset: Vc<Box<dyn Source>>,
+        source: Vc<Box<dyn Source>>,
         module_asset_context: Vc<ModuleAssetContext>,
         reference_type: ReferenceType,
     ) -> Result<Vc<ProcessResult>> {
-        let asset = self.process_source(asset);
+        let source = self.process_source(source);
         let module_asset_context = self.process_context(module_asset_context);
-        let asset = asset.to_resolved().await?;
+        let source = source.to_resolved().await?;
 
         Ok(match &*module_asset_context
-            .process_default(asset, reference_type)
+            .process_default(source, reference_type)
             .await?
             .await?
         {
@@ -156,7 +156,7 @@ impl TransitionOptions {
         if self.transition_rules.is_empty() {
             return Ok(None);
         }
-        let path = &*source.ident().path().await?;
+        let path = &source.ident().await?.path;
         for rule in &self.transition_rules {
             if rule.matches(source, path, reference_type).await? {
                 return Ok(Some(rule.transition()));

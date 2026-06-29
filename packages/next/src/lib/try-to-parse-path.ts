@@ -1,6 +1,5 @@
 import type { Token } from 'next/dist/compiled/path-to-regexp'
 import { parse, tokensToRegexp } from 'next/dist/compiled/path-to-regexp'
-import { parse as parseURL } from 'url'
 import isError from './is-error'
 import { normalizeTokensForRegexp } from './route-pattern-normalizer'
 
@@ -67,8 +66,8 @@ export function tryToParsePath(
   const result: ParseResult = { route, parsedPath: route }
   try {
     if (options?.handleUrl) {
-      const parsed = parseURL(route, true)
-      result.parsedPath = `${parsed.pathname!}${parsed.hash || ''}`
+      const parsed = new URL(route, 'http://n')
+      result.parsedPath = `${parsed.pathname}${parsed.hash || ''}`
     }
 
     result.tokens = parse(result.parsedPath)

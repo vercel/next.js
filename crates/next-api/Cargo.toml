@@ -9,11 +9,17 @@ autobenches = false
 [lib]
 bench = false
 
+[features]
+default = ["process_pool"]
+process_pool = ["next-core/process_pool", "turbopack-node/process_pool"]
+worker_pool = ["next-core/worker_pool", "turbopack-node/worker_pool"]
+
 [lints]
 workspace = true
 
 [dependencies]
 anyhow = { workspace = true }
+async-trait = { workspace = true }
 bincode = { workspace = true }
 byteorder = { workspace = true }
 either = { workspace = true }
@@ -40,14 +46,13 @@ turbopack-browser = { workspace = true }
 turbopack-core = { workspace = true }
 turbopack-css = { workspace = true }
 turbopack-ecmascript = { workspace = true }
-turbopack-node = { workspace = true }
+turbopack-node = { workspace = true, default-features = false }
 turbopack-nodejs = { workspace = true }
 turbopack-resolve = { workspace = true }
 turbopack-wasm = { workspace = true }
 urlencoding = { workspace = true }
 
 [dev-dependencies]
-turbo-tasks-malloc = { workspace = true }
 tokio = { workspace = true }
 tempfile = { workspace = true }
 turbo-tasks-backend = { workspace = true }

@@ -1,21 +1,8 @@
 use bincode::{Decode, Encode};
-use serde::{Deserialize, Serialize};
 use turbo_tasks::{NonLocalValue, trace::TraceRawVcs};
 use turbopack_core::reference_type::ReferenceType;
 
-#[derive(
-    Copy,
-    Clone,
-    Debug,
-    PartialEq,
-    Eq,
-    Serialize,
-    Deserialize,
-    TraceRawVcs,
-    NonLocalValue,
-    Encode,
-    Decode,
-)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq, TraceRawVcs, NonLocalValue, Encode, Decode)]
 pub enum MatchMode {
     // Match all but internal references.
     NonInternal,

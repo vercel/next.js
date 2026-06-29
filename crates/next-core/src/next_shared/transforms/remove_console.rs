@@ -3,7 +3,7 @@ use async_trait::async_trait;
 use swc_core::{common::SyntaxContext, ecma::ast::Program};
 use turbo_tasks::Vc;
 use turbopack::module_options::ModuleRule;
-use turbopack_ecmascript::{CustomTransformer, TransformContext};
+use turbopack_ecmascript::{CustomTransformer, TransformContext, TransformPlugin};
 
 use super::get_ecma_transform_rule;
 use crate::{
@@ -17,7 +17,33 @@ pub async fn get_remove_console_transform_rule(
 ) -> Result<Option<ModuleRule>> {
     let enable_mdx_rs = next_config.mdx_rs().await?.is_some();
 
-    let module_rule = next_config
+    let has_config = next_config
+        .compiler()
+        .await?
+        .remove_console
+        .as_ref()
+        .is_some_and(|config| !matches!(config, RemoveConsoleConfig::Boolean(false)));
+
+    if has_config {
+        let plugin = remove_console_transform_plugin(next_config)
+            .to_resolved()
+            .await?;
+        Ok(Some(get_ecma_transform_rule(
+            plugin,
+            enable_mdx_rs,
+            EcmascriptTransformStage::Preprocess,
+        )))
+    } else {
+        Ok(None)
+    }
+}
+
+#[turbo_tasks::function]
+async fn remove_console_transform_plugin(
+    next_config: Vc<NextConfig>,
+) -> Result<Vc<TransformPlugin>> {
+    use anyhow::Context as _;
+    let config = next_config
         .compiler()
         .await?
         .remove_console
@@ -36,15 +62,10 @@ pub async fn get_remove_console_transform_rule(
                 },
             )),
         })
-        .map(|config| {
-            get_ecma_transform_rule(
-                Box::new(RemoveConsoleTransformer { config }),
-                enable_mdx_rs,
-                EcmascriptTransformStage::Preprocess,
-            )
-        });
-
-    Ok(module_rule)
+        .context("remove_console config must exist")?;
+    Ok(Vc::cell(
+        Box::new(RemoveConsoleTransformer { config }) as Box<dyn CustomTransformer + Send + Sync>
+    ))
 }
 
 #[derive(Debug)]

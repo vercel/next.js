@@ -1,6 +1,5 @@
 import { findPort, retry } from 'next-test-utils'
 import http from 'http'
-import url from 'url'
 import { outdent } from 'outdent'
 import { isNextDev, isNextStart, nextTestSetup } from 'e2e-utils'
 
@@ -15,8 +14,11 @@ describe('app-fetch-deduping', () => {
       beforeAll(async () => {
         externalServerPort = await findPort()
         externalServer = http.createServer((req, res) => {
-          const parsedUrl = url.parse(req.url, true)
-          const overrideStatus = parsedUrl.query.status
+          const parsedUrl = new URL(
+            req.url,
+            `http://localhost:${externalServerPort}`
+          )
+          const overrideStatus = parsedUrl.searchParams.get('status')
 
           // if the requested url has a "status" search param, override the response status
           if (overrideStatus) {

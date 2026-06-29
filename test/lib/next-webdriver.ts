@@ -1,6 +1,7 @@
-import { debugPrint, getFullUrl, waitFor } from 'next-test-utils'
+import { debugPrint, getFullUrl } from 'next-test-utils'
 import os from 'os'
 import {
+  Permissions,
   Playwright,
   PlaywrightNavigationWaitUntil,
 } from './browsers/playwright'
@@ -48,6 +49,7 @@ if (typeof afterAll === 'function') {
 }
 
 export interface WebdriverOptions {
+  permissions?: Permissions
   /**
    * whether to wait for React hydration to finish
    */
@@ -91,9 +93,22 @@ export interface WebdriverOptions {
   pushErrorAsConsoleLog?: boolean
 
   /**
+   * Suppress the harness from echoing the browser's console output to the
+   * test's terminal (the `Browser Log:` lines). Browser logs are still
+   * collected and available via `browser.log()`.
+   */
+  disableBrowserLog?: boolean
+
+  /**
    * Override the user agent
    */
   userAgent?: string
+
+  /**
+   * Override the base URL/port that `url` is resolved against. Useful when the
+   * test needs to drive a proxy or a separate server in front of Next.js.
+   */
+  baseUrl?: string | number
 }
 
 /**
@@ -121,13 +136,19 @@ export default async function webdriver(
     extraHTTPHeaders,
     locale,
     disableJavaScript,
+    permissions,
     ignoreHTTPSErrors,
     headless,
     cpuThrottleRate,
     pushErrorAsConsoleLog,
+    disableBrowserLog,
     userAgent,
     waitUntil,
+    baseUrl,
   } = options
+  if (baseUrl !== undefined) {
+    appPortOrUrl = baseUrl
+  }
 
   const { Playwright, quit } = await import('./browsers/playwright')
   browserQuit = quit
@@ -141,7 +162,8 @@ export default async function webdriver(
     Boolean(ignoreHTTPSErrors),
     // allow headless to be overwritten for a particular test
     typeof headless !== 'undefined' ? headless : !!process.env.HEADLESS,
-    userAgent
+    userAgent,
+    permissions
   )
   ;(global as any).browserName = browserName
 
@@ -159,6 +181,7 @@ export default async function webdriver(
     beforePageLoad,
     extraHTTPHeaders,
     pushErrorAsConsoleLog,
+    disableBrowserLog,
     waitUntil,
   })
   debugPrint(`Loaded browser with ${fullUrl}`)
@@ -216,13 +239,5 @@ export default async function webdriver(
     debugPrint(`Hydration complete for ${fullUrl}`)
   }
 
-  // This is a temporary workaround for turbopack starting watching too late.
-  // So we delay file changes to give it some time
-  // to connect the WebSocket and start watching.
-  // TODO: Is this still needed? Can we wait in a more useful way, like a socket connection event?
-  if (process.env.IS_TURBOPACK_TEST && process.env.TURBOPACK_DEV) {
-    debugPrint(`Waiting for for turbopack watcher to start`)
-    await waitFor(1000)
-  }
   return browser
 }

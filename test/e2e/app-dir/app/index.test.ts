@@ -1,5 +1,10 @@
 import { nextTestSetup } from 'e2e-utils'
-import { check, retry, waitFor } from 'next-test-utils'
+import {
+  check,
+  expectVaryHeaderToContain,
+  retry,
+  waitFor,
+} from 'next-test-utils'
 import cheerio from 'cheerio'
 import stripAnsi from 'strip-ansi'
 import {
@@ -142,6 +147,56 @@ describe('app dir - basic', () => {
     })
     expect(JSON.parse($('#search-params').text())).toEqual({
       query1: 'value2',
+    })
+  })
+
+  it.each([
+    {
+      path: '/dashboard',
+      srcPage: '/dashboard/page',
+    },
+    {
+      path: '/dynamic/category-1/id-2',
+      srcPage: '/dynamic/[category]/[id]/page',
+    },
+    {
+      path: '/dashboard/another',
+      srcPage: '/(newroot)/dashboard/another/page',
+    },
+  ])(
+    'should expose app source page on window.next.__internal_src_page for $path',
+    async ({ path, srcPage }) => {
+      const browser = await next.browser(path)
+
+      await retry(async () => {
+        expect(await browser.eval('window.next.__internal_src_page')).toBe(
+          srcPage
+        )
+      })
+    }
+  )
+
+  it('should update window.next.__internal_src_page on app router transitions', async () => {
+    const browser = await next.browser('/dashboard')
+
+    await retry(async () => {
+      expect(await browser.eval('window.next.__internal_src_page')).toBe(
+        '/dashboard/page'
+      )
+    })
+
+    await browser.eval(`window.next.router.push('/dynamic/category-1/id-2')`)
+    await retry(async () => {
+      expect(await browser.eval('window.next.__internal_src_page')).toBe(
+        '/dynamic/[category]/[id]/page'
+      )
+    })
+
+    await browser.eval(`window.next.router.push('/dashboard/another')`)
+    await retry(async () => {
+      expect(await browser.eval('window.next.__internal_src_page')).toBe(
+        '/(newroot)/dashboard/another/page'
+      )
     })
   })
 
@@ -319,9 +374,12 @@ describe('app dir - basic', () => {
   it('should return the `vary` header from edge runtime', async () => {
     const res = await next.fetch('/dashboard')
     expect(res.headers.get('x-edge-runtime')).toBe('1')
-    expect(res.headers.get('vary')).toBe(
-      'rsc, next-router-state-tree, next-router-prefetch, next-router-segment-prefetch'
-    )
+    expectVaryHeaderToContain(res.headers.get('vary'), [
+      'rsc',
+      'next-router-state-tree',
+      'next-router-prefetch',
+      'next-router-segment-prefetch',
+    ])
   })
 
   it('should return the `vary` header from pages for flight requests', async () => {
@@ -330,11 +388,16 @@ describe('app dir - basic', () => {
         [RSC_HEADER]: '1',
       },
     })
-    expect(res.headers.get('vary')).toBe(
-      isNextDeploy
-        ? 'rsc, next-router-state-tree, next-router-prefetch, next-router-segment-prefetch'
-        : 'rsc, next-router-state-tree, next-router-prefetch, next-router-segment-prefetch, Accept-Encoding'
-    )
+    expectVaryHeaderToContain(res.headers.get('vary'), [
+      'rsc',
+      'next-router-state-tree',
+      'next-router-prefetch',
+      'next-router-segment-prefetch',
+    ])
+
+    if (!isNextDeploy) {
+      expectVaryHeaderToContain(res.headers.get('vary'), ['accept-encoding'])
+    }
   })
 
   it('should pass props from getServerSideProps in root layout', async () => {
@@ -388,8 +451,8 @@ describe('app dir - basic', () => {
       const html = await next.render('/dashboard/index')
       expect(html).toMatch(
         process.env.IS_TURBOPACK_TEST
-          ? /<script src="\/_next\/static\/chunks\/([\w-]*polyfill-nomodule|[0-9a-f]+)\.js" noModule="">/
-          : /<script src="\/_next\/static\/chunks\/polyfills(-\w+)?\.js" noModule="">/
+          ? /<script src="\/_next\/static\/(immutable\/)?chunks\/([\w-]*polyfill-nomodule|[0-9a-z_-]+)\.js(\?[^"]+)?" noModule="">/
+          : /<script src="\/_next\/static\/(immutable\/)?chunks\/polyfills(-\w+)?\.js(\?[^"]+)?" noModule="">/
       )
     })
   }

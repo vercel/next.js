@@ -1,23 +1,25 @@
 use std::{collections::BTreeSet, sync::LazyLock};
 
 use anyhow::{Context, Result};
+use async_trait::async_trait;
 use regex::Regex;
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use turbo_esregex::EsRegex;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{ResolvedVc, Vc};
-use turbo_tasks_fs::{self, FileSystemEntryType, FileSystemPath, to_sys_path};
+use turbo_tasks_fs::{self, FileContent, FileSystemEntryType, FileSystemPath, to_sys_path};
 use turbopack::module_options::{ConditionItem, LoaderRuleItem};
 use turbopack_core::{
-    issue::{Issue, IssueExt, IssueSeverity, IssueStage, OptionStyledString, StyledString},
+    issue::{Issue, IssueExt, IssueSeverity, IssueStage, StyledString},
     reference_type::{CommonJsReferenceSubType, ReferenceType},
     resolve::{node::node_cjs_resolve_options, parse::Request, pattern::Pattern, resolve},
     source::Source,
 };
+use turbopack_ecmascript::transform::{ReactCompilerCompilationMode, ReactCompilerTarget};
 use turbopack_node::transforms::webpack::WebpackLoaderItem;
 
 use crate::{
-    next_config::{NextConfig, ReactCompilerCompilationMode, ReactCompilerOptions},
+    next_config::{NextConfig, ReactCompilerOptions},
     next_import_map::try_get_next_package,
     next_shared::webpack_rules::{
         ManuallyConfiguredBuiltinLoaderIssue, WebpackLoaderBuiltinCondition,
@@ -43,10 +45,11 @@ static BABEL_LOADER_RE: LazyLock<Regex> =
 
 /// The forked version of babel-loader that we should use for automatic configuration. This version
 /// is always available, as it's installed as part of next.js.
-const NEXT_JS_BABEL_LOADER: &str = "next/dist/build/babel/loader";
+const NEXT_JS_BABEL_LOADER: RcStr = rcstr!("next/dist/build/babel/loader");
 
-const BABEL_PLUGIN_REACT_COMPILER: &str = "babel-plugin-react-compiler";
-const BABEL_PLUGIN_REACT_COMPILER_PACKAGE_JSON: &str = "babel-plugin-react-compiler/package.json";
+const BABEL_PLUGIN_REACT_COMPILER: RcStr = rcstr!("babel-plugin-react-compiler");
+const BABEL_PLUGIN_REACT_COMPILER_PACKAGE_JSON: RcStr =
+    rcstr!("babel-plugin-react-compiler/package.json");
 
 /// Detect manually-configured babel loaders. This is used to generate a warning, suggesting using
 /// the built-in babel support.
@@ -115,10 +118,13 @@ pub async fn get_babel_loader_rules(
     }
 
     let react_compiler_options = next_config.react_compiler_options().await?;
+    let use_rust_react_compiler = next_config.rust_react_compiler().await?.is_some();
 
-    // if there's no babel config and react-compiler shouldn't be enabled, bail out early
+    // bail early: no babel config, no react-compiler, or Rust React Compiler is active (babel has
+    // nothing to do).
     if babel_config_path.is_none()
         && (react_compiler_options.is_none()
+            || use_rust_react_compiler
             || !builtin_conditions.contains(&WebpackLoaderBuiltinCondition::Browser))
     {
         return Ok(Vec::new());
@@ -147,10 +153,17 @@ pub async fn get_babel_loader_rules(
 
     let mut loader_conditions = Vec::new();
     if let Some(react_compiler_options) = react_compiler_options.as_ref()
+        && !use_rust_react_compiler
         && let Some(babel_plugin_path) =
             resolve_babel_plugin_react_compiler(next_config, project_path).await?
     {
         let react_compiler_options = react_compiler_options.await?;
+
+        let mut react_compiler_options_with_target: ReactCompilerOptions =
+            (*react_compiler_options).clone();
+        if let Some(target) = detect_react_compiler_target(project_path).await? {
+            react_compiler_options_with_target.target = Some(target);
+        }
 
         // we don't want to accept user-supplied `environment` options, but we do want to pass
         // `enableNameAnonymousFunctions` down to the babel plugin based on dev/prod.
@@ -168,7 +181,7 @@ pub async fn get_babel_loader_rules(
         }
 
         let resolved_options = ResolvedOptions {
-            base: &react_compiler_options,
+            base: &react_compiler_options_with_target,
             environment: EnvironmentOptions {
                 enable_name_anonymous_functions: builtin_conditions
                     .contains(&WebpackLoaderBuiltinCondition::Development),
@@ -198,6 +211,8 @@ pub async fn get_babel_loader_rules(
                                 .expect("valid const regex")
                                 .resolved_cell(),
                         ),
+                        query: None,
+                        content_type: None,
                     });
                 }
                 ReactCompilerCompilationMode::Infer => {
@@ -210,6 +225,8 @@ pub async fn get_babel_loader_rules(
                                 .expect("valid const regex")
                                 .resolved_cell(),
                         ),
+                        query: None,
+                        content_type: None,
                     });
                 }
                 ReactCompilerCompilationMode::All => {}
@@ -221,13 +238,64 @@ pub async fn get_babel_loader_rules(
         rcstr!("*.{js,jsx,ts,tsx,cjs,mjs,mts,cts}"),
         LoaderRuleItem {
             loaders: ResolvedVc::cell(vec![WebpackLoaderItem {
-                loader: rcstr!(NEXT_JS_BABEL_LOADER),
+                loader: NEXT_JS_BABEL_LOADER,
                 options: loader_options,
             }]),
             rename_as: Some(rcstr!("*")),
             condition: Some(ConditionItem::All(loader_conditions.into())),
+            module_type: None,
         },
     )])
+}
+
+pub async fn detect_react_compiler_target(
+    project_path: &FileSystemPath,
+) -> Result<Option<ReactCompilerTarget>> {
+    #[derive(Deserialize)]
+    struct ReactPackageVersion {
+        version: Option<String>,
+    }
+
+    let react_pkg_result = resolve(
+        project_path.clone(),
+        ReferenceType::CommonJs(CommonJsReferenceSubType::Undefined),
+        Request::parse(Pattern::Constant(rcstr!("react/package.json"))),
+        node_cjs_resolve_options(project_path.root().owned().await?),
+    );
+
+    let Some(source) = react_pkg_result.await?.first_source() else {
+        return Ok(None);
+    };
+
+    let ident = source.ident().await?;
+    let path = &ident.path;
+    let FileContent::Content(file) = &*path.read().await? else {
+        return Ok(None);
+    };
+
+    let pkg: ReactPackageVersion = match serde_json::from_reader(file.read()) {
+        Ok(pkg) => pkg,
+        Err(e) => {
+            ReactPackageJsonParseIssue {
+                file_path: path.clone(),
+                error: e.to_string().into(),
+            }
+            .resolved_cell()
+            .emit();
+            return Ok(None);
+        }
+    };
+
+    let major = pkg
+        .version
+        .as_deref()
+        .and_then(|v| v.split('.').next())
+        .and_then(|s| s.parse::<u32>().ok());
+
+    match major {
+        Some(18) => Ok(Some(ReactCompilerTarget::React18)),
+        _ => Ok(None),
+    }
 }
 
 /// A system path that can be passed to the webpack loader
@@ -267,14 +335,12 @@ pub async fn resolve_babel_plugin_react_compiler(
     let babel_plugin_result = resolve(
         next_package.clone(),
         ReferenceType::CommonJs(CommonJsReferenceSubType::Undefined),
-        Request::parse(Pattern::Constant(rcstr!(
-            BABEL_PLUGIN_REACT_COMPILER_PACKAGE_JSON
-        ))),
+        Request::parse(Pattern::Constant(BABEL_PLUGIN_REACT_COMPILER_PACKAGE_JSON)),
         node_cjs_resolve_options(project_path.root().owned().await?),
     );
-    let Some(source) = &*babel_plugin_result.first_source().await? else {
+    let Some(source) = babel_plugin_result.await?.first_source() else {
         BabelPluginReactCompilerResolutionIssue {
-            failed_resolution: rcstr!(BABEL_PLUGIN_REACT_COMPILER),
+            failed_resolution: BABEL_PLUGIN_REACT_COMPILER,
             config_file_path: next_config
                 .config_file_path(project_path.clone())
                 .owned()
@@ -289,7 +355,7 @@ pub async fn resolve_babel_plugin_react_compiler(
         // the relative path should only ever fail to resolve when the `fs` is different, which
         // should only happen due to eventual consistency.
         project_path
-            .get_relative_path_to(&source.ident().path().await?.parent())
+            .get_relative_path_to(&source.ident().await?.path.parent())
             .context("failed to resolve relative path for react compiler plugin")?,
     ))
 }
@@ -300,49 +366,80 @@ struct BabelPluginReactCompilerResolutionIssue {
     config_file_path: FileSystemPath,
 }
 
+#[async_trait]
 #[turbo_tasks::value_impl]
 impl Issue for BabelPluginReactCompilerResolutionIssue {
-    #[turbo_tasks::function]
-    fn stage(&self) -> Vc<IssueStage> {
-        IssueStage::Transform.cell()
+    fn stage(&self) -> IssueStage {
+        IssueStage::Transform
     }
 
     fn severity(&self) -> IssueSeverity {
         IssueSeverity::Error
     }
 
-    #[turbo_tasks::function]
-    fn file_path(&self) -> Vc<FileSystemPath> {
-        self.config_file_path.clone().cell()
+    async fn file_path(&self) -> Result<FileSystemPath> {
+        Ok(self.config_file_path.clone())
     }
 
-    #[turbo_tasks::function]
-    fn title(&self) -> Vc<StyledString> {
-        StyledString::Line(vec![
+    async fn title(&self) -> Result<StyledString> {
+        Ok(StyledString::Line(vec![
             StyledString::Text(rcstr!("Failed to resolve package ")),
             StyledString::Code(self.failed_resolution.clone()),
             StyledString::Text(rcstr!(" while attempting to resolve React Compiler")),
-        ])
-        .cell()
+        ]))
     }
 
-    #[turbo_tasks::function]
-    fn description(&self) -> Vc<OptionStyledString> {
-        Vc::cell(Some(
-            StyledString::Line(vec![
-                StyledString::Text(rcstr!("React compiler is enabled in ")),
-                StyledString::Code(self.config_file_path.path.clone()),
-                StyledString::Text(rcstr!(
-                    ". We attempted to resolve React Compiler relative to the "
-                )),
-                StyledString::Code(rcstr!("next")),
-                StyledString::Text(rcstr!(" package. Is ")),
-                StyledString::Code(rcstr!(BABEL_PLUGIN_REACT_COMPILER)),
-                StyledString::Text(rcstr!(" installed in your ")),
-                StyledString::Code(rcstr!("node_modules")),
-                StyledString::Text(rcstr!(" directory?")),
-            ])
-            .resolved_cell(),
-        ))
+    async fn description(&self) -> Result<Option<StyledString>> {
+        Ok(Some(StyledString::Line(vec![
+            StyledString::Text(rcstr!("React compiler is enabled in ")),
+            StyledString::Code(self.config_file_path.path.clone()),
+            StyledString::Text(rcstr!(
+                ". We attempted to resolve React Compiler relative to the "
+            )),
+            StyledString::Code(rcstr!("next")),
+            StyledString::Text(rcstr!(" package. Is ")),
+            StyledString::Code(BABEL_PLUGIN_REACT_COMPILER),
+            StyledString::Text(rcstr!(" installed in your ")),
+            StyledString::Code(rcstr!("node_modules")),
+            StyledString::Text(rcstr!(" directory?")),
+        ])))
+    }
+}
+
+#[turbo_tasks::value]
+struct ReactPackageJsonParseIssue {
+    file_path: FileSystemPath,
+    error: RcStr,
+}
+
+#[async_trait]
+#[turbo_tasks::value_impl]
+impl Issue for ReactPackageJsonParseIssue {
+    fn stage(&self) -> IssueStage {
+        IssueStage::Transform
+    }
+
+    fn severity(&self) -> IssueSeverity {
+        IssueSeverity::Warning
+    }
+
+    async fn file_path(&self) -> Result<FileSystemPath> {
+        Ok(self.file_path.clone())
+    }
+
+    async fn title(&self) -> Result<StyledString> {
+        Ok(StyledString::Line(vec![
+            StyledString::Text(rcstr!("Failed to parse ")),
+            StyledString::Code(rcstr!("react/package.json")),
+        ]))
+    }
+
+    async fn description(&self) -> Result<Option<StyledString>> {
+        Ok(Some(StyledString::Line(vec![
+            StyledString::Text(rcstr!(
+                "Could not determine the React version for React Compiler target detection: "
+            )),
+            StyledString::Text(self.error.clone()),
+        ])))
     }
 }

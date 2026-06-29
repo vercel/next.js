@@ -212,7 +212,7 @@ describe('app dir - prefetching', () => {
             'prefetch-auto',
             {
               children: [
-                ['slug', 'justputit', 'd'],
+                ['slug', 'justputit', 'd', null],
                 { children: ['__PAGE__', {}] },
               ],
             },
@@ -220,17 +220,27 @@ describe('app dir - prefetching', () => {
         },
         null,
         null,
-        true,
+        16, // PrefetchHint.IsRootLayout
       ])
     )
-    const response = await next.fetch(`/prefetch-auto/justputit?_rsc=dcqtr`, {
-      headers: {
-        rsc: '1',
-        'next-router-prefetch': '1',
-        'next-router-state-tree': stateTree,
-        'next-url': '/prefetch-auto/justputit',
-      },
-    })
+    const headers = {
+      rsc: '1',
+      'next-router-prefetch': '1',
+      'next-router-state-tree': stateTree,
+      'next-url': '/prefetch-auto/justputit',
+    } as const
+    const cacheBustingParam = await computeCacheBustingSearchParam(
+      headers['next-router-prefetch'],
+      undefined,
+      headers['next-router-state-tree'],
+      headers['next-url']
+    )
+    const response = await next.fetch(
+      `/prefetch-auto/justputit?_rsc=${cacheBustingParam}`,
+      {
+        headers,
+      }
+    )
 
     const prefetchResponse = await response.text()
     expect(prefetchResponse).not.toContain('Page Data!')
@@ -247,7 +257,7 @@ describe('app dir - prefetching', () => {
             'prefetch-auto',
             {
               children: [
-                ['slug', 'vercel', 'd'],
+                ['slug', 'vercel', 'd', null],
                 { children: ['__PAGE__', {}] },
               ],
             },
@@ -255,7 +265,7 @@ describe('app dir - prefetching', () => {
         },
         null,
         null,
-        true,
+        16, // PrefetchHint.IsRootLayout
       ])
     )
 
@@ -267,7 +277,7 @@ describe('app dir - prefetching', () => {
     }
 
     const url = new URL('/prefetch-auto/justputit', 'http://localhost')
-    const cacheBustingParam = computeCacheBustingSearchParam(
+    const cacheBustingParam = await computeCacheBustingSearchParam(
       headers['next-router-prefetch'] ? '1' : '0',
       undefined,
       headers['next-router-state-tree'],
@@ -366,9 +376,11 @@ describe('app dir - prefetching', () => {
     await browser.elementById('prefetch-via-link').click()
 
     // Assert that we're on the homepage (check for accordion since links are hidden)
-    expect(
-      await browser.hasElementByCssSelector('#accordion-to-dashboard')
-    ).toBe(true)
+    await retry(async () => {
+      expect(await browser.hasElementByCss('#accordion-to-dashboard')).toBe(
+        true
+      )
+    })
 
     await browser.waitForIdleNetwork()
 

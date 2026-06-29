@@ -1,0 +1,18 @@
+id: no-context-format
+valid:
+  - 'foo.context("static string")'
+  - 'foo.with_context(|| format!("error: {}", msg))'
+  - 'foo.context(msg)'
+invalid:
+  - 'foo.context(format!("error: {}", msg))'
+  - 'foo.context(format!("simple message"))'
+  - 'foo.bar().context(format!("{} failed", name))'
+---
+id: no-context-turbofmt
+valid:
+  - 'foo.context("static string")'
+  - 'foo.context(msg)'
+invalid:
+  - 'foo.context(turbofmt!("error: {}", msg).await?)'
+  - 'foo.context(turbofmt!("simple message").await?)'
+  - 'foo.bar().context(turbofmt!("{} failed", name).await?)'

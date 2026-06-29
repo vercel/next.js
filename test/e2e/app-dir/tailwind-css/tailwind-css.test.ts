@@ -19,6 +19,9 @@ describe('tailwind-css', () => {
         .elementByCss('#test-link')
         .getComputedCss('color')
       expect(cssBlue).toBe('rgb(37, 99, 235)')
+
+      expect(next.cliOutput).not.toContain('Module not found')
+      expect(next.cliOutput).not.toContain("Can't resolve")
     } finally {
       await browser.close()
     }

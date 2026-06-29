@@ -25,7 +25,7 @@ describe('adapter-config', () => {
 
     const {
       outputs,
-      routes,
+      routing,
       config,
       ...ctx
     }: Parameters<NextAdapter['onBuildComplete']>[0] = await next.readJSON(
@@ -43,6 +43,7 @@ describe('adapter-config', () => {
     }
 
     expect(ctx.nextVersion).toBe(nextVersion)
+    expect(ctx.projectDir).toBe(next.testDir)
     expect(config?.basePath).toBe('/docs')
 
     const combinedRouteOutputs = [
@@ -96,8 +97,13 @@ describe('adapter-config', () => {
         expect(output.pathname.endsWith('.html')).toBe(false)
       } else if (output.pathname.endsWith('.rsc')) {
         expect(output.filePath.endsWith('rsc-fallback.json')).toBe(true)
+      } else if (output.filePath.endsWith('.body')) {
+        // Static metadata files (e.g., /icon.png, /manifest.json, /sitemap.xml) are output as static files
+        expect(output.pathname).toMatch(
+          /\.(png|jpg|jpeg|ico|svg|gif|json|webmanifest|xml|txt)$/
+        )
       } else {
-        expect(output.pathname).toStartWith('/docs/_next/static')
+        expect(output.pathname).toMatch(/^\/docs\/_next\/static/)
       }
       // ensure / -> /index normalizing is correct
       expect(output.pathname.includes('/.')).toBe(false)
@@ -106,14 +112,136 @@ describe('adapter-config', () => {
       expect(stats.isFile()).toBe(true)
     }
 
+    // Verify static metadata files are output as static files, not prerenders
+    // Test icon.png
+    const iconStaticFile = staticOutputs.find(
+      (item) => item.pathname === '/docs/icon.png'
+    )
+    expect(iconStaticFile).toBeDefined()
+    expect(iconStaticFile?.filePath).toMatch(/\.body$/)
+
+    // Static metadata images should NOT be in prerenders
+    const iconPrerender = prerenderOutputs.find(
+      (item) => item.pathname === '/docs/icon.png'
+    )
+    expect(iconPrerender).toBeUndefined()
+
+    // Static metadata images should NOT be in appRoutes
+    const iconAppRoute = outputs.appRoutes.find(
+      (item) =>
+        item.pathname === '/docs/icon.png' ||
+        item.pathname === '/docs/icon.png.rsc'
+    )
+    expect(iconAppRoute).toBeUndefined()
+
+    // Test favicon.ico
+    const faviconStaticFile = staticOutputs.find(
+      (item) => item.pathname === '/docs/favicon.ico'
+    )
+    expect(faviconStaticFile).toBeDefined()
+    expect(faviconStaticFile?.filePath).toMatch(/\.body$/)
+
+    const faviconPrerender = prerenderOutputs.find(
+      (item) => item.pathname === '/docs/favicon.ico'
+    )
+    expect(faviconPrerender).toBeUndefined()
+
+    const faviconAppRoute = outputs.appRoutes.find(
+      (item) =>
+        item.pathname === '/docs/favicon.ico' ||
+        item.pathname === '/docs/favicon.ico.rsc'
+    )
+    expect(faviconAppRoute).toBeUndefined()
+
+    // Test opengraph-image.png
+    const ogImageStaticFile = staticOutputs.find(
+      (item) => item.pathname === '/docs/opengraph-image.png'
+    )
+    expect(ogImageStaticFile).toBeDefined()
+    expect(ogImageStaticFile?.filePath).toMatch(/\.body$/)
+
+    const ogImagePrerender = prerenderOutputs.find(
+      (item) => item.pathname === '/docs/opengraph-image.png'
+    )
+    expect(ogImagePrerender).toBeUndefined()
+
+    const ogImageAppRoute = outputs.appRoutes.find(
+      (item) =>
+        item.pathname === '/docs/opengraph-image.png' ||
+        item.pathname === '/docs/opengraph-image.png.rsc'
+    )
+    expect(ogImageAppRoute).toBeUndefined()
+
+    // Test manifest.json
+    const manifestStaticFile = staticOutputs.find(
+      (item) => item.pathname === '/docs/manifest.json'
+    )
+    expect(manifestStaticFile).toBeDefined()
+    expect(manifestStaticFile?.filePath).toMatch(/\.body$/)
+
+    const manifestPrerender = prerenderOutputs.find(
+      (item) => item.pathname === '/docs/manifest.json'
+    )
+    expect(manifestPrerender).toBeUndefined()
+
+    const manifestAppRoute = outputs.appRoutes.find(
+      (item) =>
+        item.pathname === '/docs/manifest.json' ||
+        item.pathname === '/docs/manifest.json.rsc'
+    )
+    expect(manifestAppRoute).toBeUndefined()
+
+    // Test sitemap.xml
+    const sitemapStaticFile = staticOutputs.find(
+      (item) => item.pathname === '/docs/sitemap.xml'
+    )
+    expect(sitemapStaticFile).toBeDefined()
+    expect(sitemapStaticFile?.filePath).toMatch(/\.body$/)
+
+    const sitemapPrerender = prerenderOutputs.find(
+      (item) => item.pathname === '/docs/sitemap.xml'
+    )
+    expect(sitemapPrerender).toBeUndefined()
+
+    const sitemapAppRoute = outputs.appRoutes.find(
+      (item) =>
+        item.pathname === '/docs/sitemap.xml' ||
+        item.pathname === '/docs/sitemap.xml.rsc'
+    )
+    expect(sitemapAppRoute).toBeUndefined()
+
+    // Test robots.txt
+    const robotsStaticFile = staticOutputs.find(
+      (item) => item.pathname === '/docs/robots.txt'
+    )
+    expect(robotsStaticFile).toBeDefined()
+    expect(robotsStaticFile?.filePath).toMatch(/\.body$/)
+
+    const robotsPrerender = prerenderOutputs.find(
+      (item) => item.pathname === '/docs/robots.txt'
+    )
+    expect(robotsPrerender).toBeUndefined()
+
+    const robotsAppRoute = outputs.appRoutes.find(
+      (item) =>
+        item.pathname === '/docs/robots.txt' ||
+        item.pathname === '/docs/robots.txt.rsc'
+    )
+    expect(robotsAppRoute).toBeUndefined()
+
     for (const prerenderOutput of prerenderOutputs) {
       try {
         expect(prerenderOutput.parentOutputId).toBeTruthy()
         if (prerenderOutput.fallback) {
-          const stats = await fs.promises.stat(
+          if (
+            'filePath' in prerenderOutput.fallback &&
             prerenderOutput.fallback.filePath
-          )
-          expect(stats.isFile()).toBe(true)
+          ) {
+            const stats = await fs.promises.stat(
+              prerenderOutput.fallback.filePath
+            )
+            expect(stats.isFile()).toBe(true)
+          }
           expect(prerenderOutput.fallback.initialRevalidate).toBeDefined()
         }
 
@@ -131,7 +259,6 @@ describe('adapter-config', () => {
     const indexPrerender = prerenderOutputs.find(
       (item) => item.pathname === '/docs'
     )
-
     expect(indexPrerender?.fallback?.initialHeaders).toEqual({
       'content-type': 'text/html; charset=utf-8',
       vary: 'rsc, next-router-state-tree, next-router-prefetch, next-router-segment-prefetch',
@@ -168,6 +295,35 @@ describe('adapter-config', () => {
       }
     }
 
+    // Verify vendored context files are traced in assets for app-page and pages outputs
+    const appPageOutput = outputs.appPages.find(
+      (output) =>
+        output.pathname === '/docs/node-app' && output.runtime === 'nodejs'
+    )
+    const pagesOutput = outputs.pages.find(
+      (output) =>
+        output.pathname === '/docs/node-pages' && output.runtime === 'nodejs'
+    )
+
+    expect(appPageOutput).toBeDefined()
+    expect(pagesOutput).toBeDefined()
+
+    // Check that vendored context files are included in assets
+    const appPageAssets = Object.values(appPageOutput!.assets)
+    const pagesAssets = Object.values(pagesOutput!.assets)
+
+    const appPageVendoredContexts = appPageAssets.filter((asset) =>
+      asset.includes('vendored/contexts/')
+    )
+    const pagesVendoredContexts = pagesAssets.filter((asset) =>
+      asset.includes('vendored/contexts/')
+    )
+
+    // app-page should have vendored context files traced
+    expect(appPageVendoredContexts.length).toBeGreaterThan(0)
+    // pages should have vendored context files traced
+    expect(pagesVendoredContexts.length).toBeGreaterThan(0)
+
     for (const route of edgeOutputs) {
       try {
         expect(route.id).toBeString()
@@ -185,6 +341,24 @@ describe('adapter-config', () => {
             __NEXT_PREVIEW_MODE_SIGNING_KEY: expect.toBeString(),
           })
         )
+        const edgeRuntime = (
+          route as PageRoutesType & {
+            edgeRuntime?: {
+              modulePath: string
+              entryKey: string
+              handlerExport: string
+            }
+          }
+        ).edgeRuntime
+        expect(edgeRuntime).toEqual(
+          expect.objectContaining({
+            modulePath: expect.toBeString(),
+            entryKey: expect.toBeString(),
+            handlerExport: 'handler',
+          })
+        )
+        expect(edgeRuntime?.entryKey.startsWith('middleware_')).toBe(true)
+        expect(edgeRuntime?.modulePath).toBe(route.filePath)
 
         const stats = await fs.promises.stat(route.filePath)
         expect(stats.isFile()).toBe(true)
@@ -204,11 +378,29 @@ describe('adapter-config', () => {
       }
     }
 
-    expect(routes).toEqual({
+    expect(routing).toEqual({
+      beforeMiddleware: expect.toBeArray(),
+      middlewareMatchers: expect.toBeArray(),
+      beforeFiles: expect.toBeArray(),
+      afterFiles: expect.toBeArray(),
       dynamicRoutes: expect.toBeArray(),
-      rewrites: expect.toBeObject(),
-      redirects: expect.toBeArray(),
-      headers: expect.toBeArray(),
+      onMatch: expect.toBeArray(),
+      fallback: expect.toBeArray(),
+      shouldNormalizeNextData: expect.toBeBoolean(),
+      rsc: expect.toBeObject(),
     })
+  })
+
+  it('should propagate preferredRegion to adapter output', async () => {
+    const { outputs }: Parameters<NextAdapter['onBuildComplete']>[0] =
+      await next.readJSON('build-complete.json')
+
+    const preferredRegionRoute = outputs.appRoutes.find(
+      (output) => output.pathname === '/docs/preferred-region'
+    )
+
+    expect(preferredRegionRoute).toBeDefined()
+    expect(preferredRegionRoute?.runtime).toBe('edge')
+    expect(preferredRegionRoute?.config.preferredRegion).toEqual(['cdg1'])
   })
 })

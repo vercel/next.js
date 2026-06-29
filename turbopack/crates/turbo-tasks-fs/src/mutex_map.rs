@@ -1,8 +1,7 @@
-use std::{collections::hash_map::Entry, hash::Hash, marker::PhantomData};
+use std::{collections::hash_map::Entry, hash::Hash};
 
 use parking_lot::Mutex;
 use rustc_hash::FxHashMap;
-use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use turbo_tasks::event::Event;
 
 pub struct MutexMap<K> {
@@ -79,27 +78,5 @@ impl<K: Eq + Hash> Drop for MutexMapGuard<'_, K> {
                 }
             }
         }
-    }
-}
-
-impl<K> Serialize for MutexMap<K> {
-    fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
-        serializer.serialize_unit()
-    }
-}
-
-impl<'de, K> Deserialize<'de> for MutexMap<K> {
-    fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
-        struct Visitor<K>(PhantomData<MutexMap<K>>);
-        impl<K> serde::de::Visitor<'_> for Visitor<K> {
-            type Value = MutexMap<K>;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
-                formatter.write_str("a unit")
-            }
-            fn visit_unit<E: serde::de::Error>(self) -> Result<Self::Value, E> {
-                Ok(MutexMap::default())
-            }
-        }
-        deserializer.deserialize_unit(Visitor(std::marker::PhantomData))
     }
 }

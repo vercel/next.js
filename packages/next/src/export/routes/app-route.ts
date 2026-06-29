@@ -48,8 +48,12 @@ export async function exportAppRoute(
   htmlFilepath: string,
   fileWriter: MultiFileWriter,
   cacheComponents: boolean,
-  experimental: Required<Pick<ExperimentalConfig, 'authInterrupts'>>,
-  buildId: string
+  staticPageGenerationTimeout: number,
+  experimental: Required<
+    Pick<ExperimentalConfig, 'authInterrupts' | 'useCacheTimeout'>
+  >,
+  buildId: string,
+  deploymentId: string
 ): Promise<ExportRouteResult> {
   // Ensure that the URL is absolute.
   req.url = `http://localhost:3000${req.url}`
@@ -66,34 +70,39 @@ export async function exportAppRoute(
   // the route and the context for the request.
   const context: AppRouteRouteHandlerContext = {
     params,
-    prerenderManifest: {
-      version: 4,
-      routes: {},
-      dynamicRoutes: {},
-      preview: {
-        previewModeEncryptionKey: '',
-        previewModeId: '',
-        previewModeSigningKey: '',
-      },
-      notFoundRoutes: [],
+    previewProps: {
+      previewModeEncryptionKey: '',
+      previewModeId: '',
+      previewModeSigningKey: '',
     },
     renderOpts: {
       cacheComponents,
+      // app-route handlers don't run instant validation, so the level
+      // value is irrelevant here.
+      // TODO: move validationLevel and other global config out of renderOpts
+      validationLevel: 'warning',
       experimental,
-      nextExport: true,
+      isBuildTimePrerendering: true,
       supportsDynamicResponse: false,
       incrementalCache,
       waitUntil: afterRunner.context.waitUntil,
       onClose: afterRunner.context.onClose,
       onAfterTaskError: afterRunner.context.onTaskError,
       cacheLifeProfiles,
+      staticPageGenerationTimeout,
     },
     sharedContext: {
       buildId,
+      deploymentId,
     },
   }
 
   try {
+    // Ensure the userland module is fully loaded before accessing it. This is
+    // required for route files that use top-level await: require() returns a
+    // Promise for async modules, so module.userland would be undefined until
+    // the Promise resolves.
+    await module.ensureUserland()
     const userland = module.userland
     // we don't bail from the static optimization for
     // metadata routes, since it's app-route we can always append /route suffix.

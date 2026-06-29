@@ -67,7 +67,7 @@ export default function Page() {
   async function onSubmit(event) {
     event.preventDefault()
 
-    const formData = new FormData(event.target)
+    const formData = new FormData(event.currentTarget)
     const response = await fetch('/api/submit', {
       method: 'POST',
       body: formData,
@@ -171,7 +171,7 @@ export default function Page() {
     <div>
       {error && <div style={{ color: 'red' }}>{error}</div>}
       <form onSubmit={onSubmit}>
-        <input type="text" name="name" />
+        <input type="text" name="name" required />
         <button type="submit" disabled={isLoading}>
           {isLoading ? 'Loading...' : 'Submit'}
         </button>
@@ -220,7 +220,7 @@ export default function Page() {
     <div>
       {error && <div style={{ color: 'red' }}>{error}</div>}
       <form onSubmit={onSubmit}>
-        <input type="text" name="name" />
+        <input type="text" name="name" required />
         <button type="submit" disabled={isLoading}>
           {isLoading ? 'Loading...' : 'Submit'}
         </button>

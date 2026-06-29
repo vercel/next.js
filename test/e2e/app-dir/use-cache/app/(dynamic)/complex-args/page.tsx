@@ -10,9 +10,9 @@ async function getCached({ p }) {
 export default async function Page({
   searchParams,
 }: {
-  searchParams: Promise<{ n: string }>
+  searchParams: Promise<Record<string, string | string[] | undefined>>
 }) {
-  const n = parseInt((await searchParams).n, 16)
+  const n = parseInt((await searchParams).n as any, 16)
   const p = Promise.resolve(new Uint8Array([n]))
   return <p id="x">{await getCached({ p })}</p>
 }

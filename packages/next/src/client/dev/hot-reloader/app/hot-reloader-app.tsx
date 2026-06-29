@@ -37,6 +37,7 @@ import {
   type GlobalErrorState,
 } from '../../../components/app-router-instance'
 import { InvariantError } from '../../../../shared/lib/invariant-error'
+import { markErrorAsAlreadyLoggedOnServer } from '../../../../next-devtools/shared/forward-logs-shared'
 import { getOrCreateDebugChannelReadableWriterPair } from '../../debug-channel'
 // TODO: Explicitly import from client.browser (doesn't work with Webpack).
 // eslint-disable-next-line import/no-extraneous-dependencies
@@ -52,7 +53,14 @@ const createFromReadableStream =
   createFromReadableStreamBrowser as (typeof import('react-server-dom-webpack/client.browser'))['createFromReadableStream']
 
 let mostRecentCompilationHash: any = null
-let __nextDevClientId = Math.round(Math.random() * 100 + Date.now())
+// The dev client id is only read by the browser-side HMR websocket connection.
+// Compute it only in the browser: there is no client during SSR, and calling
+// `Math.random()`/`Date.now()` at module scope would be tracked as sync IO by
+// Cache Components and advance the render stage.
+let __nextDevClientId =
+  typeof window !== 'undefined'
+    ? Math.round(Math.random() * 100 + Date.now())
+    : 0
 let reloading = false
 let webpackStartMsSinceEpoch: number | null = null
 const turbopackHmr: TurbopackHmr | null = process.env.TURBOPACK
@@ -512,7 +520,10 @@ export function processMessage(
       return
     }
     case HMR_MESSAGE_SENT_TO_BROWSER.ERRORS_TO_SHOW_IN_BROWSER: {
-      createFromReadableStream<Error[]>(
+      createFromReadableStream<{
+        errors: Error[]
+        errorCodes: Map<Error, string>
+      }>(
         new ReadableStream({
           start(controller) {
             controller.enqueue(message.serializedErrors)
@@ -521,8 +532,20 @@ export function processMessage(
         }),
         { findSourceMapURL }
       ).then(
-        (errors) => {
+        ({ errors, errorCodes }) => {
           for (const error of errors) {
+            const code = errorCodes.get(error)
+            if (code !== undefined) {
+              Object.defineProperty(error, '__NEXT_ERROR_CODE', {
+                value: code,
+                enumerable: false,
+                configurable: true,
+              })
+            }
+            // These errors originated on the server and were already logged
+            // there. Mark them so the browser-to-terminal log forwarding
+            // doesn't replay them back to the CLI as duplicates.
+            markErrorAsAlreadyLoggedOnServer(error)
             console.error(error)
           }
         },

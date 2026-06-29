@@ -30,7 +30,12 @@ describe('resume-data-cache', () => {
 
         url.searchParams.set(
           '_rsc',
-          computeCacheBustingSearchParam('1', '/__PAGE__', undefined, undefined)
+          await computeCacheBustingSearchParam(
+            '1',
+            '/__PAGE__',
+            undefined,
+            undefined
+          )
         )
 
         const rsc = await next
@@ -131,4 +136,119 @@ describe('resume-data-cache', () => {
       // between the static and dynamic renders.
     }
   )
+
+  it('should use RDC for server action re-renders', async () => {
+    const browser = await next.browser('/server-action')
+
+    // Get the initial values
+    const initialCachedValue = await browser
+      .elementByCss('#cached-random')
+      .text()
+    const initialUncachedValue = await browser
+      .elementByCss('#uncached-random')
+      .text()
+
+    await browser.elementByCss('#refresh-button').click()
+
+    // Wait for the action to complete and verify:
+    // 1. The uncached value should change
+    // 2. The cached value should remain the same (proving RDC is being used)
+    await retry(async () => {
+      const cachedValueAfterAction = await browser
+        .elementByCss('#cached-random')
+        .text()
+      const uncachedValueAfterAction = await browser
+        .elementByCss('#uncached-random')
+        .text()
+
+      // Uncached value should have changed - this proves the action caused a re-render
+      expect(uncachedValueAfterAction).not.toBe(initialUncachedValue)
+
+      // Cached value should remain the same - this proves the RDC is being used
+      // to maintain consistency during server action re-renders
+      expect(cachedValueAfterAction).toBe(initialCachedValue)
+    })
+  })
+
+  it('should see fresh data after updateTag in server action with use cache', async () => {
+    // This test verifies that when a server action calls updateTag(),
+    // the subsequent re-render sees fresh data instead of stale RDC data.
+    // This is the "read your own writes" behavior for 'use cache'.
+
+    const browser = await next.browser('/revalidate-action')
+
+    // Get the initial cached value from the page render
+    const initialCachedValue = await browser
+      .elementByCss('#cached-value')
+      .text()
+    const initialUncachedValue = await browser
+      .elementByCss('#uncached-value')
+      .text()
+
+    // Click the revalidate button to trigger the server action
+    await browser.elementByCss('#revalidate-button').click()
+
+    // Wait for the re-render and verify:
+    // 1. The uncached value should change (proves re-render happened)
+    // 2. The cached value should ALSO change (proves updateTag was respected)
+    await retry(async () => {
+      const cachedValueAfterAction = await browser
+        .elementByCss('#cached-value')
+        .text()
+      const uncachedValueAfterAction = await browser
+        .elementByCss('#uncached-value')
+        .text()
+
+      // Uncached value should change - this proves the action triggered a re-render
+      expect(uncachedValueAfterAction).not.toBe(initialUncachedValue)
+
+      // Cached value should also change, which proves that the RDC read respected
+      // pendingRevalidatedTags and fetched fresh data instead of returning
+      // the stale value from the RDC.
+      // If this fails, it means the RDC is not respecting updateTag()
+      // calls made during server actions
+      expect(cachedValueAfterAction).not.toBe(initialCachedValue)
+    })
+  })
+
+  it('should see fresh data after updateTag in server action with fetch cache', async () => {
+    // This test verifies that when a server action calls updateTag(),
+    // the subsequent re-render sees fresh data instead of stale RDC data.
+    // This is the "read your own writes" behavior for fetch cache.
+
+    const browser = await next.browser('/revalidate-fetch-action')
+
+    // Get the initial cached value from the page render
+    const initialCachedValue = await browser
+      .elementByCss('#cached-value')
+      .text()
+    const initialUncachedValue = await browser
+      .elementByCss('#uncached-value')
+      .text()
+
+    // Click the revalidate button to trigger the server action
+    await browser.elementByCss('#revalidate-button').click()
+
+    // Wait for the re-render and verify:
+    // 1. The uncached value should change (proves re-render happened)
+    // 2. The cached value should ALSO change (proves updateTag was respected)
+    await retry(async () => {
+      const cachedValueAfterAction = await browser
+        .elementByCss('#cached-value')
+        .text()
+      const uncachedValueAfterAction = await browser
+        .elementByCss('#uncached-value')
+        .text()
+
+      // Uncached value should change - this proves the action triggered a re-render
+      expect(uncachedValueAfterAction).not.toBe(initialUncachedValue)
+
+      // Cached value should also change, which proves that the RDC read respected
+      // pendingRevalidatedTags and fetched fresh data instead of returning
+      // the stale value from the RDC.
+      // If this fails, it means the RDC is not respecting updateTag()
+      // calls made during server actions
+      expect(cachedValueAfterAction).not.toBe(initialCachedValue)
+    })
+  })
 })

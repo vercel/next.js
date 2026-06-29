@@ -18,6 +18,7 @@ export type HtmlProps = {
   }
   buildManifest: BuildManifest
   isDevelopment: boolean
+  deploymentId: string | undefined
   dynamicImports: string[]
   /**
    * This manifest is only needed for Pages dir, Production, Webpack
@@ -29,6 +30,12 @@ export type HtmlProps = {
   unstable_runtimeJS?: false
   unstable_JsPreload?: false
   assetQueryString: string
+  mutableAssetQueryString: string
+  /**
+   * Asset query string for CSS and font assets.
+   * See https://github.com/vercel/next.js/issues/92118.
+   */
+  cssAssetQueryString: string
   scriptLoader: {
     afterInteractive?: string[]
     beforeInteractive?: any[]

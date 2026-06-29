@@ -5,6 +5,7 @@ import type { FetchMetric } from '../base-http'
 import type { RequestLifecycleOpts } from '../base-server'
 import type { AppSegmentConfig } from '../../build/segment-config/app/app-segment-config'
 import type { CacheLife } from '../use-cache/cache-life'
+import type { ValidationLevel } from '../config-shared'
 
 import { AfterContext } from '../after/after-context'
 
@@ -23,15 +24,17 @@ export type WorkStoreContext = {
   nonce?: string
   renderOpts: {
     cacheLifeProfiles?: { [profile: string]: CacheLife }
+    staticPageGenerationTimeout: number
     incrementalCache?: IncrementalCache
     isOnDemandRevalidate?: boolean
     cacheComponents: boolean
+    validationLevel: ValidationLevel
     fetchCache?: AppSegmentConfig['fetchCache']
     isPossibleServerAction?: boolean
     pendingWaitUntil?: Promise<any>
     experimental: Pick<
       RenderOpts['experimental'],
-      'isRoutePPREnabled' | 'authInterrupts'
+      'isRoutePPREnabled' | 'authInterrupts' | 'useCacheTimeout'
     >
 
     /**
@@ -55,14 +58,17 @@ export type WorkStoreContext = {
     | 'assetPrefix'
     | 'supportsDynamicResponse'
     | 'shouldWaitOnAllReady'
-    | 'nextExport'
+    | 'isBuildTimePrerendering'
     | 'isDraftMode'
     | 'isDebugDynamicAccesses'
-    | 'dev'
-    | 'hasReadableErrorStacks'
   > &
     RequestLifecycleOpts &
     Partial<Pick<RenderOpts, 'reactLoadableManifest'>>
+
+  /**
+   * The deployment ID of the current build.
+   */
+  deploymentId: string
 
   /**
    * The build ID of the current build.
@@ -79,6 +85,7 @@ export function createWorkStore({
   renderOpts,
   isPrefetchRequest,
   buildId,
+  deploymentId,
   previouslyRevalidatedTags,
   nonce,
 }: WorkStoreContext): WorkStore {
@@ -105,10 +112,8 @@ export function createWorkStore({
     !renderOpts.isDraftMode &&
     !renderOpts.isPossibleServerAction
 
-  const isDevelopment = renderOpts.dev ?? false
-
   const shouldTrackFetchMetrics =
-    isDevelopment ||
+    !!process.env.__NEXT_DEV_SERVER ||
     // The only times we want to track fetch metrics outside of development is
     // when we are performing a static generation and we either are in debug
     // mode, or tracking fetch metrics was specifically opted into.
@@ -125,8 +130,9 @@ export function createWorkStore({
       // so that it can access the fs cache without mocks
       renderOpts.incrementalCache || (globalThis as any).__incrementalCache,
     cacheLifeProfiles: renderOpts.cacheLifeProfiles,
-    isBuildTimePrerendering: renderOpts.nextExport,
-    hasReadableErrorStacks: renderOpts.hasReadableErrorStacks,
+    useCacheTimeout: renderOpts.experimental.useCacheTimeout,
+    staticPageGenerationTimeout: renderOpts.staticPageGenerationTimeout,
+    isBuildTimePrerendering: renderOpts.isBuildTimePrerendering,
     fetchCache: renderOpts.fetchCache,
     isOnDemandRevalidate: renderOpts.isOnDemandRevalidate,
 
@@ -134,13 +140,14 @@ export function createWorkStore({
 
     isPrefetchRequest,
     buildId,
+    deploymentId,
     reactLoadableManifest: renderOpts?.reactLoadableManifest || {},
     assetPrefix: renderOpts?.assetPrefix || '',
     nonce,
 
     afterContext: createAfterContext(renderOpts),
     cacheComponentsEnabled: renderOpts.cacheComponents,
-    dev: isDevelopment,
+    validationLevel: renderOpts.validationLevel,
     previouslyRevalidatedTags,
     refreshTagsByCacheKind: createRefreshTagsByCacheKind(),
     runInCleanSnapshot: createSnapshot(),

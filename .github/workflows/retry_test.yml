@@ -18,7 +18,7 @@ permissions:
 jobs:
   retry-on-failure:
     name: retry failed jobs
-    # Retry the build-and-test workflow up to 3 times
+    # Retry the build-and-test workflow up to 2 times
     if: >-
       ${{ 
         github.event.workflow_run.conclusion == 'failure' &&
@@ -29,7 +29,7 @@ jobs:
     steps:
       - name: Check conclusion of required job
         id: required_job_conclusion
-        uses: actions/github-script@v7
+        uses: actions/github-script@d746ffe35508b1917358783b479e04febd2b8f71 # v9.0.0
         continue-on-error: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -95,7 +95,7 @@ jobs:
     steps:
       - name: Check conclusion of required job
         id: required_job_conclusion
-        uses: actions/github-script@v7
+        uses: actions/github-script@d746ffe35508b1917358783b479e04febd2b8f71 # v9.0.0
         continue-on-error: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -138,7 +138,7 @@ jobs:
             return await rerunIfRequiredNotSuccessful()
       - name: send webhook
         if: ${{ steps.required_job_conclusion.outputs.result != '"success"' }}
-        uses: slackapi/slack-github-action@v1.25.0
+        uses: slackapi/slack-github-action@6c661ce58804a1a20f6dc5fbee7f0381b469e001 # v1.25.0
         with:
           # These urls are intentionally missing the protocol,
           # allowing them to be transformed into actual links in the Slack workflow

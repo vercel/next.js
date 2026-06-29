@@ -2,7 +2,7 @@ import { DEFAULT_SEGMENT_KEY } from '../../segment'
 import type { LoaderTree } from '../../../../server/lib/app-dir-module'
 
 export function parseLoaderTree(tree: LoaderTree) {
-  const [segment, parallelRoutes, modules] = tree
+  const [segment, parallelRoutes, modules, staticSiblings] = tree
   const { layout, template } = modules
   let { page } = modules
   // a __DEFAULT__ segment means that this route didn't match any of the
@@ -18,5 +18,6 @@ export function parseLoaderTree(tree: LoaderTree) {
     /* it can be either layout / template / page */
     conventionPath,
     parallelRoutes,
+    staticSiblings,
   }
 }

@@ -1,30 +1,22 @@
-import url from 'url'
 import { join } from 'path'
-import webdriver from 'next-webdriver'
-import { createNext, FileRef } from 'e2e-utils'
-import { NextInstance } from 'e2e-utils'
+import { FileRef, nextTestSetup } from 'e2e-utils'
 import { fetchViaHTTP, renderViaHTTP } from 'next-test-utils'
 
 describe.each([[''], ['/docs']])(
   'misc basic dev tests, basePath: %p',
   (basePath: string) => {
-    let next: NextInstance
-
-    beforeAll(async () => {
-      next = await createNext({
-        files: {
-          pages: new FileRef(join(__dirname, 'misc/pages')),
-          public: new FileRef(join(__dirname, 'misc/public')),
-        },
-        nextConfig: {
-          basePath,
-        },
-      })
+    const { next } = nextTestSetup({
+      files: {
+        pages: new FileRef(join(__dirname, 'misc/pages')),
+        public: new FileRef(join(__dirname, 'misc/public')),
+      },
+      nextConfig: {
+        basePath,
+      },
     })
-    afterAll(() => next.destroy())
 
     it('should set process.env.NODE_ENV in development', async () => {
-      const browser = await webdriver(next.url, basePath + '/process-env')
+      const browser = await next.browser(basePath + '/process-env')
       const nodeEnv = await browser.elementByCss('#node-env').text()
       expect(nodeEnv).toBe('development')
       await browser.close()
@@ -69,7 +61,7 @@ describe.each([[''], ['/docs']])(
           }
         )
 
-        const { pathname, hostname } = url.parse(
+        const { pathname, hostname } = new URL(
           res.headers.get('location') || ''
         )
         expect(res.status).toBe(308)

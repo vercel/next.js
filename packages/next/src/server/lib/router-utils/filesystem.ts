@@ -9,6 +9,7 @@ import type { MiddlewareManifest } from '../../../build/webpack/plugins/middlewa
 import type { UnwrapPromise } from '../../../lib/coalesced-function'
 import type { PatchMatcher } from '../../../shared/lib/router/utils/path-match'
 import type { MiddlewareRouteMatch } from '../../../shared/lib/router/utils/middleware-route-matcher'
+import type { __ApiPreviewProps } from '../../api-utils'
 
 import path from 'path'
 import fs from 'fs/promises'
@@ -54,6 +55,7 @@ export type FsOutput = {
     | 'publicFolder'
     | 'nextStaticFolder'
     | 'legacyStaticFolder'
+    | 'serviceWorker'
     | 'devVirtualFsItem'
 
   itemPath: string
@@ -113,7 +115,10 @@ export async function setupFsCheck(opts: {
 }) {
   const getItemsLru = !opts.dev
     ? new LRUCache<FsOutput | null>(1024 * 1024, function length(value) {
-        if (!value) return 0
+        if (!value) {
+          // Null entries (negative cache) still need a non-zero size for LRU eviction
+          return 1
+        }
         return (
           (value.fsPath || '').length +
           value.itemPath.length +
@@ -127,6 +132,7 @@ export async function setupFsCheck(opts: {
   const publicFolderItems = new Set<string>()
   const nextStaticFolderItems = new Set<string>()
   const legacyStaticFolderItems = new Set<string>()
+  const serviceWorkerItems = new Set<string>()
 
   const appFiles = new Set<string>()
   const pageFiles = new Set<string>()
@@ -149,6 +155,7 @@ export async function setupFsCheck(opts: {
   const publicFolderPath = path.join(opts.dir, 'public')
   const nextStaticFolderPath = path.join(distDir, 'static')
   const legacyStaticFolderPath = path.join(opts.dir, 'static')
+  const serviceWorkerFolderPath = path.join(distDir, 'service-worker')
   let customRoutes: UnwrapPromise<ReturnType<typeof loadCustomRoutes>> = {
     redirects: [],
     rewrites: {
@@ -156,10 +163,11 @@ export async function setupFsCheck(opts: {
       afterFiles: [],
       fallback: [],
     },
+    onMatchHeaders: [],
     headers: [],
   }
   let buildId = 'development'
-  let prerenderManifest: PrerenderManifest
+  let previewProps: __ApiPreviewProps
 
   if (!opts.dev) {
     const buildIdPath = path.join(opts.dir, opts.config.distDir, BUILD_ID_FILE)
@@ -211,6 +219,16 @@ export async function setupFsCheck(opts: {
       if (opts.config.output !== 'standalone') throw err
     }
 
+    try {
+      for (const file of await recursiveReadDir(serviceWorkerFolderPath)) {
+        serviceWorkerItems.add(encodeURIPath(normalizePathSep(file)))
+      }
+    } catch (err: any) {
+      if (err.code !== 'ENOENT') {
+        throw err
+      }
+    }
+
     const routesManifestPath = path.join(distDir, ROUTES_MANIFEST)
     const prerenderManifestPath = path.join(distDir, PRERENDER_MANIFEST)
     const middlewareManifestPath = path.join(
@@ -230,9 +248,11 @@ export async function setupFsCheck(opts: {
       await fs.readFile(routesManifestPath, 'utf8')
     ) as RoutesManifest
 
-    prerenderManifest = JSON.parse(
-      await fs.readFile(prerenderManifestPath, 'utf8')
-    ) as PrerenderManifest
+    previewProps = (
+      JSON.parse(
+        await fs.readFile(prerenderManifestPath, 'utf8')
+      ) as PrerenderManifest
+    ).preview
 
     const middlewareManifest = JSON.parse(
       await fs.readFile(middlewareManifestPath, 'utf8').catch(() => '{}')
@@ -334,31 +354,34 @@ export async function setupFsCheck(opts: {
             fallback: [],
           },
       headers: routesManifest.headers,
+      onMatchHeaders: routesManifest.onMatchHeaders,
     }
   } else {
     // dev handling
     customRoutes = await loadCustomRoutes(opts.config)
 
-    prerenderManifest = {
-      version: 4,
-      routes: {},
-      dynamicRoutes: {},
-      notFoundRoutes: [],
-      preview: {
-        previewModeId: (require('crypto') as typeof import('crypto'))
-          .randomBytes(16)
-          .toString('hex'),
-        previewModeSigningKey: (require('crypto') as typeof import('crypto'))
-          .randomBytes(32)
-          .toString('hex'),
-        previewModeEncryptionKey: (require('crypto') as typeof import('crypto'))
-          .randomBytes(32)
-          .toString('hex'),
-      },
+    previewProps = {
+      previewModeId: (require('crypto') as typeof import('crypto'))
+        .randomBytes(16)
+        .toString('hex'),
+      previewModeSigningKey: (require('crypto') as typeof import('crypto'))
+        .randomBytes(32)
+        .toString('hex'),
+      previewModeEncryptionKey: (require('crypto') as typeof import('crypto'))
+        .randomBytes(32)
+        .toString('hex'),
     }
   }
 
   const headers = customRoutes.headers.map((item) =>
+    buildCustomRoute(
+      'header',
+      item,
+      opts.config.basePath,
+      opts.config.experimental.caseSensitiveRoutes
+    )
+  )
+  const onMatchHeaders = customRoutes.onMatchHeaders.map((item) =>
     buildCustomRoute(
       'header',
       item,
@@ -415,6 +438,7 @@ export async function setupFsCheck(opts: {
   debug('customRoutes', customRoutes)
   debug('publicFolderItems', publicFolderItems)
   debug('nextStaticFolderItems', nextStaticFolderItems)
+  debug('serviceWorkerItems', serviceWorkerItems)
   debug('pageFiles', pageFiles)
   debug('appFiles', appFiles)
 
@@ -428,6 +452,7 @@ export async function setupFsCheck(opts: {
 
   return {
     headers,
+    onMatchHeaders,
     rewrites,
     redirects,
 
@@ -446,7 +471,7 @@ export async function setupFsCheck(opts: {
 
     devVirtualFsItems: new Set<string>(),
 
-    prerenderManifest,
+    previewProps,
     middlewareMatcher: middlewareMatcher as MiddlewareRouteMatch | undefined,
 
     ensureCallback(fn: typeof ensureFn) {
@@ -515,6 +540,7 @@ export async function setupFsCheck(opts: {
 
       const itemsToCheck: Array<[Set<string>, FsOutput['type']]> = [
         [this.devVirtualFsItems, 'devVirtualFsItem'],
+        [serviceWorkerItems, 'serviceWorker'],
         [nextStaticFolderItems, 'nextStaticFolder'],
         [legacyStaticFolderItems, 'legacyStaticFolder'],
         [publicFolderItems, 'publicFolder'],
@@ -638,6 +664,10 @@ export async function setupFsCheck(opts: {
               itemsRoot = publicFolderPath
               break
             }
+            case 'serviceWorker': {
+              itemsRoot = serviceWorkerFolderPath
+              break
+            }
             case 'appFile':
             case 'pageFile':
             case 'nextImage':
@@ -661,6 +691,7 @@ export async function setupFsCheck(opts: {
                 'nextStaticFolder',
                 'publicFolder',
                 'legacyStaticFolder',
+                'serviceWorker',
               ] as (typeof type)[]
             ).includes(type)
 

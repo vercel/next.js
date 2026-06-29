@@ -1,0 +1,25 @@
+import type { Instant } from 'next'
+import { cookies } from 'next/headers'
+import { ClientChild } from './client'
+
+export const instant: Instant = {
+  level: 'experimental-error',
+  unstable_samples: [
+    {
+      cookies: [{ name: 'testCookie', value: 'testValue' }],
+    },
+  ],
+}
+export const prefetch = 'allow-runtime'
+
+export default async function Page() {
+  return (
+    <main>
+      <p>
+        Passing the whole cookies object to the client is generally a bad idea,
+        but it shouldn't crash validation, so we still do it
+      </p>
+      <ClientChild cookieStore={await cookies()} />
+    </main>
+  )
+}

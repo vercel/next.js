@@ -62,6 +62,7 @@ export function omitUnusedArgs(
   info: ServerReferenceInfo
 ): unknown[] {
   const filteredArgs = new Array(args.length)
+  let length = 0
 
   for (let index = 0; index < args.length; index++) {
     if (
@@ -71,8 +72,12 @@ export function omitUnusedArgs(
       (index >= 6 && info.hasRestArgs)
     ) {
       filteredArgs[index] = args[index]
+      length = index + 1
     }
   }
+
+  // Trim trailing unused args from the array.
+  filteredArgs.length = length
 
   return filteredArgs
 }

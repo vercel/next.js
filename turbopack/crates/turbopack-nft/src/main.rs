@@ -1,4 +1,3 @@
-#![feature(future_join)]
 #![feature(min_specialization)]
 
 use std::env::current_dir;

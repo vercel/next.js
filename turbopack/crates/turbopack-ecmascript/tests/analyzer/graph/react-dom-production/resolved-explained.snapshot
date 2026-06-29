@@ -427,9 +427,7 @@ Bj = (???*0* | (...) => undefined)
 - *0* Bj
   ⚠️  pattern without value
 
-Bk = (???*0* | module<scheduler, {}>["unstable_now"]())
-- *0* unsupported expression
-  ⚠️  This value might have side effects
+Bk = (-1 | module<scheduler, {}>["unstable_now"]())
 
 C = (
   | 0
@@ -1056,12 +1054,10 @@ Kj = ???*0*
 
 Kk = (...) => ((null === a) ? ai : a)
 
-L = (...) => ((0 !== ???*0*) ? B() : ((???*1* !== Bk) ? Bk : ???*2*))
+L = (...) => ((0 !== ???*0*) ? B() : ((-1 !== Bk) ? Bk : ???*1*))
 - *0* unsupported expression
   ⚠️  This value might have side effects
-- *1* unsupported expression
-  ⚠️  This value might have side effects
-- *2* assignment expression
+- *1* assignment expression
   ⚠️  This value might have side effects
 
 La = (???*0* | ???*1* | undefined | ???*6* | undefined[1] | "")
@@ -1983,10 +1979,8 @@ Td = (...) => ???*0*
 
 Te = (false | true)
 
-Tf = (???*0* | ???*1*)
-- *0* unsupported expression
-  ⚠️  This value might have side effects
-- *1* updated with update expression
+Tf = (-1 | ???*0*)
+- *0* updated with update expression
   ⚠️  This value might have side effects
 
 Tg = (...) => undefined
@@ -8613,12 +8607,10 @@ b#587 = (???*0* | (13 === ???*1*) | ???*3* | (???*5* ? ???*7* : true))
 
 b#589 = (
   | ???*0*
-  | {"eventTime": ???*1*, "lane": 1, "tag": 0, "payload": null, "callback": null, "next": null}
+  | {"eventTime": -1, "lane": 1, "tag": 0, "payload": null, "callback": null, "next": null}
 )
 - *0* arguments[1]
   ⚠️  function calls are not analyzed yet
-- *1* unsupported expression
-  ⚠️  This value might have side effects
 
 b#590 = ???*0*
 - *0* arguments[1]
@@ -9150,21 +9142,15 @@ b#915 = (???*0* | (???*1* ? ???*3* : ???*4*))
   ⚠️  This value might have side effects
 - *3* module<scheduler, {}>["unstable_now"]()
   ⚠️  nested operation
-- *4* (???*5* ? (???*9* | ???*10*) : ???*11*)
+- *4* (???*5* ? (-1 | ???*7*) : ???*8*)
   ⚠️  nested operation
-- *5* (???*6* !== (???*7* | ???*8*))
+- *5* (-1 !== (-1 | ???*6*))
   ⚠️  nested operation
-- *6* unsupported expression
-  ⚠️  This value might have side effects
-- *7* unsupported expression
-  ⚠️  This value might have side effects
-- *8* module<scheduler, {}>["unstable_now"]()
+- *6* module<scheduler, {}>["unstable_now"]()
   ⚠️  nested operation
-- *9* unsupported expression
-  ⚠️  This value might have side effects
-- *10* module<scheduler, {}>["unstable_now"]()
+- *7* module<scheduler, {}>["unstable_now"]()
   ⚠️  nested operation
-- *11* assignment expression
+- *8* assignment expression
   ⚠️  This value might have side effects
 
 b#916 = (???*0* | 1 | 4194304 | ???*1*)
@@ -9313,18 +9299,18 @@ b#961 = (
         "eventTime": (???*1* ? ???*3* : ???*4*),
         "lane": (
           | 1
-          | ???*12*
-          | ???*13*
-          | ???*14*
+          | ???*9*
+          | ???*10*
+          | ???*11*
           | 0
-          | ???*16*
+          | ???*13*
           | 4
           | undefined
-          | ((???*17* | ???*19*) ? ???*20* : 4)
-          | (???*21* ? 16 : (???*22* | undefined | null | ???*29* | ???*30*))
-          | ???*32*
-          | ???*33*
-          | (???*35* ? 16 : (1 | 4 | 16 | 536870912 | undefined))
+          | ((???*14* | ???*16*) ? ???*17* : 4)
+          | (???*18* ? 16 : (???*19* | undefined | null | ???*26* | ???*27*))
+          | ???*29*
+          | ???*30*
+          | (???*32* ? 16 : (1 | 4 | 16 | 536870912 | undefined))
         ),
         "tag": 0,
         "payload": null,
@@ -9340,74 +9326,68 @@ b#961 = (
   ⚠️  This value might have side effects
 - *3* module<scheduler, {}>["unstable_now"]()
   ⚠️  nested operation
-- *4* (???*5* ? (???*9* | ???*10*) : ???*11*)
+- *4* (???*5* ? (-1 | ???*7*) : ???*8*)
   ⚠️  nested operation
-- *5* (???*6* !== (???*7* | ???*8*))
+- *5* (-1 !== (-1 | ???*6*))
   ⚠️  nested operation
-- *6* unsupported expression
+- *6* module<scheduler, {}>["unstable_now"]()
+  ⚠️  nested operation
+- *7* module<scheduler, {}>["unstable_now"]()
+  ⚠️  nested operation
+- *8* assignment expression
   ⚠️  This value might have side effects
-- *7* unsupported expression
-  ⚠️  This value might have side effects
-- *8* module<scheduler, {}>["unstable_now"]()
-  ⚠️  nested operation
 - *9* unsupported expression
   ⚠️  This value might have side effects
-- *10* module<scheduler, {}>["unstable_now"]()
-  ⚠️  nested operation
-- *11* assignment expression
-  ⚠️  This value might have side effects
-- *12* unsupported expression
-  ⚠️  This value might have side effects
-- *13* Ck
+- *10* Ck
   ⚠️  sequence with side effects
   ⚠️  This value might have side effects
-- *14* ???*15*["current"]
+- *11* ???*12*["current"]
   ⚠️  unknown object
-- *15* b
+- *12* b
   ⚠️  circular variable reference
-- *16* C
+- *13* C
   ⚠️  circular variable reference
-- *17* (0 !== ???*18*)
+- *14* (0 !== ???*15*)
   ⚠️  nested operation
-- *18* C
+- *15* C
   ⚠️  circular variable reference
-- *19* unsupported expression
+- *16* unsupported expression
   ⚠️  This value might have side effects
-- *20* C
+- *17* C
   ⚠️  circular variable reference
-- *21* unsupported expression
+- *18* unsupported expression
   ⚠️  This value might have side effects
-- *22* (???*23* ? ???*24* : 1)
+- *19* (???*20* ? ???*21* : 1)
   ⚠️  nested operation
-- *23* unsupported expression
+- *20* unsupported expression
   ⚠️  This value might have side effects
-- *24* (???*25* ? ???*26* : 4)
+- *21* (???*22* ? ???*23* : 4)
+  ⚠️  nested operation
+- *22* unsupported expression
+  ⚠️  This value might have side effects
+- *23* (???*24* ? 16 : 536870912)
+  ⚠️  nested operation
+- *24* (0 !== ???*25*)
   ⚠️  nested operation
 - *25* unsupported expression
   ⚠️  This value might have side effects
-- *26* (???*27* ? 16 : 536870912)
-  ⚠️  nested operation
-- *27* (0 !== ???*28*)
-  ⚠️  nested operation
-- *28* unsupported expression
-  ⚠️  This value might have side effects
+- *26* arguments[0]
+  ⚠️  function calls are not analyzed yet
+- *27* ???*28*["value"]
+  ⚠️  unknown object
+- *28* arguments[1]
+  ⚠️  function calls are not analyzed yet
 - *29* arguments[0]
   ⚠️  function calls are not analyzed yet
-- *30* ???*31*["value"]
-  ⚠️  unknown object
-- *31* arguments[1]
-  ⚠️  function calls are not analyzed yet
-- *32* arguments[0]
-  ⚠️  function calls are not analyzed yet
-- *33* ???*34*["event"]
+- *30* ???*31*["event"]
   ⚠️  unknown object
   ⚠️  This value might have side effects
-- *34* FreeVar(window)
+- *31* FreeVar(window)
   ⚠️  unknown global
   ⚠️  This value might have side effects
-- *35* (undefined === ???*36*)
+- *32* (undefined === ???*33*)
   ⚠️  nested operation
-- *36* a
+- *33* a
   ⚠️  circular variable reference
 
 b#963 = ???*0*
@@ -10530,21 +10510,15 @@ c#419 = (???*0* ? ???*2* : ???*3*)
   ⚠️  This value might have side effects
 - *2* module<scheduler, {}>["unstable_now"]()
   ⚠️  nested operation
-- *3* (???*4* ? (???*8* | ???*9*) : ???*10*)
+- *3* (???*4* ? (-1 | ???*6*) : ???*7*)
   ⚠️  nested operation
-- *4* (???*5* !== (???*6* | ???*7*))
+- *4* (-1 !== (-1 | ???*5*))
   ⚠️  nested operation
-- *5* unsupported expression
-  ⚠️  This value might have side effects
-- *6* unsupported expression
-  ⚠️  This value might have side effects
-- *7* module<scheduler, {}>["unstable_now"]()
+- *5* module<scheduler, {}>["unstable_now"]()
   ⚠️  nested operation
-- *8* unsupported expression
-  ⚠️  This value might have side effects
-- *9* module<scheduler, {}>["unstable_now"]()
+- *6* module<scheduler, {}>["unstable_now"]()
   ⚠️  nested operation
-- *10* assignment expression
+- *7* assignment expression
   ⚠️  This value might have side effects
 
 c#420 = ???*0*
@@ -11459,24 +11433,20 @@ c#576 = ???*0*
 
 c#578 = (
   | ???*0*
-  | {"eventTime": ???*1*, "lane": ???*2*, "tag": 0, "payload": null, "callback": null, "next": null}
+  | {"eventTime": -1, "lane": ???*1*, "tag": 0, "payload": null, "callback": null, "next": null}
 )
 - *0* arguments[2]
   ⚠️  function calls are not analyzed yet
-- *1* unsupported expression
-  ⚠️  This value might have side effects
-- *2* c
+- *1* c
   ⚠️  circular variable reference
 
 c#580 = (
   | ???*0*
-  | {"eventTime": ???*1*, "lane": ???*2*, "tag": 0, "payload": null, "callback": null, "next": null}
+  | {"eventTime": -1, "lane": ???*1*, "tag": 0, "payload": null, "callback": null, "next": null}
 )
 - *0* arguments[2]
   ⚠️  function calls are not analyzed yet
-- *1* unsupported expression
-  ⚠️  This value might have side effects
-- *2* c
+- *1* c
   ⚠️  circular variable reference
 
 c#584 = ???*0*
@@ -12059,21 +12029,15 @@ c#916 = (???*0* ? ???*2* : ???*3*)
   ⚠️  This value might have side effects
 - *2* module<scheduler, {}>["unstable_now"]()
   ⚠️  nested operation
-- *3* (???*4* ? (???*8* | ???*9*) : ???*10*)
+- *3* (???*4* ? (-1 | ???*6*) : ???*7*)
   ⚠️  nested operation
-- *4* (???*5* !== (???*6* | ???*7*))
+- *4* (-1 !== (-1 | ???*5*))
   ⚠️  nested operation
-- *5* unsupported expression
-  ⚠️  This value might have side effects
-- *6* unsupported expression
-  ⚠️  This value might have side effects
-- *7* module<scheduler, {}>["unstable_now"]()
+- *5* module<scheduler, {}>["unstable_now"]()
   ⚠️  nested operation
-- *8* unsupported expression
-  ⚠️  This value might have side effects
-- *9* module<scheduler, {}>["unstable_now"]()
+- *6* module<scheduler, {}>["unstable_now"]()
   ⚠️  nested operation
-- *10* assignment expression
+- *7* assignment expression
   ⚠️  This value might have side effects
 
 c#917 = (0 | ???*0*)
@@ -12270,21 +12234,15 @@ c#992 = ((???*0* ? ???*2* : ???*3*) | undefined)
   ⚠️  This value might have side effects
 - *2* module<scheduler, {}>["unstable_now"]()
   ⚠️  nested operation
-- *3* (???*4* ? (???*8* | ???*9*) : ???*10*)
+- *3* (???*4* ? (-1 | ???*6*) : ???*7*)
   ⚠️  nested operation
-- *4* (???*5* !== (???*6* | ???*7*))
+- *4* (-1 !== (-1 | ???*5*))
   ⚠️  nested operation
-- *5* unsupported expression
-  ⚠️  This value might have side effects
-- *6* unsupported expression
-  ⚠️  This value might have side effects
-- *7* module<scheduler, {}>["unstable_now"]()
+- *5* module<scheduler, {}>["unstable_now"]()
   ⚠️  nested operation
-- *8* unsupported expression
-  ⚠️  This value might have side effects
-- *9* module<scheduler, {}>["unstable_now"]()
+- *6* module<scheduler, {}>["unstable_now"]()
   ⚠️  nested operation
-- *10* assignment expression
+- *7* assignment expression
   ⚠️  This value might have side effects
 
 c#994 = ((???*0* ? ???*2* : ???*3*) | undefined)
@@ -12294,21 +12252,15 @@ c#994 = ((???*0* ? ???*2* : ???*3*) | undefined)
   ⚠️  This value might have side effects
 - *2* module<scheduler, {}>["unstable_now"]()
   ⚠️  nested operation
-- *3* (???*4* ? (???*8* | ???*9*) : ???*10*)
+- *3* (???*4* ? (-1 | ???*6*) : ???*7*)
   ⚠️  nested operation
-- *4* (???*5* !== (???*6* | ???*7*))
+- *4* (-1 !== (-1 | ???*5*))
   ⚠️  nested operation
-- *5* unsupported expression
-  ⚠️  This value might have side effects
-- *6* unsupported expression
-  ⚠️  This value might have side effects
-- *7* module<scheduler, {}>["unstable_now"]()
+- *5* module<scheduler, {}>["unstable_now"]()
   ⚠️  nested operation
-- *8* unsupported expression
-  ⚠️  This value might have side effects
-- *9* module<scheduler, {}>["unstable_now"]()
+- *6* module<scheduler, {}>["unstable_now"]()
   ⚠️  nested operation
-- *10* assignment expression
+- *7* assignment expression
   ⚠️  This value might have side effects
 
 c#997 = ((???*0* ? ???*4* : null) | undefined)
@@ -12943,21 +12895,15 @@ d#417 = (???*0* ? ???*2* : ???*3*)
   ⚠️  This value might have side effects
 - *2* module<scheduler, {}>["unstable_now"]()
   ⚠️  nested operation
-- *3* (???*4* ? (???*8* | ???*9*) : ???*10*)
+- *3* (???*4* ? (-1 | ???*6*) : ???*7*)
   ⚠️  nested operation
-- *4* (???*5* !== (???*6* | ???*7*))
+- *4* (-1 !== (-1 | ???*5*))
   ⚠️  nested operation
-- *5* unsupported expression
-  ⚠️  This value might have side effects
-- *6* unsupported expression
-  ⚠️  This value might have side effects
-- *7* module<scheduler, {}>["unstable_now"]()
+- *5* module<scheduler, {}>["unstable_now"]()
   ⚠️  nested operation
-- *8* unsupported expression
-  ⚠️  This value might have side effects
-- *9* module<scheduler, {}>["unstable_now"]()
+- *6* module<scheduler, {}>["unstable_now"]()
   ⚠️  nested operation
-- *10* assignment expression
+- *7* assignment expression
   ⚠️  This value might have side effects
 
 d#418 = (???*0* ? ???*2* : ???*3*)
@@ -12967,21 +12913,15 @@ d#418 = (???*0* ? ???*2* : ???*3*)
   ⚠️  This value might have side effects
 - *2* module<scheduler, {}>["unstable_now"]()
   ⚠️  nested operation
-- *3* (???*4* ? (???*8* | ???*9*) : ???*10*)
+- *3* (???*4* ? (-1 | ???*6*) : ???*7*)
   ⚠️  nested operation
-- *4* (???*5* !== (???*6* | ???*7*))
+- *4* (-1 !== (-1 | ???*5*))
   ⚠️  nested operation
-- *5* unsupported expression
-  ⚠️  This value might have side effects
-- *6* unsupported expression
-  ⚠️  This value might have side effects
-- *7* module<scheduler, {}>["unstable_now"]()
+- *5* module<scheduler, {}>["unstable_now"]()
   ⚠️  nested operation
-- *8* unsupported expression
-  ⚠️  This value might have side effects
-- *9* module<scheduler, {}>["unstable_now"]()
+- *6* module<scheduler, {}>["unstable_now"]()
   ⚠️  nested operation
-- *10* assignment expression
+- *7* assignment expression
   ⚠️  This value might have side effects
 
 d#419 = (
@@ -14680,21 +14620,15 @@ d#960 = (???*0* | (???*1* ? ???*3* : ???*4*))
   ⚠️  This value might have side effects
 - *3* module<scheduler, {}>["unstable_now"]()
   ⚠️  nested operation
-- *4* (???*5* ? (???*9* | ???*10*) : ???*11*)
+- *4* (???*5* ? (-1 | ???*7*) : ???*8*)
   ⚠️  nested operation
-- *5* (???*6* !== (???*7* | ???*8*))
+- *5* (-1 !== (-1 | ???*6*))
   ⚠️  nested operation
-- *6* unsupported expression
-  ⚠️  This value might have side effects
-- *7* unsupported expression
-  ⚠️  This value might have side effects
-- *8* module<scheduler, {}>["unstable_now"]()
+- *6* module<scheduler, {}>["unstable_now"]()
   ⚠️  nested operation
-- *9* unsupported expression
-  ⚠️  This value might have side effects
-- *10* module<scheduler, {}>["unstable_now"]()
+- *7* module<scheduler, {}>["unstable_now"]()
   ⚠️  nested operation
-- *11* assignment expression
+- *8* assignment expression
   ⚠️  This value might have side effects
 
 d#961 = (???*0* | (???*1* ? null : ???*3*))
@@ -14722,21 +14656,15 @@ d#997 = ((???*0* ? ???*2* : ???*3*) | undefined)
   ⚠️  This value might have side effects
 - *2* module<scheduler, {}>["unstable_now"]()
   ⚠️  nested operation
-- *3* (???*4* ? (???*8* | ???*9*) : ???*10*)
+- *3* (???*4* ? (-1 | ???*6*) : ???*7*)
   ⚠️  nested operation
-- *4* (???*5* !== (???*6* | ???*7*))
+- *4* (-1 !== (-1 | ???*5*))
   ⚠️  nested operation
-- *5* unsupported expression
-  ⚠️  This value might have side effects
-- *6* unsupported expression
-  ⚠️  This value might have side effects
-- *7* module<scheduler, {}>["unstable_now"]()
+- *5* module<scheduler, {}>["unstable_now"]()
   ⚠️  nested operation
-- *8* unsupported expression
-  ⚠️  This value might have side effects
-- *9* module<scheduler, {}>["unstable_now"]()
+- *6* module<scheduler, {}>["unstable_now"]()
   ⚠️  nested operation
-- *10* assignment expression
+- *7* assignment expression
   ⚠️  This value might have side effects
 
 da = new ???*0*()
@@ -15635,18 +15563,18 @@ e#419 = {
     "eventTime": (???*0* ? ???*2* : ???*3*),
     "lane": (
       | 1
+      | ???*8*
+      | ???*9*
+      | ???*10*
       | ???*11*
-      | ???*12*
-      | ???*13*
-      | ???*14*
       | 0
-      | ???*16*
+      | ???*13*
       | 4
       | undefined
-      | ((???*17* | ???*19*) ? ???*20* : 4)
-      | (???*21* ? 16 : (???*22* | undefined | null | ???*29* | ???*30*))
-      | ???*32*
-      | (???*34* ? 16 : (1 | 4 | 16 | 536870912 | undefined))
+      | ((???*14* | ???*16*) ? ???*17* : 4)
+      | (???*18* ? 16 : (???*19* | undefined | null | ???*26* | ???*27*))
+      | ???*29*
+      | (???*31* ? 16 : (1 | 4 | 16 | 536870912 | undefined))
     ),
     "tag": 0,
     "payload": null,
@@ -15659,74 +15587,68 @@ e#419 = {
   ⚠️  This value might have side effects
 - *2* module<scheduler, {}>["unstable_now"]()
   ⚠️  nested operation
-- *3* (???*4* ? (???*8* | ???*9*) : ???*10*)
+- *3* (???*4* ? (-1 | ???*6*) : ???*7*)
   ⚠️  nested operation
-- *4* (???*5* !== (???*6* | ???*7*))
+- *4* (-1 !== (-1 | ???*5*))
   ⚠️  nested operation
-- *5* unsupported expression
+- *5* module<scheduler, {}>["unstable_now"]()
+  ⚠️  nested operation
+- *6* module<scheduler, {}>["unstable_now"]()
+  ⚠️  nested operation
+- *7* assignment expression
   ⚠️  This value might have side effects
-- *6* unsupported expression
-  ⚠️  This value might have side effects
-- *7* module<scheduler, {}>["unstable_now"]()
-  ⚠️  nested operation
 - *8* unsupported expression
   ⚠️  This value might have side effects
-- *9* module<scheduler, {}>["unstable_now"]()
-  ⚠️  nested operation
-- *10* assignment expression
-  ⚠️  This value might have side effects
-- *11* unsupported expression
-  ⚠️  This value might have side effects
-- *12* Ck
+- *9* Ck
   ⚠️  sequence with side effects
   ⚠️  This value might have side effects
-- *13* arguments[0]
+- *10* arguments[0]
   ⚠️  function calls are not analyzed yet
-- *14* ???*15*["_reactInternals"]
+- *11* ???*12*["_reactInternals"]
   ⚠️  unknown object
-- *15* a
+- *12* a
   ⚠️  circular variable reference
-- *16* C
+- *13* C
   ⚠️  circular variable reference
-- *17* (0 !== ???*18*)
+- *14* (0 !== ???*15*)
   ⚠️  nested operation
-- *18* C
+- *15* C
   ⚠️  circular variable reference
-- *19* unsupported expression
+- *16* unsupported expression
   ⚠️  This value might have side effects
-- *20* C
+- *17* C
   ⚠️  circular variable reference
-- *21* unsupported expression
+- *18* unsupported expression
   ⚠️  This value might have side effects
-- *22* (???*23* ? ???*24* : 1)
+- *19* (???*20* ? ???*21* : 1)
   ⚠️  nested operation
-- *23* unsupported expression
+- *20* unsupported expression
   ⚠️  This value might have side effects
-- *24* (???*25* ? ???*26* : 4)
+- *21* (???*22* ? ???*23* : 4)
+  ⚠️  nested operation
+- *22* unsupported expression
+  ⚠️  This value might have side effects
+- *23* (???*24* ? 16 : 536870912)
+  ⚠️  nested operation
+- *24* (0 !== ???*25*)
   ⚠️  nested operation
 - *25* unsupported expression
   ⚠️  This value might have side effects
-- *26* (???*27* ? 16 : 536870912)
-  ⚠️  nested operation
-- *27* (0 !== ???*28*)
-  ⚠️  nested operation
-- *28* unsupported expression
-  ⚠️  This value might have side effects
-- *29* arguments[0]
+- *26* arguments[0]
   ⚠️  function calls are not analyzed yet
-- *30* ???*31*["value"]
+- *27* ???*28*["value"]
   ⚠️  unknown object
-- *31* arguments[1]
+- *28* arguments[1]
   ⚠️  function calls are not analyzed yet
-- *32* ???*33*["event"]
+- *29* ???*30*["event"]
   ⚠️  unknown object
   ⚠️  This value might have side effects
-- *33* FreeVar(window)
+- *30* FreeVar(window)
   ⚠️  unknown global
   ⚠️  This value might have side effects
-- *34* (undefined === ???*35*)
+- *31* (undefined === ???*32*)
   ⚠️  nested operation
-- *35* a
+- *32* a
   ⚠️  circular variable reference
 
 e#420 = ???*0*
@@ -16041,21 +15963,15 @@ e#537 = ((???*0* ? ???*2* : ???*3*) | undefined)
   ⚠️  This value might have side effects
 - *2* module<scheduler, {}>["unstable_now"]()
   ⚠️  nested operation
-- *3* (???*4* ? (???*8* | ???*9*) : ???*10*)
+- *3* (???*4* ? (-1 | ???*6*) : ???*7*)
   ⚠️  nested operation
-- *4* (???*5* !== (???*6* | ???*7*))
+- *4* (-1 !== (-1 | ???*5*))
   ⚠️  nested operation
-- *5* unsupported expression
-  ⚠️  This value might have side effects
-- *6* unsupported expression
-  ⚠️  This value might have side effects
-- *7* module<scheduler, {}>["unstable_now"]()
+- *5* module<scheduler, {}>["unstable_now"]()
   ⚠️  nested operation
-- *8* unsupported expression
-  ⚠️  This value might have side effects
-- *9* module<scheduler, {}>["unstable_now"]()
+- *6* module<scheduler, {}>["unstable_now"]()
   ⚠️  nested operation
-- *10* assignment expression
+- *7* assignment expression
   ⚠️  This value might have side effects
 
 e#539 = (
@@ -16152,21 +16068,15 @@ e#539 = (
   ⚠️  This value might have side effects
 - *33* module<scheduler, {}>["unstable_now"]()
   ⚠️  nested operation
-- *34* (???*35* ? (???*39* | ???*40*) : ???*41*)
+- *34* (???*35* ? (-1 | ???*37*) : ???*38*)
   ⚠️  nested operation
-- *35* (???*36* !== (???*37* | ???*38*))
+- *35* (-1 !== (-1 | ???*36*))
   ⚠️  nested operation
-- *36* unsupported expression
-  ⚠️  This value might have side effects
-- *37* unsupported expression
-  ⚠️  This value might have side effects
-- *38* module<scheduler, {}>["unstable_now"]()
+- *36* module<scheduler, {}>["unstable_now"]()
   ⚠️  nested operation
-- *39* unsupported expression
-  ⚠️  This value might have side effects
-- *40* module<scheduler, {}>["unstable_now"]()
+- *37* module<scheduler, {}>["unstable_now"]()
   ⚠️  nested operation
-- *41* assignment expression
+- *38* assignment expression
   ⚠️  This value might have side effects
 
 e#559 = (
@@ -16778,15 +16688,15 @@ e#960 = (
   | ???*1*
   | ???*2*
   | ???*3*
-  | new (...) => undefined(???*5*, (???*6* | ???*7* | 1 | ???*19* | 0), true, ???*20*, ???*21*)["current"]
+  | new (...) => undefined(???*5*, (???*6* | ???*7* | 1 | ???*16* | 0), true, ???*17*, ???*18*)["current"]
   | 0
-  | ???*22*
+  | ???*19*
   | 4
   | undefined
-  | ((???*23* | ???*25*) ? ???*26* : 4)
-  | (???*27* ? 16 : (???*28* | undefined | null | ???*35* | ???*36*))
-  | ???*38*
-  | (???*40* ? 16 : (1 | 4 | 16 | 536870912 | undefined))
+  | ((???*20* | ???*22*) ? ???*23* : 4)
+  | (???*24* ? 16 : (???*25* | undefined | null | ???*32* | ???*33*))
+  | ???*35*
+  | (???*37* ? 16 : (1 | 4 | 16 | 536870912 | undefined))
 )
 - *0* arguments[4]
   ⚠️  function calls are not analyzed yet
@@ -16811,69 +16721,63 @@ e#960 = (
   ⚠️  This value might have side effects
 - *10* module<scheduler, {}>["unstable_now"]()
   ⚠️  nested operation
-- *11* (???*12* ? (???*16* | ???*17*) : ???*18*)
+- *11* (???*12* ? (-1 | ???*14*) : ???*15*)
   ⚠️  nested operation
-- *12* (???*13* !== (???*14* | ???*15*))
+- *12* (-1 !== (-1 | ???*13*))
   ⚠️  nested operation
-- *13* unsupported expression
-  ⚠️  This value might have side effects
-- *14* unsupported expression
-  ⚠️  This value might have side effects
-- *15* module<scheduler, {}>["unstable_now"]()
+- *13* module<scheduler, {}>["unstable_now"]()
   ⚠️  nested operation
-- *16* unsupported expression
-  ⚠️  This value might have side effects
-- *17* module<scheduler, {}>["unstable_now"]()
+- *14* module<scheduler, {}>["unstable_now"]()
   ⚠️  nested operation
-- *18* assignment expression
+- *15* assignment expression
   ⚠️  This value might have side effects
-- *19* unsupported assign operation
+- *16* unsupported assign operation
   ⚠️  This value might have side effects
-- *20* arguments[7]
+- *17* arguments[7]
   ⚠️  function calls are not analyzed yet
-- *21* arguments[8]
+- *18* arguments[8]
   ⚠️  function calls are not analyzed yet
-- *22* C
+- *19* C
   ⚠️  circular variable reference
-- *23* (0 !== ???*24*)
+- *20* (0 !== ???*21*)
   ⚠️  nested operation
-- *24* C
+- *21* C
   ⚠️  circular variable reference
-- *25* unsupported expression
+- *22* unsupported expression
   ⚠️  This value might have side effects
-- *26* C
+- *23* C
   ⚠️  circular variable reference
-- *27* unsupported expression
+- *24* unsupported expression
   ⚠️  This value might have side effects
-- *28* (???*29* ? ???*30* : 1)
+- *25* (???*26* ? ???*27* : 1)
   ⚠️  nested operation
-- *29* unsupported expression
+- *26* unsupported expression
   ⚠️  This value might have side effects
-- *30* (???*31* ? ???*32* : 4)
+- *27* (???*28* ? ???*29* : 4)
+  ⚠️  nested operation
+- *28* unsupported expression
+  ⚠️  This value might have side effects
+- *29* (???*30* ? 16 : 536870912)
+  ⚠️  nested operation
+- *30* (0 !== ???*31*)
   ⚠️  nested operation
 - *31* unsupported expression
   ⚠️  This value might have side effects
-- *32* (???*33* ? 16 : 536870912)
-  ⚠️  nested operation
-- *33* (0 !== ???*34*)
-  ⚠️  nested operation
-- *34* unsupported expression
-  ⚠️  This value might have side effects
-- *35* arguments[0]
+- *32* arguments[0]
   ⚠️  function calls are not analyzed yet
-- *36* ???*37*["value"]
+- *33* ???*34*["value"]
   ⚠️  unknown object
-- *37* arguments[1]
+- *34* arguments[1]
   ⚠️  function calls are not analyzed yet
-- *38* ???*39*["event"]
+- *35* ???*36*["event"]
   ⚠️  unknown object
   ⚠️  This value might have side effects
-- *39* FreeVar(window)
+- *36* FreeVar(window)
   ⚠️  unknown global
   ⚠️  This value might have side effects
-- *40* (undefined === ???*41*)
+- *37* (undefined === ???*38*)
   ⚠️  nested operation
-- *41* a
+- *38* a
   ⚠️  circular variable reference
 
 e#961 = (???*0* | undefined | ???*2*)
@@ -17403,18 +17307,18 @@ f#417 = {
     "eventTime": (???*0* ? ???*2* : ???*3*),
     "lane": (
       | 1
+      | ???*8*
+      | ???*9*
+      | ???*10*
       | ???*11*
-      | ???*12*
-      | ???*13*
-      | ???*14*
       | 0
-      | ???*16*
+      | ???*13*
       | 4
       | undefined
-      | ((???*17* | ???*19*) ? ???*20* : 4)
-      | (???*21* ? 16 : (???*22* | undefined | null | ???*29* | ???*30*))
-      | ???*32*
-      | (???*34* ? 16 : (1 | 4 | 16 | 536870912 | undefined))
+      | ((???*14* | ???*16*) ? ???*17* : 4)
+      | (???*18* ? 16 : (???*19* | undefined | null | ???*26* | ???*27*))
+      | ???*29*
+      | (???*31* ? 16 : (1 | 4 | 16 | 536870912 | undefined))
     ),
     "tag": 0,
     "payload": null,
@@ -17427,92 +17331,86 @@ f#417 = {
   ⚠️  This value might have side effects
 - *2* module<scheduler, {}>["unstable_now"]()
   ⚠️  nested operation
-- *3* (???*4* ? (???*8* | ???*9*) : ???*10*)
+- *3* (???*4* ? (-1 | ???*6*) : ???*7*)
   ⚠️  nested operation
-- *4* (???*5* !== (???*6* | ???*7*))
+- *4* (-1 !== (-1 | ???*5*))
   ⚠️  nested operation
-- *5* unsupported expression
+- *5* module<scheduler, {}>["unstable_now"]()
+  ⚠️  nested operation
+- *6* module<scheduler, {}>["unstable_now"]()
+  ⚠️  nested operation
+- *7* assignment expression
   ⚠️  This value might have side effects
-- *6* unsupported expression
-  ⚠️  This value might have side effects
-- *7* module<scheduler, {}>["unstable_now"]()
-  ⚠️  nested operation
 - *8* unsupported expression
   ⚠️  This value might have side effects
-- *9* module<scheduler, {}>["unstable_now"]()
-  ⚠️  nested operation
-- *10* assignment expression
-  ⚠️  This value might have side effects
-- *11* unsupported expression
-  ⚠️  This value might have side effects
-- *12* Ck
+- *9* Ck
   ⚠️  sequence with side effects
   ⚠️  This value might have side effects
-- *13* arguments[0]
+- *10* arguments[0]
   ⚠️  function calls are not analyzed yet
-- *14* ???*15*["_reactInternals"]
+- *11* ???*12*["_reactInternals"]
   ⚠️  unknown object
-- *15* a
+- *12* a
   ⚠️  circular variable reference
-- *16* C
+- *13* C
   ⚠️  circular variable reference
-- *17* (0 !== ???*18*)
+- *14* (0 !== ???*15*)
   ⚠️  nested operation
-- *18* C
+- *15* C
   ⚠️  circular variable reference
-- *19* unsupported expression
+- *16* unsupported expression
   ⚠️  This value might have side effects
-- *20* C
+- *17* C
   ⚠️  circular variable reference
-- *21* unsupported expression
+- *18* unsupported expression
   ⚠️  This value might have side effects
-- *22* (???*23* ? ???*24* : 1)
+- *19* (???*20* ? ???*21* : 1)
   ⚠️  nested operation
-- *23* unsupported expression
+- *20* unsupported expression
   ⚠️  This value might have side effects
-- *24* (???*25* ? ???*26* : 4)
+- *21* (???*22* ? ???*23* : 4)
+  ⚠️  nested operation
+- *22* unsupported expression
+  ⚠️  This value might have side effects
+- *23* (???*24* ? 16 : 536870912)
+  ⚠️  nested operation
+- *24* (0 !== ???*25*)
   ⚠️  nested operation
 - *25* unsupported expression
   ⚠️  This value might have side effects
-- *26* (???*27* ? 16 : 536870912)
-  ⚠️  nested operation
-- *27* (0 !== ???*28*)
-  ⚠️  nested operation
-- *28* unsupported expression
-  ⚠️  This value might have side effects
-- *29* arguments[0]
+- *26* arguments[0]
   ⚠️  function calls are not analyzed yet
-- *30* ???*31*["value"]
+- *27* ???*28*["value"]
   ⚠️  unknown object
-- *31* arguments[1]
+- *28* arguments[1]
   ⚠️  function calls are not analyzed yet
-- *32* ???*33*["event"]
+- *29* ???*30*["event"]
   ⚠️  unknown object
   ⚠️  This value might have side effects
-- *33* FreeVar(window)
+- *30* FreeVar(window)
   ⚠️  unknown global
   ⚠️  This value might have side effects
-- *34* (undefined === ???*35*)
+- *31* (undefined === ???*32*)
   ⚠️  nested operation
-- *35* a
+- *32* a
   ⚠️  circular variable reference
 
 f#418 = {
     "eventTime": (???*0* ? ???*2* : ???*3*),
     "lane": (
       | 1
+      | ???*8*
+      | ???*9*
+      | ???*10*
       | ???*11*
-      | ???*12*
-      | ???*13*
-      | ???*14*
       | 0
-      | ???*16*
+      | ???*13*
       | 4
       | undefined
-      | ((???*17* | ???*19*) ? ???*20* : 4)
-      | (???*21* ? 16 : (???*22* | undefined | null | ???*29* | ???*30*))
-      | ???*32*
-      | (???*34* ? 16 : (1 | 4 | 16 | 536870912 | undefined))
+      | ((???*14* | ???*16*) ? ???*17* : 4)
+      | (???*18* ? 16 : (???*19* | undefined | null | ???*26* | ???*27*))
+      | ???*29*
+      | (???*31* ? 16 : (1 | 4 | 16 | 536870912 | undefined))
     ),
     "tag": 0,
     "payload": null,
@@ -17525,74 +17423,68 @@ f#418 = {
   ⚠️  This value might have side effects
 - *2* module<scheduler, {}>["unstable_now"]()
   ⚠️  nested operation
-- *3* (???*4* ? (???*8* | ???*9*) : ???*10*)
+- *3* (???*4* ? (-1 | ???*6*) : ???*7*)
   ⚠️  nested operation
-- *4* (???*5* !== (???*6* | ???*7*))
+- *4* (-1 !== (-1 | ???*5*))
   ⚠️  nested operation
-- *5* unsupported expression
+- *5* module<scheduler, {}>["unstable_now"]()
+  ⚠️  nested operation
+- *6* module<scheduler, {}>["unstable_now"]()
+  ⚠️  nested operation
+- *7* assignment expression
   ⚠️  This value might have side effects
-- *6* unsupported expression
-  ⚠️  This value might have side effects
-- *7* module<scheduler, {}>["unstable_now"]()
-  ⚠️  nested operation
 - *8* unsupported expression
   ⚠️  This value might have side effects
-- *9* module<scheduler, {}>["unstable_now"]()
-  ⚠️  nested operation
-- *10* assignment expression
-  ⚠️  This value might have side effects
-- *11* unsupported expression
-  ⚠️  This value might have side effects
-- *12* Ck
+- *9* Ck
   ⚠️  sequence with side effects
   ⚠️  This value might have side effects
-- *13* arguments[0]
+- *10* arguments[0]
   ⚠️  function calls are not analyzed yet
-- *14* ???*15*["_reactInternals"]
+- *11* ???*12*["_reactInternals"]
   ⚠️  unknown object
-- *15* a
+- *12* a
   ⚠️  circular variable reference
-- *16* C
+- *13* C
   ⚠️  circular variable reference
-- *17* (0 !== ???*18*)
+- *14* (0 !== ???*15*)
   ⚠️  nested operation
-- *18* C
+- *15* C
   ⚠️  circular variable reference
-- *19* unsupported expression
+- *16* unsupported expression
   ⚠️  This value might have side effects
-- *20* C
+- *17* C
   ⚠️  circular variable reference
-- *21* unsupported expression
+- *18* unsupported expression
   ⚠️  This value might have side effects
-- *22* (???*23* ? ???*24* : 1)
+- *19* (???*20* ? ???*21* : 1)
   ⚠️  nested operation
-- *23* unsupported expression
+- *20* unsupported expression
   ⚠️  This value might have side effects
-- *24* (???*25* ? ???*26* : 4)
+- *21* (???*22* ? ???*23* : 4)
+  ⚠️  nested operation
+- *22* unsupported expression
+  ⚠️  This value might have side effects
+- *23* (???*24* ? 16 : 536870912)
+  ⚠️  nested operation
+- *24* (0 !== ???*25*)
   ⚠️  nested operation
 - *25* unsupported expression
   ⚠️  This value might have side effects
-- *26* (???*27* ? 16 : 536870912)
-  ⚠️  nested operation
-- *27* (0 !== ???*28*)
-  ⚠️  nested operation
-- *28* unsupported expression
-  ⚠️  This value might have side effects
-- *29* arguments[0]
+- *26* arguments[0]
   ⚠️  function calls are not analyzed yet
-- *30* ???*31*["value"]
+- *27* ???*28*["value"]
   ⚠️  unknown object
-- *31* arguments[1]
+- *28* arguments[1]
   ⚠️  function calls are not analyzed yet
-- *32* ???*33*["event"]
+- *29* ???*30*["event"]
   ⚠️  unknown object
   ⚠️  This value might have side effects
-- *33* FreeVar(window)
+- *30* FreeVar(window)
   ⚠️  unknown global
   ⚠️  This value might have side effects
-- *34* (undefined === ???*35*)
+- *31* (undefined === ???*32*)
   ⚠️  nested operation
-- *35* a
+- *32* a
   ⚠️  circular variable reference
 
 f#420 = ???*0*
@@ -18210,20 +18102,20 @@ f#960 = (
   | {
         "eventTime": (???*1* | (???*2* ? ???*4* : ???*5*)),
         "lane": (
-          | ???*13*
+          | ???*10*
           | 1
-          | ???*14*
-          | ???*15*
-          | ???*16*
-          | new (...) => undefined(???*18*, (???*19* | ???*20* | 1 | ???*32* | 0), true, ???*33*, ???*34*)["current"]
+          | ???*11*
+          | ???*12*
+          | ???*13*
+          | new (...) => undefined(???*15*, (???*16* | ???*17* | 1 | ???*26* | 0), true, ???*27*, ???*28*)["current"]
           | 0
-          | ???*35*
+          | ???*29*
           | 4
           | undefined
-          | ((???*36* | ???*38*) ? ???*39* : 4)
-          | (???*40* ? 16 : (???*41* | undefined | null | ???*48* | ???*49*))
-          | ???*51*
-          | (???*53* ? 16 : (1 | 4 | 16 | 536870912 | undefined))
+          | ((???*30* | ???*32*) ? ???*33* : 4)
+          | (???*34* ? 16 : (???*35* | undefined | null | ???*42* | ???*43*))
+          | ???*45*
+          | (???*47* ? 16 : (1 | 4 | 16 | 536870912 | undefined))
         ),
         "tag": 0,
         "payload": null,
@@ -18241,108 +18133,96 @@ f#960 = (
   ⚠️  This value might have side effects
 - *4* module<scheduler, {}>["unstable_now"]()
   ⚠️  nested operation
-- *5* (???*6* ? (???*10* | ???*11*) : ???*12*)
+- *5* (???*6* ? (-1 | ???*8*) : ???*9*)
   ⚠️  nested operation
-- *6* (???*7* !== (???*8* | ???*9*))
+- *6* (-1 !== (-1 | ???*7*))
   ⚠️  nested operation
-- *7* unsupported expression
-  ⚠️  This value might have side effects
-- *8* unsupported expression
-  ⚠️  This value might have side effects
-- *9* module<scheduler, {}>["unstable_now"]()
+- *7* module<scheduler, {}>["unstable_now"]()
   ⚠️  nested operation
-- *10* unsupported expression
-  ⚠️  This value might have side effects
-- *11* module<scheduler, {}>["unstable_now"]()
+- *8* module<scheduler, {}>["unstable_now"]()
   ⚠️  nested operation
-- *12* assignment expression
+- *9* assignment expression
   ⚠️  This value might have side effects
-- *13* arguments[4]
+- *10* arguments[4]
   ⚠️  function calls are not analyzed yet
-- *14* unsupported expression
+- *11* unsupported expression
   ⚠️  This value might have side effects
-- *15* Ck
+- *12* Ck
   ⚠️  sequence with side effects
   ⚠️  This value might have side effects
-- *16* ???*17*["current"]
+- *13* ???*14*["current"]
   ⚠️  unknown object
-- *17* arguments[0]
+- *14* arguments[0]
   ⚠️  function calls are not analyzed yet
-- *18* a
+- *15* a
   ⚠️  circular variable reference
-- *19* arguments[3]
+- *16* arguments[3]
   ⚠️  function calls are not analyzed yet
-- *20* (???*21* ? ???*23* : ???*24*)
+- *17* (???*18* ? ???*20* : ???*21*)
   ⚠️  nested operation
-- *21* (0 !== ???*22*)
+- *18* (0 !== ???*19*)
   ⚠️  nested operation
-- *22* unsupported expression
+- *19* unsupported expression
   ⚠️  This value might have side effects
-- *23* module<scheduler, {}>["unstable_now"]()
+- *20* module<scheduler, {}>["unstable_now"]()
   ⚠️  nested operation
-- *24* (???*25* ? (???*29* | ???*30*) : ???*31*)
+- *21* (???*22* ? (-1 | ???*24*) : ???*25*)
   ⚠️  nested operation
-- *25* (???*26* !== (???*27* | ???*28*))
+- *22* (-1 !== (-1 | ???*23*))
   ⚠️  nested operation
-- *26* unsupported expression
-  ⚠️  This value might have side effects
-- *27* unsupported expression
-  ⚠️  This value might have side effects
-- *28* ...()
+- *23* ...()
   ⚠️  nested operation
-- *29* unsupported expression
-  ⚠️  This value might have side effects
-- *30* ...[...]()
+- *24* ...[...]()
   ⚠️  nested operation
-- *31* assignment expression
+- *25* assignment expression
   ⚠️  This value might have side effects
-- *32* unsupported assign operation
+- *26* unsupported assign operation
   ⚠️  This value might have side effects
-- *33* arguments[7]
+- *27* arguments[7]
   ⚠️  function calls are not analyzed yet
-- *34* arguments[8]
+- *28* arguments[8]
   ⚠️  function calls are not analyzed yet
-- *35* C
+- *29* C
   ⚠️  circular variable reference
-- *36* (0 !== ???*37*)
+- *30* (0 !== ???*31*)
   ⚠️  nested operation
-- *37* C
+- *31* C
   ⚠️  circular variable reference
+- *32* unsupported expression
+  ⚠️  This value might have side effects
+- *33* C
+  ⚠️  circular variable reference
+- *34* unsupported expression
+  ⚠️  This value might have side effects
+- *35* (???*36* ? ???*37* : 1)
+  ⚠️  nested operation
+- *36* unsupported expression
+  ⚠️  This value might have side effects
+- *37* (???*38* ? ???*39* : 4)
+  ⚠️  nested operation
 - *38* unsupported expression
   ⚠️  This value might have side effects
-- *39* C
-  ⚠️  circular variable reference
-- *40* unsupported expression
-  ⚠️  This value might have side effects
-- *41* (???*42* ? ???*43* : 1)
+- *39* (???*40* ? 16 : 536870912)
   ⚠️  nested operation
-- *42* unsupported expression
-  ⚠️  This value might have side effects
-- *43* (???*44* ? ???*45* : 4)
+- *40* (0 !== ???*41*)
   ⚠️  nested operation
-- *44* unsupported expression
+- *41* unsupported expression
   ⚠️  This value might have side effects
-- *45* (???*46* ? 16 : 536870912)
-  ⚠️  nested operation
-- *46* (0 !== ???*47*)
-  ⚠️  nested operation
-- *47* unsupported expression
-  ⚠️  This value might have side effects
-- *48* arguments[0]
+- *42* arguments[0]
   ⚠️  function calls are not analyzed yet
-- *49* ???*50*["value"]
+- *43* ???*44*["value"]
   ⚠️  unknown object
-- *50* arguments[1]
+- *44* arguments[1]
   ⚠️  function calls are not analyzed yet
-- *51* ???*52*["event"]
+- *45* ???*46*["event"]
   ⚠️  unknown object
   ⚠️  This value might have side effects
-- *52* FreeVar(window)
+- *46* FreeVar(window)
   ⚠️  unknown global
   ⚠️  This value might have side effects
-- *53* (undefined === ???*54*)
+- *47* (undefined === ???*48*)
   ⚠️  nested operation
-- *54* a
+- *48* a
   ⚠️  circular variable reference
 
 f#961 = (???*0* ? ???*2* : ???*3*)
@@ -18352,21 +18232,15 @@ f#961 = (???*0* ? ???*2* : ???*3*)
   ⚠️  This value might have side effects
 - *2* module<scheduler, {}>["unstable_now"]()
   ⚠️  nested operation
-- *3* (???*4* ? (???*8* | ???*9*) : ???*10*)
+- *3* (???*4* ? (-1 | ???*6*) : ???*7*)
   ⚠️  nested operation
-- *4* (???*5* !== (???*6* | ???*7*))
+- *4* (-1 !== (-1 | ???*5*))
   ⚠️  nested operation
-- *5* unsupported expression
-  ⚠️  This value might have side effects
-- *6* unsupported expression
-  ⚠️  This value might have side effects
-- *7* module<scheduler, {}>["unstable_now"]()
+- *5* module<scheduler, {}>["unstable_now"]()
   ⚠️  nested operation
-- *8* unsupported expression
-  ⚠️  This value might have side effects
-- *9* module<scheduler, {}>["unstable_now"]()
+- *6* module<scheduler, {}>["unstable_now"]()
   ⚠️  nested operation
-- *10* assignment expression
+- *7* assignment expression
   ⚠️  This value might have side effects
 
 f#979 = (???*0* | (...) => undefined | undefined)
@@ -19021,9 +18895,7 @@ gc = module<scheduler, {}>["unstable_UserBlockingPriority"]
 
 gd = (...) => undefined
 
-ge = (...) => ((???*0* !== $d["indexOf"](b["keyCode"])) | (229 !== b["keyCode"]) | !(0) | !(1) | undefined)
-- *0* unsupported expression
-  ⚠️  This value might have side effects
+ge = (...) => ((-1 !== $d["indexOf"](b["keyCode"])) | (229 !== b["keyCode"]) | !(0) | !(1) | undefined)
 
 gf = (0 | ???*0*)
 - *0* updated with update expression
@@ -21430,9 +21302,7 @@ va = ???*0*
 
 vb = (...) => (("string" === typeof(b["is"])) | !(1) | !(0) | undefined)
 
-vc = (...) => ((b + 250) | (b + 5000) | ???*0* | undefined)
-- *0* unsupported expression
-  ⚠️  This value might have side effects
+vc = (...) => ((b + 250) | (b + 5000) | -1 | undefined)
 
 vd = (...) => ???*0*
 - *0* unsupported expression

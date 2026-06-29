@@ -1,26 +1,25 @@
-use std::{borrow::Cow, collections::HashSet, iter};
+use std::{borrow::Cow, collections::HashSet, iter, sync::LazyLock};
 
 use anyhow::{Context, Result};
 use const_format::concatcp;
-use once_cell::sync::Lazy;
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 use serde_json::value::RawValue;
 use turbo_rcstr::RcStr;
-use turbo_tasks::{ResolvedVc, ValueToString};
+use turbo_tasks::{ResolvedVc, turbofmt};
 use turbo_tasks_fs::{
     DiskFileSystem, FileContent, FileSystemPath, rope::Rope, util::uri_from_path_buf,
 };
 use url::Url;
 
-use crate::SOURCE_URL_PROTOCOL;
+use crate::SOURCE_URL_PROTOCOL_STR;
 
 pub fn add_default_ignore_list(map: &mut swc_sourcemap::SourceMap) {
     let mut ignored_ids = HashSet::new();
 
     for (source_id, source) in map.sources().enumerate() {
-        if source.starts_with(concatcp!(SOURCE_URL_PROTOCOL, "///[next]"))
-            || source.starts_with(concatcp!(SOURCE_URL_PROTOCOL, "///[turbopack]"))
+        if source.starts_with(concatcp!(SOURCE_URL_PROTOCOL_STR, "///[next]"))
+            || source.starts_with(concatcp!(SOURCE_URL_PROTOCOL_STR, "///[turbopack]"))
             || source.contains("/node_modules/")
             || source.ends_with("__nextjs-internal-proxy.cjs")
             || source.ends_with("__nextjs-internal-proxy.mjs")
@@ -86,7 +85,7 @@ pub async fn resolve_source_map_sources(
     origin: &FileSystemPath,
 ) -> Result<Option<Rope>> {
     let fs_vc = origin.fs().to_resolved().await?;
-    let fs_str = &*format!("[{}]", fs_vc.to_string().await?);
+    let fs_str = &*turbofmt!("[{fs_vc}]").await?;
 
     let disk_fs = if let Some(fs_vc) = ResolvedVc::try_downcast_type::<DiskFileSystem>(fs_vc) {
         Some((fs_vc, fs_vc.await?))
@@ -138,7 +137,7 @@ pub async fn resolve_source_map_sources(
                 // valid URLs. However, `project_trace_source_operation` (and `uri_from_file`) need
                 // to handle percent encoding correctly first.
                 let fs_path_str = &fs_path.path;
-                *source_url = format!("{SOURCE_URL_PROTOCOL}///{fs_str}/{fs_path_str}");
+                *source_url = format!("{SOURCE_URL_PROTOCOL_STR}///{fs_str}/{fs_path_str}");
 
                 if let Some(source_content) = source_content
                     && source_content.is_none()
@@ -163,11 +162,11 @@ pub async fn resolve_source_map_sources(
                          filesystem root)"
                     )));
                 }
-                static INVALID_REGEX: Lazy<Regex> =
-                    Lazy::new(|| Regex::new(r#"(?:^|/)(?:\.\.?(?:/|$))+"#).unwrap());
+                static INVALID_REGEX: LazyLock<Regex> =
+                    LazyLock::new(|| Regex::new(r#"(?:^|/)(?:\.\.?(?:/|$))+"#).unwrap());
                 let source = INVALID_REGEX
                     .replace_all(source_url, |s: &regex::Captures<'_>| s[0].replace('.', "_"));
-                *source_url = format!("{SOURCE_URL_PROTOCOL}///{fs_str}/{origin_str}/{source}");
+                *source_url = format!("{SOURCE_URL_PROTOCOL_STR}///{fs_str}/{origin_str}/{source}");
             }
             anyhow::Ok(())
         };
@@ -252,7 +251,7 @@ where
         .context("Expected the chunking context to have a DiskFileSystem")?
         .await?;
 
-    let prefix = format!("{}///[{}]/", SOURCE_URL_PROTOCOL, context_fs.name());
+    let prefix = format!("{}///[{}]/", SOURCE_URL_PROTOCOL_STR, context_fs.name());
 
     let mut apply_transform = |src: &mut String| -> Result<()> {
         if let Some(src_rest) = src.strip_prefix(&prefix) {
@@ -327,6 +326,7 @@ mod tests {
     use std::path::Path;
 
     use turbo_rcstr::{RcStr, rcstr};
+    use turbo_tasks::Vc;
     use turbo_tasks_backend::{BackendOptions, TurboTasksBackend, noop_backing_storage};
     use turbo_tasks_fs::FileSystem;
 
@@ -352,62 +352,96 @@ mod tests {
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
     async fn test_resolve_source_map_sources() {
-        let sys_root = if cfg!(windows) {
-            Path::new(r"C:\fake\root")
-        } else {
-            Path::new(r"/fake/root")
-        };
-        let url_root = Url::from_directory_path(sys_root).unwrap();
-
         let tt = turbo_tasks::TurboTasks::new(TurboTasksBackend::new(
             BackendOptions::default(),
             noop_backing_storage(),
         ));
         tt.run_once(async move {
-            let fs_root_path =
-                DiskFileSystem::new(rcstr!("mock"), RcStr::from(sys_root.to_str().unwrap()))
-                    .root()
-                    .await?;
+            #[turbo_tasks::value]
+            struct SourceMapSourcesOutput {
+                resolved_sources: Vec<Option<String>>,
+                rooted_sources: Vec<Option<String>>,
+            }
 
-            let resolved_source_map: SourceMapJson = serde_json::from_str(
-                &resolve_source_map_sources(
-                    Some(&source_map_rope(
-                        /* source_root */ None,
-                        [
-                            "page.js",
-                            "./current-dir-page.js",
-                            "../other%20route/page.js",
-                            // contains the file:// protocol/scheme
-                            url_root.join("absolute%20file%20url.js").unwrap().as_str(),
-                            // A server-relative path starting with `/`, potentially includes a
-                            // windows disk
-                            &format!("{}/server%20relative%20path.js", url_root.path()),
-                            // A scheme-relative path
-                            url_root
-                                .join("scheme%20relative%20path.js")
-                                .unwrap()
-                                .as_str()
-                                .strip_prefix("file:")
-                                .unwrap(),
-                            // non-file URLs are preserved
-                            "https://example.com/page%20path.js",
-                        ],
-                    )),
-                    // NOTE: the percent encoding here should NOT be decoded, as this is not part
-                    // of a `file://` URL
-                    &fs_root_path.join("app/source%20mapped/page.js").unwrap(),
+            #[turbo_tasks::function(operation, root)]
+            async fn resolve_source_map_sources_operation()
+            -> anyhow::Result<Vc<SourceMapSourcesOutput>> {
+                let sys_root = if cfg!(windows) {
+                    Path::new(r"C:\fake\root")
+                } else {
+                    Path::new(r"/fake/root")
+                };
+                let url_root = Url::from_directory_path(sys_root).unwrap();
+
+                let fs_root_path = DiskFileSystem::new(
+                    rcstr!("mock"),
+                    Vc::cell(RcStr::from(sys_root.to_str().unwrap())),
                 )
-                .await?
-                .unwrap()
-                .to_str()
-                .unwrap(),
-            )
-            .unwrap();
+                .root()
+                .await?;
 
-            let prefix = format!("{SOURCE_URL_PROTOCOL}///[mock]");
+                let resolved_source_map: SourceMapJson = serde_json::from_str(
+                    &resolve_source_map_sources(
+                        Some(&source_map_rope(
+                            /* source_root */ None,
+                            [
+                                "page.js",
+                                "./current-dir-page.js",
+                                "../other%20route/page.js",
+                                // contains the file:// protocol/scheme
+                                url_root.join("absolute%20file%20url.js")?.as_str(),
+                                // A server-relative path starting with `/`, potentially includes a
+                                // windows disk
+                                &format!("{}/server%20relative%20path.js", url_root.path()),
+                                // A scheme-relative path
+                                url_root
+                                    .join("scheme%20relative%20path.js")?
+                                    .as_str()
+                                    .strip_prefix("file:")
+                                    .unwrap(),
+                                // non-file URLs are preserved
+                                "https://example.com/page%20path.js",
+                            ],
+                        )),
+                        // NOTE: the percent encoding here should NOT be decoded, as this is not
+                        // part of a `file://` URL
+                        &fs_root_path.join("app/source%20mapped/page.js").unwrap(),
+                    )
+                    .await?
+                    .unwrap()
+                    .to_str()?,
+                )?;
+
+                let rooted_source_map: SourceMapJson = serde_json::from_str(
+                    &resolve_source_map_sources(
+                        Some(&source_map_rope(
+                            // NOTE: these should get literally concated, a slash should NOT get
+                            // added.
+                            Some("../source%20root%20"),
+                            ["page.js"],
+                        )),
+                        &fs_root_path.join("app/page.js").unwrap(),
+                    )
+                    .await?
+                    .unwrap()
+                    .to_str()?,
+                )?;
+
+                Ok(SourceMapSourcesOutput {
+                    resolved_sources: resolved_source_map.sources.unwrap_or_default(),
+                    rooted_sources: rooted_source_map.sources.unwrap_or_default(),
+                }
+                .cell())
+            }
+
+            let resolved_source_maps = resolve_source_map_sources_operation()
+                .read_strongly_consistent()
+                .await?;
+
+            let prefix = format!("{SOURCE_URL_PROTOCOL_STR}///[mock]");
             assert_eq!(
-                resolved_source_map.sources,
-                Some(vec![
+                resolved_source_maps.resolved_sources,
+                vec![
                     Some(format!("{prefix}/app/source%20mapped/page.js")),
                     Some(format!("{prefix}/app/source%20mapped/current-dir-page.js")),
                     Some(format!("{prefix}/app/other route/page.js")),
@@ -415,29 +449,12 @@ mod tests {
                     Some(format!("{prefix}/server relative path.js")),
                     Some(format!("{prefix}/scheme relative path.js")),
                     Some("https://example.com/page%20path.js".to_owned()),
-                ])
+                ]
             );
 
-            // try with a `source_root`
-            let resolved_source_map: SourceMapJson = serde_json::from_str(
-                &resolve_source_map_sources(
-                    Some(&source_map_rope(
-                        // NOTE: these should get literally concated, a slash should NOT get added.
-                        Some("../source%20root%20"),
-                        ["page.js"],
-                    )),
-                    &fs_root_path.join("app/page.js").unwrap(),
-                )
-                .await?
-                .unwrap()
-                .to_str()
-                .unwrap(),
-            )
-            .unwrap();
-
             assert_eq!(
-                resolved_source_map.sources,
-                Some(vec![Some(format!("{prefix}/source root page.js")),])
+                resolved_source_maps.rooted_sources,
+                vec![Some(format!("{prefix}/source root page.js"))]
             );
 
             anyhow::Ok(())

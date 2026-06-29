@@ -1,9 +1,8 @@
-use crate::{ReadConsistency, ReadTracking};
+use crate::{ReadConsistency, ReadTracking, manager::ReadCellTracking};
 
 #[derive(Clone, Copy, Debug, Default)]
 pub struct ReadCellOptions {
-    pub tracking: ReadTracking,
-    pub is_serializable_cell_content: bool,
+    pub tracking: ReadCellTracking,
     pub final_read_hint: bool,
 }
 

@@ -1,4 +1,14 @@
-const extensions = ['', '.png', '.tsx', '.ts', '.jsx', '.js', '.json']
+// .web.tsx intentionally placed before .tsx to verify resolveExtensions priority
+const extensions = [
+  '',
+  '.png',
+  '.web.tsx',
+  '.tsx',
+  '.ts',
+  '.jsx',
+  '.js',
+  '.json',
+]
 
 /**
  * @type {import('next').NextConfig}

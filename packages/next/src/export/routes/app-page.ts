@@ -100,6 +100,7 @@ export async function exportAppPage(
       fetchTags,
       fetchMetrics,
       segmentData,
+      prefetchHints,
       renderResumeDataCache,
     } = metadata
 
@@ -130,6 +131,8 @@ export async function exportAppPage(
     // If page data isn't available, it means that the page couldn't be rendered
     // properly so long as we don't have unknown route params. When a route doesn't
     // have unknown route params, there will not be any flight data.
+    let hasStaticRsc = false
+
     if (!flightData) {
       if (
         !fallbackRouteParams ||
@@ -139,12 +142,18 @@ export async function exportAppPage(
         throw new Error(`Invariant: failed to get page data for ${path}`)
       }
     } else {
-      // If PPR is enabled, we want to emit a segment prefetch files
-      // instead of the standard rsc. This is because the standard rsc will
-      // contain the dynamic data. We do this if any routes have PPR enabled so
-      // that the cache read/write is the same.
-      if (!renderOpts.experimental.isRoutePPREnabled) {
-        // Writing the RSC payload to a file if we don't have PPR enabled.
+      const hasFallbackParams =
+        fallbackRouteParams != null && fallbackRouteParams.size > 0
+      const shouldWriteRsc =
+        !renderOpts.experimental.isRoutePPREnabled ||
+        (!postponed && !hasFallbackParams)
+      hasStaticRsc = shouldWriteRsc
+
+      // With PPR enabled, we normally skip writing .rsc because it may contain
+      // dynamic data. However, for fully static outputs (no postponed state and
+      // no fallback params), we can safely emit the route .rsc to support
+      // static navigations.
+      if (shouldWriteRsc) {
         fileWriter.append(
           htmlFilepath.replace(/\.html$/, RSC_SUFFIX),
           flightData
@@ -210,6 +219,7 @@ export async function exportAppPage(
       headers,
       postponed,
       segmentPaths,
+      prefetchHints,
     }
 
     fileWriter.append(
@@ -223,9 +233,11 @@ export async function exportAppPage(
         ? meta
         : {
             segmentPaths: meta.segmentPaths,
+            prefetchHints: meta.prefetchHints,
           },
       hasEmptyStaticShell: Boolean(postponed) && html === '',
       hasPostponed: Boolean(postponed),
+      hasStaticRsc,
       cacheControl,
       fetchMetrics,
       renderResumeDataCache: renderResumeDataCache

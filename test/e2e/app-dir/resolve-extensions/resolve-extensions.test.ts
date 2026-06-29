@@ -20,4 +20,16 @@ describe('turbo-resolve-extensions', () => {
     expect(text).toContain('hello world')
     expect(text).toContain('hello client')
   })
+
+  it('should respect resolveExtensions priority (.web.tsx before .tsx)', async () => {
+    // When both PlatformComponent.web.tsx and PlatformComponent.tsx exist,
+    // the .web.tsx variant must win because it appears first in resolveExtensions.
+    // This guards against a Turbopack bug where the alternative index was
+    // hardcoded to 0 in the fast path, collapsing all alternatives to the same
+    // priority and making the winner non-deterministic (usually wrong).
+    const res = await next.fetch('/')
+    const html = await res.text()
+    expect(html).toContain('hello web platform')
+    expect(html).not.toContain('hello default platform')
+  })
 })

@@ -42,6 +42,7 @@ export function getCssModuleLoader(
         },
         targets: ctx.supportedBrowsers,
         postcss,
+        lightningCssFeatures: ctx.experimental.lightningCssFeatures,
       },
     })
   } else {
@@ -72,6 +73,7 @@ export function getCssModuleLoader(
           // character?
           getLocalIdent: getCssModuleLocalIdent,
         },
+        deploymentId: ctx.deploymentId,
       },
     })
 

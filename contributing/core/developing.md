@@ -6,43 +6,107 @@
 
 ## Dependencies
 
-- Install Rust and Cargo via [rustup](https://rustup.rs).
-- Install the [GitHub CLI](https://github.com/cli/cli#installation).
-- Enable pnpm:
+### JavaScript Dependencies
+
+_You'll need a working node.js environment with pnpm._
+
+- Install or enable [pnpm](https://pnpm.io/installation):
+
   ```
   corepack enable pnpm
+
+  # or
+  npm install -g pnpm@latest
   ```
-- (Linux) Install LLD (the LLVM linker) and Clang (used by `rust-rocksdb`):
+
+  `pnpm` [respects the `packageManager` field in `package.json` by
+  default](https://pnpm.io/settings#managepackagemanagerversions), even when
+  installed without Corepack. This ensures that pnpm behaves the same locally as
+  it does in CI.
+
+- _(Optional)_ Install [fnm](https://github.com/Schniz/fnm) or
+  [nvm](https://github.com/nvm-sh/nvm). This will ensure you use the same
+  version of node as our CI does, via our `.node-version` configuration file.
+
+- _(Optional)_ Install the [GitHub CLI](https://github.com/cli/cli#installation).
+
+### Rust Dependencies
+
+_You can skip these steps if you don't intend to modify any Rust code._
+
+- Install Rust and Cargo via [rustup](https://rustup.rs).
+
+- _(Linux)_ Install a C compiler:
+
   ```
-  sudo apt install lld clang
+  sudo apt install build-essential
+  ```
+
+- _(macOS)_ Install the Command Line Tools for Xcode package:
+
+  ```
+  xcode-select --install
   ```
 
 ## Local Development
 
-1. Clone the Next.js repository (download only recent commits for faster clone):
+1. Clone the Next.js repository (using a [blobless clone] for speed):
+
    ```
-   gh repo clone vercel/next.js -- --filter=blob:none --branch canary --single-branch
+   gh repo clone vercel/next.js -- --filter=blob:none --single-branch
+
+   # or, alternatively (via https)
+   git clone https://github.com/vercel/next.js.git --filter=blob:none --single-branch
+
+   # or, alternatively (via ssh)
+   git clone git@github.com:vercel/next.js.git --filter=blob:none --single-branch
    ```
-1. Create a new branch:
+
+   [blobless clone]: https://github.blog/open-source/git/get-up-to-speed-with-partial-clone-and-shallow-clone/#user-content-blobless-clones
+
+1. The default branch is `canary`. Create a new branch off of `canary` with:
+
    ```
-   git checkout -b MY_BRANCH_NAME origin/canary
+   git switch --create MY_BRANCH_NAME
    ```
-1. Install the dependencies with:
+
+1. Install the Node.js dependencies with:
+
    ```
    pnpm install
    ```
-1. Start developing and watch for code changes:
+
+1. Start developing and watch for JavaScript code changes using
+   [Turborepo](https://turborepo.dev/):
+
    ```
-   pnpm dev
+   pnpm dev  # or use `next build` to build on-demand
    ```
+
+1. If you make Rust changes (e.g. Turbopack), you can build a new napi binding
+   with:
+
+   ```
+   pnpm swc-build-native
+
+   # or, if you'd like to build in release mode (e.g. for benchmarking)
+   pnpm swc-build-native --release
+
+   # or, if you'd like to build both JS and Rust changes at once with Turborepo
+   pnpm build-all
+   ```
+
 1. In a new terminal, run `pnpm types` to compile declaration files from
    TypeScript.
    _Note: You may need to repeat this step if your types get outdated._
+
 1. When your changes are finished, commit them to the branch:
+
    ```
    git add .
    git commit -m "DESCRIBE_YOUR_CHANGES_HERE"
    ```
+
 1. To open a pull request you can use the GitHub CLI which automatically forks and sets up a remote branch. Follow the prompts when running:
    ```
    gh pr create
@@ -63,6 +127,12 @@ Or without running the build:
 
 ```bash
 pnpm pack-next --no-js-build --tar && pnpm unpack-next path/to/project
+```
+
+To create tarballs inside the project directory with deployable relative `file:` references:
+
+```bash
+pnpm pack-next --project path/to/project --deployable-tar
 ```
 
 Without going through a tarball (only works if you've added the overrides from `pack-next`):
@@ -100,6 +170,13 @@ $ pnpm unpack-next path/to/project
 
 The dev overlay is a feature of Next.js that allows you to see the internal state of the app including the errors. To learn more about contributing to the dev overlay, see the [Dev Overlay README.md](../../packages/next/src/client/components/react-dev-overlay/README.md).
 
+## `NODE_ENV` vs `__NEXT_DEV_SERVER`
+
+Both `next dev` and `next build --debug-prerender` produce bundles with `NODE_ENV=development`. Use `process.env.__NEXT_DEV_SERVER` to distinguish between them:
+
+- `process.env.NODE_ENV !== 'production'` — code that should exist in dev bundles but be eliminated from prod bundles. This is a build-time check.
+- `process.env.__NEXT_DEV_SERVER` — code that should only run with the dev server (`next dev`), not during `next build --debug-prerender` or `next start`.
+
 ## Recover disk space
 
 Rust builds quickly add up to a lot of disk space, you can clean up old artifacts with this command:
@@ -109,17 +186,3 @@ pnpm sweep
 ```
 
 It will also clean up other caches (pnpm store, cargo, etc.) and run `git gc` for you.
-
-### MacOS disk compression
-
-If you want to automatically use APFS disk compression on macOS for `node_modules/` and `target/` you can install a launch agent with:
-
-```bash
-./scripts/LaunchAgents/install-macos-agents.sh
-```
-
-Or run it manually with:
-
-```bash
-./scripts/macos-compress.sh
-```

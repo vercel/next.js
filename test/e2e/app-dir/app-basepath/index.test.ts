@@ -13,7 +13,8 @@ describe('app dir - basepath', () => {
   it('should successfully hard navigate from pages -> app', async () => {
     const browser = await next.browser('/base/pages-path')
     await browser.elementByCss('#to-another').click()
-    await browser.waitForElementByCss('#page-2')
+    // Hard nav from pages -> app triggers on-demand compilation in dev; allow extra time
+    await browser.waitForElementByCss('#page-2', 30000)
   })
 
   it('should support `basePath`', async () => {
@@ -75,22 +76,8 @@ describe('app dir - basepath', () => {
       let rscRequests = []
       const browser = await next.browser(path, {
         beforePageLoad(page) {
-          page.on('request', async (request) => {
-            let headers: { [key: string]: string }
-            try {
-              headers = await request.allHeaders()
-            } catch (e) {
-              if (
-                e.message.includes(
-                  'Target page, context or browser has been closed'
-                )
-              ) {
-                // Ignore errors caused by closed browser during test teardown
-                return
-              }
-              throw e
-            }
-
+          page.on('request', (request) => {
+            const headers = request.headers()
             if (
               headers['rsc'] === '1' &&
               // Prefetches also include `rsc`
@@ -103,6 +90,7 @@ describe('app dir - basepath', () => {
       })
 
       await browser.elementByCss('button').click()
+      await browser.waitForIdleNetwork()
       await retry(async () => {
         expect(rscRequests).toEqual([
           expect.stringContaining(`${next.url}${path}`),

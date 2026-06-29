@@ -1,6 +1,7 @@
 use std::{any::Any, collections::VecDeque, fmt::Display, sync::Arc, time::Duration};
 
 use dashmap::DashMap;
+use serde::Serialize;
 use tokio::sync::{Mutex, mpsc};
 
 pub trait CompilationEvent: Sync + Send + Any {
@@ -132,7 +133,7 @@ impl CompilationEventQueue {
     }
 }
 
-#[derive(Debug, Clone, Copy, Eq, PartialEq, Hash, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, Copy, Eq, PartialEq, Hash, Serialize)]
 pub enum Severity {
     Info,
     Trace,
@@ -155,7 +156,7 @@ impl Display for Severity {
     }
 }
 
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, Serialize)]
 /// Compilation event that is used to log the duration of a task
 pub struct TimingEvent {
     /// Message of the event without the timing information
@@ -205,7 +206,7 @@ impl CompilationEvent for TimingEvent {
     }
 }
 
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, Serialize)]
 pub struct DiagnosticEvent {
     pub message: String,
     pub severity: Severity,
@@ -228,6 +229,55 @@ impl CompilationEvent for DiagnosticEvent {
 
     fn message(&self) -> String {
         self.message.clone()
+    }
+
+    fn to_json(&self) -> String {
+        serde_json::to_string(self).unwrap()
+    }
+}
+
+/// A generic trace event that carries a name, wall-clock timing, and arbitrary attributes.
+/// Forwarded as a `CompilationEvent` to the JS side for inclusion in `.next/trace`.
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TraceEvent {
+    pub name: &'static str,
+    pub start_time_ms: f64,
+    pub end_time_ms: f64,
+    /// Should be an array of key value pairs
+    pub attributes: serde_json::Value,
+}
+
+impl TraceEvent {
+    pub fn new(
+        name: &'static str,
+        start_time_ms: f64,
+        end_time_ms: f64,
+        attributes: serde_json::Value,
+    ) -> Self {
+        // basic sanity test
+        debug_assert!(matches!(attributes, serde_json::Value::Array(_)));
+        Self {
+            name,
+            start_time_ms,
+            end_time_ms,
+            attributes,
+        }
+    }
+}
+
+impl CompilationEvent for TraceEvent {
+    fn type_name(&self) -> &'static str {
+        "TraceEvent"
+    }
+
+    fn severity(&self) -> Severity {
+        Severity::Event
+    }
+
+    fn message(&self) -> String {
+        let duration_ms = self.end_time_ms - self.start_time_ms;
+        format!("{} in {:.0}ms", self.name, duration_ms)
     }
 
     fn to_json(&self) -> String {

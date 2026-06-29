@@ -1,12 +1,11 @@
-use anyhow::{Result, bail};
+use anyhow::Result;
 use bincode::{Decode, Encode};
 use next_core::emit_assets;
 use rustc_hash::{FxHashMap, FxHashSet};
-use serde::{Deserialize, Serialize};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
     FxIndexSet, NonLocalValue, OperationValue, OperationVc, ResolvedVc, State, TryFlatJoinIterExt,
-    TryJoinIterExt, ValueDefault, Vc, debug::ValueDebugFormat, trace::TraceRawVcs,
+    TryJoinIterExt, Vc, debug::ValueDebugFormat, trace::TraceRawVcs, turbobail,
 };
 use turbo_tasks_fs::{FileContent, FileSystemPath};
 use turbopack_core::{
@@ -17,17 +16,7 @@ use turbopack_core::{
 };
 
 #[derive(
-    Clone,
-    TraceRawVcs,
-    PartialEq,
-    Eq,
-    ValueDebugFormat,
-    Serialize,
-    Deserialize,
-    Debug,
-    NonLocalValue,
-    Encode,
-    Decode,
+    Clone, TraceRawVcs, PartialEq, Eq, ValueDebugFormat, Debug, NonLocalValue, Encode, Decode,
 )]
 struct MapEntry {
     assets_operation: OperationVc<ExpandedOutputAssets>,
@@ -42,17 +31,7 @@ unsafe impl OperationValue for MapEntry {}
 struct OptionMapEntry(Option<MapEntry>);
 
 #[derive(
-    Clone,
-    TraceRawVcs,
-    PartialEq,
-    Eq,
-    ValueDebugFormat,
-    Serialize,
-    Deserialize,
-    Debug,
-    NonLocalValue,
-    Encode,
-    Decode,
+    Clone, TraceRawVcs, PartialEq, Eq, ValueDebugFormat, Debug, NonLocalValue, Encode, Decode,
 )]
 pub struct PathToOutputOperation(
     /// We need to use an operation for outputs as it's stored for later usage and we want to
@@ -71,8 +50,6 @@ pub struct PathToOutputOperation(
     PartialEq,
     Eq,
     ValueDebugFormat,
-    Serialize,
-    Deserialize,
     Debug,
     NonLocalValue,
     Encode,
@@ -95,12 +72,6 @@ pub struct VersionedContentMap {
     // FxIndexSet<FileSystemPath>
     map_path_to_op: State<PathToOutputOperation>,
     map_op_to_compute_entry: State<OutputOperationToComputeEntry>,
-}
-
-impl ValueDefault for VersionedContentMap {
-    fn value_default() -> Vc<Self> {
-        *VersionedContentMap::new()
-    }
 }
 
 impl VersionedContentMap {
@@ -232,8 +203,7 @@ impl VersionedContentMap {
                 generate_source_map.generate_source_map()
             })
         } else {
-            let path = path.value_to_string().await?;
-            bail!("no source map for path {}", path);
+            turbobail!("no source map for path {path}");
         }
     }
 
@@ -297,7 +267,7 @@ type GetEntriesResultT = Vec<(FileSystemPath, ResolvedVc<Box<dyn OutputAsset>>)>
 #[turbo_tasks::value(transparent)]
 struct GetEntriesResult(GetEntriesResultT);
 
-#[turbo_tasks::function(operation)]
+#[turbo_tasks::function(operation, root)]
 async fn get_entries(assets: OperationVc<ExpandedOutputAssets>) -> Result<Vc<GetEntriesResult>> {
     let assets_ref = assets.connect().await?;
     let entries = assets_ref
@@ -311,7 +281,7 @@ async fn get_entries(assets: OperationVc<ExpandedOutputAssets>) -> Result<Vc<Get
     Ok(Vc::cell(entries))
 }
 
-#[turbo_tasks::function(operation)]
+#[turbo_tasks::function(operation, root)]
 fn compute_entry_operation(
     map: ResolvedVc<VersionedContentMap>,
     assets_operation: OperationVc<ExpandedOutputAssets>,

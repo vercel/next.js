@@ -1,6 +1,6 @@
-use anyhow::{Context, Result, bail};
+use anyhow::{Context, Result};
 use turbo_rcstr::rcstr;
-use turbo_tasks::{FxIndexMap, ResolvedVc, ValueToString, Vc};
+use turbo_tasks::{FxIndexMap, ResolvedVc, Vc, turbobail};
 use turbo_tasks_fs::{File, FileContent, FileSystemPath};
 use turbopack_core::{
     asset::AssetContent,
@@ -12,24 +12,6 @@ use turbopack_core::{
     virtual_source::VirtualSource,
 };
 use turbopack_ecmascript::utils::StringifyJs;
-
-#[turbo_tasks::function]
-pub fn route_bootstrap(
-    asset: Vc<Box<dyn Module>>,
-    asset_context: Vc<Box<dyn AssetContext>>,
-    base_path: FileSystemPath,
-    bootstrap_asset: Vc<Box<dyn Source>>,
-    config: Vc<BootstrapConfig>,
-) -> Vc<Box<dyn EvaluatableAsset>> {
-    bootstrap(
-        asset,
-        asset_context,
-        base_path,
-        bootstrap_asset,
-        Vc::cell(FxIndexMap::default()),
-        config,
-    )
-}
 
 #[turbo_tasks::value(transparent)]
 pub struct BootstrapConfig(#[bincode(with = "turbo_bincode::indexmap")] FxIndexMap<String, String>);
@@ -51,13 +33,9 @@ pub async fn bootstrap(
     inner_assets: Vc<InnerAssets>,
     config: Vc<BootstrapConfig>,
 ) -> Result<Vc<Box<dyn EvaluatableAsset>>> {
-    let path = asset.ident().path().await?;
-    let Some(path) = base_path.get_path_to(&path) else {
-        bail!(
-            "asset {} is not in base path {}",
-            asset.ident().to_string().await?,
-            base_path.value_to_string().await?
-        );
+    let asset_ident = asset.ident().await?;
+    let Some(path) = base_path.get_path_to(&asset_ident.path) else {
+        turbobail!("asset {} is not in base path {base_path}", asset.ident())
     };
     let path = if let Some((name, ext)) = path.rsplit_once('.') {
         if !ext.contains('/') { name } else { path }
@@ -74,7 +52,7 @@ pub async fn bootstrap(
     let config_asset = asset_context
         .process(
             Vc::upcast(VirtualSource::new(
-                asset.ident().path().await?.join("bootstrap-config.ts")?,
+                asset_ident.path.join("bootstrap-config.ts")?,
                 AssetContent::file(
                     FileContent::Content(File::from(
                         config

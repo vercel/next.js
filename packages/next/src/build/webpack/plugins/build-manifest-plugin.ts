@@ -27,7 +27,6 @@ import {
 
 type DeepMutable<T> = { -readonly [P in keyof T]: DeepMutable<T[P]> }
 
-// nodejs: '/static/<build id>/low-priority.js'
 function buildNodejsLowPriorityPath(filename: string, buildId: string) {
   return `${CLIENT_STATIC_FILES_PATH}/${buildId}/${filename}`
 }
@@ -244,8 +243,12 @@ export default class BuildManifestPlugin {
       )
 
       if (!this.isDevFallback) {
+        const buildManifestPath = buildNodejsLowPriorityPath(
+          '_buildManifest.js',
+          this.buildId
+        )
         compilation.emitAsset(
-          `${CLIENT_STATIC_FILES_PATH}/${this.buildId}/_buildManifest.js`,
+          buildManifestPath,
           new sources.RawSource(
             `self.__BUILD_MANIFEST = ${generateClientManifest(
               assetMap,

@@ -1028,9 +1028,7 @@
             Module(
                 ModuleValue {
                     module: "path",
-                    annotations: ImportAnnotations {
-                        map: {},
-                    },
+                    annotations: None,
                 },
             ),
             Constant(
@@ -1124,7 +1122,7 @@
         span: 486..488,
     },
     ImportedBinding {
-        esm_reference_index: 2,
+        esm_reference_index: 3,
         export: Some(
             "join",
         ),
@@ -1160,10 +1158,7 @@
         ],
         span: 514..519,
     },
-    Call {
-        func: FreeVar(
-            "import",
-        ),
+    DynamicImport {
         args: [
             Value(
                 Constant(
@@ -1213,6 +1208,10 @@
         ],
         span: 556..570,
         in_try: false,
-        new: false,
+        export_usage: PartialNamespaceObject(
+            [
+                "join",
+            ],
+        ),
     },
 ]

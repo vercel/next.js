@@ -3,6 +3,7 @@
 // @ts-ignore
 import { nextTestSetup } from 'e2e-utils'
 import cheerio from 'cheerio'
+import { retry } from 'next-test-utils'
 
 const { i18n } = require('./next.config')
 
@@ -53,9 +54,11 @@ describe('i18n-hybrid', () => {
   })
 
   it('should warn about i18n in app dir', async () => {
-    expect(next.cliOutput).toContain(
-      'i18n configuration in next.config.js is unsupported in App Router.'
-    )
+    await retry(async () => {
+      expect(next.cliOutput).toContain(
+        'i18n configuration in next.config.js is unsupported in App Router.'
+      )
+    })
   })
 
   it.each(urls.filter((url) => !url.expected))(

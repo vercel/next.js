@@ -11,9 +11,7 @@ import buildNative from './build-native.js'
 interface Options {
   project: string
   build: boolean
-  noBuild: boolean
-  buildNative: boolean
-  noNativeBuild: boolean
+  'build-native': boolean
   verbose: number
   _: string[]
 }
@@ -21,15 +19,15 @@ interface Options {
 // --- Parse command line arguments ---
 const argv = yargs(hideBin(process.argv))
   .scriptName('patch-next')
-  .usage(
-    '$0 <project> [..options]',
-    'Patch Local Next.js packages to the target project directory',
-    (yargs: any) => {
-      yargs
+  .command(
+    '$0 <project> [options]',
+    'Patch local Next.js packages to the target project directory',
+    (yargs) => {
+      return yargs
         .positional('project', {
           type: 'string',
-          describe: ': Target directory of the Next.js Project to patch',
-          nargs: 1,
+          describe: 'Target directory of the Next.js project to patch',
+          demandOption: true,
         })
         .example(
           '$0 ../my-app --no-build --no-build-native',
@@ -69,7 +67,7 @@ const argv = yargs(hideBin(process.argv))
 const {
   project: projectDir,
   build,
-  buildNative: buildNativeEnabled,
+  'build-native': buildNativeEnabled,
   verbose: verboseLevel,
   _: buildNativeArgs,
 } = argv as Options

@@ -178,6 +178,7 @@ describe('dynamic-data with dynamic = "error"', () => {
       try {
         await expect(browser).toDisplayRedbox(`
          {
+           "code": "E849",
            "description": "Route /cookies with \`dynamic = "error"\` couldn't be rendered statically because it used \`cookies()\`. See more info here: https://nextjs.org/docs/app/building-your-application/rendering/static-and-dynamic#dynamic-rendering",
            "environmentLabel": "Server",
            "label": "Runtime Error",
@@ -197,6 +198,7 @@ describe('dynamic-data with dynamic = "error"', () => {
       try {
         await expect(browser).toDisplayRedbox(`
          {
+           "code": "E847",
            "description": "Route /connection with \`dynamic = "error"\` couldn't be rendered statically because it used \`connection()\`. See more info here: https://nextjs.org/docs/app/building-your-application/rendering/static-and-dynamic#dynamic-rendering",
            "environmentLabel": "Server",
            "label": "Runtime Error",
@@ -216,6 +218,7 @@ describe('dynamic-data with dynamic = "error"', () => {
       try {
         await expect(browser).toDisplayRedbox(`
          {
+           "code": "E828",
            "description": "Route /headers with \`dynamic = "error"\` couldn't be rendered statically because it used \`headers()\`. See more info here: https://nextjs.org/docs/app/building-your-application/rendering/static-and-dynamic#dynamic-rendering",
            "environmentLabel": "Server",
            "label": "Runtime Error",
@@ -235,6 +238,7 @@ describe('dynamic-data with dynamic = "error"', () => {
       try {
         await expect(browser).toDisplayRedbox(`
          {
+           "code": "E543",
            "description": "Route /search with \`dynamic = "error"\` couldn't be rendered statically because it used \`searchParams.then\`. See more info here: https://nextjs.org/docs/app/building-your-application/rendering/static-and-dynamic#dynamic-rendering",
            "environmentLabel": "Server",
            "label": "Runtime Error",
@@ -307,6 +311,7 @@ describe('dynamic-data inside cache scope', () => {
       try {
         await expect(browser).toDisplayRedbox(`
          {
+           "code": "E846",
            "description": "Route /cookies used \`cookies()\` inside a function cached with \`unstable_cache()\`. Accessing Dynamic data sources inside a cache scope is not supported. If you need this data inside a cached function use \`cookies()\` outside of the cached function and pass the required dynamic data in as an argument. See more info here: https://nextjs.org/docs/app/api-reference/functions/unstable_cache",
            "environmentLabel": "Server",
            "label": "Runtime Error",
@@ -327,6 +332,7 @@ describe('dynamic-data inside cache scope', () => {
       try {
         await expect(browser).toDisplayRedbox(`
          {
+           "code": "E840",
            "description": "Route /connection used \`connection()\` inside a function cached with \`unstable_cache()\`. The \`connection()\` function is used to indicate the subsequent code must only run when there is an actual Request, but caches must be able to be produced before a Request so this function is not allowed in this scope. See more info here: https://nextjs.org/docs/app/api-reference/functions/unstable_cache",
            "environmentLabel": "Server",
            "label": "Runtime Error",
@@ -347,6 +353,7 @@ describe('dynamic-data inside cache scope', () => {
       try {
         await expect(browser).toDisplayRedbox(`
          {
+           "code": "E838",
            "description": "Route /headers used \`headers()\` inside a function cached with \`unstable_cache()\`. Accessing Dynamic data sources inside a cache scope is not supported. If you need this data inside a cached function use \`headers()\` outside of the cached function and pass the required dynamic data in as an argument. See more info here: https://nextjs.org/docs/app/api-reference/functions/unstable_cache",
            "environmentLabel": "Server",
            "label": "Runtime Error",

@@ -7,6 +7,7 @@ pub mod failed_to_analyze {
         pub const CHILD_PROCESS_SPAWN: &str = "TP1005";
         pub const PATH_METHOD: &str = "TP1006";
         pub const REQUIRE_CONTEXT: &str = "TP1007";
+        pub const IMPORT_META_GLOB: &str = "TP1008";
         pub const NODE_PRE_GYP_FIND: &str = "TP1100";
         pub const NODE_GYP_BUILD: &str = "TP1101";
         pub const NODE_BINDINGS: &str = "TP1102";
@@ -17,5 +18,8 @@ pub mod failed_to_analyze {
         pub const NEW_URL_IMPORT_META: &str = "TP1201";
         pub const FREE_VAR_REFERENCE: &str = "TP1202";
         pub const NEW_WORKER: &str = "TP1203";
+        pub const MODULE_HOT_ACCEPT: &str = "TP1204";
+        pub const MODULE_HOT_DECLINE: &str = "TP1205";
+        pub const CHUNKING_TYPE: &str = "TP1206";
     }
 }

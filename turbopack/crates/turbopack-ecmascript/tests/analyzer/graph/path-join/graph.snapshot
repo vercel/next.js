@@ -81,9 +81,7 @@
                 Module(
                     ModuleValue {
                         module: "path",
-                        annotations: ImportAnnotations {
-                            map: {},
-                        },
+                        annotations: None,
                     },
                 ),
                 Constant(
@@ -110,9 +108,7 @@
             Module(
                 ModuleValue {
                     module: "path",
-                    annotations: ImportAnnotations {
-                        map: {},
-                    },
+                    annotations: None,
                 },
             ),
             Constant(
