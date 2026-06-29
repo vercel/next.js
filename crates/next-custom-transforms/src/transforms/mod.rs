@@ -4,6 +4,7 @@ pub mod debug_fn_name;
 pub mod debug_instant_stack;
 pub mod disallow_re_export_all_in_page;
 pub mod dynamic;
+pub mod empty_gsp;
 pub mod fonts;
 pub mod import_analyzer;
 pub mod lint_codemod_comments;

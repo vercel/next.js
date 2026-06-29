@@ -10,6 +10,7 @@ use next_custom_transforms::transforms::{
     debug_fn_name::debug_fn_name,
     debug_instant_stack::DebugInstantStack,
     dynamic::{NextDynamicMode, next_dynamic},
+    empty_gsp::EmptyGenerateStaticParams,
     fonts::{Config as FontLoaderConfig, next_font_loaders},
     named_import_transform::named_import_transform,
     next_ssg::next_ssg,
@@ -879,6 +880,25 @@ fn test_debug_instant_stack(input: PathBuf) {
     test_fixture(
         syntax(),
         &|_| DebugInstantStack::new::<Vec<&str>, &str>(vec![]).get_pass("app/page.js".to_string()),
+        &input,
+        &output,
+        FixtureTestConfig {
+            sourcemap: true,
+            ..Default::default()
+        },
+    );
+}
+
+#[fixture("tests/fixture/empty-gsp/**/input.js")]
+fn test_empty_gsp(input: PathBuf) {
+    let output = input.parent().unwrap().join("output.js");
+
+    test_fixture(
+        syntax(),
+        &|_| {
+            EmptyGenerateStaticParams::new::<Vec<&str>, &str>(vec![])
+                .get_pass("app/page.js".to_string())
+        },
         &input,
         &output,
         FixtureTestConfig {

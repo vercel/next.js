@@ -137,6 +137,7 @@ where
 {
     let file_path_str = file.name.to_string();
     let file_path_for_instant_stack = file_path_str.clone();
+    let file_path_for_empty_gsp = file_path_str.clone();
 
     #[cfg(target_arch = "wasm32")]
     let relay_plugin = noop_pass();
@@ -348,15 +349,33 @@ where
                 crate::transforms::debug_fn_name::debug_fn_name(),
                 opts.debug_function_name,
             ),
-            crate::transforms::debug_instant_stack::DebugInstantStack::new(
-                match &opts.server_components {
-                    Some(react_server_components::Config::WithOptions(options)) => {
-                        options.page_extensions.clone()
-                    }
-                    _ => vec![],
-                },
-            )
-            .get_pass(file_path_for_instant_stack),
+            (
+                crate::transforms::debug_instant_stack::DebugInstantStack::new(
+                    match &opts.server_components {
+                        Some(react_server_components::Config::WithOptions(options)) => {
+                            options.page_extensions.clone()
+                        }
+                        _ => vec![],
+                    },
+                )
+                .get_pass(file_path_for_instant_stack),
+                Optional::new(
+                    crate::transforms::empty_gsp::EmptyGenerateStaticParams::new(
+                        match &opts.server_components {
+                            Some(react_server_components::Config::WithOptions(options)) => {
+                                options.page_extensions.clone()
+                            }
+                            _ => vec![],
+                        },
+                    )
+                    .get_pass(file_path_for_empty_gsp),
+                    matches!(
+                        &opts.server_components,
+                        Some(react_server_components::Config::WithOptions(options))
+                            if options.cache_components_enabled
+                    ),
+                ),
+            ),
             visit_mut_pass(crate::transforms::pure::pure_magic(comments.clone())),
             Optional::new(
                 linter(lint_codemod_comments(comments)),
