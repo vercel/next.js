@@ -44,6 +44,7 @@ import {
 import { FetchStrategy } from '../segment-cache/types'
 import { discoverKnownRoute } from '../segment-cache/optimistic-routes'
 import { NEXT_NAV_DEPLOYMENT_ID_HEADER } from '../../../lib/constants'
+import { urlSearchParamsToParsedUrlQuery } from '../../route-params'
 import type { NormalizedSearch } from '../segment-cache/cache-key'
 import {
   getRenderedSearchFromVaryPath,
@@ -778,7 +779,7 @@ function createSegmentFromRouteTree(newRouteTree: RouteTree): Segment {
     // This is based on equivalent logic in addSearchParamsIfPageSegment, used
     // on the server.
     const stringifiedQuery = JSON.stringify(
-      Object.fromEntries(new URLSearchParams(renderedSearch))
+      urlSearchParamsToParsedUrlQuery(new URLSearchParams(renderedSearch))
     )
     return stringifiedQuery !== '{}'
       ? PAGE_SEGMENT_KEY + '?' + stringifiedQuery
