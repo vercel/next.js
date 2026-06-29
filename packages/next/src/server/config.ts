@@ -2215,6 +2215,10 @@ function enforceExperimentalFeatures(
     config.cacheComponents = true
   }
 
+  if (process.env.__NEXT_PARTIAL_PREFETCHING === 'true') {
+    config.partialPrefetching = true
+  }
+
   // TODO: Remove this once cachedNavigations is the default. Note:
   // cachedNavigations may be the string 'allow-runtime'. These guards treat it
   // as truthy, so an explicit 'allow-runtime' is respected here and in the
