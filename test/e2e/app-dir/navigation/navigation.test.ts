@@ -219,6 +219,27 @@ describe('app dir - navigation', () => {
     })
   })
 
+  describe('hash-suspense', () => {
+    it('should scroll to a hash target rendered inside a Suspense boundary once it resolves', async () => {
+      const browser = await next.browser('/hash-suspense')
+
+      // Sanity: we start at the top of the page.
+      expect(await browser.eval('window.pageYOffset')).toBe(0)
+
+      // Navigate to a page whose hash target streams in behind a Suspense
+      // boundary, so it isn't in the DOM at the moment the router would
+      // normally scroll to the hash.
+      await browser.elementByCss('#link-to-suspense-hash').click()
+
+      // Once the boundary resolves and the target appears, the page should
+      // scroll to it instead of staying at the top.
+      await browser.waitForElementByCss('#hash-target')
+      await retry(async () => {
+        expect(await browser.eval('window.pageYOffset')).toBeGreaterThan(0)
+      })
+    })
+  })
+
   describe('hash-with-scroll-offset', () => {
     it('should scroll to the specified hash', async () => {
       const browser = await next.browser('/hash-with-scroll-offset')
