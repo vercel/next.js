@@ -1027,6 +1027,25 @@ function bindingToApi(
       nextConfigSerializable.turbopack = turbopack
     }
 
+    // Serialize `experimental.turbopackChunkingHeuristics` route patterns: convert each RegExp to
+    // {source, flags} since RegExp objects are not JSON-serializable.
+    const chunkingHeuristics =
+      nextConfigSerializable.experimental?.turbopackChunkingHeuristics
+    if (chunkingHeuristics) {
+      const regexComponents = (regex: RegExp) => ({
+        source: regex.source,
+        flags: regex.flags,
+      })
+      nextConfigSerializable.experimental = {
+        ...nextConfigSerializable.experimental,
+        turbopackChunkingHeuristics: {
+          ...chunkingHeuristics,
+          priorityRoutes:
+            chunkingHeuristics.priorityRoutes?.map(regexComponents),
+        },
+      }
+    }
+
     return JSON.stringify(nextConfigSerializable, null, 2)
   }
 
