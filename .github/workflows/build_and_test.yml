@@ -230,6 +230,9 @@ jobs:
         pnpm lint-no-typescript
         pnpm check-examples
         pnpm validate-externals-doc
+        # Fails if a `*.browser.{ts,tsx}` sibling was added/removed without
+        # regenerating the browser-variant lists. The script prints the fix.
+        pnpm check-browser-variant-aliases
       stepName: 'lint'
     secrets: inherit
 

@@ -119,7 +119,10 @@ if (check) {
   }
   if (!ok) {
     console.error(
-      '\nRun `pnpm generate-browser-variant-aliases` to update the generated lists.'
+      '\nThe browser-variant module lists are out of date with the filesystem.\n' +
+        'To fix: run `pnpm generate-browser-variant-aliases` and commit the updated\n' +
+        'packages/next/src/build/browser-variant-modules.ts and\n' +
+        'crates/next-core/src/browser_variant_modules.rs.'
     )
     process.exit(1)
   }
