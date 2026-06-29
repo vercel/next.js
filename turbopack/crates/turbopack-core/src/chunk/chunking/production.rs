@@ -19,6 +19,9 @@ use crate::{
     },
 };
 
+/// Default estimated cost of an additional request, in bytes (200 KB).
+const DEFAULT_ESTIMATED_REQUEST_COST_BYTES: u64 = 200_000;
+
 pub async fn make_production_chunks(
     chunk_items: Vec<&ChunkItemOrBatchWithInfo>,
     batch_groups: Vec<ResolvedVc<ChunkItemBatchGroup>>,
@@ -37,6 +40,8 @@ pub async fn make_production_chunks(
     let span = span_outer.clone();
     async move {
         let module_chunk_groups = module_graph.chunk_group_info().module_chunk_groups();
+        let chunk_group_info = module_graph.chunk_group_info().await?;
+        let heuristics = &chunk_group_info.chunking_heuristics;
         let merged_modules = module_graph.merged_modules().await?;
 
         #[derive(Default)]
@@ -123,6 +128,9 @@ pub async fn make_production_chunks(
             min_chunk_size,
             max_chunk_count_per_group,
             max_merge_chunk_size,
+            first_page_load_priority,
+            priority_boost_percent,
+            request_cost,
             ..
         } = chunking_config;
 
@@ -217,6 +225,24 @@ pub async fn make_production_chunks(
                     unreachable!();
                 };
 
+                // Chunking-heuristics-derived constants for the maths below.
+                //
+                // The cost of a single request in transferred bytes, capped at 1MB.
+                // Defaults to 200,000 bytes (200 KB).
+                let c_req = request_cost
+                    .unwrap_or(DEFAULT_ESTIMATED_REQUEST_COST_BYTES)
+                    .min(1_000_000) as i64;
+
+                // Default `P(N = 1)`: the probability that we request exactly 1 chunk group.
+                // An integer percentage (0..=100). `firstPageLoadPriority` maps directly to
+                // it; the default is 67 (~2/3).
+                let default_p1 = first_page_load_priority.map_or(67, |percent| percent as i64);
+
+                // `priorityBoost` as an integer percentage to multiply `P(N = 1)` by for priority
+                // routes; the default is 150 (a 1.5x boost).
+                let priority_boost_percent =
+                    priority_boost_percent.map_or(150, |percent| percent as i64);
+
                 let mut iterations = 0;
                 while chunks_to_merge.len() > 1 {
                     // Find best candidate
@@ -286,15 +312,16 @@ pub async fn make_production_chunks(
                             */
 
                             /*
-                                For our calculations we assume that there is a probability of 2/3 that we request exactly 1 chunk group (`N = 1`)
-                                and a probability of 1/3 that we request 2 chunk groups (`N = 2`).
-                                This is a simplification, but it should be good enough for our purposes.
+                                By default, for our calculations we assume that there is a probability of 2/3 that
+                                we request exactly 1 chunk group (`N = 1`) and a probability of 1/3 that we request
+                                2 chunk groups (`N = 2`). This is a simplification, but it should be good enough
+                                for our purposes and it is configurable using the chunking heuristics.
 
                                 We want to compute the expected request count `e_req` and the expected total requested size `e_size` for the unmerged and merged case.
 
                                 To compute that we compute the two cases `N = 1` and `N = 2` and combine them
-                                e_size = 2/3 * e_size(N = 1) + 1/3 * e_size(N = 2)
-                                e_req = 2/3 * e_req(N = 1) + 1/3 * e_req(N = 2)
+                                e_size = P(N = 1) * e_size(N = 1) + P(N = 2) * e_size(N = 2)
+                                e_req = P(N = 1) * e_req(N = 1) + P(N = 2) * e_req(N = 2)
 
                                 We combine `e_size` with `e_req` using this formula:
                                 e_cost = e_req * c_req + e_size
@@ -311,8 +338,8 @@ pub async fn make_production_chunks(
                                 d_req = e_req_unmerged - e_req_merged
 
                                 And we can split it further for every N:
-                                d_size = 2/3 * d_size(N = 1) + 1/3 * d_size(N = 2)
-                                d_req = 2/3 * d_req(N = 1) + 1/3 * d_req(N = 2)
+                                d_size = P(N = 1) * d_size(N = 1) + P(N = 2) * d_size(N = 2)
+                                d_req = P(N = 1) * d_req(N = 1) + P(N = 2) * d_req(N = 2)
                             */
 
                             /*
@@ -390,38 +417,31 @@ pub async fn make_production_chunks(
 
                                 d_size(N = 2) = -2 * (a_rem * a_size + b_rem * b_size) * o_groups / (groups * rem_g)
 
-
                                 d(N = 2) = d_req(N = 2) * c_req + d_size(N = 2)
                                          = (o_groups * (o_groups - 1) * c_req) / (groups * rem_g) - (2 * (a_rem * a_size + b_rem * b_size) * o_groups) / (groups * rem_g)
                                          = (o_groups * (o_groups - 1) * c_req - 2 * (a_rem * a_size + b_rem * b_size) * o_groups) / (groups * rem_g)
                             */
 
                             /*
-                                d  = 2/3 * d(N = 1) + 1/3 * d(N = 2)
-                                3d = 2 * (o_groups * c_req) / groups + (o_groups * (o_groups - 1) * c_req - 2 * (a_rem * a_size + b_rem * b_size) * o_groups) / (groups * rem_g)
-                                   = c_req * (2 * o_groups / groups + o_groups * (o_groups - 1) / (groups * rem_g)) - 2 * (a_rem * a_size + b_rem * b_size) * o_groups / (groups * rem_g)
-                                   = c_req * (o_groups / groups) * (2 + (o_groups - 1) / rem_g) - 2 * (a_rem * a_size + b_rem * b_size) * o_groups / (groups * rem_g)
-
-                                We pull out some factors:
-                                3d = (c_req * (2 * rem_g + (o_groups - 1)) - 2 * (a_rem * a_size + b_rem * b_size)) * o_groups / (rem_g * groups)
+                                d  = P(N = 1) * d(N = 1) + P(N = 2) * d(N = 2)
                             */
 
                             /*
                                Recall from above:
-                               3d = c_req * (2 * o_groups / groups + o_groups * (o_groups - 1) / (groups * rem_g)) - 2 * (a_rem * a_size + b_rem * b_size) * o_groups / (groups * rem_g)
                                d = d_req * c_req + d_size
+                               d_req = P(N = 1) * d_req(N = 1) + P(N = 2) * d_req(N = 2)
 
-                               `d_size` is always <= 0, for d > 0, d_req * c_req must be positive:
+                               `d_size` is always <= 0, so for d > 0, d_req * c_req must be
+                               positive:
 
-                               3d > 0
                                d > 0
                                d_req * c_req > 0
-                               (2 * o_groups / groups + o_groups * (o_groups - 1) / (groups * rem_g)) * c_req > 0
-                               2 * o_groups / groups + o_groups * (o_groups - 1) / (groups * rem_g) > 0
-                               2 * o_groups * rem_g + o_groups * (o_groups - 1) > 0
-                               o_groups * (2 * rem_g + o_groups - 1) > 0
-                               o_groups > 0 && 2 * rem_g + o_groups - 1 > 0
-                               o_groups > 0 && 2 * (groups - 1) + o_groups - 1 > 0
+                               (P(N = 1) * o_groups / groups + P(N = 2) * o_groups * (o_groups - 1) / (groups * rem_g)) * c_req > 0
+                               P(N = 1) * o_groups / groups + P(N = 2) * o_groups * (o_groups - 1) / (groups * rem_g) > 0
+                               P(N = 1) * o_groups * rem_g + P(N = 2) * o_groups * (o_groups - 1) > 0
+                               o_groups * (P(N = 1) * rem_g + P(N = 2) * (o_groups - 1)) > 0
+                               o_groups > 0 && P(N = 1) * rem_g + P(N = 2) * (o_groups - 1) > 0
+                               o_groups > 0 && P(N = 1) * (groups - 1) + P(N = 2) * (o_groups - 1) > 0
                                o_groups > 0 && groups >= 2
                             */
 
@@ -431,16 +451,47 @@ pub async fn make_production_chunks(
                                 continue;
                             }
                             let rem_g = groups - 1;
-                            let c_req = 200000;
-                            // d3 = 3 * d
-                            let pre_d3 = c_req * (2 * rem_g + (o_groups - 1))
-                                - 2 * (a_rem * a_size + b_rem * b_size);
+
+                            // If a single priority route references every chunk group in the
+                            // overlap, we increase its P(N = 1) by
+                            // `priorityBoost` (default 1.5x, and as a
+                            // result reduce P(N = 2)). This is to encourage merging chunks used
+                            // on these priority routes.
+
+                            // `candidate` and `other` are both chunk items that we are considering
+                            // merging. they are both requested by different chunk groups, we are
+                            // optimising the overlap of these chunk groups. an example of something
+                            // in `o_groups` would be a chunk group that requests both chunk items.
+
+                            let mut is_priority_route = false;
+                            if let (Some(a), Some(b)) =
+                                (&candidate.chunk_groups, &other.chunk_groups)
+                            {
+                                let o = &***a & &***b; // `o_groups`
+
+                                // if there is one chunk group in `o_groups` that is used by a
+                                // priority route, we should prioritise merging these two chunk
+                                // items.
+                                is_priority_route = !o.is_disjoint(&heuristics.priority_routes);
+                            }
+
+                            let p1 = if is_priority_route {
+                                ((default_p1 * priority_boost_percent) / 100).min(100)
+                            } else {
+                                default_p1
+                            };
+
+                            let p2 = 100 - p1;
+
+                            // pre_dw = PROB_SCALE * d * (rem_g * groups) / o_groups
+                            let pre_dw = p1 * rem_g * c_req
+                                + p2 * ((o_groups - 1) * c_req
+                                    - 2 * (a_rem * a_size + b_rem * b_size));
                             // It need to have some runtime benefit of merging the chunks
-                            if pre_d3 < 0 {
+                            if pre_dw < 0 {
                                 continue;
                             }
-                            let d3 = pre_d3 * o_groups / (rem_g * groups);
-                            let value = d3;
+                            let value = pre_dw * o_groups / (rem_g * groups);
 
                             if let Some((best_i1, best_i2, best_overlap, best_value)) =
                                 best_combination.as_mut()
