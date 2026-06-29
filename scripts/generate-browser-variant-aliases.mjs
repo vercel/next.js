@@ -16,42 +16,45 @@
  *   node scripts/generate-browser-variant-aliases.mjs           # write
  *   node scripts/generate-browser-variant-aliases.mjs --check   # verify
  */
-import { readdirSync, readFileSync, writeFileSync, existsSync } from 'fs'
-import { join, relative, dirname } from 'path'
+import { execFileSync } from 'child_process'
+import { readFileSync, writeFileSync, existsSync } from 'fs'
+import { join, dirname } from 'path'
 import { fileURLToPath } from 'url'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const repoRoot = join(__dirname, '..')
-const srcDir = join(repoRoot, 'packages/next/src')
-const tsOut = join(srcDir, 'build/browser-variant-modules.ts')
+const srcRel = 'packages/next/src'
+const tsOut = join(repoRoot, srcRel, 'build/browser-variant-modules.ts')
 const rsOut = join(repoRoot, 'crates/next-core/src/browser_variant_modules.rs')
 
-/** Recursively collect every file path under `dir`. */
-function walk(dir) {
-  /** @type {string[]} */
-  const files = []
-  for (const entry of readdirSync(dir, { withFileTypes: true })) {
-    const full = join(dir, entry.name)
-    if (entry.isDirectory()) files.push(...walk(full))
-    else files.push(full)
-  }
-  return files
+/** Git-tracked files (posix paths relative to the repo root) under a pathspec. */
+function trackedFiles(pathspec) {
+  return execFileSync('git', ['ls-files', '--', pathspec], {
+    cwd: repoRoot,
+    encoding: 'utf8',
+  })
+    .split('\n')
+    .filter(Boolean)
 }
 
 /**
- * Scan for `<module>.browser.{ts,tsx}` files that have a base `<module>.{ts,tsx}`
+ * Find `<module>.browser.{ts,tsx}` files that have a base `<module>.{ts,tsx}`
  * sibling, returning posix module paths relative to `packages/next/src` without
- * an extension (e.g. `client/components/unstable-rethrow`).
+ * an extension (e.g. `client/components/unstable-rethrow`). Enumerated from
+ * git so generated output, ignored files, and build artifacts never leak in.
  */
 function collectModules() {
+  const tracked = trackedFiles(srcRel)
+  const trackedSet = new Set(tracked)
   /** @type {string[]} */
   const modules = []
-  for (const file of walk(srcDir)) {
+  for (const file of tracked) {
     const match = file.match(/^(.*)\.browser\.tsx?$/)
     if (!match) continue
     const stem = match[1]
-    if (!existsSync(`${stem}.ts`) && !existsSync(`${stem}.tsx`)) continue
-    modules.push(relative(srcDir, stem).split('\\').join('/'))
+    if (!trackedSet.has(`${stem}.ts`) && !trackedSet.has(`${stem}.tsx`))
+      continue
+    modules.push(stem.slice(srcRel.length + 1))
   }
   return modules.sort()
 }
