@@ -46,7 +46,7 @@ import type { Params } from '../../../server/request/params'
 import {
   MATCHED_PATH_HEADER,
   NEXT_NAV_DEPLOYMENT_ID_HEADER,
-} from '../../../lib/constants'
+} from '../../../shared/lib/constants-browser'
 import { getDeploymentId } from '../deployment-id'
 import { isJavaScriptURLString } from '../../../client/lib/javascript-url'
 

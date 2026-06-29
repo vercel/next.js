@@ -35,10 +35,10 @@ import {
   PRERENDER_REVALIDATE_ONLY_GENERATED_HEADER,
   NEXT_CACHE_REVALIDATE_TAG_TOKEN_HEADER,
   NEXT_CACHE_REVALIDATED_TAGS_HEADER,
-  MATCHED_PATH_HEADER,
   type RSC_SEGMENTS_DIR_SUFFIX,
   type RSC_SEGMENT_SUFFIX,
 } from '../lib/constants'
+import { MATCHED_PATH_HEADER } from '../shared/lib/constants-browser'
 import { FileType, fileExists } from '../lib/file-exists'
 import { findPagesDir } from '../lib/find-pages-dir'
 import loadCustomRoutes, {
@@ -143,7 +143,7 @@ import { writeBuildId } from './write-build-id'
 import { normalizeLocalePath } from '../shared/lib/i18n/normalize-locale-path'
 import isError from '../lib/is-error'
 import type { NextError } from '../lib/is-error'
-import { isEdgeRuntime } from '../lib/is-edge-runtime'
+import { isEdgeRuntime } from './is-edge-runtime'
 import { recursiveCopy } from '../lib/recursive-copy'
 import { lockfilePatchPromise, teardownTraceSubscriber } from './swc'
 import { installBindings } from './swc/install-bindings'

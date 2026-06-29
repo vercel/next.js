@@ -112,7 +112,7 @@ import { readFromBFCache, UnknownDynamicStaleTime } from './bfcache'
 import { discoverKnownRoute, matchKnownRoute } from './optimistic-routes'
 import { convertServerPatchToFullTree, type NavigationSeed } from './navigation'
 import { getNavigationBuildId } from '../../navigation-build-id'
-import { NEXT_NAV_DEPLOYMENT_ID_HEADER } from '../../../lib/constants'
+import { NEXT_NAV_DEPLOYMENT_ID_HEADER } from '../../../shared/lib/constants-browser'
 
 /**
  * Ensures a minimum stale time of 30s to avoid issues where the server sends a too

@@ -1,12 +1,9 @@
 import type { ServerRuntime } from '../types'
 
-export const TEXT_PLAIN_CONTENT_TYPE_HEADER = 'text/plain'
-export const HTML_CONTENT_TYPE_HEADER = 'text/html; charset=utf-8'
-export const JSON_CONTENT_TYPE_HEADER = 'application/json; charset=utf-8'
-export const NEXT_QUERY_PARAM_PREFIX = 'nxtP'
-export const NEXT_INTERCEPTION_MARKER_PREFIX = 'nxtI'
+if (typeof window !== 'undefined') {
+  throw new Error('should not be imported by client code')
+}
 
-export const MATCHED_PATH_HEADER = 'x-matched-path'
 export const PRERENDER_REVALIDATE_HEADER = 'x-prerender-revalidate'
 export const PRERENDER_REVALIDATE_ONLY_GENERATED_HEADER =
   'x-prerender-revalidate-if-generated'
@@ -19,15 +16,10 @@ export const NEXT_DATA_SUFFIX = '.json'
 export const NEXT_META_SUFFIX = '.meta'
 export const NEXT_BODY_SUFFIX = '.body'
 
-export const NEXT_NAV_DEPLOYMENT_ID_HEADER = 'x-nextjs-deployment-id'
-
 export const NEXT_CACHE_TAGS_HEADER = 'x-next-cache-tags'
 export const NEXT_CACHE_REVALIDATED_TAGS_HEADER = 'x-next-revalidated-tags'
 export const NEXT_CACHE_REVALIDATE_TAG_TOKEN_HEADER =
   'x-next-revalidate-tag-token'
-
-export const NEXT_RESUME_HEADER = 'next-resume'
-export const NEXT_RESUME_STATE_LENGTH_HEADER = 'x-next-resume-state-length'
 
 // if these change make sure we update the related
 // documentation as well
@@ -36,9 +28,6 @@ export const NEXT_CACHE_TAG_MAX_LENGTH = 256
 export const NEXT_CACHE_SOFT_TAG_MAX_LENGTH = 1024
 export const NEXT_CACHE_IMPLICIT_TAG_ID = '_N_T_'
 export const NEXT_CACHE_ROOT_PARAM_TAG_ID = '_N_RP_'
-
-// in seconds
-export const CACHE_ONE_YEAR_SECONDS = 31536000
 
 // in seconds, represents revalidate=false. I.e. never revaliate.
 // We use this value since it can be represented as a V8 SMI for optimal performance.
@@ -106,8 +95,6 @@ export const SERVER_RUNTIME: Record<string, ServerRuntime> = {
   experimentalEdge: 'experimental-edge',
   nodejs: 'nodejs',
 }
-
-export const WEB_SOCKET_MAX_RECONNECTIONS = 12
 
 /**
  * The names of the webpack layers. These layers are the primitives for the
