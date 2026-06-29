@@ -63,6 +63,9 @@ console.log(("TURBOPACK compile-time value", "replacement"));
 if (("TURBOPACK compile-time value", "replacement") === 'replacement') {
     console.log('warning replacement works');
 }
+if ("TURBOPACK compile-time falsy", 0) //TURBOPACK unreachable
+;
+console.log(("TURBOPACK compile-time value", true));
 }),
 ]);
 

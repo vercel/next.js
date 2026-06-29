@@ -125,6 +125,7 @@ impl Display for JsValue<'_> {
                     .join(", ")
             ),
             JsValue::Member(_, obj, prop) => write!(f, "{obj}[{prop}]"),
+            JsValue::In(_, left, right) => write!(f, "{left} in {right}"),
             JsValue::Module(ModuleValue {
                 module: name,
                 annotations,

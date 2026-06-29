@@ -199,7 +199,7 @@ impl<'a> JsValue<'a> {
                     child.similar_hash(state, depth - 1);
                 });
             }
-            JsValue::Member(_, o, p) => {
+            JsValue::Member(_, o, p) | JsValue::In(_, o, p) => {
                 o.similar_hash(state, depth - 1);
                 p.similar_hash(state, depth - 1);
             }

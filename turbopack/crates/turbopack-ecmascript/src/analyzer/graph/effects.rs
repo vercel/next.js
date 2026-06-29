@@ -151,6 +151,13 @@ pub enum Effect<'a> {
         ast_path: BumpBox<'a, [AstParentKind]>,
         span: Span,
     },
+    /// A `x in y` expression.
+    In {
+        left: BumpBox<'a, JsValue<'a>>,
+        right: BumpBox<'a, JsValue<'a>>,
+        ast_path: BumpBox<'a, [AstParentKind]>,
+        span: Span,
+    },
     /// A reference to an imported binding.
     ImportedBinding {
         esm_reference_index: usize,
@@ -227,6 +234,10 @@ impl<'a> Effect<'a> {
             Effect::Member { obj, prop, .. } => {
                 obj.normalize(arena);
                 prop.normalize(arena);
+            }
+            Effect::In { left, right, .. } => {
+                left.normalize(arena);
+                right.normalize(arena);
             }
             Effect::DynamicImport { args, .. } => {
                 for arg in args.iter_mut() {

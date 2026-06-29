@@ -52,6 +52,7 @@ impl JsValue<'_> {
             JsValue::SuperCall(_, _args) => true,
             JsValue::MemberCall(_, _call) => true,
             JsValue::Member(_, obj, prop) => obj.has_side_effects() || prop.has_side_effects(),
+            JsValue::In(_, left, right) => left.has_side_effects() || right.has_side_effects(),
             JsValue::Function(_, _, _) => false,
             JsValue::Url(_, _) => false,
             JsValue::Variable(_) => false,
@@ -274,7 +275,7 @@ impl JsValue<'_> {
             | JsValue::Promise(_, _) => Some(false),
 
             // Booleans are not strings
-            JsValue::Not(..) | JsValue::Binary(..) => Some(false),
+            JsValue::Not(..) | JsValue::Binary(..) | JsValue::In(..) => Some(false),
 
             JsValue::Add(_, list) => any_if_known(list, JsValue::is_string),
             JsValue::Logical(_, op, list) => match op {
