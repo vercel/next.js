@@ -358,7 +358,7 @@ export async function handler(
         res.statusCode = 413
         res.end(
           `Request body exceeded limit. ` +
-            `To configure the body size limit for Server Actions, see: https://nextjs.org/docs/app/api-reference/config/next-config-js/serverActions#bodysizelimit`
+            `To configure the body size limit for Server Actions, see: https://nextjs.org/docs/app/api-reference/next-config-js/serverActions#bodysizelimit`
         )
         ctx.waitUntil?.(Promise.resolve())
         return null
