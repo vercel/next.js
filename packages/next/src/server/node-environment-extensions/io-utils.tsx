@@ -76,10 +76,8 @@ export function io(expression: string, type: SyncIOApiType) {
         syncIOError = applyOwnerStack(syncIOError)
         stageController.syncInterruptCurrentStageWithReason(syncIOError)
 
-        // A build-time validation render uses a 'request' store type, but may be abortable.
-        // If we're in the second, restarted render of the restart-on-cache miss flow,
-        // Sync IO is an error, and unlike dev, there's no need to continue the render past the sync IO,
-        // so we can abort it.
+        // A validation render uses a 'request' store type, but may be abortable.
+        // If we're rendering with filled caches, Sync IO is an error and should trigger an abort.
         if (
           workUnitStore.controller &&
           !workUnitStore.controller.signal.aborted
