@@ -366,7 +366,8 @@ export async function handler(
 
       const decompressedFullBody = decompressBody(
         fullBody,
-        req.headers['content-encoding']
+        req.headers['content-encoding'],
+        maxTotalBodySize * 5
       )
 
       if (decompressedFullBody.length >= stateLength) {
@@ -406,7 +407,11 @@ export async function handler(
       ctx.waitUntil?.(Promise.resolve())
       return null
     }
-    const decompressed = decompressBody(body, req.headers['content-encoding'])
+    const decompressed = decompressBody(
+      body,
+      req.headers['content-encoding'],
+      maxPostponedStateSizeBytes * 5
+    )
     const postponed = decompressed.toString('utf8')
 
     addRequestMeta(req, 'postponed', postponed)

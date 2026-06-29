@@ -1126,7 +1126,8 @@ export default abstract class Server<
             }
             const decompressed = decompressBody(
               body,
-              req.headers['content-encoding']
+              req.headers['content-encoding'],
+              maxPostponedStateSizeBytes * 5
             )
             const postponed = decompressed.toString('utf8')
 
