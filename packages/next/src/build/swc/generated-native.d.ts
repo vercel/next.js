@@ -77,7 +77,7 @@ export interface NapiCodeFrameOptions {
   linesAbove?: number
   /** Number of lines to show below the error (default: 3) */
   linesBelow?: number
-  /** Maximum width of the output in columns (default: 100) */
+  /** Maximum width of the output in columns (default: 240) */
   maxWidth?: number
   /** Whether to use ANSI colors (default: false) */
   color?: NapiCodeFrameColorMode | boolean
