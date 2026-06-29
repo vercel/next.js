@@ -40,6 +40,11 @@ import {
 import { createDedupedByCallsiteServerErrorLoggerDev } from '../create-deduped-by-callsite-server-error-logger'
 import { dynamicAccessAsyncStorage } from '../app-render/dynamic-access-async-storage.external'
 import { RenderStage } from '../app-render/staged-rendering'
+import {
+  isEmptyParams,
+  hasFallbackRouteParams,
+  allParamsAreRootParams,
+} from '../lib/params-utils'
 
 export type ParamValue = string | Array<string> | undefined
 export type Params = Record<string, ParamValue>
@@ -610,15 +615,6 @@ function createStagedRenderParamsImpl(
   return makeUntrackedParams(userspaceParams)
 }
 
-function allParamsAreRootParams(underlyingParams: Params, rootParams: Params) {
-  for (const paramName in underlyingParams) {
-    if (!Object.hasOwn(rootParams, paramName)) {
-      return false
-    }
-  }
-  return true
-}
-
 function createParamsPromiseFromTrigger(
   trigger: Promise<any>,
   userspaceParams: Params
@@ -641,27 +637,6 @@ function createParamsPromiseFromTrigger(
 }
 
 function noop() {}
-
-function isEmptyParams(params: Params): boolean {
-  for (const _paramKey in params) {
-    return false
-  }
-  return true
-}
-
-function hasFallbackRouteParams(
-  underlyingParams: Params,
-  fallbackParams: OpaqueFallbackRouteParams | null | undefined
-): boolean {
-  if (fallbackParams) {
-    for (let key in underlyingParams) {
-      if (fallbackParams.has(key)) {
-        return true
-      }
-    }
-  }
-  return false
-}
 
 function createServerParamsProxyForInstantValidation(
   underlyingParams: Params,
