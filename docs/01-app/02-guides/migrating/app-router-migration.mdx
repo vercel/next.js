@@ -526,44 +526,45 @@ The `pages` directory uses `getServerSideProps` and `getStaticProps` to fetch da
 ```tsx filename="app/page.tsx" switcher
 export default async function Page() {
   // Opt into the Next.js Data Cache for this request.
-        // The cached response can be reused across requests and revalidated on demand.
-        // Similar to `getStaticProps`.
-        const cachedData = await fetch('https://...', { cache: 'force-cache' })
+  // The cached response can be reused across requests and revalidated on demand.
+  // Similar to `getStaticProps`.
+  const cachedData = await fetch('https://...', { cache: 'force-cache' })
 
-        // Opt out of caching for this request.
-        // Next.js fetches this from the data source on every request.
-        // This is the default fetch behavior.
-        // Similar to `getServerSideProps`.
-        const uncachedData = await fetch('https://...', { cache: 'no-store' })
-S
-        // Cache this request, but revalidate it at most every 10 seconds.
-        // Similar to `getStaticProps` with the `revalidate` option.
-        const revalidatedData = await fetch('https://...', {
-          next: { revalidate: 10 },
-        })
+  // Opt out of caching for this request.
+  // Next.js fetches this from the data source on every request.
+  // This is the default fetch behavior.
+  // Similar to `getServerSideProps`.
+  const uncachedData = await fetch('https://...', { cache: 'no-store' })
+
+  // Cache this request, but revalidate it at most every 10 seconds.
+  // Similar to `getStaticProps` with the `revalidate` option.
+  const revalidatedData = await fetch('https://...', {
+    next: { revalidate: 10 },
+  })
 
   return <div>...</div>
+}
 }
 ```
 
 ```jsx filename="app/page.js" switcher
 export default async function Page() {
   // Opt into the Next.js Data Cache for this request.
-        // The cached response can be reused across requests and revalidated on demand.
-        // Similar to `getStaticProps`.
-        const cachedData = await fetch('https://...', { cache: 'force-cache' })
+  // The cached response can be reused across requests and revalidated on demand.
+  // Similar to `getStaticProps`.
+  const cachedData = await fetch('https://...', { cache: 'force-cache' })
 
-        // Opt out of caching for this request.
-        // Next.js fetches this from the data source on every request.
-        // This is the default fetch behavior.
-        // Similar to `getServerSideProps`.
-        const uncachedData = await fetch('https://...', { cache: 'no-store' })
+  // Opt out of caching for this request.
+  // Next.js fetches this from the data source on every request.
+  // This is the default fetch behavior.
+  // Similar to `getServerSideProps`.
+  const uncachedData = await fetch('https://...', { cache: 'no-store' })
 
-        // Cache this request, but revalidate it at most every 10 seconds.
-        // Similar to `getStaticProps` with the `revalidate` option.
-        const revalidatedData = await fetch('https://...', {
-          next: { revalidate: 10 },
-        })
+  // Cache this request, but revalidate it at most every 10 seconds.
+  // Similar to `getStaticProps` with the `revalidate` option.
+  const revalidatedData = await fetch('https://...', {
+    next: { revalidate: 10 },
+  })
 
   return <div>...</div>
 }
