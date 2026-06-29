@@ -565,6 +565,7 @@ export async function renderToNodeFizzStream(
   const shellReady = new DetachedPromise<void>()
   const allReady = new DetachedPromise<void>()
   const deferPipe = options?.waitForAllReady === true
+  let shellErrored = false
 
   const pipeable = getTracer().trace(AppRenderSpan.renderToReadableStream, () =>
     renderToPipeableStream(element, {
@@ -575,10 +576,16 @@ export async function renderToNodeFizzStream(
         shellReady.resolve()
       },
       onShellError(error: unknown) {
+        shellErrored = true
         streamOptions?.onShellError?.(error)
         shellReady.reject(error)
       },
       onAllReady() {
+        // React still fires onAllReady after a fatal shell error
+        // (facebook/react#36890). onShellError is terminal, so ignore it.
+        if (shellErrored) {
+          return
+        }
         streamOptions?.onAllReady?.()
         if (deferPipe) {
           pipeable.pipe(pt)
@@ -617,6 +624,7 @@ export async function resumeToFizzStream(
   const pt = new PassThrough()
   const shellReady = new DetachedPromise<void>()
   const allReady = new DetachedPromise<void>()
+  let shellErrored = false
 
   const pipeable = await run(() =>
     resumeToPipeableStream(element, postponedState, {
@@ -626,10 +634,16 @@ export async function resumeToFizzStream(
         shellReady.resolve()
       },
       onShellError(error: unknown) {
+        shellErrored = true
         streamOptions?.onShellError?.(error)
         shellReady.reject(error)
       },
       onAllReady() {
+        // React still fires onAllReady after a fatal shell error
+        // (facebook/react#36890). onShellError is terminal, so ignore it.
+        if (shellErrored) {
+          return
+        }
         streamOptions?.onAllReady?.()
         allReady.resolve()
       },
