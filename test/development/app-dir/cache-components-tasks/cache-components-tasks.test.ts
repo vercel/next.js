@@ -154,14 +154,18 @@ describe.each([
       }
     }
 
-    const RUNTIME_ENV = hasRuntimePrefetch ? 'Prefetch' : 'Prefetchable'
-    const SHELL_ENV = partialPrefetching ? 'Shell' : 'Prerender'
-    const SESSION_DATA_ENV = partialPrefetching ? 'Shell' : RUNTIME_ENV
-
     describe.each([
       { description: 'initial load', isInitialLoad: true },
       { description: 'navigation', isInitialLoad: false },
     ])('$description', ({ isInitialLoad }) => {
+      const RUNTIME_ENV = hasRuntimePrefetch ? 'Prefetch' : 'Prefetchable'
+      // For initial load, we render a PPR shell, not an App Shell.
+      // App Shells are only rendered in client navs.
+      const SHELL_ENV =
+        partialPrefetching && !isInitialLoad ? 'Shell' : 'Prerender'
+      const SESSION_DATA_ENV =
+        partialPrefetching && !isInitialLoad ? 'Shell' : RUNTIME_ENV
+
       it('setImmediate resolves between tasks', async () => {
         const path = '/simple'
         const assertLogs = async (browser: Playwright) => {
