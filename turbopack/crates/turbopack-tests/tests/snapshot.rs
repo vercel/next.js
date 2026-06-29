@@ -50,7 +50,7 @@ use turbopack_core::{
     module_graph::{
         GraphEntries, ModuleGraph, SingleModuleGraph,
         binding_usage_info::compute_binding_usage_info,
-        chunk_group_info::{ChunkGroup, ChunkGroupEntry},
+        chunk_group_info::{ChunkGroup, ChunkGroupEntry, EntryHeuristics},
     },
     output::{OutputAsset, OutputAssets, OutputAssetsReference, OutputAssetsWithReferenced},
     reference_type::{EntryReferenceSubType, ReferenceType, ReferenceTypeCondition},
@@ -468,8 +468,11 @@ async fn run_test_operation(resource: RcStr) -> Result<Vc<FileSystemPath>> {
             .collect();
 
     let single_graph = SingleModuleGraph::new_with_entries(
-        GraphEntries::from_chunk_groups(vec![ChunkGroupEntry::Entry(entry_modules.clone())])
-            .resolved_cell(),
+        GraphEntries::from_chunk_groups(vec![ChunkGroupEntry::Entry {
+            modules: entry_modules.clone(),
+            heuristics: EntryHeuristics::default(),
+        }])
+        .resolved_cell(),
         false,
         true,
     );

@@ -11,7 +11,7 @@ use turbopack_core::{
     module::Module,
     module_graph::{
         ModuleGraph, SingleModuleGraph,
-        chunk_group_info::{ChunkGroup, ChunkGroupEntry},
+        chunk_group_info::{ChunkGroup, ChunkGroupEntry, EntryHeuristics},
     },
     output::{OutputAsset, OutputAssets},
     reference_type::{EntryReferenceSubType, ReferenceType},
@@ -109,7 +109,10 @@ async fn service_worker_chunk(
 
     let own_graph = ModuleGraph::from_graphs(
         vec![SingleModuleGraph::new_with_entry(
-            ChunkGroupEntry::Entry(vec![module]),
+            ChunkGroupEntry::Entry {
+                modules: vec![module],
+                heuristics: EntryHeuristics::default(),
+            },
             /* include_traced */ *project.should_write_nft_manifests().await?,
             /* include_binding_usage */ is_production,
         )],

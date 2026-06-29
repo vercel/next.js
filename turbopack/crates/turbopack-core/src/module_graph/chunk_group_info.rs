@@ -94,6 +94,31 @@ pub struct ChunkGroupInfo {
     #[turbo_tasks(trace_ignore)]
     #[bincode(with = "turbo_bincode::indexset")]
     pub chunk_group_keys: FxIndexSet<ChunkGroupKey>,
+    pub chunking_heuristics: ChunkingHeuristicsInfo,
+}
+
+/// Chunking heuristics computed by [`compute_chunk_group_info`]. `priority_routes` is a set of
+/// chunk-group indices (same indexing as [`ChunkGroupInfo::chunk_groups`]).
+#[derive(
+    Debug,
+    Default,
+    Clone,
+    PartialEq,
+    Eq,
+    TraceRawVcs,
+    ValueDebugFormat,
+    NonLocalValue,
+    Encode,
+    Decode,
+)]
+pub struct ChunkingHeuristicsInfo {
+    /// The set of chunk-group indices that belong to a priority route: the priority
+    /// routes themselves, plus every chunk group they pull in.
+    ///
+    /// Example: `priority_routes = {3, 7}` — chunk groups 3 and 7 are served by a priority
+    /// route; any group not in the set (e.g. 4) is not.
+    #[turbo_tasks(trace_ignore)]
+    pub priority_routes: RoaringBitmapWrapper,
 }
 
 #[turbo_tasks::value_impl]
@@ -126,11 +151,30 @@ impl ChunkGroupInfo {
     }
 }
 
+/// Per-entry chunking heuristics.
+#[turbo_tasks::task_input]
+#[derive(Debug, Default, Clone, Hash, PartialEq, Eq, TraceRawVcs, Encode, Decode)]
+pub struct EntryHeuristics {
+    pub high_priority: bool,
+}
+
+impl EntryHeuristics {
+    /// Heuristics for an entry that is a high-priority route.
+    pub fn high_priority() -> Self {
+        Self {
+            high_priority: true,
+        }
+    }
+}
+
 /// See [ChunkGroup] for documentation
 #[turbo_tasks::task_input]
 #[derive(Debug, Clone, Hash, PartialEq, Eq, TraceRawVcs, Encode, Decode)]
 pub enum ChunkGroupEntry {
-    Entry(Vec<ResolvedVc<Box<dyn Module>>>),
+    Entry {
+        modules: Vec<ResolvedVc<Box<dyn Module>>>,
+        heuristics: EntryHeuristics,
+    },
     Async(ResolvedVc<Box<dyn Module>>),
     Isolated(ResolvedVc<Box<dyn Module>>),
     IsolatedMerged {
@@ -152,7 +196,9 @@ impl ChunkGroupEntry {
             Self::Async(e) | Self::Isolated(e) | Self::Shared(e) => {
                 Either::Left(std::iter::once(*e))
             }
-            Self::Entry(entries)
+            Self::Entry {
+                modules: entries, ..
+            }
             | Self::IsolatedMerged { entries, .. }
             | Self::SharedMultiple(entries)
             | Self::SharedMerged { entries, .. } => Either::Right(entries.iter().copied()),
@@ -465,7 +511,7 @@ pub async fn compute_chunk_group_info(graph: &ModuleGraph) -> Result<Vc<ChunkGro
             >,
         ) -> ChunkGroupKey {
             match entry {
-                ChunkGroupEntry::Entry(entries) => ChunkGroupKey::Entry(entries),
+                ChunkGroupEntry::Entry { modules, .. } => ChunkGroupKey::Entry(modules),
                 ChunkGroupEntry::Async(entry) => ChunkGroupKey::Async(entry),
                 ChunkGroupEntry::Isolated(entry) => ChunkGroupKey::Isolated(entry),
                 ChunkGroupEntry::Shared(entry) => ChunkGroupKey::Shared(entry),
@@ -760,6 +806,7 @@ pub async fn compute_chunk_group_info(graph: &ModuleGraph) -> Result<Vc<ChunkGro
         Ok(ChunkGroupInfo {
             module_chunk_groups: ResolvedVc::cell(module_chunk_groups),
             chunk_group_keys: chunk_groups_map.keys().cloned().collect(),
+            chunking_heuristics: ChunkingHeuristicsInfo::default(),
             chunk_groups: chunk_groups_map
                 .into_iter()
                 .map(|(k, (_, merged_entries))| match k {

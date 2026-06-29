@@ -1967,6 +1967,7 @@ pub mod tests {
         asset::{Asset, AssetContent},
         ident::AssetIdent,
         module::{Module, ModuleSideEffects},
+        module_graph::chunk_group_info::EntryHeuristics,
         reference::{ModuleReference, ModuleReferences},
         resolve::ModuleResolveResult,
     };
@@ -2288,8 +2289,11 @@ pub mod tests {
                 let b_module = make_module("b.js").await?;
 
                 let parent_graph = SingleModuleGraph::new_with_entries(
-                    GraphEntries::from_chunk_groups(vec![ChunkGroupEntry::Entry(vec![b_module])])
-                        .resolved_cell(),
+                    GraphEntries::from_chunk_groups(vec![ChunkGroupEntry::Entry {
+                        modules: vec![b_module],
+                        heuristics: EntryHeuristics::default(),
+                    }])
+                    .resolved_cell(),
                     false,
                     false,
                 );
@@ -2298,9 +2302,10 @@ pub mod tests {
                     vec![
                         parent_graph,
                         SingleModuleGraph::new_with_entries_visited(
-                            GraphEntries::from_chunk_groups(vec![ChunkGroupEntry::Entry(vec![
-                                a_module,
-                            ])])
+                            GraphEntries::from_chunk_groups(vec![ChunkGroupEntry::Entry {
+                                modules: vec![a_module],
+                                heuristics: EntryHeuristics::default(),
+                            }])
                             .resolved_cell(),
                             VisitedModules::from_graph(parent_graph),
                             false,
@@ -2465,8 +2470,11 @@ pub mod tests {
                 let a_module = make_module("a.js").await?;
 
                 let parent_graph = SingleModuleGraph::new_with_entries(
-                    GraphEntries::from_chunk_groups(vec![ChunkGroupEntry::Entry(vec![x_module])])
-                        .resolved_cell(),
+                    GraphEntries::from_chunk_groups(vec![ChunkGroupEntry::Entry {
+                        modules: vec![x_module],
+                        heuristics: EntryHeuristics::default(),
+                    }])
+                    .resolved_cell(),
                     true,
                     false,
                 );
@@ -2475,9 +2483,10 @@ pub mod tests {
                     vec![
                         parent_graph,
                         SingleModuleGraph::new_with_entries_visited(
-                            GraphEntries::from_chunk_groups(vec![ChunkGroupEntry::Entry(vec![
-                                a_module,
-                            ])])
+                            GraphEntries::from_chunk_groups(vec![ChunkGroupEntry::Entry {
+                                modules: vec![a_module],
+                                heuristics: EntryHeuristics::default(),
+                            }])
                             .resolved_cell(),
                             VisitedModules::from_graph(parent_graph),
                             true,
@@ -2827,7 +2836,10 @@ pub mod tests {
                 .await?;
             let graph = SingleModuleGraph::new_with_entries(
                 GraphEntries::resolved_cell(GraphEntries::new(
-                    vec![ChunkGroupEntry::Entry(entry_modules.clone())],
+                    vec![ChunkGroupEntry::Entry {
+                        modules: entry_modules.clone(),
+                        heuristics: EntryHeuristics::default(),
+                    }],
                     vec![],
                 )),
                 false,

@@ -60,7 +60,7 @@ use turbopack_core::{
     module_graph::{
         GraphEntries, ModuleGraph, SingleModuleGraph, VisitedModules,
         binding_usage_info::compute_binding_usage_info,
-        chunk_group_info::{ChunkGroup, ChunkGroupEntry},
+        chunk_group_info::{ChunkGroup, ChunkGroupEntry, EntryHeuristics},
     },
     output::{OutputAsset, OutputAssets, OutputAssetsWithReferenced},
     reference::all_assets_from_entries,
@@ -896,7 +896,10 @@ impl AppProject {
             let span = tracing::info_span!("module graph for endpoint", modules = Empty);
             let span_clone = span.clone();
             async move {
-                let rsc_entry_chunk_group = ChunkGroupEntry::Entry(vec![rsc_entry]);
+                let rsc_entry_chunk_group = ChunkGroupEntry::Entry {
+                    modules: vec![rsc_entry],
+                    heuristics: EntryHeuristics::default(),
+                };
 
                 let mut graphs = vec![];
                 let mut visited_modules = VisitedModules::empty();
@@ -919,7 +922,10 @@ impl AppProject {
                     // and the page
                     let graph = SingleModuleGraph::new_with_entries_visited_intern(
                         GraphEntries::from_chunk_groups(vec![
-                            ChunkGroupEntry::Entry(client_shared_entries),
+                            ChunkGroupEntry::Entry {
+                                modules: client_shared_entries,
+                                heuristics: EntryHeuristics::default(),
+                            },
                             ChunkGroupEntry::SharedMultiple(
                                 server_utils
                                     .iter()
@@ -2144,17 +2150,32 @@ impl Endpoint for AppEndpoint {
     #[turbo_tasks::function]
     async fn entries(self: Vc<Self>) -> Result<Vc<GraphEntries>> {
         let this = self.await?;
+        let app_entry = self.app_endpoint_entry().await?;
+        // The route's chunking heuristics from `experimental.turbopackChunkingHeuristics`. They are
+        // attached to the route's entry chunk group.
+        let heuristics = this
+            .app_project
+            .project()
+            .next_config()
+            .chunking_heuristics()
+            .await?
+            .entry_heuristics_for(&app_entry.pathname);
         Ok(GraphEntries::from_chunk_groups(vec![
-            ChunkGroupEntry::Entry(vec![self.app_endpoint_entry().await?.rsc_entry]),
-            ChunkGroupEntry::Entry(
-                this.app_project
+            ChunkGroupEntry::Entry {
+                modules: vec![app_entry.rsc_entry],
+                heuristics,
+            },
+            ChunkGroupEntry::Entry {
+                modules: this
+                    .app_project
                     .client_runtime_entries()
                     .await?
                     .iter()
                     .copied()
                     .map(ResolvedVc::upcast)
                     .collect(),
-            ),
+                heuristics: EntryHeuristics::high_priority(),
+            },
         ])
         .cell())
     }

@@ -20,7 +20,7 @@ use turbopack_core::{
     module::Module,
     module_graph::{
         GraphEntries,
-        chunk_group_info::{ChunkGroup, ChunkGroupEntry},
+        chunk_group_info::{ChunkGroup, ChunkGroupEntry, EntryHeuristics},
     },
     output::{OutputAsset, OutputAssets, OutputAssetsWithReferenced},
     reference_type::{EntryReferenceSubType, ReferenceType},
@@ -407,9 +407,11 @@ impl Endpoint for MiddlewareEndpoint {
     #[turbo_tasks::function]
     async fn entries(self: Vc<Self>) -> Result<Vc<GraphEntries>> {
         Ok(
-            GraphEntries::from_chunk_groups(vec![ChunkGroupEntry::Entry(vec![
-                self.entry_module().to_resolved().await?,
-            ])])
+            GraphEntries::from_chunk_groups(vec![ChunkGroupEntry::Entry {
+                modules: vec![self.entry_module().to_resolved().await?],
+                // Middleware runs on (potentially) all routes, so treat it as high priority.
+                heuristics: EntryHeuristics::high_priority(),
+            }])
             .cell(),
         )
     }

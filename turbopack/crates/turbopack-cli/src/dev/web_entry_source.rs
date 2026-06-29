@@ -14,7 +14,8 @@ use turbopack_core::{
     file_source::FileSource,
     module::Module,
     module_graph::{
-        GraphEntries, ModuleGraph, SingleModuleGraph, chunk_group_info::ChunkGroupEntry,
+        GraphEntries, ModuleGraph, SingleModuleGraph,
+        chunk_group_info::{ChunkGroupEntry, EntryHeuristics},
     },
     reference_type::{EntryReferenceSubType, ReferenceType},
     resolve::{
@@ -168,8 +169,11 @@ pub async fn create_web_entry_source(
         .collect::<Vec<ResolvedVc<Box<dyn Module>>>>();
     let module_graph = ModuleGraph::from_graphs(
         vec![SingleModuleGraph::new_with_entries(
-            GraphEntries::from_chunk_groups(vec![ChunkGroupEntry::Entry(all_modules)])
-                .resolved_cell(),
+            GraphEntries::from_chunk_groups(vec![ChunkGroupEntry::Entry {
+                modules: all_modules,
+                heuristics: EntryHeuristics::default(),
+            }])
+            .resolved_cell(),
             false,
             false,
         )],
