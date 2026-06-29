@@ -652,6 +652,23 @@ if (process.env.NEXT_PRIVATE_WORKER && process.send) {
         defaultParentSpanId: startServerSpan.getId(),
       })
 
+      if (process.env.__NEXT_PRIVATE_PREWARM_DEV) {
+        try {
+          await startServerSpan.traceAsyncFn(() => {
+            const { prewarmDevServer } =
+              require('./prewarm-dev-server') as typeof import('./prewarm-dev-server')
+            return prewarmDevServer({ dir: msg.nextWorkerOptions.dir })
+          })
+        } catch (err) {
+          // Surface the error to the user — `stdio: 'inherit'` on the parent
+          // means console.error here ends up on the user's terminal.
+          Log.error('Prewarm failed:')
+          console.error(err)
+          process.exit(1)
+        }
+        process.exit(0)
+      }
+
       const result = await startServerSpan.traceAsyncFn(() =>
         startServer(msg.nextWorkerOptions)
       )

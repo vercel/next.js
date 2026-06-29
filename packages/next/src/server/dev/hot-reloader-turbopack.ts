@@ -137,6 +137,20 @@ import {
   setErrorsRscStreamForHtmlRequest,
 } from './serialized-errors'
 
+/**
+ * The Turbopack hot reloader, extended with extra helpers used by the
+ * `next internal prewarm-dev` command.
+ */
+export type TurbopackHotReloader = NextJsHotReloaderInterface & {
+  /**
+   * Returns the current set of route entrypoints.  Awaits the in-flight
+   * entrypoints subscription processing first, so the returned snapshot
+   * reflects everything seen by the bundler up to (and including) the
+   * first subscription event.
+   */
+  getEntrypoints(): Promise<Entrypoints>
+}
+
 const wsServer = new ws.Server({ noServer: true })
 const isTestMode = !!(
   process.env.NEXT_TEST_MODE ||
@@ -311,7 +325,7 @@ export async function createHotReloaderTurbopack(
   resetFetch: () => void,
   lockfile: Lockfile | undefined,
   serverFastRefresh?: boolean
-): Promise<NextJsHotReloaderInterface> {
+): Promise<TurbopackHotReloader> {
   const dev = true
   const buildId = 'development'
   const { nextConfig, dir: projectPath } = opts
@@ -419,7 +433,12 @@ export async function createHotReloaderTurbopack(
     {
       turbopackMemoryEviction:
         opts.nextConfig.experimental.turbopackMemoryEvictionMode,
-      isShortSession: false,
+      // `isShortSession: true` flips the persistent backend into
+      // `ReadWriteOnShutdown` mode, which disables the idle-snapshot
+      // scheduler so the caller is fully in charge of when to persist.
+      // Used by `next internal prewarm-dev`, which drives persistence on
+      // its own time-based schedule via `Project.persistCache()`.
+      isShortSession: opts.isShortSession ?? false,
     }
   )
   backgroundLogCompilationEvents(project, {
@@ -656,38 +675,46 @@ export async function createHotReloaderTurbopack(
 
   const buildingIds = new Set()
 
-  const startBuilding: StartBuilding = (id, requestUrl, forceRebuild) => {
-    if (!forceRebuild && readyIds.has(id)) {
-      return () => {}
-    }
-    if (buildingIds.size === 0) {
-      consoleStore.setState(
-        {
-          loading: true,
-          trigger: id,
-          url: requestUrl,
-        } as OutputState,
-        true
-      )
-    }
-    buildingIds.add(id)
-    return function finishBuilding() {
-      if (buildingIds.size === 0) {
-        return
-      }
-      readyIds.add(id)
-      buildingIds.delete(id)
-      if (buildingIds.size === 0) {
-        hmrEventHappened = false
-        consoleStore.setState(
-          {
-            loading: false,
-          } as OutputState,
-          true
-        )
-      }
-    }
-  }
+  // Prewarm compiles every entrypoint up front; surfacing a "Compiling
+  // <route>..." line for each one would just be noise.  Skip the
+  // building-state bookkeeping entirely in that case — `finishBuilding`
+  // becomes a no-op, the loading spinner never flips on, and the
+  // store's per-route log stays quiet.
+  const startBuilding: StartBuilding =
+    opts.cliCommand === 'prewarm-dev'
+      ? () => () => {}
+      : (id, requestUrl, forceRebuild) => {
+          if (!forceRebuild && readyIds.has(id)) {
+            return () => {}
+          }
+          if (buildingIds.size === 0) {
+            consoleStore.setState(
+              {
+                loading: true,
+                trigger: id,
+                url: requestUrl,
+              } as OutputState,
+              true
+            )
+          }
+          buildingIds.add(id)
+          return function finishBuilding() {
+            if (buildingIds.size === 0) {
+              return
+            }
+            readyIds.add(id)
+            buildingIds.delete(id)
+            if (buildingIds.size === 0) {
+              hmrEventHappened = false
+              consoleStore.setState(
+                {
+                  loading: false,
+                } as OutputState,
+                true
+              )
+            }
+          }
+        }
 
   let serverHmrSubscriptions: ServerHmrSubscriptions | undefined
 
@@ -1199,11 +1226,19 @@ export async function createHotReloaderTurbopack(
     }
   }
 
-  const hotReloader: NextJsHotReloaderInterface = {
+  const hotReloader: TurbopackHotReloader = {
     turbopackProject: project,
     activeWebpackConfigs: undefined,
     serverStats: null,
     edgeServerStats: null,
+    async getEntrypoints(): Promise<Entrypoints> {
+      // Wait for the in-flight subscription event to finish processing so
+      // the snapshot is consistent.  This resolves on the FIRST event
+      // (after the initial scan); entrypoints discovered later will not
+      // be reflected.
+      await currentEntriesHandling
+      return currentEntrypoints
+    },
     async run(req, res, _parsedUrl) {
       // intercept page chunks request and ensure them with turbopack
       if (req.url?.startsWith('/_next/static/chunks/pages/')) {

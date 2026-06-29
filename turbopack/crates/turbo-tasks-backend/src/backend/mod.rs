@@ -178,6 +178,9 @@ enum SnapshotReason {
     InitialSnapshotTimeout,
     RegularSnapshotInterval,
     IdleTimeout,
+    /// Driven by an explicit JS-side `Project.persistCache()` call (e.g.
+    /// `next internal prewarm-dev`).
+    Explicit,
 }
 
 impl SnapshotReason {
@@ -188,6 +191,7 @@ impl SnapshotReason {
             SnapshotReason::InitialSnapshotTimeout => "initial snapshot timeout",
             SnapshotReason::RegularSnapshotInterval => "regular snapshot interval",
             SnapshotReason::IdleTimeout => "idle timeout",
+            SnapshotReason::Explicit => "explicit",
         }
     }
 
@@ -337,6 +341,38 @@ impl TurboTasksBackend {
         };
         let counts = self.storage.evict_after_snapshot(None);
         (had_new_data, counts)
+    }
+
+    /// Run a snapshot+persist+evict cycle synchronously, on demand.
+    ///
+    /// Unlike the background snapshot job (which is gated on idle timeouts
+    /// and the `ReadWrite` storage mode), this method runs the snapshot
+    /// regardless of idle state and works in any storage mode that has
+    /// `should_persist() == true` (`ReadWrite` and `ReadWriteOnShutdown`).
+    ///
+    /// After a successful persist this also evicts in-memory task entries
+    /// that have been written out, mirroring `snapshot_and_evict_for_testing`
+    /// — without eviction the in-memory heap would just keep growing across
+    /// successive explicit persists.  Eviction is skipped if the persist
+    /// failed, so we don't drop data that isn't on disk yet.
+    ///
+    /// Intended for callers like `next internal prewarm-dev` that drive
+    /// persistence on their own schedule and disable the idle scheduler
+    /// (by running with `ReadWriteOnShutdown`).
+    pub fn snapshot_and_persist_now(
+        &self,
+        turbo_tasks: &TurboTasks<TurboTasksBackend>,
+    ) -> Result<(), anyhow::Error> {
+        assert!(
+            self.should_persist(),
+            "snapshot_and_persist_now requires persistence"
+        );
+        self.snapshot_and_persist(None, SnapshotReason::Explicit, turbo_tasks)?;
+        // Persist succeeded — safe to drop the in-memory copies of what
+        // we just wrote out.  Eviction never fails; the return value is
+        // a counts struct we don't currently surface.
+        self.storage.evict_after_snapshot(None);
+        Ok(())
     }
 
     fn should_restore(&self) -> bool {

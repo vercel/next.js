@@ -342,6 +342,19 @@ export declare function projectInvalidateFileSystemCache(project: {
   __napiType: 'Project'
 }): Promise<void>
 /**
+ * Drive a snapshot+persist cycle on demand.
+ *
+ * Unlike the background snapshot scheduler (which only runs in
+ * `StorageMode::ReadWrite` and is gated on idle timeouts), this runs
+ * the snapshot synchronously regardless of idle state.  Used by
+ * `next internal prewarm-dev`, which disables the idle scheduler (by
+ * running with `isShortSession: true`, i.e. `ReadWriteOnShutdown`) and
+ * instead drives persistence on its own time-based schedule.
+ */
+export declare function projectPersistCache(project: {
+  __napiType: 'Project'
+}): Promise<void>
+/**
  * Runs exit handlers for the project registered using the [`ExitHandler`] API.
  *
  * This is called by `project_shutdown`, so if you're calling that API, you shouldn't call this

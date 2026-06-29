@@ -408,6 +408,106 @@ for (const cacheEnabled of [false, true]) {
       )
     }
 
+    // `next internal prewarm-dev` runs the same code path that seeds the
+    // dev persistent cache.  Asserting on cache *contents* is brittle, so
+    // these tests only exercise the command wiring: that it's registered
+    // in the CLI, that misconfigured projects (no persistent cache) fail
+    // fast with an actionable error, and — when the project is correctly
+    // configured — that the worker can compile every entrypoint without
+    // crashing.
+    describe('`next internal prewarm-dev`', () => {
+      ;(process.env.IS_TURBOPACK_TEST ? it : it.skip)(
+        'prints help text under `next internal`',
+        async () => {
+          const result = await next.runCommand([
+            'internal',
+            'prewarm-dev',
+            '--help',
+          ])
+          expect(result.exitCode).toBe(0)
+          expect(result.cliOutput).toContain('prewarm-dev')
+          expect(result.cliOutput).toContain('[directory]')
+        }
+      )
+
+      if (!cacheEnabled) {
+        ;(process.env.IS_TURBOPACK_TEST ? it : it.skip)(
+          'errors when the persistent dev cache is not enabled',
+          async () => {
+            // The fixture's `next.config.js` only enables
+            // `experimental.turbopackFileSystemCacheForDev` when
+            // `ENABLE_CACHING=1`.  In the `cache disabled` describe block
+            // it's off, so prewarm should refuse to run.
+            const result = await next.runCommand(['internal', 'prewarm-dev'], {
+              env: { TURBOPACK: '1' },
+            })
+            expect(result.exitCode).not.toBe(0)
+            expect(result.cliOutput + result.stderr).toMatch(
+              /requires the Turbopack persistent dev cache/i
+            )
+          }
+        )
+      }
+
+      if (cacheEnabled) {
+        ;(process.env.IS_TURBOPACK_TEST ? it : it.skip)(
+          'compiles every entrypoint and seeds the persistent cache',
+          async () => {
+            // Stop any in-flight dev/start server from `beforeEach` so the
+            // prewarm worker can acquire the dev lockfile.
+            await stop()
+
+            // Wipe the persistent cache so we can verify prewarm-dev
+            // populates it from scratch.  The dev cache lives under
+            // `.next/dev/cache/turbopack` (`getCacheSize` looks at
+            // `.next/cache/turbopack`, the build path), so we wipe both.
+            await fs.rm(path.join(next.testDir, '.next'), {
+              recursive: true,
+              force: true,
+            })
+
+            // `ENABLE_CACHING=1` flips the
+            // `experimental.turbopackFileSystemCacheForDev` flag (the
+            // fixture's `next.config.js` gates it on this env var).
+            // `TURBO_ENGINE_IGNORE_DIRTY=1` matches the build/dev scripts
+            // in the fixture's package.json — without it the cache refuses
+            // to load on a dirty git tree.
+            const result = await next.runCommand(['internal', 'prewarm-dev'], {
+              env: {
+                TURBOPACK: '1',
+                ENABLE_CACHING: '1',
+                NODE_ENV: 'development',
+                TURBO_ENGINE_IGNORE_DIRTY: '1',
+              },
+            })
+
+            if (result.exitCode !== 0) {
+              throw new Error(
+                `\`next internal prewarm-dev\` failed with exit code ${result.exitCode}.\n` +
+                  `--- stdout ---\n${result.stdout}\n` +
+                  `--- stderr ---\n${result.stderr}`
+              )
+            }
+
+            expect(result.cliOutput).toContain('Prewarming')
+            expect(result.cliOutput).toContain(
+              'prewarmed and persisted to disk'
+            )
+
+            // After prewarm the dev persistent cache directory should
+            // exist and contain a non-trivial amount of data.
+            const devCacheSize = await getDirectorySize(
+              path.join(next.testDir, '.next', 'dev', 'cache', 'turbopack')
+            )
+            expect(devCacheSize).toBeGreaterThan(0)
+          },
+          // Compiling all 14 routes and waiting for the cache snapshot to
+          // settle can take a while in CI.
+          200000
+        )
+      }
+    })
+
     if (cacheEnabled) {
       ;(process.env.IS_TURBOPACK_TEST ? it : it.skip)(
         'should emit turbopack-persistence trace spans',

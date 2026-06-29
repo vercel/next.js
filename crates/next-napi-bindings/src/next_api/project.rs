@@ -757,6 +757,27 @@ pub async fn project_invalidate_file_system_cache(
     Ok(())
 }
 
+/// Drive a snapshot+persist cycle on demand.
+///
+/// Unlike the background snapshot scheduler (which only runs in
+/// `StorageMode::ReadWrite` and is gated on idle timeouts), this runs
+/// the snapshot synchronously regardless of idle state.  Used by
+/// `next internal prewarm-dev`, which disables the idle scheduler (by
+/// running with `isShortSession: true`, i.e. `ReadWriteOnShutdown`) and
+/// instead drives persistence on its own time-based schedule.
+#[napi]
+pub async fn project_persist_cache(
+    #[napi(ts_arg_type = "{ __napiType: \"Project\" }")] project: External<ProjectInstance>,
+) -> napi::Result<()> {
+    tokio::task::spawn_blocking(move || {
+        let turbo_tasks = project.turbopack_ctx.turbo_tasks();
+        turbo_tasks.backend().snapshot_and_persist_now(turbo_tasks)
+    })
+    .await
+    .context("panicked while persisting cache")??;
+    Ok(())
+}
+
 /// Runs exit handlers for the project registered using the [`ExitHandler`] API.
 ///
 /// This is called by `project_shutdown`, so if you're calling that API, you shouldn't call this

@@ -852,6 +852,30 @@ function bindingToApi(
       return binding.projectShutdown(this._nativeProject)
     }
 
+    /**
+     * Drive a snapshot+persist+evict cycle on demand.
+     *
+     * Forces Turbopack to write its in-memory persistent cache to disk
+     * *now*, regardless of idle state, and then evicts the in-memory
+     * task entries that were just persisted so the heap doesn't grow
+     * unbounded across repeated calls.  The project remains usable
+     * afterwards and this can be called repeatedly.  Intended for
+     * callers that drive persistence on their own schedule (e.g.
+     * `next internal prewarm-dev`).
+     */
+    persistCache(): Promise<void> {
+      return binding.projectPersistCache(this._nativeProject)
+    }
+
+    /**
+     * Run the project's registered exit handlers.
+     *
+     * This drains the `ExitHandler::on_exit` queue (today: trace/profiling
+     * teardown — but notably NOT the persistent-cache writer; use
+     * `persistCache()` for that).  Despite the verb, the project remains
+     * alive after this returns.  The underlying receiver is consumed on
+     * the first call, so this must only be invoked once per project.
+     */
     onExit(): Promise<void> {
       return binding.projectOnExit(this._nativeProject)
     }
