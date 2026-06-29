@@ -1,6 +1,8 @@
 import { isNextDev, nextTestSetup } from 'e2e-utils'
 import { retry } from 'next-test-utils'
 import path from 'path'
+import type * as Playwright from 'playwright'
+import { createRouterAct } from 'router-act'
 
 describe('Instrumentation Client Hook', () => {
   describe.each([
@@ -352,6 +354,65 @@ describe('Instrumentation Client Hook', () => {
           (await getTransitionEvents(browser)).map((e) => e.phase)
         ).toEqual(['start', 'commit', 'settled'])
       })
+    })
+  })
+
+  describe('router transition route mismatch', () => {
+    const { next, isNextDev: isDevMode } = nextTestSetup({
+      files: path.join(__dirname, 'mismatch'),
+    })
+
+    // Prod-only: dev never prefetches, so the navigation takes the unknown-route
+    // path and never produces a tree mismatch.
+    if (isDevMode) {
+      it('is disabled in development', () => {})
+      return
+    }
+
+    async function getTransitionEvents(browser) {
+      return browser.eval(`window.__ROUTER_TRANSITION_EVENTS`)
+    }
+
+    it('emits a route-mismatch event when a navigation rewrites to a different route', async () => {
+      let page: Playwright.Page
+      const browser = await next.browser('/', {
+        beforePageLoad(p: Playwright.Page) {
+          page = p
+        },
+      })
+      const act = createRouterAct(page)
+
+      // Reveal the link so it prefetches page A.
+      const toggle = await browser.elementByCss(
+        'input[data-link-accordion="/dynamic-page/a?mismatch-rewrite=./b"]'
+      )
+      await act(async () => await toggle.click(), {
+        includes: 'Loading a...',
+      })
+
+      // Clicking navigates to the prefetched route A, but the proxy rewrites the
+      // navigation request to route B. The client detects the mismatch and
+      // recovers by rendering route B.
+      await act(async () => {
+        const link = await browser.elementByCss(
+          'a[href="/dynamic-page/a?mismatch-rewrite=./b"]'
+        )
+        await link.click()
+      }, [{ includes: 'Dynamic page b' }])
+      await browser.elementById('dynamic-page-content-b')
+
+      const events = await getTransitionEvents(browser)
+      const start = events.find((e) => e.phase === 'start')
+      const mismatch = events.find((e) => e.phase === 'route-mismatch')
+      expect(start).toBeDefined()
+      expect(mismatch).toBeDefined()
+      // The mismatch is correlated to the originating transition...
+      expect(mismatch.event.id).toBe(start.event.id)
+      // ...and is a milestone, not a terminal event, so its timestamp falls
+      // after the start.
+      expect(mismatch.event.timestamp).toBeGreaterThanOrEqual(
+        start.event.timestamp
+      )
     })
   })
 
