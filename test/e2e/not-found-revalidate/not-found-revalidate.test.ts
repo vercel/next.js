@@ -30,6 +30,12 @@ describe('SSG notFound revalidate', () => {
         expect($('#not-found').text()).toBe('404 page')
       }
       {
+        let res = await next.fetch('/always-not-found/second')
+        let $ = await next.render$('/always-not-found/second')
+        expect(res.status).toBe(404)
+        expect($('#not-found').text()).toBe('404 page')
+      }
+      {
         let res = await next.fetch('/always-not-found')
         let $ = await next.render$('/always-not-found')
         expect(res.status).toBe(404)
