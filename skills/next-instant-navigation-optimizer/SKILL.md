@@ -189,7 +189,7 @@ e2e suite authenticates as (in CI, the CI account; locally, your e2e login
 fixture), with its flags, plan, role, and data. This establishes that the
 marker is real and reachable: not flag-gated, not redirected away, not a
 guessed selector. The suite runs as the test account, not the author's session;
-that environment drift (the rig DRIFT list) is the most common source of
+that environment drift (the rig DRIFT list) is a common source of
 untrustworthy REDs. Scaffold and run command: **`test-template.md`**.
 **Delete this baseline before the PR.**
 

@@ -305,7 +305,7 @@ Prefer per-component boundaries inside the page (patterns #1–#5) over one big 
 
 ## 10. Can't push the read down? Runtime-prefetch the whole route
 
-Patterns 1–9 grow a **static shell** by moving dynamic reads behind boundaries. Some routes resist that: an ID minted per request (`createId()`), an auth/scope resolution the whole subtree needs, a page that is *all* dynamic by nature. The read can't move, so there is no meaningful shell to commit and the soft nav stays RED. The escape hatch is **runtime prefetching** — don't prerender a shell, run the dynamic render *in the prefetch* so the whole route is warm before the click and the soft nav commits the real content instantly.
+Patterns 1–9 grow a **static shell** by moving dynamic reads behind boundaries. Some routes resist that: an ID minted per request (`createId()`), an auth/scope resolution the whole subtree needs, a page that is _all_ dynamic by nature. The read can't move, so there is no meaningful shell to commit and the soft nav stays RED. The escape hatch is **runtime prefetching** — don't prerender a shell, run the dynamic render _in the prefetch_ so the whole route is warm before the click and the soft nav commits the real content instantly.
 
 It has **two halves — both required**, and route config alone is RED:
 
@@ -318,8 +318,9 @@ export const prefetch = 'allow-runtime'
 // 2. The <Link> asks for a FULL prefetch — that is what spawns the runtime
 //    request. A default/auto prefetch only warms the static shell.
 <Link href={href} prefetch={true}>…</Link>
-//    …or, when prefetching on hover/intent:
-router.prefetch(href, { kind: 'full' })
+//    <Link prefetch> already issues the full prefetch on hover and on viewport
+//    entry, so prefer it. An imperative full prefetch via router.prefetch needs
+//    the non-exported PrefetchKind enum, so it has no clean public form.
 ```
 
 Under `instant()` the runtime entry is what commits, so the real content (not a skeleton) shows under the lock — that is the GREEN.
@@ -329,7 +330,7 @@ Gotchas (each cost real debugging time):
 - **The full prefetch is mandatory.** With App Shells enabled an auto/PPR prefetch bails before the runtime spawn (`subtreeHasSpeculativePrefetch`); only `prefetch={true}` / `kind: 'full'` reaches it. If you set `prefetch = 'allow-runtime'` and it's still RED, the link is doing an auto prefetch.
 - **All leaf slots must agree.** `allow-runtime` on the content segment but `instant = false` (or nothing) on a sibling `@header`/`@sidebar` leaf leaves the route's runtime entry incomplete, so the lock falls back to the shell. Flip every leaf together.
 - **Prefetch the canonical URL.** A link whose href 307-redirects (a `/foo` that canonicalizes to `/`) can't be prefetched — the prefetch receives the redirect, not the tree. Point the link and the prefetch at the final URL.
-- **Don't blanket the full prefetch.** It fetches *all* the target's dynamic data; firing it on hover for every link (recents that point at whole chats) is wasteful. Scope `kind: 'full'` to the runtime-prefetch targets only.
+- **Don't blanket the full prefetch.** It fetches _all_ the target's dynamic data; issuing it on hover for every link (recents that point at whole chats) is wasteful. Scope `kind: 'full'` to the runtime-prefetch targets only.
 - **Marker must be a committed node, not RSC bytes.** The content is often a client component, so its text isn't in the prefetch response — assert a `data-testid` that renders when the client subtree commits, not a substring of the stream.
 
 Prefer a static shell (patterns 1–9) whenever the read can move: it's cheaper than a runtime prefetch and also covers hard load. Reach for runtime prefetching when the read genuinely can't move, or for a route that's all-dynamic by design.
