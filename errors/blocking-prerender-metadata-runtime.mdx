@@ -33,23 +33,27 @@ For errors in the page body rather than metadata, see [Next.js encountered runti
 
 ## Ways to fix this
 
-<FixOption
-  group="static"
-  href="#use-static-metadata"
-  title="Use static metadata"
->
-  Replace the dynamic function with a static export so the metadata is known at
-  build time.
-</FixOption>
-
-<FixOption
-  group="dynamic"
-  href="#mark-the-route-as-dynamic"
-  title="Mark the route as dynamic"
->
-  Tell Next.js the page itself has dynamic content, so the dynamic metadata is
-  allowed.
-</FixOption>
+<FixCardGrid>
+  <FixCard
+    group="static"
+    title="Use static metadata"
+    href="#use-static-metadata"
+    snippets={[
+      { text: 'export const metadata = {', highlight: true },
+      { text: '  title: "My Page"' },
+      { text: '}' },
+    ]}
+  />
+  <FixCard
+    group="dynamic"
+    title="Mark the route as dynamic"
+    href="#mark-the-route-as-dynamic"
+    snippets={[
+      { text: '// page.tsx or layout.tsx' },
+      { text: 'await connection()', highlight: true },
+    ]}
+  />
+</FixCardGrid>
 
 ## Use static metadata
 

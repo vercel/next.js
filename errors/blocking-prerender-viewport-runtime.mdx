@@ -29,23 +29,27 @@ Uncached data accesses ([`fetch()`](https://developer.mozilla.org/en-US/docs/Web
 
 ## Ways to fix this
 
-<FixOption
-  group="static"
-  href="#use-static-viewport"
-  title="Use static viewport"
->
-  Replace the dynamic function with a static export so the viewport is known at
-  build time.
-</FixOption>
-
-<FixOption
-  group="block"
-  href="#allow-blocking-route"
-  title="Allow blocking route"
->
-  Opt this segment out of instant navigation. The route renders on every request
-  and every navigation blocks.
-</FixOption>
+<FixCardGrid>
+  <FixCard
+    group="static"
+    title="Use static viewport"
+    href="#use-static-viewport"
+    snippets={[
+      { text: 'export const viewport = {', highlight: true },
+      { text: '  themeColor: "#000"' },
+      { text: '}' },
+    ]}
+  />
+  <FixCard
+    group="block"
+    title="Allow blocking route"
+    href="#allow-blocking-route"
+    snippets={[
+      { text: '// page.tsx or layout.tsx' },
+      { text: 'export const instant = false', highlight: true },
+    ]}
+  />
+</FixCardGrid>
 
 ## Use static viewport
 

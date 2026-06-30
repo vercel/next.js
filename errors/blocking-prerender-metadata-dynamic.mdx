@@ -33,19 +33,27 @@ For errors in the page body rather than metadata, see [Next.js encountered uncac
 
 ## Ways to fix this
 
-<FixOption group="cache" href="#cache-the-metadata" title="Cache the metadata">
-  Cache the metadata function so the result is reused and the route stays
-  prerenderable.
-</FixOption>
-
-<FixOption
-  group="dynamic"
-  href="#mark-the-route-as-dynamic"
-  title="Mark the route as dynamic"
->
-  Tell Next.js the page itself has dynamic content, so the dynamic metadata is
-  allowed.
-</FixOption>
+<FixCardGrid>
+  <FixCard
+    group="cache"
+    title="Cache the metadata"
+    href="#cache-the-metadata"
+    snippets={[
+      { text: 'async function generateMetadata() {' },
+      { text: '  "use cache"', highlight: true },
+      { text: '  return await cms.getMeta(…)' },
+    ]}
+  />
+  <FixCard
+    group="dynamic"
+    title="Mark the route as dynamic"
+    href="#mark-the-route-as-dynamic"
+    snippets={[
+      { text: '// page.tsx or layout.tsx' },
+      { text: 'await connection()', highlight: true },
+    ]}
+  />
+</FixCardGrid>
 
 ## Cache the metadata
 

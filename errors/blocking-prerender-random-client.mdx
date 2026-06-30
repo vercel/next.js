@@ -29,23 +29,28 @@ The Server Component case is handled at [`Math.random()` during prerendering](ht
 
 ## Ways to fix this
 
-<FixOption
-  group="stream"
-  href="#wrap-in-or-move-into-suspense"
-  title="Wrap in or move into Suspense"
->
-  Wrap the component in a Suspense boundary so the shell ships instantly and the
-  random value streams in.
-</FixOption>
-
-<FixOption
-  group="defer"
-  href="#move-into-effect-or-event-handler"
-  title="Move into effect or event handler"
->
-  Defer the random read until after hydration so SSR and the browser agree on
-  the initial render.
-</FixOption>
+<FixCardGrid>
+  <FixCard
+    group="stream"
+    title="Wrap in or move into Suspense"
+    href="#wrap-in-or-move-into-suspense"
+    snippets={[
+      { text: '<Suspense fallback={…}>', highlight: true },
+      { text: '  <RandomId />' },
+      { text: '</Suspense>', highlight: true },
+    ]}
+  />
+  <FixCard
+    group="defer"
+    title="Move into effect or event handler"
+    href="#move-into-effect-or-event-handler"
+    snippets={[
+      { text: '<button onClick={() => {', highlight: true },
+      { text: '  setId(Math.random())' },
+      { text: '}} />' },
+    ]}
+  />
+</FixCardGrid>
 
 ## Wrap in or move into Suspense
 

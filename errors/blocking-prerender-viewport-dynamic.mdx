@@ -29,23 +29,27 @@ Request-bound reads ([`cookies()`](https://preview.nextjs.org/docs/app/api-refer
 
 ## Ways to fix this
 
-<FixOption
-  group="cache"
-  href="#cache-the-viewport-data"
-  title="Cache the viewport data"
->
-  Cache the viewport function so the result is reused and the route stays
-  prerenderable.
-</FixOption>
-
-<FixOption
-  group="block"
-  href="#allow-blocking-route"
-  title="Allow blocking route"
->
-  Opt this segment out of instant navigation. The route renders on every request
-  and every navigation blocks.
-</FixOption>
+<FixCardGrid>
+  <FixCard
+    group="cache"
+    title="Cache the viewport data"
+    href="#cache-the-viewport-data"
+    snippets={[
+      { text: 'async function generateViewport() {' },
+      { text: '  "use cache"', highlight: true },
+      { text: '  return await db.getViewport(…)' },
+    ]}
+  />
+  <FixCard
+    group="block"
+    title="Allow blocking route"
+    href="#allow-blocking-route"
+    snippets={[
+      { text: '// page.tsx or layout.tsx' },
+      { text: 'export const instant = false', highlight: true },
+    ]}
+  />
+</FixCardGrid>
 
 ## Cache the viewport data
 

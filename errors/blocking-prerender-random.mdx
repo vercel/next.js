@@ -29,32 +29,38 @@ Other unpredictable APIs ([`Date.now()`](https://developer.mozilla.org/en-US/doc
 
 ## Ways to fix this
 
-<FixOption
-  group="dynamic"
-  href="#generate-on-every-request"
-  title="Generate on every request"
->
-  Mark the component as request-time so the random value is generated each time
-  the user visits.
-</FixOption>
-
-<FixOption
-  group="cache"
-  href="#cache-the-random-value"
-  title="Cache the random value"
->
-  Generate one random value at build time and reuse it. The route stays
-  prerendered.
-</FixOption>
-
-<FixOption
-  group="client"
-  href="#render-on-the-client"
-  title="Render on the client"
->
-  Move the call into a Client Component. The browser produces the random value,
-  so the server never has to.
-</FixOption>
+<FixCardGrid>
+  <FixCard
+    group="dynamic"
+    title="Generate on every request"
+    href="#generate-on-every-request"
+    snippets={[
+      { text: 'await connection()', highlight: true },
+      { text: 'const id = Math.random()' },
+      { text: 'return <Item id={id} />' },
+    ]}
+  />
+  <FixCard
+    group="cache"
+    title="Cache the random value"
+    href="#cache-the-random-value"
+    snippets={[
+      { text: 'function RandomId() {' },
+      { text: '  "use cache"', highlight: true },
+      { text: '  return String(Math.random())' },
+    ]}
+  />
+  <FixCard
+    group="client"
+    title="Render on the client"
+    href="#render-on-the-client"
+    snippets={[
+      { text: '"use client"', highlight: true },
+      { text: '// runs in the browser' },
+      { text: 'const id = Math.random()' },
+    ]}
+  />
+</FixCardGrid>
 
 ## Generate on every request
 

@@ -29,31 +29,38 @@ Other unpredictable APIs ([`Math.random()`](https://developer.mozilla.org/en-US/
 
 ## Ways to fix this
 
-<FixOption
-  group="dynamic"
-  href="#generate-on-every-request"
-  title="Generate on every request"
->
-  Mark the component as request-time so a fresh token is produced for each
-  visit.
-</FixOption>
-
-<FixOption
-  group="cache"
-  href="#cache-the-generated-value"
-  title="Cache the generated value"
->
-  Generate one value at build time and reuse it. Useful when the value is a key
-  into another cached operation.
-</FixOption>
-
-<FixOption
-  group="client"
-  href="#render-on-the-client"
-  title="Render on the client"
->
-  Move the call into a Client Component. The browser produces the random value.
-</FixOption>
+<FixCardGrid>
+  <FixCard
+    group="dynamic"
+    title="Generate on every request"
+    href="#generate-on-every-request"
+    snippets={[
+      { text: 'await connection()', highlight: true },
+      { text: 'const id = crypto.randomUUID()' },
+      { text: 'return <Token id={id} />' },
+    ]}
+  />
+  <FixCard
+    group="cache"
+    title="Cache the generated value"
+    href="#cache-the-generated-value"
+    snippets={[
+      { text: 'function TokenId() {' },
+      { text: '  "use cache"', highlight: true },
+      { text: '  return crypto.randomUUID()' },
+    ]}
+  />
+  <FixCard
+    group="client"
+    title="Render on the client"
+    href="#render-on-the-client"
+    snippets={[
+      { text: '"use client"', highlight: true },
+      { text: '// runs in the browser' },
+      { text: 'const id = crypto.randomUUID()' },
+    ]}
+  />
+</FixCardGrid>
 
 ## Generate on every request
 

@@ -107,7 +107,7 @@ function CopyPromptButton({
         const info = await generateErrorInfo()
         return info ? `${fixHeader}\n\n${info}` : fixHeader
       }}
-      actionLabel="Copy as prompt"
+      actionLabel="Copy prompt"
       successLabel="Copied"
       icon={<CopyPromptIcon />}
       showLabel
@@ -116,7 +116,7 @@ function CopyPromptButton({
   ) : (
     <CopyButton
       content={fixHeader}
-      actionLabel="Copy as prompt"
+      actionLabel="Copy prompt"
       successLabel="Copied"
       icon={<CopyPromptIcon />}
       showLabel

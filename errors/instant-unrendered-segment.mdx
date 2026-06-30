@@ -29,22 +29,42 @@ This typically happens when a layout conditionally omits `{children}`, a paralle
 
 ## Ways to fix this
 
-<FixOption
-  group="render"
-  href="#render-the-dropped-segment"
-  title="Render the dropped segment"
->
-  Include the segment in the render tree so Next.js can validate it for instant
-  navigation.
-</FixOption>
-
-<FixOption
-  group="ignore"
-  href="#skip-validation-on-the-segment"
-  title="Skip validation on the segment"
->
-  Opt the dropped segment out of instant-navigation validation.
-</FixOption>
+<FixCardGrid>
+  <FixCard
+    group="render"
+    title="Render the dropped segment"
+    href="#render-the-dropped-segment"
+    snippets={[
+      {
+        text: 'function Layout({ children }) {',
+        parts: [
+          { text: 'function Layout({ ' },
+          { text: 'children', highlight: true },
+          { text: ' }) {' },
+        ],
+      },
+      {
+        text: '  return <><Nav />{children}</>',
+        parts: [
+          { text: '  return <><Nav />{' },
+          { text: 'children', highlight: true },
+          { text: '}</>' },
+        ],
+      },
+      { text: '}' },
+    ]}
+  />
+  <FixCard
+    group="ignore"
+    title="Skip validation on the segment"
+    href="#skip-validation-on-the-segment"
+    snippets={[
+      { text: '// page.tsx or layout.tsx' },
+      { text: '' },
+      { text: 'export const instant = false', highlight: true },
+    ]}
+  />
+</FixCardGrid>
 
 ## Render the dropped segment
 

@@ -1,6 +1,6 @@
 ---
 name: insight-error-page
-description: Write or audit an insight-kind error page for the Next.js dev overlay. Use when creating a new `errors/<slug>.mdx` page, auditing an existing one, or checking that a page matches the framework fix cards. Covers page structure, title alignment, FixOption cards with Copy AI prompt button, code snippets, terminology verification against canonical docs, and Vercel technical writing style.
+description: Write or audit an insight-kind error page for the Next.js dev overlay. Use when creating a new `errors/<slug>.mdx` page, auditing an existing one, or checking that a page matches the framework fix cards. Covers page structure, title alignment, FixCard cards with Copy prompt button, code snippets, terminology verification against canonical docs, and Vercel technical writing style.
 metadata:
   internal: true
 ---
@@ -56,7 +56,7 @@ kind: insight
 
 ## Ways to fix this
 
-<FixOption /> cards — one per framework card, in framework order
+<FixCardGrid> wrapping one <FixCard /> per framework card, in framework order
 
 ## <Card 1 title>
   Choose this fix when ...
@@ -91,14 +91,16 @@ kind: insight
 - **Always the same canonical block** across all insight pages (the `--debug-prerender` tip). Never put page-specific content here.
 - Useful page-specific tips go in Gotchas under the relevant fix section.
 
-### `<FixOption>` cards
+### `<FixCard>` cards
 
-- One per framework card, in the same order as the framework `FixCard[]` array.
+- Wrap all cards in a single `<FixCardGrid>` (the same component used in `docs/01-app/02-guides/instant-navigation.mdx`).
+- One `<FixCard />` per framework card, in the same order as the framework `FixCard[]` array.
 - `title` = card title from framework, **verbatim**. If it reads awkward as a heading, change the framework first — never the docs.
 - `href` = `#` + the auto-slug of the title (e.g. "Generate on every request" → `#generate-on-every-request`). This must match what the heading auto-generates.
-- `group` = card group from framework (`dynamic`, `cache`, `client`, `stream`, `defer`, `measure`, `block`, `render`, `silence`).
-- Children = one-sentence plain-prose summary. **No inline code**, no API names in backticks, no snippets. Save technical detail for the section body.
-- **No `prompt` prop.** The "Copy AI prompt" button builds the prompt dynamically at click time from the page URL and the card's `title` + `href`. The agent receives a prompt that points at the rule docs and names the fix — it then reads the docs page (the same one the user is on) for every constraint and code shape. That is why this skill exists: the docs page itself **is** the prompt's source of truth.
+- `group` = card group from framework (`dynamic`, `cache`, `client`, `stream`, `defer`, `measure`, `block`, `render`, `ignore`, `upgrade`, `disable`, `static`).
+- `snippets` = the same `snippets` array as the matching framework `FixCard` in `instant-guidance-data.ts`. Copy it verbatim. No description prose lives on the card — the snippets carry the visual.
+- Self-close the tag (`<FixCard ... />`). The card has no children.
+- **No `prompt` prop.** The "Copy prompt" button builds the prompt dynamically at click time from the page URL and the card's `title` + `href`. The agent receives a prompt that points at the rule docs and names the fix — it then reads the docs page (the same one the user is on) for every constraint and code shape. That is why this skill exists: the docs page itself **is** the prompt's source of truth.
 
 ### `## <Fix>` sections
 
@@ -196,12 +198,14 @@ When auditing an existing page, check every item:
 - [ ] `title` = literal dev-overlay headline (from factory function), no period
 - [ ] `kind: insight` in frontmatter
 - [ ] Good to Know = the canonical `--debug-prerender` block (no page-specific content)
-- [ ] One `<FixOption>` per framework card, in framework order
-- [ ] Every `<FixOption>` `title` = card title verbatim
-- [ ] Every `<FixOption>` `href` = auto-slug of the heading
-- [ ] Every `<FixOption>` `group` matches framework card group
-- [ ] No `prompt` prop on any `<FixOption>` — the copy button generates the prompt from `title` + `href` + the page URL
-- [ ] `<FixOption>` children: plain prose, no backticks, no inline code
+- [ ] All cards wrapped in a single `<FixCardGrid>`
+- [ ] One `<FixCard />` per framework card, in framework order
+- [ ] Every `<FixCard />` `title` = card title verbatim
+- [ ] Every `<FixCard />` `href` = `#` + auto-slug of the heading
+- [ ] Every `<FixCard />` `group` matches framework card group
+- [ ] Every `<FixCard />` `snippets` = the framework card's `snippets` array, verbatim
+- [ ] No `prompt` prop on any `<FixCard />` — the copy button generates the prompt from `title` + `href` + the page URL
+- [ ] `<FixCard />` is self-closing (no children, no description prose)
 - [ ] Every `## <Fix>` heading = card title verbatim
 - [ ] Every fix section has `### Patterns`, `### Trade-off`, `### Gotchas`
 - [ ] No "Default." labels on patterns

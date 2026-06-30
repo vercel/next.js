@@ -29,32 +29,36 @@ Routes that opt into Partial Prefetching skip the dynamic data at prefetch time,
 
 ## Ways to fix this
 
-<FixOption
-  group="upgrade"
-  href="#opt-into-partial-prefetching"
-  title="Opt into Partial Prefetching"
->
-  Adopt Partial Prefetching for the target route so the link prefetches only the
-  App Shell. After adopting, layer on further prefetch optimizations.
-</FixOption>
-
-<FixOption
-  group="disable"
-  href="#use-the-default-prefetch"
-  title="Use the default prefetch"
->
-  Drop the prefetch prop from the link so it falls back to the default prefetch
-  behavior, which does not include dynamic data.
-</FixOption>
-
-<FixOption
-  group="ignore"
-  href="#disable-validation-on-this-route"
-  title="Disable validation on this route"
->
-  Opt the target route out of instant-navigation validation and keep the legacy
-  full prefetch.
-</FixOption>
+<FixCardGrid>
+  <FixCard
+    group="upgrade"
+    title="Opt into Partial Prefetching"
+    href="#opt-into-partial-prefetching"
+    snippets={[
+      { text: '// page.tsx or layout.tsx' },
+      { text: "export const prefetch = 'partial'", highlight: true },
+    ]}
+  />
+  <FixCard
+    group="disable"
+    title="Use the default prefetch"
+    href="#use-the-default-prefetch"
+    snippets={[
+      { text: '<Link href="/dashboard">', highlight: true },
+      { text: '  Dashboard' },
+      { text: '</Link>' },
+    ]}
+  />
+  <FixCard
+    group="ignore"
+    title="Disable validation on this route"
+    href="#disable-validation-on-this-route"
+    snippets={[
+      { text: '// page.tsx or layout.tsx' },
+      { text: 'export const instant = false', highlight: true },
+    ]}
+  />
+</FixCardGrid>
 
 ## Opt into Partial Prefetching
 
