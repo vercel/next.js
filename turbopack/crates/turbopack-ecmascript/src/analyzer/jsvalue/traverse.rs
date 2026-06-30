@@ -121,7 +121,7 @@ impl<'a> JsValue<'a> {
                 }
                 modified
             }
-            JsValue::Member(_, obj, prop) => {
+            JsValue::Member(_, obj, prop) | JsValue::In(_, obj, prop) => {
                 let m1 = visitor(obj);
                 let m2 = visitor(prop);
                 let modified = m1 || m2;
@@ -130,7 +130,6 @@ impl<'a> JsValue<'a> {
                 }
                 modified
             }
-
             JsValue::Iterated(_, operand)
             | JsValue::TypeOf(_, operand)
             | JsValue::Promise(_, operand)
@@ -304,7 +303,7 @@ impl<'a> JsValue<'a> {
             JsValue::Function(_, _, return_value) => {
                 visitor(return_value);
             }
-            JsValue::Member(_, obj, prop) => {
+            JsValue::Member(_, obj, prop) | JsValue::In(_, obj, prop) => {
                 visitor(obj);
                 visitor(prop);
             }

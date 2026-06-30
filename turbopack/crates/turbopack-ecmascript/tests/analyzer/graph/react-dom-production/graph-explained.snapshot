@@ -162,13 +162,9 @@ $k (const after eval) = (...) => ((bj(a) ? 1 : 0) | 11 | 14 | 2)
 
 *anonymous function 28530* = (...) => (a["movementX"] | wd)
 
-*anonymous function 28699* = (...) => (???*0* ? a["movementY"] : xd)
-- *0* unsupported expression
-  ⚠️  This value might have side effects
+*anonymous function 28699* = (...) => ("movementY" in a ? a["movementY"] : xd)
 
-*anonymous function 28936* = (...) => (???*0* ? a["clipboardData"] : FreeVar(window)["clipboardData"])
-- *0* unsupported expression
-  ⚠️  This value might have side effects
+*anonymous function 28936* = (...) => ("clipboardData" in a ? a["clipboardData"] : FreeVar(window)["clipboardData"])
 
 *anonymous function 29891* = (...) => (
   | b
@@ -186,24 +182,14 @@ $k (const after eval) = (...) => ((bj(a) ? 1 : 0) | 11 | 14 | 2)
 
 *anonymous function 30346* = (...) => (("keypress" === a["type"]) ? od(a) : ((("keydown" === a["type"]) || ("keyup" === a["type"])) ? a["keyCode"] : 0))
 
-*anonymous function 30803* = (...) => (???*0* ? a["deltaX"] : (???*1* ? ???*2* : 0))
+*anonymous function 30803* = (...) => ("deltaX" in a ? a["deltaX"] : ("wheelDeltaX" in a ? ???*0* : 0))
 - *0* unsupported expression
-  ⚠️  This value might have side effects
-- *1* unsupported expression
-  ⚠️  This value might have side effects
-- *2* unsupported expression
   ⚠️  This value might have side effects
 
-*anonymous function 30887* = (...) => (???*0* ? a["deltaY"] : (???*1* ? ???*2* : (???*3* ? ???*4* : 0)))
+*anonymous function 30887* = (...) => ("deltaY" in a ? a["deltaY"] : ("wheelDeltaY" in a ? ???*0* : ("wheelDelta" in a ? ???*1* : 0)))
 - *0* unsupported expression
   ⚠️  This value might have side effects
 - *1* unsupported expression
-  ⚠️  This value might have side effects
-- *2* unsupported expression
-  ⚠️  This value might have side effects
-- *3* unsupported expression
-  ⚠️  This value might have side effects
-- *4* unsupported expression
   ⚠️  This value might have side effects
 
 *anonymous function 3119* = (...) => undefined
@@ -777,10 +763,8 @@ Lc = (null | Tc(Lc, a, b, c, d, e))
 
 Ld (const after eval) = rd(Kd)
 
-Le (const after eval) = (...) => ((a && b) ? ((a === b) ? !(0) : ((a && (3 === a["nodeType"])) ? !(1) : ((b && (3 === b["nodeType"])) ? Le(a, b["parentNode"]) : (???*0* ? a["contains"](b) : (a["compareDocumentPosition"] ? !(!(???*1*)) : !(1)))))) : !(1))
+Le (const after eval) = (...) => ((a && b) ? ((a === b) ? !(0) : ((a && (3 === a["nodeType"])) ? !(1) : ((b && (3 === b["nodeType"])) ? Le(a, b["parentNode"]) : ("contains" in a ? a["contains"](b) : (a["compareDocumentPosition"] ? !(!(???*0*)) : !(1)))))) : !(1))
 - *0* unsupported expression
-  ⚠️  This value might have side effects
-- *1* unsupported expression
   ⚠️  This value might have side effects
 
 Lf (const after eval) = (...) => (null | a)
@@ -957,10 +941,8 @@ Pd (const after eval) = (...) => (b["getModifierState"] ? b["getModifierState"](
 - *0* assignment expression
   ⚠️  This value might have side effects
 
-Pe (const after eval) = (ia && ???*0* && ???*1*)
+Pe (const after eval) = (ia && "documentMode" in FreeVar(document) && ???*0*)
 - *0* unsupported expression
-  ⚠️  This value might have side effects
-- *1* unsupported expression
   ⚠️  This value might have side effects
 
 Pf (const after eval) = `__reactProps$${Nf}`
@@ -2486,9 +2468,7 @@ ac (const after eval) = ca["unstable_scheduleCallback"]
 
 ad (const after eval) = (...) => undefined
 
-ae (const after eval) = (ia && ???*0*)
-- *0* unsupported expression
-  ⚠️  This value might have side effects
+ae (const after eval) = (ia && "CompositionEvent" in FreeVar(window))
 
 af (const after eval) = Ze("animationiteration")
 
@@ -3958,9 +3938,7 @@ cc (const after eval) = ca["unstable_shouldYield"]
 
 cd (const after eval) = ua["ReactCurrentBatchConfig"]
 
-ce (const after eval) = (ia && ???*0* && !(be))
-- *0* unsupported expression
-  ⚠️  This value might have side effects
+ce (const after eval) = (ia && "TextEvent" in FreeVar(window) && !(be))
 
 cf (const after eval) = Ze("transitionend")
 
@@ -4552,9 +4530,7 @@ e#196 = C
 
 e#199 = (Yc(a, b, c, d) | undefined | f)
 
-e#207 = (???*0* ? kd["value"] : kd["textContent"])
-- *0* unsupported expression
-  ⚠️  This value might have side effects
+e#207 = ("value" in kd ? kd["value"] : kd["textContent"])
 
 e#212 = arguments[2]
 
@@ -5454,9 +5430,7 @@ hc (const after eval) = ca["unstable_NormalPriority"]
 
 hd (const after eval) = (...) => undefined
 
-he (const after eval) = (...) => ((("object" === typeof(a)) && ???*0*) ? a["data"] : null)
-- *0* unsupported expression
-  ⚠️  This value might have side effects
+he (const after eval) = (...) => ((("object" === typeof(a)) && "data" in a) ? a["data"] : null)
 
 hf (const after eval) = (ef[gf] | undefined)
 
@@ -5784,10 +5758,8 @@ lb (const after eval) = (...) => (((null == a) || ("http://www.w3.org/1999/xhtml
 
 lc (const after eval) = (null | wl)
 
-ld = (null | ???*0* | (???*1* ? kd["value"] : kd["textContent"]))
+ld = (null | ???*0* | ("value" in kd ? kd["value"] : kd["textContent"]))
 - *0* assignment expression
-  ⚠️  This value might have side effects
-- *1* unsupported expression
   ⚠️  This value might have side effects
 
 le (const after eval) = {
@@ -6648,9 +6620,7 @@ yd = (???*0* | a)
 - *0* yd
   ⚠️  pattern without value
 
-ye (const after eval) = (???*0* | undefined | ("function" === typeof(ze["oninput"])))
-- *0* unsupported expression
-  ⚠️  This value might have side effects
+ye (const after eval) = ("oninput" in FreeVar(document) | undefined | ("function" === typeof(ze["oninput"])))
 
 yf (const after eval) = /\u0000|\uFFFD/g
 

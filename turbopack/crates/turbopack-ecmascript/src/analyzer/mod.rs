@@ -730,7 +730,8 @@ mod tests {
                     }
                     Effect::ImportMeta { .. }
                     | Effect::ImportedBinding { .. }
-                    | Effect::Member { .. } => 0,
+                    | Effect::Member { .. }
+                    | Effect::In { .. } => 0,
                 };
                 let time = start.elapsed();
                 if time.as_millis() > 1 {

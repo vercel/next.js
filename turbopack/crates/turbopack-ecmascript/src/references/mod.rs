@@ -1269,6 +1269,27 @@ async fn analyze_ecmascript_module_internal(
                     handle_member(&ast_path, obj, prop, span, &analysis_state, &mut analysis)
                         .await?;
                 }
+                Effect::In {
+                    mut left,
+                    mut right,
+                    ast_path,
+                    span: _,
+                } => {
+                    debug_assert!(
+                        analyze_mode.is_code_gen(),
+                        "unexpected Effect::In in tracing mode"
+                    );
+
+                    // Intentionally not awaited because `handle_member` reads this only when needed
+                    let right =
+                        analysis_state.link_value(take(&mut *right), ImportAttributes::empty_ref());
+
+                    let left = analysis_state
+                        .link_value(take(&mut *left), ImportAttributes::empty_ref())
+                        .await?;
+
+                    handle_in(&ast_path, right, left, &analysis_state, &mut analysis).await?;
+                }
                 Effect::ImportedBinding {
                     esm_reference_index,
                     export,
@@ -3106,7 +3127,7 @@ async fn handle_member<'a>(
         let has_member = state.free_var_references_members.contains_key(prop).await?;
         let is_prop_cache = prop == "cache";
 
-        // This isn't pretty, but we cannot await the future twice in the two branches below.
+        // This isn't pretty, but this avoids awaiting the future twice in the two branches below.
         let obj = if has_member || is_prop_cache {
             Some(link_obj.await?)
         } else {
@@ -3134,6 +3155,58 @@ async fn handle_member<'a>(
                 obj.as_ref().unwrap()
         {
             analysis.add_code_gen(CjsRequireCacheAccess::new(ast_path.to_vec().into()));
+        }
+    }
+
+    Ok(())
+}
+
+async fn handle_in<'a>(
+    ast_path: &[AstParentKind],
+    link_right: impl Future<Output = Result<JsValue<'a>>> + Send + Sync,
+    left: JsValue<'a>,
+    state: &AnalysisState<'a>,
+    analysis: &mut AnalyzeEcmascriptModuleResultBuilder,
+) -> Result<()> {
+    if let Some(left) = left.as_str() {
+        let has_member = state.free_var_references_members.contains_key(left).await?;
+        let is_left_cache = left == "cache";
+
+        // This isn't pretty, but this avoids awaiting the future twice in the two branches below.
+        let right = if has_member || is_left_cache {
+            Some(link_right.await?)
+        } else {
+            None
+        };
+
+        if has_member {
+            let right = right.as_ref().unwrap();
+            if let Some((mut name, false)) = right.get_definable_name(Some(&state.var_graph)) {
+                name.0.push(DefinableNameSegmentRef::Name(left));
+                if state
+                    .compile_time_info_ref
+                    .free_var_references
+                    .get(&name)
+                    .await?
+                    .is_some()
+                {
+                    analysis.add_code_gen(ConstantValueCodeGen::new(
+                        CompileTimeDefineValue::Bool(true),
+                        ast_path.to_vec().into(),
+                    ));
+                    return Ok(());
+                }
+            }
+        }
+
+        if is_left_cache
+            && let JsValue::WellKnownFunction(WellKnownFunctionKind::Require) =
+                right.as_ref().unwrap()
+        {
+            analysis.add_code_gen(ConstantValueCodeGen::new(
+                CompileTimeDefineValue::Bool(true),
+                ast_path.to_vec().into(),
+            ));
         }
     }
 
@@ -3581,7 +3654,16 @@ async fn value_visitor_inner<'a>(
     attributes: &ImportAttributes,
     allow_project_root_tracing: bool,
 ) -> Result<(JsValue<'a>, Modified)> {
-    let ImportAttributes { ignore, .. } = *attributes;
+    if let JsValue::In(_, left, right) = &v
+        && let Some(left) = left.as_str()
+        && let Some((mut name, _)) = right.get_definable_name(Some(var_graph))
+    {
+        name.0.push(DefinableNameSegmentRef::Name(left));
+        if compile_time_info_ref.defines.contains_key(&name).await? {
+            return Ok((JsValue::Constant(JsConstantValue::True), Modified::Yes));
+        }
+    }
+
     if let Some((name, _)) = v.get_definable_name(Some(var_graph))
         && let Some(value) = compile_time_info_ref.defines.get(&name).await?
     {
@@ -3590,6 +3672,8 @@ async fn value_visitor_inner<'a>(
             Modified::Yes,
         ));
     }
+
+    let ImportAttributes { ignore, .. } = *attributes;
     let value = match v {
         JsValue::Call(_, call)
             if matches!(
