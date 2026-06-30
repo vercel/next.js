@@ -301,6 +301,13 @@ export default async function Page() {
           <DebugLinks href="/suspense-in-root/disable-validation/disable-build" />
         </li>
       </ul>
+
+      <h2>Without partialPrefetching</h2>
+      <ul>
+        <li>
+          <DebugLinks href="/suspense-in-root/non-app-shell/valid-unguarded-static-params/123" />
+        </li>
+      </ul>
     </main>
   )
 }

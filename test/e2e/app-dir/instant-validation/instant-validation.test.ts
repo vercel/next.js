@@ -4429,6 +4429,22 @@ describe('instant validation', () => {
           }
         })
       })
+    } else {
+      describe('non-app shell validation', () => {
+        it('valid - unguarded static params', async () => {
+          if (isNextDev) {
+            const browser = await navigateTo(
+              '/suspense-in-root/non-app-shell/valid-unguarded-static-params/123'
+            )
+            await expectNoDevValidationErrors(browser, await browser.url())
+          } else {
+            const result = await prerender(
+              '/suspense-in-root/non-app-shell/valid-unguarded-static-params/[slug]'
+            )
+            expectNoBuildValidationErrors(result)
+          }
+        })
+      })
     }
   })
 })
