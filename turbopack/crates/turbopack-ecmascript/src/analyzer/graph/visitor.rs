@@ -1272,12 +1272,12 @@ impl VisitAstPath for Analyzer<'_, '_> {
         ast_path: &mut AstNodePath<AstParentNodeRef<'r>>,
     ) {
         if self.analyze_mode.is_code_gen() && bin_expr.op == BinaryOp::In {
-            let right_value = BumpBox::new_in(
-                self.eval_context.eval(self.arena, &bin_expr.right),
-                self.arena,
-            );
             let left_value = BumpBox::new_in(
                 self.eval_context.eval(self.arena, &bin_expr.left),
+                self.arena,
+            );
+            let right_value = BumpBox::new_in(
+                self.eval_context.eval(self.arena, &bin_expr.right),
                 self.arena,
             );
             self.add_effect(Effect::In {
