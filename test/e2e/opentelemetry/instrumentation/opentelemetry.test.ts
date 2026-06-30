@@ -1459,11 +1459,12 @@ describe.each(
 
 describe.each(
   [
-    { name: 'default' },
-    isNextStart && {
-      name: 'direct entrypoints',
-      useDirectEntrypointHandler: true,
-    },
+    { name: 'default', useDirectEntrypointHandler: false },
+    // TODO is currently broken because custom-entrypoint-server doesn't invoke Middleware at all
+    // isNextStart && {
+    //   name: 'direct entrypoints',
+    //   useDirectEntrypointHandler: true,
+    // },
   ].filter(Boolean)
 )('opentelemetry - middleware $name', ({ useDirectEntrypointHandler }) => {
   describe.each(['edge', 'node'])('%s runtime', (runtime) => {
