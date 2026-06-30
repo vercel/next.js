@@ -541,7 +541,11 @@ function markChunkListAsRuntime(chunkListPath: ChunkListPath) {
   runtimeChunkLists.add(chunkListPath)
 }
 
-function registerChunk(registration: ChunkRegistration) {
+function registerChunk(registration: ChunkRegistration | RuntimeParams) {
+  // An inlined entry-only registration is a bare params object (no source chunk).
+  if (!Array.isArray(registration)) {
+    return BACKEND.registerChunk(undefined, registration)
+  }
   const chunk = getChunkFromRegistration(registration[0]) as
     | ChunkPath
     | ChunkScript

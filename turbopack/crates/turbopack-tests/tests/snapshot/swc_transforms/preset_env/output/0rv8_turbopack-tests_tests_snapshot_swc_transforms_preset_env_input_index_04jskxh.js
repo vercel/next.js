@@ -981,6 +981,8 @@ function loadChunk(chunkData) {
     return loadChunkInternal(SourceType.Parent, this.m.id, chunkData);
 }
 browserContextPrototype.l = loadChunk;
+// `chunkPath` is the source chunk; it is `undefined` for entry-only registrations,
+// which have no self chunk.
 function loadInitialChunk(chunkPath, chunkData) {
     return loadChunkInternal(SourceType.Runtime, chunkPath, chunkData);
 }
@@ -1476,6 +1478,10 @@ function instantiateModule(id, sourceType, sourceData) {
 }
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 function registerChunk(registration) {
+    // An inlined entry-only registration is a bare params object (no source chunk).
+    if (!Array.isArray(registration)) {
+        return BACKEND.registerChunk(undefined, registration);
+    }
     var chunk = getChunkFromRegistration(registration[0]);
     if (SUPPORT_COMPONENT_CHUNKS) {
         markChunkComponentsAvailable(chunk);
@@ -1649,14 +1655,15 @@ var BACKEND;
     BACKEND = {
         registerChunk: function registerChunk(chunk, params) {
             return _async_to_generator(function() {
-                var chunkPath, chunkUrl, resolver, _iteratorNormalCompletion, _didIteratorError, _iteratorError, _iterator, _step, otherChunkData, otherChunkPath, otherChunkUrl, _iteratorNormalCompletion1, _didIteratorError1, _iteratorError1, _iterator1, _step1, moduleId;
+                var chunkPath, resolver, _iteratorNormalCompletion, _didIteratorError, _iteratorError, _iterator, _step, otherChunkData, otherChunkPath, otherChunkUrl, _iteratorNormalCompletion1, _didIteratorError1, _iteratorError1, _iterator1, _step1, moduleId;
                 return _ts_generator(this, function(_state) {
                     switch(_state.label){
                         case 0:
-                            chunkPath = getPathFromScript(chunk);
-                            chunkUrl = getUrlFromScript(chunk);
-                            resolver = getOrCreateResolver(chunkUrl);
-                            resolver.resolve();
+                            if (chunk != null) {
+                                chunkPath = getPathFromScript(chunk);
+                                resolver = getOrCreateResolver(getUrlFromScript(chunk));
+                                resolver.resolve();
+                            }
                             if (params == null) {
                                 return [
                                     2

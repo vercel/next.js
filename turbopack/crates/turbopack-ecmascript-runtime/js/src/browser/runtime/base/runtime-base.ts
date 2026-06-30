@@ -63,15 +63,15 @@ type ChunkList = {
 }
 
 interface RuntimeBackend {
+  /**
+   * Registers a chunk. `chunk` is `undefined` for an inlined entry-only registration
+   * (no source chunk): the params' other chunks are loaded and its runtime modules run
+   * with no self chunk identity.
+   */
   registerChunk: (
-    chunkPath: ChunkPath | ChunkScript,
+    chunk: ChunkPath | ChunkScript | undefined,
     params?: RuntimeParams
   ) => void
-  /**
-   * Registers an entry-only registration (inlined into the HTML): loads the params'
-   * other chunks and runs its runtime modules, with no self chunk identity.
-   */
-  registerEntry: (params: RuntimeParams) => void
   /**
    * Returns the same Promise for the same chunk URL.
    */

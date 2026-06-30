@@ -36,11 +36,13 @@ const chunkResolvers: Map<ChunkUrl, ChunkResolver> = new Map()
 ;(() => {
   BACKEND = {
     async registerChunk(chunk, params) {
-      let chunkPath = getPathFromScript(chunk)
-      let chunkUrl = getUrlFromScript(chunk)
-
-      const resolver = getOrCreateResolver(chunkUrl)
-      resolver.resolve()
+      // `chunk` is `undefined` for an inlined entry-only registration, which has no source chunk.
+      let chunkPath: ChunkPath | undefined
+      if (chunk != null) {
+        chunkPath = getPathFromScript(chunk)
+        const resolver = getOrCreateResolver(getUrlFromScript(chunk))
+        resolver.resolve()
+      }
 
       if (params == null) {
         return
@@ -65,25 +67,6 @@ const chunkResolvers: Map<ChunkUrl, ChunkResolver> = new Map()
         for (const moduleId of params.runtimeModuleIds) {
           getOrInstantiateRuntimeModule(chunkPath, moduleId)
         }
-      }
-    },
-
-    // Handles an inlined entry-only registration. Load the entry's other chunks and run its
-    // runtime modules with no source chunk (`undefined`).
-    async registerEntry(params) {
-      for (const otherChunkData of params.otherChunks) {
-        const otherChunkUrl = getChunkRelativeUrl(getChunkPath(otherChunkData))
-        getOrCreateResolver(otherChunkUrl)
-      }
-
-      await Promise.all(
-        params.otherChunks.map((otherChunkData) =>
-          loadInitialChunk(undefined, otherChunkData)
-        )
-      )
-
-      for (const moduleId of params.runtimeModuleIds) {
-        getOrInstantiateRuntimeModule(undefined, moduleId)
       }
     },
 
