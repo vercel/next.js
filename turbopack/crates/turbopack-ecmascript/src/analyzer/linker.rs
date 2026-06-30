@@ -425,8 +425,8 @@ where
 {
     *total_nodes -= val.total_nodes();
 
-    let (mut val, visit_modified) = visitor(val).await?;
-    if visit_modified.is_modified() {
+    let (mut val, modification_status) = visitor(val).await?;
+    if modification_status.is_modified() {
         val.normalize_shallow(arena.get_or_default());
         #[cfg(debug_assertions)]
         val.debug_assert_total_nodes_up_to_date();
@@ -449,7 +449,7 @@ where
         return Ok(());
     }
     *total_nodes += count;
-    if visit_modified.is_modified() {
+    if modification_status.is_modified() {
         work_queue_stack.push(Step::Enter(val));
     } else {
         done.push(val);
