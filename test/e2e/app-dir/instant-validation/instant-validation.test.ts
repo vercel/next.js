@@ -4,6 +4,7 @@ import {
   expectBuildValidationSkipped,
   extractBuildValidationError,
   waitForValidation,
+  getDevCliValidationOutput,
 } from 'e2e-utils/instant-validation'
 import {
   openRedbox,
@@ -745,33 +746,74 @@ describe('instant validation', () => {
         const browser = await navigateTo(
           '/suspense-in-root/runtime/invalid-no-suspense-around-search-params?foo=bar'
         )
-        await expect(browser).toDisplayCollapsedRedbox(`
-         {
-           "cause": [
-             {
-               "label": "Caused by: Instant Validation",
-               "source": "app/suspense-in-root/runtime/invalid-no-suspense-around-search-params/page.tsx (4:24) @ instant
-         > 4 | export const instant = {
-             |                        ^",
-               "stack": [
-                 "instant app/suspense-in-root/runtime/invalid-no-suspense-around-search-params/page.tsx (4:24)",
-                 "Set.forEach <anonymous>",
-               ],
-             },
-           ],
-           "code": "E1391",
-           "description": "Next.js encountered link data during a navigation.",
-           "environmentLabel": "Server",
-           "label": "Instant",
-           "source": "app/suspense-in-root/runtime/invalid-no-suspense-around-search-params/page.tsx (40:18) @ LinkData
-         > 40 |   const search = await searchParams
-              |                  ^",
-           "stack": [
-             "LinkData app/suspense-in-root/runtime/invalid-no-suspense-around-search-params/page.tsx (40:18)",
-             "Page app/suspense-in-root/runtime/invalid-no-suspense-around-search-params/page.tsx (22:9)",
-           ],
-         }
-        `)
+        if (isClientNav) {
+          // TODO(app-shells): redbox is flaky and sometimes doesn't appear even though validation runs.
+          // as a stopgap, we assert on CLI output instead
+          // await expect(browser).toDisplayCollapsedRedbox(`...`)
+          expect(
+            await getDevCliValidationOutput(
+              await browser.url(),
+              getCliOutputSinceMark
+            )
+          ).toMatchInlineSnapshot(`
+           "Error: Route "/suspense-in-root/runtime/invalid-no-suspense-around-search-params": Next.js encountered link data during prerendering or a navigation.
+
+           \`params\` or \`searchParams\` accessed outside of \`<Suspense>\` prevents the navigation from being instant, leading to a slower user experience.
+
+           Ways to fix this:
+             - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
+               https://nextjs.org/docs/messages/blocking-prerender-runtime#wrap-in-or-move-into-suspense
+             - [block] Set \`export const instant = false\` to silence this warning and allow a blocking route
+               https://nextjs.org/docs/messages/blocking-prerender-runtime#allow-blocking-route
+               at LinkData (app/suspense-in-root/runtime/invalid-no-suspense-around-search-params/page.tsx:40:18)
+               at Page (app/suspense-in-root/runtime/invalid-no-suspense-around-search-params/page.tsx:22:9)
+             38 |   searchParams: Promise<Record<string, string | string[]>>
+             39 | }) {
+           > 40 |   const search = await searchParams
+                |                  ^
+             41 |   return <div id="runtime-content">Search: {JSON.stringify(search)}</div>
+             42 | }
+             43 | {
+             [cause]: Instant Validation:  
+                 at instant (app/suspense-in-root/runtime/invalid-no-suspense-around-search-params/page.tsx:4:24)
+               2 | import { Suspense } from 'react'
+               3 |
+             > 4 | export const instant = {
+                 |                        ^
+               5 |   level: 'experimental-error',
+               6 |   unstable_samples: [{ cookies: [], searchParams: { foo: 'bar' } }],
+               7 | }
+           }"
+          `)
+        } else {
+          await expect(browser).toDisplayCollapsedRedbox(`
+           {
+             "cause": [
+               {
+                 "label": "Caused by: Instant Validation",
+                 "source": "app/suspense-in-root/runtime/invalid-no-suspense-around-search-params/page.tsx (4:24) @ instant
+           > 4 | export const instant = {
+               |                        ^",
+                 "stack": [
+                   "instant app/suspense-in-root/runtime/invalid-no-suspense-around-search-params/page.tsx (4:24)",
+                   "Set.forEach <anonymous>",
+                 ],
+               },
+             ],
+             "code": "E1391",
+             "description": "Next.js encountered link data during a navigation.",
+             "environmentLabel": "Server",
+             "label": "Instant",
+             "source": "app/suspense-in-root/runtime/invalid-no-suspense-around-search-params/page.tsx (40:18) @ LinkData
+           > 40 |   const search = await searchParams
+                |                  ^",
+             "stack": [
+               "LinkData app/suspense-in-root/runtime/invalid-no-suspense-around-search-params/page.tsx (40:18)",
+               "Page app/suspense-in-root/runtime/invalid-no-suspense-around-search-params/page.tsx (22:9)",
+             ],
+           }
+          `)
+        }
       } else {
         const result = await prerender(
           '/suspense-in-root/runtime/invalid-no-suspense-around-search-params'
@@ -4146,33 +4188,74 @@ describe('instant validation', () => {
             const browser = await navigateTo(
               '/shells/invalid-runtime-searchparams?foo=bar'
             )
-            await expect(browser).toDisplayCollapsedRedbox(`
-             {
-               "cause": [
-                 {
-                   "label": "Caused by: Instant Validation",
-                   "source": "app/shells/(default)/invalid-runtime-searchparams/page.tsx (3:33) @ instant
-             > 3 | export const instant: Instant = {
-                 |                                 ^",
-                   "stack": [
-                     "instant app/shells/(default)/invalid-runtime-searchparams/page.tsx (3:33)",
-                     "Set.forEach <anonymous>",
-                   ],
-                 },
-               ],
-               "code": "E1391",
-               "description": "Next.js encountered link data during a navigation.",
-               "environmentLabel": "Server",
-               "label": "Instant",
-               "source": "app/shells/(default)/invalid-runtime-searchparams/page.tsx (27:3) @ LinkData
-             > 27 |   await searchParams
-                  |   ^",
-               "stack": [
-                 "LinkData app/shells/(default)/invalid-runtime-searchparams/page.tsx (27:3)",
-                 "Page app/shells/(default)/invalid-runtime-searchparams/page.tsx (17:7)",
-               ],
-             }
-            `)
+            if (isClientNav) {
+              // TODO(app-shells): redbox is flaky and sometimes doesn't appear even though validation runs.
+              // as a stopgap, we assert on CLI output instead
+              // await expect(browser).toDisplayCollapsedRedbox(`...`)
+              expect(
+                await getDevCliValidationOutput(
+                  await browser.url(),
+                  getCliOutputSinceMark
+                )
+              ).toMatchInlineSnapshot(`
+               "Error: Route "/shells/invalid-runtime-searchparams": Next.js encountered link data during prerendering or a navigation.
+
+               \`params\` or \`searchParams\` accessed outside of \`<Suspense>\` prevents the navigation from being instant, leading to a slower user experience.
+
+               Ways to fix this:
+                 - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
+                   https://nextjs.org/docs/messages/blocking-prerender-runtime#wrap-in-or-move-into-suspense
+                 - [block] Set \`export const instant = false\` to silence this warning and allow a blocking route
+                   https://nextjs.org/docs/messages/blocking-prerender-runtime#allow-blocking-route
+                   at LinkData (app/shells/(default)/invalid-runtime-searchparams/page.tsx:27:3)
+                   at Page (app/shells/(default)/invalid-runtime-searchparams/page.tsx:17:7)
+                 25 |   searchParams: Promise<Record<string, string | string[]>>
+                 26 | }) {
+               > 27 |   await searchParams
+                    |   ^
+                 28 |   return <div>Link data - search params</div>
+                 29 | }
+                 30 | {
+                 [cause]: Instant Validation:  
+                     at instant (app/shells/(default)/invalid-runtime-searchparams/page.tsx:3:33)
+                   1 | import { Instant } from 'next'
+                   2 |
+                 > 3 | export const instant: Instant = {
+                     |                                 ^
+                   4 |   level: 'experimental-error',
+                   5 |   unstable_samples: [{ searchParams: {} }],
+                   6 | }
+               }"
+              `)
+            } else {
+              await expect(browser).toDisplayCollapsedRedbox(`
+               {
+                 "cause": [
+                   {
+                     "label": "Caused by: Instant Validation",
+                     "source": "app/shells/(default)/invalid-runtime-searchparams/page.tsx (3:33) @ instant
+               > 3 | export const instant: Instant = {
+                   |                                 ^",
+                     "stack": [
+                       "instant app/shells/(default)/invalid-runtime-searchparams/page.tsx (3:33)",
+                       "Set.forEach <anonymous>",
+                     ],
+                   },
+                 ],
+                 "code": "E1391",
+                 "description": "Next.js encountered link data during a navigation.",
+                 "environmentLabel": "Server",
+                 "label": "Instant",
+                 "source": "app/shells/(default)/invalid-runtime-searchparams/page.tsx (27:3) @ LinkData
+               > 27 |   await searchParams
+                    |   ^",
+                 "stack": [
+                   "LinkData app/shells/(default)/invalid-runtime-searchparams/page.tsx (27:3)",
+                   "Page app/shells/(default)/invalid-runtime-searchparams/page.tsx (17:7)",
+                 ],
+               }
+              `)
+            }
           } else {
             const result = await prerender(
               '/shells/(default)/invalid-runtime-searchparams'

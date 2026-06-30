@@ -31,9 +31,37 @@ export function parseValidationMessages(output: string): ValidationEvent[] {
   return events
 }
 
+export async function getDevCliValidationOutput(
+  url: string,
+  getOutput: () => string
+): Promise<string> {
+  const {
+    start: { requestId },
+  } = await waitForValidation(url, getOutput)
+  const output = extractValidationOutput(getOutput(), {
+    isMinified: false,
+    requestId,
+  })
+  // Strip `GET <url> 200 ...` log line which may end up between the start/end messages
+  return output
+    .split('\n')
+    .filter((line) => !line.startsWith(`GET ${normalizeValidationUrl(url)}`))
+    .join('\n')
+}
+
 export function extractBuildValidationError(
   cliOutput: string,
-  { isMinified = true } = {}
+  opts?: { isMinified?: boolean }
+): string {
+  return extractValidationOutput(cliOutput, opts)
+}
+
+export function extractValidationOutput(
+  cliOutput: string,
+  {
+    isMinified = true,
+    requestId,
+  }: { isMinified?: boolean; requestId?: string } = {}
 ): string {
   const markerRe = /<VALIDATION_MESSAGE>(.*?)<\/VALIDATION_MESSAGE>/g
 
@@ -47,6 +75,10 @@ export function extractBuildValidationError(
   while ((m = markerRe.exec(cliOutput)) !== null) {
     // JSON.parse must succeed — if it throws, let the error propagate
     const data: ValidationEvent = JSON.parse(m[1])
+    // If we're looking for a specific request ID, ignore other events.
+    if (requestId !== undefined && data.requestId !== requestId) {
+      continue
+    }
     markers.push({
       index: m.index,
       endIndex: m.index + m[0].length,
@@ -118,11 +150,11 @@ export async function waitForValidationStart(
 export async function waitForValidationEnd(
   start: ValidationStartEvent,
   getOutput: () => string
-): Promise<void> {
+): Promise<ValidationEndEvent> {
   const events = parseValidationMessages(getOutput())
   assertStartFound(start, events)
 
-  await retry(
+  return await retry(
     async () => {
       const events = parseValidationMessages(getOutput())
       assertStartFound(start, events)
@@ -130,6 +162,7 @@ export async function waitForValidationEnd(
         (e) => e.type === 'validation_end' && e.requestId === start.requestId
       )
       expect(end).toBeDefined()
+      return end as ValidationEndEvent
     },
     undefined,
     undefined,
@@ -148,12 +181,10 @@ function assertStartFound(
   }
 }
 
-export async function waitForValidation(
-  url: string,
-  getOutput: () => string
-): Promise<void> {
-  const requestId = await waitForValidationStart(url, getOutput)
-  await waitForValidationEnd(requestId, getOutput)
+export async function waitForValidation(url: string, getOutput: () => string) {
+  const start = await waitForValidationStart(url, getOutput)
+  const end = await waitForValidationEnd(start, getOutput)
+  return { start, end }
 }
 
 type PrerenderResult = {
