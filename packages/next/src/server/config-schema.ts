@@ -374,7 +374,7 @@ export const experimentalSchema = {
     .union([z.literal(false), z.literal('full')])
     .optional(),
   turbopackPluginRuntimeStrategy: z
-    .enum(['workerThreads', 'childProcesses', 'forceWorkerThreads'])
+    .enum(['workerThreads', 'childProcesses'])
     .optional(),
   turbopackMinify: z.boolean().optional(),
   turbopackFileSystemCacheForDev: z.boolean().optional(),

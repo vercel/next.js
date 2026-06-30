@@ -723,26 +723,11 @@ export interface ExperimentalConfig {
    * This defaults to `'childProcesses'`, which creates a pool of child node.js
    * processes and communciates with them over sockets.
    *
-   * `'workerThreads'` should use less memory and CPU. It may become the default
-   * in a future version of Next.js.
-   *
-   * Node.js 24.13.1+ or 25.4.0+ is required for `'workerThreads'` due to memory
-   * safety bugs in older versions. If you use this option with an older Node.js
-   * version, the setting is ignored and a warning is emitted. Bun and Deno are
-   * assumed safe, and are not checked for compatibility.
-   *
-   * - Fix for memory safety issue: <https://github.com/nodejs/node/pull/55877>
-   * - Backported to 25.4.0: <https://github.com/nodejs/node/pull/61400>
-   * - Backported to 24.13.1: <https://github.com/nodejs/node/pull/61661>
-   *
-   * `'forceWorkerThreads'` behaves like `'workerThreads'` but skips the
-   * version-gated downgrade. You should not use this option unless you're
-   * confident that the version check in Next.js is wrong.
+   * `'workerThreads'` runs the same work in worker threads instead, which should
+   * use less memory and CPU. It may become the default in a future version of
+   * Next.js.
    */
-  turbopackPluginRuntimeStrategy?:
-    | 'workerThreads'
-    | 'childProcesses'
-    | 'forceWorkerThreads'
+  turbopackPluginRuntimeStrategy?: 'workerThreads' | 'childProcesses'
 
   /**
    * Enable minification. Defaults to true in build mode and false in dev mode.
