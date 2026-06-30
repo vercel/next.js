@@ -355,7 +355,11 @@ export async function runUpgrade(
   // `eslint@^8` from create-next-app. Skip silently if anything goes wrong;
   // the worst case is the user hits the same peer-dep error they would have
   // without this bump.
-  if (allDependencies['eslint']) {
+  //
+  // Only act when the project is actually using `eslint-config-next` — we
+  // don't want to silently upgrade eslint majors for projects that use
+  // eslint for unrelated reasons.
+  if (allDependencies['eslint'] && allDependencies['eslint-config-next']) {
     try {
       const eslintConfigNextPeerDepsJSON = execSync(
         `npm --silent view "eslint-config-next@${targetNextVersion}" peerDependencies --json`,
