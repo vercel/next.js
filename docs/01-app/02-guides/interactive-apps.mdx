@@ -242,9 +242,9 @@ export function LabelFilter() {
 
 `LabelFilter` decides where the app navigates and holds no pending state of its own.
 
-#### Handle pending feedback internally
+#### Handle the optimistic chip value
 
-`ChipGroup` accepts a `changeAction` prop and calls it inside its own `startTransition`. It uses two `useOptimistic` hooks: one for the selected chip, and one for the `data-pending` attribute that ancestor components can style against:
+`ChipGroup` accepts a `changeAction` prop and calls it inside its own `startTransition`. `useOptimistic` provides the in-flight chip value so the click registers on the current frame:
 
 ```tsx filename="components/ui/chip-group.tsx"
 'use client'
@@ -253,18 +253,16 @@ import { startTransition, useOptimistic } from 'react'
 
 export function ChipGroup({ items, value, changeAction }) {
   const [optimisticValue, setOptimisticValue] = useOptimistic(value)
-  const [isPending, setIsPending] = useOptimistic(false)
 
   function handleClick(newValue) {
     startTransition(async () => {
       setOptimisticValue(newValue)
-      setIsPending(true)
       await changeAction(newValue)
     })
   }
 
   return (
-    <div className="flex gap-1.5" data-pending={isPending ? '' : undefined}>
+    <div className="flex gap-1.5">
       {items.map((item) => (
         <button
           key={item.value}
@@ -283,9 +281,87 @@ export function ChipGroup({ items, value, changeAction }) {
 
 The consumer passes a callback (`changeAction`), and the design component runs it inside a transition. By convention, props named `action` or suffixed with `Action` signal this behavior. See [Exposing `action` props from components](https://react.dev/reference/react/useTransition#exposing-action-props-from-components) in the React docs for this pattern.
 
-The `data-pending` attribute on the `ChipGroup` root element lets ancestor components react through CSS without any coordination. The board on the home page uses `group-has-data-pending:opacity-50` to dim while the transition runs, without replacing the board with a skeleton. Because `ChipGroup` renders inside the `group` element, the attribute is available to any ancestor for styling.
+The "Frontend" chip now highlights on the current frame.
 
-The "Frontend" chip now highlights on the current frame. The board dims while the filtered data loads, then updates with the filtered tasks.
+#### Dim the board with a board-wide pending state
+
+To dim the rest of the board while the filter loads, share a `useTransition` between the filter and a wrapper around the board. A small Client Component owns the transition and exposes it through context. The wrapper sets `data-pending` on its own element when the transition is in flight, so the dim style targets the dimmed element directly — no `:has()` cascade or `group-has-` reach across the tree.
+
+See [The `:has` selector](/docs/app/guides/preserving-ui-state#the-has-selector) for why a React-owned `data-*` is preferred over an ancestor-side `:has(...)` for shared state like this.
+
+```tsx filename="features/task/components/board-pending.tsx"
+'use client'
+
+import {
+  createContext,
+  useContext,
+  useTransition,
+  type ReactNode,
+  type TransitionStartFunction,
+} from 'react'
+
+type BoardPending = {
+  isPending: boolean
+  startBoardTransition: TransitionStartFunction
+}
+
+const BoardPendingContext = createContext<BoardPending | null>(null)
+
+export function useBoardPending() {
+  return useContext(BoardPendingContext)
+}
+
+export function BoardPendingProvider({ children }: { children: ReactNode }) {
+  const [isPending, startBoardTransition] = useTransition()
+  return (
+    <BoardPendingContext.Provider value={{ isPending, startBoardTransition }}>
+      {children}
+    </BoardPendingContext.Provider>
+  )
+}
+
+export function BoardWrapper({ children }: { children: ReactNode }) {
+  const ctx = useBoardPending()
+  return (
+    <div
+      data-pending={ctx?.isPending ? '' : undefined}
+      className="transition-opacity data-pending:opacity-50"
+    >
+      {children}
+    </div>
+  )
+}
+```
+
+`LabelFilter` consumes the context to wrap `router.push` in the shared transition:
+
+```tsx filename="features/task/components/label-filter.tsx"
+function filterAction(value: string | null) {
+  const params = new URLSearchParams(searchParams.toString())
+  if (value) params.set('label', value)
+  else params.delete('label')
+  const run = () => router.push(`/?${params.toString()}`)
+  ctx ? ctx.startBoardTransition(run) : run()
+}
+```
+
+The page wraps both regions in the provider:
+
+```tsx filename="app/page.tsx"
+<BoardPendingProvider>
+  <header>
+    <LabelFilter />
+    <CreateTaskModal />
+  </header>
+  <BoardWrapper>
+    <Suspense fallback={<BoardSkeleton />}>
+      <Board tasksPromise={getTasks(label)} />
+    </Suspense>
+  </BoardWrapper>
+</BoardPendingProvider>
+```
+
+The board dims while the filtered data loads, then updates with the filtered tasks. The chip and the board share one source of truth and React sets the attribute on the exact element being styled.
 
 ### Step 4: Add comments with instant feedback
 
@@ -592,7 +668,7 @@ Each comment card has a delete button that removes the comment on the server, an
 
 Between the click and that render, the card still shows the old data. The list itself can't show the pending removal, so the signal has to come from the button.
 
-This step reuses the `data-pending` CSS hook from Step 3, but drives it from `useOptimistic(false)` instead of the `isPending` from `useTransition`.
+Track the pending state with `useOptimistic(false)` and expose it through a `data-pending` attribute. The parent comment card watches for the attribute through Tailwind's `has-data-pending:` variant and fades — local parent/child styling that doesn't require lifting state or threading callbacks. See [The `:has` selector](/docs/app/guides/preserving-ui-state#the-has-selector) for when this pattern is appropriate (and when a React-owned `data-*` further up the tree is better).
 
 Here the Server Function is called directly:
 
