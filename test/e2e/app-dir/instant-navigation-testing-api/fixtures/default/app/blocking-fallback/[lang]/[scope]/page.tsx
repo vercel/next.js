@@ -1,10 +1,27 @@
 import { cookies } from 'next/headers'
 
-// The deeper, blocking segment of the fallback route: reads request-time
-// `cookies()` and has no <Suspense> of its own, so it has no static shell.
-// Under instant() the navigation here must stay parked on the committed parent;
-// the cookie value must not commit while the lock is held.
-export default function ScopePage() {
+// The deeper, blocking segment of the fallback route: awaits the uncovered
+// `scope` param and reads request-time `cookies()`, and has no <Suspense> of
+// its own, so it has no static shell. Under instant() the navigation here must
+// stay parked on the committed parent; neither the title nor the cookie value
+// may commit while the lock is held.
+export default async function ScopePage({
+  params,
+}: {
+  params: Promise<{ lang: string; scope: string }>
+}) {
+  // Await the uncovered `scope` fallback param to keep this segment parked
+  // under instant(). The app shell is allowed to read `cookies()` without
+  // blocking, so gating only on cookies would make parking depend on a race:
+  // the title leaks when the cookie-bearing app-shell prefetch commits this
+  // segment, but stays hidden when the empty static speculative prefetch
+  // commits first. Awaiting the withheld param removes the title from both
+  // prefetches, so it stays parked until the lock releases no matter which one
+  // wins. This app-shell-versus-speculative-prefetch race is a known, likely
+  // temporary limitation; see the note on the `cookies in the instant shell`
+  // describe block for the related case and the planned fix.
+  await params
+
   return (
     <div>
       <h1 data-testid="blocking-scope-title">Scope</h1>
