@@ -2,11 +2,13 @@
 
 const execa = require('execa')
 const fs = require('fs/promises')
+const semver = require('semver')
 const {
   replayLocalCommitsAsSigned,
   githubRequest,
   alignLocalBranchWithSignedCommit,
 } = require('./github-utils/signed-commit')
+const { generateChangelog } = require('./release-changelog')
 
 const REPO_API_PATH = '/repos/vercel/next.js'
 
@@ -184,6 +186,99 @@ async function createGitHubReleaseCommit(token, options = {}) {
   }
 }
 
+/**
+ * Find the previous release tag for a changelog range: the highest-semver tag
+ * reachable from `tagCommitSha` whose version is below `newVersion`. Returns
+ * `null` when there is no earlier tag (e.g. the very first release).
+ */
+async function getPreviousReleaseTag(tagCommitSha, newVersion) {
+  const output = String(
+    await git(['tag', '--merged', tagCommitSha, 'v*'], { captureOutput: true })
+  )
+
+  const previous = output
+    .split('\n')
+    .map((tag) => tag.trim())
+    .filter(Boolean)
+    .map((tag) => ({ tag, version: semver.valid(tag.replace(/^v/, '')) }))
+    .filter(
+      (entry) => entry.version != null && semver.lt(entry.version, newVersion)
+    )
+    .sort((a, b) => semver.rcompare(a.version, b.version))[0]
+
+  return previous ? previous.tag : null
+}
+
+/**
+ * List the commits that make up a release, newest range endpoint inclusive,
+ * excluding merge commits and the version-bump commits Lerna creates (whose
+ * title is itself a version like `v16.3.0-canary.62`).
+ */
+async function getReleaseCommits(fromTag, tagCommitSha) {
+  const range = fromTag ? `${fromTag}..${tagCommitSha}` : tagCommitSha
+  const output = String(
+    await git(['log', '--no-merges', '--format=%H%x1f%s', range], {
+      captureOutput: true,
+    })
+  )
+
+  return output
+    .split('\n')
+    .filter(Boolean)
+    .map((line) => {
+      const [hash, title] = line.split('\x1f')
+      return { hash, title }
+    })
+    .filter((commit) => semver.valid(commit.title.replace(/^v/, '')) == null)
+}
+
+/**
+ * Create the GitHub release for an exact, already-created tag, replacing the
+ * third-party `release` CLI (which always published the highest-semver tag
+ * reachable from HEAD -- once an ad-hoc `@preview` tag lands on canary it would
+ * hijack every canary release). The release is created as a prerelease draft;
+ * `publish-release.js` un-drafts it once the npm publish succeeds.
+ *
+ * `request` defaults to the real `githubRequest`; a dry run injects a logging
+ * mock so the flow is exercised without creating a release.
+ */
+async function createGitHubRelease(
+  token,
+  { tagName, request = githubRequest }
+) {
+  const newVersion = tagName.replace(/^v/, '')
+  const tagCommitSha = await git(['rev-list', '-n', '1', tagName], {
+    captureOutput: true,
+  })
+  const previousTag = await getPreviousReleaseTag(tagCommitSha, newVersion)
+  const commits = await getReleaseCommits(previousTag, tagCommitSha)
+
+  const getPullRequest = (number) =>
+    request(token, 'GET', `${REPO_API_PATH}/pulls/${number}`).catch((error) => {
+      console.warn(`Failed to fetch PR #${number} for changelog: ${error}`)
+      return null
+    })
+
+  const changelog = await generateChangelog({ commits, getPullRequest })
+
+  console.log(
+    `Creating GitHub release ${tagName} (changelog range ${
+      previousTag ?? '(initial)'
+    }..${tagName}, ${commits.length} commits)`
+  )
+
+  await request(token, 'POST', `${REPO_API_PATH}/releases`, {
+    tag_name: tagName,
+    name: tagName,
+    body: changelog || 'Initial release',
+    prerelease: true,
+    draft: true,
+  })
+
+  console.log(`Created draft prerelease ${tagName}`)
+}
+
 module.exports = {
   createGitHubReleaseCommit,
+  createGitHubRelease,
 }
