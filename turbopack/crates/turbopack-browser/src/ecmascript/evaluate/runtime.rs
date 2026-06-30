@@ -19,7 +19,7 @@ use crate::BrowserChunkingContext;
 ///
 /// This is emitted once per [`BrowserChunkingContext`] (deduplicated by
 /// turbo-tasks on its inputs) and shared by every entrypoint, instead of being
-/// inlined into each [`crate::ecmascript::chunk::EcmascriptBrowserEvaluateChunk`]. It mirrors
+/// inlined into each [`crate::ecmascript::evaluate::chunk::EcmascriptBrowserEvaluateChunk`]. It mirrors
 /// the Node.js `turbopack_nodejs`'s `EcmascriptBuildNodeRuntimeChunk`.
 #[turbo_tasks::value(shared)]
 #[derive(ValueToString)]
