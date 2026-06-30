@@ -36,7 +36,7 @@ module.exports = {
 
 Rewrites are applied to client-side routing. In the example above, navigating to `<Link href="/about">` will serve content from `/` while keeping the URL as `/about`.
 
-`rewrites` is a function that expects to return either an array or an object of arrays (see below) holding objects with `source` and `destination` properties:
+`rewrites` can be defined as a synchronous or async function. It should return, or resolve to, either an array or an object of arrays (see below) holding objects with `source` and `destination` properties:
 
 - `source`: `String` - is the incoming request path pattern.
 - `destination`: `String` is the path you want to route to.
