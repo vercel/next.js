@@ -112,9 +112,15 @@ function resolveSemanticRevision(
 
 export async function runUpgrade(
   revision: string | undefined,
-  options: { verbose: boolean }
+  options: { verbose: boolean; yes?: boolean }
 ): Promise<void> {
   const { verbose } = options
+  const nonInteractive = options.yes === true || !process.stdin.isTTY
+  if (nonInteractive && verbose) {
+    console.log(
+      `  Running in non-interactive mode. Every prompt will accept its default.`
+    )
+  }
   const appPackageJsonPath = path.resolve(cwd, 'package.json')
   let appPackageJson = JSON.parse(fs.readFileSync(appPackageJsonPath, 'utf8'))
 
@@ -221,22 +227,27 @@ export async function runUpgrade(
     // We'll recommend to upgrade in the prompt but users can decide to try 18.
     !isPureAppRouter
   ) {
-    const shouldStayOnReact18Res = await prompts(
-      {
-        type: 'confirm',
-        name: 'shouldStayOnReact18',
-        message:
-          `Do you prefer to stay on React 18?` +
-          (isMixedApp
-            ? " Since you're using both pages/ and app/, we recommend upgrading React to use a consistent version throughout your app."
-            : ''),
-        initial: false,
-        active: 'Yes',
-        inactive: 'No',
-      },
-      { onCancel }
-    )
-    shouldStayOnReact18 = shouldStayOnReact18Res.shouldStayOnReact18
+    if (nonInteractive) {
+      // Default: upgrade React past 18.
+      shouldStayOnReact18 = false
+    } else {
+      const shouldStayOnReact18Res = await prompts(
+        {
+          type: 'confirm',
+          name: 'shouldStayOnReact18',
+          message:
+            `Do you prefer to stay on React 18?` +
+            (isMixedApp
+              ? " Since you're using both pages/ and app/, we recommend upgrading React to use a consistent version throughout your app."
+              : ''),
+          initial: false,
+          active: 'Yes',
+          inactive: 'No',
+        },
+        { onCancel }
+      )
+      shouldStayOnReact18 = shouldStayOnReact18Res.shouldStayOnReact18
+    }
   }
 
   // We're resolving a specific version here to avoid including "ugly" version queries
@@ -254,12 +265,13 @@ export async function runUpgrade(
     compareVersions(targetNextVersion, '15.0.0-canary') >= 0 &&
     compareVersions(targetNextVersion, '16.0.0-canary') < 0
   ) {
-    await suggestTurbopack(appPackageJson, targetNextVersion)
+    await suggestTurbopack(appPackageJson, targetNextVersion, nonInteractive)
   }
 
   const codemods = await suggestCodemods(
     installedNextVersion,
-    targetNextVersion
+    targetNextVersion,
+    nonInteractive
   )
   const packageManager: PackageManager = getPkgManager(cwd)
 
@@ -272,8 +284,9 @@ export async function runUpgrade(
     compareVersions(targetReactVersion, '19.0.0-0') >= 0 &&
     compareVersions(installedReactVersion, '19.0.0-0') < 0
   ) {
-    shouldRunReactCodemods = await suggestReactCodemods()
-    shouldRunReactTypesCodemods = await suggestReactTypesCodemods()
+    shouldRunReactCodemods = await suggestReactCodemods(nonInteractive)
+    shouldRunReactTypesCodemods =
+      await suggestReactTypesCodemods(nonInteractive)
 
     execCommand = getNpxCommand(packageManager)
   }
@@ -486,7 +499,8 @@ function isUsingAppDir(projectPath: string): boolean {
  */
 async function suggestTurbopack(
   packageJson: any,
-  targetNextVersion: string
+  targetNextVersion: string,
+  nonInteractive: boolean
 ): Promise<void> {
   const devScript: string | undefined = packageJson.scripts?.['dev']
   // Turbopack flag was changed from `--turbo` to `--turbopack` in v15.0.1-canary.3
@@ -518,17 +532,21 @@ async function suggestTurbopack(
       return
     }
 
-    const responseTurbopack = await prompts(
-      {
-        type: 'confirm',
-        name: 'enable',
-        message: `Enable Turbopack for ${pc.bold('next dev')}?`,
-        initial: true,
-      },
-      { onCancel }
-    )
+    let enable = true
+    if (!nonInteractive) {
+      const responseTurbopack = await prompts(
+        {
+          type: 'confirm',
+          name: 'enable',
+          message: `Enable Turbopack for ${pc.bold('next dev')}?`,
+          initial: true,
+        },
+        { onCancel }
+      )
+      enable = responseTurbopack.enable
+    }
 
-    if (!responseTurbopack.enable) {
+    if (!enable) {
       return
     }
 
@@ -542,6 +560,12 @@ async function suggestTurbopack(
   console.log(
     `${pc.yellow('⚠')} Could not find "${pc.bold('next dev')}" in your dev script.`
   )
+
+  if (nonInteractive) {
+    // Without a TTY we can't ask the user for a replacement script.
+    // Keep the existing dev script untouched.
+    return
+  }
 
   const responseCustomDevScript = await prompts(
     {
@@ -559,7 +583,8 @@ async function suggestTurbopack(
 
 async function suggestCodemods(
   initialNextVersion: string,
-  targetNextVersion: string
+  targetNextVersion: string,
+  nonInteractive: boolean
 ): Promise<string[]> {
   // example:
   // codemod version: 15.0.0-canary.45
@@ -594,6 +619,16 @@ async function suggestCodemods(
     return []
   }
 
+  if (nonInteractive) {
+    // Default: apply every recommended codemod, matching `selected: true` below.
+    const all = relevantCodemods.map(({ value }) => value)
+    console.log(
+      `  Applying all ${pc.blue('codemods')} recommended for your upgrade:\n` +
+        all.map((value) => `    - ${value}`).join('\n')
+    )
+    return all
+  }
+
   const { codemods } = await prompts(
     {
       type: 'multiselect',
@@ -614,7 +649,10 @@ async function suggestCodemods(
   return codemods
 }
 
-async function suggestReactCodemods(): Promise<boolean> {
+async function suggestReactCodemods(nonInteractive: boolean): Promise<boolean> {
+  if (nonInteractive) {
+    return true
+  }
   const { runReactCodemod } = await prompts(
     {
       type: 'confirm',
@@ -628,7 +666,12 @@ async function suggestReactCodemods(): Promise<boolean> {
   return runReactCodemod
 }
 
-async function suggestReactTypesCodemods(): Promise<boolean> {
+async function suggestReactTypesCodemods(
+  nonInteractive: boolean
+): Promise<boolean> {
+  if (nonInteractive) {
+    return true
+  }
   const { runReactTypesCodemod } = await prompts(
     {
       type: 'confirm',
