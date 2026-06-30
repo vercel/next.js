@@ -202,7 +202,7 @@ export default async function Page() {
 }
 ```
 
-> **Good to know**: If your `revalidate` value doesn't match a built-in [`cacheLife`](/docs/app/api-reference/functions/cacheLife) profile (`'seconds'`, `'minutes'`, `'hours'`, `'days'`, `'weeks'`, `'max'`), pick the closest one or define a [custom profile](/docs/app/api-reference/functions/cacheLife#custom-cache-profiles).
+> **Good to know**: If your `revalidate` value doesn't match a built-in [`cacheLife`](/docs/app/api-reference/functions/cacheLife) profile (`'seconds'`, `'minutes'`, `'hours'`, `'days'`, `'weeks'`, `'max'`), pick the closest one or define a [custom profile](/docs/app/api-reference/functions/cacheLife#custom-cache-profiles) to match your conventions. You can also [redefine a built-in profile](/docs/app/api-reference/functions/cacheLife#overriding-the-default-cache-profiles), including `default`, when its timings don't match your application's caching needs.
 
 ## `fetchCache`
 
