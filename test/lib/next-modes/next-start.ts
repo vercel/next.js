@@ -65,24 +65,31 @@ export class NextStartInstance extends NextInstance {
     })
   }
 
+  // When a previous test attempt was interrupted (typically by exceeding the
+  // per-test timeout) while `next build` was still running, the build process
+  // is still tracked here. Since `jest.retryTimes` re-runs the test body in the
+  // same process, stop the orphaned build so the caller can continue instead of
+  // failing the retry. If a server is genuinely running, throw
+  // `serverRunningError` instead.
+  private async stopLeftoverBuildOrThrow(serverRunningError: string) {
+    if (!this.childProcess) {
+      return
+    }
+
+    if (this._phase === 'building') {
+      require('console').warn(
+        'Found a leftover `next build` process from an interrupted test attempt; stopping it before continuing.'
+      )
+      await this.stop()
+    } else {
+      throw new Error(serverRunningError)
+    }
+  }
+
   public async start(
     options: { skipBuild?: boolean; env?: Record<string, string> } = {}
   ) {
-    if (this.childProcess) {
-      if (this._phase === 'building') {
-        // A previous test attempt was interrupted (typically by exceeding the
-        // per-test timeout) while `next build` was still running, so the build
-        // process is still tracked here. Since `jest.retryTimes` re-runs the
-        // test body in the same process, stop the orphaned build and continue
-        // instead of failing the retry with `next already started`.
-        require('console').warn(
-          'Found a leftover `next build` process from an interrupted test attempt; stopping it before starting again.'
-        )
-        await this.stop()
-      } else {
-        throw new Error('next already started')
-      }
-    }
+    await this.stopLeftoverBuildOrThrow('next already started')
 
     this._cliOutput = ''
     const spawnOpts = this.getSpawnOpts(options.env)
@@ -270,11 +277,9 @@ export class NextStartInstance extends NextInstance {
   public async build(
     options: { env?: Record<string, string>; args?: string[] } = {}
   ) {
-    if (this.childProcess) {
-      throw new Error(
-        `can not run export while server is running, use next.stop() first`
-      )
-    }
+    await this.stopLeftoverBuildOrThrow(
+      'can not run export while server is running, use next.stop() first'
+    )
 
     let result = await new Promise<{
       exitCode: NodeJS.Signals | number | null
