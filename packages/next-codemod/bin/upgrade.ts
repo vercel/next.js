@@ -116,7 +116,7 @@ export async function runUpgrade(
 ): Promise<void> {
   const { verbose } = options
   const nonInteractive = options.yes === true || !process.stdin.isTTY
-  if (nonInteractive && verbose) {
+  if (nonInteractive) {
     console.log(
       `  Running in non-interactive mode. Every prompt will accept its default.`
     )
