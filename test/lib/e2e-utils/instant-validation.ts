@@ -1,9 +1,19 @@
 import { retry } from '../next-test-utils'
 import { getDeterministicOutput } from '../../e2e/app-dir/cache-components-errors/utils'
+import { inspect } from 'util'
 
-export type ValidationEvent =
-  | { type: 'validation_start'; requestId: string; url: string }
-  | { type: 'validation_end'; requestId: string; url: string }
+export type ValidationEvent = ValidationStartEvent | ValidationEndEvent
+
+type ValidationStartEvent = {
+  type: 'validation_start'
+  requestId: string
+  url: string
+}
+type ValidationEndEvent = {
+  type: 'validation_end'
+  requestId: string
+  url: string
+}
 
 export function parseValidationMessages(output: string): ValidationEvent[] {
   const messageRe = /<VALIDATION_MESSAGE>(.*?)<\/VALIDATION_MESSAGE>/g
@@ -83,12 +93,12 @@ export function normalizeValidationUrl(url: string): string {
 export async function waitForValidationStart(
   targetUrl: string,
   getOutput: () => string
-): Promise<string> {
+): Promise<ValidationStartEvent> {
   const parsedTargetUrl = new URL(targetUrl)
   const relativeTargetUrl =
     parsedTargetUrl.pathname + parsedTargetUrl.search + parsedTargetUrl.hash
 
-  const requestId = await retry(
+  return await retry(
     async () => {
       const events = parseValidationMessages(getOutput())
       const start = events.find(
@@ -97,24 +107,27 @@ export async function waitForValidationStart(
           normalizeValidationUrl(e.url) === relativeTargetUrl
       )
       expect(start).toBeDefined()
-      return start!.requestId
+      return start! as ValidationStartEvent
     },
     undefined,
     undefined,
     `wait for validation of '${relativeTargetUrl}' to start`
   )
-  return requestId
 }
 
 export async function waitForValidationEnd(
-  requestId: string,
+  start: ValidationStartEvent,
   getOutput: () => string
 ): Promise<void> {
+  const events = parseValidationMessages(getOutput())
+  assertStartFound(start, events)
+
   await retry(
     async () => {
       const events = parseValidationMessages(getOutput())
+      assertStartFound(start, events)
       const end = events.find(
-        (e) => e.type === 'validation_end' && e.requestId === requestId
+        (e) => e.type === 'validation_end' && e.requestId === start.requestId
       )
       expect(end).toBeDefined()
     },
@@ -122,6 +135,17 @@ export async function waitForValidationEnd(
     undefined,
     'wait for validation to end'
   )
+}
+
+function assertStartFound(
+  start: ValidationStartEvent,
+  events: ValidationEvent[]
+) {
+  if (!events.find((e) => e.requestId === start.requestId)) {
+    throw new Error(
+      `Start event not found in logs: ${inspect({ start, events })}. This might mean there's a missing await around \`waitForValidationEnd\` or its caller`
+    )
+  }
 }
 
 export async function waitForValidation(
