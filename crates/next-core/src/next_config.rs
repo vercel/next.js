@@ -1289,6 +1289,7 @@ pub struct ExperimentalConfig {
     /// This field is kept for backwards compatibility during migration.
     cache_components: Option<bool>,
     use_cache: Option<bool>,
+    durable_use_cache_entries: Option<bool>,
     runtime_server_deployment_id: Option<bool>,
     supports_immutable_assets: Option<bool>,
 
@@ -2347,6 +2348,17 @@ impl NextConfig {
                 // explicit useCache flag to ensure backwards compatibility.
                 .unwrap_or(self.cache_components.unwrap_or(false)),
         )
+    }
+
+    #[turbo_tasks::function]
+    pub async fn enable_durable_use_cache_entries(&self, mode: Vc<NextMode>) -> Result<Vc<bool>> {
+        Ok(match *mode.await? {
+            // TODO eventually also look into enabling this for better HMR
+            NextMode::Development => Vc::cell(false),
+            NextMode::Build => {
+                Vc::cell(self.experimental.durable_use_cache_entries.unwrap_or(false))
+            }
+        })
     }
 
     #[turbo_tasks::function]

@@ -1217,6 +1217,12 @@ export interface ExperimentalConfig {
   useCache?: boolean
 
   /**
+   * Enables durable `"use cache"` remote cache entries across deployments. Only implemented for
+   * Turbopack.
+   */
+  durableUseCacheEntries?: boolean
+
+  /**
    * Enables detection and reporting of slow modules during development builds.
    * Enabling this may impact build performance to ensure accurate measurements.
    */
