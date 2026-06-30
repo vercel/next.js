@@ -150,6 +150,7 @@ exports.preloadModule = function (href, options) {
         crossOrigin: crossOrigin,
         integrity:
           "string" === typeof options.integrity ? options.integrity : void 0,
+        nonce: "string" === typeof options.nonce ? options.nonce : void 0,
         fetchPriority:
           "string" === typeof options.fetchPriority
             ? options.fetchPriority
@@ -157,4 +158,4 @@ exports.preloadModule = function (href, options) {
       });
     } else Internals.d.m(href);
 };
-exports.version = "19.3.0-experimental-68631c04-20260626";
+exports.version = "19.3.0-experimental-92f4fda3-20260629";
