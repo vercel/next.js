@@ -1787,6 +1787,34 @@ describe('instant validation', () => {
           expectNoBuildValidationErrors(result)
         }
       })
+
+      it('valid - unguarded params in client page', async () => {
+        if (isNextDev) {
+          const browser = await navigateTo(
+            '/suspense-in-root/static/valid-client-params/123'
+          )
+          await expectNoDevValidationErrors(browser, await browser.url())
+        } else {
+          const result = await prerender(
+            '/suspense-in-root/static/valid-client-params/[slug]'
+          )
+          expectNoBuildValidationErrors(result)
+        }
+      })
+
+      it('valid - unguarded searchParams in client page', async () => {
+        if (isNextDev) {
+          const browser = await navigateTo(
+            '/suspense-in-root/static/valid-client-search-params?query=foo'
+          )
+          await expectNoDevValidationErrors(browser, await browser.url())
+        } else {
+          const result = await prerender(
+            '/suspense-in-root/static/valid-client-search-params'
+          )
+          expectNoBuildValidationErrors(result)
+        }
+      })
     })
 
     describe('client errors', () => {

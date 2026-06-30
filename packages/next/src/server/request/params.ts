@@ -69,12 +69,6 @@ export function createParamsFromClient(
           workUnitStore,
           varyParamsAccumulator
         )
-      case 'validation-client':
-        return createClientParamsInInstantValidation(
-          underlyingParams,
-          workStore,
-          workUnitStore.validationSamples
-        )
       case 'cache':
       case 'private-cache':
       case 'unstable-cache':
@@ -89,6 +83,16 @@ export function createParamsFromClient(
         throw new InvariantError(
           'createParamsFromClient should not be called inside generateStaticParams.'
         )
+      case 'validation-client': {
+        if (workUnitStore.validationSamples) {
+          return createClientParamsInInstantValidation(
+            underlyingParams,
+            workStore,
+            workUnitStore.validationSamples
+          )
+        }
+        return makeUntrackedParams(underlyingParams)
+      }
       case 'request': {
         if (workUnitStore.validationSamples) {
           return createClientParamsInInstantValidation(
