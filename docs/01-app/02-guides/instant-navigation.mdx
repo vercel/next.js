@@ -72,7 +72,7 @@ By **default** (`validationLevel: 'warning'`), Cache Components apps validate ev
 
 To opt out of automatic validation and only validate segments that explicitly export `instant`, set [`validationLevel`](/docs/app/api-reference/file-conventions/route-segment-config/instant#configuring-validation-defaults) to `'manual-warning'`:
 
-```ts filename="next.config.ts" highlight={4-8}
+```ts filename="next.config.ts" highlight={7}
 import type { NextConfig } from 'next'
 
 const nextConfig: NextConfig = {
@@ -124,7 +124,7 @@ The product page fetches two pieces of data: product details (name, price) and l
 - **Product info** rarely changes and is queried from the db using a cached function
 - **Inventory** must be fresh on each request. The db query is inside a `<Suspense>` boundary
 
-```tsx filename="app/store/[slug]/page.tsx" highlight={7-12,30-32}
+```tsx filename="app/store/[slug]/page.tsx" highlight={7-12,31}
 import { Suspense } from 'react'
 import { db } from '@/lib/db'
 
@@ -436,6 +436,12 @@ The result is cached at the fetch level. The featured list ships with the App Sh
 > **Good to know:** In serverless deployments, in-memory caching with `"use cache"` will not persist across instances. Consider using [`"use cache: remote"`](/docs/app/api-reference/directives/use-cache-remote) for persistent caching.
 
 Validation passes. Open the DevTools and try a client navigation. The featured section appears immediately, and **"Loading product..."** shows where the product details will stream in.
+
+### Client Component Pages
+
+A page with `"use client"` at the top navigates instantly on soft navs. The router treats a fully-client page as a single-page app automatically: no RSC prefetch, no server render at navigation time. The dev overlay doesn't include this in its fix cards because it has bigger implications than the recommended approaches, which keep the page in the server-component model. Reach for `"use client"` when the page is fully interactive and must be a client component.
+
+> **Good to know**: `"use client"` doesn't skip validation for the static shell. Hooks like `useSearchParams()` still need a `<Suspense>` boundary.
 
 ### Iterate on loading states
 
