@@ -1292,14 +1292,21 @@ function addErrorContext(
       ? React.captureOwnerStack()
       : null
 
-  if (createInstantStack !== null) {
-    error.cause = createInstantStack()
-  }
+  addInstantStackToError(error, createInstantStack)
   // TODO go back to owner stack here if available. This is temporarily using componentStack to get the right
   //
   error.stack =
     error.name + ': ' + error.message + (ownerStack || componentStack)
   return error
+}
+
+export function addInstantStackToError(
+  error: Error,
+  createInstantStack: (() => Error) | null
+) {
+  if (createInstantStack !== null) {
+    error.cause = createInstantStack()
+  }
 }
 
 export enum PreludeState {

@@ -1,8 +1,8 @@
-import { cookies } from 'next/headers'
+import { connection } from 'next/server'
 
 export const instant = { level: 'experimental-error' }
 
 export default async function Slot2bPage() {
-  await cookies()
-  return <p>Slot 2b — blocks with cookies()</p>
+  await connection()
+  return <p>Slot 2b — blocks with connection()</p>
 }

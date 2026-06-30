@@ -6347,7 +6347,7 @@ async function validateInstantConfigs(
   hmrRefreshHash: string | undefined,
   validationSamples: ValidationStoreClient['validationSamples'] | null,
   devRenderDidError: boolean
-): Promise<Array<unknown>> {
+): Promise<Array<Error>> {
   const debug =
     process.env.NEXT_PRIVATE_DEBUG_VALIDATION === '1' ? console.log : undefined
 
@@ -6386,6 +6386,7 @@ async function validateInstantConfigs(
     ctx.componentMod,
     renderFlightStream,
     {
+      [RenderStage.ShellStatic]: accumulatedChunks.shellStaticChunks,
       [RenderStage.Static]: accumulatedChunks.staticChunks,
       [RenderStage.ShellRuntime]: accumulatedChunks.shellRuntimeChunks,
       [RenderStage.Runtime]: accumulatedChunks.runtimeChunks,
@@ -6452,6 +6453,8 @@ async function validateInstantConfigs(
       return null
     }
 
+    const structureErrors = payloadResult.errors
+
     const reactController = new AbortController()
     const renderController = new AbortController()
     const preinitScripts = () => {}
@@ -6509,6 +6512,7 @@ async function validateInstantConfigs(
           : DynamicHoleKind.Dynamic
         break
       }
+      case ValidationPrefetchKind.Speculative:
       case ValidationPrefetchKind.LegacySpeculative: {
         dynamicHoleKind = payloadResult.hasAmbiguousErrors
           ? DynamicHoleKind.Runtime
@@ -6640,6 +6644,10 @@ async function validateInstantConfigs(
     // discriminate. Pass it up so the outer loop can hold any deferred
     // fallback back until every depth has been tried.
     if (!Array.isArray(result) || result.length === 0) {
+      if (structureErrors) {
+        debug?.('no errors in validation, returning structure errors instead')
+        return structureErrors
+      }
       return result
     }
 
@@ -6660,6 +6668,10 @@ async function validateInstantConfigs(
     }
 
     // If we didn't return some other errors at this point the only thing to return is this validation's result
+    if (structureErrors) {
+      debug?.('render had both dynamic and structure errors')
+      result.push(...structureErrors)
+    }
     return result
   }
 
@@ -6671,58 +6683,68 @@ async function validateInstantConfigs(
 
   let impairedValidation: null | Error | AggregateError = null
 
-  const prefetchKind =
+  // With appShells, we need to validate both shell and speculative prefetches.
+  const prefetchKinds =
     prefetchMode === PrefetchingMode.Partial
-      ? ValidationPrefetchKind.Shell
-      : ValidationPrefetchKind.LegacySpeculative
+      ? [ValidationPrefetchKind.Shell, ValidationPrefetchKind.Speculative]
+      : [ValidationPrefetchKind.LegacySpeculative]
 
-  for (let depth = maxDepth - 1; depth >= 0; depth--) {
-    const maxGroupDepth = groupDepthsByUrlDepth[depth]
+  for (const prefetchKind of prefetchKinds) {
+    for (let depth = maxDepth - 1; depth >= 0; depth--) {
+      const maxGroupDepth = groupDepthsByUrlDepth[depth]
 
-    for (
-      let currentGroupDepth = maxGroupDepth;
-      currentGroupDepth >= 0;
-      currentGroupDepth--
-    ) {
-      const debugKind = ValidationPrefetchKind[prefetchKind]
-      debug?.(
-        `Trying ${debugKind} at depth ${depth}` +
-          (currentGroupDepth > 0
-            ? ` + groupDepth ${currentGroupDepth}...`
-            : '...')
-      )
+      for (
+        let currentGroupDepth = maxGroupDepth;
+        currentGroupDepth >= 0;
+        currentGroupDepth--
+      ) {
+        const debugKind = ValidationPrefetchKind[prefetchKind]
+        debug?.(
+          `Trying ${debugKind} at depth ${depth}` +
+            (currentGroupDepth > 0
+              ? ` + groupDepth ${currentGroupDepth}...`
+              : '...')
+        )
 
-      const result = await validateAtDepth(
-        prefetchKind,
-        depth,
-        currentGroupDepth
-      )
+        const result = await validateAtDepth(
+          prefetchKind,
+          depth,
+          currentGroupDepth
+        )
 
-      if (Array.isArray(result)) {
-        const errors: Array<Error> = result
+        if (result === null) {
+          // There was no validation to perform at this level
+          debug?.(
+            `  No config at depth ${depth}+${currentGroupDepth}, skipping.`
+          )
+          continue
+        }
+
+        // Check for Error/AggregateError not wrapped in an array
+        // TODO(app-shells): This is not a nice encoding, we should use a proper discriminated union
+        if (!Array.isArray(result)) {
+          // Something prevented this level from fully validating but there
+          // were no detected errors. Always overwrite — prefer the
+          // shallowest deferred fallback. If a high-level layout drops
+          // children, everything below is unreachable; the shallowest
+          // unrendered segment is closest to the actual cause.
+          impairedValidation = result
+          continue
+        }
+
         // Validation completed at least partially.
-        if (errors.length > 0) {
+        if (result.length > 0) {
           // There were issues with producing an instant UI for this attempted navigation
           debug?.(
-            `  ${debugKind} at depth ${depth}+${currentGroupDepth}: ❌ Failed (${errors.length} errors)`
+            `  ${debugKind} at depth ${depth}+${currentGroupDepth}: ❌ Failed (${result.length} errors)`
           )
-          return errors
-        } else {
-          // There is nothing blocking instant UI for this simluated navigation
-          debug?.(
-            `  ${debugKind} at depth ${depth}+${currentGroupDepth}: ✅ Passed`
-          )
+          return result
         }
-      } else if (result === null) {
-        // There was no validation to perform at this level
-        debug?.(`  No config at depth ${depth}+${currentGroupDepth}, skipping.`)
-      } else {
-        // Something prevented this level from fully validating but there
-        // were no detected errors. Always overwrite — prefer the
-        // shallowest deferred fallback. If a high-level layout drops
-        // children, everything below is unreachable; the shallowest
-        // unrendered segment is closest to the actual cause.
-        impairedValidation = result
+
+        // There is nothing blocking instant UI for this simluated navigation
+        debug?.(
+          `  ${debugKind} at depth ${depth}+${currentGroupDepth}: ✅ Passed`
+        )
       }
     }
   }

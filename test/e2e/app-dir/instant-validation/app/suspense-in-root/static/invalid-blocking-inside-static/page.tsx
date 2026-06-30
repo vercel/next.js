@@ -1,9 +1,7 @@
-import { cookies } from 'next/headers'
-
 export const instant = false
 
-export default async function BlockingPage() {
-  await cookies()
+export default async function BlockingPage({ searchParams }) {
+  await searchParams
   return (
     <main>
       <p>

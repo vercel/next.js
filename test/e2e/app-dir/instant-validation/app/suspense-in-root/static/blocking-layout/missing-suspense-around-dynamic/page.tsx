@@ -1,9 +1,7 @@
-import { cookies } from 'next/headers'
-
 export const instant = { level: 'experimental-error' }
 
-export default async function Page() {
-  await cookies()
+export default async function Page({ searchParams }) {
+  await searchParams
   return (
     <main>
       This is a page that uses runtime data without a suspense, so it should

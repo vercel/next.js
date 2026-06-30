@@ -6,6 +6,8 @@ export const instant: Instant = {
   unstable_samples: [{ cookies: [] }],
 }
 
+export const prefetch = 'allow-runtime'
+
 export default async function Page() {
   return (
     <main>
