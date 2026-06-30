@@ -6,7 +6,7 @@ use std::{
     time::Duration,
 };
 
-use anyhow::Result;
+use anyhow::{Context, Result};
 
 /// Information gathered by `vergen_gitcl` in the top-level binary crate and passed down. This
 /// information must be computed in the top-level crate for cargo incremental compilation to work
@@ -146,7 +146,8 @@ pub fn handle_db_versioning(
         if path.exists() {
             // propagate errors: if this fails we may have stale files left over in the temp
             // directory
-            remove_dir_all(&path)?;
+            remove_dir_all(&path)
+                .with_context(|| format!("Failed to remove temp database directory {path:?}"))?;
         }
     }
 

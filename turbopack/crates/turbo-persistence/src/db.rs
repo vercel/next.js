@@ -159,6 +159,29 @@ impl WriteOperationGuard<'_> {
     }
 }
 
+/// Durably writes `seq` to the `CURRENT` file in the database directory `path`, creating the file
+/// if it doesn't exist.
+///
+/// The `CURRENT` file records the highest committed sequence number and is the single source of
+/// truth for which files belong to the database. The write is followed by an `fsync` (`sync_data`)
+/// so the new value survives a crash. `truncate(false)` is intentional: `CURRENT` is a fixed-size
+/// 4-byte file, so writing 4 bytes from offset 0 fully overwrites the previous value without
+/// needing truncation.
+fn write_current_file(path: &Path, seq: u32) -> Result<()> {
+    let current_path = path.join("CURRENT");
+    (|| {
+        let mut current_file = OpenOptions::new()
+            .create(true)
+            .write(true)
+            .truncate(false)
+            .read(false)
+            .open(&current_path)?;
+        current_file.write_u32::<BE>(seq)?;
+        current_file.sync_data()
+    })()
+    .with_context(|| format!("Failed to write CURRENT to seq {seq} at {current_path:?}"))
+}
+
 /// Deletes all files in `path` whose numeric stem is greater than `seq_before`.
 ///
 /// Called on rollback to clean up any SST, meta, blob, or del files written during a
@@ -167,16 +190,13 @@ fn delete_orphan_files(path: &Path, seq_before: u32) -> Result<()> {
     // Restore CURRENT to seq_before first. The failure may have happened mid-write
     // to CURRENT, leaving it partially written. Writing seq_before makes the
     // on-disk state consistent before we start deleting orphan files.
-    let mut current_file = OpenOptions::new()
-        .write(true)
-        .truncate(false)
-        .read(false)
-        .open(path.join("CURRENT"))?;
-    current_file.write_u32::<BE>(seq_before)?;
-    current_file.sync_all()?;
+    write_current_file(path, seq_before).context("Unable to restore CURRENT file")?;
 
-    for entry in fs::read_dir(path)? {
-        let entry = entry?;
+    for entry in fs::read_dir(path)
+        .with_context(|| format!("Failed to list files in directory: {path:?}"))?
+    {
+        let entry =
+            entry.with_context(|| format!("Failed to read directory entry in: {path:?}"))?;
         let path = entry.path();
         if let Some(ext) = path.extension().and_then(|s| s.to_str())
             && let Some(seq) = path
@@ -186,7 +206,9 @@ fn delete_orphan_files(path: &Path, seq_before: u32) -> Result<()> {
             && seq > seq_before
         {
             match ext {
-                "sst" | "meta" | "blob" | "del" => fs::remove_file(&path)?,
+                "sst" | "meta" | "blob" | "del" => {
+                    fs::remove_file(&path).with_context(|| format!("Failed to delete: {path:?}"))?
+                }
                 _ => {}
             }
         }
@@ -424,7 +446,7 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                     if read_only {
                         bail!("Failed to open database");
                     }
-                    self.init_directory()
+                    write_current_file(&self.path, 0)
                         .context("Initializing persistence directory failed")?;
                 }
                 Ok(())
@@ -444,15 +466,7 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
     /// Creates the directory and initializes it.
     fn create_and_init_directory(&mut self) -> Result<()> {
         fs::create_dir_all(&self.path)?;
-        self.init_directory()
-    }
-
-    /// Initializes the directory by creating the CURRENT file.
-    fn init_directory(&mut self) -> Result<()> {
-        let mut current = File::create(self.path.join("CURRENT"))?;
-        current.write_u32::<BE>(0)?;
-        current.flush()?;
-        Ok(())
+        write_current_file(&self.path, 0)
     }
 
     /// Loads an existing database directory and performs cleanup if necessary.
@@ -847,16 +861,18 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
             .parallel_scheduler
             .parallel_map_collect_owned::<_, _, Result<Vec<_>>>(sync_items, |item| match item {
                 SyncItem::Meta(seq, file) => {
-                    file.sync_data()?;
+                    file.sync_data()
+                        .with_context(|| format!("Failed to sync meta file {seq:08}.meta"))?;
                     let meta_file = MetaFile::open(&self.path, seq)?;
                     Ok(SyncResult::Meta(meta_file))
                 }
                 SyncItem::Sst(file) => {
-                    file.sync_data()?;
+                    file.sync_data().context("Failed to sync SST file")?;
                     Ok(SyncResult::Sst)
                 }
                 SyncItem::Blob(seq, file) => {
-                    file.sync_data()?;
+                    file.sync_data()
+                        .with_context(|| format!("Failed to sync blob file {seq:08}.blob"))?;
                     Ok(SyncResult::Blob(seq, file))
                 }
             })?;
@@ -884,7 +900,9 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
         // `File::open` returns for a directory. Other storage engines (LevelDB, SQLite) also
         // skip directory syncing on Windows.
         #[cfg(not(windows))]
-        File::open(&self.path)?.sync_data()?;
+        File::open(&self.path)
+            .and_then(|dir| dir.sync_data())
+            .with_context(|| format!("Failed to sync database directory {:?}", self.path))?;
         drop(sync_span);
 
         let new_meta_info = new_meta_files
@@ -1013,18 +1031,17 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                 for seq in blob_seq_numbers_to_delete.iter() {
                     buf.write_u32::<BE>(*seq)?;
                 }
-                let mut file = File::create(self.path.join(format!("{seq:08}.del")))?;
-                file.write_all(&buf)?;
-                file.sync_data()?;
+                let del_path = self.path.join(format!("{seq:08}.del"));
+                (|| {
+                    let mut file = File::create(&del_path)?;
+                    file.write_all(&buf)?;
+                    file.sync_data()?;
+                    anyhow::Ok(())
+                })()
+                .with_context(|| format!("Failed to write delete-list file {del_path:?}"))?;
             }
 
-            let mut current_file = OpenOptions::new()
-                .write(true)
-                .truncate(false)
-                .read(false)
-                .open(self.path.join("CURRENT"))?;
-            current_file.write_u32::<BE>(seq)?;
-            current_file.sync_data()?;
+            write_current_file(&self.path, seq).context("Committing CURRENT file failed")?;
 
             // ── Point of no return ──────────────────────────────────────────
             //

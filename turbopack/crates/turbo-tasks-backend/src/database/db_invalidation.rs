@@ -1,7 +1,7 @@
 use std::{
     borrow::Cow,
     fs::{self, File, read_dir},
-    io::{self, BufReader, BufWriter, ErrorKind, Write},
+    io::{BufReader, BufWriter, ErrorKind, Write},
     path::Path,
 };
 
@@ -156,24 +156,33 @@ pub(crate) fn cleanup_db(base_path: &Path) -> anyhow::Result<()> {
     })
 }
 
-fn cleanup_db_inner(base_path: &Path) -> io::Result<()> {
+fn cleanup_db_inner(base_path: &Path) -> anyhow::Result<()> {
     let Ok(contents) = read_dir(base_path) else {
         return Ok(());
     };
 
     // delete everything except the invalidation marker
     for entry in contents {
-        let entry = entry?;
+        let entry =
+            entry.with_context(|| format!("Failed to read directory entry in {base_path:?}"))?;
+        let path = entry.path();
         if entry.file_name() != INVALIDATION_MARKER {
-            if entry.file_type()?.is_dir() {
-                fs::remove_dir_all(entry.path())?;
+            let file_type = entry
+                .file_type()
+                .with_context(|| format!("Failed to read file type of {path:?}"))?;
+            if file_type.is_dir() {
+                fs::remove_dir_all(&path)
+                    .with_context(|| format!("Failed to remove directory {path:?}"))?;
             } else {
-                fs::remove_file(entry.path())?;
+                fs::remove_file(&path)
+                    .with_context(|| format!("Failed to remove file {path:?}"))?;
             }
         }
     }
 
     // delete the invalidation marker last, once we're sure everything is cleaned up
-    fs::remove_file(base_path.join(INVALIDATION_MARKER))?;
+    let marker_path = base_path.join(INVALIDATION_MARKER);
+    fs::remove_file(&marker_path)
+        .with_context(|| format!("Failed to remove invalidation marker {marker_path:?}"))?;
     Ok(())
 }
