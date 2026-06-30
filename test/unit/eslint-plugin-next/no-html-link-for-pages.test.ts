@@ -73,7 +73,7 @@ const linterConfigWithNestedContentRootDirDirectory = {
   },
 }
 const linterConfigWithPageExtensions = {
-  ...linterConfig,
+  ...linterConfigWithCustomDirectory,
   settings: {
     next: {
       pageExtensions: ['page.tsx', 'page.ts', 'page.jsx', 'page.js'],
