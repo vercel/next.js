@@ -3127,7 +3127,7 @@ async fn handle_member<'a>(
         let has_member = state.free_var_references_members.contains_key(prop).await?;
         let is_prop_cache = prop == "cache";
 
-        // This isn't pretty, but we cannot await the future twice in the two branches below.
+        // This isn't pretty, but this avoids awaiting the future twice in the two branches below.
         let obj = if has_member || is_prop_cache {
             Some(link_obj.await?)
         } else {
@@ -3172,7 +3172,7 @@ async fn handle_in<'a>(
         let has_member = state.free_var_references_members.contains_key(left).await?;
         let is_left_cache = left == "cache";
 
-        // This isn't pretty, but we cannot await the future twice in the two branches below.
+        // This isn't pretty, but this avoids awaiting the future twice in the two branches below.
         let right = if has_member || is_left_cache {
             Some(link_right.await?)
         } else {
