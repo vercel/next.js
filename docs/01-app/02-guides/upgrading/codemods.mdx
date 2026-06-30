@@ -34,6 +34,7 @@ npx @next/codemod upgrade [revision]
 
 - `revision` (optional): Specify the upgrade type (`patch`, `minor`, `major`), an NPM dist tag (e.g. `latest`, `canary`, `rc`), or an exact version (e.g. `15.0.0`). Defaults to `minor` for stable versions.
 - `--verbose`: Show more detailed output during the upgrade process.
+- `-y, --yes`: Skip every interactive prompt and accept its default (upgrade React past 18, enable Turbopack, apply all recommended codemods, run the React 19 codemods). Also auto-enabled when stdin is not a TTY (CI, an AI coding agent, or any non-interactive shell), so you usually don't need to pass it explicitly.
 
 For example:
 
@@ -52,12 +53,16 @@ npx @next/codemod upgrade 16
 
 # Upgrade to the canary release
 npx @next/codemod upgrade canary
+
+# Run from an agent or CI: skip every prompt
+npx @next/codemod upgrade canary --yes
 ```
 
 > **Good to know**:
 >
 > - If the target version is the same as or lower than your current version, the command exits without making changes.
 > - During the upgrade, you may be prompted to choose which Next.js codemods to apply and run React 19 codemods if upgrading React.
+> - When invoked by an AI coding agent or in CI (anywhere stdin isn't a TTY), the upgrade runs non-interactively and accepts every default. Pass `--yes` to force this behavior even from a terminal.
 
 ## Codemods
 
