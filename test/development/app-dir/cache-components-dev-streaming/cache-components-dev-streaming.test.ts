@@ -1,5 +1,5 @@
-import { nextTestSetup } from 'e2e-utils'
-import { retry } from 'next-test-utils'
+import { nextTestSetup, Playwright } from 'e2e-utils'
+import { retry, waitFor } from 'next-test-utils'
 
 describe('cache-components-dev-streaming', () => {
   const { next } = nextTestSetup({
@@ -14,18 +14,49 @@ describe('cache-components-dev-streaming', () => {
     })
 
     // The loading boundary should be streamed immediately, without waiting for
-    // the cache to be filled.
-    expect(await browser.elementByCss('p').text()).toBe('Loading...')
+    // the cache to be filled. Read it at commit so we don't wait for "load"
+    // (which only fires once the cache has filled).
+    expect(await browser.elementByCss('p', { waitUntil: false }).text()).toBe(
+      'Loading...'
+    )
 
     // Eventually, the cache content should be streamed in.
     await retry(async () => {
-      expect(await browser.elementByCss('p').text()).toBeDateString()
+      expect(
+        await browser.elementByCss('p', { waitUntil: false }).text()
+      ).toBeDateString()
     })
 
-    // Now that the cache is filled, it should be served immediately on the next
-    // page load.
-    await browser.refresh()
-    expect(await browser.elementByCss('p').text()).toBeDateString()
+    // Now that the cache is filled, it should be served immediately with the
+    // shell on the next page load, without going through the loading boundary.
+    await browser.refresh({ waitUntil: 'commit' })
+    expect(
+      await browser.elementByCss('p', { waitUntil: false }).text()
+    ).toBeDateString()
+  })
+
+  it('streams a Suspense fallback above a private cache while filling it in the background', async () => {
+    const browser = await next.browser('/use-cache-private', {
+      waitHydration: false,
+      // do not wait for "load", we want to inspect the page as it streams in
+      waitUntil: 'commit',
+    })
+
+    // The loading boundary should be streamed immediately, without waiting for
+    // the private cache to be filled. Read it at commit (`waitUntil: false`) so
+    // we don't wait for "load" (which only fires once the cache has filled).
+    expect(
+      await browser
+        .elementByCss('#private-fallback', { waitUntil: false })
+        .text()
+    ).toBe('Loading...')
+
+    // Eventually, the private cache content should be streamed in.
+    await retry(async () => {
+      expect(
+        await browser.elementByCssInstant('#private').text()
+      ).toBeDateString()
+    })
   })
 
   it('streams dynamic content immediately while a sibling cache is still filling', async () => {
@@ -41,7 +72,7 @@ describe('cache-components-dev-streaming', () => {
     //
     // Use instant checks throughout: `elementByCss`/`elementById` also wait for
     // the page "load" event, which (with `waitUntil: 'commit'`) only fires once
-    // the slow cache has filled — that would advance past the very window this
+    // the slow cache has filled, which would advance past the very window this
     // test inspects.
     await retry(async () => {
       expect(await browser.elementByCssInstant('#dynamic').text()).toBe(
@@ -68,30 +99,11 @@ describe('cache-components-dev-streaming', () => {
     // Record whether each Suspense fallback ever enters the DOM during the
     // upcoming navigation. We inspect added nodes rather than the live DOM, so
     // a fallback that's added and then quickly replaced is still caught.
-    await browser.eval(() => {
-      const seen = { runtime: false, dynamic: false }
-      ;(window as any).__fallbacksSeen = seen
-      const check = (node: Node) => {
-        if (!(node instanceof Element)) {
-          return
-        }
-        if (
-          node.id === 'runtime-fallback' ||
-          node.querySelector('#runtime-fallback')
-        ) {
-          seen.runtime = true
-        }
-        if (
-          node.id === 'dynamic-fallback' ||
-          node.querySelector('#dynamic-fallback')
-        ) {
-          seen.dynamic = true
-        }
-      }
-      new MutationObserver((records) => {
-        records.forEach((record) => record.addedNodes.forEach(check))
-      }).observe(document.body, { childList: true, subtree: true })
-    })
+    const fallbackObserver = observeNodeAppearances(browser, [
+      'runtime-fallback',
+      'dynamic-fallback',
+    ])
+    await fallbackObserver.observe()
 
     await browser.elementByCss('a[href="/runtime-prefetch"]').click()
 
@@ -105,12 +117,75 @@ describe('cache-components-dev-streaming', () => {
       )
     })
 
+    const appearanceCounts = await fallbackObserver.getResult()
     // The runtime-prefetchable content was resolved before the response started
     // streaming, so its fallback was never rendered; the dynamic content's
     // fallback was.
-    expect(await browser.eval(() => (window as any).__fallbacksSeen)).toEqual({
-      runtime: false,
-      dynamic: true,
+    expect(appearanceCounts).toEqual({
+      'runtime-fallback': 0,
+      'dynamic-fallback': 1,
+    })
+  })
+
+  it('shows the private-cache fallback on a cold client navigation but not on a warm one', async () => {
+    // Uses a runtime-prefetch route, whose cached content belongs to the
+    // runtime shell stage. On a warm navigation the client defers revealing
+    // the response (via `_revealAfter`) until the server has flushed the shell,
+    // so the content arrives with the shell and the fallback isn't shown.
+    const browser = await next.browser('/')
+
+    // Cold navigation: the cache misses and fills in the background, so the
+    // fallback is shown until the content streams in.
+    await browser
+      .elementByCss('a[href="/use-cache-private-runtime-prefetch"]')
+      .click()
+    expect(await browser.elementByCss('#private-fallback').text()).toBe(
+      'Loading...'
+    )
+    expect(await browser.elementByCss('#private').text()).toBeDateString()
+
+    // Wait for the background write to settle so the next navigation hits the
+    // warm entry instead of racing a pending write.
+    await waitFor(2000)
+
+    // Hard-reload home so the first navigation below is a fresh, unknown-route
+    // nav. An unknown route has no prior cache entry, so the server sends the
+    // content inline in the seed (rather than the dynamic-only delta a known
+    // route gets), and that inline reveal is gated on `_revealAfter` too, so
+    // even this first nav delivers the content with the shell. Later iterations
+    // navigate via back()/forward, exercising the known-route deferred-RSC
+    // path.
+    await browser.loadPage(new URL('/', next.url).href)
+
+    // Warm navigation: record whether the fallback ever enters the DOM during
+    // the navigation, even briefly. It shouldn't, since the warm content is
+    // delivered with the shell.
+    const fallbackObserver = observeNodeAppearances(browser, [
+      'private-fallback',
+    ])
+
+    await fallbackObserver.observe()
+
+    // Regression test for a rare client-side race the `_revealAfter` gate
+    // fixes. The Flight client decodes the response incrementally, so before
+    // the gate React Fiber could occasionally commit the fallback before the
+    // children's row was processed, even though the warm content is delivered
+    // with the shell. Deferring the reveal until `_revealAfter` settles means
+    // the children are decoded by the time React reads them, so the fallback no
+    // longer appears. The race was timing-dependent, so a single navigation
+    // would catch a regression only by luck; we repeat the warm navigation many
+    // times and assert the fallback never enters the DOM.
+    for (let i = 0; i < 100; i++) {
+      await browser
+        .elementByCss('a[href="/use-cache-private-runtime-prefetch"]')
+        .click()
+      expect(await browser.elementByCss('#private').text()).toBeDateString()
+      await browser.back()
+    }
+
+    const appearanceCounts = await fallbackObserver.getResult()
+    expect(appearanceCounts).toEqual({
+      'private-fallback': 0,
     })
   })
 
@@ -126,7 +201,7 @@ describe('cache-components-dev-streaming', () => {
     // Cold cache miss: validation runs against a separate warm-cache render.
     await expect(browser).toDisplayCollapsedRedbox(`
      {
-       "code": "E1318",
+       "code": "E1373",
        "description": "Next.js encountered uncached data during prerendering.",
        "environmentLabel": "Server",
        "label": "Blocking Route",
@@ -151,7 +226,7 @@ describe('cache-components-dev-streaming', () => {
     // and the cached value is re-served rather than recomputed.
     await expect(browser).toDisplayCollapsedRedbox(`
      {
-       "code": "E1318",
+       "code": "E1373",
        "description": "Next.js encountered uncached data during prerendering.",
        "environmentLabel": "Server",
        "label": "Blocking Route",
@@ -213,4 +288,121 @@ describe('cache-components-dev-streaming', () => {
     `)
     expect(await browser.elementByCss('#cached').text()).toBe(cachedDate)
   })
+
+  describe('partial prefetching', () => {
+    it('does not show a Suspense fallback for session data on a client navigation (auto prefetch)', async () => {
+      const browser = await next.browser('/')
+
+      // Record whether each Suspense fallback ever enters the DOM during the
+      // upcoming navigation.
+      const fallbackObserver = observeNodeAppearances(browser, [
+        'session-fallback',
+        'dynamic-fallback',
+      ])
+      await fallbackObserver.observe()
+
+      await browser
+        .elementByCss('a[href="/partial-prefetching/session-data"]')
+        .click()
+
+      // Wait for the navigation to fully settle.
+      await retry(async () => {
+        expect(await browser.elementByCssInstant('#session-data').text()).toBe(
+          'session content'
+        )
+        expect(await browser.elementByCssInstant('#dynamic-data').text()).toBe(
+          'dynamic content'
+        )
+      })
+
+      const appearanceCounts = await fallbackObserver.getResult()
+      // The runtime shell was resolved before the response started
+      // streaming, so its fallback was never rendered; the dynamic content's
+      // fallback was.
+      expect(appearanceCounts).toEqual({
+        'session-fallback': 0,
+        'dynamic-fallback': 1,
+      })
+    })
+
+    // TODO(app-shells): for some reason we can't observe the fallback here
+    // even though all the stream unblocking logic seems to work as intended.
+    it.failing(
+      'shows a Suspense fallback for link data on a client navigation (auto prefetch)',
+      async () => {
+        const browser = await next.browser('/')
+
+        // Record whether each Suspense fallback ever enters the DOM during the
+        // upcoming navigation.
+        const fallbackObserver = observeNodeAppearances(browser, [
+          'session-fallback',
+          'link-fallback',
+          'dynamic-fallback',
+        ])
+        await fallbackObserver.observe()
+
+        await browser
+          .elementByCss(
+            'a[href="/partial-prefetching/link-data?prefetch=auto"]'
+          )
+          .click()
+
+        // Wait for the navigation to fully settle.
+        await retry(async () => {
+          expect(await browser.elementByCssInstant('#link-data').text()).toBe(
+            'link content'
+          )
+          expect(
+            await browser.elementByCssInstant('#dynamic-data').text()
+          ).toBe('dynamic content')
+        })
+
+        const appearanceCounts = await fallbackObserver.getResult()
+        expect(appearanceCounts).toEqual({
+          'session-fallback': 0,
+          'link-fallback': 1,
+          'dynamic-fallback': 1,
+        })
+      }
+    )
+  })
 })
+
+function observeNodeAppearances(browser: Playwright, ids: string[]) {
+  // Record whether each Suspense fallback ever enters the DOM during the
+  // upcoming navigation. We inspect added nodes rather than the live DOM, so
+  // a fallback that's added and then quickly replaced is still caught.
+  type SeenCounts = Record<string, number>
+
+  const observe = () =>
+    browser.eval((ids: string[]) => {
+      const seen: SeenCounts = Object.fromEntries(ids.map((id) => [id, 0]))
+
+      ;(window as any).__seenNodes = seen
+      const check = (node: Node) => {
+        if (!(node instanceof Element)) {
+          return
+        }
+        for (const id of ids) {
+          if (node.id === id || node.querySelector(`#${id}`)) {
+            seen[id] += 1
+          }
+        }
+      }
+      new MutationObserver((records) => {
+        records.forEach((record) => record.addedNodes.forEach(check))
+      }).observe(document.body, { childList: true, subtree: true })
+    }, ids)
+
+  const getResult = async (): Promise<SeenCounts> => {
+    const seen: SeenCounts | undefined = await browser.eval(
+      () => (window as any).__seenNodes
+    )
+    if (!seen) {
+      throw new Error('Must call observe() before calling getResult()')
+    }
+    return seen
+  }
+
+  return { observe, getResult }
+}

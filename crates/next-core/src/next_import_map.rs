@@ -7,7 +7,11 @@ use next_taskless::{EDGE_NODE_EXTERNALS, NODE_EXTERNALS};
 use rustc_hash::FxHashMap;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{FxIndexMap, ResolvedVc, Vc, fxindexmap};
-use turbo_tasks_fs::{FileContent, FileSystem, FileSystemPath, to_sys_path};
+use turbo_tasks_fs::{
+    FileContent, FileSystem, FileSystemPath,
+    glob::{Glob, GlobOptions},
+    to_sys_path,
+};
 use turbopack_core::{
     asset::AssetContent,
     issue::{Issue, IssueExt, IssueSeverity, IssueStage, StyledString},
@@ -86,14 +90,16 @@ pub async fn get_next_client_import_map(
         }
         ClientContextType::App { app_dir } => {
             // Keep in sync with file:///./../../../packages/next/src/lib/needs-experimental-react.ts
+            let blocking_ssr = *next_config.enable_blocking_ssr().await?;
             let taint = *next_config.enable_taint().await?;
             let transition_indicator = *next_config.enable_transition_indicator().await?;
             let gesture_transition = *next_config.enable_gesture_transition().await?;
-            let react_channel = if taint || transition_indicator || gesture_transition {
-                "-experimental"
-            } else {
-                ""
-            };
+            let react_channel =
+                if blocking_ssr || taint || transition_indicator || gesture_transition {
+                    "-experimental"
+                } else {
+                    ""
+                };
 
             import_map.insert_exact_alias(
                 rcstr!("react"),
@@ -557,16 +563,36 @@ async fn insert_unsupported_node_internal_aliases(import_map: &mut ImportMap) ->
     Ok(())
 }
 
-pub fn get_next_client_resolved_map(
-    _context: FileSystemPath,
-    _root: FileSystemPath,
+pub async fn get_next_client_resolved_map(
+    context_path: FileSystemPath,
+    root: FileSystemPath,
     _mode: NextMode,
-) -> Vc<ResolvedMap> {
-    let glob_mappings = vec![];
-    ResolvedMap {
+) -> Result<Vc<ResolvedMap>> {
+    // In the browser bundle, swap the default `unstable-rethrow` (which holds the full
+    // server logic) for its `.browser` sibling. The server-only checks can never occur in
+    // the browser, and bundling the default would drag server-only modules into the client
+    // bundle. This is the Turbopack analog of the webpack alias in `create-compiler-aliases.ts`
+    // and is client-only because `get_next_client_resolved_map` is used only by the client
+    // context. Matching is on the resolved file path, so it intercepts the relative import
+    // regardless of which module pulls it in. Anchored at the filesystem root so it matches
+    // wherever `next` resolves from (node_modules, pnpm store, or monorepo `packages/next`).
+    let glob_mappings = vec![(
+        root.root().owned().await?,
+        Glob::new(
+            rcstr!("**/next/dist/client/components/unstable-rethrow.js"),
+            GlobOptions::default(),
+        )
+        .to_resolved()
+        .await?,
+        request_to_import_mapping(
+            context_path,
+            rcstr!("next/dist/client/components/unstable-rethrow.browser"),
+        ),
+    )];
+    Ok(ResolvedMap {
         by_glob: glob_mappings,
     }
-    .cell()
+    .cell())
 }
 
 static NEXT_ALIASES: LazyLock<[(RcStr, RcStr); 23]> = LazyLock::new(|| {
@@ -782,10 +808,11 @@ async fn apply_vendored_react_aliases_server(
     runtime: NextRuntime,
     next_config: Vc<NextConfig>,
 ) -> Result<()> {
+    let blocking_ssr = *next_config.enable_blocking_ssr().await?;
     let taint = *next_config.enable_taint().await?;
     let transition_indicator = *next_config.enable_transition_indicator().await?;
     let gesture_transition = *next_config.enable_gesture_transition().await?;
-    let react_channel = if taint || transition_indicator || gesture_transition {
+    let react_channel = if blocking_ssr || taint || transition_indicator || gesture_transition {
         "-experimental"
     } else {
         ""
@@ -1391,11 +1418,10 @@ fn insert_package_alias(import_map: &mut ImportMap, prefix: &str, package_root: 
 
 /// Handles instrumentation-client.ts bundling logic.
 ///
-/// Resolves the `private-next-instrumentation-client` alias to a virtual module
-/// that first requires each entry of `instrumentationClientInject` for side
-/// effects (in array order) and then re-exports the user's
-/// `instrumentation-client.{pageExt}` file via the
-/// `private-next-instrumentation-client-user` alias.
+/// Without injected modules, resolves `private-next-instrumentation-client`
+/// directly to the user's `instrumentation-client.{pageExt}` file. Otherwise,
+/// resolves it to a virtual module containing each injected module in array
+/// order, followed by the user's instrumentation module.
 async fn insert_instrumentation_client_alias(
     import_map: &mut ImportMap,
     project_path: FileSystemPath,
@@ -1412,9 +1438,9 @@ async fn insert_instrumentation_client_alias(
         ImportMapping::Ignore.resolved_cell(),
     ];
 
-    let injects = next_config.instrumentation_client_inject().await?;
+    let modules = next_config.instrumentation_client_inject().await?;
 
-    if injects.is_empty() {
+    if modules.is_empty() {
         insert_alias_to_alternatives(
             import_map,
             rcstr!("private-next-instrumentation-client"),
@@ -1431,25 +1457,18 @@ async fn insert_instrumentation_client_alias(
         user_file_alternatives,
     );
 
-    let injects = injects
+    let modules = modules
         .iter()
         .map(|s| s.as_str())
         .chain(std::iter::once("private-next-instrumentation-client-user"));
-
-    let mut body = String::new();
-    for (i, spec) in injects.clone().enumerate() {
-        body.push_str(&format!(
-            "var mod_{i} = require({});\n",
-            serde_json::to_string(spec)?
-        ));
+    let mut body = String::from("module.exports = [");
+    for (i, spec) in modules.enumerate() {
+        if i > 0 {
+            body.push(',');
+        }
+        body.push_str(&format!("require({})", serde_json::to_string(spec)?));
     }
-    body.push_str("module.exports = { onRouterTransitionStart(url, type) {\n");
-    for (i, _) in injects.enumerate() {
-        body.push_str(&format!(
-            "    mod_{i}?.onRouterTransitionStart?.(url, type);\n"
-        ));
-    }
-    body.push_str("}};\n");
+    body.push_str("];\n");
 
     let virtual_source = VirtualSource::new(
         // Use cjs here in case the user has type:module in the package.json. We do intentionally

@@ -1478,7 +1478,7 @@ fn get_import_symbol_from_export(specifier: &ExportSpecifier) -> ImportedSymbol 
 
 #[cfg(test)]
 mod tests {
-    use swc_core::{atoms::Atom, common::DUMMY_SP, ecma::ast::*};
+    use swc_core::{atoms::Atom, common::DUMMY_SP};
 
     use super::*;
 

@@ -271,26 +271,41 @@ describe('cache-indicator', () => {
       )
     })
 
-    // TODO: private `'use cache'` entries aren't persisted in dev yet, so they
-    // re-fill on every load and register as a cache miss each time. Until
-    // that's fixed, the Cold cache badge shows on every load. After this is
-    // fixed, flip the warm-reload assertion below to expect no badge.
-    it('shows the Cold cache badge on every load for a private cache (current limitation)', async () => {
+    it('does not show the Cold cache badge for a private cache on an initial load', async () => {
       const browser = await next.browser('/private')
 
-      await retry(async () => {
-        expect(await browser.hasElementByCss('[data-cold-cache-badge]')).toBe(
-          true
-        )
-      })
-
-      await browser.refresh()
+      // A private cache is deferred to the session-data (runtime) stage, after
+      // the static shell. On an initial load the relevant shell is the static
+      // shell, so a private miss is a runtime-resumed hole rather than part of
+      // the shell, and must not show the badge, even on this first, generating
+      // load, when the read is pending at the post-shell boundary. (A private
+      // cache does show the badge on a runtime-prefetch navigation, where
+      // session data is part of the runtime shell; see the
+      // cache-indicator-partial-prefetching suite.) An absence can't be retried
+      // on, so wait out the replay-on-connect window and then assert it never
+      // showed.
       await browser.elementById('private')
-      await retry(async () => {
-        expect(await browser.hasElementByCss('[data-cold-cache-badge]')).toBe(
-          true
-        )
-      })
+      await waitFor(500)
+      expect(await browser.hasElementByCss('[data-cold-cache-badge]')).toBe(
+        false
+      )
+    })
+
+    it('does not show the Cold cache badge for a cache read that follows await params on an initial load', async () => {
+      const browser = await next.browser('/dynamic/some-id')
+
+      // The cache read sits after `await params`, so it resolves in the runtime
+      // stage, after the static shell. On an initial load the relevant shell is
+      // the static shell, so this is a runtime-resumed hole rather than part of
+      // the shell, and must not show the badge, even while the value generates
+      // on this first load, when the read is pending at the post-shell
+      // boundary. An absence can't be retried on, so wait out the
+      // replay-on-connect window and then assert it never showed.
+      await browser.elementById('dynamic')
+      await waitFor(500)
+      expect(await browser.hasElementByCss('[data-cold-cache-badge]')).toBe(
+        false
+      )
     })
 
     it('shows cache-bypassing badge when cache is disabled', async () => {

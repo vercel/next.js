@@ -124,6 +124,12 @@ export default async function Page() {
           <DebugLinks href="/suspense-in-root/static/valid-client-api-in-parent/search-params" />
         </li>
         <li>
+          <DebugLinks href="/suspense-in-root/static/valid-client-params/123" />
+        </li>
+        <li>
+          <DebugLinks href="/suspense-in-root/static/valid-client-search-params?query=foo" />
+        </li>
+        <li>
           <DebugLinks href="/suspense-in-root/static/valid-client-data-does-not-block-validation" />
         </li>
         <li>

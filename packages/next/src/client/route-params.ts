@@ -186,7 +186,7 @@ export function getCacheKeyForDynamicParam(
     // search string instead of turning it into JSON.
     const pageSegmentWithSearchParams = addSearchParamsIfPageSegment(
       paramValue,
-      Object.fromEntries(new URLSearchParams(renderedSearch))
+      urlSearchParamsToParsedUrlQuery(new URLSearchParams(renderedSearch))
     ) as string
     return pageSegmentWithSearchParams
   } else if (paramValue === null) {

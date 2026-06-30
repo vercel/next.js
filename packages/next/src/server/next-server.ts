@@ -583,6 +583,7 @@ export default class NextNodeServer extends BaseServer<
         res: ServerResponse,
         ctx: {
           waitUntil: ReturnType<BaseServer['getWaitUntil']>
+          requestMeta?: RequestMeta
         }
       ) => Promise<void>
     }
@@ -594,6 +595,11 @@ export default class NextNodeServer extends BaseServer<
     addRequestMeta(req.originalRequest, 'distDir', this.distDir)
     await module.handler(req.originalRequest, res.originalResponse, {
       waitUntil: this.getWaitUntil(),
+      requestMeta: {
+        ...getRequestMeta(req.originalRequest),
+        query,
+        params: match.params,
+      },
     })
     return true
   }

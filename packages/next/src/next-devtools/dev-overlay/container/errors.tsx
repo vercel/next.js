@@ -40,6 +40,7 @@ import { CodeFrame } from '../components/code-frame/code-frame'
 import { ErrorOverlayCallStack } from '../components/errors/error-overlay-call-stack/error-overlay-call-stack'
 import { ErrorCause } from './runtime-error/error-cause'
 import { useFrames } from '../utils/get-error-by-type'
+import stripAnsi from 'next/dist/compiled/strip-ansi'
 import type { ErrorOverlayPaginationControls } from '../components/errors/error-overlay-pagination/error-overlay-pagination'
 
 interface ErrorsProps extends ErrorBaseProps {
@@ -113,6 +114,9 @@ export function getErrorTypeLabel(
   if (errorDetails.type === 'unrendered-segment') {
     return `Instant`
   }
+  if (errorDetails.type === 'link-prefetch-partial') {
+    return `Instant`
+  }
   if (type === 'recoverable') {
     return `Recoverable ${error.name}`
   }
@@ -132,6 +136,7 @@ type ErrorDetails =
   | SyncIOErrorDetails
   | SyncIOClientErrorDetails
   | UnrenderedSegmentErrorDetails
+  | LinkPrefetchPartialErrorDetails
 
 type NoErrorDetails = {
   type: 'empty'
@@ -181,6 +186,11 @@ type UnrenderedSegmentErrorDetails = {
   files: string[]
 }
 
+type LinkPrefetchPartialErrorDetails = {
+  type: 'link-prefetch-partial'
+  pathname: string
+}
+
 const noErrorDetails: ErrorDetails = {
   type: 'empty',
 }
@@ -210,6 +220,11 @@ export function useErrorDetails(
     const unrenderedSegmentDetails = getUnrenderedSegmentErrorDetails(error)
     if (unrenderedSegmentDetails) {
       return unrenderedSegmentDetails
+    }
+
+    const linkPrefetchPartialDetails = getLinkPrefetchPartialErrorDetails(error)
+    if (linkPrefetchPartialDetails) {
+      return linkPrefetchPartialDetails
     }
 
     return noErrorDetails
@@ -248,6 +263,24 @@ function getHydrationErrorDetails(
   }
 }
 
+// Detect `connection()` as the trigger by sniffing the highlighted line of the code frame.
+export function deriveCauseFromCodeFrame(
+  kind: GuidanceKind,
+  variant: GuidanceVariant,
+  codeFrame: string | null | undefined
+): 'connection' | undefined {
+  if (variant !== 'dynamic') return undefined
+  if (kind !== 'blocking-route' && kind !== 'metadata' && kind !== 'viewport')
+    return undefined
+  if (!codeFrame) return undefined
+  for (const line of stripAnsi(codeFrame).split('\n')) {
+    if (/^\s*>/.test(line) && /\bconnection\s*\(/.test(line)) {
+      return 'connection'
+    }
+  }
+  return undefined
+}
+
 function InstantRuntimeError({
   error,
   variant,
@@ -279,6 +312,10 @@ function InstantRuntimeError({
     return frames[idx] ?? null
   }, [frames])
 
+  const derivedCause =
+    cause ??
+    deriveCauseFromCodeFrame(kind, variant, firstFrame?.originalCodeFrame)
+
   return (
     <>
       {firstFrame && (
@@ -291,7 +328,7 @@ function InstantRuntimeError({
         variant={variant}
         kind={kind}
         explanation={explanation}
-        cause={cause}
+        cause={derivedCause}
         showExplanation={showExplanation}
         generateErrorInfo={generateErrorInfo}
       />
@@ -471,9 +508,26 @@ export function getUnrenderedSegmentErrorDetails(
   }
 }
 
+export function getLinkPrefetchPartialErrorDetails(
+  error: Error
+): LinkPrefetchPartialErrorDetails | null {
+  const message = error.message
+  if (typeof message !== 'string') return null
+  const match =
+    /^Next\.js encountered dynamic data during prefetching for "([^"]+)"\./.exec(
+      message
+    )
+  if (!match) return null
+  return {
+    type: 'link-prefetch-partial',
+    pathname: match[1],
+  }
+}
+
 export function isInstantNavigationError(error: Error): boolean {
   // Unrendered-segment errors are always instant-only
   if (getUnrenderedSegmentErrorDetails(error)) return true
+  if (getLinkPrefetchPartialErrorDetails(error)) return true
   const details = getBlockingRouteErrorDetails(error)
   return details?.type === 'blocking-route' && details.inNavigation
 }
@@ -1115,6 +1169,43 @@ export function Errors({
           />
         </ErrorOverlayLayout>
       )
+    case 'link-prefetch-partial':
+      return (
+        <ErrorOverlayLayout
+          errorCode={errorCode}
+          errorType={errorType}
+          errorMessage="Next.js encountered dynamic data during prefetching."
+          headerChildren={
+            <InstantHeaderExplanation kind="link-prefetch-partial" />
+          }
+          renderTabBar={renderTabBar}
+          canGoPrevious={canGoPrevious}
+          canGoNext={canGoNext}
+          onPrevious={handlePrevious}
+          onNext={handleNext}
+          onClose={isServerError ? undefined : onClose}
+          debugInfo={debugInfo}
+          error={error}
+          runtimeErrors={activeErrors}
+          activeIdx={activeIdx}
+          setActiveIndex={setActiveIndex}
+          dialogResizerRef={dialogResizerRef}
+          generateErrorInfo={generateErrorInfo}
+          {...props}
+        >
+          <Suspense fallback={<div data-nextjs-error-suspended />}>
+            <InstantRuntimeError
+              key={activeError.id.toString()}
+              error={activeError}
+              variant="runtime"
+              kind="link-prefetch-partial"
+              showExplanation={false}
+              dialogResizerRef={dialogResizerRef}
+              generateErrorInfo={generateErrorInfo}
+            />
+          </Suspense>
+        </ErrorOverlayLayout>
+      )
     case 'empty':
       errorMessage = <GenericErrorDescription error={error} />
       break
@@ -1204,21 +1295,24 @@ export const styles = `
   }
   .nextjs__container_errors__error_title {
     display: flex;
-    align-items: start;
-    justify-content: space-between;
-    gap: 12px;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
     position: relative;
+  }
+  .nextjs__container_errors__error_title__row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 8px;
+    width: 100%;
   }
   .error-overlay-notes-container {
     margin: 8px 2px;
   }
   .error-overlay-notes-container p {
     white-space: pre-wrap;
-  }
-  @media (max-width: 767px) {
-    .nextjs__container_errors__error_title {
-      flex-direction: column-reverse;
-    }
   }
   .external-link, .external-link:hover {
     color:inherit;

@@ -279,17 +279,17 @@ declare module 'react-server-dom-webpack/server.node' {
     ...args: unknown[]
   ): TemporaryReferenceSet
 
-  export function decodeReplyFromBusboy(
+  export function decodeReplyFromBusboy<T>(
     busboyStream: Busboy,
     webpackMap: ServerManifest,
     options?: { temporaryReferences?: TemporaryReferenceSet }
-  ): Promise<unknown[]>
+  ): Promise<T>
 
   export function decodeReply<T>(
     body: string | FormData,
     webpackMap: ServerManifest,
     options?: { temporaryReferences?: TemporaryReferenceSet }
-  ): Promise<T[]>
+  ): Promise<T>
 
   export function decodeAction(
     body: FormData,

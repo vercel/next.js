@@ -180,7 +180,7 @@ describe('instant validation', () => {
                ],
              },
            ],
-           "code": "E1319",
+           "code": "E1372",
            "description": "Next.js encountered runtime data during a navigation.",
            "environmentLabel": "Server",
            "label": "Instant",
@@ -205,8 +205,6 @@ describe('instant validation', () => {
          Ways to fix this:
            - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
              https://nextjs.org/docs/messages/blocking-prerender-runtime#wrap-in-or-move-into-suspense
-           - [cache] For \`params\`: if the params are known, prerender them with \`generateStaticParams\`
-             https://nextjs.org/docs/messages/blocking-prerender-runtime#for-known-params-prerender
            - [block] Set \`export const instant = false\` to silence this warning and allow a blocking route
              https://nextjs.org/docs/messages/blocking-prerender-runtime#allow-blocking-route
              at body (<anonymous>)
@@ -241,7 +239,7 @@ describe('instant validation', () => {
                ],
              },
            ],
-           "code": "E1317",
+           "code": "E1375",
            "description": "Next.js encountered uncached data during a navigation.",
            "environmentLabel": "Server",
            "label": "Instant",
@@ -266,7 +264,7 @@ describe('instant validation', () => {
          Ways to fix this:
            - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
              https://nextjs.org/docs/messages/blocking-prerender-dynamic#wrap-in-or-move-into-suspense
-           - [cache] Cache the data access with \`"use cache"\`
+           - [cache] Cache the data access with \`"use cache"\` (does not apply to \`connection()\`)
              https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
            - [block] Set \`export const instant = false\` to silence this warning and allow a blocking route
              https://nextjs.org/docs/messages/blocking-prerender-dynamic#allow-blocking-route
@@ -302,7 +300,7 @@ describe('instant validation', () => {
                ],
              },
            ],
-           "code": "E1317",
+           "code": "E1375",
            "description": "Next.js encountered uncached data during a navigation.",
            "environmentLabel": "Server",
            "label": "Instant",
@@ -328,7 +326,7 @@ describe('instant validation', () => {
          Ways to fix this:
            - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
              https://nextjs.org/docs/messages/blocking-prerender-dynamic#wrap-in-or-move-into-suspense
-           - [cache] Cache the data access with \`"use cache"\`
+           - [cache] Cache the data access with \`"use cache"\` (does not apply to \`connection()\`)
              https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
            - [block] Set \`export const instant = false\` to silence this warning and allow a blocking route
              https://nextjs.org/docs/messages/blocking-prerender-dynamic#allow-blocking-route
@@ -366,7 +364,7 @@ describe('instant validation', () => {
                ],
              },
            ],
-           "code": "E1319",
+           "code": "E1372",
            "description": "Next.js encountered runtime data during a navigation.",
            "environmentLabel": "Server",
            "label": "Instant",
@@ -391,8 +389,6 @@ describe('instant validation', () => {
          Ways to fix this:
            - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
              https://nextjs.org/docs/messages/blocking-prerender-runtime#wrap-in-or-move-into-suspense
-           - [cache] For \`params\`: if the params are known, prerender them with \`generateStaticParams\`
-             https://nextjs.org/docs/messages/blocking-prerender-runtime#for-known-params-prerender
            - [block] Set \`export const instant = false\` to silence this warning and allow a blocking route
              https://nextjs.org/docs/messages/blocking-prerender-runtime#allow-blocking-route
              at body (<anonymous>)
@@ -427,7 +423,7 @@ describe('instant validation', () => {
                ],
              },
            ],
-           "code": "E1317",
+           "code": "E1375",
            "description": "Next.js encountered uncached data during a navigation.",
            "environmentLabel": "Server",
            "label": "Instant",
@@ -452,7 +448,7 @@ describe('instant validation', () => {
          Ways to fix this:
            - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
              https://nextjs.org/docs/messages/blocking-prerender-dynamic#wrap-in-or-move-into-suspense
-           - [cache] Cache the data access with \`"use cache"\`
+           - [cache] Cache the data access with \`"use cache"\` (does not apply to \`connection()\`)
              https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
            - [block] Set \`export const instant = false\` to silence this warning and allow a blocking route
              https://nextjs.org/docs/messages/blocking-prerender-dynamic#allow-blocking-route
@@ -491,7 +487,7 @@ describe('instant validation', () => {
              ],
            },
          ],
-         "code": "E1319",
+         "code": "E1372",
          "description": "Next.js encountered runtime data during a navigation.",
          "environmentLabel": "Server",
          "label": "Instant",
@@ -539,7 +535,7 @@ describe('instant validation', () => {
                ],
              },
            ],
-           "code": "E1319",
+           "code": "E1372",
            "description": "Next.js encountered runtime data during a navigation.",
            "environmentLabel": "Server",
            "label": "Instant",
@@ -564,8 +560,6 @@ describe('instant validation', () => {
          Ways to fix this:
            - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
              https://nextjs.org/docs/messages/blocking-prerender-runtime#wrap-in-or-move-into-suspense
-           - [cache] For \`params\`: if the params are known, prerender them with \`generateStaticParams\`
-             https://nextjs.org/docs/messages/blocking-prerender-runtime#for-known-params-prerender
            - [block] Set \`export const instant = false\` to silence this warning and allow a blocking route
              https://nextjs.org/docs/messages/blocking-prerender-runtime#allow-blocking-route
              at body (<anonymous>)
@@ -635,7 +629,7 @@ describe('instant validation', () => {
                ],
              },
            ],
-           "code": "E1319",
+           "code": "E1372",
            "description": "Next.js encountered runtime data during a navigation.",
            "environmentLabel": "Server",
            "label": "Instant",
@@ -660,8 +654,6 @@ describe('instant validation', () => {
          Ways to fix this:
            - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
              https://nextjs.org/docs/messages/blocking-prerender-runtime#wrap-in-or-move-into-suspense
-           - [cache] For \`params\`: if the params are known, prerender them with \`generateStaticParams\`
-             https://nextjs.org/docs/messages/blocking-prerender-runtime#for-known-params-prerender
            - [block] Set \`export const instant = false\` to silence this warning and allow a blocking route
              https://nextjs.org/docs/messages/blocking-prerender-runtime#allow-blocking-route
              at a (<anonymous>)
@@ -699,7 +691,7 @@ describe('instant validation', () => {
                ],
              },
            ],
-           "code": "E1317",
+           "code": "E1375",
            "description": "Next.js encountered uncached data during a navigation.",
            "environmentLabel": "Server",
            "label": "Instant",
@@ -725,7 +717,7 @@ describe('instant validation', () => {
          Ways to fix this:
            - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
              https://nextjs.org/docs/messages/blocking-prerender-dynamic#wrap-in-or-move-into-suspense
-           - [cache] Cache the data access with \`"use cache"\`
+           - [cache] Cache the data access with \`"use cache"\` (does not apply to \`connection()\`)
              https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
            - [block] Set \`export const instant = false\` to silence this warning and allow a blocking route
              https://nextjs.org/docs/messages/blocking-prerender-dynamic#allow-blocking-route
@@ -1156,7 +1148,7 @@ describe('instant validation', () => {
                ],
              },
            ],
-           "code": "E1317",
+           "code": "E1375",
            "description": "Next.js encountered uncached data during a navigation.",
            "environmentLabel": "Server",
            "label": "Instant",
@@ -1182,7 +1174,7 @@ describe('instant validation', () => {
          Ways to fix this:
            - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
              https://nextjs.org/docs/messages/blocking-prerender-dynamic#wrap-in-or-move-into-suspense
-           - [cache] Cache the data access with \`"use cache"\`
+           - [cache] Cache the data access with \`"use cache"\` (does not apply to \`connection()\`)
              https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
            - [block] Set \`export const instant = false\` to silence this warning and allow a blocking route
              https://nextjs.org/docs/messages/blocking-prerender-dynamic#allow-blocking-route
@@ -1221,7 +1213,7 @@ describe('instant validation', () => {
                ],
              },
            ],
-           "code": "E1317",
+           "code": "E1375",
            "description": "Next.js encountered uncached data during a navigation.",
            "environmentLabel": "Server",
            "label": "Instant",
@@ -1247,7 +1239,7 @@ describe('instant validation', () => {
          Ways to fix this:
            - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
              https://nextjs.org/docs/messages/blocking-prerender-dynamic#wrap-in-or-move-into-suspense
-           - [cache] Cache the data access with \`"use cache"\`
+           - [cache] Cache the data access with \`"use cache"\` (does not apply to \`connection()\`)
              https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
            - [block] Set \`export const instant = false\` to silence this warning and allow a blocking route
              https://nextjs.org/docs/messages/blocking-prerender-dynamic#allow-blocking-route
@@ -1299,7 +1291,7 @@ describe('instant validation', () => {
                  ],
                },
              ],
-             "code": "E1319",
+             "code": "E1372",
              "description": "Next.js encountered runtime data during a navigation.",
              "environmentLabel": "Server",
              "label": "Instant",
@@ -1324,8 +1316,6 @@ describe('instant validation', () => {
            Ways to fix this:
              - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
                https://nextjs.org/docs/messages/blocking-prerender-runtime#wrap-in-or-move-into-suspense
-             - [cache] For \`params\`: if the params are known, prerender them with \`generateStaticParams\`
-               https://nextjs.org/docs/messages/blocking-prerender-runtime#for-known-params-prerender
              - [block] Set \`export const instant = false\` to silence this warning and allow a blocking route
                https://nextjs.org/docs/messages/blocking-prerender-runtime#allow-blocking-route
                at body (<anonymous>)
@@ -1388,7 +1378,7 @@ describe('instant validation', () => {
                  ],
                },
              ],
-             "code": "E1319",
+             "code": "E1372",
              "description": "Next.js encountered runtime data during a navigation.",
              "environmentLabel": "Server",
              "label": "Instant",
@@ -1413,8 +1403,6 @@ describe('instant validation', () => {
            Ways to fix this:
              - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
                https://nextjs.org/docs/messages/blocking-prerender-runtime#wrap-in-or-move-into-suspense
-             - [cache] For \`params\`: if the params are known, prerender them with \`generateStaticParams\`
-               https://nextjs.org/docs/messages/blocking-prerender-runtime#for-known-params-prerender
              - [block] Set \`export const instant = false\` to silence this warning and allow a blocking route
                https://nextjs.org/docs/messages/blocking-prerender-runtime#allow-blocking-route
                at div (<anonymous>)
@@ -1450,7 +1438,7 @@ describe('instant validation', () => {
                  ],
                },
              ],
-             "code": "E1317",
+             "code": "E1375",
              "description": "Next.js encountered uncached data during a navigation.",
              "environmentLabel": "Server",
              "label": "Instant",
@@ -1475,7 +1463,7 @@ describe('instant validation', () => {
            Ways to fix this:
              - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
                https://nextjs.org/docs/messages/blocking-prerender-dynamic#wrap-in-or-move-into-suspense
-             - [cache] Cache the data access with \`"use cache"\`
+             - [cache] Cache the data access with \`"use cache"\` (does not apply to \`connection()\`)
                https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
              - [block] Set \`export const instant = false\` to silence this warning and allow a blocking route
                https://nextjs.org/docs/messages/blocking-prerender-dynamic#allow-blocking-route
@@ -1515,7 +1503,7 @@ describe('instant validation', () => {
                  ],
                },
              ],
-             "code": "E1319",
+             "code": "E1372",
              "description": "Next.js encountered runtime data during a navigation.",
              "environmentLabel": "Server",
              "label": "Instant",
@@ -1540,8 +1528,6 @@ describe('instant validation', () => {
            Ways to fix this:
              - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
                https://nextjs.org/docs/messages/blocking-prerender-runtime#wrap-in-or-move-into-suspense
-             - [cache] For \`params\`: if the params are known, prerender them with \`generateStaticParams\`
-               https://nextjs.org/docs/messages/blocking-prerender-runtime#for-known-params-prerender
              - [block] Set \`export const instant = false\` to silence this warning and allow a blocking route
                https://nextjs.org/docs/messages/blocking-prerender-runtime#allow-blocking-route
                at div (<anonymous>)
@@ -1578,7 +1564,7 @@ describe('instant validation', () => {
                  ],
                },
              ],
-             "code": "E1319",
+             "code": "E1372",
              "description": "Next.js encountered runtime data during a navigation.",
              "environmentLabel": "Server",
              "label": "Instant",
@@ -1603,8 +1589,6 @@ describe('instant validation', () => {
            Ways to fix this:
              - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
                https://nextjs.org/docs/messages/blocking-prerender-runtime#wrap-in-or-move-into-suspense
-             - [cache] For \`params\`: if the params are known, prerender them with \`generateStaticParams\`
-               https://nextjs.org/docs/messages/blocking-prerender-runtime#for-known-params-prerender
              - [block] Set \`export const instant = false\` to silence this warning and allow a blocking route
                https://nextjs.org/docs/messages/blocking-prerender-runtime#allow-blocking-route
                at div (<anonymous>)
@@ -1641,7 +1625,7 @@ describe('instant validation', () => {
                  ],
                },
              ],
-             "code": "E1319",
+             "code": "E1372",
              "description": "Next.js encountered runtime data during a navigation.",
              "environmentLabel": "Server",
              "label": "Instant",
@@ -1666,8 +1650,6 @@ describe('instant validation', () => {
            Ways to fix this:
              - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
                https://nextjs.org/docs/messages/blocking-prerender-runtime#wrap-in-or-move-into-suspense
-             - [cache] For \`params\`: if the params are known, prerender them with \`generateStaticParams\`
-               https://nextjs.org/docs/messages/blocking-prerender-runtime#for-known-params-prerender
              - [block] Set \`export const instant = false\` to silence this warning and allow a blocking route
                https://nextjs.org/docs/messages/blocking-prerender-runtime#allow-blocking-route
                at div (<anonymous>)
@@ -1714,7 +1696,7 @@ describe('instant validation', () => {
                 |                   ^",
              "stack": [
                "FetchesClientData app/suspense-in-root/static/invalid-client-data-blocks-validation/client.tsx (12:19)",
-               "Layout app/suspense-in-root/static/invalid-client-data-blocks-validation/layout.tsx (17:9)",
+               "Layout app/suspense-in-root/static/invalid-client-data-blocks-validation/layout.tsx (21:11)",
              ],
            }
           `)
@@ -1801,6 +1783,34 @@ describe('instant validation', () => {
         } else {
           const result = await prerender(
             '/suspense-in-root/static/valid-client-api-in-parent/search-params'
+          )
+          expectNoBuildValidationErrors(result)
+        }
+      })
+
+      it('valid - unguarded params in client page', async () => {
+        if (isNextDev) {
+          const browser = await navigateTo(
+            '/suspense-in-root/static/valid-client-params/123'
+          )
+          await expectNoDevValidationErrors(browser, await browser.url())
+        } else {
+          const result = await prerender(
+            '/suspense-in-root/static/valid-client-params/[slug]'
+          )
+          expectNoBuildValidationErrors(result)
+        }
+      })
+
+      it('valid - unguarded searchParams in client page', async () => {
+        if (isNextDev) {
+          const browser = await navigateTo(
+            '/suspense-in-root/static/valid-client-search-params?query=foo'
+          )
+          await expectNoDevValidationErrors(browser, await browser.url())
+        } else {
+          const result = await prerender(
+            '/suspense-in-root/static/valid-client-search-params'
           )
           expectNoBuildValidationErrors(result)
         }
@@ -2354,7 +2364,7 @@ describe('instant validation', () => {
                  ],
                },
              ],
-             "code": "E1352",
+             "code": "E1369",
              "description": "Next.js encountered uncached data in generateViewport().",
              "environmentLabel": "Server",
              "label": "Blocking Route",
@@ -2377,7 +2387,7 @@ describe('instant validation', () => {
            \`fetch(...)\` or \`connection()\` in \`generateViewport()\` prevents the page from being prerendered, leading to a slower user experience.
 
            Ways to fix this:
-             - [cache] Cache the viewport data with \`"use cache"\` in \`generateViewport()\`
+             - [cache] Cache the viewport data with \`"use cache"\` in \`generateViewport()\` (does not apply to \`connection()\`)
                https://nextjs.org/docs/messages/blocking-prerender-viewport-dynamic#cache-the-viewport-data
              - [block] Set \`export const instant = false\` to silence this warning and allow a blocking route
                https://nextjs.org/docs/messages/blocking-prerender-viewport-dynamic#allow-blocking-route
@@ -2451,7 +2461,7 @@ describe('instant validation', () => {
                  ],
                },
              ],
-             "code": "E1352",
+             "code": "E1369",
              "description": "Next.js encountered uncached data in generateViewport().",
              "environmentLabel": "Server",
              "label": "Blocking Route",
@@ -2474,7 +2484,7 @@ describe('instant validation', () => {
            \`fetch(...)\` or \`connection()\` in \`generateViewport()\` prevents the page from being prerendered, leading to a slower user experience.
 
            Ways to fix this:
-             - [cache] Cache the viewport data with \`"use cache"\` in \`generateViewport()\`
+             - [cache] Cache the viewport data with \`"use cache"\` in \`generateViewport()\` (does not apply to \`connection()\`)
                https://nextjs.org/docs/messages/blocking-prerender-viewport-dynamic#cache-the-viewport-data
              - [block] Set \`export const instant = false\` to silence this warning and allow a blocking route
                https://nextjs.org/docs/messages/blocking-prerender-viewport-dynamic#allow-blocking-route
@@ -2510,7 +2520,7 @@ describe('instant validation', () => {
                  ],
                },
              ],
-             "code": "E1319",
+             "code": "E1372",
              "description": "Next.js encountered runtime data during a navigation.",
              "environmentLabel": "Server",
              "label": "Instant",
@@ -2535,8 +2545,6 @@ describe('instant validation', () => {
            Ways to fix this:
              - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
                https://nextjs.org/docs/messages/blocking-prerender-runtime#wrap-in-or-move-into-suspense
-             - [cache] For \`params\`: if the params are known, prerender them with \`generateStaticParams\`
-               https://nextjs.org/docs/messages/blocking-prerender-runtime#for-known-params-prerender
              - [block] Set \`export const instant = false\` to silence this warning and allow a blocking route
                https://nextjs.org/docs/messages/blocking-prerender-runtime#allow-blocking-route
                at div (<anonymous>)
@@ -2572,7 +2580,7 @@ describe('instant validation', () => {
                  ],
                },
              ],
-             "code": "E1319",
+             "code": "E1372",
              "description": "Next.js encountered runtime data during a navigation.",
              "environmentLabel": "Server",
              "label": "Instant",
@@ -2597,8 +2605,6 @@ describe('instant validation', () => {
            Ways to fix this:
              - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
                https://nextjs.org/docs/messages/blocking-prerender-runtime#wrap-in-or-move-into-suspense
-             - [cache] For \`params\`: if the params are known, prerender them with \`generateStaticParams\`
-               https://nextjs.org/docs/messages/blocking-prerender-runtime#for-known-params-prerender
              - [block] Set \`export const instant = false\` to silence this warning and allow a blocking route
                https://nextjs.org/docs/messages/blocking-prerender-runtime#allow-blocking-route
                at div (<anonymous>)
@@ -2635,7 +2641,7 @@ describe('instant validation', () => {
                  ],
                },
              ],
-             "code": "E1319",
+             "code": "E1372",
              "description": "Next.js encountered runtime data during a navigation.",
              "environmentLabel": "Server",
              "label": "Instant",
@@ -2660,8 +2666,6 @@ describe('instant validation', () => {
            Ways to fix this:
              - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
                https://nextjs.org/docs/messages/blocking-prerender-runtime#wrap-in-or-move-into-suspense
-             - [cache] For \`params\`: if the params are known, prerender them with \`generateStaticParams\`
-               https://nextjs.org/docs/messages/blocking-prerender-runtime#for-known-params-prerender
              - [block] Set \`export const instant = false\` to silence this warning and allow a blocking route
                https://nextjs.org/docs/messages/blocking-prerender-runtime#allow-blocking-route
                at div (<anonymous>)
@@ -2698,7 +2702,7 @@ describe('instant validation', () => {
                  ],
                },
              ],
-             "code": "E1319",
+             "code": "E1372",
              "description": "Next.js encountered runtime data during a navigation.",
              "environmentLabel": "Server",
              "label": "Instant",
@@ -2723,8 +2727,6 @@ describe('instant validation', () => {
            Ways to fix this:
              - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
                https://nextjs.org/docs/messages/blocking-prerender-runtime#wrap-in-or-move-into-suspense
-             - [cache] For \`params\`: if the params are known, prerender them with \`generateStaticParams\`
-               https://nextjs.org/docs/messages/blocking-prerender-runtime#for-known-params-prerender
              - [block] Set \`export const instant = false\` to silence this warning and allow a blocking route
                https://nextjs.org/docs/messages/blocking-prerender-runtime#allow-blocking-route
                at div (<anonymous>)
@@ -2761,7 +2763,7 @@ describe('instant validation', () => {
                  ],
                },
              ],
-             "code": "E1319",
+             "code": "E1372",
              "description": "Next.js encountered runtime data during a navigation.",
              "environmentLabel": "Server",
              "label": "Instant",
@@ -2786,8 +2788,6 @@ describe('instant validation', () => {
            Ways to fix this:
              - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
                https://nextjs.org/docs/messages/blocking-prerender-runtime#wrap-in-or-move-into-suspense
-             - [cache] For \`params\`: if the params are known, prerender them with \`generateStaticParams\`
-               https://nextjs.org/docs/messages/blocking-prerender-runtime#for-known-params-prerender
              - [block] Set \`export const instant = false\` to silence this warning and allow a blocking route
                https://nextjs.org/docs/messages/blocking-prerender-runtime#allow-blocking-route
                at div (<anonymous>)
@@ -2831,7 +2831,7 @@ describe('instant validation', () => {
                  ],
                },
              ],
-             "code": "E1319",
+             "code": "E1372",
              "description": "Next.js encountered runtime data during a navigation.",
              "environmentLabel": "Server",
              "label": "Instant",
@@ -2856,8 +2856,6 @@ describe('instant validation', () => {
            Ways to fix this:
              - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
                https://nextjs.org/docs/messages/blocking-prerender-runtime#wrap-in-or-move-into-suspense
-             - [cache] For \`params\`: if the params are known, prerender them with \`generateStaticParams\`
-               https://nextjs.org/docs/messages/blocking-prerender-runtime#for-known-params-prerender
              - [block] Set \`export const instant = false\` to silence this warning and allow a blocking route
                https://nextjs.org/docs/messages/blocking-prerender-runtime#allow-blocking-route
                at a (<anonymous>)
@@ -2908,7 +2906,7 @@ describe('instant validation', () => {
                  ],
                },
              ],
-             "code": "E1319",
+             "code": "E1372",
              "description": "Next.js encountered runtime data during a navigation.",
              "environmentLabel": "Server",
              "label": "Instant",
@@ -2933,8 +2931,6 @@ describe('instant validation', () => {
            Ways to fix this:
              - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
                https://nextjs.org/docs/messages/blocking-prerender-runtime#wrap-in-or-move-into-suspense
-             - [cache] For \`params\`: if the params are known, prerender them with \`generateStaticParams\`
-               https://nextjs.org/docs/messages/blocking-prerender-runtime#for-known-params-prerender
              - [block] Set \`export const instant = false\` to silence this warning and allow a blocking route
                https://nextjs.org/docs/messages/blocking-prerender-runtime#allow-blocking-route
                at div (<anonymous>)
@@ -2979,7 +2975,7 @@ describe('instant validation', () => {
                  ],
                },
              ],
-             "code": "E1319",
+             "code": "E1372",
              "description": "Next.js encountered runtime data during a navigation.",
              "environmentLabel": "Server",
              "label": "Instant",
@@ -3004,8 +3000,6 @@ describe('instant validation', () => {
            Ways to fix this:
              - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
                https://nextjs.org/docs/messages/blocking-prerender-runtime#wrap-in-or-move-into-suspense
-             - [cache] For \`params\`: if the params are known, prerender them with \`generateStaticParams\`
-               https://nextjs.org/docs/messages/blocking-prerender-runtime#for-known-params-prerender
              - [block] Set \`export const instant = false\` to silence this warning and allow a blocking route
                https://nextjs.org/docs/messages/blocking-prerender-runtime#allow-blocking-route
                at div (<anonymous>)
@@ -3051,7 +3045,7 @@ describe('instant validation', () => {
                ],
              },
            ],
-           "code": "E1319",
+           "code": "E1372",
            "description": "Next.js encountered runtime data during a navigation.",
            "environmentLabel": "Server",
            "label": "Instant",
@@ -3076,8 +3070,6 @@ describe('instant validation', () => {
          Ways to fix this:
            - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
              https://nextjs.org/docs/messages/blocking-prerender-runtime#wrap-in-or-move-into-suspense
-           - [cache] For \`params\`: if the params are known, prerender them with \`generateStaticParams\`
-             https://nextjs.org/docs/messages/blocking-prerender-runtime#for-known-params-prerender
            - [block] Set \`export const instant = false\` to silence this warning and allow a blocking route
              https://nextjs.org/docs/messages/blocking-prerender-runtime#allow-blocking-route
              at body (<anonymous>)
@@ -3120,7 +3112,7 @@ describe('instant validation', () => {
                  ],
                },
              ],
-             "code": "E1319",
+             "code": "E1372",
              "description": "Next.js encountered runtime data during a navigation.",
              "environmentLabel": "Server",
              "label": "Instant",
@@ -3171,7 +3163,7 @@ describe('instant validation', () => {
                  ],
                },
              ],
-             "code": "E1319",
+             "code": "E1372",
              "description": "Next.js encountered runtime data during a navigation.",
              "environmentLabel": "Server",
              "label": "Instant",
@@ -3196,8 +3188,6 @@ describe('instant validation', () => {
            Ways to fix this:
              - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
                https://nextjs.org/docs/messages/blocking-prerender-runtime#wrap-in-or-move-into-suspense
-             - [cache] For \`params\`: if the params are known, prerender them with \`generateStaticParams\`
-               https://nextjs.org/docs/messages/blocking-prerender-runtime#for-known-params-prerender
              - [block] Set \`export const instant = false\` to silence this warning and allow a blocking route
                https://nextjs.org/docs/messages/blocking-prerender-runtime#allow-blocking-route
                at div (<anonymous>)
@@ -3236,7 +3226,7 @@ describe('instant validation', () => {
                  ],
                },
              ],
-             "code": "E1319",
+             "code": "E1372",
              "description": "Next.js encountered runtime data during a navigation.",
              "environmentLabel": "Server",
              "label": "Instant",
@@ -3261,8 +3251,6 @@ describe('instant validation', () => {
            Ways to fix this:
              - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
                https://nextjs.org/docs/messages/blocking-prerender-runtime#wrap-in-or-move-into-suspense
-             - [cache] For \`params\`: if the params are known, prerender them with \`generateStaticParams\`
-               https://nextjs.org/docs/messages/blocking-prerender-runtime#for-known-params-prerender
              - [block] Set \`export const instant = false\` to silence this warning and allow a blocking route
                https://nextjs.org/docs/messages/blocking-prerender-runtime#allow-blocking-route
                at div (<anonymous>)
@@ -3302,7 +3290,7 @@ describe('instant validation', () => {
                  ],
                },
              ],
-             "code": "E1319",
+             "code": "E1372",
              "description": "Next.js encountered runtime data during a navigation.",
              "environmentLabel": "Server",
              "label": "Instant",
@@ -3384,7 +3372,7 @@ describe('instant validation', () => {
            Ways to fix this:
              - [render] Render the dropped segment
                https://nextjs.org/docs/messages/instant-unrendered-segment#render-the-dropped-segment
-             - [ignore] Set \`export const instant = false\` on the dropped segment to skip validation
+             - [ignore] Set \`export const instant = false\` to silence this warning and opt the dropped segment out of instant-navigation validation
                https://nextjs.org/docs/messages/instant-unrendered-segment#skip-validation-on-the-segment
                at ignore-listed frames
            Build-time instant validation failed for route "/suspense-in-root/static/multi-depth-deferred-fallback/inner".
@@ -3442,7 +3430,7 @@ describe('instant validation', () => {
            Ways to fix this:
              - [render] Render the dropped segment
                https://nextjs.org/docs/messages/instant-unrendered-segment#render-the-dropped-segment
-             - [ignore] Set \`export const instant = false\` on the dropped segment to skip validation
+             - [ignore] Set \`export const instant = false\` to silence this warning and opt the dropped segment out of instant-navigation validation
                https://nextjs.org/docs/messages/instant-unrendered-segment#skip-validation-on-the-segment
                at ignore-listed frames
            Build-time instant validation failed for route "/suspense-in-root/static/test-firstmod/inter/inner".
@@ -3500,7 +3488,7 @@ describe('instant validation', () => {
            Ways to fix this:
              - [render] Render the dropped segment
                https://nextjs.org/docs/messages/instant-unrendered-segment#render-the-dropped-segment
-             - [ignore] Set \`export const instant = false\` on the dropped segment to skip validation
+             - [ignore] Set \`export const instant = false\` to silence this warning and opt the dropped segment out of instant-navigation validation
                https://nextjs.org/docs/messages/instant-unrendered-segment#skip-validation-on-the-segment
                at ignore-listed frames
            Build-time instant validation failed for route "/suspense-in-root/static/test-multi-unrendered".
@@ -3576,7 +3564,7 @@ describe('instant validation', () => {
            Ways to fix this:
              - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
                https://nextjs.org/docs/messages/blocking-prerender-dynamic#wrap-in-or-move-into-suspense
-             - [cache] Cache the data access with \`"use cache"\`
+             - [cache] Cache the data access with \`"use cache"\` (does not apply to \`connection()\`)
                https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
              - [block] Set \`export const instant = false\` to silence this warning and allow a blocking route
                https://nextjs.org/docs/messages/blocking-prerender-dynamic#allow-blocking-route
@@ -3612,7 +3600,7 @@ describe('instant validation', () => {
                  ],
                },
              ],
-             "code": "E1317",
+             "code": "E1375",
              "description": "Next.js encountered uncached data during a navigation.",
              "environmentLabel": "Server",
              "label": "Instant",

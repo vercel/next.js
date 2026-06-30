@@ -14,14 +14,12 @@ interface PlaywrightBrowserContext {
       url?: string
       domain?: string
       path?: string
+      expires?: number
     }>
   ): Promise<void>
-  cookies(): Promise<Array<{ name: string; value: string }>>
-  clearCookies(options?: {
-    name?: string
-    domain?: string
-    path?: string
-  }): Promise<void>
+  cookies(): Promise<
+    Array<{ name: string; value: string; domain: string; path: string }>
+  >
 }
 
 interface PlaywrightPage {
@@ -86,13 +84,38 @@ export async function instant<T>(
   try {
     return await fn()
   } finally {
-    // Release the lock by clearing the cookie. Next.js may have updated the
-    // cookie value (e.g. from [0] to [1,null]) during the lock scope. We
-    // clear by name to remove the cookie regardless of its current value or
-    // which domain variant it was stored under.
-    await step('Release Instant Lock', () =>
-      page.context().clearCookies({ name: INSTANT_COOKIE })
-    )
+    // Release the lock by expiring the instant cookie, leaving every other
+    // cookie untouched.
+    //
+    // We must NOT use `context.clearCookies({ name: INSTANT_COOKIE })` here.
+    // Playwright implements a filtered `clearCookies` by clearing the ENTIRE
+    // cookie jar and then re-adding the cookies that don't match the filter.
+    // That briefly removes the application's own cookies too. Next.js reacts
+    // to the instant cookie's deletion by immediately re-rendering, and if
+    // that render's request races the empty window it observes none of the
+    // app's cookies (e.g. a navigated page renders as if no cookies were set).
+    //
+    // Instead we read the instant cookie's stored entries (Next.js may have
+    // updated the value, e.g. from [0] to [1,null], but preserves the domain
+    // and path) and re-add each with a past expiry, which deletes only those
+    // entries without disturbing the rest of the jar.
+    await step('Release Instant Lock', async () => {
+      const instantCookies = (await page.context().cookies()).filter(
+        (cookie) => cookie.name === INSTANT_COOKIE
+      )
+      if (instantCookies.length > 0) {
+        await page.context().addCookies(
+          instantCookies.map((cookie) => ({
+            name: cookie.name,
+            value: cookie.value,
+            domain: cookie.domain,
+            path: cookie.path,
+            // A past expiry (Unix epoch seconds) deletes the cookie.
+            expires: 1,
+          }))
+        )
+      }
+    })
   }
 }
 

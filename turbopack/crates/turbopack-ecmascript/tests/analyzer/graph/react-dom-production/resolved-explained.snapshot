@@ -149,13 +149,9 @@ $k = (...) => ((bj(a) ? 1 : 0) | 11 | 14 | 2)
 
 *anonymous function 28530* = (...) => (a["movementX"] | wd)
 
-*anonymous function 28699* = (...) => (???*0* ? a["movementY"] : xd)
-- *0* unsupported expression
-  ⚠️  This value might have side effects
+*anonymous function 28699* = (...) => ("movementY" in a ? a["movementY"] : xd)
 
-*anonymous function 28936* = (...) => (???*0* ? a["clipboardData"] : FreeVar(window)["clipboardData"])
-- *0* unsupported expression
-  ⚠️  This value might have side effects
+*anonymous function 28936* = (...) => ("clipboardData" in a ? a["clipboardData"] : FreeVar(window)["clipboardData"])
 
 *anonymous function 29891* = (...) => (
   | b
@@ -173,24 +169,14 @@ $k = (...) => ((bj(a) ? 1 : 0) | 11 | 14 | 2)
 
 *anonymous function 30346* = (...) => (("keypress" === a["type"]) ? od(a) : ((("keydown" === a["type"]) || ("keyup" === a["type"])) ? a["keyCode"] : 0))
 
-*anonymous function 30803* = (...) => (???*0* ? a["deltaX"] : (???*1* ? ???*2* : 0))
+*anonymous function 30803* = (...) => ("deltaX" in a ? a["deltaX"] : ("wheelDeltaX" in a ? ???*0* : 0))
 - *0* unsupported expression
-  ⚠️  This value might have side effects
-- *1* unsupported expression
-  ⚠️  This value might have side effects
-- *2* unsupported expression
   ⚠️  This value might have side effects
 
-*anonymous function 30887* = (...) => (???*0* ? a["deltaY"] : (???*1* ? ???*2* : (???*3* ? ???*4* : 0)))
+*anonymous function 30887* = (...) => ("deltaY" in a ? a["deltaY"] : ("wheelDeltaY" in a ? ???*0* : ("wheelDelta" in a ? ???*1* : 0)))
 - *0* unsupported expression
   ⚠️  This value might have side effects
 - *1* unsupported expression
-  ⚠️  This value might have side effects
-- *2* unsupported expression
-  ⚠️  This value might have side effects
-- *3* unsupported expression
-  ⚠️  This value might have side effects
-- *4* unsupported expression
   ⚠️  This value might have side effects
 
 *anonymous function 3119* = (...) => undefined
@@ -356,10 +342,8 @@ Ad = {
     "buttons": 0,
     "relatedTarget": (...) => ((undefined === a["relatedTarget"]) ? ((a["fromElement"] === a["srcElement"]) ? a["toElement"] : a["fromElement"]) : a["relatedTarget"]),
     "movementX": (...) => (a["movementX"] | wd),
-    "movementY": (...) => (???*0* ? a["movementY"] : xd)
+    "movementY": (...) => ("movementY" in a ? a["movementY"] : xd)
 }
-- *0* unsupported expression
-  ⚠️  This value might have side effects
 
 Ae = (...) => undefined
 
@@ -513,11 +497,9 @@ Cd = {
     "buttons": 0,
     "relatedTarget": (...) => ((undefined === a["relatedTarget"]) ? ((a["fromElement"] === a["srcElement"]) ? a["toElement"] : a["fromElement"]) : a["relatedTarget"]),
     "movementX": (...) => (a["movementX"] | wd),
-    "movementY": (...) => (???*0* ? a["movementY"] : xd),
+    "movementY": (...) => ("movementY" in a ? a["movementY"] : xd),
     "dataTransfer": 0
 }
-- *0* unsupported expression
-  ⚠️  This value might have side effects
 
 Ce = (...) => undefined
 
@@ -887,10 +869,8 @@ Id = {
     "timeStamp": (...) => (a["timeStamp"] || FreeVar(Date)["now"]()),
     "defaultPrevented": 0,
     "isTrusted": 0,
-    "clipboardData": (...) => (???*0* ? a["clipboardData"] : FreeVar(window)["clipboardData"])
+    "clipboardData": (...) => ("clipboardData" in a ? a["clipboardData"] : FreeVar(window)["clipboardData"])
 }
-- *0* unsupported expression
-  ⚠️  This value might have side effects
 
 Ie = (...) => (!(0) | !(1))
 
@@ -1136,10 +1116,8 @@ Ld = (...) => ???*0*
 - *0* unsupported expression
   ⚠️  This value might have side effects
 
-Le = (...) => ((a && b) ? ((a === b) ? !(0) : ((a && (3 === a["nodeType"])) ? !(1) : ((b && (3 === b["nodeType"])) ? Le(a, b["parentNode"]) : (???*0* ? a["contains"](b) : (a["compareDocumentPosition"] ? !(!(???*1*)) : !(1)))))) : !(1))
+Le = (...) => ((a && b) ? ((a === b) ? !(0) : ((a && (3 === a["nodeType"])) ? !(1) : ((b && (3 === b["nodeType"])) ? Le(a, b["parentNode"]) : ("contains" in a ? a["contains"](b) : (a["compareDocumentPosition"] ? !(!(???*0*)) : !(1)))))) : !(1))
 - *0* unsupported expression
-  ⚠️  This value might have side effects
-- *1* unsupported expression
   ⚠️  This value might have side effects
 
 Lf = (...) => (null | a)
@@ -1692,7 +1670,7 @@ Pd = (...) => (b["getModifierState"] ? b["getModifierState"](a) : (???*0* ? !(!(
 - *0* assignment expression
   ⚠️  This value might have side effects
 
-Pe = (!(???*0*) | ???*3*)
+Pe = (!(???*0*) | "documentMode" in ???*3* | ???*4*)
 - *0* ("undefined" === ???*1*)
   ⚠️  nested operation
 - *1* typeof(???*2*)
@@ -1700,7 +1678,10 @@ Pe = (!(???*0*) | ???*3*)
 - *2* FreeVar(window)
   ⚠️  unknown global
   ⚠️  This value might have side effects
-- *3* unsupported expression
+- *3* FreeVar(document)
+  ⚠️  unknown global
+  ⚠️  This value might have side effects
+- *4* unsupported expression
   ⚠️  This value might have side effects
 
 Pf = `__reactProps$${???*0*}`
@@ -3081,37 +3062,39 @@ a#232 = (???*0* | ???*1*)
 - *2* arguments[1]
   ⚠️  function calls are not analyzed yet
 
-a#233 = (???*0* | null | ???*1* | ???*14*)
+a#233 = (???*0* | null | ???*1* | ???*15*)
 - *0* arguments[0]
   ⚠️  function calls are not analyzed yet
-- *1* ???*2*((???*9* | 0 | ???*10*), ???*11*)
+- *1* ???*2*((???*10* | 0 | ???*11*), ???*12*)
   ⚠️  unknown callee
   ⚠️  This value might have side effects
 - *2* ???*3*["slice"]
   ⚠️  unknown object
-- *3* (???*4* ? (null["value"] | ???*5*) : (null["textContent"] | ???*7*))
+- *3* (???*4* ? (null["value"] | ???*6*) : (null["textContent"] | ???*8*))
   ⚠️  nested operation
-- *4* unsupported expression
-  ⚠️  This value might have side effects
-- *5* ???*6*["value"]
+- *4* "value" in (null | ???*5*)
+  ⚠️  nested operation
+- *5* (??? ? (??? | ???) : (??? | ??? | ???))
+  ⚠️  nested operation
+- *6* ???*7*["value"]
   ⚠️  unknown object
-- *6* (??? ? (??? | ???) : (??? | ??? | ???))
+- *7* (??? ? (??? | ???) : (??? | ??? | ???))
   ⚠️  nested operation
-- *7* ???*8*["textContent"]
+- *8* ???*9*["textContent"]
   ⚠️  unknown object
-- *8* (??? ? (??? | ???) : (??? | ??? | ???))
+- *9* (??? ? (??? | ???) : (??? | ??? | ???))
   ⚠️  nested operation
-- *9* a
+- *10* a
   ⚠️  pattern without value
-- *10* updated with update expression
+- *11* updated with update expression
   ⚠️  This value might have side effects
-- *11* (???*12* ? ???*13* : undefined)
+- *12* (???*13* ? ???*14* : undefined)
   ⚠️  nested operation
-- *12* unsupported expression
-  ⚠️  This value might have side effects
 - *13* unsupported expression
   ⚠️  This value might have side effects
-- *14* assignment expression
+- *14* unsupported expression
+  ⚠️  This value might have side effects
+- *15* assignment expression
   ⚠️  This value might have side effects
 
 a#235 = ???*0*
@@ -5879,7 +5862,7 @@ ac = module<scheduler, {}>["unstable_scheduleCallback"]
 
 ad = (...) => undefined
 
-ae = (!(???*0*) | ???*3*)
+ae = (!(???*0*) | "CompositionEvent" in ???*3*)
 - *0* ("undefined" === ???*1*)
   ⚠️  nested operation
 - *1* typeof(???*2*)
@@ -5887,7 +5870,8 @@ ae = (!(???*0*) | ???*3*)
 - *2* FreeVar(window)
   ⚠️  unknown global
   ⚠️  This value might have side effects
-- *3* unsupported expression
+- *3* FreeVar(window)
+  ⚠️  unknown global
   ⚠️  This value might have side effects
 
 af = (undefined | ???*0* | "animationiteration" | ???*1*)
@@ -6270,80 +6254,113 @@ b#203 = ???*0*
 b#207 = (
   | null
   | ???*0*
-  | (???*1* ? (null["value"] | ???*2*) : (null["textContent"] | ???*17*))
+  | (???*1* ? (null["value"] | ???*16*) : (null["textContent"] | ???*31*))
 )
 - *0* assignment expression
   ⚠️  This value might have side effects
-- *1* unsupported expression
-  ⚠️  This value might have side effects
-- *2* ???*3*["value"]
-  ⚠️  unknown object
-- *3* (???*4* ? (???*9* | ???*11*) : (???*13* | ???*14* | ???*16*))
+- *1* "value" in (null | ???*2*)
   ⚠️  nested operation
-- *4* (3 === (???*5* | ???*7*))
+- *2* (???*3* ? (???*8* | ???*10*) : (???*12* | ???*13* | ???*15*))
   ⚠️  nested operation
-- *5* ???*6*["nodeType"]
+- *3* (3 === (???*4* | ???*6*))
+  ⚠️  nested operation
+- *4* ???*5*["nodeType"]
   ⚠️  unknown object
-- *6* arguments[2]
+- *5* arguments[2]
   ⚠️  function calls are not analyzed yet
-- *7* ???*8*["nodeType"]
+- *6* ???*7*["nodeType"]
   ⚠️  unknown object
   ⚠️  This value might have side effects
-- *8* FreeVar(window)
+- *7* FreeVar(window)
   ⚠️  unknown global
   ⚠️  This value might have side effects
-- *9* ???*10*["parentNode"]
+- *8* ???*9*["parentNode"]
   ⚠️  unknown object
-- *10* arguments[2]
+- *9* arguments[2]
   ⚠️  function calls are not analyzed yet
-- *11* ???*12*["parentNode"]
+- *10* ???*11*["parentNode"]
   ⚠️  unknown object
   ⚠️  This value might have side effects
-- *12* FreeVar(window)
+- *11* FreeVar(window)
   ⚠️  unknown global
   ⚠️  This value might have side effects
-- *13* arguments[2]
+- *12* arguments[2]
   ⚠️  function calls are not analyzed yet
-- *14* ???*15*["target"]
+- *13* ???*14*["target"]
   ⚠️  unknown object
-- *15* a
+- *14* a
   ⚠️  circular variable reference
-- *16* FreeVar(window)
+- *15* FreeVar(window)
   ⚠️  unknown global
   ⚠️  This value might have side effects
-- *17* ???*18*["textContent"]
+- *16* ???*17*["value"]
   ⚠️  unknown object
-- *18* (???*19* ? (???*24* | ???*26*) : (???*28* | ???*29* | ???*31*))
+- *17* (???*18* ? (???*23* | ???*25*) : (???*27* | ???*28* | ???*30*))
   ⚠️  nested operation
-- *19* (3 === (???*20* | ???*22*))
+- *18* (3 === (???*19* | ???*21*))
   ⚠️  nested operation
-- *20* ???*21*["nodeType"]
+- *19* ???*20*["nodeType"]
   ⚠️  unknown object
-- *21* arguments[2]
+- *20* arguments[2]
   ⚠️  function calls are not analyzed yet
-- *22* ???*23*["nodeType"]
+- *21* ???*22*["nodeType"]
   ⚠️  unknown object
   ⚠️  This value might have side effects
-- *23* FreeVar(window)
+- *22* FreeVar(window)
   ⚠️  unknown global
   ⚠️  This value might have side effects
-- *24* ???*25*["parentNode"]
+- *23* ???*24*["parentNode"]
   ⚠️  unknown object
-- *25* arguments[2]
+- *24* arguments[2]
   ⚠️  function calls are not analyzed yet
-- *26* ???*27*["parentNode"]
+- *25* ???*26*["parentNode"]
   ⚠️  unknown object
   ⚠️  This value might have side effects
-- *27* FreeVar(window)
+- *26* FreeVar(window)
   ⚠️  unknown global
   ⚠️  This value might have side effects
-- *28* arguments[2]
+- *27* arguments[2]
   ⚠️  function calls are not analyzed yet
-- *29* ???*30*["target"]
+- *28* ???*29*["target"]
   ⚠️  unknown object
-- *30* a
+- *29* a
   ⚠️  circular variable reference
-- *31* FreeVar(window)
+- *30* FreeVar(window)
+  ⚠️  unknown global
+  ⚠️  This value might have side effects
+- *31* ???*32*["textContent"]
+  ⚠️  unknown object
+- *32* (???*33* ? (???*38* | ???*40*) : (???*42* | ???*43* | ???*45*))
+  ⚠️  nested operation
+- *33* (3 === (???*34* | ???*36*))
+  ⚠️  nested operation
+- *34* ???*35*["nodeType"]
+  ⚠️  unknown object
+- *35* arguments[2]
+  ⚠️  function calls are not analyzed yet
+- *36* ???*37*["nodeType"]
+  ⚠️  unknown object
+  ⚠️  This value might have side effects
+- *37* FreeVar(window)
+  ⚠️  unknown global
+  ⚠️  This value might have side effects
+- *38* ???*39*["parentNode"]
+  ⚠️  unknown object
+- *39* arguments[2]
+  ⚠️  function calls are not analyzed yet
+- *40* ???*41*["parentNode"]
+  ⚠️  unknown object
+  ⚠️  This value might have side effects
+- *41* FreeVar(window)
+  ⚠️  unknown global
+  ⚠️  This value might have side effects
+- *42* arguments[2]
+  ⚠️  function calls are not analyzed yet
+- *43* ???*44*["target"]
+  ⚠️  unknown object
+- *44* a
+  ⚠️  circular variable reference
+- *45* FreeVar(window)
   ⚠️  unknown global
   ⚠️  This value might have side effects
 
@@ -9958,83 +9975,116 @@ c#203 = ???*0*
 c#207 = (
   | null["length"]
   | ???*0*
-  | (???*2* ? (null["value"] | ???*3*) : (null["textContent"] | ???*18*))["length"]
+  | (???*2* ? (null["value"] | ???*17*) : (null["textContent"] | ???*32*))["length"]
 )
 - *0* ???*1*["length"]
   ⚠️  unknown object
   ⚠️  This value might have side effects
 - *1* assignment expression
   ⚠️  This value might have side effects
-- *2* unsupported expression
-  ⚠️  This value might have side effects
-- *3* ???*4*["value"]
-  ⚠️  unknown object
-- *4* (???*5* ? (???*10* | ???*12*) : (???*14* | ???*15* | ???*17*))
+- *2* "value" in (null | ???*3*)
   ⚠️  nested operation
-- *5* (3 === (???*6* | ???*8*))
+- *3* (???*4* ? (???*9* | ???*11*) : (???*13* | ???*14* | ???*16*))
   ⚠️  nested operation
-- *6* ???*7*["nodeType"]
+- *4* (3 === (???*5* | ???*7*))
+  ⚠️  nested operation
+- *5* ???*6*["nodeType"]
   ⚠️  unknown object
-- *7* arguments[2]
+- *6* arguments[2]
   ⚠️  function calls are not analyzed yet
-- *8* ???*9*["nodeType"]
+- *7* ???*8*["nodeType"]
   ⚠️  unknown object
   ⚠️  This value might have side effects
-- *9* FreeVar(window)
+- *8* FreeVar(window)
   ⚠️  unknown global
   ⚠️  This value might have side effects
-- *10* ???*11*["parentNode"]
+- *9* ???*10*["parentNode"]
   ⚠️  unknown object
-- *11* arguments[2]
+- *10* arguments[2]
   ⚠️  function calls are not analyzed yet
-- *12* ???*13*["parentNode"]
+- *11* ???*12*["parentNode"]
   ⚠️  unknown object
   ⚠️  This value might have side effects
-- *13* FreeVar(window)
+- *12* FreeVar(window)
   ⚠️  unknown global
   ⚠️  This value might have side effects
-- *14* arguments[2]
+- *13* arguments[2]
   ⚠️  function calls are not analyzed yet
-- *15* ???*16*["target"]
+- *14* ???*15*["target"]
   ⚠️  unknown object
-- *16* a
+- *15* a
   ⚠️  circular variable reference
-- *17* FreeVar(window)
+- *16* FreeVar(window)
   ⚠️  unknown global
   ⚠️  This value might have side effects
-- *18* ???*19*["textContent"]
+- *17* ???*18*["value"]
   ⚠️  unknown object
-- *19* (???*20* ? (???*25* | ???*27*) : (???*29* | ???*30* | ???*32*))
+- *18* (???*19* ? (???*24* | ???*26*) : (???*28* | ???*29* | ???*31*))
   ⚠️  nested operation
-- *20* (3 === (???*21* | ???*23*))
+- *19* (3 === (???*20* | ???*22*))
   ⚠️  nested operation
-- *21* ???*22*["nodeType"]
+- *20* ???*21*["nodeType"]
   ⚠️  unknown object
-- *22* arguments[2]
+- *21* arguments[2]
   ⚠️  function calls are not analyzed yet
-- *23* ???*24*["nodeType"]
+- *22* ???*23*["nodeType"]
   ⚠️  unknown object
   ⚠️  This value might have side effects
-- *24* FreeVar(window)
+- *23* FreeVar(window)
   ⚠️  unknown global
   ⚠️  This value might have side effects
-- *25* ???*26*["parentNode"]
+- *24* ???*25*["parentNode"]
   ⚠️  unknown object
-- *26* arguments[2]
+- *25* arguments[2]
   ⚠️  function calls are not analyzed yet
-- *27* ???*28*["parentNode"]
+- *26* ???*27*["parentNode"]
   ⚠️  unknown object
   ⚠️  This value might have side effects
-- *28* FreeVar(window)
+- *27* FreeVar(window)
   ⚠️  unknown global
   ⚠️  This value might have side effects
-- *29* arguments[2]
+- *28* arguments[2]
   ⚠️  function calls are not analyzed yet
-- *30* ???*31*["target"]
+- *29* ???*30*["target"]
   ⚠️  unknown object
-- *31* a
+- *30* a
   ⚠️  circular variable reference
-- *32* FreeVar(window)
+- *31* FreeVar(window)
+  ⚠️  unknown global
+  ⚠️  This value might have side effects
+- *32* ???*33*["textContent"]
+  ⚠️  unknown object
+- *33* (???*34* ? (???*39* | ???*41*) : (???*43* | ???*44* | ???*46*))
+  ⚠️  nested operation
+- *34* (3 === (???*35* | ???*37*))
+  ⚠️  nested operation
+- *35* ???*36*["nodeType"]
+  ⚠️  unknown object
+- *36* arguments[2]
+  ⚠️  function calls are not analyzed yet
+- *37* ???*38*["nodeType"]
+  ⚠️  unknown object
+  ⚠️  This value might have side effects
+- *38* FreeVar(window)
+  ⚠️  unknown global
+  ⚠️  This value might have side effects
+- *39* ???*40*["parentNode"]
+  ⚠️  unknown object
+- *40* arguments[2]
+  ⚠️  function calls are not analyzed yet
+- *41* ???*42*["parentNode"]
+  ⚠️  unknown object
+  ⚠️  This value might have side effects
+- *42* FreeVar(window)
+  ⚠️  unknown global
+  ⚠️  This value might have side effects
+- *43* arguments[2]
+  ⚠️  function calls are not analyzed yet
+- *44* ???*45*["target"]
+  ⚠️  unknown object
+- *45* a
+  ⚠️  circular variable reference
+- *46* FreeVar(window)
   ⚠️  unknown global
   ⚠️  This value might have side effects
 
@@ -12287,7 +12337,7 @@ cc = module<scheduler, {}>["unstable_shouldYield"]
 
 cd = module<react, {}>["__SECRET_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRED"]["ReactCurrentBatchConfig"]
 
-ce = (!(???*0*) | ???*3* | !((null | ???*4*)))
+ce = (!(???*0*) | "TextEvent" in ???*3* | !((null | ???*4*)))
 - *0* ("undefined" === ???*1*)
   ⚠️  nested operation
 - *1* typeof(???*2*)
@@ -12295,7 +12345,8 @@ ce = (!(???*0*) | ???*3* | !((null | ???*4*)))
 - *2* FreeVar(window)
   ⚠️  unknown global
   ⚠️  This value might have side effects
-- *3* unsupported expression
+- *3* FreeVar(window)
+  ⚠️  unknown global
   ⚠️  This value might have side effects
 - *4* ???*5*["documentMode"]
   ⚠️  unknown object
@@ -14682,7 +14733,7 @@ dd = (true | false | !(???*0*))
 - *1* dd
   ⚠️  circular variable reference
 
-de = (!(???*0*) | !((???*3* | ???*7*)) | null | ???*8* | ???*10*)
+de = (!(???*0*) | null | ???*3* | ???*5*)
 - *0* ("undefined" === ???*1*)
   ⚠️  nested operation
 - *1* typeof(???*2*)
@@ -14690,24 +14741,13 @@ de = (!(???*0*) | !((???*3* | ???*7*)) | null | ???*8* | ???*10*)
 - *2* FreeVar(window)
   ⚠️  unknown global
   ⚠️  This value might have side effects
-- *3* !(???*4*)
-  ⚠️  nested operation
-- *4* ("undefined" === ???*5*)
-  ⚠️  nested operation
-- *5* typeof(???*6*)
-  ⚠️  nested operation
-- *6* FreeVar(window)
-  ⚠️  unknown global
-  ⚠️  This value might have side effects
-- *7* unsupported expression
-  ⚠️  This value might have side effects
-- *8* ???*9*["documentMode"]
+- *3* ???*4*["documentMode"]
   ⚠️  unknown object
   ⚠️  This value might have side effects
-- *9* FreeVar(document)
+- *4* FreeVar(document)
   ⚠️  unknown global
   ⚠️  This value might have side effects
-- *10* unsupported expression
+- *5* unsupported expression
   ⚠️  This value might have side effects
 
 df = new ???*0*()
@@ -15054,77 +15094,110 @@ e#199 = ???*0*
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
-e#207 = (???*0* ? (null["value"] | ???*1*) : (null["textContent"] | ???*16*))
-- *0* unsupported expression
-  ⚠️  This value might have side effects
-- *1* ???*2*["value"]
-  ⚠️  unknown object
-- *2* (???*3* ? (???*8* | ???*10*) : (???*12* | ???*13* | ???*15*))
+e#207 = (???*0* ? (null["value"] | ???*15*) : (null["textContent"] | ???*30*))
+- *0* "value" in (null | ???*1*)
   ⚠️  nested operation
-- *3* (3 === (???*4* | ???*6*))
+- *1* (???*2* ? (???*7* | ???*9*) : (???*11* | ???*12* | ???*14*))
   ⚠️  nested operation
-- *4* ???*5*["nodeType"]
+- *2* (3 === (???*3* | ???*5*))
+  ⚠️  nested operation
+- *3* ???*4*["nodeType"]
   ⚠️  unknown object
-- *5* arguments[2]
+- *4* arguments[2]
   ⚠️  function calls are not analyzed yet
-- *6* ???*7*["nodeType"]
+- *5* ???*6*["nodeType"]
   ⚠️  unknown object
   ⚠️  This value might have side effects
-- *7* FreeVar(window)
+- *6* FreeVar(window)
   ⚠️  unknown global
   ⚠️  This value might have side effects
-- *8* ???*9*["parentNode"]
+- *7* ???*8*["parentNode"]
   ⚠️  unknown object
-- *9* arguments[2]
+- *8* arguments[2]
   ⚠️  function calls are not analyzed yet
-- *10* ???*11*["parentNode"]
+- *9* ???*10*["parentNode"]
   ⚠️  unknown object
   ⚠️  This value might have side effects
-- *11* FreeVar(window)
+- *10* FreeVar(window)
   ⚠️  unknown global
   ⚠️  This value might have side effects
-- *12* arguments[2]
+- *11* arguments[2]
   ⚠️  function calls are not analyzed yet
-- *13* ???*14*["target"]
+- *12* ???*13*["target"]
   ⚠️  unknown object
-- *14* a
+- *13* a
   ⚠️  circular variable reference
-- *15* FreeVar(window)
+- *14* FreeVar(window)
   ⚠️  unknown global
   ⚠️  This value might have side effects
-- *16* ???*17*["textContent"]
+- *15* ???*16*["value"]
   ⚠️  unknown object
-- *17* (???*18* ? (???*23* | ???*25*) : (???*27* | ???*28* | ???*30*))
+- *16* (???*17* ? (???*22* | ???*24*) : (???*26* | ???*27* | ???*29*))
   ⚠️  nested operation
-- *18* (3 === (???*19* | ???*21*))
+- *17* (3 === (???*18* | ???*20*))
   ⚠️  nested operation
-- *19* ???*20*["nodeType"]
+- *18* ???*19*["nodeType"]
   ⚠️  unknown object
-- *20* arguments[2]
+- *19* arguments[2]
   ⚠️  function calls are not analyzed yet
-- *21* ???*22*["nodeType"]
+- *20* ???*21*["nodeType"]
   ⚠️  unknown object
   ⚠️  This value might have side effects
-- *22* FreeVar(window)
+- *21* FreeVar(window)
   ⚠️  unknown global
   ⚠️  This value might have side effects
-- *23* ???*24*["parentNode"]
+- *22* ???*23*["parentNode"]
   ⚠️  unknown object
-- *24* arguments[2]
+- *23* arguments[2]
   ⚠️  function calls are not analyzed yet
-- *25* ???*26*["parentNode"]
+- *24* ???*25*["parentNode"]
   ⚠️  unknown object
   ⚠️  This value might have side effects
-- *26* FreeVar(window)
+- *25* FreeVar(window)
   ⚠️  unknown global
   ⚠️  This value might have side effects
-- *27* arguments[2]
+- *26* arguments[2]
   ⚠️  function calls are not analyzed yet
-- *28* ???*29*["target"]
+- *27* ???*28*["target"]
   ⚠️  unknown object
-- *29* a
+- *28* a
   ⚠️  circular variable reference
-- *30* FreeVar(window)
+- *29* FreeVar(window)
+  ⚠️  unknown global
+  ⚠️  This value might have side effects
+- *30* ???*31*["textContent"]
+  ⚠️  unknown object
+- *31* (???*32* ? (???*37* | ???*39*) : (???*41* | ???*42* | ???*44*))
+  ⚠️  nested operation
+- *32* (3 === (???*33* | ???*35*))
+  ⚠️  nested operation
+- *33* ???*34*["nodeType"]
+  ⚠️  unknown object
+- *34* arguments[2]
+  ⚠️  function calls are not analyzed yet
+- *35* ???*36*["nodeType"]
+  ⚠️  unknown object
+  ⚠️  This value might have side effects
+- *36* FreeVar(window)
+  ⚠️  unknown global
+  ⚠️  This value might have side effects
+- *37* ???*38*["parentNode"]
+  ⚠️  unknown object
+- *38* arguments[2]
+  ⚠️  function calls are not analyzed yet
+- *39* ???*40*["parentNode"]
+  ⚠️  unknown object
+  ⚠️  This value might have side effects
+- *40* FreeVar(window)
+  ⚠️  unknown global
+  ⚠️  This value might have side effects
+- *41* arguments[2]
+  ⚠️  function calls are not analyzed yet
+- *42* ???*43*["target"]
+  ⚠️  unknown object
+- *43* a
+  ⚠️  circular variable reference
+- *44* FreeVar(window)
   ⚠️  unknown global
   ⚠️  This value might have side effects
 
@@ -16976,77 +17049,110 @@ f#199 = ???*0*
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
-f#207 = (???*0* ? (null["value"] | ???*1*) : (null["textContent"] | ???*16*))["length"]
-- *0* unsupported expression
-  ⚠️  This value might have side effects
-- *1* ???*2*["value"]
-  ⚠️  unknown object
-- *2* (???*3* ? (???*8* | ???*10*) : (???*12* | ???*13* | ???*15*))
+f#207 = (???*0* ? (null["value"] | ???*15*) : (null["textContent"] | ???*30*))["length"]
+- *0* "value" in (null | ???*1*)
   ⚠️  nested operation
-- *3* (3 === (???*4* | ???*6*))
+- *1* (???*2* ? (???*7* | ???*9*) : (???*11* | ???*12* | ???*14*))
   ⚠️  nested operation
-- *4* ???*5*["nodeType"]
+- *2* (3 === (???*3* | ???*5*))
+  ⚠️  nested operation
+- *3* ???*4*["nodeType"]
   ⚠️  unknown object
-- *5* arguments[2]
+- *4* arguments[2]
   ⚠️  function calls are not analyzed yet
-- *6* ???*7*["nodeType"]
+- *5* ???*6*["nodeType"]
   ⚠️  unknown object
   ⚠️  This value might have side effects
-- *7* FreeVar(window)
+- *6* FreeVar(window)
   ⚠️  unknown global
   ⚠️  This value might have side effects
-- *8* ???*9*["parentNode"]
+- *7* ???*8*["parentNode"]
   ⚠️  unknown object
-- *9* arguments[2]
+- *8* arguments[2]
   ⚠️  function calls are not analyzed yet
-- *10* ???*11*["parentNode"]
+- *9* ???*10*["parentNode"]
   ⚠️  unknown object
   ⚠️  This value might have side effects
-- *11* FreeVar(window)
+- *10* FreeVar(window)
   ⚠️  unknown global
   ⚠️  This value might have side effects
-- *12* arguments[2]
+- *11* arguments[2]
   ⚠️  function calls are not analyzed yet
-- *13* ???*14*["target"]
+- *12* ???*13*["target"]
   ⚠️  unknown object
-- *14* a
+- *13* a
   ⚠️  circular variable reference
-- *15* FreeVar(window)
+- *14* FreeVar(window)
   ⚠️  unknown global
   ⚠️  This value might have side effects
-- *16* ???*17*["textContent"]
+- *15* ???*16*["value"]
   ⚠️  unknown object
-- *17* (???*18* ? (???*23* | ???*25*) : (???*27* | ???*28* | ???*30*))
+- *16* (???*17* ? (???*22* | ???*24*) : (???*26* | ???*27* | ???*29*))
   ⚠️  nested operation
-- *18* (3 === (???*19* | ???*21*))
+- *17* (3 === (???*18* | ???*20*))
   ⚠️  nested operation
-- *19* ???*20*["nodeType"]
+- *18* ???*19*["nodeType"]
   ⚠️  unknown object
-- *20* arguments[2]
+- *19* arguments[2]
   ⚠️  function calls are not analyzed yet
-- *21* ???*22*["nodeType"]
+- *20* ???*21*["nodeType"]
   ⚠️  unknown object
   ⚠️  This value might have side effects
-- *22* FreeVar(window)
+- *21* FreeVar(window)
   ⚠️  unknown global
   ⚠️  This value might have side effects
-- *23* ???*24*["parentNode"]
+- *22* ???*23*["parentNode"]
   ⚠️  unknown object
-- *24* arguments[2]
+- *23* arguments[2]
   ⚠️  function calls are not analyzed yet
-- *25* ???*26*["parentNode"]
+- *24* ???*25*["parentNode"]
   ⚠️  unknown object
   ⚠️  This value might have side effects
-- *26* FreeVar(window)
+- *25* FreeVar(window)
   ⚠️  unknown global
   ⚠️  This value might have side effects
-- *27* arguments[2]
+- *26* arguments[2]
   ⚠️  function calls are not analyzed yet
-- *28* ???*29*["target"]
+- *27* ???*28*["target"]
   ⚠️  unknown object
-- *29* a
+- *28* a
   ⚠️  circular variable reference
-- *30* FreeVar(window)
+- *29* FreeVar(window)
+  ⚠️  unknown global
+  ⚠️  This value might have side effects
+- *30* ???*31*["textContent"]
+  ⚠️  unknown object
+- *31* (???*32* ? (???*37* | ???*39*) : (???*41* | ???*42* | ???*44*))
+  ⚠️  nested operation
+- *32* (3 === (???*33* | ???*35*))
+  ⚠️  nested operation
+- *33* ???*34*["nodeType"]
+  ⚠️  unknown object
+- *34* arguments[2]
+  ⚠️  function calls are not analyzed yet
+- *35* ???*36*["nodeType"]
+  ⚠️  unknown object
+  ⚠️  This value might have side effects
+- *36* FreeVar(window)
+  ⚠️  unknown global
+  ⚠️  This value might have side effects
+- *37* ???*38*["parentNode"]
+  ⚠️  unknown object
+- *38* arguments[2]
+  ⚠️  function calls are not analyzed yet
+- *39* ???*40*["parentNode"]
+  ⚠️  unknown object
+  ⚠️  This value might have side effects
+- *40* FreeVar(window)
+  ⚠️  unknown global
+  ⚠️  This value might have side effects
+- *41* arguments[2]
+  ⚠️  function calls are not analyzed yet
+- *42* ???*43*["target"]
+  ⚠️  unknown object
+- *43* a
+  ⚠️  circular variable reference
+- *44* FreeVar(window)
   ⚠️  unknown global
   ⚠️  This value might have side effects
 
@@ -19368,9 +19474,7 @@ hc = module<scheduler, {}>["unstable_NormalPriority"]
 
 hd = (...) => undefined
 
-he = (...) => ((("object" === typeof(a)) && ???*0*) ? a["data"] : null)
-- *0* unsupported expression
-  ⚠️  This value might have side effects
+he = (...) => ((("object" === typeof(a)) && "data" in a) ? a["data"] : null)
 
 hf = (
   | "abort auxClick cancel canPlay canPlayThrough click close contextMenu copy cut drag dragEnd dragEnter dragExit dragLeave dragOver dragStart drop durationChange emptied encrypted ended error gotPointerCapture input invalid keyDown keyPress keyUp load loadedData loadedMetadata loadStart lostPointerCapture mouseDown mouseMove mouseOut mouseOver mouseUp paste pause play playing pointerCancel pointerDown pointerMove pointerOut pointerOver pointerUp progress rateChange reset resize seeked seeking stalled submit suspend timeUpdate touchCancel touchEnd touchStart volumeChange scroll toggle touchMove waiting wheel"["split"](" ")[(0 | ???*0*)]
@@ -20288,80 +20392,113 @@ lc = (null | ???*0* | undefined)
 ld = (
   | null
   | ???*0*
-  | (???*1* ? (null["value"] | ???*2*) : (null["textContent"] | ???*17*))
+  | (???*1* ? (null["value"] | ???*16*) : (null["textContent"] | ???*31*))
 )
 - *0* assignment expression
   ⚠️  This value might have side effects
-- *1* unsupported expression
-  ⚠️  This value might have side effects
-- *2* ???*3*["value"]
-  ⚠️  unknown object
-- *3* (???*4* ? (???*9* | ???*11*) : (???*13* | ???*14* | ???*16*))
+- *1* "value" in (null | ???*2*)
   ⚠️  nested operation
-- *4* (3 === (???*5* | ???*7*))
+- *2* (???*3* ? (???*8* | ???*10*) : (???*12* | ???*13* | ???*15*))
   ⚠️  nested operation
-- *5* ???*6*["nodeType"]
+- *3* (3 === (???*4* | ???*6*))
+  ⚠️  nested operation
+- *4* ???*5*["nodeType"]
   ⚠️  unknown object
-- *6* arguments[2]
+- *5* arguments[2]
   ⚠️  function calls are not analyzed yet
-- *7* ???*8*["nodeType"]
+- *6* ???*7*["nodeType"]
   ⚠️  unknown object
   ⚠️  This value might have side effects
-- *8* FreeVar(window)
+- *7* FreeVar(window)
   ⚠️  unknown global
   ⚠️  This value might have side effects
-- *9* ???*10*["parentNode"]
+- *8* ???*9*["parentNode"]
   ⚠️  unknown object
-- *10* arguments[2]
+- *9* arguments[2]
   ⚠️  function calls are not analyzed yet
-- *11* ???*12*["parentNode"]
+- *10* ???*11*["parentNode"]
   ⚠️  unknown object
   ⚠️  This value might have side effects
-- *12* FreeVar(window)
+- *11* FreeVar(window)
   ⚠️  unknown global
   ⚠️  This value might have side effects
-- *13* arguments[2]
+- *12* arguments[2]
   ⚠️  function calls are not analyzed yet
-- *14* ???*15*["target"]
+- *13* ???*14*["target"]
   ⚠️  unknown object
-- *15* a
+- *14* a
   ⚠️  circular variable reference
-- *16* FreeVar(window)
+- *15* FreeVar(window)
   ⚠️  unknown global
   ⚠️  This value might have side effects
-- *17* ???*18*["textContent"]
+- *16* ???*17*["value"]
   ⚠️  unknown object
-- *18* (???*19* ? (???*24* | ???*26*) : (???*28* | ???*29* | ???*31*))
+- *17* (???*18* ? (???*23* | ???*25*) : (???*27* | ???*28* | ???*30*))
   ⚠️  nested operation
-- *19* (3 === (???*20* | ???*22*))
+- *18* (3 === (???*19* | ???*21*))
   ⚠️  nested operation
-- *20* ???*21*["nodeType"]
+- *19* ???*20*["nodeType"]
   ⚠️  unknown object
-- *21* arguments[2]
+- *20* arguments[2]
   ⚠️  function calls are not analyzed yet
-- *22* ???*23*["nodeType"]
+- *21* ???*22*["nodeType"]
   ⚠️  unknown object
   ⚠️  This value might have side effects
-- *23* FreeVar(window)
+- *22* FreeVar(window)
   ⚠️  unknown global
   ⚠️  This value might have side effects
-- *24* ???*25*["parentNode"]
+- *23* ???*24*["parentNode"]
   ⚠️  unknown object
-- *25* arguments[2]
+- *24* arguments[2]
   ⚠️  function calls are not analyzed yet
-- *26* ???*27*["parentNode"]
+- *25* ???*26*["parentNode"]
   ⚠️  unknown object
   ⚠️  This value might have side effects
-- *27* FreeVar(window)
+- *26* FreeVar(window)
   ⚠️  unknown global
   ⚠️  This value might have side effects
-- *28* arguments[2]
+- *27* arguments[2]
   ⚠️  function calls are not analyzed yet
-- *29* ???*30*["target"]
+- *28* ???*29*["target"]
   ⚠️  unknown object
-- *30* a
+- *29* a
   ⚠️  circular variable reference
-- *31* FreeVar(window)
+- *30* FreeVar(window)
+  ⚠️  unknown global
+  ⚠️  This value might have side effects
+- *31* ???*32*["textContent"]
+  ⚠️  unknown object
+- *32* (???*33* ? (???*38* | ???*40*) : (???*42* | ???*43* | ???*45*))
+  ⚠️  nested operation
+- *33* (3 === (???*34* | ???*36*))
+  ⚠️  nested operation
+- *34* ???*35*["nodeType"]
+  ⚠️  unknown object
+- *35* arguments[2]
+  ⚠️  function calls are not analyzed yet
+- *36* ???*37*["nodeType"]
+  ⚠️  unknown object
+  ⚠️  This value might have side effects
+- *37* FreeVar(window)
+  ⚠️  unknown global
+  ⚠️  This value might have side effects
+- *38* ???*39*["parentNode"]
+  ⚠️  unknown object
+- *39* arguments[2]
+  ⚠️  function calls are not analyzed yet
+- *40* ???*41*["parentNode"]
+  ⚠️  unknown object
+  ⚠️  This value might have side effects
+- *41* FreeVar(window)
+  ⚠️  unknown global
+  ⚠️  This value might have side effects
+- *42* arguments[2]
+  ⚠️  function calls are not analyzed yet
+- *43* ???*44*["target"]
+  ⚠️  unknown object
+- *44* a
+  ⚠️  circular variable reference
+- *45* FreeVar(window)
   ⚠️  unknown global
   ⚠️  This value might have side effects
 
@@ -20491,35 +20628,37 @@ mb = (???*0* | ???*1* | ???*2*)
 
 mc = (...) => undefined
 
-md = (null | ???*0* | ???*13*)
-- *0* ???*1*((???*8* | 0 | ???*9*), ???*10*)
+md = (null | ???*0* | ???*14*)
+- *0* ???*1*((???*9* | 0 | ???*10*), ???*11*)
   ⚠️  unknown callee
   ⚠️  This value might have side effects
 - *1* ???*2*["slice"]
   ⚠️  unknown object
-- *2* (???*3* ? (null["value"] | ???*4*) : (null["textContent"] | ???*6*))
+- *2* (???*3* ? (null["value"] | ???*5*) : (null["textContent"] | ???*7*))
   ⚠️  nested operation
-- *3* unsupported expression
-  ⚠️  This value might have side effects
-- *4* ???*5*["value"]
+- *3* "value" in (null | ???*4*)
+  ⚠️  nested operation
+- *4* (??? ? (??? | ???) : (??? | ??? | ???))
+  ⚠️  nested operation
+- *5* ???*6*["value"]
   ⚠️  unknown object
-- *5* (??? ? (??? | ???) : (??? | ??? | ???))
+- *6* (??? ? (??? | ???) : (??? | ??? | ???))
   ⚠️  nested operation
-- *6* ???*7*["textContent"]
+- *7* ???*8*["textContent"]
   ⚠️  unknown object
-- *7* (??? ? (??? | ???) : (??? | ??? | ???))
+- *8* (??? ? (??? | ???) : (??? | ??? | ???))
   ⚠️  nested operation
-- *8* a
+- *9* a
   ⚠️  pattern without value
-- *9* updated with update expression
+- *10* updated with update expression
   ⚠️  This value might have side effects
-- *10* (???*11* ? ???*12* : undefined)
+- *11* (???*12* ? ???*13* : undefined)
   ⚠️  nested operation
-- *11* unsupported expression
-  ⚠️  This value might have side effects
 - *12* unsupported expression
   ⚠️  This value might have side effects
-- *13* assignment expression
+- *13* unsupported expression
+  ⚠️  This value might have side effects
+- *14* assignment expression
   ⚠️  This value might have side effects
 
 me = (...) => (("input" === b) ? !(!(le[a["type"]])) : (("textarea" === b) ? !(0) : !(1)))
@@ -21434,10 +21573,11 @@ wd = (???*0* | ???*1* | 0)
 - *1* unsupported expression
   ⚠️  This value might have side effects
 
-we = (false | ???*0* | ???*1* | undefined | ("function" === ???*2*) | !(???*6*))
+we = (false | ???*0* | "oninput" in ???*1* | undefined | ("function" === ???*2*) | !(???*6*) | ???*8*)
 - *0* xe
   ⚠️  pattern without value
-- *1* unsupported expression
+- *1* FreeVar(document)
+  ⚠️  unknown global
   ⚠️  This value might have side effects
 - *2* typeof((???*3* | undefined["oninput"]))
   ⚠️  nested operation
@@ -21455,6 +21595,8 @@ we = (false | ???*0* | ???*1* | undefined | ("function" === ???*2*) | !(???*6*))
   ⚠️  This value might have side effects
 - *7* FreeVar(document)
   ⚠️  unknown global
+  ⚠️  This value might have side effects
+- *8* unsupported expression
   ⚠️  This value might have side effects
 
 wf = (...) => undefined
@@ -21516,10 +21658,11 @@ xd = (???*0* | ???*1* | ???*2*)
 - *2* assignment expression
   ⚠️  This value might have side effects
 
-xe = (???*0* | ???*1* | undefined | ("function" === ???*2*) | false)
+xe = (???*0* | "oninput" in ???*1* | undefined | ("function" === ???*2*) | false)
 - *0* xe
   ⚠️  pattern without value
-- *1* unsupported expression
+- *1* FreeVar(document)
+  ⚠️  unknown global
   ⚠️  This value might have side effects
 - *2* typeof((???*3* | undefined["oninput"]))
   ⚠️  nested operation
@@ -21602,8 +21745,9 @@ yd = (???*0* | ???*1*)
 - *1* arguments[0]
   ⚠️  function calls are not analyzed yet
 
-ye = (???*0* | undefined | ("function" === ???*1*))
-- *0* unsupported expression
+ye = ("oninput" in ???*0* | undefined | ("function" === ???*1*))
+- *0* FreeVar(document)
+  ⚠️  unknown global
   ⚠️  This value might have side effects
 - *1* typeof((???*2* | undefined["oninput"]))
   ⚠️  nested operation

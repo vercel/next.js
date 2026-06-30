@@ -26,17 +26,6 @@ function ClassNameButton({ children }) {
 }
 console.log(StyledButton, ClassNameButton);
 }),
-"[project]/turbopack/crates/turbopack-tests/tests/snapshot/node_modules/@emotion/react/jsx-dev-runtime.js [test] (ecmascript)", ((__turbopack_context__) => {
-"use strict";
-
-__turbopack_context__.s([
-    "jsxDEV",
-    ()=>jsxDEV
-]);
-function jsxDEV() {
-    return 'purposefully empty stub for @emotion/react/jsx-dev-runtime.js';
-}
-}),
 "[project]/turbopack/crates/turbopack-tests/tests/snapshot/node_modules/@emotion/react/index.js [test] (ecmascript)", ((__turbopack_context__) => {
 "use strict";
 
@@ -46,6 +35,17 @@ __turbopack_context__.s([
 ]);
 function jsx() {
     return 'purposefully empty stub for @emotion/react/index.js';
+}
+}),
+"[project]/turbopack/crates/turbopack-tests/tests/snapshot/node_modules/@emotion/react/jsx-dev-runtime.js [test] (ecmascript)", ((__turbopack_context__) => {
+"use strict";
+
+__turbopack_context__.s([
+    "jsxDEV",
+    ()=>jsxDEV
+]);
+function jsxDEV() {
+    return 'purposefully empty stub for @emotion/react/jsx-dev-runtime.js';
 }
 }),
 "[project]/turbopack/crates/turbopack-tests/tests/snapshot/node_modules/@emotion/styled/index.js [test] (ecmascript)", ((__turbopack_context__, module, exports) => {

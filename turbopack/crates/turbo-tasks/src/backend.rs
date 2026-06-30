@@ -800,7 +800,7 @@ mod cached_task_type_tests {
 
     /// Build a `Some(RawVc::TaskOutput(..))` this value.
     fn make_this(id: u32) -> Option<RawVc> {
-        Some(RawVc::TaskOutput(
+        Some(RawVc::task_output(
             TaskId::new(id).expect("non-zero task id"),
         ))
     }

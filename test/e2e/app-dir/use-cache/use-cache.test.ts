@@ -529,6 +529,9 @@ describe('use-cache', () => {
           '/cache-fetch',
           '/cache-fetch-no-store',
           '/cache-life',
+          // Without cache components this page is fully static. With cache
+          // components its short-stale cache becomes a dynamic hole.
+          !withCacheComponents && '/cache-life-short-stale',
           '/cache-tag',
           '/directive-in-node-modules/with-handler',
           '/directive-in-node-modules/without-handler',
@@ -589,14 +592,14 @@ describe('use-cache', () => {
       const cacheLifeMeta = JSON.parse(
         await next.readFile('.next/server/app/cache-life.meta')
       )
-      expect(cacheLifeMeta.headers['x-nextjs-stale-time']).toBe('19')
+      expect(cacheLifeMeta.headers['x-nextjs-stale-time']).toBe('30')
 
       if (withCacheComponents) {
         const cacheLifeWithDynamicMeta = JSON.parse(
           await next.readFile('.next/server/app/cache-life-with-dynamic.meta')
         )
         expect(cacheLifeWithDynamicMeta.headers['x-nextjs-stale-time']).toBe(
-          '19'
+          '30'
         )
       }
     })
@@ -625,6 +628,28 @@ describe('use-cache', () => {
         })
 
         expect(await browser.elementById('y').text()).toBe('Loading...')
+      })
+
+      it('should omit caches with a short stale time from prerendered shells', async () => {
+        // Disable JS as a hack to see what's included in the static shell
+        let browser = await next.browser('/cache-life-short-stale', {
+          disableJavaScript: true,
+        })
+
+        expect(await browser.elementById('x').text()).toBeTruthy()
+        // We expect the cache to be excluded, so it's showing a suspense fallback
+        expect(await browser.elementById('y').text()).toBe('Loading...')
+
+        // If we let JS run, we should see the cache's actual value
+        browser = await next.browser('/cache-life-short-stale', {
+          pushErrorAsConsoleLog: true,
+        })
+
+        await retry(async () => {
+          expect(await browser.elementById('y').text()).toBeDateString()
+        })
+
+        await assertNoConsoleErrors(browser)
       })
     }
 
@@ -1615,17 +1640,28 @@ describe('use-cache', () => {
     expect(first).toBe(second)
   })
 
-  it('should not dedupe private caches across concurrent requests', async () => {
+  it('dedupes private caches across concurrent requests in dev but not in production', async () => {
     const [first$, second$] = await Promise.all([
-      next.render$('/private-dedup'),
-      next.render$('/private-dedup'),
+      next.render$('/private-dedup-cross-request'),
+      next.render$('/private-dedup-cross-request'),
     ])
 
-    const firstValue = first$('.rand').first().text()
-    const secondValue = second$('.rand').first().text()
+    const firstValue = first$('.rand').text()
+    const secondValue = second$('.rand').text()
 
-    // Across requests, private caches must NOT be deduped.
-    expect(firstValue).not.toBe(secondValue)
+    if (isNextDev) {
+      // In dev, private caches are persisted and keyed by the request's cookies
+      // and headers, so two concurrent requests with identical request data
+      // join one in-flight invocation and share a single fill. Different
+      // cookies or headers yield different entries; that's covered by 'keys
+      // persisted entries by cookies in dev' and 'keys persisted entries by
+      // headers in dev' in the use-cache-private suite.
+      expect(firstValue).toBe(secondValue)
+    } else {
+      // In production, private caches are not persisted, so each request
+      // generates its own entry; across requests they are never deduped.
+      expect(firstValue).not.toBe(secondValue)
+    }
   })
 
   it('should stream the result of a deduped invocation', async () => {

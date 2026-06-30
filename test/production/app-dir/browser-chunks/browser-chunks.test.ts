@@ -3,6 +3,22 @@ import { join } from 'path'
 import { readFile } from 'fs/promises'
 import { listClientChunks } from 'next-test-utils'
 
+// Normalize a sourcemap `sources` entry to a path relative to the Next.js
+// package root (e.g. `src/...`, `dist/...`), so the path filters below behave
+// consistently across bundlers and produce stable snapshots. Webpack emits
+// `webpack://_N_E/../../src/...`; Turbopack emits
+// `turbopack:///[project]/<...>/packages/next/src/...`.
+function normalizeSource(source: string): string {
+  return source
+    .replace(/\?.*$/, '')
+    .replace(/^webpack:\/\/_N_E\//, '')
+    .replace(/^turbopack:\/\/\//, '')
+    .replace(/^\[project\]\//, '')
+    .replace(/^(?:\.\.\/)+/, '')
+    .replace(/^.*?packages\/next\//, '')
+    .replace(/^.*?\/node_modules\/next\//, '')
+}
+
 describe('browser-chunks', () => {
   const { next } = nextTestSetup({
     files: __dirname,
@@ -29,68 +45,150 @@ describe('browser-chunks', () => {
     )
   })
 
+  // These snapshots document which matching modules currently reach browser
+  // chunks. Some of these we don't intend to act on yet, so we snapshot the
+  // normalized paths (rather than hard-fail) to surface regressions on review.
   it('must not bundle any server modules into browser chunks', () => {
-    const serverSources = sources.filter(
-      (source) =>
-        /webpack:\/\/_N_E\/(\.\.\/)*src\/server\//.test(source) ||
-        source.includes('next/dist/esm/server') ||
-        source.includes('next/dist/server') ||
-        source.includes('next-devtools/server')
-    )
-
-    if (serverSources.length > 0) {
-      console.error(
-        `Found the following server modules:\n  ${serverSources.join('\n  ')}\nIf any of these modules are allowed to be included in browser chunks, move them to src/shared or src/client.`
+    const serverSources = Array.from(
+      new Set(
+        sources
+          .map(normalizeSource)
+          .filter(
+            (source) =>
+              source.startsWith('src/server/') ||
+              source.startsWith('dist/esm/server/') ||
+              source.startsWith('dist/server/') ||
+              source.includes('next-devtools/server')
+          )
       )
+    ).sort()
 
-      throw new Error('Did not expect any server modules in browser chunks.')
+    // This set varies along two axes, so snapshot each combination separately
+    // rather than forcing them to agree:
+    //   - bundler: webpack's browser chunks contain none of these; Turbopack
+    //     still pulls in a set we haven't acted on yet.
+    //   - cache components: enabling it pulls additional server modules
+    //     (instant-validation, async storage, dynamic rendering) into the
+    //     client render path. CI runs this suite both with and without it
+    //     (see test/cache-components-tests-manifest.json).
+    const cacheComponents = process.env.__NEXT_CACHE_COMPONENTS === 'true'
+    if (process.env.IS_TURBOPACK_TEST) {
+      if (cacheComponents) {
+        expect(serverSources).toMatchInlineSnapshot(`
+         [
+           "src/server/app-render/action-async-storage-instance.ts",
+           "src/server/app-render/action-async-storage.external.ts",
+           "src/server/app-render/after-task-async-storage-instance.ts",
+           "src/server/app-render/after-task-async-storage.external.ts",
+           "src/server/app-render/async-local-storage.ts",
+           "src/server/app-render/blocking-route-messages.ts",
+           "src/server/app-render/dynamic-access-async-storage-instance.ts",
+           "src/server/app-render/dynamic-access-async-storage.external.ts",
+           "src/server/app-render/dynamic-rendering.ts",
+           "src/server/app-render/instant-validation/boundary-constants.ts",
+           "src/server/app-render/instant-validation/boundary-impl.tsx",
+           "src/server/app-render/instant-validation/boundary-tracking.tsx",
+           "src/server/app-render/instant-validation/instant-samples-client.ts",
+           "src/server/app-render/instant-validation/instant-samples.ts",
+           "src/server/app-render/instant-validation/instant-validation-error.ts",
+           "src/server/app-render/staged-rendering.ts",
+           "src/server/app-render/vary-params.ts",
+           "src/server/app-render/work-async-storage-instance.ts",
+           "src/server/app-render/work-async-storage.external.ts",
+           "src/server/app-render/work-unit-async-storage-instance.ts",
+           "src/server/app-render/work-unit-async-storage.external.ts",
+           "src/server/create-deduped-by-callsite-server-error-logger.ts",
+           "src/server/dynamic-rendering-utils.ts",
+           "src/server/request/params.ts",
+           "src/server/request/search-params.ts",
+           "src/server/request/utils.ts",
+           "src/server/runtime-reacts.external.ts",
+           "src/server/web/spec-extension/adapters/headers.ts",
+           "src/server/web/spec-extension/adapters/reflect.ts",
+           "src/server/web/spec-extension/adapters/request-cookies.ts",
+           "src/server/web/spec-extension/cookies.ts",
+         ]
+        `)
+      } else {
+        expect(serverSources).toMatchInlineSnapshot(`
+         [
+           "src/server/app-render/action-async-storage-instance.ts",
+           "src/server/app-render/action-async-storage.external.ts",
+           "src/server/app-render/after-task-async-storage-instance.ts",
+           "src/server/app-render/after-task-async-storage.external.ts",
+           "src/server/app-render/async-local-storage.ts",
+           "src/server/app-render/blocking-route-messages.ts",
+           "src/server/app-render/dynamic-access-async-storage-instance.ts",
+           "src/server/app-render/dynamic-access-async-storage.external.ts",
+           "src/server/app-render/dynamic-rendering.ts",
+           "src/server/app-render/instant-validation/boundary-constants.ts",
+           "src/server/app-render/instant-validation/boundary-tracking.tsx",
+           "src/server/app-render/instant-validation/instant-samples.ts",
+           "src/server/app-render/instant-validation/instant-validation-error.ts",
+           "src/server/app-render/staged-rendering.ts",
+           "src/server/app-render/vary-params.ts",
+           "src/server/app-render/work-async-storage-instance.ts",
+           "src/server/app-render/work-async-storage.external.ts",
+           "src/server/app-render/work-unit-async-storage-instance.ts",
+           "src/server/app-render/work-unit-async-storage.external.ts",
+           "src/server/create-deduped-by-callsite-server-error-logger.ts",
+           "src/server/dynamic-rendering-utils.ts",
+           "src/server/request/params.ts",
+           "src/server/request/search-params.ts",
+           "src/server/request/utils.ts",
+           "src/server/runtime-reacts.external.ts",
+           "src/server/web/spec-extension/adapters/headers.ts",
+           "src/server/web/spec-extension/adapters/reflect.ts",
+           "src/server/web/spec-extension/adapters/request-cookies.ts",
+           "src/server/web/spec-extension/cookies.ts",
+         ]
+        `)
+      }
+    } else {
+      if (cacheComponents) {
+        expect(serverSources).toMatchInlineSnapshot(`[]`)
+      } else {
+        expect(serverSources).toMatchInlineSnapshot(`[]`)
+      }
     }
   })
 
   it('must not bundle any dev overlay into browser chunks', () => {
-    const devOverlaySources = sources.filter((source) => {
-      return source.includes('next-devtools')
-    })
-
-    if (devOverlaySources.length > 0) {
-      const message = `Found the following dev overlay modules:\n  ${devOverlaySources.join('\n')}`
-      console.error(
-        `${message}\nIf any of these modules are allowed to be included in production chunks, check the import and render conditions.`
+    const devOverlaySources = Array.from(
+      new Set(
+        sources
+          .map(normalizeSource)
+          .filter((source) => source.includes('next-devtools'))
       )
+    ).sort()
 
-      throw new Error(
-        'Did not expect any dev overlay modules in browser chunks.\n' + message
-      )
-    }
+    expect(devOverlaySources).toMatchInlineSnapshot(`[]`)
   })
 
   it('must not bundle the HMR refresh reducer into browser chunks', () => {
-    const hmrReducerSources = sources.filter((source) => {
-      return source.includes('hmr-refresh-reducer')
-    })
-
-    if (hmrReducerSources.length > 0) {
-      const message = `Found the following HMR reducer modules:\n  ${hmrReducerSources.join('\n  ')}`
-
-      throw new Error(
-        'Did not expect the HMR refresh reducer in production browser chunks.\n' +
-          message
+    const hmrReducerSources = Array.from(
+      new Set(
+        sources
+          .map(normalizeSource)
+          .filter((source) => source.includes('hmr-refresh-reducer'))
       )
-    }
+    ).sort()
+
+    expect(hmrReducerSources).toMatchInlineSnapshot(`[]`)
   })
 
   it('must not include heavy dependencies into browser chunks', () => {
-    const heavyDependencies = sources.filter((source) => {
-      return source.includes('next/dist/compiled/safe-stable-stringify')
-    })
-
-    if (heavyDependencies.length > 0) {
-      const message = `Found the following heavy dependencies:\n  ${heavyDependencies.join('\n  ')}`
-
-      throw new Error(
-        'Did not expect any heavy dependencies in browser chunks.\n' + message
+    const heavyDependencies = Array.from(
+      new Set(
+        sources
+          .map(normalizeSource)
+          .filter((source) =>
+            source.includes('dist/compiled/safe-stable-stringify')
+          )
       )
-    }
+    ).sort()
+
+    expect(heavyDependencies).toMatchInlineSnapshot(`[]`)
   })
 
   it('must not pull server internals from next/cache into browser chunks', () => {

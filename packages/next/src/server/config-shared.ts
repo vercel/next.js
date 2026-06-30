@@ -48,6 +48,8 @@ export type NextConfigComplete = Required<Omit<NextConfig, 'configFile'>> & {
   // since development builds use `{distDir}/dev`. This is used to ensure that the bundler doesn't
   // traverse into the output directory.
   distDirRoot: string
+  // The repository root, regardless of overwritten outputFileTracingRoot or turbopack.root.
+  repoRoot: string
 }
 
 export type I18NDomains = readonly DomainLocale[]
@@ -421,7 +423,7 @@ export type CssChunkingConfig =
   | 'graph'
   | { type: 'strict' }
   | { type: 'loose' }
-  | { type: 'graph'; requestCost?: number; moduleFactorCost?: number }
+  | { type: 'graph'; requestCost?: number; weightDistribution?: number }
 
 /**
  * Normalize any [`CssChunkingConfig`] value to one of the four modes the build pipeline cares
@@ -438,7 +440,7 @@ export function resolveCssChunkingMode(
   if (value === undefined || value === false) return 'off'
   if (value === true || value === 'loose') return 'loose'
   if (value === 'strict' || value === 'graph') return value
-  // Object form. `requestCost` and `moduleFactorCost` are validated by the schema.
+  // Object form. `requestCost` and `weightDistribution` are validated by the schema.
   if (value.type === 'strict') return 'strict'
   if (value.type === 'graph') return 'graph'
   return 'loose'
@@ -457,6 +459,13 @@ export interface ExperimentalConfig {
   outputHashSalt?: string
 
   appNewScrollHandler?: boolean
+  /**
+   * Shows a persistent "Cold cache" badge in the dev overlay after a load that
+   * filled an empty cache while streaming. Off by default while the badge's
+   * UI/UX is iterated on; the transient "Rendering (cold cache)" pill is shown
+   * regardless of this flag.
+   */
+  coldCacheBadge?: boolean
   useSkewCookie?: boolean
   /** @deprecated use top-level `cacheHandlers` instead */
   cacheHandlers?: NextConfig['cacheHandlers']
@@ -471,10 +480,19 @@ export interface ExperimentalConfig {
    * rewrites will get the rewrite headers.
    */
   clientParamParsingOrigins?: string[]
-  cachedNavigations?: boolean
+  /**
+   * Caches subsets of a route, seeded from actual navigations, so subsequent
+   * navigations to the same or similar pages can be served instantly. Requires
+   * Cache Components. `true` caches the static stage only (the runtime stage is
+   * opted into per segment via `export const prefetch = 'allow-runtime'`).
+   * `'allow-runtime'` additionally treats every segment as runtime-cached,
+   * regardless of its per-segment `prefetch` config.
+   */
+  cachedNavigations?: boolean | 'allow-runtime'
   dynamicOnHover?: boolean
   useOffline?: boolean
   optimisticRouting?: boolean
+  instrumentationClientRouterTransitionEvents?: boolean
   /**
    * Enables App Shell prefetching: a route's reusable, param-free loading
    * state is prefetched once per session and served instantly for any
@@ -557,18 +575,19 @@ export interface ExperimentalConfig {
    * - `'strict'` / `{ type: 'strict' }` — preserve correct ordering as much as possible, even
    *   when this leads to many requests. Webpack only.
    * - `false` — disable chunking; emit one chunk per CSS module. Webpack only.
-   * - `'graph'` / `{ type: 'graph', requestCost?, moduleFactorCost? }` — Turbopack only.
+   * - `'graph'` / `{ type: 'graph', requestCost?, weightDistribution? }` — Turbopack only.
    *   Selects a CSS chunking strategy that analyzes the most common style orderings across the
    *   application and produces shared chunks accordingly. Compared to the default mode it
    *   intentionally overships some styles in order to reduce the number of CSS requests per
    *   page. Cost overrides:
-   *     - `requestCost` (bytes, default `20000`) — additional cost charged for every CSS
+   *     - `requestCost` (bytes, default `100000`) — additional cost charged for every CSS
    *       request a chunk group makes. Larger values bias the algorithm toward fewer, larger
    *       shared chunks; smaller values toward more, smaller chunks.
-   *     - `moduleFactorCost` (default `1`) — controls how much the algorithm cares about
-   *       small chunk groups. `0` distributes overshipped bytes evenly across chunk groups.
-   *       Higher values penalize overshipping in small chunk groups proportionally more, so
-   *       small pages ship fewer unrelated styles at the expense of more requests overall.
+   *     - `weightDistribution` (default `0.1`) — controls how a chunk's cost is distributed across
+   *       the chunk groups that load it, via a per-group weight of
+   *       `groupSize ^ (-weightDistribution)`. `0` weights every chunk group equally; higher
+   *       values give smaller chunk groups more weight, so small pages ship fewer unrelated
+   *       styles at the expense of more requests overall.
    */
   cssChunking?: CssChunkingConfig
   disablePostcssPresetEnv?: boolean
@@ -744,6 +763,39 @@ export interface ExperimentalConfig {
    * Enable scope hoisting. Defaults to true in build mode. Always disabled in development mode.
    */
   turbopackScopeHoisting?: boolean
+
+  /**
+   * (`next --turbopack` only) Traffic-related hints for the production chunker. These change the
+   * assumptions Turbopack makes when making chunk merging decisions.
+   */
+  turbopackChunkingHeuristics?: {
+    /**
+     * This is a number between `0..1`, when higher, we weight the benefits of
+     * merging chunks for a signal page load higher. If you don't know a good
+     * number for this, your bounce rate is a good approximate for this value.
+     */
+    firstPageLoadPriority?: number
+    /**
+     * Regular expressions matching routes that are often the first page
+     * visited and whose client-side bundles should be merged more eagerly to reduce the single-route
+     * request cost (e.g. the homepage). This is at the cost of extra requests on other pages.
+     */
+    priorityRoutes?: RegExp[]
+    /**
+     * How much more eagerly to merge the client-side bundles of
+     * `priorityRoutes` routes, as a multiplier on their single-request probability (default
+     * `1.5`). Higher values merge more aggressively for those routes at the cost of extra requests
+     * elsewhere.
+     */
+    priorityBoost?: number
+    /**
+     * Estimated cost of an additional request, in bytes (uncompressed
+     * and unminfified bytes of code, default is 200 KB and the max is 1 MB), used by the chunker to
+     * trade off request count against preventing double-fetching. Uncompressed and unminfified code
+     * is approximately 5x the size of compressed and minified code.
+     */
+    requestCost?: number
+  }
 
   /**
    * (`next --turbopack` only) A custom URL prefix for Web Worker URLs
@@ -975,6 +1027,24 @@ export interface ExperimentalConfig {
   taint?: boolean
 
   /**
+   * Enables blocking server-side rendering for the `app` directory: React emits
+   * a `<link rel="expect">` tag that holds the browser's first paint until the
+   * streamed shell is coherent, avoiding the layout shift / flicker that can
+   * occur while a partially-streamed HTML document is painted. Note that
+   * `rel="expect"` is currently only implemented by Chromium-based browsers.
+   *
+   * This feature is currently only available in React's experimental release
+   * channel, so enabling it opts the `app` directory into `react@experimental`
+   * (the same channel used by `taint`, `transitionIndicator`, and
+   * `gestureTransition`). The name mirrors React's underlying feature flag.
+   *
+   * This is an opt-in only. Setting it to `false` does not disable the
+   * experimental channel when another feature (such as `taint`,
+   * `transitionIndicator`, or `gestureTransition`) requires it.
+   */
+  blockingSSR?: boolean
+
+  /**
    * Uninstalls all "unhandledRejection" and "uncaughtException" listeners from
    * the global process so that we can override the behavior, which in some
    * runtimes is to exit the process.
@@ -1147,6 +1217,12 @@ export interface ExperimentalConfig {
   useCache?: boolean
 
   /**
+   * Enables durable `"use cache"` remote cache entries across deployments. Only implemented for
+   * Turbopack.
+   */
+  durableUseCacheEntries?: boolean
+
+  /**
    * Enables detection and reporting of slow modules during development builds.
    * Enabling this may impact build performance to ensure accurate measurements.
    */
@@ -1163,6 +1239,12 @@ export interface ExperimentalConfig {
    *
    */
   globalNotFound?: boolean
+
+  /**
+   * @experimental Use the Rust port of the React compiler (Turbopack only).
+   * Requires `reactCompiler` to be enabled.
+   */
+  turbopackRustReactCompiler?: boolean
 
   /**
    * Enable debug information to be forwarded from browser to dev server stdout/stderr.
@@ -1353,6 +1435,17 @@ export type ExportPathMap = {
      * @internal
      */
     _runInstantValidation?: boolean
+
+    /**
+     * When true, a fallback shell produced for this export path could later be
+     * upgraded to a concrete version (at least one fallback param is a
+     * `generateStaticParams` candidate). Threaded into
+     * `renderOpts.isFallbackUpgradeable` so the build-baked shell carries the
+     * gated `isUpgradeableISRFallback` value.
+     *
+     * @internal
+     */
+    _isFallbackUpgradeable?: boolean
   }
 }
 
@@ -1936,7 +2029,7 @@ export const defaultConfig = Object.freeze({
   staticPageGenerationTimeout: 60,
   output: !!process.env.NEXT_PRIVATE_STANDALONE ? 'standalone' : undefined,
   modularizeImports: undefined,
-  outputFileTracingRoot: process.env.NEXT_PRIVATE_OUTPUT_TRACE_ROOT || '',
+  outputFileTracingRoot: '',
   allowedDevOrigins: undefined,
   enablePrerenderSourceMaps: true,
   cacheComponents: false,
@@ -1985,6 +2078,7 @@ export const defaultConfig = Object.freeze({
   adapterPath: process.env.NEXT_ADAPTER_PATH || undefined,
   experimental: {
     appNewScrollHandler: false,
+    coldCacheBadge: false,
     useSkewCookie: false,
     cssChunking: true,
     multiZoneDraftMode: false,
@@ -1999,6 +2093,7 @@ export const defaultConfig = Object.freeze({
     useOffline: false,
     varyParams: true,
     optimisticRouting: true,
+    instrumentationClientRouterTransitionEvents: false,
     prefetchInlining: true,
     preloadEntriesOnStart: true,
     clientRouterFilter: true,

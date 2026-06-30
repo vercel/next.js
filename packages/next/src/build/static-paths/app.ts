@@ -641,7 +641,12 @@ async function callGenerateStaticParams(
  */
 export async function generateRouteStaticParams(
   segments: ReadonlyArray<
-    Readonly<Pick<AppSegment, 'config' | 'generateStaticParams'>>
+    Readonly<
+      Pick<
+        AppSegment,
+        'config' | 'generateStaticParams' | 'createEmptyParamsError'
+      >
+    >
   >,
   store: Pick<WorkStore, 'fetchCache' | 'page'>,
   isRoutePPREnabled: boolean,
@@ -702,7 +707,7 @@ export async function generateRouteStaticParams(
             nextParams.push({ ...parentParams, ...item })
           }
         } else if (isRoutePPREnabled) {
-          throwEmptyGenerateStaticParamsError()
+          throwEmptyGenerateStaticParamsError(current.createEmptyParamsError)
         } else {
           // No results, just pass through parent params
           nextParams.push(parentParams)
@@ -717,7 +722,7 @@ export async function generateRouteStaticParams(
         implicitTags
       )
       if (result.length === 0 && isRoutePPREnabled) {
-        throwEmptyGenerateStaticParamsError()
+        throwEmptyGenerateStaticParamsError(current.createEmptyParamsError)
       }
 
       nextParams.push(...result)
