@@ -169,7 +169,7 @@ After the pattern snippets, include a "Use either pattern when:" bulleted list (
 
 ### Don't want this validation?
 
-Every insight page ends (just before `## Useful links`) with the canonical opt-out block. It teaches the reader how to silence validation per-segment, subtree-wide, and app-wide, since instant-navigation validation runs by default in Cache Components apps. Copy verbatim:
+Every insight page ends (just before `## Related Insights`) with the canonical opt-out block. It teaches the reader how to silence validation per-segment, subtree-wide, and app-wide, since instant-navigation validation runs by default in Cache Components apps. Copy verbatim:
 
 ```mdx
 ## Don't want this validation?
@@ -215,8 +215,7 @@ When auditing an existing page, check every item:
 - [ ] Code snippets are valid React (no inline `Math.random()` during render in Client Components)
 - [ ] `useState(() => Math.random())` warned against in Gotchas
 - [ ] All API references inline-linked throughout
-- [ ] Sibling pages cross-linked in framing paragraph + Useful links
-- [ ] Useful links section is short (typically 2–6 entries). Does not re-list APIs that are already inline-linked in the body.
+- [ ] Sibling pages cross-linked in framing paragraph (inline body links carry the bulk of API references)
 - [ ] `## Don't want this validation?` section present, verbatim per the canonical block
 - [ ] `## Related Insights` section present, listing every other insight-kind error page (current page omitted)
 - [ ] Upstream `errors/<slug>.mdx` content preserved (relocated to Gotchas or Other options if needed)
