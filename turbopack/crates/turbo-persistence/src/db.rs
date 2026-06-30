@@ -161,12 +161,6 @@ impl WriteOperationGuard<'_> {
 
 /// Durably writes `seq` to the `CURRENT` file in the database directory `path`, creating the file
 /// if it doesn't exist.
-///
-/// The `CURRENT` file records the highest committed sequence number and is the single source of
-/// truth for which files belong to the database. The write is followed by an `fsync` (`sync_data`)
-/// so the new value survives a crash. `truncate(false)` is intentional: `CURRENT` is a fixed-size
-/// 4-byte file, so writing 4 bytes from offset 0 fully overwrites the previous value without
-/// needing truncation.
 fn write_current_file(path: &Path, seq: u32) -> Result<()> {
     let current_path = path.join("CURRENT");
     (|| {
