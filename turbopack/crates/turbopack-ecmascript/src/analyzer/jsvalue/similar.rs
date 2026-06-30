@@ -89,7 +89,8 @@ impl<'a> JsValue<'a> {
             (JsValue::MemberCall(lc, ll), JsValue::MemberCall(rc, rl)) => {
                 lc == rc && MemberCallList::all_similar(ll, rl, depth - 1)
             }
-            (JsValue::Member(lc, lo, lp), JsValue::Member(rc, ro, rp)) => {
+            (JsValue::Member(lc, lo, lp), JsValue::Member(rc, ro, rp))
+            | (JsValue::In(lc, lo, lp), JsValue::Member(rc, ro, rp)) => {
                 lc == rc && lo.similar(ro, depth - 1) && lp.similar(rp, depth - 1)
             }
             (JsValue::Binary(lc, la, lo, lb), JsValue::Binary(rc, ra, ro, rb)) => {
