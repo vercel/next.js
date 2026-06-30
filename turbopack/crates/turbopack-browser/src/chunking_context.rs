@@ -40,8 +40,7 @@ use turbopack_ecmascript_runtime::RuntimeType;
 use crate::ecmascript::{
     chunk::EcmascriptBrowserChunk,
     evaluate::{
-        chunk::EcmascriptBrowserEvaluateChunk,
-        runtime::EcmascriptBrowserRuntimeChunk,
+        chunk::EcmascriptBrowserEvaluateChunk, runtime::EcmascriptBrowserRuntimeChunk,
         single_entry_chunk::EcmascriptBrowserSingleEntryChunk,
     },
     list::asset::{EcmascriptDevChunkList, EcmascriptDevChunkListSource},
@@ -457,7 +456,7 @@ impl BrowserChunkingContext {
     ///
     /// Returns the same asset every time: [`EcmascriptBrowserRuntimeChunk::new`] is a
     /// `#[turbo_tasks::function]` memoized on `(chunking_context, has_async_modules)`.
-    async fn generate_runtime_chunk(
+    pub(crate) async fn generate_runtime_chunk(
         self: Vc<Self>,
         module_graph: Vc<ModuleGraph>,
     ) -> Result<Vc<EcmascriptBrowserRuntimeChunk>> {
