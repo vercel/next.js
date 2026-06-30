@@ -1090,7 +1090,7 @@ describe('use-cache', () => {
       const initialLogs = await getSanitizedLogs(browser)
 
       const expectedOutsideBadge =
-        process.env.__NEXT_CACHE_COMPONENTS === 'true' ? 'Prerender' : 'Server'
+        process.env.__NEXT_CACHE_COMPONENTS === 'true' ? 'Shell' : 'Server'
 
       // We ignore the logged time string at the end of this message:
       const logMessageWithDateRegexp = /^ Cache {2}deep inside /

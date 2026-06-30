@@ -4706,8 +4706,10 @@ function setUpStagedDevRender(
   )
   requestStore.cacheSignal = cacheSignal
 
-  const environmentName = () =>
-    getEnvironmentNameForStage(stageController.currentStage)
+  const environmentName = shouldRenderWithAppShell
+    ? () =>
+        getEnvironmentNameForStageWithAppShells(stageController.currentStage)
+    : () => getEnvironmentNameForStage(stageController.currentStage)
 
   return {
     cacheSignal,
@@ -4729,6 +4731,29 @@ function getEnvironmentNameForStage(stage: RenderStage) {
     case RenderStage.EarlyRuntime:
       return 'Prefetch'
     case RenderStage.ShellRuntime:
+    case RenderStage.Runtime:
+      return 'Prefetchable'
+    case RenderStage.Dynamic:
+    case RenderStage.Abandoned:
+      return 'Server'
+    default:
+      stage satisfies never
+      throw new InvariantError(`Invalid render stage: ${stage}`)
+  }
+}
+
+function getEnvironmentNameForStageWithAppShells(stage: RenderStage) {
+  switch (stage) {
+    case RenderStage.Before:
+    case RenderStage.ShellEarlyStatic:
+    case RenderStage.ShellStatic:
+    case RenderStage.EarlyStatic:
+    case RenderStage.Static:
+    case RenderStage.ShellEarlyRuntime:
+    case RenderStage.ShellRuntime:
+      return 'Shell'
+    case RenderStage.EarlyRuntime:
+      return 'Prefetch'
     case RenderStage.Runtime:
       return 'Prefetchable'
     case RenderStage.Dynamic:
@@ -5057,8 +5082,10 @@ async function renderWithWarmCachesForValidationInDev(
   )
 
   const debugChannel = setReactDebugChannel && createNodeDebugChannel()
-  const environmentName = () =>
-    getEnvironmentNameForStage(stageController.currentStage)
+  const environmentName = shouldRenderWithAppShell
+    ? () =>
+        getEnvironmentNameForStageWithAppShells(stageController.currentStage)
+    : () => getEnvironmentNameForStage(stageController.currentStage)
 
   const rscPayload = await getPayload(requestStore)
 

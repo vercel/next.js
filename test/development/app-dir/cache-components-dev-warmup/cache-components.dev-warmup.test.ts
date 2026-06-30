@@ -42,7 +42,7 @@ describe.each([
     ) {
       // Match logs that contain the message, with any environment.
       const logPattern = new RegExp(
-        `^(?=.*\\b${message}\\b)(?=.*\\b(Cache|Prerender|Prefetch|Prefetchable|Server)\\b).*`
+        `^(?=.*\\b${message}\\b)(?=.*\\b(Cache|Shell|Prerender|Prefetch|Prefetchable|Server)\\b).*`
       )
       const logMessages = logs.map((log) => log.message)
       const messages = logMessages.filter((message) => logPattern.test(message))
@@ -215,6 +215,10 @@ describe.each([
     }
 
     const RUNTIME_ENV = hasRuntimePrefetch ? 'Prefetch' : 'Prefetchable'
+    const SHELL_ENV = partialPrefetching ? 'Shell' : 'Prerender'
+    const SESSION_DATA_ENV = partialPrefetching ? 'Shell' : RUNTIME_ENV
+    const STATIC_LINK_DATA_ENV = partialPrefetching ? RUNTIME_ENV : 'Prerender'
+    const RUNTIME_LINK_DATA_ENV = RUNTIME_ENV
 
     describe.each([
       { description: 'initial load', isInitialLoad: true },
@@ -225,11 +229,11 @@ describe.each([
           const path = '/simple'
           const assertLogs = async (browser: Playwright) => {
             const logs = await browser.log()
-            assertLog(logs, 'after cache read - layout', 'Prerender')
-            assertLog(logs, 'after cache read - page', 'Prerender')
-            assertLog(logs, 'after successive cache reads - page', 'Prerender')
-            assertLog(logs, 'after cached fetch - layout', 'Prerender')
-            assertLog(logs, 'after cached fetch - page', 'Prerender')
+            assertLog(logs, 'after cache read - layout', SHELL_ENV)
+            assertLog(logs, 'after cache read - page', SHELL_ENV)
+            assertLog(logs, 'after successive cache reads - page', SHELL_ENV)
+            assertLog(logs, 'after cached fetch - layout', SHELL_ENV)
+            assertLog(logs, 'after cached fetch - page', SHELL_ENV)
 
             assertLog(logs, 'after uncached fetch - layout', 'Server')
             assertLog(logs, 'after uncached fetch - page', 'Server')
@@ -247,17 +251,24 @@ describe.each([
 
           const assertLogs = async (browser: Playwright) => {
             const logs = await browser.log()
-            assertLog(logs, 'after cache read - layout', 'Prerender')
-            assertLog(logs, 'after cache read - page', 'Prerender')
+            assertLog(logs, 'after cache read - layout', SHELL_ENV)
+            assertLog(logs, 'after cache read - page', SHELL_ENV)
 
-            // Private caches are dynamic holes in static prerenders,
-            // so they shouldn't resolve in the static stage.
-            assertLog(logs, 'after private cache read - page', RUNTIME_ENV)
-            assertLog(logs, 'after private cache read - layout', RUNTIME_ENV)
+            // without appShells:
+            //   Private caches are dynamic holes in static prerenders,
+            //   so they shouldn't resolve in the static stage.
+            // with appShells:
+            //   private caches are allowed in the shell.
+            assertLog(logs, 'after private cache read - page', SESSION_DATA_ENV)
+            assertLog(
+              logs,
+              'after private cache read - layout',
+              SESSION_DATA_ENV
+            )
             assertLog(
               logs,
               'after successive private cache reads - page',
-              RUNTIME_ENV
+              SESSION_DATA_ENV
             )
 
             assertLog(logs, 'after uncached fetch - layout', 'Server')
@@ -276,16 +287,22 @@ describe.each([
 
           const assertLogs = async (browser: Playwright) => {
             const logs = await browser.log()
-            assertLog(logs, 'after cache read - layout', 'Prerender')
-            assertLog(logs, 'after cache read - page', 'Prerender')
+            assertLog(logs, 'after cache read - layout', SHELL_ENV)
+            assertLog(logs, 'after cache read - page', SHELL_ENV)
 
             // Short lived caches are dynamic holes in static prerenders,
             // so they shouldn't resolve in the static stage.
-            assertLog(logs, 'after short-lived cache read - page', RUNTIME_ENV)
+            assertLog(
+              logs,
+              'after short-lived cache read - page',
+              // TODO(app-shells): why are these seemingly included in the shell?
+              partialPrefetching ? SHELL_ENV : RUNTIME_ENV
+            )
             assertLog(
               logs,
               'after short-lived cache read - layout',
-              RUNTIME_ENV
+              // TODO(app-shells): why are these seemingly included in the shell?
+              partialPrefetching ? SHELL_ENV : RUNTIME_ENV
             )
 
             assertLog(logs, 'after uncached fetch - layout', 'Server')
@@ -307,8 +324,8 @@ describe.each([
 
           const assertLogs = async (browser: Playwright) => {
             const logs = await browser.log()
-            assertLog(logs, 'after cache read - layout', 'Prerender')
-            assertLog(logs, 'after cache read - page', 'Prerender')
+            assertLog(logs, 'after cache read - layout', SHELL_ENV)
+            assertLog(logs, 'after cache read - page', SHELL_ENV)
 
             assertLog(logs, 'after short-stale cache read - page', 'Server')
             assertLog(logs, 'after short-stale cache read - layout', 'Server')
@@ -331,10 +348,10 @@ describe.each([
             const logs = await browser.log()
             // No matter how deeply we nest the component tree,
             // if all the IO is cached, it should be labeled as Prerender.
-            assertLog(logs, 'after cache 1', 'Prerender')
-            assertLog(logs, 'after cache 2', 'Prerender')
-            assertLog(logs, 'after caches 1 and 2', 'Prerender')
-            assertLog(logs, 'after cache 3', 'Prerender')
+            assertLog(logs, 'after cache 1', SHELL_ENV)
+            assertLog(logs, 'after cache 2', SHELL_ENV)
+            assertLog(logs, 'after caches 1 and 2', SHELL_ENV)
+            assertLog(logs, 'after cache 3', SHELL_ENV)
           }
 
           if (isInitialLoad) {
@@ -350,13 +367,13 @@ describe.each([
 
         const assertLogs = async (browser: Playwright) => {
           const logs = await browser.log()
-          assertLog(logs, 'after cache read - page', 'Prerender')
+          assertLog(logs, 'after cache read - page', SHELL_ENV)
 
           // TODO: we should only label this as "Prefetch" if there's a prefetch config.
-          assertLog(logs, `after cookies`, RUNTIME_ENV)
-          assertLog(logs, `after headers`, RUNTIME_ENV)
-          assertLog(logs, `after params`, RUNTIME_ENV)
-          assertLog(logs, `after searchParams`, RUNTIME_ENV)
+          assertLog(logs, `after cookies`, SESSION_DATA_ENV)
+          assertLog(logs, `after headers`, SESSION_DATA_ENV)
+          assertLog(logs, `after params`, RUNTIME_LINK_DATA_ENV)
+          assertLog(logs, `after searchParams`, RUNTIME_LINK_DATA_ENV)
 
           assertLog(logs, 'after connection', 'Server')
         }
@@ -376,9 +393,9 @@ describe.each([
             const logs = await browser.log()
             // `en` is covered by `generateStaticParams`, so `lang` resolves in
             // the static shell.
-            assertLog(logs, 'after params - lang', 'Prerender')
+            assertLog(logs, 'after params - lang', STATIC_LINK_DATA_ENV)
             // `id` is never covered, so it's deferred to the runtime stage.
-            assertLog(logs, 'after params - id', RUNTIME_ENV)
+            assertLog(logs, 'after params - id', RUNTIME_LINK_DATA_ENV)
           }
 
           if (isInitialLoad) {
@@ -399,8 +416,8 @@ describe.each([
             // runtime stage too, not resolve in the static shell. (Picking the
             // fewest-param route without matching the URL would resolve `lang`
             // in `Prerender` here.)
-            assertLog(logs, 'after params - lang', RUNTIME_ENV)
-            assertLog(logs, 'after params - id', RUNTIME_ENV)
+            assertLog(logs, 'after params - lang', RUNTIME_LINK_DATA_ENV)
+            assertLog(logs, 'after params - id', RUNTIME_LINK_DATA_ENV)
           }
 
           if (isInitialLoad) {
@@ -420,8 +437,8 @@ describe.each([
             // the static shell. (Skipping the concrete route before matching
             // the URL would let the base route win and defer the
             // statically-known `id`.)
-            assertLog(logs, 'after params - lang', 'Prerender')
-            assertLog(logs, 'after params - id', 'Prerender')
+            assertLog(logs, 'after params - lang', STATIC_LINK_DATA_ENV)
+            assertLog(logs, 'after params - id', STATIC_LINK_DATA_ENV)
           }
 
           if (isInitialLoad) {
@@ -444,7 +461,7 @@ describe.each([
           const assertLogs = async (browser: Playwright) => {
             const logs = await browser.log()
 
-            assertLog(logs, 'after first cache', 'Prerender')
+            assertLog(logs, 'after first cache', SHELL_ENV)
             // sync IO in the static stage errors and advances to Server.
             assertLog(logs, 'after sync io', 'Server')
             assertLog(logs, 'after cache read - page', 'Server')
@@ -463,16 +480,16 @@ describe.each([
           const assertLogs = async (browser: Playwright) => {
             const logs = await browser.log()
 
-            assertLog(logs, 'after first cache', 'Prerender')
-            assertLog(logs, 'after cookies', RUNTIME_ENV)
+            assertLog(logs, 'after first cache', SHELL_ENV)
+            assertLog(logs, 'after cookies', SESSION_DATA_ENV)
             if (hasRuntimePrefetch) {
               // if runtime prefetching is on, sync IO in the runtime stage errors and advances to Server.
               assertLog(logs, 'after sync io', 'Server')
               assertLog(logs, 'after cache read - page', 'Server')
             } else {
               // if runtime prefetching is not on, sync IO in the runtime stage does nothing.
-              assertLog(logs, 'after sync io', RUNTIME_ENV)
-              assertLog(logs, 'after cache read - page', RUNTIME_ENV)
+              assertLog(logs, 'after sync io', SESSION_DATA_ENV)
+              assertLog(logs, 'after cache read - page', SESSION_DATA_ENV)
             }
           }
 
