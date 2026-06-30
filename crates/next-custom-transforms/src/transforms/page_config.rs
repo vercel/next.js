@@ -141,8 +141,10 @@ impl Fold for PageConfig {
 impl PageConfig {
     fn handle_error(&mut self, details: &str, span: Span) {
         if self.is_page_file {
-            let message = format!("Invalid page config export found. {details} \
-      See: https://nextjs.org/docs/messages/invalid-page-config");
+            let message = format!(
+                "Invalid page config export found. {details} \
+      See: https://nextjs.org/docs/messages/invalid-page-config"
+            );
             HANDLER.with(|handler| handler.struct_span_err(span, &message).emit());
         }
     }

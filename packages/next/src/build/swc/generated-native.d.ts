@@ -67,15 +67,20 @@ export interface NapiCodeFrameLocation {
   start: NapiLocation
   end?: NapiLocation
 }
+export const enum NapiCodeFrameColorMode {
+  Error = 0,
+  Warning = 1,
+  Info = 2,
+}
 export interface NapiCodeFrameOptions {
   /** Number of lines to show above the error (default: 2) */
   linesAbove?: number
   /** Number of lines to show below the error (default: 3) */
   linesBelow?: number
-  /** Maximum width of the output in columns (default: 100) */
+  /** Maximum width of the output in columns (default: 240) */
   maxWidth?: number
   /** Whether to use ANSI colors (default: false) */
-  color?: boolean
+  color?: NapiCodeFrameColorMode | boolean
   /**
    * Whether to highlight code syntax (default: follows color)
    *

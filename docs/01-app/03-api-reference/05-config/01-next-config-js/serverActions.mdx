@@ -1,9 +1,12 @@
 ---
 title: serverActions
 description: Configure Server Actions behavior in your Next.js application.
+related:
+  links:
+    - app/guides/server-actions
 ---
 
-Options for configuring Server Actions behavior in your Next.js application.
+Options for configuring Server Actions behavior in your Next.js application. For how Server Actions work, including the security boundary these options tune, see the [Server Actions guide](/docs/app/guides/server-actions).
 
 ## `allowedOrigins`
 

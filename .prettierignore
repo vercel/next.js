@@ -54,6 +54,7 @@ bench/nested-deps/components/**/*
 
 **/convex/_generated/**
 **/.tina/__generated__/**
+test/**/*.graphql.ts
 test/e2e/app-dir/server-source-maps/fixtures/default/app/bad-sourcemap/page.js
 test/e2e/app-dir/server-source-maps/fixtures/default/internal-pkg/ignored.js
 test/e2e/app-dir/server-source-maps/fixtures/default/internal-pkg/sourcemapped.js

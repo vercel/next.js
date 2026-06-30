@@ -1,6 +1,9 @@
 ---
 title: revalidatePath
 description: API Reference for the revalidatePath function.
+related:
+  links:
+    - app/guides/server-actions
 ---
 
 `revalidatePath` allows you to invalidate [cached data](/docs/app/getting-started/caching) on-demand for a specific path.

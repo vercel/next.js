@@ -3,9 +3,9 @@ use std::{fmt, sync::Arc};
 use anyhow::{Result, bail};
 
 use crate::{
-    CellId, DynTaskInputs, HeapDynTaskInputsStorage, OutputContent, RawVc, TaskPersistence,
-    TraitMethod, TurboTasks, ValueTypeId, backend::Backend, event::Event,
-    macro_helpers::NativeFunction, registry,
+    DynTaskInputs, HeapDynTaskInputsStorage, OutputContent, RawVc, TaskPersistence, TraitMethod,
+    TurboTasks, ValueTypeId, backend::Backend, event::Event, macro_helpers::NativeFunction,
+    registry,
 };
 
 /// A potentially in-flight local task stored in `CurrentGlobalTaskState::local_tasks`.
@@ -73,11 +73,11 @@ impl LocalTaskType {
         turbo_tasks: Arc<TurboTasks<B>>,
     ) -> Result<RawVc> {
         let this = this.resolve().await?;
-        let RawVc::TaskCell(_, CellId { type_id, .. }) = this else {
+        let Some((_, cell_id)) = this.as_task_cell() else {
             bail!("Trait method receiver must be a cell");
         };
 
-        let native_fn = Self::resolve_trait_method_from_value(trait_method, type_id)?;
+        let native_fn = Self::resolve_trait_method_from_value(trait_method, cell_id.type_id())?;
         let arg = native_fn.arg_meta.filter_and_resolve(arg).await?;
         let mut arg = HeapDynTaskInputsStorage::new(arg);
         Ok(turbo_tasks.native_call(native_fn, Some(this), &mut arg, persistence))

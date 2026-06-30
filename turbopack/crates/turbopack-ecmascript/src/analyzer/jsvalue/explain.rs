@@ -342,6 +342,13 @@ impl JsValue<'_> {
                     prop.explain_internal_inner(hints, indent_depth, depth, unknown_depth)
                 )
             }
+            JsValue::In(_, left, right) => {
+                format!(
+                    "{} in {}",
+                    left.explain_internal_inner(hints, indent_depth, depth, unknown_depth),
+                    right.explain_internal_inner(hints, indent_depth, depth, unknown_depth)
+                )
+            }
             JsValue::Module(ModuleValue {
                 module: name,
                 annotations,

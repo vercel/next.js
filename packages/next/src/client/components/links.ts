@@ -335,7 +335,8 @@ function rescheduleLinkPrefetch(
           treeAtTimeOfPrefetch,
           instance.fetchStrategy,
           priority,
-          null
+          null,
+          null // navigationLockPrefetch
         )
       } else {
         // We already have an old task object that we can reschedule. This is
@@ -380,7 +381,8 @@ export function pingVisibleLinks(
       tree,
       instance.fetchStrategy,
       PrefetchPriority.Default,
-      null
+      null,
+      null // navigationLockPrefetch
     )
   }
 }

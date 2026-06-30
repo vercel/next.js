@@ -11,15 +11,19 @@ export type FixCardGroup =
   | 'measure'
   | 'ignore'
   | 'render'
+  | 'upgrade'
+  | 'disable'
 
 export type FixCardIcon =
   | 'align-left'
+  | 'arrow-up'
   | 'database'
   | 'history'
   | 'layout'
   | 'loading'
-  | 'pointer-click'
+  | 'minus'
   | 'minus-circle'
+  | 'pointer-click'
   | 'server-stack'
   | 'timer'
   | 'zap'
@@ -38,6 +42,8 @@ export const FIX_CARD_GROUPS: Record<
   measure: { label: 'Measure', color: 'gray', icon: 'timer' },
   ignore: { label: 'Ignore', color: 'red', icon: 'minus-circle' },
   render: { label: 'Render', color: 'gray', icon: 'layout' },
+  upgrade: { label: 'Upgrade', color: 'amber', icon: 'arrow-up' },
+  disable: { label: 'Disable', color: 'gray', icon: 'minus' },
 }
 
 export type FixCard = {
@@ -66,8 +72,6 @@ export type Snippet = {
   parts?: SnippetPart[]
 }
 
-// ── Blocking-route cards ──────────────────────────
-
 const runtimeCards: FixCard[] = [
   {
     id: 'wrap-in-or-move-into-suspense',
@@ -78,31 +82,6 @@ const runtimeCards: FixCard[] = [
       { text: '<Suspense fallback={…}>', highlight: true },
       { text: '  <DataChild />' },
       { text: '</Suspense>', highlight: true },
-    ],
-    copyable: true,
-  },
-  {
-    id: 'for-known-params-prerender',
-    title: 'For known params, prerender',
-    group: 'cache',
-    link: 'https://nextjs.org/docs/messages/blocking-prerender-runtime#for-known-params-prerender',
-    snippets: [
-      {
-        text: 'function generateStaticParams() {',
-        parts: [
-          { text: 'function ' },
-          { text: 'generateStaticParams', highlight: true },
-          { text: '() {' },
-        ],
-      },
-      {
-        text: '  return [{ slug: "…" }]',
-        parts: [
-          { text: '  return ' },
-          { text: '[{ slug: "…" }]', highlight: true },
-        ],
-      },
-      { text: '}' },
     ],
     copyable: true,
   },
@@ -144,64 +123,9 @@ const clientHookBlockCard: FixCard = {
   copyable: true,
 }
 
-const clientHookGspCard: FixCard = {
-  id: 'for-known-params-prerender',
-  title: 'For known params, prerender',
-  group: 'cache',
-  link: 'https://nextjs.org/docs/messages/blocking-prerender-client-hook#for-known-params-prerender',
-  snippets: [
-    {
-      text: 'function generateStaticParams() {',
-      parts: [
-        { text: 'function ' },
-        { text: 'generateStaticParams', highlight: true },
-        { text: '() {' },
-      ],
-    },
-    {
-      text: '  return [{ slug: "…" }]',
-      parts: [
-        { text: '  return ' },
-        { text: '[{ slug: "…" }]', highlight: true },
-      ],
-    },
-    { text: '}' },
-  ],
-  copyable: true,
-}
-
-/** useSearchParams: Stream + Block (GSP doesn't apply — search params come from request). */
-const clientHookCardsSearchParams: FixCard[] = [
-  clientHookSuspenseCard,
-  clientHookBlockCard,
-]
-
-/** useParams: Stream + GSP + Block. */
-const clientHookCardsWithGsp: FixCard[] = [
-  clientHookSuspenseCard,
-  clientHookGspCard,
-  clientHookBlockCard,
-]
-
-/** usePathname, useSelectedLayoutSegment(s): Stream + Block. */
-const clientHookCardsNoGsp: FixCard[] = [
-  clientHookSuspenseCard,
-  clientHookBlockCard,
-]
+const clientHookCards: FixCard[] = [clientHookSuspenseCard, clientHookBlockCard]
 
 const dynamicCards: FixCard[] = [
-  {
-    id: 'cache-the-component-or-data',
-    title: 'Cache the component or data',
-    group: 'cache',
-    link: 'https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data',
-    snippets: [
-      { text: 'async function Posts() {' },
-      { text: '  "use cache"', highlight: true },
-      { text: '  return <List items={…} />' },
-    ],
-    copyable: true,
-  },
   {
     id: 'wrap-in-or-move-into-suspense',
     title: 'Wrap in or move into Suspense',
@@ -211,6 +135,18 @@ const dynamicCards: FixCard[] = [
       { text: '<Suspense fallback={…}>', highlight: true },
       { text: '  <DataChild />' },
       { text: '</Suspense>', highlight: true },
+    ],
+    copyable: true,
+  },
+  {
+    id: 'cache-the-component-or-data',
+    title: 'Cache the component or data',
+    group: 'cache',
+    link: 'https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data',
+    snippets: [
+      { text: 'async function Posts() {' },
+      { text: '  "use cache"', highlight: true },
+      { text: '  return <List items={…} />' },
     ],
     copyable: true,
   },
@@ -226,8 +162,6 @@ const dynamicCards: FixCard[] = [
     copyable: true,
   },
 ]
-
-// ── Unrendered-segment cards ──────────────────────
 
 const unrenderedSegmentCards: FixCard[] = [
   {
@@ -270,7 +204,42 @@ const unrenderedSegmentCards: FixCard[] = [
   },
 ]
 
-// ── Metadata cards ────────────────────────────────
+const linkPrefetchPartialCards: FixCard[] = [
+  {
+    id: 'opt-into-partial-prefetching',
+    title: 'Opt into Partial Prefetching',
+    group: 'upgrade',
+    link: 'https://nextjs.org/docs/messages/instant-link-prefetch-partial#opt-into-partial-prefetching',
+    snippets: [
+      { text: '// page.tsx or layout.tsx' },
+      { text: "export const prefetch = 'partial'", highlight: true },
+    ],
+    copyable: true,
+  },
+  {
+    id: 'use-the-default-prefetch',
+    title: 'Use the default prefetch',
+    group: 'disable',
+    link: 'https://nextjs.org/docs/messages/instant-link-prefetch-partial#use-the-default-prefetch',
+    snippets: [
+      { text: '<Link href="/dashboard">', highlight: true },
+      { text: '  Dashboard' },
+      { text: '</Link>' },
+    ],
+    copyable: true,
+  },
+  {
+    id: 'disable-validation-on-this-route',
+    title: 'Disable validation on this route',
+    group: 'ignore',
+    link: 'https://nextjs.org/docs/messages/instant-link-prefetch-partial#disable-validation-on-this-route',
+    snippets: [
+      { text: '// page.tsx or layout.tsx' },
+      { text: 'export const instant = false', highlight: true },
+    ],
+    copyable: true,
+  },
+]
 
 const metadataRuntimeCards: FixCard[] = [
   {
@@ -286,7 +255,7 @@ const metadataRuntimeCards: FixCard[] = [
     copyable: true,
   },
   {
-    id: 'render-page-at-request-time',
+    id: 'mark-the-route-as-dynamic',
     title: 'Mark the route as dynamic',
     group: 'dynamic',
     link: 'https://nextjs.org/docs/messages/blocking-prerender-metadata-runtime#mark-the-route-as-dynamic',
@@ -312,7 +281,7 @@ const metadataDynamicCards: FixCard[] = [
     copyable: true,
   },
   {
-    id: 'render-page-at-request-time',
+    id: 'mark-the-route-as-dynamic',
     title: 'Mark the route as dynamic',
     group: 'dynamic',
     link: 'https://nextjs.org/docs/messages/blocking-prerender-metadata-dynamic#mark-the-route-as-dynamic',
@@ -323,8 +292,6 @@ const metadataDynamicCards: FixCard[] = [
     copyable: true,
   },
 ]
-
-// ── Viewport cards ────────────────────────────────
 
 const viewportRuntimeCards: FixCard[] = [
   {
@@ -354,7 +321,7 @@ const viewportRuntimeCards: FixCard[] = [
 
 const viewportDynamicCards: FixCard[] = [
   {
-    id: 'cache-viewport-data',
+    id: 'cache-the-viewport-data',
     title: 'Cache the viewport data',
     group: 'cache',
     link: 'https://nextjs.org/docs/messages/blocking-prerender-viewport-dynamic#cache-the-viewport-data',
@@ -377,8 +344,6 @@ const viewportDynamicCards: FixCard[] = [
     copyable: true,
   },
 ]
-
-// ── Sync IO cards (per API) ───────────────────────
 
 const syncMathCards: FixCard[] = [
   {
@@ -509,8 +474,6 @@ const syncCryptoCards: FixCard[] = [
   },
 ]
 
-// ── Client sync IO cards (no Suspense above) ──────
-
 const syncClientDateCards: FixCard[] = [
   {
     id: 'wrap-in-or-move-into-suspense',
@@ -604,8 +567,6 @@ const syncClientCryptoCards: FixCard[] = [
   },
 ]
 
-// ── Card lookup ───────────────────────────────────
-
 export type GuidanceKind =
   | 'blocking-route'
   | 'client-hook'
@@ -614,6 +575,7 @@ export type GuidanceKind =
   | 'sync-io'
   | 'sync-io-client'
   | 'unrendered-segment'
+  | 'link-prefetch-partial'
 
 export type GuidanceVariant = 'runtime' | 'dynamic'
 
@@ -629,6 +591,8 @@ export const DOCS_URLS: Record<GuidanceKind, string> = {
   'sync-io-client': '',
   'unrendered-segment':
     'https://nextjs.org/docs/messages/instant-unrendered-segment',
+  'link-prefetch-partial':
+    'https://nextjs.org/docs/messages/instant-link-prefetch-partial',
 }
 
 export const SYNC_IO_DOCS: Record<string, string> = {
@@ -701,6 +665,8 @@ export const EXPLANATIONS: Record<GuidanceKind, string> = {
     'This value would be evaluated during the prerender and fixed at build time, instead of recomputed on each visit.',
   'unrendered-segment':
     'This segment was dropped from rendering. Issues that would prevent instant navigation will go undetected.',
+  'link-prefetch-partial':
+    'This will lead to slower, more expensive prefetches.',
 }
 
 export const BLOCKING_ROUTE_NAVIGATION_EXPLANATION =
@@ -738,6 +704,16 @@ const syncClientCardsByCause: Record<string, FixCard[]> = {
   "require('node:crypto').generateKeySync(...)": syncClientCryptoCards,
 }
 
+// `connection()`-triggered errors can't be cached.
+function filterCacheForConnection(
+  cards: FixCard[],
+  variant: GuidanceVariant,
+  cause: string | undefined
+): FixCard[] {
+  if (variant !== 'dynamic' || cause !== 'connection') return cards
+  return cards.filter((card) => card.group !== 'cache')
+}
+
 export function getCards(
   kind: GuidanceKind,
   variant: GuidanceVariant,
@@ -745,21 +721,27 @@ export function getCards(
 ): FixCard[] {
   switch (kind) {
     case 'blocking-route':
-      return variant === 'dynamic' ? dynamicCards : runtimeCards
+      return variant === 'dynamic'
+        ? filterCacheForConnection(dynamicCards, variant, cause)
+        : runtimeCards
     case 'client-hook':
-      if (cause === 'useSearchParams()') return clientHookCardsSearchParams
-      if (cause === 'useParams()') return clientHookCardsWithGsp
-      return clientHookCardsNoGsp
+      return clientHookCards
     case 'metadata':
-      return variant === 'runtime' ? metadataRuntimeCards : metadataDynamicCards
+      return variant === 'runtime'
+        ? metadataRuntimeCards
+        : filterCacheForConnection(metadataDynamicCards, variant, cause)
     case 'viewport':
-      return variant === 'runtime' ? viewportRuntimeCards : viewportDynamicCards
+      return variant === 'runtime'
+        ? viewportRuntimeCards
+        : filterCacheForConnection(viewportDynamicCards, variant, cause)
     case 'sync-io':
       return (cause && syncCardsByCause[cause]) || []
     case 'sync-io-client':
       return (cause && syncClientCardsByCause[cause]) || []
     case 'unrendered-segment':
       return unrenderedSegmentCards
+    case 'link-prefetch-partial':
+      return linkPrefetchPartialCards
     default:
       return kind satisfies never
   }

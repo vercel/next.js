@@ -30,13 +30,21 @@ impl Rendering {
     }
 }
 
-#[turbo_tasks::value]
+#[turbo_tasks::value(shared)]
 pub enum ChunkLoading {
     Edge,
     /// CommonJS in Node.js
     NodeJs,
     /// `<script>` and `<link>` tags in the browser
     Dom,
+    /// Everything inlined into one entry chunk
+    SingleChunk,
+}
+
+impl ChunkLoading {
+    pub fn can_split_async(&self) -> bool {
+        matches!(self, ChunkLoading::NodeJs | ChunkLoading::Dom)
+    }
 }
 
 #[turbo_tasks::value]

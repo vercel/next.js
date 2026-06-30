@@ -64,6 +64,32 @@ describe('cache-components-segment-configs', () => {
       expect(next.cliOutput).toContain(
         '"revalidate" is not compatible with `nextConfig.cacheComponents`. Please remove it.'
       )
+
+      // The remaining fixtures opt into `export const runtime = 'edge'` (the
+      // `runtime` page and the metadata convention files, which compile to
+      // route handlers and accept the same route segment configs). `next build`
+      // prints only the first five webpack errors and appends the edge
+      // compiler's errors last, so the five Node-runtime page errors above fill
+      // that limit and these edge-runtime errors are truncated from webpack's
+      // output. They're only asserted under Turbopack, which reports every
+      // build error.
+      if (isTurbopack) {
+        expect(next.cliOutput).toContain('./app/runtime/page.tsx')
+
+        expect(next.cliOutput).toContain('./app/metadata/icon.tsx')
+        expect(next.cliOutput).toContain('./app/metadata/apple-icon.tsx')
+        expect(next.cliOutput).toContain('./app/metadata/opengraph-image.tsx')
+        expect(next.cliOutput).toContain('./app/metadata/twitter-image.tsx')
+        expect(next.cliOutput).toContain('./app/metadata/sitemap.ts')
+
+        // Emitted once for each fixture that exports `runtime`:
+        // `runtime/page.tsx`, `multiple/page.tsx`, and the five `metadata/*`
+        // convention files.
+        expect(next.cliOutput).toIncludeRepeated(
+          '"runtime" is not compatible with `nextConfig.cacheComponents`. Please remove it.',
+          7
+        )
+      }
     }
   })
 
