@@ -18,6 +18,8 @@ import {
 } from '../../../lib/add-redbox-matchers'
 import { getDeterministicOutput } from '../cache-components-errors/utils'
 
+const partialPrefetching = !!process.env.__NEXT_PARTIAL_PREFETCHING
+
 describe('instant validation', () => {
   const { next, skipped, isNextDev, isNextStart, isTurbopack } = nextTestSetup({
     files: __dirname,
@@ -103,11 +105,35 @@ describe('instant validation', () => {
         return browser
       }
 
-      // Soft nav - go to index page first, then click link
-      const indexPage = href.startsWith('/default/')
-        ? '/default'
-        : '/suspense-in-root'
+      // Soft nav - go to index page first, then click link.
+      // We have multiple root layouts, so each needs a separate index page
+      // because navigating between root layouts would be an MPA nav,
+      // and we want to test soft navs.
+      const indexPage = ((): string => {
+        if (href.startsWith('/shells/')) {
+          // If this is the root params page, use the same root param value
+          let match: ReturnType<String['match']>
+          if (
+            (match = href.match(
+              /^\/shells\/with-root-param\/(?<lang>[^/]+)\/.*/
+            ))
+          ) {
+            const lang = match.groups!.lang
+            return `/shells/with-root-param/${lang}`
+          } else {
+            return '/shells'
+          }
+        }
+        for (const prefix of ['/default', '/suspense-in-root']) {
+          if (href.startsWith(prefix + '/')) {
+            return prefix
+          }
+        }
+        throw new Error(`Could not find index page for ${href}`)
+      })()
+
       const browser = await next.browser(indexPage)
+
       const initialRootLayoutTimestamp = await browser
         .elementById('root-layout-timestamp')
         .text()
@@ -130,6 +156,7 @@ describe('instant validation', () => {
         .elementById('root-layout-timestamp')
         .text()
       expect(initialRootLayoutTimestamp).toBe(finalRootLayoutTimestamp)
+
       return browser
     }
 
@@ -3620,5 +3647,235 @@ describe('instant validation', () => {
         }
       })
     })
+
+    if (partialPrefetching) {
+      describe('app shell validation', () => {
+        it('valid - session data is allowed in a shell', async () => {
+          if (isNextDev) {
+            const browser = await navigateTo('/shells/valid-session-only')
+            await expectNoDevValidationErrors(browser, await browser.url())
+          } else {
+            const result = await prerender(
+              '/shells/(default)/valid-session-only'
+            )
+            expectNoBuildValidationErrors(result)
+          }
+        })
+
+        it('valid - session data is allowed in a shell (with dynamic data)', async () => {
+          if (isNextDev) {
+            const browser = await navigateTo(
+              '/shells/valid-session-with-dynamic'
+            )
+            await expectNoDevValidationErrors(browser, await browser.url())
+          } else {
+            const result = await prerender(
+              '/shells/(default)/valid-session-with-dynamic'
+            )
+            expectNoBuildValidationErrors(result)
+          }
+        })
+
+        it('valid - static params guarded by suspense in a shell', async () => {
+          if (isNextDev) {
+            const browser = await navigateTo(
+              '/shells/valid-static-with-gsp/123'
+            )
+            await expectNoDevValidationErrors(browser, await browser.url())
+          } else {
+            const result = await prerender(
+              '/shells/(default)/valid-static-with-gsp/[slug]'
+            )
+            expectNoBuildValidationErrors(result)
+          }
+        })
+
+        it('invalid - unguarded params in a runtime-prefetchable shell', async () => {
+          if (isNextDev) {
+            const browser = await navigateTo(
+              '/shells/invalid-runtime-params/123'
+            )
+            await expect(browser).toDisplayCollapsedRedbox(`
+             {
+               "cause": [
+                 {
+                   "label": "Caused by: Instant Validation",
+                   "source": "app/shells/(default)/invalid-runtime-params/[slug]/page.tsx (3:33) @ instant
+             > 3 | export const instant: Instant = {
+                 |                                 ^",
+                   "stack": [
+                     "instant app/shells/(default)/invalid-runtime-params/[slug]/page.tsx (3:33)",
+                     "Set.forEach <anonymous>",
+                   ],
+                 },
+               ],
+               "code": "E1391",
+               "description": "Next.js encountered link data during a navigation.",
+               "environmentLabel": "Server",
+               "label": "Instant",
+               "source": "app/shells/(default)/invalid-runtime-params/[slug]/page.tsx (28:3) @ LinkData
+             > 28 |   await params
+                  |   ^",
+               "stack": [
+                 "LinkData app/shells/(default)/invalid-runtime-params/[slug]/page.tsx (28:3)",
+                 "Page app/shells/(default)/invalid-runtime-params/[slug]/page.tsx (22:7)",
+               ],
+             }
+            `)
+          } else {
+            const result = await prerender(
+              '/shells/(default)/invalid-runtime-params/[slug]'
+            )
+            // TODO(app-shells): missing fallback params in build validation
+            // This should error, but It seems like `workUnitStore.fallbackParams` is undefined
+            // during the validation render, so the params incorrectly resolve in the static stage.
+
+            // expect(
+            //   extractBuildValidationError(result.cliOutput)
+            // ).toMatchInlineSnapshot(`...`)
+            // expect(result.exitCode).toBe(1)
+            expectNoBuildValidationErrors(result)
+          }
+        })
+
+        it('invalid - unguarded search params in a runtime-prefetchable shell', async () => {
+          if (isNextDev) {
+            const browser = await navigateTo(
+              '/shells/invalid-runtime-searchparams?foo=bar'
+            )
+            await expect(browser).toDisplayCollapsedRedbox(`
+             {
+               "cause": [
+                 {
+                   "label": "Caused by: Instant Validation",
+                   "source": "app/shells/(default)/invalid-runtime-searchparams/page.tsx (3:33) @ instant
+             > 3 | export const instant: Instant = {
+                 |                                 ^",
+                   "stack": [
+                     "instant app/shells/(default)/invalid-runtime-searchparams/page.tsx (3:33)",
+                     "Set.forEach <anonymous>",
+                   ],
+                 },
+               ],
+               "code": "E1391",
+               "description": "Next.js encountered link data during a navigation.",
+               "environmentLabel": "Server",
+               "label": "Instant",
+               "source": "app/shells/(default)/invalid-runtime-searchparams/page.tsx (27:3) @ LinkData
+             > 27 |   await searchParams
+                  |   ^",
+               "stack": [
+                 "LinkData app/shells/(default)/invalid-runtime-searchparams/page.tsx (27:3)",
+                 "Page app/shells/(default)/invalid-runtime-searchparams/page.tsx (17:7)",
+               ],
+             }
+            `)
+          } else {
+            const result = await prerender(
+              '/shells/(default)/invalid-runtime-searchparams'
+            )
+            expect(extractBuildValidationError(result.cliOutput))
+              .toMatchInlineSnapshot(`
+           "Error: Route "/shells/invalid-runtime-searchparams": Next.js encountered link data during prerendering or a navigation.
+
+           \`params\` or \`searchParams\` accessed outside of \`<Suspense>\` prevents the navigation from being instant, leading to a slower user experience.
+
+           Ways to fix this:
+             - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
+               https://nextjs.org/docs/messages/blocking-prerender-runtime#wrap-in-or-move-into-suspense
+             - [block] Set \`export const instant = false\` to silence this warning and allow a blocking route
+               https://nextjs.org/docs/messages/blocking-prerender-runtime#allow-blocking-route
+               at main (<anonymous>)
+               at body (<anonymous>)
+               at html (<anonymous>)
+           Build-time instant validation failed for route "/shells/invalid-runtime-searchparams".
+           To get a more detailed stack trace and pinpoint the issue, try one of the following:
+             - Start the app in development mode by running \`next dev\`, then open "/shells/invalid-runtime-searchparams" in your browser to investigate the error.
+             - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
+           Stopping prerender due to instant validation errors."
+          `)
+            expect(result.exitCode).toBe(1)
+          }
+        })
+
+        it('invalid - unguarded static params in metadata', async () => {
+          // TODO(app-shells): static params currently aren't excluded from the shell.
+          // This should be failing validation.
+          if (isNextDev) {
+            const browser = await navigateTo(
+              '/shells/invalid-static-with-gsp-metadata/123'
+            )
+
+            // await expect(browser).toDisplayCollapsedRedbox(`...`)
+            await expectNoDevValidationErrors(browser, await browser.url())
+          } else {
+            const result = await prerender(
+              '/shells/(default)/invalid-static-with-gsp-metadata/[slug]'
+            )
+            // expect(
+            //   extractBuildValidationError(result.cliOutput)
+            // ).toMatchInlineSnapshot(`...`)
+            // expect(result.exitCode).toBe(1)
+
+            // TODO(app-shells): The build errors here with a confusing error before we get to instant validation.
+            // This should be improved.
+            expect(result.cliOutput).toContain(
+              `Route "/shells/invalid-static-with-gsp-metadata/[slug]": Next.js encountered uncached or runtime data in \`generateMetadata()\`.`
+            )
+            expect(result.exitCode).toBe(1)
+          }
+        })
+
+        it('invalid - unguarded static params in a shell', async () => {
+          // TODO(app-shells): static params currently aren't excluded from the shell.
+          // This should be failing validation.
+          if (isNextDev) {
+            const browser = await navigateTo(
+              '/shells/invalid-static-with-gsp/123'
+            )
+
+            // await expect(browser).toDisplayCollapsedRedbox(`...`)
+            await expectNoDevValidationErrors(browser, await browser.url())
+          } else {
+            const result = await prerender(
+              '/shells/(default)/invalid-static-with-gsp/[slug]'
+            )
+            // expect(
+            //   extractBuildValidationError(result.cliOutput)
+            // ).toMatchInlineSnapshot(`...`)
+            // expect(result.exitCode).toBe(1)
+            expectNoBuildValidationErrors(result)
+          }
+        })
+
+        it('valid - unguarded root param', async () => {
+          if (isNextDev) {
+            const browser = await navigateTo(
+              '/shells/with-root-param/en/valid-unguarded-root-param'
+            )
+            await expectNoDevValidationErrors(browser, await browser.url())
+          } else {
+            const result = await prerender(
+              '/shells/with-root-param/[lang]/valid-unguarded-root-param'
+            )
+            expectNoBuildValidationErrors(result)
+          }
+        })
+
+        it('valid - unguarded root param accessed via params prop', async () => {
+          if (isNextDev) {
+            const browser = await navigateTo(
+              '/shells/with-root-param/en/valid-unguarded-root-param-via-params'
+            )
+            await expectNoDevValidationErrors(browser, await browser.url())
+          } else {
+            const result = await prerender(
+              '/shells/with-root-param/[lang]/valid-unguarded-root-param-via-params'
+            )
+            expectNoBuildValidationErrors(result)
+          }
+        })
+      })
+    }
   })
 })
