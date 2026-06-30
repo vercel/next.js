@@ -143,6 +143,9 @@ export function setRouterTransitionPrefetch(
   id: string | null,
   prefetch: RouterTransitionPrefetch
 ): void {
+  if (!process.env.__NEXT_INSTRUMENTATION_CLIENT_ROUTER_TRANSITION_EVENTS) {
+    return
+  }
   const record = getActiveTransition(id)
   if (record !== null) {
     // A route prediction can provide a tree after the prefetch cache misses.
@@ -156,6 +159,9 @@ export function setRouterTransitionPrefetch(
 export function beginRouterTransitionRequest(
   id: string | null
 ): (() => void) | undefined {
+  if (!process.env.__NEXT_INSTRUMENTATION_CLIENT_ROUTER_TRANSITION_EVENTS) {
+    return undefined
+  }
   const record = getActiveTransition(id)
   if (record === null) {
     return undefined
@@ -183,6 +189,9 @@ export function commitRouterTransition(
   url: string,
   tree: FlightRouterState
 ): void {
+  if (!process.env.__NEXT_INSTRUMENTATION_CLIENT_ROUTER_TRANSITION_EVENTS) {
+    return
+  }
   const record = getActiveTransition(id)
   if (record === null || record.committed) {
     return
@@ -205,6 +214,9 @@ export function routeMismatchRouterTransition(
   id: string | null,
   url: string
 ): void {
+  if (!process.env.__NEXT_INSTRUMENTATION_CLIENT_ROUTER_TRANSITION_EVENTS) {
+    return
+  }
   const record = getActiveTransition(id)
   if (record === null || record.routeMismatchEmitted) {
     return
@@ -225,6 +237,9 @@ export function abortRouterTransition(
   reason: 'superseded' | 'hard-navigation' | 'error',
   url?: string
 ): void {
+  if (!process.env.__NEXT_INSTRUMENTATION_CLIENT_ROUTER_TRANSITION_EVENTS) {
+    return
+  }
   const record = getActiveTransition(id)
   if (record === null) {
     return
