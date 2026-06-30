@@ -90,7 +90,7 @@ jobs:
       fail-fast: false
       matrix:
         bundler: [webpack, turbopack]
-    runs-on: ubuntu-latest-16-core-oss
+    runs-on: ubuntu-latest-16-core-arm-oss
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
@@ -104,7 +104,7 @@ jobs:
       - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         if: ${{ steps.docs-change.outputs.DOCS_CHANGE == 'nope' }}
         with:
-          name: next-swc-binary
+          name: next-swc-binary-${{ runner.os }}-${{ runner.arch }}
           path: packages/next-swc/native
 
       - run: cp -r packages/next-swc/native .github/actions/next-stats-action/native

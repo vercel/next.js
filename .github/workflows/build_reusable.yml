@@ -62,12 +62,12 @@ on:
         description: 'List of runner labels'
         required: false
         type: string
-        default: '["ubuntu-latest-16-core-oss"]'
+        default: '["ubuntu-latest-16-core-arm-oss"]'
       buildNativeTarget:
         description: 'Target for build-native step'
         required: false
         type: string
-        default: 'x86_64-unknown-linux-gnu'
+        default: 'aarch64-unknown-linux-gnu'
       overrideProxyAddress:
         description: Override the proxy address to use for the test
         required: false
@@ -188,8 +188,21 @@ jobs:
             Linux)
               # The asset names and sha256 are available on the GH releases page
               # https://github.com/Schniz/fnm/releases
-              FNM_ASSET=fnm-linux.zip
-              FNM_SHA256=7807664f39d39fc518da1c35ba0181e4b3267603c4b1dedeb4b5fc6ae440a224
+              ARCH="$(uname -m)"
+              case "$ARCH" in
+                aarch64)
+                  FNM_ASSET=fnm-arm64.zip
+                  FNM_SHA256=4eaff58b2c5bf30d0934027572dd0b5bbb60d2a1af309230b53662d4b1d45599
+                  ;;
+                x86_64)
+                  FNM_ASSET=fnm-linux.zip
+                  FNM_SHA256=7807664f39d39fc518da1c35ba0181e4b3267603c4b1dedeb4b5fc6ae440a224
+                  ;;
+                *)
+                  echo "::error::Unsupported architecture: $ARCH"
+                  exit 1
+                  ;;
+              esac
               FNM_EXE=fnm
               ;;
             Windows)
@@ -295,8 +308,8 @@ jobs:
         if: ${{ inputs.uploadSwcArtifact == 'yes' }}
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: next-swc-binary
-          path: packages/next-swc/native/next-swc.linux-x64-gnu.node
+          name: next-swc-binary-${{ runner.os }}-${{ runner.arch }}
+          path: packages/next-swc/native/next-swc.*.node
 
       # undo normalize version changes for install/build
       - run: git checkout .
@@ -322,7 +335,7 @@ jobs:
       - name: Install node-file-trace test dependencies
         if: ${{ inputs.needsNextest == 'yes' }}
         working-directory: turbopack/crates/turbopack-tracing/tests/node-file-trace
-        run: pnpm install -r --side-effects-cache false
+        run: pnpm install --recursive
 
       - run: ANALYZE=1 pnpm build
         if: ${{ inputs.skipInstallBuild != 'yes' }}

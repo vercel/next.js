@@ -265,6 +265,13 @@ jobs:
       skipInstallBuild: 'yes'
       afterBuild: pnpm dlx turbo@${TURBO_VERSION} run test-cargo-unit ${TURBO_ARGS}
       stepName: 'test-cargo-unit'
+      # Run on x86-64 instead of arm64/aarch64. The pnpm workspace in
+      # turbopack/crates/turbopack-tracing/tests/node-file-trace pulls in a ton
+      # of old native dependencies that do not support arm64. We can't easily
+      # update these, because the goal of the NFT tests is to ensure we can
+      # trace unusual packages, who may have since changed how they package
+      # themselves.
+      runs_on_labels: '["ubuntu-latest-16-core-oss"]'
     secrets: inherit
 
   test-bench:
@@ -336,7 +343,7 @@ jobs:
     with:
       afterBuild: |
         ./node_modules/.bin/devlow-bench ./scripts/devlow-bench.mjs \
-          --datadog=ubuntu-latest-16-core \
+          --datadog=ubuntu-latest-16-core-arm-oss \
           ${{ matrix.mode }} \
           ${{ matrix.selector }}
       stepName: 'devlow-bench-${{ matrix.mode }}-${{ matrix.selector }}'
