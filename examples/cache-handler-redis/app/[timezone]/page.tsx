@@ -5,22 +5,32 @@ import { RevalidateFrom } from "../revalidate-from";
 import Link from "next/link";
 
 type TimeData = {
-  unixtime: number;
-  datetime: string;
-  timezone: string;
+  dateTime: string;
+  timeZone: string;
 };
 
-const timeZones = ["cet", "gmt"];
+// Map the friendly route segment to an IANA timezone for the time API.
+const timeZones = {
+  cet: "Europe/Amsterdam",
+  gmt: "Etc/UTC",
+} as const;
 
 export const revalidate = 500;
 
-export async function generateStaticParams() {
-  return timeZones.map((timezone) => ({ timezone }));
+export function generateStaticParams() {
+  return Object.keys(timeZones).map((timezone) => ({ timezone }));
 }
 
-export default async function Page({ params: { timezone } }) {
+export default async function Page({ params }: PageProps<"/[timezone]">) {
+  const { timezone } = await params;
+  const ianaTimeZone = timeZones[timezone as keyof typeof timeZones];
+
+  if (!ianaTimeZone) {
+    notFound();
+  }
+
   const data = await fetch(
-    `https://worldtimeapi.org/api/timezone/${timezone}`,
+    `https://timeapi.io/api/time/current/zone?timeZone=${ianaTimeZone}`,
     {
       next: { tags: ["time-data"] },
     },
@@ -31,11 +41,14 @@ export default async function Page({ params: { timezone } }) {
   }
 
   const timeData: TimeData = await data.json();
+  // Captured when this cache entry is (re)generated, so the freshness
+  // countdown reflects the age of the cached entry.
+  const generatedAt = Date.now();
 
   return (
     <>
       <header className="header">
-        {timeZones.map((timeZone) => (
+        {Object.keys(timeZones).map((timeZone) => (
           <Link key={timeZone} className="link" href={`/${timeZone}`}>
             {timeZone.toUpperCase()} Time
           </Link>
@@ -43,12 +56,12 @@ export default async function Page({ params: { timezone } }) {
       </header>
       <main className="widget">
         <div className="pre-rendered-at">
-          {timeData.timezone} Time {timeData.datetime}
+          {timezone.toUpperCase()} Time {timeData.dateTime}
         </div>
         <Suspense fallback={null}>
           <CacheStateWatcher
             revalidateAfter={revalidate * 1000}
-            time={timeData.unixtime * 1000}
+            time={generatedAt}
           />
         </Suspense>
         <RevalidateFrom />
