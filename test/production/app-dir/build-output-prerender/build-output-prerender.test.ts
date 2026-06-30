@@ -23,7 +23,8 @@ describe('build-output-prerender', () => {
              - Cache Components enabled
              - Experiments (use with caution):
                ✓ appNewScrollHandler (enabled by \`__NEXT_EXPERIMENTAL_APP_NEW_SCROLL_HANDLER\`)
-               ✓ cachedNavigations (enabled by \`__NEXT_EXPERIMENTAL_CACHED_NAVIGATIONS\`)"
+               ✓ cachedNavigations (enabled by \`__NEXT_EXPERIMENTAL_CACHED_NAVIGATIONS\`)
+               · staticGenerationMaxConcurrency: 1"
             `)
           } else if (isRspack) {
             expect(getPreambleOutput(next.cliOutput)).toMatchInlineSnapshot(`
@@ -32,7 +33,8 @@ describe('build-output-prerender', () => {
              - Cache Components enabled
              - Experiments (use with caution):
                ✓ appNewScrollHandler (enabled by \`__NEXT_EXPERIMENTAL_APP_NEW_SCROLL_HANDLER\`)
-               ✓ cachedNavigations (enabled by \`__NEXT_EXPERIMENTAL_CACHED_NAVIGATIONS\`)"
+               ✓ cachedNavigations (enabled by \`__NEXT_EXPERIMENTAL_CACHED_NAVIGATIONS\`)
+               · staticGenerationMaxConcurrency: 1"
             `)
           } else {
             expect(getPreambleOutput(next.cliOutput)).toMatchInlineSnapshot(`
@@ -41,7 +43,8 @@ describe('build-output-prerender', () => {
              - Cache Components enabled
              - Experiments (use with caution):
                ✓ appNewScrollHandler (enabled by \`__NEXT_EXPERIMENTAL_APP_NEW_SCROLL_HANDLER\`)
-               ✓ cachedNavigations (enabled by \`__NEXT_EXPERIMENTAL_CACHED_NAVIGATIONS\`)"
+               ✓ cachedNavigations (enabled by \`__NEXT_EXPERIMENTAL_CACHED_NAVIGATIONS\`)
+               · staticGenerationMaxConcurrency: 1"
             `)
           }
         } else {
@@ -51,6 +54,7 @@ describe('build-output-prerender', () => {
              ▲ Next.js x.y.z (Turbopack)
              - Cache Components enabled
              - Experiments (use with caution):
+               · staticGenerationMaxConcurrency: 1
                ✓ strictRouteTypes (enabled by \`__NEXT_EXPERIMENTAL_STRICT_ROUTE_TYPES\`)"
             `)
           } else if (isRspack) {
@@ -59,6 +63,7 @@ describe('build-output-prerender', () => {
              ▲ Next.js x.y.z (Rspack)
              - Cache Components enabled
              - Experiments (use with caution):
+               · staticGenerationMaxConcurrency: 1
                ✓ strictRouteTypes (enabled by \`__NEXT_EXPERIMENTAL_STRICT_ROUTE_TYPES\`)"
             `)
           } else {
@@ -67,6 +72,7 @@ describe('build-output-prerender', () => {
              ▲ Next.js x.y.z (webpack)
              - Cache Components enabled
              - Experiments (use with caution):
+               · staticGenerationMaxConcurrency: 1
                ✓ strictRouteTypes (enabled by \`__NEXT_EXPERIMENTAL_STRICT_ROUTE_TYPES\`)"
             `)
           }
@@ -148,6 +154,7 @@ describe('build-output-prerender', () => {
                ✓ cachedNavigations (enabled by \`__NEXT_EXPERIMENTAL_CACHED_NAVIGATIONS\`)
                ⨯ prerenderEarlyExit (disabled by \`--debug-prerender\`)
                ✓ serverSourceMaps (enabled by \`--debug-prerender\`)
+               · staticGenerationMaxConcurrency: 1
                ⨯ turbopackMinify (disabled by \`--debug-prerender\`)"
             `)
           } else if (isRspack) {
@@ -162,7 +169,8 @@ describe('build-output-prerender', () => {
                ✓ cachedNavigations (enabled by \`__NEXT_EXPERIMENTAL_CACHED_NAVIGATIONS\`)
                ⨯ prerenderEarlyExit (disabled by \`--debug-prerender\`)
                ⨯ serverMinification (disabled by \`--debug-prerender\`)
-               ✓ serverSourceMaps (enabled by \`--debug-prerender\`)"
+               ✓ serverSourceMaps (enabled by \`--debug-prerender\`)
+               · staticGenerationMaxConcurrency: 1"
             `)
           } else {
             expect(getPreambleOutput(next.cliOutput)).toMatchInlineSnapshot(`
@@ -176,7 +184,8 @@ describe('build-output-prerender', () => {
                ✓ cachedNavigations (enabled by \`__NEXT_EXPERIMENTAL_CACHED_NAVIGATIONS\`)
                ⨯ prerenderEarlyExit (disabled by \`--debug-prerender\`)
                ⨯ serverMinification (disabled by \`--debug-prerender\`)
-               ✓ serverSourceMaps (enabled by \`--debug-prerender\`)"
+               ✓ serverSourceMaps (enabled by \`--debug-prerender\`)
+               · staticGenerationMaxConcurrency: 1"
             `)
           }
         } else {
@@ -190,6 +199,7 @@ describe('build-output-prerender', () => {
                ✓ allowDevelopmentBuild (enabled by \`--debug-prerender\`)
                ⨯ prerenderEarlyExit (disabled by \`--debug-prerender\`)
                ✓ serverSourceMaps (enabled by \`--debug-prerender\`)
+               · staticGenerationMaxConcurrency: 1
                ✓ strictRouteTypes (enabled by \`__NEXT_EXPERIMENTAL_STRICT_ROUTE_TYPES\`)
                ⨯ turbopackMinify (disabled by \`--debug-prerender\`)"
             `)
@@ -204,6 +214,7 @@ describe('build-output-prerender', () => {
                ⨯ prerenderEarlyExit (disabled by \`--debug-prerender\`)
                ⨯ serverMinification (disabled by \`--debug-prerender\`)
                ✓ serverSourceMaps (enabled by \`--debug-prerender\`)
+               · staticGenerationMaxConcurrency: 1
                ✓ strictRouteTypes (enabled by \`__NEXT_EXPERIMENTAL_STRICT_ROUTE_TYPES\`)"
             `)
           } else {
@@ -217,6 +228,7 @@ describe('build-output-prerender', () => {
                ⨯ prerenderEarlyExit (disabled by \`--debug-prerender\`)
                ⨯ serverMinification (disabled by \`--debug-prerender\`)
                ✓ serverSourceMaps (enabled by \`--debug-prerender\`)
+               · staticGenerationMaxConcurrency: 1
                ✓ strictRouteTypes (enabled by \`__NEXT_EXPERIMENTAL_STRICT_ROUTE_TYPES\`)"
             `)
           }
@@ -532,18 +544,5 @@ function getPrerenderOutput(cliOutput: string): string {
     }
   }
 
-  const output = lines.join('\n').trim()
-  const summaryIndex = output.indexOf('\n\n> Export encountered errors')
-
-  if (summaryIndex === -1) {
-    return output
-  }
-
-  // Routes prerender concurrently, so their errors can be reported in any order.
-  const errors = output
-    .slice(0, summaryIndex)
-    .split(/(?=^Error: Route )/m)
-    .sort()
-
-  return `${errors.join('')}${output.slice(summaryIndex)}`
+  return lines.join('\n').trim()
 }
