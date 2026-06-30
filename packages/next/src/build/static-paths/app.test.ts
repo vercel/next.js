@@ -925,7 +925,19 @@ describe('generateParamPrefixCombinations', () => {
   })
 })
 
-type TestAppSegment = Pick<AppSegment, 'config' | 'generateStaticParams'>
+type TestAppSegment = Pick<
+  AppSegment,
+  'config' | 'generateStaticParams' | 'createEmptyParamsError'
+>
+
+// Mirrors the factory the SWC transform injects for pages exporting
+// `generateStaticParams`, which the runtime throws on an empty result.
+const createEmptyParamsError = () =>
+  new Error(
+    'When using Cache Components, all `generateStaticParams` functions must return at least one result. ' +
+      'This is to ensure that we can perform build-time validation that there is no other dynamic accesses that would cause a runtime error.\n\n' +
+      'Learn more: https://nextjs.org/docs/messages/empty-generate-static-params'
+  )
 
 // Mock WorkStore for testing
 const createMockWorkStore = (fetchCache?: WorkStore['fetchCache']) => ({
@@ -936,10 +948,12 @@ const createMockWorkStore = (fetchCache?: WorkStore['fetchCache']) => ({
 // Helper to create mock segments
 const createMockSegment = (
   generateStaticParams?: (options: { params?: Params }) => Promise<Params[]>,
-  config?: TestAppSegment['config']
+  config?: TestAppSegment['config'],
+  emptyParamsError?: TestAppSegment['createEmptyParamsError']
 ): TestAppSegment => ({
   config,
   generateStaticParams,
+  createEmptyParamsError: emptyParamsError,
 })
 
 describe('generateRouteStaticParams', () => {
@@ -1310,7 +1324,7 @@ describe('generateRouteStaticParams', () => {
     it('should throw error when generateStaticParams returns empty array with isRoutePPREnabled=true', async () => {
       const segments: TestAppSegment[] = [
         createMockSegment(async () => [{ lang: 'en' }]),
-        createMockSegment(async () => []), // Empty result
+        createMockSegment(async () => [], undefined, createEmptyParamsError), // Empty result
       ]
       const store = createMockWorkStore()
       await expect(
@@ -1328,7 +1342,7 @@ describe('generateRouteStaticParams', () => {
 
     it('should throw error when first segment returns empty array with isRoutePPREnabled=true', async () => {
       const segments: TestAppSegment[] = [
-        createMockSegment(async () => []), // Empty result at root level
+        createMockSegment(async () => [], undefined, createEmptyParamsError), // Empty result at root level
       ]
       const store = createMockWorkStore()
       await expect(
