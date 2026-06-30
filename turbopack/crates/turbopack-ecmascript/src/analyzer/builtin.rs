@@ -4,12 +4,12 @@ use smallvec::SmallVec;
 use turbo_rcstr::rcstr;
 
 use super::{ConstantNumber, ConstantValue, JsValue, LogicalOperator, LogicalProperty, ObjectPart};
-use crate::analyzer::{Bump, BumpVec, JsValueUrlKind};
+use crate::analyzer::{Bump, BumpVec, JsValueUrlKind, Modified};
 
 /// Replaces some builtin values with their resulting values. Called early
 /// without lazy nested values. This allows to skip a lot of work to process the
 /// arguments.
-pub fn early_replace_builtin(value: &mut JsValue<'_>) -> bool {
+pub fn early_replace_builtin(value: &mut JsValue<'_>) -> Modified {
     match value {
         // matching calls like `callee(arg1, arg2, ...)`
         JsValue::Call(_, call) => {
@@ -24,7 +24,7 @@ pub fn early_replace_builtin(value: &mut JsValue<'_>) -> bool {
                 } => {
                     let has_side_effects = has_side_effects || args_have_side_effects();
                     value.make_unknown(has_side_effects, rcstr!("unknown callee"));
-                    true
+                    Modified::Yes
                 }
                 // We known that these callee will lead to an error at runtime, so we can skip
                 // processing them
@@ -39,9 +39,9 @@ pub fn early_replace_builtin(value: &mut JsValue<'_>) -> bool {
                 | JsValue::Not(_, _) => {
                     let has_side_effects = args_have_side_effects();
                     value.make_unknown(has_side_effects, rcstr!("non-function callee"));
-                    true
+                    Modified::Yes
                 }
-                _ => false,
+                _ => Modified::No,
             }
         }
         // matching calls with this context like `obj.prop(arg1, arg2, ...)`
@@ -58,7 +58,7 @@ pub fn early_replace_builtin(value: &mut JsValue<'_>) -> bool {
                     let side_effects =
                         has_side_effects || prop.has_side_effects() || args_have_side_effects();
                     value.make_unknown(side_effects, rcstr!("unknown callee object"));
-                    true
+                    Modified::Yes
                 }
                 // otherwise we need to look at the property
                 _ => match prop {
@@ -70,9 +70,9 @@ pub fn early_replace_builtin(value: &mut JsValue<'_>) -> bool {
                     } => {
                         let side_effects = has_side_effects || args_have_side_effects();
                         value.make_unknown(side_effects, rcstr!("unknown callee property"));
-                        true
+                        Modified::Yes
                     }
-                    _ => false,
+                    _ => Modified::No,
                 },
             }
         }
@@ -85,31 +85,31 @@ pub fn early_replace_builtin(value: &mut JsValue<'_>) -> bool {
             {
                 let side_effects = *has_side_effects || prop.has_side_effects();
                 value.make_unknown(side_effects, rcstr!("unknown object"));
-                true
+                Modified::Yes
             } else {
-                false
+                Modified::No
             }
         }
-        _ => false,
+        _ => Modified::No,
     }
 }
 
 /// Replaces some builtin functions and values with their resulting values. In
 /// contrast to early_replace_builtin this has all inner values already
 /// processed.
-pub fn replace_builtin<'a>(arena: &'a Bump, value: &mut JsValue<'a>) -> bool {
+pub fn replace_builtin<'a>(arena: &'a Bump, value: &mut JsValue<'a>) -> Modified {
     match value {
         JsValue::Add(_, list) => {
             // numeric addition
             let mut sum = 0f64;
             for arg in list {
                 let JsValue::Constant(ConstantValue::Num(num)) = arg else {
-                    return false;
+                    return Modified::No;
                 };
                 sum += num.0;
             }
             *value = JsValue::Constant(ConstantValue::Num(sum.into()));
-            true
+            Modified::Yes
         }
 
         // matching property access like `obj.prop`
@@ -129,7 +129,7 @@ pub fn replace_builtin<'a>(arena: &'a Bump, value: &mut JsValue<'a>) -> bool {
                         .into_iter()
                         .map(|alt| JsValue::member(arena, alt, prop.clone_in(arena))),
                 ));
-                true
+                Modified::Yes
             }
             // matching property access on an array like `[1,2,3].prop` or `[1,2,3][1]`
             &mut JsValue::Array {
@@ -159,25 +159,25 @@ pub fn replace_builtin<'a>(arena: &'a Bump, value: &mut JsValue<'a>) -> bool {
                                 if mutable {
                                     value.add_unknown_mutations(arena, true);
                                 }
-                                true
+                                Modified::Yes
                             } else {
                                 *value = JsValue::unknown(
                                     JsValue::member(arena, take(&mut **obj), take(&mut **prop)),
                                     false,
                                     rcstr!("invalid index"),
                                 );
-                                true
+                                Modified::Yes
                             }
                         } else {
                             value.make_unknown(false, rcstr!("non-num constant property on array"));
-                            true
+                            Modified::Yes
                         }
                     }
                     // accessing a non-numeric property on an array like `[1,2,3].length`
                     // We don't know what happens here
                     JsValue::Constant(_) => {
                         value.make_unknown(false, rcstr!("non-num constant property on array"));
-                        true
+                        Modified::Yes
                     }
                     // accessing multiple alternative properties on an array like `[1,2,3][(1 | 2 |
                     // prop3)]`
@@ -192,13 +192,13 @@ pub fn replace_builtin<'a>(arena: &'a Bump, value: &mut JsValue<'a>) -> bool {
                                 .into_iter()
                                 .map(|alt| JsValue::member(arena, obj.clone_in(arena), alt)),
                         ));
-                        true
+                        Modified::Yes
                     }
                     // otherwise we can say that this might gives an item of the array
                     // but we also add an unknown value to the alternatives for other properties
                     _ => {
                         *value = items_to_alternatives(arena, items, prop);
-                        true
+                        Modified::Yes
                     }
                 }
             }
@@ -304,7 +304,7 @@ pub fn replace_builtin<'a>(arena: &'a Bump, value: &mut JsValue<'a>) -> bool {
                                             if mutable {
                                                 value.add_unknown_mutations(arena, true);
                                             }
-                                            return true;
+                                            return Modified::Yes;
                                         }
                                     } else {
                                         potential_values.push(i);
@@ -312,7 +312,7 @@ pub fn replace_builtin<'a>(arena: &'a Bump, value: &mut JsValue<'a>) -> bool {
                                 }
                                 ObjectPart::Spread(_) => {
                                     value.make_unknown(true, rcstr!("spread object"));
-                                    return true;
+                                    return Modified::Yes;
                                 }
                             }
                         }
@@ -330,7 +330,7 @@ pub fn replace_builtin<'a>(arena: &'a Bump, value: &mut JsValue<'a>) -> bool {
                         if mutable {
                             value.add_unknown_mutations(arena, true);
                         }
-                        true
+                        Modified::Yes
                     }
                     // matching multiple alternative properties on an object like `{a: 1, b: 2}[(a |
                     // b)]`
@@ -345,15 +345,15 @@ pub fn replace_builtin<'a>(arena: &'a Bump, value: &mut JsValue<'a>) -> bool {
                                 .into_iter()
                                 .map(|alt| JsValue::member(arena, obj.clone_in(arena), alt)),
                         ));
-                        true
+                        Modified::Yes
                     }
                     _ => {
                         *value = parts_to_alternatives(arena, take(parts), prop, true);
-                        true
+                        Modified::Yes
                     }
                 }
             }
-            _ => false,
+            _ => Modified::No,
         },
 
         JsValue::MemberCall(_, _) => {
@@ -411,7 +411,7 @@ pub fn replace_builtin<'a>(arena: &'a Bump, value: &mut JsValue<'a>) -> bool {
                                     }
                                     obj.update_total_nodes();
                                     *value = obj;
-                                    return true;
+                                    return Modified::Yes;
                                 }
                             // The Array.prototype.map method
                             "map" => {
@@ -431,7 +431,7 @@ pub fn replace_builtin<'a>(arena: &'a Bump, value: &mut JsValue<'a>) -> bool {
                                             )
                                         }),
                                     ));
-                                    return true;
+                                    return Modified::Yes;
                                 }
                             }
                             _ => {}
@@ -456,7 +456,7 @@ pub fn replace_builtin<'a>(arena: &'a Bump, value: &mut JsValue<'a>) -> bool {
                             )
                         },
                     )));
-                    return true;
+                    return Modified::Yes;
                 }
                 _ => {}
             }
@@ -472,7 +472,7 @@ pub fn replace_builtin<'a>(arena: &'a Bump, value: &mut JsValue<'a>) -> bool {
                     values.extend(arena, args);
 
                     *value = JsValue::concat(values);
-                    return true;
+                    return Modified::Yes;
                 }
             }
 
@@ -485,7 +485,7 @@ pub fn replace_builtin<'a>(arena: &'a Bump, value: &mut JsValue<'a>) -> bool {
             // no realloc. This is the original motivation for the `[args..., prop, obj]`
             // tail layout.
             *value = JsValue::call_from_parts(arena, JsValue::member(arena, obj, prop), args);
-            true
+            Modified::Yes
         }
         // match calls when the callee are multiple alternative functions like `(func1 |
         // func2)(arg1, arg2, ...)`
@@ -506,7 +506,7 @@ pub fn replace_builtin<'a>(arena: &'a Bump, value: &mut JsValue<'a>) -> bool {
                     .into_iter()
                     .map(|alt| JsValue::call_from_iter(arena, alt, args.iter().map(|a| a.clone_in(arena)))),
             ));
-            true
+            Modified::Yes
         }
         // match object literals
         JsValue::Object { parts, mutable, .. }
@@ -530,7 +530,7 @@ pub fn replace_builtin<'a>(arena: &'a Bump, value: &mut JsValue<'a>) -> bool {
                     }
                 }
                 value.update_total_nodes();
-                true
+                Modified::Yes
             }
         // match logical expressions like `a && b` or `a || b || c` or `a ?? b`
         // Reduce logical expressions to their final value(s)
@@ -577,7 +577,7 @@ pub fn replace_builtin<'a>(arena: &'a Bump, value: &mut JsValue<'a>) -> bool {
             // If we reduced the expression to a single value, we can replace it.
             if parts.len() == 1 {
                 *value = parts.pop().unwrap();
-                true
+                Modified::Yes
             } else {
                 // If not, we know that it will be one of the remaining values.
                 let last_part = parts.last().unwrap();
@@ -626,22 +626,22 @@ pub fn replace_builtin<'a>(arena: &'a Bump, value: &mut JsValue<'a>) -> bool {
                 };
                 if let Some(property) = property {
                     *value = JsValue::alternatives_with_additional_property(parts, property);
-                    true
+                    Modified::Yes
                 } else {
                     *value = JsValue::alternatives(parts);
-                    true
+                    Modified::Yes
                 }
             }
         }
         JsValue::Tenary(_, test, cons, alt) => {
             if test.is_truthy() == Some(true) {
                 *value = take(&mut **cons);
-                true
+                Modified::Yes
             } else if test.is_falsy() == Some(true) {
                 *value = take(&mut **alt);
-                true
+                Modified::Yes
             } else {
-                false
+                Modified::No
             }
         }
         // match a binary operator like `a == b`
@@ -653,9 +653,9 @@ pub fn replace_builtin<'a>(arena: &'a Bump, value: &mut JsValue<'a>) -> bool {
                     ConstantValue::False
                 };
                 *value = JsValue::Constant(v);
-                true
+                Modified::Yes
             } else {
-                false
+                Modified::No
             }
         }
         // match the not operator like `!a`
@@ -663,13 +663,13 @@ pub fn replace_builtin<'a>(arena: &'a Bump, value: &mut JsValue<'a>) -> bool {
         JsValue::Not(_, inner) => match inner.is_truthy() {
             Some(true) => {
                 *value = JsValue::Constant(ConstantValue::False);
-                true
+                Modified::Yes
             }
             Some(false) => {
                 *value = JsValue::Constant(ConstantValue::True);
-                true
+                Modified::Yes
             }
-            None => false,
+            None => Modified::No,
         },
 
         JsValue::Iterated(_, iterable) => {
@@ -679,22 +679,22 @@ pub fn replace_builtin<'a>(arena: &'a Bump, value: &mut JsValue<'a>) -> bool {
                     new_value.add_unknown_mutations(arena, true);
                 }
                 *value = new_value;
-                true
+                Modified::Yes
             } else {
-                false
+                Modified::No
             }
         }
 
         JsValue::Awaited(_, operand) => {
             if let JsValue::Promise(_, inner) = &mut **operand {
                 *value = take(&mut **inner);
-                true
+                Modified::Yes
             } else {
                 *value = take(&mut **operand);
-                true
+                Modified::Yes
             }
         }
 
-        _ => false,
+        _ => Modified::No,
     }
 }
