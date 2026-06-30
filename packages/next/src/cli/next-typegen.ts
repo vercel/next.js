@@ -6,7 +6,7 @@ import { mkdir } from 'fs/promises'
 
 import loadConfig from '../server/config'
 import { printAndExit } from '../server/lib/utils'
-import { PHASE_PRODUCTION_BUILD } from '../shared/lib/constants'
+import { PHASE_INFO } from '../shared/lib/constants'
 import { getProjectDir } from '../lib/get-project-dir'
 import { findPagesDir } from '../lib/find-pages-dir'
 import { verifyAndRunTypeScript } from '../lib/verify-typescript-setup'
@@ -30,11 +30,6 @@ export type NextTypegenOptions = {
 const nextTypegen = async (options: NextTypegenOptions, directory?: string) => {
   parseBundlerArgs(options)
 
-  // Signal to config loading that we are running typegen so that
-  // Turbopack-only config checks (e.g. turbopackRustReactCompiler) are
-  // skipped – typegen does not involve a bundler at all.
-  process.env.NEXT_PRIVATE_TYPEGEN = '1'
-
   const baseDir = getProjectDir(directory)
 
   // Check if the provided directory exists
@@ -42,7 +37,10 @@ const nextTypegen = async (options: NextTypegenOptions, directory?: string) => {
     printAndExit(`> No such directory exists as the project root: ${baseDir}`)
   }
 
-  const nextConfig = await loadConfig(PHASE_PRODUCTION_BUILD, baseDir)
+  // Use PHASE_INFO: typegen is a read-only analysis step — no bundler runs,
+  // so bundler-specific config checks (e.g. turbopackRustReactCompiler) must
+  // not fire.  PHASE_INFO is already used by `next info` for the same reason.
+  const nextConfig = await loadConfig(PHASE_INFO, baseDir)
   await installBindings(nextConfig.experimental?.useWasmBinary)
   const distDir = join(baseDir, nextConfig.distDir)
   const { pagesDir, appDir } = findPagesDir(baseDir)

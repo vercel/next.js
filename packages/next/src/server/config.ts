@@ -9,6 +9,7 @@ import {
   CONFIG_FILES,
   PHASE_DEVELOPMENT_SERVER,
   PHASE_EXPORT,
+  PHASE_INFO,
   PHASE_PRODUCTION_BUILD,
   PHASE_PRODUCTION_SERVER,
   type PHASE_TYPE,
@@ -487,9 +488,10 @@ function assignDefaultsAndValidate(
 
   // Validate experimental.cssChunking compatibility with the active bundler. Graph mode is
   // Turbopack-only; strict mode and `false` (single-chunk-per-module) are webpack-only.
-  // Only validate during build/dev — `next start` doesn't pick a bundler and would otherwise
-  // see `process.env.TURBOPACK` unset and reject a valid `cssChunking: "graph"` config.
-  if (phase !== PHASE_PRODUCTION_SERVER) {
+  // Only validate during build/dev — `next start` and informational commands (e.g. `next info`,
+  // `next typegen`) don't pick a bundler and would otherwise see `process.env.TURBOPACK`
+  // unset and reject valid bundler-specific config options.
+  if (phase !== PHASE_PRODUCTION_SERVER && phase !== PHASE_INFO) {
     const cssChunkingValue = result.experimental.cssChunking
     const cssChunkingMode = resolveCssChunkingMode(cssChunkingValue)
     if (cssChunkingMode === 'graph' && !process.env.TURBOPACK) {
@@ -515,8 +517,7 @@ function assignDefaultsAndValidate(
 
     if (
       result.experimental.turbopackRustReactCompiler &&
-      !process.env.TURBOPACK &&
-      !process.env.NEXT_PRIVATE_TYPEGEN
+      !process.env.TURBOPACK
     ) {
       throw new Error(
         `\`experimental.turbopackRustReactCompiler\` is only supported with Turbopack. ` +
