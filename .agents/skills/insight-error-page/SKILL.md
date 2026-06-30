@@ -76,7 +76,8 @@ kind: insight
 ## Don't want this validation?
   (canonical opt-out block — see "Don't want this validation?" rule below)
 
-## Useful links
+## Related Insights
+  (full list of every other insight-kind error page, current page omitted)
 ```
 
 ## Rules (hard requirements)
@@ -126,7 +127,7 @@ kind: insight
 
 - Framing paragraph: link to sibling pages (client ↔ server counterpart, parallel API families).
 - Gotchas: link to the `-client` page when warning about inline render in Client Components.
-- Useful links: keep it short (typically 2–6 entries). Sibling error pages + the canonical [Ensuring instant navigations](/docs/app/guides/instant-navigation) guide + 1–3 API references central to the fixes but not already inline-linked throughout the body. Do not re-list every API the body mentions — those are inline-linked at first use and the section is for follow-on navigation, not an index.
+- Related Insights: the full list of every other insight-kind error page, current page omitted. This is an index of the Insight family, not a curated short list. Order: body errors → metadata/viewport → unstable-value errors (server then client) → navigation Insights. Do not add API references or guides to this section; those belong inline in the body where relevant.
 - Every API reference and file convention must be inline-linked throughout, not reserved for Useful Links.
 - **Cross-page pattern linking**: When a fix on one page is covered in depth on a sibling page, show only the most common pattern inline and link out to the sibling for the full set. For example, a server page's "Render on the client" fix shows one client pattern and links to the `-client` page; a client page's "Other options" section bridges to the server page's cache fix. Don't duplicate entire sections across sibling pages — keep each page lean and let the sibling be the canonical reference.
 - **First-party only**: link only to `nextjs.org/docs/*`, `react.dev/*`, `developer.mozilla.org/*`, and other canonical first-party references. **Never** link to personal blogs, community write-ups, conference talks, X/Bluesky posts, GitHub gists, or any third-party source — including the page author's own blog. If a third-party post inspired a pattern, internalize the idea and write it in our own voice without citation. Sibling error pages, our own docs, and primary API specs are the only acceptable destinations.
@@ -217,6 +218,7 @@ When auditing an existing page, check every item:
 - [ ] Sibling pages cross-linked in framing paragraph + Useful links
 - [ ] Useful links section is short (typically 2–6 entries). Does not re-list APIs that are already inline-linked in the body.
 - [ ] `## Don't want this validation?` section present, verbatim per the canonical block
+- [ ] `## Related Insights` section present, listing every other insight-kind error page (current page omitted)
 - [ ] Upstream `errors/<slug>.mdx` content preserved (relocated to Gotchas or Other options if needed)
 - [ ] Terminology matches canonical docs (verified, not assumed)
 - [ ] Vercel technical writing style applied (no banned words, active voice, sentence-case headings)

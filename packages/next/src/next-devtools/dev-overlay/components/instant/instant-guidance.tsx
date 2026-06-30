@@ -583,9 +583,10 @@ export const INSTANT_GUIDANCE_STYLES = css`
     font-family: var(--font-stack-sans);
     font-size: var(--size-11);
     font-weight: 500;
-    gap: 4px;
+    gap: 6px;
     height: auto;
-    padding: 3px 8px 3px 7px;
+    line-height: 1;
+    padding: 5px 10px;
     position: absolute;
     right: 10px;
     top: -10px;
