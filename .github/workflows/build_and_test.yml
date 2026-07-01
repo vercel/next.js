@@ -116,7 +116,19 @@ jobs:
     with:
       skipInstallBuild: 'yes'
       stepName: 'build-native'
-      uploadNativeArtifact: 'next-swc-linux'
+      uploadNativeArtifact: true
+    secrets: inherit
+
+  build-native-x64:
+    name: build-native-x64
+    uses: ./.github/workflows/build_reusable.yml
+    needs: ['changes']
+    if: ${{ needs.changes.outputs.docs-only == 'false' }}
+    with:
+      skipInstallBuild: 'yes'
+      stepName: 'build-native-x64'
+      runs_on_labels: '["ubuntu-latest-16-core-oss"]'
+      uploadNativeArtifact: true
     secrets: inherit
 
   build-native-windows:
@@ -128,8 +140,7 @@ jobs:
       skipInstallBuild: 'yes'
       stepName: 'build-native-windows'
       runs_on_labels: '["windows-latest-8-core-oss"]'
-      buildNativeTarget: 'x86_64-pc-windows-msvc'
-      uploadNativeArtifact: 'next-swc-windows'
+      uploadNativeArtifact: true
 
     secrets: inherit
 
@@ -368,7 +379,7 @@ jobs:
         'optimize-ci',
         'changes',
         'build-next',
-        'build-native',
+        'build-native-x64',
         'fetch-test-timings',
       ]
     if: ${{ needs.optimize-ci.outputs.skip == 'false' && needs.changes.outputs.docs-only == 'false' }}
@@ -399,6 +410,7 @@ jobs:
           -g ${{ matrix.group }}
       testTimingsArtifact: 'test-timings'
       stepName: 'test-turbopack-dev-react-${{ matrix.react }}-${{ matrix.group }}'
+      runs_on_labels: '["ubuntu-latest-16-core-oss"]'
     secrets: inherit
 
   test-turbopack-production:
@@ -408,7 +420,7 @@ jobs:
         'optimize-ci',
         'changes',
         'build-next',
-        'build-native',
+        'build-native-x64',
         'fetch-test-timings',
       ]
     if: ${{ needs.optimize-ci.outputs.skip == 'false' && needs.changes.outputs.docs-only == 'false' }}
@@ -436,6 +448,7 @@ jobs:
         node run-tests.js --timings --require-timings -g ${{ matrix.group }} --type production
       testTimingsArtifact: 'test-timings'
       stepName: 'test-turbopack-production-react-${{ matrix.react }}-${{ matrix.group }}'
+      runs_on_labels: '["ubuntu-latest-16-core-oss"]'
     secrets: inherit
 
   test-rspack-dev:
@@ -655,7 +668,6 @@ jobs:
       afterBuild: node run-tests.js --type unit
       stepName: 'test-unit-windows-${{ matrix.node }}'
       runs_on_labels: '["windows-latest-8-core-oss"]'
-      buildNativeTarget: 'x86_64-pc-windows-msvc'
 
     secrets: inherit
 
@@ -779,7 +791,7 @@ jobs:
       [
         'optimize-ci',
         'changes',
-        'build-native',
+        'build-native-x64',
         'build-next',
         'fetch-test-timings',
       ]
@@ -809,6 +821,7 @@ jobs:
           --type development
       testTimingsArtifact: 'test-timings'
       stepName: 'test-dev-react-${{ matrix.react }}-${{ matrix.group }}'
+      runs_on_labels: '["ubuntu-latest-16-core-oss"]'
     secrets: inherit
 
   test-dev-windows:
@@ -831,7 +844,6 @@ jobs:
           test/development/app-dir/segment-explorer/segment-explorer.test.ts
       stepName: 'test-dev-windows'
       runs_on_labels: '["windows-latest-8-core-oss"]'
-      buildNativeTarget: 'x86_64-pc-windows-msvc'
     secrets: inherit
 
   test-integration-windows:
@@ -857,7 +869,6 @@ jobs:
           test/production/create-next-app/package-manager/pnpm.test.ts
       stepName: 'test-integration-windows'
       runs_on_labels: '["windows-latest-8-core-oss"]'
-      buildNativeTarget: 'x86_64-pc-windows-msvc'
     secrets: inherit
 
   test-prod-windows:
@@ -881,7 +892,6 @@ jobs:
           test/e2e/app-dir/proxy-runtime-nodejs/proxy-runtime-nodejs.test.ts
       stepName: 'test-prod-windows'
       runs_on_labels: '["windows-latest-8-core-oss"]'
-      buildNativeTarget: 'x86_64-pc-windows-msvc'
     secrets: inherit
 
   test-prod:
@@ -890,7 +900,7 @@ jobs:
       [
         'optimize-ci',
         'changes',
-        'build-native',
+        'build-native-x64',
         'build-next',
         'fetch-test-timings',
       ]
@@ -916,6 +926,7 @@ jobs:
         node run-tests.js --timings --require-timings -g ${{ matrix.group }} --type production
       testTimingsArtifact: 'test-timings'
       stepName: 'test-prod-react-${{ matrix.react }}-${{ matrix.group }}'
+      runs_on_labels: '["ubuntu-latest-16-core-oss"]'
     secrets: inherit
 
   test-firefox-safari:
@@ -1037,6 +1048,7 @@ jobs:
       - optimize-ci
       - changes
       - build-native
+      - build-native-x64
       - build-next
       - fetch-test-timings
       - lint
