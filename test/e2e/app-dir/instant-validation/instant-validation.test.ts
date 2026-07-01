@@ -541,8 +541,8 @@ describe('instant validation', () => {
                ],
              },
            ],
-           "code": "E1372",
-           "description": "Next.js encountered runtime data during a navigation.",
+           "code": "E1394",
+           "description": "Next.js encountered URL data during prefetching.",
            "environmentLabel": "Server",
            "label": "Instant",
            "source": "app/suspense-in-root/static/missing-suspense-around-params/[param]/page.tsx (20:21) @ Runtime
@@ -673,8 +673,8 @@ describe('instant validation', () => {
                  ],
                },
              ],
-             "code": "E1372",
-             "description": "Next.js encountered runtime data during a navigation.",
+             "code": "E1394",
+             "description": "Next.js encountered URL data during prefetching.",
              "environmentLabel": "Server",
              "label": "Instant",
              "source": "app/suspense-in-root/static/missing-suspense-around-search-params/page.tsx (7:18) @ Page
