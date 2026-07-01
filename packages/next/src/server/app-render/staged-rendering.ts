@@ -44,10 +44,19 @@ export function isAdvanceableRenderStage(
   return RenderStage.Before < stage && stage <= RenderStage.Dynamic
 }
 
+export enum SyncIOMode {
+  /** Sync IO does not error in any stage. */
+  Untracked = 1,
+  /** Before `partialPrefetching`: Sync IO errors in static stages, and is allowed otherwise. */
+  AllowedInRuntimeOrDynamic = 2,
+  /** After `partialPrefetching`: Sync IO errors in all stages other than dynamic. */
+  AllowedInDynamic = 3,
+}
+
 export class StagedRenderingController {
   private abortSignal: AbortSignal | null
   private abandonController: AbortController | null
-  private shouldTrackSyncIO: boolean
+  private syncIOMode: SyncIOMode
   public readonly finalStage: AdvanceableRenderStage | null
 
   currentStage: RenderStage = RenderStage.Before
@@ -67,17 +76,17 @@ export class StagedRenderingController {
   constructor({
     abortSignal,
     abandonController,
-    shouldTrackSyncIO,
+    syncIO,
     finalStage,
   }: {
     abortSignal: AbortSignal | null
     abandonController: AbortController | null
-    shouldTrackSyncIO: boolean
+    syncIO: SyncIOMode
     finalStage: AdvanceableRenderStage | null
   }) {
     this.abortSignal = abortSignal
     this.abandonController = abandonController
-    this.shouldTrackSyncIO = shouldTrackSyncIO
+    this.syncIOMode = syncIO
     this.finalStage = finalStage
 
     if (abortSignal) {
@@ -111,7 +120,7 @@ export class StagedRenderingController {
   }
 
   shouldTrackSyncInterrupt(): boolean {
-    if (!this.shouldTrackSyncIO) {
+    if (this.syncIOMode === SyncIOMode.Untracked) {
       return false
     }
 
@@ -123,10 +132,18 @@ export class StagedRenderingController {
       case RenderStage.Static:
         return true
       case RenderStage.ShellRuntime:
-      case RenderStage.Runtime:
-        // TODO(sync-io): only in partialPrefetching
-        // Sync IO should error because it would abort a prerender.
-        return true
+      case RenderStage.Runtime: {
+        switch (this.syncIOMode) {
+          case SyncIOMode.AllowedInRuntimeOrDynamic: {
+            // Before `partialPrefetching`: Sync IO only errors in static stages.
+            return false
+          }
+          case SyncIOMode.AllowedInDynamic: {
+            return true
+          }
+        }
+        // NOT a fallthrough, but eslint doesn't understand that
+      }
       case RenderStage.Dynamic:
       case RenderStage.Abandoned:
         return false
