@@ -2931,7 +2931,7 @@ function createWorkInProgress(current, pendingProps) {
       (workInProgress.deletions = null),
       (workInProgress.actualDuration = -0),
       (workInProgress.actualStartTime = -1.1));
-  workInProgress.flags = current.flags & 133169152;
+  workInProgress.flags = current.flags & 1206910976;
   workInProgress.childLanes = current.childLanes;
   workInProgress.lanes = current.lanes;
   workInProgress.child = current.child;
@@ -2952,7 +2952,7 @@ function createWorkInProgress(current, pendingProps) {
   return workInProgress;
 }
 function resetWorkInProgress(workInProgress, renderLanes) {
-  workInProgress.flags &= 133169154;
+  workInProgress.flags &= 1206910978;
   var current = workInProgress.alternate;
   null === current
     ? ((workInProgress.childLanes = 0),
@@ -7804,7 +7804,7 @@ function updateSuspenseComponent(current, workInProgress, renderLanes) {
         mode: "hidden",
         children: nextProps.children
       })),
-      (nextProps.subtreeFlags = prevState.subtreeFlags & 133169152),
+      (nextProps.subtreeFlags = prevState.subtreeFlags & 1206910976),
       null !== digest
         ? (nextPrimaryChildren = createWorkInProgress(
             digest,
@@ -8807,8 +8807,8 @@ function bubbleProperties(completedWork) {
 
       )
         (newChildLanes |= child$124.lanes | child$124.childLanes),
-          (subtreeFlags |= child$124.subtreeFlags & 133169152),
-          (subtreeFlags |= child$124.flags & 133169152),
+          (subtreeFlags |= child$124.subtreeFlags & 1206910976),
+          (subtreeFlags |= child$124.flags & 1206910976),
           (treeBaseDuration$123 += child$124.treeBaseDuration),
           (child$124 = child$124.sibling);
       completedWork.treeBaseDuration = treeBaseDuration$123;
@@ -8820,8 +8820,8 @@ function bubbleProperties(completedWork) {
       )
         (newChildLanes |=
           treeBaseDuration$123.lanes | treeBaseDuration$123.childLanes),
-          (subtreeFlags |= treeBaseDuration$123.subtreeFlags & 133169152),
-          (subtreeFlags |= treeBaseDuration$123.flags & 133169152),
+          (subtreeFlags |= treeBaseDuration$123.subtreeFlags & 1206910976),
+          (subtreeFlags |= treeBaseDuration$123.flags & 1206910976),
           (treeBaseDuration$123.return = completedWork),
           (treeBaseDuration$123 = treeBaseDuration$123.sibling);
   else if (0 !== (completedWork.mode & 2)) {
@@ -13332,6 +13332,7 @@ function performWorkOnRoot(root$jscomp$0, lanes, forceSync) {
             (prepareFreshStack(root, JSCompiler_inline_result).flags |= 256);
           exitStatus = renderRootSync(root, JSCompiler_inline_result, !1);
           2 !== exitStatus &&
+            6 !== exitStatus &&
             (workInProgressRootDidAttachPingListener && !wasRootDehydrated
               ? ((root.errorRecoveryDisabledLanes |= renderWasConcurrent),
                 (workInProgressRootInterleavedUpdatedLanes |=
@@ -20103,14 +20104,14 @@ ReactDOMHydrationRoot.prototype.unstable_scheduleHydration = function (target) {
 };
 var isomorphicReactPackageVersion$jscomp$inline_2352 = React.version;
 if (
-  "19.3.0-canary-92f4fda3-20260629" !==
+  "19.3.0-canary-ec0fca31-20260701" !==
   isomorphicReactPackageVersion$jscomp$inline_2352
 )
   throw Error(
     formatProdErrorMessage(
       527,
       isomorphicReactPackageVersion$jscomp$inline_2352,
-      "19.3.0-canary-92f4fda3-20260629"
+      "19.3.0-canary-ec0fca31-20260701"
     )
   );
 ReactDOMSharedInternals.findDOMNode = function (componentOrElement) {
@@ -20132,10 +20133,10 @@ ReactDOMSharedInternals.findDOMNode = function (componentOrElement) {
 };
 var internals$jscomp$inline_2937 = {
   bundleType: 0,
-  version: "19.3.0-canary-92f4fda3-20260629",
+  version: "19.3.0-canary-ec0fca31-20260701",
   rendererPackageName: "react-dom",
   currentDispatcherRef: ReactSharedInternals,
-  reconcilerVersion: "19.3.0-canary-92f4fda3-20260629"
+  reconcilerVersion: "19.3.0-canary-ec0fca31-20260701"
 };
 if ("undefined" !== typeof __REACT_DEVTOOLS_GLOBAL_HOOK__) {
   var hook$jscomp$inline_2938 = __REACT_DEVTOOLS_GLOBAL_HOOK__;
@@ -20403,7 +20404,7 @@ exports.useFormState = function (action, initialState, permalink) {
 exports.useFormStatus = function () {
   return ReactSharedInternals.H.useHostTransitionStatus();
 };
-exports.version = "19.3.0-canary-92f4fda3-20260629";
+exports.version = "19.3.0-canary-ec0fca31-20260701";
 "undefined" !== typeof __REACT_DEVTOOLS_GLOBAL_HOOK__ &&
   "function" ===
     typeof __REACT_DEVTOOLS_GLOBAL_HOOK__.registerInternalModuleStop &&

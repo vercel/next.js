@@ -367,5 +367,17 @@ describe('cache-components OTEL spans', () => {
         expect(t8againValue).not.toEqual(0)
       }
     })
+    it('should allow creating Spans from a tracer acquired before provider registration', async () => {
+      const outputIndex = next.cliOutput.length
+      const browser = await next.browser('/novel/early-span')
+      // Guard the reported regression directly: span ID generation must not be treated as dynamic Math.random() access during prerendering.
+      expect(
+        next.cliOutput
+          .slice(outputIndex)
+          .match(/unstable value.*Math\.random\(\).*prerendering/)
+      ).toBeNull()
+      const result = await browser.elementByCss('#t9 .result')
+      expect(await result.textContent()).toEqual('42')
+    })
   }
 })

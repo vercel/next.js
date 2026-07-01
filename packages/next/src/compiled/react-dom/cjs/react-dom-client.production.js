@@ -2638,7 +2638,7 @@ function createWorkInProgress(current, pendingProps) {
       (workInProgress.flags = 0),
       (workInProgress.subtreeFlags = 0),
       (workInProgress.deletions = null));
-  workInProgress.flags = current.flags & 133169152;
+  workInProgress.flags = current.flags & 1206910976;
   workInProgress.childLanes = current.childLanes;
   workInProgress.lanes = current.lanes;
   workInProgress.child = current.child;
@@ -2657,7 +2657,7 @@ function createWorkInProgress(current, pendingProps) {
   return workInProgress;
 }
 function resetWorkInProgress(workInProgress, renderLanes) {
-  workInProgress.flags &= 133169154;
+  workInProgress.flags &= 1206910978;
   var current = workInProgress.alternate;
   null === current
     ? ((workInProgress.childLanes = 0),
@@ -7296,7 +7296,7 @@ function updateSuspenseComponent(current, workInProgress, renderLanes) {
         mode: "hidden",
         children: nextProps.children
       })),
-      (nextProps.subtreeFlags = prevState.subtreeFlags & 133169152),
+      (nextProps.subtreeFlags = prevState.subtreeFlags & 1206910976),
       null !== digest
         ? (nextPrimaryChildren = createWorkInProgress(
             digest,
@@ -8279,8 +8279,8 @@ function bubbleProperties(completedWork) {
   if (didBailout)
     for (var child$112 = completedWork.child; null !== child$112; )
       (newChildLanes |= child$112.lanes | child$112.childLanes),
-        (subtreeFlags |= child$112.subtreeFlags & 133169152),
-        (subtreeFlags |= child$112.flags & 133169152),
+        (subtreeFlags |= child$112.subtreeFlags & 1206910976),
+        (subtreeFlags |= child$112.flags & 1206910976),
         (child$112.return = completedWork),
         (child$112 = child$112.sibling);
   else
@@ -11966,7 +11966,10 @@ function performWorkOnRoot(root$jscomp$0, lanes, forceSync) {
               JSCompiler_inline_result,
               !1
             );
-            if (2 !== JSCompiler_inline_result) {
+            if (
+              2 !== JSCompiler_inline_result &&
+              6 !== JSCompiler_inline_result
+            ) {
               if (
                 workInProgressRootDidAttachPingListener &&
                 !wasRootDehydrated
@@ -18173,14 +18176,14 @@ ReactDOMHydrationRoot.prototype.unstable_scheduleHydration = function (target) {
 };
 var isomorphicReactPackageVersion$jscomp$inline_2048 = React.version;
 if (
-  "19.3.0-canary-92f4fda3-20260629" !==
+  "19.3.0-canary-ec0fca31-20260701" !==
   isomorphicReactPackageVersion$jscomp$inline_2048
 )
   throw Error(
     formatProdErrorMessage(
       527,
       isomorphicReactPackageVersion$jscomp$inline_2048,
-      "19.3.0-canary-92f4fda3-20260629"
+      "19.3.0-canary-ec0fca31-20260701"
     )
   );
 ReactDOMSharedInternals.findDOMNode = function (componentOrElement) {
@@ -18202,10 +18205,10 @@ ReactDOMSharedInternals.findDOMNode = function (componentOrElement) {
 };
 var internals$jscomp$inline_2620 = {
   bundleType: 0,
-  version: "19.3.0-canary-92f4fda3-20260629",
+  version: "19.3.0-canary-ec0fca31-20260701",
   rendererPackageName: "react-dom",
   currentDispatcherRef: ReactSharedInternals,
-  reconcilerVersion: "19.3.0-canary-92f4fda3-20260629"
+  reconcilerVersion: "19.3.0-canary-ec0fca31-20260701"
 };
 if ("undefined" !== typeof __REACT_DEVTOOLS_GLOBAL_HOOK__) {
   var hook$jscomp$inline_2621 = __REACT_DEVTOOLS_GLOBAL_HOOK__;
@@ -18303,4 +18306,4 @@ exports.hydrateRoot = function (container, initialChildren, options) {
   listenToAllSupportedEvents(container);
   return new ReactDOMHydrationRoot(initialChildren);
 };
-exports.version = "19.3.0-canary-92f4fda3-20260629";
+exports.version = "19.3.0-canary-ec0fca31-20260701";

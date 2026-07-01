@@ -510,6 +510,9 @@ pub fn project_new(
 
         let subscriber = subscriber.with(FilterLayer::try_new(&trace).unwrap());
 
+        // For the default `.next-profiles` location the JS CLI already created
+        // this directory (with its `.gitignore`) before invoking the binding; this
+        // is a safety net and also covers a `NEXT_TURBOPACK_TRACING_PATH` override.
         std::fs::create_dir_all(&trace_dir)
             .with_context(|| {
                 format!(
