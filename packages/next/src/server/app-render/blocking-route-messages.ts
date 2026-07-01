@@ -39,7 +39,7 @@ export function createRuntimeBodyErrorInNavigation(route: string): Error {
 export function createLinkBodyErrorInNavigation(route: string): Error {
   return new Error(
     `Route "${route}": Next.js encountered URL data during prefetching.\n\n` +
-      `\`params\` or \`searchParams\` accessed outside of \`<Suspense>\` ties this route's prefetch to a single URL, so Next.js can't share it across links. This will lead to slower, more expensive prefetches.\n\n` +
+      `\`params\` or \`searchParams\` accessed outside of \`<Suspense>\` ties this route's prefetch to a single URL, so it can't be shared across links, leading to slower, more expensive prefetches.\n\n` +
       `Ways to fix this:\n` +
       `  - [stream] Wrap the \`params\`/\`searchParams\` read in \`<Suspense fallback={...}>\` so the route's prefetch stays shared across links\n` +
       `    https://nextjs.org/docs/messages/instant-shell-link-data#wrap-in-or-move-into-suspense\n` +

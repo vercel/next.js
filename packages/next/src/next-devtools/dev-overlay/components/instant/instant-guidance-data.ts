@@ -705,7 +705,7 @@ export const BLOCKING_ROUTE_NAVIGATION_EXPLANATION =
   'This prevents the navigation from being instant, leading to a slower user experience.'
 
 export const BLOCKING_ROUTE_LINK_EXPLANATION =
-  'This will lead to slower, more expensive prefetches.'
+  "This ties the route's prefetch to a single URL, so it can't be shared across links, leading to slower, more expensive prefetches."
 
 const syncCardsByCause: Record<string, FixCard[]> = {
   'Math.random()': syncMathCards,
