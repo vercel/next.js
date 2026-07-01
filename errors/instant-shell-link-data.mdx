@@ -179,14 +179,14 @@ Links to this route prefetch per URL instead of sharing one prefetch, so prefetc
 ### Gotchas
 
 - Setting [`instant`](https://preview.nextjs.org/docs/app/api-reference/file-conventions/route-segment-config/instant) to `false` opts out only the segment that exports it. Descendant segments remain validated by their own config or the global default.
-- `instant = false` disables all instant-navigation checks for that segment, not only this one. If the same read also fails prerendering, its [runtime data during prerendering](/docs/messages/blocking-prerender-runtime) error is silenced too, along with [unrendered-segment](/docs/messages/instant-unrendered-segment) and other insights for the segment.
+- `instant = false` disables all instant-navigation checks for the route, not only this one. A [runtime data during prerendering](/docs/messages/blocking-prerender-runtime) error and [unrendered segment](/docs/messages/instant-unrendered-segment) warnings for the route are silenced too.
 - This export does not disable [Partial Prefetching](https://preview.nextjs.org/docs/app/glossary#partial-prefetching) or prefetching. It only silences the instant-navigation validation error for the segment.
 
 ## Verifying the fix
 
-After applying a fix, reload the route to confirm the [static shell](https://preview.nextjs.org/docs/app/glossary#static-shell) renders real content. A [`<Suspense>`](https://react.dev/reference/react/Suspense) boundary placed around the whole page body can pass validation with an empty shell, which defeats the point of an instant navigation.
+After applying a fix, navigate to the route and confirm the insight no longer appears in the dev overlay and the [static shell](https://preview.nextjs.org/docs/app/glossary#static-shell) renders real content. A [`<Suspense>`](https://react.dev/reference/react/Suspense) boundary around the whole page body can pass validation with an empty shell, which defeats the point of an instant navigation.
 
-In [`next dev`](https://preview.nextjs.org/docs/app/api-reference/cli/next#next-dev-options), the error overlay points at the failing component with file paths and line numbers. When working from a build instead, the default [`next build`](https://preview.nextjs.org/docs/app/api-reference/cli/next#next-build-options) output is more abbreviated; run `next build --debug-prerender` for full user-frame stack traces and `next build --debug-build-paths /dashboard /settings` to iterate on specific routes.
+Depending on your [validation level](https://preview.nextjs.org/docs/app/api-reference/file-conventions/route-segment-config/instant#configuring-validation-defaults), this may only surface in development.
 
 ## Don't want this validation?
 
