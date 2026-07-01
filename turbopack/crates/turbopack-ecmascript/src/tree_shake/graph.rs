@@ -713,8 +713,29 @@ impl DepGraph {
                 }
             }
 
+            // Always push a module for every group, even if its body ended up
+            // empty, so that the group index `ix` stays a valid position in
+            // `modules`. The index is used directly as a part id by `outputs`
+            // (`Key::Export`/`Key::ModuleEvaluation`), by `part_deps`, and by
+            // the `PartId::Internal` asserts embedded in the emitted chunk
+            // ASTs. Skipping empty chunks here shifted every later module's
+            // position and desynced those indices, causing out-of-bounds
+            // panics in `split_module` and wrong-fragment selection in
+            // `part_of_module` (see #93424).
             if chunk.body.is_empty() {
-                continue;
+                // Keep the placeholder a well-formed, side-effect-free ESM
+                // module so it is valid if anything references it for ordering.
+                chunk
+                    .body
+                    .push(ModuleItem::ModuleDecl(ModuleDecl::ExportNamed(
+                        NamedExport {
+                            span: DUMMY_SP,
+                            specifiers: Default::default(),
+                            src: None,
+                            type_only: false,
+                            with: None,
+                        },
+                    )));
             }
 
             modules.push(chunk);
