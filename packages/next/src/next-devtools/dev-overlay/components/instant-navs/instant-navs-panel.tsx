@@ -93,14 +93,45 @@ function createPendingInstantNavCookie(): InstantCookie {
   return [0, `p${Math.random()}`]
 }
 
-function setPendingInstantNavCookie(): void {
+function setInstantNavCookie(value: InstantCookie): void {
+  if (typeof document === 'undefined') {
+    return
+  }
+  document.cookie = `${COOKIE_NAME}=${JSON.stringify(value)}; Path=/`
+}
+
+function deleteInstantNavCookie(): void {
+  if (typeof document === 'undefined') {
+    return
+  }
+  document.cookie = `${COOKIE_NAME}=; Path=/; Max-Age=0`
+}
+
+function waitForInstantNavCookieDeleted(): Promise<void> {
   if (typeof cookieStore !== 'undefined') {
-    cookieStore.set({
-      name: COOKIE_NAME,
-      value: JSON.stringify(createPendingInstantNavCookie()),
-      path: '/',
+    return new Promise((resolve) => {
+      function done(): void {
+        cookieStore.removeEventListener('change', handler)
+        resolve()
+      }
+
+      function handler(event: CookieChangeEvent): void {
+        for (const cookie of event.deleted) {
+          if (cookie.name === COOKIE_NAME) {
+            done()
+            return
+          }
+        }
+      }
+
+      cookieStore.addEventListener('change', handler)
     })
   }
+  return Promise.resolve()
+}
+
+function setPendingInstantNavCookie(): void {
+  setInstantNavCookie(createPendingInstantNavCookie())
 }
 
 function getCurrentLocationUrl(): string {
@@ -114,9 +145,7 @@ function getCurrentLocationUrl(): string {
 // navigation-testing-lock.ts, which releases the lock and soft-refreshes to real data.
 function clearInstantNavCaptureCookie(): void {
   setInstantNavTransientStatus('idle')
-  if (typeof cookieStore !== 'undefined') {
-    cookieStore.delete(COOKIE_NAME)
-  }
+  deleteInstantNavCookie()
 }
 
 export function InstantNavsPanel() {
@@ -199,23 +228,16 @@ export function InstantNavsPanel() {
   const spaToUrl = currentSpaToUrl ?? lastSpaToUrl
 
   async function resume(): Promise<void> {
-    if (typeof cookieStore !== 'undefined') {
-      // Resume: delete the cookie (which releases the
-      // lock and triggers a soft refresh for real data via the lock
-      // listener), then restart capture for the next navigation by
-      // writing a fresh pending cookie. Chaining the writes keeps
-      // them as two ordered cookie events (delete -> refresh, then
-      // restart) rather than coalescing into one, so the refresh runs
-      // and snapshots the released lock before the restart re-acquires it.
-      setInstantNavTransientStatus('restarting')
-      const pendingCookie: InstantCookie = [0, `p${Math.random()}`]
-      await cookieStore.delete(COOKIE_NAME)
-      cookieStore.set({
-        name: COOKIE_NAME,
-        value: JSON.stringify(pendingCookie),
-        path: '/',
-      })
-    }
+    // Resume: delete the cookie (which releases the lock and triggers a soft
+    // refresh for real data via the lock listener), then restart capture for
+    // the next navigation by writing a fresh pending cookie. Waiting for the
+    // delete event keeps this as two ordered cookie transitions.
+    setInstantNavTransientStatus('restarting')
+    const pendingCookie = createPendingInstantNavCookie()
+    const deleted = waitForInstantNavCookieDeleted()
+    deleteInstantNavCookie()
+    await deleted
+    setInstantNavCookie(pendingCookie)
   }
 
   function togglePaused(): void {
