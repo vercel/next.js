@@ -541,8 +541,8 @@ describe('instant validation', () => {
                ],
              },
            ],
-           "code": "E1391",
-           "description": "Next.js encountered link data during a navigation.",
+           "code": "E1372",
+           "description": "Next.js encountered runtime data during a navigation.",
            "environmentLabel": "Server",
            "label": "Instant",
            "source": "app/suspense-in-root/static/missing-suspense-around-params/[param]/page.tsx (20:21) @ Runtime
@@ -604,8 +604,8 @@ describe('instant validation', () => {
                ],
              },
            ],
-           "code": "E1391",
-           "description": "Next.js encountered link data during a navigation.",
+           "code": "E1394",
+           "description": "Next.js encountered URL data during prefetching.",
            "environmentLabel": "Server",
            "label": "Instant",
            "source": "app/suspense-in-root/runtime/invalid-no-suspense-around-params/[param]/page.tsx (36:21) @ LinkData
@@ -673,8 +673,8 @@ describe('instant validation', () => {
                  ],
                },
              ],
-             "code": "E1391",
-             "description": "Next.js encountered link data during a navigation.",
+             "code": "E1372",
+             "description": "Next.js encountered runtime data during a navigation.",
              "environmentLabel": "Server",
              "label": "Instant",
              "source": "app/suspense-in-root/static/missing-suspense-around-search-params/page.tsx (7:18) @ Page
@@ -779,15 +779,15 @@ describe('instant validation', () => {
               getCliOutputSinceMark
             )
           ).toMatchInlineSnapshot(`
-           "Error: Route "/suspense-in-root/runtime/invalid-no-suspense-around-search-params": Next.js encountered link data during prerendering or a navigation.
+           "Error: Route "/suspense-in-root/runtime/invalid-no-suspense-around-search-params": Next.js encountered URL data during prefetching.
 
-           \`params\` or \`searchParams\` accessed outside of \`<Suspense>\` prevents the navigation from being instant, leading to a slower user experience.
+           \`params\` or \`searchParams\` accessed outside of \`<Suspense>\` ties this route's prefetch to a single URL, so it can't be shared across links, leading to slower, more expensive prefetches.
 
            Ways to fix this:
-             - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-               https://nextjs.org/docs/messages/blocking-prerender-runtime#wrap-in-or-move-into-suspense
-             - [block] Set \`export const instant = false\` to silence this warning and allow a blocking route
-               https://nextjs.org/docs/messages/blocking-prerender-runtime#allow-blocking-route
+             - [stream] Wrap the \`params\`/\`searchParams\` read in \`<Suspense fallback={...}>\` so the route's prefetch stays shared across links
+               https://nextjs.org/docs/messages/instant-shell-link-data#wrap-in-or-move-into-suspense
+             - [ignore] Set \`export const instant = false\` to opt the route out of instant-navigation validation
+               https://nextjs.org/docs/messages/instant-shell-link-data#disable-validation-on-this-route
                at LinkData (app/suspense-in-root/runtime/invalid-no-suspense-around-search-params/page.tsx:40:18)
                at Page (app/suspense-in-root/runtime/invalid-no-suspense-around-search-params/page.tsx:22:9)
              38 |   searchParams: Promise<Record<string, string | string[]>>
@@ -823,8 +823,8 @@ describe('instant validation', () => {
                  ],
                },
              ],
-             "code": "E1391",
-             "description": "Next.js encountered link data during a navigation.",
+             "code": "E1394",
+             "description": "Next.js encountered URL data during prefetching.",
              "environmentLabel": "Server",
              "label": "Instant",
              "source": "app/suspense-in-root/runtime/invalid-no-suspense-around-search-params/page.tsx (40:18) @ LinkData
@@ -2634,7 +2634,7 @@ describe('instant validation', () => {
         }
       })
 
-      it('invalid - shell prefetch - link data in generateViewport blocks navigation', async () => {
+      it('invalid - shell prefetch - URL data in generateViewport blocks navigation', async () => {
         if (isNextDev) {
           // if generateViewport uses runtime data and we use a static prefetch,
           // we won't have it available when navigating, so we'll block and should fail validation.
@@ -2655,8 +2655,8 @@ describe('instant validation', () => {
                  ],
                },
              ],
-             "code": "E1392",
-             "description": "Next.js encountered link data in generateViewport().",
+             "code": "E1395",
+             "description": "Next.js encountered URL data in generateViewport().",
              "environmentLabel": "Server",
              "label": "Blocking Route",
              "source": "app/suspense-in-root/head/invalid-runtime-viewport-in-static/page.tsx (16:3) @ Module.generateViewport
@@ -4177,8 +4177,8 @@ describe('instant validation', () => {
                    ],
                  },
                ],
-               "code": "E1391",
-               "description": "Next.js encountered link data during a navigation.",
+               "code": "E1394",
+               "description": "Next.js encountered URL data during prefetching.",
                "environmentLabel": "Server",
                "label": "Instant",
                "source": "app/shells/(default)/invalid-runtime-params/[slug]/page.tsx (28:3) @ LinkData
@@ -4239,15 +4239,15 @@ describe('instant validation', () => {
                   getCliOutputSinceMark
                 )
               ).toMatchInlineSnapshot(`
-               "Error: Route "/shells/invalid-runtime-searchparams": Next.js encountered link data during prerendering or a navigation.
+               "Error: Route "/shells/invalid-runtime-searchparams": Next.js encountered URL data during prefetching.
 
-               \`params\` or \`searchParams\` accessed outside of \`<Suspense>\` prevents the navigation from being instant, leading to a slower user experience.
+               \`params\` or \`searchParams\` accessed outside of \`<Suspense>\` ties this route's prefetch to a single URL, so it can't be shared across links, leading to slower, more expensive prefetches.
 
                Ways to fix this:
-                 - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-                   https://nextjs.org/docs/messages/blocking-prerender-runtime#wrap-in-or-move-into-suspense
-                 - [block] Set \`export const instant = false\` to silence this warning and allow a blocking route
-                   https://nextjs.org/docs/messages/blocking-prerender-runtime#allow-blocking-route
+                 - [stream] Wrap the \`params\`/\`searchParams\` read in \`<Suspense fallback={...}>\` so the route's prefetch stays shared across links
+                   https://nextjs.org/docs/messages/instant-shell-link-data#wrap-in-or-move-into-suspense
+                 - [ignore] Set \`export const instant = false\` to opt the route out of instant-navigation validation
+                   https://nextjs.org/docs/messages/instant-shell-link-data#disable-validation-on-this-route
                    at LinkData (app/shells/(default)/invalid-runtime-searchparams/page.tsx:27:3)
                    at Page (app/shells/(default)/invalid-runtime-searchparams/page.tsx:17:7)
                  25 |   searchParams: Promise<Record<string, string | string[]>>
@@ -4283,8 +4283,8 @@ describe('instant validation', () => {
                      ],
                    },
                  ],
-                 "code": "E1391",
-                 "description": "Next.js encountered link data during a navigation.",
+                 "code": "E1394",
+                 "description": "Next.js encountered URL data during prefetching.",
                  "environmentLabel": "Server",
                  "label": "Instant",
                  "source": "app/shells/(default)/invalid-runtime-searchparams/page.tsx (27:3) @ LinkData
@@ -4347,8 +4347,8 @@ describe('instant validation', () => {
                    ],
                  },
                ],
-               "code": "E1390",
-               "description": "Next.js encountered link data in generateMetadata().",
+               "code": "E1396",
+               "description": "Next.js encountered URL data in generateMetadata().",
                "environmentLabel": "Server",
                "label": "Blocking Route",
                "source": "app/shells/(default)/invalid-static-with-gsp-metadata/[slug]/page.tsx (3:33) @ instant
@@ -4398,8 +4398,8 @@ describe('instant validation', () => {
                    ],
                  },
                ],
-               "code": "E1391",
-               "description": "Next.js encountered link data during a navigation.",
+               "code": "E1394",
+               "description": "Next.js encountered URL data during prefetching.",
                "environmentLabel": "Server",
                "label": "Instant",
                "source": "app/shells/(default)/invalid-static-with-gsp/[slug]/page.tsx (31:20) @ LinkData
