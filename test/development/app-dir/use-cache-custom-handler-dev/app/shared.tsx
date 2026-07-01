@@ -1,15 +1,6 @@
 import { Suspense } from 'react'
 import { setTimeout } from 'timers/promises'
 
-// A distinct slug per test, so each test exercises its own cache entry and no
-// cache hits are shared across tests (the first request for a slug is a genuine
-// cold miss). Declaring the slugs also keeps `params` statically known, so the
-// page shell doesn't depend on dynamic params. In development this does not
-// pre-fill the cache.
-export function generateStaticParams() {
-  return [{ slug: 'cold-badge' }, { slug: 'purged' }]
-}
-
 async function getCachedValue(slug: string) {
   'use cache'
 
@@ -28,13 +19,13 @@ async function CachedValue({ slug }: { slug: string }) {
   return <p id="value">{value}</p>
 }
 
-export default async function Page({
-  params,
-}: {
-  params: Promise<{ slug: string }>
-}) {
-  const { slug } = await params
-
+// We use a distinct slug per test, so each test exercises its own cache entry and no
+// cache hits are shared across tests (the first request for a slug is a genuine
+// cold miss).
+// NOTE: we're not using generateStaticParams because
+// those resolve after the shell in `partialPrefetching`,
+// and the test needs the cache to be part of the shell.
+export async function PageForSlug({ slug }: { slug: string }) {
   return (
     <main>
       <Suspense fallback={<p id="loading">Loading...</p>}>

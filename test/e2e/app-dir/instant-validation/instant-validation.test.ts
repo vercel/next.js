@@ -622,14 +622,34 @@ describe('instant validation', () => {
           '/suspense-in-root/runtime/invalid-no-suspense-around-params/[param]'
         )
         // TODO(app-shells): missing fallback params in build validation
-        // This should error, but It seems like `workUnitStore.fallbackParams` is undefined
-        // during the validation render, so the params incorrectly resolve in the static stage.
+        // It seems like `workUnitStore.fallbackParams` is undefined
+        // during the validation render, which makes us treat these params as static.
+        // In partialPrefetching, static params are also delayed until the runtime stage,
+        // which ultimately makes the validation fail, but also hides the underlying issue.
 
-        // expect(
-        //   extractBuildValidationError(result.cliOutput)
-        // ).toMatchInlineSnapshot(`...`)
-        // expect(result.exitCode).toBe(1)
-        expectNoBuildValidationErrors(result)
+        expect(extractBuildValidationError(result.cliOutput))
+          .toMatchInlineSnapshot(`
+         "Error: Route "/suspense-in-root/runtime/invalid-no-suspense-around-params/[param]": Next.js encountered link data during prerendering or a navigation.
+
+         \`params\` or \`searchParams\` accessed outside of \`<Suspense>\` prevents the navigation from being instant, leading to a slower user experience.
+
+         Ways to fix this:
+           - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
+             https://nextjs.org/docs/messages/blocking-prerender-runtime#wrap-in-or-move-into-suspense
+           - [block] Set \`export const instant = false\` to silence this warning and allow a blocking route
+             https://nextjs.org/docs/messages/blocking-prerender-runtime#allow-blocking-route
+             at div (<anonymous>)
+             at main (<anonymous>)
+             at body (<anonymous>)
+             at html (<anonymous>)
+             at a (<anonymous>)
+         Build-time instant validation failed for route "/suspense-in-root/runtime/invalid-no-suspense-around-params/[param]".
+         To get a more detailed stack trace and pinpoint the issue, try one of the following:
+           - Start the app in development mode by running \`next dev\`, then open "/suspense-in-root/runtime/invalid-no-suspense-around-params/[param]" in your browser to investigate the error.
+           - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
+         Stopping prerender due to instant validation errors."
+        `)
+        expect(result.exitCode).toBe(1)
       }
     })
 
@@ -4175,14 +4195,32 @@ describe('instant validation', () => {
               '/shells/(default)/invalid-runtime-params/[slug]'
             )
             // TODO(app-shells): missing fallback params in build validation
-            // This should error, but It seems like `workUnitStore.fallbackParams` is undefined
-            // during the validation render, so the params incorrectly resolve in the static stage.
+            // It seems like `workUnitStore.fallbackParams` is undefined
+            // during the validation render, which makes us treat these params as static.
+            // In partialPrefetching, static params are also delayed until the runtime stage,
+            // which ultimately makes the validation fail, but also hides the underlying issue.
 
-            // expect(
-            //   extractBuildValidationError(result.cliOutput)
-            // ).toMatchInlineSnapshot(`...`)
-            // expect(result.exitCode).toBe(1)
-            expectNoBuildValidationErrors(result)
+            expect(extractBuildValidationError(result.cliOutput))
+              .toMatchInlineSnapshot(`
+             "Error: Route "/shells/invalid-runtime-params/[slug]": Next.js encountered link data during prerendering or a navigation.
+
+             \`params\` or \`searchParams\` accessed outside of \`<Suspense>\` prevents the navigation from being instant, leading to a slower user experience.
+
+             Ways to fix this:
+               - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
+                 https://nextjs.org/docs/messages/blocking-prerender-runtime#wrap-in-or-move-into-suspense
+               - [block] Set \`export const instant = false\` to silence this warning and allow a blocking route
+                 https://nextjs.org/docs/messages/blocking-prerender-runtime#allow-blocking-route
+                 at main (<anonymous>)
+                 at body (<anonymous>)
+                 at html (<anonymous>)
+             Build-time instant validation failed for route "/shells/invalid-runtime-params/[slug]".
+             To get a more detailed stack trace and pinpoint the issue, try one of the following:
+               - Start the app in development mode by running \`next dev\`, then open "/shells/invalid-runtime-params/[slug]" in your browser to investigate the error.
+               - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
+             Stopping prerender due to instant validation errors."
+            `)
+            expect(result.exitCode).toBe(1)
           }
         })
 
@@ -4295,8 +4333,34 @@ describe('instant validation', () => {
               '/shells/invalid-static-with-gsp-metadata/123'
             )
 
-            // await expect(browser).toDisplayCollapsedRedbox(`...`)
-            await expectNoDevValidationErrors(browser, await browser.url())
+            await expect(browser).toDisplayCollapsedRedbox(`
+             {
+               "cause": [
+                 {
+                   "label": "Caused by: Instant Validation",
+                   "source": "app/shells/(default)/invalid-static-with-gsp-metadata/[slug]/page.tsx (3:33) @ instant
+             > 3 | export const instant: Instant = {
+                 |                                 ^",
+                   "stack": [
+                     "instant app/shells/(default)/invalid-static-with-gsp-metadata/[slug]/page.tsx (3:33)",
+                     "Set.forEach <anonymous>",
+                   ],
+                 },
+               ],
+               "code": "E1390",
+               "description": "Next.js encountered link data in generateMetadata().",
+               "environmentLabel": "Server",
+               "label": "Blocking Route",
+               "source": "app/shells/(default)/invalid-static-with-gsp-metadata/[slug]/page.tsx (3:33) @ instant
+             > 3 | export const instant: Instant = {
+                 |                                 ^",
+               "stack": [
+                 "Suspense <anonymous>",
+                 "div <anonymous>",
+                 "MetadataWrapper [Prerender] <anonymous>",
+               ],
+             }
+            `)
           } else {
             const result = await prerender(
               '/shells/(default)/invalid-static-with-gsp-metadata/[slug]'
@@ -4316,24 +4380,62 @@ describe('instant validation', () => {
         })
 
         it('invalid - unguarded static params in a shell', async () => {
-          // TODO(app-shells): static params currently aren't excluded from the shell.
-          // This should be failing validation.
           if (isNextDev) {
             const browser = await navigateTo(
               '/shells/invalid-static-with-gsp/123'
             )
-
-            // await expect(browser).toDisplayCollapsedRedbox(`...`)
-            await expectNoDevValidationErrors(browser, await browser.url())
+            await expect(browser).toDisplayCollapsedRedbox(`
+             {
+               "cause": [
+                 {
+                   "label": "Caused by: Instant Validation",
+                   "source": "app/shells/(default)/invalid-static-with-gsp/[slug]/page.tsx (3:33) @ instant
+             > 3 | export const instant: Instant = {
+                 |                                 ^",
+                   "stack": [
+                     "instant app/shells/(default)/invalid-static-with-gsp/[slug]/page.tsx (3:33)",
+                     "Set.forEach <anonymous>",
+                   ],
+                 },
+               ],
+               "code": "E1391",
+               "description": "Next.js encountered link data during a navigation.",
+               "environmentLabel": "Server",
+               "label": "Instant",
+               "source": "app/shells/(default)/invalid-static-with-gsp/[slug]/page.tsx (31:20) @ LinkData
+             > 31 |   const { slug } = await params
+                  |                    ^",
+               "stack": [
+                 "LinkData app/shells/(default)/invalid-static-with-gsp/[slug]/page.tsx (31:20)",
+                 "Page app/shells/(default)/invalid-static-with-gsp/[slug]/page.tsx (25:7)",
+               ],
+             }
+            `)
           } else {
             const result = await prerender(
               '/shells/(default)/invalid-static-with-gsp/[slug]'
             )
-            // expect(
-            //   extractBuildValidationError(result.cliOutput)
-            // ).toMatchInlineSnapshot(`...`)
-            // expect(result.exitCode).toBe(1)
-            expectNoBuildValidationErrors(result)
+            expect(extractBuildValidationError(result.cliOutput))
+              .toMatchInlineSnapshot(`
+                  "Error: Route "/shells/invalid-static-with-gsp/[slug]": Next.js encountered link data during prerendering or a navigation.
+
+                  \`params\` or \`searchParams\` accessed outside of \`<Suspense>\` prevents the navigation from being instant, leading to a slower user experience.
+
+                  Ways to fix this:
+                    - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
+                      https://nextjs.org/docs/messages/blocking-prerender-runtime#wrap-in-or-move-into-suspense
+                    - [block] Set \`export const instant = false\` to silence this warning and allow a blocking route
+                      https://nextjs.org/docs/messages/blocking-prerender-runtime#allow-blocking-route
+                      at main (<anonymous>)
+                      at body (<anonymous>)
+                      at html (<anonymous>)
+                  Build-time instant validation failed for route "/shells/invalid-static-with-gsp/[slug]".
+                  To get a more detailed stack trace and pinpoint the issue, try one of the following:
+                    - Start the app in development mode by running \`next dev\`, then open "/shells/invalid-static-with-gsp/[slug]" in your browser to investigate the error.
+                    - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
+                  Stopping prerender due to instant validation errors."
+                `)
+            expect(result.exitCode).toBe(1)
           }
         })
 
@@ -4360,6 +4462,22 @@ describe('instant validation', () => {
           } else {
             const result = await prerender(
               '/shells/with-root-param/[lang]/valid-unguarded-root-param-via-params'
+            )
+            expectNoBuildValidationErrors(result)
+          }
+        })
+      })
+    } else {
+      describe('non-app shell validation', () => {
+        it('valid - unguarded static params', async () => {
+          if (isNextDev) {
+            const browser = await navigateTo(
+              '/suspense-in-root/non-app-shell/valid-unguarded-static-params/123'
+            )
+            await expectNoDevValidationErrors(browser, await browser.url())
+          } else {
+            const result = await prerender(
+              '/suspense-in-root/non-app-shell/valid-unguarded-static-params/[slug]'
             )
             expectNoBuildValidationErrors(result)
           }
