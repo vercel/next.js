@@ -452,6 +452,56 @@ function tryToReadFile(filePath: string, shouldThrow: boolean) {
   }
 }
 
+const lastGoodStaticInfoSource = new Map<string, string>()
+
+/**
+ * Reads a route file's source for static-info analysis, tolerating a read that
+ * races with an in-progress write.
+ *
+ * In the dev server the same file is read out-of-band on every on-demand
+ * `ensure` and every webpack compilation, and these reads race with writers we
+ * don't control (editors, git checkouts, codemods, the test harness). A read
+ * that lands in a writer's truncate window comes back empty. Acting on that
+ * empty read would derive `runtime: undefined`, drop the route from its
+ * compiler's entrypoints, and wipe it from the regenerated manifest, while its
+ * on-demand entry stayed marked built, so `ensure` would not recompile it and,
+ * with no watcher event for the settle, nothing would repair it: a stuck 404.
+ *
+ * To avoid that, an empty read is treated as never-legitimate route source and
+ * the last good source is reused instead. This keeps the route in its
+ * compiler's entrypoints and thus in the regenerated manifest, consistent with
+ * its still-built entry, so the built-and-not-recompiled state that would
+ * otherwise strand it is here the correct steady state rather than a trap. The
+ * reuse is transient: last good is only returned for an empty read and is
+ * overwritten by the next non-empty read (which every compilation and every
+ * request performs), so the classification returns to fresh the moment the
+ * write settles. A genuine runtime switch writes non-empty content, so it is
+ * read and classified from its own source rather than reused. A file that is
+ * genuinely emptied is invalid however it is classified and simply rebuilds
+ * (and errors) once real content returns.
+ *
+ * The reuse is limited to the dev server; a production build reads a static
+ * source tree with nothing racing it.
+ */
+function readStaticInfoSource(
+  pageFilePath: string,
+  isDev: boolean
+): string | undefined {
+  const content = tryToReadFile(pageFilePath, !isDev)
+  if (!isDev) {
+    return content
+  }
+  if (content) {
+    lastGoodStaticInfoSource.set(pageFilePath, content)
+    return content
+  }
+  const lastGood = lastGoodStaticInfoSource.get(pageFilePath)
+  if (lastGood !== undefined) {
+    return lastGood
+  }
+  return content
+}
+
 /**
  * @internal - required to exclude zod types from the build
  */
@@ -633,7 +683,7 @@ export async function getAppPageStaticInfo({
   isDev,
   page,
 }: GetPageStaticInfoParams): Promise<AppPageStaticInfo> {
-  const content = tryToReadFile(pageFilePath, !isDev)
+  const content = readStaticInfoSource(pageFilePath, isDev)
   if (!content || !PARSE_PATTERN.test(content)) {
     return {
       type: PAGE_TYPES.APP,
@@ -771,7 +821,7 @@ export async function getPagesPageStaticInfo({
   isDev,
   page,
 }: GetPageStaticInfoParams): Promise<PagesPageStaticInfo> {
-  const content = tryToReadFile(pageFilePath, !isDev)
+  const content = readStaticInfoSource(pageFilePath, isDev)
   if (!content || !PARSE_PATTERN.test(content)) {
     return {
       type: PAGE_TYPES.PAGES,
