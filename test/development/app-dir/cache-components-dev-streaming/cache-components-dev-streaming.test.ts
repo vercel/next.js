@@ -189,6 +189,91 @@ describe('cache-components-dev-streaming', () => {
     })
   })
 
+  it('shows the short-expire-cache fallback on a cold client navigation but not on a warm one', async () => {
+    // A public `'use cache'` with an explicit short `expire` (`cacheLife({
+    // expire: 0 })`) is a runtime-prefetch route here, so its cached content
+    // belongs to the runtime shell stage. On a warm navigation the dev minimum
+    // retention keeps the entry available, and the client defers revealing the
+    // response until the shell has flushed, so the content arrives with the
+    // shell and the fallback isn't shown - just like a private cache.
+    const browser = await next.browser('/')
+
+    // Cold navigation: the cache misses and fills in the background, so the
+    // fallback is shown until the content streams in.
+    await browser.elementByCss('a[href="/use-cache-expire-zero/nav"]').click()
+    expect(await browser.elementByCss('#expire-zero-fallback').text()).toBe(
+      'Loading...'
+    )
+    expect(await browser.elementByCss('#expire-zero').text()).toBeDateString()
+
+    // Wait for the background write to settle so the next navigation hits the
+    // warm entry instead of racing a pending write.
+    await waitFor(2000)
+
+    // Hard-reload home so the warm navigation below starts from a fresh page.
+    await browser.loadPage(new URL('/', next.url).href)
+
+    // Warm navigation: record whether the fallback ever enters the DOM. It
+    // shouldn't, since the retained entry is delivered with the shell. (The
+    // client-side reveal race that this delivery relies on is covered by the
+    // private-cache test above, so we don't repeat its stress loop here.)
+    const fallbackObserver = observeNodeAppearances(browser, [
+      'expire-zero-fallback',
+    ])
+
+    await fallbackObserver.observe()
+
+    await browser.elementByCss('a[href="/use-cache-expire-zero/nav"]').click()
+    expect(await browser.elementByCss('#expire-zero').text()).toBeDateString()
+
+    const appearanceCounts = await fallbackObserver.getResult()
+    expect(appearanceCounts).toEqual({
+      'expire-zero-fallback': 0,
+    })
+  })
+
+  it('serves a short-expire cache warm on reload and converges to a fresh value', async () => {
+    const browser = await next.browser('/use-cache-expire-zero/reload', {
+      waitHydration: false,
+      // Do not wait for "load"; inspect the page as it streams in.
+      waitUntil: 'commit',
+    })
+
+    // Cold load: the cache misses, so the fallback streams first, and the
+    // generated value streams in once generation completes. The value is a
+    // dynamic hole (real `expire: 0`), so it streams in after the shell.
+    expect(
+      await browser
+        .elementByCss('#expire-zero-fallback', { waitUntil: false })
+        .text()
+    ).toBe('Loading...')
+    const coldValue = await browser
+      .elementByCss('#expire-zero', { waitUntil: false })
+      .text()
+    expect(coldValue).toBeDateString()
+
+    // Warm reload: the dev minimum retention keeps the short-expire entry, so
+    // the reload serves the previously cached value fast instead of
+    // regenerating it. A background revalidation regenerates a fresh entry for
+    // the next reload (asserted below). We wait for the streamed-in element
+    // without waiting for "load", so no retry is needed.
+    await browser.refresh({ waitUntil: 'commit' })
+    expect(
+      await browser.elementByCss('#expire-zero', { waitUntil: false }).text()
+    ).toBe(coldValue)
+
+    // That warm reload re-warmed a fresh entry in the background, so a later
+    // reload converges to the new value. Read after "load" here (a plain
+    // refresh) since we want the settled value, not the streaming inspection
+    // above.
+    await retry(async () => {
+      await browser.refresh()
+      expect(await browser.elementById('expire-zero').text()).not.toBe(
+        coldValue
+      )
+    })
+  })
+
   // The following are smoke tests that Cache Components validation still
   // surfaces errors for both cold-cache renders (validated via a separate
   // warm-cache render) and warm-cache renders (validated via the streamed

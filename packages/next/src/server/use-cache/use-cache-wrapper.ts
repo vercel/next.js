@@ -1092,12 +1092,17 @@ async function collectResult(
   // `MIN_PRERENDERABLE_EXPIRE` (5 minutes) caps how long an entry lingers in
   // the dedicated in-memory private handler. It is the shortest `expire` that
   // isn't treated as dynamic; a smaller `expire` would exclude the entry from
-  // prerenders. The size-0 case (`cacheMaxMemorySize: 0`) deliberately does NOT
-  // force this: it keeps its resolved cache life so that the cache entry can be
-  // considered prerenderable instead of being misread as a dynamic hole, and a
-  // separate dev revalidation (see the cache-hit path below) keeps its reloads
-  // showing a fresh value. Custom kinds keep their real cache life too, since
-  // their backing handler owns it.
+  // prerenders. Two other cases deliberately do NOT force this and keep their
+  // resolved cache life, relying instead on the dev handler's minimum retention
+  // and a dev revalidation (see the cache-hit path below) to keep reloads fast
+  // and fresh. The size-0 case (`cacheMaxMemorySize: 0`) keeps its life so the
+  // entry can be considered prerenderable instead of being misread as a dynamic
+  // hole. An explicit short-`expire` public cache (e.g. `cacheLife({ expire: 0
+  // })`) keeps its life so it stays correctly excluded from static prerenders
+  // via its real `expire` while a reload still hits the cache; forcing
+  // `revalidate: 0` here would instead corrupt the cache life propagated to an
+  // enclosing cache and trigger the nested-dynamic error. A cache backed by a
+  // custom handler keeps its real cache life too, since that handler owns it.
   const forceDynamicCacheLifeInDev = isPrivateCacheInDev
 
   // If cacheLife() was used to set an explicit revalidate/expire/stale time we
@@ -1640,7 +1645,7 @@ export async function cache(
     if (isPrivate) {
       // Private caches normally go to the Resume Data Cache (RDC), not a cache
       // handler. In development we additionally persist them in a dedicated
-      // built-in in-memory handler so that warm reloads are fast.
+      // built-in in-memory handler so that reloads are fast.
       if (process.env.__NEXT_DEV_SERVER) {
         cacheHandler = getPrivateCacheHandler()
       }
@@ -1652,7 +1657,7 @@ export async function cache(
 
       // In development, a user-configured (custom) handler may be slow or
       // remote, so we read through a tiered handler that puts a built-in
-      // in-memory front in front of it to keep warm reads microtask-fast.
+      // in-memory front in front of it to keep cache hits microtask-fast.
       // Built-in handlers (the default handler, and its size-0 replacement) are
       // already in-memory and used directly.
       if (process.env.__NEXT_DEV_SERVER && isCustomCacheHandler(kind)) {
@@ -2188,7 +2193,7 @@ export async function cache(
 
   let stream: undefined | ReadableStream = undefined
 
-  // Set when a short-lived warm hit ends its cache read up front (dev only) so
+  // Set when a short-lived cache hit ends its cache read up front (dev only) so
   // the static-shell boundary doesn't count it as a phantom miss. Once set, the
   // cache signal read is balanced, so serving must use a plain stream and skip
   // any trailing cacheSignal.endRead() call.
@@ -2945,7 +2950,19 @@ export async function cache(
 
         if (
           entry === undefined ||
-          currentTime > entry.timestamp + entry.expire * 1000 ||
+          // In dev, the built-in default handler retains a short-`expire` entry
+          // for at least `MIN_PRERENDERABLE_EXPIRE`, both when used directly
+          // and when fronting a custom cache handler. Apply that same minimum
+          // here so the retained entry is served and re-warmed in the
+          // background (below), rather than blocking to regenerate it on every
+          // read. The entry's real `expire` is untouched, so staging still
+          // treats it as dynamic.
+          currentTime >
+            entry.timestamp +
+              (process.env.__NEXT_DEV_SERVER
+                ? Math.max(entry.expire, MIN_PRERENDERABLE_EXPIRE)
+                : entry.expire) *
+                1000 ||
           (workStore.isStaticGeneration &&
             currentTime > entry.timestamp + entry.revalidate * 1000)
         ) {
@@ -3134,19 +3151,24 @@ export async function cache(
 
           // Trigger a background revalidation when the entry is stale (past its
           // `revalidate`), so the next read gets a fresh value without blocking
-          // this one. In development with the in-memory cache disabled
-          // (`cacheMaxMemorySize: 0`), built-in entries keep their resolved
-          // (potentially non-dynamic) cache life, so an entry read back from
-          // the dev in-memory cache is normally still fresh and wouldn't
-          // revalidate on its own; revalidate those on every dynamic request
-          // render too, so each reload still shows a fresh value.
+          // this one. Development additionally re-warms on every dynamic
+          // request render in two cases where the dev in-memory entry would
+          // otherwise read back as fresh, so a subsequent reload still shows a
+          // fresh value. The first is with the in-memory cache disabled
+          // (`cacheMaxMemorySize: 0`), where built-in entries keep their
+          // resolved (potentially non-dynamic) cache life. The second is a
+          // short-`expire` entry (an explicit dynamic or client-only cache,
+          // e.g. `cacheLife({ expire: 0 })`), which is retained for at least
+          // `MIN_PRERENDERABLE_EXPIRE` so it is served from the cache; this
+          // also covers custom handlers, re-executing and writing through to
+          // the backing.
           let shouldTriggerBackgroundRevalidation =
             currentTime > entry.timestamp + entry.revalidate * 1000
           if (
             !shouldTriggerBackgroundRevalidation &&
             process.env.__NEXT_DEV_SERVER &&
-            isMemoryCacheDisabled() &&
-            !isCustomCacheHandler(kind)
+            (entry.expire < MIN_PRERENDERABLE_EXPIRE ||
+              (isMemoryCacheDisabled() && !isCustomCacheHandler(kind)))
           ) {
             switch (workUnitStore.type) {
               case 'request':
