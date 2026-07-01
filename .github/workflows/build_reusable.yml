@@ -73,9 +73,12 @@ on:
         required: false
         type: string
         default: ''
-
       testTimingsArtifact:
-        description: 'Name of an uploaded artifact containing test-timings.json. When set, download it instead of fetching via turbo.'
+        description: >
+          Name of an uploaded artifact containing test-timings.json. When set,
+          download it instead of fetching via turbo. This can be useful in
+          ensuring that when failed jobs are retried, they end up with exactly
+          the same set of timings, and therefore run the same set of tests.
         required: false
         type: string
         default: ''
