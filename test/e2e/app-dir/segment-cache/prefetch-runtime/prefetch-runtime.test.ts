@@ -715,25 +715,32 @@ describe('runtime prefetching', () => {
   describe('cache stale time handling', () => {
     it.each([
       {
-        // If a cache has an expiration time under 5min (DYNAMIC_EXPIRE), we omit it from static prerenders.
-        // However, it should still be included in a runtime prefetch if its stale time is >=30s. (DYNAMIC_STALE)
+        // If a cache has an expiration time under 5min
+        // (MIN_PRERENDERABLE_EXPIRE), we omit it from static prerenders.
+        // However, it should still be included in a runtime prefetch if its
+        // stale time is >=30s. (MIN_PREFETCHABLE_STALE)
         description:
           'includes short-lived public caches with a long enough staleTime',
         staticContent: 'This page uses a short-lived public cache',
         path: '/caches/public-short-expire-long-stale',
       },
       {
-        // If a cache has an expiration time under 5min (DYNAMIC_EXPIRE), we omit it from static prerenders.
-        // However, it should still be included in a runtime prefetch if its stale time is >=30s. (DYNAMIC_STALE)
-        // `cacheLife("seconds")` is deliberately set to have a stale time of 30s to stay above this treshold.
+        // If a cache has an expiration time under 5min
+        // (MIN_PRERENDERABLE_EXPIRE), we omit it from static prerenders.
+        // However, it should still be included in a runtime prefetch if its
+        // stale time is >=30s. (MIN_PREFETCHABLE_STALE) `cacheLife("seconds")`
+        // is deliberately set to have a stale time of 30s to stay above this
+        // treshold.
         description: 'includes public caches with cacheLife("seconds")',
         staticContent: 'This page uses a short-lived public cache',
         path: '/caches/public-seconds',
       },
       {
         // A Private cache will always be omitted from static prerenders.
-        // However, it should still be included in a runtime prefetch if its stale time is >=30s. (DYNAMIC_STALE)
-        // `cacheLife("seconds")` is deliberately set to have a stale time of 30s to stay above this treshold.
+        // However, it should still be included in a runtime prefetch if its
+        // stale time is >=30s. (MIN_PREFETCHABLE_STALE) `cacheLife("seconds")`
+        // is deliberately set to have a stale time of 30s to stay above this
+        // treshold.
         description: 'includes private caches with cacheLife("seconds")',
         staticContent: 'This page uses a short-lived private cache',
         path: '/caches/private-seconds',
@@ -777,7 +784,8 @@ describe('runtime prefetching', () => {
     })
 
     it('omits short-lived public caches with a short enough staleTime', async () => {
-      // If a cache has a stale time below 30s (DYNAMIC_STALE), we should omit it from runtime prefetches.
+      // If a cache has a stale time below 30s (MIN_PREFETCHABLE_STALE), we
+      // should omit it from runtime prefetches.
 
       let page: Playwright.Page
       const browser = await next.browser('/', {
@@ -837,7 +845,8 @@ describe('runtime prefetching', () => {
     })
 
     it('omits private caches with a short enough staleTime', async () => {
-      // If a cache has a stale time below 30s (DYNAMIC_STALE), we should omit it from runtime prefetches.
+      // If a cache has a stale time below 30s (MIN_PREFETCHABLE_STALE), we
+      // should omit it from runtime prefetches.
 
       let page: Playwright.Page
       const browser = await next.browser('/', {

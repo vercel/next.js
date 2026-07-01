@@ -10,10 +10,10 @@ export default async function Page() {
     <main>
       <DebugRenderKind />
       <p id="intro">
-        This page uses a short-lived public cache (expire &lt; DYNAMIC_EXPIRE,
-        5min), which should not be included in a static prefetch, but should be
-        included in a runtime prefetch, because it has a long enough stale time
-        (&ge; DYNAMIC_STALE, 30s)
+        This page uses a short-lived public cache (expire &lt;
+        MIN_PRERENDERABLE_EXPIRE, 5min), which should not be included in a
+        static prefetch, but should be included in a runtime prefetch, because
+        it has a long enough stale time (&ge; MIN_PREFETCHABLE_STALE, 30s)
       </p>
       <Suspense fallback={<div style={{ color: 'grey' }}>Loading...</div>}>
         <ShortLivedCache />
@@ -25,9 +25,9 @@ export default async function Page() {
 async function ShortLivedCache() {
   'use cache'
   cacheLife({
-    stale: 60, // > DYNAMIC_STALE
+    stale: 60, // >= MIN_PREFETCHABLE_STALE
     revalidate: 2 * 60,
-    expire: 3 * 60, // < DYNAMIC_EXPIRE
+    expire: 3 * 60, // < MIN_PRERENDERABLE_EXPIRE
   })
   await cachedDelay([__filename])
 
