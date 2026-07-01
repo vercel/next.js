@@ -84,7 +84,7 @@ export function createDynamicOrRuntimeBodyError(route: string): Error {
 export function createLinkMetadataError(route: string): Error {
   return new Error(
     `Route "${route}": Next.js encountered URL data in \`generateMetadata()\`.\n\n` +
-      `\`params\` or \`searchParams\` accessed in \`generateMetadata()\` ties this route's prefetch to a single URL, so its metadata can't be part of the shared prefetch. The rest of the route can still be prefetched.\n\n` +
+      `This route's metadata is blocked, but the rest of its content can be prefetched. \`params\` or \`searchParams\` accessed in \`generateMetadata()\` prevent it from being prefetched.\n\n` +
       `Ways to fix this:\n` +
       `  - [static] Use a static metadata export instead of \`generateMetadata()\`\n` +
       `    https://nextjs.org/docs/messages/blocking-prerender-metadata-runtime#use-static-metadata\n` +
@@ -120,7 +120,7 @@ export function createDynamicMetadataError(route: string): Error {
 export function createLinkViewportError(route: string): Error {
   return new Error(
     `Route "${route}": Next.js encountered URL data in \`generateViewport()\`.\n\n` +
-      `\`params\` accessed in \`generateViewport()\` ties this route's prefetch to a single URL. Viewport can't stream, so it can't be part of the shared prefetch.\n\n` +
+      `\`params\` or \`searchParams\` in \`generateViewport()\` prevents the page from being prerendered, leading to a slower user experience.\n\n` +
       `Ways to fix this:\n` +
       `  - [static] Use a static viewport export instead of \`generateViewport()\`\n` +
       `    https://nextjs.org/docs/messages/blocking-prerender-viewport-runtime#use-static-viewport\n` +
