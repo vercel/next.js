@@ -5637,6 +5637,7 @@
     function fatalError(request, error, errorInfo, debugTask) {
       errorInfo = request.onShellError;
       var onFatalError = request.onFatalError;
+      request.onAllReady = noop;
       debugTask
         ? (debugTask.run(errorInfo.bind(null, error)),
           debugTask.run(onFatalError.bind(null, error)))
@@ -9656,11 +9657,11 @@
     }
     function ensureCorrectIsomorphicReactVersion() {
       var isomorphicReactPackageVersion = React.version;
-      if ("19.3.0-experimental-92f4fda3-20260629" !== isomorphicReactPackageVersion)
+      if ("19.3.0-experimental-ec0fca31-20260701" !== isomorphicReactPackageVersion)
         throw Error(
           'Incompatible React versions: The "react" and "react-dom" packages must have the exact same version. Instead got:\n  - react:      ' +
             (isomorphicReactPackageVersion +
-              "\n  - react-dom:  19.3.0-experimental-92f4fda3-20260629\nLearn more: https://react.dev/warnings/version-mismatch")
+              "\n  - react-dom:  19.3.0-experimental-ec0fca31-20260701\nLearn more: https://react.dev/warnings/version-mismatch")
         );
     }
     var React = require("next/dist/compiled/react-experimental"),
@@ -11483,5 +11484,5 @@
         startWork(request);
       });
     };
-    exports.version = "19.3.0-experimental-92f4fda3-20260629";
+    exports.version = "19.3.0-experimental-ec0fca31-20260701";
   })();
