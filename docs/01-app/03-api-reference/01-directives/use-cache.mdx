@@ -300,7 +300,7 @@ async function getData() {
 }
 ```
 
-Omitting `cacheLife` is still valid. If you do, the `default` profile applies:
+If you omit `cacheLife`, the `default` profile applies and the lifetime is no longer explicit at the call site:
 
 - **stale**: 5 minutes (client-side)
 - **revalidate**: 15 minutes (server-side)

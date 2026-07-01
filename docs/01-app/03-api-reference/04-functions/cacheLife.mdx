@@ -45,7 +45,7 @@ Add a cache directive (for example, `use cache`) at the file level or at the top
 
 > **Good to know**:
 >
-> - We recommend calling `cacheLife` in every `use cache` scope. If omitted, the `default` profile applies.
+> - We recommend setting a `cacheLife` in every `use cache` scope so its behavior is clear at the call site. Omitting it leaves the lifetime implicit (the `default` profile applies), which makes it harder to reason about, for example in [nested cached scopes](#nested-caching-behavior).
 > - Call `cacheLife` in the same function or component where caching is defined. Avoid abstracting it into shared utilities so the cache behavior remains explicit and easy to reason about.
 > - If you call `cacheLife`, ensure only one call executes per function invocation. You can call it in different control flow branches, but only one should run per request. See the [conditional cache lifetimes](#conditional-cache-lifetimes) example.
 
