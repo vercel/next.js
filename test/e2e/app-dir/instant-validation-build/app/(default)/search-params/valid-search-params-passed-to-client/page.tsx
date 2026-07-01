@@ -2,6 +2,7 @@ import type { Instant } from 'next'
 import assert from 'node:assert/strict'
 
 import { ClientChild } from './client'
+import { Suspense } from 'react'
 
 export const instant: Instant = {
   level: 'experimental-error',
@@ -23,7 +24,9 @@ export default async function Page({
 }) {
   return (
     <main>
-      <TestSearchParams searchParams={searchParams} />
+      <Suspense>
+        <TestSearchParams searchParams={searchParams} />
+      </Suspense>
     </main>
   )
 }

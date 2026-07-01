@@ -72,7 +72,7 @@ By **default** (`validationLevel: 'warning'`), Cache Components apps validate ev
 
 To opt out of automatic validation and only validate segments that explicitly export `instant`, set [`validationLevel`](/docs/app/api-reference/file-conventions/route-segment-config/instant#configuring-validation-defaults) to `'manual-warning'`:
 
-```ts filename="next.config.ts" highlight={4-8}
+```ts filename="next.config.ts" highlight={7}
 import type { NextConfig } from 'next'
 
 const nextConfig: NextConfig = {
@@ -124,7 +124,7 @@ The product page fetches two pieces of data: product details (name, price) and l
 - **Product info** rarely changes and is queried from the db using a cached function
 - **Inventory** must be fresh on each request. The db query is inside a `<Suspense>` boundary
 
-```tsx filename="app/store/[slug]/page.tsx" highlight={7-12,30-32}
+```tsx filename="app/store/[slug]/page.tsx" highlight={7-12,31}
 import { Suspense } from 'react'
 import { db } from '@/lib/db'
 
@@ -195,6 +195,12 @@ Cache Components validates this route automatically in development. If something
 > **Good to know:** Each fix card links to a detailed walkthrough with patterns, code samples, and trade-offs. Click a card to dive in.
 
 Validation runs on every page load using the real request from your browser, so dynamic params like `[slug]` are checked against actual values as you navigate.
+
+### Client Component Pages
+
+A soft navigation into a page with `"use client"` at the top behaves like a single-page app transition, with no server render at navigation time, which makes it instant. The dev overlay doesn't include this in its fix cards because it has bigger implications than the recommended approaches, which keep the page in the server-component model. Reach for `"use client"` when the page is fully interactive and must be a client component.
+
+> **Good to know**: `"use client"` doesn't skip validation for the static shell. Hooks like `useSearchParams()` still need a `<Suspense>` boundary.
 
 ## Visualize loading states with the Next.js DevTools
 

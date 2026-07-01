@@ -74,17 +74,21 @@ export interface RequestStore extends CommonWorkUnitStore {
   resumeDataCache: ResumeDataCache | null
 
   stale?: number
+
   stagedRendering?: StagedRenderingController | null
   asyncApiPromises?: AsyncApiPromises
+  needsSessionShell?: boolean // DEV-only
   cacheSignal?: CacheSignal | null
   fallbackParams?: OpaqueFallbackRouteParams | null
   varyParamsAccumulator?: ResponseVaryParamsAccumulator | null
 
-  // Only in build-time instant-validation
+  // Only in build-time instant-validation or when rendering
+  // a secondary stream for static shell validation
   // We mirror the controller/renderSignal from prerender stores to allow aborting the render
-  // in case we hit an error that makes it unnecessary to continue
   controller?: AbortController
   renderSignal?: AbortSignal
+
+  // Only in build-time instant-validation
   validationSamples?: InstantValidationSamples
   validationSampleTracking?: InstantValidationSampleTracking | null
 
