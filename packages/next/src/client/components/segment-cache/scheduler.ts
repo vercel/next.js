@@ -31,6 +31,7 @@ import {
 } from './cache'
 import type { RouteCacheKey } from './cache-key'
 import { createCacheKey } from './cache-key'
+import { urlSearchParamsToParsedUrlQuery } from '../../route-params'
 import {
   FetchStrategy,
   type PrefetchTaskFetchStrategy,
@@ -2046,7 +2047,9 @@ function doesCurrentSegmentMatchCachedSegment(
       currentSegment ===
       addSearchParamsIfPageSegment(
         PAGE_SEGMENT_KEY,
-        Object.fromEntries(new URLSearchParams(route.renderedSearch))
+        urlSearchParamsToParsedUrlQuery(
+          new URLSearchParams(route.renderedSearch)
+        )
       )
     )
   }

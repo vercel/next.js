@@ -44,14 +44,31 @@ function parseCookieValue(raw: string): InstantNavCookieState {
   return 'pending'
 }
 
+function writeDocumentCookie(
+  value: InstantCookie,
+  options: { domain?: string | null; path?: string | null }
+): void {
+  if (typeof document === 'undefined') {
+    return
+  }
+  let cookie = `${NEXT_INSTANT_TEST_COOKIE}=${JSON.stringify(value)}; Path=${
+    options.path ?? '/'
+  }`
+  if (options.domain) {
+    cookie += `; Domain=${options.domain}`
+  }
+  document.cookie = cookie
+}
+
 function writeCookieValue(value: InstantCookie): void {
   if (typeof cookieStore === 'undefined') {
     return
   }
-  // Read the existing cookie to preserve its attributes (domain, path),
-  // then write back with the new value. This updates the same cookie
-  // entry that the external actor created, regardless of how it was
-  // scoped.
+  // Read the existing cookie to preserve its attributes (domain, path), then
+  // write back with the new value. This updates the same cookie entry that the
+  // external actor created, regardless of how it was scoped. Use document.cookie
+  // for the write because WebKit exposes Cookie Store on localhost but does not
+  // commit cookies written through cookieStore.set() there.
   //
   // Capture the current lockState and compare it in the callback so we
   // only write if the lock we observed at call time is still held. This
@@ -63,15 +80,7 @@ function writeCookieValue(value: InstantCookie): void {
   const lockAtCall = lockState
   cookieStore.get(NEXT_INSTANT_TEST_COOKIE).then((existing: any) => {
     if (existing && lockState === lockAtCall && lockAtCall !== null) {
-      const options: any = {
-        name: NEXT_INSTANT_TEST_COOKIE,
-        value: JSON.stringify(value),
-        path: existing.path ?? '/',
-      }
-      if (existing.domain) {
-        options.domain = existing.domain
-      }
-      cookieStore.set(options)
+      writeDocumentCookie(value, existing)
     }
   })
 }

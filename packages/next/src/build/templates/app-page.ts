@@ -62,7 +62,6 @@ import {
   CachedRouteKind,
   IncrementalCacheKind,
   type CachedAppPageValue,
-  type CachedPageValue,
   type ResponseCacheEntry,
   type ResponseGenerator,
 } from '../../server/response-cache' with { 'turbopack-transition': 'next-server-utility' }
@@ -1410,7 +1409,8 @@ export async function handler(
         }
 
         // When we're in minimal mode, if we're trying to debug the static shell,
-        // we should just return nothing instead of resuming the dynamic render.
+        // return an empty App Page response instead of resuming the dynamic
+        // render. The static shell has already been streamed by the platform.
         if (
           (isDebugStaticShell || isDebugDynamicAccesses) &&
           typeof postponed !== 'undefined'
@@ -1418,12 +1418,19 @@ export async function handler(
           return {
             cacheControl: { revalidate: 1, expire: undefined },
             value: {
-              kind: CachedRouteKind.PAGES,
-              html: RenderResult.EMPTY,
-              pageData: {},
+              kind: CachedRouteKind.APP_PAGE,
+              html: RenderResult.fromStatic(
+                '',
+                isRSCRequest
+                  ? RSC_CONTENT_TYPE_HEADER
+                  : HTML_CONTENT_TYPE_HEADER
+              ),
+              rscData: undefined,
+              postponed,
+              segmentData: undefined,
               headers: undefined,
               status: undefined,
-            } satisfies CachedPageValue,
+            } satisfies CachedAppPageValue,
           }
         }
 

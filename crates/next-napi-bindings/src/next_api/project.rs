@@ -510,6 +510,9 @@ pub fn project_new(
 
         let subscriber = subscriber.with(FilterLayer::try_new(&trace).unwrap());
 
+        // For the default `.next-profiles` location the JS CLI already created
+        // this directory (with its `.gitignore`) before invoking the binding; this
+        // is a safety net and also covers a `NEXT_TURBOPACK_TRACING_PATH` override.
         std::fs::create_dir_all(&trace_dir)
             .with_context(|| {
                 format!(
@@ -1344,7 +1347,7 @@ pub async fn project_write_all_entrypoints_to_disk(
     let phase_build_paths = if has_deferred_entrypoints {
         Some(
             tt.run(async move {
-                #[turbo_tasks::value]
+                #[turbo_tasks::value(serialization = "skip")]
                 struct DeferredEntrypointInfo(ReadRef<Entrypoints>, ReadRef<Vec<RcStr>>);
 
                 #[turbo_tasks::function(operation, root)]

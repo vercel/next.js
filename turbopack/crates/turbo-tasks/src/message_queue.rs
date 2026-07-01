@@ -244,7 +244,8 @@ pub struct TraceEvent {
     pub name: &'static str,
     pub start_time_ms: f64,
     pub end_time_ms: f64,
-    pub attributes: Vec<(&'static str, serde_json::Value)>,
+    /// Should be an array of key value pairs
+    pub attributes: serde_json::Value,
 }
 
 impl TraceEvent {
@@ -252,8 +253,10 @@ impl TraceEvent {
         name: &'static str,
         start_time_ms: f64,
         end_time_ms: f64,
-        attributes: Vec<(&'static str, serde_json::Value)>,
+        attributes: serde_json::Value,
     ) -> Self {
+        // basic sanity test
+        debug_assert!(matches!(attributes, serde_json::Value::Array(_)));
         Self {
             name,
             start_time_ms,

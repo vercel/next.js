@@ -200,6 +200,10 @@ pub enum JsValue<'a> {
     /// `(total_node_count, operand)`
     TypeOf(u32, BumpBox<'a, JsValue<'a>>),
 
+    /// A `in` expression `left in right`
+    /// `(total_node_count, left, right)`
+    In(u32, BumpBox<'a, JsValue<'a>>, BumpBox<'a, JsValue<'a>>),
+
     // PLACEHOLDERS
     // ----------------------------
     /// A reference to a variable.
@@ -687,7 +691,8 @@ impl JsValue<'_> {
             | JsValue::MemberCall(..)
             | JsValue::Iterated(..)
             | JsValue::Awaited(..)
-            | JsValue::TypeOf(..) => JsValueMetaKind::Operation,
+            | JsValue::TypeOf(..)
+            | JsValue::In(..) => JsValueMetaKind::Operation,
             JsValue::Variable(..)
             | JsValue::Argument(..)
             | JsValue::FreeVar(..)
@@ -786,6 +791,14 @@ impl<'a> JsValue<'a> {
             1 + a.total_nodes() + b.total_nodes(),
             BumpBox::new_in(a, arena),
             BinaryOperator::StrictNotEqual,
+            BumpBox::new_in(b, arena),
+        )
+    }
+
+    pub fn r#in(arena: &'a Bump, a: JsValue<'a>, b: JsValue<'a>) -> Self {
+        Self::In(
+            1 + a.total_nodes() + b.total_nodes(),
+            BumpBox::new_in(a, arena),
             BumpBox::new_in(b, arena),
         )
     }
@@ -1050,7 +1063,8 @@ impl JsValue<'_> {
             | JsValue::Iterated(c, ..)
             | JsValue::Promise(c, ..)
             | JsValue::Awaited(c, ..)
-            | JsValue::TypeOf(c, ..) => *c,
+            | JsValue::TypeOf(c, ..)
+            | JsValue::In(c, ..) => *c,
         }
     }
 
@@ -1136,6 +1150,9 @@ impl JsValue<'_> {
 
             JsValue::TypeOf(c, operand) => {
                 *c = 1 + operand.total_nodes();
+            }
+            JsValue::In(c, l, r) => {
+                *c = 1 + l.total_nodes() + r.total_nodes();
             }
         }
     }
@@ -1372,6 +1389,11 @@ impl<'a> JsValue<'a> {
                 JsValue::Iterated(*c, BumpBox::new_in(v.clone_in(arena), arena))
             }
             JsValue::TypeOf(c, v) => JsValue::TypeOf(*c, BumpBox::new_in(v.clone_in(arena), arena)),
+            JsValue::In(c, l, r) => JsValue::In(
+                *c,
+                BumpBox::new_in(l.clone_in(arena), arena),
+                BumpBox::new_in(r.clone_in(arena), arena),
+            ),
             JsValue::Variable(id) => JsValue::Variable(id.clone()),
             JsValue::Argument(i, idx) => JsValue::Argument(*i, *idx),
             JsValue::FreeVar(a) => JsValue::FreeVar(a.clone()),

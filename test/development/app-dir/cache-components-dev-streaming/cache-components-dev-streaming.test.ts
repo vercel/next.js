@@ -1,14 +1,9 @@
 import { nextTestSetup, Playwright } from 'e2e-utils'
 import { retry, waitFor } from 'next-test-utils'
 
-const partialPrefetching = !!process.env.__NEXT_PARTIAL_PREFETCHING
-
 describe('cache-components-dev-streaming', () => {
   const { next } = nextTestSetup({
     files: __dirname,
-    env: {
-      __NEXT_PARTIAL_PREFETCHING: partialPrefetching ? 'true' : '',
-    },
   })
 
   it('should stream suspense boundaries while filling caches in the background', async () => {

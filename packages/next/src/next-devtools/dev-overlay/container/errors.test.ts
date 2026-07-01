@@ -10,6 +10,9 @@ import {
   createRuntimeBodyErrorInNavigation,
   createRuntimeMetadataError,
   createRuntimeViewportError,
+  createLinkBodyErrorInNavigation,
+  createLinkMetadataError,
+  createLinkViewportError,
 } from '../../../server/app-render/blocking-route-messages'
 import {
   createSyncIOClientError,
@@ -25,44 +28,71 @@ import {
   getLinkPrefetchPartialErrorDetails,
   getUnrenderedSegmentErrorDetails,
   isInstantNavigationError,
-  isRuntimeVariant,
+  getGuidanceVariant,
   isSyncIOClientError,
   isSyncIOError,
 } from './errors'
 
 const ROUTE = '/example'
 
-describe('isRuntimeVariant', () => {
-  it('returns true for runtime body factory output', () => {
-    expect(isRuntimeVariant(createRuntimeBodyError(ROUTE).message)).toBe(true)
+describe('getGuidanceVariant', () => {
+  describe('classifies runtime messages as runtime', () => {
+    describe('classifies link messages as link', () => {
+      it.each([
+        {
+          description: 'body',
+          error: () => createLinkBodyErrorInNavigation(ROUTE),
+        },
+        {
+          description: 'metadata',
+          error: () => createLinkMetadataError(ROUTE),
+        },
+        {
+          description: 'viewport',
+          error: () => createLinkViewportError(ROUTE),
+        },
+      ])('$description', ({ error }) => {
+        expect(getGuidanceVariant(error().message)).toBe('link')
+      })
+    })
+
+    it.each([
+      { description: 'body', error: () => createRuntimeBodyError(ROUTE) },
+      {
+        description: 'body in navigation',
+        error: () => createRuntimeBodyErrorInNavigation(ROUTE),
+      },
+      {
+        description: 'metadata',
+        error: () => createRuntimeMetadataError(ROUTE),
+      },
+      {
+        description: 'viewport',
+        error: () => createRuntimeViewportError(ROUTE),
+      },
+    ])('$description', ({ error }) => {
+      expect(getGuidanceVariant(error().message)).toBe('runtime')
+    })
   })
 
-  it('returns false for dynamic body factory output', () => {
-    expect(isRuntimeVariant(createDynamicBodyError(ROUTE).message)).toBe(false)
-  })
-
-  it('returns true for runtime metadata factory output', () => {
-    expect(isRuntimeVariant(createRuntimeMetadataError(ROUTE).message)).toBe(
-      true
-    )
-  })
-
-  it('returns false for dynamic metadata factory output', () => {
-    expect(isRuntimeVariant(createDynamicMetadataError(ROUTE).message)).toBe(
-      false
-    )
-  })
-
-  it('returns true for runtime viewport factory output', () => {
-    expect(isRuntimeVariant(createRuntimeViewportError(ROUTE).message)).toBe(
-      true
-    )
-  })
-
-  it('returns false for dynamic viewport factory output', () => {
-    expect(isRuntimeVariant(createDynamicViewportError(ROUTE).message)).toBe(
-      false
-    )
+  describe('classifies dynamic messages as dynamic', () => {
+    it.each([
+      { description: 'body', error: () => createDynamicBodyError(ROUTE) },
+      {
+        description: 'body in navigation',
+        error: () => createDynamicBodyErrorInNavigation(ROUTE),
+      },
+      {
+        description: 'metadata',
+        error: () => createDynamicMetadataError(ROUTE),
+      },
+      {
+        description: 'viewport',
+        error: () => createDynamicViewportError(ROUTE),
+      },
+    ])('$description', ({ error }) => {
+      expect(getGuidanceVariant(error().message)).toBe('dynamic')
+    })
   })
 })
 

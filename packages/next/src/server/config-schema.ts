@@ -289,7 +289,7 @@ export const experimentalSchema = {
       z.strictObject({
         type: z.literal('graph'),
         requestCost: z.number().nonnegative().finite().optional(),
-        moduleFactorCost: z.number().nonnegative().finite().optional(),
+        weightDistribution: z.number().nonnegative().finite().optional(),
       }),
     ])
     .optional(),
@@ -374,7 +374,7 @@ export const experimentalSchema = {
     .union([z.literal(false), z.literal('full')])
     .optional(),
   turbopackPluginRuntimeStrategy: z
-    .enum(['workerThreads', 'childProcesses', 'forceWorkerThreads'])
+    .enum(['workerThreads', 'childProcesses'])
     .optional(),
   turbopackMinify: z.boolean().optional(),
   turbopackFileSystemCacheForDev: z.boolean().optional(),
@@ -385,6 +385,14 @@ export const experimentalSchema = {
   turbopackRemoveUnusedImports: z.boolean().optional(),
   turbopackRemoveUnusedExports: z.boolean().optional(),
   turbopackScopeHoisting: z.boolean().optional(),
+  turbopackChunkingHeuristics: z
+    .object({
+      firstPageLoadPriority: z.number().min(0).max(1).optional(),
+      priorityRoutes: z.array(z.instanceof(RegExp)).optional(),
+      priorityBoost: z.number().min(1).optional(),
+      requestCost: z.number().min(0).max(1_000_000).optional(),
+    })
+    .optional(),
   turbopackWorkerAssetPrefix: z.string().optional(),
   turbopackClientSideNestedAsyncChunking: z.boolean().optional(),
   turbopackServerSideNestedAsyncChunking: z.boolean().optional(),
@@ -434,6 +442,7 @@ export const experimentalSchema = {
   serverComponentsHmrCache: z.boolean().optional(),
   authInterrupts: z.boolean().optional(),
   useCache: z.boolean().optional(),
+  durableUseCacheEntries: z.boolean().optional(),
   useCacheTimeout: z.number().positive().optional(),
   slowModuleDetection: z
     .object({

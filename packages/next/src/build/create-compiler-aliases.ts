@@ -16,7 +16,10 @@ import {
 import type { NextConfigComplete } from '../server/config-shared'
 import { defaultOverrides } from '../server/require-hook'
 import { hasExternalOtelApiPackage } from './webpack-config'
-import { NEXT_PROJECT_ROOT } from './next-dir-paths'
+import {
+  NEXT_PROJECT_ROOT,
+  NEXT_PROJECT_ROOT_DIST_CLIENT,
+} from './next-dir-paths'
 import { shouldUseReactServerCondition } from './utils'
 
 interface CompilerAliases {
@@ -166,6 +169,16 @@ export function createWebpackAliases({
 
           // disable typechecker, webpack5 allows aliases to be set to false to create a no-op module
           'private-next-empty-module': false as any,
+
+          // In the browser bundle, swap the default `unstable-rethrow` (which holds the
+          // full server logic) for its `.browser` sibling. The server checks can never
+          // occur in the browser, and bundling the default would drag server-only modules
+          // into the client bundle. Server/edge compilers are not aliased and keep the
+          // default. The trailing `$` is an exact match so it cannot catch `.browser.js`.
+          [path.join(
+            NEXT_PROJECT_ROOT_DIST_CLIENT,
+            'components/unstable-rethrow.js'
+          ) + '$']: 'next/dist/client/components/unstable-rethrow.browser',
         }
       : {}),
 
