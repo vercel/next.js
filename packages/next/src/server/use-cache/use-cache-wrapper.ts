@@ -59,7 +59,7 @@ import {
 } from '../app-render/create-error-handler'
 import { createDigestWithErrorCode } from '../../lib/error-telemetry-utils'
 import stringHash from 'next/dist/compiled/string-hash'
-import { DYNAMIC_EXPIRE, DYNAMIC_STALE } from './constants'
+import { MIN_PRERENDERABLE_EXPIRE, MIN_PREFETCHABLE_STALE } from './constants'
 import { NEXT_CACHE_ROOT_PARAM_TAG_ID } from '../../lib/constants'
 import {
   getCacheHandler,
@@ -907,7 +907,8 @@ function propagateCacheEntryMetadata(
         // cause points at the immediate dynamic child.
         if (
           cacheContext.dynamicNestedCacheError !== undefined &&
-          (metadata.revalidate === 0 || metadata.expire < DYNAMIC_EXPIRE)
+          (metadata.revalidate === 0 ||
+            metadata.expire < MIN_PRERENDERABLE_EXPIRE)
         ) {
           cacheContext.outerWorkUnitStore.dynamicNestedCacheError ??=
             cacheContext.dynamicNestedCacheError
@@ -1085,18 +1086,18 @@ async function collectResult(
   )
 
   // In development, force a dynamic cache life (`revalidate: 0`, `expire:
-  // DYNAMIC_EXPIRE`) for private caches, which have no real backing handler.
-  // The zero revalidate makes every read serve stale-while-revalidate
-  // (regenerating a fresh entry in the background), and `DYNAMIC_EXPIRE` (5
-  // minutes) caps how long an entry lingers in the dedicated in-memory private
-  // handler. It is the shortest `expire` that isn't treated as dynamic; a
-  // smaller `expire` would exclude the entry from prerenders. The size-0 case
-  // (`cacheMaxMemorySize: 0`) deliberately does NOT force this: it keeps its
-  // resolved cache life so that the cache entry can be considered prerenderable
-  // instead of being misread as a dynamic hole, and a separate dev revalidation
-  // (see the cache-hit path below) keeps its reloads showing a fresh value.
-  // Custom kinds keep their real cache life too, since their backing handler
-  // owns it.
+  // MIN_PRERENDERABLE_EXPIRE`) for private caches, which have no real backing
+  // handler. The zero revalidate makes every read serve stale-while-revalidate
+  // (regenerating a fresh entry in the background), and
+  // `MIN_PRERENDERABLE_EXPIRE` (5 minutes) caps how long an entry lingers in
+  // the dedicated in-memory private handler. It is the shortest `expire` that
+  // isn't treated as dynamic; a smaller `expire` would exclude the entry from
+  // prerenders. The size-0 case (`cacheMaxMemorySize: 0`) deliberately does NOT
+  // force this: it keeps its resolved cache life so that the cache entry can be
+  // considered prerenderable instead of being misread as a dynamic hole, and a
+  // separate dev revalidation (see the cache-hit path below) keeps its reloads
+  // showing a fresh value. Custom kinds keep their real cache life too, since
+  // their backing handler owns it.
   const forceDynamicCacheLifeInDev = isPrivateCacheInDev
 
   // If cacheLife() was used to set an explicit revalidate/expire/stale time we
@@ -1108,7 +1109,7 @@ async function collectResult(
       ? innerCacheStore.explicitRevalidate
       : innerCacheStore.revalidate
   const collectedExpire = forceDynamicCacheLifeInDev
-    ? DYNAMIC_EXPIRE
+    ? MIN_PRERENDERABLE_EXPIRE
     : innerCacheStore.explicitExpire !== undefined
       ? innerCacheStore.explicitExpire
       : innerCacheStore.expire
@@ -2254,7 +2255,7 @@ export async function cache(
       if (rdcResult !== undefined) {
         if (
           rdcResult.entry.revalidate === 0 ||
-          rdcResult.entry.expire < DYNAMIC_EXPIRE
+          rdcResult.entry.expire < MIN_PRERENDERABLE_EXPIRE
         ) {
           switch (workUnitStore.type) {
             case 'prerender':
@@ -2320,8 +2321,8 @@ export async function cache(
                 // otherwise silently shorten. A dev private cache's
                 // `revalidate` is forced to 0 by us (not by a nested cache), so
                 // it's excluded from the first throw to avoid a false positive.
-                // Its forced `expire` is exactly DYNAMIC_EXPIRE, so it never
-                // trips the second throw and needs no exclusion there.
+                // Its forced `expire` is exactly MIN_PRERENDERABLE_EXPIRE, so
+                // it never trips the second throw and needs no exclusion there.
                 if (
                   cacheContext.kind !== 'private' &&
                   rdcResult.entry.revalidate === 0 &&
@@ -2334,7 +2335,7 @@ export async function cache(
                   )
                 }
                 if (
-                  rdcResult.entry.expire < DYNAMIC_EXPIRE &&
+                  rdcResult.entry.expire < MIN_PRERENDERABLE_EXPIRE &&
                   rdcResult.hasExplicitExpire === false
                 ) {
                   throw wrapAsInvalidDynamicUsageError(
@@ -2378,7 +2379,7 @@ export async function cache(
           }
         }
 
-        if (rdcResult.entry.stale < DYNAMIC_STALE) {
+        if (rdcResult.entry.stale < MIN_PREFETCHABLE_STALE) {
           switch (workUnitStore.type) {
             case 'prerender':
             case 'prerender-runtime':
@@ -2826,7 +2827,7 @@ export async function cache(
         const currentTime = performance.timeOrigin + performance.now()
         if (
           entry !== undefined &&
-          (entry.revalidate === 0 || entry.expire < DYNAMIC_EXPIRE)
+          (entry.revalidate === 0 || entry.expire < MIN_PRERENDERABLE_EXPIRE)
         ) {
           switch (workUnitStore.type) {
             case 'prerender':
@@ -2903,7 +2904,7 @@ export async function cache(
           }
         }
 
-        if (entry !== undefined && entry.stale < DYNAMIC_STALE) {
+        if (entry !== undefined && entry.stale < MIN_PREFETCHABLE_STALE) {
           switch (workUnitStore.type) {
             case 'request': {
               // A short stale time excludes the entry from prerenders.
