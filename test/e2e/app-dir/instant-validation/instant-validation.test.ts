@@ -147,7 +147,10 @@ describe('instant validation', () => {
         async () => {
           expect(await browser.url()).toContain(href)
         },
-        undefined,
+        // Webpack can be slow to compile new routes in CI, which blocks the
+        // navigation. Instant Validation itself is non-blocking and does not
+        // affect this, so this is only covering for compilation speed.
+        isTurbopack ? 5_000 : 10_000,
         100,
         'wait for url to change'
       )
