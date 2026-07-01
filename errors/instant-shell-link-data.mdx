@@ -25,7 +25,7 @@ kind: insight
 
 A route with [Partial Prefetching](https://preview.nextjs.org/docs/app/glossary#partial-prefetching) read [`params`](https://preview.nextjs.org/docs/app/api-reference/file-conventions/page#params-optional) or [`searchParams`](https://preview.nextjs.org/docs/app/api-reference/file-conventions/page#searchparams-optional) outside of [`<Suspense>`](https://react.dev/reference/react/Suspense).
 
-Partial Prefetching prefetches one shared version of the route ahead of the click, so every link to it reuses the same prefetch instead of fetching a fresh one per URL. `params` and `searchParams` are specific to a single URL, so reading them outside a boundary ties that prefetch to one link. Next.js can no longer share it across links. This will lead to slower, more expensive prefetches.
+Partial Prefetching prefetches one shared version of the route ahead of the click, so every link to it reuses the same prefetch instead of fetching a fresh one per URL. `params` and `searchParams` are specific to a single URL, so reading them outside a boundary ties that prefetch to one link. Next.js can no longer share it across links, leading to slower, more expensive prefetches.
 
 This check only runs when [Partial Prefetching](https://preview.nextjs.org/docs/app/api-reference/config/next-config-js/partialPrefetching) is enabled, and it fires at navigation time rather than on every render.
 
@@ -39,7 +39,7 @@ This check only runs when [Partial Prefetching](https://preview.nextjs.org/docs/
     title="Wrap in or move into Suspense"
     href="#wrap-in-or-move-into-suspense"
     snippets={[
-      { text: '<Suspense fallback={<Skeleton />}>', highlight: true },
+      { text: '<Suspense fallback={…}>', highlight: true },
       { text: '  <Details params={params} />' },
       { text: '</Suspense>', highlight: true },
     ]}

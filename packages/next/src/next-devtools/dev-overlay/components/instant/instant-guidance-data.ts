@@ -79,7 +79,7 @@ const linkCards: FixCard[] = [
     group: 'stream',
     link: 'https://nextjs.org/docs/messages/instant-shell-link-data#wrap-in-or-move-into-suspense',
     snippets: [
-      { text: '<Suspense fallback={<Skeleton />}>', highlight: true },
+      { text: '<Suspense fallback={…}>', highlight: true },
       { text: '  <Details params={params} />' },
       { text: '</Suspense>', highlight: true },
     ],
