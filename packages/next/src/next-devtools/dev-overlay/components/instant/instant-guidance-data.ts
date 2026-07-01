@@ -77,21 +77,19 @@ const linkCards: FixCard[] = [
     id: 'wrap-in-or-move-into-suspense',
     title: 'Wrap in or move into Suspense',
     group: 'stream',
-    // TODO(app-shells): doc links
-    link: 'https://nextjs.org/docs/messages/blocking-prerender-runtime#wrap-in-or-move-into-suspense',
+    link: 'https://nextjs.org/docs/messages/instant-shell-link-data#wrap-in-or-move-into-suspense',
     snippets: [
-      { text: '<Suspense fallback={…}>', highlight: true },
-      { text: '  <DataChild />' },
+      { text: '<Suspense fallback={<Skeleton />}>', highlight: true },
+      { text: '  <Results searchParams={searchParams} />' },
       { text: '</Suspense>', highlight: true },
     ],
     copyable: true,
   },
   {
-    id: 'allow-blocking-route',
-    title: 'Allow blocking route',
-    group: 'block',
-    // TODO(app-shells): doc links
-    link: 'https://nextjs.org/docs/messages/blocking-prerender-runtime#allow-blocking-route',
+    id: 'disable-validation-on-this-route',
+    title: 'Disable validation on this route',
+    group: 'ignore',
+    link: 'https://nextjs.org/docs/messages/instant-shell-link-data#disable-validation-on-this-route',
     snippets: [
       { text: '// page.tsx or layout.tsx' },
       { text: 'export const instant = false', highlight: true },
@@ -295,8 +293,7 @@ const metadataRuntimeCards: FixCard[] = [
   },
 ]
 
-// TODO(app-shells): docs anchors for link data errors
-// TODO(app-shells): make sure these suggestions make sense
+// URL data in `generateMetadata()` uses the same fix as runtime data: static metadata.
 const metadataLinkCards = metadataRuntimeCards
 
 const metadataDynamicCards: FixCard[] = [
@@ -351,8 +348,7 @@ const viewportRuntimeCards: FixCard[] = [
   },
 ]
 
-// TODO(app-shells): docs anchors for link data errors
-// TODO(app-shells): make sure these suggestions make sense
+// URL data in `generateViewport()` uses the same fix as runtime data: static viewport.
 const viewportLinkCards = viewportRuntimeCards
 
 const viewportDynamicCards: FixCard[] = [

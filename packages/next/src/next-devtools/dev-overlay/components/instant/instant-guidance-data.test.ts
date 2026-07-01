@@ -3,6 +3,7 @@ import {
   createDynamicBodyError,
   createRuntimeBodyErrorInNavigation,
   createDynamicBodyErrorInNavigation,
+  createLinkBodyErrorInNavigation,
   createRuntimeMetadataError,
   createDynamicMetadataError,
   createRuntimeViewportError,
@@ -55,6 +56,12 @@ describe('instant-guidance-data card ordering', () => {
       createDynamicBodyErrorInNavigation('/x').message,
       'blocking-route',
       'dynamic',
+    ],
+    [
+      'blocking-route link',
+      createLinkBodyErrorInNavigation('/x').message,
+      'blocking-route',
+      'link',
     ],
     [
       'metadata runtime',
@@ -113,6 +120,12 @@ describe('instant-guidance-data card links', () => {
       'dynamic',
     ],
     [
+      'blocking-route link',
+      createLinkBodyErrorInNavigation('/x').message,
+      'blocking-route',
+      'link',
+    ],
+    [
       'metadata runtime',
       createRuntimeMetadataError('/x').message,
       'metadata',
@@ -154,6 +167,7 @@ describe('instant-guidance-data card links', () => {
     const variants: Array<[GuidanceKind, GuidanceVariant]> = [
       ['blocking-route', 'runtime'],
       ['blocking-route', 'dynamic'],
+      ['blocking-route', 'link'],
       ['client-hook', 'runtime'],
       ['metadata', 'runtime'],
       ['metadata', 'dynamic'],
@@ -178,6 +192,7 @@ describe('instant-guidance-data card invariants', () => {
       ['blocking-route', 'runtime'],
       ['blocking-route', 'dynamic'],
       ['blocking-route', 'dynamic', 'connection'],
+      ['blocking-route', 'link'],
       ['client-hook', 'runtime'],
       ['metadata', 'runtime'],
       ['metadata', 'dynamic'],
@@ -245,6 +260,7 @@ describe('instant-guidance-data dispatcher', () => {
     const variants: Array<[GuidanceKind, GuidanceVariant]> = [
       ['blocking-route', 'runtime'],
       ['blocking-route', 'dynamic'],
+      ['blocking-route', 'link'],
       ['client-hook', 'runtime'],
       ['metadata', 'runtime'],
       ['metadata', 'dynamic'],

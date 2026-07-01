@@ -352,7 +352,7 @@ function InstantRuntimeError({
 export function getGuidanceVariant(message: string): GuidanceVariant {
   // Discriminates between `createRuntimeBodyError` and `createDynamicBodyError`
   if (
-    message.includes('encountered link data') &&
+    message.includes('encountered URL data') &&
     !message.includes('encountered uncached data')
   ) {
     return 'link'
@@ -432,6 +432,15 @@ export function getBlockingRouteErrorDetails(
     return {
       type: 'client-hook',
       expression: clientHookMatch[1],
+    }
+  }
+
+  // Partial Prefetching shell validation — always a navigation-time insight.
+  if (message.includes('encountered URL data during prefetching')) {
+    return {
+      type: 'blocking-route',
+      variant: 'link',
+      inNavigation: true,
     }
   }
 
@@ -861,8 +870,8 @@ export function Errors({
           errorMessage={
             errorDetails.variant === 'link'
               ? errorDetails.inNavigation
-                ? 'Next.js encountered link data during a navigation.'
-                : 'Next.js encountered link data during prerendering.'
+                ? 'Next.js encountered URL data during prefetching.'
+                : 'Next.js encountered URL data during prerendering.'
               : errorDetails.variant === 'runtime'
                 ? errorDetails.inNavigation
                   ? 'Next.js encountered runtime data during a navigation.'
@@ -959,8 +968,7 @@ export function Errors({
           errorMessage={
             errorDetails.variant === 'link' ? (
               <>
-                Next.js encountered link data in <code>generateMetadata()</code>
-                .
+                Next.js encountered URL data in <code>generateMetadata()</code>.
               </>
             ) : errorDetails.variant === 'runtime' ? (
               <>
@@ -1016,8 +1024,7 @@ export function Errors({
           errorMessage={
             errorDetails.variant === 'link' ? (
               <>
-                Next.js encountered link data in <code>generateViewport()</code>
-                .
+                Next.js encountered URL data in <code>generateViewport()</code>.
               </>
             ) : errorDetails.variant === 'runtime' ? (
               <>
