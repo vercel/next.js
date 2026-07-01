@@ -518,7 +518,7 @@ export class NextInstance {
               path.join(this.testDir, 'vercel.json'),
               JSON.stringify({
                 installCommand:
-                  'mv node_modules node_modules.bak && npm i && cp -r node_modules.bak/* node_modules',
+                  'mv node_modules node_modules.bak && pnpm i && cp -r node_modules.bak/* node_modules',
               })
             )
 
