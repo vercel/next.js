@@ -406,13 +406,13 @@ For more in-depth configuration examples, see the [Turbopack config documentatio
 
 ## Generating trace files for performance debugging
 
-If you encounter performance or memory issues and want to help the Next.js team diagnose them, you can generate a trace file by appending `NEXT_TURBOPACK_TRACING=1` to your dev command:
+If you encounter performance or memory issues and want to help the Next.js team diagnose them, you can generate a trace file by adding the `--internal-trace` flag to your dev command:
 
 ```bash
-NEXT_TURBOPACK_TRACING=1 next dev
+next dev --internal-trace
 ```
 
-This will produce a `.next-profiles/trace-turbopack` file. Include that file when creating a GitHub issue on the [Next.js repo](https://github.com/vercel/next.js) to help us investigate.
+This will produce a `.next-profiles/trace-turbopack.bin` file. Include that file when creating a GitHub issue on the [Next.js repo](https://github.com/vercel/next.js) to help us investigate.
 
 ## Summary
 

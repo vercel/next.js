@@ -328,6 +328,7 @@ async function readNormalizedNFT(next, name) {
            "/node_modules/next/dist/lib/pick.js",
            "/node_modules/next/dist/lib/picocolors.js",
            "/node_modules/next/dist/lib/pretty-bytes.js",
+           "/node_modules/next/dist/lib/profiles-dir.js",
            "/node_modules/next/dist/lib/realpath.js",
            "/node_modules/next/dist/lib/recursive-copy.js",
            "/node_modules/next/dist/lib/recursive-delete.js",
