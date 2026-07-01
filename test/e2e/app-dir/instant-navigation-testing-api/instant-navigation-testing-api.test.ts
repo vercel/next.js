@@ -216,6 +216,82 @@ describe('instant-navigation-testing-api', () => {
     })
   })
 
+  it('recovers from a stale instant cookie left by a prior scope', async () => {
+    const page = await openPage(next, '/')
+
+    // Simulate a cookie leaked by a previous instant() scope. A locked MPA page
+    // load re-writes the cookie asynchronously and can resurrect it right after
+    // a prior scope's release deletes it, leaving a captured-state entry in the
+    // shared browser context. Because the context is reused across tests, a new
+    // instant() call must treat that residue as stale (clearing it) rather than
+    // reporting an active scope, or every following test would cascade-fail.
+    const { hostname } = new URL(next.url)
+    await page.context().addCookies([
+      {
+        name: 'next-instant-navigation-testing',
+        value: JSON.stringify([1, 'c-stale', null]),
+        domain: hostname,
+        path: '/',
+      },
+    ])
+
+    let ranCallback = false
+    await instant(page, async () => {
+      ranCallback = true
+      await page.click('#link-to-target')
+      const loadingShell = page.locator('[data-testid="loading-shell"]')
+      await loadingShell.waitFor({ state: 'visible' })
+    })
+    expect(ranCallback).toBe(true)
+
+    // After exiting the scope the cookie is gone again, so a normal navigation
+    // is not locked and dynamic content streams in.
+    const dynamicContent = page.locator('[data-testid="dynamic-content"]')
+    await dynamicContent.waitFor({ state: 'visible' })
+  })
+
+  it('allows concurrent instant scopes across separate browser contexts', async () => {
+    const page = await openPage(next, '/')
+
+    // A second, independent browser context. Its cookie jar and its page's
+    // navigation lock are separate from the first context's, so a concurrent
+    // instant() scope here must not be reported as already active against the
+    // first. This guards against tracking the active scope per-process instead
+    // of per-context.
+    const browser = page.context().browser()
+    if (!browser) {
+      throw new Error('Expected the page context to expose a browser instance')
+    }
+    const otherContext = await browser.newContext()
+    try {
+      const otherPage = await otherContext.newPage()
+      await otherPage.goto(next.url)
+
+      let ranFirst = false
+      let ranSecond = false
+      await Promise.all([
+        instant(page, async () => {
+          ranFirst = true
+          await page.click('#link-to-target')
+          await page
+            .locator('[data-testid="loading-shell"]')
+            .waitFor({ state: 'visible' })
+        }),
+        instant(otherPage, async () => {
+          ranSecond = true
+          await otherPage.click('#link-to-target')
+          await otherPage
+            .locator('[data-testid="loading-shell"]')
+            .waitFor({ state: 'visible' })
+        }),
+      ])
+      expect(ranFirst).toBe(true)
+      expect(ranSecond).toBe(true)
+    } finally {
+      await otherContext.close()
+    }
+  })
+
   it('renders shell on page reload', async () => {
     const page = await openPage(next, '/target-page')
 
