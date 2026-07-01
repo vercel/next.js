@@ -96,8 +96,14 @@ export async function createSandbox(
           await this.write(filename, content)
 
           for (;;) {
-            const status = await browser.eval(() => (window as any).__HMR_STATE)
+            const status = await browser
+              .eval(() => (window as any).__HMR_STATE)
+              .catch(() => {
+                // "Execution context was destroyed, most likely because of a navigation"
+                return null
+              })
             if (!status) {
+              // Hard navigation happened, wait for the app to re-load:
               await waitFor(750)
 
               // Wait for application to re-hydrate:
