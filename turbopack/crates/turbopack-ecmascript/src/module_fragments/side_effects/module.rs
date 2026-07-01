@@ -149,7 +149,21 @@ impl EcmascriptChunkPlaceable for SideEffectsModule {
         let mut code = RopeBuilder::default();
         let mut has_top_level_await = false;
 
+        let id_strategy = chunking_context.chunk_item_id_strategy().await?;
+
         for &side_effect in module.side_effects.iter() {
+            // These side effects were collected conservatively (see
+            // `follow_reexports_with_side_effects`). Inner-graph tree shaking may have
+            // since determined a "side effect" to be side-effect-free and pruned its
+            // evaluation edge, in which case it has no chunk item id.
+            // So we are going to skip it.
+            let Some(id) = id_strategy
+                .try_get_id_from_module(Vc::upcast(*side_effect))
+                .await?
+            else {
+                continue;
+            };
+
             let need_await = 'need_await: {
                 let async_module = *side_effect.get_async_module().await?;
                 if let Some(async_module) = async_module
@@ -168,7 +182,7 @@ impl EcmascriptChunkPlaceable for SideEffectsModule {
                 format!(
                     "{}{TURBOPACK_IMPORT}({});\n",
                     if need_await { "await " } else { "" },
-                    StringifyModuleId(&side_effect.chunk_item_id(chunking_context).await?)
+                    StringifyModuleId(&id)
                 )
                 .as_bytes(),
             );
