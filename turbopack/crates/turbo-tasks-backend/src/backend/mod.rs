@@ -1253,9 +1253,11 @@ impl TurboTasksBackend {
         // Tasks were already consumed by take_snapshot, so a future snapshot
         // would not re-persist them — returning an error signals to the caller
         // that further persist attempts would corrupt the task graph in storage.
-        let snapshot_meta = self
-            .backing_storage
-            .save_snapshot(suspended_operations, task_snapshots)?;
+        // GC is not yet wired into the snapshot cycle (see the mark-and-sweep staging plan);
+        // pass an empty delete list for now.
+        let snapshot_meta =
+            self.backing_storage
+                .save_snapshot(suspended_operations, task_snapshots, Vec::new())?;
         span.record("snapshot_meta", display(snapshot_meta));
 
         #[cfg(feature = "print_cache_item_size")]

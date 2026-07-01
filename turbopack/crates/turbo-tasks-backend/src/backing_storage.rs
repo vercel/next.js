@@ -19,6 +19,24 @@ pub struct SnapshotItem {
     pub task_type_hash: Option<TaskTypeHash>,
 }
 
+/// A task that garbage collection has determined is unreachable and should be tombstoned from
+/// persistent storage. Emitted by the sweep phase and applied in the same commit as the snapshot.
+///
+/// `TaskMeta` and `TaskData` are `SingleValue` families, so the task id key is tombstoned directly.
+/// `TaskCache` is `MultiValue` keyed by the 8-byte task-type hash, where a tombstone erases the
+/// whole hash bucket; `surviving_task_ids` therefore carries any *other* live task ids that share
+/// this task's hash (via an xxh3 collision) so they can be re-inserted after the tombstone. This is
+/// almost always empty — 8-byte hash collisions are astronomically rare.
+pub struct TaskDeletion {
+    pub task_id: TaskId,
+    /// The deleted task's persistent task-type hash (its `TaskCache` key). Always present because
+    /// only persistent (non-transient) tasks are collected, and those always have a task type.
+    pub task_type_hash: TaskTypeHash,
+    /// Live task ids sharing `task_type_hash` that must be re-inserted into `TaskCache` after the
+    /// whole-bucket tombstone. Almost always empty.
+    pub surviving_task_ids: Vec<TaskId>,
+}
+
 /// Computes a deterministic 64-bit hash of a CachedTaskType for use as a TaskCache key.
 ///
 /// This encodes the task type directly to a hasher, avoiding intermediate buffer allocation.
