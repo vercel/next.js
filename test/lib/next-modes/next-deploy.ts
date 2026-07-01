@@ -189,6 +189,8 @@ export class NextDeployInstance extends NextInstance {
     super.setup(parentSpan)
     await super.createTestDir({ parentSpan, skipInstall: true })
 
+    await this.writeMirrorNpmrcIfNecessary()
+
     const existingDeployUrl = process.env.NEXT_TEST_DEPLOY_URL?.trim()
     const customDeployScriptPath =
       process.env.NEXT_TEST_DEPLOY_SCRIPT_PATH?.trim()
@@ -451,6 +453,30 @@ export class NextDeployInstance extends NextInstance {
     this.parseIdsFromCliOuput()
     // Use the stdout from the logs command as the CLI output. The CLI will
     // output other unrelated logs to stderr.
+  }
+
+  // When the preview-builds npm mirror is auth-protected, the deploy build
+  // installs Next.js artifacts from it and needs credentials. We write an
+  // `.npmrc` with a read token (provided as a CI secret) so the remote install
+  // can authenticate. Only written when the token is set, so unprotected and
+  // local deploy runs are unaffected.
+  private async writeMirrorNpmrcIfNecessary(): Promise<void> {
+    const token = process.env.PREVIEW_BUILDS_READ_TOKEN
+    const baseUrlRaw = process.env.NEXT_TEST_PREVIEW_BUILDS_BASE_URL
+
+    if (!token || !baseUrlRaw) {
+      return
+    }
+
+    const baseUrl = new URL(baseUrlRaw)
+    // Derive the npmrc auth key from the mirror base URL: strip the scheme and
+    // ensure a trailing slash so it matches requests to that registry path.
+    const registryKey = `//${baseUrl.host}${baseUrl.pathname.replace(/\/?$/, '/')}`
+
+    await fs.writeFile(
+      path.join(this.testDir, '.npmrc'),
+      `${registryKey}:_authToken=${token}\n`
+    )
   }
 
   private async configureProxyAddress(): Promise<void> {

@@ -937,7 +937,7 @@ impl FileSystem for DiskFileSystem {
         // require recomputing the content on cache restore — avoiding unnecessary downstream
         // recomputation.
         let content = content.persist().to_resolved().await?;
-        let content_hash = u128::from_le_bytes(hash_xxh3_hash128(&*content.await?));
+        let content_hash = hash_xxh3_hash128(&*content.await?);
 
         #[turbo_tasks::value(eq = "manual", cell = "new")]
         struct WriteEffect {
@@ -1162,7 +1162,7 @@ impl FileSystem for DiskFileSystem {
         }
         let full_path = this.to_sys_path(&fs_path);
 
-        let content_hash = u128::from_le_bytes(hash_xxh3_hash128(&*target.await?));
+        let content_hash = hash_xxh3_hash128(&*target.await?);
 
         #[turbo_tasks::value(eq = "manual", cell = "new")]
         struct WriteLinkEffect {

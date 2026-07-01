@@ -14,7 +14,7 @@ use turbo_tasks_fs::{
     File, FileContent,
     rope::{Rope, RopeBuilder},
 };
-use turbo_tasks_hash::hash_xxh3_hash64;
+use turbo_tasks_hash::hash_xxh3_hash128;
 
 use crate::{
     debug_id::generate_debug_id,
@@ -292,9 +292,9 @@ pub struct OptionDebugId(Option<RcStr>);
 impl Code {
     /// Returns the hash of the source code of this Code.
     #[turbo_tasks::function]
-    pub fn source_code_hash(&self) -> Vc<u64> {
+    pub fn source_code_hash(&self) -> Vc<u128> {
         let code = self;
-        let hash = hash_xxh3_hash64(code.source_code());
+        let hash = hash_xxh3_hash128(code.source_code());
         Vc::cell(hash)
     }
 

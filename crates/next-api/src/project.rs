@@ -73,7 +73,7 @@ use turbopack_core::{
         binding_usage_info::{
             BindingUsageInfo, OptionBindingUsageInfo, compute_binding_usage_info,
         },
-        chunk_group_info::ChunkGroupEntry,
+        chunk_group_info::{ChunkGroupEntry, EntryHeuristics},
     },
     output::{
         ExpandOutputAssetsInput, ExpandedOutputAssets, OutputAsset, OutputAssets,
@@ -1484,7 +1484,10 @@ impl Project {
         Ok(if *self.per_page_module_graph().await? {
             ModuleGraph::from_graphs(
                 vec![SingleModuleGraph::new_with_entry(
-                    ChunkGroupEntry::Entry(vec![entry]),
+                    ChunkGroupEntry::Entry {
+                        modules: vec![entry],
+                        heuristics: EntryHeuristics::default(),
+                    },
                     /* include_traced */ *self.should_write_nft_manifests().await?,
                     /* include_binding_usage */ self.next_mode().await?.is_production(),
                 )],
@@ -1510,8 +1513,11 @@ impl Project {
                 .collect();
             ModuleGraph::from_graphs(
                 vec![SingleModuleGraph::new_with_entries(
-                    GraphEntries::from_chunk_groups(vec![ChunkGroupEntry::Entry(entries)])
-                        .resolved_cell(),
+                    GraphEntries::from_chunk_groups(vec![ChunkGroupEntry::Entry {
+                        modules: entries,
+                        heuristics: EntryHeuristics::default(),
+                    }])
+                    .resolved_cell(),
                     /* include_traced */ *self.should_write_nft_manifests().await?,
                     /* include_binding_usage */ self.next_mode().await?.is_production(),
                 )],
@@ -1596,6 +1602,7 @@ impl Project {
         self: Vc<Self>,
     ) -> Result<Vc<Box<dyn ChunkingContext>>> {
         let css_url_suffix = self.next_config().asset_suffix_path();
+        let chunking_heuristics = self.next_config().chunking_heuristics().await?;
         Ok(get_client_chunking_context(ClientChunkingContextOptions {
             mode: self.next_mode(),
             root_path: self.project_root_path().owned().await?,
@@ -1626,6 +1633,9 @@ impl Project {
             cross_origin: self.next_config().cross_origin(),
             chunk_loading_global: self.next_config().turbopack_chunk_loading_global(),
             style_groups_algorithm: self.next_config().css_chunking().owned().await?,
+            chunking_first_page_load_priority: chunking_heuristics.first_page_load_priority,
+            chunking_priority_boost_percent: chunking_heuristics.priority_boost_percent,
+            chunking_request_cost: chunking_heuristics.request_cost,
         }))
     }
 
@@ -2579,14 +2589,16 @@ impl Project {
     #[turbo_tasks::function]
     pub async fn client_main_modules(self: Vc<Self>) -> Result<Vc<GraphEntries>> {
         let pages_project = self.pages_project();
-        let mut chunk_groups = vec![ChunkGroupEntry::Entry(vec![
-            pages_project.client_main_module().to_resolved().await?,
-        ])];
+        let mut chunk_groups = vec![ChunkGroupEntry::Entry {
+            modules: vec![pages_project.client_main_module().to_resolved().await?],
+            heuristics: EntryHeuristics::high_priority(),
+        }];
 
         if let Some(app_project) = *self.app_project().await? {
-            chunk_groups.push(ChunkGroupEntry::Entry(vec![
-                app_project.client_main_module().to_resolved().await?,
-            ]));
+            chunk_groups.push(ChunkGroupEntry::Entry {
+                modules: vec![app_project.client_main_module().to_resolved().await?],
+                heuristics: EntryHeuristics::high_priority(),
+            });
         }
 
         Ok(GraphEntries::from_chunk_groups(chunk_groups).cell())

@@ -25,35 +25,42 @@ kind: insight
 
 During [prerendering](https://preview.nextjs.org/docs/app/glossary#prerendering), a Server Component called a synchronous [Web Crypto](https://developer.mozilla.org/en-US/docs/Web/API/Crypto) or Node [`crypto`](https://nodejs.org/api/crypto.html) API that produces a random value ([`crypto.randomUUID()`](https://developer.mozilla.org/en-US/docs/Web/API/Crypto/randomUUID), [`crypto.getRandomValues()`](https://developer.mozilla.org/en-US/docs/Web/API/Crypto/getRandomValues), [`crypto.randomBytes()`](https://nodejs.org/api/crypto.html#cryptorandombytessize-callback), [`crypto.generateKeyPairSync()`](https://nodejs.org/api/crypto.html#cryptogeneratekeypairsynctype-options)) outside of [`<Suspense>`](https://react.dev/reference/react/Suspense). With [Cache Components](https://preview.nextjs.org/docs/app/api-reference/config/next-config-js/cacheComponents) enabled, Next.js can't bake an unpredictable value into the prerendered HTML. The value at build time will differ from the value at runtime, so you need to choose: cache the generated value so it's stable, defer the call behind a [`<Suspense>`](https://react.dev/reference/react/Suspense) boundary so it runs per-request, or move it to the client.
 
-Other unpredictable APIs ([`Math.random()`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Math/random), [`Date.now()`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Date/now)) have parallel error pages: see [`Math.random()`](https://preview.nextjs.org/docs/messages/blocking-prerender-random) and [`Date.now()`](https://preview.nextjs.org/docs/messages/blocking-prerender-current-time). The Client Component case is handled at [Crypto APIs in a Client Component](https://preview.nextjs.org/docs/messages/blocking-prerender-crypto-client).
+Other unpredictable APIs ([`Math.random()`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Math/random), [`Date.now()`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Date/now)) have parallel error pages: see [`Math.random()`](/docs/messages/blocking-prerender-random) and [`Date.now()`](/docs/messages/blocking-prerender-current-time). The Client Component case is handled at [Crypto APIs in a Client Component](/docs/messages/blocking-prerender-crypto-client).
 
 ## Ways to fix this
 
-<FixOption
-  group="dynamic"
-  href="#generate-on-every-request"
-  title="Generate on every request"
->
-  Mark the component as request-time so a fresh token is produced for each
-  visit.
-</FixOption>
-
-<FixOption
-  group="cache"
-  href="#cache-the-generated-value"
-  title="Cache the generated value"
->
-  Generate one value at build time and reuse it. Useful when the value is a key
-  into another cached operation.
-</FixOption>
-
-<FixOption
-  group="client"
-  href="#render-on-the-client"
-  title="Render on the client"
->
-  Move the call into a Client Component. The browser produces the random value.
-</FixOption>
+<FixCardGrid>
+  <FixCard
+    group="dynamic"
+    title="Generate on every request"
+    href="#generate-on-every-request"
+    snippets={[
+      { text: 'await connection()', highlight: true },
+      { text: 'const id = crypto.randomUUID()' },
+      { text: 'return <Token id={id} />' },
+    ]}
+  />
+  <FixCard
+    group="cache"
+    title="Cache the generated value"
+    href="#cache-the-generated-value"
+    snippets={[
+      { text: 'function TokenId() {' },
+      { text: '  "use cache"', highlight: true },
+      { text: '  return crypto.randomUUID()' },
+    ]}
+  />
+  <FixCard
+    group="client"
+    title="Render on the client"
+    href="#render-on-the-client"
+    snippets={[
+      { text: '"use client"', highlight: true },
+      { text: '// runs in the browser' },
+      { text: 'const id = crypto.randomUUID()' },
+    ]}
+  />
+</FixCardGrid>
 
 ## Generate on every request
 
@@ -139,7 +146,7 @@ The route renders on every request. The shell still ships instantly because of t
 
 ### Gotchas
 
-- Any UI rendered as part of the prerender shell must be deterministic. That includes [`<Suspense>`](https://react.dev/reference/react/Suspense) fallbacks, [`loading.js`](https://preview.nextjs.org/docs/app/api-reference/file-conventions/loading), [`error.js`](https://preview.nextjs.org/docs/app/api-reference/file-conventions/error), [`not-found.js`](https://preview.nextjs.org/docs/app/api-reference/file-conventions/not-found), and [`global-error.js`](https://preview.nextjs.org/docs/app/api-reference/file-conventions/error#global-error). Calling a crypto API in any of them raises this same error.
+- Any UI rendered as part of the prerender shell must be deterministic. That includes [`<Suspense>`](https://react.dev/reference/react/Suspense) fallbacks, [`loading.js`](https://preview.nextjs.org/docs/app/api-reference/file-conventions/loading), [`error.js`](https://preview.nextjs.org/docs/app/api-reference/file-conventions/error), [`not-found.js`](/docs/app/api-reference/file-conventions/not-found), and [`global-error.js`](https://preview.nextjs.org/docs/app/api-reference/file-conventions/error#global-error). Calling a crypto API in any of them raises this same error.
 - For genuinely security-critical tokens (session IDs, CSRF), [Generate on every request](#generate-on-every-request) is the only correct choice. Caching a CSRF token across visitors defeats its purpose.
 - This error only fires for synchronous random-producing APIs. Async crypto operations ([`crypto.subtle.digest()`](https://developer.mozilla.org/en-US/docs/Web/API/SubtleCrypto/digest), [`crypto.generateKeyPair()`](https://nodejs.org/api/crypto.html#cryptogeneratekeypairtype-options-callback)) integrate with [`<Suspense>`](https://react.dev/reference/react/Suspense) naturally and don't trip the error.
 
@@ -170,7 +177,7 @@ Learn more: [Caching with `use cache`](https://preview.nextjs.org/docs/app/api-r
 
 #### Tag the cache for explicit rotation
 
-When you want to rotate the token on a schedule or in response to an event, tag the entry with [`cacheTag`](https://preview.nextjs.org/docs/app/api-reference/functions/cacheTag). Invalidate from a Server Action with [`updateTag`](https://preview.nextjs.org/docs/app/api-reference/functions/updateTag) (read-your-own-writes: the next request waits for fresh data) or from a Route Handler with [`revalidateTag`](https://preview.nextjs.org/docs/app/api-reference/functions/revalidateTag) (stale-while-revalidate).
+When you want to rotate the token on a schedule or in response to an event, tag the entry with [`cacheTag`](https://preview.nextjs.org/docs/app/api-reference/functions/cacheTag). Invalidate from a Server Action with [`updateTag`](/docs/app/api-reference/functions/updateTag) (read-your-own-writes: the next request waits for fresh data) or from a Route Handler with [`revalidateTag`](https://preview.nextjs.org/docs/app/api-reference/functions/revalidateTag) (stale-while-revalidate).
 
 ```jsx filename="app/page.js"
 import { cacheTag } from 'next/cache'
@@ -202,13 +209,13 @@ To keep the page prerendered, use a profile with a longer revalidate window such
 
 ## Render on the client
 
-Choose this fix when the generated value belongs to the client experience. A client-only correlation ID for telemetry, a draft-state key in [`localStorage`](https://developer.mozilla.org/en-US/docs/Web/API/Window/localStorage), a UI nonce for a confirmation modal. Move the component into a [Client Component](https://preview.nextjs.org/docs/app/getting-started/server-and-client-components) so the value is produced after hydration.
+Choose this fix when the generated value belongs to the client experience. A client-only correlation ID for telemetry, a draft-state key in [`localStorage`](https://developer.mozilla.org/en-US/docs/Web/API/Window/localStorage), a UI nonce for a confirmation modal. Move the component into a [Client Component](/docs/app/getting-started/server-and-client-components) so the value is produced after hydration.
 
 ### Patterns
 
 #### Move the component to the client
 
-Add [`use client`](https://preview.nextjs.org/docs/app/api-reference/directives/use-client) and call the crypto API inside the component.
+Add [`use client`](/docs/app/api-reference/directives/use-client) and call the crypto API inside the component.
 
 ```jsx filename="app/draft-key.js"
 'use client'
@@ -229,7 +236,7 @@ export function DraftKey() {
 }
 ```
 
-Learn more: [Client Components](https://preview.nextjs.org/docs/app/getting-started/server-and-client-components#using-client-components).
+Learn more: [Client Components](/docs/app/getting-started/server-and-client-components#using-client-components).
 
 ### Trade-off
 
@@ -237,7 +244,7 @@ The first paint shows the SSR fallback (often `null`), and the value appears onl
 
 ### Gotchas
 
-- A Client Component that calls a crypto API inline during render still trips this error during SSR. See the dedicated [Crypto APIs in a Client Component](https://preview.nextjs.org/docs/messages/blocking-prerender-crypto-client) page for the [`<Suspense>`](https://react.dev/reference/react/Suspense) and effect-based recipes.
+- A Client Component that calls a crypto API inline during render still trips this error during SSR. See the dedicated [Crypto APIs in a Client Component](/docs/messages/blocking-prerender-crypto-client) page for the [`<Suspense>`](https://react.dev/reference/react/Suspense) and effect-based recipes.
 - The browser only ships [Web Crypto](https://developer.mozilla.org/en-US/docs/Web/API/Crypto). Node-only APIs (`crypto.randomBytes`, `crypto.generateKeyPairSync`) are not available on the client.
 
 ## Verifying the fix
@@ -249,3 +256,20 @@ In [`next dev`](https://preview.nextjs.org/docs/app/api-reference/cli/next#next-
 ## Why `instant = false` doesn't clear this error
 
 This error fires from the prerender, not from instant-navigation validation. `crypto.randomUUID()` and related APIs return a different value on every call, so the prerender can't bake them into a static shell regardless of the segment's `instant` config or [`experimental.instantInsights.validationLevel`](https://preview.nextjs.org/docs/app/api-reference/file-conventions/route-segment-config/instant#configuring-validation-defaults). Use one of the fixes above.
+
+## Related Insights
+
+- [Runtime data during prerendering](/docs/messages/blocking-prerender-runtime)
+- [Uncached data during prerendering](/docs/messages/blocking-prerender-dynamic)
+- [URL data in a Client Component outside of Suspense](/docs/messages/blocking-prerender-client-hook)
+- [Runtime data in `generateMetadata()`](/docs/messages/blocking-prerender-metadata-runtime)
+- [Uncached data in `generateMetadata()`](/docs/messages/blocking-prerender-metadata-dynamic)
+- [Runtime data in `generateViewport()`](/docs/messages/blocking-prerender-viewport-runtime)
+- [Uncached data in `generateViewport()`](/docs/messages/blocking-prerender-viewport-dynamic)
+- [`Math.random()` while prerendering](/docs/messages/blocking-prerender-random)
+- [`Math.random()` in a Client Component](/docs/messages/blocking-prerender-random-client)
+- [`Date.now()` while prerendering](/docs/messages/blocking-prerender-current-time)
+- [`Date.now()` in a Client Component](/docs/messages/blocking-prerender-current-time-client)
+- [Crypto APIs in a Client Component](/docs/messages/blocking-prerender-crypto-client)
+- [Partial Prefetch link with dynamic data](/docs/messages/instant-link-prefetch-partial)
+- [Unrendered segment](/docs/messages/instant-unrendered-segment)

@@ -2,6 +2,8 @@ import { nextTestSetup, type Playwright } from 'e2e-utils'
 import { retry } from 'next-test-utils'
 import * as nodePath from 'node:path'
 
+const partialPrefetching = !!process.env.__NEXT_PARTIAL_PREFETCHING
+
 describe.each([
   {
     description: 'without runtime prefetch configs',
@@ -220,6 +222,15 @@ describe.each([
       { description: 'initial load', isInitialLoad: true },
       { description: 'navigation', isInitialLoad: false },
     ])('$description', ({ isInitialLoad }) => {
+      // Static
+      const STATIC_LINK_DATA = isInitialLoad
+        ? 'Prerender'
+        : // If we're rendering an App Shell, static params are deferred until the runtime stage.
+          partialPrefetching || hasRuntimePrefetch
+          ? RUNTIME_ENV
+          : 'Prerender'
+      const RUNTIME_LINK_DATA = RUNTIME_ENV
+
       describe('cached data resolves in the correct phase', () => {
         it('cached data + cached fetch', async () => {
           const path = '/simple'
@@ -375,10 +386,11 @@ describe.each([
           const assertLogs = async (browser: Playwright) => {
             const logs = await browser.log()
             // `en` is covered by `generateStaticParams`, so `lang` resolves in
-            // the static shell.
-            assertLog(logs, 'after params - lang', 'Prerender')
+            // the static shell, unless we're rendering an App Shell, in which
+            // case they're deferred to the runtiem stage.
+            assertLog(logs, 'after params - lang', STATIC_LINK_DATA)
             // `id` is never covered, so it's deferred to the runtime stage.
-            assertLog(logs, 'after params - id', RUNTIME_ENV)
+            assertLog(logs, 'after params - id', RUNTIME_LINK_DATA)
           }
 
           if (isInitialLoad) {
@@ -399,8 +411,8 @@ describe.each([
             // runtime stage too, not resolve in the static shell. (Picking the
             // fewest-param route without matching the URL would resolve `lang`
             // in `Prerender` here.)
-            assertLog(logs, 'after params - lang', RUNTIME_ENV)
-            assertLog(logs, 'after params - id', RUNTIME_ENV)
+            assertLog(logs, 'after params - lang', RUNTIME_LINK_DATA)
+            assertLog(logs, 'after params - id', RUNTIME_LINK_DATA)
           }
 
           if (isInitialLoad) {
@@ -417,11 +429,12 @@ describe.each([
             const logs = await browser.log()
             // Both `en` and `x` are covered by `generateStaticParams`, so this
             // is a fully prerendered concrete route and both params resolve in
-            // the static shell. (Skipping the concrete route before matching
-            // the URL would let the base route win and defer the
-            // statically-known `id`.)
-            assertLog(logs, 'after params - lang', 'Prerender')
-            assertLog(logs, 'after params - id', 'Prerender')
+            // the static shell unless we're rendering an App Shell, in which
+            // case they're deferred to the runtime stage.
+            // (Skipping the concrete route before matching the URL would let
+            // the base route win and defer the statically-known `id`.)
+            assertLog(logs, 'after params - lang', STATIC_LINK_DATA)
+            assertLog(logs, 'after params - id', STATIC_LINK_DATA)
           }
 
           if (isInitialLoad) {

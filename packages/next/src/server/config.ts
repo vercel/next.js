@@ -2,7 +2,6 @@ import { existsSync } from 'fs'
 import { basename, extname, join, relative, isAbsolute, resolve } from 'path'
 import { pathToFileURL } from 'url'
 import findUp from 'next/dist/compiled/find-up'
-import semver from 'next/dist/compiled/semver'
 import * as Log from '../build/output/log'
 import * as ciEnvironment from '../server/ci-info'
 import {
@@ -53,6 +52,7 @@ import { HardDeprecatedConfigError } from '../shared/lib/errors/hard-deprecated-
 import { NextInstanceErrorState } from './mcp/tools/next-instance-error-state'
 import { Bundler } from '../lib/bundler'
 import type { MemoryEvictionMode } from '../build/swc/types'
+import { hrtimeBigIntDurationToString } from '../build/duration-to-string'
 
 export { normalizeConfig } from './config-shared'
 export type { DomainLocale, NextConfig } from './config-shared'
@@ -1582,52 +1582,6 @@ function assignDefaultsAndValidate(
     result.experimental.useCache = result.cacheComponents
   }
 
-  // Node.js version gate for turbopackPluginRuntimeStrategy: 'workerThreads'.
-  // Older Node.js versions have memory safety bugs in worker threads. Bun and
-  // Deno are not affected by this check.
-  {
-    const strategy = result.experimental.turbopackPluginRuntimeStrategy
-    const isForced = strategy === 'forceWorkerThreads'
-    if (strategy === 'workerThreads' || isForced) {
-      // Normalize 'forceWorkerThreads' → 'workerThreads' for Rust/serde
-      result.experimental.turbopackPluginRuntimeStrategy = 'workerThreads'
-
-      const isBun = !!process.versions.bun
-      const isDeno = !!process.versions.deno
-      if (!isBun && !isDeno) {
-        const nodeVersion = process.versions.node
-        const WORKER_THREADS_SAFE_RANGE = '>=24.13.1 <25.0.0 || >=25.4.0'
-        if (
-          !semver.satisfies(nodeVersion, WORKER_THREADS_SAFE_RANGE, {
-            includePrerelease: true,
-          })
-        ) {
-          if (isForced) {
-            Log.warn(
-              `\`experimental.turbopackPluginRuntimeStrategy = ` +
-                `'forceWorkerThreads'\` has been enabled, but you're using ` +
-                `Node.js ${nodeVersion}, which has known memory safety bugs ` +
-                `with worker threads used from the Node-API. You may ` +
-                `experience crashes, segmentation faults, or other ` +
-                `instability. Upgrade to Node.js ${WORKER_THREADS_SAFE_RANGE}.`
-            )
-          } else {
-            Log.warn(
-              `\`experimental.turbopackPluginRuntimeStrategy = ` +
-                `'workerThreads'\` is set but has been ` +
-                `ignored because you're using Node.js ${nodeVersion}, which ` +
-                `has memory safety bugs in worker threads. Falling back to ` +
-                `'childProcesses'. Upgrade to Node.js ` +
-                `${WORKER_THREADS_SAFE_RANGE}.`
-            )
-            result.experimental.turbopackPluginRuntimeStrategy =
-              'childProcesses'
-          }
-        }
-      }
-    }
-  }
-
   // Store the distDirRoot in the config before it is modified for development mode
   ;(result as NextConfigComplete).distDirRoot = result.distDir
 
@@ -1766,6 +1720,30 @@ export default async function loadConfig(
 export default async function loadConfig(
   phase: PHASE_TYPE,
   dir: string,
+  opts: LoadConfigOptions = {}
+): Promise<NextConfigComplete> {
+  // Test for an explicit `silent == false` since the default in loadConfig is true
+  const logTiming = opts.silent === false
+  const startTimeNanos = logTiming ? process.hrtime.bigint() : undefined
+  const [config, meta] = await loadConfigImpl(phase, dir, opts)
+
+  if (!meta.cacheHit && logTiming) {
+    const durationNanos = process.hrtime.bigint() - startTimeNanos!
+    Log.event(
+      `Running ${meta.configFileName ?? 'next.config'} took ${hrtimeBigIntDurationToString(durationNanos)}`
+    )
+  }
+  return config
+}
+
+// The resolved config plus metadata the timing wrapper in `loadConfig` needs:
+// `configFileName` names the actual file (e.g. `next.config.ts`) in the log
+// line, and `cacheHit` flags the fast path so its ~0ms timing is ignored.
+type LoadConfigMeta = { configFileName?: string; cacheHit?: boolean }
+
+async function loadConfigImpl(
+  phase: PHASE_TYPE,
+  dir: string,
   {
     customConfig,
     rawConfig,
@@ -1774,8 +1752,9 @@ export default async function loadConfig(
     reactProductionProfiling,
     debugPrerender,
     bundler,
-  }: LoadConfigOptions = {}
-): Promise<NextConfigComplete> {
+  }: LoadConfigOptions
+): Promise<[NextConfigComplete, LoadConfigMeta]> {
+  const meta: LoadConfigMeta = {}
   // Generate cache key based on parameters that affect config output
   // Include process.pid to invalidate cache on server restart
   const cacheKey = getCacheKey(
@@ -1790,6 +1769,8 @@ export default async function loadConfig(
   // Check if we have a cached result
   const cachedResult = configCache.get(cacheKey)
   if (cachedResult) {
+    meta.cacheHit = true
+
     // Call the experimental features callback if provided
     if (reportExperimentalFeatures) {
       reportExperimentalFeatures(cachedResult.configuredExperimentalFeatures)
@@ -1797,10 +1778,10 @@ export default async function loadConfig(
 
     // Return raw config if requested and available
     if (rawConfig && cachedResult.rawConfig) {
-      return cachedResult.rawConfig
+      return [cachedResult.rawConfig, meta]
     }
 
-    return cachedResult.config
+    return [cachedResult.config, meta]
   } else {
     // Reset next.config errors before loading config
     // This happens on every config load to ensure fresh validation
@@ -1834,7 +1815,7 @@ export default async function loadConfig(
       configuredExperimentalFeatures: [],
     })
 
-    return standaloneConfig
+    return [standaloneConfig, meta]
   }
 
   const curLog = silent
@@ -1881,7 +1862,7 @@ export default async function loadConfig(
 
     reportExperimentalFeatures?.(configuredExperimentalFeatures)
 
-    return config
+    return [config, meta]
   }
 
   const path = await findUp(CONFIG_FILES, { cwd: dir })
@@ -1889,6 +1870,7 @@ export default async function loadConfig(
   // If config file was found
   if (path?.length) {
     configFileName = basename(path)
+    meta.configFileName = configFileName
 
     let userConfigModule: any
     let loadedConfig: NextConfig
@@ -1930,7 +1912,7 @@ export default async function loadConfig(
 
         reportExperimentalFeatures?.(configuredExperimentalFeatures)
 
-        return userConfigModule
+        return [userConfigModule, meta]
       }
 
       // `normalizeConfig` invokes the user's exported config function (or
@@ -2086,7 +2068,7 @@ export default async function loadConfig(
       reportExperimentalFeatures(configuredExperimentalFeatures)
     }
 
-    return finalConfig
+    return [finalConfig, meta]
   } else {
     const configBaseName = basename(CONFIG_FILES[0], extname(CONFIG_FILES[0]))
     const unsupportedConfig = findUp.sync(
@@ -2145,7 +2127,7 @@ export default async function loadConfig(
     reportExperimentalFeatures(configuredExperimentalFeatures)
   }
 
-  return finalConfig
+  return [finalConfig, meta]
 }
 
 export type ConfiguredExperimentalFeature = {
@@ -2213,6 +2195,10 @@ function enforceExperimentalFeatures(
       (isDefaultConfig && !config.cacheComponents))
   ) {
     config.cacheComponents = true
+  }
+
+  if (process.env.__NEXT_PARTIAL_PREFETCHING === 'true') {
+    config.partialPrefetching = true
   }
 
   // TODO: Remove this once cachedNavigations is the default. Note:

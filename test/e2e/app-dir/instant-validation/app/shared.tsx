@@ -5,6 +5,7 @@ import { Suspense } from 'react'
 import { setTimeout } from 'timers/promises'
 
 export function HackilyPreventFullyStaticServerPrerender() {
+  // FIXME(NAR-800)
   return <Suspense>{connection().then(() => null)}</Suspense>
 }
 
