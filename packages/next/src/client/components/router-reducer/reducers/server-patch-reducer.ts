@@ -71,6 +71,9 @@ export function serverPatchReducer(
     // marked as having a dynamic rewrite when the mismatch was detected.
     null,
     // Not an HMR refresh, so there's no request generation to cancel.
-    undefined
+    undefined,
+    // A retry reuses the original transition's commit; it is not separately
+    // tracked (its tree is not buffered, so it cannot double-commit).
+    null
   )
 }

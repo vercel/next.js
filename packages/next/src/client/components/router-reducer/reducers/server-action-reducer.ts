@@ -520,7 +520,9 @@ export function serverActionReducer(
           // known route tree to mark the entry as having a dynamic rewrite.
           null,
           // Not an HMR refresh, so there's no request generation to cancel.
-          undefined
+          undefined,
+          // A server action redirect is not a tracked router transition.
+          null
         )
       }
 
@@ -536,7 +538,9 @@ export function serverActionReducer(
         nextUrl,
         freshnessPolicy,
         scrollBehavior,
-        navigateType
+        navigateType,
+        // A server action redirect is not a tracked router transition.
+        null
       )
     },
     (e: any) => {

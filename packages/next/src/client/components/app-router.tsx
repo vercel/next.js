@@ -26,6 +26,7 @@ import {
 } from '../../shared/lib/hooks-client-context.shared-runtime'
 import { dispatchAppRouterAction, useActionQueue } from './use-action-queue'
 import { setLastCommittedTree } from './router-reducer/reducers/committed-state'
+import { commitRouterTransition } from './router-transition'
 import { AppRouterAnnouncer } from './app-router-announcer'
 import { RedirectBoundary } from './redirect-boundary'
 import { findHeadInCache } from './router-reducer/reducers/find-head-in-cache'
@@ -97,6 +98,10 @@ function HistoryUpdater({
       window.history.replaceState(historyState, '', canonicalUrl)
     }
 
+    // Report the router transition commit at the moment the navigation is
+    // applied to the browser. Matches the buffered transition by tree identity;
+    // a no-op if this state isn't a tracked transition or already committed.
+    commitRouterTransition(tree, canonicalUrl, renderedSearch)
     setLastCommittedTree(tree)
   }, [appRouterState])
 
@@ -229,6 +234,7 @@ function Router({
         type: ACTION_RESTORE,
         url: new URL(window.location.href),
         historyState: window.history.state.__PRIVATE_NEXTJS_INTERNALS_TREE,
+        transitionId: null,
       })
     }
 
@@ -319,6 +325,7 @@ function Router({
           type: ACTION_RESTORE,
           url: new URL(url ?? href, href),
           historyState: appHistoryState,
+          transitionId: null,
         })
       })
     }
