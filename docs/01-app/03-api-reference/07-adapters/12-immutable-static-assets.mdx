@@ -17,8 +17,8 @@ Note that you need to continue supporting non-immutable static assets (which may
 
 You need to
 
-1. in the `modifyConfig`, set the `config.supportsImmutableAssets` property to `true` to signal that you support deploying Immutable Static Assets, and
-2. in `onBuildComplete`, read the `outputs.staticFiles[].immutableHash` property to determine which static assets are immutable and can be requested without the `?dpl` query parameter.
+1. in the `modifyConfig`, set the `config.supportsImmutableAssets` property to `true` (if it's not already set to `false` by the user) to signal that you support deploying immutable static assets, and
+2. in `onBuildComplete`, read the `outputs.staticFiles[].immutableHash` property to determine which static assets are immutable and have to be requested without the `?dpl` query parameter.
 
 ```js filename="my-adapter.js"
 /** @type {import('next').NextAdapter} */
@@ -28,7 +28,7 @@ const adapter = {
   async modifyConfig(config, { phase }) {
     if (phase === 'phase-production-build') {
       config.supportsImmutableAssets =
-        // Default to true, allow users to opt-out
+        // Default to true, but allow users to opt-out
         config.supportsImmutableAssets ?? true
 
       // Optionally, pass a salt for the content hashes
