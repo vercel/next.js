@@ -92,6 +92,26 @@ export async function handler(
     requestMeta?: RequestMeta
   }
 ): Promise<Response> {
+  if (process.env.NEXT_RUNTIME !== 'edge') {
+    // This mirror what `RouteModule.prepare` does for routes
+    const { join, relative } =
+      require('node:path') as typeof import('node:path')
+    const { ensureInstrumentationRegistered } =
+      require('../../server/lib/router-utils/instrumentation-globals.external') as typeof import('../../server/lib/router-utils/instrumentation-globals.external')
+
+    const absoluteProjectDir = join(
+      /* turbopackIgnore: true */
+      process.cwd(),
+      ctx.requestMeta?.relativeProjectDir || ''
+    )
+    const absoluteDistDir = ctx.requestMeta?.distDir
+    const distDir = absoluteDistDir
+      ? relative(absoluteProjectDir, absoluteDistDir)
+      : '.next'
+
+    await ensureInstrumentationRegistered(absoluteProjectDir, distDir)
+  }
+
   const result = await internalHandler({
     request: {
       url: request.url,
