@@ -151,7 +151,7 @@ type HydrationErrorDetails = {
 
 type BlockingRouteErrorDetails = {
   type: 'blocking-route'
-  variant: 'dynamic' | 'runtime'
+  variant: GuidanceVariant
   inNavigation: boolean
 }
 
@@ -162,12 +162,12 @@ type ClientHookErrorDetails = {
 
 type DynamicMetadataErrorDetails = {
   type: 'dynamic-metadata'
-  variant: 'dynamic' | 'runtime'
+  variant: GuidanceVariant
 }
 
 type DynamicViewportErrorDetails = {
   type: 'dynamic-viewport'
-  variant: 'dynamic' | 'runtime'
+  variant: GuidanceVariant
 }
 
 type SyncIOErrorDetails = {
@@ -349,12 +349,21 @@ function InstantRuntimeError({
   )
 }
 
-export function isRuntimeVariant(message: string): boolean {
+export function getGuidanceVariant(message: string): GuidanceVariant {
   // Discriminates between `createRuntimeBodyError` and `createDynamicBodyError`
-  return (
+  if (
+    message.includes('encountered link data') &&
+    !message.includes('encountered uncached data')
+  ) {
+    return 'link'
+  }
+  if (
     message.includes('encountered runtime data') &&
     !message.includes('encountered uncached data')
-  )
+  ) {
+    return 'runtime'
+  }
+  return 'dynamic'
 }
 
 const SYNC_IO_APIS = [
@@ -432,7 +441,7 @@ export function getBlockingRouteErrorDetails(
   if (isBlockingPageLoadError) {
     return {
       type: 'blocking-route',
-      variant: isRuntimeVariant(message) ? 'runtime' : 'dynamic',
+      variant: getGuidanceVariant(message),
       inNavigation,
     }
   }
@@ -443,7 +452,7 @@ export function getBlockingRouteErrorDetails(
   if (isDynamicMetadataError) {
     return {
       type: 'dynamic-metadata',
-      variant: isRuntimeVariant(message) ? 'runtime' : 'dynamic',
+      variant: getGuidanceVariant(message),
     }
   }
 
@@ -453,7 +462,7 @@ export function getBlockingRouteErrorDetails(
   if (isBlockingViewportError) {
     return {
       type: 'dynamic-viewport',
-      variant: isRuntimeVariant(message) ? 'runtime' : 'dynamic',
+      variant: getGuidanceVariant(message),
     }
   }
 
@@ -850,13 +859,17 @@ export function Errors({
           errorCode={errorCode}
           errorType={errorType}
           errorMessage={
-            errorDetails.variant === 'runtime'
+            errorDetails.variant === 'link'
               ? errorDetails.inNavigation
-                ? 'Next.js encountered runtime data during a navigation.'
-                : 'Next.js encountered runtime data during prerendering.'
-              : errorDetails.inNavigation
-                ? 'Next.js encountered uncached data during a navigation.'
-                : 'Next.js encountered uncached data during prerendering.'
+                ? 'Next.js encountered link data during a navigation.'
+                : 'Next.js encountered link data during prerendering.'
+              : errorDetails.variant === 'runtime'
+                ? errorDetails.inNavigation
+                  ? 'Next.js encountered runtime data during a navigation.'
+                  : 'Next.js encountered runtime data during prerendering.'
+                : errorDetails.inNavigation
+                  ? 'Next.js encountered uncached data during a navigation.'
+                  : 'Next.js encountered uncached data during prerendering.'
           }
           headerChildren={
             <InstantHeaderExplanation
@@ -944,7 +957,12 @@ export function Errors({
           errorCode={errorCode}
           errorType={errorType}
           errorMessage={
-            errorDetails.variant === 'runtime' ? (
+            errorDetails.variant === 'link' ? (
+              <>
+                Next.js encountered link data in <code>generateMetadata()</code>
+                .
+              </>
+            ) : errorDetails.variant === 'runtime' ? (
               <>
                 Next.js encountered runtime data in{' '}
                 <code>generateMetadata()</code>.
@@ -996,7 +1014,12 @@ export function Errors({
           errorCode={errorCode}
           errorType={errorType}
           errorMessage={
-            errorDetails.variant === 'runtime' ? (
+            errorDetails.variant === 'link' ? (
+              <>
+                Next.js encountered link data in <code>generateViewport()</code>
+                .
+              </>
+            ) : errorDetails.variant === 'runtime' ? (
               <>
                 Next.js encountered runtime data in{' '}
                 <code>generateViewport()</code>.

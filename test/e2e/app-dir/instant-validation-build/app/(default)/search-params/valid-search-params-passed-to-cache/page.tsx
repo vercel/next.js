@@ -1,5 +1,6 @@
 import type { Instant } from 'next'
 import assert from 'node:assert/strict'
+import { Suspense } from 'react'
 
 export const instant: Instant = {
   level: 'experimental-error',
@@ -21,9 +22,19 @@ export default async function Page({
 }) {
   return (
     <main>
-      <CachedChild searchParams={await searchParams} />
+      <Suspense>
+        <Inner searchParams={searchParams} />
+      </Suspense>
     </main>
   )
+}
+
+async function Inner({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[]>>
+}) {
+  return <CachedChild searchParams={await searchParams} />
 }
 
 async function CachedChild({

@@ -12,12 +12,14 @@ export default async function Page({
 }: {
   searchParams: Promise<Record<string, string | string[]>>
 }) {
-  const search = await searchParams
   return (
     <main>
       <div>
-        <p>Params don't need a suspense boundary when runtime-prefetched:</p>
-        <div id="runtime-content">Search: {JSON.stringify(search)}</div>
+        <p>
+          Search Params need a suspense boundary even with allow-runtime because
+          we need a valid App Shell
+        </p>
+        <LinkData searchParams={searchParams} />
       </div>
 
       <div>
@@ -28,6 +30,15 @@ export default async function Page({
       </div>
     </main>
   )
+}
+
+async function LinkData({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[]>>
+}) {
+  const search = await searchParams
+  return <div id="runtime-content">Search: {JSON.stringify(search)}</div>
 }
 
 async function Dynamic() {

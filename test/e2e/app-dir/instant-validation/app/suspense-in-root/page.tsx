@@ -1,5 +1,11 @@
 import { cacheLife } from 'next/cache'
 import { DebugLinks } from '../shared'
+import { Instant } from 'next'
+
+// Skip repeatedly running instant validation on index pages during tests
+export const instant: Instant = {
+  unstable_disableValidation: true,
+}
 
 export default async function Page() {
   'use cache'
@@ -12,10 +18,10 @@ export default async function Page() {
           <DebugLinks href="/suspense-in-root/runtime/suspense-around-dynamic" />
         </li>
         <li>
-          <DebugLinks href="/suspense-in-root/runtime/valid-no-suspense-around-params/123" />
+          <DebugLinks href="/suspense-in-root/runtime/invalid-no-suspense-around-params/123" />
         </li>
         <li>
-          <DebugLinks href="/suspense-in-root/runtime/valid-no-suspense-around-search-params?foo=bar" />
+          <DebugLinks href="/suspense-in-root/runtime/invalid-no-suspense-around-search-params?foo=bar" />
         </li>
         <li>
           <DebugLinks href="/suspense-in-root/runtime/missing-suspense-around-dynamic" />
