@@ -4622,6 +4622,7 @@ function logRecoverableError(request, error, errorInfo) {
 function fatalError(request, error) {
   var onShellError = request.onShellError,
     onFatalError = request.onFatalError;
+  request.onAllReady = noop;
   onShellError(error);
   onFatalError(error);
   null !== request.destination
@@ -7460,12 +7461,12 @@ function getPostponedState(request) {
 }
 function ensureCorrectIsomorphicReactVersion() {
   var isomorphicReactPackageVersion = React.version;
-  if ("19.3.0-canary-92f4fda3-20260629" !== isomorphicReactPackageVersion)
+  if ("19.3.0-canary-ec0fca31-20260701" !== isomorphicReactPackageVersion)
     throw Error(
       formatProdErrorMessage(
         527,
         isomorphicReactPackageVersion,
-        "19.3.0-canary-92f4fda3-20260629"
+        "19.3.0-canary-ec0fca31-20260701"
       )
     );
 }
@@ -7716,4 +7717,4 @@ exports.resumeAndPrerender = function (children, postponedState, options) {
     startWork(request);
   });
 };
-exports.version = "19.3.0-canary-92f4fda3-20260629";
+exports.version = "19.3.0-canary-ec0fca31-20260701";
