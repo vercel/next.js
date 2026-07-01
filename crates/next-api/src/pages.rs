@@ -16,7 +16,7 @@ use next_core::{
     next_edge::route_regex::get_named_middleware_regex,
     next_manifests::{
         BuildManifest, ClientBuildManifest, EdgeFunctionDefinition, MiddlewaresManifestV2,
-        PagesManifest, ProxyMatcher, Regions,
+        PagesManifest, ProxyMatcher, Regions, remote_components::ModuleIdManifest,
     },
     next_pages::create_page_ssr_entry_module,
     next_server::{
@@ -1332,6 +1332,34 @@ impl PageEndpoint {
                 client_assets.push(page_loader);
                 server_assets.push(build_manifest);
                 server_assets.push(client_build_manifest);
+
+                let project = this.pages_project.project();
+                if *project
+                    .next_config()
+                    .turbopack_remote_modules_manifests()
+                    .await?
+                {
+                    let pages_node_root = project.node_root().owned().await?;
+                    let module_ids_prefix = get_asset_prefix_from_pathname(&this.pathname);
+                    let module_ids_manifest = ResolvedVc::upcast(
+                        ModuleIdManifest {
+                            node_root: pages_node_root.clone(),
+                            entry_name: this.pathname.clone(),
+                            module_graph: self.client_module_graph().to_resolved().await?,
+                            client_chunking_context: project
+                                .client_chunking_context()
+                                .to_resolved()
+                                .await?,
+                            ssr_chunking_context: None,
+                            output_path: Some(pages_node_root.join(&format!(
+                                "server/pages{module_ids_prefix}/module-ids-manifest.json",
+                            ))?),
+                            page_loader_module: Some(self.client_module().to_resolved().await?),
+                        }
+                        .resolved_cell(),
+                    );
+                    server_assets.push(module_ids_manifest);
+                }
 
                 self.ssr_chunk(emit_manifests)
             }

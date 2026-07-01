@@ -25,7 +25,9 @@ use next_core::{
     next_edge::route_regex::get_named_middleware_regex,
     next_manifests::{
         AppPathsManifest, BuildManifest, EdgeFunctionDefinition, MiddlewaresManifestV2,
-        PagesManifest, ProxyMatcher, Regions, client_reference_manifest::ClientReferenceManifest,
+        PagesManifest, ProxyMatcher, Regions,
+        client_reference_manifest::ClientReferenceManifest,
+        remote_components::{ModuleIdManifest, RemoteModuleManifest},
     },
     next_server::{
         ServerContextType, get_server_module_options_context, get_server_resolve_options_context,
@@ -1517,27 +1519,54 @@ impl AppEndpoint {
         let mut client_reference_manifest = None;
 
         if emit_rsc_manifests {
-            let entry_manifest = ResolvedVc::upcast(
-                ClientReferenceManifest {
-                    node_root: node_root.clone(),
-                    client_relative_path: client_relative_path.clone(),
-                    entry_name: app_entry.original_name.clone(),
-                    client_references,
-                    client_references_chunks,
-                    client_chunking_context,
-                    ssr_chunking_context,
-                    async_module_info: module_graphs.full.async_module_info().to_resolved().await?,
-                    next_config: project.next_config().to_resolved().await?,
-                    runtime,
-                    mode: *project.next_mode().await?,
-                }
-                .resolved_cell(),
-            );
+            let cref_manifest = ClientReferenceManifest {
+                node_root: node_root.clone(),
+                client_relative_path: client_relative_path.clone(),
+                entry_name: app_entry.original_name.clone(),
+                client_references,
+                client_references_chunks,
+                client_chunking_context,
+                ssr_chunking_context,
+                async_module_info: module_graphs.full.async_module_info().to_resolved().await?,
+                next_config: project.next_config().to_resolved().await?,
+                runtime,
+                mode: *project.next_mode().await?,
+            }
+            .resolved_cell();
+            let entry_manifest = ResolvedVc::upcast(cref_manifest);
             server_assets.insert(entry_manifest);
             if runtime == NextRuntime::Edge {
                 middleware_assets.insert(entry_manifest);
             }
             client_reference_manifest = Some(entry_manifest);
+
+            if *project
+                .next_config()
+                .turbopack_remote_modules_manifests()
+                .await?
+            {
+                server_assets.insert(ResolvedVc::upcast(
+                    RemoteModuleManifest {
+                        node_root: node_root.clone(),
+                        entry_name: app_entry.original_name.clone(),
+                        client_reference_manifest: cref_manifest,
+                    }
+                    .resolved_cell(),
+                ));
+
+                server_assets.insert(ResolvedVc::upcast(
+                    ModuleIdManifest {
+                        node_root: node_root.clone(),
+                        entry_name: app_entry.original_name.clone(),
+                        module_graph: module_graphs.full,
+                        client_chunking_context,
+                        ssr_chunking_context,
+                        output_path: None,
+                        page_loader_module: None,
+                    }
+                    .resolved_cell(),
+                ));
+            }
         }
         if emit_manifests == EmitManifests::Full {
             let next_font_manifest_output = ResolvedVc::upcast(

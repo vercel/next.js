@@ -2,6 +2,7 @@
 
 pub mod client_reference_manifest;
 mod encode_uri_component;
+pub mod remote_components;
 
 use anyhow::{Context, Result};
 use bincode::{Decode, Encode};
@@ -479,7 +480,8 @@ pub enum ActionLayer {
     ActionBrowser,
 }
 
-#[derive(Serialize, Debug, Eq, PartialEq, Hash, Clone)]
+#[turbo_tasks::value(serialization = "skip")]
+#[derive(Serialize, Debug, Hash, Clone)]
 #[serde(rename_all = "camelCase")]
 #[serde(untagged)]
 pub enum ModuleId {

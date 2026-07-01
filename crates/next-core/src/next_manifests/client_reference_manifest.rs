@@ -28,6 +28,7 @@ use crate::{
     util::NextRuntime,
 };
 
+#[turbo_tasks::value(serialization = "skip")]
 #[derive(Serialize, Default, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct SerializedClientReferenceManifest {
@@ -55,7 +56,8 @@ pub struct SerializedClientReferenceManifest {
     pub entry_js_files: FxIndexMap<RcStr, FxIndexSet<RcStr>>,
 }
 
-#[derive(Serialize, Debug, Clone, Eq, Hash, PartialEq)]
+#[turbo_tasks::value(serialization = "skip")]
+#[derive(Serialize, Debug, Clone, Hash)]
 pub struct CssResource {
     pub path: RcStr,
     pub inlined: bool,
@@ -63,13 +65,16 @@ pub struct CssResource {
     pub content: Option<RcStr>,
 }
 
+#[turbo_tasks::value(serialization = "skip")]
 #[derive(Serialize, Default, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct ModuleLoading {
     pub prefix: RcStr,
+    #[turbo_tasks(trace_ignore)]
     pub cross_origin: CrossOrigin,
 }
 
+#[turbo_tasks::value(serialization = "skip")]
 #[derive(Serialize, Default, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct ManifestNode {
@@ -78,6 +83,7 @@ pub struct ManifestNode {
     pub module_exports: FxIndexMap<RcStr, ManifestNodeEntry>,
 }
 
+#[turbo_tasks::value(serialization = "skip")]
 #[derive(Serialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct ManifestNodeEntry {
@@ -139,13 +145,16 @@ impl Asset for ClientReferenceManifest {
 }
 
 #[turbo_tasks::value(shared)]
-struct ClientReferenceManifestResult {
+pub(crate) struct ClientReferenceManifestResult {
     content: ResolvedVc<AssetContent>,
     references: ResolvedVc<OutputAssets>,
+    /// The assembled manifest, exposed so the public remote components
+    /// generator can reuse it.
+    pub(crate) manifest: ResolvedVc<SerializedClientReferenceManifest>,
 }
 
 #[turbo_tasks::function]
-async fn build_manifest(
+pub(crate) async fn build_manifest(
     manifest: Vc<ClientReferenceManifest>,
 ) -> Result<Vc<ClientReferenceManifestResult>> {
     let ClientReferenceManifest {
@@ -506,6 +515,7 @@ async fn build_manifest(
             .to_resolved()
             .await?,
             references: ResolvedVc::cell(references.into_iter().collect()),
+            manifest: entry_manifest.resolved_cell(),
         }
         .cell())
     }

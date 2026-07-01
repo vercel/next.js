@@ -1290,6 +1290,7 @@ pub struct ExperimentalConfig {
     turbopack_input_source_maps: Option<bool>,
     turbopack_tree_shaking: Option<bool>,
     turbopack_scope_hoisting: Option<bool>,
+    turbopack_remote_modules_manifests: Option<bool>,
     /// Custom URL prefix for Web Worker URLs (the entrypoint and the module
     /// chunks loaded inside the worker) produced by
     /// `new Worker(new URL(..., import.meta.url))`. Mirrors webpack's
@@ -2230,6 +2231,18 @@ impl NextConfig {
     #[turbo_tasks::function]
     pub fn enable_blocking_ssr(&self) -> Vc<bool> {
         Vc::cell(self.experimental.blocking_ssr.unwrap_or(false))
+    }
+
+    /// Whether to emit the public Remote Components manifests
+    /// (`turbopack.remote-modules`, `turbopack.module-ids`), gated by
+    /// `experimental.turbopackRemoteModulesManifests`.
+    #[turbo_tasks::function]
+    pub fn turbopack_remote_modules_manifests(&self) -> Vc<bool> {
+        Vc::cell(
+            self.experimental
+                .turbopack_remote_modules_manifests
+                .unwrap_or(false),
+        )
     }
 
     #[turbo_tasks::function]
