@@ -432,6 +432,11 @@
     "styles": ["normal"],
     "subsets": ["cyrillic", "cyrillic-ext", "latin", "latin-ext"]
   },
+  "Alien Block": {
+    "weights": ["400"],
+    "styles": ["normal"],
+    "subsets": ["latin", "latin-ext"]
+  },
   "Alike": {
     "weights": ["400"],
     "styles": ["normal"],
@@ -5815,6 +5820,19 @@
       "vietnamese"
     ]
   },
+  "Geist Pixel": {
+    "weights": ["400", "variable"],
+    "styles": ["normal"],
+    "axes": [
+      {
+        "tag": "ELSH",
+        "min": 0,
+        "max": 100,
+        "defaultValue": 0
+      }
+    ],
+    "subsets": ["latin", "latin-ext"]
+  },
   "Gelasio": {
     "weights": ["400", "500", "600", "700", "variable"],
     "styles": ["normal", "italic"],
@@ -6473,7 +6491,7 @@
   "Gurajada": {
     "weights": ["400"],
     "styles": ["normal"],
-    "subsets": ["latin", "latin-ext", "telugu"]
+    "subsets": ["latin", "telugu"]
   },
   "Gveret Levin": {
     "weights": ["400"],
@@ -7476,7 +7494,7 @@
   "Jomhuria": {
     "weights": ["400"],
     "styles": ["normal"],
-    "subsets": ["latin", "latin-ext"]
+    "subsets": ["arabic", "latin", "latin-ext"]
   },
   "Jomolhari": {
     "weights": ["400"],
@@ -9628,6 +9646,11 @@
     "weights": ["400"],
     "styles": ["normal"],
     "subsets": ["latin", "latin-ext", "vietnamese"]
+  },
+  "Montenegrin Gothic One": {
+    "weights": ["400"],
+    "styles": ["normal"],
+    "subsets": ["latin", "latin-ext"]
   },
   "Montez": {
     "weights": ["400"],
@@ -14822,6 +14845,43 @@
     "styles": ["normal"],
     "subsets": []
   },
+  "Pliant": {
+    "weights": [
+      "100",
+      "200",
+      "300",
+      "400",
+      "500",
+      "600",
+      "700",
+      "800",
+      "900",
+      "variable"
+    ],
+    "styles": ["normal", "italic"],
+    "axes": [
+      {
+        "tag": "wdth",
+        "min": 100,
+        "max": 125,
+        "defaultValue": 100
+      },
+      {
+        "tag": "wght",
+        "min": 100,
+        "max": 900,
+        "defaultValue": 400
+      }
+    ],
+    "subsets": [
+      "cyrillic",
+      "cyrillic-ext",
+      "greek",
+      "greek-ext",
+      "latin",
+      "latin-ext"
+    ]
+  },
   "Plus Jakarta Sans": {
     "weights": ["200", "300", "400", "500", "600", "700", "800", "variable"],
     "styles": ["normal", "italic"],
@@ -19033,6 +19093,16 @@
     "subsets": ["cyrillic", "latin", "latin-ext"]
   },
   "Yusei Magic": {
+    "weights": ["400"],
+    "styles": ["normal"],
+    "subsets": ["latin", "latin-ext"]
+  },
+  "Yuyu": {
+    "weights": ["400"],
+    "styles": ["normal"],
+    "subsets": ["latin", "latin-ext"]
+  },
+  "Yuyu Short": {
     "weights": ["400"],
     "styles": ["normal"],
     "subsets": ["latin", "latin-ext"]
