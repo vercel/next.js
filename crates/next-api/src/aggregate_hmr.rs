@@ -7,6 +7,7 @@ use turbo_tasks::{FxIndexMap, ReadRef, ResolvedVc, TraitRef, TryJoinIterExt, Vc}
 use turbo_tasks_fs::FileSystemPath;
 use turbo_tasks_hash::{Xxh3Hash64Hasher, encode_base64};
 use turbopack_core::version::{PartialUpdate, Update, Version, VersionState, VersionedContent};
+use turbopack_ecmascript::chunk_list::version::ChunkListVersion;
 
 use crate::versioned_content_map::VersionedContentMap;
 
@@ -17,6 +18,13 @@ pub struct HmrChunkWithContent {
 
 pub fn is_hmr_eligible_chunk(name: &str) -> bool {
     !name.ends_with(".map")
+}
+
+pub async fn is_entry_chunk_list_content(
+    content: ResolvedVc<Box<dyn VersionedContent>>,
+) -> Result<bool> {
+    let version = content.version().to_resolved().await?;
+    Ok(ResolvedVc::try_downcast_type::<ChunkListVersion>(version).is_some())
 }
 
 /// Per-chunk versions keyed by path
@@ -88,60 +96,89 @@ impl AggregateHmrVersion {
     }
 }
 
-pub fn merge_ecmascript_merged_update(
-    combined_entries: &mut FxHashMap<String, serde_json::Value>,
-    combined_chunks: &mut FxHashMap<String, serde_json::Value>,
-    instruction: &serde_json::Value,
-) {
-    let Some(obj) = instruction.as_object() else {
-        return;
-    };
-    if let Some(entries) = obj.get("entries").and_then(|v| v.as_object()) {
-        for (k, v) in entries {
-            combined_entries.insert(k.clone(), v.clone());
-        }
-    }
-    if let Some(chunks) = obj.get("chunks").and_then(|v| v.as_object()) {
-        for (k, v) in chunks {
-            combined_chunks.insert(k.clone(), v.clone());
-        }
-    }
+/// Accumulates per-entry HMR instructions into a single combined
+/// `ChunkListUpdate`.
+///
+/// Each entry chunk's own update is one of:
+/// * a `ChunkListUpdate` (`{ chunks, merged }`) — the common case, produced by the entry's
+///   chunk-list content; its per-path `chunks` and its `merged` ecmascript updates are folded in;
+///   or
+/// * a bare `EcmascriptMergedUpdate` — pushed into `merged` as-is.
+///
+/// The result mirrors the shape the JS runtime already applies for a single
+/// chunk list (see `applyChunkListUpdate` / `handleNodejsUpdate`), so the
+/// aggregate subscription can drive server Fast Refresh without flattening away
+/// the merged shared-chunk deltas.
+#[derive(Default)]
+pub struct ChunkListUpdateBuilder {
+    chunks: FxHashMap<String, serde_json::Value>,
+    merged: Vec<serde_json::Value>,
 }
 
-/// Builds an `Update::Partial` whose instruction is a combined
-/// `EcmascriptMergedUpdate` covering `entries` and `chunks`. Empty maps are
-/// omitted so an empty `entries`/`chunks` field never appears in the payload.
-///
-/// Passing empty maps produces an instruction with only `type:
-/// "EcmascriptMergedUpdate"`, used to advance `VersionState` to `to` without
-/// the JS consumer applying anything: it sees a `partial` event with nothing
-/// to apply and short-circuits.
-pub fn merged_partial_update(
-    to: TraitRef<Box<dyn Version>>,
-    entries: FxHashMap<String, serde_json::Value>,
-    chunks: FxHashMap<String, serde_json::Value>,
-) -> Update {
-    let mut instruction = serde_json::Map::new();
-    instruction.insert(
-        "type".to_string(),
-        serde_json::Value::String("EcmascriptMergedUpdate".to_string()),
-    );
-    if !entries.is_empty() {
-        instruction.insert(
-            "entries".to_string(),
-            serde_json::Value::Object(entries.into_iter().collect()),
-        );
+impl ChunkListUpdateBuilder {
+    pub fn add_instruction(&mut self, instruction: &serde_json::Value) {
+        let Some(obj) = instruction.as_object() else {
+            return;
+        };
+        match obj.get("type").and_then(|v| v.as_str()) {
+            Some("ChunkListUpdate") => {
+                if let Some(chunks) = obj.get("chunks").and_then(|v| v.as_object()) {
+                    for (k, v) in chunks {
+                        self.chunks.insert(k.clone(), v.clone());
+                    }
+                }
+                if let Some(merged) = obj.get("merged").and_then(|v| v.as_array()) {
+                    for update in merged {
+                        self.push_merged(update);
+                    }
+                }
+            }
+            Some("EcmascriptMergedUpdate") => {
+                self.push_merged(instruction);
+            }
+            // Unknown instruction shapes are ignored; the caller already
+            // escalates `Total`/`Missing` updates to a full restart.
+            _ => {}
+        }
     }
-    if !chunks.is_empty() {
-        instruction.insert(
-            "chunks".to_string(),
-            serde_json::Value::Object(chunks.into_iter().collect()),
-        );
+
+    /// Entries that share chunks (e.g. a common layout) produce identical
+    /// merged updates from the same singleton merger; applying duplicates
+    /// would re-eval the same modules once per entry. Dedup exact repeats.
+    fn push_merged(&mut self, update: &serde_json::Value) {
+        if !self.merged.iter().any(|existing| existing == update) {
+            self.merged.push(update.clone());
+        }
     }
-    Update::Partial(PartialUpdate {
-        to,
-        instruction: Arc::new(serde_json::Value::Object(instruction)),
-    })
+
+    pub fn is_empty(&self) -> bool {
+        self.chunks.is_empty() && self.merged.is_empty()
+    }
+
+    /// Calling this on an empty accumulator still produces a `partial` event
+    /// with only `type: "ChunkListUpdate"`. The JS consumer sees nothing to
+    /// apply and short-circuits, so this safely advances `VersionState` to
+    /// `to` without the runtime doing any work.
+    pub fn build(self, to: TraitRef<Box<dyn Version>>) -> Update {
+        let mut instruction = serde_json::Map::new();
+        instruction.insert(
+            "type".to_string(),
+            serde_json::Value::String("ChunkListUpdate".to_string()),
+        );
+        if !self.chunks.is_empty() {
+            instruction.insert(
+                "chunks".to_string(),
+                serde_json::Value::Object(self.chunks.into_iter().collect()),
+            );
+        }
+        if !self.merged.is_empty() {
+            instruction.insert("merged".to_string(), serde_json::Value::Array(self.merged));
+        }
+        Update::Partial(PartialUpdate {
+            to,
+            instruction: Arc::new(serde_json::Value::Object(instruction)),
+        })
+    }
 }
 
 /// Per-chunk [`Update`]s computed against an `AggregateHmrVersion` snapshot.

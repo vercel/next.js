@@ -96,8 +96,8 @@ use turbopack_nodejs::NodeJsChunkingContext;
 
 use crate::{
     aggregate_hmr::{
-        AggregateHmrVersion, DiffResult, diff_chunks_against, is_hmr_eligible_chunk,
-        merge_ecmascript_merged_update, merged_partial_update,
+        AggregateHmrVersion, ChunkListUpdateBuilder, DiffResult, diff_chunks_against,
+        is_hmr_eligible_chunk,
     },
     app::{AppProject, OptionAppProject},
     empty::EmptyEndpoint,
@@ -2609,8 +2609,13 @@ impl Project {
     }
 
     /// Aggregate counterpart to [`Self::hmr_update`]: a single `Update` whose
-    /// `EcmascriptMergedUpdate` is the union of per-chunk diffs under
-    /// `target`'s root.
+    /// combined `ChunkListUpdate` is the union of the per-entry-chunk diffs
+    /// under `target`'s root.
+    ///
+    /// Each tracked entry chunk's own update is a `ChunkListUpdate` (carrying
+    /// the module deltas for its shared chunks via the merger) or a bare
+    /// `EcmascriptMergedUpdate`; both are folded into one `ChunkListUpdate` that
+    /// the runtime applies exactly as it would a single chunk list.
     ///
     /// All-or-nothing restart: any chunk needing `Total`/`Missing` escalates
     /// the whole batch to `Total` (the runtime can't partially restart). New
@@ -2652,13 +2657,10 @@ impl Project {
         // `diff_chunks_against` returned no updates. Emit an empty Partial to
         // advance state to `to` without triggering a restart.
         if chunk_updates.is_empty() && !has_new_chunks {
-            return Ok(
-                merged_partial_update(to_ref, FxHashMap::default(), FxHashMap::default()).cell(),
-            );
+            return Ok(ChunkListUpdateBuilder::default().build(to_ref).cell());
         }
 
-        let mut combined_entries: FxHashMap<String, serde_json::Value> = FxHashMap::default();
-        let mut combined_chunks: FxHashMap<String, serde_json::Value> = FxHashMap::default();
+        let mut builder = ChunkListUpdateBuilder::default();
         for (_path, update) in chunk_updates {
             match &*update {
                 Update::None => {}
@@ -2666,20 +2668,16 @@ impl Project {
                     return Ok(Update::Total(TotalUpdate { to: to_ref }).cell());
                 }
                 Update::Partial(PartialUpdate { instruction, .. }) => {
-                    merge_ecmascript_merged_update(
-                        &mut combined_entries,
-                        &mut combined_chunks,
-                        instruction,
-                    );
+                    builder.add_instruction(instruction);
                 }
             }
         }
 
-        if combined_entries.is_empty() && combined_chunks.is_empty() && !has_new_chunks {
+        if builder.is_empty() && !has_new_chunks {
             return Ok(Update::None.cell());
         }
 
-        Ok(merged_partial_update(to_ref, combined_entries, combined_chunks).cell())
+        Ok(builder.build(to_ref).cell())
     }
 
     /// Gets a list of all HMR chunk names that can be subscribed to for the

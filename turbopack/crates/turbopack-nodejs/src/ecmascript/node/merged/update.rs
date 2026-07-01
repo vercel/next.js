@@ -13,29 +13,22 @@ use turbopack_ecmascript::chunk_list::merged_update::{
 };
 
 use super::{
-    super::{
-        update::{EcmascriptChunkUpdate, update_ecmascript_chunk},
-        version::EcmascriptBrowserChunkVersion,
-    },
-    content::EcmascriptBrowserMergedChunkContent,
-    version::EcmascriptBrowserMergedChunkVersion,
+    content::EcmascriptBuildNodeMergedChunkContent, version::EcmascriptBuildNodeMergedChunkVersion,
+};
+use crate::ecmascript::node::{
+    update::{NodeChunkUpdate, update_ecmascript_node_chunk_content},
+    version::EcmascriptBuildNodeChunkVersion,
 };
 
-/// Helper structure to get a module's hash from multiple different chunk
-/// versions, without having to actually merge the versions into a single
-/// hashmap, which would be expensive.
 struct MergedModuleMap {
-    versions: Vec<ReadRef<EcmascriptBrowserChunkVersion>>,
+    versions: Vec<ReadRef<EcmascriptBuildNodeChunkVersion>>,
 }
 
 impl MergedModuleMap {
-    /// Creates a new `MergedModuleMap` from the given versions.
-    fn new(versions: Vec<ReadRef<EcmascriptBrowserChunkVersion>>) -> Self {
+    fn new(versions: Vec<ReadRef<EcmascriptBuildNodeChunkVersion>>) -> Self {
         Self { versions }
     }
 
-    /// Returns the hash of the module with the given id, or `None` if the
-    /// module is not present in any of the versions.
     fn get(&self, id: &ModuleId) -> Option<u128> {
         for version in &self.versions {
             if let Some(hash) = version.entries_hashes.get(id) {
@@ -46,17 +39,16 @@ impl MergedModuleMap {
     }
 }
 
-pub(super) async fn update_ecmascript_merged_chunk(
-    content: Vc<EcmascriptBrowserMergedChunkContent>,
+pub(crate) async fn update_ecmascript_merged_chunk(
+    content: Vc<EcmascriptBuildNodeMergedChunkContent>,
     from_version: ResolvedVc<Box<dyn Version>>,
 ) -> Result<Update> {
     let to_merged_version = content.version();
     let from_merged_version = if let Some(from) =
-        ResolvedVc::try_downcast_type::<EcmascriptBrowserMergedChunkVersion>(from_version)
+        ResolvedVc::try_downcast_type::<EcmascriptBuildNodeMergedChunkVersion>(from_version)
     {
         from
     } else {
-        // It's likely `from_version` is `NotFoundVersion`.
         return Ok(Update::Total(TotalUpdate {
             to: Vc::upcast::<Box<dyn Version>>(to_merged_version)
                 .into_trait_ref()
@@ -67,9 +59,6 @@ pub(super) async fn update_ecmascript_merged_chunk(
     let to = to_merged_version.await?;
     let from = from_merged_version.await?;
 
-    // When to and from point to the same value we can skip comparing them. This will happen since
-    // `TraitRef::<Box<dyn Version>>::cell` will not clone the value, but only make the cell point
-    // to the same immutable value (`Arc`).
     if from.ptr_eq(&to) {
         return Ok(Update::None);
     }
@@ -106,25 +95,28 @@ pub(super) async fn update_ecmascript_merged_chunk(
         let chunk_update = if let Some(from_version) =
             from_versions_by_chunk_path.swap_remove(chunk_path)
         {
-            // The chunk was present in the previous version, so we must update it.
-            let update = update_ecmascript_chunk(**content, from_version).await?;
-
-            match update {
-                EcmascriptChunkUpdate::None => {
-                    // Nothing changed, so we can skip this chunk.
-                    continue;
-                }
-                EcmascriptChunkUpdate::Partial(chunk_partial) => {
-                    // The chunk was updated.
+            // Reuse the single-chunk diff so the merged path stays in sync with
+            // the standalone chunk update path.
+            let to_version = content.own_version().await?;
+            match update_ecmascript_node_chunk_content(**content, &to_version, from_version).await?
+            {
+                NodeChunkUpdate::None => continue,
+                NodeChunkUpdate::Partial {
+                    added,
+                    modified,
+                    deleted,
+                } => {
                     let mut partial = EcmascriptMergedChunkPartial::default();
 
-                    for (module_id, (module_hash, module_code)) in chunk_partial.added {
+                    for (module_id, (module_hash, module_code)) in added {
                         partial.added.insert(module_id.clone());
 
+                        // Only ship the code if no other chunk in the group
+                        // already provides this module at the same hash.
                         if merged_module_map.get(&module_id) != Some(module_hash) {
                             let entry = EcmascriptModuleEntry::from_code(
                                 &module_id,
-                                *module_code,
+                                module_code,
                                 chunk_path,
                             )
                             .await?;
@@ -132,11 +124,11 @@ pub(super) async fn update_ecmascript_merged_chunk(
                         }
                     }
 
-                    partial.deleted.extend(chunk_partial.deleted.into_keys());
+                    partial.deleted.extend(deleted.into_keys());
 
-                    for (module_id, module_code) in chunk_partial.modified {
+                    for (module_id, module_code) in modified {
                         let entry =
-                            EcmascriptModuleEntry::from_code(&module_id, *module_code, chunk_path)
+                            EcmascriptModuleEntry::from_code(&module_id, module_code, chunk_path)
                                 .await?;
                         merged_update.entries.insert(module_id, entry);
                     }
@@ -145,7 +137,6 @@ pub(super) async fn update_ecmascript_merged_chunk(
                 }
             }
         } else {
-            // The chunk was added in this version.
             let mut added = EcmascriptMergedChunkAdded::default();
 
             for (id, entry) in entries {
@@ -165,7 +156,6 @@ pub(super) async fn update_ecmascript_merged_chunk(
         merged_update.chunks.insert(chunk_path, chunk_update);
     }
 
-    // Deleted chunks.
     for (chunk_path, chunk_version) in from_versions_by_chunk_path {
         let hashes = &chunk_version.entries_hashes;
         merged_update.chunks.insert(

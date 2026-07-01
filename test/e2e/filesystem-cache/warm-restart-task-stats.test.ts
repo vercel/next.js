@@ -123,9 +123,8 @@ const STATS_RELATIVE_PATH = '.next/warm-restart-task-stats.json'
         const missed = await readMissedTaskNames()
         expect(missed).toMatchInlineSnapshot(`
          [
-           "<dyn turbopack_core::version::VersionedContent>::update",
            "<turbopack_browser::ecmascript::list::content::EcmascriptDevChunkListContent as dyn turbopack_core::version::VersionedContent>::update",
-           "<turbopack_nodejs::ecmascript::node::content::EcmascriptBuildNodeChunkContent as dyn turbopack_core::version::VersionedContent>::update",
+           "<turbopack_nodejs::ecmascript::node::entry::chunk_list_content::EcmascriptBuildNodeChunkListContent as dyn turbopack_core::version::VersionedContent>::update",
            "next_api::project::Project::all_hmr_update",
            "next_api::project::Project::all_hmr_version_state",
            "next_api::project::Project::hmr_update",
