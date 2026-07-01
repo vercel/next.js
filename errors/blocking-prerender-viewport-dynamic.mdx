@@ -25,27 +25,31 @@ kind: insight
 
 During [prerendering](https://preview.nextjs.org/docs/app/glossary#prerendering), [`generateViewport()`](https://preview.nextjs.org/docs/app/api-reference/functions/generate-viewport) performed an uncached data access ([`fetch()`](https://developer.mozilla.org/en-US/docs/Web/API/Window/fetch), database call, [`await connection()`](https://preview.nextjs.org/docs/app/api-reference/functions/connection)). With [Cache Components](https://preview.nextjs.org/docs/app/api-reference/config/next-config-js/cacheComponents) enabled, viewport metadata can't be deferred behind a [`<Suspense>`](https://react.dev/reference/react/Suspense) boundary because it affects the initial page load. The page can't be prerendered, so navigations block instead of being [instant](https://preview.nextjs.org/docs/app/guides/instant-navigation).
 
-Request-bound reads ([`cookies()`](https://preview.nextjs.org/docs/app/api-reference/functions/cookies), [`headers()`](https://preview.nextjs.org/docs/app/api-reference/functions/headers), [`params`](https://preview.nextjs.org/docs/app/api-reference/file-conventions/page#params-optional), [`searchParams`](https://preview.nextjs.org/docs/app/api-reference/file-conventions/page#searchparams-optional)) in `generateViewport()` have different fixes. See [Next.js encountered runtime data in `generateViewport()`](https://preview.nextjs.org/docs/messages/blocking-prerender-viewport-runtime). The metadata equivalent is handled at [Uncached data in `generateMetadata()`](https://preview.nextjs.org/docs/messages/blocking-prerender-metadata-dynamic). For errors in the page body rather than viewport, see [Next.js encountered uncached data during prerendering](https://preview.nextjs.org/docs/messages/blocking-prerender-dynamic).
+Request-bound reads ([`cookies()`](https://preview.nextjs.org/docs/app/api-reference/functions/cookies), [`headers()`](https://preview.nextjs.org/docs/app/api-reference/functions/headers), [`params`](https://preview.nextjs.org/docs/app/api-reference/file-conventions/page#params-optional), [`searchParams`](https://preview.nextjs.org/docs/app/api-reference/file-conventions/page#searchparams-optional)) in `generateViewport()` have different fixes. See [Next.js encountered runtime data in `generateViewport()`](/docs/messages/blocking-prerender-viewport-runtime). The metadata equivalent is handled at [Uncached data in `generateMetadata()`](/docs/messages/blocking-prerender-metadata-dynamic). For errors in the page body rather than viewport, see [Next.js encountered uncached data during prerendering](/docs/messages/blocking-prerender-dynamic).
 
 ## Ways to fix this
 
-<FixOption
-  group="cache"
-  href="#cache-the-viewport-data"
-  title="Cache the viewport data"
->
-  Cache the viewport function so the result is reused and the route stays
-  prerenderable.
-</FixOption>
-
-<FixOption
-  group="block"
-  href="#allow-blocking-route"
-  title="Allow blocking route"
->
-  Opt this segment out of instant navigation. The route renders on every request
-  and every navigation blocks.
-</FixOption>
+<FixCardGrid>
+  <FixCard
+    group="cache"
+    title="Cache the viewport data"
+    href="#cache-the-viewport-data"
+    snippets={[
+      { text: 'async function generateViewport() {' },
+      { text: '  "use cache"', highlight: true },
+      { text: '  return await db.getViewport(…)' },
+    ]}
+  />
+  <FixCard
+    group="block"
+    title="Allow blocking route"
+    href="#allow-blocking-route"
+    snippets={[
+      { text: '// page.tsx or layout.tsx' },
+      { text: 'export const instant = false', highlight: true },
+    ]}
+  />
+</FixCardGrid>
 
 ## Cache the viewport data
 
@@ -132,7 +136,7 @@ Navigations to this route are not instant. The user waits for the full server re
 
 - Setting [`instant`](https://preview.nextjs.org/docs/app/api-reference/file-conventions/route-segment-config/instant) to `false` opts only the segment that exports it out. Descendant segments are still validated by the global default.
 - This export does not disable [prerendering](https://preview.nextjs.org/docs/app/glossary#prerendering). The route still prerenders if it can. It only silences the instant-navigation validation error.
-- Framework-synthesized routes (`/_not-found`, `/_global-error`) inherit the root layout's `generateViewport` and must be statically prerendered. [`instant = false`](https://preview.nextjs.org/docs/app/api-reference/file-conventions/route-segment-config/instant) silences the validation error but does not let those routes through, so the build still fails when they prerender. If your root layout's `generateViewport` depends on request data, [Cache the viewport data](#cache-the-viewport-data) instead, or move to [`global-not-found.js`](https://preview.nextjs.org/docs/app/api-reference/file-conventions/not-found#global-not-foundjs-experimental), which bypasses the root layout entirely and avoids inheriting its `generateViewport`.
+- Framework-synthesized routes (`/_not-found`, `/_global-error`) inherit the root layout's `generateViewport` and must be statically prerendered. [`instant = false`](https://preview.nextjs.org/docs/app/api-reference/file-conventions/route-segment-config/instant) silences the validation error but does not let those routes through, so the build still fails when they prerender. If your root layout's `generateViewport` depends on request data, [Cache the viewport data](#cache-the-viewport-data) instead, or move to [`global-not-found.js`](/docs/app/api-reference/file-conventions/not-found#global-not-foundjs-experimental), which bypasses the root layout entirely and avoids inheriting its `generateViewport`.
 
 ## Verifying the fix
 
@@ -148,3 +152,20 @@ Instant-navigation validation runs by default in [Cache Components](https://prev
 - **Entire app**: set [`experimental.instantInsights.validationLevel`](https://preview.nextjs.org/docs/app/api-reference/file-conventions/route-segment-config/instant#configuring-validation-defaults) to `'manual-warning'` in `next.config`. This limits validation to segments that explicitly export `instant`.
 
 See [Ensuring instant navigations](https://preview.nextjs.org/docs/app/guides/instant-navigation) for the full model.
+
+## Related Insights
+
+- [Runtime data during prerendering](/docs/messages/blocking-prerender-runtime)
+- [Uncached data during prerendering](/docs/messages/blocking-prerender-dynamic)
+- [URL data in a Client Component outside of Suspense](/docs/messages/blocking-prerender-client-hook)
+- [Runtime data in `generateMetadata()`](/docs/messages/blocking-prerender-metadata-runtime)
+- [Uncached data in `generateMetadata()`](/docs/messages/blocking-prerender-metadata-dynamic)
+- [Runtime data in `generateViewport()`](/docs/messages/blocking-prerender-viewport-runtime)
+- [`Math.random()` while prerendering](/docs/messages/blocking-prerender-random)
+- [`Math.random()` in a Client Component](/docs/messages/blocking-prerender-random-client)
+- [`Date.now()` while prerendering](/docs/messages/blocking-prerender-current-time)
+- [`Date.now()` in a Client Component](/docs/messages/blocking-prerender-current-time-client)
+- [Crypto APIs while prerendering](/docs/messages/blocking-prerender-crypto)
+- [Crypto APIs in a Client Component](/docs/messages/blocking-prerender-crypto-client)
+- [Partial Prefetch link with dynamic data](/docs/messages/instant-link-prefetch-partial)
+- [Unrendered segment](/docs/messages/instant-unrendered-segment)

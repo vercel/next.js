@@ -1,6 +1,6 @@
 ---
 name: insight-error-page
-description: Write or audit an insight-kind error page for the Next.js dev overlay. Use when creating a new `errors/<slug>.mdx` page, auditing an existing one, or checking that a page matches the framework fix cards. Covers page structure, title alignment, FixOption cards with Copy AI prompt button, code snippets, terminology verification against canonical docs, and Vercel technical writing style.
+description: Write or audit an insight-kind error page for the Next.js dev overlay. Use when creating a new `errors/<slug>.mdx` page, auditing an existing one, or checking that a page matches the framework fix cards. Covers page structure, title alignment, FixCard cards with Copy prompt button, code snippets, terminology verification against canonical docs, and Vercel technical writing style.
 metadata:
   internal: true
 ---
@@ -56,7 +56,7 @@ kind: insight
 
 ## Ways to fix this
 
-<FixOption /> cards — one per framework card, in framework order
+<FixCardGrid> wrapping one <FixCard /> per framework card, in framework order
 
 ## <Card 1 title>
   Choose this fix when ...
@@ -76,7 +76,8 @@ kind: insight
 ## Don't want this validation?
   (canonical opt-out block — see "Don't want this validation?" rule below)
 
-## Useful links
+## Related Insights
+  (full list of every other insight-kind error page, current page omitted)
 ```
 
 ## Rules (hard requirements)
@@ -91,14 +92,16 @@ kind: insight
 - **Always the same canonical block** across all insight pages (the `--debug-prerender` tip). Never put page-specific content here.
 - Useful page-specific tips go in Gotchas under the relevant fix section.
 
-### `<FixOption>` cards
+### `<FixCard>` cards
 
-- One per framework card, in the same order as the framework `FixCard[]` array.
+- Wrap all cards in a single `<FixCardGrid>` (the same component used in `docs/01-app/02-guides/instant-navigation.mdx`).
+- One `<FixCard />` per framework card, in the same order as the framework `FixCard[]` array.
 - `title` = card title from framework, **verbatim**. If it reads awkward as a heading, change the framework first — never the docs.
 - `href` = `#` + the auto-slug of the title (e.g. "Generate on every request" → `#generate-on-every-request`). This must match what the heading auto-generates.
-- `group` = card group from framework (`dynamic`, `cache`, `client`, `stream`, `defer`, `measure`, `block`, `render`, `silence`).
-- Children = one-sentence plain-prose summary. **No inline code**, no API names in backticks, no snippets. Save technical detail for the section body.
-- **No `prompt` prop.** The "Copy AI prompt" button builds the prompt dynamically at click time from the page URL and the card's `title` + `href`. The agent receives a prompt that points at the rule docs and names the fix — it then reads the docs page (the same one the user is on) for every constraint and code shape. That is why this skill exists: the docs page itself **is** the prompt's source of truth.
+- `group` = card group from framework (`dynamic`, `cache`, `client`, `stream`, `defer`, `measure`, `block`, `render`, `ignore`, `upgrade`, `disable`, `static`).
+- `snippets` = the same `snippets` array as the matching framework `FixCard` in `instant-guidance-data.ts`. Copy it verbatim. No description prose lives on the card — the snippets carry the visual.
+- Self-close the tag (`<FixCard ... />`). The card has no children.
+- **No `prompt` prop.** The "Copy prompt" button builds the prompt dynamically at click time from the page URL and the card's `title` + `href`. The agent receives a prompt that points at the rule docs and names the fix — it then reads the docs page (the same one the user is on) for every constraint and code shape. That is why this skill exists: the docs page itself **is** the prompt's source of truth.
 
 ### `## <Fix>` sections
 
@@ -124,8 +127,8 @@ kind: insight
 
 - Framing paragraph: link to sibling pages (client ↔ server counterpart, parallel API families).
 - Gotchas: link to the `-client` page when warning about inline render in Client Components.
-- Useful links: keep it short (typically 2–6 entries). Sibling error pages + the canonical [Ensuring instant navigations](/docs/app/guides/instant-navigation) guide + 1–3 API references central to the fixes but not already inline-linked throughout the body. Do not re-list every API the body mentions — those are inline-linked at first use and the section is for follow-on navigation, not an index.
-- Every API reference and file convention must be inline-linked throughout, not reserved for Useful Links.
+- Related Insights: the full list of every other insight-kind error page, current page omitted. This is an index of the Insight family, not a curated short list. Order: body errors → metadata/viewport → unstable-value errors (server then client) → navigation Insights. Do not add API references or guides to this section; those belong inline in the body where relevant.
+- Every API reference and file convention must be inline-linked throughout, not reserved for the Related Insights section.
 - **Cross-page pattern linking**: When a fix on one page is covered in depth on a sibling page, show only the most common pattern inline and link out to the sibling for the full set. For example, a server page's "Render on the client" fix shows one client pattern and links to the `-client` page; a client page's "Other options" section bridges to the server page's cache fix. Don't duplicate entire sections across sibling pages — keep each page lean and let the sibling be the canonical reference.
 - **First-party only**: link only to `nextjs.org/docs/*`, `react.dev/*`, `developer.mozilla.org/*`, and other canonical first-party references. **Never** link to personal blogs, community write-ups, conference talks, X/Bluesky posts, GitHub gists, or any third-party source — including the page author's own blog. If a third-party post inspired a pattern, internalize the idea and write it in our own voice without citation. Sibling error pages, our own docs, and primary API specs are the only acceptable destinations.
 
@@ -166,7 +169,7 @@ After the pattern snippets, include a "Use either pattern when:" bulleted list (
 
 ### Don't want this validation?
 
-Every insight page ends (just before `## Useful links`) with the canonical opt-out block. It teaches the reader how to silence validation per-segment, subtree-wide, and app-wide, since instant-navigation validation runs by default in Cache Components apps. Copy verbatim:
+Every insight page ends (just before `## Related Insights`) with the canonical opt-out block. It teaches the reader how to silence validation per-segment, subtree-wide, and app-wide, since instant-navigation validation runs by default in Cache Components apps. Copy verbatim:
 
 ```mdx
 ## Don't want this validation?
@@ -196,12 +199,14 @@ When auditing an existing page, check every item:
 - [ ] `title` = literal dev-overlay headline (from factory function), no period
 - [ ] `kind: insight` in frontmatter
 - [ ] Good to Know = the canonical `--debug-prerender` block (no page-specific content)
-- [ ] One `<FixOption>` per framework card, in framework order
-- [ ] Every `<FixOption>` `title` = card title verbatim
-- [ ] Every `<FixOption>` `href` = auto-slug of the heading
-- [ ] Every `<FixOption>` `group` matches framework card group
-- [ ] No `prompt` prop on any `<FixOption>` — the copy button generates the prompt from `title` + `href` + the page URL
-- [ ] `<FixOption>` children: plain prose, no backticks, no inline code
+- [ ] All cards wrapped in a single `<FixCardGrid>`
+- [ ] One `<FixCard />` per framework card, in framework order
+- [ ] Every `<FixCard />` `title` = card title verbatim
+- [ ] Every `<FixCard />` `href` = `#` + auto-slug of the heading
+- [ ] Every `<FixCard />` `group` matches framework card group
+- [ ] Every `<FixCard />` `snippets` = the framework card's `snippets` array, verbatim
+- [ ] No `prompt` prop on any `<FixCard />` — the copy button generates the prompt from `title` + `href` + the page URL
+- [ ] `<FixCard />` is self-closing (no children, no description prose)
 - [ ] Every `## <Fix>` heading = card title verbatim
 - [ ] Every fix section has `### Patterns`, `### Trade-off`, `### Gotchas`
 - [ ] No "Default." labels on patterns
@@ -210,9 +215,9 @@ When auditing an existing page, check every item:
 - [ ] Code snippets are valid React (no inline `Math.random()` during render in Client Components)
 - [ ] `useState(() => Math.random())` warned against in Gotchas
 - [ ] All API references inline-linked throughout
-- [ ] Sibling pages cross-linked in framing paragraph + Useful links
-- [ ] Useful links section is short (typically 2–6 entries). Does not re-list APIs that are already inline-linked in the body.
+- [ ] Sibling pages cross-linked in framing paragraph (inline body links carry the bulk of API references)
 - [ ] `## Don't want this validation?` section present, verbatim per the canonical block
+- [ ] `## Related Insights` section present, listing every other insight-kind error page (current page omitted)
 - [ ] Upstream `errors/<slug>.mdx` content preserved (relocated to Gotchas or Other options if needed)
 - [ ] Terminology matches canonical docs (verified, not assumed)
 - [ ] Vercel technical writing style applied (no banned words, active voice, sentence-case headings)

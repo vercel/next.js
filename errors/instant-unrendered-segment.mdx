@@ -29,22 +29,42 @@ This typically happens when a layout conditionally omits `{children}`, a paralle
 
 ## Ways to fix this
 
-<FixOption
-  group="render"
-  href="#render-the-dropped-segment"
-  title="Render the dropped segment"
->
-  Include the segment in the render tree so Next.js can validate it for instant
-  navigation.
-</FixOption>
-
-<FixOption
-  group="ignore"
-  href="#skip-validation-on-the-segment"
-  title="Skip validation on the segment"
->
-  Opt the dropped segment out of instant-navigation validation.
-</FixOption>
+<FixCardGrid>
+  <FixCard
+    group="render"
+    title="Render the dropped segment"
+    href="#render-the-dropped-segment"
+    snippets={[
+      {
+        text: 'function Layout({ children }) {',
+        parts: [
+          { text: 'function Layout({ ' },
+          { text: 'children', highlight: true },
+          { text: ' }) {' },
+        ],
+      },
+      {
+        text: '  return <><Nav />{children}</>',
+        parts: [
+          { text: '  return <><Nav />{' },
+          { text: 'children', highlight: true },
+          { text: '}</>' },
+        ],
+      },
+      { text: '}' },
+    ]}
+  />
+  <FixCard
+    group="ignore"
+    title="Skip validation on the segment"
+    href="#skip-validation-on-the-segment"
+    snippets={[
+      { text: '// page.tsx or layout.tsx' },
+      { text: '' },
+      { text: 'export const instant = false', highlight: true },
+    ]}
+  />
+</FixCardGrid>
 
 ## Render the dropped segment
 
@@ -82,7 +102,7 @@ export default function DashboardLayout({ children, modal }) {
 }
 ```
 
-Learn more: [Parallel Routes](https://preview.nextjs.org/docs/app/api-reference/file-conventions/parallel-routes).
+Learn more: [Parallel Routes](/docs/app/api-reference/file-conventions/parallel-routes).
 
 #### Move auth or guard checks into the page
 
@@ -164,3 +184,20 @@ Instant-navigation validation runs by default in [Cache Components](https://prev
 - **Entire app**: set [`experimental.instantInsights.validationLevel`](https://preview.nextjs.org/docs/app/api-reference/file-conventions/route-segment-config/instant#configuring-validation-defaults) to `'manual-warning'` in `next.config`. This limits validation to segments that explicitly export `instant`.
 
 See [Ensuring instant navigations](https://preview.nextjs.org/docs/app/guides/instant-navigation) for the full model.
+
+## Related Insights
+
+- [Runtime data during prerendering](/docs/messages/blocking-prerender-runtime)
+- [Uncached data during prerendering](/docs/messages/blocking-prerender-dynamic)
+- [URL data in a Client Component outside of Suspense](/docs/messages/blocking-prerender-client-hook)
+- [Runtime data in `generateMetadata()`](/docs/messages/blocking-prerender-metadata-runtime)
+- [Uncached data in `generateMetadata()`](/docs/messages/blocking-prerender-metadata-dynamic)
+- [Runtime data in `generateViewport()`](/docs/messages/blocking-prerender-viewport-runtime)
+- [Uncached data in `generateViewport()`](/docs/messages/blocking-prerender-viewport-dynamic)
+- [`Math.random()` while prerendering](/docs/messages/blocking-prerender-random)
+- [`Math.random()` in a Client Component](/docs/messages/blocking-prerender-random-client)
+- [`Date.now()` while prerendering](/docs/messages/blocking-prerender-current-time)
+- [`Date.now()` in a Client Component](/docs/messages/blocking-prerender-current-time-client)
+- [Crypto APIs while prerendering](/docs/messages/blocking-prerender-crypto)
+- [Crypto APIs in a Client Component](/docs/messages/blocking-prerender-crypto-client)
+- [Partial Prefetch link with dynamic data](/docs/messages/instant-link-prefetch-partial)

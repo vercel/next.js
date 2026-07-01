@@ -47,14 +47,14 @@ export const FIX_CARD_GROUPS: Record<
 }
 
 export type FixCard = {
-  /** Stable docs-anchor id for this fix card. */
+  /** Docs anchor for this card. */
   id: string
   title: string
   group: FixCardGroup
-  /** Docs URL the card links to, or `null` for no link. */
+  /** Docs URL, or null for no link. */
   link: string | null
   snippets: Snippet[]
-  /** Whether to render the "Copy AI prompt" button on this card. */
+  /** Show the Copy prompt button on this card. */
   copyable?: boolean
 }
 
@@ -66,9 +66,7 @@ export type SnippetPart = {
 export type Snippet = {
   text: string
   highlight?: boolean
-  // When present, render the line with inline highlighted parts instead of
-  // applying the line-level `highlight` flag. `text` is still kept for any
-  // tooling that reads the full line content.
+  /** Inline highlights within the line; takes precedence over the line-level `highlight` flag. */
   parts?: SnippetPart[]
 }
 
