@@ -1025,8 +1025,15 @@ jobs:
       stepName: 'test-cache-components-prod-${{ matrix.group }}'
     secrets: inherit
 
+  # We block merging unless this job passes. This is enforced by a "require
+  # status checks to pass" rule on the canary branch.
+  # <https://github.com/vercel/next.js/settings/rules/15507172>
   tests-pass:
     needs:
+      # Note: Some of these jobs are dependencies of other test jobs. If they
+      # fail, they'll cause the dependent test job to be skipped, which could
+      # cause this aggregation job to incorrectly pass if the dependency job is
+      # not listed here.
       - optimize-ci
       - changes
       - build-native
