@@ -80,7 +80,7 @@ const linkCards: FixCard[] = [
     link: 'https://nextjs.org/docs/messages/instant-shell-link-data#wrap-in-or-move-into-suspense',
     snippets: [
       { text: '<Suspense fallback={<Skeleton />}>', highlight: true },
-      { text: '  <Results searchParams={searchParams} />' },
+      { text: '  <Details params={params} />' },
       { text: '</Suspense>', highlight: true },
     ],
     copyable: true,
@@ -293,7 +293,7 @@ const metadataRuntimeCards: FixCard[] = [
   },
 ]
 
-// URL data in `generateMetadata()` uses the same fix as runtime data: static metadata.
+// URL data in `generateMetadata()` shares the same fixes as runtime data.
 const metadataLinkCards = metadataRuntimeCards
 
 const metadataDynamicCards: FixCard[] = [
@@ -348,7 +348,7 @@ const viewportRuntimeCards: FixCard[] = [
   },
 ]
 
-// URL data in `generateViewport()` uses the same fix as runtime data: static viewport.
+// URL data in `generateViewport()` shares the same fixes as runtime data.
 const viewportLinkCards = viewportRuntimeCards
 
 const viewportDynamicCards: FixCard[] = [
@@ -703,6 +703,9 @@ export const EXPLANATIONS: Record<GuidanceKind, string> = {
 
 export const BLOCKING_ROUTE_NAVIGATION_EXPLANATION =
   'This prevents the navigation from being instant, leading to a slower user experience.'
+
+export const BLOCKING_ROUTE_LINK_EXPLANATION =
+  'This will lead to slower, more expensive prefetches.'
 
 const syncCardsByCause: Record<string, FixCard[]> = {
   'Math.random()': syncMathCards,

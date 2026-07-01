@@ -34,7 +34,10 @@ import {
   type GuidanceKind,
   type GuidanceVariant,
 } from '../components/instant/instant-guidance'
-import { BLOCKING_ROUTE_NAVIGATION_EXPLANATION } from '../components/instant/instant-guidance-data'
+import {
+  BLOCKING_ROUTE_NAVIGATION_EXPLANATION,
+  BLOCKING_ROUTE_LINK_EXPLANATION,
+} from '../components/instant/instant-guidance-data'
 import { UnrenderedSegmentInfo } from '../components/instant/unrendered-segment-info'
 import { CodeFrame } from '../components/code-frame/code-frame'
 import { ErrorOverlayCallStack } from '../components/errors/error-overlay-call-stack/error-overlay-call-stack'
@@ -435,7 +438,6 @@ export function getBlockingRouteErrorDetails(
     }
   }
 
-  // Partial Prefetching shell validation — always a navigation-time insight.
   if (message.includes('encountered URL data during prefetching')) {
     return {
       type: 'blocking-route',
@@ -885,9 +887,11 @@ export function Errors({
               kind="blocking-route"
               variant={errorDetails.variant}
               explanation={
-                errorDetails.inNavigation
-                  ? BLOCKING_ROUTE_NAVIGATION_EXPLANATION
-                  : undefined
+                errorDetails.variant === 'link'
+                  ? BLOCKING_ROUTE_LINK_EXPLANATION
+                  : errorDetails.inNavigation
+                    ? BLOCKING_ROUTE_NAVIGATION_EXPLANATION
+                    : undefined
               }
             />
           }
