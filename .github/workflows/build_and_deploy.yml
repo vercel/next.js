@@ -25,7 +25,7 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  NAPI_CLI_VERSION: 2.18.4
+  NAPI_CLI_VERSION: 3.7.2
   TURBO_VERSION: 2.9.4
   # --env-mode loose is a breaking change required with turbo 2.x since Strict mode is now the default
   # TODO: we should add the relevant envs later to to switch to strict mode
