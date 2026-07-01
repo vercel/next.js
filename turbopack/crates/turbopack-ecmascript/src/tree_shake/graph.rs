@@ -714,7 +714,17 @@ impl DepGraph {
             }
 
             if chunk.body.is_empty() {
-                continue;
+                chunk
+                    .body
+                    .push(ModuleItem::ModuleDecl(ModuleDecl::ExportNamed(
+                        NamedExport {
+                            span: DUMMY_SP,
+                            specifiers: Default::default(),
+                            src: None,
+                            type_only: false,
+                            with: None,
+                        },
+                    )));
             }
 
             modules.push(chunk);
