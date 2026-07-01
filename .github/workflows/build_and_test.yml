@@ -1025,38 +1025,45 @@ jobs:
       stepName: 'test-cache-components-prod-${{ matrix.group }}'
     secrets: inherit
 
+  # We block merging unless this job passes. This is enforced by a "require
+  # status checks to pass" rule on the canary branch.
+  # <https://github.com/vercel/next.js/settings/rules/15507172>
   tests-pass:
     needs:
-      [
-        'build-native',
-        'build-next',
-        'lint',
-        'validate-docs-links',
-        'check-types-precompiled',
-        'test-unit',
-        'test-next-config-ts-native-ts-dev',
-        'test-next-config-ts-native-ts-prod',
-        'test-dev',
-        'test-prod',
-        'test-firefox-safari',
-        'test-cache-components-dev',
-        'test-cache-components-prod',
-        'test-cargo-unit',
-        'rust-check',
-        'rustdoc-check',
-        'test-next-swc-wasm',
-        'test-turbopack-dev',
-        'test-new-tests-dev',
-        'test-new-tests-start',
-        'test-new-tests-deploy',
-        'test-new-tests-deploy-cache-components',
-        'test-turbopack-production',
-        'test-unit-windows',
-        'test-dev-windows',
-        'test-integration-windows',
-        'test-prod-windows',
-      ]
-
+      # Note: Some of these jobs are dependencies of other test jobs. If they
+      # fail, they'll cause the dependent test job to be skipped, which could
+      # cause this aggregation job to incorrectly pass if the dependency job is
+      # not listed here.
+      - optimize-ci
+      - changes
+      - build-native
+      - build-next
+      - fetch-test-timings
+      - lint
+      - validate-docs-links
+      - check-types-precompiled
+      - test-unit
+      - test-next-config-ts-native-ts-dev
+      - test-next-config-ts-native-ts-prod
+      - test-dev
+      - test-prod
+      - test-firefox-safari
+      - test-cache-components-dev
+      - test-cache-components-prod
+      - test-cargo-unit
+      - rust-check
+      - rustdoc-check
+      - test-next-swc-wasm
+      - test-turbopack-dev
+      - test-new-tests-dev
+      - test-new-tests-start
+      - test-new-tests-deploy
+      - test-new-tests-deploy-cache-components
+      - test-turbopack-production
+      - test-unit-windows
+      - test-dev-windows
+      - test-integration-windows
+      - test-prod-windows
     if: always()
     runs-on: ubuntu-latest
     # Coupled with retry logic in retry_test.yml
