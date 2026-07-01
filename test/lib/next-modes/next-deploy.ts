@@ -424,6 +424,9 @@ export class NextDeployInstance extends NextInstance {
       `VERCEL_CLI_VERSION=${process.env.VERCEL_CLI_VERSION || 'vercel@latest'}`
     )
 
+    // So that our `package.json#packageManager` field is respected when building on Vercel
+    additionalEnv.push(`ENABLE_EXPERIMENTAL_COREPACK=1`)
+
     // Route the build to a named hive, and to a specific build-container image.
     // The dispatcher reads the image version only for a build on a forced hive.
     // A version without a hive falls back to the default image and reports no
