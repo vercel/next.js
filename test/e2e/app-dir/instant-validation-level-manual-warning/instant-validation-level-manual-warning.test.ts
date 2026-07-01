@@ -201,7 +201,7 @@ describe('instant validation - level manual-warning', () => {
                https://nextjs.org/docs/messages/blocking-prerender-dynamic#wrap-in-or-move-into-suspense
              - [cache] Cache the data access with \`"use cache"\` (does not apply to \`connection()\`)
                https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
-             - [block] Set \`export const instant = false\` to silence this error and allow a blocking route
+             - [block] Set \`export const instant = false\` to allow a blocking route
                https://nextjs.org/docs/messages/blocking-prerender-dynamic#allow-blocking-route
                at a (<anonymous>)
                at body (<anonymous>)
@@ -340,7 +340,7 @@ describe('instant validation - level manual-warning', () => {
                https://nextjs.org/docs/messages/blocking-prerender-dynamic#wrap-in-or-move-into-suspense
              - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\` (does not apply to \`connection()\`)
                https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
-             - [block] Set \`export const instant = false\` to silence this error and allow a blocking route
+             - [block] Set \`export const instant = false\` to allow a blocking route
                https://nextjs.org/docs/messages/blocking-prerender-dynamic#allow-blocking-route
                at body (<anonymous>)
                at html (<anonymous>)
@@ -366,7 +366,7 @@ describe('instant validation - level manual-warning', () => {
                https://nextjs.org/docs/messages/blocking-prerender-dynamic#wrap-in-or-move-into-suspense
              - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\` (does not apply to \`connection()\`)
                https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
-             - [block] Set \`export const instant = false\` to silence this error and allow a blocking route
+             - [block] Set \`export const instant = false\` to allow a blocking route
                https://nextjs.org/docs/messages/blocking-prerender-dynamic#allow-blocking-route
                at body (<anonymous>)
                at html (<anonymous>)
@@ -394,7 +394,7 @@ describe('instant validation - level manual-warning', () => {
                https://nextjs.org/docs/messages/blocking-prerender-dynamic#wrap-in-or-move-into-suspense
              - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\` (does not apply to \`connection()\`)
                https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
-             - [block] Set \`export const instant = false\` to silence this error and allow a blocking route
+             - [block] Set \`export const instant = false\` to allow a blocking route
                https://nextjs.org/docs/messages/blocking-prerender-dynamic#allow-blocking-route
                at body (<anonymous>)
                at html (<anonymous>)
@@ -426,7 +426,7 @@ describe('instant validation - level manual-warning', () => {
                https://nextjs.org/docs/messages/blocking-prerender-dynamic#wrap-in-or-move-into-suspense
              - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\` (does not apply to \`connection()\`)
                https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
-             - [block] Set \`export const instant = false\` to silence this error and allow a blocking route
+             - [block] Set \`export const instant = false\` to allow a blocking route
                https://nextjs.org/docs/messages/blocking-prerender-dynamic#allow-blocking-route
                at body (<anonymous>)
                at html (<anonymous>)
