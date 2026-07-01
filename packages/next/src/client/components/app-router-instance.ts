@@ -65,27 +65,33 @@ export type ActionQueueNode = {
   discarded?: boolean
 }
 
+// Called when `action` settles, to run the next action in the queue.
 function runRemainingActions(
   actionQueue: AppRouterActionQueue,
+  action: ActionQueueNode,
   setState: DispatchStatePromise
 ) {
-  if (actionQueue.pending !== null) {
-    actionQueue.pending = actionQueue.pending.next
+  // Only the settlement of the action at the head of the queue may advance the
+  // queue. A discarded action settles while the navigation that discarded it
+  // is the head; advancing from here would start the next queued action
+  // against router state that doesn't include that navigation yet.
+  if (actionQueue.pending === action) {
+    actionQueue.pending = action.next
     if (actionQueue.pending !== null) {
       runAction({
         actionQueue,
         action: actionQueue.pending,
         setState,
       })
+      return
     }
-  } else {
-    // Check for refresh when pending is already null
-    // This handles the case where a discarded server action completes
-    // after the navigation has already finished and the queue is empty
-    if (actionQueue.needsRefresh) {
-      actionQueue.needsRefresh = false
-      actionQueue.dispatch({ type: ACTION_REFRESH }, setState)
-    }
+  }
+
+  if (actionQueue.pending === null && actionQueue.needsRefresh) {
+    // The queue is idle; flush the refresh requested by a discarded server
+    // action that revalidated data.
+    actionQueue.needsRefresh = false
+    actionQueue.dispatch({ type: ACTION_REFRESH }, setState)
   }
 }
 
@@ -117,22 +123,22 @@ async function runAction({
         // mark that we need to refresh after all actions complete
         actionQueue.needsRefresh = true
       }
-      // Still need to run remaining actions even for discarded actions
-      // to potentially trigger the refresh
-      runRemainingActions(actionQueue, setState)
+      // This can't advance the queue (this action is no longer its head), but
+      // if the queue has already drained, it flushes the refresh now.
+      runRemainingActions(actionQueue, action, setState)
       return
     }
 
     actionQueue.state = nextState
 
-    runRemainingActions(actionQueue, setState)
+    runRemainingActions(actionQueue, action, setState)
     action.resolve(nextState)
   }
 
   // if the action is a promise, set up a callback to resolve it
   if (isThenable(actionResult)) {
     actionResult.then(handleResult, (err) => {
-      runRemainingActions(actionQueue, setState)
+      runRemainingActions(actionQueue, action, setState)
       action.reject(err)
     })
   } else {
