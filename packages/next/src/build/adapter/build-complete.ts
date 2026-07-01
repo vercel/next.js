@@ -553,8 +553,7 @@ export async function handleBuildComplete({
       const staticFiles = await recursiveReadDir(path.join(distDir, 'static'))
 
       const clientHashes: Record<string, string> | undefined =
-        bundler === Bundler.Turbopack &&
-        config.experimental.supportsImmutableAssets
+        bundler === Bundler.Turbopack && config.supportsImmutableAssets
           ? JSON.parse(
               await fs.readFile(
                 path.join(distDir, 'immutable-static-hashes.json'),
