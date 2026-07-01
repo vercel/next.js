@@ -60,17 +60,15 @@ export function io(expression: string, type: SyncIOApiType) {
         // NOTE: keep stages where we can interrupt in sync with
         // `shouldTrackSyncInterrupt`/`syncInterruptCurrentStageWithReason`
         switch (stageController.currentStage) {
-          case RenderStage.ShellEarlyStatic:
           case RenderStage.ShellStatic:
-          case RenderStage.EarlyStatic:
           case RenderStage.Static: {
             syncIOError = createSyncIOError(workStore.route, expression, type)
             break
           }
-          case RenderStage.ShellEarlyRuntime:
-          case RenderStage.EarlyRuntime: {
-            // We only error for Sync IO in the Runtime stage if the segment has a runtime prefetch config.
-            // Only Runtime prefetchable segments are rendered in the "early" runtime stages.
+          case RenderStage.ShellRuntime:
+          case RenderStage.Runtime: {
+            // We're in the Runtime stage.
+            // We only error for Sync IO in the Runtime stage if the route has partialPrefetching enabled.
             syncIOError = createSyncIORuntimeError(
               workStore.route,
               expression,
@@ -79,8 +77,6 @@ export function io(expression: string, type: SyncIOApiType) {
             break
           }
           case RenderStage.Before:
-          case RenderStage.ShellRuntime:
-          case RenderStage.Runtime:
           case RenderStage.Dynamic:
           case RenderStage.Abandoned: {
             throw new InvariantError(

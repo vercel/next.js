@@ -15,6 +15,8 @@ export const prefetch = 'allow-runtime'
 // resolve later, and Date.now() would happen at the Runtime stage where
 // canSyncInterrupt returns false — missing the error.
 
+// TODO(sync-io): this needs updating
+
 async function cachedFn(cookiePromise: Promise<string>) {
   'use cache'
   // Intentionally not reading the cookie promise in the body.
