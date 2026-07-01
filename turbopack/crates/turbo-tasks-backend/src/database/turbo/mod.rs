@@ -234,6 +234,17 @@ impl<'a> TurboWriteBatch<'a> {
             .put(key_space as u32, key.into_static(), value.into())
     }
 
+    /// Writes a delete (tombstone) for `key` into the write batch.
+    ///
+    /// For `SingleValue` families (`TaskMeta`, `TaskData`, `Infra`) this erases the key. For the
+    /// `MultiValue` `TaskCache` family this erases *all* values stored under the key (the whole
+    /// hash bucket); to remove a single mapping while keeping colliding entries, re-`put` the
+    /// survivors after the delete in the same batch (see `save_snapshot` in
+    /// `kv_backing_storage.rs`).
+    pub fn delete(&self, key_space: KeySpace, key: WriteBuffer<'_>) -> Result<()> {
+        self.batch.delete(key_space as u32, key.into_static())
+    }
+
     /// Flushes a key space of the write batch, reducing the amount of buffered memory used.
     /// Does not commit any data persistently.
     ///
