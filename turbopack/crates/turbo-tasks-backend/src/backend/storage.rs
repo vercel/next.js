@@ -1044,7 +1044,7 @@ mod tests {
         _: &super::TaskStorage,
         _: &mut TurboBincodeBuffer,
     ) -> SnapshotItem {
-        SnapshotItem {
+        SnapshotItem::Put {
             task_id,
             meta: Some(TurboBincodeBuffer::default()),
             data: None,
@@ -1112,7 +1112,7 @@ mod tests {
 
         // The pre-snapshot snapshot copy should have been encoded and returned.
         assert_eq!(items.len(), 1);
-        assert_eq!(items[0].task_id, task_id);
+        assert_eq!(items[0].task_id(), task_id);
 
         {
             let guard = storage.access_mut(task_id);
@@ -1179,7 +1179,7 @@ mod tests {
             .collect();
 
         assert_eq!(items.len(), 1);
-        assert_eq!(items[0].task_id, task_id);
+        assert_eq!(items[0].task_id(), task_id);
 
         {
             let guard = storage.access_mut(task_id);
@@ -1227,7 +1227,7 @@ mod tests {
             .collect();
 
         assert_eq!(items.len(), 1);
-        assert_eq!(items[0].task_id, task_id);
+        assert_eq!(items[0].task_id(), task_id);
 
         // The entry must be gone from the map now that it has been persisted.
         assert!(
@@ -1324,7 +1324,7 @@ mod tests {
             .flat_map(|shard| shard.into_iter())
             .collect();
         assert_eq!(items.len(), 1);
-        assert_eq!(items[0].task_id, modified_id);
+        assert_eq!(items[0].task_id(), modified_id);
     }
 
     #[tokio::test(flavor = "multi_thread")]
