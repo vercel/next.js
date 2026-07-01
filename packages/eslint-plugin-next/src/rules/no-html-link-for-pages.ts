@@ -17,8 +17,6 @@ const pagesDirWarning = execOnce((pagesDirs) => {
   )
 })
 
-// Cache for fs.existsSync lookup.
-// Prevent multiple blocking IO requests that have already been calculated.
 const fsExistsSyncCache = {}
 
 const memoize = <T = any>(fn: (...args: any[]) => T) => {
@@ -65,14 +63,15 @@ export default defineRule({
     ],
   },
 
-  /**
-   * Creates an ESLint rule listener.
-   */
   create(context) {
     const ruleOptions: (string | string[])[] = context.options
     const [customPagesDirectory] = ruleOptions
 
     const rootDirs = getRootDirs(context)
+
+    const nextSettings: { pageExtensions?: string[] } =
+      context.settings.next || {}
+    const pageExtensions = nextSettings.pageExtensions
 
     const pagesDirs = (
       customPagesDirectory
@@ -101,14 +100,21 @@ export default defineRule({
       return fsExistsSyncCache[dir]
     })
 
-    // warn if there are no pages and app directories
     if (foundPagesDirs.length === 0 && foundAppDirs.length === 0) {
       pagesDirWarning(pagesDirs)
       return {}
     }
 
-    const pageUrls = cachedGetUrlFromPagesDirectories('/', foundPagesDirs)
-    const appDirUrls = cachedGetUrlFromAppDirectory('/', foundAppDirs)
+    const pageUrls = cachedGetUrlFromPagesDirectories(
+      '/',
+      foundPagesDirs,
+      pageExtensions
+    )
+    const appDirUrls = cachedGetUrlFromAppDirectory(
+      '/',
+      foundAppDirs,
+      pageExtensions
+    )
     const allUrlRegex = [...pageUrls, ...appDirUrls]
 
     return {
@@ -147,7 +153,6 @@ export default defineRule({
         }
 
         const hrefPath = normalizeURL(href.value.value)
-        // Outgoing links are ignored
         if (/^(https?:\/\/|\/\/)/.test(hrefPath)) {
           return
         }
