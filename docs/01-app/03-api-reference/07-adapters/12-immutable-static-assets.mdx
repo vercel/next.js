@@ -1,6 +1,6 @@
 ---
 title: Supporting Immutable Static Assets
-description: Supporting Immutable Static Assets support in an adapter
+description: Support immutable static assets in an adapter
 ---
 
 See [`config.supportsImmutableAssets`](/docs/app/api-reference/config/next-config-js/supportsImmutableAssets) for end-user-facing information about this feature.
@@ -15,10 +15,10 @@ Note that you need to continue supporting non-immutable static assets (which may
 
 ## Adapter Implementation
 
-You need to
+You need to:
 
-1. in the `modifyConfig`, set the `config.supportsImmutableAssets` property to `true` (if it's not already set to `false` by the user) to signal that you support deploying immutable static assets, and
-2. in `onBuildComplete`, read the `outputs.staticFiles[].immutableHash` property to determine which static assets are immutable and have to be requested without the `?dpl` query parameter.
+1. In the `modifyConfig`, set the `config.supportsImmutableAssets` property to `true` (if it's not already set to `false` by the user) to signal that you support deploying immutable static assets, and
+2. In `onBuildComplete`, read the `outputs.staticFiles[].immutableHash` property to determine which static assets are immutable and have to be requested without the `?dpl` query parameter.
 
 ```js filename="my-adapter.js"
 /** @type {import('next').NextAdapter} */
