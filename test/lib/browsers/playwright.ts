@@ -608,16 +608,9 @@ export class Playwright<TCurrent = undefined> {
     ...args: any[]
   ): Playwright<any> & Promise<any> {
     return this.startChain(async () =>
-      page
-        .evaluate(fn, ...args)
-        .catch((err) => {
-          // TODO: gross, why are we doing this
-          console.error('eval error:', err)
-          return null!
-        })
-        .finally(async () => {
-          await page.waitForLoadState()
-        })
+      page.evaluate(fn, ...args).finally(async () => {
+        await page.waitForLoadState()
+      })
     )
   }
 
