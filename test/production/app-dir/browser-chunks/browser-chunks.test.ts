@@ -77,8 +77,6 @@ describe('browser-chunks', () => {
         expect(serverSources).toMatchInlineSnapshot(`
          [
            "src/server/app-render/async-local-storage.ts",
-           "src/server/app-render/instant-validation/boundary-constants.ts",
-           "src/server/app-render/instant-validation/boundary-impl.tsx",
            "src/server/app-render/instant-validation/instant-samples-client.ts",
            "src/server/app-render/instant-validation/instant-samples.ts",
            "src/server/app-render/instant-validation/instant-validation-error.ts",
