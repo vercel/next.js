@@ -63,11 +63,6 @@ on:
         required: false
         type: string
         default: '["ubuntu-latest-16-core-arm-oss"]'
-      buildNativeTarget:
-        description: 'Target for build-native step'
-        required: false
-        type: string
-        default: 'aarch64-unknown-linux-gnu'
       overrideProxyAddress:
         description: Override the proxy address to use for the test
         required: false
@@ -87,13 +82,15 @@ on:
         required: false
         type: string
         default: ''
-
       uploadNativeArtifact:
-        description: 'Artifact name to upload native .node files to after building. When set, this job is the native binary producer.'
+        description: >
+          When true, build and upload the native `next-swc.*.node` files as an
+          artifact named `next-swc-<target>`. When false, we may attempt to
+          download this artifact, falling back to rebuilding if the artifact is
+          not found.
         required: false
-        type: string
-        default: ''
-
+        type: boolean
+        default: false
       browser:
         description: 'Browser to use for tests'
         required: false
@@ -166,7 +163,7 @@ jobs:
 
     defaults:
       run:
-        shell: bash -leo pipefail {0}
+        shell: bash -leuo pipefail {0}
 
     outputs:
       input_step_key: ${{ steps.var.outputs.input_step_key }}
@@ -260,14 +257,14 @@ jobs:
       # local action -> needs to run after checkout
       - name: Install Rust
         uses: ./.github/actions/setup-rust
-        if: ${{ (inputs.uploadNativeArtifact != '') || inputs.needsNextest == 'yes' || inputs.needsRust == 'yes' }}
+        if: ${{ inputs.uploadNativeArtifact || inputs.needsNextest == 'yes' || inputs.needsRust == 'yes' }}
 
       - name: Install nextest
         if: ${{ inputs.needsNextest == 'yes' }}
         run: cargo binstall --no-confirm --locked cargo-nextest@0.9.133
 
       - run: rustc --version
-        if: ${{ (inputs.uploadNativeArtifact != '') || inputs.needsNextest == 'yes' || inputs.needsRust == 'yes' }}
+        if: ${{ inputs.uploadNativeArtifact || inputs.needsNextest == 'yes' || inputs.needsRust == 'yes' }}
 
       - run: corepack prepare --activate yarn@1.22.19 && npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}"
 
@@ -286,27 +283,49 @@ jobs:
 
       - name: Start sccache
         uses: ./.github/actions/sccache
-        if: ${{ runner.os != 'Windows' && ((inputs.uploadNativeArtifact != '') || inputs.needsNextest == 'yes' || inputs.needsRust == 'yes') }}
+        if: ${{ runner.os != 'Windows' && (inputs.uploadNativeArtifact || inputs.needsNextest == 'yes' || inputs.needsRust == 'yes') }}
         with:
           turbo-token: ${{ secrets.TURBO_TOKEN }}
 
+      # Infer the Rust target triple from the runner's OS/arch. napi would build
+      # for the host target if `--target` were omitted, but Turborepo does not
+      # segment its cache by OS/arch, so we pass an explicit `--target` to keep
+      # the cache key distinct per architecture. The native artifact is also
+      # named after this target so its name can't diverge from what we built.
+      - name: Determine native build target
+        id: native-target
+        run: |
+          case "$RUNNER_OS-$RUNNER_ARCH" in
+            Linux-X64) target=x86_64-unknown-linux-gnu ;;
+            Linux-ARM64) target=aarch64-unknown-linux-gnu ;;
+            Windows-X64) target=x86_64-pc-windows-msvc ;;
+            macOS-ARM64) target=aarch64-apple-darwin ;;
+            macOS-X64) target=x86_64-apple-darwin ;;
+            *) echo "Unsupported runner: $RUNNER_OS-$RUNNER_ARCH" >&2; exit 1 ;;
+          esac
+          echo "target=$target" >> "$GITHUB_OUTPUT"
+
       - name: Download pre-built native binary
-        if: ${{ inputs.skipNativeBuild != 'yes' && inputs.uploadNativeArtifact == '' }}
+        if: ${{ inputs.skipNativeBuild != 'yes' && !inputs.uploadNativeArtifact }}
         id: native-download
         continue-on-error: true
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
-          name: ${{ runner.os == 'Windows' && 'next-swc-windows' || 'next-swc-linux' }}
+          name: next-swc-${{ steps.native-target.outputs.target }}
           path: packages/next-swc/native/
 
-      - run: pnpm dlx turbo@${TURBO_VERSION} run build-native-${{ inputs.rustBuildProfile }} ${TURBO_ARGS} --summarize -- --target ${{ inputs.buildNativeTarget }}
-        if: ${{ inputs.skipNativeBuild != 'yes' && (inputs.uploadNativeArtifact != '' || steps.native-download.outcome != 'success') }}
+      - name: Build native binary
+        if: ${{ inputs.skipNativeBuild != 'yes' && (inputs.uploadNativeArtifact || steps.native-download.outcome != 'success') }}
+        env:
+          RUST_BUILD_PROFILE: ${{ inputs.rustBuildProfile }}
+          NATIVE_TARGET: ${{ steps.native-target.outputs.target }}
+        run: pnpm dlx turbo@${TURBO_VERSION} run "build-native-${RUST_BUILD_PROFILE}" ${TURBO_ARGS} --summarize -- --target "${NATIVE_TARGET}"
 
       - name: Upload native artifact
-        if: ${{ inputs.uploadNativeArtifact != '' }}
+        if: ${{ inputs.uploadNativeArtifact && inputs.skipNativeBuild != 'yes' }}
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: ${{ inputs.uploadNativeArtifact }}
+          name: next-swc-${{ steps.native-target.outputs.target }}
           path: packages/next-swc/native/next-swc.*.node
           retention-days: 1
 
