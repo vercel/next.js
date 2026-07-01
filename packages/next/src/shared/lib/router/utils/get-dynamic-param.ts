@@ -30,13 +30,17 @@ function getParamValue(
     // checked that above.
     const [searchValue] = fallbackRouteParams.get(segmentKey)!
     value = searchValue
-  } else if (Array.isArray(value)) {
-    value = value.map((i) => encodeURIComponent(i))
-  } else if (typeof value === 'string') {
-    value = encodeURIComponent(value)
+  } else if (Array.isArray(value) || typeof value === 'string') {
+    value = encodeParamValue(value)
   }
 
   return value
+}
+
+export function encodeParamValue(value: string | string[]): string | string[] {
+  return Array.isArray(value)
+    ? value.map((i) => encodeURIComponent(i))
+    : encodeURIComponent(value)
 }
 
 export function interpolateParallelRouteParams(
