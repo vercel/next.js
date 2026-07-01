@@ -80,7 +80,7 @@ graph TD
 ```
 {
     ModuleEvaluation: 0,
-    Exports: 1,
+    Exports: 2,
 }
 ```
 
@@ -97,6 +97,11 @@ export { };
 
 ```
 ## Part 1
+```js
+export { };
+
+```
+## Part 2
 ```js
 
 ```
@@ -115,7 +120,7 @@ export { };
 ```
 {
     ModuleEvaluation: 0,
-    Exports: 1,
+    Exports: 2,
 }
 ```
 
@@ -132,6 +137,11 @@ export { };
 
 ```
 ## Part 1
+```js
+export { };
+
+```
+## Part 2
 ```js
 
 ```
