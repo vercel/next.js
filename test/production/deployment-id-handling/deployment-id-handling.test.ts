@@ -3,6 +3,14 @@ import { NextAdapter } from 'next'
 import { retry } from 'next-test-utils'
 import { join } from 'node:path'
 
+const immutableAssetsFilter = (p) =>
+  p.includes('/_next/static/') &&
+  !(
+    p.includes('/_buildManifest.js') ||
+    p.includes('/_clientMiddlewareManifest.js') ||
+    p.includes('/_ssgManifest.js')
+  )
+
 describe.each([
   ['NEXT_DEPLOYMENT_ID', ''],
   ['CUSTOM_DEPLOYMENT_ID', ''],
@@ -11,17 +19,15 @@ describe.each([
 ])(
   'deployment-id-handling enabled with %s%s',
   (envKey, runtimeServerDeploymentId) => {
-    if (
-      envKey === 'NEXT_DEPLOYMENT_ID_IMMUTABLE' &&
-      !process.env.IS_TURBOPACK_TEST
-    ) {
+    const usesImmutableAssets = envKey === 'NEXT_DEPLOYMENT_ID_IMMUTABLE'
+
+    if (usesImmutableAssets && !process.env.IS_TURBOPACK_TEST) {
       it.skip('skip for webpack', () => {})
       return
     }
 
     const deploymentId = Date.now() + ''
-    const immutableAssetToken =
-      envKey === 'NEXT_DEPLOYMENT_ID_IMMUTABLE' ? '' : deploymentId
+    const immutableAssetToken = usesImmutableAssets ? '' : deploymentId
 
     const { next } = nextTestSetup({
       files: join(__dirname, 'app'),
@@ -35,11 +41,12 @@ describe.each([
     })
 
     const validateTokenForRequest = (url: string) => {
-      const token = url.includes('/_next/static/immutable/')
-        ? // Turbopack-emitted chunks
-          immutableAssetToken
-        : // e.g. /_next/static/build-id/_ssgManifest.js
-          deploymentId
+      const token =
+        usesImmutableAssets && immutableAssetsFilter(url)
+          ? // Turbopack-emitted chunks
+            immutableAssetToken
+          : // e.g. /_next/static/build-id/_ssgManifest.js
+            deploymentId
       if (token) {
         expect(url).toContain('dpl=' + token)
       } else {
@@ -184,19 +191,13 @@ describe.each([
       )
     })
 
-    if (envKey === 'NEXT_DEPLOYMENT_ID_IMMUTABLE') {
+    if (usesImmutableAssets) {
       it('should emit hashes to adapter', async () => {
         const { outputs }: Parameters<NextAdapter['onBuildComplete']>[0] =
           await next.readJSON('build-complete.json')
 
-        const immutableAssets = outputs.staticFiles.filter(
-          (a) =>
-            a.pathname.startsWith('/_next/static/') &&
-            !(
-              a.pathname.endsWith('/_buildManifest.js') ||
-              a.pathname.endsWith('/_clientMiddlewareManifest.js') ||
-              a.pathname.endsWith('/_ssgManifest.js')
-            )
+        const immutableAssets = outputs.staticFiles.filter((p) =>
+          immutableAssetsFilter(p.pathname)
         )
         expect(immutableAssets).not.toBeEmpty()
         expect(immutableAssets).toSatisfyAll(
@@ -205,7 +206,9 @@ describe.each([
             // This check also ensure that we don't accidentally forget to content hash sourcemap
             // files (i.e. 0cz1d0mv5g_q7.js is content hashed, but 0cz1d0mv5g_q7.js.map is not a
             // content hash of itself)..
-            f.immutableHash && f.pathname.includes(f.immutableHash.slice(0, 13))
+            f.immutableHash &&
+            f.pathname.includes(f.immutableHash.slice(0, 13)) &&
+            f.pathname.startsWith('/_next/static/immutable')
         )
       })
     }
