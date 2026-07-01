@@ -25,27 +25,35 @@ kind: insight
 
 During [prerendering](https://preview.nextjs.org/docs/app/glossary#prerendering), [`generateMetadata()`](https://preview.nextjs.org/docs/app/api-reference/functions/generate-metadata) performed an uncached data access ([`fetch()`](https://developer.mozilla.org/en-US/docs/Web/API/Window/fetch), database call, [`await connection()`](https://preview.nextjs.org/docs/app/api-reference/functions/connection)). With [Cache Components](https://preview.nextjs.org/docs/app/api-reference/config/next-config-js/cacheComponents) enabled, Next.js expects metadata to be prerenderable when the rest of the route is. This route's metadata is blocked, but the rest of its content can be prerendered.
 
-Request-bound reads ([`cookies()`](https://preview.nextjs.org/docs/app/api-reference/functions/cookies), [`headers()`](https://preview.nextjs.org/docs/app/api-reference/functions/headers), [`params`](https://preview.nextjs.org/docs/app/api-reference/file-conventions/page#params-optional), [`searchParams`](https://preview.nextjs.org/docs/app/api-reference/file-conventions/page#searchparams-optional)) in `generateMetadata()` have different fixes. See [Next.js encountered runtime data in `generateMetadata()`](https://preview.nextjs.org/docs/messages/blocking-prerender-metadata-runtime).
+Request-bound reads ([`cookies()`](https://preview.nextjs.org/docs/app/api-reference/functions/cookies), [`headers()`](https://preview.nextjs.org/docs/app/api-reference/functions/headers), [`params`](https://preview.nextjs.org/docs/app/api-reference/file-conventions/page#params-optional), [`searchParams`](https://preview.nextjs.org/docs/app/api-reference/file-conventions/page#searchparams-optional)) in `generateMetadata()` have different fixes. See [Next.js encountered runtime data in `generateMetadata()`](/docs/messages/blocking-prerender-metadata-runtime).
 
-The viewport equivalent is handled at [Uncached data in `generateViewport()`](https://preview.nextjs.org/docs/messages/blocking-prerender-viewport-dynamic).
+The viewport equivalent is handled at [Uncached data in `generateViewport()`](/docs/messages/blocking-prerender-viewport-dynamic).
 
-For errors in the page body rather than metadata, see [Next.js encountered uncached data during prerendering](https://preview.nextjs.org/docs/messages/blocking-prerender-dynamic).
+For errors in the page body rather than metadata, see [Next.js encountered uncached data during prerendering](/docs/messages/blocking-prerender-dynamic).
 
 ## Ways to fix this
 
-<FixOption group="cache" href="#cache-the-metadata" title="Cache the metadata">
-  Cache the metadata function so the result is reused and the route stays
-  prerenderable.
-</FixOption>
-
-<FixOption
-  group="dynamic"
-  href="#mark-the-route-as-dynamic"
-  title="Mark the route as dynamic"
->
-  Tell Next.js the page itself has dynamic content, so the dynamic metadata is
-  allowed.
-</FixOption>
+<FixCardGrid>
+  <FixCard
+    group="cache"
+    title="Cache the metadata"
+    href="#cache-the-metadata"
+    snippets={[
+      { text: 'async function generateMetadata() {' },
+      { text: '  "use cache"', highlight: true },
+      { text: '  return await cms.getMeta(…)' },
+    ]}
+  />
+  <FixCard
+    group="dynamic"
+    title="Mark the route as dynamic"
+    href="#mark-the-route-as-dynamic"
+    snippets={[
+      { text: '// page.tsx or layout.tsx' },
+      { text: 'await connection()', highlight: true },
+    ]}
+  />
+</FixCardGrid>
 
 ## Cache the metadata
 
@@ -86,7 +94,7 @@ Learn more: [Caching with `use cache`](https://preview.nextjs.org/docs/app/api-r
 
 #### Tag the metadata for invalidation
 
-When you publish new content and want the metadata to refresh, tag the entry with [`cacheTag`](https://preview.nextjs.org/docs/app/api-reference/functions/cacheTag). Invalidate from a Server Action with [`updateTag`](https://preview.nextjs.org/docs/app/api-reference/functions/updateTag) (read-your-own-writes: the next request waits for fresh data) or from a Route Handler with [`revalidateTag`](https://preview.nextjs.org/docs/app/api-reference/functions/revalidateTag).
+When you publish new content and want the metadata to refresh, tag the entry with [`cacheTag`](https://preview.nextjs.org/docs/app/api-reference/functions/cacheTag). Invalidate from a Server Action with [`updateTag`](/docs/app/api-reference/functions/updateTag) (read-your-own-writes: the next request waits for fresh data) or from a Route Handler with [`revalidateTag`](https://preview.nextjs.org/docs/app/api-reference/functions/revalidateTag).
 
 ```jsx filename="app/blog/[slug]/page.js"
 import { cacheTag } from 'next/cache'
@@ -163,7 +171,7 @@ The metadata and the dynamic marker run on every request, so the route cannot be
 - The `DynamicMarker` must be wrapped in [`<Suspense>`](https://react.dev/reference/react/Suspense). Without the boundary, the dynamic marker propagates up and the entire page is treated as blocking, surfacing the same blocking-route error this fix is meant to address.
 - This pattern is intentionally verbose. If you find yourself adding a dynamic marker, reconsider whether the metadata can be cached instead. Most metadata doesn't need to be per-request.
 - If the page already has a genuinely dynamic component (one that reads [`cookies()`](https://preview.nextjs.org/docs/app/api-reference/functions/cookies) or uncached data inside a [`<Suspense>`](https://react.dev/reference/react/Suspense) boundary), you won't see this error. The page is already partially dynamic.
-- Framework-synthesized routes (`/_not-found`, `/_global-error`) inherit the root layout's `generateMetadata` and must be statically prerendered. The dynamic marker doesn't help here, because these routes don't have a page body where you can place a Suspense'd marker. If your root layout's `generateMetadata` depends on uncached data, [Cache the metadata](#cache-the-metadata) instead, or move to [`global-not-found.js`](https://preview.nextjs.org/docs/app/api-reference/file-conventions/not-found#global-not-foundjs-experimental), which bypasses the root layout entirely and avoids inheriting its `generateMetadata`.
+- Framework-synthesized routes (`/_not-found`, `/_global-error`) inherit the root layout's `generateMetadata` and must be statically prerendered. The dynamic marker doesn't help here, because these routes don't have a page body where you can place a Suspense'd marker. If your root layout's `generateMetadata` depends on uncached data, [Cache the metadata](#cache-the-metadata) instead, or move to [`global-not-found.js`](/docs/app/api-reference/file-conventions/not-found#global-not-foundjs-experimental), which bypasses the root layout entirely and avoids inheriting its `generateMetadata`.
 
 ## Verifying the fix
 
@@ -179,3 +187,20 @@ Instant-navigation validation runs by default in [Cache Components](https://prev
 - **Entire app**: set [`experimental.instantInsights.validationLevel`](https://preview.nextjs.org/docs/app/api-reference/file-conventions/route-segment-config/instant#configuring-validation-defaults) to `'manual-warning'` in `next.config`. This limits validation to segments that explicitly export `instant`.
 
 See [Ensuring instant navigations](https://preview.nextjs.org/docs/app/guides/instant-navigation) for the full model.
+
+## Related Insights
+
+- [Runtime data during prerendering](/docs/messages/blocking-prerender-runtime)
+- [Uncached data during prerendering](/docs/messages/blocking-prerender-dynamic)
+- [URL data in a Client Component outside of Suspense](/docs/messages/blocking-prerender-client-hook)
+- [Runtime data in `generateMetadata()`](/docs/messages/blocking-prerender-metadata-runtime)
+- [Runtime data in `generateViewport()`](/docs/messages/blocking-prerender-viewport-runtime)
+- [Uncached data in `generateViewport()`](/docs/messages/blocking-prerender-viewport-dynamic)
+- [`Math.random()` while prerendering](/docs/messages/blocking-prerender-random)
+- [`Math.random()` in a Client Component](/docs/messages/blocking-prerender-random-client)
+- [`Date.now()` while prerendering](/docs/messages/blocking-prerender-current-time)
+- [`Date.now()` in a Client Component](/docs/messages/blocking-prerender-current-time-client)
+- [Crypto APIs while prerendering](/docs/messages/blocking-prerender-crypto)
+- [Crypto APIs in a Client Component](/docs/messages/blocking-prerender-crypto-client)
+- [Partial Prefetch link with dynamic data](/docs/messages/instant-link-prefetch-partial)
+- [Unrendered segment](/docs/messages/instant-unrendered-segment)

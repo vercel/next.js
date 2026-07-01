@@ -23,29 +23,34 @@ kind: insight
   validates them, then come back here for the specific fix.
 </div>
 
-A [Client Component](https://preview.nextjs.org/docs/app/getting-started/server-and-client-components#using-client-components) called [`Math.random()`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Math/random) inline during render, and the surrounding tree had no [`<Suspense>`](https://react.dev/reference/react/Suspense) boundary. Client Components are server-side rendered on first load, so Next.js can't bake an unpredictable value into the prerendered HTML. The SSR value won't match the value the client computes on hydration, so you need to choose: defer the value behind a [`<Suspense>`](https://react.dev/reference/react/Suspense) boundary so SSR can stream it, or move the call into [`useEffect`](https://react.dev/reference/react/useEffect) (or an event handler) so it only runs on the client.
+A [Client Component](/docs/app/getting-started/server-and-client-components#using-client-components) called [`Math.random()`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Math/random) inline during render, and the surrounding tree had no [`<Suspense>`](https://react.dev/reference/react/Suspense) boundary. Client Components are server-side rendered on first load, so Next.js can't bake an unpredictable value into the prerendered HTML. The SSR value won't match the value the client computes on hydration, so you need to choose: defer the value behind a [`<Suspense>`](https://react.dev/reference/react/Suspense) boundary so SSR can stream it, or move the call into [`useEffect`](https://react.dev/reference/react/useEffect) (or an event handler) so it only runs on the client.
 
-The Server Component case is handled at [`Math.random()` during prerendering](https://preview.nextjs.org/docs/messages/blocking-prerender-random). Other unpredictable client-side APIs ([`Date.now()`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Date/now), [`crypto.randomUUID()`](https://developer.mozilla.org/en-US/docs/Web/API/Crypto/randomUUID)) have parallel error pages: [`Date.now()` in a Client Component](https://preview.nextjs.org/docs/messages/blocking-prerender-current-time-client) and [Crypto APIs in a Client Component](https://preview.nextjs.org/docs/messages/blocking-prerender-crypto-client).
+The Server Component case is handled at [`Math.random()` during prerendering](/docs/messages/blocking-prerender-random). Other unpredictable client-side APIs ([`Date.now()`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Date/now), [`crypto.randomUUID()`](https://developer.mozilla.org/en-US/docs/Web/API/Crypto/randomUUID)) have parallel error pages: [`Date.now()` in a Client Component](/docs/messages/blocking-prerender-current-time-client) and [Crypto APIs in a Client Component](/docs/messages/blocking-prerender-crypto-client).
 
 ## Ways to fix this
 
-<FixOption
-  group="stream"
-  href="#wrap-in-or-move-into-suspense"
-  title="Wrap in or move into Suspense"
->
-  Wrap the component in a Suspense boundary so the shell ships instantly and the
-  random value streams in.
-</FixOption>
-
-<FixOption
-  group="defer"
-  href="#move-into-effect-or-event-handler"
-  title="Move into effect or event handler"
->
-  Defer the random read until after hydration so SSR and the browser agree on
-  the initial render.
-</FixOption>
+<FixCardGrid>
+  <FixCard
+    group="stream"
+    title="Wrap in or move into Suspense"
+    href="#wrap-in-or-move-into-suspense"
+    snippets={[
+      { text: '<Suspense fallback={…}>', highlight: true },
+      { text: '  <RandomId />' },
+      { text: '</Suspense>', highlight: true },
+    ]}
+  />
+  <FixCard
+    group="defer"
+    title="Move into effect or event handler"
+    href="#move-into-effect-or-event-handler"
+    snippets={[
+      { text: '<button onClick={() => {', highlight: true },
+      { text: '  setId(Math.random())' },
+      { text: '}} />' },
+    ]}
+  />
+</FixCardGrid>
 
 ## Wrap in or move into Suspense
 
@@ -89,7 +94,7 @@ The component shows the fallback during SSR and the first paint. For above-the-f
 
 ### Gotchas
 
-- Any UI rendered as part of the prerender shell must be deterministic, including [`<Suspense>`](https://react.dev/reference/react/Suspense) fallbacks, [`loading.js`](https://preview.nextjs.org/docs/app/api-reference/file-conventions/loading), [`error.js`](https://preview.nextjs.org/docs/app/api-reference/file-conventions/error), [`not-found.js`](https://preview.nextjs.org/docs/app/api-reference/file-conventions/not-found), and [`global-error.js`](https://preview.nextjs.org/docs/app/api-reference/file-conventions/error#global-error). Calling [`Math.random()`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Math/random) in any of them raises this same error. Use stable placeholder content.
+- Any UI rendered as part of the prerender shell must be deterministic, including [`<Suspense>`](https://react.dev/reference/react/Suspense) fallbacks, [`loading.js`](https://preview.nextjs.org/docs/app/api-reference/file-conventions/loading), [`error.js`](https://preview.nextjs.org/docs/app/api-reference/file-conventions/error), [`not-found.js`](/docs/app/api-reference/file-conventions/not-found), and [`global-error.js`](https://preview.nextjs.org/docs/app/api-reference/file-conventions/error#global-error). Calling [`Math.random()`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Math/random) in any of them raises this same error. Use stable placeholder content.
 - The inner Client Component still runs during SSR, behind the boundary. If you need to guarantee the random value only runs in the browser, use [Move into effect or event handler](#move-into-effect-or-event-handler) instead.
 - A [`<Suspense>`](https://react.dev/reference/react/Suspense) boundary only fixes the prerender/hydration mismatch, not client re-renders. If the component using [`Math.random()`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Math/random) re-renders on the client (a parent state change, a context update), it produces a new value each time. To stabilize the value across re-renders, call [`Math.random()`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Math/random) once in a [`useState`](https://react.dev/reference/react/useState) initializer or [`useRef`](https://react.dev/reference/react/useRef), or compute it on the server and pass it down as a prop.
 
@@ -228,3 +233,20 @@ In [`next dev`](https://preview.nextjs.org/docs/app/api-reference/cli/next#next-
 ## Why `instant = false` doesn't clear this error
 
 This error fires from the prerender, not from instant-navigation validation. `Math.random()` returns a different value on every render, so the prerender can't bake it into a static shell regardless of the segment's `instant` config or [`experimental.instantInsights.validationLevel`](https://preview.nextjs.org/docs/app/api-reference/file-conventions/route-segment-config/instant#configuring-validation-defaults). Use one of the fixes above.
+
+## Related Insights
+
+- [Runtime data during prerendering](/docs/messages/blocking-prerender-runtime)
+- [Uncached data during prerendering](/docs/messages/blocking-prerender-dynamic)
+- [URL data in a Client Component outside of Suspense](/docs/messages/blocking-prerender-client-hook)
+- [Runtime data in `generateMetadata()`](/docs/messages/blocking-prerender-metadata-runtime)
+- [Uncached data in `generateMetadata()`](/docs/messages/blocking-prerender-metadata-dynamic)
+- [Runtime data in `generateViewport()`](/docs/messages/blocking-prerender-viewport-runtime)
+- [Uncached data in `generateViewport()`](/docs/messages/blocking-prerender-viewport-dynamic)
+- [`Math.random()` while prerendering](/docs/messages/blocking-prerender-random)
+- [`Date.now()` while prerendering](/docs/messages/blocking-prerender-current-time)
+- [`Date.now()` in a Client Component](/docs/messages/blocking-prerender-current-time-client)
+- [Crypto APIs while prerendering](/docs/messages/blocking-prerender-crypto)
+- [Crypto APIs in a Client Component](/docs/messages/blocking-prerender-crypto-client)
+- [Partial Prefetch link with dynamic data](/docs/messages/instant-link-prefetch-partial)
+- [Unrendered segment](/docs/messages/instant-unrendered-segment)

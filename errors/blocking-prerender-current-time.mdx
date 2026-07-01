@@ -25,45 +25,52 @@ kind: insight
 
 During [prerendering](https://preview.nextjs.org/docs/app/glossary#prerendering), a Server Component called [`Date.now()`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Date/now), [`Date()`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Date), or [`new Date()`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Date) outside of [`<Suspense>`](https://react.dev/reference/react/Suspense). With [Cache Components](https://preview.nextjs.org/docs/app/api-reference/config/next-config-js/cacheComponents) enabled, Next.js can't bake "now" into the prerendered HTML. The timestamp at build time will be stale at runtime, so you need to choose: cache the value (treat it as "now-ish" with a tolerated drift), defer the read behind a [`<Suspense>`](https://react.dev/reference/react/Suspense) boundary so it runs per-request, or move it to the client.
 
-Other unpredictable APIs ([`Math.random()`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Math/random), [`crypto.randomUUID()`](https://developer.mozilla.org/en-US/docs/Web/API/Crypto/randomUUID)) have parallel error pages: see [`Math.random()`](https://preview.nextjs.org/docs/messages/blocking-prerender-random) and [crypto APIs](https://preview.nextjs.org/docs/messages/blocking-prerender-crypto). The Client Component case is handled at [`Date.now()` in a Client Component](https://preview.nextjs.org/docs/messages/blocking-prerender-current-time-client).
+Other unpredictable APIs ([`Math.random()`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Math/random), [`crypto.randomUUID()`](https://developer.mozilla.org/en-US/docs/Web/API/Crypto/randomUUID)) have parallel error pages: see [`Math.random()`](/docs/messages/blocking-prerender-random) and [crypto APIs](/docs/messages/blocking-prerender-crypto). The Client Component case is handled at [`Date.now()` in a Client Component](/docs/messages/blocking-prerender-current-time-client).
 
 ## Ways to fix this
 
-<FixOption
-  group="dynamic"
-  href="#generate-on-every-request"
-  title="Generate on every request"
->
-  Mark the component as request-time so the timestamp is recomputed each time
-  the user visits.
-</FixOption>
-
-<FixOption
-  group="cache"
-  href="#cache-the-timestamp"
-  title="Cache the timestamp"
->
-  Capture one timestamp per cache window and reuse it. The route stays
-  prerendered.
-</FixOption>
-
-<FixOption
-  group="client"
-  href="#render-on-the-client"
-  title="Render on the client"
->
-  Move the call into a Client Component. The browser produces the timestamp on
-  every visit.
-</FixOption>
-
-<FixOption
-  group="measure"
-  href="#for-telemetry-use-a-timing-api"
-  title="For telemetry, use a timing API"
->
-  When the timestamp is only used for measuring durations, switch to
-  performance.now().
-</FixOption>
+<FixCardGrid>
+  <FixCard
+    group="dynamic"
+    title="Generate on every request"
+    href="#generate-on-every-request"
+    snippets={[
+      { text: 'await connection()', highlight: true },
+      { text: 'const t = Date.now()' },
+      { text: 'return <Banner time={t} />' },
+    ]}
+  />
+  <FixCard
+    group="cache"
+    title="Cache the timestamp"
+    href="#cache-the-timestamp"
+    snippets={[
+      { text: 'function Timestamp() {' },
+      { text: '  "use cache"', highlight: true },
+      { text: '  return <time>{Date.now()}</time>' },
+    ]}
+  />
+  <FixCard
+    group="client"
+    title="Render on the client"
+    href="#render-on-the-client"
+    snippets={[
+      { text: '"use client"', highlight: true },
+      { text: '// runs in the browser' },
+      { text: 'const t = Date.now()' },
+    ]}
+  />
+  <FixCard
+    group="measure"
+    title="For telemetry, use a timing API"
+    href="#for-telemetry-use-a-timing-api"
+    snippets={[
+      { text: 'const start = performance.now()', highlight: true },
+      { text: 'doWork()' },
+      { text: 'const ms = performance.now() - start' },
+    ]}
+  />
+</FixCardGrid>
 
 ## Generate on every request
 
@@ -122,7 +129,7 @@ The route renders on every request. The shell still ships instantly because of t
 
 ### Gotchas
 
-- Any UI rendered as part of the prerender shell must be deterministic. That includes [`<Suspense>`](https://react.dev/reference/react/Suspense) fallbacks, [`loading.js`](https://preview.nextjs.org/docs/app/api-reference/file-conventions/loading), [`error.js`](https://preview.nextjs.org/docs/app/api-reference/file-conventions/error), [`not-found.js`](https://preview.nextjs.org/docs/app/api-reference/file-conventions/not-found), and [`global-error.js`](https://preview.nextjs.org/docs/app/api-reference/file-conventions/error#global-error). Calling [`Date.now()`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Date/now) in any of them raises this same error.
+- Any UI rendered as part of the prerender shell must be deterministic. That includes [`<Suspense>`](https://react.dev/reference/react/Suspense) fallbacks, [`loading.js`](https://preview.nextjs.org/docs/app/api-reference/file-conventions/loading), [`error.js`](https://preview.nextjs.org/docs/app/api-reference/file-conventions/error), [`not-found.js`](/docs/app/api-reference/file-conventions/not-found), and [`global-error.js`](https://preview.nextjs.org/docs/app/api-reference/file-conventions/error#global-error). Calling [`Date.now()`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Date/now) in any of them raises this same error.
 - If you're showing a relative time ("3 minutes ago"), the relative formatting belongs on the client so it can update without a re-render. See [Render on the client](#render-on-the-client).
 
 ## Cache the timestamp
@@ -222,13 +229,13 @@ To keep the page prerendered, use a profile with a longer revalidate window such
 
 ## Render on the client
 
-Choose this fix when the timestamp belongs to the user's local clock or needs to update while they're on the page. A relative time label that ticks ("3 seconds ago"), a localized time display, a stopwatch. Move the component into a [Client Component](https://preview.nextjs.org/docs/app/getting-started/server-and-client-components) so the value is produced after hydration.
+Choose this fix when the timestamp belongs to the user's local clock or needs to update while they're on the page. A relative time label that ticks ("3 seconds ago"), a localized time display, a stopwatch. Move the component into a [Client Component](/docs/app/getting-started/server-and-client-components) so the value is produced after hydration.
 
 ### Patterns
 
 #### Move the component to the client
 
-Add [`use client`](https://preview.nextjs.org/docs/app/api-reference/directives/use-client) and compute the timestamp inside the component.
+Add [`use client`](/docs/app/api-reference/directives/use-client) and compute the timestamp inside the component.
 
 ```jsx filename="app/now.js"
 'use client'
@@ -255,7 +262,7 @@ export function Now() {
 }
 ```
 
-Learn more: [Client Components](https://preview.nextjs.org/docs/app/getting-started/server-and-client-components#using-client-components).
+Learn more: [Client Components](/docs/app/getting-started/server-and-client-components#using-client-components).
 
 ### Trade-off
 
@@ -263,7 +270,7 @@ The first paint shows the SSR fallback (often `null` or an em-dash), and the tim
 
 ### Gotchas
 
-- A Client Component that calls [`Date.now()`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Date/now) inline during render still trips this error during SSR. See the dedicated [`Date.now()` in a Client Component](https://preview.nextjs.org/docs/messages/blocking-prerender-current-time-client) page for the [`<Suspense>`](https://react.dev/reference/react/Suspense) and effect-based recipes.
+- A Client Component that calls [`Date.now()`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Date/now) inline during render still trips this error during SSR. See the dedicated [`Date.now()` in a Client Component](/docs/messages/blocking-prerender-current-time-client) page for the [`<Suspense>`](https://react.dev/reference/react/Suspense) and effect-based recipes.
 
 ## For telemetry, use a timing API
 
@@ -306,3 +313,20 @@ In [`next dev`](https://preview.nextjs.org/docs/app/api-reference/cli/next#next-
 ## Why `instant = false` doesn't clear this error
 
 This error fires from the prerender, not from instant-navigation validation. `new Date()` and `Date.now()` return a different value on every render, so the prerender can't bake them into a static shell regardless of the segment's `instant` config or [`experimental.instantInsights.validationLevel`](https://preview.nextjs.org/docs/app/api-reference/file-conventions/route-segment-config/instant#configuring-validation-defaults). Use one of the fixes above.
+
+## Related Insights
+
+- [Runtime data during prerendering](/docs/messages/blocking-prerender-runtime)
+- [Uncached data during prerendering](/docs/messages/blocking-prerender-dynamic)
+- [URL data in a Client Component outside of Suspense](/docs/messages/blocking-prerender-client-hook)
+- [Runtime data in `generateMetadata()`](/docs/messages/blocking-prerender-metadata-runtime)
+- [Uncached data in `generateMetadata()`](/docs/messages/blocking-prerender-metadata-dynamic)
+- [Runtime data in `generateViewport()`](/docs/messages/blocking-prerender-viewport-runtime)
+- [Uncached data in `generateViewport()`](/docs/messages/blocking-prerender-viewport-dynamic)
+- [`Math.random()` while prerendering](/docs/messages/blocking-prerender-random)
+- [`Math.random()` in a Client Component](/docs/messages/blocking-prerender-random-client)
+- [`Date.now()` in a Client Component](/docs/messages/blocking-prerender-current-time-client)
+- [Crypto APIs while prerendering](/docs/messages/blocking-prerender-crypto)
+- [Crypto APIs in a Client Component](/docs/messages/blocking-prerender-crypto-client)
+- [Partial Prefetch link with dynamic data](/docs/messages/instant-link-prefetch-partial)
+- [Unrendered segment](/docs/messages/instant-unrendered-segment)

@@ -29,32 +29,36 @@ Routes that opt into Partial Prefetching skip the dynamic data at prefetch time,
 
 ## Ways to fix this
 
-<FixOption
-  group="upgrade"
-  href="#opt-into-partial-prefetching"
-  title="Opt into Partial Prefetching"
->
-  Adopt Partial Prefetching for the target route so the link prefetches only the
-  App Shell. After adopting, layer on further prefetch optimizations.
-</FixOption>
-
-<FixOption
-  group="disable"
-  href="#use-the-default-prefetch"
-  title="Use the default prefetch"
->
-  Drop the prefetch prop from the link so it falls back to the default prefetch
-  behavior, which does not include dynamic data.
-</FixOption>
-
-<FixOption
-  group="ignore"
-  href="#disable-validation-on-this-route"
-  title="Disable validation on this route"
->
-  Opt the target route out of instant-navigation validation and keep the legacy
-  full prefetch.
-</FixOption>
+<FixCardGrid>
+  <FixCard
+    group="upgrade"
+    title="Opt into Partial Prefetching"
+    href="#opt-into-partial-prefetching"
+    snippets={[
+      { text: '// page.tsx or layout.tsx' },
+      { text: "export const prefetch = 'partial'", highlight: true },
+    ]}
+  />
+  <FixCard
+    group="disable"
+    title="Use the default prefetch"
+    href="#use-the-default-prefetch"
+    snippets={[
+      { text: '<Link href="/dashboard">', highlight: true },
+      { text: '  Dashboard' },
+      { text: '</Link>' },
+    ]}
+  />
+  <FixCard
+    group="ignore"
+    title="Disable validation on this route"
+    href="#disable-validation-on-this-route"
+    snippets={[
+      { text: '// page.tsx or layout.tsx' },
+      { text: 'export const instant = false', highlight: true },
+    ]}
+  />
+</FixCardGrid>
 
 ## Opt into Partial Prefetching
 
@@ -148,7 +152,7 @@ The link continues to do a full prefetch, including dynamic data, and the warnin
 
 ### Gotchas
 
-- `instant = false` disables all instant-navigation checks for the route, not only this one. [Blocking-route](https://preview.nextjs.org/docs/messages/blocking-prerender-runtime) and [unrendered-segment](https://preview.nextjs.org/docs/messages/instant-unrendered-segment) warnings, and other Insights for the route are silenced too.
+- `instant = false` disables all instant-navigation checks for the route, not only this one. [Blocking-route](/docs/messages/blocking-prerender-runtime) and [unrendered-segment](/docs/messages/instant-unrendered-segment) warnings, and other Insights for the route are silenced too.
 
 ## Verifying the fix
 
@@ -164,3 +168,20 @@ Instant-navigation validation runs by default in [Cache Components](https://prev
 - **Entire app**: set [`experimental.instantInsights.validationLevel`](https://preview.nextjs.org/docs/app/api-reference/file-conventions/route-segment-config/instant#configuring-validation-defaults) to `'manual-warning'` in `next.config`. This limits validation to segments that explicitly export `instant`.
 
 See [Ensuring instant navigations](https://preview.nextjs.org/docs/app/guides/instant-navigation) for the full model.
+
+## Related Insights
+
+- [Runtime data during prerendering](/docs/messages/blocking-prerender-runtime)
+- [Uncached data during prerendering](/docs/messages/blocking-prerender-dynamic)
+- [URL data in a Client Component outside of Suspense](/docs/messages/blocking-prerender-client-hook)
+- [Runtime data in `generateMetadata()`](/docs/messages/blocking-prerender-metadata-runtime)
+- [Uncached data in `generateMetadata()`](/docs/messages/blocking-prerender-metadata-dynamic)
+- [Runtime data in `generateViewport()`](/docs/messages/blocking-prerender-viewport-runtime)
+- [Uncached data in `generateViewport()`](/docs/messages/blocking-prerender-viewport-dynamic)
+- [`Math.random()` while prerendering](/docs/messages/blocking-prerender-random)
+- [`Math.random()` in a Client Component](/docs/messages/blocking-prerender-random-client)
+- [`Date.now()` while prerendering](/docs/messages/blocking-prerender-current-time)
+- [`Date.now()` in a Client Component](/docs/messages/blocking-prerender-current-time-client)
+- [Crypto APIs while prerendering](/docs/messages/blocking-prerender-crypto)
+- [Crypto APIs in a Client Component](/docs/messages/blocking-prerender-crypto-client)
+- [Unrendered segment](/docs/messages/instant-unrendered-segment)

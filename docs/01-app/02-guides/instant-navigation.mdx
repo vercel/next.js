@@ -177,7 +177,6 @@ Cache Components validates this route automatically in development. If something
       { text: 'async function Posts() {' },
       { text: '  "use cache"', highlight: true },
       { text: '  return <List items={…} />' },
-      { text: '}' },
     ]}
   />
   <FixCard
@@ -192,7 +191,7 @@ Cache Components validates this route automatically in development. If something
   />
 </FixCardGrid>
 
-> **Good to know:** Each fix card links to a detailed walkthrough with patterns, code samples, and trade-offs. Click a card to dive in.
+> **Good to know:** Each fix card links to a detailed walkthrough with patterns, code samples, and trade-offs. Click a card to dive in, or use **Copy prompt** to hand the fix to your agent. See [AI workflow](#ai-workflow) for the loop.
 
 Validation runs on every page load using the real request from your browser, so dynamic params like `[slug]` are checked against actual values as you navigate.
 
