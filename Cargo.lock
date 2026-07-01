@@ -1248,7 +1248,7 @@ checksum = "0b023947811758c97c59bf9d1c188fd619ad4718dcaa767947df1cadb14f39f4"
 dependencies = [
  "glob",
  "libc",
- "libloading",
+ "libloading 0.8.1",
 ]
 
 [[package]]
@@ -1537,6 +1537,15 @@ name = "convert_case"
 version = "0.6.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ec182b0ca2f35d8fc196cf3404988fd8b8c739a4d270ff118a398feb0cbec1ca"
+dependencies = [
+ "unicode-segmentation",
+]
+
+[[package]]
+name = "convert_case"
+version = "0.11.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "affbf0190ed2caf063e3def54ff444b449371d55c58e513a95ab98eca50adb49"
 dependencies = [
  "unicode-segmentation",
 ]
@@ -1990,16 +1999,6 @@ name = "cssparser-macros"
 version = "0.6.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "13b588ba4ac1a99f7f2964d24b3d896ddc6bf847ee3855dbd4366f058cfcd331"
-dependencies = [
- "quote",
- "syn 2.0.104",
-]
-
-[[package]]
-name = "ctor"
-version = "0.2.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "dd4056f63fce3b82d852c3da92b08ea59959890813a7f4ce9c0ff85b10cf301b"
 dependencies = [
  "quote",
  "syn 2.0.104",
@@ -4270,6 +4269,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "libloading"
+version = "0.9.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "754ca22de805bb5744484a5b151a9e1a8e837d5dc232c2d7d8c2e3492edc8b60"
+dependencies = [
+ "cfg-if",
+ "windows-link 0.2.1",
+]
+
+[[package]]
 name = "libm"
 version = "0.2.16"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4338,27 +4347,10 @@ version = "1.0.0-alpha.43"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "84c12744d1279367caed41739ef094c325d53fb0ffcd4f9b84a368796f870252"
 dependencies = [
- "convert_case",
+ "convert_case 0.6.0",
  "proc-macro2",
  "quote",
  "syn 1.0.109",
-]
-
-[[package]]
-name = "lightningcss-napi"
-version = "0.4.6"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f92fa166487749530838b46903116f90b4aad0edd3d829d2a4164a9f3edf6866"
-dependencies = [
- "cssparser",
- "lightningcss",
- "napi",
- "parcel_sourcemap",
- "serde",
- "serde-content",
- "serde-detach",
- "serde_bytes",
- "smallvec",
 ]
 
 [[package]]
@@ -4391,7 +4383,7 @@ version = "0.17.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "24c0237789ca078da896c7e98f9f885790fa66c3214d5977a22718a261e1b74e"
 dependencies = [
- "ctor 1.0.7",
+ "ctor",
  "dtor",
  "link-section",
 ]
@@ -4752,7 +4744,7 @@ version = "12.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c35fe8cde072a5561c7cbe48b011b91694451a6f65a86f824624601dc119823d"
 dependencies = [
- "convert_case",
+ "convert_case 0.6.0",
  "handlebars",
  "once_cell",
  "regex",
@@ -4802,16 +4794,18 @@ dependencies = [
 
 [[package]]
 name = "napi"
-version = "2.16.13"
+version = "3.10.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "214f07a80874bb96a8433b3cdfc84980d56c7b02e1a0d7ba4ba0db5cef785e2b"
+checksum = "abd366ba6a12e4bdbc360e1ad4e1f01da40c4395eef1f9e872d88f8b135e8048"
 dependencies = [
  "anyhow",
  "bitflags 2.9.1",
- "ctor 0.2.0",
- "napi-derive",
+ "ctor",
+ "futures",
+ "napi-build",
  "napi-sys",
- "once_cell",
+ "nohash-hasher",
+ "rustc-hash 2.1.1",
  "serde",
  "serde_json",
  "tokio",
@@ -4819,18 +4813,18 @@ dependencies = [
 
 [[package]]
 name = "napi-build"
-version = "2.1.3"
+version = "2.3.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e1c0f5d67ee408a4685b61f5ab7e58605c8ae3f2b4189f0127d804ff13d5560a"
+checksum = "c9c366d2c8c60b86fa632df75f745509b52f9128f91a6bad4c796e44abb505e1"
 
 [[package]]
 name = "napi-derive"
-version = "2.16.13"
+version = "3.5.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7cbe2585d8ac223f7d34f13701434b9d5f4eb9c332cccce8dee57ea18ab8ab0c"
+checksum = "6730ee4e7b335eac6d7cf10fc2525d92743bd4713a13cb2e6667f0e97322d7c3"
 dependencies = [
- "cfg-if",
- "convert_case",
+ "convert_case 0.11.0",
+ "ctor",
  "napi-derive-backend",
  "proc-macro2",
  "quote",
@@ -4839,26 +4833,24 @@ dependencies = [
 
 [[package]]
 name = "napi-derive-backend"
-version = "1.0.75"
+version = "5.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1639aaa9eeb76e91c6ae66da8ce3e89e921cd3885e99ec85f4abacae72fc91bf"
+checksum = "db5ccc18b1b16d1049dcbd3e1a21fdfbf3ce720b8944979c5e1a76d4e30d9f9f"
 dependencies = [
- "convert_case",
- "once_cell",
+ "convert_case 0.11.0",
  "proc-macro2",
  "quote",
- "regex",
  "semver",
  "syn 2.0.104",
 ]
 
 [[package]]
 name = "napi-sys"
-version = "2.4.0"
+version = "3.2.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "427802e8ec3a734331fec1035594a210ce1ff4dc5bc1950530920ab717964ea3"
+checksum = "1f5bcdf71abd3a50d00b49c1c2c75251cb3c913777d6139cd37dabc093a5e400"
 dependencies = [
- "libloading",
+ "libloading 0.9.0",
 ]
 
 [[package]]
@@ -5102,7 +5094,6 @@ dependencies = [
  "getrandom 0.2.15",
  "iana-time-zone",
  "lightningcss",
- "lightningcss-napi",
  "mdxjs",
  "napi",
  "napi-build",
@@ -5136,6 +5127,7 @@ dependencies = [
  "turbo-unix-path",
  "turbopack-core",
  "turbopack-ecmascript-hmr-protocol",
+ "turbopack-lightningcss-napi",
  "turbopack-node",
  "turbopack-trace-server",
  "turbopack-trace-utils",
@@ -6997,7 +6989,7 @@ version = "0.10.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "60c604f8b89c9d0cdf7f040cb9f50e83a81306ee6149b72682d59e76fafd4e5e"
 dependencies = [
- "ctor 1.0.7",
+ "ctor",
  "link-section",
  "linktime",
  "linktime-proc-macro",
@@ -10266,7 +10258,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "bincode 2.0.1",
- "ctor 1.0.7",
+ "ctor",
  "serde",
  "tokio",
  "trybuild",
@@ -10735,6 +10727,21 @@ dependencies = [
  "turbo-tasks",
  "turbo-tasks-fs",
  "turbopack-core",
+]
+
+[[package]]
+name = "turbopack-lightningcss-napi"
+version = "0.0.0"
+dependencies = [
+ "cssparser",
+ "lightningcss",
+ "napi",
+ "parcel_sourcemap",
+ "serde",
+ "serde-content",
+ "serde-detach",
+ "serde_bytes",
+ "smallvec",
 ]
 
 [[package]]
