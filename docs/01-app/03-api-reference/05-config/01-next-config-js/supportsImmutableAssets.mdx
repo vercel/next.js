@@ -1,12 +1,12 @@
 ---
 title: supportsImmutableAssets
-description: Enable Immutable Static Assets support
+description: Configure support for immutable static assets
 ---
 
-> **Attention**: This flag is mostly relevant for adapter authors.
-> Users of Next.js should only set this flag if they are encountering issues with their adapter.
+> **Attention**: This option is primarily intended for [adapter](/docs/app/api-reference/adapters) authors.
+> App developers should only set it when troubleshooting adapter-specific issues.
 >
-> **Enabling this feature even though your provider/adapter does not support it may result in broken deployments.**
+> **Enabling this feature when your provider or adapter does not support it can result in broken deployments.**
 
 Enabling skew protection means that all static assets are requested with a deployment-specific query parameter, e.g.
 
@@ -37,6 +37,6 @@ See [Supporting immutable static assets](/docs/app/api-reference/adapters/immuta
 
 ## Version History
 
-| Version   | Changes                                                |
-| --------- | ------------------------------------------------------ |
-| `v16.3.0` | Support for immutable static assets feature was added. |
+| Version   | Changes                                    |
+| --------- | ------------------------------------------ |
+| `v16.3.0` | Added support for immutable static assets. |
