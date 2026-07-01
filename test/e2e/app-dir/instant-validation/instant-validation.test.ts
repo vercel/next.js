@@ -629,15 +629,15 @@ describe('instant validation', () => {
 
         expect(extractBuildValidationError(result.cliOutput))
           .toMatchInlineSnapshot(`
-         "Error: Route "/suspense-in-root/runtime/invalid-no-suspense-around-params/[param]": Next.js encountered link data during prerendering or a navigation.
+         "Error: Route "/suspense-in-root/runtime/invalid-no-suspense-around-params/[param]": Next.js encountered URL data during prefetching.
 
-         \`params\` or \`searchParams\` accessed outside of \`<Suspense>\` prevents the navigation from being instant, leading to a slower user experience.
+         \`params\` or \`searchParams\` accessed outside of \`<Suspense>\` ties this route's prefetch to a single URL, so it can't be shared across links, leading to slower, more expensive prefetches.
 
          Ways to fix this:
-           - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-             https://nextjs.org/docs/messages/blocking-prerender-runtime#wrap-in-or-move-into-suspense
-           - [block] Set \`export const instant = false\` to silence this warning and allow a blocking route
-             https://nextjs.org/docs/messages/blocking-prerender-runtime#allow-blocking-route
+           - [stream] Wrap the \`params\`/\`searchParams\` read in \`<Suspense fallback={...}>\` so the route's prefetch stays shared across links
+             https://nextjs.org/docs/messages/instant-shell-link-data#wrap-in-or-move-into-suspense
+           - [ignore] Set \`export const instant = false\` to opt the route out of instant-navigation validation
+             https://nextjs.org/docs/messages/instant-shell-link-data#disable-validation-on-this-route
              at div (<anonymous>)
              at main (<anonymous>)
              at body (<anonymous>)
@@ -720,9 +720,9 @@ describe('instant validation', () => {
         if (partialPrefetching) {
           expect(extractBuildValidationError(result.cliOutput))
             .toMatchInlineSnapshot(`
-           "Error: Route "/suspense-in-root/static/missing-suspense-around-search-params": Next.js encountered link data during prerendering or a navigation.
+           "Error: Route "/suspense-in-root/static/missing-suspense-around-search-params": Next.js encountered runtime data during prerendering or a navigation.
 
-           \`params\` or \`searchParams\` accessed outside of \`<Suspense>\` prevents the navigation from being instant, leading to a slower user experience.
+           \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` accessed outside of \`<Suspense>\` prevents the route from being prerendered or the navigation from being instant, leading to a slower user experience.
 
            Ways to fix this:
              - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
@@ -843,15 +843,15 @@ describe('instant validation', () => {
         )
         expect(extractBuildValidationError(result.cliOutput))
           .toMatchInlineSnapshot(`
-         "Error: Route "/suspense-in-root/runtime/invalid-no-suspense-around-search-params": Next.js encountered link data during prerendering or a navigation.
+         "Error: Route "/suspense-in-root/runtime/invalid-no-suspense-around-search-params": Next.js encountered URL data during prefetching.
 
-         \`params\` or \`searchParams\` accessed outside of \`<Suspense>\` prevents the navigation from being instant, leading to a slower user experience.
+         \`params\` or \`searchParams\` accessed outside of \`<Suspense>\` ties this route's prefetch to a single URL, so it can't be shared across links, leading to slower, more expensive prefetches.
 
          Ways to fix this:
-           - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-             https://nextjs.org/docs/messages/blocking-prerender-runtime#wrap-in-or-move-into-suspense
-           - [block] Set \`export const instant = false\` to silence this warning and allow a blocking route
-             https://nextjs.org/docs/messages/blocking-prerender-runtime#allow-blocking-route
+           - [stream] Wrap the \`params\`/\`searchParams\` read in \`<Suspense fallback={...}>\` so the route's prefetch stays shared across links
+             https://nextjs.org/docs/messages/instant-shell-link-data#wrap-in-or-move-into-suspense
+           - [ignore] Set \`export const instant = false\` to opt the route out of instant-navigation validation
+             https://nextjs.org/docs/messages/instant-shell-link-data#disable-validation-on-this-route
              at div (<anonymous>)
              at main (<anonymous>)
              at body (<anonymous>)
@@ -2673,21 +2673,21 @@ describe('instant validation', () => {
           )
           expect(extractBuildValidationError(result.cliOutput))
             .toMatchInlineSnapshot(`
-            "Error: Route "/suspense-in-root/head/invalid-runtime-viewport-in-static": Next.js encountered link data in \`generateViewport()\`.
+           "Error: Route "/suspense-in-root/head/invalid-runtime-viewport-in-static": Next.js encountered URL data in \`generateViewport()\`.
 
-            \`params\`, or \`searchParams\` in \`generateViewport()\` prevents the page from being prerendered, leading to a slower user experience.
+           \`params\` or \`searchParams\` in \`generateViewport()\` prevents the page from being prerendered, leading to a slower user experience.
 
-            Ways to fix this:
-              - [static] Use a static viewport export instead of \`generateViewport()\`
-                https://nextjs.org/docs/messages/blocking-prerender-viewport-runtime#use-static-viewport
-              - [block] Set \`export const instant = false\` to silence this warning and allow a blocking route
-                https://nextjs.org/docs/messages/blocking-prerender-viewport-runtime#allow-blocking-route
-                at ignore-listed frames
-            Build-time instant validation failed for route "/suspense-in-root/head/invalid-runtime-viewport-in-static".
-            To get a more detailed stack trace and pinpoint the issue, try one of the following:
-              - Start the app in development mode by running \`next dev\`, then open "/suspense-in-root/head/invalid-runtime-viewport-in-static" in your browser to investigate the error.
-              - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
-            Stopping prerender due to instant validation errors."
+           Ways to fix this:
+             - [static] Use a static viewport export instead of \`generateViewport()\`
+               https://nextjs.org/docs/messages/blocking-prerender-viewport-runtime#use-static-viewport
+             - [block] Set \`export const instant = false\` to silence this warning and allow a blocking route
+               https://nextjs.org/docs/messages/blocking-prerender-viewport-runtime#allow-blocking-route
+               at ignore-listed frames
+           Build-time instant validation failed for route "/suspense-in-root/head/invalid-runtime-viewport-in-static".
+           To get a more detailed stack trace and pinpoint the issue, try one of the following:
+             - Start the app in development mode by running \`next dev\`, then open "/suspense-in-root/head/invalid-runtime-viewport-in-static" in your browser to investigate the error.
+             - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
+           Stopping prerender due to instant validation errors."
           `)
           expect(result.exitCode).toBe(1)
         }
@@ -4202,15 +4202,15 @@ describe('instant validation', () => {
 
             expect(extractBuildValidationError(result.cliOutput))
               .toMatchInlineSnapshot(`
-             "Error: Route "/shells/invalid-runtime-params/[slug]": Next.js encountered link data during prerendering or a navigation.
+             "Error: Route "/shells/invalid-runtime-params/[slug]": Next.js encountered URL data during prefetching.
 
-             \`params\` or \`searchParams\` accessed outside of \`<Suspense>\` prevents the navigation from being instant, leading to a slower user experience.
+             \`params\` or \`searchParams\` accessed outside of \`<Suspense>\` ties this route's prefetch to a single URL, so it can't be shared across links, leading to slower, more expensive prefetches.
 
              Ways to fix this:
-               - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-                 https://nextjs.org/docs/messages/blocking-prerender-runtime#wrap-in-or-move-into-suspense
-               - [block] Set \`export const instant = false\` to silence this warning and allow a blocking route
-                 https://nextjs.org/docs/messages/blocking-prerender-runtime#allow-blocking-route
+               - [stream] Wrap the \`params\`/\`searchParams\` read in \`<Suspense fallback={...}>\` so the route's prefetch stays shared across links
+                 https://nextjs.org/docs/messages/instant-shell-link-data#wrap-in-or-move-into-suspense
+               - [ignore] Set \`export const instant = false\` to opt the route out of instant-navigation validation
+                 https://nextjs.org/docs/messages/instant-shell-link-data#disable-validation-on-this-route
                  at main (<anonymous>)
                  at body (<anonymous>)
                  at html (<anonymous>)
@@ -4303,24 +4303,24 @@ describe('instant validation', () => {
             )
             expect(extractBuildValidationError(result.cliOutput))
               .toMatchInlineSnapshot(`
-                  "Error: Route "/shells/invalid-runtime-searchparams": Next.js encountered link data during prerendering or a navigation.
+             "Error: Route "/shells/invalid-runtime-searchparams": Next.js encountered URL data during prefetching.
 
-                  \`params\` or \`searchParams\` accessed outside of \`<Suspense>\` prevents the navigation from being instant, leading to a slower user experience.
+             \`params\` or \`searchParams\` accessed outside of \`<Suspense>\` ties this route's prefetch to a single URL, so it can't be shared across links, leading to slower, more expensive prefetches.
 
-                  Ways to fix this:
-                    - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-                      https://nextjs.org/docs/messages/blocking-prerender-runtime#wrap-in-or-move-into-suspense
-                    - [block] Set \`export const instant = false\` to silence this warning and allow a blocking route
-                      https://nextjs.org/docs/messages/blocking-prerender-runtime#allow-blocking-route
-                      at main (<anonymous>)
-                      at body (<anonymous>)
-                      at html (<anonymous>)
-                  Build-time instant validation failed for route "/shells/invalid-runtime-searchparams".
-                  To get a more detailed stack trace and pinpoint the issue, try one of the following:
-                    - Start the app in development mode by running \`next dev\`, then open "/shells/invalid-runtime-searchparams" in your browser to investigate the error.
-                    - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
-                  Stopping prerender due to instant validation errors."
-                `)
+             Ways to fix this:
+               - [stream] Wrap the \`params\`/\`searchParams\` read in \`<Suspense fallback={...}>\` so the route's prefetch stays shared across links
+                 https://nextjs.org/docs/messages/instant-shell-link-data#wrap-in-or-move-into-suspense
+               - [ignore] Set \`export const instant = false\` to opt the route out of instant-navigation validation
+                 https://nextjs.org/docs/messages/instant-shell-link-data#disable-validation-on-this-route
+                 at main (<anonymous>)
+                 at body (<anonymous>)
+                 at html (<anonymous>)
+             Build-time instant validation failed for route "/shells/invalid-runtime-searchparams".
+             To get a more detailed stack trace and pinpoint the issue, try one of the following:
+               - Start the app in development mode by running \`next dev\`, then open "/shells/invalid-runtime-searchparams" in your browser to investigate the error.
+               - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
+             Stopping prerender due to instant validation errors."
+            `)
             expect(result.exitCode).toBe(1)
           }
         })
@@ -4417,24 +4417,24 @@ describe('instant validation', () => {
             )
             expect(extractBuildValidationError(result.cliOutput))
               .toMatchInlineSnapshot(`
-                  "Error: Route "/shells/invalid-static-with-gsp/[slug]": Next.js encountered link data during prerendering or a navigation.
+             "Error: Route "/shells/invalid-static-with-gsp/[slug]": Next.js encountered URL data during prefetching.
 
-                  \`params\` or \`searchParams\` accessed outside of \`<Suspense>\` prevents the navigation from being instant, leading to a slower user experience.
+             \`params\` or \`searchParams\` accessed outside of \`<Suspense>\` ties this route's prefetch to a single URL, so it can't be shared across links, leading to slower, more expensive prefetches.
 
-                  Ways to fix this:
-                    - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-                      https://nextjs.org/docs/messages/blocking-prerender-runtime#wrap-in-or-move-into-suspense
-                    - [block] Set \`export const instant = false\` to silence this warning and allow a blocking route
-                      https://nextjs.org/docs/messages/blocking-prerender-runtime#allow-blocking-route
-                      at main (<anonymous>)
-                      at body (<anonymous>)
-                      at html (<anonymous>)
-                  Build-time instant validation failed for route "/shells/invalid-static-with-gsp/[slug]".
-                  To get a more detailed stack trace and pinpoint the issue, try one of the following:
-                    - Start the app in development mode by running \`next dev\`, then open "/shells/invalid-static-with-gsp/[slug]" in your browser to investigate the error.
-                    - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
-                  Stopping prerender due to instant validation errors."
-                `)
+             Ways to fix this:
+               - [stream] Wrap the \`params\`/\`searchParams\` read in \`<Suspense fallback={...}>\` so the route's prefetch stays shared across links
+                 https://nextjs.org/docs/messages/instant-shell-link-data#wrap-in-or-move-into-suspense
+               - [ignore] Set \`export const instant = false\` to opt the route out of instant-navigation validation
+                 https://nextjs.org/docs/messages/instant-shell-link-data#disable-validation-on-this-route
+                 at main (<anonymous>)
+                 at body (<anonymous>)
+                 at html (<anonymous>)
+             Build-time instant validation failed for route "/shells/invalid-static-with-gsp/[slug]".
+             To get a more detailed stack trace and pinpoint the issue, try one of the following:
+               - Start the app in development mode by running \`next dev\`, then open "/shells/invalid-static-with-gsp/[slug]" in your browser to investigate the error.
+               - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
+             Stopping prerender due to instant validation errors."
+            `)
             expect(result.exitCode).toBe(1)
           }
         })
