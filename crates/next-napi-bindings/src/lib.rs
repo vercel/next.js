@@ -70,7 +70,7 @@ static ALLOC: turbo_tasks_malloc::TurboMalloc = turbo_tasks_malloc::TurboMalloc;
 static ALLOC: dhat::Alloc = dhat::Alloc;
 
 #[cfg(not(target_arch = "wasm32"))]
-#[napi::module_init]
+#[napi_derive::module_init]
 fn init() {
     use std::{
         cell::RefCell,
@@ -125,34 +125,44 @@ fn get_compiler() -> Compiler {
     Compiler::new(cm)
 }
 
+/// The JS-facing result of a SWC transform.
+///
+/// Optional fields are omitted from the resulting object when `None`, matching
+/// the previous manual object construction.
+#[napi_derive::napi(object)]
+pub struct TransformOutputResult {
+    pub code: String,
+    pub map: Option<String>,
+    pub eliminated_packages: Option<String>,
+    pub use_cache_telemetry_tracker: Option<String>,
+}
+
 pub fn complete_output(
-    env: &Env,
+    _env: &Env,
     output: TransformOutput,
     eliminated_packages: FxHashSet<Atom>,
     use_cache_telemetry_tracker: FxHashMap<String, usize>,
-) -> napi::Result<Object> {
-    let mut js_output = env.create_object()?;
-    js_output.set_named_property("code", env.create_string_from_std(output.code)?)?;
-    if let Some(map) = output.map {
-        js_output.set_named_property("map", env.create_string_from_std(map)?)?;
-    }
-    if !eliminated_packages.is_empty() {
-        js_output.set_named_property(
-            "eliminatedPackages",
-            env.create_string_from_std(serde_json::to_string(&eliminated_packages)?)?,
-        )?;
-    }
-    if !use_cache_telemetry_tracker.is_empty() {
-        js_output.set_named_property(
-            "useCacheTelemetryTracker",
-            env.create_string_from_std(serde_json::to_string(
-                &use_cache_telemetry_tracker
-                    .iter()
-                    .map(|(k, v)| (k.clone(), *v))
-                    .collect::<Vec<_>>(),
-            )?)?,
-        )?;
-    }
+) -> napi::Result<TransformOutputResult> {
+    let eliminated_packages = if eliminated_packages.is_empty() {
+        None
+    } else {
+        Some(serde_json::to_string(&eliminated_packages)?)
+    };
+    let use_cache_telemetry_tracker = if use_cache_telemetry_tracker.is_empty() {
+        None
+    } else {
+        Some(serde_json::to_string(
+            &use_cache_telemetry_tracker
+                .iter()
+                .map(|(k, v)| (k.clone(), *v))
+                .collect::<Vec<_>>(),
+        )?)
+    };
 
-    Ok(js_output)
+    Ok(TransformOutputResult {
+        code: output.code,
+        map: output.map,
+        eliminated_packages,
+        use_cache_telemetry_tracker,
+    })
 }
