@@ -174,7 +174,7 @@ export default function Page() {
 }
 ```
 
-When `cacheComponents` is enabled, the App Router preserves Client Component state across navigations using React `<Activity>`. Keying a component on `bfcacheId` resets it on each fresh navigation while still preserving its state across browser back/forward navigations.
+When `cacheComponents` is enabled, the App Router preserves Client Component state across navigations using React `<Activity>`. Keying a component on `bfcacheId` resets it on each fresh navigation while still preserving its state across browser back/forward navigations. See [Preserving UI state](/docs/app/guides/preserving-ui-state) for the recommended per-pattern resets.
 
 > **Good to know**:
 > Instead of `bfcacheId`, prefer resetting state explicitly in an event handler (for example, `onSubmit`) or deriving a key from your data (for example, a draft id from the server). Use `bfcacheId` only as a last resort, like when migrating an existing codebase.
