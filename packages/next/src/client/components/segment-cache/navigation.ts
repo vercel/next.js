@@ -40,6 +40,7 @@ import { createCacheKey, type NormalizedSearch } from './cache-key'
 import { schedulePrefetchTask } from './scheduler'
 import { PrefetchPriority, FetchStrategy } from './types'
 import { getLinkForCurrentNavigation } from '../links'
+import { bufferRouterTransition } from '../router-transition'
 import type { PageVaryPath } from './vary-path'
 import type { AppRouterState } from '../router-reducer/router-reducer-types'
 import { ScrollBehavior } from '../router-reducer/router-reducer-types'
@@ -66,7 +67,11 @@ export function navigate(
   nextUrl: string | null,
   freshnessPolicy: FreshnessPolicy,
   scrollBehavior: ScrollBehavior,
-  navigateType: 'push' | 'replace'
+  navigateType: 'push' | 'replace',
+  // The router transition id minted when this navigation started, or null when
+  // the navigation is not a tracked transition (e.g. a server action redirect
+  // or gesture). Threaded through to the buffer so commit/abort can be reported.
+  transitionId: string | null
 ): AppRouterState | Promise<AppRouterState> {
   let navigationLock: NavigationLock = null
 
@@ -92,7 +97,8 @@ export function navigate(
         freshnessPolicy,
         scrollBehavior,
         navigateType,
-        navigationLock
+        navigationLock,
+        transitionId
       )
     }
   }
@@ -108,7 +114,8 @@ export function navigate(
     freshnessPolicy,
     scrollBehavior,
     navigateType,
-    navigationLock
+    navigationLock,
+    transitionId
   )
 }
 
@@ -123,7 +130,8 @@ function navigateImpl(
   freshnessPolicy: FreshnessPolicy,
   scrollBehavior: ScrollBehavior,
   navigateType: 'push' | 'replace',
-  navigationLock: NavigationLock
+  navigationLock: NavigationLock,
+  transitionId: string | null
 ): AppRouterState | Promise<AppRouterState> {
   const now = Date.now()
   const href = url.href
@@ -145,7 +153,8 @@ function navigateImpl(
       scrollBehavior,
       navigateType,
       route,
-      navigationLock
+      navigationLock,
+      transitionId
     )
   }
 
@@ -182,7 +191,8 @@ function navigateImpl(
           scrollBehavior,
           navigateType,
           optimisticRoute,
-          navigationLock
+          navigationLock,
+          transitionId
         )
       }
     }
@@ -205,7 +215,8 @@ function navigateImpl(
     freshnessPolicy,
     scrollBehavior,
     navigateType,
-    navigationLock
+    navigationLock,
+    transitionId
   ).catch(() => {
     // If the navigation fails, return the current state
     return state
@@ -240,7 +251,8 @@ export function navigateToKnownRoute(
   // dynamic rewrite by traversing the known route tree (see
   // dispatchRetryDueToTreeMismatch).
   routeCacheEntry: FulfilledRouteCacheEntry | null,
-  signal: AbortSignal | undefined
+  signal: AbortSignal | undefined,
+  transitionId: string | null
 ): AppRouterState {
   // A version of navigate() that accepts the target route tree as an argument
   // rather than reading it from the prefetch cache.
@@ -307,6 +319,7 @@ export function navigateToKnownRoute(
   const accumulation: NavigationRequestAccumulation = {
     separateRefreshUrls: null,
     scrollRef: null,
+    pageShellHit: false,
   }
   // We special case navigations to the exact same URL as the current location.
   // It's a common UI pattern for apps to refresh when you click a link to the
@@ -357,7 +370,7 @@ export function navigateToKnownRoute(
         signal
       )
     }
-    return completeSoftNavigation(
+    const newState = completeSoftNavigation(
       state,
       url,
       nextUrl,
@@ -370,6 +383,18 @@ export function navigateToKnownRoute(
       accumulation.scrollRef,
       debugInfo
     )
+    if (transitionId !== null) {
+      // The shell we're committing is keyed by its tree, which HistoryUpdater
+      // matches on. `pageShellHit` was set during the segment walk above.
+      bufferRouterTransition(
+        transitionId,
+        newState.tree,
+        navigateType,
+        url.href,
+        accumulation.pageShellHit ? 'hit' : 'miss'
+      )
+    }
+    return newState
   }
   // Could not perform a SPA navigation. Revert to a full-page (MPA) navigation.
   return completeHardNavigation(state, url, navigateType)
@@ -388,7 +413,8 @@ function navigateUsingPrefetchedRouteTree(
   scrollBehavior: ScrollBehavior,
   navigateType: 'push' | 'replace',
   route: FulfilledRouteCacheEntry,
-  navigationLock: NavigationLock
+  navigationLock: NavigationLock,
+  transitionId: string | null
 ): AppRouterState {
   const routeTree = route.tree
   const canonicalUrl = route.canonicalUrl + url.hash
@@ -419,7 +445,8 @@ function navigateUsingPrefetchedRouteTree(
     null,
     route,
     // Not an HMR refresh, so there's no request generation to cancel.
-    undefined
+    undefined,
+    transitionId
   )
 }
 
@@ -447,7 +474,8 @@ async function navigateToUnknownRoute(
   freshnessPolicy: FreshnessPolicy,
   scrollBehavior: ScrollBehavior,
   navigateType: 'push' | 'replace',
-  navigationLock: NavigationLock
+  navigationLock: NavigationLock,
+  transitionId: string | null
 ): Promise<AppRouterState> {
   // Runs when a navigation happens but there's no cached prefetch we can use.
   // Don't bother to wait for a prefetch response; go straight to a full
@@ -637,7 +665,8 @@ async function navigateToUnknownRoute(
     // entry as having a dynamic rewrite.
     null,
     // Not an HMR refresh, so there's no request generation to cancel.
-    undefined
+    undefined,
+    transitionId
   )
 }
 
@@ -1070,7 +1099,8 @@ async function ensurePrefetchThenNavigate(
   freshnessPolicy: FreshnessPolicy,
   scrollBehavior: ScrollBehavior,
   navigateType: 'push' | 'replace',
-  navigationLock: NavigationLock
+  navigationLock: NavigationLock,
+  transitionId: string | null
 ): Promise<AppRouterState> {
   const link = getLinkForCurrentNavigation()
   const fetchStrategy = link !== null ? link.fetchStrategy : FetchStrategy.PPR
@@ -1110,7 +1140,8 @@ async function ensurePrefetchThenNavigate(
     freshnessPolicy,
     scrollBehavior,
     navigateType,
-    navigationLock
+    navigationLock,
+    transitionId
   )
 
   // Only transition to captured-SPA once the navigation is known to be an SPA.

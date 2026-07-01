@@ -35,7 +35,6 @@ import type {
   PrefetchOptions,
 } from '../../shared/lib/app-router-context.shared-runtime'
 import { setLinkForCurrentNavigation, type LinkInstance } from './links'
-import type { RouterTransitionPrefetchIntent } from '../router-transition-types'
 import type { GlobalErrorComponent } from './builtin/global-error'
 import { isJavaScriptURLString } from '../lib/javascript-url'
 import { startRouterTransition } from './router-transition'
@@ -272,8 +271,7 @@ export function dispatchNavigateAction(
   navigateType: NavigateAction['navigateType'],
   scrollBehavior: ScrollBehavior,
   linkInstanceRef: LinkInstance | null,
-  transitionTypes: string[] | undefined,
-  prefetchIntent: RouterTransitionPrefetchIntent | null
+  transitionTypes: string[] | undefined
 ): void {
   // TODO: This stuff could just go into the reducer. Leaving as-is for now
   // since we're about to rewrite all the router reducer stuff anyway.
@@ -290,11 +288,19 @@ export function dispatchNavigateAction(
   }
 
   setLinkForCurrentNavigation(linkInstanceRef)
-  startRouterTransition(
+
+  // Mint the transition id and emit `start` here, before the action is queued,
+  // so the hook runs outside React's render phase. (A user hook that throws
+  // during the reducer would otherwise break error isolation between hooks.)
+  // The id is threaded on the action so the matching commit/abort can be found.
+  const { state } = getAppRouterActionQueue()
+  const transitionId = startRouterTransition(
     href,
     navigateType,
-    getAppRouterActionQueue().state.tree,
-    prefetchIntent
+    state.tree,
+    state.canonicalUrl,
+    state.renderedSearch,
+    Date.now()
   )
 
   dispatchAppRouterAction({
@@ -304,6 +310,7 @@ export function dispatchNavigateAction(
     locationSearch: location.search,
     scrollBehavior,
     navigateType,
+    transitionId,
   })
 }
 
@@ -311,16 +318,20 @@ export function dispatchTraverseAction(
   href: string,
   historyState: AppHistoryState | undefined
 ) {
-  startRouterTransition(
+  const { state } = getAppRouterActionQueue()
+  const transitionId = startRouterTransition(
     href,
     'traverse',
-    getAppRouterActionQueue().state.tree,
-    null
+    state.tree,
+    state.canonicalUrl,
+    state.renderedSearch,
+    Date.now()
   )
   dispatchAppRouterAction({
     type: ACTION_RESTORE,
     url: new URL(href),
     historyState,
+    transitionId,
   })
 }
 
@@ -374,7 +385,10 @@ function gesturePush(href: string, options?: NavigateOptions): void {
       state.nextUrl,
       freshnessPolicy,
       scrollBehavior,
-      'push'
+      'push',
+      // Gesture navigations are optimistic forks and are not tracked
+      // transitions.
+      null
     )
     dispatchGestureState(forkedGestureState)
   }
@@ -450,8 +464,7 @@ export const publicAppRouterInstance: AppRouterInstance = {
           ? ScrollBehavior.NoScroll
           : ScrollBehavior.Default,
         null,
-        options?.transitionTypes,
-        null
+        options?.transitionTypes
       )
     })
   },
@@ -469,8 +482,7 @@ export const publicAppRouterInstance: AppRouterInstance = {
           ? ScrollBehavior.NoScroll
           : ScrollBehavior.Default,
         null,
-        options?.transitionTypes,
-        null
+        options?.transitionTypes
       )
     })
   },

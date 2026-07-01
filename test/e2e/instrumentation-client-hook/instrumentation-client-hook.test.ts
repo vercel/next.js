@@ -116,7 +116,7 @@ describe('Instrumentation Client Hook', () => {
     })
   })
 
-  describe('router transition start context', () => {
+  describe('router transition lifecycle', () => {
     const { next } = nextTestSetup({
       files: path.join(__dirname, 'app-router'),
       nextConfig: {
@@ -130,7 +130,7 @@ describe('Instrumentation Client Hook', () => {
       return browser.eval(`window.__ROUTER_TRANSITION_EVENTS`)
     }
 
-    it('reports transition metadata, source routes, and prefetch intent', async () => {
+    it('reports a fromTree descriptor on start (no prefetchIntent)', async () => {
       const browser = await next.browser('/')
 
       await browser.elementByCss('a[href="/some-page"]').click()
@@ -142,69 +142,213 @@ describe('Instrumentation Client Hook', () => {
       expect(start.navigateType).toBe('push')
       expect(typeof start.event.id).toBe('string')
       expect(start.event.timestamp).toBeGreaterThan(0)
-      expect(start.event.fromRoutes).toEqual(['/'])
-      expect(start.event.prefetchIntent).toBe('full')
+      // fromTree describes the route we navigated away from (the home page).
+      expect(start.event.fromTree.routeTemplates).toEqual(['/'])
+      expect(start.event.fromTree.renderedPathname).toBe('/')
+      expect(start.event.fromTree.params).toEqual([])
+      expect(start.event.fromTree.searchParams).toEqual({})
+      // prefetchIntent / fromRoutes were removed from the event.
+      expect('prefetchIntent' in start.event).toBe(false)
+      expect('fromRoutes' in start.event).toBe(false)
     })
 
-    it('reports a null prefetch intent for programmatic navigation', async () => {
+    it('reports a commit with toTree and the same id as its start', async () => {
       const browser = await next.browser('/')
 
-      await browser.elementById('push-some-page').click()
+      await browser.elementByCss('a[href="/some-page"]').click()
       await browser.elementById('some-page')
 
-      const [start] = await getTransitionEvents(browser)
-      expect(start.phase).toBe('start')
-      expect(start.url).toBe('/some-page')
-      expect(start.navigateType).toBe('push')
-      expect(start.event.prefetchIntent).toBe(null)
+      await retry(async () => {
+        const events = await getTransitionEvents(browser)
+        expect(events.some((e) => e.phase === 'commit')).toBe(true)
+      })
+
+      const events = await getTransitionEvents(browser)
+      const start = events.find((e) => e.phase === 'start')
+      const commit = events.find((e) => e.phase === 'commit')
+      expect(commit.navigateType).toBe('push')
+      expect(commit.event.id).toBe(start.event.id)
+      expect(commit.event.timestamp).toBeGreaterThanOrEqual(
+        start.event.timestamp
+      )
+      expect(commit.event.toTree.routeTemplates).toEqual(['/some-page'])
+      expect(commit.event.toTree.renderedPathname).toBe('/some-page')
     })
 
-    it('uses route patterns and puts the primary source route first', async () => {
+    it('reports a hit when restoring a cached route', async () => {
+      const browser = await next.browser('/')
+
+      await browser.elementByCss('a[href="/some-page"]').click()
+      await browser.elementById('some-page')
+      await browser.back()
+      await browser.elementById('home')
+      // Going forward restores /some-page from the BFCache, so there is a fully
+      // rendered shell to navigate into.
+      await browser.forward()
+      await browser.elementById('some-page')
+
+      await retry(async () => {
+        const commit = (await getTransitionEvents(browser))
+          .filter((e) => e.phase === 'commit' && e.url === '/some-page')
+          .at(-1)
+        expect(commit?.event.outcome).toBe('hit')
+      })
+    })
+
+    it('reports a miss when nothing is prefetched for the route', async () => {
+      const browser = await next.browser('/')
+
+      await browser.elementById('push-no-prefetch').click()
+      await browser.elementById('no-prefetch')
+
+      await retry(async () => {
+        const commit = (await getTransitionEvents(browser)).find(
+          (e) => e.phase === 'commit' && e.url === '/no-prefetch'
+        )
+        expect(commit?.event.outcome).toBe('miss')
+      })
+    })
+
+    it('aborts an in-flight transition superseded before it commits', async () => {
+      const browser = await next.browser('/')
+
+      await browser.elementById('abort-double-push').click()
+      await browser.elementById('dashboard')
+
+      await retry(async () => {
+        const events = await getTransitionEvents(browser)
+        expect(events.some((e) => e.phase === 'abort')).toBe(true)
+      })
+
+      const events = await getTransitionEvents(browser)
+      const commit = events.find((e) => e.phase === 'commit')
+      const abort = events.find((e) => e.phase === 'abort')
+      // The later navigation (/dashboard) commits; the earlier (/some-page) is
+      // aborted, attributed to the commit that superseded it.
+      expect(commit.url).toBe('/dashboard')
+      expect(abort.url).toBe('/some-page')
+      expect(abort.event.cause).toBe(commit.event.id)
+    })
+
+    it('emits matching trees for a hash-only navigation', async () => {
+      const browser = await next.browser('/')
+
+      await browser.elementById('push-hash').click()
+
+      await retry(async () => {
+        const events = await getTransitionEvents(browser)
+        expect(events.some((e) => e.phase === 'commit')).toBe(true)
+      })
+
+      const events = await getTransitionEvents(browser)
+      const start = events.find((e) => e.phase === 'start')
+      const commit = events.find((e) => e.phase === 'commit')
+      // A hash-only navigation doesn't change the route, so the route identity
+      // (everything but the hash-bearing canonicalUrl) is unchanged — that's
+      // what consumers group by.
+      expect(commit.event.toTree.routeTemplates).toEqual(
+        start.event.fromTree.routeTemplates
+      )
+      expect(commit.event.toTree.renderedPathname).toBe(
+        start.event.fromTree.renderedPathname
+      )
+      expect(commit.event.toTree.params).toEqual(start.event.fromTree.params)
+      expect(commit.event.toTree.searchParams).toEqual(
+        start.event.fromTree.searchParams
+      )
+    })
+
+    it('reports a traverse navigation on back/forward', async () => {
+      const browser = await next.browser('/')
+
+      await browser.elementByCss('a[href="/some-page"]').click()
+      await browser.elementById('some-page')
+      await browser.back()
+      await browser.elementById('home')
+
+      await retry(async () => {
+        const events = await getTransitionEvents(browser)
+        expect(
+          events.some(
+            (e) => e.phase === 'commit' && e.navigateType === 'traverse'
+          )
+        ).toBe(true)
+      })
+
+      const traverseCommit = (await getTransitionEvents(browser)).find(
+        (e) => e.phase === 'commit' && e.navigateType === 'traverse'
+      )
+      expect(traverseCommit.event.toTree.routeTemplates).toEqual(['/'])
+    })
+
+    it('renders dynamic segments as positional holes with positional params', async () => {
       const browser = await next.browser('/')
 
       await browser.elementByCss('a[href="/blog/hello"]').click()
       await browser.elementById('blog-post')
-      await browser.elementByCss('a[href="/"]').click()
-      await browser.elementById('home')
 
-      expect(
-        (await getTransitionEvents(browser)).at(-1).event.fromRoutes
-      ).toEqual(['/blog/[slug]'])
+      await retry(async () => {
+        const events = await getTransitionEvents(browser)
+        expect(events.some((e) => e.phase === 'commit')).toBe(true)
+      })
 
-      await browser.elementByCss('a[href="/dashboard"]').click()
-      await browser.elementById('dashboard')
-      await browser.elementById('analytics')
-      await browser.elementByCss('a[href="/"]').click()
-      await browser.elementById('home')
-
-      expect(
-        (await getTransitionEvents(browser)).at(-1).event.fromRoutes
-      ).toEqual(['/dashboard', '/dashboard/@analytics'])
+      const commit = (await getTransitionEvents(browser)).find(
+        (e) => e.phase === 'commit'
+      )
+      expect(commit.event.toTree.routeTemplates).toEqual(['/blog/:1'])
+      expect(commit.event.toTree.params).toEqual(['hello'])
+      expect(commit.event.toTree.renderedPathname).toBe('/blog/hello')
     })
 
-    it('omits route groups from fromRoutes', async () => {
+    it('omits route groups from route templates', async () => {
       const browser = await next.browser('/about')
 
       await browser.elementByCss('a[href="/"]').click()
       await browser.elementById('home')
 
-      expect(
-        (await getTransitionEvents(browser)).at(-1).event.fromRoutes
-      ).toEqual(['/about'])
+      const start = (await getTransitionEvents(browser)).find(
+        (e) => e.phase === 'start'
+      )
+      // The (marketing) group folder is not part of the route template.
+      expect(start.event.fromTree.routeTemplates).toEqual(['/about'])
     })
 
-    it('reports intercepted route patterns in fromRoutes', async () => {
+    it('includes parallel slots and reports the post-rewrite pathname for intercepted routes', async () => {
       const browser = await next.browser('/gallery')
 
       await browser.elementByCss('a[href="/gallery/photos/1"]').click()
       await browser.elementById('photo-modal')
 
-      await browser.elementByCss('a[href="/"]').click()
-      await browser.elementById('home')
+      await retry(async () => {
+        const events = await getTransitionEvents(browser)
+        expect(events.some((e) => e.phase === 'commit')).toBe(true)
+      })
 
-      expect(
-        (await getTransitionEvents(browser)).at(-1).event.fromRoutes
-      ).toEqual(['/gallery', '/gallery/@modal/(.)photos/[id]'])
+      const commit = (await getTransitionEvents(browser)).find(
+        (e) => e.phase === 'commit'
+      )
+      // The intercepted modal keeps the gallery as the rendered (primary) route
+      // even though the browser URL is /gallery/photos/1.
+      expect(commit.event.toTree.renderedPathname).toBe('/gallery')
+      expect(commit.event.toTree.routeTemplates).toEqual([
+        '/gallery',
+        '/gallery/@modal/(.)photos/:1',
+      ])
+    })
+
+    it('runs commit exactly once per navigation', async () => {
+      const browser = await next.browser('/')
+
+      await browser.elementByCss('a[href="/some-page"]').click()
+      await browser.elementById('some-page')
+
+      await retry(async () => {
+        const events = await getTransitionEvents(browser)
+        expect(events.filter((e) => e.phase === 'commit')).toHaveLength(1)
+      })
+      const events = await getTransitionEvents(browser)
+      expect(events.filter((e) => e.phase === 'start')).toHaveLength(1)
+      expect(events.filter((e) => e.phase === 'abort')).toHaveLength(0)
     })
   })
 

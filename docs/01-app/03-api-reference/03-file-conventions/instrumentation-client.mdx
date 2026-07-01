@@ -68,7 +68,7 @@ const nextConfig: NextConfig = {
 export default nextConfig
 ```
 
-The event includes the transition metadata and source context known when the navigation is dispatched:
+The event includes the transition's `id`, a framework-captured `timestamp`, and a `fromTree` describing the route the navigation started from:
 
 ```ts filename="instrumentation-client.ts" switcher
 import type { RouterTransitionStartEvent, RouterTransitionType } from 'next'
@@ -76,35 +76,66 @@ import type { RouterTransitionStartEvent, RouterTransitionType } from 'next'
 export function onRouterTransitionStart(
   url: string,
   navigationType: RouterTransitionType,
-  { id, timestamp, fromRoutes, prefetchIntent }: RouterTransitionStartEvent
+  { id, timestamp, fromTree }: RouterTransitionStartEvent
 ) {
-  console.log(id, timestamp, url, navigationType, fromRoutes, prefetchIntent)
+  console.log(id, timestamp, url, navigationType, fromTree)
 }
 ```
 
 ```js filename="instrumentation-client.js" switcher
 export function onRouterTransitionStart(url, navigationType, event) {
-  console.log(
-    event.id,
-    event.timestamp,
-    url,
-    navigationType,
-    event.fromRoutes,
-    event.prefetchIntent
-  )
+  console.log(event.id, event.timestamp, url, navigationType, event.fromTree)
 }
 ```
 
-`onRouterTransitionStart` receives:
+You can also observe when a transition commits or is aborted. These hooks are `unstable_`-prefixed while the lifecycle is experimental, and every event for a transition shares the same `id` so you can correlate them:
+
+```ts filename="instrumentation-client.ts" switcher
+import type {
+  RouterTransitionAbortEvent,
+  RouterTransitionCommitEvent,
+  RouterTransitionType,
+} from 'next'
+
+export function unstable_onRouterTransitionCommit(
+  url: string,
+  navigationType: RouterTransitionType,
+  { id, timestamp, toTree, outcome }: RouterTransitionCommitEvent
+) {
+  console.log(id, timestamp, url, navigationType, toTree, outcome)
+}
+
+export function unstable_onRouterTransitionAbort(
+  url: string,
+  navigationType: RouterTransitionType,
+  { id, timestamp, cause }: RouterTransitionAbortEvent
+) {
+  // `cause` is the id of the transition whose commit superseded this one.
+  console.log(id, timestamp, url, navigationType, cause)
+}
+```
+
+Each transition emits `onRouterTransitionStart` followed by exactly one of `unstable_onRouterTransitionCommit` (when it is applied to the page) or `unstable_onRouterTransitionAbort` (when a newer navigation supersedes it first).
+
+The hooks receive:
 
 - `url: string` - The URL being navigated to
 - `navigationType: 'push' | 'replace' | 'traverse'` - The type of navigation
-- `event.id` - An opaque ID shared by events for this transition
+- `event.id` - An opaque ID shared by every event for this transition
 - `event.timestamp` - A framework-captured Unix timestamp in milliseconds
-- `event.fromRoutes` - Route patterns visible before navigation. The primary `children` route is first, followed by parallel slots in deterministic order
-- `event.prefetchIntent` - For link navigations, whether the clicked link requested full prefetching (`full`), used automatic prefetching (`auto`), or did not request prefetching (`none`). For navigations with no associated link (programmatic `router.push()`/`router.replace()`, or browser back/forward) this is `null`, since no link prefetch intent applies
+- `event.fromTree` / `event.toTree` - A description of the route before the navigation (`fromTree`, on `start`) and the route that was committed (`toTree`, on `commit`). See below
+- `event.outcome` (commit only) - `'hit'` when prefetched content was available to render immediately, or `'miss'` when the navigation had to wait for the server and showed a fallback
+- `event.cause` (abort only) - The `id` of the transition whose commit superseded this one
 
-Route entries use filesystem-style patterns, so a navigation away from `/blog/hello` may report `/blog/[slug]`.
+Both `fromTree` and `toTree` are `RouterTreeDescriptor` objects:
+
+- `renderedPathname` - The server's post-rewrite pathname (the route that actually rendered), which can differ from `canonicalUrl`
+- `canonicalUrl` - The URL shown in the browser address bar
+- `routeTemplates` - Route template paths, deepest first, with parallel slots included as `@slot`. Dynamic segments appear as positional holes (`:1`, `:2`, ...), so a navigation away from `/blog/hello` reports `/blog/:1`
+- `params` - Dynamic param values, positional by hole order
+- `searchParams` - The post-rewrite search params
+
+A hash-only navigation keeps the same route, so its `fromTree` and `toTree` describe the same route (only `canonicalUrl` differs).
 
 Hook errors are isolated and do not affect navigation or other hooks.
 

@@ -140,6 +140,14 @@ export type NavigationRequestAccumulation = {
    * during a refresh where the route structure didn't change).
    */
   scrollRef: ScrollRef | null
+  /**
+   * Set to `true` when the navigation has renderable cached content for a page
+   * segment — i.e. there is something to navigate into immediately. Stays
+   * `false` when every page segment must stream in and the user only sees a
+   * fallback. The head is excluded since it is always non-blocking. Consumed by
+   * the router transition instrumentation `commit` event to report `hit`/`miss`.
+   */
+  pageShellHit: boolean
 }
 
 export type NavigationLock = NavigationLockState | null
@@ -158,6 +166,7 @@ export function createInitialCacheNodeForHydration(
   const accumulation: NavigationRequestAccumulation = {
     separateRefreshUrls: null,
     scrollRef: null,
+    pageShellHit: false,
   }
   const restrictToShell = false
   const task = createCacheNodeOnNavigation(
@@ -397,7 +406,8 @@ function updateCacheNodeOnNavigation(
       oldCacheNode !== undefined
         ? oldCacheNode.bfcacheId
         : generateBFCacheId(freshness),
-      restrictToShell
+      restrictToShell,
+      accumulation
     )
     newCacheNode = result.cacheNode
     needsDynamicRequest = result.needsDynamicRequest
@@ -686,7 +696,8 @@ function createCacheNodeOnNavigation(
     // This segment was not part of the previous route, so mint a fresh
     // bfcacheId.
     generateBFCacheId(freshness),
-    restrictToShell
+    restrictToShell,
+    accumulation
   )
   const newCacheNode = result.cacheNode
   const needsDynamicRequest = result.needsDynamicRequest
@@ -953,7 +964,10 @@ function createCacheNodeForSegment(
   bfcacheId: number,
   // Instant Navigation Testing API only — restricts segment reads to shell
   // entries. Always false outside the testing API. See navigation-testing-lock.
-  restrictToShell: boolean
+  restrictToShell: boolean,
+  // Mutated to flag whether a page segment had renderable cached content, so the
+  // router transition instrumentation can report the navigation as hit/miss.
+  accumulation: NavigationRequestAccumulation
 ): { cacheNode: CacheNode; needsDynamicRequest: boolean } {
   // Construct a new CacheNode using data from the BFCache, the client's
   // Segment Cache, or seeded from a server response.
@@ -989,6 +1003,9 @@ function createCacheNodeForSegment(
         // fresh navigation, so we use the caller-supplied bfcacheId — the
         // BFCacheEntry's id is only restored on history-traversal
         // navigations.
+        if (isPage) {
+          accumulation.pageShellHit = true
+        }
         return {
           cacheNode: createCacheNode(
             bfcacheEntry.rsc,
@@ -1074,6 +1091,9 @@ function createCacheNodeForSegment(
         // Restore the bfcacheId from the cached entry so that back/forward
         // navigations preserve the original id, regardless of whether
         // `cacheComponents` Activity preservation is enabled.
+        if (isPage) {
+          accumulation.pageShellHit = true
+        }
         return {
           cacheNode: createCacheNode(
             bfcacheEntry.rsc,
@@ -1142,6 +1162,16 @@ function createCacheNodeForSegment(
         break
       }
     }
+  }
+
+  // A page segment with renderable cached content (fulfilled, even if partial)
+  // means there is something to navigate into immediately. An empty/pending/
+  // rejected entry resolves to a deferred placeholder, so it counts as a miss —
+  // as does a segment whose data is only arriving now via a dynamic request
+  // (`seedRsc`), since that navigation had to wait on the server. The head is
+  // intentionally excluded since it streams in non-blocking.
+  if (isPage && segmentEntry?.status === EntryStatus.Fulfilled) {
+    accumulation.pageShellHit = true
   }
 
   // Now combine the cached data with the seed data to determine what we can

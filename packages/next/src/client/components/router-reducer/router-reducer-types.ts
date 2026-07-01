@@ -94,6 +94,10 @@ export interface NavigateAction {
   locationSearch: Location['search']
   navigateType: 'push' | 'replace'
   scrollBehavior: ScrollBehavior
+  // The router transition id minted by the dispatcher (null when the
+  // experimental lifecycle is disabled). Threaded to the buffer so the matching
+  // commit/abort can be reported.
+  transitionId: string | null
 }
 
 /**
@@ -109,6 +113,10 @@ export interface RestoreAction {
   type: typeof ACTION_RESTORE
   url: URL
   historyState: AppHistoryState | undefined
+  // The router transition id minted by the dispatcher for genuine back/forward
+  // traversals, or null for the pushState/replaceState sync path (not a
+  // navigation).
+  transitionId: string | null
 }
 
 export type AppHistoryState = {
