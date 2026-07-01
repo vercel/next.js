@@ -60,7 +60,7 @@ describe('react-performance-track', () => {
     expect(track).toEqual(
       expect.arrayContaining([
         {
-          name: '\u200bparams [Prefetchable]',
+          name: '\u200bparams [Prefetch]',
           properties: [],
         },
       ])
@@ -79,7 +79,7 @@ describe('react-performance-track', () => {
     expect(track).toEqual(
       expect.arrayContaining([
         {
-          name: '\u200bsearchParams [Prefetchable]',
+          name: '\u200bsearchParams [Prefetch]',
           properties: [],
         },
       ])
@@ -96,7 +96,7 @@ describe('react-performance-track', () => {
     expect(track).toEqual(
       expect.arrayContaining([
         {
-          name: '\u200bcookies [Prefetchable]',
+          name: '\u200bcookies [Prefetch]',
           properties: [],
         },
       ])
@@ -142,7 +142,7 @@ describe('react-performance-track', () => {
     expect(track).toEqual(
       expect.arrayContaining([
         {
-          name: '\u200bheaders [Prefetchable]',
+          name: '\u200bheaders [Prefetch]',
           properties: [],
         },
       ])
