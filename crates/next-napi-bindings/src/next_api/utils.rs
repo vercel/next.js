@@ -7,9 +7,12 @@ use std::{
 use anyhow::{Context, Result, anyhow};
 use futures_util::TryFutureExt;
 use napi::{
-    JsFunction, JsObject, JsUnknown, NapiRaw, NapiValue, Status,
-    bindgen_prelude::{Buffer, External, ToNapiValue},
-    threadsafe_function::{ThreadSafeCallContext, ThreadsafeFunction, ThreadsafeFunctionCallMode},
+    Env, Status, Unknown as JsUnknown,
+    bindgen_prelude::{
+        Buffer, External, ExternalRef, Function, FunctionRef, JsObjectValue, JsValue, Object,
+        ToNapiValue,
+    },
+    threadsafe_function::{ThreadsafeCallContext, ThreadsafeFunction, ThreadsafeFunctionCallMode},
 };
 use napi_derive::napi;
 use next_code_frame::{
@@ -67,6 +70,59 @@ impl<T> Deref for DetachedVc<T> {
     }
 }
 
+/// A wrapper around `&'static External<T>` that implements `Send` + `Sync`.
+///
+/// This is safe because `External<T>` data (the inner `T`) is `Send + Sync`, and the raw napi
+/// pointers inside `External` are only used for GC tracking — we only access the inner `T` via
+/// `Deref`.
+///
+/// This type should only be used as a parameter to `#[napi]` async functions where the napi v3
+/// macro requires `Send` futures.
+pub struct SendableExternalRef<T: 'static> {
+    inner: &'static External<T>,
+}
+
+// SAFETY: We only access the inner T (which is Send + Sync) through Deref.
+// The raw napi pointers are never dereferenced across threads.
+unsafe impl<T: Send + Sync + 'static> Send for SendableExternalRef<T> {}
+unsafe impl<T: Send + Sync + 'static> Sync for SendableExternalRef<T> {}
+
+impl<T: 'static> std::ops::Deref for SendableExternalRef<T> {
+    type Target = T;
+    fn deref(&self) -> &T {
+        self.inner
+    }
+}
+
+impl<T: Send + Sync + 'static> napi::bindgen_prelude::TypeName for SendableExternalRef<T> {
+    fn type_name() -> &'static str {
+        "External"
+    }
+    fn value_type() -> napi::ValueType {
+        napi::ValueType::External
+    }
+}
+
+impl<T: Send + Sync + 'static> napi::bindgen_prelude::ValidateNapiValue for SendableExternalRef<T> {}
+
+impl<T: Send + Sync + 'static> napi::bindgen_prelude::FromNapiValue for SendableExternalRef<T> {
+    unsafe fn from_napi_value(
+        env: napi::sys::napi_env,
+        napi_val: napi::sys::napi_value,
+    ) -> napi::Result<Self> {
+        let external = unsafe {
+            <External<T> as napi::bindgen_prelude::FromNapiMutRef>::from_napi_mut_ref(
+                env, napi_val,
+            )?
+        };
+        // SAFETY: The External is prevented from being GC'd by napi during the call.
+        // For async functions, the napi macro ensures the reference is held for the
+        // duration of the future.
+        let inner: &'static External<T> = unsafe { &*(external as *const External<T>) };
+        Ok(SendableExternalRef { inner })
+    }
+}
+
 /// An opaque handle to the root of a turbo-tasks computation created by
 /// [`turbo_tasks::TurboTasks::spawn_root_task`] that can be passed back and forth to JS across the
 /// [`napi`][mod@napi] boundary via [`External`].
@@ -90,7 +146,7 @@ impl Drop for RootTask {
 
 #[napi]
 pub fn root_task_dispose(
-    #[napi(ts_arg_type = "{ __napiType: \"RootTask\" }")] mut root_task: External<RootTask>,
+    #[napi(ts_arg_type = "{ __napiType: \"RootTask\" }")] mut root_task: ExternalRef<RootTask>,
 ) -> napi::Result<()> {
     if let Some(task) = root_task.task_id.take() {
         root_task
@@ -406,35 +462,42 @@ impl<T: ToNapiValue> ToNapiValue for TurbopackResult<T> {
         env: napi::sys::napi_env,
         val: Self,
     ) -> napi::Result<napi::sys::napi_value> {
-        let mut obj = unsafe { napi::Env::from_raw(env).create_object()? };
+        let env_wrapper = Env::from_raw(env);
 
-        let result = unsafe {
-            let result = T::to_napi_value(env, val.result)?;
-            JsUnknown::from_raw(env, result)?
+        let result_raw = unsafe { T::to_napi_value(env, val.result)? };
+        let result = unsafe { JsUnknown::from_raw_unchecked(env, result_raw) };
+
+        // When the result is an object, extend it in place with the `issues`
+        // property. Otherwise, produce a fresh object holding only `issues`.
+        let mut obj = if matches!(result.get_type()?, napi::ValueType::Object) {
+            Object::from_raw(env, result_raw)
+        } else {
+            Object::new(&env_wrapper)?
         };
-        if matches!(result.get_type()?, napi::ValueType::Object) {
-            // SAFETY: We know that result is an object, so we can cast it to a JsObject
-            let result = unsafe { result.cast::<JsObject>() };
-
-            for key in JsObject::keys(&result)? {
-                let value: JsUnknown = result.get_named_property(&key)?;
-                obj.set_named_property(&key, value)?;
-            }
-        }
 
         obj.set_named_property("issues", val.issues)?;
 
-        Ok(unsafe { obj.raw() })
+        Ok(obj.raw())
     }
 }
 
-pub fn subscribe<T: 'static + Send + Sync, F: Future<Output = Result<T>> + Send, V: ToNapiValue>(
+pub fn subscribe<
+    T: 'static + Send + Sync,
+    F: Future<Output = Result<T>> + Send,
+    V: 'static + ToNapiValue,
+>(
     ctx: NextTurbopackContext,
-    func: JsFunction,
+    env: &Env,
+    func: &FunctionRef<JsUnknown<'static>, ()>,
     handler: impl 'static + Sync + Send + Clone + Fn() -> F,
-    mapper: impl 'static + Sync + Send + FnMut(ThreadSafeCallContext<T>) -> napi::Result<Vec<V>>,
+    mapper: impl 'static + Sync + Send + FnMut(ThreadsafeCallContext<T>) -> napi::Result<V>,
 ) -> napi::Result<External<RootTask>> {
-    let func: ThreadsafeFunction<T> = func.create_threadsafe_function(0, mapper)?;
+    let js_func: Function<'_, JsUnknown<'static>, ()> = func.borrow_back(env)?;
+    let func: ThreadsafeFunction<T, (), V, Status, true> = js_func
+        .build_threadsafe_function::<T>()
+        .callee_handled::<true>()
+        .build_callback(mapper)?;
+    let func = Arc::new(func);
     let task_id = ctx.turbo_tasks().spawn_root_task({
         let ctx = ctx.clone();
         move || {
