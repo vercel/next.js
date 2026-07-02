@@ -95,11 +95,11 @@ export interface NavigateAction {
   locationSearch: Location['search']
   navigateType: 'push' | 'replace'
   scrollBehavior: ScrollBehavior
-  // Instrumentation only: the pending transition created when the dispatcher
-  // emitted `start` (null when the experimental lifecycle is disabled).
-  // Threaded through so the reducer can attach the destination tree to this
-  // shared object once it exists.
-  transition: PendingRouterTransition | null
+  // The pending transition created when the dispatcher emitted `start` (null
+  // when the experimental lifecycle is disabled). Threaded through so the
+  // reducer can attach the destination tree to this shared object once
+  // it exists.
+  instrumentationTransition: PendingRouterTransition | null
 }
 
 /**
@@ -115,10 +115,10 @@ export interface RestoreAction {
   type: typeof ACTION_RESTORE
   url: URL
   historyState: AppHistoryState | undefined
-  // Instrumentation only: the pending transition created by the dispatcher for
-  // genuine back/forward traversals, or null for the pushState/replaceState
-  // sync path (not a navigation).
-  transition: PendingRouterTransition | null
+  // The pending transition created by the dispatcher for genuine back/forward
+  // traversals, or null for the pushState/replaceState sync path (not a
+  // navigation).
+  instrumentationTransition: PendingRouterTransition | null
 }
 
 export type AppHistoryState = {

@@ -238,14 +238,14 @@ function Router({
       // user navigation: dispatchTraverseAction would emit a transition
       // `start` event and create a pending transition, but nothing
       // "navigated" here — we're re-synchronizing router state after the
-      // browser revived a frozen page. `transition: null` keeps this restore
-      // out of the tracked transition lifecycle, so it can never emit a
-      // commit.
+      // browser revived a frozen page. A null instrumentationTransition keeps
+      // this restore out of the tracked transition lifecycle, so it can never
+      // emit a commit.
       dispatchAppRouterAction({
         type: ACTION_RESTORE,
         url: new URL(window.location.href),
         historyState: window.history.state.__PRIVATE_NEXTJS_INTERNALS_TREE,
-        transition: null,
+        instrumentationTransition: null,
       })
     }
 
@@ -344,7 +344,7 @@ function Router({
           // shallow history update is not a tracked transition — no `start`
           // is emitted for it, so there is no pending transition to thread
           // through, and it never reports a commit.
-          transition: null,
+          instrumentationTransition: null,
         })
       })
     }
