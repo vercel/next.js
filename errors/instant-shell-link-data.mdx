@@ -132,7 +132,7 @@ The shared parts of the route are prefetched, and the URL-dependent region strea
 
 ## Disable validation on this route
 
-Choose this fix when the route can't share a prefetch across links and you accept that its links prefetch per URL instead. Setting [`instant`](https://preview.nextjs.org/docs/app/api-reference/file-conventions/route-segment-config/instant) to `false` opts the route out of instant-navigation validation and silences the warning.
+Choose this fix when the route can't share a prefetch across links and you accept that its links prefetch per URL instead. Setting [`instant`](https://preview.nextjs.org/docs/app/api-reference/file-conventions/route-segment-config/instant) to `false` opts the route out of instant-navigation validation.
 
 ### Patterns
 
@@ -179,8 +179,8 @@ Links to this route prefetch per URL instead of sharing one prefetch, so prefetc
 ### Gotchas
 
 - Setting [`instant`](https://preview.nextjs.org/docs/app/api-reference/file-conventions/route-segment-config/instant) to `false` opts out only the segment that exports it. Descendant segments remain validated by their own config or the global default.
-- `instant = false` disables all instant-navigation checks for the route, not only this one. A [runtime data during prerendering](/docs/messages/blocking-prerender-runtime) error and [unrendered segment](/docs/messages/instant-unrendered-segment) warnings for the route are silenced too.
-- This export does not disable [Partial Prefetching](https://preview.nextjs.org/docs/app/glossary#partial-prefetching) or prefetching. It only silences the instant-navigation validation error for the segment.
+- `instant = false` disables all instant-navigation checks for the route, not only this one. That includes [runtime data during prerendering](/docs/messages/blocking-prerender-runtime) errors and [unrendered segment](/docs/messages/instant-unrendered-segment) warnings for the route.
+- This export does not disable [Partial Prefetching](https://preview.nextjs.org/docs/app/glossary#partial-prefetching) or prefetching. It only disables instant-navigation validation for the segment.
 
 ## Verifying the fix
 

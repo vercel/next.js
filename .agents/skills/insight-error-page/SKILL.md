@@ -162,14 +162,14 @@ After the pattern snippets, include a "Use either pattern when:" bulleted list (
 **Gotchas** (mandatory bullets, in this order):
 
 - Setting `instant` to `false` opts out only the segment that exports it. Descendant segments remain validated by their own config or the global default.
-- This export does not disable prerendering. The route still prerenders if it can. It only silences the instant-navigation validation error.
+- This export does not disable prerendering. The route still prerenders if it can. It only disables instant-navigation validation for the route.
 - Page-specific gotchas (for example, viewport pages add framework-synthesized routes gotcha) come after the two canonical bullets.
 
 **Never** add a gotcha that says `Confirm with the user that ...` in user-facing body prose. The page is what the user reads — write for them, not for the agent. Guardrails the agent should apply belong in the actual code-shape guidance under the `### Patterns` heading (which the agent reads via the docs link in the copied prompt).
 
 ### Don't want this validation?
 
-Every insight page ends (just before `## Related Insights`) with the canonical opt-out block. It teaches the reader how to silence validation per-segment, subtree-wide, and app-wide, since instant-navigation validation runs by default in Cache Components apps. Copy verbatim:
+Every insight page ends (just before `## Related Insights`) with the canonical opt-out block. It teaches the reader how to opt out of validation per-segment, subtree-wide, and app-wide, since instant-navigation validation runs by default in Cache Components apps. Copy verbatim:
 
 ```mdx
 ## Don't want this validation?

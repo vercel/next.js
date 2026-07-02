@@ -168,7 +168,7 @@ The segment is exempt from instant-navigation validation. If it has issues that 
 ### Gotchas
 
 - The export must be on the **dropped segment's own file** (page or layout), not on a parent. The framework walks top-down and the first explicit config wins.
-- Setting [`instant`](https://preview.nextjs.org/docs/app/api-reference/file-conventions/route-segment-config/instant) to `false` does not disable [prerendering](https://preview.nextjs.org/docs/app/glossary#prerendering). The segment still prerenders if it can. It only silences the validation error.
+- Setting [`instant`](https://preview.nextjs.org/docs/app/api-reference/file-conventions/route-segment-config/instant) to `false` does not disable [prerendering](https://preview.nextjs.org/docs/app/glossary#prerendering). The segment still prerenders if it can. It only disables the validation error.
 
 ## Verifying the fix
 

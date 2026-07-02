@@ -130,7 +130,7 @@ The link no longer forces a full prefetch. The user gets the cached parts of the
 
 ## Disable validation on this route
 
-Choose this fix when you need the legacy full prefetch behavior and cannot adopt Partial Prefetching for the target route. Setting [`instant`](https://preview.nextjs.org/docs/app/api-reference/file-conventions/route-segment-config/instant) to `false` on the target route opts it out of instant-navigation validation and silences the warning.
+Choose this fix when you need the legacy full prefetch behavior and cannot adopt Partial Prefetching for the target route. Setting [`instant`](https://preview.nextjs.org/docs/app/api-reference/file-conventions/route-segment-config/instant) to `false` on the target route opts it out of instant-navigation validation.
 
 ### Patterns
 
@@ -148,11 +148,11 @@ export default function DashboardPage() {
 
 ### Trade-off
 
-The link continues to do a full prefetch, including dynamic data, and the warning is silenced.
+The link continues to do a full prefetch, including dynamic data, and the warning is no longer reported.
 
 ### Gotchas
 
-- `instant = false` disables all instant-navigation checks for the route, not only this one. [Blocking-route](/docs/messages/blocking-prerender-runtime) and [unrendered-segment](/docs/messages/instant-unrendered-segment) warnings, and other Insights for the route are silenced too.
+- `instant = false` disables all instant-navigation checks for the route, not only this one. That includes [Blocking-route](/docs/messages/blocking-prerender-runtime) and [unrendered-segment](/docs/messages/instant-unrendered-segment) warnings, and other Insights for the route.
 
 ## Verifying the fix
 
