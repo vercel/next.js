@@ -360,6 +360,7 @@ impl PagesProject {
             self.project().next_mode(),
             self.project().next_config(),
             self.project().encryption_key(),
+            *self.project().is_hmr_enabled().await?,
         ))
     }
 
@@ -551,6 +552,7 @@ impl PagesProject {
             self.project().next_mode(),
             self.project().next_config(),
             self.project().execution_context(),
+            *self.project().is_hmr_enabled().await?,
         );
         Ok(client_runtime_entries.resolve_entries(Vc::upcast(self.client_module_context())))
     }

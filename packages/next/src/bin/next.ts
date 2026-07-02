@@ -368,6 +368,12 @@ program
   .addOption(
     new Option('--no-server-fast-refresh', 'Disable server-side Fast Refresh')
   )
+  .addOption(
+    new Option(
+      '--no-hmr',
+      'Disable Hot Module Replacement; refresh the browser to see changes (Turbopack only).'
+    )
+  )
   .option(
     '--experimental-upload-trace, <traceUrl>',
     'Reports a subset of the debugging trace to a remote HTTP URL. Includes sensitive data.'

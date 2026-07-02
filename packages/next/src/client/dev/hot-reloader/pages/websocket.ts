@@ -48,6 +48,7 @@ export function connectHMR(options: { path: string; assetPrefix: string }) {
 
       if (message.type === HMR_MESSAGE_SENT_TO_BROWSER.TURBOPACK_CONNECTED) {
         if (
+          process.env.__NEXT_HMR &&
           serverSessionId !== null &&
           serverSessionId !== message.data.sessionId
         ) {
@@ -55,6 +56,7 @@ export function connectHMR(options: { path: string; assetPrefix: string }) {
           // it's been too long since we disconnected and we should reload the page.
           // There could be 1) unhandled server errors and/or 2) stale content.
           // Perform a hard reload of the page.
+          // With HMR disabled (`--no-hmr`) the page never reloads itself.
           window.location.reload()
 
           reloading = true
@@ -75,7 +77,12 @@ export function connectHMR(options: { path: string; assetPrefix: string }) {
       source.close()
       reconnections++
       // After WEB_SOCKET_MAX_RECONNECTIONS reconnects we'll want to reload the page as it indicates the dev server is no longer running.
-      if (reconnections > WEB_SOCKET_MAX_RECONNECTIONS) {
+      // With HMR disabled (`--no-hmr`) the page never reloads itself; keep
+      // retrying instead so a restarted server is eventually picked up.
+      if (
+        process.env.__NEXT_HMR &&
+        reconnections > WEB_SOCKET_MAX_RECONNECTIONS
+      ) {
         reloading = true
         window.location.reload()
         return

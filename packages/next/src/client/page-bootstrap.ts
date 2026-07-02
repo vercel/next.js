@@ -35,6 +35,10 @@ export function pageBootstrap(assetPrefix: string) {
           throw error
         }
         case HMR_MESSAGE_SENT_TO_BROWSER.RELOAD_PAGE: {
+          if (!process.env.__NEXT_HMR) {
+            // With HMR disabled (`--no-hmr`) the page never reloads itself.
+            break
+          }
           reloading = true
           window.location.reload()
           break
@@ -53,9 +57,15 @@ export function pageBootstrap(assetPrefix: string) {
           break
         }
         case HMR_MESSAGE_SENT_TO_BROWSER.MIDDLEWARE_CHANGES: {
+          if (!process.env.__NEXT_HMR) {
+            break
+          }
           return window.location.reload()
         }
         case HMR_MESSAGE_SENT_TO_BROWSER.CLIENT_CHANGES: {
+          if (!process.env.__NEXT_HMR) {
+            break
+          }
           // This is used in `../server/dev/turbopack-utils.ts`.
           const isOnErrorPage = window.next.router.pathname === '/_error'
           // On the error page we want to reload the page when a page was changed
@@ -69,6 +79,11 @@ export function pageBootstrap(assetPrefix: string) {
           break
         }
         case HMR_MESSAGE_SENT_TO_BROWSER.SERVER_ONLY_CHANGES: {
+          if (!process.env.__NEXT_HMR) {
+            // With HMR disabled (`--no-hmr`) data is only refreshed by a
+            // manual refresh.
+            break
+          }
           if (RuntimeErrorHandler.hadRuntimeError) {
             console.warn(REACT_REFRESH_FULL_RELOAD_FROM_ERROR)
             performFullReload(null)

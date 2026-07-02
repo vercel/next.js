@@ -60,6 +60,7 @@ export type NextDevOptions = {
   experimentalNextConfigStripTypes?: boolean
   experimentalCpuProf?: boolean
   serverFastRefresh?: boolean
+  hmr?: boolean
   internalTrace?: string | boolean
 }
 
@@ -322,6 +323,7 @@ const nextDev = async (
   const enabledFeatures = Object.fromEntries(
     Object.entries({
       serverFastRefreshDisabled: options.serverFastRefresh === false,
+      hmrDisabled: options.hmr === false,
       experimentalCpuProf: options.experimentalCpuProf,
     }).filter(([_, value]) => value)
   )
@@ -342,6 +344,7 @@ const nextDev = async (
     isDev: true,
     hostname: host,
     serverFastRefresh: options.serverFastRefresh,
+    hmr: options.hmr,
   }
 
   const startServerPath = require.resolve('../server/lib/start-server')

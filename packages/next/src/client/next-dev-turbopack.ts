@@ -42,13 +42,17 @@ initialize({
       )
     }
 
-    connect({
-      addMessageListener(cb: (message: TurbopackMessageSentToBrowser) => void) {
-        devClient.addTurbopackMessageListener(cb)
-      },
-      sendMessage: devClient.sendTurbopackMessage,
-      onUpdateError: devClient.handleUpdateError,
-    })
+    if (process.env.__NEXT_HMR) {
+      connect({
+        addMessageListener(
+          cb: (message: TurbopackMessageSentToBrowser) => void
+        ) {
+          devClient.addTurbopackMessageListener(cb)
+        },
+        sendMessage: devClient.sendTurbopackMessage,
+        onUpdateError: devClient.handleUpdateError,
+      })
+    }
 
     return pageBootstrap(assetPrefix)
   })

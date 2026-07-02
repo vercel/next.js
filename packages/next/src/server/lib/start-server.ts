@@ -134,6 +134,7 @@ export interface StartServerOptions {
   // this is dev-server only
   selfSignedCertificate?: SelfSignedCertificate
   serverFastRefresh?: boolean
+  hmr?: boolean
 }
 
 export async function getRequestHandlers({
@@ -147,6 +148,7 @@ export async function getRequestHandlers({
   keepAliveTimeout,
   experimentalHttpsServer,
   serverFastRefresh,
+  hmr,
   quiet,
 }: {
   dir: string
@@ -159,6 +161,7 @@ export async function getRequestHandlers({
   keepAliveTimeout?: number
   experimentalHttpsServer?: boolean
   serverFastRefresh?: boolean
+  hmr?: boolean
   quiet?: boolean
 }): ReturnType<typeof initialize> {
   return initialize({
@@ -172,6 +175,7 @@ export async function getRequestHandlers({
     keepAliveTimeout,
     experimentalHttpsServer,
     serverFastRefresh,
+    hmr,
     startServerSpan,
     quiet,
   })
@@ -193,6 +197,7 @@ export async function startServer(
     keepAliveTimeout,
     selfSignedCertificate,
     serverFastRefresh,
+    hmr,
   } = serverOptions
   let { port } = serverOptions
 
@@ -494,6 +499,7 @@ export async function startServer(
           keepAliveTimeout,
           experimentalHttpsServer: !!selfSignedCertificate,
           serverFastRefresh,
+          hmr,
         })
         requestHandler = initResult.requestHandler
         upgradeHandler = initResult.upgradeHandler

@@ -263,6 +263,8 @@ export interface NapiProjectOptions {
   nextVersion: RcStr
   /** Whether server-side HMR is enabled (disabled with --no-server-fast-refresh). */
   serverHmr?: boolean
+  /** Whether client-side HMR is enabled (disabled with --no-hmr). */
+  hmr?: boolean
 }
 /** [NapiProjectOptions] with all fields optional. */
 export interface NapiPartialProjectOptions {

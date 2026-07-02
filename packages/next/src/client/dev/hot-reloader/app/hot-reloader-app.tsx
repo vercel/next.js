@@ -390,6 +390,11 @@ export function processMessage(
       break
     }
     case HMR_MESSAGE_SENT_TO_BROWSER.TURBOPACK_MESSAGE: {
+      if (!process.env.__NEXT_HMR) {
+        // With HMR disabled (`--no-hmr`) no update subscriptions exist, so
+        // no updates should arrive; never apply any that do.
+        return
+      }
       turbopackHmr!.onTurbopackMessage(message)
       dispatcher.onBeforeRefresh()
       processTurbopackMessage({
@@ -418,6 +423,12 @@ export function processMessage(
       // server with any subsequent requests.
       document.cookie = `${NEXT_HMR_REFRESH_HASH_COOKIE}=${message.hash};path=/`
 
+      if (!process.env.__NEXT_HMR) {
+        // With HMR disabled (`--no-hmr`) the page is only updated by a manual
+        // refresh, which picks up the refresh hash cookie set above.
+        return
+      }
+
       if (
         RuntimeErrorHandler.hadRuntimeError ||
         document.documentElement.id === '__next_error__'
@@ -442,6 +453,10 @@ export function processMessage(
       return
     }
     case HMR_MESSAGE_SENT_TO_BROWSER.RELOAD_PAGE: {
+      if (!process.env.__NEXT_HMR) {
+        // With HMR disabled (`--no-hmr`) the page never reloads itself.
+        return
+      }
       turbopackHmr?.onReloadPage()
       sendMessage(
         JSON.stringify({
@@ -455,6 +470,9 @@ export function processMessage(
     }
     case HMR_MESSAGE_SENT_TO_BROWSER.ADDED_PAGE:
     case HMR_MESSAGE_SENT_TO_BROWSER.REMOVED_PAGE: {
+      if (!process.env.__NEXT_HMR) {
+        return
+      }
       turbopackHmr?.onPageAddRemove()
       // TODO-APP: potentially only refresh if the currently viewed page was added/removed.
       return publicAppRouterInstance.hmrRefresh()
