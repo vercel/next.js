@@ -39,13 +39,8 @@ export default function HomePage() {
           </Link>
         </li>
         <li>
-          <Link href="/dynamic-params/unknown" id="link-to-dynamic-params">
-            Go to dynamic params page
-          </Link>
-        </li>
-        <li>
-          <Link href="/dynamic-params/hello" id="link-to-static-dynamic-params">
-            Go to static dynamic params page
+          <Link href="/static-params/hello" id="link-to-static-params">
+            Go to static params page
           </Link>
         </li>
         <li>
@@ -96,16 +91,16 @@ export default function HomePage() {
           </a>
         </li>
         <li>
-          <a href="/dynamic-params/unknown" id="plain-link-to-dynamic-params">
-            Go to dynamic params page (MPA)
+          <a
+            href="/ungenerated-params/anything"
+            id="plain-link-to-ungenerated-params"
+          >
+            Go to ungenerated params page (MPA)
           </a>
         </li>
         <li>
-          <a
-            href="/dynamic-params/hello"
-            id="plain-link-to-static-dynamic-params"
-          >
-            Go to static dynamic params page (MPA)
+          <a href="/static-params/hello" id="plain-link-to-static-params">
+            Go to static params page (MPA)
           </a>
         </li>
         <li>
