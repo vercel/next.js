@@ -80,7 +80,6 @@ import {
 } from '../../lib/constants' with { 'turbopack-transition': 'next-server-utility' }
 import type { CacheControl } from '../../server/lib/cache-control'
 import { ENCODED_TAGS } from '../../server/stream-utils/encoded-tags' with { 'turbopack-transition': 'next-server-utility' }
-import { createInstantTestScriptInsertionTransformStream } from '../../server/stream-utils/node-web-streams-helper' with { 'turbopack-transition': 'next-server-utility' }
 import { sendRenderResult } from '../../server/send-payload' with { 'turbopack-transition': 'next-server-utility' }
 import { NoFallbackError } from '../../shared/lib/no-fallback-error.external' with { 'turbopack-transition': 'next-server-utility' }
 import { parseMaxPostponedStateSize } from '../../shared/lib/size-limit' with { 'turbopack-transition': 'next-server-utility' }
@@ -934,6 +933,7 @@ export async function handler(
             maxPostponedStateSizeBytes: parseMaxPostponedStateSize(
               nextConfig.experimental.maxPostponedStateSize
             ),
+            exposeTestingApi,
           },
 
           waitUntil: ctx.waitUntil,
@@ -1875,12 +1875,13 @@ export async function handler(
       // This is a request for HTML data.
       const body = cachedData.html
 
-      // Instant Navigation Testing API: serve the static shell with an
-      // injected script that sets self.__next_instant_test and kicks off a
-      // static RSC fetch for hydration. The transform stream also appends
-      // closing </body></html> tags so the browser can parse the full document.
-      // In dev mode, also inject self.__next_r so the HMR WebSocket and
-      // debug channel can initialize.
+      // Instant Navigation Testing API: serve the static shell without resuming
+      // the dynamic render. The cookie-guarded bootstrap that sets
+      // self.__next_instant_test is embedded in the prerendered shell via
+      // `bootstrapScriptContent`, so it is already present (in the served shell
+      // for a fresh render, or in the cached prelude on deploy). Since the
+      // render is not resumed, append the closing tags so the browser can parse
+      // a complete document.
       if (isInstantNavigationTest && isDebugStaticShell) {
         // If the static shell came back empty, the page reads a dynamic value
         // (e.g. `await cookies()`) at the root with no Suspense boundary above
@@ -1901,12 +1902,13 @@ export async function handler(
           )
         }
 
-        const instantTestRequestId =
-          routeModule.isDev === true ? crypto.randomUUID() : null
-        body.pipeThrough(
-          await createInstantTestScriptInsertionTransformStream(
-            instantTestRequestId
-          )
+        body.push(
+          new ReadableStream({
+            start(controller) {
+              controller.enqueue(ENCODED_TAGS.CLOSED.BODY_AND_HTML)
+              controller.close()
+            },
+          })
         )
         return sendRenderResult({
           req,
