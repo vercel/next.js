@@ -292,16 +292,10 @@ export function dispatchNavigateAction(
   // Mint the transition id and emit `start` here, before the action is queued,
   // so the hook runs outside React's render phase. (A user hook that throws
   // during the reducer would otherwise break error isolation between hooks.)
-  // The id is threaded on the action so the matching commit/abort can be found.
+  // The id is threaded on the action so the reducer can attach the destination
+  // tree to the pending transition once it exists.
   const { state } = getAppRouterActionQueue()
-  const transitionId = startRouterTransition(
-    href,
-    navigateType,
-    state.tree,
-    state.canonicalUrl,
-    state.renderedSearch,
-    Date.now()
-  )
+  const transitionId = startRouterTransition(href, navigateType, state)
 
   dispatchAppRouterAction({
     type: ACTION_NAVIGATE,
@@ -319,14 +313,7 @@ export function dispatchTraverseAction(
   historyState: AppHistoryState | undefined
 ) {
   const { state } = getAppRouterActionQueue()
-  const transitionId = startRouterTransition(
-    href,
-    'traverse',
-    state.tree,
-    state.canonicalUrl,
-    state.renderedSearch,
-    Date.now()
-  )
+  const transitionId = startRouterTransition(href, 'traverse', state)
   dispatchAppRouterAction({
     type: ACTION_RESTORE,
     url: new URL(href),
@@ -386,8 +373,9 @@ function gesturePush(href: string, options?: NavigateOptions): void {
       freshnessPolicy,
       scrollBehavior,
       'push',
-      // Gesture navigations are optimistic forks and are not tracked
-      // transitions.
+      // TODO: Figure out transition tracking for gesture navigations. They
+      // are optimistic forks dispatched through useOptimistic rather than the
+      // action queue, so they don't fit the start/commit/abort lifecycle yet.
       null
     )
     dispatchGestureState(forkedGestureState)

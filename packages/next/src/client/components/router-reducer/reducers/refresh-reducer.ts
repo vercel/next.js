@@ -107,7 +107,10 @@ export function refreshDynamicData(
     // to find and mark the entry.
     null,
     signal,
-    // A refresh is not a tracked router transition.
+    // TODO: Add perf tracking for refresh actions. A refresh re-fetches the
+    // dynamic data for the current URL (modeled as a navigation to the current
+    // URL); it never emits a transition `start`, so there is no transition id
+    // to attach a destination tree to yet, and it never reports a commit.
     null
   )
 }

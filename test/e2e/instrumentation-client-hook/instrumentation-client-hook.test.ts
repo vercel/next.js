@@ -130,7 +130,7 @@ describe('Instrumentation Client Hook', () => {
       return browser.eval(`window.__ROUTER_TRANSITION_EVENTS`)
     }
 
-    it('reports a fromTree descriptor on start (no prefetchIntent)', async () => {
+    it('reports flattened from* fields on start (no prefetchIntent)', async () => {
       const browser = await next.browser('/')
 
       await browser.elementByCss('a[href="/some-page"]').click()
@@ -142,17 +142,20 @@ describe('Instrumentation Client Hook', () => {
       expect(start.navigateType).toBe('push')
       expect(typeof start.event.id).toBe('string')
       expect(start.event.timestamp).toBeGreaterThan(0)
-      // fromTree describes the route we navigated away from (the home page).
-      expect(start.event.fromTree.routeTemplates).toEqual(['/'])
-      expect(start.event.fromTree.renderedPathname).toBe('/')
-      expect(start.event.fromTree.params).toEqual([])
-      expect(start.event.fromTree.searchParams).toEqual({})
-      // prefetchIntent / fromRoutes were removed from the event.
+      // The from* fields describe the route we navigated away from (the home
+      // page).
+      expect(start.event.fromRouteTemplates).toEqual(['/'])
+      expect(start.event.fromRenderedPathname).toBe('/')
+      expect(start.event.fromParams).toEqual([])
+      expect(start.event.fromSearchParams).toEqual({})
+      // prefetchIntent / fromRoutes were removed from the event, and the tree
+      // description is flattened rather than nested.
       expect('prefetchIntent' in start.event).toBe(false)
       expect('fromRoutes' in start.event).toBe(false)
+      expect('fromTree' in start.event).toBe(false)
     })
 
-    it('reports a commit with toTree and the same id as its start', async () => {
+    it('reports a commit with to* fields and the same id as its start', async () => {
       const browser = await next.browser('/')
 
       await browser.elementByCss('a[href="/some-page"]').click()
@@ -171,8 +174,8 @@ describe('Instrumentation Client Hook', () => {
       expect(commit.event.timestamp).toBeGreaterThanOrEqual(
         start.event.timestamp
       )
-      expect(commit.event.toTree.routeTemplates).toEqual(['/some-page'])
-      expect(commit.event.toTree.renderedPathname).toBe('/some-page')
+      expect(commit.event.toRouteTemplates).toEqual(['/some-page'])
+      expect(commit.event.toRenderedPathname).toBe('/some-page')
     })
 
     it('reports a hit when restoring a cached route', async () => {
@@ -191,7 +194,7 @@ describe('Instrumentation Client Hook', () => {
         const commit = (await getTransitionEvents(browser))
           .filter((e) => e.phase === 'commit' && e.url === '/some-page')
           .at(-1)
-        expect(commit?.event.outcome).toBe('hit')
+        expect(commit?.event.cache).toBe('hit')
       })
     })
 
@@ -205,7 +208,7 @@ describe('Instrumentation Client Hook', () => {
         const commit = (await getTransitionEvents(browser)).find(
           (e) => e.phase === 'commit' && e.url === '/no-prefetch'
         )
-        expect(commit?.event.outcome).toBe('miss')
+        expect(commit?.event.cache).toBe('miss')
       })
     })
 
@@ -227,7 +230,7 @@ describe('Instrumentation Client Hook', () => {
       // aborted, attributed to the commit that superseded it.
       expect(commit.url).toBe('/dashboard')
       expect(abort.url).toBe('/some-page')
-      expect(abort.event.cause).toBe(commit.event.id)
+      expect(abort.event.supersededByTransitionId).toBe(commit.event.id)
     })
 
     it('emits matching trees for a hash-only navigation', async () => {
@@ -246,16 +249,14 @@ describe('Instrumentation Client Hook', () => {
       // A hash-only navigation doesn't change the route, so the route identity
       // (everything but the hash-bearing canonicalUrl) is unchanged — that's
       // what consumers group by.
-      expect(commit.event.toTree.routeTemplates).toEqual(
-        start.event.fromTree.routeTemplates
+      expect(commit.event.toRouteTemplates).toEqual(
+        start.event.fromRouteTemplates
       )
-      expect(commit.event.toTree.renderedPathname).toBe(
-        start.event.fromTree.renderedPathname
+      expect(commit.event.toRenderedPathname).toBe(
+        start.event.fromRenderedPathname
       )
-      expect(commit.event.toTree.params).toEqual(start.event.fromTree.params)
-      expect(commit.event.toTree.searchParams).toEqual(
-        start.event.fromTree.searchParams
-      )
+      expect(commit.event.toParams).toEqual(start.event.fromParams)
+      expect(commit.event.toSearchParams).toEqual(start.event.fromSearchParams)
     })
 
     it('reports a traverse navigation on back/forward', async () => {
@@ -278,7 +279,7 @@ describe('Instrumentation Client Hook', () => {
       const traverseCommit = (await getTransitionEvents(browser)).find(
         (e) => e.phase === 'commit' && e.navigateType === 'traverse'
       )
-      expect(traverseCommit.event.toTree.routeTemplates).toEqual(['/'])
+      expect(traverseCommit.event.toRouteTemplates).toEqual(['/'])
     })
 
     it('renders dynamic segments as positional holes with positional params', async () => {
@@ -295,9 +296,9 @@ describe('Instrumentation Client Hook', () => {
       const commit = (await getTransitionEvents(browser)).find(
         (e) => e.phase === 'commit'
       )
-      expect(commit.event.toTree.routeTemplates).toEqual(['/blog/:1'])
-      expect(commit.event.toTree.params).toEqual(['hello'])
-      expect(commit.event.toTree.renderedPathname).toBe('/blog/hello')
+      expect(commit.event.toRouteTemplates).toEqual(['/blog/:1'])
+      expect(commit.event.toParams).toEqual(['hello'])
+      expect(commit.event.toRenderedPathname).toBe('/blog/hello')
     })
 
     it('omits route groups from route templates', async () => {
@@ -310,7 +311,7 @@ describe('Instrumentation Client Hook', () => {
         (e) => e.phase === 'start'
       )
       // The (marketing) group folder is not part of the route template.
-      expect(start.event.fromTree.routeTemplates).toEqual(['/about'])
+      expect(start.event.fromRouteTemplates).toEqual(['/about'])
     })
 
     it('includes parallel slots and reports the post-rewrite pathname for intercepted routes', async () => {
@@ -329,8 +330,8 @@ describe('Instrumentation Client Hook', () => {
       )
       // The intercepted modal keeps the gallery as the rendered (primary) route
       // even though the browser URL is /gallery/photos/1.
-      expect(commit.event.toTree.renderedPathname).toBe('/gallery')
-      expect(commit.event.toTree.routeTemplates).toEqual([
+      expect(commit.event.toRenderedPathname).toBe('/gallery')
+      expect(commit.event.toRouteTemplates).toEqual([
         '/gallery',
         '/gallery/@modal/(.)photos/:1',
       ])

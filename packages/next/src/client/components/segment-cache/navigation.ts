@@ -40,7 +40,7 @@ import { createCacheKey, type NormalizedSearch } from './cache-key'
 import { schedulePrefetchTask } from './scheduler'
 import { PrefetchPriority, FetchStrategy } from './types'
 import { getLinkForCurrentNavigation } from '../links'
-import { bufferRouterTransition } from '../router-transition'
+import { attachRouterTransitionTarget } from '../router-transition'
 import type { PageVaryPath } from './vary-path'
 import type { AppRouterState } from '../router-reducer/router-reducer-types'
 import { ScrollBehavior } from '../router-reducer/router-reducer-types'
@@ -319,7 +319,7 @@ export function navigateToKnownRoute(
   const accumulation: NavigationRequestAccumulation = {
     separateRefreshUrls: null,
     scrollRef: null,
-    pageShellHit: false,
+    cacheHit: false,
   }
   // We special case navigations to the exact same URL as the current location.
   // It's a common UI pattern for apps to refresh when you click a link to the
@@ -383,17 +383,15 @@ export function navigateToKnownRoute(
       accumulation.scrollRef,
       debugInfo
     )
-    if (transitionId !== null) {
-      // The shell we're committing is keyed by its tree, which HistoryUpdater
-      // matches on. `pageShellHit` was set during the segment walk above.
-      bufferRouterTransition(
-        transitionId,
-        newState.tree,
-        navigateType,
-        url.href,
-        accumulation.pageShellHit ? 'hit' : 'miss'
-      )
-    }
+    // The transition itself was recorded when `start` was emitted (in the
+    // dispatcher); now that the destination state exists, attach its tree —
+    // the identity HistoryUpdater matches on to report the commit — and
+    // whether the segment walk above found cached UI to navigate into.
+    attachRouterTransitionTarget(
+      transitionId,
+      newState.tree,
+      accumulation.cacheHit
+    )
     return newState
   }
   // Could not perform a SPA navigation. Revert to a full-page (MPA) navigation.

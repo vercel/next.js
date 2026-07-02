@@ -99,9 +99,9 @@ function HistoryUpdater({
     }
 
     // Report the router transition commit at the moment the navigation is
-    // applied to the browser. Matches the buffered transition by tree identity;
+    // applied to the browser. Matches the pending transition by tree identity;
     // a no-op if this state isn't a tracked transition or already committed.
-    commitRouterTransition(tree, canonicalUrl, renderedSearch)
+    commitRouterTransition(appRouterState)
     setLastCommittedTree(tree)
   }, [appRouterState])
 
@@ -230,6 +230,14 @@ function Router({
       // of the last MPA navigation.
       globalMutable.pendingMpaPath = undefined
 
+      // This dispatches the restore action directly via
+      // dispatchAppRouterAction instead of going through
+      // dispatchTraverseAction, because a browser BFCache restore is not a
+      // user navigation: dispatchTraverseAction would emit a transition
+      // `start` event and mint a transition id, but nothing "navigated" here —
+      // we're re-synchronizing router state after the browser revived a
+      // frozen page. `transitionId: null` keeps this restore out of the
+      // tracked transition lifecycle, so it can never emit a commit.
       dispatchAppRouterAction({
         type: ACTION_RESTORE,
         url: new URL(window.location.href),
@@ -306,6 +314,10 @@ function Router({
     throw unresolvedThenable
   }
 
+  // This entire effect is about shallow routing: it patches
+  // window.history.pushState/replaceState so that direct History API calls
+  // made outside of Next.js (i.e. shallow URL updates) still keep the router
+  // state — usePathname and useSearchParams — in sync with the address bar.
   useEffect(() => {
     const originalPushState = window.history.pushState.bind(window.history)
     const originalReplaceState = window.history.replaceState.bind(
@@ -325,6 +337,10 @@ function Router({
           type: ACTION_RESTORE,
           url: new URL(url ?? href, href),
           historyState: appHistoryState,
+          // TODO: Consider tracking perf for shallow routing. For now a
+          // shallow history update is not a tracked transition — no `start`
+          // is emitted for it, so there is no transition id to thread
+          // through, and it never reports a commit.
           transitionId: null,
         })
       })
