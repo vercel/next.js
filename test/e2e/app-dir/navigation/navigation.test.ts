@@ -948,6 +948,31 @@ describe('app dir - navigation', () => {
     })
   })
 
+  describe('browser back after a push followed by a refresh', () => {
+    it('should load the previous page', async () => {
+      const browser = await next.browser('/push-and-refresh')
+      expect(await browser.elementByCss('h1').text()).toBe('Home')
+      const historyLength = await browser.eval('window.history.length')
+
+      await browser.elementById('push-and-refresh').click()
+
+      await retry(async () => {
+        expect(await browser.elementByCss('h1').text()).toBe('Target')
+      })
+      await retry(async () => {
+        expect(await browser.eval('window.history.length')).toBe(
+          historyLength + 1
+        )
+      })
+
+      await browser.back()
+
+      await retry(async () => {
+        expect(await browser.elementByCss('h1').text()).toBe('Home')
+      })
+    })
+  })
+
   describe('middleware redirect', () => {
     it('should change browser location when router.refresh() gets a redirect response', async () => {
       const browser = await next.browser('/redirect-on-refresh/auth')
