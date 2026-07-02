@@ -270,7 +270,6 @@
     "react-server-dom-webpack-experimental": "npm:react-server-dom-webpack@0.0.0-experimental-ec0fca31-20260701",
     "react-ssr-prepass": "1.0.8",
     "react-virtualized": "9.22.3",
-    "release": "6.3.1",
     "request-promise-core": "1.1.2",
     "resolve-from": "5.0.0",
     "sass": "1.54.0",
