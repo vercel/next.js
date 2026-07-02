@@ -4360,6 +4360,8 @@ function dropValidationDebugChannel(channel: AnyStream | undefined): void {
   }
 }
 
+const alreadyForwardedDynamicUsageErrors = new WeakSet<Error>()
+
 /**
  * Forwards an `invalidDynamicUsageError` recorded on the work store (e.g. a
  * request API used inside `'use cache'`) to the dev overlay, so client
@@ -4383,8 +4385,12 @@ function forwardInvalidDynamicUsageError(
   // `serverComponentsErrorHandler` already stamped a digest on the error and
   // emitted it as a Flight error chunk, so surfacing it again here would
   // duplicate the entry in the dev overlay.
-  if (!(invalidDynamicUsageError as { digest?: unknown }).digest) {
-    logMessagesAndSendErrorsToBrowser([invalidDynamicUsageError], ctx)
+  if (
+    !(invalidDynamicUsageError as { digest?: unknown }).digest &&
+    !alreadyForwardedDynamicUsageErrors.has(invalidDynamicUsageError)
+  ) {
+    alreadyForwardedDynamicUsageErrors.add(invalidDynamicUsageError)
+    void logMessagesAndSendErrorsToBrowser([invalidDynamicUsageError], ctx)
   }
 
   return true
@@ -4425,7 +4431,18 @@ function runDevValidationInBackground(
         await cacheSignal.cacheReady()
       }
 
-      const inputs = await prepareValidationInputs(
+      // If the initial render recorded invalid dynamic usage errors
+      // (e.g. from caught errors inside "use cache"), we skip validation altogether.
+      if (
+        forwardInvalidDynamicUsageError(
+          ctx.workStore.invalidDynamicUsageError,
+          ctx
+        )
+      ) {
+        return
+      }
+
+      const lazyInputs = await prepareValidationInputs(
         prefetchMode,
         navigationKind,
         result,
@@ -4437,10 +4454,25 @@ function runDevValidationInBackground(
         getPayload,
         onError
       )
-      if (!inputs) {
+
+      // If we need to do multiple renders, do them in parallel.
+      // `runValidationInDev` currently needs `instantInputs` eagerly
+      // right before using `staticInputs` for static shell validation,
+      // so there's no point delaying one of the renders.
+      // We bail out (after logging an error during `resolveLazyDevValidationInputs`)
+      // if sync IO or invalid dynamic errors happen in either.
+      const [instantInputs, staticInputs] = await Promise.all([
+        lazyInputs.instantInputs
+          ? resolveLazyDevValidationInputs(lazyInputs.instantInputs, ctx)
+          : null,
+        resolveLazyDevValidationInputs(lazyInputs.staticInputs, ctx),
+      ])
+      if (
+        instantInputs === VALIDATION_BAILOUT ||
+        staticInputs === VALIDATION_BAILOUT
+      ) {
         return
       }
-      const { instantInputs, staticInputs } = inputs
 
       return runValidationInDev(
         prefetchMode,
@@ -4462,6 +4494,51 @@ function runDevValidationInBackground(
     })
 }
 
+/**
+ * The inputs to use for dev validation.
+ * If an input needs additional rendering work (because it couldn't be
+ * reused from the main render), it'll be an async function that produces
+ * the actual input, which lets the consumer consume these lazily and/or
+ * control when they are evaluated.
+ * */
+type PrepareValidationInputsResult = {
+  /** `null` if Instant Validation isn't enabled for a route */
+  readonly instantInputs: null | DevValidationInputs | LazyDevValidationInputs
+  readonly staticInputs: DevValidationInputs | LazyDevValidationInputs
+}
+
+/**
+ * A lazily evaluated render that will produce validation inputs.
+ * If it encounters sync IO or another error, it'll resolve to a sentinel
+ * `VALIDATION_BAILOUT` value instead.
+ */
+type LazyDevValidationInputs = MemoizedThunk<
+  Promise<DevValidationInputs | ValidationBailout>
+>
+
+const VALIDATION_BAILOUT = Symbol('VALIDATION_BAILOUT')
+type ValidationBailout = typeof VALIDATION_BAILOUT
+
+function createLazyDevValidationInputs(
+  create: () => Promise<DevValidationInputs | ValidationBailout>
+): LazyDevValidationInputs {
+  return createMemoizedThunk(create)
+}
+
+/** A lazily evaluated value. Only runs once even when called multiple times. */
+type MemoizedThunk<T> = (() => T) & { MemoizedOnce: never }
+
+function createMemoizedThunk<T>(cb: () => T): MemoizedThunk<T> {
+  let cache: null | { value: T } = null
+  const wrapped = (): T => {
+    if (cache === null) {
+      cache = { value: cb() }
+    }
+    return cache.value
+  }
+  return wrapped as MemoizedThunk<T>
+}
+
 async function prepareValidationInputs(
   prefetchMode: PrefetchingMode,
   navigationKind: DevNavigationKind,
@@ -4473,174 +4550,224 @@ async function prepareValidationInputs(
   createRequestStore: () => RequestStore,
   getPayload: (requestStore: RequestStore) => Promise<RSCPayload>,
   onError: (error: unknown) => void
-): Promise<{
-  instantInputs: DevValidationInputs
-  staticInputs: DevValidationInputs
-} | null> {
-  const debug = process.env.NEXT_PRIVATE_DEBUG_VALIDATION
-    ? console.log
-    : undefined
-
-  // If the initial render recorded invalid dynamic usage errors
-  // (e.g. from caught errros inside "use cache"), we skip validation altogether.
-  if (
-    forwardInvalidDynamicUsageError(ctx.workStore.invalidDynamicUsageError, ctx)
-  ) {
-    return null
-  }
-
-  const {
-    hadCacheMiss,
-    syncInterruptReason,
-    startTime,
-    staticStageEndTime,
-    runtimeStageEndTime,
-    accumulatedChunks,
-  } = result
-
-  if (!hadCacheMiss && syncInterruptReason === null) {
-    const inputsFromNavigation: DevValidationInputs = {
-      accumulatedChunks,
+): Promise<PrepareValidationInputsResult> {
+  // Check if we can re-use the main render for validation.
+  let inputsFromNavigation: DevValidationInputs | null
+  if (!result.hadCacheMiss && result.syncInterruptReason === null) {
+    inputsFromNavigation = {
+      accumulatedChunks: result.accumulatedChunks,
       syncInterruptReason: null,
-      startTime,
-      staticStageEndTime,
-      runtimeStageEndTime,
+      startTime: result.startTime,
+      staticStageEndTime: result.staticStageEndTime,
+      runtimeStageEndTime: result.runtimeStageEndTime,
       requestStore,
       debugChannelClient: validationDebugChannel,
     }
+  } else {
+    // Cache miss or sync IO. We can't re-use the main render.
+    dropValidationDebugChannel(validationDebugChannel)
+    inputsFromNavigation = null
+  }
 
-    if (prefetchMode === PrefetchingMode.Partial) {
-      // Cases -
-      // 1. no static params, initial load -- instant and static use the same inputs
-      // 2. no static params, client nav   -- instant and static use the same inputs
-      // 4. static params, client nav      -- reuse main render for instant, new (pre)render for static
-      // 3. static params, initial load    -- reuse main render for static, new render for instant
-      if (
-        !hasNonRootStaticParams(
-          ctx.interpolatedParams,
-          requestStore.rootParams,
-          requestStore.fallbackParams
-        )
-      ) {
-        debug?.(
-          'reuse main render for both instant validation and static validation'
-        )
-        const instantInputs = inputsFromNavigation
-        const staticInputs = inputsFromNavigation
-        return { instantInputs, staticInputs }
-      }
+  if (prefetchMode === PrefetchingMode.Partial) {
+    return prepareValidationInputsInPartialPrefetching(
+      navigationKind,
+      requestStore,
+      ctx,
+      prerenderResumeDataCache,
+      createRequestStore,
+      getPayload,
+      onError,
+      inputsFromNavigation
+    )
+  } else {
+    return prepareValidationInputsInLegacyPrefetching(
+      ctx,
+      prerenderResumeDataCache,
+      createRequestStore,
+      getPayload,
+      onError,
+      inputsFromNavigation
+    )
+  }
+}
 
-      // We have static params, which means that the Static stage is incompatible
-      // across static and instant validation.
-      if (navigationHasAppShell(navigationKind)) {
-        debug?.(
-          'reuse main render for instant validation, do secondary render for static validation'
-        )
-        // This navigation has an accurate app shell, so we can use it for instant validation.
-        const instantInputs = inputsFromNavigation
-        // We have non-root static params, and then the static shell must have them in the Static stage
-        // and can't be recovered from the main render.
+async function prepareValidationInputsInPartialPrefetching(
+  navigationKind: DevNavigationKind,
+  requestStore: RequestStore,
+  ctx: AppRenderContext,
+  prerenderResumeDataCache: ReturnType<typeof createPrerenderResumeDataCache>,
+  createRequestStore: () => RequestStore,
+  getPayload: (requestStore: RequestStore) => Promise<RSCPayload>,
+  onError: (error: unknown) => void,
+  inputsFromNavigation: DevValidationInputs | null
+): Promise<PrepareValidationInputsResult> {
+  const loaderTree = ctx.componentMod.routeModule.userland.loaderTree
+  const needsInstantValidation =
+    await anySegmentNeedsInstantValidationInDev(loaderTree)
 
-        const staticInputs = await renderWithWarmCachesForStaticValidationInDev(
-          ctx,
-          createRequestStore,
-          getPayload,
-          onError,
-          prerenderResumeDataCache
-        )
-        if (forwardErrorsFromWarmRender(staticInputs, ctx)) {
-          return null
-        }
-        return { instantInputs, staticInputs }
-      } else {
-        // This navigation does not have an accurate app shell, so we need to render again.
-        // However, this means that it has an accurate static shell, so we can skip a static render.
-        const staticInputs = inputsFromNavigation
+  // If we have static params that aren't root params, then the static stages are incompatible
+  // between the Static shell and the App Shell, and we can't use the same render for both.
+  const areStagesCompatible = !hasNonRootStaticParams(
+    ctx.interpolatedParams,
+    requestStore.rootParams,
+    requestStore.fallbackParams
+  )
 
-        debug?.(
-          'do secondary render for instant navigation, reuse main render for static validation'
-        )
-        const shouldRenderWithAppShell =
-          prefetchMode === PrefetchingMode.Partial
-        const instantInputs = await renderWithWarmCachesForValidationInDev(
-          ctx,
-          createRequestStore,
-          getPayload,
-          onError,
-          prerenderResumeDataCache,
-          shouldRenderWithAppShell
-        )
-        if (forwardErrorsFromWarmRender(instantInputs, ctx)) {
-          return null
-        }
+  const LAZY_FULL_RENDER = createLazyDevValidationInputs(async () => {
+    const shouldRenderWithAppShell = true
+    const inputs = await renderWithWarmCachesForValidationInDev(
+      ctx,
+      createRequestStore,
+      getPayload,
+      onError,
+      prerenderResumeDataCache,
+      shouldRenderWithAppShell
+    )
+    if (forwardErrorsFromWarmRender(inputs, ctx)) {
+      return VALIDATION_BAILOUT
+    }
+    return inputs
+  })
 
-        return { instantInputs, staticInputs }
-      }
-    } else {
-      // Not partialPrefetching. We use the same inputs for both Instant Validation and Static Shell Validation.
-      debug?.('reuse main render for instant validation and static validation')
+  const LAZY_RUNTIME_PRERENDER = createLazyDevValidationInputs(async () => {
+    const inputs = await prerenderWithWarmCachesForStaticValidationInDev(
+      ctx,
+      createRequestStore,
+      getPayload,
+      onError,
+      prerenderResumeDataCache
+    )
+    if (forwardErrorsFromWarmRender(inputs, ctx)) {
+      return VALIDATION_BAILOUT
+    }
+    return inputs
+  })
 
-      const instantInputs = inputsFromNavigation
+  if (inputsFromNavigation) {
+    // We can reuse the main render for at least one of the validation passes.
+    if (areStagesCompatible) {
+      // Stages are compatible across the static shell and the app shell.
+      // We reuse the main render for both.
+      const instantInputs = needsInstantValidation ? inputsFromNavigation : null
       const staticInputs = inputsFromNavigation
       return { instantInputs, staticInputs }
     }
-  }
 
-  // A cache miss or sync IO interrupt means the streamed chunks aren't reliable
-  // for validation; a dedicated warm-cache rerender produces the inputs instead.
-  dropValidationDebugChannel(validationDebugChannel)
+    // Stages are incompatible across static and instant validation.
 
-  const shouldRenderWithAppShell = prefetchMode === PrefetchingMode.Partial
-  const instantInputs = await renderWithWarmCachesForValidationInDev(
-    ctx,
-    createRequestStore,
-    getPayload,
-    onError,
-    prerenderResumeDataCache,
-    shouldRenderWithAppShell
-  )
-  if (forwardErrorsFromWarmRender(instantInputs, ctx)) {
-    return null
-  }
-
-  let staticInputs: DevValidationInputs
-  if (prefetchMode === PrefetchingMode.Partial) {
-    // If we have any non-root static params, then the static shell must have them in the static stage
-    // and can't be recovered from the rerender.
-    if (
-      hasNonRootStaticParams(
-        ctx.interpolatedParams,
-        requestStore.rootParams,
-        requestStore.fallbackParams
-      )
-    ) {
-      debug?.(
-        'rerender with warm caches for instant validation, do secondary render for static validation'
-      )
-      staticInputs = await renderWithWarmCachesForStaticValidationInDev(
-        ctx,
-        createRequestStore,
-        getPayload,
-        onError,
-        prerenderResumeDataCache
-      )
-      if (forwardErrorsFromWarmRender(staticInputs, ctx)) {
-        return null
-      }
-    } else {
-      // If there's no non-root static params, then the static stage is usable for static validation.
-      debug?.(
-        'rerender with warm caches for both instant validation and static validation'
-      )
-      staticInputs = instantInputs
+    // If this navigation has an accurate app shell, we can use it for instant validation.
+    // However, static validation can't use this static stage, so we need to prerender it.
+    if (navigationHasAppShell(navigationKind)) {
+      const instantInputs = needsInstantValidation ? inputsFromNavigation : null
+      const staticInputs = LAZY_RUNTIME_PRERENDER
+      return { instantInputs, staticInputs }
     }
-  } else {
-    debug?.('rerender for instant validation and static validation')
-    // Not partialPrefetching. We use the same inputs for both Instant Validation and Static Shell Validation.
-    staticInputs = instantInputs
+
+    // This navigation does not have an accurate app shell, so if we need instant validation, we need to render again.
+    // However, this means that it has an accurate static shell, so we can skip prerendering it.
+    const instantInputs = needsInstantValidation ? LAZY_FULL_RENDER : null
+    const staticInputs = inputsFromNavigation
+    return { instantInputs, staticInputs }
   }
+
+  // We cannot reuse the main navigation, and need to render again.
+  // If stages are compatible and we'll rerender for instant validation,
+  // we can reuse the result for static validation.
+  const instantInputs = needsInstantValidation ? LAZY_FULL_RENDER : null
+  const staticInputs =
+    areStagesCompatible && instantInputs !== null
+      ? instantInputs
+      : LAZY_RUNTIME_PRERENDER
 
   return { instantInputs, staticInputs }
+}
+
+async function prepareValidationInputsInLegacyPrefetching(
+  ctx: AppRenderContext,
+  prerenderResumeDataCache: ReturnType<typeof createPrerenderResumeDataCache>,
+  createRequestStore: () => RequestStore,
+  getPayload: (requestStore: RequestStore) => Promise<RSCPayload>,
+  onError: (error: unknown) => void,
+  inputsFromNavigation: DevValidationInputs | null
+): Promise<PrepareValidationInputsResult> {
+  const loaderTree = ctx.componentMod.routeModule.userland.loaderTree
+  const needsInstantValidation =
+    await anySegmentNeedsInstantValidationInDev(loaderTree)
+
+  // We're not in partialPrefetching, so we can use the same inputs for both
+  // instant validation and static shell validation.
+  if (inputsFromNavigation) {
+    // The main render is reusable.
+    const instantInputs = needsInstantValidation ? inputsFromNavigation : null
+    const staticInputs = inputsFromNavigation
+    return { instantInputs, staticInputs }
+  }
+
+  const LAZY_FULL_RENDER = createLazyDevValidationInputs(async () => {
+    const shouldRenderWithAppShell = false
+    const inputs = await renderWithWarmCachesForValidationInDev(
+      ctx,
+      createRequestStore,
+      getPayload,
+      onError,
+      prerenderResumeDataCache,
+      shouldRenderWithAppShell
+    )
+    if (forwardErrorsFromWarmRender(inputs, ctx)) {
+      return VALIDATION_BAILOUT
+    }
+    return inputs
+  })
+
+  const LAZY_RUNTIME_PRERENDER = createLazyDevValidationInputs(async () => {
+    const inputs = await prerenderWithWarmCachesForStaticValidationInDev(
+      ctx,
+      createRequestStore,
+      getPayload,
+      onError,
+      prerenderResumeDataCache
+    )
+    if (forwardErrorsFromWarmRender(inputs, ctx)) {
+      return VALIDATION_BAILOUT
+    }
+    return inputs
+  })
+
+  // If instant validation is needed, we need to perform a full rerender.
+  // Otherwise, a prerender is enough.
+  if (needsInstantValidation) {
+    const instantInputs = LAZY_FULL_RENDER
+    const staticInputs = instantInputs
+    return { instantInputs, staticInputs }
+  } else {
+    const instantInputs = null
+    const staticInputs = LAZY_RUNTIME_PRERENDER
+    return { instantInputs, staticInputs }
+  }
+}
+
+async function resolveLazyDevValidationInputs(
+  resolvedOrLazyInputs: DevValidationInputs | LazyDevValidationInputs,
+  ctx: AppRenderContext
+): Promise<DevValidationInputs | ValidationBailout> {
+  let inputs: DevValidationInputs
+  if (typeof resolvedOrLazyInputs === 'function') {
+    const maybeInputs = await resolvedOrLazyInputs()
+    if (maybeInputs === VALIDATION_BAILOUT) {
+      return maybeInputs
+    }
+    inputs = maybeInputs
+  } else {
+    inputs = resolvedOrLazyInputs
+  }
+
+  const syncInterruptReason = inputs.syncInterruptReason
+  if (syncInterruptReason) {
+    await logMessagesAndSendErrorsToBrowser([syncInterruptReason], ctx)
+    return VALIDATION_BAILOUT
+  }
+  return inputs
 }
 
 function forwardErrorsFromWarmRender(
@@ -5141,7 +5268,7 @@ interface StagedRenderWithCachesInDevOptions extends StagedDevRenderOptions {
   getDevRenderDidError: () => boolean
 }
 
-async function renderWithWarmCachesForStaticValidationInDev(
+async function prerenderWithWarmCachesForStaticValidationInDev(
   ctx: AppRenderContext,
   createRequestStore: () => RequestStore,
   getPayload: (requestStore: RequestStore) => Promise<RSCPayload>,
@@ -5806,19 +5933,12 @@ async function runValidationInDev(
  */
 async function runValidationInDevImpl(
   prefetchMode: PrefetchingMode,
-  instantInputs: DevValidationInputs,
+  instantInputs: DevValidationInputs | null,
   staticInputs: DevValidationInputs,
   ctx: AppRenderContext,
   fallbackRouteParams: OpaqueFallbackRouteParams | null,
   devRenderDidError: boolean
 ): Promise<void> {
-  if (instantInputs.syncInterruptReason) {
-    return logMessagesAndSendErrorsToBrowser(
-      [instantInputs.syncInterruptReason],
-      ctx
-    )
-  }
-
   const { componentMod: ComponentMod, getDynamicParamFromSegment } = ctx
   const loaderTree = ComponentMod.routeModule.userland.loaderTree
   const rootParams = getRootParams(loaderTree, getDynamicParamFromSegment)
@@ -5830,10 +5950,14 @@ async function runValidationInDevImpl(
   const validationSamples = null
   const validationSampleTracking = null
 
+  //================================
+  // Client module warmup
+  //================================
   {
-    // For warmup, we have to use the shared inputs -- the static inputs
+    // For warmup, we have to use the shared inputs if present -- the static inputs
     // may not have a proper dynamic stage.
-    const { runtimeChunks, dynamicChunks } = instantInputs.accumulatedChunks
+    const { runtimeChunks, dynamicChunks } = (instantInputs ?? staticInputs)
+      .accumulatedChunks
 
     // First we warmup SSR with the runtime chunks. This ensures that when we do
     // the full prerender pass with dynamic tracking module loading won't
@@ -5869,9 +5993,10 @@ async function runValidationInDevImpl(
     return chunks
   }
 
+  //================================
+  // Static shell validation
+  //================================
   {
-    // Static shell validation.
-
     const inputs = staticInputs
 
     const debugChunks = inputs.debugChannelClient
@@ -5892,7 +6017,10 @@ async function runValidationInDevImpl(
     }
   }
 
-  if (needsInstantValidation) {
+  //================================
+  // Instant validation
+  //================================
+  if (needsInstantValidation && instantInputs) {
     const inputs = instantInputs
 
     const debugChunks = inputs.debugChannelClient
