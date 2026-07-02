@@ -153,13 +153,17 @@ interface PendingHashFragmentScroll {
 }
 
 /**
- * Watch the DOM for a hash fragment's target element to appear (e.g. when a
- * Suspense boundary it lives in resolves), then invoke `onAppear`. The caller
- * is responsible for cancelling the returned watcher once it is no longer
- * needed via `cancelPendingHashFragmentScroll`.
+ * Watch `root`'s subtree for a hash fragment's target element to appear (e.g.
+ * when a Suspense boundary it lives in resolves), then invoke `onAppear`.
+ * Callers scope `root` to the segment's own subtree rather than the whole
+ * document, so the watcher does not react to unrelated DOM changes elsewhere on
+ * the page and does not outlive the segment. The caller is responsible for
+ * cancelling the returned watcher once it is no longer needed via
+ * `cancelPendingHashFragmentScroll`.
  */
 function watchForHashFragment(
   hashFragment: string,
+  root: Node,
   onAppear: () => void
 ): PendingHashFragmentScroll {
   const observer = new MutationObserver(() => {
@@ -167,7 +171,7 @@ function watchForHashFragment(
       onAppear()
     }
   })
-  observer.observe(document.body, { childList: true, subtree: true })
+  observer.observe(root, { childList: true, subtree: true })
   return { hashFragment, observer }
 }
 
@@ -224,8 +228,17 @@ class InnerScrollAndFocusHandlerOld extends React.Component<ScrollAndMaybeFocusH
           this.pendingHashFragmentScroll = cancelPendingHashFragmentScroll(
             this.pendingHashFragmentScroll
           )
+          // Scope the watch to this segment's subtree: the target lives inside a
+          // Suspense boundary within it, so there is no need to observe the
+          // whole document, and we won't react to unrelated DOM changes
+          // elsewhere on the page (nor keep watching after the segment is gone).
+          const container = findDOMNode(this)
+          const observeRoot =
+            (container instanceof Element && container.parentElement) ||
+            document.body
           this.pendingHashFragmentScroll = watchForHashFragment(
             hashFragment,
+            observeRoot,
             () => {
               this.pendingHashFragmentScroll = cancelPendingHashFragmentScroll(
                 this.pendingHashFragmentScroll
@@ -395,6 +408,10 @@ function InnerScrollHandlerNew(props: ScrollAndMaybeFocusHandlerProps) {
               )
             pendingHashFragmentScrollRef.current = watchForHashFragment(
               hashFragment,
+              // The Fragment-ref handler has no single container node to scope
+              // to, so fall back to observing document.body. This branch is
+              // behind the experimental `appNewScrollHandler` flag.
+              document.body,
               () => {
                 pendingHashFragmentScrollRef.current =
                   cancelPendingHashFragmentScroll(

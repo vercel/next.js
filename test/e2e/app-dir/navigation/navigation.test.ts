@@ -238,6 +238,35 @@ describe('app dir - navigation', () => {
         expect(await browser.eval('window.pageYOffset')).toBeGreaterThan(0)
       })
     })
+
+    it('should not reset scroll to the top when the hash target never appears', async () => {
+      // Regression guard for the one intentional behavior change in this fix:
+      // navigating to a hash whose target is not (and never becomes) present
+      // must leave the scroll position untouched — matching the browser —
+      // instead of resetting to the top of the page. The fixture's links are
+      // position: fixed, so clicking one never scrolls the viewport itself.
+      const browser = await next.browser('/hash-absent')
+
+      // Scroll away from the top via a hash target that exists.
+      await browser.elementByCss('#link-to-present').click()
+      await retry(async () => {
+        expect(await browser.eval('window.pageYOffset')).toBeGreaterThan(0)
+      })
+      const scrollBeforeAbsentHash = await browser.eval('window.pageYOffset')
+
+      // Navigate to a hash whose target does not exist in the DOM.
+      await browser.elementByCss('#link-to-ghost').click()
+      await retry(async () =>
+        expect(await browser.eval('window.location.hash')).toBe('#ghost-target')
+      )
+
+      // Give any (incorrect) scroll-to-top a chance to run before asserting the
+      // position is unchanged.
+      await waitFor(500)
+      expect(await browser.eval('window.pageYOffset')).toBe(
+        scrollBeforeAbsentHash
+      )
+    })
   })
 
   describe('hash-with-scroll-offset', () => {
