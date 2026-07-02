@@ -48,13 +48,6 @@ export function restoreReducer(
   const navigationLock = getCurrentNavigationLock()
 
   const now = Date.now()
-  // Instrumentation only: the pending transition (when present) was created —
-  // and its `start` emitted — by the dispatcher; null for the
-  // pushState/replaceState sync path, which isn't a navigation. Traversals
-  // complete here rather than through navigateToKnownRoute (which handles
-  // push/replace navigations), so this reducer attaches the destination tree
-  // to the shared object itself below.
-  const transition = action.transition
   // TODO: Store the dynamic stale time on the top-level state so it's known
   // during restores and refreshes.
   const accumulation: NavigationRequestAccumulation = {
@@ -115,8 +108,12 @@ export function restoreReducer(
     task.route,
     restoredNextUrl
   )
+  // Traversals complete here rather than through navigateToKnownRoute (which
+  // handles push/replace navigations), so this reducer attaches the
+  // destination tree itself. The transition is null for the
+  // pushState/replaceState sync path, which isn't a navigation.
   attachRouterTransitionTarget(
-    transition,
+    action.instrumentationTransition,
     newState.tree,
     accumulation.instrumentationCacheHit
   )

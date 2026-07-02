@@ -965,10 +965,16 @@ function reuseSharedCacheNode(
 // show while the data streams in. A still-pending entry with no shell
 // suspends into a loading fallback, which is a miss for tracking purposes.
 //
-// TODO: A rejected dynamic RSC counts as "resolved" here (mirroring the
-// `dropPrefetchRsc` heuristic at the call site) and is therefore reported as
-// a hit even though the UI may suspend on the error. Revisit once error
-// handling for failed dynamic responses is settled.
+// TODO: `status !== 'pending'` counts a *rejected* dynamic RSC as "resolved"
+// (deliberately mirroring the `dropPrefetchRsc` heuristic at the
+// HistoryTraversal call site, which uses the same test to decide what to
+// render). Today a rejected RSC is unreachable through the navigation flow:
+// the only rejection site (`abortPendingCacheNode`) is only ever called with
+// `error === null`, which resolves the RSC with `null` (triggering a lazy
+// fetch on render) instead of rejecting it. If error handling for failed
+// dynamic responses ever starts rejecting these promises, a rejected entry
+// would be reported as a hit even though the user sees an error boundary
+// rather than the cached page — revisit then.
 function bfcacheEntryRendersImmediately(entry: BFCacheEntry): boolean {
   const rsc = entry.rsc
   const rscDidResolve =
@@ -1164,6 +1170,22 @@ function createCacheNodeForSegment(
         // Happy path: a cache hit
         cachedRsc = segmentEntry.rsc
         isCachedRscPartial = segmentEntry.isPartial
+        // A fulfilled *page* segment (even if partial) means the router
+        // navigates into cached UI immediately, so report a hit on the
+        // instrumentation accumulation. `isPage` distinguishes the leaf page
+        // segment (the one that renders `page.tsx`) from layout segments,
+        // and only the page counts: the hit/miss invariant is about whether
+        // the user immediately saw the destination *page* content. Layouts
+        // are usually shared with the route being left and therefore cached,
+        // so counting them would report "hit" for a navigation where the
+        // page itself still had to wait on the server behind a loading
+        // fallback. The other entry statuses are misses: pending/empty/
+        // rejected all resolve to a deferred placeholder — as does a segment
+        // seeded by the dynamic response (`seedRsc` below), since that
+        // navigation waited on the server.
+        if (isPage) {
+          accumulation.instrumentationCacheHit = true
+        }
         break
       }
       case EntryStatus.Pending: {
@@ -1196,19 +1218,6 @@ function createCacheNodeForSegment(
         break
       }
     }
-  }
-
-  // Instrumentation (`instrumentationCacheHit`): a fulfilled page segment
-  // (even if partial) means the router navigates into cached UI immediately —
-  // a hit per the invariant on
-  // NavigationRequestAccumulation.instrumentationCacheHit. An
-  // empty/pending/rejected entry resolves to a deferred placeholder, so it
-  // counts as a miss — as does a segment whose data is only arriving now via
-  // a dynamic request (`seedRsc`), since that navigation had to wait on the
-  // server. The head is intentionally excluded since it streams in
-  // non-blocking.
-  if (isPage && segmentEntry?.status === EntryStatus.Fulfilled) {
-    accumulation.instrumentationCacheHit = true
   }
 
   // Now combine the cached data with the seed data to determine what we can

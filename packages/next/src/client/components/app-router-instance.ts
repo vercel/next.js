@@ -294,7 +294,7 @@ export function dispatchNavigateAction(
   // throws during the reducer would otherwise break error isolation between
   // hooks.) The transition object is threaded on the action so the reducer can
   // attach the destination tree to it once it exists.
-  const transition = startRouterTransition(href, navigateType)
+  const instrumentationTransition = startRouterTransition(href, navigateType)
 
   dispatchAppRouterAction({
     type: ACTION_NAVIGATE,
@@ -303,7 +303,7 @@ export function dispatchNavigateAction(
     locationSearch: location.search,
     scrollBehavior,
     navigateType,
-    transition,
+    instrumentationTransition,
   })
 }
 
@@ -311,12 +311,12 @@ export function dispatchTraverseAction(
   href: string,
   historyState: AppHistoryState | undefined
 ) {
-  const transition = startRouterTransition(href, 'traverse')
+  const instrumentationTransition = startRouterTransition(href, 'traverse')
   dispatchAppRouterAction({
     type: ACTION_RESTORE,
     url: new URL(href),
     historyState,
-    transition,
+    instrumentationTransition,
   })
 }
 

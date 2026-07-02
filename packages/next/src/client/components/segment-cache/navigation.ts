@@ -71,11 +71,11 @@ export function navigate(
   freshnessPolicy: FreshnessPolicy,
   scrollBehavior: ScrollBehavior,
   navigateType: 'push' | 'replace',
-  // Instrumentation only: the pending transition created when this navigation
-  // started, or null when the navigation is not a tracked transition (e.g. a
-  // server action redirect or gesture). Threaded through so the destination
-  // tree can be attached to it, letting commit/abort be reported.
-  transition: PendingRouterTransition | null
+  // The pending transition created when this navigation started, or null when
+  // the navigation is not a tracked transition (e.g. a server action redirect
+  // or gesture). Threaded through so the destination tree can be attached to
+  // it, letting commit/abort be reported.
+  instrumentationTransition: PendingRouterTransition | null
 ): AppRouterState | Promise<AppRouterState> {
   let navigationLock: NavigationLock = null
 
@@ -102,7 +102,7 @@ export function navigate(
         scrollBehavior,
         navigateType,
         navigationLock,
-        transition
+        instrumentationTransition
       )
     }
   }
@@ -119,7 +119,7 @@ export function navigate(
     scrollBehavior,
     navigateType,
     navigationLock,
-    transition
+    instrumentationTransition
   )
 }
 
@@ -135,7 +135,7 @@ function navigateImpl(
   scrollBehavior: ScrollBehavior,
   navigateType: 'push' | 'replace',
   navigationLock: NavigationLock,
-  transition: PendingRouterTransition | null
+  instrumentationTransition: PendingRouterTransition | null
 ): AppRouterState | Promise<AppRouterState> {
   const now = Date.now()
   const href = url.href
@@ -158,7 +158,7 @@ function navigateImpl(
       navigateType,
       route,
       navigationLock,
-      transition
+      instrumentationTransition
     )
   }
 
@@ -196,7 +196,7 @@ function navigateImpl(
           navigateType,
           optimisticRoute,
           navigationLock,
-          transition
+          instrumentationTransition
         )
       }
     }
@@ -220,7 +220,7 @@ function navigateImpl(
     scrollBehavior,
     navigateType,
     navigationLock,
-    transition
+    instrumentationTransition
   ).catch(() => {
     // If the navigation fails, return the current state
     return state
@@ -256,7 +256,7 @@ export function navigateToKnownRoute(
   // dispatchRetryDueToTreeMismatch).
   routeCacheEntry: FulfilledRouteCacheEntry | null,
   signal: AbortSignal | undefined,
-  transition: PendingRouterTransition | null
+  instrumentationTransition: PendingRouterTransition | null
 ): AppRouterState {
   // A version of navigate() that accepts the target route tree as an argument
   // rather than reading it from the prefetch cache.
@@ -387,13 +387,13 @@ export function navigateToKnownRoute(
       accumulation.scrollRef,
       debugInfo
     )
-    // Instrumentation only: the pending transition was created when `start`
-    // was emitted (in the dispatcher); now that the destination state exists,
-    // write into that shared object its tree — the identity HistoryUpdater
-    // matches on to report the commit — and whether the segment walk above
-    // found cached UI to navigate into.
+    // The pending transition was created when `start` was emitted (in the
+    // dispatcher); now that the destination state exists, write into that
+    // shared object its tree — the identity HistoryUpdater matches on to
+    // report the commit — and whether the segment walk above found cached UI
+    // to navigate into.
     attachRouterTransitionTarget(
-      transition,
+      instrumentationTransition,
       newState.tree,
       accumulation.instrumentationCacheHit
     )
@@ -417,7 +417,7 @@ function navigateUsingPrefetchedRouteTree(
   navigateType: 'push' | 'replace',
   route: FulfilledRouteCacheEntry,
   navigationLock: NavigationLock,
-  transition: PendingRouterTransition | null
+  instrumentationTransition: PendingRouterTransition | null
 ): AppRouterState {
   const routeTree = route.tree
   const canonicalUrl = route.canonicalUrl + url.hash
@@ -449,7 +449,7 @@ function navigateUsingPrefetchedRouteTree(
     route,
     // Not an HMR refresh, so there's no request generation to cancel.
     undefined,
-    transition
+    instrumentationTransition
   )
 }
 
@@ -478,7 +478,7 @@ async function navigateToUnknownRoute(
   scrollBehavior: ScrollBehavior,
   navigateType: 'push' | 'replace',
   navigationLock: NavigationLock,
-  transition: PendingRouterTransition | null
+  instrumentationTransition: PendingRouterTransition | null
 ): Promise<AppRouterState> {
   // Runs when a navigation happens but there's no cached prefetch we can use.
   // Don't bother to wait for a prefetch response; go straight to a full
@@ -669,7 +669,7 @@ async function navigateToUnknownRoute(
     null,
     // Not an HMR refresh, so there's no request generation to cancel.
     undefined,
-    transition
+    instrumentationTransition
   )
 }
 
@@ -1103,7 +1103,7 @@ async function ensurePrefetchThenNavigate(
   scrollBehavior: ScrollBehavior,
   navigateType: 'push' | 'replace',
   navigationLock: NavigationLock,
-  transition: PendingRouterTransition | null
+  instrumentationTransition: PendingRouterTransition | null
 ): Promise<AppRouterState> {
   const link = getLinkForCurrentNavigation()
   const fetchStrategy = link !== null ? link.fetchStrategy : FetchStrategy.PPR
@@ -1144,7 +1144,7 @@ async function ensurePrefetchThenNavigate(
     scrollBehavior,
     navigateType,
     navigationLock,
-    transition
+    instrumentationTransition
   )
 
   // Only transition to captured-SPA once the navigation is known to be an SPA.

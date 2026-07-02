@@ -24,8 +24,13 @@ export function navigateReducer(
   state: ReadonlyReducerState,
   action: NavigateAction
 ): ReducerState {
-  const { url, isExternalUrl, navigateType, scrollBehavior, transition } =
-    action
+  const {
+    url,
+    isExternalUrl,
+    navigateType,
+    scrollBehavior,
+    instrumentationTransition,
+  } = action
 
   if (isExternalUrl) {
     return completeHardNavigation(state, url, navigateType)
@@ -53,6 +58,6 @@ export function navigateReducer(
     FreshnessPolicy.Default,
     scrollBehavior,
     navigateType,
-    transition
+    instrumentationTransition
   )
 }
