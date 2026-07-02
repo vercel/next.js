@@ -116,6 +116,15 @@ fn init() {
         .build()
         .unwrap();
     create_custom_tokio_runtime(rt);
+
+    // napi v2 permanently entered its tokio runtime context on the addon's main thread. Both
+    // these bindings and turbo-tasks (e.g. `PriorityRunner`) schedule tokio work from
+    // synchronous N-API calls and rely on that ambient context. napi v3 no longer provides it,
+    // so restore it: capture the runtime handle (this also forces napi to adopt the custom
+    // runtime registered above) and enter it for the lifetime of this thread.
+    let handle =
+        napi::bindgen_prelude::within_runtime_if_available(tokio::runtime::Handle::current);
+    std::mem::forget(Box::leak(Box::new(handle)).enter());
 }
 
 #[inline]

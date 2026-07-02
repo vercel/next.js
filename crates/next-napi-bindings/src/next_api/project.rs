@@ -2288,38 +2288,42 @@ pub fn project_update_info_subscribe(
             Ok(NapiUpdateMessage::from(message))
         })?;
     let tt = project.turbopack_ctx.turbo_tasks().clone();
-    tokio::spawn(async move {
-        loop {
-            let update_info = tt
-                .aggregated_update_info(Duration::ZERO, Duration::ZERO)
-                .await;
+    // Unlike napi v2, v3 does not enter the tokio runtime context on the JS thread, so
+    // `tokio::spawn` from a sync `#[napi]` fn panics without this wrapper.
+    within_runtime_if_available(|| {
+        tokio::spawn(async move {
+            loop {
+                let update_info = tt
+                    .aggregated_update_info(Duration::ZERO, Duration::ZERO)
+                    .await;
 
-            func.call(
-                Ok(UpdateMessage::Start),
-                ThreadsafeFunctionCallMode::NonBlocking,
-            );
+                func.call(
+                    Ok(UpdateMessage::Start),
+                    ThreadsafeFunctionCallMode::NonBlocking,
+                );
 
-            let update_info = match update_info {
-                Some(update_info) => update_info,
-                None => {
-                    tt.get_or_wait_aggregated_update_info(Duration::from_millis(
-                        aggregation_ms.into(),
-                    ))
-                    .await
+                let update_info = match update_info {
+                    Some(update_info) => update_info,
+                    None => {
+                        tt.get_or_wait_aggregated_update_info(Duration::from_millis(
+                            aggregation_ms.into(),
+                        ))
+                        .await
+                    }
+                };
+
+                let status = func.call(
+                    Ok(UpdateMessage::End(update_info)),
+                    ThreadsafeFunctionCallMode::NonBlocking,
+                );
+
+                if !matches!(status, Status::Ok) {
+                    let error = anyhow!("Error calling JS function: {}", status);
+                    eprintln!("{error}");
+                    break;
                 }
-            };
-
-            let status = func.call(
-                Ok(UpdateMessage::End(update_info)),
-                ThreadsafeFunctionCallMode::NonBlocking,
-            );
-
-            if !matches!(status, Status::Ok) {
-                let error = anyhow!("Error calling JS function: {}", status);
-                eprintln!("{error}");
-                break;
             }
-        }
+        });
     });
     Ok(())
 }
@@ -2370,25 +2374,29 @@ pub fn project_compilation_events_subscribe(
         .build_callback(|ctx| Ok(NapiCompilationEvent::from(ctx.value)))?;
 
     let tt = project.turbopack_ctx.turbo_tasks().clone();
-    tokio::spawn(async move {
-        let mut receiver = tt.subscribe_to_compilation_events(event_types);
-        while let Some(msg) = receiver.recv().await {
-            let status = tsfn.call(Ok(msg), ThreadsafeFunctionCallMode::Blocking);
+    // Unlike napi v2, v3 does not enter the tokio runtime context on the JS thread, so
+    // `tokio::spawn` from a sync `#[napi]` fn panics without this wrapper.
+    within_runtime_if_available(|| {
+        tokio::spawn(async move {
+            let mut receiver = tt.subscribe_to_compilation_events(event_types);
+            while let Some(msg) = receiver.recv().await {
+                let status = tsfn.call(Ok(msg), ThreadsafeFunctionCallMode::Blocking);
 
-            if status != Status::Ok {
-                break;
+                if status != Status::Ok {
+                    break;
+                }
             }
-        }
-        // Signal the JS side that the subscription has ended (e.g. after
-        // project shutdown drops all senders).  This allows the async
-        // iterator to exit promptly instead of hanging forever.
-        let _ = tsfn.call(
-            Err(napi::Error::new(
-                Status::Cancelled,
-                "compilation events subscription closed",
-            )),
-            ThreadsafeFunctionCallMode::Blocking,
-        );
+            // Signal the JS side that the subscription has ended (e.g. after
+            // project shutdown drops all senders).  This allows the async
+            // iterator to exit promptly instead of hanging forever.
+            let _ = tsfn.call(
+                Err(napi::Error::new(
+                    Status::Cancelled,
+                    "compilation events subscription closed",
+                )),
+                ThreadsafeFunctionCallMode::Blocking,
+            );
+        });
     });
 
     Ok(())
