@@ -157,7 +157,7 @@ function PushNotificationManager() {
 
   async function registerServiceWorker() {
     const registration = await navigator.serviceWorker.register(
-      new URL('../lib/service-worker.js', import.meta.url), 
+      new URL('../lib/service-worker.js', import.meta.url),
       {
         scope: '/',
         updateViaCache: 'none',
@@ -238,7 +238,7 @@ function PushNotificationManager() {
 
   async function registerServiceWorker() {
     const registration = await navigator.serviceWorker.register(
-      new URL('../lib/service-worker.js', import.meta.url), 
+      new URL('../lib/service-worker.js', import.meta.url),
       {
         scope: '/',
         updateViaCache: 'none',
@@ -633,7 +633,7 @@ module.exports = {
         ],
       },
       {
-        source: '/service-worker.js',
+        source: '/sw.js',
         headers: [
           {
             key: 'Content-Type',
