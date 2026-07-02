@@ -1928,7 +1928,7 @@ export default abstract class Server<
     }
 
     const ua = req.headers['user-agent'] || ''
-    this.renderOpts.botType = getBotType(ua)
+    this.renderOpts.botType = getBotType(ua, this.nextConfig.htmlLimitedBots)
 
     // we allow custom servers to call render for all URLs
     // so check if we need to serve a static _next file or not.
@@ -2314,7 +2314,7 @@ export default abstract class Server<
 
     if (opts.supportsDynamicResponse === true) {
       const ua = req.headers['user-agent'] || ''
-      const isBotRequest = isBot(ua)
+      const isBotRequest = isBot(ua, this.nextConfig.htmlLimitedBots)
       const isSupportedDocument =
         typeof components.Document?.getInitialProps !== 'function' ||
         // The built-in `Document` component also supports dynamic HTML for concurrent mode.

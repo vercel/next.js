@@ -285,8 +285,8 @@ export async function handler(
   const isPrerendered = !!prerenderManifest.routes[resolvedPathname]
 
   const userAgent = req.headers['user-agent'] || ''
-  const botType = getBotType(userAgent)
-  const isHtmlBot = isHtmlBotRequest(req)
+  const botType = getBotType(userAgent, nextConfig.htmlLimitedBots)
+  const isHtmlBot = isHtmlBotRequest(req, nextConfig.htmlLimitedBots)
 
   /**
    * If true, this indicates that the request being made is for an app
@@ -1096,7 +1096,10 @@ export async function handler(
         // When serving a HTML bot request, we want to serve a blocking render and
         // not the prerendered page. This ensures that the correct content is served
         // to the bot in the head.
-        if (fallbackMode === FallbackMode.PRERENDER && isBot(userAgent)) {
+        if (
+          fallbackMode === FallbackMode.PRERENDER &&
+          isBot(userAgent, nextConfig.htmlLimitedBots)
+        ) {
           if (!isRoutePPREnabled || isHtmlBot) {
             fallbackMode = FallbackMode.BLOCKING_STATIC_RENDER
           }

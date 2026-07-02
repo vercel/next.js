@@ -28,28 +28,41 @@ describe('app-dir - metadata-streaming-config-customized', () => {
       }, {})
 
     expect(bypassConfigs).toMatchInlineSnapshot(`
-     {
-       "/": {
-         "key": "user-agent",
-         "type": "header",
-         "value": "MyBot",
-       },
-       "/_global-error": {
-         "key": "user-agent",
-         "type": "header",
-         "value": "MyBot",
-       },
-       "/_not-found": {
-         "key": "user-agent",
-         "type": "header",
-         "value": "MyBot",
-       },
-       "/ppr": {
-         "key": "user-agent",
-         "type": "header",
-         "value": "MyBot",
-       },
-     }
+      {
+        "/": {
+          "key": "user-agent",
+          "type": "header",
+          "value": "MyBot",
+        },
+        "/_global-error": {
+          "key": "user-agent",
+          "type": "header",
+          "value": "MyBot",
+        },
+        "/_not-found": {
+          "key": "user-agent",
+          "type": "header",
+          "value": "MyBot",
+        },
+        "/ppr": {
+          "key": "user-agent",
+          "type": "header",
+          "value": "MyBot",
+        },
+      }
     `)
+  })
+
+  it('should send the blocking response for custom html limited bots on ppr pages and not throw resume mismatch', async () => {
+    const $ = await next.render$(
+      '/ppr',
+      undefined, // no query
+      {
+        headers: {
+          'user-agent': 'MyBot',
+        },
+      }
+    )
+    expect(await $('p').text()).toBe('ppr')
   })
 })
