@@ -46,7 +46,7 @@ export class ClientHookDynamicError extends Error {
         `Ways to fix this:\n` +
         `  - [stream] Wrap the component in \`<Suspense fallback={...}>\` so the hook value streams in after prerendering\n` +
         `    https://nextjs.org/docs/messages/blocking-prerender-client-hook#wrap-in-or-move-into-suspense\n` +
-        `  - [block] Set \`export const instant = false\` to silence this warning and allow a blocking route\n` +
+        `  - [block] Set \`export const instant = false\` to allow a blocking route\n` +
         `    https://nextjs.org/docs/messages/blocking-prerender-client-hook#allow-blocking-route`
     )
   }

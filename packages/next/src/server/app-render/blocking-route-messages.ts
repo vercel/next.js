@@ -5,7 +5,7 @@ export function createRuntimeBodyError(route: string): Error {
       `Ways to fix this:\n` +
       `  - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access\n` +
       `    https://nextjs.org/docs/messages/blocking-prerender-runtime#wrap-in-or-move-into-suspense\n` +
-      `  - [block] Set \`export const instant = false\` to silence this warning and allow a blocking route\n` +
+      `  - [block] Set \`export const instant = false\` to allow a blocking route\n` +
       `    https://nextjs.org/docs/messages/blocking-prerender-runtime#allow-blocking-route`
   )
 }
@@ -19,7 +19,7 @@ export function createDynamicBodyError(route: string): Error {
       `    https://nextjs.org/docs/messages/blocking-prerender-dynamic#wrap-in-or-move-into-suspense\n` +
       `  - [cache] Cache the data access with \`"use cache"\` (does not apply to \`connection()\`)\n` +
       `    https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data\n` +
-      `  - [block] Set \`export const instant = false\` to silence this warning and allow a blocking route\n` +
+      `  - [block] Set \`export const instant = false\` to allow a blocking route\n` +
       `    https://nextjs.org/docs/messages/blocking-prerender-dynamic#allow-blocking-route`
   )
 }
@@ -31,7 +31,7 @@ export function createRuntimeBodyErrorInNavigation(route: string): Error {
       `Ways to fix this:\n` +
       `  - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access\n` +
       `    https://nextjs.org/docs/messages/blocking-prerender-runtime#wrap-in-or-move-into-suspense\n` +
-      `  - [block] Set \`export const instant = false\` to silence this warning and allow a blocking route\n` +
+      `  - [block] Set \`export const instant = false\` to allow a blocking route\n` +
       `    https://nextjs.org/docs/messages/blocking-prerender-runtime#allow-blocking-route`
   )
 }
@@ -43,7 +43,7 @@ export function createLinkBodyErrorInNavigation(route: string): Error {
       `Ways to fix this:\n` +
       `  - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access\n` +
       `    https://nextjs.org/docs/messages/blocking-prerender-runtime#wrap-in-or-move-into-suspense\n` +
-      `  - [block] Set \`export const instant = false\` to silence this warning and allow a blocking route\n` +
+      `  - [block] Set \`export const instant = false\` to allow a blocking route\n` +
       `    https://nextjs.org/docs/messages/blocking-prerender-runtime#allow-blocking-route`
   )
 }
@@ -57,7 +57,7 @@ export function createDynamicBodyErrorInNavigation(route: string): Error {
       `    https://nextjs.org/docs/messages/blocking-prerender-dynamic#wrap-in-or-move-into-suspense\n` +
       `  - [cache] Cache the data access with \`"use cache"\` (does not apply to \`connection()\`)\n` +
       `    https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data\n` +
-      `  - [block] Set \`export const instant = false\` to silence this warning and allow a blocking route\n` +
+      `  - [block] Set \`export const instant = false\` to allow a blocking route\n` +
       `    https://nextjs.org/docs/messages/blocking-prerender-dynamic#allow-blocking-route`
   )
 }
@@ -76,7 +76,7 @@ export function createDynamicOrRuntimeBodyError(route: string): Error {
       `    https://nextjs.org/docs/messages/blocking-prerender-dynamic#wrap-in-or-move-into-suspense\n` +
       `  - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\` (does not apply to \`connection()\`)\n` +
       `    https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data\n` +
-      `  - [block] Set \`export const instant = false\` to silence this warning and allow a blocking route\n` +
+      `  - [block] Set \`export const instant = false\` to allow a blocking route\n` +
       `    https://nextjs.org/docs/messages/blocking-prerender-dynamic#allow-blocking-route`
   )
 }
@@ -124,7 +124,7 @@ export function createLinkViewportError(route: string): Error {
       `Ways to fix this:\n` +
       `  - [static] Use a static viewport export instead of \`generateViewport()\`\n` +
       `    https://nextjs.org/docs/messages/blocking-prerender-viewport-runtime#use-static-viewport\n` +
-      `  - [block] Set \`export const instant = false\` to silence this warning and allow a blocking route\n` +
+      `  - [block] Set \`export const instant = false\` to allow a blocking route\n` +
       `    https://nextjs.org/docs/messages/blocking-prerender-viewport-runtime#allow-blocking-route`
   )
 }
@@ -136,7 +136,7 @@ export function createRuntimeViewportError(route: string): Error {
       `Ways to fix this:\n` +
       `  - [static] Use a static viewport export instead of \`generateViewport()\`\n` +
       `    https://nextjs.org/docs/messages/blocking-prerender-viewport-runtime#use-static-viewport\n` +
-      `  - [block] Set \`export const instant = false\` to silence this warning and allow a blocking route\n` +
+      `  - [block] Set \`export const instant = false\` to allow a blocking route\n` +
       `    https://nextjs.org/docs/messages/blocking-prerender-viewport-runtime#allow-blocking-route`
   )
 }
@@ -148,7 +148,7 @@ export function createDynamicViewportError(route: string): Error {
       `Ways to fix this:\n` +
       `  - [cache] Cache the viewport data with \`"use cache"\` in \`generateViewport()\` (does not apply to \`connection()\`)\n` +
       `    https://nextjs.org/docs/messages/blocking-prerender-viewport-dynamic#cache-the-viewport-data\n` +
-      `  - [block] Set \`export const instant = false\` to silence this warning and allow a blocking route\n` +
+      `  - [block] Set \`export const instant = false\` to allow a blocking route\n` +
       `    https://nextjs.org/docs/messages/blocking-prerender-viewport-dynamic#allow-blocking-route`
   )
 }
@@ -167,7 +167,7 @@ export function createDynamicOrRuntimeViewportError(route: string): Error {
       `    https://nextjs.org/docs/messages/blocking-prerender-viewport-runtime#use-static-viewport\n` +
       `  - [cache] For uncached data (\`fetch\`, database calls): cache the viewport with \`"use cache"\` in \`generateViewport()\` (does not apply to \`connection()\`)\n` +
       `    https://nextjs.org/docs/messages/blocking-prerender-viewport-dynamic#cache-the-viewport-data\n` +
-      `  - [block] Set \`export const instant = false\` to silence this warning and allow a blocking route\n` +
+      `  - [block] Set \`export const instant = false\` to allow a blocking route\n` +
       `    https://nextjs.org/docs/messages/blocking-prerender-viewport-dynamic#allow-blocking-route`
   )
 }
