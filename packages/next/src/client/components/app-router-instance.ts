@@ -65,18 +65,17 @@ export type ActionQueueNode = {
   discarded?: boolean
 }
 
-// Called when `action` settles, to run the next action in the queue.
 function runRemainingActions(
   actionQueue: AppRouterActionQueue,
-  action: ActionQueueNode,
+  settledAction: ActionQueueNode,
   setState: DispatchStatePromise
 ) {
-  // Only the settlement of the action at the head of the queue may advance the
-  // queue. A discarded action settles while the navigation that discarded it
-  // is the head; advancing from here would start the next queued action
-  // against router state that doesn't include that navigation yet.
-  if (actionQueue.pending === action) {
-    actionQueue.pending = action.next
+  // Only advance the queue if the settled action is still at its head. If a
+  // navigation discarded this action, the navigation took its place and is
+  // still in flight — starting the next queued action now would run it
+  // against router state that doesn't include the navigation yet.
+  if (actionQueue.pending === settledAction) {
+    actionQueue.pending = settledAction.next
     if (actionQueue.pending !== null) {
       runAction({
         actionQueue,
