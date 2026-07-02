@@ -379,7 +379,7 @@ jobs:
         'optimize-ci',
         'changes',
         'build-next',
-        'build-native-x64',
+        'build-native',
         'fetch-test-timings',
       ]
     if: ${{ needs.optimize-ci.outputs.skip == 'false' && needs.changes.outputs.docs-only == 'false' }}
@@ -420,7 +420,7 @@ jobs:
         'optimize-ci',
         'changes',
         'build-next',
-        'build-native-x64',
+        'build-native',
         'fetch-test-timings',
       ]
     if: ${{ needs.optimize-ci.outputs.skip == 'false' && needs.changes.outputs.docs-only == 'false' }}
