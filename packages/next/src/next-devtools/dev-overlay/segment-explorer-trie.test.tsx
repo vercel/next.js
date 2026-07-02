@@ -261,4 +261,54 @@ describe('Segment Explorer', () => {
       value: undefined,
     })
   })
+
+  // See https://github.com/vercel/next.js/issues/95395
+  // A route segment literally named "constructor" (or another
+  // Object.prototype member) used to resolve to the inherited prototype
+  // value instead of `undefined`, causing the trie to treat the node as
+  // already existing and then crash on the next segment lookup.
+  test('handles route segments that collide with Object.prototype members', () => {
+    insertSegmentNode(
+      createSegmentNode({ pagePath: '/constructor/page.js', type: 'page' })
+    )
+    insertSegmentNode(
+      createSegmentNode({ pagePath: '/__proto__/page.js', type: 'page' })
+    )
+    insertSegmentNode(
+      createSegmentNode({ pagePath: '/toString/page.js', type: 'page' })
+    )
+    insertSegmentNode(
+      createSegmentNode({ pagePath: '/hasOwnProperty/page.js', type: 'page' })
+    )
+
+    const { result } = renderHook(useSegmentTree)
+
+    const rootChildren = result.current.children[''].children
+    expect(Object.keys(rootChildren).sort()).toEqual([
+      '__proto__',
+      'constructor',
+      'hasOwnProperty',
+      'toString',
+    ])
+    expect(rootChildren['constructor'].children['page.js'].value).toEqual({
+      pagePath: '/constructor/page.js',
+      type: 'page',
+      boundaryType: null,
+      setBoundaryType: expect.anything(),
+    })
+    expect(rootChildren['__proto__'].children['page.js'].value).toEqual({
+      pagePath: '/__proto__/page.js',
+      type: 'page',
+      boundaryType: null,
+      setBoundaryType: expect.anything(),
+    })
+
+    // Removal must also work correctly for these segment names.
+    removeSegmentNode(
+      createSegmentNode({ pagePath: '/constructor/page.js', type: 'page' })
+    )
+    expect(
+      result.current.children[''].children['constructor']
+    ).toBeUndefined()
+  })
 })

@@ -25,6 +25,18 @@ type TrieNode<Value = string> = {
   }
 }
 
+// Creates a children map with no prototype, so segment names that collide
+// with inherited Object.prototype members (e.g. "constructor", "__proto__",
+// "toString", "hasOwnProperty") are treated as plain missing keys instead of
+// resolving to those inherited values. See Next.js issue #95395: a route
+// segment literally named "constructor" would resolve `children['constructor']`
+// to the native Object constructor function (truthy, so treated as an
+// existing node) instead of undefined, and the next segment lookup would
+// then crash trying to read `.children` off that function.
+function createEmptyChildren<Value>(): TrieNode<Value>['children'] {
+  return Object.create(null)
+}
+
 type Trie<Value = string> = {
   insert: (value: Value) => void
   remove: (value: Value) => void
@@ -64,7 +76,7 @@ function createTrie<Value = string>({
 }): Trie<Value> {
   let root: TrieNode<Value> = {
     value: undefined,
-    children: {},
+    children: createEmptyChildren(),
   }
 
   function markUpdated() {
@@ -82,7 +94,7 @@ function createTrie<Value = string>({
         currentNode.children[segment] = {
           value: undefined,
           // Skip value for intermediate nodes
-          children: {},
+          children: createEmptyChildren(),
         }
       }
       currentNode = currentNode.children[segment]
