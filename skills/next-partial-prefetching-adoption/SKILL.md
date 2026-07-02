@@ -27,7 +27,7 @@ The one thing that shapes everything below: **these insights surface only in `ne
 
 Partial Prefetching changes what `<Link>` downloads for a route. By default a link loads the route's App Shell — one shared shell per route, reused by every link to it regardless of params. `<Link prefetch={true}>` adds the cached page content, and stops prefetching dynamic data entirely.
 
-Two insights drive the work, attributed to different pages:
+Two insights drive the work, and they fire on different pages:
 
 1. **[`instant-link-prefetch-partial`](https://nextjs.org/docs/messages/instant-link-prefetch-partial)** fires on the page that _renders_ a `<Link prefetch={true}>` whose target hasn't adopted Partial Prefetching. It's the audit signal for step 1. It fires when the link actually prefetches, so the page holding the link must be visited with the link in the viewport.
 
@@ -45,14 +45,14 @@ Every insight has a docs page — open it. Fetch the linked page for every disti
 
 ## step 1: audit `<Link prefetch={true}>` with the flag off
 
-Do this **before** enabling anything. Enabling the global flag first marks every route as adopted, which silences the `link-prefetch-partial` warning and destroys the per-link signal (the guide calls this out).
+Do this **before** enabling anything. Enabling the global flag first marks every route as adopted, which stops the `link-prefetch-partial` warning from firing, and the per-link signal is lost (the guide calls this out).
 
 1. Enumerate the links across the whole source tree, not just `app/` — links often live in `src/components` or shared UI packages: `grep -rn "prefetch={true}\|prefetch$" --include='*.tsx' --include='*.jsx' .` (also catch the bare `prefetch` prop). Watch for wrapper components that forward props to `next/link` — a `prefetch={true}` on a custom `<Link>` wrapper counts.
 2. Visit each page that renders one, with the link scrolled into view, and collect the insights from the overlay and the dev log.
 3. Decide per link using the guide's table:
    - Target fully static → drop `prefetch={true}`; the default already loads the whole page.
    - Target has cached content worth shipping early → keep it.
-   - Target needs request data on arrival → keep it, and consider `export const prefetch = 'allow-runtime'` on the target ([runtime prefetching](https://nextjs.org/docs/app/guides/runtime-prefetching)). `'allow-runtime'` is an enhancement, not a way to silence the warning — the adoption opt-in is `'partial'`.
+   - Target needs request data on arrival → keep it, and consider `export const prefetch = 'allow-runtime'` on the target ([runtime prefetching](https://nextjs.org/docs/app/guides/runtime-prefetching)). `'allow-runtime'` is an enhancement, not a way to clear the warning — the adoption opt-in is `'partial'`.
 
 If the grep finds nothing, note it and go straight to [step 2](#step-2-enable-and-sweep-the-routes) — there's no audit to discuss.
 
@@ -65,7 +65,7 @@ Two shapes, same loop:
 - **Whole app**: set `partialPrefetching: true` in `next.config.ts` (alongside `cacheComponents: true`).
 - **Incremental**: add `export const prefetch = 'partial'` to one route's page at a time; links to that route load the App Shell even without the global flag. Once every route in scope is opted in, flip the flag and delete the per-route exports.
 
-Then sweep. The work queue is every route reachable by a link — build it from a concrete source (the route table from the last `next build`, or the `app/` tree) and keep it as a todo list, so the sweep is reproducible instead of synthesized from memory:
+Then sweep. The work queue is every route reachable by a link — build it from a concrete source (the route table from the last `next build`, or the `app/` tree) and keep it as a todo list, so the sweep is reproducible instead of improvised:
 
 - Visit each route directly (initial-load validation) **and** navigate to it through its links (navigation validation). Both paths validate; navigating is what users actually do, so don't skip it.
 - Watch the Insights tab and the dev log for `URL data while extracting a reusable shell`.

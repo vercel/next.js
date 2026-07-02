@@ -75,7 +75,7 @@ export default function Page() {
 
 A `<Link>` pointing at a route with `prefetch = 'partial'` loads the App Shell only, even when `partialPrefetching` is not set in `next.config.ts`.
 
-> **Good to know**: Adopting per-route first also preserves the dev-only `<Link prefetch={true}>` warning, which points at `<Link prefetch={true}>` calls whose destinations haven't adopted yet. Enabling the global flag first marks every route as adopted, which silences the warning and removes the signal for the [audit below](#auditing-existing-link-prefetchtrue-calls).
+> **Good to know**: Adopting per-route first also preserves the dev-only `<Link prefetch={true}>` warning, which points at `<Link prefetch={true}>` calls whose destinations haven't adopted yet. Enabling the global flag first marks every route as adopted, which stops the warning from firing and removes the signal for the [audit below](#auditing-existing-link-prefetchtrue-calls).
 
 Once every route in scope has `prefetch = 'partial'`, enable the config and remove the per-route exports:
 
@@ -94,15 +94,13 @@ export default nextConfig
 
 When `partialPrefetching` is enabled, `<Link prefetch={true}>` now prefetches the App Shell plus cached content, but not dynamic data. Review each existing usage and decide whether the prop is still providing value. In [`next dev`](/docs/app/api-reference/cli/next#next-dev-options), the dev overlay surfaces a [**link-prefetch-partial** insight](/docs/messages/instant-link-prefetch-partial) for each call that points at a route without Partial Prefetching, so you can work through them one at a time.
 
-Previously, `<Link prefetch={true}>` also prefetched dynamic data.
-
 | Destination                                                                                 | Recommendation                                                                                                                                                                       |
 | ------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | Fully static (no `"use cache"`, no Suspense)                                                | Drop `prefetch={true}`. The default `<Link>` already loads the full page because the App Shell is the page.                                                                          |
 | Has cached content worth shipping ahead of the click                                        | Keep `prefetch={true}`. The cached parts come with the App Shell.                                                                                                                    |
 | Reads request data (`cookies()`, `headers()`, `searchParams`) the user will need on arrival | Keep `prefetch={true}`. Optionally enhance it with [runtime prefetching](/docs/app/guides/runtime-prefetching) (`prefetch = 'allow-runtime'`) so the request data is prefetched too. |
 
-> **Good to know**: `prefetch = 'allow-runtime'` is an _enhancement_ that adds runtime prefetching of request data. It is not a way to silence the dev `<Link prefetch={true}>` warning. That warning means the link does a legacy full prefetch of a route that hasn't adopted Partial Prefetching. The per-route opt-in for Partial Prefetching is `prefetch = 'partial'`, which is separate from `'allow-runtime'`.
+> **Good to know**: `prefetch = 'allow-runtime'` is an _enhancement_ that adds runtime prefetching of request data. It is not a way to clear the dev `<Link prefetch={true}>` warning. That warning means the link does a legacy full prefetch of a route that hasn't adopted Partial Prefetching. The per-route opt-in for Partial Prefetching is `prefetch = 'partial'`, which is separate from `'allow-runtime'`.
 
 Before:
 
@@ -124,7 +122,7 @@ After:
 
 The App Shell is shared across every link to a route, so it can't contain data that belongs to a single URL. When a route reads [`params`](/docs/app/api-reference/file-conventions/page#params-optional) or [`searchParams`](/docs/app/api-reference/file-conventions/page#searchparams-optional) outside of a [`<Suspense>`](https://react.dev/reference/react/Suspense) boundary, its prefetch is tied to one URL and can no longer be shared. In [`next dev`](/docs/app/api-reference/cli/next#next-dev-options), the dev overlay surfaces a [**URL data while extracting a reusable shell** insight](/docs/messages/instant-shell-link-data) for each route where this happens, so you can work through them after enabling Partial Prefetching.
 
-Unlike the [`<Link prefetch={true}>` audit](#auditing-existing-link-prefetchtrue-calls), this audit runs with the flag on. Finish that audit first: enabling the flag marks every route as adopted, which silences its warning and removes the per-link signal.
+Unlike the [`<Link prefetch={true}>` audit](#auditing-existing-link-prefetchtrue-calls), this audit runs with the flag on. Finish that audit first: enabling the flag marks every route as adopted, which stops its warning from firing and removes the per-link signal.
 
 The fix is to keep the URL-independent parts of the route outside the boundary and move the `params` or `searchParams` read into a child wrapped in `<Suspense>`. Pass the promise down without awaiting it:
 
