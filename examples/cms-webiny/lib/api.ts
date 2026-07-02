@@ -5,7 +5,7 @@ async function fetchAPI(
 ) {
   const url = preview
     ? `${process.env.NEXT_PUBLIC_WEBINY_PREVIEW_API_URL}`
-    : `${process.env.NEXT_PUBLIC_WEBINY_API_UR}`;
+    : `${process.env.NEXT_PUBLIC_WEBINY_API_URL}`;
 
   const res = await fetch(url, {
     method: "POST",
