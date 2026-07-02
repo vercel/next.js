@@ -22,7 +22,7 @@ env:
 
 jobs:
   optimize-ci:
-    uses: ./.github/workflows/graphite_ci_optimizer.yml
+    uses: ./.github/workflows/pr_stack_optimizer.yml
     secrets: inherit
 
   changes:
@@ -379,7 +379,7 @@ jobs:
         'optimize-ci',
         'changes',
         'build-next',
-        'build-native-x64',
+        'build-native',
         'fetch-test-timings',
       ]
     if: ${{ needs.optimize-ci.outputs.skip == 'false' && needs.changes.outputs.docs-only == 'false' }}
@@ -420,7 +420,7 @@ jobs:
         'optimize-ci',
         'changes',
         'build-next',
-        'build-native-x64',
+        'build-native',
         'fetch-test-timings',
       ]
     if: ${{ needs.optimize-ci.outputs.skip == 'false' && needs.changes.outputs.docs-only == 'false' }}

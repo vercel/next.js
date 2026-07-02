@@ -1,16 +1,19 @@
 # Avoid running the full CI on mid-stack PRs: https://graphite.dev/docs/stacking-and-ci
 #
-# We still run some high-signal low-cost jobs (e.g. lint, unit tests) on these mid-stack PRs, just
-# not anything slow (e.g. integration tests).
+# This supports both Graphite stacks and GitHub's native stacked PRs. For either kind of stack, we
+# only run the full CI on the very top and very bottom of the stack.
+#
+# We still run some high-signal low-cost jobs (e.g. lint, unit tests) on mid-stack PRs, just not
+# anything slow (e.g. integration tests).
 #
 # Because we don't use Graphite's CI batching, full CI will still run on every PR individually
 # before it merges. The goal is just to avoid wasting CI capacity when frequently rebasing large
 # stacks.
 #
-# This can by bypassed by labeling a PR with 'CI Bypass Graphite Optimization', and manually
-# re-running CI.
+# This can by bypassed by labeling a PR with 'CI Bypass PR Stack Optimization' (or the legacy
+# 'CI Bypass Graphite Optimization' label), and manually re-running CI.
 
-name: Graphite CI Optimizer
+name: PR Stack Optimizer
 on:
   workflow_call:
     outputs:
@@ -29,16 +32,34 @@ env:
   HAS_BYPASS_LABEL: |-
     ${{
       github.event_name == 'pull_request' &&
-      contains(github.event.pull_request.labels.*.name, 'CI Bypass Graphite Optimization')
+      (
+        contains(github.event.pull_request.labels.*.name, 'CI Bypass PR Stack Optimization') ||
+        contains(github.event.pull_request.labels.*.name, 'CI Bypass Graphite Optimization')
+      )
+    }}
+  # GitHub's native stacked PRs expose the PR's position within the stack. We skip expensive CI on
+  # mid-stack PRs. Fail open if we don't have `stack.size`.
+  IS_MID_STACK_NATIVE: |-
+    ${{
+      github.event_name == 'pull_request' &&
+      github.event.pull_request.stack.size != '' &&
+      github.event.pull_request.stack.position != 1 &&
+      github.event.pull_request.stack.position != github.event.pull_request.stack.size
     }}
 jobs:
   optimize-ci:
-    name: Graphite CI Optimizer
+    name: PR Stack Optimizer
     runs-on: ubuntu-latest
     outputs:
       # `== 'true'` comparison: If `step.check-skip` fails (`continue-on-error`), that output will
       # be an empty string, which sets our `skip` output to `'false'`.
-      skip: ${{ env.HAS_BYPASS_LABEL == 'false' && steps.check-skip.outputs.skip == 'true' }}
+      #
+      # We skip if either Graphite's optimizer says to skip, or the PR is a mid-stack PR in a
+      # GitHub native stack. The bypass label overrides both.
+      skip: |-
+        ${{ env.HAS_BYPASS_LABEL == 'false' && (
+          steps.check-skip.outputs.skip == 'true' || env.IS_MID_STACK_NATIVE == 'true'
+        ) }}
     steps:
       - name: Optimize CI
         id: check-skip
@@ -52,6 +73,9 @@ jobs:
           echo 'github.event_name: ${{ github.event_name }}'
           echo "secrets.GRAPHITE_CI_OPTIMIZER_TOKEN != '': ${GRAPHITE_CI_OPTIMIZER_TOKEN_NON_EMPTY}"
           echo 'env.HAS_BYPASS_LABEL: ${{ env.HAS_BYPASS_LABEL }}'
+          echo 'env.IS_MID_STACK_NATIVE: ${{ env.IS_MID_STACK_NATIVE }}'
+          echo 'github.event.pull_request.stack.position: ${{ github.event.pull_request.stack.position }}'
+          echo 'github.event.pull_request.stack.size: ${{ github.event.pull_request.stack.size }}'
           echo 'steps.check-skip.outputs.skip: ${{ steps.check-skip.outputs.skip }}'
 
         env:

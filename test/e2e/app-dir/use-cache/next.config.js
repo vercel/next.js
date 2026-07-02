@@ -13,8 +13,9 @@ const nextConfig = {
   },
   cacheLife: {
     frequent: {
-      // >= DYNAMIC_STALE (30s) so the cache is still eligible for the static
-      // shell. A shorter stale time would exclude it from static prerenders.
+      // >= MIN_PREFETCHABLE_STALE (30s) so the cache is still eligible for the
+      // static shell. A shorter stale time would exclude it from static
+      // prerenders.
       stale: 30,
       revalidate: 100,
       expire: 300,
