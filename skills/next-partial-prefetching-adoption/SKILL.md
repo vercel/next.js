@@ -13,7 +13,7 @@ description: >
 
 Enable Partial Prefetching and walk the app until every link reuses a shared prefetch. This skill sequences the work; per-insight recipes live in the dev overlay fix cards and their docs pages. The [Adopting Partial Prefetching guide](https://nextjs.org/docs/app/guides/adopting-partial-prefetching) is the canonical reference for the concepts this skill applies.
 
-The one thing that shapes everything below: **at the default validation level, all of this surfaces only in `next dev`, at navigation time, in the dev overlay's Insights tab.** Nothing fails the build. There is no build-only fallback loop for this skill — the work is a click-through sweep of the running app. If you can't drive a browser, stop and tell the user what you can't verify.
+The one thing that shapes everything below: **these insights surface only in `next dev`, at navigation time, in the dev overlay's Insights tab.** Nothing fails the build. There is no build-only fallback loop for this skill — the work is a click-through sweep of the running app. If you can't drive a browser, stop and tell the user what you can't verify.
 
 ## requires
 
@@ -40,7 +40,6 @@ What counts as URL data: only `params` and `searchParams`. `cookies()` and `head
 - **The dev overlay Insights tab.** Insights are the amber, non-blocking tab; the Issues tab must already be clean (see requires). The overlay pill shows the count; each insight has fix cards linking its docs page.
 - **The dev server terminal.** Each validated route's insights are also logged as `Error: Route "...": Next.js encountered ...` lines with the `https://nextjs.org/docs/messages/<slug>` link. Tail the dev log during the sweep — it's the greppable record of what fired where.
 - **`next-dev-loop`** to drive navigations and read the overlay. Prefer it over hand-rolled browser automation for the same reasons as in the Cache Components skill.
-- **Validation level.** The default (`warning`) is what makes this dev-only. `experimental.instantInsights.validationLevel` can promote these to build errors if the user wants CI enforcement; don't change it without asking.
 
 Every insight has a docs page — open it. Fetch the linked page for every distinct insight you encounter; the inline message is a summary, the page is the recipe.
 
@@ -86,5 +85,5 @@ Check in with the user per feature, in their language: which links now share a p
 
 - [Adopting Partial Prefetching](https://nextjs.org/docs/app/guides/adopting-partial-prefetching) — the canonical guide this skill sequences, including the route-side URL data audit.
 - [Instant navigation](https://nextjs.org/docs/app/guides/instant-navigation) — the broader validation model and loading-state tooling.
-- [Prevent regressions with e2e tests](https://nextjs.org/docs/app/guides/instant-navigation#prevent-regressions-with-e2e-tests) — the `@next/playwright` `instant()` helper locks in what a navigation shows immediately; recommend it once the sweep is clean, since at the default validation level nothing else guards these in CI.
+- [Prevent regressions with e2e tests](https://nextjs.org/docs/app/guides/instant-navigation#prevent-regressions-with-e2e-tests) — the `@next/playwright` `instant()` helper locks in what a navigation shows immediately; recommend it once the sweep is clean, since nothing else guards these in CI.
 - [`next-cache-components-optimizer`](https://github.com/vercel/next.js/tree/canary/skills/next-cache-components-optimizer) — grows each route's static shell so the shared prefetch carries more.
