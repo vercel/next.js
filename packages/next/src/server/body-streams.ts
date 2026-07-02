@@ -1,6 +1,6 @@
 import type { IncomingMessage } from 'http'
 import type { Readable } from 'stream'
-import { PassThrough } from 'stream'
+import { PassThrough, Writable } from 'stream'
 import bytes from 'next/dist/compiled/bytes'
 
 const DEFAULT_BODY_CLONE_SIZE_LIMIT = 10 * 1024 * 1024 // 10MB
@@ -20,11 +20,27 @@ export function requestToBodyStream(
   })
 }
 
+// Keys that belong exclusively to the Writable/Duplex interface and must not
+// be copied onto an IncomingMessage (which is a pure Readable). In particular,
+// copying `_writableState` causes `Readable.toWeb()` to hang on POST routes
+// that pass through middleware: Node.js sees `_writableState.finished ===
+// false` on what it expects to be a plain Readable and waits for a writable
+// side that will never close.
+const WRITABLE_ONLY_KEYS = new Set<string>([
+  '_writableState',
+  ...Object.getOwnPropertyNames(Writable.prototype),
+])
+
 function replaceRequestBody<T extends IncomingMessage>(
   base: T,
   stream: Readable
 ): T {
   for (const key in stream) {
+    // Skip Writable-specific internals and prototype methods so that the
+    // resulting IncomingMessage stays a pure Readable and does not confuse
+    // APIs such as Readable.toWeb() that inspect _writableState.
+    if (WRITABLE_ONLY_KEYS.has(key)) continue
+
     let v = stream[key as keyof Readable] as any
     if (typeof v === 'function') {
       v = v.bind(base)
