@@ -100,6 +100,10 @@ opt-level = "s"
 [profile.release.package.lightningcss]
 opt-level = "s"
 
+# The vendored napi glue for lightningcss; size-optimized like `lightningcss` itself.
+[profile.release.package.turbopack-lightningcss-napi]
+opt-level = "s"
+
 [profile.release.package.markdown]
 opt-level = "s"
 

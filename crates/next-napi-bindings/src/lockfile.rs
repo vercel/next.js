@@ -6,7 +6,10 @@ use std::{
 };
 
 use anyhow::Context;
-use napi::bindgen_prelude::{External, ExternalRef};
+use napi::{
+    Env,
+    bindgen_prelude::{External, ExternalRef, PromiseRaw},
+};
 use napi_derive::napi;
 
 /// A wrapper around [`File`] that is passed to JS, and is set to `None` when [`lockfile_unlock`] is
@@ -118,16 +121,45 @@ pub async fn lockfile_try_acquire(
 pub fn lockfile_unlock_sync(
     #[napi(ts_arg_type = "{ __napiType: \"Lockfile\" }")] lockfile: ExternalRef<JsLockfile>,
 ) {
-    // We don't need the file handle anymore, so we don't need to call `File::unlock`. Locks are
-    // released during `drop`. Remove it from the `ManuallyDrop` wrapper.
-    let Some(inner): Option<LockfileInner> = lockfile
+    let Some(inner) = take_lockfile_inner(&lockfile) else {
+        return;
+    };
+    unlock_inner(inner);
+}
+
+#[napi]
+pub fn lockfile_unlock<'env>(
+    env: &'env Env,
+    #[napi(ts_arg_type = "{ __napiType: \"Lockfile\" }")] lockfile: ExternalRef<JsLockfile>,
+) -> napi::Result<PromiseRaw<'env, ()>> {
+    // Take the owned inner out on the JS thread (the `ExternalRef` is `!Send`), then release the
+    // lock on the blocking pool: the unlink and close can block (e.g. NFS), and must not stall the
+    // Node.js event loop.
+    let inner = take_lockfile_inner(&lockfile);
+    env.spawn_future(async move {
+        let Some(inner) = inner else {
+            return Ok(());
+        };
+        tokio::task::spawn_blocking(move || unlock_inner(inner))
+            .await
+            .context("panicked while attempting to unlock lockfile")?;
+        Ok(())
+    })
+}
+
+/// Removes the [`LockfileInner`] from the `ManuallyDrop` wrapper, leaving `None` behind so a
+/// second unlock call is a no-op.
+fn take_lockfile_inner(lockfile: &JsLockfile) -> Option<LockfileInner> {
+    lockfile
         .lock()
         .expect("poisoned: another thread panicked during `lockfile_unlock_sync`?")
         .take()
-    else {
-        return;
-    };
+}
 
+fn unlock_inner(inner: LockfileInner) {
+    // We don't need the file handle anymore, so we don't need to call `File::unlock`. Locks are
+    // released during `drop`.
+    //
     // - We use `FILE_FLAG_DELETE_ON_CLOSE` on Windows, so we don't need to delete the file there.
     // - Ignore possible errors while removing the file, it only matters that we release the lock.
     // - Delete *before* releasing the lock to avoid race conditions where we might accidentally
@@ -137,12 +169,4 @@ pub fn lockfile_unlock_sync(
     let _ = std::fs::remove_file(inner.path);
 
     drop(inner.file);
-}
-
-#[napi]
-pub fn lockfile_unlock(
-    #[napi(ts_arg_type = "{ __napiType: \"Lockfile\" }")] lockfile: ExternalRef<JsLockfile>,
-) -> napi::Result<()> {
-    lockfile_unlock_sync(lockfile);
-    Ok(())
 }

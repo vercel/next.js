@@ -190,7 +190,10 @@ pub fn endpoint_server_changed_subscribe(
     env: Env,
     #[napi(ts_arg_type = "{ __napiType: \"Endpoint\" }")] endpoint: ExternalRef<ExternalEndpoint>,
     issues: bool,
-    func: napi::bindgen_prelude::FunctionRef<JsUnknown<'static>, ()>,
+    #[napi(ts_arg_type = "(...args: any[]) => any")] func: napi::bindgen_prelude::FunctionRef<
+        JsUnknown<'static>,
+        (),
+    >,
 ) -> napi::Result<External<RootTask>> {
     let turbopack_ctx = endpoint.turbopack_ctx().clone();
     let endpoint = ***endpoint;
@@ -274,7 +277,10 @@ async fn subscribe_issues_and_diags_operation(
 pub fn endpoint_client_changed_subscribe(
     env: Env,
     #[napi(ts_arg_type = "{ __napiType: \"Endpoint\" }")] endpoint: ExternalRef<ExternalEndpoint>,
-    func: napi::bindgen_prelude::FunctionRef<JsUnknown<'static>, ()>,
+    #[napi(ts_arg_type = "(...args: any[]) => any")] func: napi::bindgen_prelude::FunctionRef<
+        JsUnknown<'static>,
+        (),
+    >,
 ) -> napi::Result<External<RootTask>> {
     let turbopack_ctx = endpoint.turbopack_ctx().clone();
     let endpoint_op = ***endpoint;

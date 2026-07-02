@@ -170,7 +170,7 @@ pub fn get_module_named_exports(resource_path: String) -> AsyncTask<FinderTask> 
 
 #[napi(object, object_from_js = false)]
 pub struct NapiSourceDiagnostic {
-    pub severity: String,
+    pub severity: &'static str,
     pub message: String,
     pub loc: NapiIssueSourceRange,
 }
@@ -247,7 +247,7 @@ impl Task for AnalyzeTask {
                     let start = c.cm.lookup_char_pos(span.lo);
                     let end = c.cm.lookup_char_pos(span.hi);
                     diagnostics.borrow_mut().push(NapiSourceDiagnostic {
-                        severity: "Warning".to_string(),
+                        severity: "Warning",
                         message: msg,
                         loc: NapiIssueSourceRange {
                             start: NapiSourcePos {
@@ -265,7 +265,7 @@ impl Task for AnalyzeTask {
                     let start = c.cm.lookup_char_pos(span.lo);
                     let end = c.cm.lookup_char_pos(span.hi);
                     diagnostics.borrow_mut().push(NapiSourceDiagnostic {
-                        severity: "Error".to_string(),
+                        severity: "Error",
                         message: msg,
                         loc: NapiIssueSourceRange {
                             start: NapiSourcePos {
