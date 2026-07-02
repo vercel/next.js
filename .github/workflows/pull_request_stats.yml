@@ -131,10 +131,14 @@ jobs:
   stats-aggregate:
     name: Aggregate Stats
     needs: stats
-    # Always attempt to aggregate once the stats jobs have settled, even if a
-    # bundler failed or was cancelled (e.g. timed out). Skip only
-    # when the whole workflow is cancelled (e.g. superseded by a newer run).
-    if: ${{ !cancelled() }}
+    # Always run so we can recover partial results. A single bundler timing out
+    # cancels its job, which makes `cancelled()` true here and marks the whole
+    # run "cancelled" even though the other bundler finished, so `!cancelled()`
+    # would wrongly skip aggregation. Running unconditionally lets us aggregate
+    # whatever bundlers succeeded; the reason a bundler is missing is reported in
+    # the comment, and a truly cancelled run (no results at all) is handled by
+    # the cancelled fallback in scripts/pr-ci-comment.mjs.
+    if: ${{ always() }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
@@ -177,3 +181,9 @@ jobs:
           # to detect and report bundlers whose job failed or was cancelled
           # (their pr-stats-<bundler>.json artifact will be missing).
           STATS_EXPECTED_BUNDLERS: 'webpack turbopack'
+          # Collapsed matrix result ('success' | 'failure' | 'cancelled' |
+          # 'skipped'). Used to decide, when no artifacts exist at all, whether
+          # the bundlers genuinely failed (post an "all failed" notice) or the
+          # run was cancelled/superseded (stay silent and let pr-ci-comment.mjs
+          # post the cancelled notice).
+          STATS_RESULT: ${{ needs.stats.result }}

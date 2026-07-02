@@ -75,18 +75,24 @@ async function main() {
 
   if (statsFiles.length === 0) {
     // The aggregate step only runs for non-docs changes (docs-only changes skip
-    // it via the DOCS_CHANGE gate), so the absence of any artifact means every
-    // bundler job failed or was cancelled.
-    if (expectedBundlers.length === 0) {
-      // Without a known expected set (e.g. local runs) there is nothing to
-      // report against, so there is nothing to aggregate.
-      logger('No pr-stats-*.json files found - nothing to aggregate')
+    // it via the DOCS_CHANGE gate), so the absence of any artifact means no
+    // bundler produced results. Only surface an "all bundlers failed" notice
+    // when the stats jobs genuinely failed. A 'cancelled' result here means the
+    // whole run was cancelled (superseded, or every bundler cancelled); we stay
+    // silent so scripts/pr-ci-comment.mjs posts the cancelled notice instead of
+    // a misleading failure comment for a run that never really ran.
+    const statsResult = process.env.STATS_RESULT
+
+    if (expectedBundlers.length === 0 || statsResult !== 'failure') {
+      logger(
+        `No pr-stats-*.json files found (stats result: ${statsResult || 'unknown'}) - nothing to aggregate`
+      )
       process.exit(0)
     }
 
     logger(
       `No pr-stats-*.json files found - all bundler jobs ` +
-        `(${expectedBundlers.join(', ')}) failed or were cancelled`
+        `(${expectedBundlers.join(', ')}) failed`
     )
 
     // No successful run means we don't have the actionInfo/statsConfig captured
