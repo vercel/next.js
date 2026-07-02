@@ -39,7 +39,7 @@ export function createRuntimeBodyErrorInNavigation(route: string): Error {
 export function createLinkBodyErrorInNavigation(route: string): Error {
   return new Error(
     `Route "${route}": Next.js encountered URL data while extracting a reusable shell.\n\n` +
-      `\`params\` or \`searchParams\` accessed outside of \`<Suspense>\` ties the shell to a single URL, leading to slower, more expensive prefetches.\n\n` +
+      `\`params\` or \`searchParams\` accessed outside of \`<Suspense>\` ties the shell to a single URL, which may cause a blocking navigation and slower, more expensive prefetches.\n\n` +
       `Ways to fix this:\n` +
       `  - [stream] Wrap the \`params\`/\`searchParams\` read in \`<Suspense fallback={...}>\` so the shell stays reusable across links\n` +
       `    https://nextjs.org/docs/messages/instant-shell-link-data#wrap-in-or-move-into-suspense\n` +

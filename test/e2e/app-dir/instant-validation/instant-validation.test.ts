@@ -631,7 +631,7 @@ describe('instant validation', () => {
           .toMatchInlineSnapshot(`
          "Error: Route "/suspense-in-root/runtime/invalid-no-suspense-around-params/[param]": Next.js encountered URL data while extracting a reusable shell.
 
-         \`params\` or \`searchParams\` accessed outside of \`<Suspense>\` ties the shell to a single URL, leading to slower, more expensive prefetches.
+         \`params\` or \`searchParams\` accessed outside of \`<Suspense>\` ties the shell to a single URL, which may cause a blocking navigation and slower, more expensive prefetches.
 
          Ways to fix this:
            - [stream] Wrap the \`params\`/\`searchParams\` read in \`<Suspense fallback={...}>\` so the shell stays reusable across links
@@ -722,7 +722,7 @@ describe('instant validation', () => {
             .toMatchInlineSnapshot(`
            "Error: Route "/suspense-in-root/static/missing-suspense-around-search-params": Next.js encountered URL data while extracting a reusable shell.
 
-           \`params\` or \`searchParams\` accessed outside of \`<Suspense>\` ties the shell to a single URL, leading to slower, more expensive prefetches.
+           \`params\` or \`searchParams\` accessed outside of \`<Suspense>\` ties the shell to a single URL, which may cause a blocking navigation and slower, more expensive prefetches.
 
            Ways to fix this:
              - [stream] Wrap the \`params\`/\`searchParams\` read in \`<Suspense fallback={...}>\` so the shell stays reusable across links
@@ -781,7 +781,7 @@ describe('instant validation', () => {
           ).toMatchInlineSnapshot(`
            "Error: Route "/suspense-in-root/runtime/invalid-no-suspense-around-search-params": Next.js encountered URL data while extracting a reusable shell.
 
-           \`params\` or \`searchParams\` accessed outside of \`<Suspense>\` ties the shell to a single URL, leading to slower, more expensive prefetches.
+           \`params\` or \`searchParams\` accessed outside of \`<Suspense>\` ties the shell to a single URL, which may cause a blocking navigation and slower, more expensive prefetches.
 
            Ways to fix this:
              - [stream] Wrap the \`params\`/\`searchParams\` read in \`<Suspense fallback={...}>\` so the shell stays reusable across links
@@ -845,7 +845,7 @@ describe('instant validation', () => {
           .toMatchInlineSnapshot(`
          "Error: Route "/suspense-in-root/runtime/invalid-no-suspense-around-search-params": Next.js encountered URL data while extracting a reusable shell.
 
-         \`params\` or \`searchParams\` accessed outside of \`<Suspense>\` ties the shell to a single URL, leading to slower, more expensive prefetches.
+         \`params\` or \`searchParams\` accessed outside of \`<Suspense>\` ties the shell to a single URL, which may cause a blocking navigation and slower, more expensive prefetches.
 
          Ways to fix this:
            - [stream] Wrap the \`params\`/\`searchParams\` read in \`<Suspense fallback={...}>\` so the shell stays reusable across links
@@ -4204,7 +4204,7 @@ describe('instant validation', () => {
               .toMatchInlineSnapshot(`
              "Error: Route "/shells/invalid-runtime-params/[slug]": Next.js encountered URL data while extracting a reusable shell.
 
-             \`params\` or \`searchParams\` accessed outside of \`<Suspense>\` ties the shell to a single URL, leading to slower, more expensive prefetches.
+             \`params\` or \`searchParams\` accessed outside of \`<Suspense>\` ties the shell to a single URL, which may cause a blocking navigation and slower, more expensive prefetches.
 
              Ways to fix this:
                - [stream] Wrap the \`params\`/\`searchParams\` read in \`<Suspense fallback={...}>\` so the shell stays reusable across links
@@ -4241,7 +4241,7 @@ describe('instant validation', () => {
               ).toMatchInlineSnapshot(`
                "Error: Route "/shells/invalid-runtime-searchparams": Next.js encountered URL data while extracting a reusable shell.
 
-               \`params\` or \`searchParams\` accessed outside of \`<Suspense>\` ties the shell to a single URL, leading to slower, more expensive prefetches.
+               \`params\` or \`searchParams\` accessed outside of \`<Suspense>\` ties the shell to a single URL, which may cause a blocking navigation and slower, more expensive prefetches.
 
                Ways to fix this:
                  - [stream] Wrap the \`params\`/\`searchParams\` read in \`<Suspense fallback={...}>\` so the shell stays reusable across links
@@ -4305,7 +4305,7 @@ describe('instant validation', () => {
               .toMatchInlineSnapshot(`
              "Error: Route "/shells/invalid-runtime-searchparams": Next.js encountered URL data while extracting a reusable shell.
 
-             \`params\` or \`searchParams\` accessed outside of \`<Suspense>\` ties the shell to a single URL, leading to slower, more expensive prefetches.
+             \`params\` or \`searchParams\` accessed outside of \`<Suspense>\` ties the shell to a single URL, which may cause a blocking navigation and slower, more expensive prefetches.
 
              Ways to fix this:
                - [stream] Wrap the \`params\`/\`searchParams\` read in \`<Suspense fallback={...}>\` so the shell stays reusable across links
@@ -4419,7 +4419,7 @@ describe('instant validation', () => {
               .toMatchInlineSnapshot(`
              "Error: Route "/shells/invalid-static-with-gsp/[slug]": Next.js encountered URL data while extracting a reusable shell.
 
-             \`params\` or \`searchParams\` accessed outside of \`<Suspense>\` ties the shell to a single URL, leading to slower, more expensive prefetches.
+             \`params\` or \`searchParams\` accessed outside of \`<Suspense>\` ties the shell to a single URL, which may cause a blocking navigation and slower, more expensive prefetches.
 
              Ways to fix this:
                - [stream] Wrap the \`params\`/\`searchParams\` read in \`<Suspense fallback={...}>\` so the shell stays reusable across links
