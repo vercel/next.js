@@ -948,6 +948,33 @@ describe('app dir - navigation', () => {
     })
   })
 
+  describe('browser back after a navigation followed by a refresh', () => {
+    it('should push a new history entry', async () => {
+      const browser = await next.browser('/push-and-refresh')
+      expect(await browser.elementByCss('h1').text()).toBe('Home')
+      const historyLength = await browser.eval('window.history.length')
+
+      await browser.elementById('push-and-refresh').click()
+
+      await retry(async () => {
+        expect(await browser.elementByCss('h1').text()).toBe('Target')
+      })
+      // If the refresh state superseded the navigation before it committed,
+      // the push was dropped and the current entry was replaced instead.
+      await retry(async () => {
+        expect(await browser.eval('window.history.length')).toBe(
+          historyLength + 1
+        )
+      })
+
+      await browser.back()
+
+      await retry(async () => {
+        expect(await browser.elementByCss('h1').text()).toBe('Home')
+      })
+    })
+  })
+
   describe('middleware redirect', () => {
     it('should change browser location when router.refresh() gets a redirect response', async () => {
       const browser = await next.browser('/redirect-on-refresh/auth')

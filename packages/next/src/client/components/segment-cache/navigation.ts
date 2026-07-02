@@ -780,7 +780,16 @@ export function completeSoftNavigation(
     canonicalUrl,
     renderedSearch,
     pushRef: {
-      pendingPush: navigateType === 'push',
+      // Carry forward an unconsumed push from the previous state. The history
+      // push for a navigation only happens when React commits the state that
+      // requested it; if this update supersedes that state before it ever
+      // commits (e.g. a refresh or HMR refresh settling right behind a
+      // navigation), dropping the flag here would turn the navigation's push
+      // into a replace, destroying the previous page's history entry (so the
+      // back button breaks). HistoryUpdater consumes the flag by mutating the
+      // committed pushRef, and its same-URL check turns an already-performed
+      // push into a replace, so carrying the flag forward can't double-push.
+      pendingPush: navigateType === 'push' || oldState.pushRef.pendingPush,
       mpaNavigation: false,
       preserveCustomHistoryState: false,
     },
