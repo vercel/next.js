@@ -136,10 +136,13 @@ describe('instant-navigation-testing-api', () => {
   // Navigate deeper under the lock. Loading `/blocking-fallback/en` commits the
   // parent layout (which owns the only <Suspense> boundary) and the landing
   // page. `/blocking-fallback/en/s1` is a fallback route (`[scope]` has no
-  // generateStaticParams) whose deeper page blocks on `cookies()`. Navigating
-  // into it must stay parked: the committed parent and landing page stay on
-  // screen, the deeper page and its cookie value must not commit while the lock
-  // is held, and they stream in only after release.
+  // generateStaticParams) whose deeper page awaits the uncovered `scope` param
+  // and reads `cookies()`. Awaiting the withheld param is what keeps the
+  // segment out of the app shell (the app shell is allowed to read cookies, so
+  // a cookie read alone would not park it). Navigating into it must stay
+  // parked: the committed parent and landing page stay on screen, the deeper
+  // page (its title and its cookie value) must not commit while the lock is
+  // held, and they stream in only after release.
   it('keeps the committed layout and defers a deeper blocking segment under instant()', async () => {
     const page = await openPage(next, '/blocking-fallback/en', {
       cookies: [{ name: 'testCookie', value: 'hello' }],
