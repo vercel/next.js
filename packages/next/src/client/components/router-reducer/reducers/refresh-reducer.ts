@@ -109,8 +109,9 @@ export function refreshDynamicData(
     signal,
     // TODO: Add perf tracking for refresh actions. A refresh re-fetches the
     // dynamic data for the current URL (modeled as a navigation to the current
-    // URL); it never emits a transition `start`, so there is no transition id
-    // to attach a destination tree to yet, and it never reports a commit.
+    // URL); it never emits a transition `start`, so there is no pending
+    // transition to attach a destination tree to, and it never reports
+    // a commit.
     null
   )
 }

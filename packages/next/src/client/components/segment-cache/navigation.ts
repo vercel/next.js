@@ -40,7 +40,10 @@ import { createCacheKey, type NormalizedSearch } from './cache-key'
 import { schedulePrefetchTask } from './scheduler'
 import { PrefetchPriority, FetchStrategy } from './types'
 import { getLinkForCurrentNavigation } from '../links'
-import { attachRouterTransitionTarget } from '../router-transition'
+import {
+  attachRouterTransitionTarget,
+  type PendingRouterTransition,
+} from '../router-transition'
 import type { PageVaryPath } from './vary-path'
 import type { AppRouterState } from '../router-reducer/router-reducer-types'
 import { ScrollBehavior } from '../router-reducer/router-reducer-types'
@@ -68,10 +71,11 @@ export function navigate(
   freshnessPolicy: FreshnessPolicy,
   scrollBehavior: ScrollBehavior,
   navigateType: 'push' | 'replace',
-  // The router transition id minted when this navigation started, or null when
-  // the navigation is not a tracked transition (e.g. a server action redirect
-  // or gesture). Threaded through to the buffer so commit/abort can be reported.
-  transitionId: string | null
+  // Instrumentation only: the pending transition created when this navigation
+  // started, or null when the navigation is not a tracked transition (e.g. a
+  // server action redirect or gesture). Threaded through so the destination
+  // tree can be attached to it, letting commit/abort be reported.
+  transition: PendingRouterTransition | null
 ): AppRouterState | Promise<AppRouterState> {
   let navigationLock: NavigationLock = null
 
@@ -98,7 +102,7 @@ export function navigate(
         scrollBehavior,
         navigateType,
         navigationLock,
-        transitionId
+        transition
       )
     }
   }
@@ -115,7 +119,7 @@ export function navigate(
     scrollBehavior,
     navigateType,
     navigationLock,
-    transitionId
+    transition
   )
 }
 
@@ -131,7 +135,7 @@ function navigateImpl(
   scrollBehavior: ScrollBehavior,
   navigateType: 'push' | 'replace',
   navigationLock: NavigationLock,
-  transitionId: string | null
+  transition: PendingRouterTransition | null
 ): AppRouterState | Promise<AppRouterState> {
   const now = Date.now()
   const href = url.href
@@ -154,7 +158,7 @@ function navigateImpl(
       navigateType,
       route,
       navigationLock,
-      transitionId
+      transition
     )
   }
 
@@ -192,7 +196,7 @@ function navigateImpl(
           navigateType,
           optimisticRoute,
           navigationLock,
-          transitionId
+          transition
         )
       }
     }
@@ -216,7 +220,7 @@ function navigateImpl(
     scrollBehavior,
     navigateType,
     navigationLock,
-    transitionId
+    transition
   ).catch(() => {
     // If the navigation fails, return the current state
     return state
@@ -252,7 +256,7 @@ export function navigateToKnownRoute(
   // dispatchRetryDueToTreeMismatch).
   routeCacheEntry: FulfilledRouteCacheEntry | null,
   signal: AbortSignal | undefined,
-  transitionId: string | null
+  transition: PendingRouterTransition | null
 ): AppRouterState {
   // A version of navigate() that accepts the target route tree as an argument
   // rather than reading it from the prefetch cache.
@@ -319,7 +323,7 @@ export function navigateToKnownRoute(
   const accumulation: NavigationRequestAccumulation = {
     separateRefreshUrls: null,
     scrollRef: null,
-    cacheHit: false,
+    instrumentationCacheHit: false,
   }
   // We special case navigations to the exact same URL as the current location.
   // It's a common UI pattern for apps to refresh when you click a link to the
@@ -383,14 +387,15 @@ export function navigateToKnownRoute(
       accumulation.scrollRef,
       debugInfo
     )
-    // The transition itself was recorded when `start` was emitted (in the
-    // dispatcher); now that the destination state exists, attach its tree —
-    // the identity HistoryUpdater matches on to report the commit — and
-    // whether the segment walk above found cached UI to navigate into.
+    // Instrumentation only: the pending transition was created when `start`
+    // was emitted (in the dispatcher); now that the destination state exists,
+    // write into that shared object its tree — the identity HistoryUpdater
+    // matches on to report the commit — and whether the segment walk above
+    // found cached UI to navigate into.
     attachRouterTransitionTarget(
-      transitionId,
+      transition,
       newState.tree,
-      accumulation.cacheHit
+      accumulation.instrumentationCacheHit
     )
     return newState
   }
@@ -412,7 +417,7 @@ function navigateUsingPrefetchedRouteTree(
   navigateType: 'push' | 'replace',
   route: FulfilledRouteCacheEntry,
   navigationLock: NavigationLock,
-  transitionId: string | null
+  transition: PendingRouterTransition | null
 ): AppRouterState {
   const routeTree = route.tree
   const canonicalUrl = route.canonicalUrl + url.hash
@@ -444,7 +449,7 @@ function navigateUsingPrefetchedRouteTree(
     route,
     // Not an HMR refresh, so there's no request generation to cancel.
     undefined,
-    transitionId
+    transition
   )
 }
 
@@ -473,7 +478,7 @@ async function navigateToUnknownRoute(
   scrollBehavior: ScrollBehavior,
   navigateType: 'push' | 'replace',
   navigationLock: NavigationLock,
-  transitionId: string | null
+  transition: PendingRouterTransition | null
 ): Promise<AppRouterState> {
   // Runs when a navigation happens but there's no cached prefetch we can use.
   // Don't bother to wait for a prefetch response; go straight to a full
@@ -664,7 +669,7 @@ async function navigateToUnknownRoute(
     null,
     // Not an HMR refresh, so there's no request generation to cancel.
     undefined,
-    transitionId
+    transition
   )
 }
 
@@ -1098,7 +1103,7 @@ async function ensurePrefetchThenNavigate(
   scrollBehavior: ScrollBehavior,
   navigateType: 'push' | 'replace',
   navigationLock: NavigationLock,
-  transitionId: string | null
+  transition: PendingRouterTransition | null
 ): Promise<AppRouterState> {
   const link = getLinkForCurrentNavigation()
   const fetchStrategy = link !== null ? link.fetchStrategy : FetchStrategy.PPR
@@ -1139,7 +1144,7 @@ async function ensurePrefetchThenNavigate(
     scrollBehavior,
     navigateType,
     navigationLock,
-    transitionId
+    transition
   )
 
   // Only transition to captured-SPA once the navigation is known to be an SPA.

@@ -3,6 +3,7 @@ import type { FlightRouterState } from '../../../shared/lib/app-router-types'
 import type { NavigationSeed } from '../segment-cache/navigation'
 import type { FetchServerResponseResult } from './fetch-server-response'
 import type { FreshnessPolicy } from './ppr-navigations'
+import type { PendingRouterTransition } from '../router-transition'
 
 export const ACTION_REFRESH = 'refresh'
 export const ACTION_NAVIGATE = 'navigate'
@@ -94,11 +95,11 @@ export interface NavigateAction {
   locationSearch: Location['search']
   navigateType: 'push' | 'replace'
   scrollBehavior: ScrollBehavior
-  // The router transition id minted when the dispatcher emitted `start` (null
-  // when the experimental lifecycle is disabled). Threaded through so the
-  // reducer can attach the destination tree to the pending transition it was
-  // recorded under.
-  transitionId: string | null
+  // Instrumentation only: the pending transition created when the dispatcher
+  // emitted `start` (null when the experimental lifecycle is disabled).
+  // Threaded through so the reducer can attach the destination tree to this
+  // shared object once it exists.
+  transition: PendingRouterTransition | null
 }
 
 /**
@@ -114,10 +115,10 @@ export interface RestoreAction {
   type: typeof ACTION_RESTORE
   url: URL
   historyState: AppHistoryState | undefined
-  // The router transition id minted by the dispatcher for genuine back/forward
-  // traversals, or null for the pushState/replaceState sync path (not a
-  // navigation).
-  transitionId: string | null
+  // Instrumentation only: the pending transition created by the dispatcher for
+  // genuine back/forward traversals, or null for the pushState/replaceState
+  // sync path (not a navigation).
+  transition: PendingRouterTransition | null
 }
 
 export type AppHistoryState = {
