@@ -780,7 +780,11 @@ export function completeSoftNavigation(
     canonicalUrl,
     renderedSearch,
     pushRef: {
-      pendingPush: navigateType === 'push',
+      // Carry forward a pending push from the previous state: React may never
+      // commit that state if this one supersedes it, and the entry must still
+      // be pushed. If the previous state did commit, HistoryUpdater's same-URL
+      // check prevents a double push.
+      pendingPush: navigateType === 'push' || oldState.pushRef.pendingPush,
       mpaNavigation: false,
       preserveCustomHistoryState: false,
     },
