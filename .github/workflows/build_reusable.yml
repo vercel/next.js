@@ -105,7 +105,8 @@ env:
   NAPI_CLI_VERSION: 3.7.2
   TURBO_VERSION: 2.9.4
   TURBO_ARGS: '-v --env-mode loose --remote-cache-timeout 300 --log-order stream'
-  NODE_LTS_VERSION: 20.9.0
+  # Must be >= 20.12: @napi-rs/cli 3.x requires `util.styleText` (added in 20.12.0).
+  NODE_LTS_VERSION: 20.19.4
   # run-tests.js reads `TEST_CONCURRENCY` if no explicit `--concurrency` or `-c`
   # argument is provided
   TEST_CONCURRENCY: 8
