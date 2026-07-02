@@ -1321,6 +1321,43 @@ describe('generateRouteStaticParams', () => {
       ).rejects.toThrow('Tech not allowed')
     })
 
+    it('should throw when generateStaticParams returns a non-array value', async () => {
+      const segments: TestAppSegment[] = [
+        createMockSegment(async () => ({ id: '1' }) as any),
+      ]
+      const store = createMockWorkStore()
+      await expect(
+        generateRouteStaticParams(
+          segments,
+          store,
+
+          false,
+          []
+        )
+      ).rejects.toThrow(
+        'Invalid value returned from "generateStaticParams" in "/test-page". Expected an array of params objects, received object.'
+      )
+    })
+
+    it('should throw when a child generateStaticParams returns a non-array value', async () => {
+      const segments: TestAppSegment[] = [
+        createMockSegment(async () => [{ category: 'tech' }]),
+        createMockSegment(async () => undefined as any),
+      ]
+      const store = createMockWorkStore()
+      await expect(
+        generateRouteStaticParams(
+          segments,
+          store,
+
+          false,
+          []
+        )
+      ).rejects.toThrow(
+        'Invalid value returned from "generateStaticParams" in "/test-page". Expected an array of params objects, received undefined.'
+      )
+    })
+
     it('should throw error when generateStaticParams returns empty array with isRoutePPREnabled=true', async () => {
       const segments: TestAppSegment[] = [
         createMockSegment(async () => [{ lang: 'en' }]),

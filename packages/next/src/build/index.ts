@@ -2430,17 +2430,23 @@ export default async function build(
 
                           const appConfig = workerResult.appConfig || {}
                           if (appConfig.revalidate !== 0) {
-                            const hasGenerateStaticParams =
-                              workerResult.prerenderedRoutes &&
+                            const hasPrerenderedRoutes =
+                              !!workerResult.prerenderedRoutes &&
                               workerResult.prerenderedRoutes.length > 0
 
                             if (
                               config.output === 'export' &&
                               isDynamic &&
-                              !hasGenerateStaticParams
+                              !hasPrerenderedRoutes
                             ) {
+                              if (!workerResult.hasGenerateStaticParams) {
+                                throw new Error(
+                                  `Page "${page}" is missing "generateStaticParams()" so it cannot be used with "output: export" config. See more info here: https://nextjs.org/docs/messages/generate-static-params-export`
+                                )
+                              }
+
                               throw new Error(
-                                `Page "${page}" is missing "generateStaticParams()" so it cannot be used with "output: export" config.`
+                                `Page "${page}" has "generateStaticParams()" but it returned no params, so it cannot be used with "output: export" config. "generateStaticParams()" must return a non-empty array of params. See more info here: https://nextjs.org/docs/messages/generate-static-params-export`
                               )
                             }
 
@@ -2463,7 +2469,7 @@ export default async function build(
                               ])
                               isStatic = true
                             } else if (
-                              !hasGenerateStaticParams &&
+                              !hasPrerenderedRoutes &&
                               (appConfig.dynamic === 'error' ||
                                 appConfig.dynamic === 'force-static')
                             ) {

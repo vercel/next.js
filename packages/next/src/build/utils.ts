@@ -673,6 +673,11 @@ type PageIsStaticResult = {
   isStatic?: boolean
   hasServerProps?: boolean
   hasStaticProps?: boolean
+  /**
+   * Whether any of the app route's segments export a `generateStaticParams`
+   * function. Only relevant for app pages/routes; always `false` for pages.
+   */
+  hasGenerateStaticParams: boolean
   prerenderedRoutes: PrerenderedRoute[] | undefined
   prerenderFallbackMode: FallbackMode | undefined
   rootParamKeys: readonly string[] | undefined
@@ -749,6 +754,7 @@ export async function isPageStatic({
       rootParamKeys: undefined,
       hasStaticProps: false,
       hasServerProps: false,
+      hasGenerateStaticParams: false,
       isNextImageImported: false,
       appConfig: {},
     }
@@ -829,6 +835,7 @@ export async function isPageStatic({
       const Comp = Component as NextComponentType | undefined
 
       let isRoutePPREnabled: boolean = false
+      let hasGenerateStaticParams = false
 
       if (pageType === 'app') {
         // @ts-expect-error pageType is app, so we can assume AppPageModule | AppRouteModule
@@ -852,6 +859,10 @@ export async function isPageStatic({
           originalAppPath === UNDERSCORE_GLOBAL_ERROR_ROUTE_ENTRY
             ? {}
             : reduceAppConfig(segments)
+
+        hasGenerateStaticParams = segments.some(
+          (segment) => typeof segment.generateStaticParams === 'function'
+        )
 
         if (appConfig.dynamic === 'force-static' && pathIsEdgeRuntime) {
           Log.warn(
@@ -991,6 +1002,7 @@ export async function isPageStatic({
         rootParamKeys,
         hasStaticProps,
         hasServerProps,
+        hasGenerateStaticParams,
         isNextImageImported,
         appConfig,
       }

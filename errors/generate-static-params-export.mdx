@@ -1,0 +1,36 @@
+---
+title: '`generateStaticParams` Export Error'
+---
+
+## Why This Error Occurred
+
+Your application is configured with `output: 'export'` in `next.config.js`, which generates a fully static site. Every [Dynamic Route](/docs/app/api-reference/file-conventions/dynamic-routes) (e.g. `app/blog/[slug]/page.tsx`) must therefore be rendered to static HTML at build time, and Next.js relies on [`generateStaticParams`](/docs/app/api-reference/functions/generate-static-params) to know which paths to prerender.
+
+This error occurs when a dynamic route:
+
+- does not export a `generateStaticParams` function, or
+- exports a `generateStaticParams` function that returned no params (for example, an empty array), leaving Next.js with no paths to prerender for the route.
+
+## Possible Ways to Fix It
+
+1. Export a `generateStaticParams` function from the dynamic route and make sure it returns a non-empty array of params, one entry for each path that should be generated:
+
+   ```tsx filename="app/blog/[slug]/page.tsx"
+   export async function generateStaticParams() {
+     const posts = await fetch('https://.../posts').then((res) => res.json())
+
+     return posts.map((post) => ({
+       slug: post.slug,
+     }))
+   }
+   ```
+
+   Note that `generateStaticParams` must return an array of params objects.
+
+2. If the paths cannot be known at build time, the route cannot be statically exported and you should disable static export.
+
+## Useful Links
+
+- [`generateStaticParams` documentation](/docs/app/api-reference/functions/generate-static-params)
+- [Static Exports documentation](/docs/app/guides/static-exports)
+- [Dynamic Routes documentation](/docs/app/api-reference/file-conventions/dynamic-routes)

@@ -115,6 +115,7 @@
       "test/e2e/app-dir/app-compilation/index.test.ts",
       "test/e2e/app-dir/app-css/index.test.ts",
       "test/e2e/app-dir/app-custom-cache-handler/index.test.ts",
+      "test/e2e/app-dir/app-dir-export-invalid-gsp/app-dir-export-invalid-gsp.test.ts",
       "test/e2e/app-dir/app-edge-root-layout/index.test.ts",
       "test/e2e/app-dir/app-edge/app-edge.test.ts",
       "test/e2e/app-dir/app-esm-js/index.test.ts",
