@@ -56,10 +56,12 @@ jobs:
       #
       # We skip if either Graphite's optimizer says to skip, or the PR is a mid-stack PR in a
       # GitHub native stack. The bypass label overrides both.
-      skip: |-
-        ${{ env.HAS_BYPASS_LABEL == 'false' && (
-          steps.check-skip.outputs.skip == 'true' || env.IS_MID_STACK_NATIVE == 'true'
-        ) }}
+      skip: ${{ env.HAS_BYPASS_LABEL == 'false' && steps.check-skip.outputs.skip == 'true' }}
+      # Note: IS_MID_STACK_NATIVE is disabled for now because it doesn't
+      # understand if we're not on the bottom of the stack, but all the PRs
+      # below us are merged.
+      # <https://vercel.slack.com/archives/C04KC8A53T7/p1783018076576349>
+      #  || env.IS_MID_STACK_NATIVE == 'true'
     steps:
       - name: Optimize CI
         id: check-skip
