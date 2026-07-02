@@ -72,7 +72,7 @@ export function serverPatchReducer(
     null,
     // Not an HMR refresh, so there's no request generation to cancel.
     undefined,
-    // No transition id: a retry is an internal correction, not a user
+    // No pending transition: a retry is an internal correction, not a user
     // navigation. The timeline: the user's navigation optimistically committed
     // a predicted route tree (HistoryUpdater applied it, which emitted that
     // transition's `commit` event and removed it from the pending buffer).

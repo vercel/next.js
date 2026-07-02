@@ -24,7 +24,7 @@ export function navigateReducer(
   state: ReadonlyReducerState,
   action: NavigateAction
 ): ReducerState {
-  const { url, isExternalUrl, navigateType, scrollBehavior, transitionId } =
+  const { url, isExternalUrl, navigateType, scrollBehavior, transition } =
     action
 
   if (isExternalUrl) {
@@ -53,6 +53,6 @@ export function navigateReducer(
     FreshnessPolicy.Default,
     scrollBehavior,
     navigateType,
-    transitionId
+    transition
   )
 }

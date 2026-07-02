@@ -523,7 +523,7 @@ export function serverActionReducer(
           undefined,
           // TODO: Add perf tracking for navigations caused by server actions
           // (redirects). No transition `start` is emitted for them yet, so
-          // there is no transition id to thread through, and they never
+          // there is no pending transition to thread through, and they never
           // report a commit.
           null
         )

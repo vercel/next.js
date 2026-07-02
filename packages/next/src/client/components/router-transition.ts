@@ -15,9 +15,13 @@ import type {
   RouterTransitionType,
 } from '../router-transition-types'
 
-// The single tracking record for one tracked transition. It is created when
-// `start` is emitted and carries everything the eventual `commit`/`abort`
-// event needs:
+// The single tracking record for one tracked transition, used only by the
+// instrumentation-client router transition hooks. It is created when `start`
+// is emitted and threaded through the navigate/restore action, so the
+// navigation code that produces the destination state can write into this
+// same shared object (via `attachRouterTransitionTarget`) rather than look
+// it up by id. It carries everything the eventual `commit`/`abort` event
+// needs:
 //
 // - `id`, `type`, `url` are captured at start. `url` is kept here (rather than
 //   derived from the AppRouterState) because it is the destination exactly as
@@ -29,11 +33,12 @@ import type {
 //   (`null` until then). HistoryUpdater commits whichever AppRouterState it
 //   observes, and `tree` is the unique, reference-stable identity of that
 //   state (a fresh FlightRouterState is built for every navigation), so it
-//   correlates the commit back to its start without threading an id through
-//   the router state.
+//   correlates the commit back to its start without leaking an
+//   instrumentation field into the router state itself.
 // - `cacheHit` is attached along with the tree; see
-//   NavigationRequestAccumulation.cacheHit for exactly when it is true.
-type PendingTransition = {
+//   NavigationRequestAccumulation.instrumentationCacheHit for exactly when it
+//   is true.
+export type PendingRouterTransition = {
   id: string
   type: RouterTransitionType
   url: string
@@ -43,12 +48,17 @@ type PendingTransition = {
 
 let instrumentationModules: readonly ClientInstrumentationHooks[] = []
 let nextTransitionId = 0
-// In-flight transitions, in start order (oldest first). An entry is added on
-// `start` and leaves the buffer in exactly one of two ways: its own tree is
-// committed by HistoryUpdater (`commit`), or a newer transition commits first
-// (`abort`, superseded). Only populated when the experimental flag is on, so
-// it tree-shakes away in the default build.
-const pendingTransitions: PendingTransition[] = []
+// In-flight transitions, in start order (oldest first). The entries are the
+// same objects that are threaded through the actions — this buffer exists
+// only for the cross-transition bookkeeping that a single threaded object
+// can't provide: commit needs the start *order* to know which older
+// transitions were superseded (aborted), and HistoryUpdater needs to find the
+// transition whose tree it just applied. An entry is added on `start` and
+// leaves the buffer in exactly one of two ways: its own tree is committed by
+// HistoryUpdater (`commit`), or a newer transition commits first (`abort`,
+// superseded). Only populated when the experimental flag is on, so it
+// tree-shakes away in the default build.
+const pendingTransitions: PendingRouterTransition[] = []
 
 export function initializeRouterTransitionModules(
   modules: ClientInstrumentationModules
@@ -86,30 +96,51 @@ function hasLifecycleInstrumentation(): boolean {
  * `pendingTransitions` immediately, so that it is reported as aborted if a
  * newer navigation commits before this one produces a destination tree.
  *
- * `state` is the AppRouterState the navigation starts *from* (the tracked
- * fields describe the route being left, not the destination).
+ * The `from*` fields describe the route being left; they are read from the
+ * current AppRouterState here (rather than passed in) since this is the only
+ * transition hook that needs it.
  *
- * Returns the transition id when the lifecycle is active — the caller threads
- * it through the reducer action so `attachRouterTransitionTarget` can find
- * this entry once the destination tree exists — or `null` for the legacy
+ * Returns the pending transition when the lifecycle is active — the caller
+ * threads the object through the reducer action so the navigation code can
+ * attach the destination tree to it once it exists — or `null` for the legacy
  * two-argument hook.
  */
 export function startRouterTransition(
   url: string,
-  type: RouterTransitionType,
-  state: AppRouterState
-): string | null {
+  type: RouterTransitionType
+): PendingRouterTransition | null {
   // Positive flag check so the instrumentation-only path is removed by DCE when disabled.
   if (process.env.__NEXT_INSTRUMENTATION_CLIENT_ROUTER_TRANSITION_EVENTS) {
     if (!hasLifecycleInstrumentation()) {
       return null
     }
 
+    // Lazy require to avoid a static import cycle: app-router-instance
+    // imports this module to emit `start` when dispatching. (Same pattern as
+    // links.ts.)
+    const { getCurrentAppRouterState } =
+      require('./app-router-instance') as typeof import('./app-router-instance')
+    const state = getCurrentAppRouterState()
+    if (state === null) {
+      // Navigations can only be dispatched after hydration creates the action
+      // queue, so this shouldn't happen; degrade to the legacy hook shape
+      // rather than throw from an instrumentation path.
+      callHooks((hooks) => hooks.onRouterTransitionStart?.(url, type, null))
+      return null
+    }
+
     const now = Date.now()
     const id = `${now.toString(36)}-${(++nextTransitionId).toString(36)}`
-    pendingTransitions.push({ id, type, url, tree: null, cacheHit: false })
+    const transition: PendingRouterTransition = {
+      id,
+      type,
+      url,
+      tree: null,
+      cacheHit: false,
+    }
+    pendingTransitions.push(transition)
 
-    const from = describeRoute(
+    const from = describeRouteForInstrumentation(
       state.tree,
       state.canonicalUrl,
       state.renderedSearch
@@ -125,7 +156,7 @@ export function startRouterTransition(
         fromSearchParams: from.searchParams,
       })
     )
-    return id
+    return transition
   } else {
     callHooks((hooks) => hooks.onRouterTransitionStart?.(url, type, null))
     return null
@@ -133,33 +164,30 @@ export function startRouterTransition(
 }
 
 /**
- * Attaches the navigation's result to the pending transition that was recorded
- * at `start`: the destination tree (the identity HistoryUpdater will commit)
- * and whether the router navigated into cached UI. Called from the reducer once
- * the destination state exists.
+ * Attaches the navigation's result to the pending transition that was created
+ * at `start` and threaded through the action: the destination tree (the
+ * identity HistoryUpdater will commit) and whether the router navigated into
+ * cached UI. Called from the navigation code once the destination state
+ * exists; writes into the shared object directly, so no lookup is needed.
  *
- * No-ops when `transitionId` is `null` (untracked navigation, or the lifecycle
- * is disabled) or when the entry has already left the buffer — which happens
- * when a newer navigation committed first and this one was reported as
- * aborted. In that case the action queue also discarded this navigation's
- * state, so no commit can fire for it either; the abort was final.
+ * No-ops when `transition` is `null` (untracked navigation, or the lifecycle
+ * is disabled). If the transition has already left the pending buffer — a
+ * newer navigation committed first and this one was reported as aborted —
+ * the write is harmless: events are only ever emitted for buffered entries,
+ * and the action queue also discarded this navigation's state, so no commit
+ * can fire for it either; the abort was final.
  */
 export function attachRouterTransitionTarget(
-  transitionId: string | null,
+  transition: PendingRouterTransition | null,
   tree: FlightRouterState,
   cacheHit: boolean
 ): void {
   if (process.env.__NEXT_INSTRUMENTATION_CLIENT_ROUTER_TRANSITION_EVENTS) {
-    if (transitionId === null) {
+    if (transition === null) {
       return
     }
-    const entry = pendingTransitions.find(
-      (pending) => pending.id === transitionId
-    )
-    if (entry !== undefined) {
-      entry.tree = tree
-      entry.cacheHit = cacheHit
-    }
+    transition.tree = tree
+    transition.cacheHit = cacheHit
   }
 }
 
@@ -198,7 +226,11 @@ export function commitRouterTransition(state: AppRouterState): void {
     pendingTransitions.splice(0, index + 1)
 
     const now = Date.now()
-    const to = describeRoute(tree, canonicalUrl, renderedSearch)
+    const to = describeRouteForInstrumentation(
+      tree,
+      canonicalUrl,
+      renderedSearch
+    )
     callHooks((hooks) =>
       hooks.unstable_onRouterTransitionCommit?.(committed.url, committed.type, {
         id: committed.id,
@@ -223,9 +255,17 @@ export function commitRouterTransition(state: AppRouterState): void {
   }
 }
 
-// The route description shared by the flattened `from*` (start) and `to*`
-// (commit) event fields.
-function describeRoute(
+/**
+ * Adapter from internal router state (the FlightRouterState tree, canonical
+ * URL, and rendered search) to the shape we are comfortable exposing publicly
+ * on instrumentation events — the flattened `from*` (start) / `to*` (commit)
+ * fields. This is the single boundary where internal route structure is
+ * translated for external consumption; it exists solely for the
+ * instrumentation-client router transition hooks and must not be used for
+ * anything else (in particular, nothing in the router may depend on its
+ * output).
+ */
+function describeRouteForInstrumentation(
   tree: FlightRouterState,
   canonicalUrl: string,
   renderedSearch: string

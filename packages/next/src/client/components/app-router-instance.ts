@@ -289,13 +289,12 @@ export function dispatchNavigateAction(
 
   setLinkForCurrentNavigation(linkInstanceRef)
 
-  // Mint the transition id and emit `start` here, before the action is queued,
-  // so the hook runs outside React's render phase. (A user hook that throws
-  // during the reducer would otherwise break error isolation between hooks.)
-  // The id is threaded on the action so the reducer can attach the destination
-  // tree to the pending transition once it exists.
-  const { state } = getAppRouterActionQueue()
-  const transitionId = startRouterTransition(href, navigateType, state)
+  // Create the pending transition and emit `start` here, before the action is
+  // queued, so the hook runs outside React's render phase. (A user hook that
+  // throws during the reducer would otherwise break error isolation between
+  // hooks.) The transition object is threaded on the action so the reducer can
+  // attach the destination tree to it once it exists.
+  const transition = startRouterTransition(href, navigateType)
 
   dispatchAppRouterAction({
     type: ACTION_NAVIGATE,
@@ -304,7 +303,7 @@ export function dispatchNavigateAction(
     locationSearch: location.search,
     scrollBehavior,
     navigateType,
-    transitionId,
+    transition,
   })
 }
 
@@ -312,13 +311,12 @@ export function dispatchTraverseAction(
   href: string,
   historyState: AppHistoryState | undefined
 ) {
-  const { state } = getAppRouterActionQueue()
-  const transitionId = startRouterTransition(href, 'traverse', state)
+  const transition = startRouterTransition(href, 'traverse')
   dispatchAppRouterAction({
     type: ACTION_RESTORE,
     url: new URL(href),
     historyState,
-    transitionId,
+    transition,
   })
 }
 

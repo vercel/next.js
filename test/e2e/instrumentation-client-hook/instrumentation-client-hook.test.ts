@@ -301,6 +301,80 @@ describe('Instrumentation Client Hook', () => {
       expect(commit.event.toRenderedPathname).toBe('/blog/hello')
     })
 
+    it('reports the post-rewrite pathname and search params for a middleware rewrite', async () => {
+      const browser = await next.browser('/')
+
+      // Middleware rewrites /rewrite-source to /rewrite-target and adds an
+      // `internal` search param (keeping the user's `q`).
+      await browser
+        .elementByCss('a[href="/rewrite-source?q=from-user"]')
+        .click()
+      await browser.elementById('rewrite-target')
+
+      await retry(async () => {
+        const events = await getTransitionEvents(browser)
+        expect(events.some((e) => e.phase === 'commit')).toBe(true)
+      })
+
+      const commit = (await getTransitionEvents(browser)).find(
+        (e) => e.phase === 'commit'
+      )
+      // The address bar keeps the URL the user navigated to...
+      expect(commit.event.toCanonicalUrl).toBe('/rewrite-source?q=from-user')
+      // ...while the rendered pathname, route templates, and search params
+      // are post-rewrite: they describe what the server actually rendered,
+      // including the search param the middleware added.
+      expect(commit.event.toRenderedPathname).toBe('/rewrite-target')
+      expect(commit.event.toRouteTemplates).toEqual(['/rewrite-target'])
+      expect(commit.event.toSearchParams).toEqual({
+        q: 'from-user',
+        internal: 'from-middleware',
+      })
+
+      // Navigating away reports the same post-rewrite route as from*, so the
+      // next transition's start joins up with this one's commit.
+      await browser.elementByCss('a[href="/"]').click()
+      await browser.elementById('home')
+
+      const start = (await getTransitionEvents(browser))
+        .filter((e) => e.phase === 'start')
+        .at(-1)
+      expect(start.event.fromCanonicalUrl).toBe('/rewrite-source?q=from-user')
+      expect(start.event.fromRenderedPathname).toBe('/rewrite-target')
+      expect(start.event.fromSearchParams).toEqual({
+        q: 'from-user',
+        internal: 'from-middleware',
+      })
+    })
+
+    it('keeps route param names out of events but reports search params verbatim', async () => {
+      const browser = await next.browser('/')
+
+      await browser.elementByCss('a[href="/blog/hello?tag=react"]').click()
+      await browser.elementById('blog-post')
+
+      await retry(async () => {
+        const events = await getTransitionEvents(browser)
+        expect(events.some((e) => e.phase === 'commit')).toBe(true)
+      })
+
+      const commit = (await getTransitionEvents(browser)).find(
+        (e) => e.phase === 'commit'
+      )
+      // Log continuity: the dynamic segment is a positional hole. The param
+      // name (`slug`) is an app-internal identifier — renaming the `[slug]`
+      // folder must not change what consumers group logs by — so it appears
+      // nowhere in the event, neither as a template segment nor as a key.
+      expect(commit.event.toRouteTemplates).toEqual(['/blog/:1'])
+      expect(commit.event.toParams).toEqual(['hello'])
+      expect(JSON.stringify(commit.event)).not.toContain('slug')
+      // Search params are the exception: their names are already user-facing
+      // (they appear in the address bar itself), so they are kept verbatim.
+      expect(commit.event.toSearchParams).toEqual({ tag: 'react' })
+      expect(commit.event.toCanonicalUrl).toBe('/blog/hello?tag=react')
+      expect(commit.event.toRenderedPathname).toBe('/blog/hello')
+    })
+
     it('omits route groups from route templates', async () => {
       const browser = await next.browser('/about')
 
