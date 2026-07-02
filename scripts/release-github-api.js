@@ -86,10 +86,13 @@ async function getSingleParent(commitSha) {
  * (required for preview, since after the revert `lerna.json` no longer matches
  * HEAD).
  *
- * `options.githubRequest` injects a custom GitHub client (signature matching
- * `githubRequest`). A dry run passes a logging mock so the whole sign/tag/push
- * flow is exercised without touching the API; when a mock is used the final
- * local-branch sync is skipped (the signed commits don't exist on the remote).
+ * `options.githubRequest`
+ * @param {string} token GitHub API token with repo access
+ * @param {object} options
+ * @param {string} [options.baseSha] The remote base commit to replay on top of
+ * @param {string} [options.tagName] The release tag name to create
+ * @param {import('./github-utils/signed-commit').githubRequest} [options.githubRequest]
+ *   A custom GitHub client e.g. for using a logging mock when doing a dry run.
  */
 async function createGitHubReleaseCommit(token, options = {}) {
   const request = options.githubRequest ?? githubRequest
@@ -239,12 +242,15 @@ async function getReleaseCommits(fromTag, tagCommitSha) {
  * hijack every canary release). The release is created as a prerelease draft;
  * `publish-release.js` un-drafts it once the npm publish succeeds.
  *
- * `request` defaults to the real `githubRequest`; a dry run injects a logging
- * mock so the flow is exercised without creating a release.
+ * @param {string} token GitHub API token with repo access
+ * @param {object} options
+ * @param {string} options.tagName The release tag name to create
+ * @param {import('./github-utils/signed-commit').githubRequest} [options.githubRequest]
+ *   A custom GitHub client e.g. for using a logging mock when doing a dry run.
  */
 async function createGitHubRelease(
   token,
-  { tagName, request = githubRequest }
+  { tagName, githubRequest: request = githubRequest }
 ) {
   const newVersion = tagName.replace(/^v/, '')
   const tagCommitSha = await git(['rev-list', '-n', '1', tagName], {

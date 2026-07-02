@@ -249,7 +249,10 @@ async function main() {
   })
 
   if (isCanary || isReleaseCandidate || isBeta || isPreview) {
-    await createGitHubRelease(githubToken, { tagName, request: mockRequest })
+    await createGitHubRelease(githubToken, {
+      tagName,
+      githubRequest: mockRequest,
+    })
   }
 
   console.log('Release process is finished')
