@@ -202,6 +202,10 @@ function dispatchAction(
     // (Note that it can't contain any earlier navigations, because we always put those into `actionQueue.pending` by calling `runAction`)
     newAction.next = actionQueue.pending.next
 
+    if (actionQueue.last === actionQueue.pending) {
+      actionQueue.last = newAction
+    }
+
     runAction({
       actionQueue,
       action: newAction,
