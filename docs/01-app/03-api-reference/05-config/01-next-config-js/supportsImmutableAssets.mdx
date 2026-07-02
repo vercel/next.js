@@ -8,21 +8,21 @@ description: Configure support for immutable static assets
 >
 > **Enabling this feature when your provider or adapter does not support it can result in broken deployments.**
 
-Enabling skew protection means that all static assets are requested with a deployment-specific query parameter, e.g.
+When skew protection is enabled, static asset requests include a deployment-specific query parameter, for example:
 
 ```plain
 GET https://foo.com/_next/static/chunks/0d_ks0ow7ur6m.js?dpl=<unique-deployment-id>
 ```
 
-One downside of this is that browsers have to download even unchanged static assets again after a new deployment.
+One downside is that browsers have to download static assets again after each new deployment, even when those assets have not changed.
 
-Immutable static assets is a feature that enables omitting the `?dpl` query parameter for static assets that are guaranteed to be immutable and content-addressed by their filename, allowing browsers to cache them indefinitely. It also enables not uploading unchanged static assets again after a new deployment:
+Immutable static assets allow the `?dpl` query parameter to be omitted for static assets that are guaranteed to be immutable and content-addressed by their filename. This lets browsers cache those assets indefinitely and allows unchanged static assets to be skipped when uploading files during subsequent deployments:
 
 ```plain
 GET https://foo.com/_next/static/immutable/chunks/0d_ks0ow7ur6m.js
 ```
 
-You can use this config option to opt out of immutable static assets (when your adapter enabled it, otherwise this has no effect):
+You can use this config option to opt out of immutable static assets when your adapter has enabled support for them. If your adapter has not enabled this feature, this option has no effect:
 
 ```js filename="next.config.js"
 /** @type {import('next').NextConfig} */
