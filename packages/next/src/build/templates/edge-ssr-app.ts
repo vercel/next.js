@@ -184,6 +184,9 @@ async function requestHandler(
         maxPostponedStateSizeBytes: parseMaxPostponedStateSize(
           nextConfig.experimental.maxPostponedStateSize
         ),
+        exposeTestingApi:
+          pageRouteModule.isDev === true ||
+          nextConfig.experimental.exposeTestingApiInProductionBuild === true,
       },
 
       incrementalCache: await pageRouteModule.getIncrementalCache(

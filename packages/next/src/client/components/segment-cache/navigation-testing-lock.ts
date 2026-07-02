@@ -66,17 +66,23 @@ function writeCookieValue(value: InstantCookie): void {
   }
   // Read the existing cookie to preserve its attributes (domain, path), then
   // write back with the new value. This updates the same cookie entry that the
-  // external actor created, regardless of how it was scoped. Use document.cookie
-  // for the write because WebKit exposes Cookie Store on localhost but does not
-  // commit cookies written through cookieStore.set() there.
+  // external actor created, regardless of how it was scoped. The read goes
+  // through `cookieStore.get` because `document.cookie` exposes only names and
+  // values, not the domain/path we need to preserve. The write goes through
+  // document.cookie because WebKit exposes Cookie Store on localhost but does
+  // not commit cookies written through cookieStore.set() there.
   //
-  // Capture the current lockState and compare it in the callback so we
-  // only write if the lock we observed at call time is still held. This
-  // guards against two races: (a) the scope ended between get and set
-  // (lockState is now null), and (b) the scope ended and a new one was
-  // acquired in the same gap (lockState is a different object). In
-  // either case we must not write — doing so would leak stale state
-  // into the next scope or outlive the current one.
+  // Capture the current lockState and compare it in the callback so we only
+  // write if the lock we observed at call time is still held. This guards
+  // against two races: (a) the scope ended between get and set (lockState is
+  // now null), and (b) the scope ended and a new one was acquired in the same
+  // gap (lockState is a different object). In either case we must not write —
+  // doing so would leak stale state into the next scope or outlive the current
+  // one. It cannot close one window, though: the callback can run after an
+  // external delete but before the deleted-event handler nulls lockState, so
+  // the guard still passes and we resurrect the cookie. The deleted handler
+  // clears any such entry once the lock is released (see the `event.deleted`
+  // loop below).
   const lockAtCall = lockState
   cookieStore.get(NEXT_INSTANT_TEST_COOKIE).then((existing: any) => {
     if (existing && lockState === lockAtCall && lockAtCall !== null) {
@@ -369,7 +375,25 @@ export function startListeningForInstantNavigationCookie(): void {
 
       for (const cookie of event.deleted) {
         if (cookie.name === NEXT_INSTANT_TEST_COOKIE) {
+          if (lockState === null) {
+            // Either no lock is active, or this is the re-entrant change event
+            // from the defensive clear below (which runs after releaseLock).
+            // Nothing to release either way.
+            return
+          }
           releaseLock()
+          // A captured write from this page's bootstrap can resurrect the
+          // cookie in the narrow gap between the external delete and this
+          // handler: writeCookieValue's guard only rejects the write once the
+          // lock is torn down, which happens here. Now that the lock is
+          // released, no further captured write can re-add the cookie, so clear
+          // any entry that was resurrected in that gap. Otherwise an unlock
+          // that falls back to a hard reload (when the shell has not yet
+          // hydrated) would carry the stale cookie, be served the shell again,
+          // and re-enter instant mode with no scope left to release it.
+          if (typeof document !== 'undefined') {
+            document.cookie = `${NEXT_INSTANT_TEST_COOKIE}=; Path=/; Max-Age=0`
+          }
           refreshOnInstantNavigationUnlock()
           return
         }

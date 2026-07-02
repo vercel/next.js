@@ -410,7 +410,7 @@ jobs:
           -g ${{ matrix.group }}
       testTimingsArtifact: 'test-timings'
       stepName: 'test-turbopack-dev-react-${{ matrix.react }}-${{ matrix.group }}'
-      runs_on_labels: '["ubuntu-latest-16-core-oss"]'
+      runs_on_labels: '["ubuntu-latest-16-core-arm-oss"]'
     secrets: inherit
 
   test-turbopack-production:
@@ -448,7 +448,7 @@ jobs:
         node run-tests.js --timings --require-timings -g ${{ matrix.group }} --type production
       testTimingsArtifact: 'test-timings'
       stepName: 'test-turbopack-production-react-${{ matrix.react }}-${{ matrix.group }}'
-      runs_on_labels: '["ubuntu-latest-16-core-oss"]'
+      runs_on_labels: '["ubuntu-latest-16-core-arm-oss"]'
     secrets: inherit
 
   test-rspack-dev:
