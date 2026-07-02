@@ -948,6 +948,54 @@ describe('app dir - navigation', () => {
     })
   })
 
+  describe('browser back after a push followed by a refresh', () => {
+    it('should load the previous page', async () => {
+      const browser = await next.browser('/push-and-refresh')
+      expect(await browser.elementByCss('h1').text()).toBe('Home')
+      const historyLength = await browser.eval('window.history.length')
+
+      await browser.elementById('push-and-refresh').click()
+
+      await retry(async () => {
+        expect(await browser.elementByCss('h1').text()).toBe('Target')
+      })
+      await retry(async () => {
+        expect(await browser.eval('window.history.length')).toBe(
+          historyLength + 1
+        )
+      })
+
+      await browser.back()
+
+      await retry(async () => {
+        expect(await browser.elementByCss('h1').text()).toBe('Home')
+      })
+    })
+  })
+
+  describe('replace during a push that has not committed', () => {
+    it('should supersede the pending push', async () => {
+      const browser = await next.browser('/push-and-replace')
+      // Compile the destination pages so the push settles before the replace.
+      await browser.eval(
+        `Promise.all([
+          fetch('/push-and-replace/suspended'),
+          fetch('/push-and-replace/other'),
+        ]).then(() => 'ok')`
+      )
+      expect(await browser.elementByCss('h1').text()).toBe('Home')
+      const historyLength = await browser.eval('window.history.length')
+
+      await browser.elementById('push-and-replace').click()
+
+      await retry(async () => {
+        expect(await browser.elementByCss('h1').text()).toBe('Other')
+      })
+      expect(await browser.url()).toContain('/push-and-replace/other')
+      expect(await browser.eval('window.history.length')).toBe(historyLength)
+    })
+  })
+
   describe('middleware redirect', () => {
     it('should change browser location when router.refresh() gets a redirect response', async () => {
       const browser = await next.browser('/redirect-on-refresh/auth')
