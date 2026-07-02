@@ -162,6 +162,18 @@ export function createDefaultCacheHandler(maxSize: number): CacheHandler {
       let size = 0
 
       try {
+        // In production an `expire: 0` entry is dynamic: the "use cache"
+        // wrapper regenerates it on every read instead of serving the stored
+        // copy, so persisting it would be a wasted write of a value that is
+        // never served back. Skip storing it so the next read is a plain miss.
+        // The dev server keeps it, because its minimum retention serves the
+        // previously cached value across reloads. The `finally` below still
+        // resolves the pending set.
+        if (!process.env.__NEXT_DEV_SERVER && entry.expire === 0) {
+          debug?.('set', cacheKey, 'skipped dynamic entry')
+          return
+        }
+
         const [value, clonedValue] = entry.value.tee()
         entry.value = value
         const reader = clonedValue.getReader()
