@@ -171,14 +171,18 @@ pub struct NapiNextTurbopackCallbacks {
     // to all of our async entrypoints, and would be complicated by `FunctionRef` being `!Send` (I
     // think it could be `Send`, as long as `napi::Env` is checked at call-time, which it should be
     // anyways).
+    //
+    // `Weak = true` so these ThreadsafeFunctions don't keep the Node.js event loop alive after
+    // shutdown.
     throw_turbopack_internal_error: ThreadsafeFunction<
         TurbopackInternalErrorOpts,
         (),
         TurbopackInternalErrorOpts,
         Status,
         true,
+        true,
     >,
-    on_before_deferred_entries: Option<ThreadsafeFunction<(), Promise<()>, (), Status, true>>,
+    on_before_deferred_entries: Option<ThreadsafeFunction<(), Promise<()>, (), Status, true, true>>,
 }
 
 /// Arguments for `NapiNextTurbopackCallbacks::throw_turbopack_internal_error`.
@@ -190,36 +194,35 @@ pub struct TurbopackInternalErrorOpts {
 
 impl NapiNextTurbopackCallbacks {
     pub fn from_js(env: &Env, obj: NapiNextTurbopackCallbacksJsObject) -> napi::Result<Self> {
-        let mut throw_turbopack_internal_error: ThreadsafeFunction<
+        let throw_turbopack_internal_error: ThreadsafeFunction<
             TurbopackInternalErrorOpts,
             (),
             TurbopackInternalErrorOpts,
             Status,
+            true,
             true,
         > = obj
             .throw_turbopack_internal_error
             .borrow_back(env)?
             .build_threadsafe_function::<TurbopackInternalErrorOpts>()
             .callee_handled::<true>()
+            .weak::<true>()
             .build_callback(|ctx| {
                 // Avoid unpacking the struct into positional arguments, we really want to make
                 // sure we don't incorrectly order arguments and accidentally log a potentially
                 // PII-containing message in anonymized telemetry.
                 Ok(ctx.value)
             })?;
-        // Unref so this ThreadsafeFunction doesn't keep the Node.js event loop alive
-        // after shutdown.
-        let _ = throw_turbopack_internal_error.unref(env);
 
         let on_before_deferred_entries = obj
             .on_before_deferred_entries
             .map(|callback| {
-                let mut f: ThreadsafeFunction<(), Promise<()>, (), Status, true> = callback
+                let f: ThreadsafeFunction<(), Promise<()>, (), Status, true, true> = callback
                     .borrow_back(env)?
                     .build_threadsafe_function::<()>()
                     .callee_handled::<true>()
+                    .weak::<true>()
                     .build_callback(|_| Ok::<(), _>(()))?;
-                let _ = f.unref(env);
                 Ok::<_, napi::Error>(f)
             })
             .transpose()?;
