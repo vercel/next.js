@@ -49,11 +49,15 @@ function isBotLogin(login) {
 }
 
 /**
+ * @typedef {Awaited<ReturnType<import('octokit').Octokit['rest']['pulls']['get']>>['data']} GitHubPullRequest
+ */
+
+/**
  * Group commits into changelog sections.
  *
  * @param {Array<{ title: string }>} commits Commits in the release range
  *   (release/version-bump commits already removed).
- * @param {(number: number) => Promise<any | null>} getPullRequest Resolve a PR
+ * @param {(number: number) => Promise<null | GitHubPullRequest>} getPullRequest Resolve a PR
  *   by number (returns `{ title, number, labels: [{ name }], user: { login } }`)
  *   or `null`/an object missing those fields when it can't be resolved.
  */
