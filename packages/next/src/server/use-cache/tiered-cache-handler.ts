@@ -14,7 +14,7 @@ export type CacheReadWriteHandler = Pick<CacheHandler, 'get' | 'set'>
 /**
  * Development-only. Puts a fast built-in in-memory `front` handler in front of
  * a slower or persistent user-configured `backing` handler. Its only job is to
- * guarantee that warm reads resolve in a microtask (so they aren't counted as
+ * guarantee that cache hits resolve in a microtask (so they aren't counted as
  * cache misses at a staged-render boundary, which would otherwise surface a
  * cold cache indicator), while keeping the front in sync with the backing.
  *
@@ -76,9 +76,9 @@ export function createTieredCacheHandler(
       const frontEntry = await front.get(cacheKey, softTags)
 
       if (frontEntry) {
-        // Warm hit: serve immediately (in a microtask). A background reconcile
+        // Cache hit: serve immediately (in a microtask). A background reconcile
         // keeps the front in sync with the backing for the next read;
-        // reconciles for the same key are serialized, so concurrent warm reads
+        // reconciles for the same key are serialized, so concurrent cache hits
         // don't hit the backing in parallel.
         scheduleBackgroundSync(cacheKey, () =>
           reconcileFrontFromBacking(
@@ -104,7 +104,7 @@ export function createTieredCacheHandler(
       }
 
       // Mirror this freshly read backing entry into the front so the next read
-      // is warm. The mirror is serialized per key: if a sync is already
+      // hits it. The mirror is serialized per key: if a sync is already
       // running, this chains after it, so the front converges to this read even
       // if the backing changed since that sync started.
       const [servedEntry, mirroredEntry] = cloneCacheEntry(backingEntry)
@@ -130,9 +130,9 @@ export function createTieredCacheHandler(
 }
 
 /**
- * After serving a warm front hit, consult the backing and mirror a newer entry
- * into the front for the next read. Runs in the background; failures are
- * non-fatal.
+ * After serving a cache hit from the front, consult the backing and mirror a
+ * newer entry into the front for the next read. Runs in the background;
+ * failures are non-fatal.
  */
 async function reconcileFrontFromBacking(
   front: CacheHandler,
@@ -186,17 +186,18 @@ async function mirrorIntoFront(
 
 /**
  * Build an already-expired copy of an entry, used to evict it from the front
- * handler (which has no per-key delete) once the backing no longer has it. In
- * dev the default handler treats an entry as missing once `now > timestamp +
- * expire * 1000`, so `expire: 0` against the original (past) timestamp makes
- * the next read a miss. The value is never read once the entry is expired, but
- * it must carry at least one byte because the built-in LRU cache refuses to
- * store size-0 entries.
+ * handler (which has no per-key delete) once the backing no longer has it. The
+ * default handler treats a negative `expire` as an eviction sentinel and
+ * reports the entry as missing on the next read. A negative `expire` is used
+ * rather than `0` because the dev front handler enforces a minimum retention,
+ * so a `0` `expire` would be kept alive by that minimum instead of evicted. The
+ * value is never read once the entry is evicted, but it must carry at least one
+ * byte because the built-in LRU cache refuses to store size-0 entries.
  */
 function toExpiredEntry(entry: CacheEntry): CacheEntry {
   return {
     ...entry,
-    expire: 0,
+    expire: -1,
     value: new ReadableStream({
       start(controller) {
         controller.enqueue(new Uint8Array(1))

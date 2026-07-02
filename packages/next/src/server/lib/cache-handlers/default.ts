@@ -20,6 +20,7 @@ import {
   tagsManifest,
   type TagManifestEntry,
 } from '../incremental-cache/tags-manifest.external'
+import { MIN_PRERENDERABLE_EXPIRE } from '../../use-cache/constants'
 
 type PrivateCacheEntry = {
   entry: CacheEntry
@@ -83,10 +84,30 @@ export function createDefaultCacheHandler(maxSize: number): CacheHandler {
 
       const entry = privateEntry.entry
 
+      // A negative `expire` is an eviction sentinel: the tiered cache handler
+      // (dev-only) marks a front entry for deletion by overwriting it with a
+      // negative `expire`, since the cache-handler interface has no per-key
+      // delete. Treat it as missing here, independently of the minimum
+      // retention below (which would otherwise keep it alive). This is distinct
+      // from `revalidate = -1` below, which keeps serving the entry but forces
+      // a revalidation.
+      if (entry.expire < 0) {
+        debug?.('get', cacheKey, 'evicted')
+        return undefined
+      }
+
       // The dev server serves stale entries until they expire (see the file
-      // overview); production drops them once past the revalidate time.
+      // overview); production drops them once past the revalidate time. In dev,
+      // an entry is retained for at least `MIN_PRERENDERABLE_EXPIRE` so that
+      // entries with a short `expire` (for example a `cacheLife({ expire: 0 })`
+      // client-only cache) still linger long enough that a reload hits the
+      // cache. That minimum is the same threshold below which the "use cache"
+      // wrapper treats an entry as dynamic, so it only extends the retention of
+      // entries that are dynamic anyway. It affects retention only; the
+      // returned entry keeps its real `expire`, so staging decisions are
+      // unchanged.
       const maxAgeSeconds = process.env.__NEXT_DEV_SERVER
-        ? entry.expire
+        ? Math.max(entry.expire, MIN_PRERENDERABLE_EXPIRE)
         : entry.revalidate
 
       if (

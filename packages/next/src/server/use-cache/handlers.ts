@@ -107,26 +107,25 @@ export function initializeCacheHandlers(cacheMaxMemorySize: number): boolean {
   // Create a set of the cache handlers.
   reference[handlersSetSymbol] = new Set(handlersMap.values())
 
-  // In development we add dedicated built-in in-memory handlers so that warm
-  // reloads are fast. These are always built-in handlers, never a
-  // user-configured one, and are gated on the dev server so production behaves
-  // exactly as configured.
+  // In development we add dedicated built-in in-memory handlers so that reloads
+  // are fast. These are always built-in handlers, never a user-configured one,
+  // and are gated on the dev server so production behaves exactly as
+  // configured.
   if (process.env.__NEXT_DEV_SERVER) {
     reference[memoryCacheDisabledSymbol] = cacheMaxMemorySize === 0
 
-    // Private caches are persisted here so warm reloads are fast. Private
-    // entries can hold data specific to the incoming request (for example,
-    // derived from its cookies or headers), so this is never the
-    // user-configured `default` alias. Sized so it still caches under
-    // `cacheMaxMemorySize: 0` (otherwise it would become the no-op stub and
-    // private reloads would miss).
+    // Private caches are persisted here so reloads are fast. Private entries
+    // can hold data specific to the incoming request (for example, derived from
+    // its cookies or headers), so this is never the user-configured `default`
+    // alias. Sized so it still caches under `cacheMaxMemorySize: 0` (otherwise
+    // it would become the no-op stub and private reloads would miss).
     reference[privateHandlerSymbol] = createDefaultCacheHandler(
       DEV_MEMORY_CACHE_SIZE
     )
 
     // Built-in front handlers, one per custom kind, and the tiered handlers
     // that place a front in front of a (possibly slow or remote) backing
-    // handler so warm reads resolve in a microtask, are both created per kind
+    // handler so cache hits resolve in a microtask, are both created per kind
     // in `setCacheHandler`.
     reference[devFrontHandlersSymbol] = new Map()
     reference[devTieredHandlersSymbol] = new Map()
@@ -178,7 +177,7 @@ export function isMemoryCacheDisabled(): boolean {
  * Whether `kind` is backed by a real user-configured handler rather than the
  * built-in in-memory default. Such a handler may be slow or remote, so in
  * development a built-in front handler is placed in front of it (see
- * `getDevTieredCacheHandler`) to keep warm reads microtask-fast. The presence
+ * `getDevTieredCacheHandler`) to keep cache hits microtask-fast. The presence
  * of a dev front handler is the signal, since front handlers are created
  * exactly for user-registered kinds. Always `false` in production.
  */
@@ -193,7 +192,7 @@ export function isCustomCacheHandler(kind: string): boolean {
 /**
  * Get the dev-only tiered cache handler for a custom `kind`: a fast built-in
  * in-memory front handler in front of the user-configured backing handler, so
- * warm reads resolve in a microtask. Returns `undefined` if there is none (a
+ * cache hits resolve in a microtask. Returns `undefined` if there is none (a
  * built-in kind, or production).
  */
 export function getDevTieredCacheHandler(
@@ -307,11 +306,14 @@ export function setCacheHandler(
   reference[handlersSetSymbol].add(cacheHandler)
 
   // A user-configured handler may be slow or remote. In development, give it a
-  // dedicated built-in in-memory front handler so warm reads resolve in a
+  // dedicated built-in in-memory front handler so cache hits resolve in a
   // microtask, and pair the two into a tiered handler the wrapper reads
   // through. Both are created alongside registration so their lifecycle matches
   // the backing handler's, and the front handler's presence is the signal that
-  // this kind is backed by a real handler (see `isCustomCacheHandler`).
+  // this kind is backed by a real handler (see `isCustomCacheHandler`). Being a
+  // built-in default handler, the front inherits the dev minimum retention, so
+  // a short-`expire` value still hits the front instead of falling through to
+  // the slow backing on every read.
   if (process.env.__NEXT_DEV_SERVER) {
     const frontHandler = createDefaultCacheHandler(DEV_MEMORY_CACHE_SIZE)
     reference[devFrontHandlersSymbol]?.set(kind, frontHandler)
