@@ -93,12 +93,12 @@ export async function handler(
   }
 ): Promise<Response> {
   if (process.env.NEXT_RUNTIME !== 'edge') {
-    // This mirror what `RouteModule.prepare` does for routes
+    // This mirrors what `RouteModule#prepare` does for routes
+    // edge runtime handles loading instrumentation at the edge adapter level
     const { join, relative } =
       require('node:path') as typeof import('node:path')
     const { ensureInstrumentationRegistered } =
       require('../../server/lib/router-utils/instrumentation-globals.external') as typeof import('../../server/lib/router-utils/instrumentation-globals.external')
-
     const absoluteProjectDir = join(
       /* turbopackIgnore: true */
       process.cwd(),
