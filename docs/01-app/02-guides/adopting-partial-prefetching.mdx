@@ -124,6 +124,8 @@ After:
 
 The App Shell is shared across every link to a route, so it can't contain data that belongs to a single URL. When a route reads [`params`](/docs/app/api-reference/file-conventions/page#params-optional) or [`searchParams`](/docs/app/api-reference/file-conventions/page#searchparams-optional) outside of a [`<Suspense>`](https://react.dev/reference/react/Suspense) boundary, its prefetch is tied to one URL and can no longer be shared. In [`next dev`](/docs/app/api-reference/cli/next#next-dev-options), the dev overlay surfaces a [**URL data during prefetching** insight](/docs/messages/instant-shell-link-data) for each route where this happens, so you can work through them after enabling Partial Prefetching.
 
+Unlike the [`<Link prefetch={true}>` audit](#auditing-existing-link-prefetchtrue-calls), this audit runs with the flag on. Finish that audit first: enabling the flag marks every route as adopted, which silences its warning and removes the per-link signal.
+
 The fix is to keep the URL-independent parts of the route outside the boundary and move the `params` or `searchParams` read into a child wrapped in `<Suspense>`. Pass the promise down without awaiting it:
 
 ```tsx filename="app/products/[slug]/page.tsx"
