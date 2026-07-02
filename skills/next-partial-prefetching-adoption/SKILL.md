@@ -54,7 +54,7 @@ Do this **before** enabling anything. Enabling the global flag first marks every
    - Target has cached content worth shipping early → keep it.
    - Target needs request data on arrival → keep it, and consider `export const prefetch = 'allow-runtime'` on the target ([runtime prefetching](https://nextjs.org/docs/app/guides/runtime-prefetching)). `'allow-runtime'` is an enhancement, not a way to silence the warning — the adoption opt-in is `'partial'`.
 
-Check in with the user with the list of links and your per-link recommendation before editing. These are product decisions (what's worth prefetching), not mechanical fixes.
+Check in with the user with the list of links and your per-link recommendation before editing. These are product decisions (what's worth prefetching), not mechanical fixes — and they're visual decisions, so show the pages while you ask. The `next-dev-loop` session runs the browser headed, so the user can watch: for each link you're asking about, drive to the page that renders it, then click through to the target, so they see what would ship ahead of the navigation and what wouldn't. Fall back to screenshots per link only when a headed browser isn't possible, and say so.
 
 ## step 2: enable and sweep the routes
 
@@ -79,7 +79,7 @@ Re-check pages that render links to a route you changed: fixing a target route c
 - The shells are real: for each route you touched, confirm in the browser that the first paint after a navigation shows the intended shared content, not an empty shell or a stuck fallback. A `<Suspense>` around the whole page body passes validation with an empty shell, which defeats the point.
 - `next build` still passes (it should never have broken — this skill's changes are Suspense placement and config).
 
-Check in with the user per feature, in their language: which links now share a prefetch, what streams in after navigation, what stayed opted out and why.
+Check in with the user per feature, in their language: which links now share a prefetch, what streams in after navigation, what stayed opted out and why. Show, don't tell — click the link in the headed browser while they watch, so they see the shared shell paint instantly and the URL-specific region stream in. Throttle the network in the browser if it's too fast to observe. Attach before/after screenshots only when a live browser isn't possible.
 
 ## further reading
 

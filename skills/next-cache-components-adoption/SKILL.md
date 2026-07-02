@@ -184,7 +184,7 @@ Per route:
 ### loop notes
 
 - The [three blocker classes from background](#background) often get missed when fixing in place. Caching a downstream fetch (`getThing(id)`) doesn't clear an `await params` at the top of the page body — push the param promise into the `<Suspense>`-wrapped child.
-- Ambiguous calls are user check-ins, not agent judgment. When you're not sure which fix fits, the blocking code looks security-sensitive, or the user might want to keep the route blocking on purpose — read [references/per-page-decisions.md](./references/per-page-decisions.md) before editing.
+- Ambiguous calls are user check-ins, not agent judgment. When you're not sure which fix fits, the blocking code looks security-sensitive, or the user might want to keep the route blocking on purpose — read [references/per-page-decisions.md](./references/per-page-decisions.md) before editing. Show the route while you ask: the `next-dev-loop` session runs the browser headed, so drive to the page and leave it on screen so the user is looking at the thing they're deciding about, with a screenshot as the fallback when a headed browser isn't possible. "Should this stay blocking?" is much easier to answer while looking at the page than at a file path.
 - Don't narrate the refactor with comments. The only comment the codemod (or you) should leave is `// TODO: Cache Components adoption` on opt-outs, and the user's existing comments. Don't annotate every `<Suspense>` boundary or `"use cache"` call with what it does — the code says that. Drop a comment only when the _why_ isn't clear from the code (e.g. a deliberate Block with a reason).
 
 Keep a todo list of the feature's routes. When every route in the feature is clean, move to step 3.
@@ -201,7 +201,7 @@ Then check in with the user. Same rule as the pre-step: speak their language. Do
 
 - What you did: which routes you touched, and the user-visible result per route (e.g. "the post page now streams the article body behind a skeleton while the layout stays static").
 - What changed: opt-outs removed, fallbacks added, caching boundaries introduced.
-- Show, don't tell. If the browser is running, drive the route live for the user so they see the static shell → fallback → final content sequence in real time. If you can't drive a live browser, attach the before/after screenshots you captured instead.
+- Show, don't tell. The `next-dev-loop` session runs the browser headed, so drive the route live for the user so they see the static shell → fallback → final content sequence in real time. If you can't drive a live browser, attach the before/after screenshots you captured instead.
 - The question: "Want to open this feature as a PR and move on to the next, or stop here?" Wait for the answer.
 
 **Trivial features can skip the check-in.** If adopting a feature only meant removing its `// TODO: Cache Components adoption` opt-out (no `<Suspense>` added, no `'use cache'` introduced, no render order change), the user sees nothing different. Move on to the next feature without stopping; mention it in passing the next time you do check in.
