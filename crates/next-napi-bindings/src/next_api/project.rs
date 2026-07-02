@@ -14,9 +14,7 @@ use flate2::write::GzEncoder;
 use futures_util::TryFutureExt;
 use napi::{
     Env, Status, Unknown as JsUnknown,
-    bindgen_prelude::{
-        External, JsObjectValue, JsValue, Object, PromiseRaw, within_runtime_if_available,
-    },
+    bindgen_prelude::{External, PromiseRaw, within_runtime_if_available},
     threadsafe_function::{ThreadsafeFunction, ThreadsafeFunctionCallMode},
 };
 use napi_derive::napi;
@@ -414,13 +412,13 @@ impl From<NapiDefineEnv> for DefineEnv {
 pub struct ProjectInstance {
     turbopack_ctx: NextTurbopackContext,
     container: ResolvedVc<ProjectContainer>,
-    exit_receiver: tokio::sync::Mutex<Option<ExitReceiver>>,
+    // `Arc` so the `'static` futures spawned by `project_on_exit`/`project_shutdown` can own a
+    // handle to it (the `External<ProjectInstance>` itself is `!Send`). Never locked across an
+    // await point.
+    exit_receiver: Arc<std::sync::Mutex<Option<ExitReceiver>>>,
 }
 
-#[napi(
-    ts_return_type = "Promise<{ __napiType: \"Project\" }>",
-    return_if_invalid
-)]
+#[napi(ts_return_type = "Promise<{ __napiType: \"Project\" }>")]
 pub fn project_new<'env>(
     env: &'env Env,
     mut options: NapiProjectOptions,
@@ -660,7 +658,7 @@ pub fn project_new<'env>(
             Ok(External::new(ProjectInstance {
                 turbopack_ctx,
                 container,
-                exit_receiver: tokio::sync::Mutex::new(Some(exit_receiver)),
+                exit_receiver: Arc::new(std::sync::Mutex::new(Some(exit_receiver))),
             }))
         }
         .instrument(tracing::info_span!("create project")),
@@ -794,19 +792,27 @@ pub fn project_on_exit<'env>(
     env: &'env Env,
     #[napi(ts_arg_type = "{ __napiType: \"Project\" }")] project: &External<ProjectInstance>,
 ) -> napi::Result<PromiseRaw<'env, ()>> {
-    // This is only ever called once, so `try_lock` succeeds; take the owned receiver out.
-    let exit_receiver = project
-        .exit_receiver
-        .try_lock()
-        .ok()
-        .and_then(|mut guard| guard.take());
+    let exit_receiver = project.exit_receiver.clone();
     env.spawn_future(async move {
-        exit_receiver
-            .expect("`project.onExitSync` must only be called once")
-            .run_exit_handler()
-            .await;
+        run_exit_handlers(exit_receiver).await;
         Ok::<_, napi::Error>(())
     })
+}
+
+/// Takes the [`ExitReceiver`] out of the shared slot and runs the registered exit handlers.
+///
+/// The receiver is taken only once the caller is ready to run the handlers, so an earlier failure
+/// (e.g. a panic in `stop_and_wait` during `project_shutdown`) leaves it in place for a fallback
+/// `project_on_exit` call.
+async fn run_exit_handlers(exit_receiver: Arc<std::sync::Mutex<Option<ExitReceiver>>>) {
+    let exit_receiver = exit_receiver
+        .lock()
+        .expect("panicked while holding the exit receiver")
+        .take();
+    exit_receiver
+        .expect("`project.onExitSync` must only be called once")
+        .run_exit_handler()
+        .await;
 }
 
 /// Runs `project_on_exit`, and then waits for turbo_tasks to gracefully shut down.
@@ -820,19 +826,11 @@ pub fn project_shutdown<'env>(
     #[napi(ts_arg_type = "{ __napiType: \"Project\" }")] project: &External<ProjectInstance>,
 ) -> napi::Result<PromiseRaw<'env, ()>> {
     let tt = project.turbopack_ctx.turbo_tasks().clone();
-    // This is only ever called once, so `try_lock` succeeds; take the owned receiver out.
-    let exit_receiver = project
-        .exit_receiver
-        .try_lock()
-        .ok()
-        .and_then(|mut guard| guard.take());
+    let exit_receiver = project.exit_receiver.clone();
     env.spawn_future(
         async move {
             tt.stop_and_wait().await;
-            exit_receiver
-                .expect("`project.onExitSync` must only be called once")
-                .run_exit_handler()
-                .await;
+            run_exit_handlers(exit_receiver).await;
             Ok::<_, napi::Error>(())
         }
         .instrument(tracing::info_span!("shutdown project")),
@@ -858,7 +856,7 @@ pub struct NapiRoute {
     pub original_name: Option<RcStr>,
 
     /// The type of route, eg a Page or App
-    pub r#type: String,
+    pub r#type: &'static str,
 
     pub pages: Option<Vec<AppPageNapiRoute>>,
 
@@ -887,20 +885,20 @@ impl NapiRoute {
                 data_endpoint,
             } => NapiRoute {
                 pathname,
-                r#type: "page".to_string(),
+                r#type: "page",
                 html_endpoint: convert_endpoint(html_endpoint),
                 data_endpoint: convert_endpoint(data_endpoint),
                 ..Default::default()
             },
             RouteOperation::PageApi { endpoint } => NapiRoute {
                 pathname,
-                r#type: "page-api".to_string(),
+                r#type: "page-api",
                 endpoint: convert_endpoint(endpoint),
                 ..Default::default()
             },
             RouteOperation::AppPage(pages) => NapiRoute {
                 pathname,
-                r#type: "app-page".to_string(),
+                r#type: "app-page",
                 pages: Some(
                     pages
                         .into_iter()
@@ -919,13 +917,13 @@ impl NapiRoute {
             } => NapiRoute {
                 pathname,
                 original_name: Some(original_name),
-                r#type: "app-route".to_string(),
+                r#type: "app-route",
                 endpoint: convert_endpoint(endpoint),
                 ..Default::default()
             },
             RouteOperation::Conflict => NapiRoute {
                 pathname,
-                r#type: "conflict".to_string(),
+                r#type: "conflict",
                 ..Default::default()
             },
         }
@@ -1349,7 +1347,7 @@ async fn app_route_filter_for_write_phase(
     ))
 }
 
-#[napi]
+#[napi(ts_return_type = "Promise<TurbopackResult<Partial<NapiEntrypoints>>>")]
 pub fn project_write_all_entrypoints_to_disk<'env>(
     env: &'env Env,
     #[napi(ts_arg_type = "{ __napiType: \"Project\" }")] project: &External<ProjectInstance>,
@@ -1748,7 +1746,7 @@ async fn output_assets_operation(
     ))
 }
 
-#[napi]
+#[napi(ts_return_type = "Promise<TurbopackResult<Partial<NapiEntrypoints>>>")]
 pub fn project_entrypoints<'env>(
     env: &'env Env,
     #[napi(ts_arg_type = "{ __napiType: \"Project\" }")] project: &External<ProjectInstance>,
@@ -1798,7 +1796,10 @@ pub fn project_entrypoints<'env>(
 pub fn project_entrypoints_subscribe(
     env: Env,
     #[napi(ts_arg_type = "{ __napiType: \"Project\" }")] project: &External<ProjectInstance>,
-    func: napi::bindgen_prelude::FunctionRef<JsUnknown<'static>, ()>,
+    #[napi(ts_arg_type = "(...args: any[]) => any")] func: napi::bindgen_prelude::FunctionRef<
+        JsUnknown<'static>,
+        (),
+    >,
 ) -> napi::Result<External<RootTask>> {
     let turbopack_ctx = project.turbopack_ctx.clone();
     let container = project.container;
@@ -2027,7 +2028,10 @@ pub fn project_hmr_events(
     #[napi(ts_arg_type = "{ __napiType: \"Project\" }")] project: &External<ProjectInstance>,
     chunk_name: RcStr,
     target: String,
-    func: napi::bindgen_prelude::FunctionRef<JsUnknown<'static>, ()>,
+    #[napi(ts_arg_type = "(...args: any[]) => any")] func: napi::bindgen_prelude::FunctionRef<
+        JsUnknown<'static>,
+        (),
+    >,
 ) -> napi::Result<External<RootTask>> {
     let hmr_target = target
         .parse::<HmrTarget>()
@@ -2167,7 +2171,10 @@ pub fn project_hmr_chunk_names_subscribe(
     env: Env,
     #[napi(ts_arg_type = "{ __napiType: \"Project\" }")] project: &External<ProjectInstance>,
     target: String,
-    func: napi::bindgen_prelude::FunctionRef<JsUnknown<'static>, ()>,
+    #[napi(ts_arg_type = "(...args: any[]) => any")] func: napi::bindgen_prelude::FunctionRef<
+        JsUnknown<'static>,
+        (),
+    >,
 ) -> napi::Result<External<RootTask>> {
     let hmr_target = target
         .parse::<HmrTarget>()
@@ -2217,7 +2224,7 @@ pub enum UpdateMessage {
 
 #[napi(object, object_from_js = false)]
 struct NapiUpdateMessage {
-    pub update_type: String,
+    pub update_type: &'static str,
     pub value: Option<NapiUpdateInfo>,
 }
 
@@ -2225,11 +2232,11 @@ impl From<UpdateMessage> for NapiUpdateMessage {
     fn from(update_message: UpdateMessage) -> Self {
         match update_message {
             UpdateMessage::Start => NapiUpdateMessage {
-                update_type: "start".to_string(),
+                update_type: "start",
                 value: None,
             },
             UpdateMessage::End(info) => NapiUpdateMessage {
-                update_type: "end".to_string(),
+                update_type: "end",
                 value: Some(info.into()),
             },
         }
@@ -2267,7 +2274,10 @@ pub fn project_update_info_subscribe(
     env: Env,
     #[napi(ts_arg_type = "{ __napiType: \"Project\" }")] project: &External<ProjectInstance>,
     aggregation_ms: u32,
-    func: napi::bindgen_prelude::FunctionRef<JsUnknown<'static>, ()>,
+    #[napi(ts_arg_type = "(...args: any[]) => any")] func: napi::bindgen_prelude::FunctionRef<
+        JsUnknown<'static>,
+        (),
+    >,
 ) -> napi::Result<()> {
     let func: ThreadsafeFunction<UpdateMessage, (), NapiUpdateMessage, Status, true> = func
         .borrow_back(&env)?
@@ -2314,35 +2324,50 @@ pub fn project_update_info_subscribe(
     Ok(())
 }
 
+#[napi(object, object_from_js = false)]
+struct NapiCompilationEvent {
+    pub type_name: String,
+    pub severity: String,
+    pub message: String,
+    pub event_json: String,
+    #[napi(ts_type = "unknown")]
+    pub event_data: External<Arc<dyn CompilationEvent>>,
+}
+
+impl From<Arc<dyn CompilationEvent>> for NapiCompilationEvent {
+    fn from(event: Arc<dyn CompilationEvent>) -> Self {
+        NapiCompilationEvent {
+            type_name: event.type_name().to_string(),
+            severity: event.severity().to_string(),
+            message: event.message(),
+            event_json: event.to_json(),
+            event_data: External::new(event),
+        }
+    }
+}
+
 /// Subscribes to all compilation events that are not cached like timing and progress information.
 #[napi]
 pub fn project_compilation_events_subscribe(
     env: Env,
     #[napi(ts_arg_type = "{ __napiType: \"Project\" }")] project: &External<ProjectInstance>,
-    func: napi::bindgen_prelude::FunctionRef<JsUnknown<'static>, ()>,
+    #[napi(ts_arg_type = "(...args: any[]) => any")] func: napi::bindgen_prelude::FunctionRef<
+        JsUnknown<'static>,
+        (),
+    >,
     event_types: Option<Vec<String>>,
 ) -> napi::Result<()> {
-    let tsfn: ThreadsafeFunction<Arc<dyn CompilationEvent>, (), Object<'static>, Status, true> =
-        func.borrow_back(&env)?
-            .build_threadsafe_function::<Arc<dyn CompilationEvent>>()
-            .callee_handled::<true>()
-            .build_callback(|ctx| {
-                let event: Arc<dyn CompilationEvent> = ctx.value;
-
-                let env = ctx.env;
-                let mut obj = Object::new(&env)?;
-                obj.set_named_property("typeName", event.type_name())?;
-                obj.set_named_property("severity", event.severity().to_string())?;
-                obj.set_named_property("message", event.message())?;
-                obj.set_named_property("eventJson", event.to_json())?;
-
-                let external = External::new(event);
-                obj.set_named_property("eventData", external)?;
-
-                // Detach the lifetime from the local `Env` borrow so the object can be
-                // returned as the threadsafe function's `CallJsBackArgs`.
-                Ok(Object::from_raw(env.raw(), obj.raw()))
-            })?;
+    let tsfn: ThreadsafeFunction<
+        Arc<dyn CompilationEvent>,
+        (),
+        NapiCompilationEvent,
+        Status,
+        true,
+    > = func
+        .borrow_back(&env)?
+        .build_threadsafe_function::<Arc<dyn CompilationEvent>>()
+        .callee_handled::<true>()
+        .build_callback(|ctx| Ok(NapiCompilationEvent::from(ctx.value)))?;
 
     let tt = project.turbopack_ctx.turbo_tasks().clone();
     tokio::spawn(async move {
@@ -2630,7 +2655,7 @@ async fn project_trace_source_operation(
     })))
 }
 
-#[napi]
+#[napi(ts_return_type = "Promise<StackFrame | null>")]
 pub fn project_trace_source<'env>(
     env: &'env Env,
     #[napi(ts_arg_type = "{ __napiType: \"Project\" }")] project: &External<ProjectInstance>,
@@ -2668,7 +2693,7 @@ pub fn project_trace_source<'env>(
     )
 }
 
-#[napi]
+#[napi(ts_return_type = "Promise<string | null>")]
 pub fn project_get_source_for_asset<'env>(
     env: &'env Env,
     #[napi(ts_arg_type = "{ __napiType: \"Project\" }")] project: &External<ProjectInstance>,
@@ -2732,7 +2757,7 @@ async fn project_get_source_map_inner(
         .map_err(|e| napi::Error::from_reason(PrettyPrintError(&e.into()).to_string()))
 }
 
-#[napi]
+#[napi(ts_return_type = "Promise<string | null>")]
 pub fn project_get_source_map<'env>(
     env: &'env Env,
     #[napi(ts_arg_type = "{ __napiType: \"Project\" }")] project: &External<ProjectInstance>,

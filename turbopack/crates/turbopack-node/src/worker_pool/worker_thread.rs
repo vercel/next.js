@@ -5,7 +5,7 @@ use std::{
 
 use bytes::Bytes;
 use napi::{
-    Env, Status,
+    Status,
     bindgen_prelude::Unknown,
     threadsafe_function::{ThreadsafeFunction, ThreadsafeFunctionCallMode},
 };
@@ -21,7 +21,9 @@ use crate::worker_pool::{
 
 // napi v3 replaced the `ErrorStrategy` type parameter with a `CalleeHandled`
 // const generic. `CalleeHandled = false` is the former `ErrorStrategy::Fatal`.
-type FatalThreadsafeFunction<T> = ThreadsafeFunction<T, Unknown<'static>, T, Status, false>;
+// `Weak = true` so these functions don't keep the Node.js event loop alive; they arrive from JS
+// already unref'd.
+type FatalThreadsafeFunction<T> = ThreadsafeFunction<T, Unknown<'static>, T, Status, false, true>;
 
 static WORKER_CREATOR: OnceLock<FatalThreadsafeFunction<NapiWorkerCreation>> = OnceLock::new();
 
@@ -34,30 +36,17 @@ static PENDING_CREATIONS: OnceLock<Mutex<VecDeque<oneshot::Sender<u32>>>> = Once
 #[allow(dead_code)]
 #[napi]
 pub fn register_worker_scheduler(
-    env: Env,
-    creator: FatalThreadsafeFunction<NapiWorkerCreation>,
+    #[napi(ts_arg_type = "(arg: NapiWorkerCreation) => any")] creator: FatalThreadsafeFunction<
+        NapiWorkerCreation,
+    >,
+    #[napi(ts_arg_type = "(arg: NapiWorkerTermination) => any")]
     terminator: FatalThreadsafeFunction<NapiWorkerTermination>,
 ) -> napi::Result<()> {
-    // Unref ThreadsafeFunction so it doesn't keep the Node.js event loop alive.
-    // Call unref on the functions before storing them globally.
-    let creator_unrefed = {
-        let mut c = creator;
-        // Safe to call unref; if the napi crate provides this method it will drop the ref
-        // preventing the ThreadsafeFunction from keeping the loop alive.
-        let _ = c.unref(&env);
-        c
-    };
-    let terminator_unrefed = {
-        let mut t = terminator;
-        let _ = t.unref(&env);
-        t
-    };
-
     WORKER_CREATOR
-        .set(creator_unrefed)
+        .set(creator)
         .map_err(|_| napi::Error::from_reason("Worker creator already registered"))?;
     WORKER_TERMINATOR
-        .set(terminator_unrefed)
+        .set(terminator)
         .map_err(|_| napi::Error::from_reason("Worker terminator already registered"))
 }
 

@@ -1,6 +1,7 @@
 // This crate is a vendored, lightly-modified port of the upstream
-// `lightningcss-napi` crate (see LICENSE). Allow a handful of style lints that
-// come from the upstream source rather than churn the vendored code.
+// `lightningcss-napi` crate (see README.md for provenance and LICENSE for the
+// license). Allow a handful of style lints that come from the upstream source
+// rather than churn the vendored code.
 #![allow(
     clippy::enum_variant_names,
     clippy::from_over_into,
@@ -56,7 +57,7 @@ struct TransformResult<'i> {
 }
 
 impl<'i> TransformResult<'i> {
-    fn into_js<'env>(self, env: &Env) -> napi::Result<JsUnknown<'env>> {
+    fn into_js<'env>(self, env: &'env Env) -> napi::Result<JsUnknown<'env>> {
         let mut obj = Object::new(env)?;
         obj.set_named_property("code", Buffer::from(self.code))?;
         if let Some(map) = self.map {
@@ -76,7 +77,7 @@ fn get_visitor(env: &Env, opts: &Object<'_>) -> Option<JsVisitor> {
     get_named_object(opts, "visitor").map(|visitor| JsVisitor::new(*env, visitor))
 }
 
-pub fn transform<'env>(env: &Env, opts: Object<'_>) -> napi::Result<JsUnknown<'env>> {
+pub fn transform<'env>(env: &'env Env, opts: Object<'_>) -> napi::Result<JsUnknown<'env>> {
     let mut visitor = get_visitor(env, &opts);
 
     let config: Config = env.from_js_value(opts)?;
@@ -90,7 +91,7 @@ pub fn transform<'env>(env: &Env, opts: Object<'_>) -> napi::Result<JsUnknown<'e
 }
 
 pub fn transform_style_attribute<'env>(
-    env: &Env,
+    env: &'env Env,
     opts: Object<'_>,
 ) -> napi::Result<JsUnknown<'env>> {
     let mut visitor = get_visitor(env, &opts);
@@ -365,7 +366,7 @@ struct AttrResult<'i> {
 }
 
 impl<'i> AttrResult<'i> {
-    fn into_js<'env>(self, env: &Env) -> napi::Result<JsUnknown<'env>> {
+    fn into_js<'env>(self, env: &'env Env) -> napi::Result<JsUnknown<'env>> {
         let mut obj = Object::new(env)?;
         obj.set_named_property("code", Buffer::from(self.code))?;
         obj.set_named_property("dependencies", env.to_js_value(&self.dependencies)?)?;
