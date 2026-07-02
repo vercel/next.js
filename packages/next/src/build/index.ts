@@ -2446,7 +2446,7 @@ export default async function build(
                               }
 
                               throw new Error(
-                                `Page "${page}" has "generateStaticParams()" but it returned no params, so it cannot be used with "output: export" config. "generateStaticParams()" must return a non-empty array of params. See more info here: https://nextjs.org/docs/messages/generate-static-params-export`
+                                `Page "${page}" has "generateStaticParams()" but it returned an empty array [] with no params, so it cannot be used with "output: export" config. "generateStaticParams()" must return a non-empty array of params. See more info here: https://nextjs.org/docs/messages/generate-static-params-export`
                               )
                             }
 

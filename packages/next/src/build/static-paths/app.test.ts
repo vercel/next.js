@@ -927,7 +927,11 @@ describe('generateParamPrefixCombinations', () => {
 
 type TestAppSegment = Pick<
   AppSegment,
-  'config' | 'generateStaticParams' | 'createEmptyParamsError'
+  | 'config'
+  | 'generateStaticParams'
+  | 'createEmptyParamsError'
+  | 'paramName'
+  | 'paramType'
 >
 
 // Mirrors the factory the SWC transform injects for pages exporting
@@ -949,11 +953,14 @@ const createMockWorkStore = (fetchCache?: WorkStore['fetchCache']) => ({
 const createMockSegment = (
   generateStaticParams?: (options: { params?: Params }) => Promise<Params[]>,
   config?: TestAppSegment['config'],
-  emptyParamsError?: TestAppSegment['createEmptyParamsError']
+  emptyParamsError?: TestAppSegment['createEmptyParamsError'],
+  param?: Pick<TestAppSegment, 'paramName' | 'paramType'>
 ): TestAppSegment => ({
   config,
   generateStaticParams,
   createEmptyParamsError: emptyParamsError,
+  paramName: param?.paramName,
+  paramType: param?.paramType,
 })
 
 describe('generateRouteStaticParams', () => {
@@ -1323,7 +1330,12 @@ describe('generateRouteStaticParams', () => {
 
     it('should throw when generateStaticParams returns a non-array value', async () => {
       const segments: TestAppSegment[] = [
-        createMockSegment(async () => ({ id: '1' }) as any),
+        createMockSegment(
+          async () => ({ id: '1' }) as any,
+          undefined,
+          undefined,
+          { paramName: 'id', paramType: 'dynamic' }
+        ),
       ]
       const store = createMockWorkStore()
       await expect(
@@ -1335,7 +1347,7 @@ describe('generateRouteStaticParams', () => {
           []
         )
       ).rejects.toThrow(
-        'Invalid value returned from "generateStaticParams" in "/test-page". Expected an array of params objects, received object.'
+        'Invalid value returned from "generateStaticParams" in "/test-page". Expected an array of params objects, e.g. [{ id: \'...\' }], received object.'
       )
     })
 
@@ -1354,7 +1366,30 @@ describe('generateRouteStaticParams', () => {
           []
         )
       ).rejects.toThrow(
-        'Invalid value returned from "generateStaticParams" in "/test-page". Expected an array of params objects, received undefined.'
+        // Without a param name on the segment, the example falls back to a
+        // generic "slug" param.
+        'Invalid value returned from "generateStaticParams" in "/test-page". Expected an array of params objects, e.g. [{ slug: \'...\' }], received undefined.'
+      )
+    })
+
+    it('should use an array example when a catch-all generateStaticParams returns a non-array value', async () => {
+      const segments: TestAppSegment[] = [
+        createMockSegment(async () => 'invalid' as any, undefined, undefined, {
+          paramName: 'slug',
+          paramType: 'catchall',
+        }),
+      ]
+      const store = createMockWorkStore()
+      await expect(
+        generateRouteStaticParams(
+          segments,
+          store,
+
+          false,
+          []
+        )
+      ).rejects.toThrow(
+        'Invalid value returned from "generateStaticParams" in "/test-page". Expected an array of params objects, e.g. [{ slug: [\'...\'] }], received string.'
       )
     })
 

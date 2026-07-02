@@ -9,7 +9,7 @@ Your application is configured with `output: 'export'` in `next.config.js`, whic
 This error occurs when a dynamic route:
 
 - does not export a `generateStaticParams` function, or
-- exports a `generateStaticParams` function that returned no params (for example, an empty array), leaving Next.js with no paths to prerender for the route.
+- exports a `generateStaticParams` function that returned an empty array `[]` with no params, leaving Next.js with no paths to prerender for the route.
 
 ## Possible Ways to Fix It
 
@@ -25,7 +25,7 @@ This error occurs when a dynamic route:
    }
    ```
 
-   Note that `generateStaticParams` must return an array of params objects.
+   Note that `generateStaticParams` must return an array of params objects, where each object provides a value for every dynamic segment of the route, e.g. `[{ slug: 'post-1' }, { slug: 'post-2' }]` for `app/blog/[slug]/page.tsx`. See the [`generateStaticParams` return value documentation](/docs/app/api-reference/functions/generate-static-params#returns) for the expected shape.
 
 2. If the paths cannot be known at build time, the route cannot be statically exported and you should disable static export.
 

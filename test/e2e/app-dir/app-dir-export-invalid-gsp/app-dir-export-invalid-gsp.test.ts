@@ -53,16 +53,16 @@ describe('app-dir-export-invalid-gsp', () => {
   describe('should error when generateStaticParams returns an empty array', () => {
     runTest({
       expectedErrMsg: {
-        dev: 'Page "/another/[slug]/page" is missing param "/another/first" in "generateStaticParams()", which is required with "output: export" config. See more info here: https://nextjs.org/docs/messages/generate-static-params-export',
+        dev: 'Page "/another/[slug]/page" is missing param "/another/first" in "generateStaticParams()", which is required with "output: export" config.',
         build:
-          'Page "/another/[slug]" has "generateStaticParams()" but it returned no params, so it cannot be used with "output: export" config. "generateStaticParams()" must return a non-empty array of params. See more info here: https://nextjs.org/docs/messages/generate-static-params-export',
+          'Page "/another/[slug]" has "generateStaticParams()" but it returned an empty array [] with no params, so it cannot be used with "output: export" config. "generateStaticParams()" must return a non-empty array of params. See more info here: https://nextjs.org/docs/messages/generate-static-params-export',
       },
     })
   })
 
   describe('should error when generateStaticParams returns a non-array value', () => {
     const expectedErrMsg =
-      'Invalid value returned from "generateStaticParams" in "/another/[slug]". Expected an array of params objects, received object.'
+      'Invalid value returned from "generateStaticParams" in "/another/[slug]". Expected an array of params objects, e.g. [{ slug: \'...\' }], received object. See more info here: https://nextjs.org/docs/app/api-reference/functions/generate-static-params#returns'
 
     runTest({
       gspReturnStatement: [

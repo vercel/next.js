@@ -599,11 +599,40 @@ export function assignStaticShellMetadata(
 }
 
 /**
+ * Builds an example params entry for the invalid-return-value error message,
+ * using the segment's own param name and type when available so the example
+ * matches the user's actual route.
+ */
+function formatExampleParams(
+  segment: Readonly<Pick<AppSegment, 'paramName' | 'paramType'>>
+): string {
+  const paramName = segment.paramName ?? 'slug'
+
+  let paramValue: string
+  switch (segment.paramType) {
+    // Catch-all params (including intercepted variants) are arrays of strings.
+    case 'catchall':
+    case 'optional-catchall':
+    case 'catchall-intercepted-(..)(..)':
+    case 'catchall-intercepted-(.)':
+    case 'catchall-intercepted-(..)':
+    case 'catchall-intercepted-(...)':
+      paramValue = "['...']"
+      break
+    default:
+      paramValue = "'...'"
+  }
+
+  return `[{ ${paramName}: ${paramValue} }]`
+}
+
+/**
  * Calls a single generateStaticParams function within a WorkUnitStore context,
  * making root param getters available during static param generation.
  */
 async function callGenerateStaticParams(
   page: string,
+  segment: Readonly<Pick<AppSegment, 'paramName' | 'paramType'>>,
   generateStaticParams: NonNullable<AppSegment['generateStaticParams']>,
   parentParams: Params,
   rootParamKeys: readonly string[],
@@ -631,9 +660,11 @@ async function callGenerateStaticParams(
 
   if (!Array.isArray(result)) {
     throw new Error(
-      `Invalid value returned from "generateStaticParams" in "${page}". Expected an array of params objects, received ${
+      `Invalid value returned from "generateStaticParams" in "${page}". Expected an array of params objects, e.g. ${formatExampleParams(
+        segment
+      )}, received ${
         result === null ? 'null' : typeof result
-      }.`
+      }. See more info here: https://nextjs.org/docs/app/api-reference/functions/generate-static-params#returns`
     )
   }
 
@@ -657,7 +688,11 @@ export async function generateRouteStaticParams(
     Readonly<
       Pick<
         AppSegment,
-        'config' | 'generateStaticParams' | 'createEmptyParamsError'
+        | 'config'
+        | 'generateStaticParams'
+        | 'createEmptyParamsError'
+        | 'paramName'
+        | 'paramType'
       >
     >
   >,
@@ -709,6 +744,7 @@ export async function generateRouteStaticParams(
       for (const parentParams of params) {
         const result = await callGenerateStaticParams(
           store.page,
+          current,
           current.generateStaticParams,
           parentParams,
           rootParamKeys,
@@ -731,6 +767,7 @@ export async function generateRouteStaticParams(
       // No parent params, call generateStaticParams with empty object
       const result = await callGenerateStaticParams(
         store.page,
+        current,
         current.generateStaticParams,
         {},
         rootParamKeys,

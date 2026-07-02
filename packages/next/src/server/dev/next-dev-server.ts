@@ -852,8 +852,10 @@ export default class DevServer extends Server {
         if (isAppPath) {
           if (this.nextConfig.output === 'export') {
             if (!prerenderedRoutes) {
+              // Keep this message identical to the equivalent build-time error
+              // in build/index.ts so both share a single error code.
               throw new Error(
-                `Page "${page}" is missing exported function "generateStaticParams()", which is required with "output: export" config. See more info here: https://nextjs.org/docs/messages/generate-static-params-export`
+                `Page "${page}" is missing "generateStaticParams()" so it cannot be used with "output: export" config. See more info here: https://nextjs.org/docs/messages/generate-static-params-export`
               )
             }
 
@@ -861,7 +863,7 @@ export default class DevServer extends Server {
               !prerenderedRoutes.some((item) => item.pathname === urlPathname)
             ) {
               throw new Error(
-                `Page "${page}" is missing param "${urlPathname}" in "generateStaticParams()", which is required with "output: export" config. See more info here: https://nextjs.org/docs/messages/generate-static-params-export`
+                `Page "${page}" is missing param "${urlPathname}" in "generateStaticParams()", which is required with "output: export" config.`
               )
             }
           }
