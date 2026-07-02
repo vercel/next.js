@@ -120,6 +120,31 @@ After:
 <Link href="/dashboard" prefetch={true}>Dashboard</Link>     {/* and add `prefetch = 'allow-runtime'` to /dashboard */}
 ```
 
+## Auditing routes for URL data
+
+The App Shell is shared across every link to a route, so it can't contain data that belongs to a single URL. When a route reads [`params`](/docs/app/api-reference/file-conventions/page#params-optional) or [`searchParams`](/docs/app/api-reference/file-conventions/page#searchparams-optional) outside of a [`<Suspense>`](https://react.dev/reference/react/Suspense) boundary, its prefetch is tied to one URL and can no longer be shared. In [`next dev`](/docs/app/api-reference/cli/next#next-dev-options), the dev overlay surfaces a [**URL data during prefetching** insight](/docs/messages/instant-shell-link-data) for each route where this happens, so you can work through them after enabling Partial Prefetching.
+
+The fix is to keep the URL-independent parts of the route outside the boundary and move the `params` or `searchParams` read into a child wrapped in `<Suspense>`. Pass the promise down without awaiting it:
+
+```tsx filename="app/products/[slug]/page.tsx"
+import { Suspense } from 'react'
+import { ProductDetails } from './product-details'
+
+export default function Page({ params }: PageProps<'/products/[slug]'>) {
+  return (
+    <ProductLayout>
+      <Suspense fallback={<DetailsSkeleton />}>
+        <ProductDetails params={params} />
+      </Suspense>
+    </ProductLayout>
+  )
+}
+```
+
+Everything outside the boundary stays in the shared App Shell, and only the URL-specific region renders per navigation.
+
+> **Good to know**: [`cookies()`](/docs/app/api-reference/functions/cookies) and [`headers()`](/docs/app/api-reference/functions/headers) don't tie the prefetch to a URL. They vary per user, not per link, so the App Shell is still shared. Only `params` and `searchParams` surface this insight, and a read inside [`generateMetadata`](/docs/app/api-reference/functions/generate-metadata) surfaces as [URL data in `generateMetadata()`](/docs/messages/blocking-prerender-metadata-runtime) instead.
+
 ## Next steps
 
 - [Runtime prefetching](/docs/app/guides/runtime-prefetching) for per-link runtime prefetches and App Shells in depth.
