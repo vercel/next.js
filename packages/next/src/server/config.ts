@@ -2288,8 +2288,8 @@ function enforceExperimentalFeatures(
 
   // appNewScrollHandler defaults to `true`. The env var lets us opt back out to
   // keep test coverage of the old scroll handler on the non-experimental CI
-  // shards. Done silently, matching the cachedNavigations/appShells defaults
-  // above, so opting out doesn't add a line to build-output snapshots.
+  // shards. Like the other env-var experimental toggles, opting out is surfaced
+  // in the reported experimental features.
   // TODO: Remove this once the appNewScrollHandler opt-out is no longer needed
   // for test coverage.
   if (
@@ -2299,6 +2299,15 @@ function enforceExperimentalFeatures(
       (isDefaultConfig && config.experimental.appNewScrollHandler))
   ) {
     config.experimental.appNewScrollHandler = false
+
+    if (configuredExperimentalFeatures) {
+      addConfiguredExperimentalFeature(
+        configuredExperimentalFeatures,
+        'appNewScrollHandler',
+        false,
+        'disabled by `__NEXT_EXPERIMENTAL_APP_NEW_SCROLL_HANDLER`'
+      )
+    }
   }
 
   // TODO: Remove this once strictRouteTypes is the default.
