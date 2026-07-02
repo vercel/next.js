@@ -70,59 +70,6 @@ impl<T> Deref for DetachedVc<T> {
     }
 }
 
-/// A wrapper around `&'static External<T>` that implements `Send` + `Sync`.
-///
-/// This is safe because `External<T>` data (the inner `T`) is `Send + Sync`, and the raw napi
-/// pointers inside `External` are only used for GC tracking — we only access the inner `T` via
-/// `Deref`.
-///
-/// This type should only be used as a parameter to `#[napi]` async functions where the napi v3
-/// macro requires `Send` futures.
-pub struct SendableExternalRef<T: 'static> {
-    inner: &'static External<T>,
-}
-
-// SAFETY: We only access the inner T (which is Send + Sync) through Deref.
-// The raw napi pointers are never dereferenced across threads.
-unsafe impl<T: Send + Sync + 'static> Send for SendableExternalRef<T> {}
-unsafe impl<T: Send + Sync + 'static> Sync for SendableExternalRef<T> {}
-
-impl<T: 'static> std::ops::Deref for SendableExternalRef<T> {
-    type Target = T;
-    fn deref(&self) -> &T {
-        self.inner
-    }
-}
-
-impl<T: Send + Sync + 'static> napi::bindgen_prelude::TypeName for SendableExternalRef<T> {
-    fn type_name() -> &'static str {
-        "External"
-    }
-    fn value_type() -> napi::ValueType {
-        napi::ValueType::External
-    }
-}
-
-impl<T: Send + Sync + 'static> napi::bindgen_prelude::ValidateNapiValue for SendableExternalRef<T> {}
-
-impl<T: Send + Sync + 'static> napi::bindgen_prelude::FromNapiValue for SendableExternalRef<T> {
-    unsafe fn from_napi_value(
-        env: napi::sys::napi_env,
-        napi_val: napi::sys::napi_value,
-    ) -> napi::Result<Self> {
-        let external = unsafe {
-            <External<T> as napi::bindgen_prelude::FromNapiMutRef>::from_napi_mut_ref(
-                env, napi_val,
-            )?
-        };
-        // SAFETY: The External is prevented from being GC'd by napi during the call.
-        // For async functions, the napi macro ensures the reference is held for the
-        // duration of the future.
-        let inner: &'static External<T> = unsafe { &*(external as *const External<T>) };
-        Ok(SendableExternalRef { inner })
-    }
-}
-
 /// An opaque handle to the root of a turbo-tasks computation created by
 /// [`turbo_tasks::TurboTasks::spawn_root_task`] that can be passed back and forth to JS across the
 /// [`napi`][mod@napi] boundary via [`External`].
