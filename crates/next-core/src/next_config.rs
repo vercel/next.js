@@ -1383,6 +1383,9 @@ pub struct ExperimentalConfig {
     turbopack_worker_asset_prefix: Option<RcStr>,
     turbopack_client_side_nested_async_chunking: Option<bool>,
     turbopack_server_side_nested_async_chunking: Option<bool>,
+    /// Apply `turbopackChunkName`/`webpackChunkName` magic comments on dynamic imports,
+    /// including the specified name in the emitted chunk file names. Defaults to false.
+    turbopack_chunk_names: Option<bool>,
     turbopack_import_type_bytes: Option<bool>,
     turbopack_import_type_text: Option<bool>,
     /// Disable automatic configuration of the sass loader.
@@ -2538,6 +2541,11 @@ impl NextConfig {
                 .turbopack_import_type_bytes
                 .unwrap_or(false),
         )
+    }
+
+    #[turbo_tasks::function]
+    pub async fn turbopack_chunk_names(&self) -> Vc<bool> {
+        Vc::cell(self.experimental.turbopack_chunk_names.unwrap_or(false))
     }
 
     #[turbo_tasks::function]

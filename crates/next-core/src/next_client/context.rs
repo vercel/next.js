@@ -367,6 +367,7 @@ pub async fn get_client_module_options_context(
             enable_import_as_text: *next_config.turbopack_import_type_text().await?,
             source_maps,
             infer_module_side_effects: *next_config.turbopack_infer_module_side_effects().await?,
+            enable_chunk_names: *next_config.turbopack_chunk_names().await?,
             preset_env_config,
             ..Default::default()
         },

@@ -259,6 +259,10 @@ pub struct EcmascriptOptions {
     pub inline_helpers: bool,
     /// Whether to infer side effect free modules via local analysis. Defaults to true.
     pub infer_module_side_effects: bool,
+    /// Whether to apply `turbopackChunkName`/`webpackChunkName` magic comments on dynamic
+    /// imports. When enabled, the specified name is included in the file names of the emitted
+    /// chunks (in addition to the usual hash). Defaults to false.
+    pub chunk_names: bool,
 }
 
 #[turbo_tasks::value(task_input)]

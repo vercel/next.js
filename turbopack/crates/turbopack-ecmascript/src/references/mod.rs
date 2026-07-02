@@ -1,5 +1,6 @@
 pub mod amd;
 pub mod async_module;
+pub mod chunk_name;
 pub mod cjs;
 pub mod constant_condition;
 pub mod constant_value;
@@ -461,6 +462,9 @@ struct AnalysisState<'a> {
     tree_shaking_mode: Option<TreeShakingMode>,
     import_externals: bool,
     ignore_dynamic_requests: bool,
+    // Whether to apply `turbopackChunkName`/`webpackChunkName` magic comments on dynamic
+    // imports.
+    enable_chunk_names: bool,
     url_rewrite_behavior: Option<UrlRewriteBehavior>,
     // Whether we should collect affecting sources from referenced files. Only usedful when
     // tracing.
@@ -856,6 +860,7 @@ async fn analyze_ecmascript_module_internal(
             tree_shaking_mode: options.tree_shaking_mode,
             import_externals: options.import_externals,
             ignore_dynamic_requests: options.ignore_dynamic_requests,
+            enable_chunk_names: options.chunk_names,
             url_rewrite_behavior: options.url_rewrite_behavior,
             collect_affecting_sources: options.analyze_mode.is_tracing_assets(),
             tracing_only: !options.analyze_mode.is_code_gen(),
@@ -1662,8 +1667,15 @@ async fn handle_dynamic_import<'a, G: Fn(BumpVec<'a, Effect<'a>>) + Send + Sync>
         origin,
         source,
         ignore_dynamic_requests,
+        enable_chunk_names,
         ..
     } = state;
+
+    let chunk_name = if enable_chunk_names {
+        attributes.chunk_name.clone()
+    } else {
+        None
+    };
 
     let error_mode = if attributes.optional {
         ResolveErrorMode::Ignore
@@ -1708,10 +1720,12 @@ async fn handle_dynamic_import<'a, G: Fn(BumpVec<'a, Effect<'a>>) + Send + Sync>
         error_mode,
         state.import_externals,
         export_usage,
+        chunk_name,
     )
     .await
 }
 
+#[allow(clippy::too_many_arguments)]
 async fn handle_dynamic_import_with_linked_args(
     ast_path: &[AstParentKind],
     span: Span,
@@ -1725,6 +1739,7 @@ async fn handle_dynamic_import_with_linked_args(
     error_mode: ResolveErrorMode,
     import_externals: bool,
     export_usage: ExportUsage,
+    chunk_name: Option<RcStr>,
 ) -> Result<()> {
     if linked_args.len() == 1 || linked_args.len() == 2 {
         let pat = js_value_to_pattern(&linked_args[0]);
@@ -1773,6 +1788,10 @@ async fn handle_dynamic_import_with_linked_args(
             None
         };
 
+        let chunk_name = chunk_name.and_then(|name| {
+            chunk_name::resolve_chunk_name(&name, pat.as_constant_string().map(|s| s.as_str()))
+        });
+
         analysis.add_reference_code_gen(
             EsmAsyncAssetReference::new(
                 origin,
@@ -1783,6 +1802,7 @@ async fn handle_dynamic_import_with_linked_args(
                 import_externals,
                 export_usage,
                 resolve_override,
+                chunk_name,
             )
             .await?,
             ast_path.to_vec().into(),
@@ -2074,6 +2094,11 @@ where
                 Some(names) => ExportUsage::PartialNamespaceObject(names.clone()),
                 None => ExportUsage::All,
             };
+            let chunk_name = if state.enable_chunk_names {
+                attributes.chunk_name.clone()
+            } else {
+                None
+            };
             handle_dynamic_import_with_linked_args(
                 ast_path,
                 span,
@@ -2087,6 +2112,7 @@ where
                 error_mode,
                 state.import_externals,
                 export_usage,
+                chunk_name,
             )
             .await?;
         }

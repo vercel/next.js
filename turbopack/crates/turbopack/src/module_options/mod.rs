@@ -247,6 +247,7 @@ impl ModuleOptions {
                     source_maps: ecmascript_source_maps,
                     inline_helpers,
                     infer_module_side_effects,
+                    enable_chunk_names,
                     ref preset_env_config,
                     ..
                 },
@@ -337,6 +338,7 @@ impl ModuleOptions {
             enable_exports_info_inlining,
             inline_helpers,
             infer_module_side_effects,
+            chunk_names: enable_chunk_names,
             ..Default::default()
         };
         let ecmascript_options_vc = ecmascript_options.resolved_cell();

@@ -51,6 +51,7 @@ impl EcmascriptBuildNodeChunk {
                 .with_modifier(modifier())
                 .into_vc(),
             Vc::upcast(self),
+            None,
         ))
     }
 }

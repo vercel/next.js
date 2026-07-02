@@ -33,6 +33,7 @@ impl SingleFileEcmascriptOutput {
             *this.chunking_context,
             this.source.ident(),
             Vc::upcast(self),
+            None,
         ))
     }
 }

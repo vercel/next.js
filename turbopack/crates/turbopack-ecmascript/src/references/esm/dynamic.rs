@@ -5,6 +5,7 @@ use swc_core::{
     ecma::ast::{CallExpr, Callee, Expr, ExprOrSpread, Lit},
     quote_expr,
 };
+use turbo_rcstr::RcStr;
 use turbo_tasks::{
     NonLocalValue, ResolvedVc, ValueToString, Vc, debug::ValueDebugFormat, trace::TraceRawVcs,
 };
@@ -46,6 +47,10 @@ pub struct EsmAsyncAssetReference {
     /// callback destructuring, or webpackExports/turbopackExports comments.
     pub export_usage: ExportUsage,
     pub resolve_override: Option<ResolvedVc<Box<dyn Module>>>,
+    /// A user-specified name for the async chunk group, from a
+    /// `turbopackChunkName`/`webpackChunkName` magic comment. Already sanitized for use in file
+    /// names.
+    pub chunk_name: Option<RcStr>,
 }
 
 impl EsmAsyncAssetReference {
@@ -59,6 +64,7 @@ impl EsmAsyncAssetReference {
         import_externals: bool,
         export_usage: ExportUsage,
         resolve_override: Option<ResolvedVc<Box<dyn Module>>>,
+        chunk_name: Option<RcStr>,
     ) -> Result<Self> {
         // Apply any annotation-driven transition eagerly so the stored origin is final and the
         // `annotations` don't need to be retained on the reference.
@@ -79,6 +85,7 @@ impl EsmAsyncAssetReference {
             import_externals,
             export_usage,
             resolve_override,
+            chunk_name,
         })
     }
 }
@@ -102,7 +109,9 @@ impl ModuleReference for EsmAsyncAssetReference {
     }
 
     fn chunking_type(&self) -> Option<ChunkingType> {
-        Some(ChunkingType::Async)
+        Some(ChunkingType::Async {
+            name: self.chunk_name.clone(),
+        })
     }
 
     fn binding_usage(&self) -> BindingUsage {

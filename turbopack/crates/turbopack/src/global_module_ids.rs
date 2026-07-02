@@ -33,7 +33,7 @@ pub async fn get_global_module_id_strategy(
             if let Some((
                 _,
                 &RefData {
-                    chunking_type: ChunkingType::Async,
+                    chunking_type: ChunkingType::Async { .. },
                     ..
                 },
             )) = parent

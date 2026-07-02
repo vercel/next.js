@@ -249,6 +249,7 @@ impl EcmascriptBrowserEvaluateChunk {
             Vc::upcast(*this.chunking_context),
             self.ident_for_path(),
             Vc::upcast(self),
+            None,
         ))
     }
 }
