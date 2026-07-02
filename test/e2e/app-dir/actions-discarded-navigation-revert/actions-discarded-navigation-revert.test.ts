@@ -107,6 +107,52 @@ describe('discarded action settling while a navigation is pending (#86151)', () 
     )
   })
 
+  // An action can also be dispatched *while* the navigation is ongoing.
+  // It must run once the navigation finishes. (At one point it never ran:
+  // its caller never settled, and the router stopped applying updates
+  // entirely — the URL never even changed to the navigation target.)
+  it('runs an action dispatched during the navigation once it finishes', async () => {
+    let page: Playwright.Page
+    const browser = await next.browser('/', {
+      beforePageLoad(p: Playwright.Page) {
+        page = p
+      },
+    })
+    const act = createRouterAct(page)
+
+    await act(
+      async () => {
+        // Start server action A. Its response is withheld, so it stays in
+        // flight throughout this scope.
+        await act(async () => {
+          await browser.elementById('dispatch-resolve').click()
+        }, 'block')
+
+        // Navigate before A finished. This discards A. The navigation
+        // response is withheld too, so the navigation is still ongoing
+        // when B is dispatched below.
+        await act(
+          async () => {
+            await browser.elementById('go-dest').click()
+          },
+          { includes: 'Destination page', block: true }
+        )
+
+        // Dispatch server action B while the navigation is ongoing. It
+        // must wait for the navigation, so no request is issued yet.
+        await act(async () => {
+          await browser.elementById('dispatch-b').click()
+        }, 'no-requests')
+      },
+      // B ran once the withheld responses were delivered.
+      { includes: 'b-result' }
+    )
+
+    await browser.waitForElementByCss('#status-b[data-status="b-result"]')
+    expect(new URL(await browser.url()).pathname).toBe('/dest')
+    expect(await browser.elementById('dest').text()).toBe('Destination page')
+  })
+
   it('defers the refresh from a discarded revalidating action until the queue drains', async () => {
     const { browser, initialRender } = await interleave('dispatch-revalidate')
 
