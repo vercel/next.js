@@ -38,10 +38,10 @@ export function createRuntimeBodyErrorInNavigation(route: string): Error {
 
 export function createLinkBodyErrorInNavigation(route: string): Error {
   return new Error(
-    `Route "${route}": Next.js encountered URL data during prefetching.\n\n` +
-      `\`params\` or \`searchParams\` accessed outside of \`<Suspense>\` ties this route's prefetch to a single URL, so it can't be shared across links, leading to slower, more expensive prefetches.\n\n` +
+    `Route "${route}": Next.js encountered URL data while extracting a reusable shell.\n\n` +
+      `\`params\` or \`searchParams\` accessed outside of \`<Suspense>\` ties the shell to a single URL, leading to slower, more expensive prefetches.\n\n` +
       `Ways to fix this:\n` +
-      `  - [stream] Wrap the \`params\`/\`searchParams\` read in \`<Suspense fallback={...}>\` so the route's prefetch stays shared across links\n` +
+      `  - [stream] Wrap the \`params\`/\`searchParams\` read in \`<Suspense fallback={...}>\` so the shell stays reusable across links\n` +
       `    https://nextjs.org/docs/messages/instant-shell-link-data#wrap-in-or-move-into-suspense\n` +
       `  - [ignore] Set \`export const instant = false\` to opt the route out of instant-navigation validation\n` +
       `    https://nextjs.org/docs/messages/instant-shell-link-data#disable-validation-on-this-route`

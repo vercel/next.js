@@ -542,7 +542,7 @@ describe('instant validation', () => {
              },
            ],
            "code": "E1406",
-           "description": "Next.js encountered URL data during prefetching.",
+           "description": "Next.js encountered URL data while extracting a reusable shell.",
            "environmentLabel": "Server",
            "label": "Instant",
            "source": "app/suspense-in-root/static/missing-suspense-around-params/[param]/page.tsx (20:21) @ Runtime
@@ -605,7 +605,7 @@ describe('instant validation', () => {
              },
            ],
            "code": "E1406",
-           "description": "Next.js encountered URL data during prefetching.",
+           "description": "Next.js encountered URL data while extracting a reusable shell.",
            "environmentLabel": "Server",
            "label": "Instant",
            "source": "app/suspense-in-root/runtime/invalid-no-suspense-around-params/[param]/page.tsx (36:21) @ LinkData
@@ -629,12 +629,12 @@ describe('instant validation', () => {
 
         expect(extractBuildValidationError(result.cliOutput))
           .toMatchInlineSnapshot(`
-         "Error: Route "/suspense-in-root/runtime/invalid-no-suspense-around-params/[param]": Next.js encountered URL data during prefetching.
+         "Error: Route "/suspense-in-root/runtime/invalid-no-suspense-around-params/[param]": Next.js encountered URL data while extracting a reusable shell.
 
-         \`params\` or \`searchParams\` accessed outside of \`<Suspense>\` ties this route's prefetch to a single URL, so it can't be shared across links, leading to slower, more expensive prefetches.
+         \`params\` or \`searchParams\` accessed outside of \`<Suspense>\` ties the shell to a single URL, leading to slower, more expensive prefetches.
 
          Ways to fix this:
-           - [stream] Wrap the \`params\`/\`searchParams\` read in \`<Suspense fallback={...}>\` so the route's prefetch stays shared across links
+           - [stream] Wrap the \`params\`/\`searchParams\` read in \`<Suspense fallback={...}>\` so the shell stays reusable across links
              https://nextjs.org/docs/messages/instant-shell-link-data#wrap-in-or-move-into-suspense
            - [ignore] Set \`export const instant = false\` to opt the route out of instant-navigation validation
              https://nextjs.org/docs/messages/instant-shell-link-data#disable-validation-on-this-route
@@ -674,7 +674,7 @@ describe('instant validation', () => {
                },
              ],
              "code": "E1406",
-             "description": "Next.js encountered URL data during prefetching.",
+             "description": "Next.js encountered URL data while extracting a reusable shell.",
              "environmentLabel": "Server",
              "label": "Instant",
              "source": "app/suspense-in-root/static/missing-suspense-around-search-params/page.tsx (7:18) @ Page
@@ -720,12 +720,12 @@ describe('instant validation', () => {
         if (partialPrefetching) {
           expect(extractBuildValidationError(result.cliOutput))
             .toMatchInlineSnapshot(`
-           "Error: Route "/suspense-in-root/static/missing-suspense-around-search-params": Next.js encountered URL data during prefetching.
+           "Error: Route "/suspense-in-root/static/missing-suspense-around-search-params": Next.js encountered URL data while extracting a reusable shell.
 
-           \`params\` or \`searchParams\` accessed outside of \`<Suspense>\` ties this route's prefetch to a single URL, so it can't be shared across links, leading to slower, more expensive prefetches.
+           \`params\` or \`searchParams\` accessed outside of \`<Suspense>\` ties the shell to a single URL, leading to slower, more expensive prefetches.
 
            Ways to fix this:
-             - [stream] Wrap the \`params\`/\`searchParams\` read in \`<Suspense fallback={...}>\` so the route's prefetch stays shared across links
+             - [stream] Wrap the \`params\`/\`searchParams\` read in \`<Suspense fallback={...}>\` so the shell stays reusable across links
                https://nextjs.org/docs/messages/instant-shell-link-data#wrap-in-or-move-into-suspense
              - [ignore] Set \`export const instant = false\` to opt the route out of instant-navigation validation
                https://nextjs.org/docs/messages/instant-shell-link-data#disable-validation-on-this-route
@@ -779,12 +779,12 @@ describe('instant validation', () => {
               getCliOutputSinceMark
             )
           ).toMatchInlineSnapshot(`
-           "Error: Route "/suspense-in-root/runtime/invalid-no-suspense-around-search-params": Next.js encountered URL data during prefetching.
+           "Error: Route "/suspense-in-root/runtime/invalid-no-suspense-around-search-params": Next.js encountered URL data while extracting a reusable shell.
 
-           \`params\` or \`searchParams\` accessed outside of \`<Suspense>\` ties this route's prefetch to a single URL, so it can't be shared across links, leading to slower, more expensive prefetches.
+           \`params\` or \`searchParams\` accessed outside of \`<Suspense>\` ties the shell to a single URL, leading to slower, more expensive prefetches.
 
            Ways to fix this:
-             - [stream] Wrap the \`params\`/\`searchParams\` read in \`<Suspense fallback={...}>\` so the route's prefetch stays shared across links
+             - [stream] Wrap the \`params\`/\`searchParams\` read in \`<Suspense fallback={...}>\` so the shell stays reusable across links
                https://nextjs.org/docs/messages/instant-shell-link-data#wrap-in-or-move-into-suspense
              - [ignore] Set \`export const instant = false\` to opt the route out of instant-navigation validation
                https://nextjs.org/docs/messages/instant-shell-link-data#disable-validation-on-this-route
@@ -824,7 +824,7 @@ describe('instant validation', () => {
                },
              ],
              "code": "E1406",
-             "description": "Next.js encountered URL data during prefetching.",
+             "description": "Next.js encountered URL data while extracting a reusable shell.",
              "environmentLabel": "Server",
              "label": "Instant",
              "source": "app/suspense-in-root/runtime/invalid-no-suspense-around-search-params/page.tsx (40:18) @ LinkData
@@ -843,12 +843,12 @@ describe('instant validation', () => {
         )
         expect(extractBuildValidationError(result.cliOutput))
           .toMatchInlineSnapshot(`
-         "Error: Route "/suspense-in-root/runtime/invalid-no-suspense-around-search-params": Next.js encountered URL data during prefetching.
+         "Error: Route "/suspense-in-root/runtime/invalid-no-suspense-around-search-params": Next.js encountered URL data while extracting a reusable shell.
 
-         \`params\` or \`searchParams\` accessed outside of \`<Suspense>\` ties this route's prefetch to a single URL, so it can't be shared across links, leading to slower, more expensive prefetches.
+         \`params\` or \`searchParams\` accessed outside of \`<Suspense>\` ties the shell to a single URL, leading to slower, more expensive prefetches.
 
          Ways to fix this:
-           - [stream] Wrap the \`params\`/\`searchParams\` read in \`<Suspense fallback={...}>\` so the route's prefetch stays shared across links
+           - [stream] Wrap the \`params\`/\`searchParams\` read in \`<Suspense fallback={...}>\` so the shell stays reusable across links
              https://nextjs.org/docs/messages/instant-shell-link-data#wrap-in-or-move-into-suspense
            - [ignore] Set \`export const instant = false\` to opt the route out of instant-navigation validation
              https://nextjs.org/docs/messages/instant-shell-link-data#disable-validation-on-this-route
@@ -4178,7 +4178,7 @@ describe('instant validation', () => {
                  },
                ],
                "code": "E1406",
-               "description": "Next.js encountered URL data during prefetching.",
+               "description": "Next.js encountered URL data while extracting a reusable shell.",
                "environmentLabel": "Server",
                "label": "Instant",
                "source": "app/shells/(default)/invalid-runtime-params/[slug]/page.tsx (28:3) @ LinkData
@@ -4202,12 +4202,12 @@ describe('instant validation', () => {
 
             expect(extractBuildValidationError(result.cliOutput))
               .toMatchInlineSnapshot(`
-             "Error: Route "/shells/invalid-runtime-params/[slug]": Next.js encountered URL data during prefetching.
+             "Error: Route "/shells/invalid-runtime-params/[slug]": Next.js encountered URL data while extracting a reusable shell.
 
-             \`params\` or \`searchParams\` accessed outside of \`<Suspense>\` ties this route's prefetch to a single URL, so it can't be shared across links, leading to slower, more expensive prefetches.
+             \`params\` or \`searchParams\` accessed outside of \`<Suspense>\` ties the shell to a single URL, leading to slower, more expensive prefetches.
 
              Ways to fix this:
-               - [stream] Wrap the \`params\`/\`searchParams\` read in \`<Suspense fallback={...}>\` so the route's prefetch stays shared across links
+               - [stream] Wrap the \`params\`/\`searchParams\` read in \`<Suspense fallback={...}>\` so the shell stays reusable across links
                  https://nextjs.org/docs/messages/instant-shell-link-data#wrap-in-or-move-into-suspense
                - [ignore] Set \`export const instant = false\` to opt the route out of instant-navigation validation
                  https://nextjs.org/docs/messages/instant-shell-link-data#disable-validation-on-this-route
@@ -4239,12 +4239,12 @@ describe('instant validation', () => {
                   getCliOutputSinceMark
                 )
               ).toMatchInlineSnapshot(`
-               "Error: Route "/shells/invalid-runtime-searchparams": Next.js encountered URL data during prefetching.
+               "Error: Route "/shells/invalid-runtime-searchparams": Next.js encountered URL data while extracting a reusable shell.
 
-               \`params\` or \`searchParams\` accessed outside of \`<Suspense>\` ties this route's prefetch to a single URL, so it can't be shared across links, leading to slower, more expensive prefetches.
+               \`params\` or \`searchParams\` accessed outside of \`<Suspense>\` ties the shell to a single URL, leading to slower, more expensive prefetches.
 
                Ways to fix this:
-                 - [stream] Wrap the \`params\`/\`searchParams\` read in \`<Suspense fallback={...}>\` so the route's prefetch stays shared across links
+                 - [stream] Wrap the \`params\`/\`searchParams\` read in \`<Suspense fallback={...}>\` so the shell stays reusable across links
                    https://nextjs.org/docs/messages/instant-shell-link-data#wrap-in-or-move-into-suspense
                  - [ignore] Set \`export const instant = false\` to opt the route out of instant-navigation validation
                    https://nextjs.org/docs/messages/instant-shell-link-data#disable-validation-on-this-route
@@ -4284,7 +4284,7 @@ describe('instant validation', () => {
                    },
                  ],
                  "code": "E1406",
-                 "description": "Next.js encountered URL data during prefetching.",
+                 "description": "Next.js encountered URL data while extracting a reusable shell.",
                  "environmentLabel": "Server",
                  "label": "Instant",
                  "source": "app/shells/(default)/invalid-runtime-searchparams/page.tsx (27:3) @ LinkData
@@ -4303,12 +4303,12 @@ describe('instant validation', () => {
             )
             expect(extractBuildValidationError(result.cliOutput))
               .toMatchInlineSnapshot(`
-             "Error: Route "/shells/invalid-runtime-searchparams": Next.js encountered URL data during prefetching.
+             "Error: Route "/shells/invalid-runtime-searchparams": Next.js encountered URL data while extracting a reusable shell.
 
-             \`params\` or \`searchParams\` accessed outside of \`<Suspense>\` ties this route's prefetch to a single URL, so it can't be shared across links, leading to slower, more expensive prefetches.
+             \`params\` or \`searchParams\` accessed outside of \`<Suspense>\` ties the shell to a single URL, leading to slower, more expensive prefetches.
 
              Ways to fix this:
-               - [stream] Wrap the \`params\`/\`searchParams\` read in \`<Suspense fallback={...}>\` so the route's prefetch stays shared across links
+               - [stream] Wrap the \`params\`/\`searchParams\` read in \`<Suspense fallback={...}>\` so the shell stays reusable across links
                  https://nextjs.org/docs/messages/instant-shell-link-data#wrap-in-or-move-into-suspense
                - [ignore] Set \`export const instant = false\` to opt the route out of instant-navigation validation
                  https://nextjs.org/docs/messages/instant-shell-link-data#disable-validation-on-this-route
@@ -4399,7 +4399,7 @@ describe('instant validation', () => {
                  },
                ],
                "code": "E1406",
-               "description": "Next.js encountered URL data during prefetching.",
+               "description": "Next.js encountered URL data while extracting a reusable shell.",
                "environmentLabel": "Server",
                "label": "Instant",
                "source": "app/shells/(default)/invalid-static-with-gsp/[slug]/page.tsx (31:20) @ LinkData
@@ -4417,12 +4417,12 @@ describe('instant validation', () => {
             )
             expect(extractBuildValidationError(result.cliOutput))
               .toMatchInlineSnapshot(`
-             "Error: Route "/shells/invalid-static-with-gsp/[slug]": Next.js encountered URL data during prefetching.
+             "Error: Route "/shells/invalid-static-with-gsp/[slug]": Next.js encountered URL data while extracting a reusable shell.
 
-             \`params\` or \`searchParams\` accessed outside of \`<Suspense>\` ties this route's prefetch to a single URL, so it can't be shared across links, leading to slower, more expensive prefetches.
+             \`params\` or \`searchParams\` accessed outside of \`<Suspense>\` ties the shell to a single URL, leading to slower, more expensive prefetches.
 
              Ways to fix this:
-               - [stream] Wrap the \`params\`/\`searchParams\` read in \`<Suspense fallback={...}>\` so the route's prefetch stays shared across links
+               - [stream] Wrap the \`params\`/\`searchParams\` read in \`<Suspense fallback={...}>\` so the shell stays reusable across links
                  https://nextjs.org/docs/messages/instant-shell-link-data#wrap-in-or-move-into-suspense
                - [ignore] Set \`export const instant = false\` to opt the route out of instant-navigation validation
                  https://nextjs.org/docs/messages/instant-shell-link-data#disable-validation-on-this-route

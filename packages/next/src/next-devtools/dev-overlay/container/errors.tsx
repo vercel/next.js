@@ -414,7 +414,7 @@ export function isSyncIOClientError(message: string): boolean {
 export function isBlockingRouteInNavError(message: string): boolean {
   return (
     message.includes('or a navigation') ||
-    message.includes('encountered URL data during prefetching') ||
+    message.includes('while extracting a reusable shell') ||
     message.includes('Could not validate `instant`') ||
     message.includes(
       'Could not validate that a segment in your UI has instant navigation'
@@ -439,7 +439,7 @@ export function getBlockingRouteErrorDetails(
     }
   }
 
-  if (message.includes('encountered URL data during prefetching')) {
+  if (message.includes('while extracting a reusable shell')) {
     return {
       type: 'blocking-route',
       variant: 'link',
@@ -872,9 +872,7 @@ export function Errors({
           errorType={errorType}
           errorMessage={
             errorDetails.variant === 'link'
-              ? errorDetails.inNavigation
-                ? 'Next.js encountered URL data during prefetching.'
-                : 'Next.js encountered URL data during prerendering.'
+              ? 'Next.js encountered URL data while extracting a reusable shell.'
               : errorDetails.variant === 'runtime'
                 ? errorDetails.inNavigation
                   ? 'Next.js encountered runtime data during a navigation.'
