@@ -57,6 +57,7 @@ import {
   writeHeadToBFCache,
   updateBFCacheEntryStaleAt,
   computeDynamicStaleAt,
+  type BFCacheEntry,
 } from '../segment-cache/bfcache'
 
 // This is yet another tree type that is used to track pending promises that
@@ -141,13 +142,16 @@ export type NavigationRequestAccumulation = {
    */
   scrollRef: ScrollRef | null
   /**
-   * Set to `true` when the navigation has renderable cached content for a page
-   * segment — i.e. there is something to navigate into immediately. Stays
-   * `false` when every page segment must stream in and the user only sees a
-   * fallback. The head is excluded since it is always non-blocking. Consumed by
-   * the router transition instrumentation `commit` event to report `hit`/`miss`.
+   * Used only by the router transition instrumentation, which reports it as
+   * `cache: 'hit' | 'miss'` on the `commit` event. The invariant: `true` if
+   * and only if there was cached UI for a page segment that the router could
+   * navigate into immediately, AND it chose to navigate into it — a prefetched
+   * shell, BFCache content, or dynamic data that already streamed in. Stays
+   * `false` when every page segment had to wait on the server, so the user
+   * saw a loading fallback first. The head is excluded since it always
+   * streams in non-blocking.
    */
-  pageShellHit: boolean
+  cacheHit: boolean
 }
 
 export type NavigationLock = NavigationLockState | null
@@ -166,7 +170,7 @@ export function createInitialCacheNodeForHydration(
   const accumulation: NavigationRequestAccumulation = {
     separateRefreshUrls: null,
     scrollRef: null,
-    pageShellHit: false,
+    cacheHit: false,
   }
   const restrictToShell = false
   const task = createCacheNodeOnNavigation(
@@ -953,6 +957,23 @@ function reuseSharedCacheNode(
   )
 }
 
+// Tracking only (see NavigationRequestAccumulation.cacheHit): whether a
+// BFCache entry renders page UI the instant the router navigates into it —
+// either its dynamic data already resolved, or a prefetched shell exists to
+// show while the data streams in. A still-pending entry with no shell
+// suspends into a loading fallback, which is a miss for tracking purposes.
+//
+// TODO: A rejected dynamic RSC counts as "resolved" here (mirroring the
+// `dropPrefetchRsc` heuristic at the call site) and is therefore reported as
+// a hit even though the UI may suspend on the error. Revisit once error
+// handling for failed dynamic responses is settled.
+function bfcacheEntryRendersImmediately(entry: BFCacheEntry): boolean {
+  const rsc = entry.rsc
+  const rscDidResolve =
+    rsc !== null && (!isDeferredRsc(rsc) || rsc.status !== 'pending')
+  return rscDidResolve || entry.prefetchRsc !== null
+}
+
 function createCacheNodeForSegment(
   now: number,
   tree: RouteTree,
@@ -965,8 +986,9 @@ function createCacheNodeForSegment(
   // Instant Navigation Testing API only — restricts segment reads to shell
   // entries. Always false outside the testing API. See navigation-testing-lock.
   restrictToShell: boolean,
-  // Mutated to flag whether a page segment had renderable cached content, so the
-  // router transition instrumentation can report the navigation as hit/miss.
+  // Mutated to set `cacheHit` when a page segment navigates into cached UI, so
+  // the router transition instrumentation can report the navigation as a
+  // cache hit/miss. See NavigationRequestAccumulation.cacheHit.
   accumulation: NavigationRequestAccumulation
 ): { cacheNode: CacheNode; needsDynamicRequest: boolean } {
   // Construct a new CacheNode using data from the BFCache, the client's
@@ -1003,8 +1025,8 @@ function createCacheNodeForSegment(
         // fresh navigation, so we use the caller-supplied bfcacheId — the
         // BFCacheEntry's id is only restored on history-traversal
         // navigations.
-        if (isPage) {
-          accumulation.pageShellHit = true
+        if (isPage && bfcacheEntryRendersImmediately(bfcacheEntry)) {
+          accumulation.cacheHit = true
         }
         return {
           cacheNode: createCacheNode(
@@ -1091,8 +1113,16 @@ function createCacheNodeForSegment(
         // Restore the bfcacheId from the cached entry so that back/forward
         // navigations preserve the original id, regardless of whether
         // `cacheComponents` Activity preservation is enabled.
-        if (isPage) {
-          accumulation.pageShellHit = true
+        //
+        // Tracking (`cacheHit`): note that `dropPrefetchRsc` does NOT mean the
+        // navigation blocks on dynamic data. It means the dynamic response
+        // already (at least partially) streamed in, so the router skips the
+        // prefetched shell and renders the real content directly — still an
+        // instant render from cache, i.e. still a hit. The miss case is a
+        // still-pending entry with no prefetched shell, where the user sees a
+        // fallback; `bfcacheEntryRendersImmediately` distinguishes the two.
+        if (isPage && bfcacheEntryRendersImmediately(bfcacheEntry)) {
+          accumulation.cacheHit = true
         }
         return {
           cacheNode: createCacheNode(
@@ -1164,14 +1194,15 @@ function createCacheNodeForSegment(
     }
   }
 
-  // A page segment with renderable cached content (fulfilled, even if partial)
-  // means there is something to navigate into immediately. An empty/pending/
-  // rejected entry resolves to a deferred placeholder, so it counts as a miss —
-  // as does a segment whose data is only arriving now via a dynamic request
-  // (`seedRsc`), since that navigation had to wait on the server. The head is
-  // intentionally excluded since it streams in non-blocking.
+  // Tracking (`cacheHit`): a fulfilled page segment (even if partial) means
+  // the router navigates into cached UI immediately — a hit per the invariant
+  // on NavigationRequestAccumulation.cacheHit. An empty/pending/rejected entry
+  // resolves to a deferred placeholder, so it counts as a miss — as does a
+  // segment whose data is only arriving now via a dynamic request (`seedRsc`),
+  // since that navigation had to wait on the server. The head is intentionally
+  // excluded since it streams in non-blocking.
   if (isPage && segmentEntry?.status === EntryStatus.Fulfilled) {
-    accumulation.pageShellHit = true
+    accumulation.cacheHit = true
   }
 
   // Now combine the cached data with the seed data to determine what we can

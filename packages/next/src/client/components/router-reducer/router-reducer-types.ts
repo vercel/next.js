@@ -94,9 +94,10 @@ export interface NavigateAction {
   locationSearch: Location['search']
   navigateType: 'push' | 'replace'
   scrollBehavior: ScrollBehavior
-  // The router transition id minted by the dispatcher (null when the
-  // experimental lifecycle is disabled). Threaded to the buffer so the matching
-  // commit/abort can be reported.
+  // The router transition id minted when the dispatcher emitted `start` (null
+  // when the experimental lifecycle is disabled). Threaded through so the
+  // reducer can attach the destination tree to the pending transition it was
+  // recorded under.
   transitionId: string | null
 }
 

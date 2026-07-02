@@ -521,7 +521,10 @@ export function serverActionReducer(
           null,
           // Not an HMR refresh, so there's no request generation to cancel.
           undefined,
-          // A server action redirect is not a tracked router transition.
+          // TODO: Add perf tracking for navigations caused by server actions
+          // (redirects). No transition `start` is emitted for them yet, so
+          // there is no transition id to thread through, and they never
+          // report a commit.
           null
         )
       }
@@ -539,7 +542,8 @@ export function serverActionReducer(
         freshnessPolicy,
         scrollBehavior,
         navigateType,
-        // A server action redirect is not a tracked router transition.
+        // TODO: Add perf tracking for navigations caused by server actions
+        // (redirects). See the matching TODO on navigateToKnownRoute above.
         null
       )
     },

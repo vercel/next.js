@@ -72,8 +72,17 @@ export function serverPatchReducer(
     null,
     // Not an HMR refresh, so there's no request generation to cancel.
     undefined,
-    // A retry reuses the original transition's commit; it is not separately
-    // tracked (its tree is not buffered, so it cannot double-commit).
+    // No transition id: a retry is an internal correction, not a user
+    // navigation. The timeline: the user's navigation optimistically committed
+    // a predicted route tree (HistoryUpdater applied it, which emitted that
+    // transition's `commit` event and removed it from the pending buffer).
+    // Later, the dynamic response revealed the server actually rendered a
+    // different tree (e.g. a dynamic rewrite/redirect), so this retry replaces
+    // the committed tree with the server's authoritative one. From the user's
+    // perspective the navigation already happened — emitting another
+    // start/commit pair would double-count it. Passing null means the retry's
+    // tree is never attached to a pending transition, so when HistoryUpdater
+    // applies it, commitRouterTransition finds no match and emits nothing.
     null
   )
 }

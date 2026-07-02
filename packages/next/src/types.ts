@@ -49,7 +49,6 @@ export type {
   RouterTransitionStartEvent,
   RouterTransitionCommitEvent,
   RouterTransitionAbortEvent,
-  RouterTreeDescriptor,
 } from './client/router-transition-types'
 
 /**
