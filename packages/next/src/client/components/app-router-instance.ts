@@ -67,25 +67,30 @@ export type ActionQueueNode = {
 
 function runRemainingActions(
   actionQueue: AppRouterActionQueue,
+  settledAction: ActionQueueNode,
   setState: DispatchStatePromise
 ) {
-  if (actionQueue.pending !== null) {
-    actionQueue.pending = actionQueue.pending.next
+  // Only advance the queue if the settled action is still at its head. If a
+  // navigation discarded this action, the navigation took its place and is
+  // still in flight — starting the next queued action now would run it
+  // against router state that doesn't include the navigation yet.
+  if (actionQueue.pending === settledAction) {
+    actionQueue.pending = settledAction.next
     if (actionQueue.pending !== null) {
       runAction({
         actionQueue,
         action: actionQueue.pending,
         setState,
       })
+      return
     }
-  } else {
-    // Check for refresh when pending is already null
-    // This handles the case where a discarded server action completes
-    // after the navigation has already finished and the queue is empty
-    if (actionQueue.needsRefresh) {
-      actionQueue.needsRefresh = false
-      actionQueue.dispatch({ type: ACTION_REFRESH }, setState)
-    }
+  }
+
+  if (actionQueue.pending === null && actionQueue.needsRefresh) {
+    // The queue is idle; flush the refresh requested by a discarded server
+    // action that revalidated data.
+    actionQueue.needsRefresh = false
+    actionQueue.dispatch({ type: ACTION_REFRESH }, setState)
   }
 }
 
@@ -117,22 +122,22 @@ async function runAction({
         // mark that we need to refresh after all actions complete
         actionQueue.needsRefresh = true
       }
-      // Still need to run remaining actions even for discarded actions
-      // to potentially trigger the refresh
-      runRemainingActions(actionQueue, setState)
+      // This can't advance the queue (this action is no longer its head), but
+      // if the queue has already drained, it flushes the refresh now.
+      runRemainingActions(actionQueue, action, setState)
       return
     }
 
     actionQueue.state = nextState
 
-    runRemainingActions(actionQueue, setState)
+    runRemainingActions(actionQueue, action, setState)
     action.resolve(nextState)
   }
 
   // if the action is a promise, set up a callback to resolve it
   if (isThenable(actionResult)) {
     actionResult.then(handleResult, (err) => {
-      runRemainingActions(actionQueue, setState)
+      runRemainingActions(actionQueue, action, setState)
       action.reject(err)
     })
   } else {
@@ -196,6 +201,10 @@ function dispatchAction(
     // The rest of the current queue should still execute after this navigation.
     // (Note that it can't contain any earlier navigations, because we always put those into `actionQueue.pending` by calling `runAction`)
     newAction.next = actionQueue.pending.next
+
+    if (actionQueue.last === actionQueue.pending) {
+      actionQueue.last = newAction
+    }
 
     runAction({
       actionQueue,
