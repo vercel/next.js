@@ -2262,6 +2262,23 @@ export async function cache(
           rdcResult.entry.revalidate === 0 ||
           rdcResult.entry.expire < MIN_PRERENDERABLE_EXPIRE
         ) {
+          // The nested-cache error only makes sense when a dynamic nested cache
+          // actually shortened an outer cache that has no explicit `cacheLife`
+          // (`dynamicNestedCacheError` is set), and only when the app's default
+          // profile is itself prerenderable. If the default profile is already
+          // dynamic (`revalidate: 0` or an `expire` under the prerenderable
+          // minimum), every cache is omitted from prerenders by default, so
+          // there is no silent degradation to warn about. A short life from the
+          // default profile, or from a dev private cache's self-imposed
+          // `revalidate: 0` (which never carries a nested error), therefore
+          // stays a dynamic hole rather than erroring.
+          const defaultCacheLife = workStore.cacheLifeProfiles?.['default']
+          assertDefaultCacheLife(defaultCacheLife)
+          const shouldReportNestedCacheError =
+            rdcResult.dynamicNestedCacheError !== undefined &&
+            defaultCacheLife.revalidate !== 0 &&
+            defaultCacheLife.expire >= MIN_PRERENDERABLE_EXPIRE
+
           switch (workUnitStore.type) {
             case 'prerender':
               // In a Dynamic I/O prerender, if the cache entry has
@@ -2271,7 +2288,10 @@ export async function cache(
               // a dynamic hole that can be filled in during the resume with
               // a potentially cached entry.
               if (rdcResult.entry.revalidate === 0) {
-                if (rdcResult.hasExplicitRevalidate === false) {
+                if (
+                  rdcResult.hasExplicitRevalidate === false &&
+                  shouldReportNestedCacheError
+                ) {
                   throw wrapAsInvalidDynamicUsageError(
                     new Error(nestedCacheZeroRevalidateErrorMessage, {
                       cause: rdcResult.dynamicNestedCacheError,
@@ -2284,7 +2304,10 @@ export async function cache(
                   'from static shell due to revalidate: 0'
                 )
               } else {
-                if (rdcResult.hasExplicitExpire === false) {
+                if (
+                  rdcResult.hasExplicitExpire === false &&
+                  shouldReportNestedCacheError
+                ) {
                   throw wrapAsInvalidDynamicUsageError(
                     new Error(nestedCacheShortExpireErrorMessage, {
                       cause: rdcResult.dynamicNestedCacheError,
@@ -2321,17 +2344,14 @@ export async function cache(
             }
             case 'request': {
               if (process.env.NODE_ENV === 'development') {
-                // These throws force the user to make an explicit cache life
-                // decision on an outer cache that an inner cache would
-                // otherwise silently shorten. A dev private cache's
-                // `revalidate` is forced to 0 by us (not by a nested cache), so
-                // it's excluded from the first throw to avoid a false positive.
-                // Its forced `expire` is exactly MIN_PRERENDERABLE_EXPIRE, so
-                // it never trips the second throw and needs no exclusion there.
+                // These throws force an explicit cache life decision on an
+                // outer cache that a nested cache would otherwise silently
+                // shorten (see `shouldReportNestedCacheError` above). Otherwise
+                // the short-lived entry is deferred as a dynamic hole below.
                 if (
-                  cacheContext.kind !== 'private' &&
                   rdcResult.entry.revalidate === 0 &&
-                  rdcResult.hasExplicitRevalidate === false
+                  rdcResult.hasExplicitRevalidate === false &&
+                  shouldReportNestedCacheError
                 ) {
                   throw wrapAsInvalidDynamicUsageError(
                     new Error(nestedCacheZeroRevalidateErrorMessage, {
@@ -2341,7 +2361,8 @@ export async function cache(
                 }
                 if (
                   rdcResult.entry.expire < MIN_PRERENDERABLE_EXPIRE &&
-                  rdcResult.hasExplicitExpire === false
+                  rdcResult.hasExplicitExpire === false &&
+                  shouldReportNestedCacheError
                 ) {
                   throw wrapAsInvalidDynamicUsageError(
                     new Error(nestedCacheShortExpireErrorMessage, {
