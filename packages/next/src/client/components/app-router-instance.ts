@@ -65,6 +65,24 @@ export type ActionQueueNode = {
   discarded?: boolean
 }
 
+// TEMP DEBUG (do not merge): action queue tracing for a CI-only
+// navigation.test.ts flake. Logs go to the browser console, which the test
+// harness echoes into CI output.
+let __queueTraceId = 0
+function traceLabel(action: ActionQueueNode | null): string {
+  if (action === null) return 'null'
+  const anyAction = action as any
+  if (anyAction.__traceId === undefined) {
+    anyAction.__traceId = ++__queueTraceId
+  }
+  return `#${anyAction.__traceId}:${action.payload.type}${
+    action.discarded ? '(discarded)' : ''
+  }`
+}
+function traceQueue(message: string) {
+  console.log(`[q] ${message}`)
+}
+
 // Called when `action` settles, to run the next action in the queue.
 function runRemainingActions(
   actionQueue: AppRouterActionQueue,
@@ -77,6 +95,10 @@ function runRemainingActions(
   // against router state that doesn't include that navigation yet.
   if (actionQueue.pending === action) {
     actionQueue.pending = action.next
+    traceQueue(
+      `advance: ${traceLabel(action)} -> ${traceLabel(action.next)}` +
+        ` needsRefresh=${!!actionQueue.needsRefresh}`
+    )
     if (actionQueue.pending !== null) {
       runAction({
         actionQueue,
@@ -85,9 +107,15 @@ function runRemainingActions(
       })
       return
     }
+  } else {
+    traceQueue(
+      `no advance: ${traceLabel(action)} settled but head is ` +
+        `${traceLabel(actionQueue.pending)} needsRefresh=${!!actionQueue.needsRefresh}`
+    )
   }
 
   if (actionQueue.pending === null && actionQueue.needsRefresh) {
+    traceQueue('flushing deferred refresh')
     // The queue is idle; flush the refresh requested by a discarded server
     // action that revalidated data.
     actionQueue.needsRefresh = false
@@ -109,9 +137,13 @@ async function runAction({
   actionQueue.pending = action
 
   const payload = action.payload
+  traceQueue(`run: ${traceLabel(action)}`)
   const actionResult = actionQueue.action(prevState, payload)
 
   function handleResult(nextState: AppRouterState) {
+    traceQueue(
+      `settled: ${traceLabel(action)} isHead=${actionQueue.pending === action}`
+    )
     // if we discarded this action, the state should also be discarded
     if (action.discarded) {
       // Check if the discarded server action revalidated data
@@ -138,6 +170,11 @@ async function runAction({
   // if the action is a promise, set up a callback to resolve it
   if (isThenable(actionResult)) {
     actionResult.then(handleResult, (err) => {
+      traceQueue(
+        `rejected: ${traceLabel(action)} isHead=${
+          actionQueue.pending === action
+        } err=${err instanceof Error ? err.message : String(err)}`
+      )
       runRemainingActions(actionQueue, action, setState)
       action.reject(err)
     })
@@ -186,6 +223,7 @@ function dispatchAction(
     // Mark this action as the last in the queue
     actionQueue.last = newAction
 
+    traceQueue(`dispatch (idle): ${traceLabel(newAction)}`)
     runAction({
       actionQueue,
       action: newAction,
@@ -195,6 +233,12 @@ function dispatchAction(
     payload.type === ACTION_NAVIGATE ||
     payload.type === ACTION_RESTORE
   ) {
+    traceQueue(
+      `dispatch (discards ${traceLabel(actionQueue.pending)}): ` +
+        `${traceLabel(newAction)} inherits next=${traceLabel(
+          actionQueue.pending.next
+        )} last=${traceLabel(actionQueue.last)}`
+    )
     // Navigations (including back/forward) take priority over any pending actions.
     // Mark the pending action as discarded (so the state is never applied) and start the navigation action immediately.
     actionQueue.pending.discarded = true
@@ -209,6 +253,10 @@ function dispatchAction(
       setState,
     })
   } else {
+    traceQueue(
+      `dispatch (enqueued behind ${traceLabel(actionQueue.last)}): ` +
+        `${traceLabel(newAction)} head=${traceLabel(actionQueue.pending)}`
+    )
     // The queue is not empty, so add the action to the end of the queue
     // It will be started by runRemainingActions after the previous action finishes
     if (actionQueue.last !== null) {
