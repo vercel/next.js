@@ -30,6 +30,8 @@ function _getInitialProps({
     hostname = window.location.hostname
   } else if (req) {
     const { getRequestMeta } =
+      // TODO(browser-variant): migrate to a .ts/.browser.ts split so the browser bundle drops the server branch; see scripts/generate-browser-variant-aliases.mjs
+      // ast-grep-ignore: no-typeof-window-require-tsx
       require('../server/request-meta') as typeof import('../server/request-meta')
 
     const initUrl = getRequestMeta(req, 'initURL')

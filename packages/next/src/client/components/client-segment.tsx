@@ -37,12 +37,16 @@ export function ClientSegmentRoot({
 
   if (typeof window === 'undefined') {
     const { createParamsFromClient } =
+      // TODO(browser-variant): migrate to a .ts/.browser.ts split so the browser bundle drops the server branch; see scripts/generate-browser-variant-aliases.mjs
+      // ast-grep-ignore: no-typeof-window-require-tsx
       require('../../server/request/params') as typeof import('../../server/request/params')
     const clientParams: Promise<Params> = createParamsFromClient(params)
 
     return <Component {...slots} params={clientParams} />
   } else {
     const { createRenderParamsFromClient } =
+      // TODO(browser-variant): migrate to a .ts/.browser.ts split so the browser bundle drops the server branch; see scripts/generate-browser-variant-aliases.mjs
+      // ast-grep-ignore: no-typeof-window-require-tsx
       require('../request/params.browser') as typeof import('../request/params.browser')
     const clientParams = createRenderParamsFromClient(params)
     return <Component {...slots} params={clientParams} />

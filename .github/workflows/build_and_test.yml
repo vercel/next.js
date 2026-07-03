@@ -230,6 +230,11 @@ jobs:
         pnpm lint-no-typescript
         pnpm check-examples
         pnpm validate-externals-doc
+        # Regenerate the browser-variant lists and fail if they changed, i.e. a
+        # `*.browser.{ts,tsx}` sibling was added/removed without running
+        # `pnpm generate-browser-variant-aliases` and committing the result.
+        pnpm generate-browser-variant-aliases
+        git diff --exit-code
       stepName: 'lint'
     secrets: inherit
 
