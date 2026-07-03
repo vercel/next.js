@@ -111,9 +111,7 @@ export interface RenderOptsPartial {
   botType?: 'dom' | 'html' | undefined
   serveStreamingMetadata?: boolean
   incrementalCache?: import('../lib/incremental-cache').IncrementalCache
-  cacheLifeProfiles?: {
-    [profile: string]: import('../use-cache/cache-life').CacheLife
-  }
+  cacheLifeProfiles: import('../config-shared').ResolvedCacheLifeProfiles
   staticPageGenerationTimeout: number
   isOnDemandRevalidate?: boolean
   isPossibleServerAction?: boolean

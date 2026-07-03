@@ -812,9 +812,7 @@ export async function buildAppStaticPaths({
   fetchCacheKeyPrefix?: string
   cacheHandler?: string
   cacheHandlers?: NextConfigComplete['cacheHandlers']
-  cacheLifeProfiles?: {
-    [profile: string]: import('../../server/use-cache/cache-life').CacheLife
-  }
+  cacheLifeProfiles: import('../../server/config-shared').ResolvedCacheLifeProfiles
   cacheMaxMemorySize: number
   requestHeaders: IncrementalCache['requestHeaders']
   nextConfigOutput: 'standalone' | 'export' | undefined

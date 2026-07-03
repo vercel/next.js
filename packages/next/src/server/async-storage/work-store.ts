@@ -4,8 +4,10 @@ import type { RenderOpts } from '../app-render/types'
 import type { FetchMetric } from '../base-http'
 import type { RequestLifecycleOpts } from '../base-server'
 import type { AppSegmentConfig } from '../../build/segment-config/app/app-segment-config'
-import type { CacheLife } from '../use-cache/cache-life'
-import type { ValidationLevel } from '../config-shared'
+import type {
+  ValidationLevel,
+  ResolvedCacheLifeProfiles,
+} from '../config-shared'
 
 import { AfterContext } from '../after/after-context'
 
@@ -23,7 +25,7 @@ export type WorkStoreContext = {
   isPrefetchRequest?: boolean
   nonce?: string
   renderOpts: {
-    cacheLifeProfiles?: { [profile: string]: CacheLife }
+    cacheLifeProfiles: ResolvedCacheLifeProfiles
     staticPageGenerationTimeout: number
     incrementalCache?: IncrementalCache
     isOnDemandRevalidate?: boolean

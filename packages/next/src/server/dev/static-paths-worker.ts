@@ -77,9 +77,7 @@ export async function loadStaticPaths({
   requestHeaders: IncrementalCache['requestHeaders']
   cacheHandler?: string
   cacheHandlers?: NextConfigComplete['cacheHandlers']
-  cacheLifeProfiles?: {
-    [profile: string]: import('../../server/use-cache/cache-life').CacheLife
-  }
+  cacheLifeProfiles: import('../config-shared').ResolvedCacheLifeProfiles
   nextConfigOutput: 'standalone' | 'export' | undefined
   buildId: string
   deploymentId: string

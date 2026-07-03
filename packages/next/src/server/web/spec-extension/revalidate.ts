@@ -236,7 +236,7 @@ function revalidate(
       ? profile
       : profile &&
           typeof profile === 'string' &&
-          store?.cacheLifeProfiles?.[profile]
+          store?.cacheLifeProfiles[profile]
         ? store.cacheLifeProfiles[profile]
         : undefined
 
