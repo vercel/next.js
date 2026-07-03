@@ -15,8 +15,21 @@ import type { ExperimentalPPRConfig } from './lib/experimental/ppr'
 import { INFINITE_CACHE } from '../lib/constants'
 import type { FallbackRouteParam } from '../build/static-paths/types'
 import type { MemoryEvictionMode } from '../build/swc/types'
+import type { CacheLife } from './use-cache/cache-life'
 import { isStableBuild } from '../shared/lib/errors/canary-only-config-error'
 import { isCI } from './ci-info'
+
+/**
+ * The `cacheLife` profiles after config normalization. `config.ts` always
+ * backfills the `default` profile so that its `stale`, `revalidate`, and
+ * `expire` are all defined, which is why `default` is `Required<CacheLife>`
+ * here while other profiles may still be partial. Runtime `"use cache"` code
+ * can therefore read `cacheLifeProfiles.default` without re-validating it.
+ */
+export interface ResolvedCacheLifeProfiles {
+  default: Required<CacheLife>
+  [profile: string]: CacheLife
+}
 
 /**
  * Resolved form of the prefetchInlining config after normalization in
@@ -26,11 +39,17 @@ export type PrefetchInliningConfig =
   | false
   | { maxSize: number; maxBundleSize: number }
 
-export type NextConfigComplete = Required<Omit<NextConfig, 'configFile'>> & {
+export type NextConfigComplete = Required<
+  Omit<NextConfig, 'configFile' | 'cacheLife'>
+> & {
   images: Required<ImageConfigComplete>
   typescript: TypeScriptConfig
   configFile: string | undefined
   configFileName: string
+  // Normalized by config.ts: the `default` profile is backfilled to be complete
+  // (see `ResolvedCacheLifeProfiles`), unlike the optional/partial user input.
+  // Omitted from the base so this is a clean replacement, not an intersection.
+  cacheLife: ResolvedCacheLifeProfiles
   // override NextConfigComplete.experimental.htmlLimitedBots to string
   // because it's not defined in NextConfigComplete.experimental
   htmlLimitedBots: string | undefined

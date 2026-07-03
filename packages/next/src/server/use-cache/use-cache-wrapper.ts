@@ -760,21 +760,6 @@ function captureOuterOwnerStack(
   return capturedOwnerStack + (parentOuterOwnerStack || '') || undefined
 }
 
-function assertDefaultCacheLife(
-  defaultCacheLife: CacheLife | undefined
-): asserts defaultCacheLife is Required<CacheLife> {
-  if (
-    !defaultCacheLife ||
-    defaultCacheLife.revalidate == null ||
-    defaultCacheLife.expire == null ||
-    defaultCacheLife.stale == null
-  ) {
-    throw new InvariantError(
-      'A default cacheLife profile must always be provided.'
-    )
-  }
-}
-
 // The maximum time we allow a `'use cache'` entry to fill. After this, we
 // assume the fill is stalled — either on hanging input to the cached function,
 // or on hanging I/O inside of it — and de-opt with an error.
@@ -806,11 +791,7 @@ function generateCacheEntryWithCacheContext(
   timeoutError: UseCacheTimeoutError,
   deadlockError: UseCacheDeadlockError | undefined
 ) {
-  if (!workStore.cacheLifeProfiles) {
-    throw new InvariantError('cacheLifeProfiles should always be provided.')
-  }
-  const defaultCacheLife = workStore.cacheLifeProfiles['default']
-  assertDefaultCacheLife(defaultCacheLife)
+  const defaultCacheLife = workStore.cacheLifeProfiles.default
 
   // Initialize the Store for this Cache entry.
   const cacheStore = createUseCacheStore(
@@ -2272,8 +2253,7 @@ export async function cache(
           // default profile, or from a dev private cache's self-imposed
           // `revalidate: 0` (which never carries a nested error), therefore
           // stays a dynamic hole rather than erroring.
-          const defaultCacheLife = workStore.cacheLifeProfiles?.['default']
-          assertDefaultCacheLife(defaultCacheLife)
+          const defaultCacheLife = workStore.cacheLifeProfiles.default
           const shouldReportNestedCacheError =
             rdcResult.dynamicNestedCacheError !== undefined &&
             defaultCacheLife.revalidate !== 0 &&
