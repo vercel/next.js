@@ -18,7 +18,7 @@ use turbopack_core::{
 };
 
 use crate::{
-    CssModuleType, LightningCssFeatureFlags,
+    CssModuleType, LightningCssOptions,
     chunk::{CssChunkItem, CssChunkItemContent, CssChunkPlaceable, CssChunkType, CssImport},
     code_gen::CodeGenerateable,
     process::{
@@ -42,7 +42,7 @@ pub struct CssModule {
     import_context: Option<ResolvedVc<ImportContext>>,
     ty: CssModuleType,
     environment: Option<ResolvedVc<Environment>>,
-    lightningcss_features: LightningCssFeatureFlags,
+    lightningcss: LightningCssOptions,
     /// The path of `source`, precomputed so that `ResolveOrigin::origin_path` is synchronous.
     origin_path: FileSystemPath,
 }
@@ -57,7 +57,7 @@ impl CssModule {
         ty: CssModuleType,
         import_context: Option<ResolvedVc<ImportContext>>,
         environment: Option<ResolvedVc<Environment>>,
-        lightningcss_features: LightningCssFeatureFlags,
+        lightningcss: LightningCssOptions,
     ) -> Result<Vc<Self>> {
         Ok(Self::cell(CssModule {
             origin_path: source.ident().await?.path.clone(),
@@ -66,7 +66,7 @@ impl CssModule {
             import_context,
             ty,
             environment,
-            lightningcss_features,
+            lightningcss,
         }))
     }
 
@@ -89,7 +89,7 @@ impl ParseCss for CssModule {
             this.import_context.map(|v| *v),
             this.ty,
             this.environment.as_deref().copied(),
-            this.lightningcss_features,
+            this.lightningcss.clone(),
         ))
     }
 }
@@ -104,7 +104,7 @@ impl ProcessCss for CssModule {
         Ok(process_css_with_placeholder(
             parse_result,
             this.environment.as_deref().copied(),
-            this.lightningcss_features,
+            this.lightningcss.features,
         ))
     }
 
@@ -128,7 +128,7 @@ impl ProcessCss for CssModule {
             minify_type,
             origin_source_map,
             this.environment.as_deref().copied(),
-            this.lightningcss_features,
+            this.lightningcss.features,
         ))
     }
 }

@@ -83,4 +83,47 @@ describe('experimental-lightningcss-features', () => {
       expect(css).not.toContain('--lightningcss-dark')
     })
   })
+
+  describe('lightningCss.features precedence', () => {
+    const { next, isTurbopack } = nextTestSetup({
+      files: __dirname,
+      dependencies: { lightningcss: '^1.23.0' },
+      // Chrome 100 does NOT support light-dark() natively.
+      packageJson: {
+        browserslist: ['chrome 100'],
+      },
+      nextConfig: {
+        experimental: {
+          useLightningcss: true,
+          // Legacy config says: do NOT transpile light-dark().
+          lightningCssFeatures: {
+            exclude: ['light-dark'],
+          },
+          // New passthrough says: DO transpile it. This must win.
+          lightningCss: {
+            features: {
+              include: ['light-dark'],
+            },
+          },
+        },
+      },
+    })
+
+    it('lets lightningCss.features override lightningCssFeatures', async () => {
+      const html = await next.render('/')
+      expect(html).toContain('Hello')
+
+      const css = await collectPageCss(next, '/')
+      if (isTurbopack) {
+        // `lightningCss.features.include` wins over `lightningCssFeatures.exclude`,
+        // so light-dark() is transpiled.
+        expect(css).not.toContain('light-dark(')
+        expect(css).toContain('--lightningcss-light')
+      } else {
+        // Webpack ignores `experimental.lightningCss`, so `lightningCssFeatures`
+        // (exclude) applies and light-dark() is preserved.
+        expect(css).toContain('light-dark(')
+      }
+    })
+  })
 })

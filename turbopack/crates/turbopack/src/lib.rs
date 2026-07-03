@@ -259,7 +259,7 @@ async fn apply_module_type(
         ModuleType::Css {
             ty,
             environment,
-            lightningcss_features,
+            lightningcss,
         } => ResolvedVc::upcast(
             CssModule::new(
                 *source,
@@ -267,7 +267,7 @@ async fn apply_module_type(
                 *ty,
                 css_import_context.map(|c| *c),
                 environment.as_deref().copied(),
-                *lightningcss_features,
+                lightningcss.clone(),
             )
             .to_resolved()
             .await?,

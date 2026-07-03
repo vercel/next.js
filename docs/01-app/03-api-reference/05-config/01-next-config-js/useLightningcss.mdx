@@ -39,6 +39,9 @@ By default, Lightning CSS decides which CSS features to transpile based on your 
 
 This applies to both webpack (when `useLightningcss` is enabled) and Turbopack.
 
+In Turbopack, [`lightningCss.features`](#lightningcss) is the newer equivalent of this option.
+When both are set, `lightningCss.features` takes precedence over `lightningCssFeatures`.
+
 ```ts filename="next.config.ts" switcher
 import type { NextConfig } from 'next'
 
@@ -117,10 +120,115 @@ Composite groups (shorthand for enabling multiple features at once):
 | `media-queries` | `media-interval-syntax`, `media-range-syntax`, `custom-media-queries`                                                           |
 | `colors`        | `color-function`, `oklab-colors`, `lab-colors`, `p3-colors`, `hex-alpha-colors`, `space-separated-color-notation`, `light-dark` |
 
+## `lightningCss`
+
+Turbopack-only. The `lightningCss` option is a passthrough for configuring Lightning CSS directly.
+It is the home for newer options such as CSS Modules class-name patterns, and it also accepts a `features` field that supersedes the top-level [`lightningCssFeatures`](#lightningcssfeatures).
+
+This option currently only applies to Turbopack. It has no effect with the webpack bundler.
+
+### `lightningCss.cssModules`
+
+By default, Turbopack generates [CSS Modules](/docs/app/getting-started/css#css-modules) class names using the pattern `[name]__[hash]__[local]`.
+The `cssModules` option lets you customize how those class names are generated.
+
+```ts filename="next.config.ts" switcher
+import type { NextConfig } from 'next'
+
+const nextConfig: NextConfig = {
+  experimental: {
+    lightningCss: {
+      cssModules: {
+        // e.g. `.button` in `styles.module.css` -> `styles__a1b2c3__button`
+        pattern: '[name]__[hash]__[local]',
+        dashedIdents: false,
+      },
+    },
+  },
+}
+
+export default nextConfig
+```
+
+```js filename="next.config.js" switcher
+/** @type {import('next').NextConfig} */
+const nextConfig = {
+  experimental: {
+    lightningCss: {
+      cssModules: {
+        // e.g. `.button` in `styles.module.css` -> `styles__a1b2c3__button`
+        pattern: '[name]__[hash]__[local]',
+        dashedIdents: false,
+      },
+    },
+  },
+}
+
+module.exports = nextConfig
+```
+
+#### Options
+
+| Option         | Type      | Description                                                                           |
+| -------------- | --------- | ------------------------------------------------------------------------------------- |
+| `pattern`      | `string`  | The class-name pattern. Defaults to `[name]__[hash]__[local]`.                        |
+| `dashedIdents` | `boolean` | Whether to rename dashed identifiers, such as custom properties. Defaults to `false`. |
+
+The `pattern` accepts the following placeholders. Any other text is treated as a literal, so you can add prefixes or separators.
+
+| Placeholder      | Description                  |
+| ---------------- | ---------------------------- |
+| `[name]`         | The base file name.          |
+| `[local]`        | The original class name.     |
+| `[hash]`         | A hash of the file path.     |
+| `[content-hash]` | A hash of the file contents. |
+
+An invalid `pattern` fails the build with a clear error at config load.
+
+### `lightningCss.features`
+
+The same as [`lightningCssFeatures`](#lightningcssfeatures), but nested under `lightningCss`.
+When both `lightningCss.features` and the top-level `lightningCssFeatures` are set, `lightningCss.features` takes precedence and `lightningCssFeatures` is ignored.
+See [Available features](#available-features) for the list of feature names.
+
+```ts filename="next.config.ts" switcher
+import type { NextConfig } from 'next'
+
+const nextConfig: NextConfig = {
+  experimental: {
+    lightningCss: {
+      features: {
+        include: ['light-dark', 'oklab-colors'],
+        exclude: ['nesting'],
+      },
+    },
+  },
+}
+
+export default nextConfig
+```
+
+```js filename="next.config.js" switcher
+/** @type {import('next').NextConfig} */
+const nextConfig = {
+  experimental: {
+    lightningCss: {
+      features: {
+        include: ['light-dark', 'oklab-colors'],
+        exclude: ['nesting'],
+      },
+    },
+  },
+}
+
+module.exports = nextConfig
+```
+
 ## Version History
 
 | Version  | Changes                                                                                                                                                                                      |
 | -------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `16.3.0` | `lightningCss` added (`cssModules` and `features`), Turbopack only.                                                                                                                          |
 | `16.2.0` | `lightningCssFeatures` added.                                                                                                                                                                |
 | `15.1.0` | Support for `useSwcCss` was removed from Turbopack.                                                                                                                                          |
 | `14.2.0` | Turbopack's default CSS processor was changed from `@swc/css` to Lightning CSS. `useLightningcss` became ignored on Turbopack, and a legacy `experimental.turbo.useSwcCss` option was added. |

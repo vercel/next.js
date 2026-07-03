@@ -1,4 +1,4 @@
-use std::sync::{Arc, RwLock};
+use std::sync::{Arc, LazyLock, Mutex, RwLock};
 
 use anyhow::{Result, bail};
 use async_trait::async_trait;
@@ -36,7 +36,7 @@ use turbopack_core::{
 };
 
 use crate::{
-    CssModuleType, LightningCssFeatureFlags,
+    CssModuleType, LightningCssFeatureFlags, LightningCssModulesOptions, LightningCssOptions,
     lifetime_util::stylesheet_into_static,
     references::{
         analyze_references,
@@ -366,7 +366,7 @@ pub async fn parse_css(
     import_context: Option<ResolvedVc<ImportContext>>,
     ty: CssModuleType,
     environment: Option<ResolvedVc<Environment>>,
-    feature_flags: LightningCssFeatureFlags,
+    lightningcss: LightningCssOptions,
 ) -> Result<Vc<ParseCssResult>> {
     let span = tracing::info_span!(
         "parse css",
@@ -391,7 +391,7 @@ pub async fn parse_css(
                             import_context,
                             ty,
                             environment,
-                            feature_flags,
+                            lightningcss,
                         )
                         .await?
                     }
@@ -427,6 +427,72 @@ fn parse_css_stylesheet<'a, 'o>(
     Ok(ss)
 }
 
+/// The Next.js default CSS-modules class-name pattern (`[name]__[hash]__[local]`),
+/// used when the user does not configure a custom pattern.
+fn default_css_module_pattern() -> Pattern<'static> {
+    Pattern {
+        segments: smallvec![
+            Segment::Name,
+            Segment::Literal("__"),
+            Segment::Hash,
+            Segment::Literal("__"),
+            Segment::Local,
+        ],
+    }
+}
+
+/// Interns a CSS-modules pattern string so it can be used as a `'static`
+/// [`Pattern`]. lightningcss' `Pattern` borrows its literal segments from the
+/// input, but the parsed [`ParserOptions`] must outlive this function, so the
+/// backing string has to be `'static`.
+///
+/// The set of distinct patterns is tiny (typically a single value from
+/// `next.config.js`), so each unique pattern is leaked at most once.
+fn intern_pattern(pattern: &str) -> &'static str {
+    static INTERNED: LazyLock<Mutex<FxHashMap<Box<str>, &'static str>>> =
+        LazyLock::new(|| Mutex::new(FxHashMap::default()));
+
+    let mut interned = INTERNED.lock().unwrap();
+    if let Some(&existing) = interned.get(pattern) {
+        return existing;
+    }
+    let leaked: &'static str = Box::leak(pattern.to_owned().into_boxed_str());
+    interned.insert(pattern.into(), leaked);
+    leaked
+}
+
+/// Resolves the lightningcss CSS-modules class-name pattern from user config,
+/// falling back to the Next.js default when unset. Invalid patterns are
+/// normally rejected earlier (at config load); if one still reaches here we
+/// surface a warning and use the default so the build can proceed.
+fn css_module_pattern(
+    options: &LightningCssModulesOptions,
+    source: ResolvedVc<Box<dyn Source>>,
+) -> Pattern<'static> {
+    let Some(pattern) = options.pattern.as_deref() else {
+        return default_css_module_pattern();
+    };
+
+    match Pattern::parse(intern_pattern(pattern)) {
+        Ok(pattern) => pattern,
+        Err(err) => {
+            ParsingIssue {
+                severity: IssueSeverity::Warning,
+                msg: format!(
+                    "Invalid `experimental.lightningCss.cssModules.pattern` ({pattern:?}): {err}. \
+                     Falling back to the default pattern."
+                )
+                .into(),
+                stage: IssueStage::Transform,
+                source: IssueSource::from_source_only(source),
+            }
+            .resolved_cell()
+            .emit();
+            default_css_module_pattern()
+        }
+    }
+}
+
 async fn process_content(
     content_vc: ResolvedVc<FileContent>,
     code: String,
@@ -436,7 +502,7 @@ async fn process_content(
     import_context: Option<ResolvedVc<ImportContext>>,
     ty: CssModuleType,
     environment: Option<ResolvedVc<Environment>>,
-    feature_flags: LightningCssFeatureFlags,
+    lightningcss: LightningCssOptions,
 ) -> Result<Vc<ParseCssResult>> {
     #[allow(clippy::needless_lifetimes)]
     fn without_warnings<'o, 'i>(config: ParserOptions<'o, 'i>) -> ParserOptions<'o, 'static> {
@@ -453,16 +519,8 @@ async fn process_content(
     let config = ParserOptions {
         css_modules: match ty {
             CssModuleType::Module => Some(lightningcss::css_modules::Config {
-                pattern: Pattern {
-                    segments: smallvec![
-                        Segment::Name,
-                        Segment::Literal("__"),
-                        Segment::Hash,
-                        Segment::Literal("__"),
-                        Segment::Local,
-                    ],
-                },
-                dashed_idents: false,
+                pattern: css_module_pattern(&lightningcss.css_modules, source),
+                dashed_idents: lightningcss.css_modules.dashed_idents,
                 grid: false,
                 container: false,
                 ..Default::default()
@@ -532,7 +590,7 @@ async fn process_content(
                 let targets = *get_lightningcss_browser_targets(
                     environment.as_deref().copied(),
                     true,
-                    feature_flags,
+                    lightningcss.features,
                 )
                 .await?;
 
