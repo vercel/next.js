@@ -35,6 +35,11 @@ export function unstable_onRouterTransitionCommit(
   navigateType: string,
   event: unknown
 ) {
+  if ((window as any).__THROW_ON_COMMIT) {
+    // Opt-in failure mode for tests: a consumer hook that throws must not
+    // break the navigation or suppress the other lifecycle events.
+    throw new Error('Intentional commit hook failure (test-only)')
+  }
   const pathname = new URL(href, window.location.href).pathname
   console.log(`[Router Transition Commit] [${navigateType}] ${pathname}`)
   record('commit', href, navigateType, event)

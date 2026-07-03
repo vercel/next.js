@@ -53,7 +53,7 @@ export function restoreReducer(
   const accumulation: NavigationRequestAccumulation = {
     separateRefreshUrls: null,
     scrollRef: null,
-    instrumentationCacheHit: false,
+    instrumentationTransition: action.instrumentationTransition,
   }
   const restoreSeed = convertServerPatchToFullTree(
     now,
@@ -81,6 +81,9 @@ export function restoreReducer(
   )
 
   if (task === null) {
+    // Falling back to a full-page navigation. (The action queue untracks the
+    // instrumentation transition: no destination tree was attached, so it
+    // can never commit.)
     return completeHardNavigation(state, restoredUrl, 'replace')
   }
   spawnDynamicRequests(
@@ -112,10 +115,6 @@ export function restoreReducer(
   // handles push/replace navigations), so this reducer attaches the
   // destination tree itself. The transition is null for the
   // pushState/replaceState sync path, which isn't a navigation.
-  attachRouterTransitionTarget(
-    action.instrumentationTransition,
-    newState.tree,
-    accumulation.instrumentationCacheHit
-  )
+  attachRouterTransitionTarget(action.instrumentationTransition, newState.tree)
   return newState
 }

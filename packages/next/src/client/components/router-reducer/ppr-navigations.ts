@@ -12,6 +12,10 @@ import {
   NOT_FOUND_SEGMENT_KEY,
 } from '../../../shared/lib/segment'
 import { matchSegment } from '../match-segments'
+import {
+  markRouterTransitionAsNotInstant,
+  type PendingRouterTransition,
+} from '../router-transition'
 import type { NavigationLockState } from '../segment-cache/navigation-testing-lock'
 import { createHrefFromUrl } from './create-href-from-url'
 import { fetchServerResponse } from './fetch-server-response'
@@ -142,17 +146,19 @@ export type NavigationRequestAccumulation = {
    */
   scrollRef: ScrollRef | null
   /**
-   * INSTRUMENTATION ONLY — never read by navigation logic. Exists solely so
-   * the instrumentation-client router transition hooks can report
-   * `cache: 'hit' | 'miss'` on the `commit` event. The invariant: `true` if
-   * and only if there was cached UI for a page segment that the router could
-   * navigate into immediately, AND it chose to navigate into it — a prefetched
-   * shell, BFCache content, or dynamic data that already streamed in. Stays
-   * `false` when every page segment had to wait on the server, so the user
-   * saw a loading fallback first. The head is excluded since it always
-   * streams in non-blocking.
+   * INSTRUMENTATION ONLY — never read by navigation logic. The pending
+   * transition being navigated to (`null` when the navigation is untracked,
+   * e.g. hydration, a server-action redirect, or a retry), threaded through
+   * the segment walk so a wait on the server can be marked directly on it
+   * (markRouterTransitionAsNotInstant). The waits are marked by construction
+   * rather than by remembering call sites: an unprefetched route tree
+   * produces its destination state asynchronously (marked from the asynchrony
+   * at the navigateImpl call sites), and a page segment with nothing
+   * renderable at commit is marked by createCacheNodeForSegment, whose every
+   * return must classify `rendersImmediately`. Segments reused from the
+   * current UI never wait, matching the transition's instant default.
    */
-  instrumentationCacheHit: boolean
+  instrumentationTransition: PendingRouterTransition | null
 }
 
 export type NavigationLock = NavigationLockState | null
@@ -171,7 +177,8 @@ export function createInitialCacheNodeForHydration(
   const accumulation: NavigationRequestAccumulation = {
     separateRefreshUrls: null,
     scrollRef: null,
-    instrumentationCacheHit: false,
+    // Hydration is not a tracked transition.
+    instrumentationTransition: null,
   }
   const restrictToShell = false
   const task = createCacheNodeOnNavigation(
@@ -958,12 +965,11 @@ function reuseSharedCacheNode(
   )
 }
 
-// Instrumentation only (see
-// NavigationRequestAccumulation.instrumentationCacheHit): whether a
-// BFCache entry renders page UI the instant the router navigates into it —
-// either its dynamic data already resolved, or a prefetched shell exists to
-// show while the data streams in. A still-pending entry with no shell
-// suspends into a loading fallback, which is a miss for tracking purposes.
+// Instrumentation only: whether a BFCache entry renders page UI the instant
+// the router navigates into it — either its dynamic data already resolved,
+// or a prefetched shell exists to show while the data streams in. A
+// still-pending entry with no shell has nothing to render until the network
+// responds, which is the wait the instrumentation marks as not instant.
 //
 // TODO: `status !== 'pending'` counts a *rejected* dynamic RSC as "resolved"
 // (deliberately mirroring the `dropPrefetchRsc` heuristic at the
@@ -973,13 +979,33 @@ function reuseSharedCacheNode(
 // `error === null`, which resolves the RSC with `null` (triggering a lazy
 // fetch on render) instead of rejecting it. If error handling for failed
 // dynamic responses ever starts rejecting these promises, a rejected entry
-// would be reported as a hit even though the user sees an error boundary
+// would be reported as instant even though the user sees an error boundary
 // rather than the cached page — revisit then.
 function bfcacheEntryRendersImmediately(entry: BFCacheEntry): boolean {
   const rsc = entry.rsc
   const rscDidResolve =
     rsc !== null && (!isDeferredRsc(rsc) || rsc.status !== 'pending')
   return rscDidResolve || entry.prefetchRsc !== null
+}
+
+// Every return from createCacheNodeForSegment funnels through this helper so
+// that no code path can produce a segment's cache node without classifying
+// it for instrumentation: `rendersImmediately` states whether the segment
+// renders from local data at commit, or waits on the network. A new return
+// path fails to compile without answering. Only page segments feed the
+// navigation's `instant` reporting; the classification is ignored
+// for layouts.
+function finishSegmentCacheNode(
+  accumulation: NavigationRequestAccumulation,
+  isPage: boolean,
+  rendersImmediately: boolean,
+  cacheNode: CacheNode,
+  needsDynamicRequest: boolean
+): { cacheNode: CacheNode; needsDynamicRequest: boolean } {
+  if (isPage && !rendersImmediately) {
+    markRouterTransitionAsNotInstant(accumulation.instrumentationTransition)
+  }
+  return { cacheNode, needsDynamicRequest }
 }
 
 function createCacheNodeForSegment(
@@ -994,10 +1020,9 @@ function createCacheNodeForSegment(
   // Instant Navigation Testing API only — restricts segment reads to shell
   // entries. Always false outside the testing API. See navigation-testing-lock.
   restrictToShell: boolean,
-  // Mutated to set `instrumentationCacheHit` when a page segment navigates
-  // into cached UI, so the router transition instrumentation can report the
-  // navigation as a cache hit/miss. See
-  // NavigationRequestAccumulation.instrumentationCacheHit.
+  // Carries the pending transition to mark as not instant when a page
+  // segment has no cached UI and must wait on a server response. See
+  // NavigationRequestAccumulation.instrumentationTransition.
   accumulation: NavigationRequestAccumulation
 ): { cacheNode: CacheNode; needsDynamicRequest: boolean } {
   // Construct a new CacheNode using data from the BFCache, the client's
@@ -1034,19 +1059,21 @@ function createCacheNodeForSegment(
         // fresh navigation, so we use the caller-supplied bfcacheId — the
         // BFCacheEntry's id is only restored on history-traversal
         // navigations.
-        if (isPage && bfcacheEntryRendersImmediately(bfcacheEntry)) {
-          accumulation.instrumentationCacheHit = true
-        }
-        return {
-          cacheNode: createCacheNode(
+        return finishSegmentCacheNode(
+          accumulation,
+          isPage,
+          // An entry with nothing renderable (dynamic data still pending and
+          // no prefetched shell) makes the page wait on the network.
+          bfcacheEntryRendersImmediately(bfcacheEntry),
+          createCacheNode(
             bfcacheEntry.rsc,
             bfcacheEntry.prefetchRsc,
             bfcacheEntry.head,
             bfcacheEntry.prefetchHead,
             bfcacheId
           ),
-          needsDynamicRequest: false,
-        }
+          false
+        )
       }
       break
     }
@@ -1091,16 +1118,15 @@ function createCacheNodeForSegment(
           bfcacheId
         )
       }
-      return {
-        cacheNode: createCacheNode(
-          rsc,
-          prefetchRsc,
-          head,
-          prefetchHead,
-          bfcacheId
-        ),
-        needsDynamicRequest: false,
-      }
+      return finishSegmentCacheNode(
+        accumulation,
+        isPage,
+        // Seeded from the document already in hand; nothing waits on
+        // the network.
+        true,
+        createCacheNode(rsc, prefetchRsc, head, prefetchHead, bfcacheId),
+        false
+      )
     }
     case FreshnessPolicy.HistoryTraversal:
       const bfcacheEntry = readFromBFCache(tree.varyPath)
@@ -1123,27 +1149,26 @@ function createCacheNodeForSegment(
         // navigations preserve the original id, regardless of whether
         // `cacheComponents` Activity preservation is enabled.
         //
-        // Instrumentation (`instrumentationCacheHit`): note that
-        // `dropPrefetchRsc` does NOT mean the navigation blocks on dynamic
-        // data. It means the dynamic response already (at least partially)
-        // streamed in, so the router skips the prefetched shell and renders
-        // the real content directly — still an instant render from cache,
-        // i.e. still a hit. The miss case is a still-pending entry with no
-        // prefetched shell, where the user sees a fallback;
-        // `bfcacheEntryRendersImmediately` distinguishes the two.
-        if (isPage && bfcacheEntryRendersImmediately(bfcacheEntry)) {
-          accumulation.instrumentationCacheHit = true
-        }
-        return {
-          cacheNode: createCacheNode(
+        return finishSegmentCacheNode(
+          accumulation,
+          isPage,
+          // `dropPrefetchRsc` does NOT mean the navigation waits on dynamic
+          // data — the response already (at least partially) streamed in, so
+          // this still renders instantly from cache. The not-instant case is
+          // a still-pending entry with no prefetched shell: the page has
+          // nothing to render until the network responds, so the navigation
+          // is stuck on the server — the long start→commit duration this
+          // classification attributes.
+          bfcacheEntryRendersImmediately(bfcacheEntry),
+          createCacheNode(
             bfcacheEntry.rsc,
             dropPrefetchRsc ? null : bfcacheEntry.prefetchRsc,
             bfcacheEntry.head,
             dropPrefetchRsc ? null : bfcacheEntry.prefetchHead,
             bfcacheEntry.bfcacheId
           ),
-          needsDynamicRequest: false,
-        }
+          false
+        )
       }
       break
     case FreshnessPolicy.RefreshAll:
@@ -1158,6 +1183,14 @@ function createCacheNodeForSegment(
 
   let cachedRsc: React.ReactNode | null = null
   let isCachedRscPartial: boolean = true
+  // Instrumentation classification for the final return below: only a
+  // Fulfilled entry renders page UI immediately from the segment cache —
+  // even when partial, since a PPR shell renders now and its dynamic holes
+  // stream in by design. Pending (the prefetch arrived too late), Empty,
+  // Rejected, and a missing entry all wait on the network. With parallel
+  // routes every rendered page passes through here, so one waiting page
+  // marks the whole navigation not instant.
+  let rendersImmediatelyFromCache = false
 
   const segmentEntry = readSegmentCacheEntryForNavigation(
     now,
@@ -1170,22 +1203,7 @@ function createCacheNodeForSegment(
         // Happy path: a cache hit
         cachedRsc = segmentEntry.rsc
         isCachedRscPartial = segmentEntry.isPartial
-        // A fulfilled *page* segment (even if partial) means the router
-        // navigates into cached UI immediately, so report a hit on the
-        // instrumentation accumulation. `isPage` distinguishes the leaf page
-        // segment (the one that renders `page.tsx`) from layout segments,
-        // and only the page counts: the hit/miss invariant is about whether
-        // the user immediately saw the destination *page* content. Layouts
-        // are usually shared with the route being left and therefore cached,
-        // so counting them would report "hit" for a navigation where the
-        // page itself still had to wait on the server behind a loading
-        // fallback. The other entry statuses are misses: pending/empty/
-        // rejected all resolve to a deferred placeholder — as does a segment
-        // seeded by the dynamic response (`seedRsc` below), since that
-        // navigation waited on the server.
-        if (isPage) {
-          accumulation.instrumentationCacheHit = true
-        }
+        rendersImmediatelyFromCache = true
         break
       }
       case EntryStatus.Pending: {
@@ -1382,14 +1400,16 @@ function createCacheNodeForSegment(
     }
   }
 
-  return {
-    cacheNode: createCacheNode(rsc, prefetchRsc, head, prefetchHead, bfcacheId),
+  return finishSegmentCacheNode(
+    accumulation,
+    isPage,
+    rendersImmediatelyFromCache,
+    createCacheNode(rsc, prefetchRsc, head, prefetchHead, bfcacheId),
     // TODO: We should store this field on the CacheNode itself. I think we can
     // probably unify NavigationTask, CacheNode, and DeferredRsc into a
     // single type. Or at least CacheNode and DeferredRsc.
-    needsDynamicRequest:
-      doesSegmentNeedDynamicRequest || doesHeadNeedDynamicRequest,
-  }
+    doesSegmentNeedDynamicRequest || doesHeadNeedDynamicRequest
+  )
 }
 
 function createCacheNode(

@@ -37,7 +37,10 @@ import type {
 import { setLinkForCurrentNavigation, type LinkInstance } from './links'
 import type { GlobalErrorComponent } from './builtin/global-error'
 import { isJavaScriptURLString } from '../lib/javascript-url'
-import { startRouterTransition } from './router-transition'
+import {
+  startRouterTransition,
+  untrackRouterTransition,
+} from './router-transition'
 
 export type DispatchStatePromise = React.Dispatch<ReducerState>
 
@@ -127,6 +130,21 @@ async function runAction({
       return
     }
 
+    // A tracked transition can only ever commit through the destination tree
+    // the reducer attaches to it. If this action settled without attaching
+    // the tree of the state it produced — the fetch failed, or the router
+    // bailed out to a full-page (MPA) navigation — the transition can never
+    // commit: stop tracking it here, at the single point every navigation
+    // funnels through, so a later unrelated commit can't misreport it as
+    // "superseded". (Discarded actions, excluded above, really are
+    // superseded and are reported when the superseding navigation commits.)
+    if (payload.type === ACTION_NAVIGATE || payload.type === ACTION_RESTORE) {
+      const transition = payload.instrumentationTransition
+      if (transition !== null && transition.tree !== nextState.tree) {
+        untrackRouterTransition(transition)
+      }
+    }
+
     actionQueue.state = nextState
 
     runRemainingActions(actionQueue, action, setState)
@@ -136,6 +154,13 @@ async function runAction({
   // if the action is a promise, set up a callback to resolve it
   if (isThenable(actionResult)) {
     actionResult.then(handleResult, (err) => {
+      // The reducer threw: this action's state will never be applied — even
+      // if a destination tree was already attached — and the tree check in
+      // handleResult never runs. Stop tracking the transition here so it
+      // isn't misreported as "superseded" by a later, unrelated commit.
+      if (payload.type === ACTION_NAVIGATE || payload.type === ACTION_RESTORE) {
+        untrackRouterTransition(payload.instrumentationTransition)
+      }
       runRemainingActions(actionQueue, action, setState)
       action.reject(err)
     })

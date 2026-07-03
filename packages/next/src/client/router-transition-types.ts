@@ -8,109 +8,88 @@ export type RouterTransitionEvent = {
 }
 
 /**
- * Emitted when a navigation is dispatched. The `from*` fields describe the
- * route the navigation started from; they mirror the `to*` fields on the
- * commit event, so consumers can join/group across events (e.g. a hash-only
- * navigation has `from*` fields deep-equal to the commit's `to*` fields).
+ * One rendered route of a transition: a route template plus the dynamic param
+ * values that fill its holes. Scoping the params to the template (rather than
+ * pooling them per event) makes the join unambiguous — `params[i]` always
+ * fills `:(i+1)` of *this* template — even when parallel-route slots render
+ * sibling templates whose holes share the same positional labels.
  */
-export type RouterTransitionStartEvent = RouterTransitionEvent & {
+export type RouterTransitionMatchedRoute = {
   /**
-   * The server's post-rewrite pathname (the route that actually rendered),
-   * reconstructed from the concrete route tree. May differ from
-   * `fromCanonicalUrl` when a rewrite/intercept occurred.
+   * The route template path, with parallel-route slots included (as `@slot`).
+   * Dynamic segments are positional holes (`:1`, `:2`, ...) rather than param
+   * names, so renaming a `[param]` folder does not break log continuity.
    *
-   * Example: with a middleware rewrite from `/old-blog/hello` to
-   * `/blog/hello`, this is `"/blog/hello"` while `fromCanonicalUrl` is
-   * `"/old-blog/hello"`. For an intercepted photo modal over a gallery, this
-   * is `"/gallery"` (the primary rendered route) while `fromCanonicalUrl` is
-   * `"/gallery/photos/1"`.
-   */
-  fromRenderedPathname: string
-  /**
-   * The pre-rewrite URL shown in the browser address bar.
-   *
-   * Example: `"/old-blog/hello?q=1"` — even when a middleware rewrite meant
-   * the server actually rendered `/blog/hello`.
-   */
-  fromCanonicalUrl: string
-  /**
-   * Route template paths, deepest (leaf/page) first, with parallel-route slots
-   * included (as `@slot`). Dynamic segments are positional holes (`:1`, `:2`,
-   * ...) rather than param names, so renaming a `[param]` folder does not break
-   * log continuity. Best-effort: the `app/` root and `page`/`layout` suffix are
-   * not reconstructable on the client.
+   * Hole numbering is per-template: `:n` is the n-th dynamic segment along
+   * this template's own path, independent of sibling templates. That keeps
+   * template strings — the values consumers group logs by — stable when an
+   * unrelated sibling route gains or loses a dynamic segment. Best-effort:
+   * the `app/` root and `page`/`layout` suffix are not reconstructable on
+   * the client.
    *
    * Examples: `/blog/hello` rendered by `app/blog/[slug]/page.tsx` reports
-   * `["/blog/:1"]`; a photo modal intercepted over a gallery reports
-   * `["/gallery", "/gallery/@modal/(.)photos/:1"]`; a route group folder like
-   * `(marketing)` never appears.
+   * `"/blog/:1"`; a photo modal intercepted over a gallery reports
+   * `"/gallery/@modal/(.)photos/:1"`; a route group folder like `(marketing)`
+   * never appears.
    */
-  fromRouteTemplates: string[]
+  template: string
   /**
-   * Dynamic param values, positional by hole order (NOT keyed by param name,
-   * which is folder-derived and not rename-stable). A catch-all value is the
-   * array of its path segments.
+   * The dynamic param values for this template, positional by hole order:
+   * `params[i]` fills this template's `:(i+1)` hole. Values are NOT keyed by
+   * param name, which is folder-derived and not rename-stable. A catch-all
+   * value is the array of its path segments.
    *
-   * Examples: `/blog/hello` under `app/blog/[slug]` reports `["hello"]` (the
-   * value of the `:1` hole); `/docs/a/b` under `app/docs/[...parts]` reports
-   * `[["a", "b"]]`.
-   */
-  fromParams: Array<string | string[]>
-  /**
-   * The post-rewrite search params (from the server-observed
-   * `renderedSearch`), so a search param added or changed by a middleware
-   * rewrite is reflected here. Unlike route param names, search param keys
-   * are reported verbatim — they are already user-visible in the address bar.
+   * A hole on a path prefix shared with sibling templates repeats its value
+   * in each sibling's `params`, so every entry of `routes` is joinable on
+   * its own.
    *
-   * Example: `?q=shoes&color=red&color=blue` reports
-   * `{ q: "shoes", color: ["red", "blue"] }`.
+   * Examples: `{ template: "/blog/:1", params: ["hello"] }`; `/docs/a/b`
+   * under `app/docs/[...parts]` reports
+   * `{ template: "/docs/:1", params: [["a", "b"]] }`.
    */
-  fromSearchParams: Record<string, string | string[]>
+  params: Array<string | string[]>
 }
 
 /**
- * Emitted when the navigation is applied to the browser. The `to*` fields
- * describe the route that was committed, in the same shape as the start
- * event's `from*` fields.
+ * Describes the route on one side of a transition: the route the navigation
+ * left (`from` on the start event) or the route that was committed (`to` on
+ * the commit event). Both sides share this shape so consumers can join/group
+ * across events (e.g. a hash-only navigation has a `from` deep-equal to the
+ * commit's `to`).
  */
-export type RouterTransitionCommitEvent = RouterTransitionEvent & {
+export type RouterTransitionRoute = {
   /**
    * The server's post-rewrite pathname (the route that actually rendered),
    * reconstructed from the concrete route tree. May differ from
-   * `toCanonicalUrl` when a rewrite/intercept occurred.
+   * `canonicalUrl` when a rewrite/intercept occurred.
    *
-   * Example: navigating to `/old-blog/hello` with a middleware rewrite to
-   * `/blog/hello` commits with `toCanonicalUrl: "/old-blog/hello"` (what the
-   * address bar shows) and `toRenderedPathname: "/blog/hello"` (what
-   * rendered).
+   * Example: with a middleware rewrite from `/old-blog/hello` to
+   * `/blog/hello`, this is `"/blog/hello"` while `canonicalUrl` is
+   * `"/old-blog/hello"`. For an intercepted photo modal over a gallery, this
+   * is `"/gallery"` (the primary rendered route) while `canonicalUrl` is
+   * `"/gallery/photos/1"`.
    */
-  toRenderedPathname: string
+  renderedPathname: string
   /**
    * The pre-rewrite URL shown in the browser address bar.
    *
    * Example: `"/old-blog/hello?q=1"` — even when a middleware rewrite meant
    * the server actually rendered `/blog/hello`.
    */
-  toCanonicalUrl: string
+  canonicalUrl: string
   /**
-   * Route template paths, deepest (leaf/page) first, with parallel-route slots
-   * included (as `@slot`). Dynamic segments are positional holes (`:1`, `:2`,
-   * ...) rather than param names, so renaming a `[param]` folder does not
-   * break log continuity.
+   * The rendered routes, primary (leaf/page) first, then parallel-route slot
+   * templates in stable (alphabetical) order. Each entry pairs a route
+   * template with the param values that fill that template's own holes; see
+   * `RouterTransitionMatchedRoute` for the join rule.
    *
    * Examples: `/blog/hello` rendered by `app/blog/[slug]/page.tsx` reports
-   * `["/blog/:1"]`; a photo modal intercepted over a gallery reports
-   * `["/gallery", "/gallery/@modal/(.)photos/:1"]`.
+   * `[{ template: "/blog/:1", params: ["hello"] }]`; a photo modal
+   * intercepted over a gallery reports
+   * `[{ template: "/gallery", params: [] },
+   *   { template: "/gallery/@modal/(.)photos/:1", params: ["1"] }]`.
    */
-  toRouteTemplates: string[]
-  /**
-   * Dynamic param values, positional by hole order. A catch-all value is the
-   * array of its path segments.
-   *
-   * Examples: `/blog/hello` under `app/blog/[slug]` reports `["hello"]`;
-   * `/docs/a/b` under `app/docs/[...parts]` reports `[["a", "b"]]`.
-   */
-  toParams: Array<string | string[]>
+  routes: RouterTransitionMatchedRoute[]
   /**
    * The post-rewrite search params (from the server-observed
    * `renderedSearch`), so a search param added or changed by a middleware
@@ -120,17 +99,40 @@ export type RouterTransitionCommitEvent = RouterTransitionEvent & {
    * Example: `?q=shoes&color=red&color=blue` reports
    * `{ q: "shoes", color: ["red", "blue"] }`.
    */
-  toSearchParams: Record<string, string | string[]>
+  searchParams: Record<string, string | string[]>
+}
+
+/**
+ * Emitted when a navigation is dispatched.
+ */
+export type RouterTransitionStartEvent = RouterTransitionEvent & {
   /**
-   * Whether the router had cached UI for the destination page that it could —
-   * and did — navigate into immediately. `'hit'` means the user saw cached
-   * content (a prefetched shell, BFCache content, or already-streamed dynamic
-   * data) the moment the navigation committed; `'miss'` means every page
-   * segment had to wait on the server, so the user saw a loading fallback
-   * first. The head is excluded from this determination because it streams in
-   * non-blocking.
+   * The route the navigation started from: the router state this navigation
+   * was computed against. When rapid successive navigations supersede each
+   * other, this is the destination of the latest dispatched navigation even
+   * if that navigation never visually committed (its abort event is what
+   * signals the gap to consumers joining commits to subsequent starts).
    */
-  cache: 'hit' | 'miss'
+  from: RouterTransitionRoute
+}
+
+/**
+ * Emitted when the navigation is applied to the browser.
+ */
+export type RouterTransitionCommitEvent = RouterTransitionEvent & {
+  /** The route that was committed. */
+  to: RouterTransitionRoute
+  /**
+   * Whether the navigation was instant: it rendered entirely from local data,
+   * never waiting on a server response. `false` when the commit itself was
+   * blocked on the network (the route was not prefetched), or a destination
+   * page segment had no cached content and showed a loading fallback until
+   * the dynamic response arrived. A prefetched PPR shell whose dynamic holes
+   * stream in after commit still counts as instant — no amount of prefetching
+   * avoids that wait. Join `instant` against the start→commit latency to find
+   * the navigations prefetching would fix.
+   */
+  instant: boolean
 }
 
 export type RouterTransitionAbortEvent = RouterTransitionEvent & {

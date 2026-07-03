@@ -12,6 +12,7 @@ import {
 } from '../../segment-cache/navigation'
 import { refreshReducer } from './refresh-reducer'
 import { getCurrentNavigationLock } from '../ppr-navigations'
+import { retargetRouterTransition } from '../../router-transition'
 
 export function serverPatchReducer(
   state: ReadonlyReducerState,
@@ -50,7 +51,7 @@ export function serverPatchReducer(
   const scrollBehavior = ScrollBehavior.Default
   const navigationLock = getCurrentNavigationLock()
   const now = Date.now()
-  return navigateToKnownRoute(
+  const newState = navigateToKnownRoute(
     now,
     state,
     retryUrl,
@@ -85,4 +86,12 @@ export function serverPatchReducer(
     // applies it, commitRouterTransition finds no match and emits nothing.
     null
   )
+  // The timeline above has one exception: if the retry lands in the same
+  // React batch as the navigation it corrects, the predicted tree never
+  // individually reaches HistoryUpdater and the transition is still pending.
+  // The retry lands the user on the server's authoritative version of that
+  // same navigation, so re-point the transition at the retry's tree rather
+  // than starve its commit. No-op in the already-committed case.
+  retargetRouterTransition(state.tree, newState.tree)
+  return newState
 }
