@@ -1,7 +1,5 @@
 export type RouterTransitionType = 'push' | 'replace' | 'traverse'
 
-export type RouterTransitionPrefetchIntent = 'full' | 'auto' | 'none'
-
 export type RouterTransitionEvent = {
   id: string
   timestamp: number
@@ -108,13 +106,16 @@ export type RouterTransitionRoute = {
 export type RouterTransitionStartEvent = RouterTransitionEvent & {
   /**
    * The route the navigation started from: the router state this navigation
-   * was computed against. When rapid successive navigations replace each
-   * other, this is the destination of the latest dispatched navigation even
-   * if that navigation never visually committed. Example: on `/`, the user
-   * clicks a link to `/a` and then a link to `/b` before `/a` finishes —
-   * `/b`'s start reports `from: /a` even though the user never saw `/a`
-   * (its abort event is what signals the gap to consumers joining commits
-   * to subsequent starts).
+   * was computed against. During rapid successive navigations this is the
+   * latest state the router had produced when this navigation was dispatched,
+   * which is not necessarily what the user saw — and not necessarily the
+   * previous navigation's destination either. Example: on `/`, the user
+   * clicks a link to `/a` and then a link to `/b` before `/a` visually
+   * commits. If `/a` had already produced its destination state (it was
+   * prefetched), `/b`'s start reports `from: /a` even though the user never
+   * saw `/a`; if `/a` was still waiting on the server, `/b`'s start reports
+   * `from: /`. The abort events are what signal these gaps to consumers
+   * joining commits to subsequent starts.
    */
   from: RouterTransitionRoute
 }

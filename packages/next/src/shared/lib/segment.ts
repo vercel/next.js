@@ -1,7 +1,22 @@
-import type { FlightRouterState, Segment } from './app-router-types'
+import type {
+  DynamicParamTypesShort,
+  FlightRouterState,
+  Segment,
+} from './app-router-types'
 
 export function getSegmentValue(segment: Segment) {
   return Array.isArray(segment) ? segment[1] : segment
+}
+
+/**
+ * Whether a dynamic param type (the short form stored in FlightRouterState
+ * dynamic segment tuples) is a catch-all, i.e. its value spans multiple URL
+ * path segments (stored joined by `/`). Covers plain (`c`), optional (`oc`),
+ * and interception-marked (`ci(.)`, `ci(..)`, ...) catch-alls; there is no
+ * optional-intercepted variant.
+ */
+export function isCatchAllParamType(type: DynamicParamTypesShort): boolean {
+  return type === 'oc' || type.startsWith('c')
 }
 
 export function isGroupSegment(segment: string) {
