@@ -49,7 +49,7 @@ The [`use cache`](/docs/app/api-reference/directives/use-cache) directive caches
 
 A cache directive gives a result a lifetime, information Next.js uses to apply rendering optimizations. See [Prerendering](#prerendering) for how cached results become part of the static shell and may be included in a [prefetch](#runtime-prefetching).
 
-> **Good to know:** We recommend pairing every cache directive with a [`cacheLife`](/docs/app/api-reference/functions/cacheLife); without one, the implicit `default` profile applies.
+> **Good to know:** We recommend pairing every cache directive with a [`cacheLife`](/docs/app/api-reference/functions/cacheLife). Without one, the implicit `default` profile applies.
 
 Arguments and any closed-over values from parent scopes automatically become part of the [cache key](/docs/app/api-reference/directives/use-cache#cache-keys), which means different inputs will produce separate cache entries. See [serialization requirements and constraints](/docs/app/api-reference/directives/use-cache#constraints) for details on what can be cached and how arguments work.
 
@@ -565,17 +565,15 @@ See the [Runtime prefetching guide](/docs/app/guides/runtime-prefetching) for fu
 
 ## Where cached content is stored
 
-A cached function's result is serialized, which is what lets Next.js store it and move it between systems. By default it sits in an in-memory store on the server, and from there it can travel to a few places, with its [`cacheLife`](/docs/app/api-reference/functions/cacheLife) setting how long it stays fresh:
+A cached function's output is serialized into an **RSC payload**, at build time or at runtime. This payload is what everything else works from. Next.js renders it into HTML, keeps it in a server or remote store, or sends it to the browser, and [`cacheLife`](/docs/app/api-reference/functions/cacheLife) sets how long each copy stays fresh:
 
-- **Into the static shell.** A cached component's serialized output is an RSC payload that Next.js renders into HTML for the [static shell](#prerendering). [ISR](#incremental-static-regeneration) writes upgraded shells back to the server cache: on disk when self-hosting, or the durable storage your platform provides, with a CDN in front. The [`revalidate`](/docs/app/api-reference/functions/cacheLife#revalidate) and [`expire`](/docs/app/api-reference/functions/cacheLife#expire) times decide when the server recomputes.
-- **Into a shared store.** You can opt into [`use cache: remote`](/docs/app/api-reference/directives/use-cache-remote) to keep the result in a durable [cache handler](/docs/app/api-reference/config/next-config-js/cacheHandlers) shared across server instances, rather than the default in-memory store, which is per-instance and ephemeral on serverless. It adds a network roundtrip and storage cost, so it pays off only when the hit rate is high enough to justify it.
-- **Into the browser.** The payload can travel in the RSC sent for a client navigation or [prefetch](#runtime-prefetching), where the browser treats it as fresh for its [`stale`](/docs/app/api-reference/functions/cacheLife#stale) window. [`use cache: private`](/docs/app/api-reference/directives/use-cache-private) results live only here, never on the server.
+- **Prerendered HTML.** The payload is rendered to HTML and stored on disk when self-hosting, or in your platform's durable storage behind a CDN. That HTML is the [static shell](#prerendering) at build time and the concrete page after an [ISR](#incremental-static-regeneration) upgrade, with [`revalidate`](/docs/app/api-reference/functions/cacheLife#revalidate) and [`expire`](/docs/app/api-reference/functions/cacheLife#expire) controlling when it's rebuilt.
+- **Shared store.** By default the result stays in a per-instance, in-memory store that is ephemeral on serverless. [`use cache: remote`](/docs/app/api-reference/directives/use-cache-remote) moves it to a durable [cache handler](/docs/app/api-reference/config/next-config-js/cacheHandlers) shared across instances, a network roundtrip that pays off only at a **high hit rate**.
+- **Browser.** The payload is included in the RSC sent for a client navigation or [prefetch](#runtime-prefetching), where the browser keeps it fresh for its [`stale`](/docs/app/api-reference/functions/cacheLife#stale) window. [`use cache: private`](/docs/app/api-reference/directives/use-cache-private) results live only here.
 
-> **Good to know:** An [App Shell](/docs/app/glossary#app-shell) that reads `cookies()` or `headers()` is session-specific, so it's cached per session on the client rather than in the shared server cache.
+> **Good to know:** An [App Shell](/docs/app/glossary#app-shell) that reads `cookies()` or `headers()` is session-specific, cached per session on the client rather than in the shared server cache.
 
-A new deploy starts from a cold cache. Prerenders are rebuilt, and because the [cache key](/docs/app/api-reference/directives/use-cache#cache-keys) includes the build id, `use cache` entries don't carry over either, even durable [`use cache: remote`](/docs/app/api-reference/directives/use-cache-remote) ones.
-
-Together, these facets of a lifetime are what let Next.js serve direct visits and client navigations instantly. See [Runtime caching considerations](/docs/app/api-reference/directives/use-cache#runtime-caching-considerations) for how the in-memory cache behaves in each hosting environment, and [Self-hosting](/docs/app/guides/self-hosting#caching-and-isr) for configuring where the server cache lives.
+A new deploy starts cold. Prerenders are rebuilt, and `use cache` entries don't carry over, even durable [`remote`](/docs/app/api-reference/directives/use-cache-remote) ones, because the [cache key](/docs/app/api-reference/directives/use-cache#cache-keys) includes the build id. See [Runtime caching considerations](/docs/app/api-reference/directives/use-cache#runtime-caching-considerations) for per-environment behavior and [Self-hosting](/docs/app/guides/self-hosting#caching-and-isr) for configuring the server cache.
 
 ## Incremental Static Regeneration
 
