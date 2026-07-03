@@ -204,6 +204,12 @@ module.exports = ({ dev, turbo, bundleType, experimental, ...rest }) => {
             minimizer: [
               new webpack.SwcJsMinimizerRspackPlugin({
                 minimizerOptions: {
+                  compress: {
+                    defaults: true,
+                    // FIXME: compiler bug: wrongly merging two conditionals with different return values into one
+                    // (in `prepareValidationInputsInPartialPrefetching`)
+                    conditionals: false,
+                  },
                   mangle:
                     dev || process.env.NEXT_SERVER_NO_MANGLE ? false : true,
                 },
