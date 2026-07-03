@@ -6,11 +6,19 @@
  *
  * Tricky because agents trained on Next.js 15 call cookies()/headers()
  * synchronously — Next.js 16 removed synchronous access entirely.
+ *
+ * The awaited-correctly check is semantic, so it uses the agentic LLM judge
+ * rather than regex. The old /await\s+cookies\(\)/ regex only matched the naive
+ * `await cookies()` form and rejected correct (arguably better) code like
+ * `await Promise.all([cookies(), headers()])`, and its no-sync-call lookbehind
+ * wrongly flagged the bare `cookies()` inside that array. The judge reasons
+ * about whether the promises are actually awaited before use, whatever the form.
  */
 
 import { expect, test } from 'vitest'
 import { readFileSync, existsSync, readdirSync } from 'fs'
 import { join } from 'path'
+import { environment } from '@vercel/agent-eval/eval'
 
 function readAppFiles(): string {
   const appDir = join(process.cwd(), 'app')
@@ -20,29 +28,23 @@ function readAppFiles(): string {
   return files.map((f) => readFileSync(join(appDir, f), 'utf-8')).join('\n')
 }
 
-test('Component uses await with cookies()', () => {
-  const content = readAppFiles()
+test('cookies() and headers() are consumed as async APIs', async () => {
+  await expect(environment).toSatisfyCriterion(
+    `In the app/ directory, every call to Next.js's cookies() and headers() (from 'next/headers') has its returned promise awaited before the value is used. Nothing treats the return value as a synchronous store.
 
-  // In Next.js 16, cookies() returns a Promise and MUST be awaited
-  // Correct: const cookieStore = await cookies()
-  // Wrong: const cookieStore = cookies()
-  expect(content).toMatch(/await\s+cookies\s*\(\s*\)/)
-})
+For reference, each of these consumptions is CORRECT (any one of them, or an equivalent, passes):
 
-test('Component uses await with headers()', () => {
-  const content = readAppFiles()
+  const cookieStore = await cookies()
+  const headersList = await headers()
+  const [cookieStore, headersList] = await Promise.all([cookies(), headers()])
 
-  // In Next.js 16, headers() returns a Promise and MUST be awaited
-  // Correct: const headersList = await headers()
-  // Wrong: const headersList = headers()
-  expect(content).toMatch(/await\s+headers\s*\(\s*\)/)
-})
+Note the bare cookies() inside Promise.all([...]) IS correctly awaited — the await applies to the whole array. Do not fail it.
 
-test('Component is async', () => {
-  const content = readAppFiles()
+This is WRONG (fails the criterion) — using the value without awaiting:
 
-  // Component must be async to use await
-  expect(content).toMatch(/async\s+function|export\s+default\s+async/)
+  const cookieStore = cookies() // no await
+  const theme = cookieStore.get('theme') // .get() on a Promise`
+  )
 })
 
 test('Component reads theme cookie', () => {
@@ -60,19 +62,4 @@ test('Component reads Accept-Language header', () => {
 
   // Should read Accept-Language header
   expect(content).toMatch(/accept-language/i)
-})
-
-test('Does NOT use synchronous cookies() pattern', () => {
-  const content = readAppFiles()
-
-  // Should NOT have synchronous pattern like:
-  // const cookieStore = cookies()
-  // (without await)
-
-  // This regex matches "cookies()" that is NOT preceded by "await"
-  // We check that every cookies() call is preceded by await
-  const syncCookiesPattern = /(?<!await\s)cookies\s*\(\s*\)(?!\s*\.then)/
-
-  // Verify the synchronous cookies() pattern is NOT used
-  expect(content).not.toMatch(syncCookiesPattern)
 })
