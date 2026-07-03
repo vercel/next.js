@@ -76,34 +76,17 @@ describe('browser-chunks', () => {
       if (cacheComponents) {
         expect(serverSources).toMatchInlineSnapshot(`
          [
-           "src/server/app-render/action-async-storage-instance.ts",
-           "src/server/app-render/action-async-storage.external.ts",
-           "src/server/app-render/after-task-async-storage-instance.ts",
-           "src/server/app-render/after-task-async-storage.external.ts",
            "src/server/app-render/async-local-storage.ts",
-           "src/server/app-render/blocking-route-messages.ts",
-           "src/server/app-render/dynamic-access-async-storage-instance.ts",
-           "src/server/app-render/dynamic-access-async-storage.external.ts",
-           "src/server/app-render/dynamic-rendering.ts",
            "src/server/app-render/instant-validation/boundary-constants.ts",
            "src/server/app-render/instant-validation/boundary-impl.tsx",
-           "src/server/app-render/instant-validation/boundary-tracking.tsx",
            "src/server/app-render/instant-validation/instant-samples-client.ts",
            "src/server/app-render/instant-validation/instant-samples.ts",
            "src/server/app-render/instant-validation/instant-validation-error.ts",
            "src/server/app-render/staged-rendering.ts",
-           "src/server/app-render/vary-params.ts",
            "src/server/app-render/work-async-storage-instance.ts",
            "src/server/app-render/work-async-storage.external.ts",
            "src/server/app-render/work-unit-async-storage-instance.ts",
            "src/server/app-render/work-unit-async-storage.external.ts",
-           "src/server/create-deduped-by-callsite-server-error-logger.ts",
-           "src/server/dynamic-rendering-utils.ts",
-           "src/server/lib/params-utils.ts",
-           "src/server/request/params.ts",
-           "src/server/request/search-params.ts",
-           "src/server/request/utils.ts",
-           "src/server/runtime-reacts.external.ts",
            "src/server/web/spec-extension/adapters/headers.ts",
            "src/server/web/spec-extension/adapters/reflect.ts",
            "src/server/web/spec-extension/adapters/request-cookies.ts",
@@ -111,40 +94,7 @@ describe('browser-chunks', () => {
          ]
         `)
       } else {
-        expect(serverSources).toMatchInlineSnapshot(`
-         [
-           "src/server/app-render/action-async-storage-instance.ts",
-           "src/server/app-render/action-async-storage.external.ts",
-           "src/server/app-render/after-task-async-storage-instance.ts",
-           "src/server/app-render/after-task-async-storage.external.ts",
-           "src/server/app-render/async-local-storage.ts",
-           "src/server/app-render/blocking-route-messages.ts",
-           "src/server/app-render/dynamic-access-async-storage-instance.ts",
-           "src/server/app-render/dynamic-access-async-storage.external.ts",
-           "src/server/app-render/dynamic-rendering.ts",
-           "src/server/app-render/instant-validation/boundary-constants.ts",
-           "src/server/app-render/instant-validation/boundary-tracking.tsx",
-           "src/server/app-render/instant-validation/instant-samples.ts",
-           "src/server/app-render/instant-validation/instant-validation-error.ts",
-           "src/server/app-render/staged-rendering.ts",
-           "src/server/app-render/vary-params.ts",
-           "src/server/app-render/work-async-storage-instance.ts",
-           "src/server/app-render/work-async-storage.external.ts",
-           "src/server/app-render/work-unit-async-storage-instance.ts",
-           "src/server/app-render/work-unit-async-storage.external.ts",
-           "src/server/create-deduped-by-callsite-server-error-logger.ts",
-           "src/server/dynamic-rendering-utils.ts",
-           "src/server/lib/params-utils.ts",
-           "src/server/request/params.ts",
-           "src/server/request/search-params.ts",
-           "src/server/request/utils.ts",
-           "src/server/runtime-reacts.external.ts",
-           "src/server/web/spec-extension/adapters/headers.ts",
-           "src/server/web/spec-extension/adapters/reflect.ts",
-           "src/server/web/spec-extension/adapters/request-cookies.ts",
-           "src/server/web/spec-extension/cookies.ts",
-         ]
-        `)
+        expect(serverSources).toMatchInlineSnapshot(`[]`)
       }
     } else {
       if (cacheComponents) {

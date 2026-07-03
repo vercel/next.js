@@ -10,5 +10,8 @@
 // output) instead of collapsing short lists onto a single line.
 #[rustfmt::skip]
 pub static BROWSER_VARIANT_MODULES: &[&str] = &[
+    "client/components/client-boundary-params",
+    "client/components/navigation-dynamic-rendering",
+    "client/components/server-async-storage",
     "client/components/unstable-rethrow",
 ];
