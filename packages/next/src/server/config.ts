@@ -2011,6 +2011,15 @@ async function loadConfigImpl(
     }
 
     if (
+      userConfig.experimental?.lightningCssModules &&
+      bundler !== Bundler.Turbopack
+    ) {
+      curLog.warn(
+        `experimental.lightningCssModules is only supported by Turbopack and has no effect with the current bundler.`
+      )
+    }
+
+    if (
       phase !== PHASE_PRODUCTION_SERVER &&
       userConfig.experimental?.useLightningcss
     ) {

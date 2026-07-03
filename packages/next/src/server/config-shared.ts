@@ -413,6 +413,42 @@ export interface LightningCssFeatures {
 }
 
 /**
+ * CSS Modules options passed to lightningcss. Only supported by Turbopack.
+ *
+ * The names and semantics match the lightningcss `cssModules` options, see
+ * https://lightningcss.dev/css-modules.html
+ */
+export interface LightningCssModules {
+  /**
+   * Custom naming pattern for scoped class names, e.g. `'[hash]-[local]'`.
+   * Supported placeholders: `[name]`, `[local]`, `[hash]` and
+   * `[content-hash]`. Defaults to `'[name]__[hash]__[local]'`.
+   */
+  pattern?: string
+  /**
+   * Whether to scope `@keyframes` names. Defaults to `true`.
+   */
+  animation?: boolean
+  /**
+   * Whether to scope CSS grid line names. Defaults to `false`.
+   */
+  grid?: boolean
+  /**
+   * Whether to scope `custom-ident` values. Defaults to `true`.
+   */
+  customIdents?: boolean
+  /**
+   * Whether to scope dashed idents such as custom property names.
+   * Defaults to `false`.
+   */
+  dashedIdents?: boolean
+  /**
+   * Whether to scope `@container` names. Defaults to `false`.
+   */
+  container?: boolean
+}
+
+/**
  * Accepted shapes for `experimental.cssChunking`. See [`ExperimentalConfig.cssChunking`] for the
  * accepted values; use [`resolveCssChunkingMode`] to normalize the value at runtime.
  */
@@ -1100,6 +1136,14 @@ export interface ExperimentalConfig {
    * Requires `useLightningcss: true`.
    */
   lightningCssFeatures?: LightningCssFeatures
+
+  /**
+   * Configure how lightningcss processes CSS Modules: the naming pattern for
+   * scoped names and which features (keyframes, grid line names, custom
+   * idents, dashed idents, container names) are scoped. Only supported by
+   * Turbopack.
+   */
+  lightningCssModules?: LightningCssModules
 
   /**
    * Enables view transitions by using the {@link https://react.dev/reference/react/ViewTransition ViewTransition} Component.

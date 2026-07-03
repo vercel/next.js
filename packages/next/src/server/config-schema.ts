@@ -418,6 +418,16 @@ export const experimentalSchema = {
       exclude: z.array(z.enum(LIGHTNINGCSS_FEATURE_NAMES)).optional(),
     })
     .optional(),
+  lightningCssModules: z
+    .object({
+      pattern: z.string().optional(),
+      animation: z.boolean().optional(),
+      grid: z.boolean().optional(),
+      customIdents: z.boolean().optional(),
+      dashedIdents: z.boolean().optional(),
+      container: z.boolean().optional(),
+    })
+    .optional(),
   testProxy: z.boolean().optional(),
   defaultTestRunner: z.enum(SUPPORTED_TEST_RUNNERS_LIST).optional(),
   allowDevelopmentBuild: z.literal(true).optional(),

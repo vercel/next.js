@@ -117,10 +117,61 @@ Composite groups (shorthand for enabling multiple features at once):
 | `media-queries` | `media-interval-syntax`, `media-range-syntax`, `custom-media-queries`                                                           |
 | `colors`        | `color-function`, `oklab-colors`, `lab-colors`, `p3-colors`, `hex-alpha-colors`, `space-separated-color-notation`, `light-dark` |
 
+## `lightningCssModules`
+
+Configures how Lightning CSS processes [CSS Modules](https://lightningcss.dev/css-modules.html): the naming pattern used for scoped class names and which features are scoped. Only supported by Turbopack.
+
+```ts filename="next.config.ts" switcher
+import type { NextConfig } from 'next'
+
+const nextConfig: NextConfig = {
+  experimental: {
+    lightningCssModules: {
+      // Custom naming pattern for scoped class names
+      pattern: 'my-company-[hash]-[local]',
+      // Keep authored @keyframes names instead of scoping them
+      animation: false,
+    },
+  },
+}
+
+export default nextConfig
+```
+
+```js filename="next.config.js" switcher
+/** @type {import('next').NextConfig} */
+const nextConfig = {
+  experimental: {
+    lightningCssModules: {
+      // Custom naming pattern for scoped class names
+      pattern: 'my-company-[hash]-[local]',
+      // Keep authored @keyframes names instead of scoping them
+      animation: false,
+    },
+  },
+}
+
+module.exports = nextConfig
+```
+
+### Options
+
+| Option         | Type      | Default                     | Description                                                                                                  |
+| -------------- | --------- | --------------------------- | ------------------------------------------------------------------------------------------------------------ |
+| `pattern`      | `string`  | `'[name]__[hash]__[local]'` | Naming pattern for scoped names. Supported placeholders: `[name]`, `[local]`, `[hash]` and `[content-hash]`. |
+| `animation`    | `boolean` | `true`                      | Scope `@keyframes` names.                                                                                    |
+| `grid`         | `boolean` | `false`                     | Scope CSS grid line names.                                                                                   |
+| `customIdents` | `boolean` | `true`                      | Scope `custom-ident` values.                                                                                 |
+| `dashedIdents` | `boolean` | `false`                     | Scope dashed idents such as custom property names.                                                           |
+| `container`    | `boolean` | `false`                     | Scope `@container` names.                                                                                    |
+
+> **Good to know**: Disabling feature scoping (for example `animation: false`) matches the behavior of webpack's `css-loader`, which can be useful when migrating from webpack to Turbopack.
+
 ## Version History
 
 | Version  | Changes                                                                                                                                                                                      |
 | -------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `16.3.0` | `lightningCssModules` added.                                                                                                                                                                 |
 | `16.2.0` | `lightningCssFeatures` added.                                                                                                                                                                |
 | `15.1.0` | Support for `useSwcCss` was removed from Turbopack.                                                                                                                                          |
 | `14.2.0` | Turbopack's default CSS processor was changed from `@swc/css` to Lightning CSS. `useLightningcss` became ignored on Turbopack, and a legacy `experimental.turbo.useSwcCss` option was added. |

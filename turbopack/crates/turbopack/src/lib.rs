@@ -260,6 +260,7 @@ async fn apply_module_type(
             ty,
             environment,
             lightningcss_features,
+            css_modules_options,
         } => ResolvedVc::upcast(
             CssModule::new(
                 *source,
@@ -268,6 +269,7 @@ async fn apply_module_type(
                 css_import_context.map(|c| *c),
                 environment.as_deref().copied(),
                 *lightningcss_features,
+                css_modules_options.clone(),
             )
             .to_resolved()
             .await?,
@@ -760,6 +762,7 @@ async fn process_default_internal(
                     empty_transforms,
                     default_options,
                     None,
+                    Default::default(),
                     Default::default(),
                 )
                 .await?;
