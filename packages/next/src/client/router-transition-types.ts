@@ -108,10 +108,13 @@ export type RouterTransitionRoute = {
 export type RouterTransitionStartEvent = RouterTransitionEvent & {
   /**
    * The route the navigation started from: the router state this navigation
-   * was computed against. When rapid successive navigations supersede each
+   * was computed against. When rapid successive navigations replace each
    * other, this is the destination of the latest dispatched navigation even
-   * if that navigation never visually committed (its abort event is what
-   * signals the gap to consumers joining commits to subsequent starts).
+   * if that navigation never visually committed. Example: on `/`, the user
+   * clicks a link to `/a` and then a link to `/b` before `/a` finishes —
+   * `/b`'s start reports `from: /a` even though the user never saw `/a`
+   * (its abort event is what signals the gap to consumers joining commits
+   * to subsequent starts).
    */
   from: RouterTransitionRoute
 }
@@ -122,26 +125,15 @@ export type RouterTransitionStartEvent = RouterTransitionEvent & {
 export type RouterTransitionCommitEvent = RouterTransitionEvent & {
   /** The route that was committed. */
   to: RouterTransitionRoute
-  /**
-   * Whether the navigation was instant: it rendered entirely from local data,
-   * never waiting on a server response. `false` when the commit itself was
-   * blocked on the network (the route was not prefetched), or a destination
-   * page segment had no cached content and showed a loading fallback until
-   * the dynamic response arrived. A prefetched PPR shell whose dynamic holes
-   * stream in after commit still counts as instant — no amount of prefetching
-   * avoids that wait. Join `instant` against the start→commit latency to find
-   * the navigations prefetching would fix.
-   */
-  instant: boolean
 }
 
 export type RouterTransitionAbortEvent = RouterTransitionEvent & {
   /**
-   * The id of the transition whose commit superseded (and thereby aborted)
-   * this one. A transition is aborted only by being superseded: a newer
+   * The id of the transition whose commit replaced (and thereby aborted)
+   * this one. A transition is aborted only by being replaced: a newer
    * navigation committed before this one could.
    */
-  supersededByTransitionId: string
+  replacedBy: string
 }
 
 export type ClientInstrumentationHooks = {

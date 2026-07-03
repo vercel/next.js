@@ -106,23 +106,22 @@ import type {
 export function unstable_onRouterTransitionCommit(
   url: string,
   navigationType: RouterTransitionType,
-  { id, timestamp, to, instant }: RouterTransitionCommitEvent
+  { id, timestamp, to }: RouterTransitionCommitEvent
 ) {
-  console.log(id, timestamp, url, navigationType, to.renderedPathname, instant)
+  console.log(id, timestamp, url, navigationType, to.renderedPathname)
 }
 
 export function unstable_onRouterTransitionAbort(
   url: string,
   navigationType: RouterTransitionType,
-  { id, timestamp, supersededByTransitionId }: RouterTransitionAbortEvent
+  { id, timestamp, replacedBy }: RouterTransitionAbortEvent
 ) {
-  // `supersededByTransitionId` is the id of the transition whose commit
-  // superseded this one.
-  console.log(id, timestamp, url, navigationType, supersededByTransitionId)
+  // `replacedBy` is the id of the transition whose commit replaced this one.
+  console.log(id, timestamp, url, navigationType, replacedBy)
 }
 ```
 
-Each transition emits `onRouterTransitionStart` followed by at most one of `unstable_onRouterTransitionCommit` (when it is applied to the page) or `unstable_onRouterTransitionAbort` (when a newer navigation supersedes it first). A transition that leaves the page entirely (a full-page navigation, such as an external URL or a route the client cannot render) or whose fetch fails emits no terminal event, so a `start` without a commit or abort is not necessarily still in flight.
+Each transition emits `onRouterTransitionStart` followed by at most one of `unstable_onRouterTransitionCommit` (when it is applied to the page) or `unstable_onRouterTransitionAbort` (when a newer navigation replaces it first). A transition that leaves the page entirely (a full-page navigation, such as an external URL or a route the client cannot render) or whose fetch fails emits no terminal event, so a `start` without a commit or abort is not necessarily still in flight.
 
 The hooks receive:
 
@@ -130,8 +129,7 @@ The hooks receive:
 - `navigationType: 'push' | 'replace' | 'traverse'` - The type of navigation
 - `event.id` - An opaque ID shared by every event for this transition
 - `event.timestamp` - A framework-captured Unix timestamp in milliseconds
-- `event.instant` (commit only) - Whether the navigation rendered entirely from local data, never waiting on a server response. `false` when the route was not prefetched (so the commit itself blocked on the network) or a destination page segment had no cached content and showed a loading fallback until the dynamic response arrived. A prefetched PPR shell whose dynamic holes stream in after commit still counts as instant — no amount of prefetching avoids that wait. Join `instant` against the start→commit latency to find the navigations prefetching would fix. In development nothing is prefetched, so most navigations accurately report `false`
-- `event.supersededByTransitionId` (abort only) - The `id` of the transition whose commit superseded this one
+- `event.replacedBy` (abort only) - The `id` of the transition whose commit replaced this one
 
 The `start` event also carries `event.from` describing the route the navigation left, and the `commit` event carries `event.to`, describing the route that was committed. Both share the `RouterTransitionRoute` type:
 
@@ -140,7 +138,7 @@ The `start` event also carries `event.from` describing the route the navigation 
 - `routes` - The rendered routes, primary (page) first, then parallel slots. Each entry pairs a `template` with the `params` filling that template's holes: dynamic segments appear as positional holes (`:1`, `:2`, ...) rather than param names, so a navigation away from `/blog/hello` reports `{ template: '/blog/:1', params: ['hello'] }`, and a photo modal intercepted over a gallery reports `{ template: '/gallery/@modal/(.)photos/:1', params: ['1'] }`. `params[i]` always fills `:(i+1)` of its own template — hole numbers are per-template, so do not join one template's params against another's holes. Catch-all values are arrays of path segments
 - `searchParams` - The post-rewrite search params
 
-A hash-only navigation keeps the same route, so a commit's `to` matches its start's `from` (only the hash-bearing canonical URL differs). When the route is locally known the router reuses the UI already on screen and reports `instant: true`; if it had to consult the server first (as in development, where nothing is prefetched), it reports `instant: false`.
+A hash-only navigation keeps the same route, so a commit's `to` matches its start's `from` (only the hash-bearing canonical URL differs).
 
 Hook errors are isolated and do not affect navigation or other hooks.
 

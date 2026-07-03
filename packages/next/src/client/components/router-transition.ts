@@ -29,8 +29,11 @@ export type PendingRouterTransition = {
   /**
    * The destination exactly as the `start` hook reported it. The state's
    * `canonicalUrl` is the post-navigation, post-redirect href and can differ
-   * from it in both form and value; reporting the same string on
-   * start/commit/abort is what lets consumers correlate the events.
+   * from it in both form and value — e.g. a push to `/old-blog/hello` that
+   * the server redirects reports `url: "/old-blog/hello"` on every event,
+   * while the committed state's `canonicalUrl` is `/blog/hello`. Reporting
+   * the same string on start/commit/abort is what lets consumers correlate
+   * the events.
    */
   url: string
   /**
@@ -41,12 +44,6 @@ export type PendingRouterTransition = {
    * without leaking an instrumentation field into the router state itself.
    */
   tree: FlightRouterState | null
-  /**
-   * Backs the commit event's `instant` field: whether the navigation rendered
-   * entirely from local data, never waiting on a server response. Starts
-   * `true`; unset by markRouterTransitionAsNotInstant at the wait sites.
-   */
-  instant: boolean
 }
 
 let instrumentationModules: readonly ClientInstrumentationHooks[] = []
@@ -55,7 +52,7 @@ let nextTransitionId = 0
 // same objects threaded through the actions — the buffer exists for the
 // cross-transition bookkeeping a single threaded object can't provide:
 // commit needs the start *order* to know which older transitions were
-// superseded (aborted), and HistoryUpdater needs to find the transition
+// replaced (aborted), and HistoryUpdater needs to find the transition
 // whose tree it just applied. Only populated when the experimental flag is
 // on. (A plain array on purpose: it rarely holds more than a couple of
 // entries, and commit needs positional slicing.)
@@ -137,7 +134,6 @@ export function startRouterTransition(
       type,
       url,
       tree: null,
-      instant: true,
     }
     pendingTransitions.push(transition)
 
@@ -188,10 +184,12 @@ export function attachRouterTransitionTarget(
  *
  * A refresh (or a retry after a tree mismatch) mints a fresh tree from
  * whatever state is current when its reducer runs. If that base state is the
- * still-uncommitted destination of an in-flight navigation, React may batch
- * the two updates so that only the derived tree ever reaches HistoryUpdater —
- * the navigation's own tree is never applied individually, and its commit
- * would starve. Because these derivations land the user on the same
+ * still-uncommitted destination of an in-flight navigation — e.g. a click
+ * handler calls `router.push('/dest')` and `router.refresh()` in the same
+ * tick — React may batch the two updates so that only the derived tree ever
+ * reaches HistoryUpdater: the navigation's own tree is never applied
+ * individually, and its commit would starve. Because these derivations land
+ * the user on the same
  * destination the navigation targeted (a refresh re-fetches the current URL;
  * a retry replaces the tree with the server's authoritative version of it),
  * the transition's identity follows the derivation, and the eventual commit
@@ -218,28 +216,13 @@ export function retargetRouterTransition(
 }
 
 /**
- * Marks the transition as not instant, so its commit reports
- * `instant: false`. Instant-ness is a one-way latch: a transition starts
- * instant, any single wait flips it to not instant, and nothing (by design)
- * flips it back.
- */
-export function markRouterTransitionAsNotInstant(
-  transition: PendingRouterTransition | null
-): void {
-  if (process.env.__NEXT_INSTRUMENTATION_CLIENT_ROUTER_TRANSITION_EVENTS) {
-    if (transition === null) {
-      return
-    }
-    transition.instant = false
-  }
-}
-
-/**
  * Stops tracking a transition that can no longer commit: the action queue
  * calls this when a navigate/restore action settles without attaching a
- * destination tree (failed fetch, any full-page/MPA fallback) and when a
- * reducer throws. Without it, the entry would linger in `pendingTransitions`
- * and be misreported as "aborted, superseded by" a later, unrelated commit —
+ * destination tree (e.g. a push while offline whose fetch rejects, or a
+ * navigation the server answers with a redirect to another origin, which
+ * falls back to a full-page/MPA navigation) and when a reducer throws.
+ * Without it, the entry would linger in `pendingTransitions`
+ * and be misreported as "aborted, replaced by" a later, unrelated commit —
  * an abort must only ever mean "a newer navigation committed before this one
  * could". The consumer-visible result is a `start` with no terminal event.
  *
@@ -264,7 +247,7 @@ export function untrackRouterTransition(
 /**
  * Emits `commit` for the transition whose destination `tree` is being applied
  * to the browser, and `abort` for every transition that started before it
- * (each superseded by this commit: the action queue discards a pending
+ * (each replaced by this commit: the action queue discards a pending
  * navigation when a newer one is dispatched, so an older entry's state can
  * never be applied once a newer entry commits). Transitions that started
  * *after* the committing one are left in the buffer — they are still in
@@ -290,7 +273,7 @@ export function commitRouterTransition(state: AppRouterState): void {
     }
 
     const committed = pendingTransitions[index]
-    // Entries before `index` started earlier and are superseded; entries after
+    // Entries before `index` started earlier and are replaced; entries after
     // it are newer, still-running transitions and stay pending.
     const aborted = pendingTransitions.slice(0, index)
     pendingTransitions.splice(0, index + 1)
@@ -306,11 +289,6 @@ export function commitRouterTransition(state: AppRouterState): void {
         id: committed.id,
         timestamp: now,
         to,
-        // `instant` defaults to true and is only unset at the known blocking
-        // sites, so a navigation that renders entirely from local data
-        // (including one that reuses the current UI, e.g. hash-only) reports
-        // instant without any code path having to say so.
-        instant: committed.instant,
       })
     )
     for (const entry of aborted) {
@@ -318,7 +296,7 @@ export function commitRouterTransition(state: AppRouterState): void {
         hooks.unstable_onRouterTransitionAbort?.(entry.url, entry.type, {
           id: entry.id,
           timestamp: now,
-          supersededByTransitionId: committed.id,
+          replacedBy: committed.id,
         })
       )
     }
