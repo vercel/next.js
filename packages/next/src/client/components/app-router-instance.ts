@@ -38,8 +38,10 @@ import { setLinkForCurrentNavigation, type LinkInstance } from './links'
 import type { GlobalErrorComponent } from './builtin/global-error'
 import { isJavaScriptURLString } from '../lib/javascript-url'
 import {
+  markRouterTransitionAsReplaced,
   startRouterTransition,
   untrackRouterTransition,
+  type PendingRouterTransition,
 } from './router-transition'
 
 export type DispatchStatePromise = React.Dispatch<ReducerState>
@@ -96,6 +98,17 @@ function runRemainingActions(
   }
 }
 
+// Narrows to the action types that carry a tracked transition — only
+// navigate/restore actions emit `start` and thread the pending transition
+// object through the queue.
+function getInstrumentationTransition(
+  payload: ReducerActions
+): PendingRouterTransition | null {
+  return payload.type === ACTION_NAVIGATE || payload.type === ACTION_RESTORE
+    ? payload.instrumentationTransition
+    : null
+}
+
 async function runAction({
   actionQueue,
   action,
@@ -140,14 +153,12 @@ async function runAction({
     // so the reducer returns a state that unloads the page rather than one
     // with a new tree. Stop tracking the transition here, at the single point
     // every navigation funnels through, so a later unrelated commit can't
-    // misreport it as "replaced". (Discarded actions, excluded above,
-    // really are replaced and are reported when the replacing
-    // navigation commits.)
-    if (payload.type === ACTION_NAVIGATE || payload.type === ACTION_RESTORE) {
-      const transition = payload.instrumentationTransition
-      if (transition !== null && transition.tree !== nextState.tree) {
-        untrackRouterTransition(transition)
-      }
+    // misreport it as "replaced". (Discarded actions, excluded above, were
+    // marked as replaced when the newer navigation discarded them, and are
+    // reported when that navigation's race settles.)
+    const transition = getInstrumentationTransition(payload)
+    if (transition !== null && transition.tree !== nextState.tree) {
+      untrackRouterTransition(transition)
     }
 
     actionQueue.state = nextState
@@ -165,9 +176,12 @@ async function runAction({
       // route trees). This action's state will never be applied — even if a
       // destination tree was already attached — and the tree check in
       // handleResult never runs. Stop tracking the transition here so it
-      // isn't misreported as "replaced" by a later, unrelated commit.
-      if (payload.type === ACTION_NAVIGATE || payload.type === ACTION_RESTORE) {
-        untrackRouterTransition(payload.instrumentationTransition)
+      // isn't misreported as "replaced" by a later, unrelated commit. A
+      // discarded action keeps its transition, exactly as on the resolve
+      // path: it was marked as replaced when the newer navigation discarded
+      // it, and is reported when that navigation's race settles.
+      if (!action.discarded) {
+        untrackRouterTransition(getInstrumentationTransition(payload))
       }
       runRemainingActions(actionQueue, action, setState)
       action.reject(err)
@@ -229,6 +243,15 @@ function dispatchAction(
     // Navigations (including back/forward) take priority over any pending actions.
     // Mark the pending action as discarded (so the state is never applied) and start the navigation action immediately.
     actionQueue.pending.discarded = true
+
+    // The discarded navigation's state can never be applied, so its tracked
+    // transition can no longer commit. Record that it was replaced, so the
+    // transition lifecycle reports it correctly once this race settles: as
+    // aborted when the winning navigation commits, or dropped if every
+    // navigation in the race fails.
+    markRouterTransitionAsReplaced(
+      getInstrumentationTransition(actionQueue.pending.payload)
+    )
 
     // The rest of the current queue should still execute after this navigation.
     // (Note that it can't contain any earlier navigations, because we always put those into `actionQueue.pending` by calling `runAction`)

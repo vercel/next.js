@@ -22,7 +22,9 @@ import {
   FetchStrategy,
   type PrefetchTaskFetchStrategy,
 } from '../components/segment-cache/types'
-import type { RouterTransitionPrefetchIntent } from '../router-transition-types'
+// How much prefetching the `prefetch` prop requested. Mapped to the fetch
+// strategy that the prefetch scheduler understands.
+type LinkPrefetchIntent = 'full' | 'auto' | 'none'
 
 type Url = string | UrlObject
 type RequiredKeys<T> = {
@@ -379,7 +381,7 @@ export default function LinkComponent(
   const router = React.useContext(AppRouterContext)
 
   const prefetchEnabled = prefetchProp !== false
-  const prefetchIntent: RouterTransitionPrefetchIntent =
+  const prefetchIntent: LinkPrefetchIntent =
     prefetchProp === false ? 'none' : prefetchProp === true ? 'full' : 'auto'
 
   const fetchStrategy =
@@ -805,7 +807,7 @@ export const useLinkStatus = () => {
 }
 
 function getFetchStrategyFromPrefetchIntent(
-  prefetchIntent: Exclude<RouterTransitionPrefetchIntent, 'none'>
+  prefetchIntent: Exclude<LinkPrefetchIntent, 'none'>
 ): PrefetchTaskFetchStrategy {
   if (process.env.__NEXT_CACHE_COMPONENTS) {
     if (prefetchIntent === 'full') {

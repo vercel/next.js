@@ -1,9 +1,11 @@
 import type { FlightRouterState } from '../../shared/lib/app-router-types'
 import {
   DEFAULT_SEGMENT_KEY,
+  isCatchAllParamType,
   isGroupSegment,
   NOT_FOUND_SEGMENT_KEY,
 } from '../../shared/lib/segment'
+import { searchParamsToUrlQuery } from '../../shared/lib/router/utils/querystring'
 import {
   extractPathFromFlightRouterState,
   segmentToSourcePagePathname,
@@ -44,6 +46,15 @@ export type PendingRouterTransition = {
    * without leaking an instrumentation field into the router state itself.
    */
   tree: FlightRouterState | null
+  /**
+   * Whether the action queue discarded this transition's action because a
+   * newer navigation was dispatched. A replaced transition's state can never
+   * be applied, so it can no longer commit — it stays buffered only to be
+   * reported as aborted by the commit that ends its replacement race, and is
+   * dropped if that race dies out without any commit
+   * (see `sweepReplacedRouterTransitions`).
+   */
+  replaced: boolean
 }
 
 let instrumentationModules: readonly ClientInstrumentationHooks[] = []
@@ -58,11 +69,27 @@ let nextTransitionId = 0
 // entries, and commit needs positional slicing.)
 const pendingTransitions: PendingRouterTransition[] = []
 
+// Which hooks exist is precomputed at initialization (the module list is
+// fixed once hydration runs) so the per-navigation code can cheaply skip
+// building event payloads no registered hook would receive.
+let hasStartHook = false
+let hasCommitHook = false
+let hasAbortHook = false
+
 export function initializeRouterTransitionModules(
   modules: ClientInstrumentationModules
 ): void {
   instrumentationModules = modules.filter(
     (module): module is ClientInstrumentationHooks => module != null
+  )
+  hasStartHook = instrumentationModules.some(
+    (hooks) => typeof hooks.onRouterTransitionStart === 'function'
+  )
+  hasCommitHook = instrumentationModules.some(
+    (hooks) => typeof hooks.unstable_onRouterTransitionCommit === 'function'
+  )
+  hasAbortHook = instrumentationModules.some(
+    (hooks) => typeof hooks.unstable_onRouterTransitionAbort === 'function'
   )
 }
 
@@ -80,12 +107,7 @@ function callHooks(invoke: (hooks: ClientInstrumentationHooks) => void): void {
 }
 
 function hasLifecycleInstrumentation(): boolean {
-  return instrumentationModules.some(
-    (hooks) =>
-      typeof hooks.onRouterTransitionStart === 'function' ||
-      typeof hooks.unstable_onRouterTransitionCommit === 'function' ||
-      typeof hooks.unstable_onRouterTransitionAbort === 'function'
-  )
+  return hasStartHook || hasCommitHook || hasAbortHook
 }
 
 /**
@@ -134,21 +156,27 @@ export function startRouterTransition(
       type,
       url,
       tree: null,
+      replaced: false,
     }
     pendingTransitions.push(transition)
 
-    const from = describeRouteForInstrumentation(
-      state.tree,
-      state.canonicalUrl,
-      state.renderedSearch
-    )
-    callHooks((hooks) =>
-      hooks.onRouterTransitionStart?.(url, type, {
-        id,
-        timestamp: now,
-        from,
-      })
-    )
+    if (hasStartHook) {
+      // Skipped when no module registered a start hook: the route description
+      // (two tree walks plus URL/search parsing) has no other consumer. On a
+      // describe failure the hook receives `null`, the legacy event shape.
+      const from = describeRouteForInstrumentationSafely(
+        state.tree,
+        state.canonicalUrl,
+        state.renderedSearch
+      )
+      callHooks((hooks) =>
+        hooks.onRouterTransitionStart?.(
+          url,
+          type,
+          from === null ? null : { id, timestamp: now, from }
+        )
+      )
+    }
     return transition
   } else {
     callHooks((hooks) => hooks.onRouterTransitionStart?.(url, type, null))
@@ -216,6 +244,25 @@ export function retargetRouterTransition(
 }
 
 /**
+ * Marks a transition as replaced: the action queue calls this when it
+ * discards a pending navigate/restore action because a newer navigation was
+ * dispatched. A replaced transition's state can never be applied, so it can
+ * no longer commit — but it stays buffered so it is reported correctly when
+ * its replacement race settles: aborted by the commit that ends the race, or
+ * dropped without a terminal event if every navigation in the race dies
+ * without committing (see `sweepReplacedRouterTransitions`).
+ */
+export function markRouterTransitionAsReplaced(
+  transition: PendingRouterTransition | null
+): void {
+  if (process.env.__NEXT_INSTRUMENTATION_CLIENT_ROUTER_TRANSITION_EVENTS) {
+    if (transition !== null) {
+      transition.replaced = true
+    }
+  }
+}
+
+/**
  * Stops tracking a transition that can no longer commit: the action queue
  * calls this when a navigate/restore action settles without attaching a
  * destination tree (e.g. a push while offline whose fetch rejects, or a
@@ -240,7 +287,28 @@ export function untrackRouterTransition(
     const index = pendingTransitions.indexOf(transition)
     if (index !== -1) {
       pendingTransitions.splice(index, 1)
+      sweepReplacedRouterTransitions()
     }
+  }
+}
+
+/**
+ * Drops replaced transitions once no live (non-replaced) transition remains.
+ * A replaced entry can only be terminally reported by the commit of a live
+ * transition — its replacer, or transitively that replacer's replacer — so
+ * when the last live transition is untracked (failed or fell back to a
+ * full-page navigation) or commits, nothing can legitimately claim the
+ * leftovers. Leaving them buffered would let the next unrelated navigation's
+ * commit misreport them as its own aborts, with a `replacedBy` id the
+ * consumer never saw racing them. Like a failed navigation, a dropped
+ * entry's consumer-visible result is a `start` with no terminal event.
+ */
+function sweepReplacedRouterTransitions(): void {
+  if (
+    pendingTransitions.length > 0 &&
+    pendingTransitions.every((entry) => entry.replaced)
+  ) {
+    pendingTransitions.length = 0
   }
 }
 
@@ -279,18 +347,31 @@ export function commitRouterTransition(state: AppRouterState): void {
     pendingTransitions.splice(0, index + 1)
 
     const now = Date.now()
-    const to = describeRouteForInstrumentation(
-      tree,
-      canonicalUrl,
-      renderedSearch
-    )
-    callHooks((hooks) =>
-      hooks.unstable_onRouterTransitionCommit?.(committed.url, committed.type, {
-        id: committed.id,
-        timestamp: now,
-        to,
-      })
-    )
+    if (hasCommitHook) {
+      // Skipped when no module registered a commit hook — the route
+      // description has no other consumer. If describing fails, the commit
+      // event is dropped (its payload can't be built), but the bookkeeping
+      // above already ran and the aborts below still fire: the buffer must
+      // not desync from the state the browser actually applied.
+      const to = describeRouteForInstrumentationSafely(
+        tree,
+        canonicalUrl,
+        renderedSearch
+      )
+      if (to !== null) {
+        callHooks((hooks) =>
+          hooks.unstable_onRouterTransitionCommit?.(
+            committed.url,
+            committed.type,
+            {
+              id: committed.id,
+              timestamp: now,
+              to,
+            }
+          )
+        )
+      }
+    }
     for (const entry of aborted) {
       callHooks((hooks) =>
         hooks.unstable_onRouterTransitionAbort?.(entry.url, entry.type, {
@@ -300,6 +381,34 @@ export function commitRouterTransition(state: AppRouterState): void {
         })
       )
     }
+    // Entries newer than the committed one stay pending, but if all of them
+    // were already replaced, their race can no longer produce a commit.
+    sweepReplacedRouterTransitions()
+  }
+}
+
+/**
+ * `describeRouteForInstrumentation` behind a guard, because it runs on
+ * navigation code paths: `start` builds its payload synchronously inside the
+ * dispatch call stack and `commit` inside HistoryUpdater's insertion effect,
+ * so an exception escaping here would break the navigation itself — and
+ * instrumentation must never affect navigation. No known input throws today;
+ * this exists so a future gap in the describe logic degrades the event
+ * instead of the navigation. Returns `null` on failure.
+ */
+function describeRouteForInstrumentationSafely(
+  tree: FlightRouterState,
+  canonicalUrl: string,
+  renderedSearch: string
+): RouterTransitionRoute | null {
+  try {
+    return describeRouteForInstrumentation(tree, canonicalUrl, renderedSearch)
+  } catch (error) {
+    console.error(
+      'Failed to describe a route for an instrumentation-client router transition event',
+      error
+    )
+    return null
   }
 }
 
@@ -381,16 +490,13 @@ function getRoutesForInstrumentation(
       // A dynamic segment: [paramName, value, paramType]. Render a positional
       // hole and record its value in the same step — `nextParams.length`
       // doubles as the hole counter, since every hole records exactly one
-      // value. Catch-all params ('c', 'oc', and the interception-marker
-      // catch-alls 'ci(.)' etc.) match multiple path segments, so their value
-      // is reported as the array of segments.
+      // value. A catch-all matches multiple path segments, so its value is
+      // reported as the array of segments.
       const value = rawSegment[1]
       const paramType = rawSegment[2]
       nextParams = [
         ...params,
-        paramType === 'oc' || paramType.startsWith('c')
-          ? value.split('/')
-          : value,
+        isCatchAllParamType(paramType) ? value.split('/') : value,
       ]
       rendered = `:${nextParams.length}`
     } else {
@@ -458,11 +564,12 @@ function getRoutesForInstrumentation(
 function parseSearchParams(
   renderedSearch: string
 ): Record<string, string | string[]> {
-  const result: Record<string, string | string[]> = {}
-  const searchParams = new URLSearchParams(renderedSearch)
-  for (const key of new Set(searchParams.keys())) {
-    const values = searchParams.getAll(key)
-    result[key] = values.length > 1 ? values : values[0]
-  }
-  return result
+  // Delegates to the shared query-string semantics (single value → string,
+  // repeated key → array of values). The cast strips ParsedUrlQuery's
+  // `undefined` from the value type — searchParamsToUrlQuery never
+  // assigns it.
+  return searchParamsToUrlQuery(new URLSearchParams(renderedSearch)) as Record<
+    string,
+    string | string[]
+  >
 }
