@@ -30,20 +30,15 @@ function readAppFiles(): string {
 
 test('cookies() and headers() are consumed as async APIs', async () => {
   await expect(environment).toSatisfyCriterion(
-    `In the app/ directory, every call to Next.js's cookies() and headers() (from 'next/headers') has its returned promise awaited before the value is used. Nothing treats the return value as a synchronous store.
+    `Next.js 16's cookies() and headers() (from 'next/headers') are async: they return Promises. In the app/ directory, the code must consume them correctly at runtime — every read of the cookie store or headers list operates on a resolved value, never on a pending Promise.
 
-For reference, each of these consumptions is CORRECT (any one of them, or an equivalent, passes):
+For reference, one correct solution:
 
-  const cookieStore = await cookies()
-  const headersList = await headers()
   const [cookieStore, headersList] = await Promise.all([cookies(), headers()])
+  const theme = cookieStore.get('theme')?.value
+  const lang = headersList.get('accept-language')
 
-Note the bare cookies() inside Promise.all([...]) IS correctly awaited — the await applies to the whole array. Do not fail it.
-
-This is WRONG (fails the criterion) — using the value without awaiting:
-
-  const cookieStore = cookies() // no await
-  const theme = cookieStore.get('theme') // .get() on a Promise`
+Judge runtime correctness, not style: any form that resolves the promises before using the values is correct, even if unidiomatic or redundant.`
   )
 })
 

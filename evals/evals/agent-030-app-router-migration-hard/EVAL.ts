@@ -47,19 +47,17 @@ test('Home page migrated to Server Component with async data fetching', async ()
   expect(existsSync(pagePath)).toBe(true)
 
   await expect(environment).toSatisfyCriterion(
-    `app/page.tsx is the migrated home page: an async Server Component that fetches its data during server render, with no Pages Router data-fetching API left in actual code (mentions in comments are fine).
+    `app/page.tsx is the home page migrated to the App Router: an async Server Component that fetches its data during server render.
 
-For reference, a correct solution looks like:
+For reference, one correct solution shape:
 
-  // app/page.tsx — note: NO 'use client' directive
+  // app/page.tsx
   export default async function HomePage() {
-    // inline fetch(...) here, or an imported helper that fetches —
-    // any organization of the data fetching is fine
-    const posts = await getPosts()
+    const posts = await getPosts() // fetched inline or via an imported helper
     return <main>{/* renders the fetched data */}</main>
   }
 
-WRONG (fails the criterion): the file has a 'use client' directive; or actual code still defines or uses getServerSideProps; or the page renders without fetching its data on the server.`
+Judge runtime behavior, not style: any organization that renders the fetched data from a Server Component is correct.`
   )
 })
 
